@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="output" path="bin"/>
+	<classpathentry kind="src" path="src/main/java"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER" exported="true"/>
+	<classpathentry sourcepath="/home/jyu/.gradle/caches/artifacts-26/filestore/commons-dbcp/commons-dbcp/1.4/source/9b076ff231434d5403be6599a1347019b12c0def/commons-dbcp-1.4-sources.jar" kind="lib" path="/home/jyu/.gradle/caches/artifacts-26/filestore/commons-dbcp/commons-dbcp/1.4/jar/30be73c965cc990b153a100aaaaafcf239f82d39/commons-dbcp-1.4.jar" exported="true"/>
+	<classpathentry sourcepath="/home/jyu/.gradle/caches/artifacts-26/filestore/log4j/log4j/1.2.16/source/bf945d1dc995be7fe64923625f842fbb6bf443be/log4j-1.2.16-sources.jar" kind="lib" path="/home/jyu/.gradle/caches/artifacts-26/filestore/log4j/log4j/1.2.16/bundle/7999a63bfccbc7c247a9aea10d83d4272bd492c6/log4j-1.2.16.jar" exported="true"/>
+	<classpathentry kind="lib" path="/home/jyu/.gradle/caches/artifacts-26/filestore/org.mysql/mysql-connector-java/5.1.14/jar/94f32ab65801741e0f19e2b506d130f6792334d5/mysql-connector-java-5.1.14.jar" exported="true"/>
+</classpath>

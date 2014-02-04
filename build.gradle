@@ -1,0 +1,14 @@
+apply plugin: 'li-product'
+
+subprojects {
+	repositories {
+		mavenCentral()
+	}
+	
+	configurations {
+                compileJar {
+                        description = 'Jars to be included in the Fat Jar'
+                }
+        }
+}
+
