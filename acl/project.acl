@@ -1,3 +1,3 @@
-owners: [ stakiar, veramach, kgoodhop, lqiao, jyu, ynli, nveeramreddy ]
+owners: [ stakiar, veramach, kgoodhop, lqiao, jyu, ynli ]
 whitelist: [ tester ]
 paths: ['.*']
