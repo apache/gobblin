@@ -1,3 +1,4 @@
+apply plugin: 'li-java'
 apply plugin: 'li-product'
 
 subprojects {
