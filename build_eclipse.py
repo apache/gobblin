@@ -27,9 +27,9 @@ def find_file_recursively(file_pattern):
   matches = []
   for root, dirnames, filenames in os.walk(cur_dir):
     for filename in fnmatch.filter(filenames, file_pattern):
-      if os.system("svn ls %s >& /dev/null" % root) !=0: 
-	  print "WARNING: dir %s not in svn. Skipping. Please consider rm the dir" % root
-	  continue
+      if os.popen("git ls-files %s" % root).read()  == "" and options.skip_non_git_file:
+        print "WARNING: dir %s not in git. Skipping. Please consider rm the dir" % root
+        continue
       matches.append(os.path.join(root, filename))
   return matches
 
@@ -141,7 +141,7 @@ def main(argv):
   global options
   parser = OptionParser(usage="usage: %prog [options]")
   parser.add_option("", "--skip_build", action="store_true", dest="skip_build", default = False, help="skip build")
-  parser.add_option("", "--skip_non_svn_file", action="store_true", dest="skip_non_svn_file", default = False, help="skip non svn file")
+  parser.add_option("", "--skip_non_git_file", action="store_true", dest="skip_non_git_file", default = False, help="skip non svn file")
   (options, args) = parser.parse_args()
   
   if not options.skip_build:
