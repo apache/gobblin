@@ -1,0 +1,19 @@
+### Framework Parameters
+# Implementation of Source class used for this pull, for now we only support extensions of com.linkedin.uif.source.SourceToAvroBase
+source.class=com.linkedin.uif.source.SourceToAvroBase
+
+# Comma separated list of converter class that will be applied to extractor output in the order they are defined here
+converter.classes=com.linkedin.uif.converter.Converter,com.linkedin.uif.converter.Converter,com.linkedin.uif.converter.Converter
+
+# Schedule for pulls, the syntax here still needs to be defined
+schedule.definition=<some scheduling syntax>
+
+### Source specific parameters
+some.property=some value
+
+### Converter specific properties.  Since we have multiple converters, these properties should be qualified
+converter1.property=some value
+converter2.property=some value
+
+
+
