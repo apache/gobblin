@@ -6,7 +6,7 @@ import com.linkedin.uif.extractor.model.Extractor;
 
 public abstract class InputSource
 {
-  public abstract Workunit getWorkunit(Properties extractConf);
+  public abstract WorkUnit getWorkunit(Properties extractConf);
 
   public abstract Extractor getExtractor(Properties extractConf);
 }

@@ -51,7 +51,7 @@
     "commonsPool": "commons-pool:commons-pool:1.5.6",
     "easymock": "org.easymock:easymock:3.1",
     "easymockClassExtension": "org.easymock:easymockclassextension:3.1",
-    "guava": "com.google.guava:guava:10.0",
+    "guava": "com.google.guava:guava:15.0",
     "gson":"com.google.code.gson:gson:2.2.4",
     "hadoop": "org.apache.hadoop:hadoop-core:1.0.4-p2",
     "hadoopCore": "org.apache.hadoop:hadoop-core:1.0.4",
@@ -64,12 +64,13 @@
     "log4j": "log4j:log4j:1.2.16",
     "mysqlConnectorJava": "org.mysql:mysql-connector-java:5.1.14",
     "netty": "org.jboss.netty:netty:3.2.3.Final",
-    "ojdbc14": "com.oracle:ojdbc14:10.2.0.2.0",
     "quartz": "org.quartz:quartz:1.8.5",
     "snappy": "org.xerial.snappy:snappy-java:1.0.1-rc3",
     "testng": "org.testng:testng:6.4",
     "zkclient": "com.github.sgroschupf:zkclient:0.1",
-    "zookeeper": "org.apache.zookeeper:zookeeper:3.3.3"
+    "zookeeper": "org.apache.zookeeper:zookeeper:3.3.3",
+    "jacksonCore": "org.codehaus.jackson:jackson-core-asl:1.9.13",
+    "jacksonMapper": "org.codehaus.jackson:jackson-mapper-asl:1.9.13"
   },
   "product": {
     "container": {

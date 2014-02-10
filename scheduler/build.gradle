@@ -1,12 +1,11 @@
 apply plugin: 'li-java'
 
 dependencies {
-
   compile spec.external.commonsDbcp
   compile spec.external.log4j
   compile spec.external.mysqlConnectorJava
-
-  runtime spec.external.ojdbc14
+  compile spec.external.commonsLogging
+  compile spec.external.guava
 }
 
 configurations.all {

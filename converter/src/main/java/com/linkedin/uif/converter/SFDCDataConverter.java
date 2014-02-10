@@ -1,6 +1,5 @@
-package com.linkedin.uif.writer.converter;
+package com.linkedin.uif.converter;
 
-import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.Map;
 

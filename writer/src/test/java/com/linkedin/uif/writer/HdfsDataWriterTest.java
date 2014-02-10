@@ -1,23 +1,27 @@
 package com.linkedin.uif.writer;
 
+import java.io.IOException;
 import java.util.Properties;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.converter.SchemaConverter;
-import org.apache.hadoop.conf.Configuration;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.linkedin.uif.writer.schema.SchemaType;
 
 /**
- * Unit tests for {@link DataWriterBuilder}.
+ * Unit tests for {@link com.linkedin.uif.writer.HdfsDataWriter}.
  */
 @Test(groups = {"com.linkedin.uif.writer"})
-public class DataWriterBuilderTest {
+public class HdfsDataWriterTest {
 
-    @Test
-    public void testBuild() throws Exception {
+    private DataWriter<String> writer;
+
+    @BeforeClass
+    public void setUp() throws Exception {
         Properties properties = new Properties();
         properties.setProperty(ConfigurationKeys.BUFFER_SIZE_KEY,
                 ConfigurationKeys.DEFAULT_BUFFER_SIZE);
@@ -28,7 +32,7 @@ public class DataWriterBuilderTest {
 
         SchemaConverter<String> schemaConverter = new TestSchemaConverter();
 
-        DataWriter writer = DataWriterBuilder.<String, String>newBuilder()
+        this.writer = DataWriterBuilder.<String, String>newBuilder()
                 .writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
                 .writerId("writer-1")
                 .useDataConverter(new TestDataConverter(
@@ -36,9 +40,21 @@ public class DataWriterBuilderTest {
                 .useSchemaConverter(new TestSchemaConverter())
                 .dataSchema(TestConstants.AVRO_SCHEMA, SchemaType.AVRO)
                 .build();
+    }
 
-        Assert.assertTrue(writer instanceof HdfsDataWriter);
+    @Test
+    public void testWrite() throws IOException {
+        for (String record : TestConstants.JSON_RECORDS) {
+            this.writer.write(record);
+        }
+        Assert.assertEquals(this.writer.recordsWritten(), 3);
 
-        writer.close();
+        this.writer.close();
+        this.writer.commit();
+    }
+
+    @AfterClass
+    public void tearDown() throws IOException {
+        this.writer.close();
     }
 }
