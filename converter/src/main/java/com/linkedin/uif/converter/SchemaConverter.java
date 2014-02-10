@@ -1,4 +1,4 @@
-package com.linkedin.uif.writer.converter;
+package com.linkedin.uif.converter;
 
 import org.apache.avro.Schema;
 

@@ -1,4 +1,4 @@
-package com.linkedin.uif.writer.hdfs;
+package com.linkedin.uif.writer;
 
 import java.io.IOException;
 import java.net.URI;
@@ -14,28 +14,30 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import com.linkedin.uif.writer.DataWriter;
-import com.linkedin.uif.writer.converter.DataConversionException;
-import com.linkedin.uif.writer.converter.DataConverter;
+import com.linkedin.uif.converter.DataConversionException;
+import com.linkedin.uif.converter.DataConverter;
 
 /**
  * An implementation of {@link DataWriter} that writes directly
  * to HDFS in Avro format.
+ *
+ * @param <D> type of source data record representation
  */
-public class HdfsDataWriter<T> implements DataWriter<T> {
+class HdfsDataWriter<D> implements DataWriter<D> {
 
     private static final Log LOG = LogFactory.getLog(HdfsDataWriter.class);
 
     private final FileSystem fs;
     private final Path stagingFile;
     private final Path outputFile;
-    private final DataConverter<T> dataConverter;
+    private final DataConverter<D> dataConverter;
     private final DataFileWriter<GenericRecord> writer;
 
+    // Number of records successfully written
     private long count = 0;
 
     public HdfsDataWriter(URI uri, String stagingDir, String outputDir,
-            String fileName, int bufferSize, DataConverter<T> dataConverter,
+            String fileName, int bufferSize, DataConverter<D> dataConverter,
             Schema schema) throws IOException {
 
         this.fs = FileSystem.get(uri, new Configuration());
@@ -46,31 +48,44 @@ public class HdfsDataWriter<T> implements DataWriter<T> {
     }
 
     @Override
-    public void write(T sourceRecord) throws IOException {
+    public void write(D sourceRecord) throws IOException {
         try {
             this.writer.append(this.dataConverter.convert(sourceRecord));
         } catch (DataConversionException e) {
             LOG.error("Failed to convert source data record: " + sourceRecord);
             throw new IOException(e);
         }
-    // only increment when write is successful
-    this.count++;
-    }
 
-    @Override
-    public void commit() throws IOException {
-        this.fs.rename(this.stagingFile, this.outputFile);
-    }
-
-    @Override
-    public long recordsWritten() {
-        return this.count;
+        // only increment when write is successful
+        this.count++;
     }
 
     @Override
     public void close() throws IOException {
         this.writer.flush();
         this.writer.close();
+    }
+
+    @Override
+    public void commit() throws IOException {
+        if (this.fs.exists(this.outputFile)) {
+            throw new IOException(
+                    String.format("File %s already exists", this.outputFile));
+        }
+        this.fs.rename(this.stagingFile, this.outputFile);
+    }
+
+    @Override
+    public void cleanup() throws IOException {
+        // Delete the staging file
+        if (this.fs.exists(this.stagingFile)) {
+            this.fs.delete(this.stagingFile, false);
+        }
+    }
+
+    @Override
+    public long recordsWritten() {
+        return this.count;
     }
 
     /**
@@ -82,6 +97,11 @@ public class HdfsDataWriter<T> implements DataWriter<T> {
      */
     private DataFileWriter<GenericRecord> createDatumWriter(Schema schema,
             Path avroFile, int bufferSize) throws IOException {
+
+        if (this.fs.exists(avroFile)) {
+            throw new IOException(
+                    String.format("File %s already exists", avroFile));
+        }
 
         FSDataOutputStream outputStream = this.fs.create(
                 avroFile, true, bufferSize);

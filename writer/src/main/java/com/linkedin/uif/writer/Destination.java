@@ -37,10 +37,9 @@ public class Destination {
     }
 
     /**
-     * Get the destination, which can be a HDFS path or Kafka topic,
-     * depending on the destination type.
+     * Get configuration properties for the destination type.
      *
-     * @return destination
+     * @return configuration properties
      */
     public Properties getProperties() {
         return this.properties;

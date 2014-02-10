@@ -1,4 +1,4 @@
-package com.linkedin.uif.writer.converter;
+package com.linkedin.uif.converter;
 
 import org.apache.avro.generic.GenericRecord;
 
@@ -6,9 +6,9 @@ import org.apache.avro.generic.GenericRecord;
  * Converter for converting a source data record of a given type
  * to an Avro {@link GenericRecord}.
  *
- * @param <S> type of source data record representation
+ * @param <D> type of source data record representation
  */
-public interface DataConverter<S> {
+public interface DataConverter<D> {
 
     /**
      * Convert the given source data record into a {@link GenericRecord}
@@ -17,5 +17,5 @@ public interface DataConverter<S> {
      * @return converted {@link GenericRecord}
      * @throws DataConversionException when there's anything wrong with the conversion
      */
-    public GenericRecord convert(S sourceRecord) throws DataConversionException;
+    public GenericRecord convert(D sourceRecord) throws DataConversionException;
 }

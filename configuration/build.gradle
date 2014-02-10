@@ -5,8 +5,6 @@ dependencies {
   compile spec.external.commonsDbcp
   compile spec.external.log4j
   compile spec.external.mysqlConnectorJava
-
-  runtime spec.external.ojdbc14
 }
 
 configurations.all {

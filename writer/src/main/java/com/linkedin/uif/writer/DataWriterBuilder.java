@@ -6,12 +6,10 @@ import java.util.Properties;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.linkedin.uif.writer.conf.WriterConfig;
-import com.linkedin.uif.writer.converter.DataConverter;
-import com.linkedin.uif.writer.converter.SchemaConversionException;
-import com.linkedin.uif.writer.hdfs.HdfsDataWriter;
-import com.linkedin.uif.writer.kafka.KafkaDataWriter;
-import com.linkedin.uif.writer.converter.SchemaConverter;
+import com.linkedin.uif.configuration.ConfigurationKeys;
+import com.linkedin.uif.converter.DataConverter;
+import com.linkedin.uif.converter.SchemaConversionException;
+import com.linkedin.uif.converter.SchemaConverter;
 import com.linkedin.uif.writer.schema.SchemaType;
 
 import org.apache.avro.Schema;
@@ -19,17 +17,13 @@ import org.apache.avro.Schema;
 /**
  * A builder class for {@link DataWriter}.
  *
- * @param <D> type of source data record representation
  * @param <S> type of source schema representation
+ * @param <D> type of source data record representation
  */
-public class DataWriterBuilder<D, S> {
+public class DataWriterBuilder<S, D> {
 
     private Destination destination;
     private String writerId;
-    private String dataName;
-    private String dataStartTime;
-    private String dataEndTime;
-    private long count;
     private DataConverter<D> dataConverter;
     private SchemaConverter<S> schemaConverter;
     private S sourceSchema;
@@ -40,8 +34,8 @@ public class DataWriterBuilder<D, S> {
      *
      * @return a new {@link DataWriterBuilder}
      */
-    public static DataWriterBuilder newBuilder() {
-        return new DataWriterBuilder();
+    public static <S, D> DataWriterBuilder<S, D> newBuilder() {
+        return new DataWriterBuilder<S, D>();
     }
 
     /**
@@ -50,7 +44,7 @@ public class DataWriterBuilder<D, S> {
      * @param destination destination to write to
      * @return this {@link DataWriterBuilder} instance
      */
-    public DataWriterBuilder writeTo(Destination destination) {
+    public DataWriterBuilder<S, D> writeTo(Destination destination) {
         this.destination = destination;
         return this;
     }
@@ -61,41 +55,8 @@ public class DataWriterBuilder<D, S> {
      * @param writerId unique writer ID
      * @return this {@link DataWriterBuilder} instance
      */
-    public DataWriterBuilder writerId(String writerId) {
+    public DataWriterBuilder<S, D> writerId(String writerId) {
         this.writerId = writerId;
-        return this;
-    }
-
-    /**
-     * Tell the writer the name of the data.
-     *
-     * @param name name of the data
-     * @return this {@link DataWriterBuilder} instance
-     */
-    public DataWriterBuilder dataName(String name) {
-        this.dataName = name;
-        return this;
-    }
-
-    /**
-     * Tell the writer the start time of the data.
-     *
-     * @param startTime start time of the data
-     * @return this {@link DataWriterBuilder} instance
-     */
-    public DataWriterBuilder dataStartTime(String startTime) {
-        this.dataStartTime = startTime;
-        return this;
-    }
-
-    /**
-     * Tell the writer the end time of the data.
-     *
-     * @param endTime end time of the data
-     * @return this {@link DataWriterBuilder} instance
-     */
-    public DataWriterBuilder dataEndTime(String endTime) {
-        this.dataEndTime = endTime;
         return this;
     }
 
@@ -106,7 +67,7 @@ public class DataWriterBuilder<D, S> {
      *                      {@link org.apache.avro.generic.GenericRecord}
      * @return this {@link DataWriterBuilder} instance
      */
-    public DataWriterBuilder useDataConverter(DataConverter<D> dataConverter) {
+    public DataWriterBuilder<S, D> useDataConverter(DataConverter<D> dataConverter) {
         this.dataConverter = dataConverter;
         return this;
     }
@@ -118,7 +79,7 @@ public class DataWriterBuilder<D, S> {
      *                        {@link org.apache.avro.Schema}
      * @return this {@link DataWriterBuilder} instance
      */
-    public DataWriterBuilder useSchemaConverter(SchemaConverter<S> schemaConverter) {
+    public DataWriterBuilder<S, D> useSchemaConverter(SchemaConverter<S> schemaConverter) {
         this.schemaConverter = schemaConverter;
         return this;
     }
@@ -131,20 +92,9 @@ public class DataWriterBuilder<D, S> {
      *                   consumer, e.g., Lumos
      * @return this {@link DataWriterBuilder} instance
      */
-    public DataWriterBuilder dataSchema(S sourceSchema, SchemaType schemaType) {
+    public DataWriterBuilder<S, D> dataSchema(S sourceSchema, SchemaType schemaType) {
         this.sourceSchema = sourceSchema;
         this.schemaType = schemaType;
-        return this;
-    }
-
-    /**
-     * Tell the writer the expected total count of records.
-     *
-     * @param count expected total count of records
-     * @return this {@link DataWriterBuilder} instance
-     */
-    public DataWriterBuilder totalCount(long count) {
-        this.count = count;
         return this;
     }
 
@@ -154,38 +104,49 @@ public class DataWriterBuilder<D, S> {
      * @throws IOException if there is anything wrong building the writer
      * @return the built {@link DataWriter}
      */
-    public DataWriter build() throws IOException {
+    public DataWriter<D> build() throws IOException {
         Preconditions.checkNotNull(this.destination);
         Preconditions.checkArgument(!Strings.isNullOrEmpty(this.writerId));
         Preconditions.checkNotNull(this.dataConverter);
         Preconditions.checkNotNull(this.schemaConverter);
         Preconditions.checkNotNull(this.sourceSchema);
+        Preconditions.checkNotNull(this.schemaType);
+
+        // Convert the source schema to Avro schema
+        Schema schema;
+        try {
+            schema = this.schemaConverter.convert(this.sourceSchema);
+        } catch (SchemaConversionException e) {
+            throw new IOException("Failed to convert the source schema: " +
+                    this.sourceSchema);
+        }
+
+        // Perform schema validation
+        if (!this.schemaType.getSchemaValidator().validate(schema)) {
+            throw new IOException(String.format(
+                    "Schema of type %s could not be validated", this.schemaType.name()));
+        }
 
         switch (this.destination.getType()) {
             case HDFS:
                 Properties properties = this.destination.getProperties();
-                String uri = properties.getProperty(WriterConfig.FILE_SYSTEM_URI_KEY);
-                String stagingDir = properties.getProperty(WriterConfig.STAGING_DIR_KEY,
-                        WriterConfig.DEFAULT_STAGING_DIR);
-                String outputDir = properties.getProperty(WriterConfig.OUTPUT_DIR_KEY,
-                        WriterConfig.DEFAULT_OUTPUT_DIR);
-                String fileName = properties.getProperty(WriterConfig.FILE_NAME_KEY) +
+                String uri = properties.getProperty(ConfigurationKeys.FILE_SYSTEM_URI_KEY);
+                String stagingDir = properties.getProperty(ConfigurationKeys.STAGING_DIR_KEY,
+                        ConfigurationKeys.DEFAULT_STAGING_DIR);
+                String outputDir = properties.getProperty(ConfigurationKeys.OUTPUT_DIR_KEY,
+                        ConfigurationKeys.DEFAULT_OUTPUT_DIR);
+                // Add the writer ID to the file name so each writer writes to a different
+                // file of the same file group defined by the given file name
+                String fileName = properties.getProperty(ConfigurationKeys.FILE_NAME_KEY) +
                         "." + this.writerId;
                 int bufferSize = Integer.parseInt(properties.getProperty(
-                        WriterConfig.BUFFER_SIZE_KEY, WriterConfig.DEFAULT_BUFFER_SIZE));
-
-                Schema schema;
-                try {
-                    schema = this.schemaConverter.convert(this.sourceSchema);
-                } catch (SchemaConversionException e) {
-                    throw new IOException("Failed to convert the source schema: " +
-                            this.sourceSchema);
-                }
+                        ConfigurationKeys.BUFFER_SIZE_KEY,
+                        ConfigurationKeys.DEFAULT_BUFFER_SIZE));
 
                 return new HdfsDataWriter<D>(URI.create(uri), stagingDir, outputDir,
                         fileName, bufferSize, this.dataConverter, schema);
             case KAFKA:
-                return new KafkaDataWriter();
+                return new KafkaDataWriter<D>();
             default:
                 throw new RuntimeException("Unknown destination type: " +
                         this.destination.getType());

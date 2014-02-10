@@ -1,4 +1,4 @@
-package com.linkedin.uif.writer.converter;
+package com.linkedin.uif.converter;
 
 /**
  * A type of {@link Exception} thrown when there's anything wrong
