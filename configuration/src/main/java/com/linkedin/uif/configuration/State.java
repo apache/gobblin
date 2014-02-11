@@ -4,6 +4,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Properties;
+import java.util.Set;
 
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
@@ -32,9 +33,19 @@ public class State implements Writable
     return properties.getProperty(key);
   }
   
+  public String getProp(String key, String def)
+  {
+    return properties.getProperty(key, def);
+  }
+  
   public long getPropAsLong(String key)
   {
     return Long.valueOf(properties.getProperty(key));
+  }
+  
+  public long getPropAsLong(String key, long def)
+  {
+    return Long.valueOf(properties.getProperty(key, String.valueOf(def)));
   }
   
   public int getPropAsInt(String key)
@@ -42,14 +53,34 @@ public class State implements Writable
     return Integer.valueOf(properties.getProperty(key));
   }
   
+  public int getPropAsInt(String key, int def)
+  {
+    return Integer.valueOf(properties.getProperty(key, String.valueOf(def)));
+  }
+  
   public double getPropAsDouble(String key)
   {
     return Double.valueOf(properties.getProperty(key));
   }
   
+  public double getPropAsDouble(String key, double def)
+  {
+    return Double.valueOf(properties.getProperty(key, String.valueOf(def)));
+  }
+  
   public boolean getPropAsBoolean(String key)
   {
     return Boolean.valueOf(properties.getProperty(key));
+  }
+
+  public boolean getPropAsBoolean(String key, boolean def)
+  {
+    return Boolean.valueOf(properties.getProperty(key, String.valueOf(def)));
+  }
+
+  public Set<String> getPropertyNames()
+  {
+    return this.properties.stringPropertyNames();
   }
 
   @Override
