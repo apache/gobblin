@@ -8,17 +8,16 @@ import java.util.Properties;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
-import com.linkedin.uif.configuration.WritableProperties;
+import com.linkedin.uif.configuration.State;
 
-public class Workunit implements Writable
+public class WorkUnit extends State
 {
-  private WritableProperties properties = new WritableProperties();
   private String namespace = null;
   private String table = null;
   
-  public Workunit() {}
+  public WorkUnit() {}
   
-  public Workunit(String namespace, String table) {
+  public WorkUnit(String namespace, String table) {
     this.namespace = namespace;
     this.table = table;
   }
@@ -54,7 +53,7 @@ public class Workunit implements Writable
     txt.readFields(in);
     table = txt.toString();
     
-    properties.readFields(in);
+    super.readFields(in);
   }
 
   @Override
@@ -72,6 +71,6 @@ public class Workunit implements Writable
     txt.set(table);
     txt.write(out);
     
-    properties.write(out);
+    super.write(out);
   }
 }

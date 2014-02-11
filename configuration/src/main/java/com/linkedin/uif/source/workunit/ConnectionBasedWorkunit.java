@@ -6,7 +6,7 @@ import java.io.IOException;
 
 import org.apache.hadoop.io.Text;
 
-public abstract class ConnectionBasedWorkunit extends Workunit
+public abstract class ConnectionBasedWorkunit extends WorkUnit
 {
   private String url;
   private String username;

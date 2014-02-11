@@ -8,11 +8,11 @@ import java.util.Properties;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
-public class WritableProperties implements Writable
+public class State implements Writable
 {
   private Properties properties = new Properties();
   
-  public void addAll(WritableProperties properties)
+  public void addAll(State properties)
   {
     this.properties.putAll(properties.properties);
   }

@@ -1,19 +1,21 @@
 package com.linkedin.uif.source.extractor;
 
-import com.linkedin.uif.converter.Converter;
-import com.linkedin.uif.qualitychecker.QualityCheckable;
+import com.linkedin.uif.configuration.TaskState;
 
-public interface Extractor<SI, SO, D, C>
+public abstract class Extractor<S,D>
 {
+  private TaskState state;
 
-  public D read();
+  public Extractor(TaskState state)
+  {
+    this.state = state;
+  }
+  
+  public abstract S getSchema();
+  
+  public abstract D readRecord();
+  
+  public abstract void close();
 
-  public SI getSchema();
-
-  public void close();
-
-  public Converter<SI, SO, D, C> getConverter();
-
-  public QualityCheckable<C> getQualityChecker();
-
+  public abstract long getPulledRecordCount();
 }

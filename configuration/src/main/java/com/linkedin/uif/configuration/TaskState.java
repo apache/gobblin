@@ -6,28 +6,28 @@ import java.io.IOException;
 
 import org.apache.hadoop.io.Text;
 
-import com.linkedin.uif.source.workunit.Workunit;
+import com.linkedin.uif.source.workunit.WorkUnit;
 
-public class ExtractorState extends WritableProperties
+public class TaskState extends State
 {
-  public enum State {PENDING, WORKING, SUCCESS, FAILED}
+  public enum WorkingState {PENDING, WORKING, SUCCESS, FAILED}
   
-  private State state = State.PENDING;
+  private WorkingState state = WorkingState.PENDING;
   private long highWaterMark = -1;
   
-  private Workunit workunit;
+  private WorkUnit workunit;
   
-  public Workunit getWorkunit()
+  public WorkUnit getWorkunit()
   {
     return workunit;
   }
   
-  public State getState()
+  public WorkingState getWorkingState()
   {
     return state;
   }
   
-  public void setState(State state)
+  public void setWorkingState(WorkingState state)
   {
     this.state = state;
   }
@@ -47,7 +47,7 @@ public class ExtractorState extends WritableProperties
   {
     Text txt = new Text();
     txt.readFields(in);
-    state = State.valueOf(txt.toString());
+    state = WorkingState.valueOf(txt.toString());
     
     highWaterMark = in.readLong();
     
