@@ -49,42 +49,42 @@ public abstract class ConnectionBasedWorkunit extends WorkUnit
   {
     this.password = password;
   }
-  
+
   @Override
   public void write(DataOutput out) throws IOException
   {
     super.write(out);
-    
+
     if (url == null || username == null || password == null)
     {
       throw new RuntimeException("All connection based workunits must have a url, username, and password");
     }
-    
+
     Text txt = new Text();
-    
+
     txt.set(url);
     txt.write(out);
-    
+
     txt.set(username);
     txt.write(out);
-    
+
     txt.set(password);
     txt.write(out);
   }
-  
+
   @Override
   public void readFields(DataInput in) throws IOException
   {
     super.readFields(in);
-    
+
     Text txt = new Text();
-    
+
     txt.readFields(in);
     url = txt.toString();
-    
+
     txt.readFields(in);
     username = txt.toString();
-    
+
     txt.readFields(in);
     password = txt.toString();
   }

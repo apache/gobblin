@@ -12,14 +12,17 @@ public class WorkUnit extends State
 {
   private String namespace = null;
   private String table = null;
-  
-  public WorkUnit() {}
-  
-  public WorkUnit(String namespace, String table) {
+
+  public WorkUnit()
+  {
+  }
+
+  public WorkUnit(String namespace, String table)
+  {
     this.namespace = namespace;
     this.table = table;
   }
-  
+
   public String getNamespace()
   {
     return namespace;
@@ -39,18 +42,18 @@ public class WorkUnit extends State
   {
     this.table = table;
   }
-  
+
   @Override
   public void readFields(DataInput in) throws IOException
   {
     Text txt = new Text();
-    
+
     txt.readFields(in);
     namespace = txt.toString();
-    
+
     txt.readFields(in);
     table = txt.toString();
-    
+
     super.readFields(in);
   }
 
@@ -62,13 +65,13 @@ public class WorkUnit extends State
       throw new RuntimeException("All Workunits must have a namespace and table name");
     }
     Text txt = new Text();
-    
+
     txt.set(namespace);
     txt.write(out);
-    
+
     txt.set(table);
     txt.write(out);
-    
+
     super.write(out);
   }
 }
