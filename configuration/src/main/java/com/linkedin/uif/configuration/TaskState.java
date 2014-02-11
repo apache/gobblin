@@ -10,7 +10,10 @@ import com.linkedin.uif.source.workunit.WorkUnit;
 
 public class TaskState extends State
 {
-  public enum WorkingState {PENDING, WORKING, SUCCESS, FAILED}
+  public enum WorkingState
+  {
+    PENDING, WORKING, FAILED, FAILED_EXTRACT, FAILED_WRITE, FAILED_QA_CHECK, FAILED_COMMIT, COMMITTED
+  }
   
   private WorkingState state = WorkingState.PENDING;
   private long highWaterMark = -1;
