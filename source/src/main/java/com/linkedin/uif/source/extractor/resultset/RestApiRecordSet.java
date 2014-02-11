@@ -1,12 +1,12 @@
-package com.linkedin.uif.extractor.resultset;
+package com.linkedin.uif.source.extractor.resultset;
 
 import java.util.Properties;
 
 import org.apache.avro.Schema;
 
-import com.linkedin.uif.extractor.connection.Connection;
+import com.linkedin.uif.source.workunit.ConnectionBasedWorkunit;
 
-public class SFDCRecordSet<D> extends RestApiRecordSet<D>
+public class RestApiRecordSet<D> extends RecordSet<D>
 {
 
   // @Override
@@ -49,7 +49,7 @@ public class SFDCRecordSet<D> extends RestApiRecordSet<D>
   }
 
   @Override
-  protected Connection getConnection(Properties extractConf)
+  protected ConnectionBasedWorkunit getConnection(Properties extractConf)
   {
     // TODO Auto-generated method stub
     return null;
