@@ -14,32 +14,32 @@ public class TaskState extends State
   {
     PENDING, WORKING, FAILED, FAILED_EXTRACT, FAILED_WRITE, FAILED_QA_CHECK, FAILED_COMMIT, COMMITTED
   }
-  
+
   private WorkingState state = WorkingState.PENDING;
   private long highWaterMark = -1;
-  
+
   private WorkUnit workunit;
-  
+
   public WorkUnit getWorkunit()
   {
     return workunit;
   }
-  
+
   public WorkingState getWorkingState()
   {
     return state;
   }
-  
+
   public void setWorkingState(WorkingState state)
   {
     this.state = state;
   }
-  
+
   public long getHighWaterMark()
   {
     return highWaterMark;
   }
-  
+
   public void setHighWaterMark(long highWaterMark)
   {
     this.highWaterMark = highWaterMark;
@@ -51,10 +51,10 @@ public class TaskState extends State
     Text txt = new Text();
     txt.readFields(in);
     state = WorkingState.valueOf(txt.toString());
-    
+
     highWaterMark = in.readLong();
-    
-    workunit.readFields(in);  
+
+    workunit.readFields(in);
     super.readFields(in);
   }
 
@@ -63,9 +63,9 @@ public class TaskState extends State
   {
     Text txt = new Text(state.toString());
     txt.write(out);
-    
+
     out.writeLong(highWaterMark);
-    
+
     workunit.write(out);
     super.write(out);
   }

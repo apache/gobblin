@@ -5,9 +5,9 @@ import org.apache.avro.generic.GenericRecord;
 
 import com.linkedin.uif.configuration.SourceState;
 
-public abstract class ToAvroConverterBase<SI,DI> implements Converter<SI, Schema, DI, GenericRecord>
+public abstract class ToAvroConverterBase<SI, DI> implements Converter<SI, Schema, DI, GenericRecord>
 {
-  
+
   @Override
   public abstract Schema convertSchema(SI schema, SourceState state);
 
