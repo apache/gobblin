@@ -1,11 +1,11 @@
-package com.linkedin.uif.extractor.resultset;
+package com.linkedin.uif.source.extractor.resultset;
 
 import java.util.Iterator;
 import java.util.Properties;
 
 import org.apache.avro.Schema;
 
-import com.linkedin.uif.extractor.connection.Connection;
+import com.linkedin.uif.source.workunit.ConnectionBasedWorkunit;
 
 public abstract class RecordSet<D> implements Iterator<D>
 {
@@ -21,6 +21,6 @@ public abstract class RecordSet<D> implements Iterator<D>
   @Override
   public abstract D next();
 
-  protected abstract Connection getConnection(Properties extractConf);
+  protected abstract ConnectionBasedWorkunit getConnection(Properties extractConf);
 
 }
