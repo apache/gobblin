@@ -8,11 +8,16 @@ import org.apache.hadoop.io.Text;
 
 import com.linkedin.uif.source.workunit.WorkUnit;
 
-public class TaskState extends State
+/**
+ * 
+ * @author kgoodhop
+ *
+ */
+public class WorkUnitState extends State
 {
   public enum WorkingState
   {
-    PENDING, WORKING, FAILED, FAILED_EXTRACT, FAILED_WRITE, FAILED_QA_CHECK, FAILED_COMMIT, COMMITTED
+    PENDING, WORKING, FAILED, COMMITTED
   }
 
   private WorkingState state = WorkingState.PENDING;
