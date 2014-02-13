@@ -17,5 +17,11 @@ public abstract class Extractor<S, D>
 
   public abstract void close();
 
-  public abstract long getPulledRecordCount();
+  public abstract long getExpectedRecordCount();
+  
+  public abstract long getRecordWaterMark();
+  
+  protected WorkUnitState getState() {
+	return state;
+  }
 }
