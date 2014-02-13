@@ -4,6 +4,8 @@ import org.apache.avro.Schema;
 
 /**
  * A {@link SchemaValidator} for standard Avro {@link org.apache.avro.Schema}s.
+ *
+ * @author ynli
  */
 public class AvroSchemaValidator implements SchemaValidator {
 

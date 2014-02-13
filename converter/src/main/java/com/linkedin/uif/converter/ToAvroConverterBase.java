@@ -1,5 +1,6 @@
 package com.linkedin.uif.converter;
 
+import com.linkedin.uif.source.workunit.WorkUnit;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
@@ -9,9 +10,9 @@ public abstract class ToAvroConverterBase<SI, DI> implements Converter<SI, Schem
 {
 
   @Override
-  public abstract Schema convertSchema(SI schema, SourceState state);
+  public abstract Schema convertSchema(SI schema, WorkUnit workUnit);
 
   @Override
-  public abstract GenericRecord convertRecord(Schema outputSchema, DI inputRecord, SourceState state);
+  public abstract GenericRecord convertRecord(Schema outputSchema, DI inputRecord, WorkUnit workUnit);
 
 }

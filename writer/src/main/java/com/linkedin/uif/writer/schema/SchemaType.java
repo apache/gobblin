@@ -2,6 +2,8 @@ package com.linkedin.uif.writer.schema;
 
 /**
  * An enumeration of all supported schema types.
+ *
+ * @author ynli
  */
 public enum SchemaType {
     /**
