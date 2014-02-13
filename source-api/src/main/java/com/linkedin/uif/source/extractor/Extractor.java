@@ -1,12 +1,12 @@
 package com.linkedin.uif.source.extractor;
 
-import com.linkedin.uif.configuration.TaskState;
+import com.linkedin.uif.configuration.WorkUnitState;
 
 public abstract class Extractor<S, D>
 {
-  private TaskState state;
+  private WorkUnitState state;
 
-  public Extractor(TaskState state)
+  public Extractor(WorkUnitState state)
   {
     this.state = state;
   }

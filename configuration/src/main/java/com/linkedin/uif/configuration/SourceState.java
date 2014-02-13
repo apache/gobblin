@@ -8,19 +8,19 @@ import java.util.List;
 
 public class SourceState extends State
 {
-  private List<TaskState> previousTaskStates = new ArrayList<TaskState>();
+  private List<WorkUnitState> previousTaskStates = new ArrayList<WorkUnitState>();
 
   public SourceState()
   {
   }
 
-  public SourceState(State properties, List<TaskState> previousTaskStates)
+  public SourceState(State properties, List<WorkUnitState> previousTaskStates)
   {
     addAll(properties);
     this.previousTaskStates.addAll(previousTaskStates);
   }
 
-  public List<TaskState> getPreviousStates()
+  public List<WorkUnitState> getPreviousStates()
   {
     return previousTaskStates;
   }
@@ -30,7 +30,7 @@ public class SourceState extends State
   {
     out.writeInt(previousTaskStates.size());
 
-    for (TaskState state : previousTaskStates)
+    for (WorkUnitState state : previousTaskStates)
     {
       state.write(out);
     }
@@ -44,7 +44,7 @@ public class SourceState extends State
 
     for (int i = 0; i < size; i++)
     {
-      TaskState state = new TaskState();
+        WorkUnitState state = new WorkUnitState();
       state.readFields(in);
 
       previousTaskStates.add(state);
