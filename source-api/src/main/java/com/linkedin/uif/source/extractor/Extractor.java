@@ -19,8 +19,6 @@ public abstract class Extractor<S, D>
 
   public abstract long getExpectedRecordCount();
   
-  public abstract long getRecordWaterMark();
-  
   protected WorkUnitState getState() {
 	return state;
   }
