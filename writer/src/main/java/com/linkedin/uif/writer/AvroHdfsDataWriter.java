@@ -15,7 +15,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.linkedin.uif.converter.DataConversionException;
-import com.linkedin.uif.converter.DataConverter;
+import com.linkedin.uif.writer.converter.DataConverter;
 
 /**
  * An implementation of {@link DataWriter} that writes directly

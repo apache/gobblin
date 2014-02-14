@@ -8,7 +8,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import com.linkedin.uif.converter.DataConversionException;
-import com.linkedin.uif.converter.DataConverter;
+import com.linkedin.uif.writer.converter.DataConverter;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;

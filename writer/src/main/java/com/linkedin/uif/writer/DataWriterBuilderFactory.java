@@ -18,7 +18,8 @@ public class DataWriterBuilderFactory {
             case AVRO:
                 return new AvroDataWriterBuilder();
             default:
-                throw new RuntimeException();
+                throw new RuntimeException(String.format(
+                        "Format %s is not supported yet", format.name()));
         }
     }
 }

@@ -15,17 +15,22 @@ import com.linkedin.uif.source.extractor.Extractor;
 import com.linkedin.uif.writer.*;
 
 /**
- * A physical unit of execution for a UIF {@link com.linkedin.uif.source.workunit.WorkUnit}.
+ * A physical unit of execution for a UIF {@link WorkUnit}.
  *
  * <p>
- *     Each task will be executed by a single thread within a thread pool managed by the
- *     {@link TaskManager} and it consists of the following
+ *     Each task will be executed by a single thread within a thread pool
+ *     managed by the {@link TaskManager} and it consists of the following
  *     steps:
  *
- *     1. Extracting data records from the data source.
- *     2. Writing extracted data records to the specified sink.
- *     3. Performing quality checking when all extracted data records have been written.
- *     4. Cleaning up when the task is completed or failed.
+ * <ul>
+ *     <li>Extracting data records from the data source.</li>
+ *     <li>Writing extracted data records to the specified sink.</li>
+ *     <li>
+ *         Performing quality checking when all extracted data records
+ *         have been written.
+ *     </li>
+ *     <li>Cleaning up when the task is completed or failed.</li>
+ * </ul>
  * </p>
  *
  * @author ynli
@@ -34,6 +39,8 @@ public class Task implements Runnable, Serializable {
 
     private static final Log LOG = LogFactory.getLog(Task.class);
 
+    private final String jobId;
+    private final String taskId;
     private final TaskContext taskContext;
     private final TaskManager taskManager;
     private final TaskState taskState;
@@ -50,11 +57,16 @@ public class Task implements Runnable, Serializable {
      * @throws IOException if there is anything wrong constructing the task.
      */
     @SuppressWarnings("unchecked")
-    public Task(TaskContext context, TaskManager taskManager) {
+    public Task(String jobId, String taskId, TaskContext context,
+                TaskManager taskManager) {
+
+        this.jobId = jobId;
+        this.taskId = taskId;
         this.taskContext = context;
         // Task manager is used to register failed tasks
         this.taskManager = taskManager;
         this.taskState = context.getTaskState();
+        this.taskState.setTaskId(taskId);
         this.statusReportingTimer = new Timer();
         // Schedule the timer task to periodically report status/progress
         this.statusReportingTimer.schedule(new TimerTask() {
@@ -64,7 +76,16 @@ public class Task implements Runnable, Serializable {
             }
         }, 0, context.getStatusReportingInterval());
     }
-    
+
+    /**
+     * Get the ID of this task.
+     *
+     * @return ID of this task
+     */
+    public String getTaskId() {
+        return this.taskId;
+    }
+
     @Override
     @SuppressWarnings("unchecked")
     public void run() {
@@ -81,12 +102,10 @@ public class Task implements Runnable, Serializable {
             this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
             return;
         } finally {
-
+            extractor.close();
         }
 
         this.taskState.setWorkingState(WorkUnitState.WorkingState.WORKING);
-
-        // Schema verification
 
         try {
             // Extract and write data records
@@ -96,7 +115,6 @@ public class Task implements Runnable, Serializable {
                 // Apply the converters first
                 Object convertedRecord = converter.convertRecord(
                         schemaForWriter, record, this.taskState.getWorkunit());
-                // Do quality checking on the converted record
                 // Finally write the record
                 writer.write(convertedRecord);
             }
@@ -106,7 +124,6 @@ public class Task implements Runnable, Serializable {
             this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
         } catch (IOException ioe) {
             LOG.error(String.format("Task %s failed", this.toString()), ioe);
-            this.taskManager.addFailedTask(this);
             this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
         } finally {
             // Cleanup when the task completes or fails
@@ -123,6 +140,11 @@ public class Task implements Runnable, Serializable {
             }
 
             this.statusReportingTimer.cancel();
+            try {
+                this.taskManager.getTaskTracker().reportTaskState(this.taskState);
+            } catch (IOException ioe) {
+                LOG.error("Failed to report task state for task " + this.taskId);
+            }
         }
     }
 
@@ -151,8 +173,10 @@ public class Task implements Runnable, Serializable {
     private DataWriter buildWriter(TaskContext context, Object schema)
             throws IOException {
 
+        // First create the right writer builder using the factory
         DataWriterBuilder builder = new DataWriterBuilderFactory()
                 .newDataWriterBuilder(context.getWriterOutputFormat());
+        // Then build the right writer using the builder
         return builder
                 .writeTo(Destination.of(
                         context.getDestinationType(),
