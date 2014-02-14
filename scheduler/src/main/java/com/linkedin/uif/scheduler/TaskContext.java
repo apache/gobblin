@@ -117,12 +117,12 @@ public class TaskContext {
     }
 
     /**
-     * Get the {@link com.linkedin.uif.writer.converter.DataConverter} used to convert source data records into
+     * Get the {@link DataConverter} used to convert source data records into
      * Avro {@link org.apache.avro.generic.GenericRecord}s.
      *
      * @param schemaForWriter data schema ready for the writer
      *
-     * @return the {@link com.linkedin.uif.writer.converter.DataConverter}
+     * @return the {@link DataConverter}
      */
     @SuppressWarnings("unchecked")
     public DataConverter getDataConverter(final Object schemaForWriter) {
@@ -137,10 +137,10 @@ public class TaskContext {
     }
 
     /**
-     * Get the {@link com.linkedin.uif.writer.converter.SchemaConverter} used to convert a source schema into
+     * Get the {@link SchemaConverter} used to convert a source schema into
      * Avro {@link org.apache.avro.Schema}.
      *
-     * @return the {@link com.linkedin.uif.writer.converter.SchemaConverter}
+     * @return the {@link SchemaConverter}
      */
     @SuppressWarnings("unchecked")
     public SchemaConverter getSchemaConverter() {
