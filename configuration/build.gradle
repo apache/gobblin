@@ -5,6 +5,7 @@ dependencies {
   compile spec.external.commonsDbcp
   compile spec.external.log4j
   compile spec.external.mysqlConnectorJava
+  compile spec.external.hadoop
 }
 
 configurations.all {

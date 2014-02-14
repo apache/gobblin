@@ -6,6 +6,7 @@ import java.io.IOException;
 
 import org.apache.hadoop.io.Text;
 
+import com.linkedin.uif.source.workunit.ImmutableWorkUnit;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
 /**
@@ -21,13 +22,21 @@ public class WorkUnitState extends State
   }
 
   private WorkingState state = WorkingState.PENDING;
+  private long lowWaterMark = -1;
   private long highWaterMark = -1;
 
   private WorkUnit workunit;
 
+    // Necessary for serialization/deserialization
+  public WorkUnitState() {}
+
+  public WorkUnitState(WorkUnit workUnit) {
+      this.workunit = workUnit;
+  }
+
   public WorkUnit getWorkunit()
   {
-    return workunit;
+    return new ImmutableWorkUnit(workunit);
   }
 
   public WorkingState getWorkingState()
@@ -50,6 +59,16 @@ public class WorkUnitState extends State
     this.highWaterMark = highWaterMark;
   }
 
+  public long getLowWaterMark()
+  {
+    return this.lowWaterMark;
+  }
+
+  public void setLowWaterMark(long lowWaterMark)
+  {
+    this.lowWaterMark = lowWaterMark;
+  }
+
   @Override
   public void readFields(DataInput in) throws IOException
   {
@@ -57,6 +76,7 @@ public class WorkUnitState extends State
     txt.readFields(in);
     state = WorkingState.valueOf(txt.toString());
 
+    this.lowWaterMark = in.readLong();
     highWaterMark = in.readLong();
 
     workunit.readFields(in);
@@ -69,6 +89,7 @@ public class WorkUnitState extends State
     Text txt = new Text(state.toString());
     txt.write(out);
 
+    out.writeLong(this.lowWaterMark);
     out.writeLong(highWaterMark);
 
     workunit.write(out);

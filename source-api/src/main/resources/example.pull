@@ -5,7 +5,7 @@ source.class=com.linkedin.uif.source.SourceToAvroBase
 # Comma separated list of converter class that will be applied to extractor output in the order they are defined here
 converter.classes=com.linkedin.uif.converter.ToAvroConverterBase,com.linkedin.uif.converter.AvroToAvroConverterBase
 
-# Quality checker class
+# Quality checker class optional
 quality.checker.class=<some_class>
 
 # Schedule for pulls, the syntax here still needs to be defined

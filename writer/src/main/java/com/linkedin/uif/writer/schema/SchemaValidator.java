@@ -4,6 +4,8 @@ import org.apache.avro.Schema;
 
 /**
  * An interface for classes that validate data schema.
+ *
+ * @author ynli
  */
 public interface SchemaValidator {
 

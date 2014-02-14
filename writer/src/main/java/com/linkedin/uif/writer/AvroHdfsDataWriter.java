@@ -21,24 +21,26 @@ import com.linkedin.uif.converter.DataConverter;
  * An implementation of {@link DataWriter} that writes directly
  * to HDFS in Avro format.
  *
- * @param <D> type of source data record representation
+ * @param <S> type of source data record representation
+ *
+ * @author ynli
  */
-class HdfsDataWriter<D> implements DataWriter<D> {
+class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
 
-    private static final Log LOG = LogFactory.getLog(HdfsDataWriter.class);
+    private static final Log LOG = LogFactory.getLog(AvroHdfsDataWriter.class);
 
     private final FileSystem fs;
     private final Path stagingFile;
     private final Path outputFile;
-    private final DataConverter<D> dataConverter;
+    private final DataConverter<S, GenericRecord> dataConverter;
     private final DataFileWriter<GenericRecord> writer;
 
     // Number of records successfully written
     private long count = 0;
 
-    public HdfsDataWriter(URI uri, String stagingDir, String outputDir,
-            String fileName, int bufferSize, DataConverter<D> dataConverter,
-            Schema schema) throws IOException {
+    public AvroHdfsDataWriter(URI uri, String stagingDir, String outputDir,
+            String fileName, int bufferSize, DataConverter<S,
+            GenericRecord> dataConverter, Schema schema) throws IOException {
 
         this.fs = FileSystem.get(uri, new Configuration());
         this.stagingFile = new Path(stagingDir, fileName);
@@ -48,7 +50,7 @@ class HdfsDataWriter<D> implements DataWriter<D> {
     }
 
     @Override
-    public void write(D sourceRecord) throws IOException {
+    public void write(S sourceRecord) throws IOException {
         try {
             this.writer.append(this.dataConverter.convert(sourceRecord));
         } catch (DataConversionException e) {

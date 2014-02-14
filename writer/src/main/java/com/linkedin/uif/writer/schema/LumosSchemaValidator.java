@@ -1,18 +1,20 @@
 package com.linkedin.uif.writer.schema;
 
+import java.lang.reflect.Type;
+import java.util.List;
+import java.util.Map;
+
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import org.apache.avro.Schema;
 
-import java.lang.reflect.Type;
-import java.util.List;
-import java.util.Map;
-
 /**
  * A {@link SchemaValidator} for Lumos-annotated Avro
  * {@link org.apache.avro.Schema}s.
+ *
+ * @author ynli
  */
 public class LumosSchemaValidator implements SchemaValidator {
 

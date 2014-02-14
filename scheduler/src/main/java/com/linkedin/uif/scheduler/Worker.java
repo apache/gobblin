@@ -1,11 +1,5 @@
 package com.linkedin.uif.scheduler;
 
-import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.Service;
-import com.google.common.util.concurrent.ServiceManager;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import java.io.FileReader;
 import java.util.Map;
 import java.util.Properties;
@@ -13,8 +7,17 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.Service;
+import com.google.common.util.concurrent.ServiceManager;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 /**
  * This is the main class that each UIF worker node runs.
+ *
+ * @author ynli
  */
 public class Worker {
 
@@ -23,11 +26,18 @@ public class Worker {
     // We use this to manage all services running within the worker
     private final ServiceManager serviceManager;
 
-    public Worker(Properties properties) {
+    public Worker(Properties properties) throws Exception {
+        // The worker runs the following services
         TaskManager taskManager = new TaskManager(properties);
-        WorkUnitManager workUnitManager = new WorkUnitManager(properties, taskManager);
-        this.serviceManager = new ServiceManager(
-                Lists.newArrayList(workUnitManager, taskManager));
+        WorkUnitManager workUnitManager = new WorkUnitManager(taskManager);
+        LocalJobScheduler jobManager = new LocalJobScheduler(
+                workUnitManager, properties);
+        this.serviceManager = new ServiceManager(Lists.newArrayList(
+                // The order matters due to dependencies between services
+                taskManager,
+                workUnitManager,
+                jobManager
+        ));
     }
 
     /**
@@ -45,7 +55,8 @@ public class Worker {
             public void healthy() {
                 LOG.info("All services are health and running");
                 // Report services' uptimes
-                for (Map.Entry<Service, Long> entry : serviceManager.startupTimes().entrySet()) {
+                Map<Service, Long> startupTimes = serviceManager.startupTimes();
+                for (Map.Entry<Service, Long> entry : startupTimes.entrySet()) {
                     LOG.info(String.format("Service %s is healthy with an uptime of %dms",
                             entry.getKey().toString(), entry.getValue()));
                 }

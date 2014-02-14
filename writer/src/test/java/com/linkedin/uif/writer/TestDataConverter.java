@@ -1,5 +1,8 @@
 package com.linkedin.uif.writer;
 
+import java.lang.reflect.Type;
+import java.util.Map;
+
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -10,14 +13,13 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 
-import java.lang.reflect.Type;
-import java.util.Map;
-
 /**
  * A test {@link DataConverter} that converts a Json-formatted Avro
  * record string into a {@link GenericRecord}.
+ *
+ * @author ynli
  */
-public class TestDataConverter implements DataConverter<String> {
+public class TestDataConverter implements DataConverter<String, GenericRecord> {
 
     private static final Gson GSON = new Gson();
     // Expect the input JSON string to be key-value pairs
