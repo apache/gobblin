@@ -1,21 +1,21 @@
 package com.linkedin.uif.scheduler;
 
-import com.linkedin.uif.writer.DataWriterBuilder;
-import com.linkedin.uif.writer.Destination;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import com.linkedin.uif.extractor.model.Extractor;
-import com.linkedin.uif.writer.DataWriter;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import com.linkedin.uif.configuration.WorkUnitState;
+import com.linkedin.uif.converter.Converter;
+import com.linkedin.uif.converter.MultiConverter;
+import com.linkedin.uif.source.extractor.Extractor;
+import com.linkedin.uif.writer.*;
+
 /**
- * A physical unit of execution for a UIF
- * {@link com.linkedin.uif.extractor.inputsource.WorkUnit}.
+ * A physical unit of execution for a UIF {@link com.linkedin.uif.source.workunit.WorkUnit}.
  *
  * <p>
  *     Each task will be executed by a single thread within a thread pool managed by the
@@ -28,21 +28,16 @@ import java.util.TimerTask;
  *     4. Cleaning up when the task is completed or failed.
  * </p>
  *
- * @param <S> type of source schema representation
- * @param <D> type of source data record representation
+ * @author ynli
  */
-public class Task<S, D> implements Runnable, Serializable {
+public class Task implements Runnable, Serializable {
 
     private static final Log LOG = LogFactory.getLog(Task.class);
 
+    private final TaskContext taskContext;
     private final TaskManager taskManager;
-
-    private final Extractor<D, S> extractor;
-    private final DataWriter<D>  writer;
+    private final TaskState taskState;
     private final Timer statusReportingTimer;
-
-    // Initial status is SUBMITTED
-    private TaskStatus status = TaskStatus.SUBMITTED;
 
     // Number of retries
     private int retryCount = 0;
@@ -54,12 +49,12 @@ public class Task<S, D> implements Runnable, Serializable {
      *                to construct and run a {@link Task}
      * @throws IOException if there is anything wrong constructing the task.
      */
-    public Task(TaskContext<S, D> context, TaskManager taskManager)
-            throws IOException {
-
+    @SuppressWarnings("unchecked")
+    public Task(TaskContext context, TaskManager taskManager) {
+        this.taskContext = context;
+        // Task manager is used to register failed tasks
         this.taskManager = taskManager;
-        this.extractor = buildExtractor(context);
-        this.writer = buildWriter(context);
+        this.taskState = context.getTaskState();
         this.statusReportingTimer = new Timer();
         // Schedule the timer task to periodically report status/progress
         this.statusReportingTimer.schedule(new TimerTask() {
@@ -71,33 +66,61 @@ public class Task<S, D> implements Runnable, Serializable {
     }
     
     @Override
+    @SuppressWarnings("unchecked")
     public void run() {
-        this.status = TaskStatus.RUNNING;
+        // Build all the necessary components before actually executing the task
+        Extractor extractor = this.taskContext.getSource().getExtractor(this.taskState);
+        Converter converter = new MultiConverter(this.taskContext.getConverters());
+        Object schemaForWriter = converter.convertSchema(
+                extractor.getSchema(), this.taskState.getWorkunit());
+        DataWriter writer;
+        try {
+            writer = buildWriter(this.taskContext, schemaForWriter);
+        } catch (IOException ioe) {
+            LOG.error("Failed to build the writer", ioe);
+            this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+            return;
+        } finally {
+
+        }
+
+        this.taskState.setWorkingState(WorkUnitState.WorkingState.WORKING);
+
+        // Schema verification
 
         try {
             // Extract and write data records
-            D record;
-            while ((record = this.extractor.read()) != null) {
-                this.writer.write(record);
+            Object record;
+            // Read one source record at a time
+            while ((record = extractor.readRecord()) != null) {
+                // Apply the converters first
+                Object convertedRecord = converter.convertRecord(
+                        schemaForWriter, record, this.taskState.getWorkunit());
+                // Do quality checking on the converted record
+                // Finally write the record
+                writer.write(convertedRecord);
             }
 
-            // Do quality checking
+            // Do overall quality checking
 
-            this.status = TaskStatus.COMPLETED;
+            this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
         } catch (IOException ioe) {
             LOG.error(String.format("Task %s failed", this.toString()), ioe);
             this.taskManager.addFailedTask(this);
+            this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
         } finally {
             // Cleanup when the task completes or fails
-
-            //this.extractor.
             try {
-                this.writer.close();
-            } catch (IOException ioe) {
+                extractor.close();
+            } catch (Exception ioe) {
                 // Ignored
             }
 
-            // Report final status
+            try {
+                writer.close();
+            } catch (IOException ioe) {
+                // Ignored
+            }
 
             this.statusReportingTimer.cancel();
         }
@@ -120,29 +143,24 @@ public class Task<S, D> implements Runnable, Serializable {
     }
 
     /**
-     * Build an {@link Extractor} used to extract data records from the source.
-     *
-     * @return newly built {@link Extractor}
-     */
-    private Extractor<D, S> buildExtractor(TaskContext<S, D> context) {
-        return null;
-    }
-
-    /**
      * Build a {@link DataWriter} for writing fetched data records.
      *
      * @return newly built {@link DataWriter}
      */
-    private DataWriter<D> buildWriter(TaskContext<S, D> context)
+    @SuppressWarnings("unchecked")
+    private DataWriter buildWriter(TaskContext context, Object schema)
             throws IOException {
 
-        return DataWriterBuilder.<S, D>newBuilder()
+        DataWriterBuilder builder = new DataWriterBuilderFactory()
+                .newDataWriterBuilder(context.getWriterOutputFormat());
+        return builder
                 .writeTo(Destination.of(
                         context.getDestinationType(),
                         context.getDestinationProperties()))
-                .useDataConverter(context.getDataConverter())
+                .writeInFormat(context.getWriterOutputFormat())
                 .useSchemaConverter(context.getSchemaConverter())
-                .dataSchema(context.getSourceSchema(), context.getSchemaType())
+                .useDataConverter(context.getDataConverter(schema))
+                .withSourceSchema(schema, context.getSchemaType())
                 .build();
     }
 

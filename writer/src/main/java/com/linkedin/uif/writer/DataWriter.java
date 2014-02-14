@@ -6,9 +6,12 @@ import java.io.Serializable;
 /**
  * An interface for UIF data writers.
  *
- * @param <T> type of source data record representation
+ * @param <S> type of source data record representation
+ * @param <O> output record data type
+ *
+ * @author ynli
  */
-public interface DataWriter<T> extends Serializable {
+public interface DataWriter<S, O> extends Serializable {
 
     /**
      * Write a source data record in Avro format using the given converter.
@@ -16,7 +19,7 @@ public interface DataWriter<T> extends Serializable {
      * @param sourceRecord source data record
      * @throws IOException if there is anything wrong writing the record
      */
-    public void write(T sourceRecord) throws IOException;
+    public void write(S sourceRecord) throws IOException;
 
     /**
      * Close this writer.

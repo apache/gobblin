@@ -6,16 +6,23 @@ import org.apache.avro.Schema;
  * Converter for converting a source data schema of a given type
  * to an Avro {@link Schema}.
  *
+ * <p>
+ *     This is currently only used by the writer.
+ * </p>
+ *
  * @param <S> type of source schema representation
+ * @param <O> target schema type
+ *
+ * @author ynli
  */
-public interface SchemaConverter<S> {
+public interface SchemaConverter<S, O> {
 
     /**
-     * Convert the given source data schema into a {@link Schema}.
+     * Convert the given source data schema into a target schema.
      *
      * @param sourceSchema source data schema
-     * @return converted {@link Schema}
+     * @return converted target schema
      * @throws SchemaConversionException when there's anything wrong with the conversion
      */
-    public Schema convert(S sourceSchema) throws SchemaConversionException;
+    public O convert(S sourceSchema) throws SchemaConversionException;
 }

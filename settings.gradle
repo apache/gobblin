@@ -1,2 +1,2 @@
-include 'clustermanager','configuration','converter','data','source-api','source-impl','qualitychecker','scheduler','test','utility','writer'
+include 'clustermanager','configuration','converter','data','source-api','source-base','qualitychecker','scheduler','test','utility','writer'
 

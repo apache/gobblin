@@ -3,6 +3,8 @@ package com.linkedin.uif.converter;
 /**
  * A type of {@link Exception} thrown when there's anything wrong
  * with data conversion.
+ *
+ * @author ynli
  */
 public class DataConversionException extends Exception {
 

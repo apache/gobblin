@@ -5,6 +5,8 @@ import java.util.Properties;
 /**
  * A class representing a destination for a writer to write to.
  * It currently supports HDFS and Kafka as destinations.
+ *
+ * @author ynli
  */
 public class Destination {
 
