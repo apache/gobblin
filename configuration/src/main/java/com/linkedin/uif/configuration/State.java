@@ -13,9 +13,9 @@ public class State implements Writable
 {
   private Properties properties = new Properties();
 
-  public void addAll(State properties)
+  public void addAll(State otherState)
   {
-    this.properties.putAll(properties.properties);
+    this.properties.putAll(otherState.properties);
   }
 
   public void addAll(Properties properties)
