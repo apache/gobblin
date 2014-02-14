@@ -30,8 +30,10 @@ public class Worker {
         // The worker runs the following services
         TaskManager taskManager = new TaskManager(properties);
         WorkUnitManager workUnitManager = new WorkUnitManager(taskManager);
-        LocalJobScheduler jobManager = new LocalJobScheduler(
+        LocalJobManager jobManager = new LocalJobManager(
                 workUnitManager, properties);
+        TaskTracker taskTracker = new LocalTaskTracker(jobManager);
+        taskManager.setTaskTracker(taskTracker);
         this.serviceManager = new ServiceManager(Lists.newArrayList(
                 // The order matters due to dependencies between services
                 taskManager,

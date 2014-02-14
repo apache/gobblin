@@ -14,6 +14,8 @@ import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.workunit.WorkUnit;
 import com.linkedin.uif.writer.Destination;
 import com.linkedin.uif.writer.WriterOutputFormat;
+import com.linkedin.uif.writer.converter.DataConverter;
+import com.linkedin.uif.writer.converter.SchemaConverter;
 import com.linkedin.uif.writer.schema.SchemaType;
 
 /**
@@ -33,7 +35,7 @@ public class TaskContext {
 
     public TaskContext(WorkUnitState workUnitState) {
         this.workUnitState = workUnitState;
-        this.workUnit = this.workUnitState.getWorkunit();
+        this.workUnit = workUnitState.getWorkunit();
     }
 
     /**
@@ -115,28 +117,30 @@ public class TaskContext {
     }
 
     /**
-     * Get the {@link DataConverter} used to convert source data records into
+     * Get the {@link com.linkedin.uif.writer.converter.DataConverter} used to convert source data records into
      * Avro {@link org.apache.avro.generic.GenericRecord}s.
      *
-     * @return the {@link DataConverter}
+     * @param schemaForWriter data schema ready for the writer
+     *
+     * @return the {@link com.linkedin.uif.writer.converter.DataConverter}
      */
     @SuppressWarnings("unchecked")
-    public DataConverter getDataConverter(final Object soureSchema) {
+    public DataConverter getDataConverter(final Object schemaForWriter) {
         final Converter converter = getConverterForWriter();
         return new DataConverter() {
 
             @Override
             public Object convert(Object sourceRecord) throws DataConversionException {
-                return converter.convertRecord(soureSchema, sourceRecord, workUnit);
+                return converter.convertRecord(schemaForWriter, sourceRecord, workUnit);
             }
         };
     }
 
     /**
-     * Get the {@link SchemaConverter} used to convert a source schema into
+     * Get the {@link com.linkedin.uif.writer.converter.SchemaConverter} used to convert a source schema into
      * Avro {@link org.apache.avro.Schema}.
      *
-     * @return the {@link SchemaConverter}
+     * @return the {@link com.linkedin.uif.writer.converter.SchemaConverter}
      */
     @SuppressWarnings("unchecked")
     public SchemaConverter getSchemaConverter() {
@@ -173,7 +177,10 @@ public class TaskContext {
                     ConfigurationKeys.CONVERTER_CLASSES_KEY);
             // Get the last converter class which is assumed to be for the writer
             String converterClassForWriter = Lists.newLinkedList(
-                    Splitter.on(",").trimResults().split(converterClassesList))
+                    Splitter.on(",")
+                            .omitEmptyStrings()
+                            .trimResults()
+                            .split(converterClassesList))
                     .getLast();
             try {
                 this.converterForWriter = (Converter) Class.forName(
@@ -197,7 +204,10 @@ public class TaskContext {
         String converterClassesList = this.workUnit.getProp(
                 ConfigurationKeys.CONVERTER_CLASSES_KEY);
         LinkedList<String> converterClasses = Lists.newLinkedList(
-                Splitter.on(",").trimResults().split(converterClassesList));
+                Splitter.on(",")
+                        .omitEmptyStrings()
+                        .trimResults()
+                        .split(converterClassesList));
         // Remove the last one which is assumed to be for the writer
         converterClasses.removeLast();
 

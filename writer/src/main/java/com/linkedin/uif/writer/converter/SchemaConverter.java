@@ -1,5 +1,6 @@
-package com.linkedin.uif.converter;
+package com.linkedin.uif.writer.converter;
 
+import com.linkedin.uif.converter.SchemaConversionException;
 import org.apache.avro.Schema;
 
 /**
@@ -22,7 +23,7 @@ public interface SchemaConverter<S, O> {
      *
      * @param sourceSchema source data schema
      * @return converted target schema
-     * @throws SchemaConversionException when there's anything wrong with the conversion
+     * @throws com.linkedin.uif.converter.SchemaConversionException when there's anything wrong with the conversion
      */
     public O convert(S sourceSchema) throws SchemaConversionException;
 }

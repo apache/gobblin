@@ -1,5 +1,6 @@
-package com.linkedin.uif.converter;
+package com.linkedin.uif.writer.converter;
 
+import com.linkedin.uif.converter.DataConversionException;
 import org.apache.avro.generic.GenericRecord;
 
 /**
@@ -22,7 +23,7 @@ public interface DataConverter<S, O> {
      *
      * @param sourceRecord source data record
      * @return converted target data record
-     * @throws DataConversionException when there's anything wrong with the conversion
+     * @throws com.linkedin.uif.converter.DataConversionException when there's anything wrong with the conversion
      */
     public O convert(S sourceRecord) throws DataConversionException;
 }
