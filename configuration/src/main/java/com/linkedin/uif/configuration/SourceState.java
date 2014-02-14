@@ -44,7 +44,7 @@ public class SourceState extends State
 
     for (int i = 0; i < size; i++)
     {
-        WorkUnitState state = new WorkUnitState();
+      WorkUnitState state = new WorkUnitState();
       state.readFields(in);
 
       previousTaskStates.add(state);

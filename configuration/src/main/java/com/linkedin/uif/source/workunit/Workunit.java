@@ -6,6 +6,7 @@ import java.io.IOException;
 
 import org.apache.hadoop.io.Text;
 
+import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.State;
 
 public class WorkUnit extends State
@@ -17,8 +18,9 @@ public class WorkUnit extends State
   {
   }
 
-  public WorkUnit(String namespace, String table)
+  public WorkUnit(SourceState state, String namespace, String table)
   {
+	this.addAll(state);
     this.namespace = namespace;
     this.table = table;
   }
