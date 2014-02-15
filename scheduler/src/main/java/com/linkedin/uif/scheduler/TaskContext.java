@@ -44,7 +44,7 @@ public class TaskContext {
      * @return a {@link TaskState}
      */
     public TaskState getTaskState() {
-        return new TaskState(this.workUnit);
+        return new TaskState(this.workUnitState);
     }
 
     /**
@@ -69,7 +69,9 @@ public class TaskContext {
      * @return interval for status reporting
      */
     public long getStatusReportingInterval() {
-        return 0;
+        return this.workUnit.getPropAsLong(
+                ConfigurationKeys.TASK_STATUS_REPORT_INTERVAL_KEY,
+                ConfigurationKeys.DEFAULT_TASK_STATUS_REPORT_INTERVAL);
     }
 
     /**

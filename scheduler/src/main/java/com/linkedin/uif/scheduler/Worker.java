@@ -27,13 +27,13 @@ public class Worker {
     private final ServiceManager serviceManager;
 
     public Worker(Properties properties) throws Exception {
+        TaskStateTracker taskStateTracker = new LocalTaskStateTracker();
         // The worker runs the following services
-        TaskManager taskManager = new TaskManager(properties);
+        TaskManager taskManager = new TaskManager(taskStateTracker, properties);
         WorkUnitManager workUnitManager = new WorkUnitManager(taskManager);
         LocalJobManager jobManager = new LocalJobManager(
                 workUnitManager, properties);
-        TaskTracker taskTracker = new LocalTaskTracker(jobManager);
-        taskManager.setTaskTracker(taskTracker);
+        ((LocalTaskStateTracker) taskStateTracker).setJobManager(jobManager);
         this.serviceManager = new ServiceManager(Lists.newArrayList(
                 // The order matters due to dependencies between services
                 taskManager,
