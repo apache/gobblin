@@ -8,7 +8,6 @@ import java.util.concurrent.Executors;
 import com.google.common.collect.Queues;
 import com.google.common.util.concurrent.AbstractIdleService;
 
-import com.linkedin.uif.configuration.ConfigurationKeys;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -112,10 +111,7 @@ public class WorkUnitManager extends AbstractIdleService {
                     // Take one work unit at a time from the queue
                     WorkUnitState workUnitState = this.workUnitQueue.take();
                     // Create a task based off the work unit
-                    Task task = new Task(
-                            workUnitState.getProp(ConfigurationKeys.JOB_ID_KEY),
-                            workUnitState.getProp(ConfigurationKeys.TASK_ID_KEY),
-                            new TaskContext(workUnitState),
+                    Task task = new Task(new TaskContext(workUnitState),
                             this.taskManager);
                     // And then execute the task
                     this.taskManager.execute(task);

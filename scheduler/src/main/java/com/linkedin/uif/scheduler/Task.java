@@ -15,7 +15,7 @@ import com.linkedin.uif.source.extractor.Extractor;
 import com.linkedin.uif.writer.*;
 
 /**
- * A physical unit of execution for a UIF {@link WorkUnit}.
+ * A physical unit of execution for a UIF work unit.
  *
  * <p>
  *     Each task will be executed by a single thread within a thread pool
@@ -57,16 +57,13 @@ public class Task implements Runnable, Serializable {
      * @throws IOException if there is anything wrong constructing the task.
      */
     @SuppressWarnings("unchecked")
-    public Task(String jobId, String taskId, TaskContext context,
-                TaskManager taskManager) {
-
-        this.jobId = jobId;
-        this.taskId = taskId;
+    public Task(TaskContext context, TaskManager taskManager) {
         this.taskContext = context;
         // Task manager is used to register failed tasks
         this.taskManager = taskManager;
         this.taskState = context.getTaskState();
-        this.taskState.setTaskId(taskId);
+        this.jobId = this.taskState.getJobId();
+        this.taskId = this.taskState.getTaskId();
         this.statusReportingTimer = new Timer();
         // Schedule the timer task to periodically report status/progress
         this.statusReportingTimer.schedule(new TimerTask() {
@@ -77,18 +74,11 @@ public class Task implements Runnable, Serializable {
         }, 0, context.getStatusReportingInterval());
     }
 
-    /**
-     * Get the ID of this task.
-     *
-     * @return ID of this task
-     */
-    public String getTaskId() {
-        return this.taskId;
-    }
-
     @Override
     @SuppressWarnings("unchecked")
     public void run() {
+        boolean aborted = false;
+
         // Build all the necessary components before actually executing the task
         Extractor extractor = this.taskContext.getSource().getExtractor(this.taskState);
         Converter converter = new MultiConverter(this.taskContext.getConverters());
@@ -122,9 +112,15 @@ public class Task implements Runnable, Serializable {
             // Do overall quality checking
 
             this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+            this.taskManager.onTaskSuccess(this);
         } catch (IOException ioe) {
             LOG.error(String.format("Task %s failed", this.toString()), ioe);
             this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+            try {
+                this.taskManager.onTaskFailure(this);
+            } catch (IOException ioe1) {
+                aborted = true;
+            }
         } finally {
             // Cleanup when the task completes or fails
             try {
@@ -139,13 +135,50 @@ public class Task implements Runnable, Serializable {
                 // Ignored
             }
 
-            this.statusReportingTimer.cancel();
-            try {
-                this.taskManager.getTaskTracker().reportTaskState(this.taskState);
-            } catch (IOException ioe) {
-                LOG.error("Failed to report task state for task " + this.taskId);
+            if (aborted) {
+                this.taskState.setWorkingState(WorkUnitState.WorkingState.ABORTED);
+                try {
+                    this.taskManager.onTaskAbortion(this);
+                } catch (IOException ioe) {
+                    // Ignored
+                }
             }
+
+            this.statusReportingTimer.cancel();
         }
+    }
+
+    /**
+     * Abort this task.
+     */
+    public void abort() {
+    }
+
+    /**
+     * Get the ID of the job this {@link Task} belongs to.
+     *
+     * @return ID of the job this {@link Task} belongs to.
+     */
+    public String getJobId() {
+        return this.jobId;
+    }
+
+    /**
+     * Get the ID of this task.
+     *
+     * @return ID of this task
+     */
+    public String getTaskId() {
+        return this.taskId;
+    }
+
+    /**
+     * Get the state of this task.
+     *
+     * @return state of this task
+     */
+    public TaskState getTaskState() {
+        return this.taskState;
     }
 
     /**

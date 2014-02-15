@@ -3,11 +3,11 @@ package com.linkedin.uif.scheduler;
 import java.io.IOException;
 
 /**
- * An interface for classes that track states of tasks.
+ * An interface for classes that track {@link TaskState}s.
  *
  * @author ynli
  */
-public interface TaskTracker {
+public interface TaskStateTracker {
 
     /**
      * Report the {@link TaskState} of a {@link Task}.

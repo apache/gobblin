@@ -8,6 +8,7 @@ dependencies {
   compile spec.external.quartz
   compile spec.external.slf4j
   compile spec.external.log4j
+  compile spec.external.slf4jSimple
 }
 
 configurations.all {

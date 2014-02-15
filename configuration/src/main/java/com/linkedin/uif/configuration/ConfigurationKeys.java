@@ -47,6 +47,13 @@ public class ConfigurationKeys {
     /**
      * Configuration properties used internally
      */
+    public static final String TASK_SCHEDULER_THREADPOOL_SIZE_KEY =
+            "scheduler.threadpool.size";
+    public static final String DEFAULT_TASK_SCHEDULER_THREADPOOL_SIZE = "20";
+    public static final String MAX_TASK_RETRIES_KEY = "task.maxRetries";
+    public static final String DEFAULT_MAX_TASK_RETRIES = "5";
     public static final String JOB_ID_KEY = "job.id";
     public static final String TASK_ID_KEY = "task.id";
+    public static final String TASK_STATUS_REPORT_INTERVAL_KEY = "task.status.reportInterval";
+    public static final long DEFAULT_TASK_STATUS_REPORT_INTERVAL = 30000;
 }

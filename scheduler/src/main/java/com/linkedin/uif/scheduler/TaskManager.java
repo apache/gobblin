@@ -1,5 +1,6 @@
 package com.linkedin.uif.scheduler;
 
+import java.io.IOException;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -10,6 +11,8 @@ import com.google.common.util.concurrent.AbstractIdleService;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
+import com.linkedin.uif.configuration.ConfigurationKeys;
 
 /**
  * A class for managing {@link Task}s.
@@ -25,26 +28,29 @@ public class TaskManager extends AbstractIdleService {
 
     private static final Log LOG = LogFactory.getLog(TaskManager.class);
 
-    private static final String TASK_SCHEDULER_THREADPOOL_SIZE =
-            "uif.scheduler.threadpool.size";
-    private static final String DEFAULT_TASK_SCHEDULER_THREADPOOL_SIZE = "8";
-
     // Thread pool for running tasks
     private final ExecutorService executor;
 
     // A queue for failed tasks
     private final BlockingQueue<Task> failedTaskQueue;
 
-    private TaskTracker taskTracker;
+    private final TaskStateTracker taskStateTracker;
 
-    public TaskManager(Properties properties) {
+    // Maximum number of task retries allowed
+    private final int maxTaskRetries;
+
+    public TaskManager(TaskStateTracker taskStateTracker, Properties properties) {
+        this.taskStateTracker = taskStateTracker;
         // Currently a fixed-size thread pool is used to execute tasks.
         // We probably need to revisist this later.
         this.executor = Executors.newFixedThreadPool(
                 Integer.parseInt(properties.getProperty(
-                        TASK_SCHEDULER_THREADPOOL_SIZE,
-                        DEFAULT_TASK_SCHEDULER_THREADPOOL_SIZE)));
+                        ConfigurationKeys.TASK_SCHEDULER_THREADPOOL_SIZE_KEY,
+                        ConfigurationKeys.DEFAULT_TASK_SCHEDULER_THREADPOOL_SIZE)));
         this.failedTaskQueue = Queues.newLinkedBlockingQueue();
+        this.maxTaskRetries = Integer.parseInt(properties.getProperty(
+                ConfigurationKeys.MAX_TASK_RETRIES_KEY,
+                ConfigurationKeys.DEFAULT_MAX_TASK_RETRIES));
     }
 
     @Override
@@ -62,24 +68,6 @@ public class TaskManager extends AbstractIdleService {
     }
 
     /**
-     * Set the {@link TaskTracker} used for tracking task states.
-     *
-     * @param taskTracker {@link TaskTracker} used for tracking task states
-     */
-    public void setTaskTracker(TaskTracker taskTracker) {
-        this.taskTracker = taskTracker;
-    }
-
-    /**
-     * Get the {@link TaskTracker} used for tracking task states.
-     *
-     * @return {@link TaskTracker} used for tracking task states
-     */
-    public TaskTracker getTaskTracker() {
-        return this.taskTracker;
-    }
-
-    /**
      * Execute a {@link Task}.
      *
      * @param task {@link Task} to execute
@@ -87,5 +75,39 @@ public class TaskManager extends AbstractIdleService {
     public void execute(Task task) {
         this.executor.execute(task);
         LOG.info(String.format("Scheduled task %s to run", task.toString()));
+    }
+
+    /**
+     * Callback method when the given task fails.
+     *
+     * @param task given task that failed
+     * @throws IOException
+     */
+    public void onTaskFailure(Task task) throws IOException {
+        if (task.getRetryCount() < this.maxTaskRetries) {
+            this.failedTaskQueue.add(task);
+        } else {
+            this.taskStateTracker.reportTaskState(task.getTaskState());
+        }
+    }
+
+    /**
+     * Callback method when the given task successfully completes.
+     *
+     * @param task given task that successfully completed
+     * @throws IOException
+     */
+    public void onTaskSuccess(Task task) throws IOException {
+        this.taskStateTracker.reportTaskState(task.getTaskState());
+    }
+
+    /**
+     * Callback method when the given task is aborted.
+     *
+     * @param task given task that is aborted
+     * @throws IOException
+     */
+    public void onTaskAbortion(Task task) throws IOException {
+        this.taskStateTracker.reportTaskState(task.getTaskState());
     }
 }
