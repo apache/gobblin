@@ -133,7 +133,8 @@ public class TaskContext {
 
             @Override
             public Object convert(Object sourceRecord) throws DataConversionException {
-                return converter.convertRecord(schemaForWriter, sourceRecord, workUnit);
+                return converter.convertRecord(converter.convertSchema(
+                        schemaForWriter, workUnit), sourceRecord, workUnit);
             }
         };
     }

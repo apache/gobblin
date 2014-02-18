@@ -77,81 +77,77 @@ public class Task implements Runnable, Serializable {
     @Override
     @SuppressWarnings("unchecked")
     public void run() {
-        boolean aborted = false;
+        Extractor extractor = null;
+        DataWriter writer = null;
 
-        // Build all the necessary components before actually executing the task
-        Extractor extractor = this.taskContext.getSource().getExtractor(this.taskState);
-        Converter converter = new MultiConverter(this.taskContext.getConverters());
-        Object schemaForWriter = converter.convertSchema(
-                extractor.getSchema(), this.taskState.getWorkunit());
-        DataWriter writer;
         try {
+            // Build the extractor for pulling source schema and data records
+            extractor = this.taskContext.getSource().getExtractor(this.taskState);
+            // If conversion is needed on the source schema and data records
+            // before they are passed to the writer
+            boolean doConversion = !this.taskContext.getConverters().isEmpty();
+            // Original source schema
+            Object sourceSchema = extractor.getSchema();
+            Converter converter = null;
+            // (Possibly converted) source schema ready for the writer
+            Object schemaForWriter = sourceSchema;
+            if (doConversion) {
+                converter = new MultiConverter(this.taskContext.getConverters());
+                // Convert the source schema to a schema ready for the writer
+                schemaForWriter = converter.convertSchema(
+                        sourceSchema, this.taskState.getWorkunit());
+            }
+            // Build the writer for writing the output of the extractor
             writer = buildWriter(this.taskContext, schemaForWriter);
-        } catch (IOException ioe) {
-            LOG.error("Failed to build the writer", ioe);
-            this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-            return;
-        } finally {
-            extractor.close();
-        }
 
-        this.taskState.setWorkingState(WorkUnitState.WorkingState.WORKING);
+            this.taskState.setWorkingState(WorkUnitState.WorkingState.WORKING);
 
-        try {
             // Extract and write data records
             Object record;
             // Read one source record at a time
             while ((record = extractor.readRecord()) != null) {
-                // Apply the converters first
-                Object convertedRecord = converter.convertRecord(
-                        schemaForWriter, record, this.taskState.getWorkunit());
+                // Apply the converters first if applicable
+                if (doConversion) {
+                    record = converter.convertRecord(
+                            sourceSchema, record, this.taskState.getWorkunit());
+                }
                 // Finally write the record
-                writer.write(convertedRecord);
+                writer.write(record);
             }
 
             // Do overall quality checking
 
             this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
-            this.taskManager.onTaskSuccess(this);
         } catch (IOException ioe) {
-            LOG.error(String.format("Task %s failed", this.toString()), ioe);
+            LOG.error(String.format("Task %s of job %s failed",
+                    this.taskId, this.jobId), ioe);
             this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-            try {
-                this.taskManager.onTaskFailure(this);
-            } catch (IOException ioe1) {
-                aborted = true;
-            }
         } finally {
             // Cleanup when the task completes or fails
-            try {
-                extractor.close();
-            } catch (Exception ioe) {
-                // Ignored
-            }
-
-            try {
-                writer.close();
-            } catch (IOException ioe) {
-                // Ignored
-            }
-
-            if (aborted) {
-                this.taskState.setWorkingState(WorkUnitState.WorkingState.ABORTED);
+            if (extractor != null) {
                 try {
-                    this.taskManager.onTaskAbortion(this);
+                    extractor.close();
+                } catch (Exception ioe) {
+                    // Ignored
+                }
+            }
+
+            if (writer != null) {
+                try {
+                    writer.close();
                 } catch (IOException ioe) {
                     // Ignored
                 }
             }
 
+            try {
+                this.taskManager.onTaskCompletion(this);
+            } catch (IOException ioe) {
+                // Ignored
+            }
+
             this.statusReportingTimer.cancel();
         }
-    }
-
-    /**
-     * Abort this task.
-     */
-    public void abort() {
     }
 
     /**
@@ -215,6 +211,7 @@ public class Task implements Runnable, Serializable {
                         context.getDestinationType(),
                         context.getDestinationProperties()))
                 .writeInFormat(context.getWriterOutputFormat())
+                .withWriterId(context.getTaskState().getTaskId())
                 .useSchemaConverter(context.getSchemaConverter())
                 .useDataConverter(context.getDataConverter(schema))
                 .withSourceSchema(schema, context.getSchemaType())

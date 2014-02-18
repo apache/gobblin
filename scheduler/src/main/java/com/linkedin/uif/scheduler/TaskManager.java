@@ -12,6 +12,7 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 
 /**
@@ -74,40 +75,28 @@ public class TaskManager extends AbstractIdleService {
      */
     public void execute(Task task) {
         this.executor.execute(task);
-        LOG.info(String.format("Scheduled task %s to run", task.toString()));
+        LOG.info(String.format("Scheduled task %s of job %s to run",
+                task.getTaskId(), task.getJobId()));
     }
 
     /**
-     * Callback method when the given task fails.
+     * Callback method when the given task is completed.
      *
-     * @param task given task that failed
+     * @param task given task that is completed
      * @throws IOException
      */
-    public void onTaskFailure(Task task) throws IOException {
-        if (task.getRetryCount() < this.maxTaskRetries) {
-            this.failedTaskQueue.add(task);
+    public void onTaskCompletion(Task task) throws IOException {
+        WorkUnitState.WorkingState state = task.getTaskState().getWorkingState();
+        LOG.info(String.format("Task %s of job %s completed with state %s",
+                task.getTaskId(), task.getJobId(), state));
+        if (state == WorkUnitState.WorkingState.FAILED) {
+            if (task.getRetryCount() < this.maxTaskRetries) {
+                this.failedTaskQueue.add(task);
+            } else {
+                this.taskStateTracker.reportTaskState(task.getTaskState());
+            }
         } else {
             this.taskStateTracker.reportTaskState(task.getTaskState());
         }
-    }
-
-    /**
-     * Callback method when the given task successfully completes.
-     *
-     * @param task given task that successfully completed
-     * @throws IOException
-     */
-    public void onTaskSuccess(Task task) throws IOException {
-        this.taskStateTracker.reportTaskState(task.getTaskState());
-    }
-
-    /**
-     * Callback method when the given task is aborted.
-     *
-     * @param task given task that is aborted
-     * @throws IOException
-     */
-    public void onTaskAbortion(Task task) throws IOException {
-        this.taskStateTracker.reportTaskState(task.getTaskState());
     }
 }

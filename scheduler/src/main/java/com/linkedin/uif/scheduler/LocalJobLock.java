@@ -1,36 +1,40 @@
 package com.linkedin.uif.scheduler;
 
 import java.io.IOException;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.Semaphore;
 
 /**
- * A implementation of {@link JobLock} backed by a {@link ReentrantLock}.
+ * A implementation of {@link JobLock} backed by a {@link Semaphore}.
  *
  * <p>
- *     Because a {@link ReentrantLock} is used, this implementation
- *     works only in single-node mode within a single JVM.
+ *     A {@link Semaphore} is used because the thread that unlocks the
+ *     lock may not be the thread that locks the lock. Because a
+ *     {@link Semaphore} is used, this implementation works only in
+ *     single-node mode within a single JVM.
  * </p>
  *
  * @author ynli
  */
 public class LocalJobLock implements JobLock {
 
-    // We use the ReentrantLock instead of Lock because we need
-    // some method of ReentrantLock that is not available in Lock
-    private final ReentrantLock lock = new ReentrantLock();
+    private final Semaphore lock = new Semaphore(1);
 
     @Override
     public void lock() throws IOException {
-        this.lock.lock();
+        try {
+            this.lock.acquire();
+        } catch (InterruptedException ie) {
+            throw new IOException(ie);
+        }
     }
 
     @Override
     public void unlock() throws IOException {
-        this.lock.unlock();
+        this.lock.release();
     }
 
     @Override
-    public boolean isLocked() throws IOException {
-        return this.lock.isLocked();
+    public synchronized boolean isLocked() throws IOException {
+        return this.lock.availablePermits() == 0;
     }
 }
