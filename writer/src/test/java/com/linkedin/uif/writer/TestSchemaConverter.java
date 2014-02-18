@@ -3,7 +3,7 @@ package com.linkedin.uif.writer;
 import org.apache.avro.Schema;
 
 import com.linkedin.uif.converter.SchemaConversionException;
-import com.linkedin.uif.converter.SchemaConverter;
+import com.linkedin.uif.writer.converter.SchemaConverter;
 
 /**
  * A test {@link SchemaConverter} that converts a Json-formatted

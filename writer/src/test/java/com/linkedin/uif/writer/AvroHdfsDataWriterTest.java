@@ -16,7 +16,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
-import com.linkedin.uif.converter.SchemaConverter;
+import com.linkedin.uif.writer.converter.SchemaConverter;
 import com.linkedin.uif.writer.schema.SchemaType;
 
 /**

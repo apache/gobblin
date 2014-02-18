@@ -43,4 +43,10 @@ public class ConfigurationKeys {
     public static final String DEFAULT_STAGING_DIR = "";
     public static final String DEFAULT_OUTPUT_DIR = "";
     public static final String DEFAULT_BUFFER_SIZE = "4096";
+
+    /**
+     * Configuration properties used internally
+     */
+    public static final String JOB_ID_KEY = "job.id";
+    public static final String TASK_ID_KEY = "task.id";
 }

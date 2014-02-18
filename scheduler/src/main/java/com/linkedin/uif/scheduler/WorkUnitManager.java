@@ -8,6 +8,7 @@ import java.util.concurrent.Executors;
 import com.google.common.collect.Queues;
 import com.google.common.util.concurrent.AbstractIdleService;
 
+import com.linkedin.uif.configuration.ConfigurationKeys;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -18,9 +19,10 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  * A class for managing {@link WorkUnit}s.
  *
  * <p>
- *     It's responsibilities include adding new {@link WorkUnit}s and running them locally.
- *     To run a {@link WorkUnit}, a {@link Task} is first created based on it and the
- *     {@link Task} is scheduled and executed through the {@link TaskManager}.
+ *     It's responsibilities include adding new {@link WorkUnit}s and running
+ *     them locally. To run a {@link WorkUnit}, a {@link Task} is first
+ *     created based on it and the {@link Task} is scheduled and executed
+ *     through the {@link TaskManager}.
  * </p>
  *
  * @author ynli
@@ -53,26 +55,6 @@ public class WorkUnitManager extends AbstractIdleService {
                 this.workUnitQueue, this.taskManager);
     }
 
-    /**
-     * Add a collection of {@link WorkUnitState}s.
-     *
-     * @param workUnitStates the collection of {@link WorkUnitState}s to add
-     */
-    public void addWorkUnits(Collection<WorkUnitState> workUnitStates) {
-        for (WorkUnitState workUnitState : workUnitStates) {
-            this.workUnitQueue.add(workUnitState);
-        }
-    }
-
-    /**
-     * Add a single {@link WorkUnitState}.
-     *
-     * @param workUnitState the {@link WorkUnitState} to add
-     */
-    public void addWorkUnit(WorkUnitState workUnitState) {
-        this.workUnitQueue.add(workUnitState);
-    }
-
     @Override
     protected void startUp() throws Exception {
         LOG.info("Starting the work unit manager");
@@ -84,6 +66,24 @@ public class WorkUnitManager extends AbstractIdleService {
         LOG.info("Stopping the work unit manager");
         this.workUnitHandler.stop();
         this.executorService.shutdown();
+    }
+
+    /**
+     * Add a collection of {@link WorkUnitState}s.
+     *
+     * @param workUnitStates the collection of {@link WorkUnitState}s to add
+     */
+    public void addWorkUnits(Collection<WorkUnitState> workUnitStates) {
+        this.workUnitQueue.addAll(workUnitStates);
+    }
+
+    /**
+     * Add a single {@link WorkUnitState}.
+     *
+     * @param workUnitState the {@link WorkUnitState} to add
+     */
+    public void addWorkUnit(WorkUnitState workUnitState) {
+        this.workUnitQueue.add(workUnitState);
     }
 
     /**
@@ -113,7 +113,10 @@ public class WorkUnitManager extends AbstractIdleService {
                     WorkUnitState workUnitState = this.workUnitQueue.take();
                     // Create a task based off the work unit
                     Task task = new Task(
-                            new TaskContext(workUnitState), this.taskManager);
+                            workUnitState.getProp(ConfigurationKeys.JOB_ID_KEY),
+                            workUnitState.getProp(ConfigurationKeys.TASK_ID_KEY),
+                            new TaskContext(workUnitState),
+                            this.taskManager);
                     // And then execute the task
                     this.taskManager.execute(task);
                 } catch (InterruptedException ie) {
