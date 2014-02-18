@@ -96,7 +96,7 @@ public class LocalJobManager extends AbstractIdleService {
     @Override
     protected void shutDown() throws Exception {
         LOG.info("Starting the local job scheduler");
-        this.scheduler.shutdown();
+        this.scheduler.shutdown(true);
     }
 
     /**
@@ -115,7 +115,7 @@ public class LocalJobManager extends AbstractIdleService {
         // If all the tasks of the job has completed, then trigger job committer
         if (this.jobTaskStatesMap.get(jobId).size() == this.jobTaskCountMap.get(jobId)) {
             LOG.info("Committing job " + jobId);
-            String jobName = taskState.getProp(ConfigurationKeys.JOB_NAME_KEY);
+            String jobName = taskState.getWorkunit().getProp(ConfigurationKeys.JOB_NAME_KEY);
             commitJob(jobId, jobName, this.jobTaskStatesMap.get(jobId));
         }
     }
@@ -226,7 +226,8 @@ public class LocalJobManager extends AbstractIdleService {
     /**
      * A UIF job to schedule locally.
      */
-    private static class UIFJob implements Job {
+    @DisallowConcurrentExecution
+    public static class UIFJob implements Job {
 
         @Override
         @SuppressWarnings("unchecked")
@@ -257,7 +258,7 @@ public class LocalJobManager extends AbstractIdleService {
              */
             String jobIdSuffix = String.format("%s_%d", jobName, System.currentTimeMillis());
             String jobId = "job_" + jobIdSuffix;
-
+            LOG.info("Starting job " + jobId);
 
             try {
                 com.linkedin.uif.configuration.State state =

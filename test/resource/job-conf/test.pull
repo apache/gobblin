@@ -1,0 +1,16 @@
+job.name=UIFTest
+job.group=Test
+job.description=Test UIF job
+job.schedule=0 0/1 * * * ?
+
+source.class=com.linkedin.uif.test.TestSource
+converter.classes=com.linkedin.uif.test.TestConverter
+
+writer.destination.type=HDFS
+writer.output.format=AVRO
+writer.fs.uri=file://localhost/
+writer.staging.dir=test/staging
+writer.output.dir=test/output
+writer.file.name=test.avro
+
+source.files=test/resource/source/test.avro.0,test/resource/source/test.avro.1
