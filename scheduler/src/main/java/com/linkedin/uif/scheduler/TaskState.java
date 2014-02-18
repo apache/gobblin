@@ -14,8 +14,28 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  */
 public class TaskState extends WorkUnitState {
 
+    private String taskId;
+
     public TaskState(WorkUnit workUnit) {
         super(workUnit);
+    }
+
+    /**
+     * Set the ID of the task this {@link TaskState} is for.
+     *
+     * @param taskId ID of the task this {@link TaskState} is for
+     */
+    public void setTaskId(String taskId) {
+        this.taskId = taskId;
+    }
+
+    /**
+     * Get the ID of the task this {@link TaskState} is for.
+     *
+     * @return ID of the task this {@link TaskState} is for
+     */
+    public String getTaskId() {
+        return this.taskId;
     }
 
     @Override

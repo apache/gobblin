@@ -2,8 +2,8 @@ package com.linkedin.uif.writer;
 
 import java.io.IOException;
 
-import com.linkedin.uif.converter.DataConverter;
-import com.linkedin.uif.converter.SchemaConverter;
+import com.linkedin.uif.writer.converter.DataConverter;
+import com.linkedin.uif.writer.converter.SchemaConverter;
 import com.linkedin.uif.writer.schema.SchemaType;
 
 /**
