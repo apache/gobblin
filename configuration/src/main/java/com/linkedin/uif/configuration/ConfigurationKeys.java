@@ -45,8 +45,29 @@ public class ConfigurationKeys {
     public static final String DEFAULT_BUFFER_SIZE = "4096";
 
     /**
+     * HDFS task publisher properties
+     */
+    public static final String HDFS_TASK_DATA_TMP_DIR = "uif.publisher.task.tmp.dir";
+    public static final String HDFS_TASK_DATA_FINAL_DIR = "uif.publisher.task.final.dir";
+    public static final String HDFS_TASK_METADATA_TMP_DIR = "uif.publisher.task.tmp.dir";
+    public static final String HDFS_TASK_METADATA_FINAL_DIR = "uif.publisher.task.final.dir";
+    
+    
+    /**
      * Configuration properties used internally
      */
     public static final String JOB_ID_KEY = "job.id";
     public static final String TASK_ID_KEY = "task.id";
+    
+    /**
+     * Configuration properties used by the quality checker
+     */
+    public static final String POLICY_LIST = "uif.qualitychecker.policies";
+    public static final String POLICY_LIST_TYPE = "uif.qualitychecker.policies.types";
+    public static final String TASK_DATA_PUBLISHER = "uif.publisher.datapublisher";
+    public static final String METADATA_CLIENT = "uif.qualitychecker.metadatacollector";
+    public static final String EXTRACTOR_ROWS_READ = "extractor.rows.read";
+    public static final String WRITER_ROWS_WRITTEN = "writer.rows.written";
+
+    public static final String ROW_COUNT_RANGE = "0.05";
 }
