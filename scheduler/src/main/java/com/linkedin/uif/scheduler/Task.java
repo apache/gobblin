@@ -8,9 +8,20 @@ import java.util.TimerTask;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import com.linkedin.uif.configuration.ConfigurationKeys;
+import com.linkedin.uif.configuration.MetaStoreClient;
+import com.linkedin.uif.configuration.MetaStoreClientBuilder;
+import com.linkedin.uif.configuration.MetaStoreClientBuilderFactory;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.Converter;
 import com.linkedin.uif.converter.MultiConverter;
+import com.linkedin.uif.publisher.TaskPublisher;
+import com.linkedin.uif.publisher.TaskPublisherBuilder;
+import com.linkedin.uif.publisher.TaskPublisherBuilderFactory;
+import com.linkedin.uif.qualitychecker.PolicyCheckResults;
+import com.linkedin.uif.qualitychecker.PolicyChecker;
+import com.linkedin.uif.qualitychecker.PolicyCheckerBuilder;
+import com.linkedin.uif.qualitychecker.PolicyCheckerBuilderFactory;
 import com.linkedin.uif.source.extractor.Extractor;
 import com.linkedin.uif.writer.*;
 
@@ -119,11 +130,30 @@ public class Task implements Runnable, Serializable {
                 writer.write(convertedRecord);
             }
 
-            // Do overall quality checking
+            // Do overall quality checking and publish task data
+            this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_READ, extractor.getExpectedRecordCount());
+            this.taskState.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, writer.recordsWritten());
+            
+            PolicyCheckResults results;
+            MetaStoreClient collector = buildMetaStoreClient(this.taskState);
+            
+            PolicyChecker policyChecker = buildPolicyChecker(this.taskState, collector);
+            results = policyChecker.checkAndWritePolicies();
 
-            this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
-        } catch (IOException ioe) {
-            LOG.error(String.format("Task %s failed", this.toString()), ioe);
+            TaskPublisher publisher = buildTaskPublisher(this.taskState, results, collector);
+            
+            // TODO Need a way to capture status of Publisher properly
+            switch ( publisher.publish() ) {
+            case SUCCESS:
+                this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+                break;
+            default:
+                this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+                break;
+            }
+            
+        } catch (Exception e) {
+            LOG.error(String.format("Task %s failed", this.toString()), e);
             this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
         } finally {
             // Cleanup when the task completes or fails
@@ -148,6 +178,21 @@ public class Task implements Runnable, Serializable {
         }
     }
 
+    public MetaStoreClient buildMetaStoreClient(TaskState taskState) throws Exception {
+        MetaStoreClientBuilder builder = new MetaStoreClientBuilderFactory().newMetaStoreClientBuilder(taskState);
+        return builder.build();
+    }
+    
+    public PolicyChecker buildPolicyChecker(TaskState taskState, MetaStoreClient collector) throws Exception {
+        PolicyCheckerBuilder builder = new PolicyCheckerBuilderFactory().newPolicyCheckerBuilder(taskState, collector);
+        return builder.build();
+    }
+    
+    public TaskPublisher buildTaskPublisher(TaskState taskState, PolicyCheckResults results, MetaStoreClient collector) throws Exception {
+        TaskPublisherBuilder builder = new TaskPublisherBuilderFactory().newTaskPublisherBuilder(taskState, results, collector);
+        return builder.build();
+    }
+    
     /**
      * Increment the retry count of this task.
      */

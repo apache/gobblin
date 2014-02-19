@@ -22,10 +22,6 @@ class KafkaDataWriter<S> implements DataWriter<S, GenericRecord> {
     }
 
     @Override
-    public void commit() throws IOException {
-    }
-
-    @Override
     public void cleanup() throws IOException {
     }
 

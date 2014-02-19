@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.linkedin.uif.scheduler.TaskState;
+
 public class SourceState extends State
 {
   private List<WorkUnitState> previousTaskStates = new ArrayList<WorkUnitState>();
@@ -25,6 +27,11 @@ public class SourceState extends State
     return previousTaskStates;
   }
 
+  public MetaStoreClient buildMetaStoreClient(State state) throws Exception {
+      MetaStoreClientBuilder builder = new MetaStoreClientBuilderFactory().newMetaStoreClientBuilder(state);
+      return builder.build();
+  }
+  
   @Override
   public void write(DataOutput out) throws IOException
   {

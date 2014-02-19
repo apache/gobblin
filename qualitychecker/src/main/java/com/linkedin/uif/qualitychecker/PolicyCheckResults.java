@@ -1,28 +1,24 @@
 package com.linkedin.uif.qualitychecker;
 
-import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * Wrapper around an ArrayList of PolicyResults
+ * Wrapper around a Map of PolicyResults and Policy.Type
  */
 public class PolicyCheckResults
 {
-    private ArrayList<PolicyResult> results;
+    private Map<PolicyResult, Policy.Type> results;
     
     public PolicyCheckResults() {
-        this.results = new ArrayList<PolicyResult>();
+        this.results = new HashMap<PolicyResult, Policy.Type>();
     }
     
-    public ArrayList<PolicyResult> getPolicyResults() {
+    public Map<PolicyResult, Policy.Type> getPolicyResults() {
         return this.results;
     }
     
-    @Override
-    public String toString() {
-        StringBuilder resultsString = new StringBuilder();
-        for (PolicyResult result : results) {
-            resultsString.append(result.toString() + ",");
-        }
-        return resultsString.toString();
+    public void add(PolicyResult status, Policy.Type type) {
+        this.results.put(status, type);
     }
 }
