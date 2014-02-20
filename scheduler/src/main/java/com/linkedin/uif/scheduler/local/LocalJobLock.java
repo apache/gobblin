@@ -1,7 +1,9 @@
-package com.linkedin.uif.scheduler;
+package com.linkedin.uif.scheduler.local;
 
 import java.io.IOException;
 import java.util.concurrent.Semaphore;
+
+import com.linkedin.uif.scheduler.JobLock;
 
 /**
  * A implementation of {@link JobLock} backed by a {@link Semaphore}.
@@ -34,7 +36,14 @@ public class LocalJobLock implements JobLock {
     }
 
     @Override
-    public synchronized boolean isLocked() throws IOException {
-        return this.lock.availablePermits() == 0;
+    public boolean tryLock() throws IOException {
+        return this.lock.tryAcquire();
+    }
+
+    @Override
+    public boolean isLocked() throws IOException {
+        // This is not supported because it requires synchronizing all methods of
+        // this class plus this method is not used at all when this class is used.
+        throw new UnsupportedOperationException();
     }
 }

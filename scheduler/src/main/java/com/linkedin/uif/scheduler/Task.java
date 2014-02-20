@@ -2,8 +2,6 @@ package com.linkedin.uif.scheduler;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Timer;
-import java.util.TimerTask;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -19,7 +17,7 @@ import com.linkedin.uif.writer.*;
  *
  * <p>
  *     Each task will be executed by a single thread within a thread pool
- *     managed by the {@link TaskManager} and it consists of the following
+ *     managed by the {@link TaskExecutor} and it consists of the following
  *     steps:
  *
  * <ul>
@@ -42,9 +40,8 @@ public class Task implements Runnable, Serializable {
     private final String jobId;
     private final String taskId;
     private final TaskContext taskContext;
-    private final TaskManager taskManager;
+    private final TaskStateTracker taskStateTracker;
     private final TaskState taskState;
-    private final Timer statusReportingTimer;
 
     // Number of retries
     private int retryCount = 0;
@@ -57,21 +54,13 @@ public class Task implements Runnable, Serializable {
      * @throws IOException if there is anything wrong constructing the task.
      */
     @SuppressWarnings("unchecked")
-    public Task(TaskContext context, TaskManager taskManager) {
+    public Task(TaskContext context, TaskStateTracker taskStateTracker) {
         this.taskContext = context;
         // Task manager is used to register failed tasks
-        this.taskManager = taskManager;
+        this.taskStateTracker = taskStateTracker;
         this.taskState = context.getTaskState();
         this.jobId = this.taskState.getJobId();
         this.taskId = this.taskState.getTaskId();
-        this.statusReportingTimer = new Timer();
-        // Schedule the timer task to periodically report status/progress
-        this.statusReportingTimer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                reportStatusAndProgress();
-            }
-        }, 0, context.getStatusReportingInterval());
     }
 
     @Override
@@ -101,6 +90,7 @@ public class Task implements Runnable, Serializable {
             writer = buildWriter(this.taskContext, schemaForWriter);
 
             this.taskState.setWorkingState(WorkUnitState.WorkingState.WORKING);
+            this.taskStateTracker.registerNewTask(this);
 
             // Extract and write data records
             Object record;
@@ -119,8 +109,7 @@ public class Task implements Runnable, Serializable {
 
             this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
         } catch (IOException ioe) {
-            LOG.error(String.format("Task %s of job %s failed",
-                    this.taskId, this.jobId), ioe);
+            LOG.error(String.format("Task %s failed", this.taskId), ioe);
             this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
         } finally {
             // Cleanup when the task completes or fails
@@ -140,13 +129,7 @@ public class Task implements Runnable, Serializable {
                 }
             }
 
-            try {
-                this.taskManager.onTaskCompletion(this);
-            } catch (IOException ioe) {
-                // Ignored
-            }
-
-            this.statusReportingTimer.cancel();
+            this.taskStateTracker.onTaskCompletion(this);
         }
     }
 
@@ -166,6 +149,15 @@ public class Task implements Runnable, Serializable {
      */
     public String getTaskId() {
         return this.taskId;
+    }
+
+    /**
+     * Get the {@link TaskContext} associated with this task.
+     *
+     * @return {@link TaskContext} associated with this task
+     */
+    public TaskContext getTaskContext() {
+        return this.taskContext;
     }
 
     /**
@@ -193,6 +185,11 @@ public class Task implements Runnable, Serializable {
         return this.retryCount;
     }
 
+    @Override
+    public String toString() {
+        return this.taskId;
+    }
+
     /**
      * Build a {@link DataWriter} for writing fetched data records.
      *
@@ -216,12 +213,5 @@ public class Task implements Runnable, Serializable {
                 .useDataConverter(context.getDataConverter(schema))
                 .withSourceSchema(schema, context.getSchemaType())
                 .build();
-    }
-
-    /**
-     * Report task status and progress.
-     */
-    private void reportStatusAndProgress() {
-
     }
 }

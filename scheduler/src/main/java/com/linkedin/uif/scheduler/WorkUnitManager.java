@@ -21,7 +21,7 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  *     It's responsibilities include adding new {@link WorkUnit}s and running
  *     them locally. To run a {@link WorkUnit}, a {@link Task} is first
  *     created based on it and the {@link Task} is scheduled and executed
- *     through the {@link TaskManager}.
+ *     through the {@link TaskExecutor}.
  * </p>
  *
  * @author ynli
@@ -29,9 +29,6 @@ import com.linkedin.uif.source.workunit.WorkUnit;
 public class WorkUnitManager extends AbstractIdleService {
 
     private static final Log LOG = LogFactory.getLog(WorkUnitManager.class);
-
-    // This is used to run tasks
-    private final TaskManager taskManager;
 
     // This is used to store submitted work units
     private final BlockingQueue<WorkUnitState> workUnitQueue;
@@ -42,8 +39,7 @@ public class WorkUnitManager extends AbstractIdleService {
     // This handler that handles running work units locally
     private final WorkUnitHandler workUnitHandler;
 
-    public WorkUnitManager(TaskManager taskManager) {
-        this.taskManager = taskManager;
+    public WorkUnitManager(TaskExecutor taskExecutor, TaskStateTracker taskStateTracker) {
         // We need a blocking queue to support the producer-consumer model
         // for managing the submission and execution of work units, and we
         // need a priority queue to support priority-based execution of
@@ -51,7 +47,7 @@ public class WorkUnitManager extends AbstractIdleService {
         this.workUnitQueue = Queues.newLinkedBlockingQueue();
         this.executorService = Executors.newSingleThreadExecutor();
         this.workUnitHandler = new WorkUnitHandler(
-                this.workUnitQueue, this.taskManager);
+                this.workUnitQueue, taskExecutor, taskStateTracker);
     }
 
     @Override
@@ -91,13 +87,15 @@ public class WorkUnitManager extends AbstractIdleService {
     private static class WorkUnitHandler implements Runnable {
 
         private final BlockingQueue<WorkUnitState> workUnitQueue;
-        private final TaskManager taskManager;
+        private final TaskExecutor taskExecutor;
+        private final TaskStateTracker taskStateTracker;
 
         public WorkUnitHandler(BlockingQueue<WorkUnitState> workUnitQueue,
-                TaskManager taskManager) {
+                TaskExecutor taskExecutor, TaskStateTracker taskStateTracker) {
 
             this.workUnitQueue = workUnitQueue;
-            this.taskManager = taskManager;
+            this.taskExecutor = taskExecutor;
+            this.taskStateTracker = taskStateTracker;
         }
 
         // Tells if the handler is asked to stop
@@ -112,9 +110,9 @@ public class WorkUnitManager extends AbstractIdleService {
                     WorkUnitState workUnitState = this.workUnitQueue.take();
                     // Create a task based off the work unit
                     Task task = new Task(new TaskContext(workUnitState),
-                            this.taskManager);
+                            this.taskStateTracker);
                     // And then execute the task
-                    this.taskManager.execute(task);
+                    this.taskExecutor.execute(task);
                 } catch (InterruptedException ie) {
                     // Ignored
                 }
