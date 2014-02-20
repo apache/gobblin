@@ -1,10 +1,11 @@
-package com.linkedin.uif.scheduler;
+package com.linkedin.uif.scheduler.local;
 
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentMap;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -16,6 +17,9 @@ import org.apache.commons.logging.LogFactory;
 import org.quartz.*;
 import org.quartz.impl.StdSchedulerFactory;
 
+import com.linkedin.uif.scheduler.JobLock;
+import com.linkedin.uif.scheduler.TaskState;
+import com.linkedin.uif.scheduler.WorkUnitManager;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.WorkUnitState;
@@ -61,7 +65,7 @@ public class LocalJobManager extends AbstractIdleService {
     private final Scheduler scheduler;
 
     // Mapping between jobs to the job locks they hold
-    private final Map<String, JobLock> jobLockMap;
+    private final ConcurrentMap<String, JobLock> jobLockMap;
 
     // Mapping between jobs to the Source objects used to create work units
     private final Map<String, Source> jobSourceMap;
@@ -90,7 +94,7 @@ public class LocalJobManager extends AbstractIdleService {
     protected void startUp() throws Exception {
         LOG.info("Starting the local job scheduler");
         this.scheduler.start();
-        scheduleLocalluConfiguredJobs();
+        scheduleLocallyConfiguredJobs();
     }
 
     @Override
@@ -100,30 +104,37 @@ public class LocalJobManager extends AbstractIdleService {
     }
 
     /**
-     * Report the {@link TaskState} of a {@link Task} of the given job.
+     * Callback method when a task is completed.
      *
      * @param jobId Job ID of the given job
      * @param taskState {@link TaskState}
      */
-    public void reportTaskState(String jobId, TaskState taskState) throws IOException {
+    public void onTaskCompletion(String jobId, TaskState taskState) {
         if (!this.jobTaskStatesMap.containsKey(jobId)) {
             LOG.error(String.format("Job %s could not be found", jobId));
             return;
         }
 
         this.jobTaskStatesMap.get(jobId).add(taskState);
-        // If all the tasks of the job has completed, then trigger job committer
+        // If all the tasks of the job have completed (regardless of success or failure),
+        // then trigger job committer
         if (this.jobTaskStatesMap.get(jobId).size() == this.jobTaskCountMap.get(jobId)) {
-            LOG.info("Committing job " + jobId);
-            String jobName = taskState.getWorkunit().getProp(ConfigurationKeys.JOB_NAME_KEY);
-            commitJob(jobId, jobName, this.jobTaskStatesMap.get(jobId));
+            LOG.info(String.format(
+                    "All tasks of job %s have completed, committing it", jobId));
+            String jobName = taskState.getWorkunit().getProp(
+                    ConfigurationKeys.JOB_NAME_KEY);
+            try {
+                commitJob(jobId, jobName, this.jobTaskStatesMap.get(jobId));
+            } catch (IOException ioe) {
+                LOG.error("Failed to commit job " + jobId);
+            }
         }
     }
 
     /**
      * Schedule locally configured UIF jobs.
      */
-    private void scheduleLocalluConfiguredJobs() throws SchedulerException {
+    private void scheduleLocallyConfiguredJobs() throws SchedulerException {
         LOG.info("Scheduling locally configured jobs");
         for (Properties properties : loadLocalJobConfigs()) {
             // Build a data map that gets passed to the job
@@ -186,6 +197,8 @@ public class LocalJobManager extends AbstractIdleService {
             }
         }
 
+        LOG.info(String.format("Loaded %d job configurations", jobConfigs.size()));
+
         return jobConfigs;
     }
 
@@ -194,7 +207,7 @@ public class LocalJobManager extends AbstractIdleService {
      */
     private Trigger getTrigger(JobKey jobKey, Properties properties) {
         // Build a trigger for the job with the given cron-style schedule
-        Trigger trigger = TriggerBuilder.newTrigger()
+        return TriggerBuilder.newTrigger()
                 .withIdentity(
                         properties.getProperty(ConfigurationKeys.JOB_NAME_KEY),
                         Strings.nullToEmpty(properties.getProperty(
@@ -203,8 +216,6 @@ public class LocalJobManager extends AbstractIdleService {
                 .withSchedule(CronScheduleBuilder.cronSchedule(
                         properties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY)))
                 .build();
-
-        return trigger;
     }
 
     /**
@@ -213,14 +224,15 @@ public class LocalJobManager extends AbstractIdleService {
     private void commitJob(String jobId, String jobName, List<TaskState> taskStates)
             throws IOException {
 
-        // Unlock the job lock after committing the job
-        this.jobLockMap.get(jobName).unlock();
-        this.jobLockMap.remove(jobName);
+        // TODO: complete the implementation
 
         // Remove all state bookkeeping information of this scheduled job run
         this.jobSourceMap.remove(jobId);
         this.jobTaskCountMap.remove(jobId);
         this.jobTaskStatesMap.remove(jobId);
+
+        // Unlock so the next run of the same job can proceed
+        this.jobLockMap.get(jobName).unlock();
     }
 
     /**
@@ -236,10 +248,11 @@ public class LocalJobManager extends AbstractIdleService {
             Properties properties = (Properties) dataMap.get(PROPERTIES_KEY);
             String jobName = properties.getProperty(ConfigurationKeys.JOB_NAME_KEY);
 
-            Map<String, JobLock> jobLockMap = (Map<String, JobLock>) dataMap.get(JOB_LOCK_MAP_KEY);
+            ConcurrentMap<String, JobLock> jobLockMap =
+                    (ConcurrentMap<String, JobLock>) dataMap.get(JOB_LOCK_MAP_KEY);
             // Try acquiring a job lock before proceeding
             if (!acquireJobLock(jobLockMap, jobName)) {
-                LOG.error("Failed to acquire the job lock for job " + jobName);
+                LOG.info("Failed to acquire the job lock for job " + jobName);
                 return;
             }
 
@@ -298,27 +311,11 @@ public class LocalJobManager extends AbstractIdleService {
         /**
          * Try acquring the job lock and return whether the lock is successfully locked.
          */
-        private boolean acquireJobLock(Map<String, JobLock> jobLock, String jobName) {
+        private boolean acquireJobLock(ConcurrentMap<String, JobLock> jobLock, String jobName) {
             try {
-                if (jobLock.containsKey(jobName)) {
-                    if (!jobLock.get(jobName).isLocked()) {
-                        // Job lock for the job exists but is not locked
-                        LOG.warn(String.format("The most recent run of job %s did not " +
-                                "successfully acquire the job lock", jobName));
-                        // Simple remove the lock because in this case the most recent
-                        // scheduled run of this job should have not proceeded.
-                        jobLock.remove(jobName);
-                    } else {
-                        // The most recent scheduled run of this job has not finished yet
-                        return false;
-                    }
-                }
-
-                // Acquire the job lock and return whether the lock is indeed locked
-                JobLock lock = new LocalJobLock();
-                lock.lock();
-                jobLock.put(jobName, lock);
-                return lock.isLocked();
+                jobLock.putIfAbsent(jobName, new LocalJobLock());
+                JobLock lock = jobLock.get(jobName);
+                return lock.tryLock();
             } catch (IOException ioe) {
                 LOG.error("Failed to acquire the job lock for job " + jobName, ioe);
                 return false;
@@ -329,6 +326,7 @@ public class LocalJobManager extends AbstractIdleService {
          * Get work unit states of the most recent run of this job.
          */
         private List<WorkUnitState> getPreviousWorkUnitStates(Properties properties) {
+            // TODO: complete the implementation
             return Lists.newArrayList();
         }
     }

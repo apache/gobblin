@@ -30,3 +30,6 @@ target
 tmp
 out
 **/out
+output
+**/output
+**/staging

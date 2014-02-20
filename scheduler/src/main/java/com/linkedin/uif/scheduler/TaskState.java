@@ -4,10 +4,10 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import org.apache.hadoop.io.Text;
+
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
-import com.linkedin.uif.source.workunit.WorkUnit;
-import org.apache.hadoop.io.Text;
 
 /**
  * An extension to {@link WorkUnitState} with run-time task state information.

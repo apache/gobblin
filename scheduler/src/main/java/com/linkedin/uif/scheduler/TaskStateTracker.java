@@ -1,19 +1,25 @@
 package com.linkedin.uif.scheduler;
 
-import java.io.IOException;
+import com.google.common.util.concurrent.Service;
 
 /**
  * An interface for classes that track {@link TaskState}s.
  *
  * @author ynli
  */
-public interface TaskStateTracker {
+public interface TaskStateTracker extends Service {
 
     /**
-     * Report the {@link TaskState} of a {@link Task}.
+     * Register a new {@link Task}.
      *
-     * @param state {@link TaskState} of a {@link Task}
-     * @throws IOException
+     * @param task {@link Task} to register
      */
-    public void reportTaskState(TaskState state) throws IOException;
+    public void registerNewTask(Task task);
+
+    /**
+     * Callback method when the {@link Task} is completed.
+     *
+     * @param task {@link Task} that is completed
+     */
+    public void onTaskCompletion(Task task);
 }

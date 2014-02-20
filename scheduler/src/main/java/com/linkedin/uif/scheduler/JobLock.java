@@ -31,6 +31,15 @@ public interface JobLock {
     public void unlock() throws IOException;
 
     /**
+     * Try locking the lock.
+     *
+     * @return <em>true</em> if the lock is successfully locked,
+     *         <em>false</em> if otherwise.
+     * @throws IOException
+     */
+    public boolean tryLock() throws IOException;
+
+    /**
      * Check if the lock is locked.
      *
      * @return if the lock is locked
