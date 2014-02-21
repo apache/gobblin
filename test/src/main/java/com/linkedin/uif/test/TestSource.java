@@ -5,6 +5,7 @@ import java.util.List;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 
+import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.Source;
@@ -32,6 +33,10 @@ public class TestSource implements Source<String, String> {
         for (String sourceFile : SPLITTER.split(sourceFileList)) {
             WorkUnit workUnit = new WorkUnit();
             workUnit.addAll(state);
+            workUnit.setNamespace(state.getProp(
+                    ConfigurationKeys.WORK_UNIT_NAMESPACE_KEY));
+            workUnit.setTable(state.getProp(
+                    ConfigurationKeys.WORK_UNIT_TABLE_KEY));
             workUnit.setProp(SOURCE_FILE_KEY, sourceFile);
             workUnits.add(workUnit);
         }

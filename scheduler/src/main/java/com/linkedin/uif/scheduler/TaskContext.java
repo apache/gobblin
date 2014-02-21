@@ -70,8 +70,8 @@ public class TaskContext {
      */
     public long getStatusReportingInterval() {
         return this.workUnit.getPropAsLong(
-                ConfigurationKeys.TASK_STATUS_REPORT_INTERVAL_KEY,
-                ConfigurationKeys.DEFAULT_TASK_STATUS_REPORT_INTERVAL);
+                ConfigurationKeys.TASK_STATUS_REPORT_INTERVAL_IN_MS_KEY,
+                ConfigurationKeys.DEFAULT_TASK_STATUS_REPORT_INTERVAL_IN_MS);
     }
 
     /**
