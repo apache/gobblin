@@ -28,7 +28,9 @@ public class WorkUnitState extends State
   private WorkUnit workunit;
 
     // Necessary for serialization/deserialization
-  public WorkUnitState() {}
+  public WorkUnitState() {
+      this.workunit = new WorkUnit();
+  }
 
   public WorkUnitState(WorkUnit workUnit) {
       this.workunit = workUnit;

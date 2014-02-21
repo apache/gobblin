@@ -53,7 +53,7 @@ public class TestExtractor extends Extractor<String, String> {
             this.dataFileReader = new DataFileReader<GenericRecord>(
                     sourceFile, datumReader);
         } catch (IOException ioe) {
-            // Ignored
+            LOG.error("Failed to read the source file " + sourceFile, ioe);
         }
     }
 

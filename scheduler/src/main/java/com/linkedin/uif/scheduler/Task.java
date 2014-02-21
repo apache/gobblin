@@ -69,6 +69,9 @@ public class Task implements Runnable, Serializable {
         Extractor extractor = null;
         DataWriter writer = null;
 
+        long startTime = System.currentTimeMillis();
+        this.taskState.setStartTime(startTime);
+
         try {
             // Build the extractor for pulling source schema and data records
             extractor = this.taskContext.getSource().getExtractor(this.taskState);
@@ -129,6 +132,9 @@ public class Task implements Runnable, Serializable {
                 }
             }
 
+            long endTime = System.currentTimeMillis();
+            this.taskState.setEndTime(endTime);
+            this.taskState.setTaskDuration(endTime - startTime);
             this.taskStateTracker.onTaskCompletion(this);
         }
     }

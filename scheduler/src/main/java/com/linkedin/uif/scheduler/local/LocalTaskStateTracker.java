@@ -19,8 +19,9 @@ import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 
 /**
- * An implementation of {@link com.linkedin.uif.scheduler.TaskStateTracker} that reports
- * {@link com.linkedin.uif.scheduler.TaskState}s to the {@link LocalJobManager}.
+ * An implementation of {@link com.linkedin.uif.scheduler.TaskStateTracker}
+ * that reports {@link com.linkedin.uif.scheduler.TaskState}s to the
+ * {@link LocalJobManager}.
  *
  * <p>
  *     This is the implementation used only in single-node mode.
@@ -110,8 +111,8 @@ public class LocalTaskStateTracker extends AbstractIdleService
         }
 
         // At this point, the task is considered being completed.
-        LOG.info(String.format("Task %s completed with state %s",
-                task.getTaskId(), state));
+        LOG.info(String.format("Task %s completed in %dms with state %s",
+                task.getTaskId(), task.getTaskState().getTaskDuration(), state));
         this.jobManager.onTaskCompletion(task.getJobId(), task.getTaskState());
     }
 
