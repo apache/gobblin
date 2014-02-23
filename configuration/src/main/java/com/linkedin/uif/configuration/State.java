@@ -18,7 +18,7 @@ public class State implements Writable {
   }
 
   public void addAll(Properties properties) {
-    properties.putAll(properties);
+    this.properties.putAll(properties);
   }
 
   public void setProp(String key, Object value) {

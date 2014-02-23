@@ -1,10 +1,11 @@
-package com.linkedin.uif.scheduler;
+package com.linkedin.uif.scheduler.local;
 
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentMap;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -16,6 +17,9 @@ import org.apache.commons.logging.LogFactory;
 import org.quartz.*;
 import org.quartz.impl.StdSchedulerFactory;
 
+import com.linkedin.uif.scheduler.JobLock;
+import com.linkedin.uif.scheduler.TaskState;
+import com.linkedin.uif.scheduler.WorkUnitManager;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.WorkUnitState;
@@ -46,9 +50,10 @@ public class LocalJobManager extends AbstractIdleService {
     private static final String JOB_CONFIG_FILE_EXTENSION = ".pull";
     private static final String PROPERTIES_KEY = "properties";
     private static final String WORK_UNIT_MANAGER_KEY = "workUnitManager";
-    private static final String JOB_SOURCE_KEY = "jobSource";
-    private static final String JOB_TASK_COUNT_KEY = "jobTaskCount";
-    private static final String JOB_TASK_STATES_KEY = "jobTaskStates";
+    private static final String JOB_LOCK_MAP_KEY = "jobLockMap";
+    private static final String JOB_SOURCE_MAP_KEY = "jobSourceMap";
+    private static final String JOB_TASK_COUNT_MAP_KEY = "jobTaskCountMap";
+    private static final String JOB_TASK_STATES_MAP_KEY = "jobTaskStatesMap";
 
     // This is used to add newly generated work units
     private final WorkUnitManager workUnitManager;
@@ -59,9 +64,17 @@ public class LocalJobManager extends AbstractIdleService {
     // A Quartz scheduler
     private final Scheduler scheduler;
 
-    private final Map<String, Source> jobSource;
-    private final Map<String, Integer> jobTaskCount;
-    private final Map<String, List<TaskState>> jobTaskStates;
+    // Mapping between jobs to the job locks they hold
+    private final ConcurrentMap<String, JobLock> jobLockMap;
+
+    // Mapping between jobs to the Source objects used to create work units
+    private final Map<String, Source> jobSourceMap;
+
+    // Mapping between jobs to the numbers of tasks
+    private final Map<String, Integer> jobTaskCountMap;
+
+    // Mapping between jobs to the tasks comprising each job
+    private final Map<String, List<TaskState>> jobTaskStatesMap;
 
     public LocalJobManager(WorkUnitManager workUnitManager, Properties properties)
             throws Exception {
@@ -69,56 +82,69 @@ public class LocalJobManager extends AbstractIdleService {
         this.workUnitManager = workUnitManager;
         this.properties = properties;
         this.scheduler = new StdSchedulerFactory().getScheduler();
-        this.jobSource = Maps.newHashMap();
-        this.jobTaskCount = Maps.newHashMap();
-        this.jobTaskStates = Maps.newHashMap();
+        // This needs to be a concurrent map because two scheduled runs of the
+        // same job (handled by two separate threds) may access it concurrently
+        this.jobLockMap = Maps.newConcurrentMap();
+        this.jobSourceMap = Maps.newHashMap();
+        this.jobTaskCountMap = Maps.newHashMap();
+        this.jobTaskStatesMap = Maps.newHashMap();
     }
 
     @Override
     protected void startUp() throws Exception {
         LOG.info("Starting the local job scheduler");
         this.scheduler.start();
-        scheduleLocalluConfiguredJobs();
+        scheduleLocallyConfiguredJobs();
     }
 
     @Override
     protected void shutDown() throws Exception {
         LOG.info("Starting the local job scheduler");
-        this.scheduler.shutdown();
+        this.scheduler.shutdown(true);
     }
 
     /**
-     * Report the {@link TaskState} of a {@link Task} of the given job.
+     * Callback method when a task is completed.
      *
      * @param jobId Job ID of the given job
-     * @param state {@link TaskState}
+     * @param taskState {@link TaskState}
      */
-    public void reportTaskState(String jobId, TaskState state) {
-        if (!this.jobTaskStates.containsKey(jobId)) {
+    public void onTaskCompletion(String jobId, TaskState taskState) {
+        if (!this.jobTaskStatesMap.containsKey(jobId)) {
             LOG.error(String.format("Job %s could not be found", jobId));
             return;
         }
 
-        this.jobTaskStates.get(jobId).add(state);
-        // If all the tasks of the job has completed, then trigger job committer
-        if (this.jobTaskStates.get(jobId).size() == this.jobTaskCount.get(jobId)) {
-
+        this.jobTaskStatesMap.get(jobId).add(taskState);
+        // If all the tasks of the job have completed (regardless of success or failure),
+        // then trigger job committer
+        if (this.jobTaskStatesMap.get(jobId).size() == this.jobTaskCountMap.get(jobId)) {
+            LOG.info(String.format(
+                    "All tasks of job %s have completed, committing it", jobId));
+            String jobName = taskState.getWorkunit().getProp(
+                    ConfigurationKeys.JOB_NAME_KEY);
+            try {
+                commitJob(jobId, jobName, this.jobTaskStatesMap.get(jobId));
+            } catch (IOException ioe) {
+                LOG.error("Failed to commit job " + jobId);
+            }
         }
     }
 
     /**
      * Schedule locally configured UIF jobs.
      */
-    private void scheduleLocalluConfiguredJobs() throws SchedulerException {
+    private void scheduleLocallyConfiguredJobs() throws SchedulerException {
         LOG.info("Scheduling locally configured jobs");
         for (Properties properties : loadLocalJobConfigs()) {
             // Build a data map that gets passed to the job
             JobDataMap jobDataMap = new JobDataMap();
             jobDataMap.put(PROPERTIES_KEY, properties);
             jobDataMap.put(WORK_UNIT_MANAGER_KEY, this.workUnitManager);
-            jobDataMap.put(JOB_SOURCE_KEY, this.jobSource);
-            jobDataMap.put(JOB_TASK_COUNT_KEY, this.jobTaskCount);
-            jobDataMap.put(JOB_TASK_STATES_KEY, this.jobTaskStates);
+            jobDataMap.put(JOB_LOCK_MAP_KEY, this.jobLockMap);
+            jobDataMap.put(JOB_SOURCE_MAP_KEY, this.jobSourceMap);
+            jobDataMap.put(JOB_TASK_COUNT_MAP_KEY, this.jobTaskCountMap);
+            jobDataMap.put(JOB_TASK_STATES_MAP_KEY, this.jobTaskStatesMap);
 
             // Build a Quartz job
             JobDetail job = JobBuilder.newJob(UIFJob.class)
@@ -171,6 +197,8 @@ public class LocalJobManager extends AbstractIdleService {
             }
         }
 
+        LOG.info(String.format("Loaded %d job configurations", jobConfigs.size()));
+
         return jobConfigs;
     }
 
@@ -179,7 +207,7 @@ public class LocalJobManager extends AbstractIdleService {
      */
     private Trigger getTrigger(JobKey jobKey, Properties properties) {
         // Build a trigger for the job with the given cron-style schedule
-        Trigger trigger = TriggerBuilder.newTrigger()
+        return TriggerBuilder.newTrigger()
                 .withIdentity(
                         properties.getProperty(ConfigurationKeys.JOB_NAME_KEY),
                         Strings.nullToEmpty(properties.getProperty(
@@ -188,60 +216,87 @@ public class LocalJobManager extends AbstractIdleService {
                 .withSchedule(CronScheduleBuilder.cronSchedule(
                         properties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY)))
                 .build();
+    }
 
-        return trigger;
+    /**
+     * Commit a finished job.
+     */
+    private void commitJob(String jobId, String jobName, List<TaskState> taskStates)
+            throws IOException {
+
+        // TODO: complete the implementation
+
+        // Remove all state bookkeeping information of this scheduled job run
+        this.jobSourceMap.remove(jobId);
+        this.jobTaskCountMap.remove(jobId);
+        this.jobTaskStatesMap.remove(jobId);
+
+        // Unlock so the next run of the same job can proceed
+        this.jobLockMap.get(jobName).unlock();
     }
 
     /**
      * A UIF job to schedule locally.
      */
-    private static class UIFJob implements Job {
+    @DisallowConcurrentExecution
+    public static class UIFJob implements Job {
 
         @Override
         @SuppressWarnings("unchecked")
         public void execute(JobExecutionContext context) throws JobExecutionException {
             JobDataMap dataMap = context.getJobDetail().getJobDataMap();
             Properties properties = (Properties) dataMap.get(PROPERTIES_KEY);
-            // We need work unit manager to add and schedule generated work units
+            String jobName = properties.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+
+            ConcurrentMap<String, JobLock> jobLockMap =
+                    (ConcurrentMap<String, JobLock>) dataMap.get(JOB_LOCK_MAP_KEY);
+            // Try acquiring a job lock before proceeding
+            if (!acquireJobLock(jobLockMap, jobName)) {
+                LOG.info("Failed to acquire the job lock for job " + jobName);
+                return;
+            }
+
             WorkUnitManager workUnitManager = (WorkUnitManager) dataMap.get(
                     WORK_UNIT_MANAGER_KEY);
-            Map<String, Source> jobSource = (Map<String, Source>) dataMap.get(
-                    JOB_SOURCE_KEY);
-            Map<String, Integer> jobTaskCount = (Map<String, Integer>) dataMap.get(
-                    JOB_TASK_COUNT_KEY);
-            Map<String, List<TaskState>> jobTaskStates =
-                    (Map<String, List<TaskState>>) dataMap.get(JOB_TASK_STATES_KEY);
+            Map<String, Source> jobSourceMap = (Map<String, Source>) dataMap.get(
+                    JOB_SOURCE_MAP_KEY);
+            Map<String, Integer> jobTaskCountMap = (Map<String, Integer>) dataMap.get(
+                    JOB_TASK_COUNT_MAP_KEY);
+            Map<String, List<TaskState>> jobTaskStatesMap =
+                    (Map<String, List<TaskState>>) dataMap.get(JOB_TASK_STATES_MAP_KEY);
 
-            // Construct job ID, which is in the form of job_<job_id_suffix>
-            // <job_id_suffix> is in the form of <job_name>_<current_timestamp>
-            String jobIdSuffix = String.format("%s_%d",
-                    properties.getProperty(ConfigurationKeys.JOB_NAME_KEY),
-                    System.currentTimeMillis());
+            /*
+             * Construct job ID, which is in the form of job_<job_id_suffix>
+             * <job_id_suffix> is in the form of <job_name>_<current_timestamp>
+             */
+            String jobIdSuffix = String.format("%s_%d", jobName, System.currentTimeMillis());
             String jobId = "job_" + jobIdSuffix;
-            if (jobTaskStates.containsKey(jobId)) {
-                throw new RuntimeException();
-            }
-            jobTaskStates.put(jobId, new ArrayList<TaskState>());
+            LOG.info("Starting job " + jobId);
 
             try {
-                Source<?, ?> source = (Source<?, ?>) Class.forName(
-                        properties.getProperty(ConfigurationKeys.SOURCE_CLASS_KEY))
-                        .newInstance();
-                jobSource.put(jobId, source);
                 com.linkedin.uif.configuration.State state =
                         new com.linkedin.uif.configuration.State();
                 // Add all job configuration properties of this job
                 state.addAll(properties);
 
+                Source<?, ?> source = (Source<?, ?>) Class.forName(
+                        properties.getProperty(ConfigurationKeys.SOURCE_CLASS_KEY))
+                        .newInstance();
                 // Generate work units based on all previous work unit states
                 List<WorkUnit> workUnits = source.getWorkunits(
                         new SourceState(state, getPreviousWorkUnitStates(properties)));
-                jobTaskCount.put(jobId, workUnits.size());
+
+                jobSourceMap.put(jobId, source);
+                jobTaskCountMap.put(jobId, workUnits.size());
+                jobTaskStatesMap.put(jobId, new ArrayList<TaskState>(workUnits.size()));
+
                 // Add all generated work units
                 int sequence = 0;
                 for (WorkUnit workUnit : workUnits) {
-                    // Construct task ID, which is in the form of
-                    // task_<job_id_suffix>_<task_sequence_number>
+                    /*
+                     * Construct task ID, which is in the form of
+                     * task_<job_id_suffix>_<task_sequence_number>
+                     */
                     String taskId = String.format("task_%s_%d", jobIdSuffix, sequence++);
                     WorkUnitState workUnitState = new WorkUnitState(workUnit);
                     workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
@@ -254,9 +309,24 @@ public class LocalJobManager extends AbstractIdleService {
         }
 
         /**
+         * Try acquring the job lock and return whether the lock is successfully locked.
+         */
+        private boolean acquireJobLock(ConcurrentMap<String, JobLock> jobLock, String jobName) {
+            try {
+                jobLock.putIfAbsent(jobName, new LocalJobLock());
+                JobLock lock = jobLock.get(jobName);
+                return lock.tryLock();
+            } catch (IOException ioe) {
+                LOG.error("Failed to acquire the job lock for job " + jobName, ioe);
+                return false;
+            }
+        }
+
+        /**
          * Get work unit states of the most recent run of this job.
          */
         private List<WorkUnitState> getPreviousWorkUnitStates(Properties properties) {
+            // TODO: complete the implementation
             return Lists.newArrayList();
         }
     }
