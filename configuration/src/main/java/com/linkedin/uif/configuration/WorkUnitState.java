@@ -16,7 +16,7 @@ public class WorkUnitState extends State
 {
   public enum WorkingState
   {
-    PENDING, WORKING, FAILED, COMMITTED
+    PENDING, WORKING, FAILED, COMMITTED, ABORTED
   }
 
   private WorkUnit workunit;
