@@ -3,11 +3,14 @@ package com.linkedin.uif.configuration;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
+
+import com.google.common.base.Splitter;
 
 
 public class State implements Writable {
@@ -33,15 +36,12 @@ public class State implements Writable {
     return properties.getProperty(key, def);
   }
 
-  public String[] getPropAsList(String key) {
-    if (!contains(key))
-      return new String[0];
-
-    return properties.getProperty(key).split(",");
+  public List<String> getPropAsList(String key) {
+    return Splitter.on(",").trimResults().splitToList(properties.getProperty(key));
   }
 
-  public String[] getPropAsList(String key, String def) {
-    return properties.getProperty(key, def).split(",");
+  public List<String> getPropAsList(String key, String def) {
+    return Splitter.on(",").trimResults().splitToList(properties.getProperty(key, def));
   }
 
   public long getPropAsLong(String key) {
@@ -90,7 +90,7 @@ public class State implements Writable {
 
     int numEntries = in.readInt();
 
-    while (numEntries-- < 0) {
+    while (numEntries-- > 0) {
       txt.readFields(in);
       String key = txt.toString();
       txt.readFields(in);

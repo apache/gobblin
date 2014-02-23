@@ -1,5 +1,8 @@
 package com.linkedin.uif.source.workunit;
 
+import java.util.List;
+
+import com.google.common.base.Joiner;
 import com.linkedin.uif.configuration.State;
 
 
@@ -31,7 +34,7 @@ public class Table extends State {
   public Table(String namespace, String table, String extractId) {
     super.setProp("extract.namespace.name", namespace);
     super.setProp("extract.table.name", table);
-    super.setProp("extract.extract.id", table);
+    super.setProp("extract.extract.id", extractId);
   }
 
   /**
@@ -76,7 +79,7 @@ public class Table extends State {
    *
    * @return
    */
-  public boolean isFull() {
+  public boolean getIsFull() {
     return getPropAsBoolean("extract.is.full", false);
   }
 
@@ -97,7 +100,7 @@ public class Table extends State {
   /**
    * only required if this extract is a full drop
    *
-   * @param extractFullRunTime
+   * @param extractFullRunTime required for setting full to true
    */
   public void setFullTrue(long extractFullRunTime) {
     setFullTrue();
@@ -142,7 +145,7 @@ public class Table extends State {
     return getPropAsLong("extract.high.water.mark", -1);
   }
 
-  public boolean isExtractHighWaterMarkEstimated() {
+  public boolean getIsExtractHighWaterMarkEstimated() {
     return getPropAsBoolean("extract.high.water.mark.estimated", false);
   }
 
@@ -171,7 +174,7 @@ public class Table extends State {
     return getPropAsLong("extract.record.count", -1);
   }
 
-  public boolean isRecordCountEstimated() {
+  public boolean getIsRecordCountEstimated() {
     return getPropAsBoolean("extract.record.count.estimated", false);
   }
 
@@ -200,15 +203,15 @@ public class Table extends State {
    *
    * @param isSharded
    */
-  public void isSharded(boolean isSharded) {
+  public void setIsSharded(boolean isSharded) {
     setProp("extract.is.sharded", isSharded);
   }
 
-  public boolean isSharded() {
+  public boolean getIsSharded() {
     return getPropAsBoolean("extract.is.sharded", false);
   }
 
-  public boolean isSecured() {
+  public boolean getIsSecured() {
     return getPropAsBoolean("extract.is.secured", false);
   }
 
@@ -216,9 +219,9 @@ public class Table extends State {
    * optional if set then all output files will be restricted to users
    * belonging to the specified group
    *
-   * @param permissionGroup
+   * @param permissionGroup group is required for setting secured
    */
-  public void setSecured(String permissionGroup) {
+  public void setIsSecured(String permissionGroup) {
     setProp("extract.is.secured", true);
     setProp("extract.security.permission.group", permissionGroup);
   }
@@ -230,14 +233,7 @@ public class Table extends State {
    *            dot seperated name for deeply nested keys.
    */
   public void setPrimaryKeys(String... primaryKeyFieldName) {
-    String keys = "";
-
-    for (String key : primaryKeyFieldName)
-      keys += key + ",";
-
-    keys.substring(0, keys.length() - 1);
-
-    setProp("extract.primary.key.fields", keys);
+    setProp("extract.primary.key.fields", Joiner.on(",").join(primaryKeyFieldName));
   }
 
   /**
@@ -246,18 +242,13 @@ public class Table extends State {
    * @param primaryKeyFieldName
    *            dot seperated name for deeply nested keys.
    */
-  public void addPrimaryKey(String primaryKeyFieldName) {
-    String keys = getProp("extract.primary.key.fields", "");
-
-    if (!keys.isEmpty())
-      keys += ",";
-
-    keys += primaryKeyFieldName;
-
-    setProp("extract.primary.key.fields", keys);
+  public void addPrimaryKey(String... primaryKeyFieldName) {
+    StringBuilder sb = new StringBuilder(getProp("extract.primary.key.fields", ""));
+    Joiner.on(",").appendTo(sb, primaryKeyFieldName);
+    setProp("extract.primary.key.fields", sb.toString());
   }
 
-  public String[] getPrimaryKeys() {
+  public List<String> getPrimaryKeys() {
     return getPropAsList("extract.primary.key.fields");
   }
 
@@ -268,14 +259,7 @@ public class Table extends State {
    *            dot seperated name for deeply nested delta fields.
    */
   public void setDeltaFields(String... deltaFieldName) {
-    String keys = "";
-
-    for (String key : deltaFieldName)
-      keys += key + ",";
-
-    keys.substring(0, keys.length() - 1);
-
-    setProp("extract.delta.fields", keys);
+    setProp("extract.delta.fields", Joiner.on(",").join(deltaFieldName));
   }
 
   /**
@@ -284,18 +268,13 @@ public class Table extends State {
    * @param deltaFieldName
    *            dot seperated name for deeply nested delta fields.
    */
-  public void addDeltaField(String deltaFieldName) {
-    String keys = getProp("extract.delta.fields", "");
-
-    if (!keys.isEmpty())
-      keys += ",";
-
-    keys += deltaFieldName;
-
-    setProp("extract.delta.fields", keys);
+  public void addDeltaField(String... deltaFieldName) {
+    StringBuilder sb = new StringBuilder(getProp("extract.delta.fields", ""));
+    Joiner.on(",").appendTo(sb, deltaFieldName);
+    setProp("extract.delta.fields", sb.toString());
   }
 
-  public String[] getDeltaFields() {
+  public List<String> getDeltaFields() {
     return getPropAsList("extract.delta.fields");
   }
 
@@ -305,11 +284,9 @@ public class Table extends State {
    * @return
    * @throws MissingExtractAttributeException
    */
-  public boolean validateTableAttributes() throws MissingExtractAttributeException {
+  public void validateTableAttributes() throws MissingExtractAttributeException {
     if (getNamespace().isEmpty() || getTable().isEmpty() || getExtractId().isEmpty()) {
-      return false;
+      throw new MissingExtractAttributeException("All extracts require a namespace, tableName, and extractId");
     }
-
-    return true;
   }
 }
