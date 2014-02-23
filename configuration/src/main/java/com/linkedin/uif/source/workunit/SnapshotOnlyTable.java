@@ -16,12 +16,12 @@ public class SnapshotOnlyTable extends Table {
   }
 
   @Override
-  public boolean validateTableAttributes() throws MissingExtractAttributeException {
-    if (super.validateTableAttributes() && getFullExtractRunTime() == -1)
+  public void validateTableAttributes() throws MissingExtractAttributeException {
+    super.validateTableAttributes();
+    if (getFullExtractRunTime() == -1)
       throw new MissingExtractAttributeException(
           "Full snapshot tables require a timestamp for full drops.  In most cases, this is when the full extract was started. "
               + "You can set the timestamp using " + Table.class.getName() + ".setFullTrue(long extractFullRunTime)");
-    return true;
   }
 
 }

@@ -19,7 +19,6 @@ public class WorkUnit extends State {
     SNAPSHOT_APPEND,
     APPEND_ONLY
   }
-  TableType type;
   private Table table;
 
   public WorkUnit() {
@@ -36,7 +35,7 @@ public class WorkUnit extends State {
    */
   public WorkUnit(SourceState state, TableType type, String namespace, String table, String extractId) {
     this.addAll(state);
-    this.type = type;
+    setProp("extract.table.type", type.toString());
 
     switch (type) {
       case SNAPSHOT_ONLY:
@@ -56,7 +55,7 @@ public class WorkUnit extends State {
    * @return
    */
   public TableType getType() {
-    return type;
+    return TableType.valueOf(getProp("extract.table.type"));
   }
 
   /**

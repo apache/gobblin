@@ -14,13 +14,16 @@ public class AppendOnlyTable extends Table {
   }
 
   @Override
-  public boolean validateTableAttributes() throws MissingExtractAttributeException {
-    if (super.validateTableAttributes() && getDeltaFields().length == 0) {
+  public void validateTableAttributes() throws MissingExtractAttributeException {
+    super.validateTableAttributes();
+
+    try {
+      getDeltaFields();
+    } catch (NullPointerException e) {
       throw new MissingExtractAttributeException(
           "Append tables require at least one delta field in order to partition the data according to data/time.  This should be a timestamp or something equivelent. "
               + "You can set the delta field(s) using one of the setters on " + Table.class.getName());
-    }
-    return true;
-  }
 
+    }
+  }
 }
