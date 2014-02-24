@@ -2,7 +2,6 @@ package com.linkedin.uif.publisher;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Properties;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -10,7 +9,7 @@ import org.apache.commons.logging.LogFactory;
 import com.linkedin.uif.configuration.MetaStoreClient;
 import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.qualitychecker.Policy;
-import com.linkedin.uif.qualitychecker.PolicyResult;
+import com.linkedin.uif.qualitychecker.QualityCheckResult;
 import com.linkedin.uif.qualitychecker.PolicyCheckResults;
 import com.linkedin.uif.scheduler.TaskState;
 
@@ -77,8 +76,8 @@ public class TaskPublisher
      * Returns true if all tests from the PolicyChecker pass, false otherwise
      */
     public boolean passedAllTests() {
-        for ( Map.Entry<PolicyResult, Policy.Type> entry : results.getPolicyResults().entrySet()) {
-            if (entry.getKey().equals(PolicyResult.FAILED) && entry.getValue().equals(Policy.Type.MANDATORY)) {
+        for ( Map.Entry<QualityCheckResult, Policy.Type> entry : results.getPolicyResults().entrySet()) {
+            if (entry.getKey().equals(QualityCheckResult.FAILED) && entry.getValue().equals(Policy.Type.MANDATORY)) {
                 return false;
             }
         }
@@ -126,8 +125,8 @@ public class TaskPublisher
             this.dataPublisher.close();
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
-            throw new Exception(e);
+            LOG.error(e);
+            throw e;
         }
     }
 }

@@ -1,19 +1,20 @@
 package com.linkedin.uif.qualitychecker;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Wrapper around an ArrayList of Policies
  */
 public class PolicyList
 {
-    private ArrayList<Policy> policyList;
+    private List<Policy> policyList;
     
     public PolicyList() {
         this.policyList = new ArrayList<Policy>();
     }
     
-    public ArrayList<Policy> getPolicyList() {
+    public List<Policy> getPolicyList() {
         return this.policyList;
     }
 }

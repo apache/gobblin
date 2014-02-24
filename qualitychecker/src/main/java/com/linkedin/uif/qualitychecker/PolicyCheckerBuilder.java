@@ -1,10 +1,14 @@
 package com.linkedin.uif.qualitychecker;
 
 import java.lang.reflect.Constructor;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import com.google.common.base.Splitter;
+import com.google.common.collect.Lists;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.MetaStoreClient;
 import com.linkedin.uif.configuration.WorkUnitState;
@@ -29,20 +33,21 @@ public class PolicyCheckerBuilder
     }
     
     @SuppressWarnings("unchecked")
-    public PolicyList createPolicyList() throws Exception {
+    private PolicyList createPolicyList() throws Exception {
         PolicyList list = new PolicyList();
-        String[] policies = this.taskState.getProp(ConfigurationKeys.POLICY_LIST).split(",");
-        String[] types = this.taskState.getProp(ConfigurationKeys.POLICY_LIST_TYPE).split(",");
-        if (policies.length != types.length ) throw new Exception("Policies list and Policies list type are not the same length");
-        for (int i = 0; i < policies.length; i++) {
+        Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
+        List<String> policies = Lists.newArrayList(splitter.split(this.taskState.getProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST)));
+        List<String> types = Lists.newArrayList(splitter.split(this.taskState.getProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST_TYPE)));
+        if (policies.size() != types.size() ) throw new Exception("Policies list and Policies list type are not the same length");
+        for (int i = 0; i < policies.size(); i++) {
             try {
-                Class<? extends Policy> policyClass = (Class<? extends Policy>) Class.forName(policies[i]);
+                Class<? extends Policy> policyClass = (Class<? extends Policy>) Class.forName(policies.get(i));
                 Constructor<? extends Policy> policyConstructor = policyClass.getConstructor(WorkUnitState.class);
-                Policy policy = policyConstructor.newInstance(this.taskState, this.metadata, types[i]);
+                Policy policy = policyConstructor.newInstance(this.taskState, this.metadata, types.get(i));
                 list.getPolicyList().add((Policy) policy);
             } catch (Exception e) {
-                LOG.error(ConfigurationKeys.POLICY_LIST + " contains a class " + policies[i] + " which doesn't extend Policy.");
-                throw new Exception(e);
+                LOG.error(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST + " contains a class " + policies.get(i) + " which doesn't extend Policy.");
+                throw e;
             }
         }
         return list;

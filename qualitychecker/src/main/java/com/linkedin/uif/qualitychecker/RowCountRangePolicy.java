@@ -6,24 +6,24 @@ import com.linkedin.uif.scheduler.TaskState;
 
 public class RowCountRangePolicy extends Policy
 {
-    private long rowsRead;
-    private long rowsWritten;
-    private double range;
+    private final long rowsRead;
+    private final long rowsWritten;
+    private final double range;
     
     public RowCountRangePolicy(TaskState taskState, MetaStoreClient metadata, Type type)
     {
         super(taskState, metadata, type);
-        this.rowsRead = taskState.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_READ);
-        this.rowsWritten = taskState.getPropAsLong(ConfigurationKeys.WRITER_ROWS_WRITTEN);
-        this.range = taskState.getPropAsDouble(ConfigurationKeys.ROW_COUNT_RANGE);
+        this.rowsRead = taskState.getPropAsLong(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.EXTRACTOR_ROWS_READ);
+        this.rowsWritten = taskState.getPropAsLong(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.WRITER_ROWS_WRITTEN);
+        this.range = taskState.getPropAsDouble(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.ROW_COUNT_RANGE);
     }
 
     @Override
-    public PolicyResult executePolicy() {
+    public QualityCheckResult executePolicy() {
         if (Math.abs((this.rowsWritten - this.rowsRead) / this.rowsRead) <= this.range) {
-            return PolicyResult.PASSED;
+            return QualityCheckResult.PASSED;
         } else {
-            return PolicyResult.FAILED;
+            return QualityCheckResult.FAILED;
         }
     }
 }

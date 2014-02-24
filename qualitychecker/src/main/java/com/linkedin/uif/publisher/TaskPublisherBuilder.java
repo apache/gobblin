@@ -31,16 +31,17 @@ public class TaskPublisherBuilder
         return new TaskPublisherBuilder(taskState, results, metadata);
     }
     
-    public DataPublisher createDataPublisher() throws Exception {
+    @SuppressWarnings("unchecked")
+    private DataPublisher createDataPublisher() throws Exception {
         DataPublisher dataPublisher;
-        String dataPublisherString = this.taskState.getProp(ConfigurationKeys.TASK_DATA_PUBLISHER);
+        String dataPublisherString = this.taskState.getProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.TASK_DATA_PUBLISHER_TYPE);
         try {
             Class<? extends DataPublisher> dataPublisherClass = (Class<? extends DataPublisher>) Class.forName(dataPublisherString);
             Constructor<? extends DataPublisher> dataPublisherConstructor = dataPublisherClass.getConstructor(DataPublisher.class);
             dataPublisher = dataPublisherConstructor.newInstance(this.taskState);
         } catch (Exception e) {
             LOG.error("");
-            throw new Exception(e);
+            throw e;
         }
         return dataPublisher;
     }

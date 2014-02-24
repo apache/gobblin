@@ -6,8 +6,8 @@ import com.linkedin.uif.scheduler.TaskState;
 
 public class RowCountPolicy extends Policy
 {
-    private long rowsRead;
-    private long rowsWritten;
+    private final long rowsRead;
+    private final long rowsWritten;
     
     public RowCountPolicy(TaskState taskState, MetaStoreClient metadata, Type type)
     {
@@ -17,11 +17,11 @@ public class RowCountPolicy extends Policy
     }
 
     @Override
-    public PolicyResult executePolicy() {
+    public QualityCheckResult executePolicy() {
         if (this.rowsRead == this.rowsWritten) {
-            return PolicyResult.PASSED;
+            return QualityCheckResult.PASSED;
         } else {
-            return PolicyResult.FAILED;
+            return QualityCheckResult.FAILED;
         }
     }
 }
