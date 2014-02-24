@@ -4,6 +4,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.State;
 
@@ -14,83 +15,68 @@ import com.linkedin.uif.configuration.State;
  *
  */
 public class WorkUnit extends State {
-  public enum TableType {
-    SNAPSHOT_ONLY,
-    SNAPSHOT_APPEND,
-    APPEND_ONLY
-  }
-  private Table table;
 
-  public WorkUnit() {
-  }
+  private Extract extract;
 
   /**
    * Constructor
    *
-   * @param state all properties will be copied into this workunit
-   * @param type append snapshot or both
-   * @param namespace dot seperated namespace path
-   * @param table dataset name
-   * @param extractId unique id for each extract for a namespace table
+   * @param state {@link SourceState} all properties will be copied into this workunit
+   * @param extract {@link Extract}
    */
-  public WorkUnit(SourceState state, TableType type, String namespace, String table, String extractId) {
-    this.addAll(state);
-    setProp("extract.table.type", type.toString());
+  public WorkUnit(SourceState state, Extract extract) {
+    // values should only be null for deserialization.
+    if (state != null)
+      this.addAll(state);
 
-    switch (type) {
-      case SNAPSHOT_ONLY:
-        this.table = new SnapshotOnlyTable(namespace, table, extractId);
-        break;
-      case SNAPSHOT_APPEND:
-        this.table = new SnapshotAppendTable(namespace, table, extractId);
-        break;
-      case APPEND_ONLY:
-        this.table = new AppendOnlyTable(namespace, table, extractId);
-        break;
-    }
+    if (extract != null)
+      this.extract = extract;
+    else
+      this.extract = new Extract(null, null, null, null, null);
   }
 
   /**
-   * indicates snapshot or append or snapshot data with an append only changelog
-   * @return
+   * Copy constructor
+   * @param other
    */
-  public TableType getType() {
-    return TableType.valueOf(getProp("extract.table.type"));
+  public WorkUnit(WorkUnit other) {
+    addAll(other);
+    extract.addAll(other.getExtract());
   }
 
   /**
    * Attributes object for differing pull types.
    * @return
    */
-  public Table getTable() {
-    return table;
+  public Extract getExtract() {
+    return extract;
   }
 
   public long getHighWaterMark() {
-    return getPropAsLong("workunit.high.water.mark");
+    return getPropAsLong(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY);
   }
 
   public void setHighWaterMark(long highWaterMark) {
-    setProp("workunit.high.water.mark", highWaterMark);
+    setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, highWaterMark);
   }
 
   public long getLowWaterMark() {
-    return getPropAsLong("workunit.low.water.mark");
+    return getPropAsLong(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY);
   }
 
   public void setLowWaterMark(long lowWaterMark) {
-    setProp("workunit.low.water.mark", lowWaterMark);
+    setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, lowWaterMark);
   }
 
   @Override
   public void readFields(DataInput in) throws IOException {
     super.readFields(in);
-    this.table.readFields(in);
+    this.extract.readFields(in);
   }
 
   @Override
   public void write(DataOutput out) throws IOException {
     super.write(out);
-    this.table.write(out);
+    this.extract.write(out);
   }
 }

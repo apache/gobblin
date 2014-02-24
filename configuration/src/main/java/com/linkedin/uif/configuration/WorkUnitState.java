@@ -22,7 +22,9 @@ public class WorkUnitState extends State
   private WorkUnit workunit;
 
     // Necessary for serialization/deserialization
-  public WorkUnitState() {}
+  public WorkUnitState() {
+    this.workunit = new WorkUnit(null, null);
+  }
 
   public WorkUnitState(WorkUnit workUnit) {
       this.workunit = workUnit;
@@ -35,12 +37,12 @@ public class WorkUnitState extends State
 
   public WorkingState getWorkingState()
   {
-    return WorkingState.valueOf(getProp("workunit.working.state", WorkingState.PENDING.toString()));
+    return WorkingState.valueOf(getProp(ConfigurationKeys.WORK_UNIT_WORKING_STATE_KEY, WorkingState.PENDING.toString()));
   }
 
   public void setWorkingState(WorkingState state)
   {
-    setProp("workunit.working.state", state.toString());
+    setProp(ConfigurationKeys.WORK_UNIT_WORKING_STATE_KEY, state.toString());
   }
 
   public long getHighWaterMark()

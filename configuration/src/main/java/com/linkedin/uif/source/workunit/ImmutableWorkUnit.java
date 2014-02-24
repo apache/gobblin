@@ -8,7 +8,7 @@ package com.linkedin.uif.source.workunit;
 public class ImmutableWorkUnit extends WorkUnit {
 
     public ImmutableWorkUnit(WorkUnit workUnit) {
-        this.addAll(workUnit);
+        super(workUnit);
     }
 
     @Override
