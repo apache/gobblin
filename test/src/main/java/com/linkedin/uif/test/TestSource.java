@@ -31,12 +31,8 @@ public class TestSource implements Source<String, String> {
         String sourceFileList = state.getProp(SOURCE_FILE_LIST_KEY);
         List<WorkUnit> workUnits = Lists.newArrayList();
         for (String sourceFile : SPLITTER.split(sourceFileList)) {
-            WorkUnit workUnit = new WorkUnit();
+            WorkUnit workUnit = new WorkUnit(null, null);
             workUnit.addAll(state);
-            workUnit.setNamespace(state.getProp(
-                    ConfigurationKeys.WORK_UNIT_NAMESPACE_KEY));
-            workUnit.setTable(state.getProp(
-                    ConfigurationKeys.WORK_UNIT_TABLE_KEY));
             workUnit.setProp(SOURCE_FILE_KEY, sourceFile);
             workUnits.add(workUnit);
         }

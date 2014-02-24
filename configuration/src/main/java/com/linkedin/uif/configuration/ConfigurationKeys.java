@@ -28,8 +28,29 @@ public class ConfigurationKeys {
     /**
      * Work unit related configuration properties
      */
-    public static final String WORK_UNIT_NAMESPACE_KEY = "workunit.namespace";
-    public static final String WORK_UNIT_TABLE_KEY = "workunit.table";
+    public static final String WORK_UNIT_LOW_WATER_MARK_KEY = "workunit.low.water.mark";
+    public static final String WORK_UNIT_HIGH_WATER_MARK_KEY = "workunit.high.water.mark";
+    public static final String WORK_UNIT_WORKING_STATE_KEY = "workunit.working.state";
+
+    /**
+     * Extract related configuration properties
+     */
+    public static final String EXTRACT_TABLE_TYPE_KEY = "extract.table.type";
+    public static final String EXTRACT_NAMESPACE_NAME_KEY = "extract.namespace.name";
+    public static final String EXTRACT_TABLE_NAME_KEY = "extract.table.name";
+    public static final String EXTRACT_EXTRACT_ID_KEY = "extract.extract.id";
+    public static final String EXTRACT_IS_FULL_KEY = "extract.is.full";
+    public static final String EXTRACT_FULL_RUN_TIME_KEY = "extract.full.run.time";
+    public static final String EXTRACT_RECORD_COUNT_KEY = "extract.record.count";
+    public static final String EXTRACT_RECORD_COUNT_ESTIMATED_KEY = "extract.record.count.estimated";
+    public static final String EXTRACT_VALIDATION_RECORD_COUNT_KEY = "extract.validation.record.count";
+    public static final String EXTRACT_VALIDATION_RECORD_COUNT_HWM_KEY = "extract.validation.record.count.high.water.mark";
+    public static final String EXTRACT_IS_SHARDED_KEY = "extract.is.sharded";
+    public static final String EXTRACT_SHARDED_REAL_NAMESPACE_KEY = "extract.sharded.real.namespace";
+    public static final String EXTRACT_IS_SECURED_KEY = "extract.is.secured";
+    public static final String EXTRACT_SECURITY_PERMISSION_GROUP_KEY = "extract.security.permission.group";
+    public static final String EXTRACT_PRIMARY_KEY_FIELDS_KEY = "extract.primary.key.fields";
+    public static final String EXTRACT_DELTA_FIELDS_KEY = "extract.delta.fields";
 
     /**
      * Writer configuration properties
