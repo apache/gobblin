@@ -131,14 +131,13 @@ public class Task implements Runnable, Serializable {
             }
 
             // Do overall quality checking and publish task data
-            this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_READ, extractor.getExpectedRecordCount());
-            this.taskState.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, writer.recordsWritten());
+            this.taskState.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.EXTRACTOR_ROWS_READ, extractor.getExpectedRecordCount());
+            this.taskState.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.WRITER_ROWS_WRITTEN, writer.recordsWritten());
             
-            PolicyCheckResults results;
             MetaStoreClient collector = buildMetaStoreClient(this.taskState);
             
             PolicyChecker policyChecker = buildPolicyChecker(this.taskState, collector);
-            results = policyChecker.checkAndWritePolicies();
+            PolicyCheckResults results = policyChecker.executePolicies();
 
             TaskPublisher publisher = buildTaskPublisher(this.taskState, results, collector);
             
@@ -178,17 +177,29 @@ public class Task implements Runnable, Serializable {
         }
     }
 
-    public MetaStoreClient buildMetaStoreClient(TaskState taskState) throws Exception {
+    /**
+     * Builds a {@link MetaStoreClient} to communicate with an external MetaStore
+     * @return a {@link MetaStoreClient}
+     */
+    private MetaStoreClient buildMetaStoreClient(TaskState taskState) throws Exception {
         MetaStoreClientBuilder builder = new MetaStoreClientBuilderFactory().newMetaStoreClientBuilder(taskState);
         return builder.build();
     }
     
-    public PolicyChecker buildPolicyChecker(TaskState taskState, MetaStoreClient collector) throws Exception {
+    /**
+     * Builds a {@link PolicyChecker} to execute all the Policies
+     * @return a {@link PolicyChecker}
+     */
+    private PolicyChecker buildPolicyChecker(TaskState taskState, MetaStoreClient collector) throws Exception {
         PolicyCheckerBuilder builder = new PolicyCheckerBuilderFactory().newPolicyCheckerBuilder(taskState, collector);
         return builder.build();
     }
     
-    public TaskPublisher buildTaskPublisher(TaskState taskState, PolicyCheckResults results, MetaStoreClient collector) throws Exception {
+    /**
+     * Builds a {@link TaskPublisher} to publish this Task's data
+     * @return a {@link TaskPublisher}
+     */
+    private TaskPublisher buildTaskPublisher(TaskState taskState, PolicyCheckResults results, MetaStoreClient collector) throws Exception {
         TaskPublisherBuilder builder = new TaskPublisherBuilderFactory().newTaskPublisherBuilder(taskState, results, collector);
         return builder.build();
     }

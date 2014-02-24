@@ -13,7 +13,7 @@ public abstract class Policy
     private final TaskState taskState;
     private final MetaStoreClient metadata;
     private Type type;
-    private PolicyResult result;
+    private QualityCheckResult result;
     
     public enum Type {
         MANDATORY,     // The test is mandatory
@@ -24,14 +24,14 @@ public abstract class Policy
         this.taskState = taskState;
         this.metadata = metadata;
         this.setType(type);
-        this.setResult(PolicyResult.FAILED);
+        this.setResult(QualityCheckResult.FAILED);
     }
     
     /**
      * Main method that defines the semantics of this policy
      * This method will be executed by the PolicyChecker
      */
-    public abstract PolicyResult executePolicy();
+    public abstract QualityCheckResult executePolicy();
 
     public TaskState getTaskState()
     {
@@ -53,12 +53,12 @@ public abstract class Policy
         this.type = type;
     }
 
-    public PolicyResult getResult()
+    public QualityCheckResult getResult()
     {
         return result;
     }
 
-    public void setResult(PolicyResult result)
+    public void setResult(QualityCheckResult result)
     {
         this.result = result;
     }

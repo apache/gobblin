@@ -1,5 +1,6 @@
 package com.linkedin.uif.configuration;
 
+import java.io.IOException;
 
 /**
  * Defines an interface for interacting with an external metastore (Yushan, HDFS, etc.)
@@ -11,7 +12,7 @@ public interface MetaStoreClient
     /**
      * Does any initialization e.g. establishing a connection to a metastore
      */
-    public boolean initialize() throws Exception;
+    public boolean initialize() throws IOException;
     
     /**
      * Returns a properties file containing key, value pair statistics

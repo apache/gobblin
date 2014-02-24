@@ -19,16 +19,17 @@ public class MetaStoreClientBuilder
         return new MetaStoreClientBuilder(state);
     }
     
-    public MetaStoreClient createMetadataCollector() throws Exception {
+    @SuppressWarnings("unchecked")
+    private MetaStoreClient createMetadataCollector() throws Exception {
         MetaStoreClient metaStoreClient;
-        String metaStoreClientString = this.state.getProp(ConfigurationKeys.METADATA_CLIENT);
+        String metaStoreClientString = this.state.getProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.METADATA_CLIENT);
         try {
             Class<? extends MetaStoreClient> metaStoreClientClass = (Class<? extends MetaStoreClient>) Class.forName(metaStoreClientString);
             Constructor<? extends MetaStoreClient> metaStoreClientConstructor = metaStoreClientClass.getConstructor(MetaStoreClient.class);
             metaStoreClient = metaStoreClientConstructor.newInstance();
         } catch (Exception e) {
-            LOG.error(ConfigurationKeys.METADATA_CLIENT + " contains a class " + metaStoreClientString + " which doesn't extend MetaStoreClient");
-            throw new Exception(e);
+            LOG.error(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.METADATA_CLIENT + " contains a class " + metaStoreClientString + " which doesn't extend MetaStoreClient");
+            throw e;
         }
         return metaStoreClient;
     }

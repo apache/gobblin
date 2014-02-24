@@ -45,13 +45,17 @@ public class ConfigurationKeys {
     public static final String DEFAULT_BUFFER_SIZE = "4096";
 
     /**
+     * Task publisher properties
+     */
+    public static final String TASK_PUBLISHER_PREFIX = "task.publisher";
+    
+    /**
      * HDFS task publisher properties
      */
-    public static final String HDFS_TASK_DATA_TMP_DIR = "uif.publisher.task.tmp.dir";
-    public static final String HDFS_TASK_DATA_FINAL_DIR = "uif.publisher.task.final.dir";
-    public static final String HDFS_TASK_METADATA_TMP_DIR = "uif.publisher.task.tmp.dir";
-    public static final String HDFS_TASK_METADATA_FINAL_DIR = "uif.publisher.task.final.dir";
-    
+    public static final String HDFS_TASK_DATA_TMP_DIR = ".tmp.dir";
+    public static final String HDFS_TASK_DATA_FINAL_DIR = ".final.dir";
+    public static final String HDFS_TASK_METADATA_TMP_DIR = ".tmp.dir";
+    public static final String HDFS_TASK_METADATA_FINAL_DIR = ".final.dir";
     
     /**
      * Configuration properties used internally
@@ -62,12 +66,12 @@ public class ConfigurationKeys {
     /**
      * Configuration properties used by the quality checker
      */
-    public static final String POLICY_LIST = "uif.qualitychecker.policies";
-    public static final String POLICY_LIST_TYPE = "uif.qualitychecker.policies.types";
-    public static final String TASK_DATA_PUBLISHER = "uif.publisher.datapublisher";
-    public static final String METADATA_CLIENT = "uif.qualitychecker.metadatacollector";
-    public static final String EXTRACTOR_ROWS_READ = "extractor.rows.read";
-    public static final String WRITER_ROWS_WRITTEN = "writer.rows.written";
-
-    public static final String ROW_COUNT_RANGE = "0.05";
+    public static final String QUALITY_CHECKER_PREFIX = "qualityche cker";
+    public static final String POLICY_LIST = ".policies";
+    public static final String POLICY_LIST_TYPE = ".policy.types";
+    public static final String TASK_DATA_PUBLISHER_TYPE = ".taskpublisher.type";
+    public static final String METADATA_CLIENT = ".metadatacollector";
+    public static final String EXTRACTOR_ROWS_READ = ".rows.read";
+    public static final String WRITER_ROWS_WRITTEN = ".rows.written";
+    public static final String ROW_COUNT_RANGE = ".row.count.range";
 }

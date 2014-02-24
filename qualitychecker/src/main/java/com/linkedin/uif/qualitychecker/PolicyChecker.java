@@ -13,7 +13,7 @@ public class PolicyChecker
         this.list = list;
     }
         
-    public PolicyCheckResults checkAndWritePolicies() {
+    public PolicyCheckResults executePolicies() {
         PolicyCheckResults results = new PolicyCheckResults();
         for (Policy p : this.list.getPolicyList()) {
             results.add(p.executePolicy(), p.getType());
