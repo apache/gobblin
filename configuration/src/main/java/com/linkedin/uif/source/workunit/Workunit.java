@@ -4,76 +4,80 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import org.apache.hadoop.io.Text;
-
+import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.State;
 
-public class WorkUnit extends State
-{
-  private String namespace = null;
-  private String table = null;
 
-  public WorkUnit()
-  {
+/**
+ * Represents the definition for a finite pull task
+ * @author kgoodhop
+ *
+ */
+public class WorkUnit extends State {
+
+  private Extract extract;
+
+  /**
+   * Constructor
+   *
+   * @param state {@link SourceState} all properties will be copied into this workunit
+   * @param extract {@link Extract}
+   */
+  public WorkUnit(SourceState state, Extract extract) {
+    // values should only be null for deserialization.
+    if (state != null)
+      this.addAll(state);
+
+    if (extract != null)
+      this.extract = extract;
+    else
+      this.extract = new Extract(null, null, null, null, null);
   }
 
-  public WorkUnit(SourceState state, String namespace, String table)
-  {
-	this.addAll(state);
-    this.namespace = namespace;
-    this.table = table;
+  /**
+   * Copy constructor
+   * @param other
+   */
+  public WorkUnit(WorkUnit other) {
+    addAll(other);
+    this.extract = new Extract(null, null, null, null, null);
+    this.extract.addAll(other.getExtract());
   }
 
-  public String getNamespace()
-  {
-    return namespace;
+  /**
+   * Attributes object for differing pull types.
+   * @return
+   */
+  public Extract getExtract() {
+    return extract;
   }
 
-  public void setNamespace(String namespace)
-  {
-    this.namespace = namespace;
+  public long getHighWaterMark() {
+    return getPropAsLong(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY);
   }
 
-  public String getTable()
-  {
-    return table;
+  public void setHighWaterMark(long highWaterMark) {
+    setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, highWaterMark);
   }
 
-  public void setTable(String table)
-  {
-    this.table = table;
+  public long getLowWaterMark() {
+    return getPropAsLong(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY);
+  }
+
+  public void setLowWaterMark(long lowWaterMark) {
+    setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, lowWaterMark);
   }
 
   @Override
-  public void readFields(DataInput in) throws IOException
-  {
-    Text txt = new Text();
-
-    txt.readFields(in);
-    namespace = txt.toString();
-
-    txt.readFields(in);
-    table = txt.toString();
-
+  public void readFields(DataInput in) throws IOException {
     super.readFields(in);
+    this.extract.readFields(in);
   }
 
   @Override
-  public void write(DataOutput out) throws IOException
-  {
-    if (namespace == null || table == null)
-    {
-      throw new RuntimeException("All Workunits must have a namespace and table name");
-    }
-    Text txt = new Text();
-
-    txt.set(namespace);
-    txt.write(out);
-
-    txt.set(table);
-    txt.write(out);
-
+  public void write(DataOutput out) throws IOException {
     super.write(out);
+    this.extract.write(out);
   }
 }
