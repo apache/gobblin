@@ -29,13 +29,6 @@ public interface DataWriter<S, O> extends Serializable {
     public void close() throws IOException;
 
     /**
-     * Commit the data written.
-     *
-     * @throws IOException if there is anything wrong committing the output
-     */
-    public void commit() throws IOException;
-
-    /**
      * Cleanup context/resources.
      *
      * @throws IOException if there is anything wrong doing cleanup.

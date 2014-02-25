@@ -14,6 +14,8 @@ import com.linkedin.uif.source.workunit.Extract;
 import com.linkedin.uif.source.workunit.Extract.TableType;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
+import com.linkedin.uif.scheduler.TaskState;
+
 public class SourceState extends State
 {
   private List<WorkUnitState> previousTaskStates = new ArrayList<WorkUnitState>();
@@ -35,6 +37,11 @@ public class SourceState extends State
     return previousTaskStates;
   }
 
+  public MetaStoreClient buildMetaStoreClient(State state) throws Exception {
+      MetaStoreClientBuilder builder = new MetaStoreClientBuilderFactory().newMetaStoreClientBuilder(state);
+      return builder.build();
+  }
+  
   /**
    * builder for Extract that correctly populates Extract from config if needed and
    * uses current date/time for extractId

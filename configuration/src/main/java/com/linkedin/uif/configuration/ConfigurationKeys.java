@@ -83,6 +83,19 @@ public class ConfigurationKeys {
     public static final String DEFAULT_BUFFER_SIZE = "4096";
 
     /**
+     * Task publisher properties
+     */
+    public static final String TASK_PUBLISHER_PREFIX = "task.publisher";
+    
+    /**
+     * HDFS task publisher properties
+     */
+    public static final String HDFS_TASK_DATA_TMP_DIR = ".tmp.dir";
+    public static final String HDFS_TASK_DATA_FINAL_DIR = ".final.dir";
+    public static final String HDFS_TASK_METADATA_TMP_DIR = ".tmp.dir";
+    public static final String HDFS_TASK_METADATA_FINAL_DIR = ".final.dir";
+    
+    /**
      * Configuration properties used internally
      */
     public static final String TASK_EXECUTOR_THREADPOOL_SIZE_KEY =
@@ -109,6 +122,18 @@ public class ConfigurationKeys {
     public static final String DEFAULT_TASK_RETRY_INTERVAL_IN_SEC = "300";
     public static final String JOB_ID_KEY = "job.id";
     public static final String TASK_ID_KEY = "task.id";
+    
+    /**
+     * Configuration properties used by the quality checker
+     */
+    public static final String QUALITY_CHECKER_PREFIX = "qualityche cker";
+    public static final String POLICY_LIST = ".policies";
+    public static final String POLICY_LIST_TYPE = ".policy.types";
+    public static final String TASK_DATA_PUBLISHER_TYPE = ".taskpublisher.type";
+    public static final String METADATA_CLIENT = ".metadatacollector";
+    public static final String EXTRACTOR_ROWS_READ = ".rows.read";
+    public static final String WRITER_ROWS_WRITTEN = ".rows.written";
+    public static final String ROW_COUNT_RANGE = ".row.count.range";
     public static final String TASK_STATUS_REPORT_INTERVAL_IN_MS_KEY =
             "task.status.reportintervalinms";
     public static final long DEFAULT_TASK_STATUS_REPORT_INTERVAL_IN_MS = 30000;
