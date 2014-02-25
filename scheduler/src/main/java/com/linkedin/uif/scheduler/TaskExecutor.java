@@ -48,8 +48,8 @@ public class TaskExecutor extends AbstractIdleService {
                         ConfigurationKeys.DEFAULT_TASK_RETRY_THREAD_POOL_MAX_SIZE)));
 
         this.retryIntervalInSeconds = Long.parseLong(properties.getProperty(
-                ConfigurationKeys.TASK_RETRY_INTERVAL_KEY,
-                ConfigurationKeys.DEFAULT_TASK_RETRY_INTERVAL));
+                ConfigurationKeys.TASK_RETRY_INTERVAL_IN_SEC_KEY,
+                ConfigurationKeys.DEFAULT_TASK_RETRY_INTERVAL_IN_SEC));
     }
 
     @Override

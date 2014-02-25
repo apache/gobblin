@@ -12,6 +12,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.AbstractIdleService;
 
+import com.linkedin.uif.metastore.FsStateStore;
+import com.linkedin.uif.metastore.StateStore;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.quartz.*;
@@ -54,6 +56,8 @@ public class LocalJobManager extends AbstractIdleService {
     private static final String JOB_SOURCE_MAP_KEY = "jobSourceMap";
     private static final String JOB_TASK_COUNT_MAP_KEY = "jobTaskCountMap";
     private static final String JOB_TASK_STATES_MAP_KEY = "jobTaskStatesMap";
+    private static final String LAST_JOB_ID_MAP_KEY = "lastJobIdMap";
+    private static final String TASK_STATE_STORE_KEY = "taskStateStore";
 
     // This is used to add newly generated work units
     private final WorkUnitManager workUnitManager;
@@ -76,6 +80,12 @@ public class LocalJobManager extends AbstractIdleService {
     // Mapping between jobs to the tasks comprising each job
     private final Map<String, List<TaskState>> jobTaskStatesMap;
 
+    // Mapping between jobs to the job IDs of their last runs
+    private final Map<String, String> lastJobIdMap;
+
+    // Store for persisting task states
+    private final StateStore taskStateStore;
+
     public LocalJobManager(WorkUnitManager workUnitManager, Properties properties)
             throws Exception {
 
@@ -88,18 +98,23 @@ public class LocalJobManager extends AbstractIdleService {
         this.jobSourceMap = Maps.newHashMap();
         this.jobTaskCountMap = Maps.newHashMap();
         this.jobTaskStatesMap = Maps.newHashMap();
+        this.lastJobIdMap = Maps.newHashMap();
+        this.taskStateStore = new FsStateStore(
+                properties.getProperty(ConfigurationKeys.TASK_STATE_STORE_FS_URI_KEY),
+                properties.getProperty(ConfigurationKeys.TASK_STATE_STORE_ROOT_DIR_KEY),
+                TaskState.class);
     }
 
     @Override
     protected void startUp() throws Exception {
-        LOG.info("Starting the local job scheduler");
+        LOG.info("Starting the local job manager");
         this.scheduler.start();
         scheduleLocallyConfiguredJobs();
     }
 
     @Override
     protected void shutDown() throws Exception {
-        LOG.info("Starting the local job scheduler");
+        LOG.info("Stopping the local job manager");
         this.scheduler.shutdown(true);
     }
 
@@ -126,7 +141,7 @@ public class LocalJobManager extends AbstractIdleService {
             try {
                 commitJob(jobId, jobName, this.jobTaskStatesMap.get(jobId));
             } catch (IOException ioe) {
-                LOG.error("Failed to commit job " + jobId);
+                LOG.error("Failed to commit job " + jobId, ioe);
             }
         }
     }
@@ -145,6 +160,8 @@ public class LocalJobManager extends AbstractIdleService {
             jobDataMap.put(JOB_SOURCE_MAP_KEY, this.jobSourceMap);
             jobDataMap.put(JOB_TASK_COUNT_MAP_KEY, this.jobTaskCountMap);
             jobDataMap.put(JOB_TASK_STATES_MAP_KEY, this.jobTaskStatesMap);
+            jobDataMap.put(LAST_JOB_ID_MAP_KEY, this.lastJobIdMap);
+            jobDataMap.put(TASK_STATE_STORE_KEY, this.taskStateStore);
 
             // Build a Quartz job
             JobDetail job = JobBuilder.newJob(UIFJob.class)
@@ -226,10 +243,16 @@ public class LocalJobManager extends AbstractIdleService {
 
         // TODO: complete the implementation
 
+        LOG.info("Persisting task states of job " + jobId);
+        this.taskStateStore.putAll(jobName, jobId, taskStates);
+
         // Remove all state bookkeeping information of this scheduled job run
         this.jobSourceMap.remove(jobId);
         this.jobTaskCountMap.remove(jobId);
         this.jobTaskStatesMap.remove(jobId);
+
+        // Remember the job ID of this most recent run of the job
+        this.lastJobIdMap.put(jobName, jobId);
 
         // Unlock so the next run of the same job can proceed
         this.jobLockMap.get(jobName).unlock();
@@ -264,6 +287,9 @@ public class LocalJobManager extends AbstractIdleService {
                     JOB_TASK_COUNT_MAP_KEY);
             Map<String, List<TaskState>> jobTaskStatesMap =
                     (Map<String, List<TaskState>>) dataMap.get(JOB_TASK_STATES_MAP_KEY);
+            Map<String, String> lastJobIdMap = (Map<String, String>) dataMap.get(
+                    LAST_JOB_ID_MAP_KEY);
+            StateStore taskStateStore = (StateStore) dataMap.get(TASK_STATE_STORE_KEY);
 
             /*
              * Construct job ID, which is in the form of job_<job_id_suffix>
@@ -284,7 +310,8 @@ public class LocalJobManager extends AbstractIdleService {
                         .newInstance();
                 // Generate work units based on all previous work unit states
                 List<WorkUnit> workUnits = source.getWorkunits(
-                        new SourceState(state, getPreviousWorkUnitStates(properties)));
+                        new SourceState(state, getPreviousWorkUnitStates(
+                                jobName, lastJobIdMap, taskStateStore)));
 
                 jobSourceMap.put(jobId, source);
                 jobTaskCountMap.put(jobId, workUnits.size());
@@ -304,6 +331,18 @@ public class LocalJobManager extends AbstractIdleService {
                     workUnitManager.addWorkUnit(workUnitState);
                 }
             } catch (Exception e) {
+                // Remove all state bookkeeping information of this scheduled job run
+                jobSourceMap.remove(jobId);
+                jobTaskCountMap.remove(jobId);
+                jobTaskStatesMap.remove(jobId);
+
+                try {
+                    // Unlock so the next run of the same job can proceed
+                    jobLockMap.get(jobName).unlock();
+                } catch (IOException ioe) {
+                    // Ignored
+                }
+
                 throw new JobExecutionException(e);
             }
         }
@@ -325,9 +364,20 @@ public class LocalJobManager extends AbstractIdleService {
         /**
          * Get work unit states of the most recent run of this job.
          */
-        private List<WorkUnitState> getPreviousWorkUnitStates(Properties properties) {
-            // TODO: complete the implementation
-            return Lists.newArrayList();
+        @SuppressWarnings("unchecked")
+        private List<WorkUnitState> getPreviousWorkUnitStates(String jobName,
+                Map<String, String> lastJobIdMap, StateStore taskStateStore)
+                throws IOException {
+
+            // This is the first run of the job
+            if (!lastJobIdMap.containsKey(jobName)) {
+                return Lists.newArrayList();
+            }
+
+            LOG.info("Loading task states of the most recent run of job " + jobName);
+            // Read the task states of the most recent run of the job
+            return (List<WorkUnitState>) taskStateStore.getAll(
+                    jobName, lastJobIdMap.get(jobName));
         }
     }
 }

@@ -5,6 +5,7 @@ import java.util.List;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 
+import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.Source;

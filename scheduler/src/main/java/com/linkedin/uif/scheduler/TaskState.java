@@ -18,6 +18,9 @@ public class TaskState extends WorkUnitState {
 
     private String jobId;
     private String taskId;
+    private long startTime;
+    private long endTime;
+    private long duration;
 
     // Needed for serialization/deserialization
     public TaskState() {}
@@ -28,6 +31,7 @@ public class TaskState extends WorkUnitState {
         super(workUnitState.getWorkunit());
         this.jobId = workUnitState.getProp(ConfigurationKeys.JOB_ID_KEY);
         this.taskId = workUnitState.getProp(ConfigurationKeys.TASK_ID_KEY);
+        this.setId(this.taskId);
     }
 
     /**
@@ -48,6 +52,60 @@ public class TaskState extends WorkUnitState {
         return this.taskId;
     }
 
+    /**
+     * Get task start time in milliseconds.
+     *
+     * @return task start time in milliseconds
+     */
+    public long getStartTime() {
+        return startTime;
+    }
+
+    /**
+     * Set task start time in milliseconds.
+     *
+     * @param startTime task start time in milliseconds
+     */
+    public void setStartTime(long startTime) {
+        this.startTime = startTime;
+    }
+
+    /**
+     * Get task end time in milliseconds.
+     *
+     * @return task end time in milliseconds
+     */
+    public long getEndTime() {
+        return endTime;
+    }
+
+    /**
+     * set task end time in milliseconds.
+     *
+     * @param endTime task end time in milliseconds
+     */
+    public void setEndTime(long endTime) {
+        this.endTime = endTime;
+    }
+
+    /**
+     * Get task duration in milliseconds.
+     *
+     * @return task duration in milliseconds
+     */
+    public long getTaskDuration() {
+        return this.duration;
+    }
+
+    /**
+     * Set task duration in milliseconds.
+     *
+     * @param duration task duration in milliseconds
+     */
+    public void setTaskDuration(long duration) {
+        this.duration = duration;
+    }
+
     @Override
     public void readFields(DataInput in) throws IOException {
         Text text = new Text();
@@ -55,6 +113,9 @@ public class TaskState extends WorkUnitState {
         this.jobId = text.toString();
         text.readFields(in);
         this.taskId = text.toString();
+        this.startTime = in.readLong();
+        this.endTime = in.readLong();
+        this.duration = in.readLong();
         super.readFields(in);
     }
 
@@ -65,6 +126,9 @@ public class TaskState extends WorkUnitState {
         text.write(out);
         text.set(this.taskId);
         text.write(out);
+        out.writeLong(this.startTime);
+        out.writeLong(this.endTime);
+        out.writeLong(this.duration);
         super.write(out);
     }
 }

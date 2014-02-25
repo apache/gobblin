@@ -41,7 +41,8 @@ public class WorkUnit extends State {
    */
   public WorkUnit(WorkUnit other) {
     addAll(other);
-    extract.addAll(other.getExtract());
+    this.extract = new Extract(null, null, null, null, null);
+    this.extract.addAll(other.getExtract());
   }
 
   /**

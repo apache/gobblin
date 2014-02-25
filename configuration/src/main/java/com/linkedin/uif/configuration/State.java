@@ -7,13 +7,16 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
+import com.google.common.base.Splitter;
+
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
-import com.google.common.base.Splitter;
+public class State implements Writable
+{
 
+  private String id;
 
-public class State implements Writable {
   private Properties properties = new Properties();
 
   public void addAll(State otherState) {
@@ -22,6 +25,16 @@ public class State implements Writable {
 
   public void addAll(Properties properties) {
     this.properties.putAll(properties);
+  }
+
+  public void setId(String id)
+  {
+      this.id = id;
+  }
+
+  public String getId()
+  {
+      return this.id;
   }
 
   public void setProp(String key, Object value) {
@@ -90,7 +103,8 @@ public class State implements Writable {
 
     int numEntries = in.readInt();
 
-    while (numEntries-- > 0) {
+    while (numEntries-- > 0)
+    {
       txt.readFields(in);
       String key = txt.toString();
       txt.readFields(in);
