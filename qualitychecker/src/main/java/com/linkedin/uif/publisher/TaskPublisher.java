@@ -8,17 +8,17 @@ import org.apache.commons.logging.LogFactory;
 
 import com.linkedin.uif.configuration.MetaStoreClient;
 import com.linkedin.uif.configuration.State;
+import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.qualitychecker.Policy;
 import com.linkedin.uif.qualitychecker.QualityCheckResult;
 import com.linkedin.uif.qualitychecker.PolicyCheckResults;
-import com.linkedin.uif.scheduler.TaskState;
 
 public class TaskPublisher
 {
     private final PolicyCheckResults results;
     private final DataPublisher dataPublisher;
     private final MetaStoreClient metadata;
-    private final TaskState taskState;
+    private final WorkUnitState workUnitState;
 
     private static final Log LOG = LogFactory.getLog(TaskPublisher.class);
     
@@ -31,11 +31,11 @@ public class TaskPublisher
         COMPONENTS_NOT_FINISHED  // All components did not complete, no data committed
     };
     
-    public TaskPublisher(TaskState taskState, PolicyCheckResults results, MetaStoreClient metadata, DataPublisher dataPublisher) {
+    public TaskPublisher(WorkUnitState workUnitState, PolicyCheckResults results, MetaStoreClient metadata, DataPublisher dataPublisher) {
         this.results = results;
         this.metadata = metadata;
         this.dataPublisher = dataPublisher;
-        this.taskState = taskState;
+        this.workUnitState = workUnitState;
     }
     
     public PublisherState publish() throws Exception {
