@@ -6,6 +6,9 @@ job.schedule=0 0/1 * * * ?
 source.class=com.linkedin.uif.test.TestSource
 converter.classes=com.linkedin.uif.test.TestConverter
 
+workunit.namespace=test
+workunit.table=test
+
 writer.destination.type=HDFS
 writer.output.format=AVRO
 writer.fs.uri=file://localhost/

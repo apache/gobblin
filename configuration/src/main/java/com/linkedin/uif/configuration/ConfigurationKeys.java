@@ -11,6 +11,9 @@ public class ConfigurationKeys {
     // Root directory where task state files are stored
     public static final String TASK_STATE_STORE_ROOT_DIR_KEY = "taskstate.store.dir";
 
+    // File system URI for file-system-based task store
+    public static final String TASK_STATE_STORE_FS_URI_KEY = "taskstate.store.fs.uri";
+
     /**
      * Common job configuraion properties
      */
@@ -96,11 +99,12 @@ public class ConfigurationKeys {
             "2";
     public static final String MAX_TASK_RETRIES_KEY = "task.maxretries";
     public static final String DEFAULT_MAX_TASK_RETRIES = "5";
-    public static final String TASK_RETRY_INTERVAL_KEY = "task.retry.interval";
-    public static final String DEFAULT_TASK_RETRY_INTERVAL = "300";
+    public static final String TASK_RETRY_INTERVAL_IN_SEC_KEY =
+            "task.retry.intervalinsec";
+    public static final String DEFAULT_TASK_RETRY_INTERVAL_IN_SEC = "300";
     public static final String JOB_ID_KEY = "job.id";
     public static final String TASK_ID_KEY = "task.id";
-    public static final String TASK_STATUS_REPORT_INTERVAL_KEY =
-            "task.status.reportinterval";
-    public static final long DEFAULT_TASK_STATUS_REPORT_INTERVAL = 30000;
+    public static final String TASK_STATUS_REPORT_INTERVAL_IN_MS_KEY =
+            "task.status.reportintervalinms";
+    public static final long DEFAULT_TASK_STATUS_REPORT_INTERVAL_IN_MS = 30000;
 }
