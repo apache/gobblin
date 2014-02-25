@@ -44,7 +44,7 @@ public class TaskContext {
      * @return a {@link TaskState}
      */
     public TaskState getTaskState() {
-        return new TaskState(this.workUnit);
+        return new TaskState(this.workUnitState);
     }
 
     /**
@@ -69,7 +69,9 @@ public class TaskContext {
      * @return interval for status reporting
      */
     public long getStatusReportingInterval() {
-        return 0;
+        return this.workUnit.getPropAsLong(
+                ConfigurationKeys.TASK_STATUS_REPORT_INTERVAL_IN_MS_KEY,
+                ConfigurationKeys.DEFAULT_TASK_STATUS_REPORT_INTERVAL_IN_MS);
     }
 
     /**
@@ -131,7 +133,8 @@ public class TaskContext {
 
             @Override
             public Object convert(Object sourceRecord) throws DataConversionException {
-                return converter.convertRecord(schemaForWriter, sourceRecord, workUnit);
+                return converter.convertRecord(converter.convertSchema(
+                        schemaForWriter, workUnit), sourceRecord, workUnit);
             }
         };
     }

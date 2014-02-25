@@ -63,7 +63,7 @@ public class AvroHdfsDataWriterTest {
                 WriterOutputFormat.AVRO)
                 .writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
                 .writeInFormat(WriterOutputFormat.AVRO)
-                .writerId(TestConstants.TEST_WRITER_ID)
+                .withWriterId(TestConstants.TEST_WRITER_ID)
                 .useDataConverter(new TestDataConverter(
                         schemaConverter.convert(TestConstants.AVRO_SCHEMA)))
                 .useSchemaConverter(new TestSchemaConverter())

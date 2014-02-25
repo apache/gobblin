@@ -54,7 +54,7 @@ public abstract class DataWriterBuilder<SI, SO, DI, DO> {
      * @param writerId unique writer ID
      * @return this {@link DataWriterBuilder} instance
      */
-    public DataWriterBuilder<SI, SO, DI, DO> writerId(String writerId) {
+    public DataWriterBuilder<SI, SO, DI, DO> withWriterId(String writerId) {
         this.writerId = writerId;
         return this;
     }
