@@ -27,6 +27,7 @@ public class WorkUnitState extends State
   }
 
   public WorkUnitState(WorkUnit workUnit) {
+      this.addAll(workUnit);
       this.workunit = workUnit;
   }
 

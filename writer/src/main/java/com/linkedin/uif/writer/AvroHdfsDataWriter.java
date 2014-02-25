@@ -69,6 +69,15 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
     }
 
     @Override
+    public void commit() throws IOException {
+        if (this.fs.exists(this.outputFile)) {
+            throw new IOException(
+                    String.format("File %s already exists", this.outputFile));
+        }
+        this.fs.rename(this.stagingFile, this.outputFile);
+    }
+
+    @Override
     public void cleanup() throws IOException {
         // Delete the staging file
         if (this.fs.exists(this.stagingFile)) {
