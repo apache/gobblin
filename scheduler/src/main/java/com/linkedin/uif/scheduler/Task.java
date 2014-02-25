@@ -8,7 +8,6 @@ import org.apache.commons.logging.LogFactory;
 
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.Converter;
-import com.linkedin.uif.converter.MultiConverter;
 import com.linkedin.uif.source.extractor.Extractor;
 import com.linkedin.uif.writer.*;
 
