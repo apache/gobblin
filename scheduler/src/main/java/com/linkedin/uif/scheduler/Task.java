@@ -2,12 +2,22 @@ package com.linkedin.uif.scheduler;
 
 import java.io.IOException;
 import java.io.Serializable;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
+import com.linkedin.uif.configuration.ConfigurationKeys;
+import com.linkedin.uif.configuration.MetaStoreClient;
+import com.linkedin.uif.configuration.MetaStoreClientBuilder;
+import com.linkedin.uif.configuration.MetaStoreClientBuilderFactory;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.Converter;
+import com.linkedin.uif.converter.MultiConverter;
+import com.linkedin.uif.publisher.TaskPublisher;
+import com.linkedin.uif.publisher.TaskPublisherBuilder;
+import com.linkedin.uif.publisher.TaskPublisherBuilderFactory;
+import com.linkedin.uif.qualitychecker.PolicyCheckResults;
+import com.linkedin.uif.qualitychecker.PolicyChecker;
+import com.linkedin.uif.qualitychecker.PolicyCheckerBuilder;
+import com.linkedin.uif.qualitychecker.PolicyCheckerBuilderFactory;
 import com.linkedin.uif.source.extractor.Extractor;
 import com.linkedin.uif.writer.*;
 
@@ -107,12 +117,29 @@ public class Task implements Runnable, Serializable {
                 writer.write(record);
             }
 
-            // Do overall quality checking
+            // Do overall quality checking and publish task data
+            this.taskState.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.EXTRACTOR_ROWS_READ, extractor.getExpectedRecordCount());
+            this.taskState.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.WRITER_ROWS_WRITTEN, writer.recordsWritten());
+            
+            MetaStoreClient collector = buildMetaStoreClient(this.taskState);
+            
+            PolicyChecker policyChecker = buildPolicyChecker(this.taskState, collector);
+            PolicyCheckResults results = policyChecker.executePolicies();
 
-            this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
-        } catch (IOException ioe) {
-            LOG.error(String.format("Task %s failed", this.taskId), ioe);
-            this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+            TaskPublisher publisher = buildTaskPublisher(this.taskState, results, collector);
+            
+            // TODO Need a way to capture status of Publisher properly
+            switch ( publisher.publish() ) {
+            case SUCCESS:
+                this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+                break;
+            default:
+                this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+                break;
+            }
+            
+        } catch (Exception e) {
+            LOG.error(String.format("Task %s failed", this.taskId), e);
         } finally {
             // Cleanup when the task completes or fails
             if (extractor != null) {
@@ -139,7 +166,33 @@ public class Task implements Runnable, Serializable {
     }
 
     /**
-     * Get the ID of the job this {@link Task} belongs to.
+     * Builds a {@link MetaStoreClient} to communicate with an external MetaStore
+     * @return a {@link MetaStoreClient}
+     */
+    private MetaStoreClient buildMetaStoreClient(TaskState taskState) throws Exception {
+        MetaStoreClientBuilder builder = new MetaStoreClientBuilderFactory().newMetaStoreClientBuilder(taskState);
+        return builder.build();
+    }
+    
+    /**
+     * Builds a {@link PolicyChecker} to execute all the Policies
+     * @return a {@link PolicyChecker}
+     */
+    private PolicyChecker buildPolicyChecker(TaskState taskState, MetaStoreClient collector) throws Exception {
+        PolicyCheckerBuilder builder = new PolicyCheckerBuilderFactory().newPolicyCheckerBuilder(taskState, collector);
+        return builder.build();
+    }
+    
+    /**
+     * Builds a {@link TaskPublisher} to publish this Task's data
+     * @return a {@link TaskPublisher}
+     */
+    private TaskPublisher buildTaskPublisher(TaskState taskState, PolicyCheckResults results, MetaStoreClient collector) throws Exception {
+        TaskPublisherBuilder builder = new TaskPublisherBuilderFactory().newTaskPublisherBuilder(taskState, results, collector);
+        return builder.build();
+    }
+    
+    /** Get the ID of the job this {@link Task} belongs to.
      *
      * @return ID of the job this {@link Task} belongs to.
      */
