@@ -1,10 +1,12 @@
-package com.linkedin.uif.converter;
-
-import com.google.common.collect.Maps;
-import com.linkedin.uif.source.workunit.WorkUnit;
+package com.linkedin.uif.scheduler;
 
 import java.util.List;
 import java.util.Map;
+
+import com.google.common.collect.Maps;
+
+import com.linkedin.uif.converter.Converter;
+import com.linkedin.uif.source.workunit.WorkUnit;
 
 /**
  * An implementation of {@link Converter} that applies a given list of

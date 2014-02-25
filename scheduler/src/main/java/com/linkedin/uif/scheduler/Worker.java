@@ -14,6 +14,9 @@ import com.google.common.util.concurrent.ServiceManager;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import com.linkedin.uif.scheduler.local.LocalJobManager;
+import com.linkedin.uif.scheduler.local.LocalTaskStateTracker;
+
 /**
  * This is the main class that each UIF worker node runs.
  *
@@ -27,16 +30,20 @@ public class Worker {
     private final ServiceManager serviceManager;
 
     public Worker(Properties properties) throws Exception {
+
         // The worker runs the following services
-        TaskManager taskManager = new TaskManager(properties);
-        WorkUnitManager workUnitManager = new WorkUnitManager(taskManager);
+        TaskExecutor taskExecutor = new TaskExecutor(properties);
+        TaskStateTracker taskStateTracker = new LocalTaskStateTracker(
+                properties, taskExecutor);
+        WorkUnitManager workUnitManager = new WorkUnitManager(
+                taskExecutor, taskStateTracker);
         LocalJobManager jobManager = new LocalJobManager(
                 workUnitManager, properties);
-        TaskTracker taskTracker = new LocalTaskTracker(jobManager);
-        taskManager.setTaskTracker(taskTracker);
+        ((LocalTaskStateTracker) taskStateTracker).setJobManager(jobManager);
         this.serviceManager = new ServiceManager(Lists.newArrayList(
                 // The order matters due to dependencies between services
-                taskManager,
+                taskExecutor,
+                taskStateTracker,
                 workUnitManager,
                 jobManager
         ));

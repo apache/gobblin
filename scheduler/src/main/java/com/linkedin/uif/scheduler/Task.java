@@ -2,12 +2,8 @@ package com.linkedin.uif.scheduler;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Timer;
-import java.util.TimerTask;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.MetaStoreClient;
 import com.linkedin.uif.configuration.MetaStoreClientBuilder;
@@ -26,11 +22,11 @@ import com.linkedin.uif.source.extractor.Extractor;
 import com.linkedin.uif.writer.*;
 
 /**
- * A physical unit of execution for a UIF {@link WorkUnit}.
+ * A physical unit of execution for a UIF work unit.
  *
  * <p>
  *     Each task will be executed by a single thread within a thread pool
- *     managed by the {@link TaskManager} and it consists of the following
+ *     managed by the {@link TaskExecutor} and it consists of the following
  *     steps:
  *
  * <ul>
@@ -53,9 +49,8 @@ public class Task implements Runnable, Serializable {
     private final String jobId;
     private final String taskId;
     private final TaskContext taskContext;
-    private final TaskManager taskManager;
+    private final TaskStateTracker taskStateTracker;
     private final TaskState taskState;
-    private final Timer statusReportingTimer;
 
     // Number of retries
     private int retryCount = 0;
@@ -68,66 +63,58 @@ public class Task implements Runnable, Serializable {
      * @throws IOException if there is anything wrong constructing the task.
      */
     @SuppressWarnings("unchecked")
-    public Task(String jobId, String taskId, TaskContext context,
-                TaskManager taskManager) {
-
-        this.jobId = jobId;
-        this.taskId = taskId;
+    public Task(TaskContext context, TaskStateTracker taskStateTracker) {
         this.taskContext = context;
         // Task manager is used to register failed tasks
-        this.taskManager = taskManager;
+        this.taskStateTracker = taskStateTracker;
         this.taskState = context.getTaskState();
-        this.taskState.setTaskId(taskId);
-        this.statusReportingTimer = new Timer();
-        // Schedule the timer task to periodically report status/progress
-        this.statusReportingTimer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                reportStatusAndProgress();
-            }
-        }, 0, context.getStatusReportingInterval());
-    }
-
-    /**
-     * Get the ID of this task.
-     *
-     * @return ID of this task
-     */
-    public String getTaskId() {
-        return this.taskId;
+        this.jobId = this.taskState.getJobId();
+        this.taskId = this.taskState.getTaskId();
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public void run() {
-        // Build all the necessary components before actually executing the task
-        Extractor extractor = this.taskContext.getSource().getExtractor(this.taskState);
-        Converter converter = new MultiConverter(this.taskContext.getConverters());
-        Object schemaForWriter = converter.convertSchema(
-                extractor.getSchema(), this.taskState.getWorkunit());
-        DataWriter writer;
+        Extractor extractor = null;
+        DataWriter writer = null;
+
+        long startTime = System.currentTimeMillis();
+        this.taskState.setStartTime(startTime);
+
         try {
+            // Build the extractor for pulling source schema and data records
+            extractor = this.taskContext.getSource().getExtractor(this.taskState);
+            // If conversion is needed on the source schema and data records
+            // before they are passed to the writer
+            boolean doConversion = !this.taskContext.getConverters().isEmpty();
+            // Original source schema
+            Object sourceSchema = extractor.getSchema();
+            Converter converter = null;
+            // (Possibly converted) source schema ready for the writer
+            Object schemaForWriter = sourceSchema;
+            if (doConversion) {
+                converter = new MultiConverter(this.taskContext.getConverters());
+                // Convert the source schema to a schema ready for the writer
+                schemaForWriter = converter.convertSchema(
+                        sourceSchema, this.taskState.getWorkunit());
+            }
+            // Build the writer for writing the output of the extractor
             writer = buildWriter(this.taskContext, schemaForWriter);
-        } catch (IOException ioe) {
-            LOG.error("Failed to build the writer", ioe);
-            this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-            return;
-        } finally {
-            extractor.close();
-        }
 
-        this.taskState.setWorkingState(WorkUnitState.WorkingState.WORKING);
+            this.taskState.setWorkingState(WorkUnitState.WorkingState.WORKING);
+            this.taskStateTracker.registerNewTask(this);
 
-        try {
             // Extract and write data records
             Object record;
             // Read one source record at a time
             while ((record = extractor.readRecord()) != null) {
-                // Apply the converters first
-                Object convertedRecord = converter.convertRecord(
-                        schemaForWriter, record, this.taskState.getWorkunit());
+                // Apply the converters first if applicable
+                if (doConversion) {
+                    record = converter.convertRecord(
+                            sourceSchema, record, this.taskState.getWorkunit());
+                }
                 // Finally write the record
-                writer.write(convertedRecord);
+                writer.write(record);
             }
 
             // Do overall quality checking and publish task data
@@ -152,28 +139,29 @@ public class Task implements Runnable, Serializable {
             }
             
         } catch (Exception e) {
-            LOG.error(String.format("Task %s failed", this.toString()), e);
-            this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+            LOG.error(String.format("Task %s failed", this.taskId), e);
         } finally {
             // Cleanup when the task completes or fails
-            try {
-                extractor.close();
-            } catch (Exception ioe) {
-                // Ignored
+            if (extractor != null) {
+                try {
+                    extractor.close();
+                } catch (Exception ioe) {
+                    // Ignored
+                }
             }
 
-            try {
-                writer.close();
-            } catch (IOException ioe) {
-                // Ignored
+            if (writer != null) {
+                try {
+                    writer.close();
+                } catch (IOException ioe) {
+                    // Ignored
+                }
             }
 
-            this.statusReportingTimer.cancel();
-            try {
-                this.taskManager.getTaskTracker().reportTaskState(this.taskState);
-            } catch (IOException ioe) {
-                LOG.error("Failed to report task state for task " + this.taskId);
-            }
+            long endTime = System.currentTimeMillis();
+            this.taskState.setEndTime(endTime);
+            this.taskState.setTaskDuration(endTime - startTime);
+            this.taskStateTracker.onTaskCompletion(this);
         }
     }
 
@@ -204,6 +192,41 @@ public class Task implements Runnable, Serializable {
         return builder.build();
     }
     
+    /** Get the ID of the job this {@link Task} belongs to.
+     *
+     * @return ID of the job this {@link Task} belongs to.
+     */
+    public String getJobId() {
+        return this.jobId;
+    }
+
+    /**
+     * Get the ID of this task.
+     *
+     * @return ID of this task
+     */
+    public String getTaskId() {
+        return this.taskId;
+    }
+
+    /**
+     * Get the {@link TaskContext} associated with this task.
+     *
+     * @return {@link TaskContext} associated with this task
+     */
+    public TaskContext getTaskContext() {
+        return this.taskContext;
+    }
+
+    /**
+     * Get the state of this task.
+     *
+     * @return state of this task
+     */
+    public TaskState getTaskState() {
+        return this.taskState;
+    }
+
     /**
      * Increment the retry count of this task.
      */
@@ -218,6 +241,11 @@ public class Task implements Runnable, Serializable {
      */
     public int getRetryCount() {
         return this.retryCount;
+    }
+
+    @Override
+    public String toString() {
+        return this.taskId;
     }
 
     /**
@@ -238,16 +266,10 @@ public class Task implements Runnable, Serializable {
                         context.getDestinationType(),
                         context.getDestinationProperties()))
                 .writeInFormat(context.getWriterOutputFormat())
+                .withWriterId(context.getTaskState().getTaskId())
                 .useSchemaConverter(context.getSchemaConverter())
                 .useDataConverter(context.getDataConverter(schema))
                 .withSourceSchema(schema, context.getSchemaType())
                 .build();
-    }
-
-    /**
-     * Report task status and progress.
-     */
-    private void reportStatusAndProgress() {
-
     }
 }
