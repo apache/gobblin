@@ -1,6 +1,10 @@
 apply plugin: 'li-java'
 
 dependencies {
+
+  compile project(":common-api")
+  compile project(":metastore")
+  compile project(":qualitychecker")
   compile spec.external.commonsDbcp
   compile spec.external.mysqlConnectorJava
   compile spec.external.commonsLogging
