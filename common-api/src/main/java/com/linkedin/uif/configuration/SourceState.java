@@ -14,8 +14,6 @@ import com.linkedin.uif.source.workunit.Extract;
 import com.linkedin.uif.source.workunit.Extract.TableType;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
-import com.linkedin.uif.scheduler.TaskState;
-
 public class SourceState extends State
 {
   private List<WorkUnitState> previousTaskStates = new ArrayList<WorkUnitState>();
