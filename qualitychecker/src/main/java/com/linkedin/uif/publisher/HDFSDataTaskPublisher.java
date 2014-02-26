@@ -8,7 +8,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
-import com.linkedin.uif.scheduler.TaskState;
+import com.linkedin.uif.configuration.WorkUnitState;
 
 public class HDFSDataTaskPublisher extends DataPublisher
 {
@@ -18,19 +18,19 @@ public class HDFSDataTaskPublisher extends DataPublisher
     private Path stagingMetadataFile;
     private Path outputMetadataFile;
     
-    public HDFSDataTaskPublisher(TaskState taskState)
+    public HDFSDataTaskPublisher(WorkUnitState taskState)
     {
         super(taskState);
     }
 
     @Override
     public void initialize() throws Exception {
-        TaskState state = (TaskState) getState();
+        WorkUnitState state = (WorkUnitState) getState();
         this.fs = FileSystem.get(new URI(state.getProp(ConfigurationKeys.FILE_SYSTEM_URI_KEY)), new Configuration());
-        this.stagingDataFile = new Path(state.getProp(ConfigurationKeys.TASK_PUBLISHER_PREFIX + ConfigurationKeys.HDFS_TASK_DATA_TMP_DIR) + state.getTaskId());
-        this.outputDataFile = new Path(state.getProp(ConfigurationKeys.TASK_PUBLISHER_PREFIX + ConfigurationKeys.HDFS_TASK_DATA_FINAL_DIR) + state.getTaskId());
-        this.stagingMetadataFile = new Path(state.getProp(ConfigurationKeys.TASK_PUBLISHER_PREFIX + ConfigurationKeys.HDFS_TASK_METADATA_TMP_DIR) + state.getTaskId());
-        this.outputMetadataFile = new Path(state.getProp(ConfigurationKeys.TASK_PUBLISHER_PREFIX + ConfigurationKeys.HDFS_TASK_METADATA_FINAL_DIR) + state.getTaskId());
+        this.stagingDataFile = new Path(state.getProp(ConfigurationKeys.TASK_PUBLISHER_PREFIX + ConfigurationKeys.HDFS_TASK_DATA_TMP_DIR));
+        this.outputDataFile = new Path(state.getProp(ConfigurationKeys.TASK_PUBLISHER_PREFIX + ConfigurationKeys.HDFS_TASK_DATA_FINAL_DIR));
+        this.stagingMetadataFile = new Path(state.getProp(ConfigurationKeys.TASK_PUBLISHER_PREFIX + ConfigurationKeys.HDFS_TASK_METADATA_TMP_DIR));
+        this.outputMetadataFile = new Path(state.getProp(ConfigurationKeys.TASK_PUBLISHER_PREFIX + ConfigurationKeys.HDFS_TASK_METADATA_FINAL_DIR));
     }
     
     @Override

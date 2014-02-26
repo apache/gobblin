@@ -2,7 +2,7 @@ package com.linkedin.uif.qualitychecker;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.MetaStoreClient;
-import com.linkedin.uif.scheduler.TaskState;
+import com.linkedin.uif.configuration.WorkUnitState;
 
 public class RowCountRangePolicy extends Policy
 {
@@ -10,12 +10,12 @@ public class RowCountRangePolicy extends Policy
     private final long rowsWritten;
     private final double range;
     
-    public RowCountRangePolicy(TaskState taskState, MetaStoreClient metadata, Type type)
+    public RowCountRangePolicy(WorkUnitState workUnitState, MetaStoreClient metadata, Type type)
     {
-        super(taskState, metadata, type);
-        this.rowsRead = taskState.getPropAsLong(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.EXTRACTOR_ROWS_READ);
-        this.rowsWritten = taskState.getPropAsLong(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.WRITER_ROWS_WRITTEN);
-        this.range = taskState.getPropAsDouble(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.ROW_COUNT_RANGE);
+        super(workUnitState, metadata, type);
+        this.rowsRead = workUnitState.getPropAsLong(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.EXTRACTOR_ROWS_READ);
+        this.rowsWritten = workUnitState.getPropAsLong(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.WRITER_ROWS_WRITTEN);
+        this.range = workUnitState.getPropAsDouble(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.ROW_COUNT_RANGE);
     }
 
     @Override
