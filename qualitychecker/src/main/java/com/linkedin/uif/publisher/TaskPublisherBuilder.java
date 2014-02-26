@@ -2,6 +2,7 @@ package com.linkedin.uif.publisher;
 
 import java.lang.reflect.Constructor;
 
+import com.linkedin.uif.configuration.State;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -34,7 +35,7 @@ public class TaskPublisherBuilder
         String dataPublisherString = this.workUnitState.getProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.TASK_DATA_PUBLISHER_TYPE);
         try {
             Class<? extends DataPublisher> dataPublisherClass = (Class<? extends DataPublisher>) Class.forName(dataPublisherString);
-            Constructor<? extends DataPublisher> dataPublisherConstructor = dataPublisherClass.getConstructor(DataPublisher.class);
+            Constructor<? extends DataPublisher> dataPublisherConstructor = dataPublisherClass.getConstructor(State.class);
             dataPublisher = dataPublisherConstructor.newInstance(this.workUnitState);
         } catch (Exception e) {
             LOG.error("");

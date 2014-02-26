@@ -17,4 +17,8 @@ writer.output.dir=test/output
 writer.file.name=test.avro
 
 source.files=test/resource/source/test.avro.0,test/resource/source/test.avro.1
+
 qualitychecker.metadatacollector=com.linkedin.uif.configuration.YushanMetaStoreClient
+qualitychecker.policies=com.linkedin.uif.qualitychecker.RowCountPolicy
+qualitychecker.policy.types=OPTIONAL
+qualitychecker.taskpublisher.type=com.linkedin.uif.test.TestDataPublisher
