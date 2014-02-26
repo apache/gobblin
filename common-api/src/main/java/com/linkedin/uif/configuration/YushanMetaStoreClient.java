@@ -8,7 +8,7 @@ public class YushanMetaStoreClient implements MetaStoreClient
     @Override
     public boolean initialize() throws IOException
     {
-        return false;
+        return true;
     }
 
     @Override
@@ -20,12 +20,12 @@ public class YushanMetaStoreClient implements MetaStoreClient
     @Override
     public boolean sendMetadata(State state) throws Exception
     {
-        return false;
+        return true;
     }
 
     @Override
     public boolean close() throws Exception
     {
-        return false;
+        return true;
     }
 }

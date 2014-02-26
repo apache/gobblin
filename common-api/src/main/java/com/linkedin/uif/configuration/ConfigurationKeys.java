@@ -92,8 +92,8 @@ public class ConfigurationKeys {
      */
     public static final String HDFS_TASK_DATA_TMP_DIR = ".tmp.dir";
     public static final String HDFS_TASK_DATA_FINAL_DIR = ".final.dir";
-    public static final String HDFS_TASK_METADATA_TMP_DIR = ".tmp.dir";
-    public static final String HDFS_TASK_METADATA_FINAL_DIR = ".final.dir";
+    public static final String HDFS_TASK_METADATA_TMP_DIR = ".metadata.tmp.dir";
+    public static final String HDFS_TASK_METADATA_FINAL_DIR = ".metadata.final.dir";
     
     /**
      * Configuration properties used internally

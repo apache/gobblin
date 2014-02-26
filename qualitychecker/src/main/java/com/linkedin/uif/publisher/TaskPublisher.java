@@ -31,10 +31,13 @@ public class TaskPublisher
         COMPONENTS_NOT_FINISHED  // All components did not complete, no data committed
     };
     
-    public TaskPublisher(WorkUnitState workUnitState, PolicyCheckResults results, MetaStoreClient metadata, DataPublisher dataPublisher) {
+    public TaskPublisher(WorkUnitState workUnitState, PolicyCheckResults results, MetaStoreClient metadata,
+            DataPublisher dataPublisher) throws Exception {
+
         this.results = results;
         this.metadata = metadata;
         this.dataPublisher = dataPublisher;
+        this.dataPublisher.initialize();
         this.workUnitState = workUnitState;
     }
     
@@ -89,7 +92,7 @@ public class TaskPublisher
      */
     public boolean allComponentsFinished() {
         // Have to parse some information from TaskState
-        return false;
+        return true;
     }
 
     /**

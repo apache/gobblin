@@ -81,6 +81,7 @@ public class Task implements Runnable, Serializable {
     public void run() {
         Extractor extractor = null;
         DataWriter writer = null;
+        MetaStoreClient collector = null;
 
         long startTime = System.currentTimeMillis();
         this.taskState.setStartTime(startTime);
@@ -122,28 +123,31 @@ public class Task implements Runnable, Serializable {
             }
 
             // Do overall quality checking and publish task data
-            this.taskState.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.EXTRACTOR_ROWS_READ, extractor.getExpectedRecordCount());
-            this.taskState.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.WRITER_ROWS_WRITTEN, writer.recordsWritten());
+            this.taskState.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX +
+                        ConfigurationKeys.EXTRACTOR_ROWS_READ,
+                    extractor.getExpectedRecordCount());
+            this.taskState.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX +
+                        ConfigurationKeys.WRITER_ROWS_WRITTEN,
+                    writer.recordsWritten());
             
-            MetaStoreClient collector = buildMetaStoreClient(this.taskState);
-            
+            collector = buildMetaStoreClient(this.taskState);
             PolicyChecker policyChecker = buildPolicyChecker(this.taskState, collector);
             PolicyCheckResults results = policyChecker.executePolicies();
+            TaskPublisher publisher = buildTaskPublisher(
+                    this.taskState, results, collector);
 
-            TaskPublisher publisher = buildTaskPublisher(this.taskState, results, collector);
-            
-            // TODO Need a way to capture status of Publisher properly
+            // TODO: need a way to capture status of publisher properly
             switch ( publisher.publish() ) {
-            case SUCCESS:
-                this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
-                break;
-            default:
-                this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-                break;
+                case SUCCESS:
+                    this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+                    break;
+                default:
+                    this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+                    break;
             }
-            
         } catch (Exception e) {
             LOG.error(String.format("Task %s failed", this.taskId), e);
+            this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
         } finally {
             // Cleanup when the task completes or fails
             if (extractor != null) {
@@ -156,8 +160,17 @@ public class Task implements Runnable, Serializable {
 
             if (writer != null) {
                 try {
+                    writer.cleanup();
                     writer.close();
                 } catch (IOException ioe) {
+                    // Ignored
+                }
+            }
+
+            if (collector != null) {
+                try {
+                    collector.close();
+                } catch (Exception e) {
                     // Ignored
                 }
             }
@@ -169,33 +182,6 @@ public class Task implements Runnable, Serializable {
         }
     }
 
-    /**
-     * Builds a {@link MetaStoreClient} to communicate with an external MetaStore
-     * @return a {@link MetaStoreClient}
-     */
-    private MetaStoreClient buildMetaStoreClient(TaskState taskState) throws Exception {
-        MetaStoreClientBuilder builder = new MetaStoreClientBuilderFactory().newMetaStoreClientBuilder(taskState);
-        return builder.build();
-    }
-    
-    /**
-     * Builds a {@link PolicyChecker} to execute all the Policies
-     * @return a {@link PolicyChecker}
-     */
-    private PolicyChecker buildPolicyChecker(TaskState taskState, MetaStoreClient collector) throws Exception {
-        PolicyCheckerBuilder builder = new PolicyCheckerBuilderFactory().newPolicyCheckerBuilder(taskState, collector);
-        return builder.build();
-    }
-    
-    /**
-     * Builds a {@link TaskPublisher} to publish this Task's data
-     * @return a {@link TaskPublisher}
-     */
-    private TaskPublisher buildTaskPublisher(TaskState taskState, PolicyCheckResults results, MetaStoreClient collector) throws Exception {
-        TaskPublisherBuilder builder = new TaskPublisherBuilderFactory().newTaskPublisherBuilder(taskState, results, collector);
-        return builder.build();
-    }
-    
     /** Get the ID of the job this {@link Task} belongs to.
      *
      * @return ID of the job this {@link Task} belongs to.
@@ -276,4 +262,44 @@ public class Task implements Runnable, Serializable {
                 .withSourceSchema(schema, context.getSchemaType())
                 .build();
     }
+
+
+    /**
+     * Build a {@link MetaStoreClient} to communicate with an external metastore.
+     *
+     * @return a {@link MetaStoreClient}
+     */
+    private MetaStoreClient buildMetaStoreClient(TaskState taskState) throws Exception {
+        MetaStoreClientBuilder builder = new MetaStoreClientBuilderFactory()
+                .newMetaStoreClientBuilder(taskState);
+        return builder.build();
+    }
+
+    /**
+     * Build a {@link PolicyChecker} to execute all defined
+     * {@link com.linkedin.uif.qualitychecker.Policy}.
+     *
+     * @return a {@link PolicyChecker}
+     */
+    private PolicyChecker buildPolicyChecker(TaskState taskState, MetaStoreClient collector)
+            throws Exception {
+
+        PolicyCheckerBuilder builder = new PolicyCheckerBuilderFactory()
+                .newPolicyCheckerBuilder(taskState, collector);
+        return builder.build();
+    }
+
+    /**
+     * Build a {@link TaskPublisher} to publish this {@link Task}'s data.
+     *
+     * @return a {@link TaskPublisher}
+     */
+    private TaskPublisher buildTaskPublisher(TaskState taskState, PolicyCheckResults results,
+            MetaStoreClient collector) throws Exception {
+
+        TaskPublisherBuilder builder = new TaskPublisherBuilderFactory()
+                .newTaskPublisherBuilder(taskState, results, collector);
+        return builder.build();
+    }
+
 }

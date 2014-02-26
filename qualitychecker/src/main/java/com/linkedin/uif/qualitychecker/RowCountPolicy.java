@@ -12,8 +12,8 @@ public class RowCountPolicy extends Policy
     public RowCountPolicy(WorkUnitState workUnitState, MetaStoreClient metadata, Type type)
     {
         super(workUnitState, metadata, type);
-        this.rowsRead = workUnitState.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_READ);
-        this.rowsWritten = workUnitState.getPropAsLong(ConfigurationKeys.WRITER_ROWS_WRITTEN);
+        this.rowsRead = workUnitState.getPropAsLong(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.EXTRACTOR_ROWS_READ);
+        this.rowsWritten = workUnitState.getPropAsLong(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.WRITER_ROWS_WRITTEN);
     }
 
     @Override
