@@ -2,15 +2,16 @@ package com.linkedin.uif.scheduler;
 
 import java.io.IOException;
 import java.io.Serializable;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.MetaStoreClient;
 import com.linkedin.uif.configuration.MetaStoreClientBuilder;
 import com.linkedin.uif.configuration.MetaStoreClientBuilderFactory;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.Converter;
-import com.linkedin.uif.converter.MultiConverter;
 import com.linkedin.uif.publisher.TaskPublisher;
 import com.linkedin.uif.publisher.TaskPublisherBuilder;
 import com.linkedin.uif.publisher.TaskPublisherBuilderFactory;
@@ -19,7 +20,10 @@ import com.linkedin.uif.qualitychecker.PolicyChecker;
 import com.linkedin.uif.qualitychecker.PolicyCheckerBuilder;
 import com.linkedin.uif.qualitychecker.PolicyCheckerBuilderFactory;
 import com.linkedin.uif.source.extractor.Extractor;
-import com.linkedin.uif.writer.*;
+import com.linkedin.uif.writer.DataWriter;
+import com.linkedin.uif.writer.DataWriterBuilder;
+import com.linkedin.uif.writer.DataWriterBuilderFactory;
+import com.linkedin.uif.writer.Destination;
 
 /**
  * A physical unit of execution for a UIF work unit.
@@ -96,7 +100,7 @@ public class Task implements Runnable, Serializable {
                 converter = new MultiConverter(this.taskContext.getConverters());
                 // Convert the source schema to a schema ready for the writer
                 schemaForWriter = converter.convertSchema(
-                        sourceSchema, this.taskState.getWorkunit());
+                        sourceSchema, this.taskState);
             }
             // Build the writer for writing the output of the extractor
             writer = buildWriter(this.taskContext, schemaForWriter);
@@ -111,7 +115,7 @@ public class Task implements Runnable, Serializable {
                 // Apply the converters first if applicable
                 if (doConversion) {
                     record = converter.convertRecord(
-                            sourceSchema, record, this.taskState.getWorkunit());
+                            sourceSchema, record, this.taskState);
                 }
                 // Finally write the record
                 writer.write(record);

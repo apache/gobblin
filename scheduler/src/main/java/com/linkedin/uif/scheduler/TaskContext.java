@@ -134,7 +134,7 @@ public class TaskContext {
             @Override
             public Object convert(Object sourceRecord) throws DataConversionException {
                 return converter.convertRecord(converter.convertSchema(
-                        schemaForWriter, workUnit), sourceRecord, workUnit);
+                        schemaForWriter, workUnitState), sourceRecord, workUnitState);
             }
         };
     }
@@ -152,7 +152,7 @@ public class TaskContext {
 
             @Override
             public Object convert(Object sourceSchema) throws SchemaConversionException {
-                return converter.convertSchema(sourceSchema, workUnit);
+                return converter.convertSchema(sourceSchema, workUnitState);
             }
         };
     }

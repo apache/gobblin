@@ -27,6 +27,7 @@ public class WorkUnitState extends State
   }
 
   public WorkUnitState(WorkUnit workUnit) {
+      this.addAll(workUnit);
       this.workunit = workUnit;
   }
 
@@ -47,12 +48,12 @@ public class WorkUnitState extends State
 
   public long getHighWaterMark()
   {
-    return workunit.getHighWaterMark();
+    return getPropAsLong(ConfigurationKeys.WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK);
   }
 
-  public long getLowWaterMark()
+  public void setHighWaterMark(long value)
   {
-    return workunit.getLowWaterMark();
+    setProp(ConfigurationKeys.WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK, value);
   }
 
   @Override
