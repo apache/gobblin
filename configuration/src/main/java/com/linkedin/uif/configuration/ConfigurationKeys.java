@@ -30,13 +30,18 @@ public class ConfigurationKeys {
      */
     public static final String WORK_UNIT_LOW_WATER_MARK_KEY = "workunit.low.water.mark";
     public static final String WORK_UNIT_HIGH_WATER_MARK_KEY = "workunit.high.water.mark";
+
+    /**
+     * Work unit runtime state related configuration properties
+     */
     public static final String WORK_UNIT_WORKING_STATE_KEY = "workunit.working.state";
+    public static final String WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK = "workunit.state.runtime.high.water.mark";
 
     /**
      * Extract related configuration properties
      */
     public static final String EXTRACT_TABLE_TYPE_KEY = "extract.table.type";
-    public static final String EXTRACT_NAMESPACE_NAME_KEY = "extract.namespace.name";
+    public static final String EXTRACT_NAMESPACE_NAME_KEY = "extract.namespace";
     public static final String EXTRACT_TABLE_NAME_KEY = "extract.table.name";
     public static final String EXTRACT_EXTRACT_ID_KEY = "extract.extract.id";
     public static final String EXTRACT_IS_FULL_KEY = "extract.is.full";

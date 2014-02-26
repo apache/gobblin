@@ -5,8 +5,8 @@ import java.util.Map;
 
 import com.google.common.collect.Maps;
 
+import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.Converter;
-import com.linkedin.uif.source.workunit.WorkUnit;
 
 /**
  * An implementation of {@link Converter} that applies a given list of
@@ -27,7 +27,7 @@ public class MultiConverter<SI, DI> implements Converter<SI, Object, DI, Object>
 
     @Override
     @SuppressWarnings("unchecked")
-    public Object convertSchema(SI inputSchema, WorkUnit workUnit) {
+    public Object convertSchema(SI inputSchema, WorkUnitState workUnit) {
         Object schema = inputSchema;
         for (Converter converter : this.converters) {
             // Apply the converter and remember the output schema of this converter
@@ -39,7 +39,7 @@ public class MultiConverter<SI, DI> implements Converter<SI, Object, DI, Object>
 
     @Override
     @SuppressWarnings("unchecked")
-    public Object convertRecord(Object outputSchema, DI inputRecord, WorkUnit workUnit) {
+    public Object convertRecord(Object outputSchema, DI inputRecord, WorkUnitState workUnit) {
         if (schemas.size() != this.converters.size()) {
             throw new RuntimeException(
                     "convertRecord should be called only after convertSchema is called");
