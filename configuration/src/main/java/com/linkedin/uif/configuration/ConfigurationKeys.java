@@ -126,7 +126,7 @@ public class ConfigurationKeys {
     /**
      * Configuration properties used by the quality checker
      */
-    public static final String QUALITY_CHECKER_PREFIX = "qualityche cker";
+    public static final String QUALITY_CHECKER_PREFIX = "qualitychecker";
     public static final String POLICY_LIST = ".policies";
     public static final String POLICY_LIST_TYPE = ".policy.types";
     public static final String TASK_DATA_PUBLISHER_TYPE = ".taskpublisher.type";
