@@ -1,6 +1,6 @@
-job.name=UIFTest
+job.name=UIFTest2
 job.group=Test
-job.description=Test UIF job
+job.description=Test UIF job 2
 job.schedule=0 0/1 * * * ?
 
 source.class=com.linkedin.uif.test.TestSource
