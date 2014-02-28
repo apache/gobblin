@@ -21,9 +21,9 @@ public class TestConstants {
 
     // Test Avro data in json format
     public static final String[] JSON_RECORDS = {
-        "{\"fields\": {\"name\": \"Alyssa\", \"favorite_number\": 256, \"favorite_color\": \"yellow\"}}",
-        "{\"fields\": {\"name\": \"Ben\", \"favorite_number\": 7, \"favorite_color\": \"red\"}}",
-        "{\"fields\": {\"name\": \"Charlie\", \"favorite_number\": 68, \"favorite_color\": \"blue\"}}"
+        "{\"name\": \"Alyssa\", \"favorite_number\": 256, \"favorite_color\": \"yellow\"}",
+        "{\"name\": \"Ben\", \"favorite_number\": 7, \"favorite_color\": \"red\"}",
+        "{\"name\": \"Charlie\", \"favorite_number\": 68, \"favorite_color\": \"blue\"}"
     };
 
     public static final String TEST_FS_URI = "file://localhost/";
