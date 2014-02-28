@@ -20,7 +20,7 @@ public abstract class Policy
         OPTIONAL       // The test is optional
     };
     
-    public Policy(State state, MetaStoreClient metadata, Type type) {
+    public Policy(State state, MetaStoreClient metadata, Policy.Type type) {
         this.state = state;
         this.metadata = metadata;
         this.setType(type);

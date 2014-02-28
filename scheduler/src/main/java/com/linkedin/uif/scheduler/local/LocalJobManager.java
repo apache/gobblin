@@ -1,6 +1,10 @@
 package com.linkedin.uif.scheduler.local;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FilenameFilter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -11,9 +15,11 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.AbstractIdleService;
-
 import com.linkedin.uif.metastore.FsStateStore;
 import com.linkedin.uif.metastore.StateStore;
+import com.linkedin.uif.publisher.DataPublisher;
+import com.linkedin.uif.publisher.HDFSDataPublisher;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.quartz.*;
@@ -25,6 +31,7 @@ import com.linkedin.uif.scheduler.WorkUnitManager;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.WorkUnitState;
+import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
@@ -140,7 +147,7 @@ public class LocalJobManager extends AbstractIdleService {
                     ConfigurationKeys.JOB_NAME_KEY);
             try {
                 commitJob(jobId, jobName, this.jobTaskStatesMap.get(jobId));
-            } catch (IOException ioe) {
+            } catch (Exception ioe) {
                 LOG.error("Failed to commit job " + jobId, ioe);
             }
         }
@@ -239,9 +246,12 @@ public class LocalJobManager extends AbstractIdleService {
      * Commit a finished job.
      */
     private void commitJob(String jobId, String jobName, List<TaskState> taskStates)
-            throws IOException {
+            throws Exception {
 
         // TODO: complete the implementation
+        DataPublisher publisher = new HDFSDataPublisher(taskStates.get(0));
+        publisher.initialize();
+        publisher.publishData(taskStates);
 
         LOG.info("Persisting task states of job " + jobId);
         this.taskStateStore.putAll(jobName, jobId, taskStates);

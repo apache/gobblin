@@ -98,6 +98,7 @@ public class LocalTaskStateTracker extends AbstractIdleService
         // Cancel the task state reporter associated with this task
         ScheduledFuture<?> scheduledReporter =
                 this.scheduledReporters.remove(task.getTaskId());
+
         scheduledReporter.cancel(true);
 
         // Check the task state and handle task retry if task failed and
