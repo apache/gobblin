@@ -58,6 +58,15 @@ public class ConfigurationKeys {
     public static final String EXTRACT_DELTA_FIELDS_KEY = "extract.delta.fields";
 
     /**
+     * Converter configuration properties
+     */
+    public static final String CONVERTER_AVRO_DATE_FORMAT = "converter.avro.date.format";
+    public static final String CONVERTER_AVRO_DATE_TIMEZONE = "converter.avro.date.timezone";
+    public static final String CONVERTER_AVRO_TIME_FORMAT = "converter.avro.time.format";
+    public static final String CONVERTER_AVRO_TIMESTAMP_FORMAT = "converter.avro.timestamp.format";
+    public static final String CONVERTER_AVRO_BINARY_CHARSET = "converter.avro.binary.charset";
+
+    /**
      * Writer configuration properties
      */
     public static final String WRITER_DESTINATION_CONFIG_KEY_PREFIX = "writer";
