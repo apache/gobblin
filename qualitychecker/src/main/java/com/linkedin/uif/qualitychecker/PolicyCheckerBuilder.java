@@ -39,11 +39,11 @@ public class PolicyCheckerBuilder
         for (int i = 0; i < policies.size(); i++) {
             try {
                 Class<? extends Policy> policyClass = (Class<? extends Policy>) Class.forName(policies.get(i));
-                Constructor<? extends Policy> policyConstructor = policyClass.getConstructor(State.class);
-                Policy policy = policyConstructor.newInstance(this.state, this.metadata, QualityCheckResult.valueOf(types.get(i)));
+                Constructor<? extends Policy> policyConstructor = policyClass.getConstructor(State.class, MetaStoreClient.class, Policy.Type.class);
+                Policy policy = policyConstructor.newInstance(this.state, this.metadata, Policy.Type.valueOf(types.get(i)));
                 list.getPolicyList().add((Policy) policy);
             } catch (Exception e) {
-                LOG.error(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST + " contains a class " + policies.get(i) + " which doesn't extend Policy.");
+                LOG.error(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST + " contains a class " + policies.get(i) + " which doesn't extend Policy.", e);
                 throw e;
             }
         }
