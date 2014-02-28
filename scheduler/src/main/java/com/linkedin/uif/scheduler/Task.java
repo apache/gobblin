@@ -295,7 +295,8 @@ public class Task implements Runnable, Serializable {
      *
      * @return a {@link TaskPublisher}
      */
-    private TaskPublisher buildTaskPublisher(TaskState taskState, PolicyCheckResults results) throws Exception {
+    private TaskPublisher buildTaskPublisher(TaskState taskState, PolicyCheckResults results)
+            throws Exception {
 
         TaskPublisherBuilder builder = new TaskPublisherBuilderFactory()
                 .newTaskPublisherBuilder(taskState, results);

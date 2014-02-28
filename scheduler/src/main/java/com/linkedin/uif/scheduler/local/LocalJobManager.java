@@ -137,8 +137,8 @@ public class LocalJobManager extends AbstractIdleService {
         }
 
         this.jobTaskStatesMap.get(jobId).add(taskState);
-        // If all the tasks of the job have completed (regardless of success or failure),
-        // then trigger job committer
+        // If all the tasks of the job have completed (regardless of
+        // success or failure), then trigger job committing.
         if (this.jobTaskStatesMap.get(jobId).size() == this.jobTaskCountMap.get(jobId)) {
             LOG.info(String.format(
                     "All tasks of job %s have completed, committing it", jobId));
@@ -220,7 +220,11 @@ public class LocalJobManager extends AbstractIdleService {
             }
         }
 
-        LOG.info(String.format("Loaded %d job configurations", jobConfigs.size()));
+        LOG.info(String.format(
+                jobConfigs.size() == 1 ?
+                        "Loaded %d job configuration" :
+                        "Loaded %d job configurations",
+                jobConfigs.size()));
 
         return jobConfigs;
     }
@@ -248,6 +252,9 @@ public class LocalJobManager extends AbstractIdleService {
             throws Exception {
 
         // TODO: complete the implementation
+
+        LOG.info("Publishing job data of job " + jobId);
+        // taskStates cannot be empty because otherwise the job will not even start
         DataPublisher publisher = new HDFSDataPublisher(taskStates.get(0));
         publisher.initialize();
         publisher.publishData(taskStates);
