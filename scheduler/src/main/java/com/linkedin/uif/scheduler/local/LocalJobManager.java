@@ -322,6 +322,14 @@ public class LocalJobManager extends AbstractIdleService {
                         new SourceState(state, getPreviousWorkUnitStates(
                                 jobName, lastJobIdMap, taskStateStore)));
 
+                // If no real work to do
+                if (workUnits == null || workUnits.isEmpty()) {
+                    LOG.warn("No work units have been created for job " + jobId);
+                    // Unlock so the next run of the same job can proceed
+                    jobLockMap.get(jobName).unlock();
+                    return;
+                }
+
                 jobSourceMap.put(jobId, source);
                 jobTaskCountMap.put(jobId, workUnits.size());
                 jobTaskStatesMap.put(jobId, new ArrayList<TaskState>(workUnits.size()));
