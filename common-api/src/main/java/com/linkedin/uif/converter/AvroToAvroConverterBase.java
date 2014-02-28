@@ -9,9 +9,9 @@ public abstract class AvroToAvroConverterBase implements Converter<Schema, Schem
 {
 
   @Override
-  public abstract Schema convertSchema(Schema inputSchema, WorkUnitState workUnit);
+  public abstract Schema convertSchema(Schema inputSchema, WorkUnitState workUnit)  throws SchemaConversionException;
 
   @Override
-  public abstract GenericRecord convertRecord(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit);
+  public abstract GenericRecord convertRecord(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit) throws DataConversionException;
 
 }
