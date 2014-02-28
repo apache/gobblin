@@ -137,4 +137,24 @@ public class ConfigurationKeys {
     public static final String TASK_STATUS_REPORT_INTERVAL_IN_MS_KEY =
             "task.status.reportintervalinms";
     public static final long DEFAULT_TASK_STATUS_REPORT_INTERVAL_IN_MS = 30000;
+    
+    /**
+     * Configuration properties used by the extractor
+     */
+    public static final String SOURCE_SCHEMA = "source.schema";
+    public static final String SOURCE_ENTITY = "source.entity";
+    public static final String SOURCE_WATERMARK_TYPE = "source.watermark.type";
+    public static final String SOURCE_HOUR_COLUMN = "source.hour.column";
+    public static final String SOURCE_SKIP_HIGH_WATERMARK_CALC = "source.skip.high.watermark.calc";
+    public static final String SOURCE_QUERY = "source.query";
+    public static final String SOURCE_IS_HOURLY_EXTRACT = "source.hourly.extract";
+    
+    public static final String SOURCE_CLIENT_ID = "source.client.id";
+    public static final String SOURCE_CLIENT_SECRET = "source.client.secret";
+    public static final String SOURCE_USERNAME = "source.username";
+    public static final String SOURCE_PASSWORD = "source.password";
+    public static final String SOURCE_SECURITY_TOKEN = "source.security.token";
+    public static final String SOURCE_HOST_NAME = "source.host";
+    public static final String SOURCE_VERSION = "source.version";
+    public static final String SOURCE_TIMEOUT = "source.timeout";
 }
