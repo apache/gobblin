@@ -28,8 +28,6 @@ public class HDFSDataPublisher extends DataPublisher
 
     @Override
     public void initialize() throws Exception {
-        LOG.info("URI: " + ConfigurationKeys.FILE_SYSTEM_URI_KEY);
-        LOG.info("VALUE: " + getState().getProp(ConfigurationKeys.FILE_SYSTEM_URI_KEY));
         this.fs = FileSystem.get(new URI(getState().getProp(ConfigurationKeys.FILE_SYSTEM_URI_KEY)), new Configuration());
     }
     
@@ -43,8 +41,7 @@ public class HDFSDataPublisher extends DataPublisher
         TaskState task = (TaskState) state;
         Path stagingDataDir = new Path(task.getProp(ConfigurationKeys.OUTPUT_DIR_KEY));
         Path outputDataDir = new Path(task.getProp(ConfigurationKeys.JOB_FINAL_DIR_HDFS));
-        LOG.info("OUTPUT DIR: " + outputDataDir);
-        LOG.info("Staging DIR: " + stagingDataDir);
+
         if (!this.fs.exists(outputDataDir)) {
             fs.mkdirs(outputDataDir);
         }
