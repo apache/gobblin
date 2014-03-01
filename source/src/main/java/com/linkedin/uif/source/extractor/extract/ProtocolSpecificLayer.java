@@ -75,12 +75,6 @@ public interface ProtocolSpecificLayer<D,S> {
 	public String getWatermarkSourceFormat(WatermarkType watermarkType);
 	
     /**
-     * simple predicate condition for types like int and long
-     * @return predicate condition (column >= 200)
-     */
-	public String getSimplePredicateCondition(String column, long value, String operator);
-	
-    /**
      * date predicate condition for types like timestamp and date
      * @return predicate condition (LastModifiedHour >= 10 and LastModifiedHour <= 20)
      */
