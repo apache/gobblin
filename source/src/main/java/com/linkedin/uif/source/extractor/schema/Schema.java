@@ -8,16 +8,16 @@ import com.google.gson.JsonObject;
 public class Schema {
 	private String columnName;
 	private JsonObject dataType;
-	private boolean waterMark;
+	private boolean isWaterMark;
 	private int primaryKey;
 	private long length;
 	private int precision;
 	private int scale;
-	private boolean nullable;
+	private boolean isNullable;
 	private String format;
 	private String comment;
 	private String defaultValue;
-	private boolean unique;
+	private boolean isUnique;
 	
 	public String getColumnName() {
 		return columnName;
@@ -33,14 +33,6 @@ public class Schema {
 
 	public void setDataType(JsonObject dataType) {
 		this.dataType = dataType;
-	}
-
-	public boolean getWaterMark() {
-		return waterMark;
-	}
-
-	public void setWaterMark(boolean waterMark) {
-		this.waterMark = waterMark;
 	}
 
 	public int getPrimaryKey() {
@@ -75,14 +67,6 @@ public class Schema {
 		this.scale = scale;
 	}
 
-	public boolean getNullable() {
-		return nullable;
-	}
-
-	public void setNullable(boolean nullable) {
-		this.nullable = nullable;
-	}
-
 	public String getFormat() {
 		return format;
 	}
@@ -106,12 +90,28 @@ public class Schema {
 	public void setDefaultValue(String defaultValue) {
 		this.defaultValue = defaultValue;
 	}
-
-	public boolean getUnique() {
-		return unique;
+	
+	public boolean isWaterMark() {
+		return isWaterMark;
 	}
 
-	public void setUnique(boolean unique) {
-		this.unique = unique;
+	public void setWaterMark(boolean isWaterMark) {
+		this.isWaterMark = isWaterMark;
+	}
+
+	public boolean isNullable() {
+		return isNullable;
+	}
+
+	public void setNullable(boolean isNullable) {
+		this.isNullable = isNullable;
+	}
+
+	public boolean isUnique() {
+		return isUnique;
+	}
+
+	public void setUnique(boolean isUnique) {
+		this.isUnique = isUnique;
 	}
 }

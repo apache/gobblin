@@ -1,5 +1,12 @@
 package com.linkedin.uif.source.extractor.utils;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
 import com.google.common.base.Strings;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -29,6 +36,45 @@ public class Utils {
 			return jsonObject;
 		}
 		return null;
+	}
+	
+	public static String toDateTimeFormat(String input, String inputfmt, String outputfmt) {
+		Date date = null;
+		SimpleDateFormat infmt = new SimpleDateFormat(inputfmt);
+		try {
+			date = infmt.parse(input);
+		} catch (ParseException e) {
+			e.printStackTrace();
+		}
+		SimpleDateFormat outFormat = new SimpleDateFormat(outputfmt);
+		return outFormat.format(date);
+	}
+	
+	/**
+	 * Print time difference in minutes, seconds and milliseconds
+	 */
+	public static String printTiming(long start, long end) {
+		long totalMillis = end - start;
+		long mins = TimeUnit.MILLISECONDS.toMinutes(totalMillis);
+		long secs = TimeUnit.MILLISECONDS.toSeconds(totalMillis) - TimeUnit.MINUTES.toSeconds(mins);
+		long millis = TimeUnit.MILLISECONDS.toMillis(totalMillis) - TimeUnit.MINUTES.toMillis(mins) - TimeUnit.SECONDS.toMillis(secs);
+		return String.format("%d min, %d sec, %d millis", mins, secs, millis);
+	}
+	
+	/**
+	 * get column list from the user provided query to build schema with the respective columns
+	 * @param input query
+     * @return list of columns 
+	 */
+	public static List<String> getColumnListFromQuery(String query) {
+		if (Strings.isNullOrEmpty(query)) {
+			return null;
+		}
+		String queryLowerCase = query.toLowerCase();
+		int startIndex = queryLowerCase.indexOf("select") + 6;
+		int endIndex = queryLowerCase.indexOf("from ") - 1;
+		String[] inputQueryColumns = query.substring(startIndex, endIndex).toLowerCase().replaceAll(" ", "").split(",");
+		return Arrays.asList(inputQueryColumns);
 	}
 
 //	public static String JsonArrayToRelational(JsonArray jsonRecords, String colDelimiter, String rowDelimiter) {

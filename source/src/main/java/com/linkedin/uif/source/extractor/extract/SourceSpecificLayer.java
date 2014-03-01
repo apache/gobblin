@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.gson.JsonArray;
-import com.linkedin.uif.source.extractor.config.Predicate;
+import com.linkedin.uif.source.extractor.watermark.Predicate;
 import com.linkedin.uif.source.extractor.exception.DataRecordException;
 import com.linkedin.uif.source.extractor.exception.HighWatermarkException;
 import com.linkedin.uif.source.extractor.exception.RecordCountException;

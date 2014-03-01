@@ -1,15 +1,11 @@
 package com.linkedin.uif.source.extractor.extract;
 
 import java.io.IOException;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import com.google.common.base.Strings;
@@ -18,8 +14,10 @@ import com.google.gson.JsonObject;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
-import com.linkedin.uif.source.extractor.config.Predicate;
-import com.linkedin.uif.source.extractor.config.WatermarkType;
+import com.linkedin.uif.source.extractor.Extractor;
+import com.linkedin.uif.source.extractor.watermark.Predicate;
+import com.linkedin.uif.source.extractor.watermark.WatermarkPredicate;
+import com.linkedin.uif.source.extractor.watermark.WatermarkType;
 import com.linkedin.uif.source.extractor.exception.DataRecordException;
 import com.linkedin.uif.source.extractor.exception.ExtractPrepareException;
 import com.linkedin.uif.source.extractor.exception.HighWatermarkException;
@@ -29,6 +27,7 @@ import com.linkedin.uif.source.extractor.schema.ArrayDataType;
 import com.linkedin.uif.source.extractor.schema.DataType;
 import com.linkedin.uif.source.extractor.schema.EnumDataType;
 import com.linkedin.uif.source.extractor.schema.MapDataType;
+import com.linkedin.uif.source.extractor.utils.Utils;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
 /**
@@ -37,17 +36,14 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  * @param <D> type of data record
  * @param <S> type of schema
  */
-public abstract class BaseExtractor<D, S> implements ProtocolSpecificLayer<D, S> {
+public abstract class BaseExtractor<D, S> implements Extractor<D, S>, ProtocolSpecificLayer<D, S> {
 	private static final Log LOG = LogFactory.getLog(BaseExtractor.class);
-	private static final long DEFAULT_WATERMARK_VALUE = -1;
-	private static final String DEFAULT_WATERMARK_VALUE_FORMAT = "yyyyMMddHHmmss";
-	private static final SimpleDateFormat DEFAULT_WATERMARK_TIMESTAMP_FORMAT = new SimpleDateFormat(DEFAULT_WATERMARK_VALUE_FORMAT);
+	private static final SimpleDateFormat DEFAULT_WATERMARK_TIMESTAMP_FORMAT = new SimpleDateFormat("yyyyMMddHHmmss");
 	private static final Gson gson = new Gson();
 	protected WorkUnitState workUnitState;
 	protected WorkUnit workUnit;
 	private String entity;
 	private String schema;
-	private String predicateColumnFormat;
 	private boolean fetchStatus = true;
 	private S outputSchema;
 	private long sourceRecordCount = 0;
@@ -99,7 +95,7 @@ public abstract class BaseExtractor<D, S> implements ProtocolSpecificLayer<D, S>
 			LOG.info("Start - preparing the extract");
 			this.build();
 			long endTs = System.currentTimeMillis();
-			LOG.info("End - extract preperation: Time taken: " + this.printTiming(startTs, endTs));
+			LOG.info("End - extract preperation: Time taken: " + Utils.printTiming(startTs, endTs));
 		} catch (ExtractPrepareException e) {
 			throw new ExtractPrepareException("Failed to prepare extract; error-" + e.getMessage());
 		}
@@ -111,6 +107,7 @@ public abstract class BaseExtractor<D, S> implements ProtocolSpecificLayer<D, S>
 	 * @throws DataRecordException,IOException if it can't read data record
 	 * @return record of type D
 	 */
+	@Override
 	public D readRecord() throws DataRecordException, IOException {
 		if (!this.isPullRequired()) {
 			LOG.debug("No more records");
@@ -146,7 +143,8 @@ public abstract class BaseExtractor<D, S> implements ProtocolSpecificLayer<D, S>
 	 * get source record count from source
 	 * @return record count
 	 */
-	public long getCount() {
+	@Override
+	public long getExpectedRecordCount() {
 		return this.getSourceRecordCount();
 	}
 
@@ -154,6 +152,7 @@ public abstract class BaseExtractor<D, S> implements ProtocolSpecificLayer<D, S>
 	 * get schema(Metadata) corresponding to the data records
 	 * @return schema
 	 */
+	@Override
 	public S getSchema() {
 		return this.getOutputSchema();
 	}
@@ -162,6 +161,7 @@ public abstract class BaseExtractor<D, S> implements ProtocolSpecificLayer<D, S>
 	 * get high watermark of the current pull
 	 * @return high watermark
 	 */
+	@Override
 	public long getHighWatermark() {
 		return this.highWatermark;
 	}
@@ -170,6 +170,7 @@ public abstract class BaseExtractor<D, S> implements ProtocolSpecificLayer<D, S>
 	 * close extractor read stream
 	 * update high watermark
 	 */
+	@Override
 	public void close() {
 		this.workUnitState.setHighWaterMark(this.highWatermark);
 	}
@@ -193,24 +194,20 @@ public abstract class BaseExtractor<D, S> implements ProtocolSpecificLayer<D, S>
 			watermarkType = null;
 		} else {
 			watermarkType = WatermarkType.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_WATERMARK_TYPE).toUpperCase());
-		}
-		
-		if(!this.isValidWatermarkConfigs(watermarkColumn, watermarkType, lwm, hwm)) {
-			throw new ExtractPrepareException("Watermark configs are not valid. Please verify watermarkColumn and watermark types");
 		}	
 		
 		try {
-			this.predicateColumnFormat = this.getWatermarkSourceFormat(watermarkType);
-			
 			this.setTimeOut(this.workUnit.getProp(ConfigurationKeys.SOURCE_TIMEOUT));
 			
 			this.extractMetadata(this.schema, this.entity, this.workUnit);
 			
-			this.highWatermark = this.getLatestWatermark(watermarkColumn, watermarkType, lwm, hwm, this.predicateColumnFormat);
-			
-			this.setRangePredicates(watermarkColumn, watermarkType, lwm, this.highWatermark);
+			if(!Strings.isNullOrEmpty(watermarkColumn)) {
+				this.highWatermark = this.getLatestWatermark(watermarkColumn, watermarkType, lwm, hwm);
+				this.setRangePredicates(watermarkColumn, watermarkType, lwm, this.highWatermark);
+			}
 			
 			this.sourceRecordCount = this.getSourceCount(this.schema, this.entity, this.workUnit, this.predicateList);
+			
 		} catch (SchemaException e) {
 			throw new ExtractPrepareException("Failed to get schema for this object; error-" + e.getMessage());
 		} catch (HighWatermarkException e) {
@@ -223,24 +220,6 @@ public abstract class BaseExtractor<D, S> implements ProtocolSpecificLayer<D, S>
 	}
 
 	/**
-	 * verify the water mark related configs
-     *
-     * @param watermark column
-     * @param watermark type
-     * @param low watermark value
-     * @param high watermark value
-     * @return true if it is valid else false
-	 */
-	private boolean isValidWatermarkConfigs(String watermarkColumn, WatermarkType watermarkType, long lwm, long hwm) {
-		if(lwm != DEFAULT_WATERMARK_VALUE || hwm != DEFAULT_WATERMARK_VALUE) {
-			if(Strings.isNullOrEmpty(watermarkColumn) || watermarkType == null) {
-				return false;
-			}
-		}
-		return true;
-	}
-
-	/**
 	 * if snapshot extract, get latest watermark else return work unit high watermark
      *
      * @param watermark column
@@ -250,22 +229,23 @@ public abstract class BaseExtractor<D, S> implements ProtocolSpecificLayer<D, S>
      * @return letst watermark
 	 * @throws IOException 
 	 */
-	private long getLatestWatermark(String watermarkColumn, WatermarkType watermarkType, long lwmValue, long hwmValue, String predicateColumnFormat)
+	private long getLatestWatermark(String watermarkColumn, WatermarkType watermarkType, long lwmValue, long hwmValue)
 			throws HighWatermarkException, IOException {
 		
 		if(!Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_SKIP_HIGH_WATERMARK_CALC))) {
 			LOG.info("Getting high watermark");
 			List<Predicate> list = new ArrayList<Predicate>();
-			Predicate lwmPredicate = this.getPredicate(watermarkColumn, watermarkType, lwmValue, ">=");
-			Predicate hwmPredicate = this.getPredicate(watermarkColumn, watermarkType, hwmValue, "<=");
+			WatermarkPredicate watermark = new WatermarkPredicate(this, watermarkColumn, watermarkType);
+			Predicate lwmPredicate = watermark.getPredicate(lwmValue, ">=");
+			Predicate hwmPredicate = watermark.getPredicate(hwmValue, "<=");
 			if (lwmPredicate != null) {
 				list.add(lwmPredicate);
 			}
 			if (hwmPredicate != null) {
 				list.add(hwmPredicate);
 			}
-
-			return this.getMaxWatermark(this.schema, this.entity, watermarkColumn, predicateColumnFormat, list);
+			
+			return this.getMaxWatermark(this.schema, this.entity, watermarkColumn, list, watermark.getWatermarkSourceFormat());
 		}
 		
 		return hwmValue;
@@ -284,107 +264,31 @@ public abstract class BaseExtractor<D, S> implements ProtocolSpecificLayer<D, S>
 	 */
 	private void setRangePredicates(String watermarkColumn, WatermarkType watermarkType, long lwmValue, long hwmValue) {
 		LOG.info("Getting range predicates");
-		Predicate lwmPredicate = this.getPredicate(watermarkColumn, watermarkType, lwmValue, ">=");
-		Predicate hwmPredicate = this.getPredicate(watermarkColumn, watermarkType, hwmValue, "<=");
-		if (lwmPredicate != null) {
-			this.predicateList.add(lwmPredicate);
-		}
-		if (hwmPredicate != null) {
-			this.predicateList.add(hwmPredicate);
+		WatermarkPredicate watermark = new WatermarkPredicate(this, watermarkColumn, watermarkType);
+		this.addPredicates(watermark.getPredicate(lwmValue, ">="));
+		this.addPredicates(watermark.getPredicate(hwmValue, "<="));
+		
+		if(Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_IS_HOURLY_EXTRACT))) {
+			String hourColumn = this.workUnit.getProp(ConfigurationKeys.SOURCE_HOUR_COLUMN);
+			if(!Strings.isNullOrEmpty(hourColumn)) {
+				WatermarkPredicate hourlyWatermark = new WatermarkPredicate(this, hourColumn, WatermarkType.HOUR);
+				this.addPredicates(hourlyWatermark.getPredicate(lwmValue, ">="));
+				this.addPredicates(hourlyWatermark.getPredicate(hwmValue, "<="));
+			}
 		}
 	}
 
 	/**
-	 * predicates using watermark column and transaction columns.
-     * @param watermark column
-     * @param date column(for appends)
-     * @param hour column(for appends)
-     * @param batch column(for appends)
-     * @param low watermark value
-     * @return predicate condition
+	 * add predicate to the predicate list
+	 * @param Predicate(watermark column, type, format and condition)
+     * @return watermark list
 	 */
-	private Predicate getPredicate(String watermarkColumn, WatermarkType watermarkType, long value, String operator) {
-		if(Strings.isNullOrEmpty(watermarkColumn) || watermarkType == null) {
-			return null;
+	private void addPredicates(Predicate predicate) {
+		if(predicate != null) {
+			this.predicateList.add(predicate);
 		}
-		
-		LOG.debug("Building predicate");
-		String columnName = watermarkColumn;
-		String condition = "";
-		
-		if(value != DEFAULT_WATERMARK_VALUE) {
-			switch (watermarkType) {
-			case TIMESTAMP:
-				condition = this.getTimestampPredicateCondition(watermarkColumn, value, DEFAULT_WATERMARK_VALUE_FORMAT, operator);
-				break;
-			case DATE:
-				condition = this.getDatePredicateCondition(watermarkColumn, value, DEFAULT_WATERMARK_VALUE_FORMAT, operator);
-				break;
-			case SIMPLE:
-				condition = this.getSimplePredicateCondition(watermarkColumn, value, operator);
-				break;
-			default:
-				condition = "";
-				break;
-			}
-			
-			
-			if(Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_IS_HOURLY_EXTRACT))) {
-				String hourCondition = this.getSimplePredicateCondition(this.workUnit.getProp(ConfigurationKeys.SOURCE_HOUR_COLUMN), this.extractFromWatermarkValue(Long.toString(value), "HH", ""),
-						operator);
-				if(condition.isEmpty()) {
-					condition = hourCondition;
-				} else {
-					condition = condition + " AND " + hourCondition;
-				}			
-			}
-		}
-		
-		if (Strings.isNullOrEmpty(columnName) || condition.equals("")) {
-			return null;
-		}
-		
-		return new Predicate(columnName, value, condition, this.predicateColumnFormat);
-	}
-
-	/**
-	 * get date or hour from the given timestamp
-	 */
-	private long extractFromWatermarkValue(String input, String outfmt, String appendString) {
-		Date date = null;
-		try {
-			date = DEFAULT_WATERMARK_TIMESTAMP_FORMAT.parse(input);
-		} catch (ParseException e) {
-			e.printStackTrace();
-		}
-		SimpleDateFormat outFormat = new SimpleDateFormat(outfmt);
-		return Long.parseLong(outFormat.format(date) + appendString);
 	}
 	
-	private String printTiming(long start, long end) {
-		long totalMillis = end - start;
-		long mins = TimeUnit.MILLISECONDS.toMinutes(totalMillis);
-		long secs = TimeUnit.MILLISECONDS.toSeconds(totalMillis) - TimeUnit.MINUTES.toSeconds(mins);
-		long millis = TimeUnit.MILLISECONDS.toMillis(totalMillis) - TimeUnit.MINUTES.toMillis(secs);
-		return String.format("%d min, %d sec, %d millis", mins, secs, millis);
-	}
-
-	/**
-	 * get column list from the user provided query to build schema with the respective columns
-	 * @param input query
-     * @return list of columns 
-	 */
-	protected List<String> getColumnListFromQuery(String query) {
-		if (Strings.isNullOrEmpty(query)) {
-			return null;
-		}
-		String queryLowerCase = query.toLowerCase();
-		int startIndex = queryLowerCase.indexOf("select") + 6;
-		int endIndex = queryLowerCase.indexOf("from ") - 1;
-		String[] inputQueryColumns = query.substring(startIndex, endIndex).toLowerCase().replaceAll(" ", "").split(",");
-		return Arrays.asList(inputQueryColumns);
-	}
-
 	/**
 	 * True if the column is watermark column else return false
 	 */
@@ -404,6 +308,7 @@ public abstract class BaseExtractor<D, S> implements ProtocolSpecificLayer<D, S>
 
 	/**
 	 * Index of the primary key column from the given list of columns
+	 * Return the position of column(starting from 1) if it is found in the given list of primarykey columns. return 0 if it is not found.
 	 */
 	protected int getPrimarykeyIndex(String primarykeyColumn, String columnName) {
 		if (columnName != null) {
@@ -429,31 +334,8 @@ public abstract class BaseExtractor<D, S> implements ProtocolSpecificLayer<D, S>
 	}
 
 	/**
-	 * get required datatype from the given data type
+	 * Get intermediate form of data type using dataType map from source
 	 */
-	protected String getConvertedDataType(String dataType, Map<String, String> dataTypeMap) {
-		if (dataType == null) {
-			return "string";
-		}
-		String newDataType = dataTypeMap.get(dataType.toLowerCase());
-		if (newDataType == null) {
-			return "string";
-		}
-		return newDataType;
-	}
-
-	protected String toDateTimeFormat(String input, String inputfmt, String outputfmt) {
-		Date date = null;
-		SimpleDateFormat infmt = new SimpleDateFormat(inputfmt);
-		try {
-			date = infmt.parse(input);
-		} catch (ParseException e) {
-			e.printStackTrace();
-		}
-		SimpleDateFormat outFormat = new SimpleDateFormat(outputfmt);
-		return outFormat.format(date);
-	}
-	
 	protected JsonObject convertDataType(String columnName, String type, String elementType, List<String> enumSymbols) {
 		String dataType = this.getDataTypeMap().get(type);
 		if (dataType == null) {
