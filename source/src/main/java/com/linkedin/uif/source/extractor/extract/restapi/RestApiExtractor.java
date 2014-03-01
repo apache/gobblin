@@ -21,7 +21,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import com.linkedin.uif.configuration.WorkUnitState;
-import com.linkedin.uif.source.extractor.config.Predicate;
+import com.linkedin.uif.source.extractor.watermark.Predicate;
 import com.linkedin.uif.source.extractor.exception.DataRecordException;
 import com.linkedin.uif.source.extractor.exception.ExtractPrepareException;
 import com.linkedin.uif.source.extractor.exception.HighWatermarkException;
@@ -33,6 +33,7 @@ import com.linkedin.uif.source.extractor.extract.BaseExtractor;
 import com.linkedin.uif.source.extractor.extract.SourceSpecificLayer;
 import com.linkedin.uif.source.extractor.resultset.RecordSet;
 import com.linkedin.uif.source.extractor.schema.Schema;
+import com.linkedin.uif.source.extractor.utils.Utils;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
 /**
@@ -79,7 +80,7 @@ public abstract class RestApiExtractor<D, S> extends BaseExtractor<D, S> impleme
 		List<String> columnListInQuery = null;
 		JsonArray array = null;
 		if (!Strings.isNullOrEmpty(inputQuery)) {
-			columnListInQuery = this.getColumnListFromQuery(inputQuery);
+			columnListInQuery = Utils.getColumnListFromQuery(inputQuery);
 		}
 
 		try {
@@ -127,7 +128,7 @@ public abstract class RestApiExtractor<D, S> extends BaseExtractor<D, S> impleme
 	}
 
 	@Override
-	public long getMaxWatermark(String schema, String entity, String watermarkColumn, String predicateColumnFormat, List<Predicate> predicateList)
+	public long getMaxWatermark(String schema, String entity, String watermarkColumn, List<Predicate> predicateList, String watermarkSourceFormat)
 			throws HighWatermarkException {
 		LOG.info("Get high watermark using Rest Api");
 		long CalculatedHighWatermark = -1;
@@ -137,10 +138,10 @@ public abstract class RestApiExtractor<D, S> extends BaseExtractor<D, S> impleme
 				throw new HighWatermarkException("Failed to connect.");
 			} else {
 				LOG.debug("Connected successfully.");
-
+				
 				String url = this.getHighWatermarkMetadata(schema, entity, watermarkColumn, predicateList);
 				String response = this.getResponse(url);
-				CalculatedHighWatermark = this.getHighWatermark(response, watermarkColumn, predicateColumnFormat);
+				CalculatedHighWatermark = this.getHighWatermark(response, watermarkColumn, watermarkSourceFormat);
 			}
 			LOG.info("High watermark:" + CalculatedHighWatermark);
 			return CalculatedHighWatermark;

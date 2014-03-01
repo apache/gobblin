@@ -29,8 +29,8 @@ import com.google.gson.JsonObject;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
-import com.linkedin.uif.source.extractor.config.Predicate;
-import com.linkedin.uif.source.extractor.config.WatermarkType;
+import com.linkedin.uif.source.extractor.watermark.Predicate;
+import com.linkedin.uif.source.extractor.watermark.WatermarkType;
 import com.linkedin.uif.source.extractor.exception.DataRecordException;
 import com.linkedin.uif.source.extractor.exception.ExtractPrepareException;
 import com.linkedin.uif.source.extractor.exception.HighWatermarkException;
@@ -53,11 +53,11 @@ import com.linkedin.uif.source.workunit.WorkUnit;
 public class SalesforceExtractor<D, S> extends RestApiExtractor<D, S> {
 	private static final Log LOG = LogFactory.getLog(SalesforceExtractor.class);
 	private static final String DEFAULT_SERVICES_DATA_PATH = "/services/data";
-	private static final String OBJECTS_RESOURCE = "/sobjects";
 	private static final String SOQL_RESOURCE = "/query";
 	private static final String DEFAULT_AUTH_TOKEN_PATH = "/services/oauth2/token";
 	private static final String SALESFORCE_TIMESTAMP_FORMAT = "yyyy-MM-dd'T'HH:mm:ss'.000Z'";
 	private static final String SALESFORCE_DATE_FORMAT = "yyyy-MM-dd";
+	private static final String SALESFORCE_HOUR_FORMAT = "HH";
 	private static final Gson gson = new Gson();
 	
 	private boolean pullStatus = true;
@@ -417,16 +417,23 @@ public class SalesforceExtractor<D, S> extends RestApiExtractor<D, S> {
 	}
 	
 	@Override
+	public String getHourPredicateCondition(String column, long value, String valueFormat, String operator) {
+		LOG.info("Getting hour predicate from salesforce");
+		String Formattedvalue = Utils.toDateTimeFormat(Long.toString(value),valueFormat,SALESFORCE_HOUR_FORMAT);
+		return  column + " " + operator + " " +  Formattedvalue;
+	}
+	
+	@Override
 	public String getDatePredicateCondition(String column, long value, String valueFormat, String operator) {
 		LOG.info("Getting date predicate from salesforce");
-		String Formattedvalue = this.toDateTimeFormat(Long.toString(value),valueFormat,SALESFORCE_DATE_FORMAT);
+		String Formattedvalue = Utils.toDateTimeFormat(Long.toString(value),valueFormat,SALESFORCE_DATE_FORMAT);
 		return  column + " " + operator + " " +  Formattedvalue;
 	}
 	
 	@Override
 	public String getTimestampPredicateCondition(String column, long value, String valueFormat, String operator) {
 		LOG.info("Getting timestamp predicate from salesforce");
-		String Formattedvalue = this.toDateTimeFormat(Long.toString(value),valueFormat,SALESFORCE_TIMESTAMP_FORMAT);
+		String Formattedvalue = Utils.toDateTimeFormat(Long.toString(value),valueFormat,SALESFORCE_TIMESTAMP_FORMAT);
 		return  column + " " + operator + " " +  Formattedvalue;
 	}
 	

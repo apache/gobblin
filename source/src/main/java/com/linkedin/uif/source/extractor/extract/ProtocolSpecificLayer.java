@@ -5,8 +5,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import com.linkedin.uif.source.extractor.config.Predicate;
-import com.linkedin.uif.source.extractor.config.WatermarkType;
+import com.linkedin.uif.source.extractor.watermark.Predicate;
+import com.linkedin.uif.source.extractor.watermark.WatermarkType;
 import com.linkedin.uif.source.extractor.exception.DataRecordException;
 import com.linkedin.uif.source.extractor.exception.HighWatermarkException;
 import com.linkedin.uif.source.extractor.exception.RecordCountException;
@@ -32,6 +32,7 @@ public interface ProtocolSpecificLayer<D,S> {
 	
     /**
      * High water mark for the snapshot pull
+     * @param watermarkSourceFormat 
      *
      * @param source schema name
      * @param source entity name
@@ -41,7 +42,7 @@ public interface ProtocolSpecificLayer<D,S> {
      * @return high water mark
      * @throws SchemaException if there is anything wrong in getting high water mark
      */
-	public long getMaxWatermark(String schema, String entity, String watermarkColumn, String predicateColumnFormat, List<Predicate> snapshotPredicateList) throws HighWatermarkException;
+	public long getMaxWatermark(String schema, String entity, String watermarkColumn, List<Predicate> snapshotPredicateList, String watermarkSourceFormat) throws HighWatermarkException;
 	
     /**
      * Source record count
@@ -78,6 +79,12 @@ public interface ProtocolSpecificLayer<D,S> {
      * @return predicate condition (column >= 200)
      */
 	public String getSimplePredicateCondition(String column, long value, String operator);
+	
+    /**
+     * date predicate condition for types like timestamp and date
+     * @return predicate condition (LastModifiedHour >= 10 and LastModifiedHour <= 20)
+     */
+	public String getHourPredicateCondition(String column, long value, String valueFormat, String operator);
 	
     /**
      * date predicate condition for types like timestamp and date

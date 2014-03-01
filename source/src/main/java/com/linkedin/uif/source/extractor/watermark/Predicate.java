@@ -1,4 +1,4 @@
-package com.linkedin.uif.source.extractor.config;
+package com.linkedin.uif.source.extractor.watermark;
 
 /**
  * An implementation for predicate conditions
