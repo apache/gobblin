@@ -13,8 +13,6 @@ public class SimpleWatermark implements Watermark {
 
 	@Override
 	public String getWatermarkCondition(BaseExtractor extractor, long watermarkValue, String operator) {
-		extractor.getSimplePredicateCondition(watermarkColumn, watermarkValue, operator);
-		return null;
+		return this.watermarkColumn + operator +  watermarkValue;
 	}
-
 }

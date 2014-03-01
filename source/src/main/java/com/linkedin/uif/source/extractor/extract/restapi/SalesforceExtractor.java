@@ -411,12 +411,6 @@ public class SalesforceExtractor<D, S> extends RestApiExtractor<D, S> {
 	}
 	
 	@Override
-	public String getSimplePredicateCondition(String column, long value, String operator) {
-		LOG.info("Getting simple predicate from salesforce");
-		return  column + " " + operator + " " +  value;
-	}
-	
-	@Override
 	public String getHourPredicateCondition(String column, long value, String valueFormat, String operator) {
 		LOG.info("Getting hour predicate from salesforce");
 		String Formattedvalue = Utils.toDateTimeFormat(Long.toString(value),valueFormat,SALESFORCE_HOUR_FORMAT);
