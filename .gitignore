@@ -33,3 +33,7 @@ out
 output
 **/output
 **/staging
+jobOutput
+**/jobOutput
+task-state-store
+**/task-state-store

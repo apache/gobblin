@@ -1,5 +1,7 @@
 package com.linkedin.uif.test;
 
+import java.util.Collection;
+
 import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.publisher.DataPublisher;
 
@@ -28,12 +30,22 @@ public class TestDataPublisher extends DataPublisher {
     }
 
     @Override
-    public boolean publishData() throws Exception {
+    public boolean publishData(State state) throws Exception {
         return true;
     }
 
     @Override
-    public boolean publishMetadata() throws Exception {
+    public boolean publishMetadata(State state) throws Exception {
+        return true;
+    }
+    
+    @Override
+    public boolean publishData(Collection<? extends State> states) throws Exception {
+        return true;
+    }
+
+    @Override
+    public boolean publishMetadata(Collection<? extends State> states) throws Exception {
         return true;
     }
 }

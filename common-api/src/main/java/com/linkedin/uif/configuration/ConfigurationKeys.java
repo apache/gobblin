@@ -58,6 +58,15 @@ public class ConfigurationKeys {
     public static final String EXTRACT_DELTA_FIELDS_KEY = "extract.delta.fields";
 
     /**
+     * Converter configuration properties
+     */
+    public static final String CONVERTER_AVRO_DATE_FORMAT = "converter.avro.date.format";
+    public static final String CONVERTER_AVRO_DATE_TIMEZONE = "converter.avro.date.timezone";
+    public static final String CONVERTER_AVRO_TIME_FORMAT = "converter.avro.time.format";
+    public static final String CONVERTER_AVRO_TIMESTAMP_FORMAT = "converter.avro.timestamp.format";
+    public static final String CONVERTER_AVRO_BINARY_CHARSET = "converter.avro.binary.charset";
+
+    /**
      * Writer configuration properties
      */
     public static final String WRITER_DESTINATION_CONFIG_KEY_PREFIX = "writer";
@@ -83,17 +92,14 @@ public class ConfigurationKeys {
     public static final String DEFAULT_BUFFER_SIZE = "4096";
 
     /**
-     * Task publisher properties
+     * Job publisher properties
      */
-    public static final String TASK_PUBLISHER_PREFIX = "task.publisher";
+    public static final String JOB_PUBLISHER_PREFIX = "publisher.job";
     
     /**
      * HDFS task publisher properties
      */
-    public static final String HDFS_TASK_DATA_TMP_DIR = ".tmp.dir";
-    public static final String HDFS_TASK_DATA_FINAL_DIR = ".final.dir";
-    public static final String HDFS_TASK_METADATA_TMP_DIR = ".metadata.tmp.dir";
-    public static final String HDFS_TASK_METADATA_FINAL_DIR = ".metadata.final.dir";
+    public static final String JOB_FINAL_DIR_HDFS = JOB_PUBLISHER_PREFIX + ".final.dir";
     
     /**
      * Configuration properties used internally

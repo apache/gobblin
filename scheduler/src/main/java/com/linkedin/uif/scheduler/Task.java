@@ -1,4 +1,4 @@
-package com.linkedin.uif.scheduler;
+    package com.linkedin.uif.scheduler;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -81,7 +81,7 @@ public class Task implements Runnable, Serializable {
     public void run() {
         Extractor extractor = null;
         DataWriter writer = null;
-        MetaStoreClient collector = null;
+        MetaStoreClient metaStoreClient = null;
 
         long startTime = System.currentTimeMillis();
         this.taskState.setStartTime(startTime);
@@ -103,6 +103,7 @@ public class Task implements Runnable, Serializable {
                 schemaForWriter = converter.convertSchema(
                         sourceSchema, this.taskState);
             }
+
             // Build the writer for writing the output of the extractor
             writer = buildWriter(this.taskContext, schemaForWriter);
 
@@ -130,20 +131,21 @@ public class Task implements Runnable, Serializable {
                         ConfigurationKeys.WRITER_ROWS_WRITTEN,
                     writer.recordsWritten());
             
-            collector = buildMetaStoreClient(this.taskState);
-            PolicyChecker policyChecker = buildPolicyChecker(this.taskState, collector);
+            metaStoreClient = buildMetaStoreClient(this.taskState);
+            PolicyChecker policyChecker = buildPolicyChecker(this.taskState, metaStoreClient);
             PolicyCheckResults results = policyChecker.executePolicies();
             TaskPublisher publisher = buildTaskPublisher(
-                    this.taskState, results, collector);
+                    this.taskState, results);
 
-            // TODO: need a way to capture status of publisher properly
+            // TODO Need a way to capture status of Publisher properly
             switch ( publisher.publish() ) {
-                case SUCCESS:
-                    this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
-                    break;
-                default:
-                    this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-                    break;
+            case SUCCESS:
+                writer.commit();
+                this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+                break;
+            default:
+                this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+                break;
             }
         } catch (Exception e) {
             LOG.error(String.format("Task %s failed", this.taskId), e);
@@ -167,9 +169,9 @@ public class Task implements Runnable, Serializable {
                 }
             }
 
-            if (collector != null) {
+            if (metaStoreClient != null) {
                 try {
-                    collector.close();
+                    metaStoreClient.close();
                 } catch (Exception e) {
                     // Ignored
                 }
@@ -181,7 +183,7 @@ public class Task implements Runnable, Serializable {
             this.taskStateTracker.onTaskCompletion(this);
         }
     }
-
+    
     /** Get the ID of the job this {@link Task} belongs to.
      *
      * @return ID of the job this {@link Task} belongs to.
@@ -263,7 +265,6 @@ public class Task implements Runnable, Serializable {
                 .build();
     }
 
-
     /**
      * Build a {@link MetaStoreClient} to communicate with an external metastore.
      *
@@ -294,12 +295,11 @@ public class Task implements Runnable, Serializable {
      *
      * @return a {@link TaskPublisher}
      */
-    private TaskPublisher buildTaskPublisher(TaskState taskState, PolicyCheckResults results,
-            MetaStoreClient collector) throws Exception {
+    private TaskPublisher buildTaskPublisher(TaskState taskState, PolicyCheckResults results)
+            throws Exception {
 
         TaskPublisherBuilder builder = new TaskPublisherBuilderFactory()
-                .newTaskPublisherBuilder(taskState, results, collector);
+                .newTaskPublisherBuilder(taskState, results);
         return builder.build();
     }
-
 }

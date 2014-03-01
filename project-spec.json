@@ -73,7 +73,8 @@
     "jacksonCore": "org.codehaus.jackson:jackson-core-asl:1.9.13",
     "jacksonMapper": "org.codehaus.jackson:jackson-mapper-asl:1.9.13",
     "slf4j": "org.slf4j:slf4j-api:1.7.5",
-    "slf4jSimple": "org.slf4j:slf4j-simple:1.7.5"
+    "slf4jSimple": "org.slf4j:slf4j-simple:1.7.5",
+    "jodaTime": "joda-time:joda-time:1.6"
   },
   "product": {
     "container": {
@@ -110,7 +111,7 @@
       "dataAvro": "com.linkedin.pegasus:data-avro:@spec.product.pegasus.version@",
       "dataTransform": "com.linkedin.pegasus:data-transform:@spec.product.pegasus.version@",
       "r2": "com.linkedin.pegasus:r2:@spec.product.pegasus.version@",
-      "version": "1.8.35"
+      "version": "1.14.4"
     },
     "security": {
       "securityAccess": "com.linkedin.security:security-ssl-access-control:@spec.product.security.version@",

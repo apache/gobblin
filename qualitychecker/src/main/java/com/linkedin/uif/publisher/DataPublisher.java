@@ -1,5 +1,7 @@
 package com.linkedin.uif.publisher;
 
+import java.util.Collection;
+
 import com.linkedin.uif.configuration.State;
 
 /**
@@ -22,13 +24,17 @@ public abstract class DataPublisher
      * Returns true if it successfully publishes the data,
      * false otherwise
      */
-    public abstract boolean publishData() throws Exception;
+    public abstract boolean publishData(State task) throws Exception;
+    
+    public abstract boolean publishData(Collection<? extends State> tasks) throws Exception;
     
     /**
      * Returns true if it successfully publishes the metadata,
      * false otherwise. Examples are checkpoint files, offsets, etc.
      */
-    public abstract boolean publishMetadata() throws Exception;
+    public abstract boolean publishMetadata(State task) throws Exception;
+    
+    public abstract boolean publishMetadata(Collection<? extends State> tasks) throws Exception;
 
     public State getState()
     {
