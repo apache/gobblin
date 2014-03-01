@@ -12,6 +12,7 @@ dependencies {
   compile spec.external.jacksonCore
   compile spec.external.jacksonMapper
   compile spec.external.jodaTime
+  compile spec.external.testng
 }
 
 configurations.all {
