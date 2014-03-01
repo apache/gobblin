@@ -1,7 +1,7 @@
 package com.linkedin.uif.qualitychecker;
 
 import com.linkedin.uif.configuration.MetaStoreClient;
-import com.linkedin.uif.configuration.WorkUnitState;
+import com.linkedin.uif.configuration.State;
 
 /**
  * Policy takes in a TaskState (Task metadata), a
@@ -10,7 +10,7 @@ import com.linkedin.uif.configuration.WorkUnitState;
  */
 public abstract class Policy
 {   
-    private final WorkUnitState workUnitState;
+    private final State state;
     private final MetaStoreClient metadata;
     private Type type;
     private QualityCheckResult result;
@@ -20,8 +20,8 @@ public abstract class Policy
         OPTIONAL       // The test is optional
     };
     
-    public Policy(WorkUnitState workUnitState, MetaStoreClient metadata, Type type) {
-        this.workUnitState = workUnitState;
+    public Policy(State state, MetaStoreClient metadata, Policy.Type type) {
+        this.state = state;
         this.metadata = metadata;
         this.setType(type);
         this.setResult(QualityCheckResult.FAILED);
@@ -33,9 +33,9 @@ public abstract class Policy
      */
     public abstract QualityCheckResult executePolicy();
 
-    public WorkUnitState getTaskState()
+    public State getTaskState()
     {
-        return workUnitState;
+        return state;
     }
 
     public MetaStoreClient getMetadata()

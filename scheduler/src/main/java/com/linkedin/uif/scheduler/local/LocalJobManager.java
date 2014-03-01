@@ -1,11 +1,20 @@
 package com.linkedin.uif.scheduler.local;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FilenameFilter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentMap;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.quartz.*;
+import org.quartz.impl.StdSchedulerFactory;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -14,11 +23,8 @@ import com.google.common.util.concurrent.AbstractIdleService;
 
 import com.linkedin.uif.metastore.FsStateStore;
 import com.linkedin.uif.metastore.StateStore;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.quartz.*;
-import org.quartz.impl.StdSchedulerFactory;
-
+import com.linkedin.uif.publisher.DataPublisher;
+import com.linkedin.uif.publisher.HDFSDataPublisher;
 import com.linkedin.uif.scheduler.JobLock;
 import com.linkedin.uif.scheduler.TaskState;
 import com.linkedin.uif.scheduler.WorkUnitManager;
@@ -131,8 +137,8 @@ public class LocalJobManager extends AbstractIdleService {
         }
 
         this.jobTaskStatesMap.get(jobId).add(taskState);
-        // If all the tasks of the job have completed (regardless of success or failure),
-        // then trigger job committer
+        // If all the tasks of the job have completed (regardless of
+        // success or failure), then trigger job committing.
         if (this.jobTaskStatesMap.get(jobId).size() == this.jobTaskCountMap.get(jobId)) {
             LOG.info(String.format(
                     "All tasks of job %s have completed, committing it", jobId));
@@ -140,8 +146,8 @@ public class LocalJobManager extends AbstractIdleService {
                     ConfigurationKeys.JOB_NAME_KEY);
             try {
                 commitJob(jobId, jobName, this.jobTaskStatesMap.get(jobId));
-            } catch (IOException ioe) {
-                LOG.error("Failed to commit job " + jobId, ioe);
+            } catch (Exception e) {
+                LOG.error("Failed to commit job " + jobId, e);
             }
         }
     }
@@ -214,7 +220,11 @@ public class LocalJobManager extends AbstractIdleService {
             }
         }
 
-        LOG.info(String.format("Loaded %d job configurations", jobConfigs.size()));
+        LOG.info(String.format(
+                jobConfigs.size() == 1 ?
+                        "Loaded %d job configuration" :
+                        "Loaded %d job configurations",
+                jobConfigs.size()));
 
         return jobConfigs;
     }
@@ -239,9 +249,15 @@ public class LocalJobManager extends AbstractIdleService {
      * Commit a finished job.
      */
     private void commitJob(String jobId, String jobName, List<TaskState> taskStates)
-            throws IOException {
+            throws Exception {
 
         // TODO: complete the implementation
+
+        LOG.info("Publishing job data of job " + jobId);
+        // taskStates cannot be empty because otherwise the job will not even start
+        DataPublisher publisher = new HDFSDataPublisher(taskStates.get(0));
+        publisher.initialize();
+        publisher.publishData(taskStates);
 
         LOG.info("Persisting task states of job " + jobId);
         this.taskStateStore.putAll(jobName, jobId, taskStates);
@@ -312,6 +328,14 @@ public class LocalJobManager extends AbstractIdleService {
                 List<WorkUnit> workUnits = source.getWorkunits(
                         new SourceState(state, getPreviousWorkUnitStates(
                                 jobName, lastJobIdMap, taskStateStore)));
+
+                // If no real work to do
+                if (workUnits == null || workUnits.isEmpty()) {
+                    LOG.warn("No work units have been created for job " + jobId);
+                    // Unlock so the next run of the same job can proceed
+                    jobLockMap.get(jobName).unlock();
+                    return;
+                }
 
                 jobSourceMap.put(jobId, source);
                 jobTaskCountMap.put(jobId, workUnits.size());

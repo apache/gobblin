@@ -1,11 +1,11 @@
 package com.linkedin.uif.qualitychecker;
 
 import com.linkedin.uif.configuration.MetaStoreClient;
-import com.linkedin.uif.configuration.WorkUnitState;
+import com.linkedin.uif.configuration.State;
 
 public class PolicyCheckerBuilderFactory
 {
-    public PolicyCheckerBuilder newPolicyCheckerBuilder(WorkUnitState workUnitState, MetaStoreClient collector) {
-        return new PolicyCheckerBuilder(workUnitState, collector);
+    public PolicyCheckerBuilder newPolicyCheckerBuilder(State state, MetaStoreClient collector) {
+        return new PolicyCheckerBuilder(state, collector);
     }
 }
