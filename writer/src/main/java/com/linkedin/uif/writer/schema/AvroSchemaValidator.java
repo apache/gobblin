@@ -14,4 +14,11 @@ public class AvroSchemaValidator implements SchemaValidator {
         // Always return true
         return true;
     }
+
+    @Override
+    public boolean validateAgainstOldSchema(Schema newSchema, Schema oldSchema)
+    {
+        // TODO How do you check for backwards compatibility?
+        return newSchema.equals(oldSchema);
+    }
 }

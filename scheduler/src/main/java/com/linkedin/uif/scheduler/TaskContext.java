@@ -98,7 +98,7 @@ public class TaskContext {
             // Find properties whose names start with hte pre-defined
             // prefix for all writer destination configuration keys
             if (name.toLowerCase().startsWith(
-                    ConfigurationKeys.WRITER_DESTINATION_CONFIG_KEY_PREFIX)) {
+                    ConfigurationKeys.WRITER_PREFIX)) {
 
                 properties.setProperty(name, this.workUnit.getProp(name));
             }

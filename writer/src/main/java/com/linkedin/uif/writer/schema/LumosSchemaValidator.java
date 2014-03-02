@@ -127,4 +127,10 @@ public class LumosSchemaValidator implements SchemaValidator {
 
         return true;
     }
+
+    @Override
+    public boolean validateAgainstOldSchema(Schema newSchema, Schema oldSchema)
+    {
+        return true;
+    }
 }

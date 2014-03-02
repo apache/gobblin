@@ -6,8 +6,11 @@ import java.util.Properties;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.converter.SchemaConversionException;
@@ -23,6 +26,8 @@ import com.linkedin.uif.converter.SchemaConversionException;
  */
 public class AvroDataWriterBuilder<SI, DI> extends
         DataWriterBuilder<SI, Schema, DI, GenericRecord> {
+    
+    private static final Log LOG = LogFactory.getLog(AvroDataWriterBuilder.class);
 
     public DataWriter<DI, GenericRecord> build() throws IOException {
         Preconditions.checkNotNull(this.destination);
@@ -46,6 +51,12 @@ public class AvroDataWriterBuilder<SI, DI> extends
         if (!this.schemaType.getSchemaValidator().validate(schema)) {
             throw new IOException(String.format(
                     "Schema of type %s could not be validated", this.schemaType.name()));
+        }
+        
+        // Check for backwards compatibility with schema from previous run
+        if (this.oldSchema != null && !this.schemaType.getSchemaValidator().validateAgainstOldSchema(schema, new Schema.Parser().parse(this.oldSchema))) {
+            throw new IOException(String.format(
+                    "Schema of type %s is not backwards compatible with old schema", this.schemaType.name()));
         }
 
         switch (this.destination.getType()) {
