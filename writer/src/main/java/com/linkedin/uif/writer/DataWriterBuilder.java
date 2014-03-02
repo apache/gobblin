@@ -25,6 +25,7 @@ public abstract class DataWriterBuilder<SI, SO, DI, DO> {
     protected SchemaConverter<SI, SO> schemaConverter;
     protected SI sourceSchema;
     protected SchemaType schemaType;
+    protected String oldSchema;
 
     /**
      * Tell the writer the destination to write to.
@@ -103,6 +104,11 @@ public abstract class DataWriterBuilder<SI, SO, DI, DO> {
         return this;
     }
 
+    public DataWriterBuilder<SI, SO, DI, DO> withOldSchema(String oldSchema) {
+        this.oldSchema = oldSchema;
+        return this;
+    }
+    
     /**
      * Build a {@link DataWriter}.
      *

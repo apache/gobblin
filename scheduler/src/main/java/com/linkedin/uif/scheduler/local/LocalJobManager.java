@@ -20,7 +20,6 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.AbstractIdleService;
-
 import com.linkedin.uif.metastore.FsStateStore;
 import com.linkedin.uif.metastore.StateStore;
 import com.linkedin.uif.publisher.DataPublisher;
@@ -28,6 +27,7 @@ import com.linkedin.uif.publisher.HDFSDataPublisher;
 import com.linkedin.uif.scheduler.JobLock;
 import com.linkedin.uif.scheduler.TaskState;
 import com.linkedin.uif.scheduler.WorkUnitManager;
+import com.linkedin.uif.schema.SchemaRetriever;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.WorkUnitState;
@@ -306,7 +306,6 @@ public class LocalJobManager extends AbstractIdleService {
              */
             String jobIdSuffix = String.format("%s_%d", jobName, System.currentTimeMillis());
             String jobId = "job_" + jobIdSuffix;
-            LOG.info("Starting job " + jobId);
 
             try {
                 com.linkedin.uif.configuration.State state =
@@ -318,10 +317,12 @@ public class LocalJobManager extends AbstractIdleService {
                         properties.getProperty(ConfigurationKeys.SOURCE_CLASS_KEY))
                         .newInstance();
                 // Generate work units based on all previous work unit states
-                List<WorkUnit> workUnits = source.getWorkunits(
-                        new SourceState(state, getPreviousWorkUnitStates(
-                                jobName, lastJobIdMap, taskStateStore)));
-
+                SourceState sourceState = new SourceState(state, getPreviousWorkUnitStates(jobName, lastJobIdMap, taskStateStore));
+                LOG.info("REALSIZE: " + sourceState.getPreviousStates().size());
+                List<WorkUnit> workUnits = source.getWorkunits(sourceState);
+                LOG.info("Output: " + properties.getProperty(ConfigurationKeys.SCHEMA_RETRIEVER_TYPE));
+                SchemaRetriever schemaRetriever = (SchemaRetriever) Class.forName(properties.getProperty(ConfigurationKeys.SCHEMA_RETRIEVER_TYPE)).newInstance();
+                
                 jobSourceMap.put(jobId, source);
                 jobTaskCountMap.put(jobId, workUnits.size());
                 jobTaskStatesMap.put(jobId, new ArrayList<TaskState>(workUnits.size()));
@@ -337,6 +338,7 @@ public class LocalJobManager extends AbstractIdleService {
                     WorkUnitState workUnitState = new WorkUnitState(workUnit);
                     workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
                     workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
+                    setOldSchema(workUnit, schemaRetriever.getOldSchema(sourceState));
                     workUnitManager.addWorkUnit(workUnitState);
                 }
             } catch (Exception e) {
@@ -349,10 +351,17 @@ public class LocalJobManager extends AbstractIdleService {
                     // Unlock so the next run of the same job can proceed
                     jobLockMap.get(jobName).unlock();
                 } catch (IOException ioe) {
-                    // Ignored
+                    // Ignoredps
                 }
 
                 throw new JobExecutionException(e);
+            }
+        }
+        
+        public void setOldSchema(WorkUnit workUnit, String oldSchema) {
+            LOG.info("OLD SCHEMA: " + oldSchema);
+            if (oldSchema != null) {
+                workUnit.setProp(ConfigurationKeys.WRITER_OLD_OUTPUT_SCHEMA, oldSchema);
             }
         }
 

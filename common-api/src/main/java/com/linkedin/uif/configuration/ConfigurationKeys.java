@@ -60,24 +60,26 @@ public class ConfigurationKeys {
     /**
      * Writer configuration properties
      */
-    public static final String WRITER_DESTINATION_CONFIG_KEY_PREFIX = "writer";
+    public static final String WRITER_PREFIX = "writer";
     public static final String WRITER_DESTINATION_TYPE_KEY =
-            WRITER_DESTINATION_CONFIG_KEY_PREFIX + ".destination.type";
-    public static final String WRITER_OUTPUT_FORMAT_KEY = ".output.format";
+            WRITER_PREFIX + ".destination.type";
+    public static final String WRITER_OUTPUT_FORMAT_KEY = WRITER_PREFIX + ".output.format";
+    public static final String WRITER_OUTPUT_SCHEMA = WRITER_PREFIX + ".output.schema";
+    public static final String WRITER_OLD_OUTPUT_SCHEMA = WRITER_PREFIX + ".output.old.schema";
 
     /**
      * HDFS writer configuration properties
      */
     public static final String FILE_SYSTEM_URI_KEY =
-            WRITER_DESTINATION_CONFIG_KEY_PREFIX + ".fs.uri";
+            WRITER_PREFIX + ".fs.uri";
     public static final String STAGING_DIR_KEY =
-            WRITER_DESTINATION_CONFIG_KEY_PREFIX + ".staging.dir";
+            WRITER_PREFIX + ".staging.dir";
     public static final String OUTPUT_DIR_KEY =
-            WRITER_DESTINATION_CONFIG_KEY_PREFIX + ".output.dir";
+            WRITER_PREFIX + ".output.dir";
     public static final String FILE_NAME_KEY =
-            WRITER_DESTINATION_CONFIG_KEY_PREFIX + ".file.name";
+            WRITER_PREFIX + ".file.name";
     public static final String BUFFER_SIZE_KEY =
-            WRITER_DESTINATION_CONFIG_KEY_PREFIX + ".buffer.size";
+            WRITER_PREFIX + ".buffer.size";
     public static final String DEFAULT_STAGING_DIR = "";
     public static final String DEFAULT_OUTPUT_DIR = "";
     public static final String DEFAULT_BUFFER_SIZE = "4096";
@@ -134,4 +136,10 @@ public class ConfigurationKeys {
     public static final String TASK_STATUS_REPORT_INTERVAL_IN_MS_KEY =
             "task.status.reportintervalinms";
     public static final long DEFAULT_TASK_STATUS_REPORT_INTERVAL_IN_MS = 30000;
+    
+    /**
+     * 
+     */
+    public static final String SCHEMA_RETRIEVER_PREFIX = "schema.retriever";
+    public static final String SCHEMA_RETRIEVER_TYPE = SCHEMA_RETRIEVER_PREFIX + ".type";
 }

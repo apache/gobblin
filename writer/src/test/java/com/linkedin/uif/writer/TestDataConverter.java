@@ -37,6 +37,8 @@ public class TestDataConverter implements DataConverter<String, GenericRecord> {
         JsonElement element = GSON
                 .fromJson(sourceRecord, JsonObject.class)
                 .get("fields");
+        System.out.println("Element " + GSON
+                           .fromJson(sourceRecord, JsonObject.class));
         Map<String, Object> fields = GSON.fromJson(element, FIELD_ENTRY_TYPE);
         GenericRecord record = new GenericData.Record(this.schema);
         for (Map.Entry<String, Object> entry : fields.entrySet()) {

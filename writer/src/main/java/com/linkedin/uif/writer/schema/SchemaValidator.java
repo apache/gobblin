@@ -16,4 +16,14 @@ public interface SchemaValidator {
      * @return whether the source schema is valid
      */
     public boolean validate(Schema schema);
+    
+    /**
+     * Validate the given source schema against the
+     * schema from the previous run
+     * 
+     * @param newSchema is the schema from this run
+     * @param oldSchema is the schema from the previous run
+     * @return true if schemas are backwards compatible, false otherwise
+     */
+    public boolean validateAgainstOldSchema(Schema newSchema, Schema oldSchema);
 }

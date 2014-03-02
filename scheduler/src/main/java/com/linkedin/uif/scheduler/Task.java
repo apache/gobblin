@@ -103,7 +103,7 @@ public class Task implements Runnable, Serializable {
                 schemaForWriter = converter.convertSchema(
                         sourceSchema, this.taskState);
             }
-
+            
             // Build the writer for writing the output of the extractor
             writer = buildWriter(this.taskContext, schemaForWriter);
 
@@ -130,13 +130,14 @@ public class Task implements Runnable, Serializable {
             this.taskState.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX +
                         ConfigurationKeys.WRITER_ROWS_WRITTEN,
                     writer.recordsWritten());
+            this.taskState.setProp(ConfigurationKeys.WRITER_OUTPUT_SCHEMA, sourceSchema);
             
             metaStoreClient = buildMetaStoreClient(this.taskState);
             PolicyChecker policyChecker = buildPolicyChecker(this.taskState, metaStoreClient);
             PolicyCheckResults results = policyChecker.executePolicies();
             TaskPublisher publisher = buildTaskPublisher(
                     this.taskState, results);
-
+            LOG.info("OLD SCHEMA FROM TASK: " + this.taskState.getProp(ConfigurationKeys.WRITER_OLD_OUTPUT_SCHEMA));
             // TODO Need a way to capture status of Publisher properly
             switch ( publisher.publish() ) {
             case SUCCESS:
@@ -262,6 +263,7 @@ public class Task implements Runnable, Serializable {
                 .useSchemaConverter(context.getSchemaConverter())
                 .useDataConverter(context.getDataConverter(schema))
                 .withSourceSchema(schema, context.getSchemaType())
+                .withOldSchema(context.getTaskState().getProp(ConfigurationKeys.WRITER_OLD_OUTPUT_SCHEMA))
                 .build();
     }
 
