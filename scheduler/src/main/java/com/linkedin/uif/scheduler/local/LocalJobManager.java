@@ -20,6 +20,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.AbstractIdleService;
+
 import com.linkedin.uif.metastore.FsStateStore;
 import com.linkedin.uif.metastore.StateStore;
 import com.linkedin.uif.publisher.DataPublisher;
@@ -137,8 +138,8 @@ public class LocalJobManager extends AbstractIdleService {
         }
 
         this.jobTaskStatesMap.get(jobId).add(taskState);
-        // If all the tasks of the job have completed (regardless of success or failure),
-        // then trigger job committer
+        // If all the tasks of the job have completed (regardless of
+        // success or failure), then trigger job committing.
         if (this.jobTaskStatesMap.get(jobId).size() == this.jobTaskCountMap.get(jobId)) {
             LOG.info(String.format(
                     "All tasks of job %s have completed, committing it", jobId));
@@ -220,7 +221,11 @@ public class LocalJobManager extends AbstractIdleService {
             }
         }
 
-        LOG.info(String.format("Loaded %d job configurations", jobConfigs.size()));
+        LOG.info(String.format(
+                jobConfigs.size() == 1 ?
+                        "Loaded %d job configuration" :
+                        "Loaded %d job configurations",
+                jobConfigs.size()));
 
         return jobConfigs;
     }
@@ -248,6 +253,9 @@ public class LocalJobManager extends AbstractIdleService {
             throws Exception {
 
         // TODO: complete the implementation
+
+        LOG.info("Publishing job data of job " + jobId);
+        // taskStates cannot be empty because otherwise the job will not even start
         DataPublisher publisher = new HDFSDataPublisher(taskStates.get(0));
         publisher.initialize();
         publisher.publishData(taskStates);
@@ -306,6 +314,7 @@ public class LocalJobManager extends AbstractIdleService {
              */
             String jobIdSuffix = String.format("%s_%d", jobName, System.currentTimeMillis());
             String jobId = "job_" + jobIdSuffix;
+            LOG.info("Starting job " + jobId);
 
             try {
                 com.linkedin.uif.configuration.State state =
@@ -316,13 +325,20 @@ public class LocalJobManager extends AbstractIdleService {
                 Source<?, ?> source = (Source<?, ?>) Class.forName(
                         properties.getProperty(ConfigurationKeys.SOURCE_CLASS_KEY))
                         .newInstance();
+                
                 // Generate work units based on all previous work unit states
                 SourceState sourceState = new SourceState(state, getPreviousWorkUnitStates(jobName, lastJobIdMap, taskStateStore));
-                LOG.info("REALSIZE: " + sourceState.getPreviousStates().size());
                 List<WorkUnit> workUnits = source.getWorkunits(sourceState);
-                LOG.info("Output: " + properties.getProperty(ConfigurationKeys.SCHEMA_RETRIEVER_TYPE));
                 SchemaRetriever schemaRetriever = (SchemaRetriever) Class.forName(properties.getProperty(ConfigurationKeys.SCHEMA_RETRIEVER_TYPE)).newInstance();
-                
+                         
+                // If no real work to do
+                if (workUnits == null || workUnits.isEmpty()) {
+                    LOG.warn("No work units have been created for job " + jobId);
+                    // Unlock so the next run of the same job can proceed
+                    jobLockMap.get(jobName).unlock();
+                    return;
+                }
+
                 jobSourceMap.put(jobId, source);
                 jobTaskCountMap.put(jobId, workUnits.size());
                 jobTaskStatesMap.put(jobId, new ArrayList<TaskState>(workUnits.size()));
@@ -351,7 +367,7 @@ public class LocalJobManager extends AbstractIdleService {
                     // Unlock so the next run of the same job can proceed
                     jobLockMap.get(jobName).unlock();
                 } catch (IOException ioe) {
-                    // Ignoredps
+                    // Ignored
                 }
 
                 throw new JobExecutionException(e);
@@ -359,7 +375,6 @@ public class LocalJobManager extends AbstractIdleService {
         }
         
         public void setOldSchema(WorkUnit workUnit, String oldSchema) {
-            LOG.info("OLD SCHEMA: " + oldSchema);
             if (oldSchema != null) {
                 workUnit.setProp(ConfigurationKeys.WRITER_OLD_OUTPUT_SCHEMA, oldSchema);
             }

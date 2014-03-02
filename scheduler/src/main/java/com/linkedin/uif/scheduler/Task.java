@@ -137,7 +137,7 @@ public class Task implements Runnable, Serializable {
             PolicyCheckResults results = policyChecker.executePolicies();
             TaskPublisher publisher = buildTaskPublisher(
                     this.taskState, results);
-            LOG.info("OLD SCHEMA FROM TASK: " + this.taskState.getProp(ConfigurationKeys.WRITER_OLD_OUTPUT_SCHEMA));
+
             // TODO Need a way to capture status of Publisher properly
             switch ( publisher.publish() ) {
             case SUCCESS:
@@ -297,7 +297,8 @@ public class Task implements Runnable, Serializable {
      *
      * @return a {@link TaskPublisher}
      */
-    private TaskPublisher buildTaskPublisher(TaskState taskState, PolicyCheckResults results) throws Exception {
+    private TaskPublisher buildTaskPublisher(TaskState taskState, PolicyCheckResults results)
+            throws Exception {
 
         TaskPublisherBuilder builder = new TaskPublisherBuilderFactory()
                 .newTaskPublisherBuilder(taskState, results);
