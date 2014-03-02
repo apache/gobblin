@@ -1,0 +1,23 @@
+{
+   "Id":"232498",
+   "IsDeleted":false,
+   "Salutation":[
+      "test",
+      "test1",
+      "test2"
+   ],
+   "MapAccount":{
+      "test":"test",
+      "test1":"test",
+      "test2":"test"
+   },
+   "Industry":"IT",
+   "LastModifiedDate":"2014-01-02 12:23:37",
+   "date_type":"2014-01-02 12:23:37",
+   "time_type":"12:23:37",
+   "bytes_type":"dfkljafnio3ebpoahdjhjh",
+   "int_type":3,
+   "long_type":7899083748927,
+   "float_type":4.3,
+   "double_type":9.763649736
+}

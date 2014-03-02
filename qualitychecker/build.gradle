@@ -9,6 +9,8 @@ dependencies {
   compile spec.external.avro
   compile spec.external.gson
   compile spec.external.hadoop
+  compile spec.external.commonsLogging
+  compile spec.external.guava
 }
 
 configurations.all {

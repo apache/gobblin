@@ -13,7 +13,7 @@ import org.apache.hadoop.fs.Path;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.State;
-import com.linkedin.uif.scheduler.TaskState;
+import com.linkedin.uif.configuration.WorkUnitState;
 
 public class HDFSDataPublisher extends DataPublisher
 {
@@ -38,7 +38,7 @@ public class HDFSDataPublisher extends DataPublisher
     
     @Override
     public boolean publishData(State state) throws IOException {       
-        TaskState task = (TaskState) state;
+        WorkUnitState task = (WorkUnitState) state;
         Path stagingDataDir = new Path(task.getProp(ConfigurationKeys.OUTPUT_DIR_KEY));
         Path outputDataDir = new Path(task.getProp(ConfigurationKeys.JOB_FINAL_DIR_HDFS));
 

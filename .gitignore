@@ -35,7 +35,5 @@ output
 **/staging
 jobOutput
 **/jobOutput
-test-rowcount-staging
-**/test-rowcount-staging
 task-state-store
 **/task-state-store

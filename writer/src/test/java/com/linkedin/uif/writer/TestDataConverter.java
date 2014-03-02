@@ -3,15 +3,16 @@ package com.linkedin.uif.writer;
 import java.lang.reflect.Type;
 import java.util.Map;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.reflect.TypeToken;
-import com.linkedin.uif.converter.DataConversionException;
-import com.linkedin.uif.writer.converter.DataConverter;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.reflect.TypeToken;
+
+import com.linkedin.uif.converter.DataConversionException;
+import com.linkedin.uif.writer.converter.DataConverter;
 
 /**
  * A test {@link DataConverter} that converts a Json-formatted Avro
@@ -34,13 +35,9 @@ public class TestDataConverter implements DataConverter<String, GenericRecord> {
 
     @Override
     public GenericRecord convert(String sourceRecord) throws DataConversionException {
-        JsonElement element = GSON
-                .fromJson(sourceRecord, JsonObject.class)
-                .get("fields");
-        System.out.println("Element " + GSON
-                           .fromJson(sourceRecord, JsonObject.class));
+        JsonElement element = GSON.fromJson(sourceRecord, JsonElement.class);
         Map<String, Object> fields = GSON.fromJson(element, FIELD_ENTRY_TYPE);
-        GenericRecord record = new GenericData.Record(this.schema);
+        GenericRecord record = new GenericData.Record(schema);
         for (Map.Entry<String, Object> entry : fields.entrySet()) {
             record.put(entry.getKey(), entry.getValue());
         }
