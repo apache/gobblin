@@ -330,7 +330,8 @@ public class LocalJobManager extends AbstractIdleService {
                 SourceState sourceState = new SourceState(state, getPreviousWorkUnitStates(jobName, lastJobIdMap, taskStateStore));
                 List<WorkUnit> workUnits = source.getWorkunits(sourceState);
                 SchemaRetriever schemaRetriever = (SchemaRetriever) Class.forName(properties.getProperty(ConfigurationKeys.SCHEMA_RETRIEVER_TYPE)).newInstance();
-                         
+                schemaRetriever.initialize(sourceState);         
+                
                 // If no real work to do
                 if (workUnits == null || workUnits.isEmpty()) {
                     LOG.warn("No work units have been created for job " + jobId);
@@ -354,7 +355,7 @@ public class LocalJobManager extends AbstractIdleService {
                     WorkUnitState workUnitState = new WorkUnitState(workUnit);
                     workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
                     workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
-                    setOldSchema(workUnit, schemaRetriever.getOldSchema(sourceState));
+                    setOldSchema(workUnit, schemaRetriever.getLatestPreviousSchema());
                     workUnitManager.addWorkUnit(workUnitState);
                 }
             } catch (Exception e) {

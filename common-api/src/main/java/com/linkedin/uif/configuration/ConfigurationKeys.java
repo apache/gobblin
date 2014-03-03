@@ -147,7 +147,7 @@ public class ConfigurationKeys {
     public static final long DEFAULT_TASK_STATUS_REPORT_INTERVAL_IN_MS = 30000;
     
     /**
-     * 
+     * Configurations properties for the schema retriever
      */
     public static final String SCHEMA_RETRIEVER_PREFIX = "schema.retriever";
     public static final String SCHEMA_RETRIEVER_TYPE = SCHEMA_RETRIEVER_PREFIX + ".type";
