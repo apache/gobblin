@@ -67,7 +67,7 @@
     "netty": "org.jboss.netty:netty:3.2.3.Final",
     "quartz": "org.quartz-scheduler:quartz:2.2.1",
     "snappy": "org.xerial.snappy:snappy-java:1.0.1-rc3",
-    "testng": "org.testng:testng:6.4",
+    "testng": "org.testng:testng:6.5.1",
     "zkclient": "com.github.sgroschupf:zkclient:0.1",
     "zookeeper": "org.apache.zookeeper:zookeeper:3.3.3",
     "jacksonCore": "org.codehaus.jackson:jackson-core-asl:1.9.13",

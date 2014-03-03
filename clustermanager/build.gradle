@@ -6,10 +6,18 @@ dependencies {
   compile spec.external.commonsDbcp
   compile spec.external.log4j
   compile spec.external.mysqlConnectorJava
+  
+  testCompile spec.external.testng
 }
 
-configurations.all {
+configurations {
+    compile {
         transitive = false
+    }
+
+    runtime {
+        transitive = true
+    }
 }
 
 artifacts {
@@ -22,9 +30,13 @@ sourceSets {
         }
 }
 
+test {
+    useTestNG ()
+    include '**/*Test*'
+}
+
 javadoc {
         classpath += configurations.compileJar
 }
 
 classification="library"
-
