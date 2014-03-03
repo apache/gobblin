@@ -9,8 +9,6 @@ import com.google.common.base.Strings;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.converter.SchemaConversionException;
@@ -27,8 +25,6 @@ import com.linkedin.uif.converter.SchemaConversionException;
 public class AvroDataWriterBuilder<SI, DI> extends
         DataWriterBuilder<SI, Schema, DI, GenericRecord> {
     
-    private static final Log LOG = LogFactory.getLog(AvroDataWriterBuilder.class);
-
     public DataWriter<DI, GenericRecord> build() throws IOException {
         Preconditions.checkNotNull(this.destination);
         Preconditions.checkArgument(!Strings.isNullOrEmpty(this.writerId));
