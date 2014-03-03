@@ -51,7 +51,9 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
         throw new SchemaConversionException(e);
       }
 
-      fields.add(new Field(columnName, fldSchema, comment, null));
+      Field fld = new Field(columnName, fldSchema, comment, null);
+      fld.addProp("source.type", map.get("dataType").getAsJsonObject().get("type").getAsString());
+      fields.add(fld);
     }
 
     Schema avroSchema =
