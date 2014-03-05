@@ -12,8 +12,8 @@ workunit.table=test
 writer.destination.type=HDFS
 writer.output.format=AVRO
 writer.fs.uri=file://localhost/
-writer.staging.dir=test/staging
-writer.output.dir=test/output
+writer.staging.dir=test/staging/UIFTest2
+writer.output.dir=test/output/UIFTest2
 writer.file.name=test.avro
 
 source.files=test/resource/source/test.avro.0,test/resource/source/test.avro.1
@@ -23,4 +23,4 @@ qualitychecker.policies=com.linkedin.uif.qualitychecker.RowCountPolicy
 qualitychecker.policy.types=OPTIONAL
 qualitychecker.taskpublisher.type=com.linkedin.uif.test.TestDataPublisher
 
-publisher.job.final.dir=test/jobOutput
+publisher.job.final.dir=test/jobOutput/UIFTest2
