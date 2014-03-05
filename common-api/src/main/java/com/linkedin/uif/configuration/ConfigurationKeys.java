@@ -151,4 +151,10 @@ public class ConfigurationKeys {
      */
     public static final String SCHEMA_RETRIEVER_PREFIX = "schema.retriever";
     public static final String SCHEMA_RETRIEVER_TYPE = SCHEMA_RETRIEVER_PREFIX + ".type";
+    
+    /**
+     * Configuration properties for the data publisher
+     */
+    public static final String DATA_PUBLISHER_PREFIX = "data.publisher";
+    public static final String DATA_PUBLISHER_TYPE = DATA_PUBLISHER_PREFIX + ".type";
 }
