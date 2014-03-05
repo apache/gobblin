@@ -9,14 +9,14 @@ import com.google.common.collect.Lists;
 
 import org.apache.hadoop.io.Text;
 
-import com.linkedin.uif.configuration.State;
+import com.linkedin.uif.configuration.SourceState;
 
 /**
  * A class for tracking job state information.
  *
  * @author ynli
  */
-public class JobState extends State {
+public class JobState extends SourceState {
 
     /**
      * An enumeration of possible job states, which are identical to
