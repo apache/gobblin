@@ -46,7 +46,6 @@ public class TestSource implements Source<String, String> {
     }
 
     @Override
-    public void publishSourceMeta(SourceState state) {
-
+    public void shutdown(SourceState state) {
     }
 }

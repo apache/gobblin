@@ -291,8 +291,12 @@ public class LocalJobManager extends AbstractIdleService {
         // TODO: Get rid of state persistence at the task level.
         this.taskStateStore.putAll(
                 jobName, jobId + TASK_STATE_STORE_TABLE_SUFFIX, taskStates);
+        JobState jobState = buildJobState(jobId, jobName, taskStates);
         this.jobStateStore.put(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX,
-                buildJobState(jobId, jobName, taskStates));
+                jobState);
+
+        // Shutdown the source
+        this.jobSourceMap.get(jobId).shutdown(jobState);
 
         // Remove all state bookkeeping information of this scheduled job run
         this.jobSourceMap.remove(jobId);
