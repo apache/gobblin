@@ -21,6 +21,8 @@ import com.linkedin.uif.test.TestConverter;
 
 /**
  * Unit tests for {@link MultiConverter}.
+ *
+ * @author ynli
  */
 @Test(groups = {"com.linkedin.uif.scheduler"})
 public class MultiConverterTest {

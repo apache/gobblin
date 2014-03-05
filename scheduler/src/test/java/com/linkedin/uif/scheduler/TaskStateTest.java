@@ -15,6 +15,8 @@ import com.linkedin.uif.configuration.WorkUnitState;
 
 /**
  * Unit tests for {@link TaskState}.
+ *
+ * @author ynli
  */
 @Test(groups = {"com.linkedin.uif.scheduler"})
 public class TaskStateTest {
