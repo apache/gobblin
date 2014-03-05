@@ -41,8 +41,8 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
     public AvroHdfsDataWriter(URI uri, String stagingDir, String outputDir,
             String fileName, int bufferSize, DataConverter<S,
             GenericRecord> dataConverter, Schema schema) throws IOException {
-
-        this.fs = FileSystem.get(uri, new Configuration());
+        Configuration conf = new Configuration();
+        this.fs = FileSystem.get(uri, conf);
         this.stagingFile = new Path(stagingDir, fileName);
         this.outputFile = new Path(outputDir, fileName);
         this.dataConverter = dataConverter;

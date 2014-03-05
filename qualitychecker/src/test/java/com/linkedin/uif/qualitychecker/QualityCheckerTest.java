@@ -18,8 +18,8 @@ public class QualityCheckerTest
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST_TYPE, "MANDATORY");
 
         PolicyCheckResults results = getPolicyResults(state);
-        for (Map.Entry<QualityCheckResult, Policy.Type> entry : results.getPolicyResults().entrySet()) {
-            Assert.assertEquals(entry.getKey(), QualityCheckResult.PASSED);
+        for (Map.Entry<Policy.Result, Policy.Type> entry : results.getPolicyResults().entrySet()) {
+            Assert.assertEquals(entry.getKey(), Policy.Result.PASSED);
         }
     }
     
@@ -29,13 +29,13 @@ public class QualityCheckerTest
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST_TYPE, "MANDATORY,MANDATORY");
 
         PolicyCheckResults results = getPolicyResults(state);
-        for (Map.Entry<QualityCheckResult, Policy.Type> entry : results.getPolicyResults().entrySet()) {
-            Assert.assertEquals(entry.getKey(), QualityCheckResult.PASSED);
+        for (Map.Entry<Policy.Result, Policy.Type> entry : results.getPolicyResults().entrySet()) {
+            Assert.assertEquals(entry.getKey(), Policy.Result.PASSED);
         }
     }
     
     public PolicyCheckResults getPolicyResults(State state) throws Exception {
-        PolicyChecker checker = new PolicyCheckerBuilderFactory().newPolicyCheckerBuilder(state, null).build();
+        PolicyChecker checker = new PolicyCheckerBuilderFactory().newPolicyCheckerBuilder(state).build();
         return checker.executePolicies();
     }
 }

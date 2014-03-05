@@ -1,5 +1,7 @@
 package com.linkedin.uif.qualitychecker;
 
+import java.util.List;
+
 /**
  * PolicyChecker takes in a list of Policy objects
  * executes each one, and then stores the output
@@ -7,16 +9,16 @@ package com.linkedin.uif.qualitychecker;
  */
 public class PolicyChecker
 {
-    private final PolicyList list;
+    private final List<Policy> list;
     
-    public PolicyChecker(PolicyList list) {
+    public PolicyChecker(List<Policy> list) {
         this.list = list;
     }
         
     public PolicyCheckResults executePolicies() {
         PolicyCheckResults results = new PolicyCheckResults();
-        for (Policy p : this.list.getPolicyList()) {
-            results.add(p.executePolicy(), p.getType());
+        for (Policy p : this.list) {
+            results.getPolicyResults().put(p.executePolicy(), p.getType());
         }
         return results;
     }
