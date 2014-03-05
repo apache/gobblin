@@ -7,7 +7,6 @@ import org.apache.commons.logging.LogFactory;
 
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.qualitychecker.Policy;
-import com.linkedin.uif.qualitychecker.QualityCheckResult;
 import com.linkedin.uif.qualitychecker.PolicyCheckResults;
 
 public class TaskPublisher
@@ -30,7 +29,7 @@ public class TaskPublisher
         this.workUnitState = workUnitState;
     }
     
-    public PublisherState publish() throws Exception {
+    public PublisherState canPublish() throws Exception {
         if (allComponentsFinished()) {
             LOG.info("All components finished successfully, checking quality tests");
             if (passedAllTests()) {
@@ -39,15 +38,12 @@ public class TaskPublisher
                     LOG.info("Cleanup executed successfully, finishing task");
                     return PublisherState.SUCCESS;
                 } else {
-                    LOG.error("Cleanup failed, exiting task");
                     return PublisherState.CLEANUP_FAIL;
                 }
             } else {
-                LOG.error("All tests were not passed, exiting task");
                 return PublisherState.POLICY_TESTS_FAIL;
             }
         } else {
-            LOG.error("All components did not finish, exiting task");
             return PublisherState.COMPONENTS_NOT_FINISHED;
         }
     }
@@ -56,8 +52,8 @@ public class TaskPublisher
      * Returns true if all tests from the PolicyChecker pass, false otherwise
      */
     public boolean passedAllTests() {
-        for ( Map.Entry<QualityCheckResult, Policy.Type> entry : results.getPolicyResults().entrySet()) {
-            if (entry.getKey().equals(QualityCheckResult.FAILED) && entry.getValue().equals(Policy.Type.MANDATORY)) {
+        for ( Map.Entry<Policy.Result, Policy.Type> entry : results.getPolicyResults().entrySet()) {
+            if (entry.getKey().equals(Policy.Result.FAILED) && entry.getValue().equals(Policy.Type.MANDATORY)) {
                 return false;
             }
         }

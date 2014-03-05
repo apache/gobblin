@@ -7,9 +7,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
-import com.linkedin.uif.configuration.MetaStoreClient;
-import com.linkedin.uif.configuration.MetaStoreClientBuilder;
-import com.linkedin.uif.configuration.MetaStoreClientBuilderFactory;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.Converter;
 import com.linkedin.uif.publisher.TaskPublisher;
@@ -81,7 +78,6 @@ public class Task implements Runnable, Serializable {
     public void run() {
         Extractor extractor = null;
         DataWriter writer = null;
-        MetaStoreClient metaStoreClient = null;
 
         long startTime = System.currentTimeMillis();
         this.taskState.setStartTime(startTime);
@@ -132,22 +128,35 @@ public class Task implements Runnable, Serializable {
                     writer.recordsWritten());
             this.taskState.setProp(ConfigurationKeys.WRITER_OUTPUT_SCHEMA, sourceSchema);
             
-            metaStoreClient = buildMetaStoreClient(this.taskState);
-            PolicyChecker policyChecker = buildPolicyChecker(this.taskState, metaStoreClient);
+            PolicyChecker policyChecker = buildPolicyChecker(this.taskState);
             PolicyCheckResults results = policyChecker.executePolicies();
+            
             TaskPublisher publisher = buildTaskPublisher(
                     this.taskState, results);
 
-            // TODO Need a way to capture status of Publisher properly
-            switch ( publisher.publish() ) {
+            switch ( publisher.canPublish() ) {
             case SUCCESS:
+                LOG.info("Task finished successfully, committing Task data");
                 writer.commit();
                 this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+                break;
+            case CLEANUP_FAIL:
+                LOG.error("Task cleanup failed, exiting task");
+                this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+                break;
+            case POLICY_TESTS_FAIL:
+                LOG.error("All tests did not passed, exiting task");
+                this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+                break;
+            case COMPONENTS_NOT_FINISHED:
+                LOG.error("All components did not finish, exiting task");
+                this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
                 break;
             default:
                 this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
                 break;
             }
+            
         } catch (Exception e) {
             LOG.error(String.format("Task %s failed", this.taskId), e);
             this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
@@ -166,14 +175,6 @@ public class Task implements Runnable, Serializable {
                     writer.cleanup();
                     writer.close();
                 } catch (IOException ioe) {
-                    // Ignored
-                }
-            }
-
-            if (metaStoreClient != null) {
-                try {
-                    metaStoreClient.close();
-                } catch (Exception e) {
                     // Ignored
                 }
             }
@@ -268,27 +269,14 @@ public class Task implements Runnable, Serializable {
     }
 
     /**
-     * Build a {@link MetaStoreClient} to communicate with an external metastore.
-     *
-     * @return a {@link MetaStoreClient}
-     */
-    private MetaStoreClient buildMetaStoreClient(TaskState taskState) throws Exception {
-        MetaStoreClientBuilder builder = new MetaStoreClientBuilderFactory()
-                .newMetaStoreClientBuilder(taskState);
-        return builder.build();
-    }
-
-    /**
      * Build a {@link PolicyChecker} to execute all defined
      * {@link com.linkedin.uif.qualitychecker.Policy}.
      *
      * @return a {@link PolicyChecker}
      */
-    private PolicyChecker buildPolicyChecker(TaskState taskState, MetaStoreClient collector)
-            throws Exception {
-
+    private PolicyChecker buildPolicyChecker(TaskState taskState) throws Exception {
         PolicyCheckerBuilder builder = new PolicyCheckerBuilderFactory()
-                .newPolicyCheckerBuilder(taskState, collector);
+                .newPolicyCheckerBuilder(taskState);
         return builder.build();
     }
 

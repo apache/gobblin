@@ -1,18 +1,17 @@
 package com.linkedin.uif.qualitychecker;
 
-import com.linkedin.uif.configuration.MetaStoreClient;
 import com.linkedin.uif.configuration.State;
 
 public class TestPolicy extends Policy
 {
-    public TestPolicy(State state, MetaStoreClient metadata, Type type)
+    public TestPolicy(State state, Type type)
     {
-        super(state, metadata, type);
+        super(state, type);
     }
 
     @Override
-    public QualityCheckResult executePolicy()
+    public Result executePolicy()
     {
-        return QualityCheckResult.PASSED;
+        return Result.PASSED;
     }
 }

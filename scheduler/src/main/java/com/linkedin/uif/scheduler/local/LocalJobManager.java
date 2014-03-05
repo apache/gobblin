@@ -5,6 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -20,17 +21,18 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.AbstractIdleService;
-
 import com.linkedin.uif.metastore.FsStateStore;
 import com.linkedin.uif.metastore.StateStore;
 import com.linkedin.uif.publisher.DataPublisher;
 import com.linkedin.uif.publisher.HDFSDataPublisher;
+import com.linkedin.uif.qualitychecker.Policy;
 import com.linkedin.uif.scheduler.JobLock;
 import com.linkedin.uif.scheduler.TaskState;
 import com.linkedin.uif.scheduler.WorkUnitManager;
 import com.linkedin.uif.schema.SchemaRetriever;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
+import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.workunit.WorkUnit;
@@ -249,14 +251,26 @@ public class LocalJobManager extends AbstractIdleService {
     /**
      * Commit a finished job.
      */
+    @SuppressWarnings("unchecked")
     private void commitJob(String jobId, String jobName, List<TaskState> taskStates)
             throws Exception {
 
         // TODO: complete the implementation
 
         LOG.info("Publishing job data of job " + jobId);
+        
         // taskStates cannot be empty because otherwise the job will not even start
-        DataPublisher publisher = new HDFSDataPublisher(taskStates.get(0));
+        /**
+         *  TODO should have a cleaner way of getting parameters in .pull files into the
+         *  LocalJobManager rather than calling tasks.get(0)
+         */
+        
+        Class<? extends DataPublisher> dataPublisherClass = (Class<? extends DataPublisher>) 
+                Class.forName(taskStates.get(0).getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE));
+        Constructor<? extends DataPublisher> dataPublisherConstructor = 
+                dataPublisherClass.getConstructor(com.linkedin.uif.configuration.State.class);
+        DataPublisher publisher = dataPublisherConstructor.newInstance(taskStates.get(0));
+        
         publisher.initialize();
         publisher.publishData(taskStates);
 
@@ -328,9 +342,7 @@ public class LocalJobManager extends AbstractIdleService {
                 
                 // Generate work units based on all previous work unit states
                 SourceState sourceState = new SourceState(state, getPreviousWorkUnitStates(jobName, lastJobIdMap, taskStateStore));
-                List<WorkUnit> workUnits = source.getWorkunits(sourceState);
-                SchemaRetriever schemaRetriever = (SchemaRetriever) Class.forName(properties.getProperty(ConfigurationKeys.SCHEMA_RETRIEVER_TYPE)).newInstance();
-                schemaRetriever.initialize(sourceState);         
+                List<WorkUnit> workUnits = source.getWorkunits(sourceState);   
                 
                 // If no real work to do
                 if (workUnits == null || workUnits.isEmpty()) {
@@ -355,7 +367,6 @@ public class LocalJobManager extends AbstractIdleService {
                     WorkUnitState workUnitState = new WorkUnitState(workUnit);
                     workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
                     workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
-                    setOldSchema(workUnit, schemaRetriever.getLatestPreviousSchema());
                     workUnitManager.addWorkUnit(workUnitState);
                 }
             } catch (Exception e) {
@@ -375,12 +386,6 @@ public class LocalJobManager extends AbstractIdleService {
             }
         }
         
-        public void setOldSchema(WorkUnit workUnit, String oldSchema) {
-            if (oldSchema != null) {
-                workUnit.setProp(ConfigurationKeys.WRITER_OLD_OUTPUT_SCHEMA, oldSchema);
-            }
-        }
-
         /**
          * Try acquring the job lock and return whether the lock is successfully locked.
          */

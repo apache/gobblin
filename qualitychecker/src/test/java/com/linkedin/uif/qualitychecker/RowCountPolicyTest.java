@@ -24,8 +24,8 @@ public class RowCountPolicyTest
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.WRITER_ROWS_WRITTEN, WRITER_ROWS_WRITTEN);
 
         PolicyCheckResults results = getPolicyResults(state);
-        for (Map.Entry<QualityCheckResult, Policy.Type> entry : results.getPolicyResults().entrySet()) {
-            Assert.assertEquals(entry.getKey(), QualityCheckResult.PASSED);
+        for (Map.Entry<Policy.Result, Policy.Type> entry : results.getPolicyResults().entrySet()) {
+            Assert.assertEquals(entry.getKey(), Policy.Result.PASSED);
         }
     }
     
@@ -38,8 +38,8 @@ public class RowCountPolicyTest
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.WRITER_ROWS_WRITTEN, -1);
 
         PolicyCheckResults results = getPolicyResults(state);
-        for (Map.Entry<QualityCheckResult, Policy.Type> entry : results.getPolicyResults().entrySet()) {
-            Assert.assertEquals(entry.getKey(), QualityCheckResult.FAILED);
+        for (Map.Entry<Policy.Result, Policy.Type> entry : results.getPolicyResults().entrySet()) {
+            Assert.assertEquals(entry.getKey(), Policy.Result.FAILED);
         }
     }
     
@@ -53,8 +53,8 @@ public class RowCountPolicyTest
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.ROW_COUNT_RANGE, "0.05");
 
         PolicyCheckResults results = getPolicyResults(state);
-        for (Map.Entry<QualityCheckResult, Policy.Type> entry : results.getPolicyResults().entrySet()) {
-            Assert.assertEquals(entry.getKey(), QualityCheckResult.PASSED);
+        for (Map.Entry<Policy.Result, Policy.Type> entry : results.getPolicyResults().entrySet()) {
+            Assert.assertEquals(entry.getKey(), Policy.Result.PASSED);
         }
     }
     
@@ -68,8 +68,8 @@ public class RowCountPolicyTest
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.ROW_COUNT_RANGE, "0.05");
 
         PolicyCheckResults results = getPolicyResults(state);
-        for (Map.Entry<QualityCheckResult, Policy.Type> entry : results.getPolicyResults().entrySet()) {
-            Assert.assertEquals(entry.getKey(), QualityCheckResult.PASSED);
+        for (Map.Entry<Policy.Result, Policy.Type> entry : results.getPolicyResults().entrySet()) {
+            Assert.assertEquals(entry.getKey(), Policy.Result.PASSED);
         }
     }
     
@@ -83,8 +83,8 @@ public class RowCountPolicyTest
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.ROW_COUNT_RANGE, "0.05");
 
         PolicyCheckResults results = getPolicyResults(state);
-        for (Map.Entry<QualityCheckResult, Policy.Type> entry : results.getPolicyResults().entrySet()) {
-            Assert.assertEquals(entry.getKey(), QualityCheckResult.FAILED);
+        for (Map.Entry<Policy.Result, Policy.Type> entry : results.getPolicyResults().entrySet()) {
+            Assert.assertEquals(entry.getKey(), Policy.Result.FAILED);
         }
     }
     
@@ -98,13 +98,13 @@ public class RowCountPolicyTest
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.ROW_COUNT_RANGE, "0.05");
 
         PolicyCheckResults results = getPolicyResults(state);
-        for (Map.Entry<QualityCheckResult, Policy.Type> entry : results.getPolicyResults().entrySet()) {
-            Assert.assertEquals(entry.getKey(), QualityCheckResult.PASSED);
+        for (Map.Entry<Policy.Result, Policy.Type> entry : results.getPolicyResults().entrySet()) {
+            Assert.assertEquals(entry.getKey(), Policy.Result.PASSED);
         }
     }
     
     public PolicyCheckResults getPolicyResults(State state) throws Exception {
-        PolicyChecker checker = new PolicyCheckerBuilderFactory().newPolicyCheckerBuilder(state, null).build();
+        PolicyChecker checker = new PolicyCheckerBuilderFactory().newPolicyCheckerBuilder(state).build();
         return checker.executePolicies();
     }
 }

@@ -25,3 +25,4 @@ qualitychecker.taskpublisher.type=com.linkedin.uif.test.TestDataPublisher
 
 publisher.job.final.dir=test/jobOutput/UIFTest1
 schema.retriever.type=com.linkedin.uif.schema.WorkUnitSchemaRetriever
+data.publisher.type=com.linkedin.uif.publisher.HDFSDataPublisher
