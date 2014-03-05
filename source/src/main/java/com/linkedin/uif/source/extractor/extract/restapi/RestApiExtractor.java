@@ -21,8 +21,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import com.linkedin.uif.configuration.WorkUnitState;
+import com.linkedin.uif.source.extractor.DataRecordException;
 import com.linkedin.uif.source.extractor.watermark.Predicate;
-import com.linkedin.uif.source.extractor.exception.DataRecordException;
 import com.linkedin.uif.source.extractor.exception.ExtractPrepareException;
 import com.linkedin.uif.source.extractor.exception.HighWatermarkException;
 import com.linkedin.uif.source.extractor.exception.RecordCountException;

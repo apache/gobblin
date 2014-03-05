@@ -13,6 +13,7 @@ dependencies {
   compile spec.external.guava
   compile spec.external.jacksonCore
   compile spec.external.jacksonMapper
+
   testCompile spec.external.testng
 }
 
