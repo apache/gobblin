@@ -10,11 +10,18 @@ dependencies {
     compile spec.external.commonsLogging
     compile spec.external.hadoop
     compile spec.external.gson
-    compile spec.external.testng
+
+    testCompile spec.external.testng
 }
 
-configurations.all {
+configurations {
+    compile {
         transitive = false
+    }
+
+    runtime {
+        transitive = true
+    }
 }
 
 artifacts {
@@ -27,9 +34,13 @@ sourceSets {
         }
 }
 
+test {
+    useTestNG ()
+    include '**/*Test*'
+}
+
 javadoc {
         classpath += configurations.compileJar
 }
 
 classification="library"
-

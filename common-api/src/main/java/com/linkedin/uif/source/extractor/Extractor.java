@@ -1,25 +1,38 @@
 package com.linkedin.uif.source.extractor;
 
-import com.linkedin.uif.configuration.WorkUnitState;
+import java.io.IOException;
 
-public abstract class Extractor<S, D>
-{
-  private WorkUnitState state;
 
-  public Extractor(WorkUnitState state)
-  {
-    this.state = state;
-  }
+public interface Extractor<D, S> {
+	/**
+	 * get schema(Metadata) corresponding to the data records
+	 * @return schema
+	 */
+	public S getSchema();
 
-  public abstract S getSchema();
+	/**
+	 * Read a data record from source
+	 * 
+	 * @throws DataRecordException,IOException if it can't read data record
+	 * @return record of type D
+	 */
+	public D readRecord() throws DataRecordException, IOException;
 
-  public abstract D readRecord();
+	/**
+	 * close extractor read stream
+	 * update high watermark
+	 */
+	public void close();
 
-  public abstract void close();
+	/**
+	 * get source record count from source
+	 * @return record count
+	 */
+	public long getExpectedRecordCount();
 
-  public abstract long getExpectedRecordCount();
-
-  protected WorkUnitState getState() {
-    return state;
-  }
+	/**
+	 * get calculated high watermark of the current pull
+	 * @return high watermark
+	 */
+	public long getHighWatermark();
 }

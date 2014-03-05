@@ -184,7 +184,9 @@ public class JsonElementConversionFactory {
     }
 
     protected Schema schema() {
-      return Schema.create(getTargetType());
+      Schema schema = Schema.create(getTargetType());
+      schema.addProp("source.type", getTargetType().toString().toLowerCase());
+      return schema;
     }
 
     /**
@@ -400,7 +402,9 @@ public class JsonElementConversionFactory {
 
     @Override
     public Schema schema() {
-      return Schema.createArray(getElementConverter().schema());
+      Schema schema = Schema.createArray(getElementConverter().schema());
+      schema.addProp("source.type", "array");
+      return schema;
     }
   }
 
@@ -433,7 +437,9 @@ public class JsonElementConversionFactory {
 
     @Override
     public Schema schema() {
-      return Schema.createMap(getElementConverter().schema());
+      Schema schema = Schema.createMap(getElementConverter().schema());
+      schema.addProp("source.type", "map");
+      return schema;
     }
   }
 
@@ -464,6 +470,7 @@ public class JsonElementConversionFactory {
     @Override
     public Schema schema() {
       schema = Schema.createEnum(enumName, "", "", enumSet);
+      schema.addProp("source.type", "enum");
       return schema;
     }
   }

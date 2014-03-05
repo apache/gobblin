@@ -3,7 +3,9 @@ package com.linkedin.uif.configuration;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.Set;
 
+import com.linkedin.uif.source.workunit.Extract;
 import com.linkedin.uif.source.workunit.ImmutableWorkUnit;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
@@ -21,13 +23,12 @@ public class WorkUnitState extends State
 
   private WorkUnit workunit;
 
-    // Necessary for serialization/deserialization
+  // Necessary for serialization/deserialization
   public WorkUnitState() {
     this.workunit = new WorkUnit(null, null);
   }
 
   public WorkUnitState(WorkUnit workUnit) {
-      this.addAll(workUnit);
       this.workunit = workUnit;
   }
 
@@ -54,6 +55,44 @@ public class WorkUnitState extends State
   public void setHighWaterMark(long value)
   {
     setProp(ConfigurationKeys.WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK, value);
+  }
+  
+  @Override
+  protected String getProperty(String key) {
+    String propStr = super.getProperty(key);
+    if (propStr != null)
+      return propStr;
+    else
+      return workunit.getProperty(key);
+  }
+  
+  @Override
+  protected String getProperty(String key, String def) {
+    String propStr = super.getProperty(key);
+    if (propStr != null)
+      return propStr;
+    else
+      return workunit.getProperty(key, def);
+  }
+  
+  @Override
+  public Set<String> getPropertyNames() {
+    Set<String> set = super.getPropertyNames();
+    set.addAll(workunit.getPropertyNames());
+    return set;
+  }
+  
+  @Override
+  public boolean contains(String key) {
+    return super.contains(key) || workunit.contains(key);
+  }
+  
+  public Extract getExtract() {
+    return workunit.getExtract();
+  }
+  
+  public State getPreviousTableState() {
+    return getExtract().getPreviousTableState();
   }
 
   @Override
