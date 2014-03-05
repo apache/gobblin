@@ -1,9 +1,5 @@
 package com.linkedin.uif.converter.avro;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
@@ -12,13 +8,7 @@ import java.util.TimeZone;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericArray;
-import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.BinaryDecoder;
-import org.apache.avro.io.BinaryEncoder;
-import org.apache.avro.io.DecoderFactory;
-import org.apache.avro.io.EncoderFactory;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -35,8 +25,6 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.workunit.Extract.TableType;
-import com.sun.org.apache.bcel.internal.classfile.Field;
-import com.sun.xml.internal.messaging.saaj.util.ByteOutputStream;
 
 
 /**
@@ -44,7 +32,7 @@ import com.sun.xml.internal.messaging.saaj.util.ByteOutputStream;
  * @author kgoodhop
  *
  */
-@Test(groups = { "com.linkedin.uif.converter.avro" })
+@Test(groups = { "com.linkedin.uif.converter" })
 public class TestJsonIntermediateToAvroConverter {
   private JsonArray jsonSchema;
   private JsonObject jsonRecord;
@@ -52,18 +40,17 @@ public class TestJsonIntermediateToAvroConverter {
 
   @BeforeClass
   public void setUp() throws Exception {
-
     Type listType = new TypeToken<JsonArray>() {
     }.getType();
     Gson gson = new Gson();
     jsonSchema =
-        gson.fromJson(new InputStreamReader(new FileInputStream(new File("converter/src/test/resources/schema.json"))),
+        gson.fromJson(new InputStreamReader(this.getClass().getResourceAsStream("/schema.json")),
             listType);
 
     listType = new TypeToken<JsonObject>() {
     }.getType();
     jsonRecord =
-        gson.fromJson(new InputStreamReader(new FileInputStream(new File("converter/src/test/resources/record.json"))),
+        gson.fromJson(new InputStreamReader(this.getClass().getResourceAsStream("/record.json")),
             listType);
 
     SourceState source = new SourceState();

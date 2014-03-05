@@ -13,5 +13,5 @@ public interface Source<S, D>
 
   public abstract Extractor<S, D> getExtractor(WorkUnitState state);
   
-  public abstract void publishSourceMeta(SourceState state);
+  public abstract void shutdown(SourceState state);
 }
