@@ -35,5 +35,5 @@ output
 **/staging
 jobOutput
 **/jobOutput
-task-state-store
-**/task-state-store
+state-store
+**/state-store

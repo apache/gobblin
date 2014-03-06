@@ -47,7 +47,7 @@ public class LumosSchemaValidationPolicy extends Policy
             ImmutableSet.of(PK, DELTA);
     
     private final Schema schema;
-    
+
     public LumosSchemaValidationPolicy(State state, Type type)
     {
         super(state, type);
