@@ -57,7 +57,7 @@ public class FsStateStore implements StateStore {
         Path storePath = new Path(this.storeRootDir, storeName);
         if (this.fs.exists(storePath)) {
             throw new IOException(String.format(
-                    "Task state store directory %s already exists for job %s",
+                    "Store directory %s already exists for store %s",
                     storePath, storeName));
         }
 
@@ -74,7 +74,7 @@ public class FsStateStore implements StateStore {
         Path tablePath = new Path(storePath, tableName);
         if (this.fs.exists(tablePath)) {
             throw new IOException(String.format(
-                    "Task state file %s already exists for job %s",
+                    "State file %s already exists for table %s",
                     tablePath, tableName));
         }
 
@@ -88,13 +88,16 @@ public class FsStateStore implements StateStore {
         Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
         if (!this.fs.exists(tablePath) && !create(storeName, tableName)) {
             throw new IOException(
-                    "Failed to create a task state file for job " + tableName);
+                    "Failed to create a state file for table " + tableName);
         }
 
         SequenceFile.Writer writer = null;
         try {
             writer = new SequenceFile.Writer(
                     this.fs, this.conf, tablePath, Text.class, this.stateClass);
+            // Append will overwrite existing data, so it's not real append.
+            // Real append is to be supported for SequenceFile (HADOOP-7139).
+            // TODO: implement a workaround.
             writer.append(new Text(Strings.nullToEmpty(state.getId())), state);
         } finally {
             if (writer != null) {
@@ -110,7 +113,7 @@ public class FsStateStore implements StateStore {
         Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
         if (!this.fs.exists(tablePath) && !create(storeName, tableName)) {
             throw new IOException(
-                    "Failed to create a task state file for job " + tableName);
+                    "Failed to create a state file for table " + tableName);
         }
 
         SequenceFile.Writer writer = null;
@@ -118,6 +121,9 @@ public class FsStateStore implements StateStore {
             writer = new SequenceFile.Writer(
                     this.fs, this.conf, tablePath, Text.class, this.stateClass);
             for (State state : states) {
+                // Append will overwrite existing data, so it's not real append.
+                // Real append is to be supported for SequenceFile (HADOOP-7139).
+                // TODO: implement a workaround.
                 writer.append(new Text(Strings.nullToEmpty(state.getId())), state);
             }
         } finally {
@@ -134,7 +140,7 @@ public class FsStateStore implements StateStore {
         Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
         if (!this.fs.exists(tablePath)) {
             throw new IOException(String.format(
-                    "Task state file %s does not exist for job %s",
+                    "State file %s does not exist for table %s",
                     tablePath, tableName));
         }
 
@@ -168,7 +174,7 @@ public class FsStateStore implements StateStore {
         Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
         if (!this.fs.exists(tablePath)) {
             throw new IOException(String.format(
-                    "Task state file %s does not exist for job %s",
+                    "State file %s does not exist for table %s",
                     tablePath, tableName));
         }
 
@@ -201,7 +207,7 @@ public class FsStateStore implements StateStore {
         Path storePath = new Path(this.storeRootDir, storeName);
         if (!this.fs.exists(storePath)) {
             throw new IOException(String.format(
-                    "Task state store directory %s does not exist for job %s",
+                    "Store directory %s does not exist for store %s",
                     storePath, storeName));
         }
 
