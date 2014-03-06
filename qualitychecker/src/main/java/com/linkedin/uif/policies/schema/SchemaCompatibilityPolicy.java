@@ -20,11 +20,11 @@ public class SchemaCompatibilityPolicy extends Policy
     public Result executePolicy()
     {
         // TODO how do you test for backwards compatibility?
-        if (previousState.getProp(ConfigurationKeys.WRITER_OUTPUT_SCHEMA) == null) {
+        if (previousState.getProp(ConfigurationKeys.EXTRACT_SCHEMA) == null) {
             return Result.PASSED;
         }
         
-        if (state.getProp(ConfigurationKeys.WRITER_OUTPUT_SCHEMA).equals(previousState.getProp(ConfigurationKeys.WRITER_OUTPUT_SCHEMA))) {
+        if (state.getProp(ConfigurationKeys.EXTRACT_SCHEMA).equals(previousState.getProp(ConfigurationKeys.EXTRACT_SCHEMA))) {
             return Result.PASSED;
         } else {
             return Result.FAILED;

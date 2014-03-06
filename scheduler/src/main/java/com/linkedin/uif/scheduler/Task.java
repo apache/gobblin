@@ -120,13 +120,11 @@ public class Task implements Runnable, Serializable {
             }
 
             // Do overall quality checking and publish task data
-            this.taskState.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX +
-                        ConfigurationKeys.EXTRACTOR_ROWS_READ,
+            this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_READ,
                     extractor.getExpectedRecordCount());
-            this.taskState.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX +
-                        ConfigurationKeys.WRITER_ROWS_WRITTEN,
+            this.taskState.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN,
                     writer.recordsWritten());
-            this.taskState.setProp(ConfigurationKeys.WRITER_OUTPUT_SCHEMA, sourceSchema);
+            this.taskState.setProp(ConfigurationKeys.EXTRACT_SCHEMA, sourceSchema);
             
             PolicyChecker policyChecker = buildPolicyChecker(this.taskState);
             PolicyCheckResults results = policyChecker.executePolicies();

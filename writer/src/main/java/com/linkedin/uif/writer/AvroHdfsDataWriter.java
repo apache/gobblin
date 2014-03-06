@@ -70,7 +70,7 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
 
     @Override
     public void commit() throws IOException {
-        LOG.info("Writer is committing the data from " + this.stagingFile + " to " + this.outputFile);
+        LOG.info(String.format("Writer is committing the data from %s to %s", this.stagingFile, this.outputFile));
         if (this.fs.exists(this.outputFile)) {
             throw new IOException(
                     String.format("File %s already exists", this.outputFile));

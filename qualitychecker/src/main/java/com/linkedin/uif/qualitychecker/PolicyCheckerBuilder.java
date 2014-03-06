@@ -31,8 +31,8 @@ public class PolicyCheckerBuilder
     private List<Policy> createPolicyList() throws Exception {
         List<Policy> list = new ArrayList<Policy>();
         Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
-        List<String> policies = Lists.newArrayList(splitter.split(this.state.getProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST)));
-        List<String> types = Lists.newArrayList(splitter.split(this.state.getProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST_TYPE)));
+        List<String> policies = Lists.newArrayList(splitter.split(this.state.getProp(ConfigurationKeys.POLICY_LIST)));
+        List<String> types = Lists.newArrayList(splitter.split(this.state.getProp(ConfigurationKeys.POLICY_LIST_TYPE)));
         if (policies.size() != types.size() ) throw new Exception("Policies list and Policies list type are not the same length");
         for (int i = 0; i < policies.size(); i++) {
             try {
@@ -41,7 +41,7 @@ public class PolicyCheckerBuilder
                 Policy policy = policyConstructor.newInstance(this.state, Policy.Type.valueOf(types.get(i)));
                 list.add((Policy) policy);
             } catch (Exception e) {
-                LOG.error(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST + " contains a class " + policies.get(i) + " which doesn't extend Policy.", e);
+                LOG.error(ConfigurationKeys.POLICY_LIST + " contains a class " + policies.get(i) + " which doesn't extend Policy.", e);
                 throw e;
             }
         }

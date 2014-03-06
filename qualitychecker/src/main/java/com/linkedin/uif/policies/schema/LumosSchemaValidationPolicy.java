@@ -51,7 +51,7 @@ public class LumosSchemaValidationPolicy extends Policy
     public LumosSchemaValidationPolicy(State state, Type type)
     {
         super(state, type);
-        this.schema = new Schema.Parser().parse(state.getProp(ConfigurationKeys.WRITER_OUTPUT_SCHEMA));
+        this.schema = new Schema.Parser().parse(state.getProp(ConfigurationKeys.EXTRACT_SCHEMA));
     }
 
     @Override
