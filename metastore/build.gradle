@@ -7,24 +7,37 @@ dependencies {
     compile spec.external.guava
     compile spec.external.log4j
     compile spec.external.hadoop
+
+    testCompile spec.external.testng
 }
 
-configurations.all {
-    transitive = false
-}
+configurations {
+    compile {
+        transitive = false
+    }
 
-artifacts {
-    compileJar jar
-}
-
-sourceSets {
-    main {
-        sourceSets.main.compileClasspath += configurations.compileJar
+    runtime {
+        transitive = true
     }
 }
 
+artifacts {
+        compileJar jar
+}
+
+sourceSets {
+        main {
+                sourceSets.main.compileClasspath += configurations.compileJar
+        }
+}
+
+test {
+    useTestNG ()
+    include '**/*Test*'
+}
+
 javadoc {
-    classpath += configurations.compileJar
+        classpath += configurations.compileJar
 }
 
 classification="library"

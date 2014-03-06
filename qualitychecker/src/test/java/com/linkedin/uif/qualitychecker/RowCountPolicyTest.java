@@ -18,7 +18,7 @@ public class RowCountPolicyTest
     @Test
     public void testRowCountPolicyPassed() throws Exception {        
         State state = new State();
-        state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST, "com.linkedin.uif.qualitychecker.RowCountPolicy");
+        state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST, "com.linkedin.uif.policies.count.RowCountPolicy");
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST_TYPE, "MANDATORY");
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.EXTRACTOR_ROWS_READ, EXTRACTOR_ROWS_READ);
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.WRITER_ROWS_WRITTEN, WRITER_ROWS_WRITTEN);
@@ -32,7 +32,7 @@ public class RowCountPolicyTest
     @Test
     public void testRowCountPolicyFailed() throws Exception {        
         State state = new State();
-        state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST, "com.linkedin.uif.qualitychecker.RowCountPolicy");
+        state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST, "com.linkedin.uif.policies.count.RowCountPolicy");
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST_TYPE, "MANDATORY");
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.EXTRACTOR_ROWS_READ, EXTRACTOR_ROWS_READ);
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.WRITER_ROWS_WRITTEN, -1);
@@ -46,7 +46,7 @@ public class RowCountPolicyTest
     @Test
     public void testRowCountRangePolicyPassedExact() throws Exception {        
         State state = new State();
-        state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST, "com.linkedin.uif.qualitychecker.RowCountRangePolicy");
+        state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST, "com.linkedin.uif.policies.count.RowCountRangePolicy");
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST_TYPE, "MANDATORY");
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.EXTRACTOR_ROWS_READ, EXTRACTOR_ROWS_READ);
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.WRITER_ROWS_WRITTEN, WRITER_ROWS_WRITTEN);
@@ -61,7 +61,7 @@ public class RowCountPolicyTest
     @Test
     public void testRowCountRangePolicyPassedRange() throws Exception {        
         State state = new State();
-        state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST, "com.linkedin.uif.qualitychecker.RowCountRangePolicy");
+        state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST, "com.linkedin.uif.policies.count.RowCountRangePolicy");
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST_TYPE, "MANDATORY");
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.EXTRACTOR_ROWS_READ, EXTRACTOR_ROWS_READ);
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.WRITER_ROWS_WRITTEN, (long) 0.03*EXTRACTOR_ROWS_READ + EXTRACTOR_ROWS_READ);
@@ -76,7 +76,7 @@ public class RowCountPolicyTest
     @Test
     public void testRowCountRangePolicyFailed() throws Exception {        
         State state = new State();
-        state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST, "com.linkedin.uif.qualitychecker.RowCountRangePolicy");
+        state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST, "com.linkedin.uif.policies.count.RowCountRangePolicy");
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST_TYPE, "MANDATORY");
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.EXTRACTOR_ROWS_READ, EXTRACTOR_ROWS_READ);
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.WRITER_ROWS_WRITTEN, -1);
@@ -91,7 +91,7 @@ public class RowCountPolicyTest
     @Test
     public void testMultipleRowCountPolicies() throws Exception {        
         State state = new State();
-        state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST, "com.linkedin.uif.qualitychecker.RowCountPolicy,com.linkedin.uif.qualitychecker.RowCountRangePolicy");
+        state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST, "com.linkedin.uif.policies.count.RowCountPolicy,com.linkedin.uif.policies.count.RowCountRangePolicy");
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST_TYPE, "MANDATORY,MANDATORY");
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.EXTRACTOR_ROWS_READ, EXTRACTOR_ROWS_READ);
         state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.WRITER_ROWS_WRITTEN, WRITER_ROWS_WRITTEN);

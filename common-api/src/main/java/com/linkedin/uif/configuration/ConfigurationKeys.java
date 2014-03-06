@@ -74,7 +74,6 @@ public class ConfigurationKeys {
             WRITER_PREFIX + ".destination.type";
     public static final String WRITER_OUTPUT_FORMAT_KEY = WRITER_PREFIX + ".output.format";
     public static final String WRITER_OUTPUT_SCHEMA = WRITER_PREFIX + ".output.schema";
-    public static final String WRITER_OLD_OUTPUT_SCHEMA = WRITER_PREFIX + ".output.old.schema";
 
     /**
      * HDFS writer configuration properties
@@ -157,4 +156,24 @@ public class ConfigurationKeys {
      */
     public static final String DATA_PUBLISHER_PREFIX = "data.publisher";
     public static final String DATA_PUBLISHER_TYPE = DATA_PUBLISHER_PREFIX + ".type";
+    
+    /** 
+    * Configuration properties used by the extractor
+    */
+    public static final String SOURCE_SCHEMA = "source.schema";
+    public static final String SOURCE_ENTITY = "source.entity";
+    public static final String SOURCE_WATERMARK_TYPE = "source.watermark.type";
+    public static final String SOURCE_HOUR_COLUMN = "source.hour.column";
+    public static final String SOURCE_SKIP_HIGH_WATERMARK_CALC = "source.skip.high.watermark.calc";
+    public static final String SOURCE_QUERY = "source.query";
+    public static final String SOURCE_IS_HOURLY_EXTRACT = "source.hourly.extract";
+    
+    public static final String SOURCE_CLIENT_ID = "source.client.id";
+    public static final String SOURCE_CLIENT_SECRET = "source.client.secret";
+    public static final String SOURCE_USERNAME = "source.username";
+    public static final String SOURCE_PASSWORD = "source.password";
+    public static final String SOURCE_SECURITY_TOKEN = "source.security.token";
+    public static final String SOURCE_HOST_NAME = "source.host";
+    public static final String SOURCE_VERSION = "source.version";
+    public static final String SOURCE_TIMEOUT = "source.timeout";
 }

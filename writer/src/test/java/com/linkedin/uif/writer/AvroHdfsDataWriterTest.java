@@ -8,7 +8,6 @@ import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
-
 import org.apache.hadoop.fs.FileUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -17,7 +16,6 @@ import org.testng.annotations.Test;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.writer.converter.SchemaConverter;
-import com.linkedin.uif.writer.schema.SchemaType;
 
 /**
  * Unit tests for {@link AvroHdfsDataWriter}.
@@ -67,7 +65,7 @@ public class AvroHdfsDataWriterTest {
                 .useDataConverter(new TestDataConverter(
                         schemaConverter.convert(TestConstants.AVRO_SCHEMA)))
                 .useSchemaConverter(new TestSchemaConverter())
-                .withSourceSchema(TestConstants.AVRO_SCHEMA, SchemaType.AVRO)
+                .withSourceSchema(TestConstants.AVRO_SCHEMA)
                 .build();
     }
 

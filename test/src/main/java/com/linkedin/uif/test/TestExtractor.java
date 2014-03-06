@@ -19,7 +19,7 @@ import com.linkedin.uif.source.extractor.Extractor;
  *
  * @author ynli
  */
-public class TestExtractor extends Extractor<String, String> {
+public class TestExtractor implements Extractor<String, String> {
 
     private static final Log LOG = LogFactory.getLog(TestExtractor.class);
 
@@ -42,7 +42,7 @@ public class TestExtractor extends Extractor<String, String> {
     private DataFileReader<GenericRecord> dataFileReader;
 
     public TestExtractor(WorkUnitState workUnitState) {
-        super(workUnitState);
+        //super(workUnitState);
         Schema schema = new Schema.Parser().parse(AVRO_SCHEMA);
         File sourceFile = new File(
                 workUnitState.getWorkunit().getProp(SOURCE_FILE_KEY));
@@ -87,5 +87,11 @@ public class TestExtractor extends Extractor<String, String> {
     @Override
     public long getExpectedRecordCount() {
         return TOTAL_RECORDS;
+    }
+
+    @Override
+    public long getHighWatermark() {
+      // TODO Auto-generated method stub
+      return 0;
     }
 }
