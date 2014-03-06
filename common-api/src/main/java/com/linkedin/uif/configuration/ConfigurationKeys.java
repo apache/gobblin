@@ -56,6 +56,7 @@ public class ConfigurationKeys {
     public static final String EXTRACT_SECURITY_PERMISSION_GROUP_KEY = "extract.security.permission.group";
     public static final String EXTRACT_PRIMARY_KEY_FIELDS_KEY = "extract.primary.key.fields";
     public static final String EXTRACT_DELTA_FIELDS_KEY = "extract.delta.fields";
+    public static final String EXTRACT_SCHEMA = "extract.schema";
 
     /**
      * Converter configuration properties
@@ -73,7 +74,6 @@ public class ConfigurationKeys {
     public static final String WRITER_DESTINATION_TYPE_KEY =
             WRITER_PREFIX + ".destination.type";
     public static final String WRITER_OUTPUT_FORMAT_KEY = WRITER_PREFIX + ".output.format";
-    public static final String WRITER_OUTPUT_SCHEMA = WRITER_PREFIX + ".output.schema";
 
     /**
      * HDFS writer configuration properties
@@ -134,16 +134,27 @@ public class ConfigurationKeys {
      * Configuration properties used by the quality checker
      */
     public static final String QUALITY_CHECKER_PREFIX = "qualitychecker";
-    public static final String POLICY_LIST = ".policies";
-    public static final String POLICY_LIST_TYPE = ".policy.types";
-    public static final String TASK_DATA_PUBLISHER_TYPE = ".taskpublisher.type";
-    public static final String METADATA_CLIENT = ".metadatacollector";
-    public static final String EXTRACTOR_ROWS_READ = ".rows.read";
-    public static final String WRITER_ROWS_WRITTEN = ".rows.written";
-    public static final String ROW_COUNT_RANGE = ".row.count.range";
+    public static final String POLICY_LIST = QUALITY_CHECKER_PREFIX + ".policies";
+    public static final String POLICY_LIST_TYPE = QUALITY_CHECKER_PREFIX + ".policy.types";
+    
+    /**
+     * Configuration properties used by the row count policies
+     */
+    public static final String EXTRACTOR_ROWS_READ = QUALITY_CHECKER_PREFIX + ".rows.read";
+    public static final String WRITER_ROWS_WRITTEN = QUALITY_CHECKER_PREFIX + ".rows.written";
+    public static final String ROW_COUNT_RANGE = QUALITY_CHECKER_PREFIX + ".row.count.range";
+    
+    /**
+     * Configuration properties for the task status
+     */
     public static final String TASK_STATUS_REPORT_INTERVAL_IN_MS_KEY =
             "task.status.reportintervalinms";
     public static final long DEFAULT_TASK_STATUS_REPORT_INTERVAL_IN_MS = 30000;
+    
+    /**
+     * Configuration properties for the metadata client
+     */
+    public static final String METADATA_CLIENT = "metadataclient";
     
     /**
      * Configurations properties for the schema retriever

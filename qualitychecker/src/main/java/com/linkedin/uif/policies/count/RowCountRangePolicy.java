@@ -15,9 +15,9 @@ public class RowCountRangePolicy extends Policy
     public RowCountRangePolicy(State state, Type type)
     {
         super(state, type);
-        this.rowsRead = state.getPropAsLong(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.EXTRACTOR_ROWS_READ);
-        this.rowsWritten = state.getPropAsLong(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.WRITER_ROWS_WRITTEN);
-        this.range = state.getPropAsDouble(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.ROW_COUNT_RANGE);
+        this.rowsRead = state.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_READ);
+        this.rowsWritten = state.getPropAsLong(ConfigurationKeys.WRITER_ROWS_WRITTEN);
+        this.range = state.getPropAsDouble(ConfigurationKeys.ROW_COUNT_RANGE);
     }
 
     @Override

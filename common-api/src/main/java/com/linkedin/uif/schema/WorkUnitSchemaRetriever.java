@@ -24,7 +24,7 @@ public class WorkUnitSchemaRetriever implements SchemaRetriever
         String oldSchema = null;
 
         for (State oldState : this.sourceState.getPreviousStates()) {
-            oldSchema = oldState.getProp(ConfigurationKeys.WRITER_OUTPUT_SCHEMA);
+            oldSchema = oldState.getProp(ConfigurationKeys.EXTRACT_SCHEMA);
             if (oldSchema != null) {
                 break;
             }

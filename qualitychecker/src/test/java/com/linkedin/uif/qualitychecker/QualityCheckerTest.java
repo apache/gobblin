@@ -8,14 +8,15 @@ import org.testng.annotations.Test;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.State;
 
+@Test(groups = {"com.linkedin.uif.qualitychecker"})
 public class QualityCheckerTest
 {
     
     @Test
     public void testPolicyChecker() throws Exception {        
         State state = new State();
-        state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST, "com.linkedin.uif.qualitychecker.TestPolicy");
-        state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST_TYPE, "MANDATORY");
+        state.setProp(ConfigurationKeys.POLICY_LIST, "com.linkedin.uif.qualitychecker.TestPolicy");
+        state.setProp(ConfigurationKeys.POLICY_LIST_TYPE, "MANDATORY");
 
         PolicyCheckResults results = getPolicyResults(state);
         for (Map.Entry<Policy.Result, Policy.Type> entry : results.getPolicyResults().entrySet()) {
@@ -23,10 +24,11 @@ public class QualityCheckerTest
         }
     }
     
+    @Test
     public void testMultiplePolicies() throws Exception {        
         State state = new State();
-        state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST, "com.linkedin.uif.qualitychecker.TestPolicy,com.linkedin.uif.qualitychecker.TestPolicy");
-        state.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.POLICY_LIST_TYPE, "MANDATORY,MANDATORY");
+        state.setProp(ConfigurationKeys.POLICY_LIST, "com.linkedin.uif.qualitychecker.TestPolicy,com.linkedin.uif.qualitychecker.TestPolicy");
+        state.setProp(ConfigurationKeys.POLICY_LIST_TYPE, "MANDATORY,MANDATORY");
 
         PolicyCheckResults results = getPolicyResults(state);
         for (Map.Entry<Policy.Result, Policy.Type> entry : results.getPolicyResults().entrySet()) {
@@ -34,7 +36,7 @@ public class QualityCheckerTest
         }
     }
     
-    public PolicyCheckResults getPolicyResults(State state) throws Exception {
+    private PolicyCheckResults getPolicyResults(State state) throws Exception {
         PolicyChecker checker = new PolicyCheckerBuilderFactory().newPolicyCheckerBuilder(state).build();
         return checker.executePolicies();
     }

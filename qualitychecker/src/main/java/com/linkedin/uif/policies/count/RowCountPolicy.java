@@ -14,8 +14,8 @@ public class RowCountPolicy extends Policy
     public RowCountPolicy(State state, Policy.Type type)
     {
         super(state, type);
-        this.rowsRead = state.getPropAsLong(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.EXTRACTOR_ROWS_READ);
-        this.rowsWritten = state.getPropAsLong(ConfigurationKeys.QUALITY_CHECKER_PREFIX + ConfigurationKeys.WRITER_ROWS_WRITTEN);
+        this.rowsRead = state.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_READ);
+        this.rowsWritten = state.getPropAsLong(ConfigurationKeys.WRITER_ROWS_WRITTEN);
     }
 
     @Override
