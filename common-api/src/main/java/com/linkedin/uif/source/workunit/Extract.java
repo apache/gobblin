@@ -2,11 +2,14 @@ package com.linkedin.uif.source.workunit;
 
 import java.util.List;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import com.google.common.base.Joiner;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.State;
-
+import com.linkedin.uif.configuration.WorkUnitState;
 
 /**
  * Class representing all the base attributes required by all tables types.
@@ -28,6 +31,8 @@ public class Extract extends State {
     SNAPSHOT_APPEND,
     APPEND_ONLY
   }
+  
+  private State previousTableState = new State();
 
   /**
    * Constructor
@@ -47,6 +52,15 @@ public class Extract extends State {
       super.setProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, namespace);
       super.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, table);
       super.setProp(ConfigurationKeys.EXTRACT_EXTRACT_ID_KEY, extractId);
+
+      if (state.getPreviousStates() != null) {
+        for (WorkUnitState pre : state.getPreviousStates()){
+          Extract previousExtract = pre.getWorkunit().getExtract();
+          if (previousExtract.getNamespace().equals(namespace) && previousExtract.getTable().equals(table)){
+            previousTableState.addAll(pre);
+          }
+        }
+      }
     }
   }
 
@@ -265,6 +279,10 @@ public class Extract extends State {
 
   public List<String> getDeltaFields() {
     return getPropAsList(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
+  }
+  
+  public State getPreviousTableState() {
+    return previousTableState;
   }
 
   /**

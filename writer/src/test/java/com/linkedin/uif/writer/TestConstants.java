@@ -19,17 +19,6 @@ public class TestConstants {
             " ]\n" +
             "}";
 
-    // Test Avro schema
-    public static final String DIFF_AVRO_SCHEMA =
-            "{\"namespace\": \"example.avro\",\n" +
-            " \"type\": \"record\",\n" +
-            " \"name\": \"User\",\n" +
-            " \"fields\": [\n" +
-            "     {\"name\": \"name\", \"type\": \"string\"},\n" +
-            "     {\"name\": \"favorite_number\",  \"type\": \"int\"}\n" +
-            " ]\n" +
-            "}";
-    
     // Test Avro data in json format
     public static final String[] JSON_RECORDS = {
         "{\"name\": \"Alyssa\", \"favorite_number\": 256, \"favorite_color\": \"yellow\"}",

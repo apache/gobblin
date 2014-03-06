@@ -12,7 +12,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
-
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -21,6 +20,7 @@ import org.testng.annotations.Test;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.SchemaConversionException;
+import com.linkedin.uif.source.extractor.DataRecordException;
 import com.linkedin.uif.source.extractor.Extractor;
 import com.linkedin.uif.source.workunit.WorkUnit;
 import com.linkedin.uif.test.TestExtractor;
@@ -31,7 +31,6 @@ import com.linkedin.uif.writer.TestDataConverter;
 import com.linkedin.uif.writer.TestSchemaConverter;
 import com.linkedin.uif.writer.WriterOutputFormat;
 import com.linkedin.uif.writer.converter.SchemaConverter;
-import com.linkedin.uif.writer.schema.SchemaType;
 
 public class ExtractorToWriterTest
 {
@@ -46,7 +45,7 @@ public class ExtractorToWriterTest
     
     @SuppressWarnings("unchecked")
     @BeforeClass
-    public void setUp() throws SchemaConversionException, IOException, URISyntaxException {
+    public void setUp() throws SchemaConversionException, IOException, URISyntaxException, DataRecordException {
         WorkUnit workUnit = new WorkUnit(null, null);
         workUnit.setProp(SOURCE_FILE_KEY, SOURCE_FILES);
         WorkUnitState workUnitState = new WorkUnitState(workUnit);
@@ -91,7 +90,7 @@ public class ExtractorToWriterTest
                 .useDataConverter(new TestDataConverter(
                         schemaConverter.convert(schema)))
                 .useSchemaConverter(new TestSchemaConverter())
-                .withSourceSchema(schema, SchemaType.AVRO)
+                .withSourceSchema(schema)
                 .build();
         
         String record;

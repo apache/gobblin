@@ -42,51 +42,59 @@ public class State implements Writable
   }
 
   public String getProp(String key) {
-    return properties.getProperty(key);
+    return getProperty(key);
   }
 
   public String getProp(String key, String def) {
-    return properties.getProperty(key, def);
+    return getProperty(key, def);
   }
 
   public List<String> getPropAsList(String key) {
-    return Splitter.on(",").trimResults().splitToList(properties.getProperty(key));
+    return Splitter.on(",").trimResults().splitToList(getProperty(key));
   }
 
   public List<String> getPropAsList(String key, String def) {
-    return Splitter.on(",").trimResults().splitToList(properties.getProperty(key, def));
+    return Splitter.on(",").trimResults().splitToList(getProperty(key, def));
   }
 
   public long getPropAsLong(String key) {
-    return Long.valueOf(properties.getProperty(key));
+    return Long.valueOf(getProperty(key));
   }
 
   public long getPropAsLong(String key, long def) {
-    return Long.valueOf(properties.getProperty(key, String.valueOf(def)));
+    return Long.valueOf(getProperty(key, String.valueOf(def)));
   }
 
   public int getPropAsInt(String key) {
-    return Integer.valueOf(properties.getProperty(key));
+    return Integer.valueOf(getProperty(key));
   }
 
   public int getPropAsInt(String key, int def) {
-    return Integer.valueOf(properties.getProperty(key, String.valueOf(def)));
+    return Integer.valueOf(getProperty(key, String.valueOf(def)));
   }
 
   public double getPropAsDouble(String key) {
-    return Double.valueOf(properties.getProperty(key));
+    return Double.valueOf(getProperty(key));
   }
 
   public double getPropAsDouble(String key, double def) {
-    return Double.valueOf(properties.getProperty(key, String.valueOf(def)));
+    return Double.valueOf(getProperty(key, String.valueOf(def)));
   }
 
   public boolean getPropAsBoolean(String key) {
-    return Boolean.valueOf(properties.getProperty(key));
+    return Boolean.valueOf(getProperty(key));
   }
 
   public boolean getPropAsBoolean(String key, boolean def) {
-    return Boolean.valueOf(properties.getProperty(key, String.valueOf(def)));
+    return Boolean.valueOf(getProperty(key, String.valueOf(def)));
+  }
+  
+  protected String getProperty(String key) {
+    return properties.getProperty(key);
+  }
+  
+  protected String getProperty(String key, String def) {
+    return properties.getProperty(key, def);
   }
 
   public Set<String> getPropertyNames() {
@@ -94,7 +102,7 @@ public class State implements Writable
   }
 
   public boolean contains(String key) {
-    return properties.contains(key);
+    return properties.getProperty(key) != null;
   }
 
   @Override

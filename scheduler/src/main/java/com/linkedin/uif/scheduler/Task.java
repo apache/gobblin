@@ -263,8 +263,7 @@ public class Task implements Runnable, Serializable {
                 .withWriterId(context.getTaskState().getTaskId())
                 .useSchemaConverter(context.getSchemaConverter())
                 .useDataConverter(context.getDataConverter(schema))
-                .withSourceSchema(schema, context.getSchemaType())
-                .withOldSchema(context.getTaskState().getProp(ConfigurationKeys.WRITER_OLD_OUTPUT_SCHEMA))
+                .withSourceSchema(schema)
                 .build();
     }
 

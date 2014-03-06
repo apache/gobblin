@@ -1,6 +1,7 @@
 package com.linkedin.uif.qualitychecker;
 
 import com.linkedin.uif.configuration.State;
+import com.linkedin.uif.configuration.WorkUnitState;
 
 /**
  * Policy takes in a TaskState (Task metadata)
@@ -10,7 +11,6 @@ public abstract class Policy
 {   
     private final State state;
     private final Type type;
-    private Result result;
     
     public enum Type {
         MANDATORY,     // The test is mandatory
@@ -25,7 +25,6 @@ public abstract class Policy
     public Policy(State state, Policy.Type type) {
         this.state = state;
         this.type = type;
-        this.setResult(Result.FAILED);
     }
     
     /**
@@ -43,14 +42,15 @@ public abstract class Policy
     {
         return type;
     }
-
-    public Result getResult()
+    
+    public State getPreviousTableState()
     {
-        return result;
+        WorkUnitState workUnitState = (WorkUnitState) state;
+        return workUnitState.getPreviousTableState();
     }
-
-    public void setResult(Result result)
-    {
-        this.result = result;
+    
+    @Override
+    public String toString() {
+        return this.getClass().getName();
     }
 }

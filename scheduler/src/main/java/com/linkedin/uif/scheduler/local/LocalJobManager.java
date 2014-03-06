@@ -24,7 +24,7 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import com.linkedin.uif.metastore.FsStateStore;
 import com.linkedin.uif.metastore.StateStore;
 import com.linkedin.uif.publisher.DataPublisher;
-import com.linkedin.uif.publisher.HDFSDataPublisher;
+import com.linkedin.uif.publisher.BaseDataPublisher;
 import com.linkedin.uif.qualitychecker.Policy;
 import com.linkedin.uif.scheduler.JobLock;
 import com.linkedin.uif.scheduler.TaskState;
@@ -264,7 +264,6 @@ public class LocalJobManager extends AbstractIdleService {
          *  TODO should have a cleaner way of getting parameters in .pull files into the
          *  LocalJobManager rather than calling tasks.get(0)
          */
-        
         Class<? extends DataPublisher> dataPublisherClass = (Class<? extends DataPublisher>) 
                 Class.forName(taskStates.get(0).getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE));
         Constructor<? extends DataPublisher> dataPublisherConstructor = 

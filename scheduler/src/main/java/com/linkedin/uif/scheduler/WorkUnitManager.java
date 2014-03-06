@@ -108,6 +108,7 @@ public class WorkUnitManager extends AbstractIdleService {
                 try {
                     // Take one work unit at a time from the queue
                     WorkUnitState workUnitState = this.workUnitQueue.take();
+
                     // Create a task based off the work unit
                     Task task = new Task(new TaskContext(workUnitState),
                             this.taskStateTracker);

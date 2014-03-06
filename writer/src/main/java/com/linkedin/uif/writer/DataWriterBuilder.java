@@ -4,7 +4,6 @@ import java.io.IOException;
 
 import com.linkedin.uif.writer.converter.DataConverter;
 import com.linkedin.uif.writer.converter.SchemaConverter;
-import com.linkedin.uif.writer.schema.SchemaType;
 
 /**
  * A builder class for {@link DataWriter}.
@@ -24,8 +23,6 @@ public abstract class DataWriterBuilder<SI, SO, DI, DO> {
     protected DataConverter<DI, DO> dataConverter;
     protected SchemaConverter<SI, SO> schemaConverter;
     protected SI sourceSchema;
-    protected SchemaType schemaType;
-    protected String oldSchema;
 
     /**
      * Tell the writer the destination to write to.
@@ -97,15 +94,8 @@ public abstract class DataWriterBuilder<SI, SO, DI, DO> {
      * @return this {@link DataWriterBuilder} instance
      */
     public DataWriterBuilder<SI, SO, DI, DO> withSourceSchema(
-            SI sourceSchema, SchemaType schemaType) {
-
+            SI sourceSchema) {
         this.sourceSchema = sourceSchema;
-        this.schemaType = schemaType;
-        return this;
-    }
-
-    public DataWriterBuilder<SI, SO, DI, DO> withOldSchema(String oldSchema) {
-        this.oldSchema = oldSchema;
         return this;
     }
     

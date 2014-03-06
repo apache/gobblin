@@ -31,7 +31,6 @@ public class AvroDataWriterBuilder<SI, DI> extends
         Preconditions.checkNotNull(this.dataConverter);
         Preconditions.checkNotNull(this.schemaConverter);
         Preconditions.checkNotNull(this.sourceSchema);
-        Preconditions.checkNotNull(this.schemaType);
         Preconditions.checkArgument(this.format == WriterOutputFormat.AVRO);
 
         // Convert the source schema to Avro schema
@@ -41,18 +40,6 @@ public class AvroDataWriterBuilder<SI, DI> extends
         } catch (SchemaConversionException e) {
             throw new IOException("Failed to convert the source schema: " +
                     this.sourceSchema);
-        }
-
-        // Validate the Avro schema
-        if (!this.schemaType.getSchemaValidator().validate(schema)) {
-            throw new IOException(String.format(
-                    "Schema of type %s could not be validated", this.schemaType.name()));
-        }
-        
-        // Check for backwards compatibility with schema from previous run
-        if (this.oldSchema != null && !this.schemaType.getSchemaValidator().validateAgainstOldSchema(schema, new Schema.Parser().parse(this.oldSchema))) {
-            throw new IOException(String.format(
-                    "Schema of type %s is not backwards compatible with old schema", this.schemaType.name()));
         }
 
         switch (this.destination.getType()) {

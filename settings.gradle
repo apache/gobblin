@@ -1,2 +1,2 @@
-include 'clustermanager','converter','data','common-api','qualitychecker','scheduler','test','utility','writer','metastore'
+include 'clustermanager','converter','common-api','qualitychecker','scheduler','test','utility','writer','metastore','source'
 
