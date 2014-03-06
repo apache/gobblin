@@ -24,6 +24,8 @@ public class ConfigurationKeys {
     public static final String SOURCE_CLASS_KEY = "source.class";
     public static final String CONVERTER_CLASSES_KEY = "converter.classes";
     public static final String SOURCE_SCHEMA_TYPE_KEY = "source.schema.type";
+    public static final String JOB_COMMIT_POLICY_KEY = "job.commit.policy";
+    public static final String DEFAULT_JOB_COMMIT_POLICY = "full";
 
     /**
      * Work unit related configuration properties

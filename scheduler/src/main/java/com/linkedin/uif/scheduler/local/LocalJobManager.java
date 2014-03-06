@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentMap;
 
+import com.linkedin.uif.scheduler.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.quartz.CronScheduleBuilder;
@@ -37,10 +38,6 @@ import com.linkedin.uif.metastore.FsStateStore;
 import com.linkedin.uif.metastore.StateStore;
 import com.linkedin.uif.publisher.DataPublisher;
 import com.linkedin.uif.publisher.HDFSDataPublisher;
-import com.linkedin.uif.scheduler.JobLock;
-import com.linkedin.uif.scheduler.JobState;
-import com.linkedin.uif.scheduler.TaskState;
-import com.linkedin.uif.scheduler.WorkUnitManager;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.WorkUnitState;
@@ -281,12 +278,6 @@ public class LocalJobManager extends AbstractIdleService {
     private void commitJob(String jobId, String jobName, List<TaskState> taskStates)
             throws Exception {
 
-        LOG.info("Publishing job data of job " + jobId);
-        // taskStates cannot be empty because otherwise the job will not even start
-        DataPublisher publisher = new HDFSDataPublisher(taskStates.get(0));
-        publisher.initialize();
-        publisher.publishData(taskStates);
-
         LOG.info("Persisting job/task states of job " + jobId);
         // TODO: Get rid of state persistence at the task level.
         this.taskStateStore.putAll(
@@ -294,6 +285,21 @@ public class LocalJobManager extends AbstractIdleService {
         JobState jobState = buildJobState(jobId, jobName, taskStates);
         this.jobStateStore.put(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX,
                 jobState);
+
+        // Do job publishing based on the job commit policy
+        JobCommitPolicy commitPolicy = JobCommitPolicy.forName(properties.getProperty(
+                ConfigurationKeys.JOB_COMMIT_POLICY_KEY,
+                ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
+        if (commitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS ||
+                (commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS &&
+                        jobState.getState() == JobState.RunningState.COMMITTED)) {
+
+            LOG.info("Publishing job data of job " + jobId);
+            // taskStates cannot be empty because otherwise the job will not even start
+            DataPublisher publisher = new HDFSDataPublisher(taskStates.get(0));
+            publisher.initialize();
+            publisher.publishData(taskStates);
+        }
 
         // Shutdown the source
         this.jobSourceMap.get(jobId).shutdown(jobState);
