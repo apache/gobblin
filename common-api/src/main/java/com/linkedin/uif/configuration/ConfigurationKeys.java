@@ -9,10 +9,10 @@ public class ConfigurationKeys {
     public static final String JOB_CONFIG_FILE_DIR_KEY = "jobconf.dir";
 
     // Root directory where task state files are stored
-    public static final String TASK_STATE_STORE_ROOT_DIR_KEY = "taskstate.store.dir";
+    public static final String STATE_STORE_ROOT_DIR_KEY = "state.store.dir";
 
     // File system URI for file-system-based task store
-    public static final String TASK_STATE_STORE_FS_URI_KEY = "taskstate.store.fs.uri";
+    public static final String STATE_STORE_FS_URI_KEY = "state.store.fs.uri";
 
     /**
      * Common job configuraion properties

@@ -7,6 +7,8 @@ import com.linkedin.uif.scheduler.JobLock;
 
 /**
  * Unit test for {@link LocalJobLock}.
+ *
+ * @author ynli
  */
 @Test(groups = {"com.linkedin.uif.scheduler"})
 public class LocalJobLockTest {
