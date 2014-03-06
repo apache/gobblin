@@ -8,7 +8,7 @@ public class SchemaCompatibilityPolicy extends Policy
 {
     private State state;
     private State previousState;
-    
+
     public SchemaCompatibilityPolicy(State state, Type type)
     {
         super(state, type);

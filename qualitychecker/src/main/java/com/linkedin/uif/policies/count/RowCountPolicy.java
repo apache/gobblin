@@ -10,7 +10,7 @@ public class RowCountPolicy extends Policy
 {
     private final long rowsRead;
     private final long rowsWritten;
-    
+
     public RowCountPolicy(State state, Policy.Type type)
     {
         super(state, type);

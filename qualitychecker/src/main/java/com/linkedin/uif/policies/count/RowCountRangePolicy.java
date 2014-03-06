@@ -11,7 +11,7 @@ public class RowCountRangePolicy extends Policy
     private final long rowsRead;
     private final long rowsWritten;
     private final double range;
-    
+
     public RowCountRangePolicy(State state, Type type)
     {
         super(state, type);
