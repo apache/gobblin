@@ -24,7 +24,7 @@ public class JobState extends SourceState {
      * in terms of naming.
      */
     public enum RunningState {
-        PENDING, WORKING, FAILED, COMMITTED, ABORTED
+        PENDING, WORKING, SUCCESSFUL, COMMITTED, FAILED, ABORTED
     }
 
     private String jobName;
