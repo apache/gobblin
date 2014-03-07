@@ -29,6 +29,7 @@ import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
 import org.quartz.impl.StdSchedulerFactory;
 
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -44,6 +45,7 @@ import com.linkedin.uif.publisher.DataPublisher;
 import com.linkedin.uif.scheduler.JobCommitPolicy;
 import com.linkedin.uif.scheduler.JobLock;
 import com.linkedin.uif.scheduler.JobState;
+import com.linkedin.uif.scheduler.SourceWrapperBase;
 import com.linkedin.uif.scheduler.TaskState;
 import com.linkedin.uif.scheduler.WorkUnitManager;
 import com.linkedin.uif.source.Source;
@@ -75,6 +77,7 @@ public class LocalJobManager extends AbstractIdleService {
     private static final String WORK_UNIT_MANAGER_KEY = "workUnitManager";
     private static final String JOB_LOCK_MAP_KEY = "jobLockMap";
     private static final String JOB_SOURCE_MAP_KEY = "jobSourceMap";
+    private static final String SOURCE_WRAPPER_MAP_KEY = "sourceWrapperMap";
     private static final String JOB_TASK_COUNT_MAP_KEY = "jobTaskCountMap";
     private static final String JOB_TASK_STATES_MAP_KEY = "jobTaskStatesMap";
     private static final String JOB_START_TIME_MAP_KEY = "jobStartTimeMap";
@@ -103,6 +106,9 @@ public class LocalJobManager extends AbstractIdleService {
     // concurrent map because two scheduled runs of the same job (handled
     // by two separate threds) may access it concurrently.
     private final ConcurrentMap<String, JobLock> jobLockMap = Maps.newConcurrentMap();
+
+    // Mapping between Source wrapper keys and Source wrapper classes
+    private final Map<String, Class<SourceWrapperBase>> sourceWrapperMap = Maps.newHashMap();
 
     // Mapping between jobs to the Source objects used to create work units
     private final Map<String, Source> jobSourceMap = Maps.newHashMap();
@@ -140,6 +146,8 @@ public class LocalJobManager extends AbstractIdleService {
                 properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
                 properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
                 TaskState.class);
+
+        populateSourceWrapperMap();
     }
 
     @Override
@@ -194,6 +202,7 @@ public class LocalJobManager extends AbstractIdleService {
             jobDataMap.put(PROPERTIES_KEY, properties);
             jobDataMap.put(WORK_UNIT_MANAGER_KEY, this.workUnitManager);
             jobDataMap.put(JOB_LOCK_MAP_KEY, this.jobLockMap);
+            jobDataMap.put(SOURCE_WRAPPER_MAP_KEY, this.sourceWrapperMap);
             jobDataMap.put(JOB_SOURCE_MAP_KEY, this.jobSourceMap);
             jobDataMap.put(JOB_TASK_COUNT_MAP_KEY, this.jobTaskCountMap);
             jobDataMap.put(JOB_TASK_STATES_MAP_KEY, this.jobTaskStatesMap);
@@ -397,6 +406,26 @@ public class LocalJobManager extends AbstractIdleService {
 
         return jobState;
     }
+    
+    /**
+     * Populates map of String keys to {@link SourceWrapperBase} classes.
+     */
+    @SuppressWarnings("unchecked")
+    private void populateSourceWrapperMap() throws ClassNotFoundException {
+        // Default must be defined, but properties can overwrite if needed.
+        this.sourceWrapperMap.put(ConfigurationKeys.DEFAULT_SOURCE_WRAPPER,
+                SourceWrapperBase.class);
+
+        String propStr = properties.getProperty(
+                ConfigurationKeys.SOURCE_WRAPPERS,
+                "default:" + SourceWrapperBase.class.getName());
+        for (String entry : Splitter.on(";").trimResults().split(propStr)) {
+            List<String> tokens = Splitter.on(":").trimResults().splitToList(entry);
+            this.sourceWrapperMap.put(
+                    tokens.get(0).toLowerCase(),
+                    (Class<SourceWrapperBase>) Class.forName(tokens.get(1)));
+        }
+    }
 
     /**
      * A UIF job to schedule locally.
@@ -421,6 +450,8 @@ public class LocalJobManager extends AbstractIdleService {
 
             WorkUnitManager workUnitManager = (WorkUnitManager) dataMap.get(
                     WORK_UNIT_MANAGER_KEY);
+            Map<String, Class<SourceWrapperBase>> sourceWrapperMap =
+                    (Map<String, Class<SourceWrapperBase>>) dataMap.get(SOURCE_WRAPPER_MAP_KEY);
             Map<String, Source> jobSourceMap = (Map<String, Source>) dataMap.get(
                     JOB_SOURCE_MAP_KEY);
             Map<String, Integer> jobTaskCountMap = (Map<String, Integer>) dataMap.get(
@@ -446,16 +477,21 @@ public class LocalJobManager extends AbstractIdleService {
                         new com.linkedin.uif.configuration.State();
                 // Add all job configuration properties of this job
                 state.addAll(properties);
+                
+                SourceState sourceState = new SourceState(state, getPreviousWorkUnitStates(
+                    jobName, lastJobIdMap, taskStateStore));
 
-                Source<?, ?> source = (Source<?, ?>) Class.forName(
-                        properties.getProperty(ConfigurationKeys.SOURCE_CLASS_KEY))
+                SourceWrapperBase source = sourceWrapperMap.get(
+                    properties.getProperty(ConfigurationKeys.SOURCE_WRAPPER_CLASS_KEY, 
+                        ConfigurationKeys.DEFAULT_SOURCE_WRAPPER)
+                        .toLowerCase())
                         .newInstance();
                 
+                source.init(sourceState);
+                             
                 // Generate work units based on all previous work unit states
-                SourceState sourceState = new SourceState(state,
-                        getPreviousWorkUnitStates(jobName, lastJobIdMap, taskStateStore));
-                List<WorkUnit> workUnits = source.getWorkunits(sourceState);   
-                
+                List<WorkUnit> workUnits = source.getWorkunits(sourceState);
+
                 // If no real work to do
                 if (workUnits == null || workUnits.isEmpty()) {
                     LOG.warn("No work units have been created for job " + jobId);
