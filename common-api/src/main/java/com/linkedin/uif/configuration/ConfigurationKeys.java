@@ -22,6 +22,7 @@ public class ConfigurationKeys {
     public static final String JOB_DESCRIPTION_KEY = "job.description";
     public static final String JOB_SCHEDULE_KEY = "job.schedule";
     public static final String SOURCE_CLASS_KEY = "source.class";
+    public static final String SOURCE_WRAPPER_CLASS_KEY = "source.wrapper.class";
     public static final String CONVERTER_CLASSES_KEY = "converter.classes";
     public static final String SOURCE_SCHEMA_TYPE_KEY = "source.schema.type";
     public static final String JOB_COMMIT_POLICY_KEY = "job.commit.policy";
@@ -131,6 +132,8 @@ public class ConfigurationKeys {
     public static final String DEFAULT_TASK_RETRY_INTERVAL_IN_SEC = "300";
     public static final String JOB_ID_KEY = "job.id";
     public static final String TASK_ID_KEY = "task.id";
+    public static final String SOURCE_WRAPPERS = "source.wrappers";
+    public static final String DEFAULT_SOURCE_WRAPPER = "default";
     
     /**
      * Configuration properties used by the quality checker
