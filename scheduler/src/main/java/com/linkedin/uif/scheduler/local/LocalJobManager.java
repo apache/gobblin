@@ -32,6 +32,7 @@ import org.quartz.impl.StdSchedulerFactory;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.io.Files;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
@@ -92,22 +93,31 @@ public class LocalJobManager extends AbstractIdleService {
     // A Quartz scheduler
     private final Scheduler scheduler;
 
-    // Mapping between jobs to the job locks they hold
-    private final ConcurrentMap<String, JobLock> jobLockMap;
+    // A Map for remembering run-once jobs
+    private final Map<String, JobKey> runOnceJobs = Maps.newHashMap();
+
+    // A map for remembering config file paths of run-once jobs
+    private final Map<String, String> runOnceJobConfigFiles = Maps.newHashMap();
+
+    // Mapping between jobs to the job locks they hold. This needs to be a
+    // concurrent map because two scheduled runs of the same job (handled
+    // by two separate threds) may access it concurrently.
+    private final ConcurrentMap<String, JobLock> jobLockMap = Maps.newConcurrentMap();
 
     // Mapping between jobs to the Source objects used to create work units
-    private final Map<String, Source> jobSourceMap;
+    private final Map<String, Source> jobSourceMap = Maps.newHashMap();
 
     // Mapping between jobs to the numbers of tasks
-    private final Map<String, Integer> jobTaskCountMap;
+    private final Map<String, Integer> jobTaskCountMap = Maps.newHashMap();
 
     // Mapping between jobs to the tasks comprising each job
-    private final Map<String, List<TaskState>> jobTaskStatesMap;
+    private final Map<String, List<TaskState>> jobTaskStatesMap = Maps.newHashMap();
 
-    private final Map<String, Long> jobStartTimeMap;
+    // Mapping between jobs to their start times
+    private final Map<String, Long> jobStartTimeMap = Maps.newHashMap();
 
     // Mapping between jobs to the job IDs of their last runs
-    private final Map<String, String> lastJobIdMap;
+    private final Map<String, String> lastJobIdMap = Maps.newHashMap();
 
     // Store for persisting job state
     private final StateStore jobStateStore;
@@ -121,15 +131,6 @@ public class LocalJobManager extends AbstractIdleService {
         this.workUnitManager = workUnitManager;
         this.properties = properties;
         this.scheduler = new StdSchedulerFactory().getScheduler();
-
-        // This needs to be a concurrent map because two scheduled runs of the
-        // same job (handled by two separate threds) may access it concurrently
-        this.jobLockMap = Maps.newConcurrentMap();
-        this.jobSourceMap = Maps.newHashMap();
-        this.jobTaskCountMap = Maps.newHashMap();
-        this.jobTaskStatesMap = Maps.newHashMap();
-        this.jobStartTimeMap = Maps.newHashMap();
-        this.lastJobIdMap = Maps.newHashMap();
 
         this.jobStateStore = new FsStateStore(
                 properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
@@ -213,6 +214,19 @@ public class LocalJobManager extends AbstractIdleService {
 
             // Schedule the Quartz job with a trigger built from the job configuration
             this.scheduler.scheduleJob(job, getTrigger(job.getKey(), properties));
+
+            // If the job should run only once, remember so it can be deleted after its
+            // single run is done.
+            boolean runOnce = Boolean.valueOf(properties.getProperty(
+                    ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
+            if (runOnce) {
+                this.runOnceJobs.put(
+                        properties.getProperty(ConfigurationKeys.JOB_NAME_KEY),
+                        job.getKey());
+                this.runOnceJobConfigFiles.put(
+                        properties.getProperty(ConfigurationKeys.JOB_NAME_KEY),
+                        properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY));
+            }
         }
     }
 
@@ -242,7 +256,10 @@ public class LocalJobManager extends AbstractIdleService {
         for (String jobConfigFile : jobConfigFiles) {
             Properties properties = new Properties(this.properties);
             try {
-                properties.load(new FileReader(new File(jobConfigFileDir, jobConfigFile)));
+                File file = new File(jobConfigFileDir, jobConfigFile);
+                properties.load(new FileReader(file));
+                properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY,
+                        file.getAbsolutePath());
                 jobConfigs.add(properties);
             } catch (FileNotFoundException e) {
                 LOG.error("Job configuration file " + jobConfigFile + " not found");
@@ -333,11 +350,20 @@ public class LocalJobManager extends AbstractIdleService {
             this.jobTaskStatesMap.remove(jobId);
             this.jobStartTimeMap.remove(jobId);
 
-            // Remember the job ID of this most recent run of the job
-            this.lastJobIdMap.put(jobName, jobId);
-
-            // Unlock so the next run of the same job can proceed
-            this.jobLockMap.get(jobName).unlock();
+            boolean runOnce = this.runOnceJobs.containsKey(jobName);
+            if (!runOnce) {
+                // Remember the job ID of this most recent run of the job
+                this.lastJobIdMap.put(jobName, jobId);
+                // Unlock so the next run of the same job can proceed
+                this.jobLockMap.get(jobName).unlock();
+            } else {
+                // Delete the job from the Quartz scheduler and unlock and remove the job lock
+                this.scheduler.deleteJob(this.runOnceJobs.remove(jobName));
+                this.jobLockMap.remove(jobName).unlock();
+                String jobConfigFile = this.runOnceJobConfigFiles.remove(jobName);
+                // Rename the job config file so we won't run this job when the worker is bounced
+                Files.move(new File(jobConfigFile), new File(jobConfigFile + ".done"));
+            }
         }
     }
 

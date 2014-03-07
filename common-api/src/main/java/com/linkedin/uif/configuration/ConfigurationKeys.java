@@ -26,6 +26,7 @@ public class ConfigurationKeys {
     public static final String SOURCE_SCHEMA_TYPE_KEY = "source.schema.type";
     public static final String JOB_COMMIT_POLICY_KEY = "job.commit.policy";
     public static final String DEFAULT_JOB_COMMIT_POLICY = "full";
+    public static final String JOB_RUN_ONCE_KEY = "job.runonce";
 
     /**
      * Work unit related configuration properties
@@ -131,7 +132,8 @@ public class ConfigurationKeys {
     public static final String DEFAULT_TASK_RETRY_INTERVAL_IN_SEC = "300";
     public static final String JOB_ID_KEY = "job.id";
     public static final String TASK_ID_KEY = "task.id";
-    
+    public static final String JOB_CONFIG_FILE_PATH_KEY = "job.config.path";
+
     /**
      * Configuration properties used by the quality checker
      */
