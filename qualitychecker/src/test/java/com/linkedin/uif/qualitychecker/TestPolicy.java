@@ -1,9 +1,7 @@
-package com.linkedin.uif.test;
+package com.linkedin.uif.qualitychecker;
 
 import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.qualitychecker.Policy;
-import com.linkedin.uif.qualitychecker.Policy.Result;
-import com.linkedin.uif.qualitychecker.Policy.Type;
 
 public class TestPolicy extends Policy
 {
