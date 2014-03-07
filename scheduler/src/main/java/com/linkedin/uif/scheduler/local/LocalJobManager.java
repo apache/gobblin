@@ -278,42 +278,50 @@ public class LocalJobManager extends AbstractIdleService {
     private void commitJob(String jobId, String jobName, List<TaskState> taskStates)
             throws Exception {
 
-        LOG.info("Persisting job/task states of job " + jobId);
-        // TODO: Get rid of state persistence at the task level.
-        this.taskStateStore.putAll(
-                jobName, jobId + TASK_STATE_STORE_TABLE_SUFFIX, taskStates);
         JobState jobState = buildJobState(jobId, jobName, taskStates);
-        this.jobStateStore.put(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX,
-                jobState);
 
-        // Do job publishing based on the job commit policy
-        JobCommitPolicy commitPolicy = JobCommitPolicy.forName(properties.getProperty(
-                ConfigurationKeys.JOB_COMMIT_POLICY_KEY,
-                ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
-        if (commitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS ||
-                (commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS &&
-                        jobState.getState() == JobState.RunningState.COMMITTED)) {
+        try {
+            // Do job publishing based on the job commit policy
+            JobCommitPolicy commitPolicy = JobCommitPolicy.forName(properties.getProperty(
+                    ConfigurationKeys.JOB_COMMIT_POLICY_KEY,
+                    ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
+            if (commitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS ||
+                    (commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS &&
+                            jobState.getState() == JobState.RunningState.COMMITTED)) {
 
-            LOG.info("Publishing job data of job " + jobId);
-            // taskStates cannot be empty because otherwise the job will not even start
-            DataPublisher publisher = new HDFSDataPublisher(taskStates.get(0));
-            publisher.initialize();
-            publisher.publishData(taskStates);
+                LOG.info("Publishing job data of job " + jobId);
+                // taskStates cannot be empty because otherwise the job will not even start
+                DataPublisher publisher = new HDFSDataPublisher(taskStates.get(0));
+                publisher.initialize();
+                publisher.publishData(taskStates);
+            }
+        } catch (Exception e) {
+            jobState.setState(JobState.RunningState.FAILED);
+            LOG.info("Failed to publish job data of job " + jobId);
+        } finally {
+            try {
+                LOG.info("Persisting job/task states of job " + jobId);
+                // TODO: Get rid of state persistence at the task level.
+                this.taskStateStore.putAll(
+                        jobName, jobId + TASK_STATE_STORE_TABLE_SUFFIX, taskStates);
+                this.jobStateStore.put(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX,
+                        jobState);
+            } catch (IOException ioe) {
+                LOG.error("Failed to persist job/task states of job " + jobId);
+            }
+
+            // Remove all state bookkeeping information of this scheduled job run
+            this.jobSourceMap.remove(jobId).shutdown(jobState);
+            this.jobTaskCountMap.remove(jobId);
+            this.jobTaskStatesMap.remove(jobId);
+            this.jobStartTimeMap.remove(jobId);
+
+            // Remember the job ID of this most recent run of the job
+            this.lastJobIdMap.put(jobName, jobId);
+
+            // Unlock so the next run of the same job can proceed
+            this.jobLockMap.get(jobName).unlock();
         }
-
-        // Shutdown the source
-        this.jobSourceMap.get(jobId).shutdown(jobState);
-
-        // Remove all state bookkeeping information of this scheduled job run
-        this.jobSourceMap.remove(jobId);
-        this.jobTaskCountMap.remove(jobId);
-        this.jobTaskStatesMap.remove(jobId);
-
-        // Remember the job ID of this most recent run of the job
-        this.lastJobIdMap.put(jobName, jobId);
-
-        // Unlock so the next run of the same job can proceed
-        this.jobLockMap.get(jobName).unlock();
     }
 
     /**
