@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentMap;
 
+import com.linkedin.uif.scheduler.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.quartz.CronScheduleBuilder;
@@ -33,6 +34,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.AbstractIdleService;
+
 import com.linkedin.uif.metastore.FsStateStore;
 import com.linkedin.uif.metastore.StateStore;
 import com.linkedin.uif.publisher.DataPublisher;
@@ -281,43 +283,60 @@ public class LocalJobManager extends AbstractIdleService {
     private void commitJob(String jobId, String jobName, List<TaskState> taskStates)
             throws Exception {
 
-        LOG.info("Publishing job data of job " + jobId);
-        
-        // taskStates cannot be empty because otherwise the job will not even start
-        /**
-         *  TODO should have a cleaner way of getting parameters in .pull files into the
-         *  LocalJobManager rather than calling tasks.get(0)
-         */
-        Class<? extends DataPublisher> dataPublisherClass = (Class<? extends DataPublisher>) 
-                Class.forName(taskStates.get(0).getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE));
-        Constructor<? extends DataPublisher> dataPublisherConstructor = 
-                dataPublisherClass.getConstructor(com.linkedin.uif.configuration.State.class);
-        DataPublisher publisher = dataPublisherConstructor.newInstance(taskStates.get(0));
-        
-        publisher.initialize();
-        publisher.publishData(taskStates);
-
-        LOG.info("Persisting job/task states of job " + jobId);
-        // TODO: Get rid of state persistence at the task level.
-        this.taskStateStore.putAll(
-                jobName, jobId + TASK_STATE_STORE_TABLE_SUFFIX, taskStates);
         JobState jobState = buildJobState(jobId, jobName, taskStates);
-        this.jobStateStore.put(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX,
-                jobState);
 
-        // Shutdown the source
-        this.jobSourceMap.get(jobId).shutdown(jobState);
+        try {
+            // Do job publishing based on the job commit policy
+            JobCommitPolicy commitPolicy = JobCommitPolicy.forName(properties.getProperty(
+                    ConfigurationKeys.JOB_COMMIT_POLICY_KEY,
+                    ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
+            if (commitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS ||
+                    (commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS &&
+                            jobState.getState() == JobState.RunningState.COMMITTED)) {
 
-        // Remove all state bookkeeping information of this scheduled job run
-        this.jobSourceMap.remove(jobId);
-        this.jobTaskCountMap.remove(jobId);
-        this.jobTaskStatesMap.remove(jobId);
+                LOG.info("Publishing job data of job " + jobId);
 
-        // Remember the job ID of this most recent run of the job
-        this.lastJobIdMap.put(jobName, jobId);
+                /**
+                 *  TODO should have a cleaner way of getting parameters in .pull files into the
+                 *  LocalJobManager rather than calling tasks.get(0)
+                 */
+                // taskStates cannot be empty because otherwise the job will not even start
+                Class<? extends DataPublisher> dataPublisherClass = (Class<? extends DataPublisher>)
+                        Class.forName(taskStates.get(0).getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE));
+                Constructor<? extends DataPublisher> dataPublisherConstructor =
+                        dataPublisherClass.getConstructor(com.linkedin.uif.configuration.State.class);
+                DataPublisher publisher = dataPublisherConstructor.newInstance(taskStates.get(0));
 
-        // Unlock so the next run of the same job can proceed
-        this.jobLockMap.get(jobName).unlock();
+                publisher.initialize();
+                publisher.publishData(taskStates);
+            }
+        } catch (Exception e) {
+            jobState.setState(JobState.RunningState.FAILED);
+            LOG.info("Failed to publish job data of job " + jobId);
+        } finally {
+            try {
+                LOG.info("Persisting job/task states of job " + jobId);
+                // TODO: Get rid of state persistence at the task level.
+                this.taskStateStore.putAll(
+                        jobName, jobId + TASK_STATE_STORE_TABLE_SUFFIX, taskStates);
+                this.jobStateStore.put(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX,
+                        jobState);
+            } catch (IOException ioe) {
+                LOG.error("Failed to persist job/task states of job " + jobId);
+            }
+
+            // Remove all state bookkeeping information of this scheduled job run
+            this.jobSourceMap.remove(jobId).shutdown(jobState);
+            this.jobTaskCountMap.remove(jobId);
+            this.jobTaskStatesMap.remove(jobId);
+            this.jobStartTimeMap.remove(jobId);
+
+            // Remember the job ID of this most recent run of the job
+            this.lastJobIdMap.put(jobName, jobId);
+
+            // Unlock so the next run of the same job can proceed
+            this.jobLockMap.get(jobName).unlock();
+        }
     }
 
     /**
