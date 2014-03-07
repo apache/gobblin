@@ -13,6 +13,7 @@ dependencies {
   compile spec.external.guava
   compile spec.external.jacksonCore
 
+  testCompile project(":test")
   testCompile spec.external.testng
 }
 
