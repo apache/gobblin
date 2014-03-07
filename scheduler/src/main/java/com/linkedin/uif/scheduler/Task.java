@@ -136,7 +136,7 @@ public class Task implements Runnable, Serializable {
             case SUCCESS:
                 LOG.info("Task finished successfully, committing Task data");
                 writer.commit();
-                this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+                this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
                 break;
             case CLEANUP_FAIL:
                 LOG.error("Task cleanup failed, exiting task");

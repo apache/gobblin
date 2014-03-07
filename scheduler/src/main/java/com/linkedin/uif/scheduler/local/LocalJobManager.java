@@ -12,7 +12,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentMap;
 
-import com.linkedin.uif.scheduler.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.quartz.CronScheduleBuilder;
@@ -35,16 +34,17 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.AbstractIdleService;
 
+import com.linkedin.uif.configuration.ConfigurationKeys;
+import com.linkedin.uif.configuration.SourceState;
+import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.metastore.FsStateStore;
 import com.linkedin.uif.metastore.StateStore;
 import com.linkedin.uif.publisher.DataPublisher;
+import com.linkedin.uif.scheduler.JobCommitPolicy;
 import com.linkedin.uif.scheduler.JobLock;
 import com.linkedin.uif.scheduler.JobState;
 import com.linkedin.uif.scheduler.TaskState;
 import com.linkedin.uif.scheduler.WorkUnitManager;
-import com.linkedin.uif.configuration.ConfigurationKeys;
-import com.linkedin.uif.configuration.SourceState;
-import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
@@ -292,7 +292,7 @@ public class LocalJobManager extends AbstractIdleService {
                     ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
             if (commitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS ||
                     (commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS &&
-                            jobState.getState() == JobState.RunningState.COMMITTED)) {
+                            jobState.getState() == JobState.RunningState.SUCCESSFUL)) {
 
                 LOG.info("Publishing job data of job " + jobId);
 
@@ -309,6 +309,8 @@ public class LocalJobManager extends AbstractIdleService {
 
                 publisher.initialize();
                 publisher.publishData(taskStates);
+
+                jobState.setState(JobState.RunningState.COMMITTED);
             }
         } catch (Exception e) {
             jobState.setState(JobState.RunningState.FAILED);
@@ -352,7 +354,7 @@ public class LocalJobManager extends AbstractIdleService {
         jobState.setDuration(endTime - startTime);
         jobState.addTaskStates(taskStates);
 
-        jobState.setState(JobState.RunningState.COMMITTED);
+        jobState.setState(JobState.RunningState.SUCCESSFUL);
         for (TaskState taskState : taskStates) {
             // The job is considered failed if any task failed
             if (taskState.getWorkingState() == WorkUnitState.WorkingState.FAILED) {
@@ -424,7 +426,8 @@ public class LocalJobManager extends AbstractIdleService {
                         .newInstance();
                 
                 // Generate work units based on all previous work unit states
-                SourceState sourceState = new SourceState(state, getPreviousWorkUnitStates(jobName, lastJobIdMap, taskStateStore));
+                SourceState sourceState = new SourceState(state,
+                        getPreviousWorkUnitStates(jobName, lastJobIdMap, taskStateStore));
                 List<WorkUnit> workUnits = source.getWorkunits(sourceState);   
                 
                 // If no real work to do
