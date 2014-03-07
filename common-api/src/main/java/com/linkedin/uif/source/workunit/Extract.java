@@ -8,7 +8,6 @@ import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.configuration.WorkUnitState;
 
-
 /**
  * Class representing all the base attributes required by all tables types.
  * Subclasses will be expected to validate each table type for their respective
@@ -50,7 +49,7 @@ public class Extract extends State {
       super.setProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, namespace);
       super.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, table);
       super.setProp(ConfigurationKeys.EXTRACT_EXTRACT_ID_KEY, extractId);
-      
+
       if (state.getPreviousStates() != null) {
         for (WorkUnitState pre : state.getPreviousStates()){
           Extract previousExtract = pre.getWorkunit().getExtract();

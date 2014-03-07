@@ -17,7 +17,6 @@ import com.linkedin.uif.writer.Destination;
 import com.linkedin.uif.writer.WriterOutputFormat;
 import com.linkedin.uif.writer.converter.DataConverter;
 import com.linkedin.uif.writer.converter.SchemaConverter;
-import com.linkedin.uif.writer.schema.SchemaType;
 
 /**
  * Unit tests for {@link TaskContext}.
@@ -116,7 +115,6 @@ public class TaskContextTest {
         Assert.assertEquals(
                 this.taskContext.getWriterOutputFormat(),
                 WriterOutputFormat.AVRO);
-        Assert.assertEquals(this.taskContext.getSchemaType(), SchemaType.AVRO);
         Assert.assertTrue(this.taskContext.getConverters().isEmpty());
 
         Properties destinationProps = this.taskContext.getDestinationProperties();

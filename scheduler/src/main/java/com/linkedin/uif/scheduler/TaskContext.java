@@ -6,7 +6,6 @@ import java.util.Properties;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
-
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.*;
@@ -16,7 +15,6 @@ import com.linkedin.uif.writer.Destination;
 import com.linkedin.uif.writer.WriterOutputFormat;
 import com.linkedin.uif.writer.converter.DataConverter;
 import com.linkedin.uif.writer.converter.SchemaConverter;
-import com.linkedin.uif.writer.schema.SchemaType;
 
 /**
  * A class containing all necessary information to construct
@@ -98,7 +96,7 @@ public class TaskContext {
             // Find properties whose names start with hte pre-defined
             // prefix for all writer destination configuration keys
             if (name.toLowerCase().startsWith(
-                    ConfigurationKeys.WRITER_DESTINATION_CONFIG_KEY_PREFIX)) {
+                    ConfigurationKeys.WRITER_PREFIX)) {
 
                 properties.setProperty(name, this.workUnit.getProp(name));
             }
@@ -159,18 +157,6 @@ public class TaskContext {
                 return converter.convertSchema(sourceSchema, workUnitState);
             }
         };
-    }
-
-    /**
-     * Get the type of the source schema as a
-     * {@link com.linkedin.uif.writer.schema.SchemaType}.
-     *
-     * @return type of the source schema
-     */
-    public SchemaType getSchemaType() {
-        return SchemaType.valueOf(this.workUnit.getProp(
-                ConfigurationKeys.SOURCE_SCHEMA_TYPE_KEY,
-                SchemaType.AVRO.name()));
     }
 
     /**

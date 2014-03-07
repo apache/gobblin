@@ -6,6 +6,7 @@ import java.util.Properties;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
@@ -23,14 +24,13 @@ import com.linkedin.uif.converter.SchemaConversionException;
  */
 public class AvroDataWriterBuilder<SI, DI> extends
         DataWriterBuilder<SI, Schema, DI, GenericRecord> {
-
+    
     public DataWriter<DI, GenericRecord> build() throws IOException {
         Preconditions.checkNotNull(this.destination);
         Preconditions.checkArgument(!Strings.isNullOrEmpty(this.writerId));
         Preconditions.checkNotNull(this.dataConverter);
         Preconditions.checkNotNull(this.schemaConverter);
         Preconditions.checkNotNull(this.sourceSchema);
-        Preconditions.checkNotNull(this.schemaType);
         Preconditions.checkArgument(this.format == WriterOutputFormat.AVRO);
 
         // Convert the source schema to Avro schema
@@ -40,12 +40,6 @@ public class AvroDataWriterBuilder<SI, DI> extends
         } catch (SchemaConversionException e) {
             throw new IOException("Failed to convert the source schema: " +
                     this.sourceSchema);
-        }
-
-        // Validate the Avro schema
-        if (!this.schemaType.getSchemaValidator().validate(schema)) {
-            throw new IOException(String.format(
-                    "Schema of type %s could not be validated", this.schemaType.name()));
         }
 
         switch (this.destination.getType()) {

@@ -7,9 +7,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
-import com.linkedin.uif.configuration.MetaStoreClient;
-import com.linkedin.uif.configuration.MetaStoreClientBuilder;
-import com.linkedin.uif.configuration.MetaStoreClientBuilderFactory;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.Converter;
 import com.linkedin.uif.publisher.TaskPublisher;
@@ -81,7 +78,6 @@ public class Task implements Runnable, Serializable {
     public void run() {
         Extractor extractor = null;
         DataWriter writer = null;
-        MetaStoreClient metaStoreClient = null;
 
         long startTime = System.currentTimeMillis();
         this.taskState.setStartTime(startTime);
@@ -103,7 +99,7 @@ public class Task implements Runnable, Serializable {
                 schemaForWriter = converter.convertSchema(
                         sourceSchema, this.taskState);
             }
-
+            
             // Build the writer for writing the output of the extractor
             writer = buildWriter(this.taskContext, schemaForWriter);
 
@@ -124,29 +120,41 @@ public class Task implements Runnable, Serializable {
             }
 
             // Do overall quality checking and publish task data
-            this.taskState.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX +
-                        ConfigurationKeys.EXTRACTOR_ROWS_READ,
+            this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_READ,
                     extractor.getExpectedRecordCount());
-            this.taskState.setProp(ConfigurationKeys.QUALITY_CHECKER_PREFIX +
-                        ConfigurationKeys.WRITER_ROWS_WRITTEN,
+            this.taskState.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN,
                     writer.recordsWritten());
+            this.taskState.setProp(ConfigurationKeys.EXTRACT_SCHEMA, sourceSchema);
             
-            metaStoreClient = buildMetaStoreClient(this.taskState);
-            PolicyChecker policyChecker = buildPolicyChecker(this.taskState, metaStoreClient);
+            PolicyChecker policyChecker = buildPolicyChecker(this.taskState);
             PolicyCheckResults results = policyChecker.executePolicies();
+            
             TaskPublisher publisher = buildTaskPublisher(
                     this.taskState, results);
 
-            // TODO Need a way to capture status of Publisher properly
-            switch ( publisher.publish() ) {
+            switch ( publisher.canPublish() ) {
             case SUCCESS:
+                LOG.info("Task finished successfully, committing Task data");
                 writer.commit();
                 this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+                break;
+            case CLEANUP_FAIL:
+                LOG.error("Task cleanup failed, exiting task");
+                this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+                break;
+            case POLICY_TESTS_FAIL:
+                LOG.error("All tests did not passed, exiting task");
+                this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+                break;
+            case COMPONENTS_NOT_FINISHED:
+                LOG.error("All components did not finish, exiting task");
+                this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
                 break;
             default:
                 this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
                 break;
             }
+            
         } catch (Exception e) {
             LOG.error(String.format("Task %s failed", this.taskId), e);
             this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
@@ -165,14 +173,6 @@ public class Task implements Runnable, Serializable {
                     writer.cleanup();
                     writer.close();
                 } catch (IOException ioe) {
-                    // Ignored
-                }
-            }
-
-            if (metaStoreClient != null) {
-                try {
-                    metaStoreClient.close();
-                } catch (Exception e) {
                     // Ignored
                 }
             }
@@ -261,19 +261,8 @@ public class Task implements Runnable, Serializable {
                 .withWriterId(context.getTaskState().getTaskId())
                 .useSchemaConverter(context.getSchemaConverter())
                 .useDataConverter(context.getDataConverter(schema))
-                .withSourceSchema(schema, context.getSchemaType())
+                .withSourceSchema(schema)
                 .build();
-    }
-
-    /**
-     * Build a {@link MetaStoreClient} to communicate with an external metastore.
-     *
-     * @return a {@link MetaStoreClient}
-     */
-    private MetaStoreClient buildMetaStoreClient(TaskState taskState) throws Exception {
-        MetaStoreClientBuilder builder = new MetaStoreClientBuilderFactory()
-                .newMetaStoreClientBuilder(taskState);
-        return builder.build();
     }
 
     /**
@@ -282,11 +271,9 @@ public class Task implements Runnable, Serializable {
      *
      * @return a {@link PolicyChecker}
      */
-    private PolicyChecker buildPolicyChecker(TaskState taskState, MetaStoreClient collector)
-            throws Exception {
-
+    private PolicyChecker buildPolicyChecker(TaskState taskState) throws Exception {
         PolicyCheckerBuilder builder = new PolicyCheckerBuilderFactory()
-                .newPolicyCheckerBuilder(taskState, collector);
+                .newPolicyCheckerBuilder(taskState);
         return builder.build();
     }
 
