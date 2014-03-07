@@ -1,29 +1,27 @@
-package com.linkedin.uif.writer.schema;
+package com.linkedin.uif.policies.schema;
 
-import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.avro.Schema;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import org.apache.avro.Schema;
+import com.linkedin.uif.configuration.ConfigurationKeys;
+import com.linkedin.uif.configuration.State;
+import com.linkedin.uif.qualitychecker.Policy;
 
-/**
- * A {@link SchemaValidator} for Lumos-annotated Avro
- * {@link org.apache.avro.Schema}s.
- *
- * @author ynli
- */
-public class LumosSchemaValidator implements SchemaValidator {
+public class LumosSchemaValidationPolicy extends Policy
+{
 
     private static final String ATTRIBUTES_JSON = "attributes_json";
 
     // Used to parse the attributes_json fields
     private static final Gson GSON = new Gson();
     // Expect the input JSON string to be key-value pairs
-    private static final Type FIELD_ENTRY_TYPE =
+    private static final java.lang.reflect.Type FIELD_ENTRY_TYPE =
             new TypeToken<Map<String, Object>>(){}.getType();
 
     // Top level attributes
@@ -47,12 +45,21 @@ public class LumosSchemaValidator implements SchemaValidator {
     // Set of field level attributes
     private static final ImmutableSet<String> FIELD_LEVEL_ATTRIBUTES =
             ImmutableSet.of(PK, DELTA);
+    
+    private final Schema schema;
+
+    public LumosSchemaValidationPolicy(State state, Type type)
+    {
+        super(state, type);
+        this.schema = new Schema.Parser().parse(state.getProp(ConfigurationKeys.EXTRACT_SCHEMA));
+    }
 
     @Override
-    public boolean validate(Schema schema) {
+    public Result executePolicy()
+    {
         String attrJson = schema.getProp(ATTRIBUTES_JSON);
         if (Strings.isNullOrEmpty(attrJson)) {
-            return false;
+            return Result.FAILED;
         }
 
         Map<String, Object> attributes = GSON.fromJson(attrJson, FIELD_ENTRY_TYPE);
@@ -60,7 +67,7 @@ public class LumosSchemaValidator implements SchemaValidator {
             return validateFieldLevelAttributes(schema.getFields());
         }
 
-        return false;
+        return Result.FAILED;
     }
 
     /**
@@ -103,28 +110,27 @@ public class LumosSchemaValidator implements SchemaValidator {
     /**
      * Validate field level attributes.
      */
-    private boolean validateFieldLevelAttributes(List<Schema.Field> fields) {
+    private Result validateFieldLevelAttributes(List<Schema.Field> fields) {
         for (Schema.Field field : fields) {
             String attrJson = field.getProp(ATTRIBUTES_JSON);
             if (Strings.isNullOrEmpty(attrJson)) {
-                return false;
+                return Result.FAILED;
             }
 
             Map<String, Object> attributes = GSON.fromJson(attrJson, FIELD_ENTRY_TYPE);
 
             if (!attributes.keySet().containsAll(FIELD_LEVEL_ATTRIBUTES)) {
-                return false;
+                return Result.FAILED;
             }
 
             if (!(attributes.get(PK) instanceof Boolean)) {
-                return false;
+                return Result.FAILED;
             }
 
             if (!(attributes.get(DELTA) instanceof Boolean)) {
-                return false;
+                return Result.FAILED;
             }
         }
-
-        return true;
+        return Result.PASSED;
     }
 }

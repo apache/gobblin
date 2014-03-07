@@ -19,8 +19,9 @@ writer.file.name=test.avro
 source.files=test/resource/source/test.avro.0,test/resource/source/test.avro.1
 
 qualitychecker.metadatacollector=com.linkedin.uif.configuration.YushanMetaStoreClient
-qualitychecker.policies=com.linkedin.uif.qualitychecker.RowCountPolicy
-qualitychecker.policy.types=OPTIONAL
+qualitychecker.policies=com.linkedin.uif.policies.count.RowCountPolicy,com.linkedin.uif.policies.schema.SchemaCompatibilityPolicy,com.linkedin.uif.policies.schema.LumosSchemaValidationPolicy
+qualitychecker.policy.types=OPTIONAL,OPTIONAL,OPTIONAL
 qualitychecker.taskpublisher.type=com.linkedin.uif.test.TestDataPublisher
 
 publisher.job.final.dir=test/jobOutput/UIFTest2
+data.publisher.type=com.linkedin.uif.publisher.BaseDataPublisher

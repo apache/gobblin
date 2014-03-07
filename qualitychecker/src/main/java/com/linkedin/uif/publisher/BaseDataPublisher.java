@@ -15,13 +15,11 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.configuration.WorkUnitState;
 
-public class HDFSDataPublisher extends DataPublisher
+public class BaseDataPublisher extends DataPublisher
 {
     private FileSystem fs;
-    
-    private static final Log LOG = LogFactory.getLog(HDFSDataPublisher.class);
-    
-    public HDFSDataPublisher(State state)
+        
+    public BaseDataPublisher(State state)
     {
         super(state);
     }

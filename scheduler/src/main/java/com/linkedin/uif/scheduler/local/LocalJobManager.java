@@ -5,6 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +38,10 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import com.linkedin.uif.metastore.FsStateStore;
 import com.linkedin.uif.metastore.StateStore;
 import com.linkedin.uif.publisher.DataPublisher;
-import com.linkedin.uif.publisher.HDFSDataPublisher;
+import com.linkedin.uif.scheduler.JobLock;
+import com.linkedin.uif.scheduler.JobState;
+import com.linkedin.uif.scheduler.TaskState;
+import com.linkedin.uif.scheduler.WorkUnitManager;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.WorkUnitState;
@@ -275,6 +279,7 @@ public class LocalJobManager extends AbstractIdleService {
     /**
      * Commit a finished job.
      */
+    @SuppressWarnings("unchecked")
     private void commitJob(String jobId, String jobName, List<TaskState> taskStates)
             throws Exception {
 
@@ -290,8 +295,18 @@ public class LocalJobManager extends AbstractIdleService {
                             jobState.getState() == JobState.RunningState.COMMITTED)) {
 
                 LOG.info("Publishing job data of job " + jobId);
+
+                /**
+                 *  TODO should have a cleaner way of getting parameters in .pull files into the
+                 *  LocalJobManager rather than calling tasks.get(0)
+                 */
                 // taskStates cannot be empty because otherwise the job will not even start
-                DataPublisher publisher = new HDFSDataPublisher(taskStates.get(0));
+                Class<? extends DataPublisher> dataPublisherClass = (Class<? extends DataPublisher>)
+                        Class.forName(taskStates.get(0).getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE));
+                Constructor<? extends DataPublisher> dataPublisherConstructor =
+                        dataPublisherClass.getConstructor(com.linkedin.uif.configuration.State.class);
+                DataPublisher publisher = dataPublisherConstructor.newInstance(taskStates.get(0));
+
                 publisher.initialize();
                 publisher.publishData(taskStates);
             }
@@ -407,11 +422,11 @@ public class LocalJobManager extends AbstractIdleService {
                 Source<?, ?> source = (Source<?, ?>) Class.forName(
                         properties.getProperty(ConfigurationKeys.SOURCE_CLASS_KEY))
                         .newInstance();
+                
                 // Generate work units based on all previous work unit states
-                List<WorkUnit> workUnits = source.getWorkunits(
-                        new SourceState(state, getPreviousWorkUnitStates(
-                                jobName, lastJobIdMap, taskStateStore)));
-
+                SourceState sourceState = new SourceState(state, getPreviousWorkUnitStates(jobName, lastJobIdMap, taskStateStore));
+                List<WorkUnit> workUnits = source.getWorkunits(sourceState);   
+                
                 // If no real work to do
                 if (workUnits == null || workUnits.isEmpty()) {
                     LOG.warn("No work units have been created for job " + jobId);
@@ -455,7 +470,7 @@ public class LocalJobManager extends AbstractIdleService {
                 throw new JobExecutionException(e);
             }
         }
-
+        
         /**
          * Try acquring the job lock and return whether the lock is successfully locked.
          */

@@ -8,17 +8,13 @@ import java.util.Map;
  */
 public class PolicyCheckResults
 {
-    private final Map<QualityCheckResult, Policy.Type> results;
+    private final Map<Policy.Result, Policy.Type> results;
     
     public PolicyCheckResults() {
-        this.results = new HashMap<QualityCheckResult, Policy.Type>();
+        this.results = new HashMap<Policy.Result, Policy.Type>();
     }
     
-    public Map<QualityCheckResult, Policy.Type> getPolicyResults() {
+    public Map<Policy.Result, Policy.Type> getPolicyResults() {
         return this.results;
-    }
-    
-    public void add(QualityCheckResult status, Policy.Type type) {
-        this.results.put(status, type);
     }
 }
