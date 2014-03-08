@@ -474,20 +474,21 @@ public class LocalJobManager extends AbstractIdleService {
             String jobIdSuffix = String.format("%s_%d", jobName, System.currentTimeMillis());
             String jobId = "job_" + jobIdSuffix;
 
-            JobState jobState = new JobState(jobName, jobId);
-            jobStateMap.put(jobId, jobState);
-            // Add all job configuration properties of this job
-            jobState.addAll(jobProps);
+            // If this is a run-once job
+            boolean runOnce = Boolean.valueOf(jobProps.getProperty(
+                    ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
 
             LOG.info("Starting job " + jobId);
             try {
+                JobState jobState = new JobState(jobName, jobId);
+                // Add all job configuration properties of this job
+                jobState.addAll(jobProps);
+
                 SourceWrapperBase source = sourceWrapperMap.get(
                         jobProps.getProperty(ConfigurationKeys.SOURCE_WRAPPER_CLASS_KEY,
                                 ConfigurationKeys.DEFAULT_SOURCE_WRAPPER)
                                 .toLowerCase())
                         .newInstance();
-                jobSourceMap.put(jobId, source);
-
                 SourceState sourceState = new SourceState(jobState, getPreviousWorkUnitStates(
                         jobName, lastJobIdMap, taskStateStore));
                 source.init(sourceState);
@@ -497,10 +498,24 @@ public class LocalJobManager extends AbstractIdleService {
                 // If no real work to do
                 if (workUnits == null || workUnits.isEmpty()) {
                     LOG.warn("No work units have been created for job " + jobId);
-                    // Unlock so the next run of the same job can proceed
-                    jobLockMap.get(jobName).unlock();
+                    source.shutdown(jobState);
+                    if (!runOnce) {
+                        // Unlock so the next run of the same job can proceed
+                        jobLockMap.get(jobName).unlock();
+                    } else {
+                        // Unlock and remove the lock as it is no longer needed
+                        jobLockMap.remove(jobName).unlock();
+                    }
+
                     return;
                 }
+
+                jobState.setTasks(workUnits.size());
+                jobState.setStartTime(System.currentTimeMillis());
+                jobState.setState(JobState.RunningState.WORKING);
+
+                jobStateMap.put(jobId, jobState);
+                jobSourceMap.put(jobId, source);
 
                 // Add all generated work units
                 int sequence = 0;
@@ -515,20 +530,14 @@ public class LocalJobManager extends AbstractIdleService {
                     workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
                     workUnitManager.addWorkUnit(workUnitState);
                 }
-
-                jobState.setTasks(workUnits.size());
-                jobState.setStartTime(System.currentTimeMillis());
-                jobState.setState(JobState.RunningState.WORKING);
             } catch (Exception e) {
                 LOG.error("Failed to run job " + jobId, e);
-                jobState.setState(JobState.RunningState.FAILED);
 
-                // Remove all state bookkeeping information of this scheduled job run
-                jobSourceMap.remove(jobId).shutdown(jobState);
-                jobStateMap.remove(jobId);
+                if (jobSourceMap.containsKey(jobId)) {
+                    // Remove all state bookkeeping information of this scheduled job run
+                    jobSourceMap.remove(jobId).shutdown(jobStateMap.remove(jobId));
+                }
 
-                boolean runOnce = Boolean.valueOf(jobProps.getProperty(
-                        ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
                 try {
                     if (!runOnce) {
                         // Unlock so the next run of the same job can proceed
