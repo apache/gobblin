@@ -14,11 +14,11 @@ import com.google.gson.JsonObject;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
-import com.linkedin.uif.source.extractor.DataRecordException;
 import com.linkedin.uif.source.extractor.Extractor;
 import com.linkedin.uif.source.extractor.watermark.Predicate;
 import com.linkedin.uif.source.extractor.watermark.WatermarkPredicate;
 import com.linkedin.uif.source.extractor.watermark.WatermarkType;
+import com.linkedin.uif.source.extractor.exception.DataRecordException;
 import com.linkedin.uif.source.extractor.exception.ExtractPrepareException;
 import com.linkedin.uif.source.extractor.exception.HighWatermarkException;
 import com.linkedin.uif.source.extractor.exception.RecordCountException;
@@ -36,7 +36,7 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  * @param <D> type of data record
  * @param <S> type of schema
  */
-public abstract class BaseExtractor<D, S> implements Extractor<D, S>, ProtocolSpecificLayer<D, S> {
+public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSpecificLayer<S, D> {
 	private static final Log LOG = LogFactory.getLog(BaseExtractor.class);
 	private static final SimpleDateFormat DEFAULT_WATERMARK_TIMESTAMP_FORMAT = new SimpleDateFormat("yyyyMMddHHmmss");
 	private static final Gson gson = new Gson();
@@ -235,9 +235,9 @@ public abstract class BaseExtractor<D, S> implements Extractor<D, S>, ProtocolSp
 		if(!Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_SKIP_HIGH_WATERMARK_CALC))) {
 			LOG.info("Getting high watermark");
 			List<Predicate> list = new ArrayList<Predicate>();
-			WatermarkPredicate watermark = new WatermarkPredicate(this, watermarkColumn, watermarkType);
-			Predicate lwmPredicate = watermark.getPredicate(lwmValue, ">=");
-			Predicate hwmPredicate = watermark.getPredicate(hwmValue, "<=");
+			WatermarkPredicate watermark = new WatermarkPredicate(watermarkColumn, watermarkType);
+			Predicate lwmPredicate = watermark.getPredicate(this, lwmValue, ">=");
+			Predicate hwmPredicate = watermark.getPredicate(this, hwmValue, "<=");
 			if (lwmPredicate != null) {
 				list.add(lwmPredicate);
 			}
@@ -245,7 +245,7 @@ public abstract class BaseExtractor<D, S> implements Extractor<D, S>, ProtocolSp
 				list.add(hwmPredicate);
 			}
 			
-			return this.getMaxWatermark(this.schema, this.entity, watermarkColumn, list, watermark.getWatermarkSourceFormat());
+			return this.getMaxWatermark(this.schema, this.entity, watermarkColumn, list, watermark.getWatermarkSourceFormat(this));
 		}
 		
 		return hwmValue;
@@ -264,16 +264,16 @@ public abstract class BaseExtractor<D, S> implements Extractor<D, S>, ProtocolSp
 	 */
 	private void setRangePredicates(String watermarkColumn, WatermarkType watermarkType, long lwmValue, long hwmValue) {
 		LOG.info("Getting range predicates");
-		WatermarkPredicate watermark = new WatermarkPredicate(this, watermarkColumn, watermarkType);
-		this.addPredicates(watermark.getPredicate(lwmValue, ">="));
-		this.addPredicates(watermark.getPredicate(hwmValue, "<="));
+		WatermarkPredicate watermark = new WatermarkPredicate(watermarkColumn, watermarkType);
+		this.addPredicates(watermark.getPredicate(this, lwmValue, ">="));
+		this.addPredicates(watermark.getPredicate(this, hwmValue, "<="));
 		
 		if(Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_IS_HOURLY_EXTRACT))) {
 			String hourColumn = this.workUnit.getProp(ConfigurationKeys.SOURCE_HOUR_COLUMN);
 			if(!Strings.isNullOrEmpty(hourColumn)) {
-				WatermarkPredicate hourlyWatermark = new WatermarkPredicate(this, hourColumn, WatermarkType.HOUR);
-				this.addPredicates(hourlyWatermark.getPredicate(lwmValue, ">="));
-				this.addPredicates(hourlyWatermark.getPredicate(hwmValue, "<="));
+				WatermarkPredicate hourlyWatermark = new WatermarkPredicate(hourColumn, WatermarkType.HOUR);
+				this.addPredicates(hourlyWatermark.getPredicate(this, lwmValue, ">="));
+				this.addPredicates(hourlyWatermark.getPredicate(this, hwmValue, "<="));
 			}
 		}
 	}

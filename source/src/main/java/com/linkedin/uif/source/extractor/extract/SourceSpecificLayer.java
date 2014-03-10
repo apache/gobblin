@@ -5,8 +5,8 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.gson.JsonArray;
-import com.linkedin.uif.source.extractor.DataRecordException;
 import com.linkedin.uif.source.extractor.watermark.Predicate;
+import com.linkedin.uif.source.extractor.exception.DataRecordException;
 import com.linkedin.uif.source.extractor.exception.HighWatermarkException;
 import com.linkedin.uif.source.extractor.exception.RecordCountException;
 import com.linkedin.uif.source.extractor.exception.SchemaException;
@@ -19,7 +19,7 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  * @param <D> type of data record
  * @param <S> type of schema
  */
-public interface SourceSpecificLayer<D,S> {
+public interface SourceSpecificLayer<S, D> {
     /**
      * Metadata to extract raw schema(like url, query)
      *

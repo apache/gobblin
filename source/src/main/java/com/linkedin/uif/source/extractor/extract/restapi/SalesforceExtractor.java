@@ -29,9 +29,9 @@ import com.google.gson.JsonObject;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
-import com.linkedin.uif.source.extractor.DataRecordException;
 import com.linkedin.uif.source.extractor.watermark.Predicate;
 import com.linkedin.uif.source.extractor.watermark.WatermarkType;
+import com.linkedin.uif.source.extractor.exception.DataRecordException;
 import com.linkedin.uif.source.extractor.exception.ExtractPrepareException;
 import com.linkedin.uif.source.extractor.exception.HighWatermarkException;
 import com.linkedin.uif.source.extractor.exception.RecordCountException;
@@ -50,7 +50,7 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  * @param <D> type of data record
  * @param <S> type of schema
  */
-public class SalesforceExtractor<D, S> extends RestApiExtractor<D, S> {
+public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	private static final Log LOG = LogFactory.getLog(SalesforceExtractor.class);
 	private static final String DEFAULT_SERVICES_DATA_PATH = "/services/data";
 	private static final String SOQL_RESOURCE = "/query";
