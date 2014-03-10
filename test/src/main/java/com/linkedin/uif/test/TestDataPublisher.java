@@ -3,6 +3,7 @@ package com.linkedin.uif.test;
 import java.util.Collection;
 
 import com.linkedin.uif.configuration.State;
+import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.publisher.DataPublisher;
 
 /**
@@ -20,32 +21,38 @@ public class TestDataPublisher extends DataPublisher {
     }
 
     @Override
-    public void initialize() throws Exception {
-
+    public void initialize() throws Exception
+    {
+        // Do nothing
     }
 
     @Override
-    public void close() throws Exception {
-
+    public void close() throws Exception
+    {
+        // Do nothing
     }
 
     @Override
-    public boolean publishData(State state) throws Exception {
+    public boolean publishData() throws Exception
+    {
         return true;
     }
 
     @Override
-    public boolean publishMetadata(State state) throws Exception {
-        return true;
-    }
-    
-    @Override
-    public boolean publishData(Collection<? extends State> states) throws Exception {
+    public boolean collectTaskData(Collection<? extends WorkUnitState> tasks) throws Exception
+    {
         return true;
     }
 
     @Override
-    public boolean publishMetadata(Collection<? extends State> states) throws Exception {
+    public boolean publishMetadata() throws Exception
+    {
+        return true;
+    }
+
+    @Override
+    public boolean collectTaskMetadata(Collection<? extends WorkUnitState> tasks) throws Exception
+    {
         return true;
     }
 }

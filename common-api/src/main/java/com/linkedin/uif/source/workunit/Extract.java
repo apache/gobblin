@@ -71,6 +71,12 @@ public class Extract extends State {
     addAll(extract);
   }
 
+  @Override
+  public boolean equals(Object other) {
+      Extract otherExtract = (Extract) other;
+      return this.getExtractId().equals(otherExtract.getExtractId());
+  }
+  
   /**
    * indicates snapshot or append or snapshot data with an append only changelog
    * @return
