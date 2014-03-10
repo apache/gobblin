@@ -1,10 +1,10 @@
-job.name=UIFTest2
+job.name=UIFTest3
 job.group=Test
-job.description=Test UIF job 2
+job.description=Test UIF job 3
 job.schedule=0 0/1 * * * ?
 
 source.class=com.linkedin.uif.source.extractor.extract.restapi.SalesforceSource
-converter.classes=com.linkedin.uif.test.TestConverter
+converter.classes=com.linkedin.uif.converter.avro.JsonIntermediateToAvroConverter,com.linkedin.uif.converter.LumosAttributesConverter
 
 workunit.namespace=test
 workunit.table=test
@@ -12,8 +12,8 @@ workunit.table=test
 writer.destination.type=HDFS
 writer.output.format=AVRO
 writer.fs.uri=file://localhost/
-writer.staging.dir=test/staging/UIFTest2
-writer.output.dir=test/output/UIFTest2
+writer.staging.dir=test/staging/UIFTest3
+writer.output.dir=test/output/UIFTest3
 writer.file.name=test.avro
 
 source.files=test/resource/source/test.avro.0,test/resource/source/test.avro.1
