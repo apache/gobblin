@@ -29,12 +29,19 @@ data.publisher.type=com.linkedin.uif.publisher.BaseDataPublisher
 source.schema=sfdc
 source.entity=Account
 source.timezone=America/Los_Angeles
-		
 extract.primary.key.fields=ID
 extract.delta.fields=LastModifiedDate
-
 source.extract.type=snapshot
 source.watermark.type=timestamp
-		
 source.start.value=20110101000000
 source.partition.interval=24
+source.query=SELECT Id,IsDeleted,MasterRecordId,Name,LastName,FirstName,Salutation,RecordTypeId,ParentId,BillingStreet,BillingCity,BillingState,BillingPostalCode,BillingCountry,BillingLatitude,BillingLongitude,ShippingStreet,LastModifiedDate FROM Account
+
+source.client.id=3MVG9ahGHqp.k2_w23R_WdConUVlVviXr7jsMYvU5VCymVxMftlI2JxNsRQ00pQR9QAYUAgXVTAKrj8sioIyD
+source.client.secret=2395380617903882329
+source.username=dw-sfdc@linkedin.com.1337b
+source.password=Lnkd@t0p100%
+source.security.token=V1wFyRLtZtZIMb3SmUsN7TWu9
+source.host=https://test.salesforce.com
+source.version=v29.0
+source.timeout=7200000
