@@ -33,18 +33,16 @@ public class JobState extends SourceState {
     private long endTime;
     private long duration;
     private RunningState state = RunningState.PENDING;
-    private List<TaskState> taskStates;
+    private int tasks;
+    private List<TaskState> taskStates = Lists.newArrayList();
 
     // Necessary for serialization/deserialization
-    public JobState() {
-        this.taskStates = Lists.newArrayList();
-    }
+    public JobState() {}
 
     public JobState(String jobName, String jobId) {
         this.jobName = jobName;
         this.jobId = jobId;
         this.setId(jobId);
-        this.taskStates = Lists.newArrayList();
     }
 
     /**
@@ -156,6 +154,33 @@ public class JobState extends SourceState {
     }
 
     /**
+     * Get the number of tasks this job consists of.
+     *
+     * @return number of tasks this job consists of
+     */
+    public int getTasks() {
+        return this.tasks;
+    }
+
+    /**
+     * Set the number of tasks this job consists of.
+     *
+     * @param tasks number of tasks this job consists of
+     */
+    public void setTasks(int tasks) {
+        this.tasks = tasks;
+    }
+
+    /**
+     * Add a single {@link TaskState}.
+     *
+     * @param taskState {@link TaskState} to add
+     */
+    public void addTaskState(TaskState taskState) {
+        this.taskStates.add(taskState);
+    }
+
+    /**
      * Add {@link TaskState}s of {@link Task}s of this job.
      *
      * @param taskStates {@link TaskState}s to add
@@ -166,13 +191,17 @@ public class JobState extends SourceState {
         }
     }
 
+    public int getCompletedTasks() {
+        return this.taskStates.size();
+    }
+
     /**
      * Get {@link TaskState}s of {@link Task}s of this job.
      *
      * @return {@link TaskState}s of {@link Task}s of this job
      */
     public List<TaskState> getTaskStates() {
-        return Lists.newArrayList(this.taskStates);
+        return this.taskStates;
     }
 
     @Override
@@ -188,6 +217,7 @@ public class JobState extends SourceState {
         this.duration = in.readLong();
         text.readFields(in);
         this.state = RunningState.valueOf(text.toString());
+        this.tasks = in.readInt();
         int numTaskStates = in.readInt();
         if (numTaskStates > 0) {
             TaskState taskState = new TaskState();
@@ -209,6 +239,7 @@ public class JobState extends SourceState {
         out.writeLong(this.duration);
         text.set(this.state.name());
         text.write(out);
+        out.writeInt(this.tasks);
         out.writeInt(this.taskStates.size());
         for (TaskState taskState : taskStates) {
             taskState.write(out);

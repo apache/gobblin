@@ -16,8 +16,8 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
-import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.configuration.WorkUnitState;
+import com.linkedin.uif.scheduler.JobState;
 import com.linkedin.uif.source.workunit.Extract;
 
 public class BaseDataPublisher extends DataPublisher
@@ -27,7 +27,7 @@ public class BaseDataPublisher extends DataPublisher
     
     private static final Log LOG = LogFactory.getLog(BaseDataPublisher.class);
         
-    public BaseDataPublisher(State state)
+    public BaseDataPublisher(JobState state)
     {
         super(state);
         extractToStateMap = new HashMap<Extract, List<WorkUnitState>>();
@@ -52,14 +52,19 @@ public class BaseDataPublisher extends DataPublisher
             Path tmpOutput = new Path(workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_TMP_DIR),
                                       workUnitState.getExtract().getExtractId());
             
-            Path finalOutput = new Path(extract.getNamespace().replaceAll("\\.", "/") + "/" + 
+            Path finalOutput = new Path(workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
+                                      extract.getNamespace().replaceAll("\\.", "/") + "/" + 
                                       extract.getTable() + "/" + extract.getExtractId() + "/" + 
-                                      extract.getType() + "/" + System.currentTimeMillis());
+                                      extract.getType());
 
             LOG.info(String.format("Attemping to move %s to %s", tmpOutput, finalOutput));
-            
+
             if (this.fs.exists(finalOutput)) {
-                throw new IOException("Failed to publish data, final output path already exists");
+                if (this.getState().getPropAsBoolean((ConfigurationKeys.DATA_PUBLISHER_REPLACE_FINAL_DIR))) {
+                    this.fs.delete(finalOutput, true);
+                } else {
+                    throw new IOException("Failed to publish data, final output path already exists");
+                }
             }
             
             if (this.fs.rename(tmpOutput, finalOutput)) {
@@ -82,7 +87,7 @@ public class BaseDataPublisher extends DataPublisher
     public boolean collectTaskData(Collection<? extends WorkUnitState> states) throws Exception
     {
         for (WorkUnitState state : states) {
-            if (!state.getWorkingState().equals(WorkUnitState.WorkingState.SUCCESSFUL)) {
+            if (!state.getWorkingState().equals(WorkUnitState.WorkingState.COMMITTED)) {
                 continue;
             }
 
@@ -108,16 +113,14 @@ public class BaseDataPublisher extends DataPublisher
     }
 
     public boolean collectSingleTaskData(WorkUnitState state) throws IOException {               
-        Path stagingDataDir = new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR));
-        Path outputDataDir = new Path(state.getProp(ConfigurationKeys.DATA_PUBLISHER_TMP_DIR), state.getExtract().getExtractId());
+        Path stagingDataDir = new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR), state.getProp(ConfigurationKeys.WRITER_FILE_NAME) + "." + state.getId());
+        Path outputDataDir = new Path(state.getProp(ConfigurationKeys.DATA_PUBLISHER_TMP_DIR) + "/" + state.getExtract().getExtractId());
 
         if (!this.fs.exists(outputDataDir)) {
             fs.mkdirs(outputDataDir);
         }
 
-        for (FileStatus status : fs.listStatus(stagingDataDir)) {
-            if (!this.fs.rename(status.getPath(), new Path(outputDataDir, status.getPath().getName()))) return false;
-        }
+        if (!this.fs.rename(stagingDataDir, outputDataDir)) return false;        
         return true;
     }
 

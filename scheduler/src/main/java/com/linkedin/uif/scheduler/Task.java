@@ -81,6 +81,8 @@ public class Task implements Runnable, Serializable {
 
         long startTime = System.currentTimeMillis();
         this.taskState.setStartTime(startTime);
+        // Should the writer commit its output
+        boolean shouldCommit = false;
 
         try {
             // Build the extractor for pulling source schema and data records
@@ -96,8 +98,7 @@ public class Task implements Runnable, Serializable {
             if (doConversion) {
                 converter = new MultiConverter(this.taskContext.getConverters());
                 // Convert the source schema to a schema ready for the writer
-                schemaForWriter = converter.convertSchema(
-                        sourceSchema, this.taskState);
+                schemaForWriter = converter.convertSchema(sourceSchema, this.taskState);
             }
             
             // Build the writer for writing the output of the extractor
@@ -112,8 +113,7 @@ public class Task implements Runnable, Serializable {
             while ((record = extractor.readRecord()) != null) {
                 // Apply the converters first if applicable
                 if (doConversion) {
-                    record = converter.convertRecord(
-                            sourceSchema, record, this.taskState);
+                    record = converter.convertRecord(sourceSchema, record, this.taskState);
                 }
                 // Finally write the record
                 writer.write(record);
@@ -129,32 +129,29 @@ public class Task implements Runnable, Serializable {
             PolicyChecker policyChecker = buildPolicyChecker(this.taskState);
             PolicyCheckResults results = policyChecker.executePolicies();
             
-            TaskPublisher publisher = buildTaskPublisher(
-                    this.taskState, results);
-
-            switch ( publisher.canPublish() ) {
+            TaskPublisher publisher = buildTaskPublisher(this.taskState, results);
+            switch (publisher.canPublish()) {
             case SUCCESS:
-                LOG.info("Task finished successfully, committing Task data");
-                writer.commit();
+                LOG.info("Committing data of task " + this.taskId);
+                shouldCommit = true;
                 this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
                 break;
             case CLEANUP_FAIL:
-                LOG.error("Task cleanup failed, exiting task");
+                LOG.error("Cleanup failed for task " + this.taskId);
                 this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
                 break;
             case POLICY_TESTS_FAIL:
-                LOG.error("All tests did not passed, exiting task");
+                LOG.error("Not all quality checking passed for task " + this.taskId);
                 this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
                 break;
             case COMPONENTS_NOT_FINISHED:
-                LOG.error("All components did not finish, exiting task");
+                LOG.error("Not all components completed for task " + this.taskId);
                 this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
                 break;
             default:
                 this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
                 break;
             }
-            
         } catch (Exception e) {
             LOG.error(String.format("Task %s failed", this.taskId), e);
             this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
@@ -170,8 +167,14 @@ public class Task implements Runnable, Serializable {
 
             if (writer != null) {
                 try {
-                    writer.cleanup();
+                    // We need to close the writer before it can commit
                     writer.close();
+                    if (shouldCommit) {
+                        writer.commit();
+                        // Change the state to COMMITTED after successful commit
+                        this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+                    }
+                    writer.cleanup();
                 } catch (IOException ioe) {
                     // Ignored
                 }
@@ -258,7 +261,7 @@ public class Task implements Runnable, Serializable {
                         context.getDestinationType(),
                         context.getDestinationProperties()))
                 .writeInFormat(context.getWriterOutputFormat())
-                .withWriterId(context.getTaskState().getTaskId())
+                .withWriterId(this.taskId)
                 .useSchemaConverter(context.getSchemaConverter())
                 .useDataConverter(context.getDataConverter(schema))
                 .withSourceSchema(schema)

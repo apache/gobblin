@@ -1,4 +1,4 @@
-package com.linkedin.ufi.tests;
+package com.linkedin.ufi.test;
 
 import java.io.File;
 import java.io.IOException;

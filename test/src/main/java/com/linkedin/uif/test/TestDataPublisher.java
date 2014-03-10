@@ -2,9 +2,9 @@ package com.linkedin.uif.test;
 
 import java.util.Collection;
 
-import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.publisher.DataPublisher;
+import com.linkedin.uif.scheduler.JobState;
 
 /**
  * An implementation of {@link DataPublisher} for integration test.
@@ -16,7 +16,7 @@ import com.linkedin.uif.publisher.DataPublisher;
  */
 public class TestDataPublisher extends DataPublisher {
 
-    public TestDataPublisher(State state) {
+    public TestDataPublisher(JobState state) {
         super(state);
     }
 
