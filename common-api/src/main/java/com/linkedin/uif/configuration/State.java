@@ -135,4 +135,9 @@ public class State implements Writable
       txt.write(out);
     }
   }
+  
+  @Override
+  public String toString() {
+    return properties.toString();
+  }
 }
