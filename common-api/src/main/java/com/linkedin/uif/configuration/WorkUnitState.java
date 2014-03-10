@@ -36,6 +36,11 @@ public class WorkUnitState extends State
   {
     return new ImmutableWorkUnit(workunit);
   }
+  
+  public void addAll(WorkUnitState otherState) {
+    super.addAll(otherState);
+    this.workunit = otherState.workunit;
+  }
 
   public WorkingState getWorkingState()
   {
@@ -107,6 +112,11 @@ public class WorkUnitState extends State
   {
     workunit.write(out);
     super.write(out);
+  }
+  
+  @Override
+  public String toString() {
+    return super.toString() + "\nWorkUnit: " + getWorkunit().toString() + "\nExtract: " + getExtract().toString();
   }
 
 }
