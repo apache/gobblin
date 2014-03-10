@@ -185,6 +185,13 @@ public class ConfigurationKeys {
     public static final String SOURCE_SKIP_HIGH_WATERMARK_CALC = "source.skip.high.watermark.calc";
     public static final String SOURCE_QUERY = "source.query";
     public static final String SOURCE_IS_HOURLY_EXTRACT = "source.hourly.extract";
+    public static final String SOURCE_EXTRACT_TYPE = "source.extract.type";
+    public static final String SOURCE_TIMEZONE = "source.timezone";
+    public static final String SOURCE_PARTITION_INTERVAL = "source.partition.interval";
+    public static final String SOURCE_START_VALUE = "source.start.value";
+    public static final String SOURCE_END_VALUE = "source.end.value";
+    public static final String SOURCE_APPEND_MAX_WATERMARK_LIMIT = "source.append.max.watermark.limit";
+    public static final String SOURCE_IS_APPEND_OVERRIDE = "source.is.append.override";
     
     public static final String SOURCE_CLIENT_ID = "source.client.id";
     public static final String SOURCE_CLIENT_SECRET = "source.client.secret";
@@ -194,4 +201,8 @@ public class ConfigurationKeys {
     public static final String SOURCE_HOST_NAME = "source.host";
     public static final String SOURCE_VERSION = "source.version";
     public static final String SOURCE_TIMEOUT = "source.timeout";
+    
+    public static final int DEFAULT_LOW_WATERMARK_BACKUP_SECS = 0;
+    public static final long DEFAULT_WATERMARK_VALUE = -1;
+    public static final int DEFAULT_MAX_NUMBER_OF_PARTITIONS = 200;
 }
