@@ -73,6 +73,9 @@ public class Extract extends State {
 
   @Override
   public boolean equals(Object other) {
+      if (!(other instanceof Extract)) {
+          return false;
+      }
       Extract otherExtract = (Extract) other;
       return this.getExtractId().equals(otherExtract.getExtractId());
   }

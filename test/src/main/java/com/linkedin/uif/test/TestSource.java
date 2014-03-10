@@ -1,7 +1,5 @@
 package com.linkedin.uif.test;
 
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import com.google.common.base.Splitter;
@@ -36,15 +34,10 @@ public class TestSource implements Source<String, String> {
         String sourceFileList = state.getProp(SOURCE_FILE_LIST_KEY);
         List<WorkUnit> workUnits = Lists.newArrayList();
         
-        List<String> list = (List<String>) SPLITTER.splitToList(sourceFileList);
+        List<String> list = SPLITTER.splitToList(sourceFileList);
         
         for (int i = 0; i < list.size(); i++) {
-            WorkUnit workUnit;
-            if (i % 2 == 0) {
-                workUnit = new WorkUnit(state, extract1);
-            } else {
-                workUnit = new WorkUnit(state, extract2);
-            }
+            WorkUnit workUnit = new WorkUnit(state, i % 2 == 0 ? extract1 : extract2);
             workUnit.setProp(SOURCE_FILE_KEY, list.get(i));
             workUnits.add(workUnit);
         }

@@ -23,7 +23,7 @@ import com.linkedin.uif.source.workunit.Extract;
 public class BaseDataPublisher extends DataPublisher
 {
     private FileSystem fs;
-    private Map<Extract, List<WorkUnitState>> extractToStateMap;
+    private final Map<Extract, List<WorkUnitState>> extractToStateMap;
     
     private static final Log LOG = LogFactory.getLog(BaseDataPublisher.class);
         
@@ -107,11 +107,9 @@ public class BaseDataPublisher extends DataPublisher
         return true;
     }
 
-    public boolean collectSingleTaskData(WorkUnitState state) throws IOException {       
-        WorkUnitState task = (WorkUnitState) state;
-        
-        Path stagingDataDir = new Path(task.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR));
-        Path outputDataDir = new Path(task.getProp(ConfigurationKeys.DATA_PUBLISHER_TMP_DIR), task.getExtract().getExtractId());
+    public boolean collectSingleTaskData(WorkUnitState state) throws IOException {               
+        Path stagingDataDir = new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR));
+        Path outputDataDir = new Path(state.getProp(ConfigurationKeys.DATA_PUBLISHER_TMP_DIR), state.getExtract().getExtractId());
 
         if (!this.fs.exists(outputDataDir)) {
             fs.mkdirs(outputDataDir);
