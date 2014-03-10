@@ -6,9 +6,13 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import com.linkedin.uif.source.extractor.extract.BaseExtractor;
 
 public class HourWatermark implements Watermark {
+	private static final Log LOG = LogFactory.getLog(HourWatermark.class);
 	private static final SimpleDateFormat INPUTFORMAT = new SimpleDateFormat("yyyyMMddHHmmss");
 	private static final SimpleDateFormat OUTPUTFORMAT = new SimpleDateFormat("yyyyMMddHH");
 	private static final int deltaForNextWatermark = 60*60;
@@ -45,7 +49,7 @@ public class HourWatermark implements Watermark {
 		final long highWatermark = highWatermarkDate.getTime();
 		
 		int interval = this.getInterval(highWatermark - lowWatermark, partitionInterval, maxIntervals);
-		System.out.println("interval:"+interval);
+		LOG.info("Recalculated partition interval:"+interval+" hours");
 		if(interval == 0) {
 			return intervalMap;
 		}
@@ -76,8 +80,6 @@ public class HourWatermark implements Watermark {
 		
 		int totalHours =  (int) Math.ceil(((float)diffInMilliSecs / (60*60*1000)));
 		long totalIntervals = totalHours/hourInterval;
-		System.out.println("totalHours:"+totalHours);
-		System.out.println("totalIntervals:"+totalIntervals);
 		if(totalIntervals > maxIntervals) {
 			hourInterval = (int) Math.ceil((float)totalHours/maxIntervals);
 		}

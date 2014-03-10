@@ -1,16 +1,15 @@
 package com.linkedin.uif.source.extractor.watermark;
 
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
 import java.util.HashMap;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import com.linkedin.uif.source.extractor.extract.BaseExtractor;
 
 public class SimpleWatermark implements Watermark {
-	private static final SimpleDateFormat INPUTFORMAT = new SimpleDateFormat("yyyyMMddHHmmss");
-	private static final SimpleDateFormat OUTPUTFORMAT = new SimpleDateFormat("yyyyMMdd");
+	private static final Log LOG = LogFactory.getLog(HourWatermark.class);
 	private static final int deltaForNextWatermark = 1;
     private String watermarkColumn;
     
@@ -37,6 +36,7 @@ public class SimpleWatermark implements Watermark {
 		}
 		
 		int interval = this.getInterval(highWatermarkValue - lowWatermarkValue, partitionInterval, maxIntervals);
+		LOG.info("Recalculated partition interval:"+interval);
 		if(interval == 0) {
 			return intervalMap;
 		}

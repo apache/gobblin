@@ -204,5 +204,5 @@ public class ConfigurationKeys {
     
     public static final int DEFAULT_LOW_WATERMARK_BACKUP_SECS = 0;
     public static final long DEFAULT_WATERMARK_VALUE = -1;
-    public static final int DEFAULT_MAX_NUMBER_OF_PARTITIONS = 200;
+    public static final int DEFAULT_MAX_NUMBER_OF_PARTITIONS = 20;
 }
