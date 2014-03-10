@@ -1,0 +1,47 @@
+job.name=UIFTest2
+job.group=Test
+job.description=Test UIF job 2
+job.schedule=0 0/1 * * * ?
+
+source.class=com.linkedin.uif.source.extractor.extract.restapi.SalesforceSource
+converter.classes=com.linkedin.uif.test.TestConverter
+
+workunit.namespace=test
+workunit.table=test
+
+writer.destination.type=HDFS
+writer.output.format=AVRO
+writer.fs.uri=file://localhost/
+writer.staging.dir=test/staging/UIFTest2
+writer.output.dir=test/output/UIFTest2
+writer.file.name=test.avro
+
+source.files=test/resource/source/test.avro.0,test/resource/source/test.avro.1
+
+qualitychecker.metadatacollector=com.linkedin.uif.configuration.YushanMetaStoreClient
+qualitychecker.policies=com.linkedin.uif.policies.count.RowCountPolicy,com.linkedin.uif.policies.schema.SchemaCompatibilityPolicy,com.linkedin.uif.policies.schema.LumosSchemaValidationPolicy
+qualitychecker.policy.types=OPTIONAL,OPTIONAL,OPTIONAL
+qualitychecker.taskpublisher.type=com.linkedin.uif.test.TestDataPublisher
+
+publisher.job.final.dir=test/jobOutput/UIFTest2
+data.publisher.type=com.linkedin.uif.publisher.BaseDataPublisher
+
+source.schema=sfdc
+source.entity=Account
+source.timezone=America/Los_Angeles
+extract.primary.key.fields=ID
+extract.delta.fields=LastModifiedDate
+source.extract.type=snapshot
+source.watermark.type=timestamp
+source.start.value=20110101000000
+source.partition.interval=24
+source.query=SELECT Id,IsDeleted,MasterRecordId,Name,LastName,FirstName,Salutation,RecordTypeId,ParentId,BillingStreet,BillingCity,BillingState,BillingPostalCode,BillingCountry,BillingLatitude,BillingLongitude,ShippingStreet,LastModifiedDate FROM Account
+
+source.client.id=3MVG9ahGHqp.k2_w23R_WdConUVlVviXr7jsMYvU5VCymVxMftlI2JxNsRQ00pQR9QAYUAgXVTAKrj8sioIyD
+source.client.secret=2395380617903882329
+source.username=dw-sfdc@linkedin.com.1337b
+source.password=Lnkd@t0p100%
+source.security.token=V1wFyRLtZtZIMb3SmUsN7TWu9
+source.host=https://test.salesforce.com
+source.version=v29.0
+source.timeout=7200000
