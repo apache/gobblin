@@ -14,7 +14,11 @@ import com.linkedin.uif.source.extractor.partition.Partitioner;
 
 public class TimestampWatermark implements Watermark {
 	private static final Log LOG = LogFactory.getLog(TimestampWatermark.class);
+	
+	// default water mark format(input format) example: 20140301050505
 	private static final SimpleDateFormat INPUTFORMAT = new SimpleDateFormat("yyyyMMddHHmmss");
+
+	// output format of timestamp water mark example: 20140301050505
 	private static final SimpleDateFormat OUTPUTFORMAT = new SimpleDateFormat("yyyyMMddHHmmss");
 	private static final int deltaForNextWatermark = 1;
     private String watermarkColumn;
@@ -74,6 +78,14 @@ public class TimestampWatermark implements Watermark {
 		return intervalMap;
 	}
 	
+    /**
+     * recalculate interval(in hours) if total number of partitions greater than maximum number of allowed partitions
+     *
+     * @param difference in range
+     * @param hour interval (ex: 4 hours)
+     * @param Maximum number of allowed partitions
+     * @return calculated interval in hours
+     */
 	private int getInterval(long diffInMilliSecs, int hourInterval, int maxIntervals) {	
 		if(diffInMilliSecs == 0) {
 			return 0;

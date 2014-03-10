@@ -1,6 +1,5 @@
 package com.linkedin.uif.source.extractor.watermark;
 
-import java.text.SimpleDateFormat;
 import java.util.HashMap;
 
 import org.apache.commons.logging.Log;
@@ -51,6 +50,14 @@ public class SimpleWatermark implements Watermark {
 		return intervalMap;
 	}
 	
+    /**
+     * recalculate interval if total number of partitions greater than maximum number of allowed partitions
+     *
+     * @param difference in range
+     * @param partition interval
+     * @param Maximum number of allowed partitions
+     * @return calculated interval
+     */
 	private int getInterval(long diff, int partitionInterval, int maxIntervals) {	
 		if(diff == 0) {
 			return 0;

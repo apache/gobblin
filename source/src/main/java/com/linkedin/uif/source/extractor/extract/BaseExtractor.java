@@ -38,6 +38,7 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  */
 public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSpecificLayer<S, D> {
 	private static final Log LOG = LogFactory.getLog(BaseExtractor.class);
+	// default water mark format. example 20140301000000
 	private static final SimpleDateFormat DEFAULT_WATERMARK_TIMESTAMP_FORMAT = new SimpleDateFormat("yyyyMMddHHmmss");
 	private static final Gson gson = new Gson();
 	protected WorkUnitState workUnitState;
@@ -85,7 +86,7 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 		return iterator == null;
 	}
 
-	public BaseExtractor(WorkUnitState workUnitState) throws ExtractPrepareException {
+	public BaseExtractor(WorkUnitState workUnitState) {
 		this.workUnitState = workUnitState;
 		this.workUnit = this.workUnitState.getWorkunit();
 		this.schema = this.workUnit.getProp(ConfigurationKeys.SOURCE_SCHEMA);
@@ -97,7 +98,7 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 			long endTs = System.currentTimeMillis();
 			LOG.info("End - extract preperation: Time taken: " + Utils.printTiming(startTs, endTs));
 		} catch (ExtractPrepareException e) {
-			throw new ExtractPrepareException("Failed to prepare extract; error-" + e.getMessage());
+			e.printStackTrace();
 		}
 	}
 
