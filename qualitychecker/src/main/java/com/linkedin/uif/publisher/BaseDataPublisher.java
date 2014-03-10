@@ -35,10 +35,9 @@ public class BaseDataPublisher extends DataPublisher
     }
     
     @Override
-    public boolean publishData(State state) throws IOException {       
-        WorkUnitState task = (WorkUnitState) state;
-        Path stagingDataDir = new Path(task.getProp(ConfigurationKeys.OUTPUT_DIR_KEY));
-        Path outputDataDir = new Path(task.getProp(ConfigurationKeys.JOB_FINAL_DIR_HDFS));
+    public boolean publishData(State state) throws IOException {
+        Path stagingDataDir = new Path(state.getProp(ConfigurationKeys.OUTPUT_DIR_KEY));
+        Path outputDataDir = new Path(state.getProp(ConfigurationKeys.JOB_FINAL_DIR_HDFS));
 
         if (!this.fs.exists(outputDataDir)) {
             fs.mkdirs(outputDataDir);
