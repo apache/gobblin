@@ -13,7 +13,7 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.source.extractor.extract.BaseExtractor;
 
 public class DateWatermark implements Watermark {
-	private static final Log LOG = LogFactory.getLog(HourWatermark.class);
+	private static final Log LOG = LogFactory.getLog(DateWatermark.class);
 	private static final SimpleDateFormat INPUTFORMAT = new SimpleDateFormat("yyyyMMddHHmmss");
 	private static final SimpleDateFormat OUTPUTFORMAT = new SimpleDateFormat("yyyyMMdd");
 	private static final int deltaForNextWatermark = 24*60*60;
