@@ -189,6 +189,7 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 		String watermarkColumn = this.workUnit.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
 		long lwm = this.workUnit.getLowWaterMark();
 		long hwm = this.workUnit.getHighWaterMark();
+		LOG.info("Low water mark:"+lwm+"; and High water mark:"+hwm);
 		WatermarkType watermarkType;
 		if(Strings.isNullOrEmpty(this.workUnit.getProp(ConfigurationKeys.SOURCE_WATERMARK_TYPE))) {
 			watermarkType = null;

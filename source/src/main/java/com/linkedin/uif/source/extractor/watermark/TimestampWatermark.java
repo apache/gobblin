@@ -6,9 +6,14 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import com.linkedin.uif.source.extractor.extract.BaseExtractor;
+import com.linkedin.uif.source.extractor.partition.Partitioner;
 
 public class TimestampWatermark implements Watermark {
+	private static final Log LOG = LogFactory.getLog(TimestampWatermark.class);
 	private static final SimpleDateFormat INPUTFORMAT = new SimpleDateFormat("yyyyMMddHHmmss");
 	private static final SimpleDateFormat OUTPUTFORMAT = new SimpleDateFormat("yyyyMMddHHmmss");
 	private static final int deltaForNextWatermark = 1;
@@ -45,11 +50,10 @@ public class TimestampWatermark implements Watermark {
 		final long highWatermark = this.toEpoch(Long.toString(highWatermarkValue));
 		
 		int interval = this.getInterval(highWatermark - lowWatermark, partitionInterval, maxIntervals);
+		LOG.info("Recalculated partition interval:"+interval+" hours");
 		if(interval == 0) {
 			return intervalMap;
 		}
-		
-		System.out.println("Calculated Interval:"+interval);
 		
 		Date startTime = new Date(lowWatermark);
 		Date endTime = new Date(highWatermark);
@@ -77,8 +81,6 @@ public class TimestampWatermark implements Watermark {
 		
 		int totalHours =  (int) Math.ceil(((float)diffInMilliSecs / (60*60*1000)));
 		long totalIntervals = totalHours/hourInterval;
-		System.out.println("totalHours:"+totalHours);
-		System.out.println("totalIntervals:"+totalIntervals);
 		if(totalIntervals > maxIntervals) {
 			hourInterval = (int) Math.ceil((float)totalHours/maxIntervals);
 		}
