@@ -32,7 +32,6 @@ import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.watermark.Predicate;
 import com.linkedin.uif.source.extractor.watermark.WatermarkType;
 import com.linkedin.uif.source.extractor.exception.DataRecordException;
-import com.linkedin.uif.source.extractor.exception.ExtractPrepareException;
 import com.linkedin.uif.source.extractor.exception.HighWatermarkException;
 import com.linkedin.uif.source.extractor.exception.RecordCountException;
 import com.linkedin.uif.source.extractor.exception.RestApiClientException;
@@ -64,7 +63,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	private String nextUrl;
 	private String servicesDataEnvPath;
 	
-	public SalesforceExtractor(WorkUnitState state) throws ExtractPrepareException {
+	public SalesforceExtractor(WorkUnitState state) {
 		super(state);
 	}
 

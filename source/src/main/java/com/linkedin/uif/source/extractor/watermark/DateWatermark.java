@@ -14,7 +14,10 @@ import com.linkedin.uif.source.extractor.extract.BaseExtractor;
 
 public class DateWatermark implements Watermark {
 	private static final Log LOG = LogFactory.getLog(DateWatermark.class);
+	// default water mark format(input format) example: 20140301050505
 	private static final SimpleDateFormat INPUTFORMAT = new SimpleDateFormat("yyyyMMddHHmmss");
+	
+	// output format of date water mark example: 20140301
 	private static final SimpleDateFormat OUTPUTFORMAT = new SimpleDateFormat("yyyyMMdd");
 	private static final int deltaForNextWatermark = 24*60*60;
 	private String watermarkColumn;
@@ -75,6 +78,14 @@ public class DateWatermark implements Watermark {
 		return intervalMap;
 	}
 	
+    /**
+     * recalculate interval(in hours) if total number of partitions greater than maximum number of allowed partitions
+     *
+     * @param difference in range
+     * @param hour interval (ex: 4 hours)
+     * @param Maximum number of allowed partitions
+     * @return calculated interval in days
+     */
 	private int getInterval(long diffInMilliSecs, int hourInterval, int maxIntervals) {	
 		if(diffInMilliSecs == 0) {
 			return 0;
@@ -90,6 +101,12 @@ public class DateWatermark implements Watermark {
 		return dayInterval;
 	}
 	
+    /**
+     * Convert timestamp to date (yyyymmddHHmmss to yyyymmdd)
+     *
+     * @param watermark value
+     * @return value in date format
+     */
 	private Date extractFromTimestamp(String watermark) {
 		Date outDate = null;
 		try {

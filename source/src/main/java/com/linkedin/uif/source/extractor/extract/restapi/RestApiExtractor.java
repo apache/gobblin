@@ -23,7 +23,6 @@ import com.google.gson.JsonObject;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.watermark.Predicate;
 import com.linkedin.uif.source.extractor.exception.DataRecordException;
-import com.linkedin.uif.source.extractor.exception.ExtractPrepareException;
 import com.linkedin.uif.source.extractor.exception.HighWatermarkException;
 import com.linkedin.uif.source.extractor.exception.RecordCountException;
 import com.linkedin.uif.source.extractor.exception.RestApiConnectionException;
@@ -53,7 +52,7 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 	protected String instanceUrl;
 	protected String updatedQuery; 
 
-	RestApiExtractor(WorkUnitState state) throws ExtractPrepareException {
+	RestApiExtractor(WorkUnitState state) {
 		super(state);
 	}
 
