@@ -100,6 +100,7 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
      */
     private DataFileWriter<GenericRecord> createDatumWriter(Schema schema,
             Path avroFile, int bufferSize) throws IOException {
+
         if (this.fs.exists(avroFile)) {
             throw new IOException(
                     String.format("File %s already exists", avroFile));
