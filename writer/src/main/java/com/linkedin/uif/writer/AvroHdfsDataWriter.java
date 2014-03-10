@@ -41,6 +41,7 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
     public AvroHdfsDataWriter(URI uri, String stagingDir, String outputDir,
             String fileName, int bufferSize, DataConverter<S,
             GenericRecord> dataConverter, Schema schema) throws IOException {
+
         Configuration conf = new Configuration();
         this.fs = FileSystem.get(uri, conf);
         this.stagingFile = new Path(stagingDir, fileName);
@@ -70,10 +71,9 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
 
     @Override
     public void commit() throws IOException {
-        LOG.info(String.format("Writer is committing the data from %s to %s", this.stagingFile, this.outputFile));
+        LOG.info(String.format("Moving data from %s to %s", this.stagingFile, this.outputFile));
         if (this.fs.exists(this.outputFile)) {
-            throw new IOException(
-                    String.format("File %s already exists", this.outputFile));
+            throw new IOException(String.format("File %s already exists", this.outputFile));
         }
         this.fs.rename(this.stagingFile, this.outputFile);
     }
@@ -102,14 +102,11 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
             Path avroFile, int bufferSize) throws IOException {
 
         if (this.fs.exists(avroFile)) {
-            throw new IOException(
-                    String.format("File %s already exists", avroFile));
+            throw new IOException(String.format("File %s already exists", avroFile));
         }
 
-        FSDataOutputStream outputStream = this.fs.create(
-                avroFile, true, bufferSize);
-        return new DataFileWriter<GenericRecord>(
-                new GenericDatumWriter<GenericRecord>())
+        FSDataOutputStream outputStream = this.fs.create(avroFile, true, bufferSize);
+        return new DataFileWriter<GenericRecord>(new GenericDatumWriter<GenericRecord>())
                 .create(schema, outputStream);
     }
 }
