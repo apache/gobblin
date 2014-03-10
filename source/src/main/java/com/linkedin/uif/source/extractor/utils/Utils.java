@@ -3,6 +3,7 @@ package com.linkedin.uif.source.extractor.utils;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -10,6 +11,7 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.base.Strings;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.linkedin.uif.source.extractor.watermark.WatermarkType;
 
 public class Utils {
 
@@ -48,6 +50,75 @@ public class Utils {
 		}
 		SimpleDateFormat outFormat = new SimpleDateFormat(outputfmt);
 		return outFormat.format(date);
+	}
+	
+	public static String epochToDate(long epoch, String format) {
+		SimpleDateFormat sdf  = new SimpleDateFormat(format);
+		Date date = new Date(epoch);
+		return sdf.format(date);
+	}
+	
+	public static long getAsLong(String value) {
+		if(Strings.isNullOrEmpty(value)) {
+			return 0;
+		}
+		return Long.parseLong(value);
+	}
+	
+	public static int getAsInt(String value) {
+		if(Strings.isNullOrEmpty(value)) {
+			return 0;
+		}
+		return Integer.parseInt(value);
+	}
+	
+	public static Date toDate(long value, String format) {
+		SimpleDateFormat fmt = new SimpleDateFormat(format);
+		Date date = null;
+		try {
+			date = fmt.parse(Long.toString(value));
+		} catch (ParseException e) {
+			e.printStackTrace();
+		}
+		return date;
+	}
+	
+	public static Date toDate(Date date, String format) {
+		SimpleDateFormat fmt = new SimpleDateFormat(format);
+		String dateStr = fmt.format(date);
+		Date outDate = null;
+		try {
+			outDate = fmt.parse(dateStr);
+		} catch (ParseException e) {
+			e.printStackTrace();
+		}
+		return outDate;
+	}
+	
+	public static String dateToString(Date datetime, String format) {
+		SimpleDateFormat fmt = new SimpleDateFormat(format);
+		return fmt.format(datetime);
+	}
+	
+	public static Date addHoursToDate(Date datetime, int hours) {
+		Calendar calendar = Calendar.getInstance();
+		calendar.setTime(datetime);
+		calendar.add(Calendar.HOUR, hours);
+		return calendar.getTime();
+	}
+	
+	public static Date addSecondsToDate(Date datetime, int seconds) {
+		Calendar calendar = Calendar.getInstance();
+		calendar.setTime(datetime);
+		calendar.add(Calendar.SECOND, seconds);
+		return calendar.getTime();
+	}
+	
+	public static boolean isSimpleWatermark(WatermarkType watermarkType) {
+		if(watermarkType == WatermarkType.SIMPLE) {
+			return true;
+		}
+		return false;
 	}
 	
 	/**

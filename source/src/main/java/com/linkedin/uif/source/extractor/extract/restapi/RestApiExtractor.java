@@ -21,8 +21,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import com.linkedin.uif.configuration.WorkUnitState;
-import com.linkedin.uif.source.extractor.DataRecordException;
 import com.linkedin.uif.source.extractor.watermark.Predicate;
+import com.linkedin.uif.source.extractor.exception.DataRecordException;
 import com.linkedin.uif.source.extractor.exception.ExtractPrepareException;
 import com.linkedin.uif.source.extractor.exception.HighWatermarkException;
 import com.linkedin.uif.source.extractor.exception.RecordCountException;
@@ -42,7 +42,7 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  * @param <D> type of data record
  * @param <S> type of schema
  */
-public abstract class RestApiExtractor<D, S> extends BaseExtractor<D, S> implements SourceSpecificLayer<D, S>, RestApiSpecificLayer {
+public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> implements SourceSpecificLayer<S, D>, RestApiSpecificLayer {
 	private static final Log LOG = LogFactory.getLog(RestApiExtractor.class);
 	private static final Gson gson = new Gson();
 	private HttpClient httpClient = null;

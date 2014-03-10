@@ -1,25 +1,21 @@
 package com.linkedin.uif.source.extractor.watermark;
 
+import java.util.HashMap;
+
 import com.google.common.base.Strings;
 import com.linkedin.uif.source.extractor.extract.BaseExtractor;
 
 public class WatermarkPredicate {
 	private static final String DEFAULT_WATERMARK_VALUE_FORMAT = "yyyyMMddHHmmss";
 	private static final long DEFAULT_WATERMARK_VALUE = -1;
-	private BaseExtractor extractor;
 	private String watermarkColumn;
+	private WatermarkType watermarkType;
 	private Watermark watermark;
-	private String watermarkSourceFormat;
-	
-	public String getWatermarkSourceFormat() {
-		return this.watermarkSourceFormat;
-	}
 
-	public WatermarkPredicate(BaseExtractor extractor, String watermarkColumn, WatermarkType watermarkType) {
+	public WatermarkPredicate(String watermarkColumn, WatermarkType watermarkType) {
 		super();
-		this.extractor = extractor;
 		this.watermarkColumn = watermarkColumn;
-		this.watermarkSourceFormat = this.extractor.getWatermarkSourceFormat(watermarkType);
+		this.watermarkType = watermarkType;
 		
 		switch (watermarkType) {
 		case TIMESTAMP:
@@ -40,8 +36,9 @@ public class WatermarkPredicate {
 		}
 	}
 	
-	public Predicate getPredicate(long watermarkValue, String operator) {
+	public Predicate getPredicate(BaseExtractor extractor, long watermarkValue, String operator) {
 		String condition = "";
+		
 		if(watermarkValue != DEFAULT_WATERMARK_VALUE) {
 			condition = this.watermark.getWatermarkCondition(extractor, watermarkValue, operator);
 		}
@@ -49,7 +46,19 @@ public class WatermarkPredicate {
 		if (Strings.isNullOrEmpty(watermarkColumn) || condition.equals("")) {
 			return null;
 		}
-		return new Predicate(this.watermarkColumn, watermarkValue, condition, this.watermarkSourceFormat);
+		return new Predicate(this.watermarkColumn, watermarkValue, condition, this.getWatermarkSourceFormat(extractor));
+	}
+	
+	public String getWatermarkSourceFormat(BaseExtractor extractor) {
+		return extractor.getWatermarkSourceFormat(this.watermarkType);
+	}
+	
+	public HashMap<Long, Long> getPartitions(long lowWatermarkValue, long highWatermarkValue, int partitionInterval, int maxIntervals) {
+		return this.watermark.getIntervals(lowWatermarkValue, highWatermarkValue, partitionInterval, maxIntervals);
+	}
+	
+	public int getDeltaNumForNextWatermark() {
+		return this.watermark.getDeltaNumForNextWatermark(); 
 	}
 
 }
