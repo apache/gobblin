@@ -30,7 +30,8 @@ public class TestSource implements Source<String, String> {
     @Override
     public List<WorkUnit> getWorkunits(SourceState state) {
         // For now we assume we pull only one table - so only one extract object
-        Extract extract = new Extract(state, TableType.SNAPSHOT_ONLY, "com.linkedin.uif.test", "TestTable", "1");
+        Extract extract = new Extract(state, TableType.SNAPSHOT_ONLY,
+                "com.linkedin.uif.test", "TestTable", "1");
         
         String sourceFileList = state.getProp(SOURCE_FILE_LIST_KEY);
         List<WorkUnit> workUnits = Lists.newArrayList();

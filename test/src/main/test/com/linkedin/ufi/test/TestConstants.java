@@ -1,4 +1,4 @@
-package com.linkedin.ufi.tests;
+package com.linkedin.ufi.test;
 
 public class TestConstants
 {

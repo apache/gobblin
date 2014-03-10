@@ -152,7 +152,6 @@ public class Task implements Runnable, Serializable {
                 this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
                 break;
             }
-            
         } catch (Exception e) {
             LOG.error(String.format("Task %s failed", this.taskId), e);
             this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
@@ -172,6 +171,8 @@ public class Task implements Runnable, Serializable {
                     writer.close();
                     if (shouldCommit) {
                         writer.commit();
+                        // Change the state to COMMITTED after successful commit
+                        this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
                     }
                     writer.cleanup();
                 } catch (IOException ioe) {
