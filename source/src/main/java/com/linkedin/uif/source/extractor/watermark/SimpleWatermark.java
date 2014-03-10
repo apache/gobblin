@@ -9,7 +9,7 @@ import org.apache.commons.logging.LogFactory;
 import com.linkedin.uif.source.extractor.extract.BaseExtractor;
 
 public class SimpleWatermark implements Watermark {
-	private static final Log LOG = LogFactory.getLog(HourWatermark.class);
+	private static final Log LOG = LogFactory.getLog(SimpleWatermark.class);
 	private static final int deltaForNextWatermark = 1;
     private String watermarkColumn;
     
