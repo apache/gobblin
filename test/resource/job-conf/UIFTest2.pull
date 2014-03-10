@@ -25,4 +25,5 @@ qualitychecker.taskpublisher.type=com.linkedin.uif.test.TestDataPublisher
 
 data.publisher.tmp.dir=test/tmp/jobOutput/UIFTest2
 data.publisher.final.dir=test/jobOutput/UIFTest2
+data.publisher.replace.final.dir=true
 data.publisher.type=com.linkedin.uif.publisher.BaseDataPublisher

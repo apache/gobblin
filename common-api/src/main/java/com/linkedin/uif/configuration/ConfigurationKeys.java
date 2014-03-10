@@ -166,6 +166,7 @@ public class ConfigurationKeys {
     public static final String DATA_PUBLISHER_TYPE = DATA_PUBLISHER_PREFIX + ".type";
     public static final String DATA_PUBLISHER_TMP_DIR = DATA_PUBLISHER_PREFIX + ".tmp.dir";
     public static final String DATA_PUBLISHER_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".final.dir";
+    public static final String DATA_PUBLISHER_REPLACE_FINAL_DIR =  DATA_PUBLISHER_PREFIX + ".replace.final.dir";
     
     /** 
     * Configuration properties used by the extractor

@@ -4,6 +4,7 @@ import java.util.Collection;
 
 import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.configuration.WorkUnitState;
+import com.linkedin.uif.scheduler.JobState;
 
 /**
  * Defines how to publish data and its corresponding metadata
@@ -11,9 +12,9 @@ import com.linkedin.uif.configuration.WorkUnitState;
  */
 public abstract class DataPublisher
 {
-    private State state;
-    
-    public DataPublisher(State state) {
+    private JobState state;
+
+    public DataPublisher(JobState state) {
         this.setState(state);
     }
     
@@ -46,7 +47,7 @@ public abstract class DataPublisher
         return state;
     }
 
-    public void setState(State state)
+    public void setState(JobState state)
     {
         this.state = state;
     }
