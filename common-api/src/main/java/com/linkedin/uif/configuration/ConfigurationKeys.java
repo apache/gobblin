@@ -80,29 +80,19 @@ public class ConfigurationKeys {
     /**
      * HDFS writer configuration properties
      */
-    public static final String FILE_SYSTEM_URI_KEY =
+    public static final String WRITER_FILE_SYSTEM_URI =
             WRITER_PREFIX + ".fs.uri";
-    public static final String STAGING_DIR_KEY =
+    public static final String WRITER_STAGING_DIR =
             WRITER_PREFIX + ".staging.dir";
-    public static final String OUTPUT_DIR_KEY =
+    public static final String WRITER_OUTPUT_DIR =
             WRITER_PREFIX + ".output.dir";
-    public static final String FILE_NAME_KEY =
+    public static final String WRITER_FILE_NAME =
             WRITER_PREFIX + ".file.name";
-    public static final String BUFFER_SIZE_KEY =
+    public static final String WRITER_BUFFER_SIZE =
             WRITER_PREFIX + ".buffer.size";
     public static final String DEFAULT_STAGING_DIR = "";
     public static final String DEFAULT_OUTPUT_DIR = "";
     public static final String DEFAULT_BUFFER_SIZE = "4096";
-
-    /**
-     * Job publisher properties
-     */
-    public static final String JOB_PUBLISHER_PREFIX = "publisher.job";
-    
-    /**
-     * HDFS task publisher properties
-     */
-    public static final String JOB_FINAL_DIR_HDFS = JOB_PUBLISHER_PREFIX + ".final.dir";
     
     /**
      * Configuration properties used internally
@@ -169,6 +159,8 @@ public class ConfigurationKeys {
      */
     public static final String DATA_PUBLISHER_PREFIX = "data.publisher";
     public static final String DATA_PUBLISHER_TYPE = DATA_PUBLISHER_PREFIX + ".type";
+    public static final String DATA_PUBLISHER_TMP_DIR = DATA_PUBLISHER_PREFIX + ".tmp.dir";
+    public static final String DATA_PUBLISHER_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".final.dir";
     
     /** 
     * Configuration properties used by the extractor

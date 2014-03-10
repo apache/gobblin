@@ -308,13 +308,13 @@ public class LocalJobManager extends AbstractIdleService {
                 DataPublisher publisher = dataPublisherConstructor.newInstance(taskStates.get(0));
 
                 publisher.initialize();
-                publisher.publishData(taskStates);
-
-                jobState.setState(JobState.RunningState.COMMITTED);
+                if (publisher.publish(taskStates)) {
+                   jobState.setState(JobState.RunningState.COMMITTED);
+                }
             }
         } catch (Exception e) {
             jobState.setState(JobState.RunningState.FAILED);
-            LOG.info("Failed to publish job data of job " + jobId);
+            LOG.error("Failed to publish job data of job " + jobId, e);
         } finally {
             try {
                 LOG.info("Persisting job/task states of job " + jobId);

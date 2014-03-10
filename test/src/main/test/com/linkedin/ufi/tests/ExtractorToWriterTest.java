@@ -67,15 +67,15 @@ public class ExtractorToWriterTest
         this.fs = FileSystem.get(new URI(TestConstants.TEST_FS_URI), new Configuration());
         
         Properties properties = new Properties();
-        properties.setProperty(ConfigurationKeys.BUFFER_SIZE_KEY,
+        properties.setProperty(ConfigurationKeys.WRITER_BUFFER_SIZE,
                 ConfigurationKeys.DEFAULT_BUFFER_SIZE);
-        properties.setProperty(ConfigurationKeys.FILE_SYSTEM_URI_KEY,
+        properties.setProperty(ConfigurationKeys.WRITER_FILE_SYSTEM_URI,
                 TestConstants.TEST_FS_URI);
-        properties.setProperty(ConfigurationKeys.STAGING_DIR_KEY,
+        properties.setProperty(ConfigurationKeys.WRITER_STAGING_DIR,
                 TestConstants.TEST_STAGING_DIR);
-        properties.setProperty(ConfigurationKeys.OUTPUT_DIR_KEY,
+        properties.setProperty(ConfigurationKeys.WRITER_OUTPUT_DIR,
                 TestConstants.TEST_OUTPUT_DIR);
-        properties.setProperty(ConfigurationKeys.FILE_NAME_KEY,
+        properties.setProperty(ConfigurationKeys.WRITER_FILE_NAME,
                 TestConstants.TEST_FILE_NAME);
 
         SchemaConverter<String, Schema> schemaConverter = new TestSchemaConverter();

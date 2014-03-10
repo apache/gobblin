@@ -1,10 +1,11 @@
 package com.linkedin.uif.test;
 
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
-
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.Source;
@@ -29,18 +30,24 @@ public class TestSource implements Source<String, String> {
 
     @Override
     public List<WorkUnit> getWorkunits(SourceState state) {
-        // For now we assume we pull only one table - so only one extract object
-        Extract extract = new Extract(state, TableType.SNAPSHOT_ONLY, "com.linkedin.uif.test", "TestTable", "1");
+        Extract extract1 = new Extract(state, TableType.SNAPSHOT_ONLY, "com.linkedin.uif.test", "TestTable1", "1");
+        Extract extract2 = new Extract(state, TableType.SNAPSHOT_ONLY, "com.linkedin.uif.test", "TestTable2", "2");
         
         String sourceFileList = state.getProp(SOURCE_FILE_LIST_KEY);
         List<WorkUnit> workUnits = Lists.newArrayList();
         
-        for (String sourceFile : SPLITTER.split(sourceFileList)) {
-            WorkUnit workUnit = new WorkUnit(state, extract);
-            workUnit.setProp(SOURCE_FILE_KEY, sourceFile);
+        List<String> list = (List<String>) SPLITTER.splitToList(sourceFileList);
+        
+        for (int i = 0; i < list.size(); i++) {
+            WorkUnit workUnit;
+            if (i % 2 == 0) {
+                workUnit = new WorkUnit(state, extract1);
+            } else {
+                workUnit = new WorkUnit(state, extract2);
+            }
+            workUnit.setProp(SOURCE_FILE_KEY, list.get(i));
             workUnits.add(workUnit);
         }
-
         return workUnits;
     }
 
