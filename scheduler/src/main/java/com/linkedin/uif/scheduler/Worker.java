@@ -30,7 +30,6 @@ public class Worker {
     private final ServiceManager serviceManager;
 
     public Worker(Properties properties) throws Exception {
-
         // The worker runs the following services
         TaskExecutor taskExecutor = new TaskExecutor(properties);
         TaskStateTracker taskStateTracker = new LocalTaskStateTracker(

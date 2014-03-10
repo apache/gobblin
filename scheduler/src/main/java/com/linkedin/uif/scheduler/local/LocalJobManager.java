@@ -32,7 +32,6 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.io.Files;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
@@ -45,6 +44,7 @@ import com.linkedin.uif.scheduler.JobCommitPolicy;
 import com.linkedin.uif.scheduler.JobListener;
 import com.linkedin.uif.scheduler.JobLock;
 import com.linkedin.uif.scheduler.JobState;
+import com.linkedin.uif.scheduler.RunOnceJobListener;
 import com.linkedin.uif.scheduler.SourceWrapperBase;
 import com.linkedin.uif.scheduler.TaskState;
 import com.linkedin.uif.scheduler.WorkUnitManager;
@@ -149,7 +149,9 @@ public class LocalJobManager extends AbstractIdleService {
     protected void startUp() throws Exception {
         LOG.info("Starting the local job manager");
         this.scheduler.start();
-        scheduleLocallyConfiguredJobs();
+        if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)) {
+            scheduleLocallyConfiguredJobs();
+        }
     }
 
     @Override
@@ -242,7 +244,13 @@ public class LocalJobManager extends AbstractIdleService {
     private void scheduleLocallyConfiguredJobs() throws SchedulerException {
         LOG.info("Scheduling locally configured jobs");
         for (Properties jobProps : loadLocalJobConfigs()) {
-            scheduleJob(jobProps, null);
+            boolean runOnce = Boolean.valueOf(jobProps.getProperty(
+                    ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
+            if (runOnce) {
+                scheduleJob(jobProps, new RunOnceJobListener());
+            } else {
+                scheduleJob(jobProps, null);
+            }
         }
     }
 
@@ -340,54 +348,19 @@ public class LocalJobManager extends AbstractIdleService {
             jobState.setState(JobState.RunningState.FAILED);
             LOG.error("Failed to publish job data of job " + jobId, e);
         } finally {
-            try {
-                LOG.info("Persisting job/task states of job " + jobId);
-                // Persisting both job and task states for now.
-                // It's kind of duplicated, but it does not hurt.
-                this.taskStateStore.putAll(
-                        jobName, jobId + TASK_STATE_STORE_TABLE_SUFFIX, jobState.getTaskStates());
-                this.jobStateStore.put(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX,
-                        jobState);
-            } catch (IOException ioe) {
-                LOG.error("Failed to persist job/task states of job " + jobId, ioe);
-            }
-
-            // Remove all state bookkeeping information of this scheduled job run
-            this.jobSourceMap.remove(jobId).shutdown(jobState);
-            this.jobStateMap.remove(jobId);
-
             boolean runOnce = this.runOnceJobs.containsKey(jobName);
-            if (!runOnce) {
-                // Remember the job ID of this most recent run of the job
-                this.lastJobIdMap.put(jobName, jobId);
-                // Unlock so the next run of the same job can proceed
-                this.jobLockMap.get(jobName).unlock();
+            persistJobState(jobState);
+            cleanupJob(jobState, runOnce);
 
-                // Callback on job completion
-                if (this.jobListenerMap.containsKey(jobName)) {
-                    this.jobListenerMap.get(jobName).jobCompleted(jobState);
-                }
-            } else {
-                // Delete the job from the Quartz scheduler and unlock and remove the job lock
-                this.scheduler.deleteJob(this.runOnceJobs.remove(jobName));
-                // Unlock and remove the lock as it is no longer needed
-                this.jobLockMap.remove(jobName).unlock();
-
-                // Rename the config file so we won't run this job when the worker is bounced
-                try {
-                    String jobConfigFile = this.runOnceJobConfigFiles.remove(jobName);
-                    Files.move(new File(jobConfigFile), new File(jobConfigFile + ".done"));
-                } catch (IOException ioe) {
-                    LOG.error("Failed to rename job configuration file for job " + jobName, ioe);
-                }
-
-                // Callback on job completion
-                if (this.jobListenerMap.containsKey(jobName)) {
-                    this.jobListenerMap.remove(jobName).jobCompleted(jobState);
-                }
+            JobListener jobListener = runOnce ?
+                    this.jobListenerMap.remove(jobName) : this.jobListenerMap.get(jobName);
+            // Callback on job completion
+            if (jobListener != null) {
+                jobListener.jobCompleted(jobState);
             }
         }
     }
+
 
     /**
      * Build a {@link JobState} object capturing the state of the given job.
@@ -413,7 +386,54 @@ public class LocalJobManager extends AbstractIdleService {
 
         return jobState;
     }
-    
+
+    /**
+     * Persiste job/task states of a completed job.
+     */
+    private void persistJobState(JobState jobState) {
+        String jobName = jobState.getJobName();
+        String jobId = jobState.getJobId();
+
+        LOG.info("Persisting job/task states of job " + jobId);
+        try {
+            this.taskStateStore.putAll(
+                    jobName, jobId + TASK_STATE_STORE_TABLE_SUFFIX, jobState.getTaskStates());
+            this.jobStateStore.put(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX,
+                    jobState);
+        } catch (IOException ioe) {
+            LOG.error("Failed to persist job/task states of job " + jobId, ioe);
+        }
+    }
+
+    /**
+     * Cleanup a completed job.
+     */
+    private void cleanupJob(JobState jobState, boolean runOnce) {
+        String jobName = jobState.getJobName();
+        String jobId = jobState.getJobId();
+
+        // Remove all state bookkeeping information of this scheduled job run
+        this.jobSourceMap.remove(jobId).shutdown(jobState);
+        this.jobStateMap.remove(jobId);
+
+        LOG.info("Performing cleanup for job " + jobId);
+        try {
+            if (!runOnce) {
+                // Remember the job ID of this most recent run of the job
+                this.lastJobIdMap.put(jobName, jobId);
+                // Unlock so the next run of the same job can proceed
+                this.jobLockMap.get(jobName).unlock();
+            } else {
+                // Delete the job from the Quartz scheduler and unlock and remove the job lock
+                this.scheduler.deleteJob(this.runOnceJobs.remove(jobName));
+                // Unlock and remove the lock as it is no longer needed
+                this.jobLockMap.remove(jobName).unlock();
+            }
+        } catch (Exception e) {
+            LOG.error("Failed to cleanup job " + jobId, e);
+        }
+    }
+
     /**
      * Populates map of String keys to {@link SourceWrapperBase} classes.
      */
