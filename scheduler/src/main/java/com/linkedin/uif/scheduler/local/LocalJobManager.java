@@ -29,9 +29,11 @@ import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
 import org.quartz.impl.StdSchedulerFactory;
 
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.io.Files;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
@@ -43,6 +45,7 @@ import com.linkedin.uif.publisher.DataPublisher;
 import com.linkedin.uif.scheduler.JobCommitPolicy;
 import com.linkedin.uif.scheduler.JobLock;
 import com.linkedin.uif.scheduler.JobState;
+import com.linkedin.uif.scheduler.SourceWrapperBase;
 import com.linkedin.uif.scheduler.TaskState;
 import com.linkedin.uif.scheduler.WorkUnitManager;
 import com.linkedin.uif.source.Source;
@@ -74,6 +77,7 @@ public class LocalJobManager extends AbstractIdleService {
     private static final String WORK_UNIT_MANAGER_KEY = "workUnitManager";
     private static final String JOB_LOCK_MAP_KEY = "jobLockMap";
     private static final String JOB_SOURCE_MAP_KEY = "jobSourceMap";
+    private static final String SOURCE_WRAPPER_MAP_KEY = "sourceWrapperMap";
     private static final String JOB_TASK_COUNT_MAP_KEY = "jobTaskCountMap";
     private static final String JOB_TASK_STATES_MAP_KEY = "jobTaskStatesMap";
     private static final String JOB_START_TIME_MAP_KEY = "jobStartTimeMap";
@@ -92,22 +96,34 @@ public class LocalJobManager extends AbstractIdleService {
     // A Quartz scheduler
     private final Scheduler scheduler;
 
-    // Mapping between jobs to the job locks they hold
-    private final ConcurrentMap<String, JobLock> jobLockMap;
+    // A Map for remembering run-once jobs
+    private final Map<String, JobKey> runOnceJobs = Maps.newHashMap();
+
+    // A map for remembering config file paths of run-once jobs
+    private final Map<String, String> runOnceJobConfigFiles = Maps.newHashMap();
+
+    // Mapping between jobs to the job locks they hold. This needs to be a
+    // concurrent map because two scheduled runs of the same job (handled
+    // by two separate threds) may access it concurrently.
+    private final ConcurrentMap<String, JobLock> jobLockMap = Maps.newConcurrentMap();
+
+    // Mapping between Source wrapper keys and Source wrapper classes
+    private final Map<String, Class<SourceWrapperBase>> sourceWrapperMap = Maps.newHashMap();
 
     // Mapping between jobs to the Source objects used to create work units
-    private final Map<String, Source> jobSourceMap;
+    private final Map<String, Source> jobSourceMap = Maps.newHashMap();
 
     // Mapping between jobs to the numbers of tasks
-    private final Map<String, Integer> jobTaskCountMap;
+    private final Map<String, Integer> jobTaskCountMap = Maps.newHashMap();
 
     // Mapping between jobs to the tasks comprising each job
-    private final Map<String, List<TaskState>> jobTaskStatesMap;
+    private final Map<String, List<TaskState>> jobTaskStatesMap = Maps.newHashMap();
 
-    private final Map<String, Long> jobStartTimeMap;
+    // Mapping between jobs to their start times
+    private final Map<String, Long> jobStartTimeMap = Maps.newHashMap();
 
     // Mapping between jobs to the job IDs of their last runs
-    private final Map<String, String> lastJobIdMap;
+    private final Map<String, String> lastJobIdMap = Maps.newHashMap();
 
     // Store for persisting job state
     private final StateStore jobStateStore;
@@ -122,15 +138,6 @@ public class LocalJobManager extends AbstractIdleService {
         this.properties = properties;
         this.scheduler = new StdSchedulerFactory().getScheduler();
 
-        // This needs to be a concurrent map because two scheduled runs of the
-        // same job (handled by two separate threds) may access it concurrently
-        this.jobLockMap = Maps.newConcurrentMap();
-        this.jobSourceMap = Maps.newHashMap();
-        this.jobTaskCountMap = Maps.newHashMap();
-        this.jobTaskStatesMap = Maps.newHashMap();
-        this.jobStartTimeMap = Maps.newHashMap();
-        this.lastJobIdMap = Maps.newHashMap();
-
         this.jobStateStore = new FsStateStore(
                 properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
                 properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
@@ -139,6 +146,8 @@ public class LocalJobManager extends AbstractIdleService {
                 properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
                 properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
                 TaskState.class);
+
+        populateSourceWrapperMap();
     }
 
     @Override
@@ -193,6 +202,7 @@ public class LocalJobManager extends AbstractIdleService {
             jobDataMap.put(PROPERTIES_KEY, properties);
             jobDataMap.put(WORK_UNIT_MANAGER_KEY, this.workUnitManager);
             jobDataMap.put(JOB_LOCK_MAP_KEY, this.jobLockMap);
+            jobDataMap.put(SOURCE_WRAPPER_MAP_KEY, this.sourceWrapperMap);
             jobDataMap.put(JOB_SOURCE_MAP_KEY, this.jobSourceMap);
             jobDataMap.put(JOB_TASK_COUNT_MAP_KEY, this.jobTaskCountMap);
             jobDataMap.put(JOB_TASK_STATES_MAP_KEY, this.jobTaskStatesMap);
@@ -213,6 +223,19 @@ public class LocalJobManager extends AbstractIdleService {
 
             // Schedule the Quartz job with a trigger built from the job configuration
             this.scheduler.scheduleJob(job, getTrigger(job.getKey(), properties));
+
+            // If the job should run only once, remember so it can be deleted after its
+            // single run is done.
+            boolean runOnce = Boolean.valueOf(properties.getProperty(
+                    ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
+            if (runOnce) {
+                this.runOnceJobs.put(
+                        properties.getProperty(ConfigurationKeys.JOB_NAME_KEY),
+                        job.getKey());
+                this.runOnceJobConfigFiles.put(
+                        properties.getProperty(ConfigurationKeys.JOB_NAME_KEY),
+                        properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY));
+            }
         }
     }
 
@@ -242,7 +265,10 @@ public class LocalJobManager extends AbstractIdleService {
         for (String jobConfigFile : jobConfigFiles) {
             Properties properties = new Properties(this.properties);
             try {
-                properties.load(new FileReader(new File(jobConfigFileDir, jobConfigFile)));
+                File file = new File(jobConfigFileDir, jobConfigFile);
+                properties.load(new FileReader(file));
+                properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY,
+                        file.getAbsolutePath());
                 jobConfigs.add(properties);
             } catch (FileNotFoundException e) {
                 LOG.error("Job configuration file " + jobConfigFile + " not found");
@@ -333,11 +359,20 @@ public class LocalJobManager extends AbstractIdleService {
             this.jobTaskStatesMap.remove(jobId);
             this.jobStartTimeMap.remove(jobId);
 
-            // Remember the job ID of this most recent run of the job
-            this.lastJobIdMap.put(jobName, jobId);
-
-            // Unlock so the next run of the same job can proceed
-            this.jobLockMap.get(jobName).unlock();
+            boolean runOnce = this.runOnceJobs.containsKey(jobName);
+            if (!runOnce) {
+                // Remember the job ID of this most recent run of the job
+                this.lastJobIdMap.put(jobName, jobId);
+                // Unlock so the next run of the same job can proceed
+                this.jobLockMap.get(jobName).unlock();
+            } else {
+                // Delete the job from the Quartz scheduler and unlock and remove the job lock
+                this.scheduler.deleteJob(this.runOnceJobs.remove(jobName));
+                this.jobLockMap.remove(jobName).unlock();
+                String jobConfigFile = this.runOnceJobConfigFiles.remove(jobName);
+                // Rename the job config file so we won't run this job when the worker is bounced
+                Files.move(new File(jobConfigFile), new File(jobConfigFile + ".done"));
+            }
         }
     }
 
@@ -371,6 +406,26 @@ public class LocalJobManager extends AbstractIdleService {
 
         return jobState;
     }
+    
+    /**
+     * Populates map of String keys to {@link SourceWrapperBase} classes.
+     */
+    @SuppressWarnings("unchecked")
+    private void populateSourceWrapperMap() throws ClassNotFoundException {
+        // Default must be defined, but properties can overwrite if needed.
+        this.sourceWrapperMap.put(ConfigurationKeys.DEFAULT_SOURCE_WRAPPER,
+                SourceWrapperBase.class);
+
+        String propStr = properties.getProperty(
+                ConfigurationKeys.SOURCE_WRAPPERS,
+                "default:" + SourceWrapperBase.class.getName());
+        for (String entry : Splitter.on(";").trimResults().split(propStr)) {
+            List<String> tokens = Splitter.on(":").trimResults().splitToList(entry);
+            this.sourceWrapperMap.put(
+                    tokens.get(0).toLowerCase(),
+                    (Class<SourceWrapperBase>) Class.forName(tokens.get(1)));
+        }
+    }
 
     /**
      * A UIF job to schedule locally.
@@ -395,6 +450,8 @@ public class LocalJobManager extends AbstractIdleService {
 
             WorkUnitManager workUnitManager = (WorkUnitManager) dataMap.get(
                     WORK_UNIT_MANAGER_KEY);
+            Map<String, Class<SourceWrapperBase>> sourceWrapperMap =
+                    (Map<String, Class<SourceWrapperBase>>) dataMap.get(SOURCE_WRAPPER_MAP_KEY);
             Map<String, Source> jobSourceMap = (Map<String, Source>) dataMap.get(
                     JOB_SOURCE_MAP_KEY);
             Map<String, Integer> jobTaskCountMap = (Map<String, Integer>) dataMap.get(
@@ -420,16 +477,21 @@ public class LocalJobManager extends AbstractIdleService {
                         new com.linkedin.uif.configuration.State();
                 // Add all job configuration properties of this job
                 state.addAll(properties);
+                
+                SourceState sourceState = new SourceState(state, getPreviousWorkUnitStates(
+                    jobName, lastJobIdMap, taskStateStore));
 
-                Source<?, ?> source = (Source<?, ?>) Class.forName(
-                        properties.getProperty(ConfigurationKeys.SOURCE_CLASS_KEY))
+                SourceWrapperBase source = sourceWrapperMap.get(
+                    properties.getProperty(ConfigurationKeys.SOURCE_WRAPPER_CLASS_KEY, 
+                        ConfigurationKeys.DEFAULT_SOURCE_WRAPPER)
+                        .toLowerCase())
                         .newInstance();
                 
+                source.init(sourceState);
+                             
                 // Generate work units based on all previous work unit states
-                SourceState sourceState = new SourceState(state,
-                        getPreviousWorkUnitStates(jobName, lastJobIdMap, taskStateStore));
-                List<WorkUnit> workUnits = source.getWorkunits(sourceState);   
-                
+                List<WorkUnit> workUnits = source.getWorkunits(sourceState);
+
                 // If no real work to do
                 if (workUnits == null || workUnits.isEmpty()) {
                     LOG.warn("No work units have been created for job " + jobId);
