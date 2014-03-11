@@ -28,6 +28,8 @@ data.publisher.final.dir=test/jobOutput/UIFTest3
 data.publisher.replace.final.dir=true
 data.publisher.type=com.linkedin.uif.publisher.BaseDataPublisher
 
+extract.namespace=sfdc
+extract.table.type=snapshot_only
 source.schema=sfdc
 source.entity=Account
 source.timezone=America/Los_Angeles
