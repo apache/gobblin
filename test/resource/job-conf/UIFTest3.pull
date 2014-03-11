@@ -12,20 +12,14 @@ workunit.table=test
 writer.destination.type=HDFS
 writer.output.format=AVRO
 writer.fs.uri=file://localhost/
-writer.staging.dir=test/staging/UIFTest3
-writer.output.dir=test/output/UIFTest3
-writer.file.name=test.avro
 
 source.files=test/resource/source/test.avro.0,test/resource/source/test.avro.1
 
 qualitychecker.metadatacollector=com.linkedin.uif.configuration.YushanMetaStoreClient
 qualitychecker.policies=com.linkedin.uif.policies.count.RowCountPolicy,com.linkedin.uif.policies.schema.SchemaCompatibilityPolicy,com.linkedin.uif.policies.schema.LumosSchemaValidationPolicy
 qualitychecker.policy.types=OPTIONAL,OPTIONAL,OPTIONAL
-qualitychecker.taskpublisher.type=com.linkedin.uif.test.TestDataPublisher
 
-data.publisher.tmp.dir=test/tmp/jobOutput/UIFTest3
 data.publisher.final.dir=test/jobOutput/UIFTest3
-data.publisher.replace.final.dir=true
 data.publisher.type=com.linkedin.uif.publisher.BaseDataPublisher
 
 extract.namespace=sfdc

@@ -265,6 +265,7 @@ public class Task implements Runnable, Serializable {
                 .useSchemaConverter(context.getSchemaConverter())
                 .useDataConverter(context.getDataConverter(schema))
                 .withSourceSchema(schema)
+                .withJobName(context.getTaskState().getProp(ConfigurationKeys.JOB_NAME_KEY))
                 .build();
     }
 

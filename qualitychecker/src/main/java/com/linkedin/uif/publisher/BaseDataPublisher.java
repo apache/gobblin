@@ -48,7 +48,7 @@ public class BaseDataPublisher extends DataPublisher
             Extract extract = entry.getKey();
             WorkUnitState workUnitState = entry.getValue().get(0);
 
-            Path tmpOutput = new Path(workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_TMP_DIR),
+            Path tmpOutput = new Path(workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_TMP_DIR), getState().getProp(ConfigurationKeys.JOB_NAME_KEY) + "/" +
                                       workUnitState.getExtract().getExtractId());
             
             Path finalOutput = new Path(workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
@@ -112,8 +112,8 @@ public class BaseDataPublisher extends DataPublisher
     }
 
     public boolean collectSingleTaskData(WorkUnitState state) throws IOException {               
-        Path stagingDataDir = new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR), state.getProp(ConfigurationKeys.WRITER_FILE_NAME) + "." + state.getId());
-        Path outputDataDir = new Path(state.getProp(ConfigurationKeys.DATA_PUBLISHER_TMP_DIR) + "/" + state.getExtract().getExtractId());
+        Path stagingDataDir = new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR), getState().getProp(ConfigurationKeys.JOB_NAME_KEY) + "/" + getState().getProp(ConfigurationKeys.WRITER_FILE_NAME) + "." + state.getId());
+        Path outputDataDir = new Path(state.getProp(ConfigurationKeys.DATA_PUBLISHER_TMP_DIR), getState().getProp(ConfigurationKeys.JOB_NAME_KEY) + "/" + state.getExtract().getExtractId());
 
         if (!this.fs.exists(outputDataDir)) {
             fs.mkdirs(outputDataDir);

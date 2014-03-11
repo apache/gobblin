@@ -41,16 +41,13 @@ public class BasicIntegrationTest {
 
     private ServiceManager serviceManager;
     private LocalJobManager jobManager;
+    private Properties properties;
 
     @BeforeClass
     public void startUp() throws Exception {
-        Properties properties = new Properties();
-        properties.setProperty("state.store.dir", "test/state-store");
-        properties.setProperty("state.store.fs.uri", "file:///");
-        properties.setProperty("taskexecutor.threadpool.size", "2");
-        properties.setProperty("tasktracker.threadpool.coresize", "2");
-        properties.setProperty("tasktracker.threadpool.maxsize", "2");
-
+        properties = new Properties();
+        properties.load(new FileReader("test/resource/uif.test.properties"));
+        
         TaskExecutor taskExecutor = new TaskExecutor(properties);
         TaskStateTracker taskStateTracker = new LocalTaskStateTracker(
                 properties, taskExecutor);
@@ -75,6 +72,7 @@ public class BasicIntegrationTest {
     public void runTest1() throws Exception {
         Properties jobProps = new Properties();
         jobProps.load(new FileReader("test/resource/job-conf/UIFTest1.pull"));
+        jobProps.putAll(this.properties);
         jobProps.setProperty(SOURCE_FILE_LIST_KEY,
                 "test/resource/source/test.avro.2,test/resource/source/test.avro.3");
         jobProps.setProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "true");
@@ -117,14 +115,15 @@ public class BasicIntegrationTest {
 
             for (TaskState taskState : jobState.getTaskStates()) {
                 File sourceFile = new File(taskState.getProp(SOURCE_FILE_KEY));
-                
-                Extract e = taskState.getExtract();
-                File targetFile = new File(taskState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR)
-                                           + "/" + e.getNamespace().replaceAll("\\.", "/") + "/" + 
-                                           e.getTable() + "/" + e.getExtractId() + "/" + e.getType(),
-                                           taskState.getProp(ConfigurationKeys.WRITER_FILE_NAME) +
-                                           "." + taskState.getTaskId());
 
+                Extract e = taskState.getExtract();
+                File targetFile = new File(jobState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR)
+                                           + "/" + e.getNamespace().replaceAll("\\.", "/") + "/" + 
+                                           e.getTable() + "/" + e.getExtractId() + "_" + 
+                                           (e.getIsFull() ? "FULL" : "APPEND"),
+                                           jobState.getProp(ConfigurationKeys.WRITER_FILE_NAME)
+                                           + "." + taskState.getId());
+                
                 Assert.assertEquals(taskState.getWorkingState(),
                         WorkUnitState.WorkingState.COMMITTED);
                 try {

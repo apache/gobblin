@@ -14,6 +14,9 @@ dependencies {
   compile spec.external.jacksonCore
   compile spec.external.jacksonMapper
 
+  testCompile project(':scheduler')
+  testCompile project(':writer')
+  testCompile project(path: ':writer', configuration: 'tests')
   testCompile spec.external.testng
 }
 

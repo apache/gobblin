@@ -23,6 +23,7 @@ public abstract class DataWriterBuilder<SI, SO, DI, DO> {
     protected DataConverter<DI, DO> dataConverter;
     protected SchemaConverter<SI, SO> schemaConverter;
     protected SI sourceSchema;
+    protected String jobName;
 
     /**
      * Tell the writer the destination to write to.
@@ -96,6 +97,20 @@ public abstract class DataWriterBuilder<SI, SO, DI, DO> {
     public DataWriterBuilder<SI, SO, DI, DO> withSourceSchema(
             SI sourceSchema) {
         this.sourceSchema = sourceSchema;
+        return this;
+    }
+
+    /**
+     * Tell the writer the data schema.
+     *
+     * @param sourceSchema source data schema
+     * @param schemaType type of schema expected and used by the target
+     *                   consumer, e.g., Lumos
+     * @return this {@link DataWriterBuilder} instance
+     */
+    public DataWriterBuilder<SI, SO, DI, DO> withJobName(
+            String jobName) {
+        this.jobName = jobName;
         return this;
     }
     
