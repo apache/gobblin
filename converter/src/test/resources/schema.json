@@ -9,7 +9,7 @@
       "length":18,
       "precision":0,
       "scale":0,
-      "nullable":false,
+      "isNullable":false,
       "comment":"Account ID",
       "unique":false
    },
@@ -23,7 +23,7 @@
       "length":0,
       "precision":0,
       "scale":0,
-      "nullable":false,
+      "isNullable":false,
       "comment":"Deleted",
       "unique":false
    },
@@ -38,7 +38,7 @@
       "length":40,
       "precision":0,
       "scale":0,
-      "nullable":true,
+      "isNullable":true,
       "comment":"Salutation",
       "unique":false
    },
@@ -53,7 +53,7 @@
       "length":40,
       "precision":0,
       "scale":0,
-      "nullable":true,
+      "isNullable":true,
       "comment":"Salutation",
       "unique":false
    },
@@ -72,7 +72,7 @@
       "length":40,
       "precision":0,
       "scale":0,
-      "nullable":true,
+      "isNullable":true,
       "comment":"Salutation",
       "unique":false
    },
@@ -86,7 +86,7 @@
       "length":0,
       "precision":0,
       "scale":0,
-      "nullable":false,
+      "isNullable":false,
       "comment":"Last Modified Date",
       "unique":false
    },
@@ -100,7 +100,7 @@
       "length":0,
       "precision":0,
       "scale":0,
-      "nullable":true,
+      "isNullable":true,
       "comment":"test null",
       "unique":false
    },
@@ -114,7 +114,7 @@
       "length":0,
       "precision":0,
       "scale":0,
-      "nullable":false,
+      "isNullable":false,
       "comment":"testing datatypes",
       "unique":false
    },
@@ -128,7 +128,7 @@
       "length":0,
       "precision":0,
       "scale":0,
-      "nullable":false,
+      "isNullable":false,
       "comment":"testing datatypes",
       "unique":false
    },
@@ -142,7 +142,7 @@
       "length":0,
       "precision":0,
       "scale":0,
-      "nullable":false,
+      "isNullable":false,
       "comment":"testing datatypes",
       "unique":false
    },
@@ -156,7 +156,7 @@
       "length":0,
       "precision":0,
       "scale":0,
-      "nullable":false,
+      "isNullable":false,
       "comment":"testing datatypes",
       "unique":false
    },
@@ -170,7 +170,7 @@
       "length":0,
       "precision":0,
       "scale":0,
-      "nullable":false,
+      "isNullable":false,
       "comment":"testing datatypes",
       "unique":false
    },
@@ -184,7 +184,7 @@
       "length":0,
       "precision":0,
       "scale":0,
-      "nullable":false,
+      "isNullable":false,
       "comment":"testing datatypes",
       "unique":false
    },
@@ -198,7 +198,7 @@
       "length":0,
       "precision":0,
       "scale":0,
-      "nullable":false,
+      "isNullable":false,
       "comment":"testing datatypes",
       "unique":false
    },
@@ -212,7 +212,7 @@
       "length":18,
       "precision":0,
       "scale":0,
-      "nullable":true,
+      "isNullable":true,
       "comment":"Account ID",
       "unique":false
    },
@@ -226,7 +226,7 @@
       "length":0,
       "precision":0,
       "scale":0,
-      "nullable":true,
+      "isNullable":true,
       "comment":"Deleted",
       "unique":false
    },
@@ -241,7 +241,7 @@
       "length":40,
       "precision":0,
       "scale":0,
-      "nullable":true,
+      "isNullable":true,
       "comment":"Salutation",
       "unique":false
    },
@@ -256,7 +256,7 @@
       "length":40,
       "precision":0,
       "scale":0,
-      "nullable":true,
+      "isNullable":true,
       "comment":"Salutation",
       "unique":false
    },
@@ -271,7 +271,7 @@
       "length":0,
       "precision":0,
       "scale":0,
-      "nullable":true,
+      "isNullable":true,
       "comment":"Last Modified Date",
       "unique":false
    },
@@ -285,7 +285,7 @@
       "length":0,
       "precision":0,
       "scale":0,
-      "nullable":true,
+      "isNullable":true,
       "comment":"testing datatypes",
       "unique":false
    },
@@ -299,7 +299,7 @@
       "length":0,
       "precision":0,
       "scale":0,
-      "nullable":true,
+      "isNullable":true,
       "comment":"testing datatypes",
       "unique":false
    },
@@ -313,7 +313,7 @@
       "length":0,
       "precision":0,
       "scale":0,
-      "nullable":true,
+      "isNullable":true,
       "comment":"testing datatypes",
       "unique":false
    },
@@ -327,7 +327,7 @@
       "length":0,
       "precision":0,
       "scale":0,
-      "nullable":true,
+      "isNullable":true,
       "comment":"testing datatypes",
       "unique":false
    },
@@ -341,7 +341,7 @@
       "length":0,
       "precision":0,
       "scale":0,
-      "nullable":true,
+      "isNullable":true,
       "comment":"testing datatypes",
       "unique":false
    },
@@ -355,7 +355,7 @@
       "length":0,
       "precision":0,
       "scale":0,
-      "nullable":true,
+      "isNullable":true,
       "comment":"testing datatypes",
       "unique":false
    },
@@ -369,7 +369,7 @@
       "length":0,
       "precision":0,
       "scale":0,
-      "nullable":true,
+      "isNullable":true,
       "comment":"testing datatypes",
       "unique":false
    }

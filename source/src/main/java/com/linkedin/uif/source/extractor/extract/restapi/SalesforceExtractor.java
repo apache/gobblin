@@ -128,7 +128,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 
 	@Override
 	public JsonArray getSchema(String response) throws SchemaException {
-		LOG.info("Get schema from salesforce:" + response);
+		LOG.info("Get schema from salesforce:");
 		JsonArray fieldJsonArray = new JsonArray();
 		JsonElement element = gson.fromJson(response, JsonObject.class);
 		JsonObject jsonObject = element.getAsJsonObject();
