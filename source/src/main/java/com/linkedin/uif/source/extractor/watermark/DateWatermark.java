@@ -93,7 +93,7 @@ public class DateWatermark implements Watermark {
 		
 		int dayInterval = hourInterval/24;
 		int totalHours =  (int) Math.ceil(((float)diffInMilliSecs / (60*60*1000)));
-		long totalIntervals = totalHours/(dayInterval*24);
+		long totalIntervals = (long) Math.ceil((float)totalHours/(dayInterval*24));
 		if(totalIntervals > maxIntervals) {
 			hourInterval = (int) Math.ceil((float)totalHours/maxIntervals);
 			dayInterval = hourInterval/24;

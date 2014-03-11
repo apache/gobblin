@@ -46,9 +46,10 @@ public class Partitioner {
 		}
 		
 		ExtractType extractType = ExtractType.valueOf(this.state.getProp(ConfigurationKeys.SOURCE_EXTRACT_TYPE).toUpperCase());
-		WatermarkType watermarkType = WatermarkType.valueOf(state.getProp(ConfigurationKeys.SOURCE_WATERMARK_TYPE).toUpperCase());
+		WatermarkType watermarkType = WatermarkType.valueOf(this.state.getProp(ConfigurationKeys.SOURCE_WATERMARK_TYPE).toUpperCase());
 		int interval = this.getUpdatedInterval(Utils.getAsInt(this.state.getProp(ConfigurationKeys.SOURCE_PARTITION_INTERVAL)), extractType, watermarkType);
-		int maxPartitions = ConfigurationKeys.DEFAULT_MAX_NUMBER_OF_PARTITIONS;
+		int sourceMaxAllowedPartitions = Utils.getAsInt(this.state.getProp(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS));
+		int maxPartitions = (sourceMaxAllowedPartitions != 0 ? sourceMaxAllowedPartitions :ConfigurationKeys.DEFAULT_MAX_NUMBER_OF_PARTITIONS);
 		
 		WatermarkPredicate watermark = new WatermarkPredicate(null, watermarkType);
 		int deltaForNextWatermark = watermark.getDeltaNumForNextWatermark();
@@ -116,9 +117,9 @@ public class Partitioner {
 		LOG.info("Getting snapshot low water mark");
 		if(this.isPreviousWatermarkExists(previousWatermark)) {
 			if(this.isSimpleWatermark(watermarkType)) {
-				return previousWatermark + deltaForNextWatermark - ConfigurationKeys.DEFAULT_LOW_WATERMARK_BACKUP_SECS;
+				return previousWatermark + deltaForNextWatermark - Utils.getAsInt(this.state.getProp(ConfigurationKeys.SOURCE_LOW_WATERMARK_BACKUP_SECS));
 			} else {
-				return Long.parseLong(Utils.dateToString(Utils.addSecondsToDate(Utils.toDate(previousWatermark, WATERMARKTIMEFORMAT),(deltaForNextWatermark-ConfigurationKeys.DEFAULT_LOW_WATERMARK_BACKUP_SECS)), WATERMARKTIMEFORMAT));
+				return Long.parseLong(Utils.dateToString(Utils.addSecondsToDate(Utils.toDate(previousWatermark, WATERMARKTIMEFORMAT),(deltaForNextWatermark- Utils.getAsInt(this.state.getProp(ConfigurationKeys.SOURCE_LOW_WATERMARK_BACKUP_SECS)))), WATERMARKTIMEFORMAT));
 			}
 			
 		} else {

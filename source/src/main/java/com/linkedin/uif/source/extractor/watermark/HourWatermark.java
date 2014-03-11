@@ -91,7 +91,7 @@ public class HourWatermark implements Watermark {
 		}
 		
 		int totalHours =  (int) Math.ceil(((float)diffInMilliSecs / (60*60*1000)));
-		long totalIntervals = totalHours/hourInterval;
+		long totalIntervals = (long) Math.ceil((float)totalHours/hourInterval);
 		if(totalIntervals > maxIntervals) {
 			hourInterval = (int) Math.ceil((float)totalHours/maxIntervals);
 		}
