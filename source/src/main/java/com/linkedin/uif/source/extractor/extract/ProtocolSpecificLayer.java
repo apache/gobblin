@@ -7,7 +7,7 @@ import java.util.Map;
 
 import com.linkedin.uif.source.extractor.watermark.Predicate;
 import com.linkedin.uif.source.extractor.watermark.WatermarkType;
-import com.linkedin.uif.source.extractor.exception.DataRecordException;
+import com.linkedin.uif.source.extractor.DataRecordException;
 import com.linkedin.uif.source.extractor.exception.HighWatermarkException;
 import com.linkedin.uif.source.extractor.exception.RecordCountException;
 import com.linkedin.uif.source.extractor.exception.SchemaException;
