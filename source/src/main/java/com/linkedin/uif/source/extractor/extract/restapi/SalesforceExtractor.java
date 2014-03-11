@@ -288,12 +288,16 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 					return this.getFullUri(this.getSoqlUrl(query));
 				}
 
+				String LimitString = this.getLimitFromInputQuery(query);
+				query = query.replace(LimitString, "");
+				
 				Iterator<Predicate> i = predicateList.listIterator();
 				while (i.hasNext()) {
 					Predicate predicate = i.next();
 					query = this.addPredicate(query, predicate.getCondition());
 				}
 
+				query = query+LimitString;
 				LOG.info("QUERY:" + query);
 				url = this.getFullUri(this.getSoqlUrl(query));
 			}
@@ -304,6 +308,15 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 			e.printStackTrace();
 			throw new DataRecordException("Failed to get salesforce url for data records; error-" + e.getMessage());
 		}
+	}
+
+	private String getLimitFromInputQuery(String query) {
+		String inputQuery = query.toLowerCase();
+		int limitIndex = inputQuery.indexOf(" limit");
+		if(limitIndex>0) {
+			return query.substring(limitIndex);
+		}
+		return "";
 	}
 
 	@Override
