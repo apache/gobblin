@@ -64,7 +64,7 @@ public class JsonElementConversionFactory {
    */
   public static JsonElementConverter getConvertor(String fieldName, String fieldType, JsonObject schemaNode,
       WorkUnitState state) throws UnsupportedDateTypeException {
-    boolean nullable = schemaNode.has("nullable") ? schemaNode.get("nullable").getAsBoolean() : false;
+    boolean nullable = schemaNode.has("isNullable") ? schemaNode.get("isNullable").getAsBoolean() : false;
 
     Type type;
     try {
