@@ -124,7 +124,7 @@ public class Task implements Runnable, Serializable {
                     extractor.getExpectedRecordCount());
             this.taskState.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN,
                     writer.recordsWritten());
-            this.taskState.setProp(ConfigurationKeys.EXTRACT_SCHEMA, sourceSchema);
+            this.taskState.setProp(ConfigurationKeys.EXTRACT_SCHEMA, schemaForWriter.toString());
             
             PolicyChecker policyChecker = buildPolicyChecker(this.taskState);
             PolicyCheckResults results = policyChecker.executePolicies();
