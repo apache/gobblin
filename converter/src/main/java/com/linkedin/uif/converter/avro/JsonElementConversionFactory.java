@@ -191,10 +191,25 @@ public class JsonElementConversionFactory {
 
     /**
      * Convert value
-     * @param value if empty will return null if allowed or exception if not allowed
+     * @param value is JsonNull will return null if allowed or exception if not allowed
      * @return Avro safe type
      */
-    abstract public Object convert(JsonElement value);
+    public Object convert(JsonElement value){
+      if (value.isJsonNull()) {
+        if (nullable)
+          return null;
+        else
+          throw new RuntimeException("Field: " + getName() + " is not nullable and contains a null value");
+      }
+      return convertField(value);
+    }
+    
+    /**
+     * Convert JsonElement to Avro type
+     * @param value
+     * @return
+     */
+    abstract Object convertField(JsonElement value);
 
     /**
      * Avro data type after conversion
@@ -210,7 +225,7 @@ public class JsonElementConversionFactory {
     }
 
     @Override
-    public Object convert(JsonElement value) {
+    Object convertField(JsonElement value) {
       return new Utf8(value.getAsString());
     }
 
@@ -227,7 +242,7 @@ public class JsonElementConversionFactory {
     }
 
     @Override
-    public Object convert(JsonElement value) {
+    Object convertField(JsonElement value) {
 
       return value.getAsInt();
     }
@@ -245,7 +260,7 @@ public class JsonElementConversionFactory {
     }
 
     @Override
-    public Object convert(JsonElement value) {
+    Object convertField(JsonElement value) {
 
       return value.getAsLong();
     }
@@ -264,7 +279,7 @@ public class JsonElementConversionFactory {
     }
 
     @Override
-    public Object convert(JsonElement value) {
+    Object convertField(JsonElement value) {
       return value.getAsDouble();
     }
 
@@ -282,7 +297,7 @@ public class JsonElementConversionFactory {
     }
 
     @Override
-    public Object convert(JsonElement value) {
+    Object convertField(JsonElement value) {
       return value.getAsFloat();
     }
 
@@ -300,7 +315,7 @@ public class JsonElementConversionFactory {
     }
 
     @Override
-    public Object convert(JsonElement value) {
+    Object convertField(JsonElement value) {
 
       return value.getAsBoolean();
     }
@@ -321,7 +336,7 @@ public class JsonElementConversionFactory {
     }
 
     @Override
-    public Object convert(JsonElement value) {
+    Object convertField(JsonElement value) {
       return dtf.parseDateTime(value.getAsString()).getMillis();
     }
 
@@ -341,7 +356,7 @@ public class JsonElementConversionFactory {
     }
 
     @Override
-    public Object convert(JsonElement value) {
+    Object convertField(JsonElement value) {
       try {
         return ByteBuffer.wrap(value.getAsString().getBytes(charSet));
       } catch (UnsupportedEncodingException e) {
@@ -384,11 +399,11 @@ public class JsonElementConversionFactory {
     }
 
     @Override
-    public Object convert(JsonElement value) {
+    Object convertField(JsonElement value) {
       List<Object> list = new ArrayList<Object>();
 
       for (JsonElement elem : (JsonArray) value) {
-        list.add(getElementConverter().convert(elem));
+        list.add(getElementConverter().convertField(elem));
       }
 
       return new GenericData.Array<Object>(schema(), list);
@@ -419,11 +434,11 @@ public class JsonElementConversionFactory {
     }
 
     @Override
-    public Object convert(JsonElement value) {
+    Object convertField(JsonElement value) {
       Map<String, Object> map = new HashMap<String, Object>();
 
       for (Map.Entry<String, JsonElement> entry : ((JsonObject) value).entrySet()) {
-        map.put(entry.getKey(), getElementConverter().convert(entry.getValue()));
+        map.put(entry.getKey(), getElementConverter().convertField(entry.getValue()));
       }
 
       return map;
@@ -458,7 +473,7 @@ public class JsonElementConversionFactory {
     }
 
     @Override
-    public Object convert(JsonElement value) {
+    Object convertField(JsonElement value) {
       return new GenericData.EnumSymbol(schema, value.getAsString());
     }
 
