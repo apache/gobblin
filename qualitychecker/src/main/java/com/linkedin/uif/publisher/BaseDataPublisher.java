@@ -53,8 +53,8 @@ public class BaseDataPublisher extends DataPublisher
             
             Path finalOutput = new Path(workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
                                       extract.getNamespace().replaceAll("\\.", "/") + "/" + 
-                                      extract.getTable() + "/" + extract.getExtractId() + "/" + 
-                                      extract.getType());
+                                      extract.getTable() + "/" + extract.getExtractId() + "_" + 
+                                      (extract.getIsFull() ? "FULL" : "APPEND"));
 
             LOG.info(String.format("Attemping to move %s to %s", tmpOutput, finalOutput));
 

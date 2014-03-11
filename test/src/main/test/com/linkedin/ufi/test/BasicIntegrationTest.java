@@ -1,4 +1,4 @@
-package com.linkedin.uif.test;
+package com.linkedin.ufi.test;
 
 import java.io.File;
 import java.io.FileReader;
