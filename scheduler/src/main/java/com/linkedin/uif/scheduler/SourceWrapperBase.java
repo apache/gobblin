@@ -7,6 +7,7 @@ import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.extractor.Extractor;
+import com.linkedin.uif.source.extractor.exception.ExtractPrepareException;
 
 public class SourceWrapperBase implements Source {
   private Source<?, ?> source;

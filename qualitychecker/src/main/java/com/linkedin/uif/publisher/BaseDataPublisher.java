@@ -11,13 +11,12 @@ import java.util.Map;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
+import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.configuration.WorkUnitState;
-import com.linkedin.uif.scheduler.JobState;
 import com.linkedin.uif.source.workunit.Extract;
 
 public class BaseDataPublisher extends DataPublisher
@@ -27,7 +26,7 @@ public class BaseDataPublisher extends DataPublisher
     
     private static final Log LOG = LogFactory.getLog(BaseDataPublisher.class);
         
-    public BaseDataPublisher(JobState state)
+    public BaseDataPublisher(State state)
     {
         super(state);
         extractToStateMap = new HashMap<Extract, List<WorkUnitState>>();
