@@ -336,7 +336,7 @@ public class LocalJobManager extends AbstractIdleService {
                 Class<? extends DataPublisher> dataPublisherClass = (Class<? extends DataPublisher>)
                         Class.forName(jobState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE));
                 Constructor<? extends DataPublisher> dataPublisherConstructor =
-                        dataPublisherClass.getConstructor(JobState.class);
+                        dataPublisherClass.getConstructor(com.linkedin.uif.configuration.State.class);
                 DataPublisher publisher = dataPublisherConstructor.newInstance(jobState);
 
                 publisher.initialize();
