@@ -278,7 +278,8 @@ public class LocalJobManager extends AbstractIdleService {
         LOG.info("Loading job configurations from directory " + jobConfigFileDir);
         // Load all job configurations
         for (String jobConfigFile : jobConfigFiles) {
-            Properties properties = new Properties(this.properties);
+            Properties properties = new Properties();
+            properties.putAll(this.properties);
             try {
                 File file = new File(jobConfigFileDir, jobConfigFile);
                 properties.load(new FileReader(file));
@@ -471,7 +472,9 @@ public class LocalJobManager extends AbstractIdleService {
                     (ConcurrentMap<String, JobLock>) dataMap.get(JOB_LOCK_MAP_KEY);
             // Try acquiring a job lock before proceeding
             if (!acquireJobLock(jobLockMap, jobName)) {
-                LOG.info("Failed to acquire the job lock for job " + jobName);
+                LOG.info(String.format(
+                        "Previous instance of job %s is still running, skipping this scheduled run",
+                        jobName));
                 return;
             }
 
