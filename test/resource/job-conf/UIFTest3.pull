@@ -49,3 +49,5 @@ source.security.token=V1wFyRLtZtZIMb3SmUsN7TWu9
 source.host=https://test.salesforce.com
 source.version=v29.0
 source.timeout=7200000
+
+converter.avro.timestamp.format=yyyy-MM-dd'T'HH:mm:ss
