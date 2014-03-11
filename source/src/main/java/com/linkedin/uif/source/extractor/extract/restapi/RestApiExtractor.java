@@ -96,8 +96,8 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 					Schema obj = gson.fromJson(columnElement, Schema.class);
 					String columnName = obj.getColumnName();
 
-					obj.setWaterMark(this.isWatermarkColumn(workUnit.getProp("source.watermark.column"), columnName));
-					obj.setPrimaryKey(this.getPrimarykeyIndex(workUnit.getProp("source.primarykey.column"), columnName));
+					obj.setWaterMark(this.isWatermarkColumn(workUnit.getProp("extract.delta.fields"), columnName));
+					obj.setPrimaryKey(this.getPrimarykeyIndex(workUnit.getProp("extract.primary.key.fields"), columnName));
 
 					String jsonStr = gson.toJson(obj);
 					JsonObject jsonObject = gson.fromJson(jsonStr, JsonObject.class).getAsJsonObject();
