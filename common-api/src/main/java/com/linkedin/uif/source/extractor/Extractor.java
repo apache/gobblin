@@ -2,8 +2,6 @@ package com.linkedin.uif.source.extractor;
 
 import java.io.IOException;
 
-import com.linkedin.uif.source.extractor.exception.DataRecordException;
-
 public interface Extractor<S, D> {
 	/**
 	 * get schema(Metadata) corresponding to the data records
