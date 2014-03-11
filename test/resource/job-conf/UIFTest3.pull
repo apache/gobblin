@@ -37,7 +37,7 @@ extract.primary.key.fields=ID
 extract.delta.fields=LastModifiedDate
 source.extract.type=snapshot
 source.watermark.type=timestamp
-source.start.value=20110101000000
+source.start.value=20140201000000
 source.partition.interval=24
 source.query=SELECT Id,IsDeleted,MasterRecordId,Name,LastName,FirstName,Salutation,RecordTypeId,ParentId,BillingStreet,BillingCity,BillingState,BillingPostalCode,BillingCountry,BillingLatitude,BillingLongitude,ShippingStreet,LastModifiedDate FROM Account
 
