@@ -15,8 +15,18 @@ dependencies {
   compile spec.external.gson
   compile spec.external.jacksonCore
   compile spec.external.jacksonMapper
-  
+
   testCompile spec.external.testng
+}
+
+
+task testJar(type: Jar, dependsOn: testClasses) {
+    baseName = "test-${project.archivesBaseName}"
+    from sourceSets.test.output
+}
+
+configurations {
+	tests
 }
 
 configurations {
@@ -31,6 +41,7 @@ configurations {
 
 artifacts {
         compileJar jar
+	tests testJar
 }
 
 sourceSets {
