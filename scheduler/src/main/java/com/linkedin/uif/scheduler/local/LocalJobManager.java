@@ -41,6 +41,7 @@ import com.linkedin.uif.metastore.FsStateStore;
 import com.linkedin.uif.metastore.StateStore;
 import com.linkedin.uif.publisher.DataPublisher;
 import com.linkedin.uif.scheduler.JobCommitPolicy;
+import com.linkedin.uif.scheduler.JobException;
 import com.linkedin.uif.scheduler.JobListener;
 import com.linkedin.uif.scheduler.JobLock;
 import com.linkedin.uif.scheduler.JobState;
@@ -55,8 +56,8 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  * A class for managing locally configured UIF jobs.
  *
  * <p>
- *     This class's responsibilities include scheduling locally configured UIF
- *     jobs to run, keeping track of their states, and committing successfully
+ *     This class's responsibilities include scheduling and running locally configured
+ *     UIF jobs to run, keeping track of their states, and committing successfully
  *     completed jobs. This is used only in single-node mode.
  * </p>
  *
@@ -73,14 +74,9 @@ public class LocalJobManager extends AbstractIdleService {
     private static final Log LOG = LogFactory.getLog(LocalJobManager.class);
 
     private static final String JOB_CONFIG_FILE_EXTENSION = ".pull";
-    private static final String PROPERTIES_KEY = "properties";
-    private static final String WORK_UNIT_MANAGER_KEY = "workUnitManager";
-    private static final String JOB_LOCK_MAP_KEY = "jobLockMap";
-    private static final String JOB_STATE_MAP_KEY = "jobStateMap";
-    private static final String JOB_SOURCE_MAP_KEY = "jobSourceMap";
-    private static final String SOURCE_WRAPPER_MAP_KEY = "sourceWrapperMap";
-    private static final String LAST_JOB_ID_MAP_KEY = "lastJobIdMap";
-    private static final String TASK_STATE_STORE_KEY = "taskStateStore";
+    private static final String JOB_MANAGER_KEY = "jobManager";
+    private static final String PROPERTIES_KEY = "jobProps";
+    private static final String JOB_LISTENER_KEY = "jobListener";
 
     private static final String TASK_STATE_STORE_TABLE_SUFFIX = ".tst";
     private static final String JOB_STATE_STORE_TABLE_SUFFIX = ".jst";
@@ -163,29 +159,31 @@ public class LocalJobManager extends AbstractIdleService {
     /**
      * Schedule a job.
      *
+     * <p>
+     *     This method calls the Quartz scheduler to scheduler the job.
+     * </p>
+     *
      * @param jobProps Job configuration properties
      * @param jobListener {@link JobListener} used for callback,
      *                    can be <em>null</em> if no callback is needed.
-     * @throws SchedulerException
+     * @throws com.linkedin.uif.scheduler.JobException when there is anything wrong
+     *                                                 with scheduling the job
      */
-    public void scheduleJob(Properties jobProps, JobListener jobListener)
-            throws SchedulerException {
-
+    public void scheduleJob(Properties jobProps, JobListener jobListener) throws JobException {
         String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
         if (jobListener != null) {
             this.jobListenerMap.put(jobName, jobListener);
         }
 
+        // If this is a run-once job
+        boolean runOnce = Boolean.valueOf(
+                jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
+
         // Build a data map that gets passed to the job
         JobDataMap jobDataMap = new JobDataMap();
+        jobDataMap.put(JOB_MANAGER_KEY, this);
         jobDataMap.put(PROPERTIES_KEY, jobProps);
-        jobDataMap.put(WORK_UNIT_MANAGER_KEY, this.workUnitManager);
-        jobDataMap.put(SOURCE_WRAPPER_MAP_KEY, this.sourceWrapperMap);
-        jobDataMap.put(JOB_LOCK_MAP_KEY, this.jobLockMap);
-        jobDataMap.put(JOB_STATE_MAP_KEY, this.jobStateMap);
-        jobDataMap.put(JOB_SOURCE_MAP_KEY, this.jobSourceMap);
-        jobDataMap.put(LAST_JOB_ID_MAP_KEY, this.lastJobIdMap);
-        jobDataMap.put(TASK_STATE_STORE_KEY, this.taskStateStore);
+        jobDataMap.put(JOB_LISTENER_KEY, jobListener);
 
         // Build a Quartz job
         JobDetail job = JobBuilder.newJob(UIFJob.class)
@@ -196,17 +194,122 @@ public class LocalJobManager extends AbstractIdleService {
                 .usingJobData(jobDataMap)
                 .build();
 
-        // Schedule the Quartz job with a trigger built from the job configuration
-        this.scheduler.scheduleJob(job, getTrigger(job.getKey(), jobProps));
+        try {
+            // Schedule the Quartz job with a trigger built from the job configuration
+            this.scheduler.scheduleJob(job, getTrigger(job.getKey(), jobProps));
+        } catch (SchedulerException se) {
+            LOG.error("Failed to schedule job " + jobName, se);
+            throw new JobException("Failed to schedule job " + jobName, se);
+        }
 
         // If the job should run only once, remember so it can be deleted after its
         // single run is done.
-        boolean runOnce = Boolean.valueOf(jobProps.getProperty(
-                ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
         if (runOnce) {
             this.runOnceJobs.put(jobName, job.getKey());
             this.runOnceJobConfigFiles.put(jobName,
                     jobProps.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY));
+        }
+    }
+
+    /**
+     * Run a job.
+     *
+     * <p>
+     *     This method runs the job immediately without going through the Quartz scheduler.
+     *     This is particularly useful for testing.
+     * </p>
+     *
+     * @param jobProps Job configuration properties
+     * @param jobListener {@link JobListener} used for callback,
+     *                    can be <em>null</em> if no callback is needed.
+     * @throws com.linkedin.uif.scheduler.JobException when there is anything wrong
+     *                                                 with running the job
+     */
+    public void runJob(Properties jobProps, JobListener jobListener) throws JobException {
+        String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+        if (jobListener != null) {
+            this.jobListenerMap.put(jobName, jobListener);
+        }
+
+        // Try acquiring a job lock before proceeding
+        if (!acquireJobLock(jobName)) {
+            LOG.info(String.format(
+                    "Previous instance of job %s is still running, skipping this scheduled run",
+                    jobName));
+            return;
+        }
+
+        // If this is a run-once job
+        boolean runOnce = Boolean.valueOf(
+                jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
+
+        // Job ID in the form of job_<job_id_suffix>
+        // <job_id_suffix> is in the form of <job_name>_<current_timestamp>
+        String jobIdSuffix = String.format("%s_%d", jobName, System.currentTimeMillis());
+        String jobId = "job_" + jobIdSuffix;
+
+        JobState jobState = new JobState(jobName, jobId);
+        // Add all job configuration properties of this job
+        jobState.addAll(jobProps);
+
+        LOG.info("Starting job " + jobId);
+
+        SourceWrapperBase source;
+        SourceState sourceState;
+        try {
+            source = this.sourceWrapperMap.get(jobProps.getProperty(
+                    ConfigurationKeys.SOURCE_WRAPPER_CLASS_KEY,
+                    ConfigurationKeys.DEFAULT_SOURCE_WRAPPER)
+                    .toLowerCase()).newInstance();
+            sourceState = new SourceState(jobState, getPreviousWorkUnitStates(jobName));
+            source.init(sourceState);
+        } catch (Exception e) {
+            LOG.error("Failed to instantiate source for job " + jobId, e);
+            throw new JobException("Failed to run job " + jobId, e);
+        }
+
+        // Generate work units based on all previous work unit states
+        List<WorkUnit> workUnits = source.getWorkunits(sourceState);
+        // If no real work to do
+        if (workUnits == null || workUnits.isEmpty()) {
+            LOG.warn("No work units have been created for job " + jobId);
+
+            source.shutdown(jobState);
+
+            try {
+                if (!runOnce) {
+                    // Unlock so the next run of the same job can proceed
+                    this.jobLockMap.get(jobName).unlock();
+                } else {
+                    // Unlock and remove the lock as it is no longer needed
+                    this.jobLockMap.remove(jobName).unlock();
+                }
+            } catch (IOException ioe) {
+                LOG.error("Failed to unlock for job " + jobName, ioe);
+                throw new JobException("Failed to run job " + jobId, ioe);
+            } finally {
+                callJobListener(jobName, jobState, runOnce);
+            }
+
+            return;
+        }
+
+        jobState.setTasks(workUnits.size());
+        jobState.setStartTime(System.currentTimeMillis());
+        jobState.setState(JobState.RunningState.WORKING);
+
+        this.jobStateMap.put(jobId, jobState);
+        this.jobSourceMap.put(jobId, source);
+
+        // Add all generated work units
+        int sequence = 0;
+        for (WorkUnit workUnit : workUnits) {
+            // Task ID in the form of task_<job_id_suffix>_<task_sequence_number>
+            String taskId = String.format("task_%s_%d", jobIdSuffix, sequence++);
+            WorkUnitState workUnitState = new WorkUnitState(workUnit);
+            workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
+            workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
+            this.workUnitManager.addWorkUnit(workUnitState);
         }
     }
 
@@ -241,7 +344,7 @@ public class LocalJobManager extends AbstractIdleService {
     /**
      * Schedule locally configured UIF jobs.
      */
-    private void scheduleLocallyConfiguredJobs() throws SchedulerException {
+    private void scheduleLocallyConfiguredJobs() throws JobException {
         LOG.info("Scheduling locally configured jobs");
         for (Properties jobProps : loadLocalJobConfigs()) {
             boolean runOnce = Boolean.valueOf(jobProps.getProperty(
@@ -319,6 +422,20 @@ public class LocalJobManager extends AbstractIdleService {
     }
 
     /**
+     * Try acquring the job lock and return whether the lock is successfully locked.
+     */
+    private boolean acquireJobLock(String jobName) {
+        try {
+            this.jobLockMap.putIfAbsent(jobName, new LocalJobLock());
+            JobLock lock = this.jobLockMap.get(jobName);
+            return lock.tryLock();
+        } catch (IOException ioe) {
+            LOG.error("Failed to acquire the job lock for job " + jobName, ioe);
+            return false;
+        }
+    }
+
+    /**
      * Commit a finished job.
      */
     @SuppressWarnings("unchecked")
@@ -351,17 +468,10 @@ public class LocalJobManager extends AbstractIdleService {
         } finally {
             boolean runOnce = this.runOnceJobs.containsKey(jobName);
             persistJobState(jobState);
-            cleanupJob(jobState, runOnce);
-
-            JobListener jobListener = runOnce ?
-                    this.jobListenerMap.remove(jobName) : this.jobListenerMap.get(jobName);
-            // Callback on job completion
-            if (jobListener != null) {
-                jobListener.jobCompleted(jobState);
-            }
+            cleanupJobOnCompletion(jobState, runOnce);
+            callJobListener(jobName, jobState, runOnce);
         }
     }
-
 
     /**
      * Build a {@link JobState} object capturing the state of the given job.
@@ -407,17 +517,20 @@ public class LocalJobManager extends AbstractIdleService {
     }
 
     /**
-     * Cleanup a completed job.
+     * Cleanup a job upon its completion (successful or failed).
      */
-    private void cleanupJob(JobState jobState, boolean runOnce) {
+    private void cleanupJobOnCompletion(JobState jobState, boolean runOnce) {
         String jobName = jobState.getJobName();
         String jobId = jobState.getJobId();
 
-        // Remove all state bookkeeping information of this scheduled job run
-        this.jobSourceMap.remove(jobId).shutdown(jobState);
+        LOG.info("Performing cleanup for job " + jobId);
+
+        if (this.jobSourceMap.containsKey(jobId)) {
+            // Remove all state bookkeeping information of this scheduled job run
+            this.jobSourceMap.remove(jobId).shutdown(jobState);
+        }
         this.jobStateMap.remove(jobId);
 
-        LOG.info("Performing cleanup for job " + jobId);
         try {
             if (!runOnce) {
                 // Remember the job ID of this most recent run of the job
@@ -425,13 +538,43 @@ public class LocalJobManager extends AbstractIdleService {
                 // Unlock so the next run of the same job can proceed
                 this.jobLockMap.get(jobName).unlock();
             } else {
-                // Delete the job from the Quartz scheduler and unlock and remove the job lock
-                this.scheduler.deleteJob(this.runOnceJobs.remove(jobName));
+                if (this.runOnceJobs.containsKey(jobName)) {
+                    // Delete the job from the Quartz scheduler
+                    this.scheduler.deleteJob(this.runOnceJobs.remove(jobName));
+                }
                 // Unlock and remove the lock as it is no longer needed
                 this.jobLockMap.remove(jobName).unlock();
             }
         } catch (Exception e) {
             LOG.error("Failed to cleanup job " + jobId, e);
+        }
+    }
+
+    /**
+     * Get work unit states of the most recent run of the job.
+     */
+    @SuppressWarnings("unchecked")
+    private List<WorkUnitState> getPreviousWorkUnitStates(String jobName) throws IOException {
+
+        // This is the first run of the job
+        if (!this.lastJobIdMap.containsKey(jobName)) {
+            return Lists.newArrayList();
+        }
+
+        LOG.info("Loading task states of the most recent run of job " + jobName);
+        // Read the task states of the most recent run of the job
+        return (List<WorkUnitState>) this.taskStateStore.getAll(
+                jobName, this.lastJobIdMap.get(jobName) + TASK_STATE_STORE_TABLE_SUFFIX);
+    }
+
+    /**
+     * Call {@link JobListener} associated with the job.
+     */
+    private void callJobListener(String jobName, JobState jobState, boolean runOnce) {
+        JobListener jobListener = runOnce ?
+                this.jobListenerMap.remove(jobName) : this.jobListenerMap.get(jobName);
+        if (jobListener != null) {
+            jobListener.jobCompleted(jobState);
         }
     }
 
@@ -462,152 +605,17 @@ public class LocalJobManager extends AbstractIdleService {
     public static class UIFJob implements Job {
 
         @Override
-        @SuppressWarnings("unchecked")
         public void execute(JobExecutionContext context) throws JobExecutionException {
             JobDataMap dataMap = context.getJobDetail().getJobDataMap();
+            LocalJobManager jobManager = (LocalJobManager) dataMap.get(JOB_MANAGER_KEY);
             Properties jobProps = (Properties) dataMap.get(PROPERTIES_KEY);
-            String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+            JobListener jobListener = (JobListener) dataMap.get(JOB_LISTENER_KEY);
 
-            ConcurrentMap<String, JobLock> jobLockMap =
-                    (ConcurrentMap<String, JobLock>) dataMap.get(JOB_LOCK_MAP_KEY);
-            // Try acquiring a job lock before proceeding
-            if (!acquireJobLock(jobLockMap, jobName)) {
-                LOG.info(String.format(
-                        "Previous instance of job %s is still running, skipping this scheduled run",
-                        jobName));
-                return;
-            }
-
-            WorkUnitManager workUnitManager = (WorkUnitManager) dataMap.get(
-                    WORK_UNIT_MANAGER_KEY);
-            Map<String, Class<SourceWrapperBase>> sourceWrapperMap =
-                    (Map<String, Class<SourceWrapperBase>>) dataMap.get(SOURCE_WRAPPER_MAP_KEY);
-            Map<String, JobState> jobStateMap = (Map<String, JobState>) dataMap.get(
-                    JOB_STATE_MAP_KEY);
-            Map<String, Source> jobSourceMap = (Map<String, Source>) dataMap.get(
-                    JOB_SOURCE_MAP_KEY);
-            Map<String, String> lastJobIdMap = (Map<String, String>) dataMap.get(
-                    LAST_JOB_ID_MAP_KEY);
-            StateStore taskStateStore = (StateStore) dataMap.get(TASK_STATE_STORE_KEY);
-
-            /*
-             * Construct job ID, which is in the form of job_<job_id_suffix>
-             * <job_id_suffix> is in the form of <job_name>_<current_timestamp>
-             */
-            String jobIdSuffix = String.format("%s_%d", jobName, System.currentTimeMillis());
-            String jobId = "job_" + jobIdSuffix;
-
-            // If this is a run-once job
-            boolean runOnce = Boolean.valueOf(jobProps.getProperty(
-                    ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
-
-            LOG.info("Starting job " + jobId);
             try {
-                JobState jobState = new JobState(jobName, jobId);
-                // Add all job configuration properties of this job
-                jobState.addAll(jobProps);
-
-                SourceWrapperBase source = sourceWrapperMap.get(
-                        jobProps.getProperty(ConfigurationKeys.SOURCE_WRAPPER_CLASS_KEY,
-                                ConfigurationKeys.DEFAULT_SOURCE_WRAPPER)
-                                .toLowerCase())
-                        .newInstance();
-                SourceState sourceState = new SourceState(jobState, getPreviousWorkUnitStates(
-                        jobName, lastJobIdMap, taskStateStore));
-                source.init(sourceState);
-
-                // Generate work units based on all previous work unit states
-                List<WorkUnit> workUnits = source.getWorkunits(sourceState);
-                // If no real work to do
-                if (workUnits == null || workUnits.isEmpty()) {
-                    LOG.warn("No work units have been created for job " + jobId);
-                    source.shutdown(jobState);
-                    if (!runOnce) {
-                        // Unlock so the next run of the same job can proceed
-                        jobLockMap.get(jobName).unlock();
-                    } else {
-                        // Unlock and remove the lock as it is no longer needed
-                        jobLockMap.remove(jobName).unlock();
-                    }
-
-                    return;
-                }
-
-                jobState.setTasks(workUnits.size());
-                jobState.setStartTime(System.currentTimeMillis());
-                jobState.setState(JobState.RunningState.WORKING);
-
-                jobStateMap.put(jobId, jobState);
-                jobSourceMap.put(jobId, source);
-
-                // Add all generated work units
-                int sequence = 0;
-                for (WorkUnit workUnit : workUnits) {
-                    /*
-                     * Construct task ID, which is in the form of
-                     * task_<job_id_suffix>_<task_sequence_number>
-                     */
-                    String taskId = String.format("task_%s_%d", jobIdSuffix, sequence++);
-                    WorkUnitState workUnitState = new WorkUnitState(workUnit);
-                    workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
-                    workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
-                    workUnitManager.addWorkUnit(workUnitState);
-                }
-            } catch (Exception e) {
-                LOG.error("Failed to run job " + jobId, e);
-
-                if (jobSourceMap.containsKey(jobId)) {
-                    // Remove all state bookkeeping information of this scheduled job run
-                    jobSourceMap.remove(jobId).shutdown(jobStateMap.remove(jobId));
-                }
-
-                try {
-                    if (!runOnce) {
-                        // Unlock so the next run of the same job can proceed
-                        jobLockMap.get(jobName).unlock();
-                    } else {
-                        // Unlock and remove the lock as it is no longer needed
-                        jobLockMap.remove(jobName).unlock();
-                    }
-                } catch (IOException ioe) {
-                    // Ignored
-                }
-
-                throw new JobExecutionException(e);
+                jobManager.runJob(jobProps, jobListener);
+            } catch (JobException je) {
+                throw new JobExecutionException(je);
             }
-        }
-        
-        /**
-         * Try acquring the job lock and return whether the lock is successfully locked.
-         */
-        private boolean acquireJobLock(ConcurrentMap<String, JobLock> jobLock, String jobName) {
-            try {
-                jobLock.putIfAbsent(jobName, new LocalJobLock());
-                JobLock lock = jobLock.get(jobName);
-                return lock.tryLock();
-            } catch (IOException ioe) {
-                LOG.error("Failed to acquire the job lock for job " + jobName, ioe);
-                return false;
-            }
-        }
-
-        /**
-         * Get work unit states of the most recent run of this job.
-         */
-        @SuppressWarnings("unchecked")
-        private List<WorkUnitState> getPreviousWorkUnitStates(String jobName,
-                Map<String, String> lastJobIdMap, StateStore taskStateStore)
-                throws IOException {
-
-            // This is the first run of the job
-            if (!lastJobIdMap.containsKey(jobName)) {
-                return Lists.newArrayList();
-            }
-
-            LOG.info("Loading task states of the most recent run of job " + jobName);
-            // Read the task states of the most recent run of the job
-            return (List<WorkUnitState>) taskStateStore.getAll(
-                    jobName, lastJobIdMap.get(jobName) + TASK_STATE_STORE_TABLE_SUFFIX);
         }
     }
 }
