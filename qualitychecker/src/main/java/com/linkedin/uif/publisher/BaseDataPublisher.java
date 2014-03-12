@@ -18,7 +18,6 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.workunit.Extract;
-import com.linkedin.uif.writer.WriterOutputFormat;
 
 public class BaseDataPublisher extends DataPublisher
 {
@@ -117,8 +116,7 @@ public class BaseDataPublisher extends DataPublisher
         Path stagingDataDir = new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
                                        getState().getProp(ConfigurationKeys.JOB_NAME_KEY) +
                                        "/" + getState().getProp(ConfigurationKeys.WRITER_FILE_NAME)
-                                       + "." + state.getId() + "." + WriterOutputFormat.valueOf(
-                                       state.getProp(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY)).getExtension());
+                                       + "." + state.getId() + "." + state.getProp(ConfigurationKeys.WRITER_FILE_EXTENSION));
         
         Path outputDataDir = new Path(state.getProp(ConfigurationKeys.DATA_PUBLISHER_TMP_DIR),
                                       getState().getProp(ConfigurationKeys.JOB_NAME_KEY) +
