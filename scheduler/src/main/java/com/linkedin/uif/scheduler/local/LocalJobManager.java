@@ -306,7 +306,9 @@ public class LocalJobManager extends AbstractIdleService {
         for (WorkUnit workUnit : workUnits) {
             // Task ID in the form of task_<job_id_suffix>_<task_sequence_number>
             String taskId = String.format("task_%s_%d", jobIdSuffix, sequence++);
+            workUnit.setId(taskId);
             WorkUnitState workUnitState = new WorkUnitState(workUnit);
+            workUnitState.setId(taskId);
             workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
             workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
             this.workUnitManager.addWorkUnit(workUnitState);
