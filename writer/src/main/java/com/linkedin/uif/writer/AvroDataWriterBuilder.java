@@ -54,7 +54,7 @@ public class AvroDataWriterBuilder<SI, DI> extends
                 // Add the writer ID to the file name so each writer writes to a different
                 // file of the same file group defined by the given file name
                 String fileName = properties.getProperty(ConfigurationKeys.WRITER_FILE_NAME) +
-                        "." + this.writerId + "." + this.format.getExtension();
+                        "." + this.writerId + "." + this.format.getExtension();                
                 int bufferSize = Integer.parseInt(properties.getProperty(
                         ConfigurationKeys.WRITER_BUFFER_SIZE,
                         ConfigurationKeys.DEFAULT_BUFFER_SIZE));

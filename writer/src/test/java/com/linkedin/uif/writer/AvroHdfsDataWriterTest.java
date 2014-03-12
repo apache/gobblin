@@ -53,6 +53,8 @@ public class AvroHdfsDataWriterTest {
                 TestConstants.TEST_OUTPUT_DIR);
         properties.setProperty(ConfigurationKeys.WRITER_FILE_NAME,
                 TestConstants.TEST_FILE_NAME);
+        properties.setProperty(ConfigurationKeys.WRITER_FILE_EXTENSION,
+                               TestConstants.TEST_FILE_EXTENSION);
 
         SchemaConverter<String, Schema> schemaConverter = new TestSchemaConverter();
         this.schema = schemaConverter.convert(TestConstants.AVRO_SCHEMA);
@@ -85,7 +87,7 @@ public class AvroHdfsDataWriterTest {
 
         File outputFile = new File(
                 TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + TestConstants.TEST_JOB_NAME,
-                TestConstants.TEST_FILE_NAME + "." + TestConstants.TEST_WRITER_ID);
+                TestConstants.TEST_FILE_NAME + "." + TestConstants.TEST_WRITER_ID + "." + TestConstants.TEST_FILE_EXTENSION);
         DataFileReader<GenericRecord> reader = new DataFileReader<GenericRecord>(
                 outputFile, new GenericDatumReader<GenericRecord>(this.schema));
 
