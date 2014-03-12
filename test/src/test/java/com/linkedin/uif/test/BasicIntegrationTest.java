@@ -86,6 +86,7 @@ public class BasicIntegrationTest {
     public void runTest2() throws Exception {
         Properties jobProps = new Properties();
         jobProps.load(new FileReader("test/resource/job-conf/UIFTest2.pull"));
+        jobProps.putAll(this.properties);
         jobProps.setProperty(SOURCE_FILE_LIST_KEY,
                 "test/resource/source/test.avro.2,test/resource/source/test.avro.3");
         jobProps.setProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "true");
