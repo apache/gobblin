@@ -78,7 +78,7 @@ public class BasicIntegrationTest {
         jobProps.setProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "true");
 
         CountDownLatch latch = new CountDownLatch(1);
-        this.jobManager.scheduleJob(jobProps, new TestJobListener(latch));
+        this.jobManager.runJob(jobProps, new TestJobListener(latch));
         latch.await();
     }
 
@@ -92,7 +92,7 @@ public class BasicIntegrationTest {
         jobProps.setProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "true");
 
         CountDownLatch latch = new CountDownLatch(1);
-        this.jobManager.scheduleJob(jobProps, new TestJobListener(latch));
+        this.jobManager.runJob(jobProps, new TestJobListener(latch));
         latch.await();
     }
 

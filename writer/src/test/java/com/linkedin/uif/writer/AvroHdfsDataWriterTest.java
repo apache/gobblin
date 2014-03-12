@@ -9,6 +9,7 @@ import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.fs.FileUtil;
+import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -66,6 +67,7 @@ public class AvroHdfsDataWriterTest {
                         schemaConverter.convert(TestConstants.AVRO_SCHEMA)))
                 .useSchemaConverter(new TestSchemaConverter())
                 .withSourceSchema(TestConstants.AVRO_SCHEMA)
+                .withJobName(TestConstants.TEST_JOB_NAME)
                 .build();
     }
 
@@ -81,7 +83,8 @@ public class AvroHdfsDataWriterTest {
         this.writer.close();
         this.writer.commit();
 
-        File outputFile = new File(TestConstants.TEST_OUTPUT_DIR,
+        File outputFile = new File(
+                TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + TestConstants.TEST_JOB_NAME,
                 TestConstants.TEST_FILE_NAME + "." + TestConstants.TEST_WRITER_ID);
         DataFileReader<GenericRecord> reader = new DataFileReader<GenericRecord>(
                 outputFile, new GenericDatumReader<GenericRecord>(this.schema));
