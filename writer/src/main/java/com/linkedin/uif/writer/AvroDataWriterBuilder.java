@@ -9,6 +9,7 @@ import com.google.common.base.Strings;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.hadoop.fs.Path;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.converter.SchemaConversionException;
@@ -47,9 +48,9 @@ public class AvroDataWriterBuilder<SI, DI> extends
                 Properties properties = this.destination.getProperties();
                 String uri = properties.getProperty(ConfigurationKeys.WRITER_FILE_SYSTEM_URI);
                 String stagingDir = properties.getProperty(ConfigurationKeys.WRITER_STAGING_DIR,
-                        ConfigurationKeys.DEFAULT_STAGING_DIR) + "/" + this.jobName;
+                        ConfigurationKeys.DEFAULT_STAGING_DIR) + Path.SEPARATOR + this.jobName;
                 String outputDir = properties.getProperty(ConfigurationKeys.WRITER_OUTPUT_DIR,
-                        ConfigurationKeys.DEFAULT_OUTPUT_DIR) + "/" + this.jobName;
+                        ConfigurationKeys.DEFAULT_OUTPUT_DIR) + Path.SEPARATOR + this.jobName;
                 // Add the writer ID to the file name so each writer writes to a different
                 // file of the same file group defined by the given file name
                 String fileName = properties.getProperty(ConfigurationKeys.WRITER_FILE_NAME) +

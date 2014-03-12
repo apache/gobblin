@@ -101,11 +101,9 @@ public abstract class DataWriterBuilder<SI, SO, DI, DO> {
     }
 
     /**
-     * Tell the writer the data schema.
+     * Tell the writer the job name.
      *
-     * @param sourceSchema source data schema
-     * @param schemaType type of schema expected and used by the target
-     *                   consumer, e.g., Lumos
+     * @param jobName the name of the job the writer belongs to
      * @return this {@link DataWriterBuilder} instance
      */
     public DataWriterBuilder<SI, SO, DI, DO> withJobName(
