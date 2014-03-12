@@ -35,4 +35,6 @@ public class TestConstants {
     public static final String TEST_FILE_NAME = "test.avro";
 
     public static final String TEST_WRITER_ID = "writer-1";
+
+    public static final String TEST_JOB_NAME = "test";
 }
