@@ -18,6 +18,7 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.workunit.Extract;
+import com.linkedin.uif.writer.WriterOutputFormat;
 
 public class BaseDataPublisher extends DataPublisher
 {
@@ -48,7 +49,8 @@ public class BaseDataPublisher extends DataPublisher
             Extract extract = entry.getKey();
             WorkUnitState workUnitState = entry.getValue().get(0);
 
-            Path tmpOutput = new Path(workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_TMP_DIR), getState().getProp(ConfigurationKeys.JOB_NAME_KEY) + "/" +
+            Path tmpOutput = new Path(workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_TMP_DIR),
+                                      getState().getProp(ConfigurationKeys.JOB_NAME_KEY) + "/" +
                                       workUnitState.getExtract().getExtractId());
             
             Path finalOutput = new Path(workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
@@ -112,8 +114,15 @@ public class BaseDataPublisher extends DataPublisher
     }
 
     public boolean collectSingleTaskData(WorkUnitState state) throws IOException {               
-        Path stagingDataDir = new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR), getState().getProp(ConfigurationKeys.JOB_NAME_KEY) + "/" + getState().getProp(ConfigurationKeys.WRITER_FILE_NAME) + "." + state.getId());
-        Path outputDataDir = new Path(state.getProp(ConfigurationKeys.DATA_PUBLISHER_TMP_DIR), getState().getProp(ConfigurationKeys.JOB_NAME_KEY) + "/" + state.getExtract().getExtractId());
+        Path stagingDataDir = new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
+                                       getState().getProp(ConfigurationKeys.JOB_NAME_KEY) +
+                                       "/" + getState().getProp(ConfigurationKeys.WRITER_FILE_NAME)
+                                       + "." + state.getId() + "." + WriterOutputFormat.valueOf(
+                                       state.getProp(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY)).getExtension());
+        
+        Path outputDataDir = new Path(state.getProp(ConfigurationKeys.DATA_PUBLISHER_TMP_DIR),
+                                      getState().getProp(ConfigurationKeys.JOB_NAME_KEY) +
+                                      "/" + state.getExtract().getExtractId());
 
         if (!this.fs.exists(outputDataDir)) {
             fs.mkdirs(outputDataDir);
