@@ -111,31 +111,34 @@ public class BasicIntegrationTest {
 
         @Override
         public void jobCompleted(JobState jobState) {
-            Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
-            Assert.assertEquals(jobState.getCompletedTasks(), 2);
+            try {
+                Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
+                Assert.assertEquals(jobState.getCompletedTasks(), 2);
 
-            for (TaskState taskState : jobState.getTaskStates()) {
-                File sourceFile = new File(taskState.getProp(SOURCE_FILE_KEY));
+                for (TaskState taskState : jobState.getTaskStates()) {
+                    File sourceFile = new File(taskState.getProp(SOURCE_FILE_KEY));
 
-                Extract e = taskState.getExtract();
-                File targetFile = new File(jobState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR)
-                                           + "/" + e.getNamespace().replaceAll("\\.", "/") + "/" + 
-                                           e.getTable() + "/" + e.getExtractId() + "_" + 
-                                           (e.getIsFull() ? "FULL" : "APPEND"),
-                                           jobState.getProp(ConfigurationKeys.WRITER_FILE_NAME)
-                                           + "." + taskState.getId());
-                
-                Assert.assertEquals(taskState.getWorkingState(),
-                        WorkUnitState.WorkingState.COMMITTED);
-                try {
-                    Assert.assertEquals(sourceFile.length(), targetFile.length());
-                    Assert.assertFalse(Files.equal(sourceFile, targetFile));
-                } catch (IOException ioe) {
-                    Assert.fail();
+                    Extract e = taskState.getExtract();
+                    File targetFile = new File(jobState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR)
+                                               + "/" + e.getNamespace().replaceAll("\\.", "/") + "/" +
+                                               e.getTable() + "/" + e.getExtractId() + "_" +
+                                               (e.getIsFull() ? "FULL" : "APPEND"),
+                                               jobState.getProp(ConfigurationKeys.WRITER_FILE_NAME)
+                                               + "." + taskState.getId());
+
+                    Assert.assertEquals(taskState.getWorkingState(),
+                            WorkUnitState.WorkingState.COMMITTED);
+                    try {
+                        Assert.assertEquals(sourceFile.length(), targetFile.length());
+                        Assert.assertFalse(Files.equal(sourceFile, targetFile));
+                    } catch (IOException ioe) {
+                        Assert.fail();
+                    }
                 }
+            } finally {
+                // Make sure this is always called so the test can end
+                latch.countDown();
             }
-
-            latch.countDown();
         }
     }
 }
