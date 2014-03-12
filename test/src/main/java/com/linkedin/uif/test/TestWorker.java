@@ -30,6 +30,8 @@ import com.linkedin.uif.scheduler.local.LocalTaskStateTracker;
 
 /**
  * A command-line utility for running tests of individual jobs.
+ *
+ * @author ynli
  */
 public class TestWorker {
 
