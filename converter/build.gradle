@@ -5,8 +5,6 @@ dependencies {
   compile project(":common-api")
   compile files('./src/main/resources/lumos-common-2.0.0.jar')
   compile spec.external.commonsDbcp
-  compile spec.external.log4j
-  compile spec.external.mysqlConnectorJava
   compile spec.external.avro
   compile spec.external.guava
   compile spec.external.gson

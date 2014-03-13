@@ -3,9 +3,6 @@ apply plugin: 'li-java'
 dependencies {
 
   compile project(":common-api")
-  compile spec.external.commonsDbcp
-  compile spec.external.log4j
-  compile spec.external.mysqlConnectorJava
   
   testCompile spec.external.testng
 }
