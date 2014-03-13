@@ -11,6 +11,7 @@ import java.util.Map;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -57,9 +58,7 @@ public class BaseDataPublisher extends DataPublisher
                                       (extract.getIsFull() ? "FULL" : "APPEND"));
             
             Path finalOutput = new Path(workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
-                                      extract.getNamespace().replaceAll("\\.", "/") + "/" + 
-                                      extract.getTable() + "/" + extract.getExtractId() + "_" + 
-                                      (extract.getIsFull() ? "FULL" : "APPEND"));
+                                      extract.getOutputFilePath());
 
             LOG.info(String.format("Attemping to move %s to %s", tmpOutput, finalOutput));
 
@@ -67,7 +66,11 @@ public class BaseDataPublisher extends DataPublisher
                 if (this.getState().getPropAsBoolean((ConfigurationKeys.DATA_PUBLISHER_REPLACE_FINAL_DIR))) {
                     this.fs.delete(finalOutput, true);
                 } else {
-                    throw new IOException("Failed to publish data, final output path already exists");
+                    // Add the files to the existing output folder
+                    for (FileStatus status : this.fs.listStatus(tmpOutput)) {
+                        this.fs.rename(status.getPath(), new Path(finalOutput, status.getPath().getName()));
+                    }
+                    continue;
                 }
             }
             

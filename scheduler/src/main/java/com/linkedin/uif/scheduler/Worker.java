@@ -56,7 +56,7 @@ public class Worker {
 
             @Override
             public void stopped() {
-                LOG.info("Wroker has been stopped");
+                LOG.info("Worker has been stopped");
             }
 
             @Override

@@ -3,11 +3,10 @@ job.group=Test
 job.description=Test UIF job 1
 job.schedule=0 0/1 * * * ?
 
-source.class=com.linkedin.uif.test.TestSource1
+source.class=com.linkedin.uif.test.TestSource
 converter.classes=com.linkedin.uif.test.TestConverter
 
-workunit.namespace=test
-workunit.table=test
+extract.namespace=com.linkedin.uif.test1
 
 writer.destination.type=HDFS
 writer.output.format=AVRO

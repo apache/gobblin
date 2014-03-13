@@ -50,7 +50,6 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  * @param <S> type of schema
  */
 public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
-	private static final Log LOG = LogFactory.getLog(SalesforceExtractor.class);
 	private static final String DEFAULT_SERVICES_DATA_PATH = "/services/data";
 	private static final String SOQL_RESOURCE = "/query";
 	private static final String DEFAULT_AUTH_TOKEN_PATH = "/services/oauth2/token";
@@ -62,6 +61,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	private boolean pullStatus = true;
 	private String nextUrl;
 	private String servicesDataEnvPath;
+	protected Log log = LogFactory.getLog(SalesforceExtractor.class+this.getWorkUnitName());
 	
 	public SalesforceExtractor(WorkUnitState state) {
 		super(state);
@@ -91,7 +91,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	
 	@Override
 	public HttpEntity getAuthentication() throws RestApiConnectionException {
-		LOG.debug("Authenticating salesforce");
+		this.log.debug("Authenticating salesforce");
 		String clientId = this.workUnit.getProp(ConfigurationKeys.SOURCE_CLIENT_ID);
 		String clientSecret = this.workUnit.getProp(ConfigurationKeys.SOURCE_CLIENT_SECRET);
 		String userName = this.workUnit.getProp(ConfigurationKeys.SOURCE_USERNAME);
@@ -122,13 +122,13 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 
 	@Override
 	public String getSchemaMetadata(String schema, String entity) throws SchemaException {
-		LOG.debug("Build url to retrieve schema");
+		this.log.debug("Build url to retrieve schema");
 		return  this.getFullUri("/sobjects/" + entity.trim() + "/describe");
 	}
 
 	@Override
 	public JsonArray getSchema(String response) throws SchemaException {
-		LOG.info("Get schema from salesforce:");
+		this.log.info("Get schema from salesforce:");
 		JsonArray fieldJsonArray = new JsonArray();
 		JsonElement element = gson.fromJson(response, JsonObject.class);
 		JsonObject jsonObject = element.getAsJsonObject();
@@ -169,7 +169,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	@Override
 	public String getHighWatermarkMetadata(String schema, String entity, String watermarkColumn, List<Predicate> predicateList)
 			throws HighWatermarkException {
-		LOG.debug("Build url to retrieve high watermark");
+		this.log.debug("Build url to retrieve high watermark");
 		String query = "SELECT " + watermarkColumn + " FROM " + entity;
 		String defaultPredicate = " " + watermarkColumn + " != null";
 		String defaultSortOrder = " ORDER BY " + watermarkColumn + " desc LIMIT 1";
@@ -181,7 +181,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 		}
 		query = this.addPredicate(query, defaultPredicate);
 		query = query + defaultSortOrder;
-		LOG.info("QUERY:" + query);
+		this.log.info("QUERY:" + query);
 
 		try {
 			return this.getFullUri(this.getSoqlUrl(query));
@@ -193,7 +193,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 
 	@Override
 	public long getHighWatermark(String response, String watermarkColumn, String format) throws HighWatermarkException {
-		LOG.info("Get high watermark from salesforce");
+		this.log.info("Get high watermark from salesforce");
 		JsonElement element = gson.fromJson(response, JsonObject.class);
 		long high_ts;
 		try {
@@ -227,7 +227,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 
 	@Override
 	public String getCountMetadata(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws RecordCountException {
-		LOG.debug("Build url to retrieve source record count");
+		this.log.debug("Build url to retrieve source record count");
 		String existingPredicate = "";
 		if (this.updatedQuery != null) {
 			String queryLowerCase = this.updatedQuery.toLowerCase();
@@ -240,7 +240,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 		String query = "SELECT COUNT() FROM " + entity + existingPredicate;
 		try {
 			if (isNullPredicate(predicateList)) {
-				LOG.info("QUERY:" + query);
+				this.log.info("QUERY:" + query);
 				return this.getFullUri(this.getSoqlUrl(query));
 			} else {
 				Iterator<Predicate> i = predicateList.listIterator();
@@ -249,7 +249,8 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 					query = this.addPredicate(query, predicate.getCondition());
 				}
 
-				LOG.info("QUERY:" + query);
+				query = query+this.getLimitFromInputQuery(this.updatedQuery);
+				this.log.info("QUERY:" + query);
 				return this.getFullUri(this.getSoqlUrl(query));
 			}
 		} catch (Exception e) {
@@ -260,7 +261,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 
 	@Override
 	public long getCount(String response) throws RecordCountException {
-		LOG.info("Get source record count from salesforce");
+		this.log.info("Get source record count from salesforce");
 		JsonElement element = gson.fromJson(response, JsonObject.class);
 		long count;
 		try {
@@ -276,7 +277,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 
 	@Override
 	public String getDataMetadata(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws DataRecordException {
-		LOG.debug("Build url to retrieve data records");
+		this.log.debug("Build url to retrieve data records");
 		String query = this.updatedQuery;
 		String url = null;
 		try {
@@ -284,12 +285,12 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 				url = this.getNextUrl();
 			} else {
 				if (isNullPredicate(predicateList)) {
-					LOG.info("QUERY:" + query);
+					this.log.info("QUERY:" + query);
 					return this.getFullUri(this.getSoqlUrl(query));
 				}
 
-				String LimitString = this.getLimitFromInputQuery(query);
-				query = query.replace(LimitString, "");
+				String limitString = this.getLimitFromInputQuery(query);
+				query = query.replace(limitString, "");
 				
 				Iterator<Predicate> i = predicateList.listIterator();
 				while (i.hasNext()) {
@@ -297,8 +298,8 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 					query = this.addPredicate(query, predicate.getCondition());
 				}
 
-				query = query+LimitString;
-				LOG.info("QUERY:" + query);
+				query = query+limitString;
+				this.log.info("QUERY:" + query);
 				url = this.getFullUri(this.getSoqlUrl(query));
 			}
 
@@ -321,7 +322,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 
 	@Override
 	public RecordSet<D> getData(String response) throws DataRecordException {
-		LOG.debug("Get data records from response");
+		this.log.debug("Get data records from response");
 		RecordSetList<D> rs = new RecordSetList<D>();
 		JsonElement element = gson.fromJson(response, JsonObject.class);
 		JsonArray partRecords;
@@ -424,21 +425,21 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	
 	@Override
 	public String getHourPredicateCondition(String column, long value, String valueFormat, String operator) {
-		LOG.info("Getting hour predicate from salesforce");
+		this.log.info("Getting hour predicate from salesforce");
 		String Formattedvalue = Utils.toDateTimeFormat(Long.toString(value),valueFormat,SALESFORCE_HOUR_FORMAT);
 		return  column + " " + operator + " " +  Formattedvalue;
 	}
 	
 	@Override
 	public String getDatePredicateCondition(String column, long value, String valueFormat, String operator) {
-		LOG.info("Getting date predicate from salesforce");
+		this.log.info("Getting date predicate from salesforce");
 		String Formattedvalue = Utils.toDateTimeFormat(Long.toString(value),valueFormat,SALESFORCE_DATE_FORMAT);
 		return  column + " " + operator + " " +  Formattedvalue;
 	}
 	
 	@Override
 	public String getTimestampPredicateCondition(String column, long value, String valueFormat, String operator) {
-		LOG.info("Getting timestamp predicate from salesforce");
+		this.log.info("Getting timestamp predicate from salesforce");
 		String Formattedvalue = Utils.toDateTimeFormat(Long.toString(value),valueFormat,SALESFORCE_TIMESTAMP_FORMAT);
 		return  column + " " + operator + " " +  Formattedvalue;
 	}

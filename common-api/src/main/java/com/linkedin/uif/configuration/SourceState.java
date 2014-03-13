@@ -17,7 +17,6 @@ import com.linkedin.uif.source.workunit.WorkUnit;
 public class SourceState extends State
 {
   private List<WorkUnitState> previousTaskStates = new ArrayList<WorkUnitState>();
-  private static SimpleDateFormat DTF = new SimpleDateFormat("yyyyMMddHHmmss", Locale.US);
 
   public SourceState()
   {
@@ -25,7 +24,6 @@ public class SourceState extends State
 
   public SourceState(State properties, List<WorkUnitState> previousTaskStates)
   {
-    DTF.setTimeZone(TimeZone.getTimeZone("UTC"));
     addAll(properties);
     this.previousTaskStates.addAll(previousTaskStates);
   }
@@ -50,20 +48,7 @@ public class SourceState extends State
    */
   public Extract createExtract(TableType type, String namespace, String table)
   {
-    return new Extract(this, type, namespace, table, DTF.format(new Date()));
-  }
-
-  /**
-   * builder for Extract that correctly populates Extract from config if needed
-   * @param type
-   * @param namespace
-   * @param table
-   * @param extractId
-   * @return
-   */
-  public Extract createExtract(TableType type, String namespace, String table, String extractId)
-  {
-    return new Extract(this, type, namespace, table, extractId);
+    return new Extract(this, type, namespace, table);
   }
 
   /**
