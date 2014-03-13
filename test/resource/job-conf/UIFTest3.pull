@@ -33,7 +33,7 @@ source.extract.type=snapshot
 source.watermark.type=timestamp
 
 source.start.value=20140201000000
-source.max.number.of.partitions=1
+source.max.number.of.partitions=2
 source.partition.interval=24
 source.low.watermark.backup.secs=0
 

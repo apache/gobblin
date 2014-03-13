@@ -101,9 +101,9 @@ public abstract class DataWriterBuilder<SI, SO, DI, DO> {
     }
 
     /**
-     * Tell the writer the job name.
+     * Tell the writer the file path for the output file.
      *
-     * @param jobName the name of the job the writer belongs to
+     * @param filePath is the path the file will be written to
      * @return this {@link DataWriterBuilder} instance
      */
     public DataWriterBuilder<SI, SO, DI, DO> withFilePath(

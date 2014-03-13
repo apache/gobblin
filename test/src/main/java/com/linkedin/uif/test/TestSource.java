@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
+import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.Source;
@@ -17,7 +18,7 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  *
  * @author ynli
  */
-public class TestSource2 implements Source<String, String> {
+public class TestSource implements Source<String, String> {
 
     private static final String SOURCE_FILE_LIST_KEY = "source.files";
     private static final String SOURCE_FILE_KEY = "source.file";
@@ -28,8 +29,11 @@ public class TestSource2 implements Source<String, String> {
 
     @Override
     public List<WorkUnit> getWorkunits(SourceState state) {
-        Extract extract1 = new Extract(state, TableType.SNAPSHOT_ONLY, "com.linkedin.uif.test2", "TestTable1", String.valueOf(System.currentTimeMillis()));
-        Extract extract2 = new Extract(state, TableType.SNAPSHOT_ONLY, "com.linkedin.uif.test2", "TestTable2", String.valueOf(System.currentTimeMillis()));
+        Extract extract1 = new Extract(state, TableType.SNAPSHOT_ONLY,
+                        state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY), "TestTable1");
+        
+        Extract extract2 = new Extract(state, TableType.SNAPSHOT_ONLY,
+                        state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY), "TestTable2");
         
         String sourceFileList = state.getProp(SOURCE_FILE_LIST_KEY);
         List<WorkUnit> workUnits = Lists.newArrayList();
