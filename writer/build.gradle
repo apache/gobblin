@@ -4,8 +4,6 @@ dependencies {
 
   compile project(":common-api")
   compile spec.external.commonsDbcp
-  compile spec.external.log4j
-  compile spec.external.mysqlConnectorJava
   compile spec.external.avro
   compile spec.external.guava
   compile spec.external.commonsConf
