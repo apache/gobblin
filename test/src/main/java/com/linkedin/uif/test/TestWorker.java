@@ -28,7 +28,6 @@ import com.linkedin.uif.scheduler.Metrics;
 import com.linkedin.uif.scheduler.TaskExecutor;
 import com.linkedin.uif.scheduler.TaskStateTracker;
 import com.linkedin.uif.scheduler.WorkUnitManager;
-import com.linkedin.uif.scheduler.Worker;
 import com.linkedin.uif.scheduler.local.LocalJobManager;
 import com.linkedin.uif.scheduler.local.LocalTaskStateTracker;
 

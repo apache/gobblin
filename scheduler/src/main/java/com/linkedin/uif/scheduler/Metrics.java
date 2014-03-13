@@ -15,6 +15,8 @@ import com.codahale.metrics.Slf4jReporter;
 
 /**
  * A convenient class for using {@link com.codahale.metrics.MetricRegistry}.
+ *
+ * @author ynli
  */
 public class Metrics {
 
