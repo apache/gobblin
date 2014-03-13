@@ -85,6 +85,12 @@ public class Extract extends State {
       return this.getExtractId().hashCode();
   }
   
+  public String getOutputFilePath() {
+      return this.getNamespace().replaceAll("\\.", "/") + "/" + 
+             this.getTable() + "/" + this.getExtractId() + "_" + 
+             (this.getIsFull() ? "FULL" : "APPEND");
+  }
+  
   /**
    * indicates snapshot or append or snapshot data with an append only changelog
    * @return
