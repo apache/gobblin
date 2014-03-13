@@ -33,4 +33,9 @@ class KafkaDataWriter<S> implements DataWriter<S, GenericRecord> {
     public long recordsWritten() {
         return 0;
     }
+
+    @Override
+    public long bytesWritten() {
+        return 0;
+    }
 }

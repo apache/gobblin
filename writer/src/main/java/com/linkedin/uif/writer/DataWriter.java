@@ -48,4 +48,16 @@ public interface DataWriter<S, O> extends Serializable {
      * @return number of records written
      */
     public long recordsWritten();
+
+    /**
+     * Get the number of bytes written.
+     *
+     * <p>
+     *     This method should ONLY be called after {@link DataWriter#commit()}
+     *     is called.
+     * </p>
+     *
+     * @return number of bytes written
+     */
+    public long bytesWritten() throws IOException;
 }
