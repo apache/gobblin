@@ -249,6 +249,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 					query = this.addPredicate(query, predicate.getCondition());
 				}
 
+				query = query+this.getLimitFromInputQuery(this.updatedQuery);
 				this.log.info("QUERY:" + query);
 				return this.getFullUri(this.getSoqlUrl(query));
 			}
@@ -288,8 +289,8 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 					return this.getFullUri(this.getSoqlUrl(query));
 				}
 
-				String LimitString = this.getLimitFromInputQuery(query);
-				query = query.replace(LimitString, "");
+				String limitString = this.getLimitFromInputQuery(query);
+				query = query.replace(limitString, "");
 				
 				Iterator<Predicate> i = predicateList.listIterator();
 				while (i.hasNext()) {
@@ -297,7 +298,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 					query = this.addPredicate(query, predicate.getCondition());
 				}
 
-				query = query+LimitString;
+				query = query+limitString;
 				this.log.info("QUERY:" + query);
 				url = this.getFullUri(this.getSoqlUrl(query));
 			}
