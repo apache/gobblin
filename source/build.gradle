@@ -3,18 +3,17 @@ apply plugin: 'li-java'
 dependencies {
     compile project(":common-api")
     compile spec.external.commonsDbcp
-    compile spec.external.log4j
-    compile spec.external.mysqlConnectorJava
     compile spec.external.avro
     compile spec.external.guava
     compile spec.external.commonsLogging
     compile spec.external.hadoop
     compile spec.external.gson
-    compile spec.external.testng
     compile spec.external.httpclient
     compile spec.external.httpcore
     compile spec.external.commonsLang
     runtime spec.external.gson
+
+    testCompile spec.external.testng
 }
 
 configurations.all {
