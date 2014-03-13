@@ -25,7 +25,6 @@ public class TestLumosAttributesConverter {
   private Schema schema;
   private WorkUnitState state;
   private WorkUnitState state2;
-  private String extractId = "20140302202356";
   private long fullRuntime = 1393905086000l;
   private long validationRecordCount = 1000;
   private long validationCountHWM = 1393705086000l;
@@ -38,7 +37,7 @@ public class TestLumosAttributesConverter {
        
     SourceState source = new SourceState();
     Extract extract = source.createExtract(TableType.SNAPSHOT_ONLY, "test_namespace",
-        "test_table", String.valueOf(extractId));
+        "test_table");
     
     extract.setPrimaryKeys("Id");
     extract.setDeltaFields("LastModifiedDate");  
@@ -61,7 +60,6 @@ public class TestLumosAttributesConverter {
     
     SchemaAttributes att = new SchemaAttributes(newSchema);
     
-    Assert.assertEquals(att.getDropDate(), 1393791836000l);
     Assert.assertEquals(att.getPrimaryKeyFields()[0], "Id");
     Assert.assertEquals(att.getDeltaField(), "LastModifiedDate");
 

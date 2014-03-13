@@ -1,6 +1,10 @@
 package com.linkedin.uif.source.workunit;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
+import java.util.TimeZone;
 
 import com.google.common.base.Joiner;
 import com.linkedin.uif.configuration.ConfigurationKeys;
@@ -29,7 +33,12 @@ public class Extract extends State {
     APPEND_ONLY
   }
   
+  private static SimpleDateFormat DTF = new SimpleDateFormat("yyyyMMddHHmmss", Locale.US);
   private State previousTableState = new State();
+  
+  static {
+    DTF.setTimeZone(TimeZone.getTimeZone("UTC"));
+  }
 
   /**
    * Constructor
@@ -41,9 +50,10 @@ public class Extract extends State {
    * @param extractId
    *            unique id for each extract
    */
-  public Extract(SourceState state, TableType type, String namespace, String table, String extractId) {
+  public Extract(SourceState state, TableType type, String namespace, String table) {
     // values should only be null for deserialization.
-    if (state != null && type != null && namespace != null && table != null && extractId != null){
+    if (state != null && type != null && namespace != null && table != null){
+      String extractId = DTF.format(new Date());
       super.addAll(state);
       super.setProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY, type.toString());
       super.setProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, namespace);
