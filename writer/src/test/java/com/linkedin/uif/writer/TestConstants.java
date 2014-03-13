@@ -39,4 +39,12 @@ public class TestConstants {
     public static final String TEST_JOB_NAME = "test";
     
     public static final String TEST_FILE_EXTENSION = "avro";
+
+    public static final String TEST_EXTRACT_NAMESPACE = "com.linkedin.writer.test";
+    
+    public static final String TEST_EXTRACT_ID =  String.valueOf(System.currentTimeMillis());
+    
+    public static final String TEST_EXTRACT_TABLE = "TestTable";
+    
+    public static final String TEST_EXTRACT_PULL_TYPE = "FULL";    
 }

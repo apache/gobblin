@@ -43,14 +43,18 @@ public class BaseDataPublisher extends DataPublisher
     }
     
     @Override
-    public boolean publishData() throws Exception {
+    public boolean publishData(Collection<? extends WorkUnitState> states) throws Exception {
+        
+        collectExtractMapping(states);
+
         for (Map.Entry<Extract, List<WorkUnitState>> entry : extractToStateMap.entrySet()) {
             Extract extract = entry.getKey();
             WorkUnitState workUnitState = entry.getValue().get(0);
 
-            Path tmpOutput = new Path(workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_TMP_DIR),
-                                      getState().getProp(ConfigurationKeys.JOB_NAME_KEY) + "/" +
-                                      workUnitState.getExtract().getExtractId());
+            Path tmpOutput = new Path(workUnitState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
+                                      extract.getNamespace().replaceAll("\\.", "/") + "/" + 
+                                      extract.getTable() + "/" + extract.getExtractId() + "_" + 
+                                      (extract.getIsFull() ? "FULL" : "APPEND"));
             
             Path finalOutput = new Path(workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
                                       extract.getNamespace().replaceAll("\\.", "/") + "/" + 
@@ -77,15 +81,8 @@ public class BaseDataPublisher extends DataPublisher
         }
         return true;
     }
-
-    @Override
-    public boolean publishMetadata() throws Exception {
-        return true;
-    }
     
-    @Override
-    public boolean collectTaskData(Collection<? extends WorkUnitState> states) throws Exception
-    {
+    private void collectExtractMapping(Collection<? extends WorkUnitState> states) {
         for (WorkUnitState state : states) {
             if (!state.getWorkingState().equals(WorkUnitState.WorkingState.COMMITTED)) {
                 continue;
@@ -98,39 +95,11 @@ public class BaseDataPublisher extends DataPublisher
             } else {
                 extractToStateMap.get(state.getExtract()).add(state);
             }
-
-            if ( !this.collectSingleTaskData(state) ) {
-                return false;
-            }
         }
-        return true;
     }
 
     @Override
-    public boolean collectTaskMetadata(Collection<? extends WorkUnitState> states) throws Exception
-    {
-        return true;
-    }
-
-    public boolean collectSingleTaskData(WorkUnitState state) throws IOException {               
-        Path stagingDataDir = new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
-                                       getState().getProp(ConfigurationKeys.JOB_NAME_KEY) +
-                                       "/" + getState().getProp(ConfigurationKeys.WRITER_FILE_NAME)
-                                       + "." + state.getId() + "." + state.getProp(ConfigurationKeys.WRITER_FILE_EXTENSION));
-        
-        Path outputDataDir = new Path(state.getProp(ConfigurationKeys.DATA_PUBLISHER_TMP_DIR),
-                                      getState().getProp(ConfigurationKeys.JOB_NAME_KEY) +
-                                      "/" + state.getExtract().getExtractId());
-
-        if (!this.fs.exists(outputDataDir)) {
-            fs.mkdirs(outputDataDir);
-        }
-
-        if (!this.fs.rename(stagingDataDir, outputDataDir)) return false;        
-        return true;
-    }
-
-    public boolean collectSingleTaskMetadata(WorkUnitState state) throws IOException {
+    public boolean publishMetadata(Collection<? extends WorkUnitState> states) throws Exception {
         return true;
     }
 }

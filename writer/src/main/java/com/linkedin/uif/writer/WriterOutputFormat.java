@@ -19,6 +19,10 @@ public enum WriterOutputFormat {
         this.extension = extension;
     }
     
+    /**
+     * Returns the file name extension for the enum type
+     * @return a string representation of the file name extension
+     */
     public String getExtension() {
         return this.extension;
     }

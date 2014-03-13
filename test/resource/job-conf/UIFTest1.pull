@@ -3,7 +3,7 @@ job.group=Test
 job.description=Test UIF job 1
 job.schedule=0 0/1 * * * ?
 
-source.class=com.linkedin.uif.test.TestSource
+source.class=com.linkedin.uif.test.TestSource1
 converter.classes=com.linkedin.uif.test.TestConverter
 
 workunit.namespace=test
@@ -19,5 +19,4 @@ qualitychecker.metadatacollector=com.linkedin.uif.configuration.YushanMetaStoreC
 qualitychecker.policies=com.linkedin.uif.policies.count.RowCountPolicy,com.linkedin.uif.policies.schema.SchemaCompatibilityPolicy,com.linkedin.uif.policies.schema.LumosSchemaValidationPolicy
 qualitychecker.policy.types=OPTIONAL,OPTIONAL,OPTIONAL
 
-data.publisher.final.dir=test/jobOutput/
 data.publisher.type=com.linkedin.uif.publisher.BaseDataPublisher

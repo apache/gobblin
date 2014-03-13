@@ -23,7 +23,7 @@ public abstract class DataWriterBuilder<SI, SO, DI, DO> {
     protected DataConverter<DI, DO> dataConverter;
     protected SchemaConverter<SI, SO> schemaConverter;
     protected SI sourceSchema;
-    protected String jobName;
+    protected String filePath;
 
     /**
      * Tell the writer the destination to write to.
@@ -106,9 +106,9 @@ public abstract class DataWriterBuilder<SI, SO, DI, DO> {
      * @param jobName the name of the job the writer belongs to
      * @return this {@link DataWriterBuilder} instance
      */
-    public DataWriterBuilder<SI, SO, DI, DO> withJobName(
-            String jobName) {
-        this.jobName = jobName;
+    public DataWriterBuilder<SI, SO, DI, DO> withFilePath(
+            String filePath) {
+        this.filePath = filePath;
         return this;
     }
     

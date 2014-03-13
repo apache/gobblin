@@ -17,7 +17,7 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  *
  * @author ynli
  */
-public class TestSource implements Source<String, String> {
+public class TestSource2 implements Source<String, String> {
 
     private static final String SOURCE_FILE_LIST_KEY = "source.files";
     private static final String SOURCE_FILE_KEY = "source.file";
@@ -28,8 +28,8 @@ public class TestSource implements Source<String, String> {
 
     @Override
     public List<WorkUnit> getWorkunits(SourceState state) {
-        Extract extract1 = new Extract(state, TableType.SNAPSHOT_ONLY, "com.linkedin.uif.test", "TestTable1", "1");
-        Extract extract2 = new Extract(state, TableType.SNAPSHOT_ONLY, "com.linkedin.uif.test", "TestTable2", "2");
+        Extract extract1 = new Extract(state, TableType.SNAPSHOT_ONLY, "com.linkedin.uif.test2", "TestTable1", String.valueOf(System.currentTimeMillis()));
+        Extract extract2 = new Extract(state, TableType.SNAPSHOT_ONLY, "com.linkedin.uif.test2", "TestTable2", String.valueOf(System.currentTimeMillis()));
         
         String sourceFileList = state.getProp(SOURCE_FILE_LIST_KEY);
         List<WorkUnit> workUnits = Lists.newArrayList();
