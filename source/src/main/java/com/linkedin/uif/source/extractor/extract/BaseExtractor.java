@@ -37,12 +37,12 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  * @param <S> type of schema
  */
 public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSpecificLayer<S, D> {
-	private static final Log LOG = LogFactory.getLog(BaseExtractor.class);
 	// default water mark format. example 20140301000000
 	private static final SimpleDateFormat DEFAULT_WATERMARK_TIMESTAMP_FORMAT = new SimpleDateFormat("yyyyMMddHHmmss");
 	private static final Gson gson = new Gson();
 	protected WorkUnitState workUnitState;
 	protected WorkUnit workUnit;
+	protected String workUnitName;
 	private String entity;
 	private String schema;
 	private boolean fetchStatus = true;
@@ -53,6 +53,7 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 	private Iterator<D> iterator;
 	protected List<String> columnList = new ArrayList<String>();
 	private List<Predicate> predicateList = new ArrayList<Predicate>();
+	protected Log log = LogFactory.getLog(BaseExtractor.class);
 
 	private S getOutputSchema() {
 		return this.outputSchema;
@@ -85,21 +86,40 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 	private boolean isInitialPull() {
 		return iterator == null;
 	}
+	
+	private void setWorkUnitName() {
+		StringBuilder sb = new StringBuilder();
+		sb.append("[");
+		sb.append(Strings.nullToEmpty(this.workUnit.getProp(ConfigurationKeys.SOURCE_SCHEMA)));
+		sb.append("_");
+		sb.append(Strings.nullToEmpty(this.workUnit.getProp(ConfigurationKeys.SOURCE_ENTITY)));
+		sb.append("_");
+		String id = this.workUnitState.getId();
+		int seqIndex = id.lastIndexOf("_",id.length());
+		if(seqIndex>0) {
+			sb.append(id.substring(seqIndex+1));
+			sb.append("_");
+			id = id.substring(0, seqIndex);
+			int timeIndex = id.lastIndexOf("_",id.length());
+			if(timeIndex>0) {
+				sb.append(id.substring(timeIndex+1));
+			}
+		}
+		sb.append("]");
+		this.workUnitName = sb.toString();
+	}
+	
+	protected String getWorkUnitName() {
+		return this.workUnitName;
+	}
 
 	public BaseExtractor(WorkUnitState workUnitState) {
 		this.workUnitState = workUnitState;
 		this.workUnit = this.workUnitState.getWorkunit();
 		this.schema = this.workUnit.getProp(ConfigurationKeys.SOURCE_SCHEMA);
 		this.entity = this.workUnit.getProp(ConfigurationKeys.SOURCE_ENTITY);
-		try {
-			long startTs = System.currentTimeMillis();
-			LOG.info("Start - preparing the extract");
-			this.build();
-			long endTs = System.currentTimeMillis();
-			LOG.info("End - extract preperation: Time taken: " + Utils.printTiming(startTs, endTs));
-		} catch (ExtractPrepareException e) {
-			e.printStackTrace();
-		}
+		this.setWorkUnitName();
+		this.log = LogFactory.getLog(BaseExtractor.class+this.getWorkUnitName());
 	}
 
 	/**
@@ -111,14 +131,14 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 	@Override
 	public D readRecord() throws DataRecordException, IOException {
 		if (!this.isPullRequired()) {
-			LOG.debug("No more records");
+			this.log.debug("No more records");
 			return null;
 		}
 
 		D nextElement = null;
 		try {
 			if (isInitialPull()) {
-				LOG.debug("initial pull");
+				this.log.debug("initial pull");
 				iterator = this.getRecordSet(this.schema, this.entity, this.workUnit, this.predicateList);
 			}
 
@@ -127,7 +147,7 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 				
 				if(iterator.hasNext()) {
 				} else {
-					LOG.debug("next pull");
+					this.log.debug("next pull");
 					iterator = this.getRecordSet(this.schema, this.entity, this.workUnit, this.predicateList);
 					if (iterator == null) {
 						this.setFetchStatus(false);
@@ -186,11 +206,11 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 	/**
 	 * build schema, record count and high water mark
 	 */
-	private void build() throws ExtractPrepareException {	
+	public Extractor<S, D> build() throws ExtractPrepareException {	
 		String watermarkColumn = this.workUnit.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
 		long lwm = this.workUnit.getLowWaterMark();
 		long hwm = this.workUnit.getHighWaterMark();
-		LOG.info("Low water mark:"+lwm+"; and High water mark:"+hwm);
+		this.log.info("Low water mark:"+lwm+"; and High water mark:"+hwm);
 		WatermarkType watermarkType;
 		if(Strings.isNullOrEmpty(this.workUnit.getProp(ConfigurationKeys.SOURCE_WATERMARK_TYPE))) {
 			watermarkType = null;
@@ -219,6 +239,7 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 		} catch (Exception e) {
 			throw new ExtractPrepareException("Failed to prepare the extract build; error-" + e.getMessage());
 		}
+		return this;
 	}
 
 	/**
@@ -235,7 +256,7 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 			throws HighWatermarkException, IOException {
 		
 		if(!Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_SKIP_HIGH_WATERMARK_CALC))) {
-			LOG.info("Getting high watermark");
+			this.log.info("Getting high watermark");
 			List<Predicate> list = new ArrayList<Predicate>();
 			WatermarkPredicate watermark = new WatermarkPredicate(watermarkColumn, watermarkType);
 			Predicate lwmPredicate = watermark.getPredicate(this, lwmValue, ">=");
@@ -265,7 +286,7 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
      * @param high watermark value
 	 */
 	private void setRangePredicates(String watermarkColumn, WatermarkType watermarkType, long lwmValue, long hwmValue) {
-		LOG.info("Getting range predicates");
+		this.log.info("Getting range predicates");
 		WatermarkPredicate watermark = new WatermarkPredicate(watermarkColumn, watermarkType);
 		this.addPredicates(watermark.getPredicate(this, lwmValue, ">="));
 		this.addPredicates(watermark.getPredicate(this, hwmValue, "<="));
