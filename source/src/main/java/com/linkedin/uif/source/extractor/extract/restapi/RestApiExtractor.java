@@ -42,15 +42,15 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  * @param <S> type of schema
  */
 public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> implements SourceSpecificLayer<S, D>, RestApiSpecificLayer {
-	private static final Log LOG = LogFactory.getLog(RestApiExtractor.class);
 	private static final Gson gson = new Gson();
 	private HttpClient httpClient = null;
-	private boolean autoEstablishAuthToken = true;
+	private boolean autoEstablishAuthToken = false;
 	private long authTokenTimeout;
 	private String accessToken;
 	private long createdAt;
 	protected String instanceUrl;
-	protected String updatedQuery; 
+	protected String updatedQuery;
+	protected Log log = LogFactory.getLog(RestApiExtractor.class+this.getWorkUnitName());
 
 	RestApiExtractor(WorkUnitState state) {
 		super(state);
@@ -73,7 +73,7 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 	
 	@Override
 	public void extractMetadata(String schema, String entity, WorkUnit workUnit) throws SchemaException {
-		LOG.info("Extract Metadata using Rest Api");
+		this.log.info("Extract Metadata using Rest Api");
 		JsonArray columnArray = new JsonArray();
 		String inputQuery = workUnit.getProp("source.query");
 		List<String> columnListInQuery = null;
@@ -87,7 +87,7 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 			if (!success) {
 				throw new SchemaException("Failed to connect.");
 			} else {
-				LOG.debug("Connected successfully.");
+				this.log.debug("Connected successfully.");
 				String url = this.getSchemaMetadata(schema, entity);
 				String response = this.getResponse(url);
 				array = this.getSchema(response);
@@ -109,14 +109,14 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 				}
 
 				if (inputQuery == null && this.columnList.size() != 0) {
-					LOG.debug("New query with the required column list");
+					this.log.debug("New query with the required column list");
 					this.updatedQuery = "SELECT " + Joiner.on(",").join(columnList) + " FROM " + entity;
 
 				} else {
-					LOG.debug("Query is same as input query");
+					this.log.debug("Query is same as input query");
 					this.updatedQuery = inputQuery;
 				}
-				LOG.debug("Schema:" + columnArray);
+				this.log.debug("Schema:" + columnArray);
 				this.setOutputSchema((S) columnArray);
 			}
 
@@ -129,20 +129,20 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 	@Override
 	public long getMaxWatermark(String schema, String entity, String watermarkColumn, List<Predicate> predicateList, String watermarkSourceFormat)
 			throws HighWatermarkException {
-		LOG.info("Get high watermark using Rest Api");
+		this.log.info("Get high watermark using Rest Api");
 		long CalculatedHighWatermark = -1;
 		try {
 			boolean success = this.getConnection();
 			if (!success) {
 				throw new HighWatermarkException("Failed to connect.");
 			} else {
-				LOG.debug("Connected successfully.");
+				this.log.debug("Connected successfully.");
 				
 				String url = this.getHighWatermarkMetadata(schema, entity, watermarkColumn, predicateList);
 				String response = this.getResponse(url);
 				CalculatedHighWatermark = this.getHighWatermark(response, watermarkColumn, watermarkSourceFormat);
 			}
-			LOG.info("High watermark:" + CalculatedHighWatermark);
+			this.log.info("High watermark:" + CalculatedHighWatermark);
 			return CalculatedHighWatermark;
 		} catch (Exception e) {
 			throw new HighWatermarkException("Failed to get high watermark using rest api; error-" + e.getMessage());
@@ -151,18 +151,18 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 
 	@Override
 	public long getSourceCount(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws RecordCountException {
-		LOG.info("Get source record count using Rest Api");
+		this.log.info("Get source record count using Rest Api");
 		long count = 0;
 		try {
 			boolean success = this.getConnection();
 			if (!success) {
 				throw new RecordCountException("Failed to connect.");
 			} else {
-				LOG.debug("Connected successfully.");
+				this.log.debug("Connected successfully.");
 				String url = this.getCountMetadata(schema, entity, workUnit, predicateList);
 				String response = this.getResponse(url);
 				count = this.getCount(response);
-				LOG.info("Source record count:" + count);
+				this.log.info("Source record count:" + count);
 			}
 			return count;
 		} catch (Exception e) {
@@ -172,7 +172,7 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 
 	@Override
 	public Iterator<D> getRecordSet(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws DataRecordException {
-		LOG.debug("Get data records using Rest Api");
+		this.log.debug("Get data records using Rest Api");
 		RecordSet<D> rs = null;
 		String url;
 		try {
@@ -184,7 +184,7 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 			if (!success) {
 				throw new DataRecordException("Failed to connect.");
 			} else {
-				LOG.debug("Connected successfully.");
+				this.log.debug("Connected successfully.");
 				if (this.getPullStatus() == false) {
 					return null;
 				} else {
@@ -218,7 +218,7 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
      * @return true if it is success else false
 	 */
 	private boolean getConnection() throws RestApiConnectionException {
-		LOG.debug("Connecting to the source using Rest Api");
+		this.log.debug("Connecting to the source using Rest Api");
 		return this.connect();
 	}
 	
@@ -293,7 +293,7 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 	 * @return json string with the response
 	 */
 	private String getResponse(String url) throws RestApiProcessingException {
-		LOG.info("URL: " + url);
+		this.log.info("URL: " + url);
 		String jsonStr = null;
 		HttpRequestBase httpRequest = new HttpGet(url);
 		addHeaders(httpRequest);
@@ -309,7 +309,7 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 			}
 
 			if (status.getStatusCode() >= 400) {
-				LOG.info("Unable to get response using: " + url);
+				this.log.info("Unable to get response using: " + url);
 				JsonElement jsonRet = gson.fromJson(jsonStr, JsonArray.class);
 				throw new RestApiProcessingException(this.getFirstErrorMessage("Failed to retrieve response from", jsonRet));
 			}
