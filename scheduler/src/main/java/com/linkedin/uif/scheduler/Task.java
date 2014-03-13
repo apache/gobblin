@@ -1,10 +1,13 @@
-    package com.linkedin.uif.scheduler;
+package com.linkedin.uif.scheduler;
 
 import java.io.IOException;
 import java.io.Serializable;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.Meter;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
@@ -104,6 +107,16 @@ public class Task implements Runnable, Serializable {
             // Build the writer for writing the output of the extractor
             writer = buildWriter(this.taskContext, schemaForWriter);
 
+            // Metrics that need to be updated
+            Counter taskRecordCounter = Metrics.getCounter(Metrics.metricName(
+                    "task", this.taskId, "records"));
+            Counter jobRecordCounter = Metrics.getCounter(Metrics.metricName(
+                    "job", this.jobId, "records"));
+            Meter taskRecordMeter = Metrics.getMeter(Metrics.metricName(
+                    "task", this.taskId, "recordsPerSec"));
+            Meter jobRecordMeter = Metrics.getMeter(Metrics.metricName(
+                    "job", this.jobId, "recordsPerSec"));
+
             this.taskState.setWorkingState(WorkUnitState.WorkingState.WORKING);
             this.taskStateTracker.registerNewTask(this);
 
@@ -118,6 +131,12 @@ public class Task implements Runnable, Serializable {
                 // Finally write the record
                 writer.write(record);
             }
+
+            // Update metrics
+            taskRecordCounter.inc(writer.recordsWritten());
+            taskRecordMeter.mark(writer.recordsWritten());
+            jobRecordCounter.inc(writer.recordsWritten());
+            jobRecordMeter.mark(writer.recordsWritten());
 
             // Do overall quality checking and publish task data
             this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_READ,
