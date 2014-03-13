@@ -12,7 +12,7 @@ import org.testng.annotations.Test;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.workunit.WorkUnit;
-import com.linkedin.uif.test.TestSource;
+import com.linkedin.uif.test.TestSource1;
 import com.linkedin.uif.writer.Destination;
 import com.linkedin.uif.writer.WriterOutputFormat;
 import com.linkedin.uif.writer.converter.DataConverter;
@@ -31,7 +31,7 @@ public class TaskContextTest {
             "job.group=Test\n" +
             "job.description=Test UIF job 1\n" +
             "job.schedule=0 0/1 * * * ?\n" +
-            "source.class=com.linkedin.uif.test.TestSource\n" +
+            "source.class=com.linkedin.uif.test.TestSource1\n" +
             "converter.classes=com.linkedin.uif.test.TestConverter\n" +
             "workunit.namespace=test\n" +
             "workunit.table=test\n" +
@@ -106,7 +106,7 @@ public class TaskContextTest {
 
     @Test
     public void testOtherMethods() {
-        Assert.assertTrue(this.taskContext.getSource() instanceof TestSource);
+        Assert.assertTrue(this.taskContext.getSource() instanceof TestSource1);
         Assert.assertEquals(this.taskContext.getStatusReportingInterval(),
                 ConfigurationKeys.DEFAULT_TASK_STATUS_REPORT_INTERVAL_IN_MS);
         Assert.assertEquals(

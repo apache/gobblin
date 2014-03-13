@@ -80,6 +80,11 @@ public class Extract extends State {
       return this.getExtractId().equals(otherExtract.getExtractId());
   }
   
+  @Override
+  public int hashCode() {
+      return this.getExtractId().hashCode();
+  }
+  
   /**
    * indicates snapshot or append or snapshot data with an append only changelog
    * @return
