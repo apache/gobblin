@@ -14,17 +14,21 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
 
+import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.scheduler.JobException;
 import com.linkedin.uif.scheduler.JobListener;
 import com.linkedin.uif.scheduler.JobState;
+import com.linkedin.uif.scheduler.Metrics;
 import com.linkedin.uif.scheduler.TaskExecutor;
 import com.linkedin.uif.scheduler.TaskStateTracker;
 import com.linkedin.uif.scheduler.WorkUnitManager;
+import com.linkedin.uif.scheduler.Worker;
 import com.linkedin.uif.scheduler.local.LocalJobManager;
 import com.linkedin.uif.scheduler.local.LocalTaskStateTracker;
 
@@ -35,11 +39,16 @@ import com.linkedin.uif.scheduler.local.LocalTaskStateTracker;
  */
 public class TestWorker {
 
+    private final Properties properties;
+
     // We use this to manage all services running within the worker
     private final ServiceManager serviceManager;
+
     private final LocalJobManager jobManager;
 
     public TestWorker(Properties properties) throws Exception {
+        this.properties = properties;
+
         // The worker runs the following services
         TaskExecutor taskExecutor = new TaskExecutor(properties);
         TaskStateTracker taskStateTracker = new LocalTaskStateTracker(properties, taskExecutor);
@@ -60,6 +69,14 @@ public class TestWorker {
      */
     public void start() {
         this.serviceManager.startAsync();
+
+        long metricsReportInterval = Long.parseLong(this.properties.getProperty(
+                ConfigurationKeys.METRICS_REPORT_INTERVAL_KEY,
+                ConfigurationKeys.DEFAULT_METRICS_REPORT_INTERVAL));
+        Metrics.startSlf4jReporter(metricsReportInterval,
+                LoggerFactory.getLogger(TestWorker.class));
+        Metrics.startCsvReporter(metricsReportInterval,
+                this.properties.getProperty(ConfigurationKeys.METRICS_DIR_KEY));
     }
 
     /**

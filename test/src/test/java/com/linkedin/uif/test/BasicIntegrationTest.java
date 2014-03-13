@@ -16,16 +16,18 @@ import org.testng.annotations.Test;
 import com.google.common.io.Files;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
+
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
-import com.linkedin.uif.scheduler.local.LocalJobManager;
-import com.linkedin.uif.scheduler.local.LocalTaskStateTracker;
 import com.linkedin.uif.scheduler.JobListener;
 import com.linkedin.uif.scheduler.JobState;
+import com.linkedin.uif.scheduler.Metrics;
 import com.linkedin.uif.scheduler.TaskExecutor;
 import com.linkedin.uif.scheduler.TaskState;
 import com.linkedin.uif.scheduler.TaskStateTracker;
 import com.linkedin.uif.scheduler.WorkUnitManager;
+import com.linkedin.uif.scheduler.local.LocalJobManager;
+import com.linkedin.uif.scheduler.local.LocalTaskStateTracker;
 import com.linkedin.uif.source.workunit.Extract;
 
 /**
@@ -66,6 +68,7 @@ public class BasicIntegrationTest {
 
         this.serviceManager.startAsync();
 
+        Metrics.startConsoleReporter(500);
     }
 
     @Test
@@ -134,7 +137,17 @@ public class BasicIntegrationTest {
                     } catch (IOException ioe) {
                         Assert.fail();
                     }
+
+                    long records = Metrics.getCounter(
+                            Metrics.metricName("task", taskState.getTaskId(), "records"))
+                            .getCount();
+                    Assert.assertEquals(records, 1000);
                 }
+
+                long records = Metrics.getCounter(
+                        Metrics.metricName("job", jobState.getJobId(), "records"))
+                        .getCount();
+                Assert.assertEquals(records, 2000);
             } finally {
                 // Make sure this is always called so the test can end
                 latch.countDown();

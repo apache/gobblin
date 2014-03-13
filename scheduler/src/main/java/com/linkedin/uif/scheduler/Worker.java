@@ -13,7 +13,9 @@ import com.google.common.util.concurrent.ServiceManager;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.slf4j.LoggerFactory;
 
+import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.scheduler.local.LocalJobManager;
 import com.linkedin.uif.scheduler.local.LocalTaskStateTracker;
 
@@ -26,10 +28,14 @@ public class Worker {
 
     private static final Log LOG = LogFactory.getLog(Worker.class);
 
+    private final Properties properties;
+
     // We use this to manage all services running within the worker
     private final ServiceManager serviceManager;
 
     public Worker(Properties properties) throws Exception {
+        this.properties = properties;
+
         // The worker runs the following services
         TaskExecutor taskExecutor = new TaskExecutor(properties);
         TaskStateTracker taskStateTracker = new LocalTaskStateTracker(
@@ -46,6 +52,8 @@ public class Worker {
                 workUnitManager,
                 jobManager
         ));
+
+
     }
 
     /**
@@ -78,6 +86,13 @@ public class Worker {
             }
 
         }, Executors.newSingleThreadExecutor());
+
+        long metricsReportInterval = Long.parseLong(this.properties.getProperty(
+                ConfigurationKeys.METRICS_REPORT_INTERVAL_KEY,
+                ConfigurationKeys.DEFAULT_METRICS_REPORT_INTERVAL));
+        Metrics.startSlf4jReporter(metricsReportInterval, LoggerFactory.getLogger(Worker.class));
+        Metrics.startCsvReporter(metricsReportInterval,
+                this.properties.getProperty(ConfigurationKeys.METRICS_DIR_KEY));
 
         // Add a shutdown hook so the task scheduler gets properly shutdown
         Runtime.getRuntime().addShutdownHook(new Thread() {
