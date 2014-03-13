@@ -7,8 +7,6 @@ dependencies {
   compile project(":scheduler")
   compile spec.external.commonsDbcp
   compile spec.external.commonsCli
-  compile spec.external.log4j
-  compile spec.external.mysqlConnectorJava
   compile spec.external.avro
   compile spec.external.commonsLogging
   compile spec.external.gson
