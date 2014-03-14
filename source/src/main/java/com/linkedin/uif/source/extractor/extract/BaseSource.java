@@ -19,6 +19,9 @@ import com.linkedin.uif.configuration.WorkUnitState.WorkingState;
 import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.extractor.extract.restapi.SalesforceSource;
 import com.linkedin.uif.source.extractor.partition.Partitioner;
+import com.linkedin.uif.source.extractor.utils.Utils;
+import com.linkedin.uif.source.extractor.watermark.WatermarkPredicate;
+import com.linkedin.uif.source.extractor.watermark.WatermarkType;
 import com.linkedin.uif.source.workunit.Extract;
 import com.linkedin.uif.source.workunit.WorkUnit;
 import com.linkedin.uif.source.workunit.Extract.TableType;
@@ -43,8 +46,7 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
 		String entityName = state.getProp(ConfigurationKeys.SOURCE_ENTITY);
 		TableType tableType = TableType.valueOf(state.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY).toUpperCase());
 		long previousWatermark = this.getLatestWatermarkFromMetadata(state);
-		LOG.info("Latest watermark from the previous successful runs:"+previousWatermark);
-		
+
 		Partitioner partitioner = new Partitioner(state);
 		HashMap<Long, Long> partitions = partitioner.getPartitions(previousWatermark);
 		Map<Long, Long> sortedPartitions = new TreeMap<Long, Long>(partitions);
@@ -78,7 +80,7 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
 		List<WorkUnit> previousWorkUnits = new ArrayList<WorkUnit>();
 		List<WorkUnitState> previousWorkUnitStates = state.getPreviousStates();
 		if(previousWorkUnitStates.size() == 0) {
-			LOG.info("No previous states for this entity");
+			LOG.info("Previous states are not found");
 			return previousWorkUnits;
 		}
 		
@@ -92,27 +94,66 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
 	}
 
     /**
-     * get latest water mark from previous states
+     * get latest water mark from previous work unit states
      *
      * @param SourceState
-     * @return latest water mark(low water mark)
+     * @return latest water mark(high water mark of WorkUnitState)
      */
 	private long getLatestWatermarkFromMetadata(SourceState state) {
 		LOG.debug("Getting previous watermark");
-		List<Long> highWatermarks = new ArrayList<Long>(); 
-		List<WorkUnitState> previousStates = state.getPreviousStates();
-		if(previousStates.size() == 0) {
-			LOG.info("No previous states for this entity");
+		boolean hasDataInPreviousRun = false;
+		long latestWaterMark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
+		
+		List<WorkUnitState> previousWorkUnitStates = state.getPreviousStates();
+		List<Long> previousWorkUnitStateHighWatermarks = new ArrayList<Long>(); 
+		List<Long> previousWorkUnitLowWatermarks = new ArrayList<Long>();
+		
+		if(previousWorkUnitStates.size() == 0) {
+			LOG.info("Previous states are not found; Latest watermark - Default watermark:"+latestWaterMark);
+			return latestWaterMark;
+		}
+		
+		for(WorkUnitState workUnitState : previousWorkUnitStates) {
+			if(workUnitState.getWorkingState() == WorkingState.COMMITTED) {
+				if(workUnitState.getHighWaterMark() != ConfigurationKeys.DEFAULT_WATERMARK_VALUE) {
+					hasDataInPreviousRun = true;
+				}
+				previousWorkUnitStateHighWatermarks.add(workUnitState.getHighWaterMark());
+				previousWorkUnitLowWatermarks.add(this.getLowWatermarkFromWorkUnit(workUnitState.getWorkunit(), workUnitState.getProp(ConfigurationKeys.SOURCE_WATERMARK_TYPE)));
+			}
+		}
+		
+		if(hasDataInPreviousRun) {
+			latestWaterMark = Collections.max(previousWorkUnitStateHighWatermarks);
+			LOG.info("Previous run has data; Latest watermark - Max watermark from WorkUnitStates:"+latestWaterMark);
+		} else {
+			latestWaterMark = Collections.min(previousWorkUnitLowWatermarks);
+			LOG.info("Previous run has no data; Latest watermark - Min watermark from WorkUnits:"+latestWaterMark);
+		}
+		
+		return latestWaterMark;
+	}
+
+    /**
+     * get latest water mark from previous work units
+     *
+     * @param work unit
+     * @param watermark type
+     * @return latest water mark(low water mark of WorkUnit)
+     */
+	private long getLowWatermarkFromWorkUnit(WorkUnit workunit, String watermarkType) {
+		if(workunit.getLowWaterMark() == ConfigurationKeys.DEFAULT_WATERMARK_VALUE) {
 			return ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
 		}
 		
-		for(WorkUnitState workUnitState : previousStates) {
-			if(workUnitState.getWorkingState() == WorkingState.COMMITTED) {
-				highWatermarks.add(workUnitState.getHighWaterMark());
-			}
+		WatermarkType wmType = WatermarkType.valueOf(watermarkType.toUpperCase());
+		int deltaNum = new WatermarkPredicate(null, wmType).getDeltaNumForNextWatermark();
+		
+		if(wmType == WatermarkType.SIMPLE) {
+			return workunit.getLowWaterMark() - deltaNum;
+		} else {
+			return Long.parseLong(Utils.dateToString(Utils.addSecondsToDate(Utils.toDate(workunit.getLowWaterMark(), "yyyyMMddHHmmss"),deltaNum*-1), "yyyyMMddHHmmss"));
 		}
-		Collections.sort(highWatermarks);
-		return highWatermarks.get(highWatermarks.size() -1);
 	}
 
 	@Override
