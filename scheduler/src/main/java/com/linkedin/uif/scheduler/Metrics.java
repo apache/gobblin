@@ -128,13 +128,18 @@ public class Metrics {
      * Start a {@link com.codahale.metrics.CsvReporter}.
      *
      * @param period interval between reports in milliseconds
-     * @param metricsDir directory where metrics csv files are stored
+     * @param metricsDirStr directory where metrics csv files are stored
      */
-    public static void startCsvReporter(long period, String metricsDir) {
+    public static void startCsvReporter(long period, String metricsDirStr) {
+        File metricsDir = new File(metricsDirStr);
+        if (!metricsDir.exists()) {
+            metricsDir.mkdirs();
+        }
+
         CsvReporter reporter = CsvReporter.forRegistry(METRICS)
                 .convertRatesTo(TimeUnit.SECONDS)
                 .convertDurationsTo(TimeUnit.MILLISECONDS)
-                .build(new File(metricsDir));
+                .build(metricsDir);
         reporter.start(period, TimeUnit.MILLISECONDS);
     }
 
