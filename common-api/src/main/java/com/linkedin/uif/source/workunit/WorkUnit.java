@@ -32,7 +32,7 @@ public class WorkUnit extends State {
     if (extract != null)
       this.extract = extract;
     else
-      this.extract = new Extract(null, null, null, null, null);
+      this.extract = new Extract(null, null, null, null);
   }
 
   /**

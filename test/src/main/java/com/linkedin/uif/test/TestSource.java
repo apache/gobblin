@@ -28,8 +28,8 @@ public class TestSource implements Source<String, String> {
 
     @Override
     public List<WorkUnit> getWorkunits(SourceState state) {
-        Extract extract1 = new Extract(state, TableType.SNAPSHOT_ONLY, "com.linkedin.uif.test", "TestTable1", "1");
-        Extract extract2 = new Extract(state, TableType.SNAPSHOT_ONLY, "com.linkedin.uif.test", "TestTable2", "2");
+        Extract extract1 = new Extract(state, TableType.SNAPSHOT_ONLY, "com.linkedin.uif.test", "TestTable1");
+        Extract extract2 = new Extract(state, TableType.SNAPSHOT_ONLY, "com.linkedin.uif.test", "TestTable2");
         
         String sourceFileList = state.getProp(SOURCE_FILE_LIST_KEY);
         List<WorkUnit> workUnits = Lists.newArrayList();
