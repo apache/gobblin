@@ -130,6 +130,8 @@ public class ConfigurationKeys {
     public static final String JOB_CONFIG_FILE_PATH_KEY = "job.config.path";
     public static final String SOURCE_WRAPPERS = "source.wrappers";
     public static final String DEFAULT_SOURCE_WRAPPER = "default";
+    public static final String METRICS_ENABLED_KEY = "metrics.enabled";
+    public static final String DEFAULT_METRICS_ENABLED = "true";
     public static final String METRICS_REPORT_INTERVAL_KEY = "metrics.report.interval";
     public static final String DEFAULT_METRICS_REPORT_INTERVAL = "60000";
 

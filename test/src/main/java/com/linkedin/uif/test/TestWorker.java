@@ -69,13 +69,15 @@ public class TestWorker {
     public void start() {
         this.serviceManager.startAsync();
 
-        long metricsReportInterval = Long.parseLong(this.properties.getProperty(
-                ConfigurationKeys.METRICS_REPORT_INTERVAL_KEY,
-                ConfigurationKeys.DEFAULT_METRICS_REPORT_INTERVAL));
-        Metrics.startSlf4jReporter(metricsReportInterval,
-                LoggerFactory.getLogger(TestWorker.class));
-        Metrics.startCsvReporter(metricsReportInterval,
-                this.properties.getProperty(ConfigurationKeys.METRICS_DIR_KEY));
+        if (Metrics.isEnabled(this.properties)) {
+            long metricsReportInterval = Long.parseLong(this.properties.getProperty(
+                    ConfigurationKeys.METRICS_REPORT_INTERVAL_KEY,
+                    ConfigurationKeys.DEFAULT_METRICS_REPORT_INTERVAL));
+            Metrics.startSlf4jReporter(metricsReportInterval,
+                    LoggerFactory.getLogger(TestWorker.class));
+            Metrics.startCsvReporter(metricsReportInterval,
+                    this.properties.getProperty(ConfigurationKeys.METRICS_DIR_KEY));
+        }
     }
 
     /**
