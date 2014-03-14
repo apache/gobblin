@@ -4,6 +4,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.TimeZone;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -289,9 +290,12 @@ public class Partitioner {
 			timezone = "America/Los_Angeles";
 		}
 		
+		SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		fmt.setTimeZone(TimeZone.getTimeZone(timezone));
+		
 		Date currentTime = null;
 		try {
-			currentTime = DATETIMEFORMAT.parse(DATETIMEFORMAT.format(new Date()));
+			currentTime = DATETIMEFORMAT.parse(fmt.format(new Date()));
 		} catch (ParseException e) {
 			e.printStackTrace();
 		}

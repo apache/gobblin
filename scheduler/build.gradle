@@ -7,16 +7,33 @@ dependencies {
   compile project(":qualitychecker")
   compile project(":writer")
   compile spec.external.commonsDbcp
-  compile spec.external.mysqlConnectorJava
   compile spec.external.commonsLogging
   compile spec.external.guava
   compile spec.external.quartz
-  compile spec.external.slf4j
-  compile spec.external.log4j
-  compile spec.external.slf4jSimple
   compile spec.external.hadoop
   compile spec.external.avro
   compile spec.external.metricsCore
+
+  runtime spec.external.slf4j
+  runtime spec.external.slf4jSimple
+
+  compileJar spec.external.commonsDbcp
+  compileJar spec.external.commonsLogging
+  compileJar spec.external.guava
+  compileJar spec.external.quartz
+  compileJar spec.external.hadoop
+  compileJar spec.external.avro
+  compileJar spec.external.jacksonCore
+  compileJar spec.external.jacksonMapper
+  compileJar spec.external.jodaTime
+  compileJar spec.external.httpclient
+  compileJar spec.external.httpcore
+  compileJar spec.external.commonsLang
+  compileJar spec.external.slf4j
+  compileJar spec.external.slf4jSimple
+  compileJar spec.external.commonsCli
+  compileJar spec.external.gson
+  compileJar files('../converter/src/main/resources/lumos-common-2.0.0.jar')
 
   testCompile project(":test")
   testCompile spec.external.testng
@@ -30,6 +47,10 @@ configurations {
     runtime {
         transitive = true
     }
+}
+
+jar {
+        from { configurations.compileJar.collect { it.isDirectory() ? it : zipTree(it) }}
 }
 
 artifacts {

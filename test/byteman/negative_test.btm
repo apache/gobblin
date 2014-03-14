@@ -1,0 +1,218 @@
+RULE return null on 5th call to method getWorkunits on TestSource
+CLASS com.linkedin.uif.test.TestSource
+METHOD getWorkunits
+AT ENTRY
+IF incrementCounter("source_null") % 5 == 0
+DO trace("returning null from getWorkUnits\n");
+  return null
+ENDRULE
+ 
+RULE return null on 5th call method getExtractor on TestSource
+CLASS com.linkedin.uif.test.TestSource
+METHOD getExtractor
+AT ENTRY
+IF incrementCounter("source_null") % 5 == 0
+DO trace("returning null from getExtractor\n");
+  return null
+ENDRULE
+
+RULE throw on 5th call method getWorkunits on TestSource
+CLASS com.linkedin.uif.test.TestSource
+METHOD getWorkunits
+AT ENTRY
+IF incrementCounter("source_throw") % 5 == 1
+DO trace("throwing exception from getWorkunits\n");
+  throw new java.lang.RuntimeException("getWorkunits exception");
+ENDRULE
+
+RULE throw on 5th call method getExtractor on TestSource
+CLASS com.linkedin.uif.test.TestSource
+METHOD getExtractor
+AT ENTRY
+IF incrementCounter("source_throw") % 5 == 1
+DO trace("throwing exception from getExtractor\n");
+  throw new java.lang.RuntimeException("extractor exception");
+ENDRULE
+
+RULE throw on 5th call method shutdown on TestSource
+CLASS com.linkedin.uif.test.TestSource
+METHOD shutdown
+AT ENTRY
+IF incrementCounter("source_throw") % 5 == 1
+DO trace("throwing exception from shutdown\n");
+  throw new java.lang.RuntimeException("shutdown exception");
+ENDRULE
+
+RULE return null on 5th call to method getSchema on TestExtractor
+CLASS com.linkedin.uif.test.TestExtractor
+METHOD getSchema
+AT ENTRY
+IF incrementCounter("extractor_null") % 5 == 0
+DO trace("returning null from getSchema\n");
+  return null
+ENDRULE
+
+RULE return null on 2000th call to method readRecord on TestExtractor
+CLASS com.linkedin.uif.test.TestExtractor
+METHOD readRecord
+AT ENTRY
+IF incrementCounter("extractor_null") % 2000 == 0
+DO trace("returning null from readRecord\n");
+  return null
+ENDRULE
+
+RULE throw on 2000th call to method readRecord on TestExtractor
+CLASS com.linkedin.uif.test.TestExtractor
+METHOD readRecord
+AT ENTRY
+IF incrementCounter("extractor_throw") % 2000 == 0
+DO trace("returning null from readRecord\n");
+  return null
+ENDRULE
+
+RULE throw on 5th call to method init on TestExtractor
+CLASS com.linkedin.uif.test.TestExtractor
+METHOD init
+AT ENTRY
+IF incrementCounter("extractor_throw") % 5 == 0
+DO trace("throwing exception from init\n");
+  throw new java.lang.RuntimeException("init exception");
+ENDRULE
+
+RULE throw on 5th call to method getSchema on TestExtractor
+CLASS com.linkedin.uif.test.TestExtractor
+METHOD getSchema
+AT ENTRY
+IF incrementCounter("extractor_throw") % 5 == 0
+DO trace("throwing exception from getSchema\n");
+  throw new java.lang.RuntimeException("getSchema exception");
+ENDRULE
+
+RULE throw on 5th call to method close on TestExtractor
+CLASS com.linkedin.uif.test.TestExtractor
+METHOD close
+AT ENTRY
+IF incrementCounter("extractor_throw") % 5 == 0
+DO trace("throwing exception from close\n");
+  throw new java.lang.RuntimeException("close exception");
+ENDRULE
+
+RULE throw on 5th call to method getExpectedRecordCount on TestExtractor
+CLASS com.linkedin.uif.test.TestExtractor
+METHOD getExpectedRecordCount
+AT ENTRY
+IF incrementCounter("extractor_throw") % 5 == 0
+DO trace("throwing exception from getExpectedRecordCount\n");
+  throw new java.lang.RuntimeException("getExpectedRecordCount exception");
+ENDRULE
+
+RULE throw on 5th call to method getHighWatermark on TestExtractor
+CLASS com.linkedin.uif.test.TestExtractor
+METHOD getHighWatermark
+AT ENTRY
+IF incrementCounter("extractor_throw") % 5 == 0
+DO trace("throwing exception from getHighWatermark\n");
+  throw new java.lang.RuntimeException("getHighWatermark exception");
+ENDRULE
+
+RULE return null on 5th call to method convertSchema on TestConverter
+CLASS com.linkedin.uif.test.TestConverter
+METHOD convertSchema
+AT ENTRY
+IF incrementCounter("converter_null") % 5 == 0
+DO trace("returning null from convertSchema\n");
+  return null
+ENDRULE
+
+RULE return null on 2000th call to method convertRecord on TestConverter
+CLASS com.linkedin.uif.test.TestConverter
+METHOD convertRecord
+AT ENTRY
+IF incrementCounter("converter_null") % 2000 == 0
+DO trace("returning null from convertRecord\n");
+  return null
+ENDRULE
+
+RULE throw on 5th call to method convertSchema on TestConverter
+CLASS com.linkedin.uif.test.TestConverter
+METHOD convertSchema
+AT ENTRY
+IF incrementCounter("converter_throw") % 5 == 0
+DO trace("throwing exception from convertSchema\n");
+  throw new java.lang.RuntimeException("convertSchema exception");
+ENDRULE
+
+RULE throw on 2000th call to method convertRecord on TestConverter
+CLASS com.linkedin.uif.test.TestConverter
+METHOD convertRecord
+AT ENTRY
+IF incrementCounter("converter_throw") % 2000 == 0
+DO trace("throwing exception from convertRecord\n");
+  throw new java.lang.RuntimeException("convertRecord exception");
+ENDRULE
+
+RULE throw on 5th call to method init on TestDataPublisher
+CLASS com.linkedin.uif.test.TestDataPublisher
+METHOD init
+AT ENTRY
+IF incrementCounter("publisher_throw") % 5 == 0
+DO trace("throwing exception from init\n");
+  throw new java.lang.RuntimeException("init exception");
+ENDRULE
+
+RULE throw on 5th call to method initialize on TestDataPublisher
+CLASS com.linkedin.uif.test.TestDataPublisher
+METHOD initialize
+AT ENTRY
+IF incrementCounter("publisher_throw") % 5 == 0
+DO trace("throwing exception from initialize\n");
+  throw new java.lang.RuntimeException("initialize exception");
+ENDRULE
+
+RULE throw on 5th call to method close on TestDataPublisher
+CLASS com.linkedin.uif.test.TestDataPublisher
+METHOD close
+AT ENTRY
+IF incrementCounter("publisher_throw") % 5 == 0
+DO trace("throwing exception from close\n");
+  throw new java.lang.RuntimeException("close exception");
+ENDRULE
+
+RULE throw on 5th call to method publishData on TestDataPublisher
+CLASS com.linkedin.uif.test.TestDataPublisher
+METHOD publishData
+AT ENTRY
+IF incrementCounter("publisher_throw") % 5 == 0
+DO trace("throwing exception from publishData\n");
+  throw new java.lang.RuntimeException("publishData exception");
+ENDRULE
+
+RULE throw on 5th call to method collectTaskData on TestDataPublisher
+CLASS com.linkedin.uif.test.TestDataPublisher
+METHOD collectTaskData
+AT ENTRY
+IF incrementCounter("publisher_throw") % 5 == 0
+DO trace("throwing exception from collectTaskData\n");
+  throw new java.lang.RuntimeException("collectTaskData exception");
+ENDRULE
+
+RULE throw on 5th call to method publishMetadata on TestDataPublisher
+CLASS com.linkedin.uif.test.TestDataPublisher
+METHOD publishMetadata
+AT ENTRY
+IF incrementCounter("publisher_throw") % 5 == 0
+DO trace("throwing exception from publishMetadata\n");
+  throw new java.lang.RuntimeException("publishMetadata exception");
+ENDRULE
+
+RULE throw on 5th call to method collectTaskMetadata on TestDataPublisher
+CLASS com.linkedin.uif.test.TestDataPublisher
+METHOD collectTaskMetadata
+AT ENTRY
+IF incrementCounter("publisher_throw") % 5 == 0
+DO trace("throwing exception from collectTaskMetadata\n");
+  throw new java.lang.RuntimeException("collectTaskMetadata exception");
+ENDRULE
+
+
+
