@@ -16,6 +16,7 @@ dependencies {
 
   runtime spec.external.slf4j
   runtime spec.external.slf4jSimple
+  runtime spec.external.metricsCore
 
   compileJar spec.external.commonsDbcp
   compileJar spec.external.commonsLogging
@@ -33,6 +34,7 @@ dependencies {
   compileJar spec.external.slf4jSimple
   compileJar spec.external.commonsCli
   compileJar spec.external.gson
+  compileJar spec.external.metricsCore
   compileJar files('../converter/src/main/resources/lumos-common-2.0.0.jar')
 
   testCompile project(":test")
