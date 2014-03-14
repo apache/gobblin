@@ -20,6 +20,7 @@ import com.linkedin.uif.qualitychecker.PolicyChecker;
 import com.linkedin.uif.qualitychecker.PolicyCheckerBuilder;
 import com.linkedin.uif.qualitychecker.PolicyCheckerBuilderFactory;
 import com.linkedin.uif.source.extractor.Extractor;
+import com.linkedin.uif.source.workunit.Extract;
 import com.linkedin.uif.writer.DataWriter;
 import com.linkedin.uif.writer.DataWriterBuilder;
 import com.linkedin.uif.writer.DataWriterBuilderFactory;
@@ -152,7 +153,7 @@ public class Task implements Runnable, Serializable {
             this.taskState.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN,
                     writer.recordsWritten());
             this.taskState.setProp(ConfigurationKeys.EXTRACT_SCHEMA, schemaForWriter.toString());
-            
+
             PolicyChecker policyChecker = buildPolicyChecker(this.taskState);
             PolicyCheckResults results = policyChecker.executePolicies();
             
@@ -295,6 +296,7 @@ public class Task implements Runnable, Serializable {
         // First create the right writer builder using the factory
         DataWriterBuilder builder = new DataWriterBuilderFactory()
                 .newDataWriterBuilder(context.getWriterOutputFormat());
+
         // Then build the right writer using the builder
         return builder
                 .writeTo(Destination.of(
@@ -305,7 +307,7 @@ public class Task implements Runnable, Serializable {
                 .useSchemaConverter(context.getSchemaConverter())
                 .useDataConverter(context.getDataConverter(schema))
                 .withSourceSchema(schema)
-                .withJobName(this.taskState.getProp(ConfigurationKeys.JOB_NAME_KEY))
+                .withFilePath(this.taskState.getExtract().getOutputFilePath())
                 .build();
     }
 

@@ -16,6 +16,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
+import com.linkedin.uif.source.workunit.Extract;
 import com.linkedin.uif.writer.converter.SchemaConverter;
 
 /**
@@ -28,6 +29,7 @@ public class AvroHdfsDataWriterTest {
 
     private Schema schema;
     private DataWriter<String, GenericRecord> writer;
+    private String filePath;
 
     @BeforeClass
     @SuppressWarnings("unchecked")
@@ -57,6 +59,10 @@ public class AvroHdfsDataWriterTest {
         SchemaConverter<String, Schema> schemaConverter = new TestSchemaConverter();
         this.schema = schemaConverter.convert(TestConstants.AVRO_SCHEMA);
 
+        this.filePath = TestConstants.TEST_EXTRACT_NAMESPACE.replaceAll("\\.", "/") + "/" + 
+                TestConstants.TEST_EXTRACT_TABLE + "/" + TestConstants.TEST_EXTRACT_ID + "_" + 
+                TestConstants.TEST_EXTRACT_PULL_TYPE;
+                
         // Build a writer to write test records
         this.writer = new DataWriterBuilderFactory().newDataWriterBuilder(
                 WriterOutputFormat.AVRO)
@@ -67,7 +73,7 @@ public class AvroHdfsDataWriterTest {
                         schemaConverter.convert(TestConstants.AVRO_SCHEMA)))
                 .useSchemaConverter(new TestSchemaConverter())
                 .withSourceSchema(TestConstants.AVRO_SCHEMA)
-                .withJobName(TestConstants.TEST_JOB_NAME)
+                .withFilePath(filePath)
                 .build();
     }
 
@@ -84,8 +90,8 @@ public class AvroHdfsDataWriterTest {
         this.writer.commit();
 
         File outputFile = new File(
-                TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + TestConstants.TEST_JOB_NAME,
-                TestConstants.TEST_FILE_NAME + "." + TestConstants.TEST_WRITER_ID);
+                TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + this.filePath,
+                TestConstants.TEST_FILE_NAME + "." + TestConstants.TEST_WRITER_ID + "." + TestConstants.TEST_FILE_EXTENSION);
         DataFileReader<GenericRecord> reader = new DataFileReader<GenericRecord>(
                 outputFile, new GenericDatumReader<GenericRecord>(this.schema));
 

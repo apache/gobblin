@@ -123,11 +123,11 @@ public class BasicIntegrationTest {
 
                     Extract e = taskState.getExtract();
                     File targetFile = new File(jobState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR)
-                                               + "/" + e.getNamespace().replaceAll("\\.", "/") + "/" +
-                                               e.getTable() + "/" + e.getExtractId() + "_" +
+                                               + "/" + e.getNamespace().replaceAll("\\.", "/") + "/" + 
+                                               e.getTable() + "/" + e.getExtractId() + "_" + 
                                                (e.getIsFull() ? "FULL" : "APPEND"),
                                                jobState.getProp(ConfigurationKeys.WRITER_FILE_NAME)
-                                               + "." + taskState.getId());
+                                               + "." + taskState.getId() + "." + TestConstants.TEST_WRITER_FILE_EXTENSION);
 
                     Assert.assertEquals(taskState.getWorkingState(),
                             WorkUnitState.WorkingState.COMMITTED);

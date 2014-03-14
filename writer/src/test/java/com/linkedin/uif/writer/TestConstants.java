@@ -28,13 +28,23 @@ public class TestConstants {
 
     public static final String TEST_FS_URI = "file://localhost/";
 
-    public static final String TEST_STAGING_DIR = "test-staging";
+    public static final String TEST_STAGING_DIR = "test/staging";
 
-    public static final String TEST_OUTPUT_DIR = "test-output";
+    public static final String TEST_OUTPUT_DIR = "test/output";
 
-    public static final String TEST_FILE_NAME = "test.avro";
+    public static final String TEST_FILE_NAME = "test";
 
     public static final String TEST_WRITER_ID = "writer-1";
 
     public static final String TEST_JOB_NAME = "test";
+    
+    public static final String TEST_FILE_EXTENSION = "avro";
+
+    public static final String TEST_EXTRACT_NAMESPACE = "com.linkedin.writer.test";
+    
+    public static final String TEST_EXTRACT_ID =  String.valueOf(System.currentTimeMillis());
+    
+    public static final String TEST_EXTRACT_TABLE = "TestTable";
+    
+    public static final String TEST_EXTRACT_PULL_TYPE = "FULL";    
 }

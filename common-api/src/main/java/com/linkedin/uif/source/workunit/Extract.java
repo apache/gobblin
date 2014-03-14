@@ -87,7 +87,20 @@ public class Extract extends State {
           return false;
       }
       Extract otherExtract = (Extract) other;
-      return this.getExtractId().equals(otherExtract.getExtractId());
+      return this.getNamespace().equals(otherExtract.getNamespace()) 
+              && this.getTable().equals(otherExtract.getTable())
+              && this.getExtractId().equals(otherExtract.getExtractId());
+  }
+  
+  @Override
+  public int hashCode() {
+      return (this.getNamespace() + this.getTable() + this.getExtractId()).hashCode();
+  }
+  
+  public String getOutputFilePath() {
+      return this.getNamespace().replaceAll("\\.", "/") + "/" + 
+             this.getTable() + "/" + this.getExtractId() + "_" + 
+             (this.getIsFull() ? "FULL" : "APPEND");
   }
   
   /**
