@@ -13,6 +13,7 @@ import com.google.common.base.Strings;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
+import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.source.extractor.extract.ExtractType;
 import com.linkedin.uif.source.extractor.utils.Utils;
 import com.linkedin.uif.source.extractor.watermark.WatermarkPredicate;
@@ -95,14 +96,19 @@ public class Partitioner {
      * @return low water mark
      */
 	private long getLowWatermark(ExtractType extractType, WatermarkType watermarkType, long previousWatermark, int deltaForNextWatermark) {
-		LOG.debug("Getting low watermark");
 		long lowWatermark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
-		if(this.isSnapshot(extractType)) {
-			lowWatermark = this.getSnapshotLowWatermark(watermarkType, previousWatermark, deltaForNextWatermark);
+		if (isFullDump()) {
+			if (!Strings.isNullOrEmpty(this.state.getProp(ConfigurationKeys.SOURCE_START_VALUE))) {
+				lowWatermark = Utils.getAsLong(this.state.getProp(ConfigurationKeys.SOURCE_START_VALUE));
+			}
+			LOG.info("low watermark for **full** extract:" + lowWatermark);
 		} else {
-			lowWatermark = this.getAppendLowWatermark(watermarkType, previousWatermark, deltaForNextWatermark);
+			if (this.isSnapshot(extractType)) {
+				lowWatermark = this.getSnapshotLowWatermark(watermarkType, previousWatermark, deltaForNextWatermark);
+			} else {
+				lowWatermark = this.getAppendLowWatermark(watermarkType, previousWatermark, deltaForNextWatermark);
+			}
 		}
-		
 		return (lowWatermark == 0 ? ConfigurationKeys.DEFAULT_WATERMARK_VALUE : lowWatermark);
 	}
 	
@@ -197,8 +203,7 @@ public class Partitioner {
      */
 	private long getAppendHighWatermark(ExtractType extractType) {
 		LOG.debug("Getting append high water mark");
-		Boolean isAppendOverride = Boolean.valueOf(this.state.getProp(ConfigurationKeys.SOURCE_IS_APPEND_OVERRIDE));
-		if(isAppendOverride) {
+		if(this.isFullDump() || this.isAppendOverride()) {
 			LOG.info("Overriding high water mark with end value:"+ConfigurationKeys.SOURCE_END_VALUE);
 			return Utils.getAsLong(this.state.getProp(ConfigurationKeys.SOURCE_END_VALUE));
 		} else {
@@ -343,5 +348,19 @@ public class Partitioner {
 			return true;
 		}
 		return false;
+	}
+	
+	/**
+	 * @return full dump or not
+	 */
+	public boolean isFullDump() {
+		return Boolean.valueOf(this.state.getProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY));
+	}
+	
+	/**
+	 * @return full dump or not
+	 */
+	public boolean isAppendOverride() {
+		return Boolean.valueOf(this.state.getProp(ConfigurationKeys.SOURCE_IS_APPEND_OVERRIDE));
 	}
 }
