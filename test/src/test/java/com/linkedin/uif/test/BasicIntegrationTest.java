@@ -124,7 +124,7 @@ public class BasicIntegrationTest {
                                                e.getTable() + "/" + e.getExtractId() + "_" + 
                                                (e.getIsFull() ? "FULL" : "APPEND"),
                                                jobState.getProp(ConfigurationKeys.WRITER_FILE_NAME)
-                                               + "." + taskState.getId() + "." + taskState.getProp(ConfigurationKeys.WRITER_FILE_EXTENSION));
+                                               + "." + taskState.getId() + "." + TestConstants.TEST_WRITER_FILE_EXTENSION);
 
                     Assert.assertEquals(taskState.getWorkingState(),
                             WorkUnitState.WorkingState.COMMITTED);
