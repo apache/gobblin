@@ -21,38 +21,22 @@ public class TestDataPublisher extends DataPublisher {
     }
 
     @Override
-    public void initialize() throws Exception
-    {
+    public void initialize() throws Exception {
         // Do nothing
     }
 
     @Override
-    public void close() throws Exception
-    {
+    public void close() throws Exception {
         // Do nothing
     }
 
     @Override
-    public boolean publishData() throws Exception
-    {
+    public boolean publishData(Collection<? extends WorkUnitState> tasks) throws Exception {
         return true;
     }
 
     @Override
-    public boolean collectTaskData(Collection<? extends WorkUnitState> tasks) throws Exception
-    {
-        return true;
-    }
-
-    @Override
-    public boolean publishMetadata() throws Exception
-    {
-        return true;
-    }
-
-    @Override
-    public boolean collectTaskMetadata(Collection<? extends WorkUnitState> tasks) throws Exception
-    {
+    public boolean publishMetadata(Collection<? extends WorkUnitState> tasks) throws Exception {
         return true;
     }
 }

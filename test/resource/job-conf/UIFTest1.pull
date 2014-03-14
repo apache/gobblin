@@ -6,8 +6,7 @@ job.schedule=0 0/1 * * * ?
 source.class=com.linkedin.uif.test.TestSource
 converter.classes=com.linkedin.uif.test.TestConverter
 
-workunit.namespace=test
-workunit.table=test
+extract.namespace=com.linkedin.uif.test1
 
 writer.destination.type=HDFS
 writer.output.format=AVRO
@@ -19,5 +18,4 @@ qualitychecker.metadatacollector=com.linkedin.uif.configuration.YushanMetaStoreC
 qualitychecker.policies=com.linkedin.uif.policies.count.RowCountPolicy,com.linkedin.uif.policies.schema.SchemaCompatibilityPolicy,com.linkedin.uif.policies.schema.LumosSchemaValidationPolicy
 qualitychecker.policy.types=OPTIONAL,OPTIONAL,OPTIONAL
 
-data.publisher.final.dir=test/jobOutput/UIFTest1
 data.publisher.type=com.linkedin.uif.publisher.BaseDataPublisher
