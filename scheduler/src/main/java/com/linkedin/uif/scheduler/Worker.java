@@ -87,12 +87,15 @@ public class Worker {
 
         }, Executors.newSingleThreadExecutor());
 
-        long metricsReportInterval = Long.parseLong(this.properties.getProperty(
-                ConfigurationKeys.METRICS_REPORT_INTERVAL_KEY,
-                ConfigurationKeys.DEFAULT_METRICS_REPORT_INTERVAL));
-        Metrics.startSlf4jReporter(metricsReportInterval, LoggerFactory.getLogger(Worker.class));
-        Metrics.startCsvReporter(metricsReportInterval,
-                this.properties.getProperty(ConfigurationKeys.METRICS_DIR_KEY));
+        if (Metrics.isEnabled(this.properties)) {
+            long metricsReportInterval = Long.parseLong(this.properties.getProperty(
+                    ConfigurationKeys.METRICS_REPORT_INTERVAL_KEY,
+                    ConfigurationKeys.DEFAULT_METRICS_REPORT_INTERVAL));
+            Metrics.startSlf4jReporter(metricsReportInterval,
+                    LoggerFactory.getLogger(Worker.class));
+            Metrics.startCsvReporter(metricsReportInterval,
+                    this.properties.getProperty(ConfigurationKeys.METRICS_DIR_KEY));
+        }
 
         // Add a shutdown hook so the task scheduler gets properly shutdown
         Runtime.getRuntime().addShutdownHook(new Thread() {

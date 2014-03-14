@@ -1,8 +1,11 @@
 package com.linkedin.uif.scheduler;
 
 import java.io.File;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
+import com.linkedin.uif.configuration.ConfigurationKeys;
+import com.linkedin.uif.configuration.State;
 import org.slf4j.Logger;
 
 import com.codahale.metrics.ConsoleReporter;
@@ -21,6 +24,30 @@ import com.codahale.metrics.Slf4jReporter;
 public class Metrics {
 
     private static final MetricRegistry METRICS = new MetricRegistry();
+
+    /**
+     * Check whether metrics collection and reporting are enabled or not.
+     *
+     * @param properties Configuration properties
+     * @return whether metrics collection and reporting are enabled
+     */
+    public static boolean isEnabled(Properties properties) {
+        return Boolean.valueOf(properties.getProperty(
+                ConfigurationKeys.METRICS_ENABLED_KEY,
+                ConfigurationKeys.DEFAULT_METRICS_ENABLED));
+    }
+
+    /**
+     * Check whether metrics collection and reporting are enabled or not.
+     *
+     * @param state a {@link State} object containing configuration properties
+     * @return whether metrics collection and reporting are enabled
+     */
+    public static boolean isEnabled(State state) {
+        return Boolean.valueOf(state.getProp(
+                ConfigurationKeys.METRICS_ENABLED_KEY,
+                ConfigurationKeys.DEFAULT_METRICS_ENABLED));
+    }
 
     /**
      * Get the {@link com.codahale.metrics.MetricRegistry}.

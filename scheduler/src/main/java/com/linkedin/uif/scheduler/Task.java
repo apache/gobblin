@@ -20,7 +20,6 @@ import com.linkedin.uif.qualitychecker.PolicyChecker;
 import com.linkedin.uif.qualitychecker.PolicyCheckerBuilder;
 import com.linkedin.uif.qualitychecker.PolicyCheckerBuilderFactory;
 import com.linkedin.uif.source.extractor.Extractor;
-import com.linkedin.uif.source.workunit.Extract;
 import com.linkedin.uif.writer.DataWriter;
 import com.linkedin.uif.writer.DataWriterBuilder;
 import com.linkedin.uif.writer.DataWriterBuilderFactory;
@@ -141,11 +140,13 @@ public class Task implements Runnable, Serializable {
                 writer.write(record);
             }
 
-            // Update metrics at the record level
-            taskRecordCounter.inc(writer.recordsWritten());
-            taskRecordMeter.mark(writer.recordsWritten());
-            jobRecordCounter.inc(writer.recordsWritten());
-            jobRecordMeter.mark(writer.recordsWritten());
+            if (Metrics.isEnabled(this.taskState)) {
+                // Update metrics at the record level
+                taskRecordCounter.inc(writer.recordsWritten());
+                taskRecordMeter.mark(writer.recordsWritten());
+                jobRecordCounter.inc(writer.recordsWritten());
+                jobRecordMeter.mark(writer.recordsWritten());
+            }
 
             // Do overall quality checking and publish task data
             this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_READ,
@@ -203,12 +204,14 @@ public class Task implements Runnable, Serializable {
                         // Change the state to COMMITTED after successful commit
                         this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
 
-                        long bytes = writer.bytesWritten();
-                        // Update metrics at the byte level ONLY after commit is done
-                        taskByteCounter.inc(bytes);
-                        jobByteCounter.inc(bytes);
-                        taskByteMeter.mark(bytes);
-                        jobByteMeter.mark(bytes);
+                        if (Metrics.isEnabled(this.taskState)) {
+                            long bytes = writer.bytesWritten();
+                            // Update metrics at the byte level ONLY after commit is done
+                            taskByteCounter.inc(bytes);
+                            jobByteCounter.inc(bytes);
+                            taskByteMeter.mark(bytes);
+                            jobByteMeter.mark(bytes);
+                        }
                     }
                 } catch (IOException ioe) {
                     // Ignored
