@@ -134,7 +134,7 @@ public class BasicIntegrationTest {
                     try {
                         Assert.assertEquals(sourceFile.length(), targetFile.length());
                         Assert.assertFalse(Files.equal(sourceFile, targetFile));
-                    } catch (IOException ioe) {
+                    } catch (Exception ex) {
                         Assert.fail();
                     }
 
