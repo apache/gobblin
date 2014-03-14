@@ -56,7 +56,7 @@ public class BaseDataPublisher extends DataPublisher
                                       extract.getNamespace().replaceAll("\\.", "/") + "/" + 
                                       extract.getTable() + "/" + extract.getExtractId() + "_" + 
                                       (extract.getIsFull() ? "FULL" : "APPEND"));
-            
+
             Path finalOutput = new Path(workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
                                       extract.getOutputFilePath());
 

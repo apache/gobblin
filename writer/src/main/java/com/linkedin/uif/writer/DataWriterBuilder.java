@@ -106,8 +106,7 @@ public abstract class DataWriterBuilder<SI, SO, DI, DO> {
      * @param filePath is the path the file will be written to
      * @return this {@link DataWriterBuilder} instance
      */
-    public DataWriterBuilder<SI, SO, DI, DO> withFilePath(
-            String filePath) {
+    public DataWriterBuilder<SI, SO, DI, DO> withFilePath(String filePath) {
         this.filePath = filePath;
         return this;
     }
