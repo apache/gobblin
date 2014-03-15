@@ -225,7 +225,8 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 			
 			if(!Strings.isNullOrEmpty(watermarkColumn)) {
 				this.highWatermark = this.getLatestWatermark(watermarkColumn, watermarkType, lwm, hwm);
-				this.setRangePredicates(watermarkColumn, watermarkType, lwm, this.highWatermark);
+				long currentRunHighWatermark = (this.highWatermark != ConfigurationKeys.DEFAULT_WATERMARK_VALUE ? this.highWatermark : hwm);
+				this.setRangePredicates(watermarkColumn, watermarkType, lwm, currentRunHighWatermark);
 			}
 			
 			this.sourceRecordCount = this.getSourceCount(this.schema, this.entity, this.workUnit, this.predicateList);
