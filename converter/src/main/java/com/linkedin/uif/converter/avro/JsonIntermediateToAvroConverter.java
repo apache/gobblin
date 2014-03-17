@@ -70,7 +70,11 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
     GenericRecord avroRecord = new GenericData.Record(outputSchema);
 
     for (Map.Entry<String, JsonElement> entry : inputRecord.entrySet()) {
-      avroRecord.put(entry.getKey(), converters.get(entry.getKey()).convert(entry.getValue()));
+      try {
+        avroRecord.put(entry.getKey(), converters.get(entry.getKey()).convert(entry.getValue()));
+      } catch (Exception e) {
+        throw new RuntimeException("unable to convert field:" + entry.getKey() + " for value:" + entry.getValue(), e);
+      }
 
     }
 
