@@ -173,6 +173,16 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 		String query = "SELECT " + watermarkColumn + " FROM " + entity;
 		String defaultPredicate = " " + watermarkColumn + " != null";
 		String defaultSortOrder = " ORDER BY " + watermarkColumn + " desc LIMIT 1";
+		
+		String existingPredicate = "";
+		if (this.updatedQuery != null) {
+			String queryLowerCase = this.updatedQuery.toLowerCase();
+			int startIndex = queryLowerCase.indexOf(" where ");
+			if (startIndex > 0) {
+				existingPredicate = this.updatedQuery.substring(startIndex);
+			}
+		}
+		query = query + existingPredicate;
 
 		Iterator<Predicate> i = predicateList.listIterator();
 		while (i.hasNext()) {
