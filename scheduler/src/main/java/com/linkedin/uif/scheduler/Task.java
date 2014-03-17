@@ -81,6 +81,7 @@ public class Task implements Runnable, Serializable {
     public void run() {
         Extractor extractor = null;
         DataWriter writer = null;
+        TaskPublisher publisher = null;
 
         // Metrics that need to be updated
         Counter taskRecordCounter = Metrics.getCounter(Metrics.metricName(
@@ -158,7 +159,7 @@ public class Task implements Runnable, Serializable {
             PolicyChecker policyChecker = buildPolicyChecker(this.taskState);
             PolicyCheckResults results = policyChecker.executePolicies();
             
-            TaskPublisher publisher = buildTaskPublisher(this.taskState, results);
+            publisher = buildTaskPublisher(this.taskState, results);
             switch (publisher.canPublish()) {
             case SUCCESS:
                 LOG.info("Committing data of task " + this.taskId);
@@ -221,6 +222,14 @@ public class Task implements Runnable, Serializable {
                     } catch (IOException ioe) {
                         // Ignored
                     }
+                }
+            }
+
+            if (publisher != null) {
+                try {
+                    publisher.cleanup();
+                } catch (Exception e) {
+                    // Ignored
                 }
             }
 
