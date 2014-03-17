@@ -474,7 +474,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 				.put("decimal", "double")
 				.put("boolean", "boolean")
 				.put("picklist", "array")
-				.put("multipicklist", "multipicklist")
+				.put("multipicklist", "array")
 				.put("combobox", "array")
 				.put("list", "array")
 				.put("set", "array")
