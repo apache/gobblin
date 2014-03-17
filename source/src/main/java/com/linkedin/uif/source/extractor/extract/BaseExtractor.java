@@ -193,6 +193,7 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 	 */
 	@Override
 	public void close() {
+		this.log.info("Updating the current state high water mark with "+this.highWatermark);
 		this.workUnitState.setHighWaterMark(this.highWatermark);
 	}
 	
@@ -225,7 +226,11 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 			
 			if(!Strings.isNullOrEmpty(watermarkColumn)) {
 				this.highWatermark = this.getLatestWatermark(watermarkColumn, watermarkType, lwm, hwm);
-				this.setRangePredicates(watermarkColumn, watermarkType, lwm, this.highWatermark);
+				this.log.info("High water mark from source:"+this.highWatermark);
+				long currentRunHighWatermark = (this.highWatermark != ConfigurationKeys.DEFAULT_WATERMARK_VALUE ? this.highWatermark : hwm);
+				
+				this.log.info("High water mark for the current run:"+currentRunHighWatermark);
+				this.setRangePredicates(watermarkColumn, watermarkType, lwm, currentRunHighWatermark);
 			}
 			
 			this.sourceRecordCount = this.getSourceCount(this.schema, this.entity, this.workUnit, this.predicateList);
