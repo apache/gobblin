@@ -509,11 +509,13 @@ public class LocalJobManager extends AbstractIdleService {
      */
     @SuppressWarnings("unchecked")
     private void commitJob(String jobId, String jobName, JobState jobState) throws Exception {
+        JobCommitPolicy commitPolicy = JobCommitPolicy.forName(jobState.getProp(
+                ConfigurationKeys.JOB_COMMIT_POLICY_KEY,
+                ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
+
+        DataPublisher publisher = null;
         try {
             // Do job publishing based on the job commit policy
-            JobCommitPolicy commitPolicy = JobCommitPolicy.forName(jobState.getProp(
-                    ConfigurationKeys.JOB_COMMIT_POLICY_KEY,
-                    ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
             if (commitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS ||
                     (commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS &&
                             jobState.getState() == JobState.RunningState.SUCCESSFUL)) {
@@ -524,7 +526,7 @@ public class LocalJobManager extends AbstractIdleService {
                         Class.forName(jobState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE));
                 Constructor<? extends DataPublisher> dataPublisherConstructor =
                         dataPublisherClass.getConstructor(com.linkedin.uif.configuration.State.class);
-                DataPublisher publisher = dataPublisherConstructor.newInstance(jobState);
+                publisher = dataPublisherConstructor.newInstance(jobState);
 
                 publisher.initialize();
                 if (publisher.publish(jobState.getTaskStates())) {
@@ -534,11 +536,15 @@ public class LocalJobManager extends AbstractIdleService {
         } catch (Exception e) {
             jobState.setState(JobState.RunningState.FAILED);
             LOG.error("Failed to publish job data of job " + jobId, e);
+            throw e;
         } finally {
             boolean runOnce = this.runOnceJobs.containsKey(jobName);
             persistJobState(jobState);
             cleanupJobOnCompletion(jobState, runOnce);
             callJobListener(jobName, jobState, runOnce);
+            if (publisher != null) {
+                publisher.close();
+            }
         }
     }
 
