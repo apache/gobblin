@@ -138,14 +138,15 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 			for (JsonElement columnElement : array) {
 				JsonObject field = columnElement.getAsJsonObject();
 				Schema schema = new Schema();
-				
 				schema.setColumnName(field.get("name").getAsString());
-				String dataType = field.get("type").getAsString();
 				
+				String dataType = field.get("type").getAsString();
 				String elementDataType = "string";
 				List<String> mapSymbols = null;
-				schema.setDataType(this.convertDataType(field.get("name").getAsString(), dataType, elementDataType, mapSymbols));
-
+				JsonObject newDataType = this.convertDataType(field.get("name").getAsString(), dataType, elementDataType, mapSymbols);
+				this.log.debug("ColumnName:"+field.get("name").getAsString()+";   old datatype:"+dataType+";   new datatype:"+newDataType);
+				
+				schema.setDataType(newDataType);
 				schema.setLength(field.get("length").getAsLong());
 				schema.setPrecision(field.get("precision").getAsInt());
 				schema.setScale(field.get("scale").getAsInt());
@@ -173,6 +174,16 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 		String query = "SELECT " + watermarkColumn + " FROM " + entity;
 		String defaultPredicate = " " + watermarkColumn + " != null";
 		String defaultSortOrder = " ORDER BY " + watermarkColumn + " desc LIMIT 1";
+		
+		String existingPredicate = "";
+		if (this.updatedQuery != null) {
+			String queryLowerCase = this.updatedQuery.toLowerCase();
+			int startIndex = queryLowerCase.indexOf(" where ");
+			if (startIndex > 0) {
+				existingPredicate = this.updatedQuery.substring(startIndex);
+			}
+		}
+		query = query + existingPredicate;
 
 		Iterator<Predicate> i = predicateList.listIterator();
 		while (i.hasNext()) {
@@ -473,13 +484,13 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 				.put("currency", "double")
 				.put("decimal", "double")
 				.put("boolean", "boolean")
-				.put("picklist", "array")
-				.put("multipicklist", "array")
-				.put("combobox", "array")
-				.put("list", "array")
-				.put("set", "array")
-				.put("map", "map")
-				.put("enum", "enum").build();
+				.put("picklist", "string")
+				.put("multipicklist", "string")
+				.put("combobox", "string")
+				.put("list", "string")
+				.put("set", "string")
+				.put("map", "string")
+				.put("enum", "string").build();
 		return dataTypeMap;
 	}
 }
