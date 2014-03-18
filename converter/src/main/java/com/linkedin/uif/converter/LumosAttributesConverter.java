@@ -48,9 +48,18 @@ public class LumosAttributesConverter extends AvroToAvroConverterBase {
       att.setValidationHighWater(extract.getValidationRecordCountHighWaterMark());
     }
 
-    att.setPrimaryKeyFields(extract.getPrimaryKeys());
-    att.setDeltaFields(extract.getDeltaFields());
-
+    switch (extract.getType()) {
+      case SNAPSHOT_APPEND:
+        att.setPrimaryKeyFields(extract.getPrimaryKeys());
+        // no break;
+      case APPEND_ONLY:
+        att.setDeltaFields(extract.getDeltaFields());
+        break;
+      case SNAPSHOT_ONLY:
+        att.isFull(true);
+        att.setFullDropDate(extract.getFullExtractRunTime());
+    }
+    
     return att.getSchema();
   }
 

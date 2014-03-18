@@ -36,7 +36,7 @@ public class TestLumosAttributesConverter {
     schema = parser.parse(this.getClass().getResourceAsStream("/avro.avsc"));
        
     SourceState source = new SourceState();
-    Extract extract = source.createExtract(TableType.SNAPSHOT_ONLY, "test_namespace",
+    Extract extract = source.createExtract(TableType.SNAPSHOT_APPEND, "test_namespace",
         "test_table");
     
     extract.setPrimaryKeys("Id");
