@@ -30,7 +30,7 @@ import com.linkedin.uif.source.workunit.Extract.TableType;
  * An implementation of Base source to get work units
  */
 public abstract class BaseSource<S, D> implements Source<S, D> {
-	private static final Log LOG = LogFactory.getLog(SalesforceSource.class);
+	private static final Log LOG = LogFactory.getLog(BaseSource.class);
 
     /**
      * get work units using Source state
@@ -80,7 +80,7 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
 		List<WorkUnit> previousWorkUnits = new ArrayList<WorkUnit>();
 		List<WorkUnitState> previousWorkUnitStates = state.getPreviousStates();
 		if(previousWorkUnitStates.size() == 0) {
-			LOG.info("Previous states are not found");
+			LOG.debug("Previous states are not found");
 			return previousWorkUnits;
 		}
 		
