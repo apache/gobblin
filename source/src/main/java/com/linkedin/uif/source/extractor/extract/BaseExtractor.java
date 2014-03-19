@@ -234,6 +234,10 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 			}
 			
 			this.sourceRecordCount = this.getSourceCount(this.schema, this.entity, this.workUnit, this.predicateList);
+			if(this.sourceRecordCount == 0) {
+				this.log.info("Record count is 0; Setting fetch status to false to skip readRecord()");
+				this.setFetchStatus(false);
+			}
 			
 		} catch (SchemaException e) {
 			throw new ExtractPrepareException("Failed to get schema for this object; error-" + e.getMessage());
