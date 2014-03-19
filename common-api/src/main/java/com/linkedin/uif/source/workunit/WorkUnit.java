@@ -7,10 +7,15 @@ import java.io.IOException;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.State;
+import com.linkedin.uif.source.extractor.Extractor;
 
 
 /**
- * Represents the definition for a finite pull task
+ * <p>Represents the definition for a finite pull task.  An instance of WorkUnit
+ * should contain all the properties {@link Extractor} needs to perform the pull
+ * task.
+ * </p>
+ * 
  * @author kgoodhop
  *
  */
@@ -46,24 +51,40 @@ public class WorkUnit extends State {
 
   /**
    * Attributes object for differing pull types.
-   * @return
+   * @return {@link Extract}
    */
   public Extract getExtract() {
     return extract;
   }
 
+  /**
+   * getter for max water mark for this WorkUnit
+   * @return
+   */
   public long getHighWaterMark() {
     return getPropAsLong(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY);
   }
 
+  /**
+   * setter for max water mark for this WorkUnit
+   * @param highWaterMark
+   */
   public void setHighWaterMark(long highWaterMark) {
     setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, highWaterMark);
   }
 
+  /**
+   * getter for min water mark for this WorkUnit
+   * @return
+   */
   public long getLowWaterMark() {
     return getPropAsLong(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY);
   }
 
+  /**
+   * setter for min water mark for this WorkUnit
+   * @param lowWaterMark
+   */
   public void setLowWaterMark(long lowWaterMark) {
     setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, lowWaterMark);
   }
