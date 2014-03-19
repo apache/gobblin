@@ -100,7 +100,7 @@ public class Extract extends State {
   public String getOutputFilePath() {
       return this.getNamespace().replaceAll("\\.", "/") + "/" + 
              this.getTable() + "/" + this.getExtractId() + "_" + 
-             (this.getIsFull() ? "FULL" : "APPEND");
+             (this.getIsFull() ? "full" : "append");
   }
   
   /**
