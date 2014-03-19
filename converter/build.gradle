@@ -1,7 +1,6 @@
 apply plugin: 'li-java'
 
 dependencies {
-
   compile project(":common-api")
   compile files('./src/main/resources/lumos-common-2.0.0.jar')
   compile spec.external.commonsDbcp
@@ -20,29 +19,11 @@ configurations {
     compile {
         transitive = false
     }
-
-    runtime {
-        transitive = true
-    }
-}
-
-artifacts {
-        compileJar jar
-}
-
-sourceSets {
-        main {
-                sourceSets.main.compileClasspath += configurations.compileJar
-        }
 }
 
 test {
     useTestNG ()
     include '**/*Test*'
-}
-
-javadoc {
-        classpath += configurations.compileJar
 }
 
 classification="library"

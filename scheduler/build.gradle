@@ -1,41 +1,28 @@
 apply plugin: 'li-java'
 
 dependencies {
-
   compile project(":common-api")
   compile project(":metastore")
   compile project(":qualitychecker")
   compile project(":writer")
-  compile spec.external.commonsDbcp
+  compile spec.external.avro
   compile spec.external.commonsLogging
-  compile spec.external.guava
+  compile spec.external.commonsConfiguration
   compile spec.external.quartz
   compile spec.external.hadoop
-  compile spec.external.avro
+  compile spec.external.guava
+  compile spec.external.jacksonCore
+  compile spec.external.jacksonMapper
+  compile spec.external.jodaTime
+  compile spec.external.httpclient
+  compile spec.external.httpcore
+  compile spec.external.commonsLang
+  compile spec.external.slf4j
+  compile spec.external.slf4jSimple
+  compile spec.external.commonsCli
+  compile spec.external.gson
   compile spec.external.metricsCore
-
-  runtime spec.external.slf4j
-  runtime spec.external.slf4jSimple
-  runtime spec.external.metricsCore
-
-  compileJar spec.external.commonsDbcp
-  compileJar spec.external.commonsLogging
-  compileJar spec.external.guava
-  compileJar spec.external.quartz
-  compileJar spec.external.hadoop
-  compileJar spec.external.avro
-  compileJar spec.external.jacksonCore
-  compileJar spec.external.jacksonMapper
-  compileJar spec.external.jodaTime
-  compileJar spec.external.httpclient
-  compileJar spec.external.httpcore
-  compileJar spec.external.commonsLang
-  compileJar spec.external.slf4j
-  compileJar spec.external.slf4jSimple
-  compileJar spec.external.commonsCli
-  compileJar spec.external.gson
-  compileJar spec.external.metricsCore
-  compileJar files('../converter/src/main/resources/lumos-common-2.0.0.jar')
+  compile files('../converter/src/main/resources/lumos-common-2.0.0.jar')
 
   testCompile project(":test")
   testCompile spec.external.testng
@@ -45,33 +32,11 @@ configurations {
     compile {
         transitive = false
     }
-
-    runtime {
-        transitive = true
-    }
-}
-
-jar {
-        from { configurations.compileJar.collect { it.isDirectory() ? it : zipTree(it) }}
-}
-
-artifacts {
-        compileJar jar
-}
-
-sourceSets {
-        main {
-                sourceSets.main.compileClasspath += configurations.compileJar
-        }
 }
 
 test {
     useTestNG ()
     include '**/*Test*'
-}
-
-javadoc {
-        classpath += configurations.compileJar
 }
 
 classification="library"

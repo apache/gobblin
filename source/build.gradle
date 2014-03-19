@@ -20,19 +20,5 @@ configurations.all {
         transitive = false
 }
 
-artifacts {
-        compileJar jar
-}
-
-sourceSets {
-        main {
-                sourceSets.main.compileClasspath += configurations.compileJar
-        }
-}
-
-javadoc {
-        classpath += configurations.compileJar
-}
-
 classification="library"
 
