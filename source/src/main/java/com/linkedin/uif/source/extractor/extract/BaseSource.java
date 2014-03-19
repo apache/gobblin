@@ -123,7 +123,10 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
 			}
 		}
 		
-		if(hasDataInPreviousRun) {
+		if(previousWorkUnitStateHighWatermarks.isEmpty()) {
+			latestWaterMark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
+			LOG.info("Previous Committed states are not found; Latest watermark - Default watermark:"+latestWaterMark);
+		} else if(hasDataInPreviousRun) {
 			latestWaterMark = Collections.max(previousWorkUnitStateHighWatermarks);
 			LOG.info("Previous run has data; Latest watermark - Max watermark from WorkUnitStates:"+latestWaterMark);
 		} else {
