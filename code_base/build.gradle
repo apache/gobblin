@@ -1,0 +1,32 @@
+apply plugin: 'li-tgz'
+
+dependencies {
+	runtime(project(':clustermanager'))
+	runtime(project(':converter'))
+	runtime(project(':common-api'))
+	runtime(project(':qualitychecker'))
+	runtime(project(':scheduler'))
+	runtime(project(':test'))
+	runtime(project(':utility'))
+	runtime(project(':writer'))
+	runtime(project(':metastore'))
+	runtime(project(':source'))
+}
+
+tgz {
+        ext.jar_extension = ".jar"
+        rename("clustermanager-$version$jar_extension", "clustermanager.jar")
+        rename("converter-$version$jar_extension", "converter.jar")
+        rename("common-api-$version$jar_extension", "common-api.jar")
+        rename("qualitychecker-$version$jar_extension", "qualitychecker.jar")
+        rename("scheduler-$version$jar_extension", "scheduler.jar")
+        rename("test-$version$jar_extension", "test.jar")
+        rename("utility-$version$jar_extension", "utility.jar")
+        rename("writer-$version$jar_extension", "writer.jar")
+        rename("metastore-$version$jar_extension", "metastore.jar")
+        rename("source-$version$jar_extension", "source.jar")
+        from('.')
+        from('../conf') { into('conf') }
+        exclude('*build*')
+        into('deployment')
+}

@@ -1,7 +1,6 @@
 apply plugin: 'li-java'
 
 dependencies {
-
   compile project(":common-api")
   compile project(":qualitychecker")
   compile project(":scheduler")
@@ -13,6 +12,7 @@ dependencies {
   compile spec.external.guava
   compile spec.external.jacksonCore
   compile spec.external.jacksonMapper
+  compile spec.external.slf4j
 
   testCompile project(':scheduler')
   testCompile project(':writer')
@@ -24,30 +24,12 @@ configurations {
     compile {
         transitive = false
     }
-
-    runtime {
-        transitive = true
-    }
-}
-
-artifacts {
-        compileJar jar
-}
-
-sourceSets {
-        main {
-                sourceSets.main.compileClasspath += configurations.compileJar
-        }
 }
 
 test {
     useTestNG ()
     workingDir rootProject.rootDir
     include '**/*Test*'
-}
-
-javadoc {
-        classpath += configurations.compileJar
 }
 
 classification="library"
