@@ -1,6 +1,6 @@
-job.name=UIFTest3
-job.group=Test
-job.description=Test UIF job 3
+job.name=SalesforceJob
+job.group=Salesforce
+job.description=Salesforce Job
 job.schedule=0 0/1 * * * ?
 
 source.class=com.linkedin.uif.source.extractor.extract.restapi.SalesforceSource
@@ -13,9 +13,6 @@ writer.destination.type=HDFS
 writer.output.format=AVRO
 writer.fs.uri=file://localhost/
 
-source.files=test/resource/source/test.avro.0,test/resource/source/test.avro.1
-
-qualitychecker.metadatacollector=com.linkedin.uif.configuration.YushanMetaStoreClient
 qualitychecker.policies=com.linkedin.uif.policies.count.RowCountPolicy,com.linkedin.uif.policies.schema.SchemaCompatibilityPolicy,com.linkedin.uif.policies.schema.LumosSchemaValidationPolicy
 qualitychecker.policy.types=OPTIONAL,OPTIONAL,OPTIONAL
 
