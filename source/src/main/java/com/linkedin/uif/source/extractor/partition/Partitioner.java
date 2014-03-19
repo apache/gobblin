@@ -55,6 +55,9 @@ public class Partitioner {
 		
 		WatermarkPredicate watermark = new WatermarkPredicate(null, watermarkType);
 		int deltaForNextWatermark = watermark.getDeltaNumForNextWatermark();
+		
+		LOG.info("is watermark override:"+this.isWatermarkOverride());
+		LOG.info("is full extract:"+this.isFullDump());
 		long lowWatermark = this.getLowWatermark(extractType, watermarkType, previousWatermark, deltaForNextWatermark);
 		long highWatermark = this.getHighWatermark(extractType, watermarkType);
 		
@@ -97,11 +100,9 @@ public class Partitioner {
      */
 	private long getLowWatermark(ExtractType extractType, WatermarkType watermarkType, long previousWatermark, int deltaForNextWatermark) {
 		long lowWatermark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
-		if (isFullDump()) {
-			if (!Strings.isNullOrEmpty(this.state.getProp(ConfigurationKeys.SOURCE_START_VALUE))) {
-				lowWatermark = Utils.getAsLong(this.state.getProp(ConfigurationKeys.SOURCE_START_VALUE));
-			}
-			LOG.info("low watermark for **full** extract:" + lowWatermark);
+		if (this.isFullDump() || this.isWatermarkOverride()) {
+			lowWatermark = Utils.getAsLong(this.state.getProp(ConfigurationKeys.SOURCE_START_VALUE));
+			LOG.info("Overriding low water mark with the given start value:"+lowWatermark);
 		} else {
 			if (this.isSnapshot(extractType)) {
 				lowWatermark = this.getSnapshotLowWatermark(watermarkType, previousWatermark, deltaForNextWatermark);
@@ -130,7 +131,8 @@ public class Partitioner {
 			}
 			
 		} else {
-			LOG.info("Overriding low water mark with start value:"+ConfigurationKeys.SOURCE_START_VALUE);
+			// if previous watermark is not found, override with the start value(irrespective of source.is.watermark.override flag)
+			LOG.info("Overriding low water mark with the given start value:"+Utils.getAsLong(this.state.getProp(ConfigurationKeys.SOURCE_START_VALUE)));
 			return Utils.getAsLong(this.state.getProp(ConfigurationKeys.SOURCE_START_VALUE));
 		}
 	}
@@ -145,21 +147,15 @@ public class Partitioner {
      */
 	private long getAppendLowWatermark(WatermarkType watermarkType, long previousWatermark, int deltaForNextWatermark) {
 		LOG.debug("Getting append low water mark");
-		Boolean isAppendOverride = Boolean.valueOf(this.state.getProp(ConfigurationKeys.SOURCE_IS_APPEND_OVERRIDE));
-		if(isAppendOverride) {
+		if(this.isPreviousWatermarkExists(previousWatermark)) {
+			if(this.isSimpleWatermark(watermarkType)) {
+				return previousWatermark + deltaForNextWatermark;
+			} else {
+				return Long.parseLong(Utils.dateToString(Utils.addSecondsToDate(Utils.toDate(previousWatermark, WATERMARKTIMEFORMAT),deltaForNextWatermark), WATERMARKTIMEFORMAT));
+			}
+		} else {
 			LOG.info("Overriding low water mark with start value:"+ConfigurationKeys.SOURCE_START_VALUE);
 			return Utils.getAsLong(this.state.getProp(ConfigurationKeys.SOURCE_START_VALUE));
-		} else {
-			if(this.isPreviousWatermarkExists(previousWatermark)) {
-				if(this.isSimpleWatermark(watermarkType)) {
-					return previousWatermark + deltaForNextWatermark;
-				} else {
-					return Long.parseLong(Utils.dateToString(Utils.addSecondsToDate(Utils.toDate(previousWatermark, WATERMARKTIMEFORMAT),deltaForNextWatermark), WATERMARKTIMEFORMAT));
-				}
-			} else {
-				LOG.info("Overriding low water mark with start value:"+ConfigurationKeys.SOURCE_START_VALUE);
-				return Utils.getAsLong(this.state.getProp(ConfigurationKeys.SOURCE_START_VALUE));
-			}
 		}
 	}
 	
@@ -173,10 +169,15 @@ public class Partitioner {
 	private long getHighWatermark(ExtractType extractType, WatermarkType watermarkType) {
 		LOG.debug("Getting high watermark");
 		long highWatermark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
-		if (this.isSnapshot(extractType)) {
-			highWatermark = this.getSnapshotHighWatermark(watermarkType);
+		if (this.isWatermarkOverride()) {
+			highWatermark = Utils.getAsLong(this.state.getProp(ConfigurationKeys.SOURCE_END_VALUE));
+			LOG.info("Overriding high water mark with the given end value:"+highWatermark);
 		} else {
-			highWatermark = this.getAppendHighWatermark(extractType);
+			if (this.isSnapshot(extractType)) {
+				highWatermark = this.getSnapshotHighWatermark(watermarkType);
+			} else {
+				highWatermark = this.getAppendHighWatermark(extractType);
+			}
 		}
 		return (highWatermark == 0 ? ConfigurationKeys.DEFAULT_WATERMARK_VALUE : highWatermark);
 	}
@@ -203,7 +204,7 @@ public class Partitioner {
      */
 	private long getAppendHighWatermark(ExtractType extractType) {
 		LOG.debug("Getting append high water mark");
-		if(this.isFullDump() || this.isAppendOverride()) {
+		if(this.isFullDump()) {
 			LOG.info("Overriding high water mark with end value:"+ConfigurationKeys.SOURCE_END_VALUE);
 			return Utils.getAsLong(this.state.getProp(ConfigurationKeys.SOURCE_END_VALUE));
 		} else {
@@ -360,7 +361,7 @@ public class Partitioner {
 	/**
 	 * @return full dump or not
 	 */
-	public boolean isAppendOverride() {
-		return Boolean.valueOf(this.state.getProp(ConfigurationKeys.SOURCE_IS_APPEND_OVERRIDE));
+	public boolean isWatermarkOverride() {
+		return Boolean.valueOf(this.state.getProp(ConfigurationKeys.SOURCE_IS_WATERMARK_OVERRIDE));
 	}
 }

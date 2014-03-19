@@ -33,6 +33,9 @@ source.extract.type=snapshot
 source.watermark.type=timestamp
 
 source.start.value=20140201000000
+source.end.value=20140319000000
+source.is.watermark.override=false
+
 source.max.number.of.partitions=2
 source.partition.interval=24
 source.low.watermark.backup.secs=0
