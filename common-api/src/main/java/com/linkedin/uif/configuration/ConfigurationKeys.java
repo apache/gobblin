@@ -192,7 +192,7 @@ public class ConfigurationKeys {
     public static final String SOURCE_START_VALUE = "source.start.value";
     public static final String SOURCE_END_VALUE = "source.end.value";
     public static final String SOURCE_APPEND_MAX_WATERMARK_LIMIT = "source.append.max.watermark.limit";
-    public static final String SOURCE_IS_APPEND_OVERRIDE = "source.is.append.override";
+    public static final String SOURCE_IS_WATERMARK_OVERRIDE = "source.is.watermark.override";
     public static final String SOURCE_MAX_NUMBER_OF_PARTITIONS = "source.max.number.of.partitions";
     public static final String SOURCE_LOW_WATERMARK_BACKUP_SECS = "source.low.watermark.backup.secs";
     
