@@ -1,6 +1,6 @@
 #!/bin/bash
 
-usage="Usage: sh uif-daemon.sh (start | status | restart | stop) [-p | --props <props-file-location>] [-cp | --classpath <java-classpath>]"
+usage="Usage: sh uif-daemon.sh (start | status | restart | stop | byteman) [-p | --props <props-file-location>] [-cp | --classpath <java-classpath>]"
 
 start_stop=$1
 shift
@@ -93,6 +93,17 @@ stop() {
 	fi
 }
 
+byteman() {
+	export BYTEMAN_HOME=$(pwd)/test/byteman/byteman-download-2.1.4.1
+	if [ ! -e "test/byteman/byteman-download-2.1.4.1" ]; then
+		cd test/byteman
+        	curl -OL http://downloads.jboss.org/byteman/2.1.4.1/byteman-download-2.1.4.1-full.zip
+        	unzip byteman-download-2.1.4.1-full.zip
+        	cd ../../
+    	fi
+	byteman_param="-javaagent:${BYTEMAN_HOME}/lib/byteman.jar=script:test/byteman/negative_test.btm"
+}
+
 case $start_stop in
 	"status")
 		status
@@ -108,6 +119,9 @@ case $start_stop in
 		;;
 	"stop")
 		stop
+		;;
+	"byteman")
+		byteman
 		;;
 	*)
 		echo $usage
