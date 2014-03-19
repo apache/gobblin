@@ -26,7 +26,8 @@ while [ "$1" != "" ]; do
 	shift
 done
 
-pid=uif-pid.txt
+base_path=/mnt/n001/data/sa_uif
+pid="$base_path/uif-pid"
 
 if [ -f $pid ]; then
 	pid_value=`cat $pid` > /dev/null 2>&1
@@ -35,6 +36,19 @@ else
 fi
 
 uif_stop_timeout=1
+
+checkParams() {
+        if [ -z $props ]; then
+                echo "Props is not set"
+                echo $usage
+                exit 1
+        fi
+        if [ -z $classpathLoc ]; then
+                echo "Classpath is not set"
+                echo $usage
+                exit 1
+        fi
+}
 
 status() {
 	if [ -f $pid ]; then
@@ -51,16 +65,7 @@ status() {
 }
 
 start() {
-	if [ -z $props ]; then
-		echo "Props is not set"
-		echo $usage
-		exit 1
-	fi
-	if [ -z $classpathLoc ]; then
-		echo "Classpath is not set"
-		echo $usage
-		exit 1
-	fi
+	checkParams
 
 	classpath=$(find $classpathLoc | tr $'\012' ':' | sed 's/:$//g')
 	command="java -cp $classpath com.linkedin.uif.scheduler.Worker $props"
@@ -72,7 +77,7 @@ start() {
 		fi
 	fi
 	echo 'Starting UIF'
-	nohup $command > uif.log & echo $! > $pid
+	nohup $command > "$base_path/uif.log" & echo $! > $pid
 }
 
 stop() {
@@ -93,7 +98,10 @@ stop() {
 	fi
 }
 
+# Don't run this on an ETL machine, run it locally
 byteman() {
+	checkParams
+
 	export BYTEMAN_HOME=$(pwd)/test/byteman/byteman-download-2.1.4.1
 	if [ ! -e "test/byteman/byteman-download-2.1.4.1" ]; then
 		cd test/byteman
@@ -102,6 +110,8 @@ byteman() {
         	cd ../../
     	fi
 	byteman_param="-javaagent:${BYTEMAN_HOME}/lib/byteman.jar=script:test/byteman/negative_test.btm"
+	classpath=$(find $classpathLoc | tr $'\012' ':' | sed 's/:$//g')
+	java -cp $classpath $byteman_param com.linkedin.uif.scheduler.Worker $props
 }
 
 case $start_stop in
