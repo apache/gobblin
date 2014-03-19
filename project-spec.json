@@ -36,40 +36,19 @@
   "dependencyResolution": {},
   "external": {
     "avro": "org.apache.avro:avro:1.7.1",
-    "avroMapred": "org.apache.avro:avro-mapred:1.5.1",
-    "azkaban": "com.linkedin.azkaban:azkaban-common:0.10",
-    "commonHttpclient": "commons-httpclient:commons-httpclient:3.1",
-    "commonsBeanutils": "commons-beanutils:commons-beanutils:1.7.0",
     "commonsCli": "commons-cli:commons-cli:1.2",
-    "commonsCodec": "commons-codec:commons-codec:1.4",
-    "commonsCollections": "commons-collections:commons-collections:3.2",
-    "commonsConf": "commons-configuration:commons-configuration:1.10",
     "commonsDbcp": "commons-dbcp:commons-dbcp:1.4",
-    "commonsIo": "commons-io:commons-io:1.4",
     "commonsLang": "commons-lang:commons-lang:2.4",
     "commonsLogging": "commons-logging:commons-logging:1.1",
-    "commonsMath": "commons-math:commons-math:2.1",
-    "commonsPool": "commons-pool:commons-pool:1.5.6",
-    "easymock": "org.easymock:easymock:3.1",
-    "easymockClassExtension": "org.easymock:easymockclassextension:3.1",
+    "commonsConfiguration": "commons-configuration:commons-configuration:1.10",
     "guava": "com.google.guava:guava:15.0",
     "gson":"com.google.code.gson:gson:2.2.4",
     "hadoop": "org.apache.hadoop:hadoop-core:1.0.4-p2",
-    "hadoopCore": "org.apache.hadoop:hadoop-core:1.0.4",
-    "hadoopAuth": "hadoop-auth:hadoop-auth:3.0",
-    "hadoopRestfs": "hadoop-restfs:hadoop-restfs:1.0",
-    "helixCore": "org.apache.helix:helix-core:0.6.1.5",
-    "helixWebapp": "org.apache.helix:helix-admin-webapp:0.6.1.5",
     "httpclient": "org.apache.httpcomponents:httpclient:4.2.3",
     "httpcore": "org.apache.httpcomponents:httpcore:4.2.1",
     "log4j": "log4j:log4j:1.2.16",
-    "mysqlConnectorJava": "org.mysql:mysql-connector-java:5.1.14",
-    "netty": "org.jboss.netty:netty:3.2.3.Final",
     "quartz": "org.quartz-scheduler:quartz:2.2.1",
-    "snappy": "org.xerial.snappy:snappy-java:1.0.1-rc3",
     "testng": "org.testng:testng:6.5.1",
-    "zkclient": "com.github.sgroschupf:zkclient:0.1",
-    "zookeeper": "org.apache.zookeeper:zookeeper:3.3.3",
     "jacksonCore": "org.codehaus.jackson:jackson-core-asl:1.9.13",
     "jacksonMapper": "org.codehaus.jackson:jackson-mapper-asl:1.9.13",
     "slf4j": "org.slf4j:slf4j-api:1.7.5",
@@ -81,48 +60,6 @@
     "container": {
       "containerImpl": "com.linkedin.container:container-impl:@spec.product.container.version@",
       "version": "6.0.154"
-    },
-    "sharedlibs": {
-      "jmxImpl": "com.linkedin.sharedlibs:jmx-impl:@spec.product.sharedlibs.version@",
-      "version": "5.1.0"
-    },
-    "databus2": {
-      "databus2EspressoRelayImpl": "com.linkedin.databus2:databus3-relay-espresso-impl:@spec.product.databus2.version@",
-      "databus3ClientImpl": "com.linkedin.databus2:databus3-client-impl:@spec.product.databus2.version@",
-      "databus3EspressoTestClient": "com.linkedin.databus2:databus3-espresso-test-client:@spec.product.databus2.version@",
-      "databusClientApi": "com.linkedin.databus2:databus-client-api:@spec.product.databus2.version@",
-      "databusClientImpl": "com.linkedin.databus2:databus-client-impl:@spec.product.databus2.version@",
-      "databusClusterManagerUtil": "com.linkedin.databus2:databus-cluster-manager-utils:@spec.product.databus2.version@",
-      "databusCoreContainer": "com.linkedin.databus2:databus-core-container:@spec.product.databus2.version@",
-      "databusCoreImpl": "com.linkedin.databus2:databus-core-impl:@spec.product.databus2.version@",
-      "databusCoreSchemas": "com.linkedin.databus2:databus-core-schemas:@spec.product.databus2.version@",
-      "databusRpldbusManager": "com.linkedin.databus2:databus-rpldbus-manager:@spec.product.databus2.version@",
-      "version": "2.11.4"
-    },
-    "dds-mysql": {
-      "MySQLMXJ": "com.linkedin.dds-mysql:mysql-mxj-impl:@spec.product.dds-mysql.version@",
-      "MySQLOpenReplicator": "com.linkedin.dds-mysql:open-replicator-impl:@spec.product.dds-mysql.version@",
-      "MySQLServiceCmpt": "com.linkedin.dds-mysql:mysql-service-cmpt:@spec.product.dds-mysql.version@",
-      "version": "1.0.54"
-    },
-    "pegasus": {
-      "PegasusCommon": "com.linkedin.pegasus:pegasus-common:@spec.product.pegasus.version@",
-      "d2": "com.linkedin.pegasus:d2:@spec.product.pegasus.version@",
-      "data": "com.linkedin.pegasus:data:@spec.product.pegasus.version@",
-      "dataAvro": "com.linkedin.pegasus:data-avro:@spec.product.pegasus.version@",
-      "dataTransform": "com.linkedin.pegasus:data-transform:@spec.product.pegasus.version@",
-      "r2": "com.linkedin.pegasus:r2:@spec.product.pegasus.version@",
-      "version": "1.14.4"
-    },
-    "security": {
-      "securityAccess": "com.linkedin.security:security-ssl-access-control:@spec.product.security.version@",
-      "securityNettyAccess": "com.linkedin.security:security-netty-ssl-access-control:@spec.product.security.version@",
-      "version": "4.0.12"
-    },
-    "util": {
-      "utilCore": "com.linkedin.util:util-core:@spec.product.util.version@",
-      "utilSql": "com.linkedin.util:util-sql:@spec.product.util.version@",
-      "version": "7.1.1"
     }
   },
   "extSCM": {}
