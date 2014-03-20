@@ -39,7 +39,6 @@
     "commonsCli": "commons-cli:commons-cli:1.2",
     "commonsDbcp": "commons-dbcp:commons-dbcp:1.4",
     "commonsLang": "commons-lang:commons-lang:2.4",
-    "commonsLogging": "commons-logging:commons-logging:1.1",
     "commonsConfiguration": "commons-configuration:commons-configuration:1.10",
     "guava": "com.google.guava:guava:15.0",
     "gson":"com.google.code.gson:gson:2.2.4",
@@ -51,10 +50,11 @@
     "testng": "org.testng:testng:6.5.1",
     "jacksonCore": "org.codehaus.jackson:jackson-core-asl:1.9.13",
     "jacksonMapper": "org.codehaus.jackson:jackson-mapper-asl:1.9.13",
-    "slf4j": "org.slf4j:slf4j-api:1.7.5",
-    "slf4jSimple": "org.slf4j:slf4j-simple:1.7.5",
+    "slf4j": "org.slf4j:slf4j-api:1.7.6",
+    "slf4jSimple": "org.slf4j:slf4j-simple:1.7.6",
     "jodaTime": "joda-time:joda-time:1.6",
-    "metricsCore": "com.codahale.metrics:metrics-core:3.0.2"
+    "metricsCore": "com.codahale.metrics:metrics-core:3.0.2",
+    "jclOverSlf4j": "org.slf4j:jcl-over-slf4j:1.7.6"
   },
   "product": {
     "container": {

@@ -13,7 +13,6 @@ import com.google.common.util.concurrent.ServiceManager;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.slf4j.LoggerFactory;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.scheduler.local.LocalJobManager;
@@ -91,8 +90,6 @@ public class Worker {
             long metricsReportInterval = Long.parseLong(this.properties.getProperty(
                     ConfigurationKeys.METRICS_REPORT_INTERVAL_KEY,
                     ConfigurationKeys.DEFAULT_METRICS_REPORT_INTERVAL));
-            Metrics.startSlf4jReporter(metricsReportInterval,
-                    LoggerFactory.getLogger(Worker.class));
             Metrics.startCsvReporter(metricsReportInterval,
                     this.properties.getProperty(ConfigurationKeys.METRICS_DIR_KEY));
         }

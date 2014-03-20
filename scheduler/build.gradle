@@ -6,7 +6,7 @@ dependencies {
   compile project(":qualitychecker")
   compile project(":writer")
   compile spec.external.avro
-  compile spec.external.commonsLogging
+  compile spec.external.jclOverSlf4j
   compile spec.external.commonsConfiguration
   compile spec.external.quartz
   compile spec.external.hadoop
