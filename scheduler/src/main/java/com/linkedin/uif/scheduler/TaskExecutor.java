@@ -82,6 +82,14 @@ public class TaskExecutor extends AbstractIdleService {
      * @param task failed {@link Task} to be retried
      */
     public void retry(Task task) {
+        if (Metrics.isEnabled(task.getTaskState().getWorkunit())) {
+            // Adjust metrics to clean up numbers from the failed task
+            task.getTaskState().adjustJobMetricsOnRetry();
+            // Remove task-level metrics associated with this task so
+            // the retry will use fresh metrics
+            task.getTaskState().removeMetrics();
+        }
+
         // Task retry interval increases linearly with number of retries
         long interval = task.getRetryCount() * this.retryIntervalInSeconds;
         // Schedule the retry of the failed task

@@ -112,6 +112,15 @@ public class Metrics {
     }
 
     /**
+     * Remove the metric object associated with the given name.
+     *
+     * @param name metric object name
+     */
+    public static void remove(String name) {
+        METRICS.remove(name);
+    }
+
+    /**
      * Start a {@link com.codahale.metrics.ConsoleReporter}.
      *
      * @param period interval between reports in milliseconds

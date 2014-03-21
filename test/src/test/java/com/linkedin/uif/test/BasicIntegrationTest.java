@@ -2,7 +2,6 @@ package com.linkedin.uif.test;
 
 import java.io.File;
 import java.io.FileReader;
-import java.io.IOException;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -21,7 +20,6 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.scheduler.JobListener;
 import com.linkedin.uif.scheduler.JobState;
-import com.linkedin.uif.scheduler.Metrics;
 import com.linkedin.uif.scheduler.TaskExecutor;
 import com.linkedin.uif.scheduler.TaskState;
 import com.linkedin.uif.scheduler.TaskStateTracker;
@@ -47,28 +45,27 @@ public class BasicIntegrationTest {
 
     @BeforeClass
     public void startUp() throws Exception {
-        properties = new Properties();
-        properties.load(new FileReader("test/resource/uif.test.properties"));
-        
-        TaskExecutor taskExecutor = new TaskExecutor(properties);
+        this.properties = new Properties();
+        this.properties.load(new FileReader("test/resource/uif.test.properties"));
+        this.properties.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "false");
+
+        TaskExecutor taskExecutor = new TaskExecutor(this.properties);
         TaskStateTracker taskStateTracker = new LocalTaskStateTracker(
-                properties, taskExecutor);
+                this.properties, taskExecutor);
         WorkUnitManager workUnitManager = new WorkUnitManager(
                 taskExecutor, taskStateTracker);
-        this.jobManager = new LocalJobManager(workUnitManager, properties);
-        ((LocalTaskStateTracker) taskStateTracker).setJobManager(jobManager);
+        this.jobManager = new LocalJobManager(workUnitManager, this.properties);
+        ((LocalTaskStateTracker) taskStateTracker).setJobManager(this.jobManager);
 
         this.serviceManager = new ServiceManager(Lists.newArrayList(
                 // The order matters due to dependencies between services
                 taskExecutor,
                 taskStateTracker,
                 workUnitManager,
-                jobManager
+                this.jobManager
         ));
 
         this.serviceManager.startAsync();
-
-        Metrics.startConsoleReporter(500);
     }
 
     @Test
@@ -127,7 +124,8 @@ public class BasicIntegrationTest {
                                                e.getTable() + "/" + e.getExtractId() + "_" + 
                                                (e.getIsFull() ? "FULL" : "APPEND"),
                                                jobState.getProp(ConfigurationKeys.WRITER_FILE_NAME)
-                                               + "." + taskState.getId() + "." + TestConstants.TEST_WRITER_FILE_EXTENSION);
+                                               + "." + taskState.getId() + "."
+                                               + TestConstants.TEST_WRITER_FILE_EXTENSION);
 
                     Assert.assertEquals(taskState.getWorkingState(),
                             WorkUnitState.WorkingState.COMMITTED);
@@ -137,20 +135,10 @@ public class BasicIntegrationTest {
                     } catch (Exception ex) {
                         Assert.fail();
                     }
-
-                    long records = Metrics.getCounter(
-                            Metrics.metricName("task", taskState.getTaskId(), "records"))
-                            .getCount();
-                    Assert.assertEquals(records, 1000);
                 }
-
-                long records = Metrics.getCounter(
-                        Metrics.metricName("job", jobState.getJobId(), "records"))
-                        .getCount();
-                Assert.assertEquals(records, 2000);
             } finally {
                 // Make sure this is always called so the test can end
-                latch.countDown();
+                this.latch.countDown();
             }
         }
     }

@@ -6,9 +6,6 @@ import java.io.Serializable;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import com.codahale.metrics.Counter;
-import com.codahale.metrics.Meter;
-
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.Converter;
@@ -178,9 +175,9 @@ public class Task implements Runnable, Serializable {
                         this.writer.commit();
                         // Change the state to COMMITTED after successful commit
                         this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
-                        if (Metrics.isEnabled(this.taskState)) {
-                            // Collect byte-level metrics after the writer commits
-                            collectBytesMetrics();
+                        if (Metrics.isEnabled(this.taskState.getWorkunit())) {
+                            // Update byte-level metrics after the writer commits
+                            updateByteMetrics();
                         }
                     }
                 } catch (IOException ioe) {
@@ -245,52 +242,21 @@ public class Task implements Runnable, Serializable {
     }
 
     /**
-     * Collect record-level metrics.
+     * Update record-level metrics.
      */
-    public void collectRecordMetrics() {
-        Counter taskRecordCounter = Metrics.getCounter(Metrics.metricName(
-                "task", this.taskId, "records"));
-        Counter jobRecordCounter = Metrics.getCounter(Metrics.metricName(
-                "job", this.jobId, "records"));
-        Meter taskRecordMeter = Metrics.getMeter(Metrics.metricName(
-                "task", this.taskId, "recordsPerSec"));
-        Meter jobRecordMeter = Metrics.getMeter(Metrics.metricName(
-                "job", this.jobId, "recordsPerSec"));
-
-        long recordsWritten = this.writer.recordsWritten();
-        // Update metrics at the record level
-        long inc = recordsWritten - taskRecordCounter.getCount();
-        taskRecordCounter.inc(inc);
-        taskRecordMeter.mark(recordsWritten);
-        synchronized (Metrics.class) {
-            jobRecordCounter.inc(inc);
-            jobRecordMeter.mark(jobRecordMeter.getCount() + inc);
-        }
+    public void updateRecordMetrics() {
+        this.taskState.updateRecordMetrics(this.writer.recordsWritten());
     }
 
     /**
-     * Collect byte-level metrics.
+     * Update byte-level metrics.
      *
      * <p>
      *     This method is only supposed to be called after the writer commits.
      * </p>
      */
-    public void collectBytesMetrics() throws IOException {
-        Counter taskByteCounter = Metrics.getCounter(Metrics.metricName(
-                "task", this.taskId, "bytes"));
-        Counter jobByteCounter = Metrics.getCounter(Metrics.metricName(
-                "job", this.jobId, "bytes"));
-        Meter taskByteMeter = Metrics.getMeter(Metrics.metricName(
-                "task", this.taskId, "bytesPerSec"));
-        Meter jobByteMeter = Metrics.getMeter(Metrics.metricName(
-                "job", this.jobId, "bytesPerSec"));
-
-        long bytes = this.writer.bytesWritten();
-        // Update metrics at the byte level ONLY after commit is done
-        taskByteCounter.inc(bytes);
-        jobByteCounter.inc(bytes);
-        taskByteMeter.mark(bytes);
-        jobByteMeter.mark(bytes);
+    public void updateByteMetrics() throws IOException {
+        this.taskState.updateByteMetrics(this.writer.bytesWritten());
     }
 
     /**
