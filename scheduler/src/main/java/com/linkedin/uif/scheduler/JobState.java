@@ -3,6 +3,7 @@ package com.linkedin.uif.scheduler;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
 import com.google.common.collect.Lists;
@@ -183,16 +184,10 @@ public class JobState extends SourceState {
     }
 
     /**
-     * Add {@link TaskState}s of {@link Task}s of this job.
+     * Get the number of completed tasks.
      *
-     * @param taskStates {@link TaskState}s to add
+     * @return number of completed tasks
      */
-    public void addTaskStates(List<TaskState> taskStates) {
-        for (TaskState taskState : taskStates) {
-            this.taskStates.add(taskState);
-        }
-    }
-
     public int getCompletedTasks() {
         return this.taskStates.size();
     }
@@ -203,7 +198,7 @@ public class JobState extends SourceState {
      * @return {@link TaskState}s of {@link Task}s of this job
      */
     public List<TaskState> getTaskStates() {
-        return this.taskStates;
+        return Collections.unmodifiableList(this.taskStates);
     }
 
     /**
