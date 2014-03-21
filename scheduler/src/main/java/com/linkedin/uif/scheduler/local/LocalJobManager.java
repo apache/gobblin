@@ -53,6 +53,7 @@ import com.linkedin.uif.scheduler.JobException;
 import com.linkedin.uif.scheduler.JobListener;
 import com.linkedin.uif.scheduler.JobLock;
 import com.linkedin.uif.scheduler.JobState;
+import com.linkedin.uif.scheduler.Metrics;
 import com.linkedin.uif.scheduler.RunOnceJobListener;
 import com.linkedin.uif.scheduler.SourceWrapperBase;
 import com.linkedin.uif.scheduler.TaskState;
@@ -336,6 +337,11 @@ public class LocalJobManager extends AbstractIdleService {
             return;
         }
 
+        if (Metrics.isEnabled(this.properties)) {
+            // Remove all task-level metrics after the task is done
+            taskState.removeMetrics();
+        }
+
         JobState jobState = this.jobStateMap.get(jobId);
         jobState.addTaskState(taskState);
         // If all the tasks of the job have completed (regardless of
@@ -538,6 +544,10 @@ public class LocalJobManager extends AbstractIdleService {
             LOG.error("Failed to publish job data of job " + jobId, e);
             throw e;
         } finally {
+            if (Metrics.isEnabled(this.properties)) {
+                // Remove all job-level metrics after the job is done
+                jobState.removeMetrics();
+            }
             boolean runOnce = this.runOnceJobs.containsKey(jobName);
             persistJobState(jobState);
             cleanupJobOnCompletion(jobState, runOnce);
