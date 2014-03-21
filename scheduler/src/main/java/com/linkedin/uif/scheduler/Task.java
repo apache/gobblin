@@ -3,8 +3,8 @@ package com.linkedin.uif.scheduler;
 import java.io.IOException;
 import java.io.Serializable;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
@@ -45,7 +45,7 @@ import com.linkedin.uif.writer.Destination;
  */
 public class Task implements Runnable, Serializable {
 
-    private static final Log LOG = LogFactory.getLog(Task.class);
+    private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
     private final String jobId;
     private final String taskId;
