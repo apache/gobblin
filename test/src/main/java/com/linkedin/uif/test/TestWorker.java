@@ -54,6 +54,7 @@ public class TestWorker {
         WorkUnitManager workUnitManager = new WorkUnitManager(taskExecutor, taskStateTracker);
         this.jobManager = new LocalJobManager( workUnitManager, properties);
         ((LocalTaskStateTracker) taskStateTracker).setJobManager(this.jobManager);
+
         this.serviceManager = new ServiceManager(Lists.newArrayList(
                 // The order matters due to dependencies between services
                 taskExecutor,
@@ -75,8 +76,6 @@ public class TestWorker {
                     ConfigurationKeys.DEFAULT_METRICS_REPORT_INTERVAL));
             Metrics.startSlf4jReporter(metricsReportInterval,
                     LoggerFactory.getLogger(TestWorker.class));
-            Metrics.startCsvReporter(metricsReportInterval,
-                    this.properties.getProperty(ConfigurationKeys.METRICS_DIR_KEY));
         }
     }
 

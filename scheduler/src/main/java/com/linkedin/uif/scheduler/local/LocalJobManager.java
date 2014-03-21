@@ -14,8 +14,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentMap;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -35,6 +33,8 @@ import org.quartz.SchedulerException;
 import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
 import org.quartz.impl.StdSchedulerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
@@ -80,7 +80,7 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  */
 public class LocalJobManager extends AbstractIdleService {
 
-    private static final Log LOG = LogFactory.getLog(LocalJobManager.class);
+    private static final Logger LOG = LoggerFactory.getLogger(LocalJobManager.class);
 
     private static final String JOB_CONFIG_FILE_EXTENSION = ".pull";
     private static final String JOB_MANAGER_KEY = "jobManager";
