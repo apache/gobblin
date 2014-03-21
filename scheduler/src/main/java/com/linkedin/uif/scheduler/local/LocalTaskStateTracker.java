@@ -12,6 +12,7 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import com.linkedin.uif.scheduler.Metrics;
 import com.linkedin.uif.scheduler.Task;
 import com.linkedin.uif.scheduler.TaskExecutor;
 import com.linkedin.uif.scheduler.TaskStateTracker;
@@ -106,6 +107,9 @@ public class LocalTaskStateTracker extends AbstractIdleService
             scheduledReporter.cancel(true);
         }
 
+        // Collect record-level metrics after the task is done
+        task.collectRecordMetrics();
+
         // Check the task state and handle task retry if task failed and
         // it has not reached the maxium number of retries
         WorkUnitState.WorkingState state = task.getTaskState().getWorkingState();
@@ -144,7 +148,10 @@ public class LocalTaskStateTracker extends AbstractIdleService
 
         @Override
         public void run() {
-            // TODO: Handling task state reporting
+            if (Metrics.isEnabled(this.task.getTaskState())) {
+                // Collect record-level metrics
+                this.task.collectRecordMetrics();
+            }
         }
     }
 }

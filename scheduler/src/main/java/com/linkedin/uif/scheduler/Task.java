@@ -56,6 +56,8 @@ public class Task implements Runnable, Serializable {
     private final TaskStateTracker taskStateTracker;
     private final TaskState taskState;
 
+    private DataWriter writer;
+
     // Number of retries
     private int retryCount = 0;
 
@@ -80,26 +82,7 @@ public class Task implements Runnable, Serializable {
     @SuppressWarnings("unchecked")
     public void run() {
         Extractor extractor = null;
-        DataWriter writer = null;
         TaskPublisher publisher = null;
-
-        // Metrics that need to be updated
-        Counter taskRecordCounter = Metrics.getCounter(Metrics.metricName(
-                "task", this.taskId, "records"));
-        Counter jobRecordCounter = Metrics.getCounter(Metrics.metricName(
-                "job", this.jobId, "records"));
-        Counter taskByteCounter = Metrics.getCounter(Metrics.metricName(
-                "task", this.taskId, "bytes"));
-        Counter jobByteCounter = Metrics.getCounter(Metrics.metricName(
-                "job", this.jobId, "bytes"));
-        Meter taskRecordMeter = Metrics.getMeter(Metrics.metricName(
-                "task", this.taskId, "recordsPerSec"));
-        Meter jobRecordMeter = Metrics.getMeter(Metrics.metricName(
-                "job", this.jobId, "recordsPerSec"));
-        Meter taskByteMeter = Metrics.getMeter(Metrics.metricName(
-                "task", this.taskId, "bytesPerSec"));
-        Meter jobByteMeter = Metrics.getMeter(Metrics.metricName(
-                "job", this.jobId, "bytesPerSec"));
 
         long startTime = System.currentTimeMillis();
         this.taskState.setStartTime(startTime);
@@ -124,7 +107,7 @@ public class Task implements Runnable, Serializable {
             }
             
             // Build the writer for writing the output of the extractor
-            writer = buildWriter(this.taskContext, schemaForWriter);
+            this.writer = buildWriter(this.taskContext, schemaForWriter);
 
             this.taskState.setWorkingState(WorkUnitState.WorkingState.WORKING);
             this.taskStateTracker.registerNewTask(this);
@@ -138,22 +121,14 @@ public class Task implements Runnable, Serializable {
                     record = converter.convertRecord(sourceSchema, record, this.taskState);
                 }
                 // Finally write the record
-                writer.write(record);
-            }
-
-            if (Metrics.isEnabled(this.taskState)) {
-                // Update metrics at the record level
-                taskRecordCounter.inc(writer.recordsWritten());
-                taskRecordMeter.mark(writer.recordsWritten());
-                jobRecordCounter.inc(writer.recordsWritten());
-                jobRecordMeter.mark(writer.recordsWritten());
+                this.writer.write(record);
             }
 
             // Do overall quality checking and publish task data
             this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_READ,
                     extractor.getExpectedRecordCount());
             this.taskState.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN,
-                    writer.recordsWritten());
+                    this.writer.recordsWritten());
             this.taskState.setProp(ConfigurationKeys.EXTRACT_SCHEMA, schemaForWriter.toString());
 
             PolicyChecker policyChecker = buildPolicyChecker(this.taskState);
@@ -195,30 +170,24 @@ public class Task implements Runnable, Serializable {
                 }
             }
 
-            if (writer != null) {
+            if (this.writer != null) {
                 try {
                     // We need to close the writer before it can commit
-                    writer.close();
-
+                    this.writer.close();
                     if (shouldCommit) {
-                        writer.commit();
+                        this.writer.commit();
                         // Change the state to COMMITTED after successful commit
                         this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
-
                         if (Metrics.isEnabled(this.taskState)) {
-                            long bytes = writer.bytesWritten();
-                            // Update metrics at the byte level ONLY after commit is done
-                            taskByteCounter.inc(bytes);
-                            jobByteCounter.inc(bytes);
-                            taskByteMeter.mark(bytes);
-                            jobByteMeter.mark(bytes);
+                            // Collect byte-level metrics after the writer commits
+                            collectBytesMetrics();
                         }
                     }
                 } catch (IOException ioe) {
                     // Ignored
                 } finally {
                     try {
-                        writer.cleanup();
+                        this.writer.cleanup();
                     } catch (IOException ioe) {
                         // Ignored
                     }
@@ -273,6 +242,55 @@ public class Task implements Runnable, Serializable {
      */
     public TaskState getTaskState() {
         return this.taskState;
+    }
+
+    /**
+     * Collect record-level metrics.
+     */
+    public void collectRecordMetrics() {
+        Counter taskRecordCounter = Metrics.getCounter(Metrics.metricName(
+                "task", this.taskId, "records"));
+        Counter jobRecordCounter = Metrics.getCounter(Metrics.metricName(
+                "job", this.jobId, "records"));
+        Meter taskRecordMeter = Metrics.getMeter(Metrics.metricName(
+                "task", this.taskId, "recordsPerSec"));
+        Meter jobRecordMeter = Metrics.getMeter(Metrics.metricName(
+                "job", this.jobId, "recordsPerSec"));
+
+        long recordsWritten = this.writer.recordsWritten();
+        // Update metrics at the record level
+        long inc = recordsWritten - taskRecordCounter.getCount();
+        taskRecordCounter.inc(inc);
+        taskRecordMeter.mark(recordsWritten);
+        synchronized (Metrics.class) {
+            jobRecordCounter.inc(inc);
+            jobRecordMeter.mark(jobRecordMeter.getCount() + inc);
+        }
+    }
+
+    /**
+     * Collect byte-level metrics.
+     *
+     * <p>
+     *     This method is only supposed to be called after the writer commits.
+     * </p>
+     */
+    public void collectBytesMetrics() throws IOException {
+        Counter taskByteCounter = Metrics.getCounter(Metrics.metricName(
+                "task", this.taskId, "bytes"));
+        Counter jobByteCounter = Metrics.getCounter(Metrics.metricName(
+                "job", this.jobId, "bytes"));
+        Meter taskByteMeter = Metrics.getMeter(Metrics.metricName(
+                "task", this.taskId, "bytesPerSec"));
+        Meter jobByteMeter = Metrics.getMeter(Metrics.metricName(
+                "job", this.jobId, "bytesPerSec"));
+
+        long bytes = this.writer.bytesWritten();
+        // Update metrics at the byte level ONLY after commit is done
+        taskByteCounter.inc(bytes);
+        jobByteCounter.inc(bytes);
+        taskByteMeter.mark(bytes);
+        jobByteMeter.mark(bytes);
     }
 
     /**

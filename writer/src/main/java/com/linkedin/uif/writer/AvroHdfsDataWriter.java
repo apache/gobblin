@@ -2,6 +2,7 @@ package com.linkedin.uif.writer;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileWriter;
@@ -36,7 +37,7 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
     private final DataFileWriter<GenericRecord> writer;
 
     // Number of records successfully written
-    private long count = 0;
+    private final AtomicLong count = new AtomicLong(0);
 
     public AvroHdfsDataWriter(URI uri, String stagingDir, String outputDir,
             String fileName, int bufferSize, DataConverter<S,
@@ -59,8 +60,8 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
             throw new IOException(e);
         }
 
-        // only increment when write is successful
-        this.count++;
+        // Only increment when write is successful
+        this.count.incrementAndGet();
     }
 
     @Override
@@ -88,7 +89,7 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
 
     @Override
     public long recordsWritten() {
-        return this.count;
+        return this.count.get();
     }
 
     @Override
