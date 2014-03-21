@@ -331,7 +331,7 @@ public class LocalJobManager extends AbstractIdleService {
      * @param jobId Job ID of the given job
      * @param taskState {@link TaskState}
      */
-    public void onTaskCompletion(String jobId, TaskState taskState) {
+    public synchronized void onTaskCompletion(String jobId, TaskState taskState) {
         if (!this.jobStateMap.containsKey(jobId)) {
             LOG.error(String.format("Job %s could not be found", jobId));
             return;
