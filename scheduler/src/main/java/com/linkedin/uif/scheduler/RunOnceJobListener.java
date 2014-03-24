@@ -3,8 +3,8 @@ package com.linkedin.uif.scheduler;
 import java.io.File;
 import java.io.IOException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.io.Files;
 
@@ -17,7 +17,7 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
  */
 public class RunOnceJobListener implements JobListener {
 
-    private static final Log LOG = LogFactory.getLog(RunOnceJobListener.class);
+    private static final Logger LOG = LoggerFactory.getLogger(RunOnceJobListener.class);
 
     @Override
     public void jobCompleted(JobState jobState) {

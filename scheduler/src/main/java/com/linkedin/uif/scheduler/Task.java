@@ -3,8 +3,8 @@ package com.linkedin.uif.scheduler;
 import java.io.IOException;
 import java.io.Serializable;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
@@ -45,7 +45,7 @@ import com.linkedin.uif.writer.Destination;
  */
 public class Task implements Runnable, Serializable {
 
-    private static final Log LOG = LogFactory.getLog(Task.class);
+    private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
     private final String jobId;
     private final String taskId;
@@ -89,11 +89,21 @@ public class Task implements Runnable, Serializable {
         try {
             // Build the extractor for pulling source schema and data records
             extractor = this.taskContext.getSource().getExtractor(this.taskState);
+            if (extractor == null) {
+                LOG.error("No extractor created for task " + this.taskId);
+                return;
+            }
+
+            // Original source schema
+            Object sourceSchema = extractor.getSchema();
+            if (sourceSchema == null) {
+                LOG.error("No source schema extracted for task " + this.taskId);
+                return;
+            }
+
             // If conversion is needed on the source schema and data records
             // before they are passed to the writer
             boolean doConversion = !this.taskContext.getConverters().isEmpty();
-            // Original source schema
-            Object sourceSchema = extractor.getSchema();
             Converter converter = null;
             // (Possibly converted) source schema ready for the writer
             Object schemaForWriter = sourceSchema;
@@ -245,6 +255,13 @@ public class Task implements Runnable, Serializable {
      * Update record-level metrics.
      */
     public void updateRecordMetrics() {
+        if (this.writer == null) {
+            LOG.error(String.format(
+                    "Could not update record metrics for task %s: writer was not built",
+                    this.taskId));
+            return;
+        }
+
         this.taskState.updateRecordMetrics(this.writer.recordsWritten());
     }
 
@@ -256,6 +273,13 @@ public class Task implements Runnable, Serializable {
      * </p>
      */
     public void updateByteMetrics() throws IOException {
+        if (this.writer == null) {
+            LOG.error(String.format(
+                    "Could not update byte metrics for task %s: writer was not built",
+                    this.taskId));
+            return;
+        }
+
         this.taskState.updateByteMetrics(this.writer.bytesWritten());
     }
 

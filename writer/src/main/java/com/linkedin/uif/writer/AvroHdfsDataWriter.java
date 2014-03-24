@@ -4,12 +4,13 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.google.common.base.Preconditions;
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -28,7 +29,7 @@ import com.linkedin.uif.writer.converter.DataConverter;
  */
 class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
 
-    private static final Log LOG = LogFactory.getLog(AvroHdfsDataWriter.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AvroHdfsDataWriter.class);
 
     private final FileSystem fs;
     private final Path stagingFile;
@@ -53,6 +54,8 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
 
     @Override
     public void write(S sourceRecord) throws IOException {
+        Preconditions.checkNotNull(sourceRecord);
+
         try {
             this.writer.append(this.dataConverter.convert(sourceRecord));
         } catch (DataConversionException e) {

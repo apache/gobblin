@@ -5,11 +5,11 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.collect.Queues;
 import com.google.common.util.concurrent.AbstractIdleService;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.workunit.WorkUnit;
@@ -28,7 +28,7 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  */
 public class WorkUnitManager extends AbstractIdleService {
 
-    private static final Log LOG = LogFactory.getLog(WorkUnitManager.class);
+    private static final Logger LOG = LoggerFactory.getLogger(WorkUnitManager.class);
 
     // This is used to store submitted work units
     private final BlockingQueue<WorkUnitState> workUnitQueue;
