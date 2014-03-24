@@ -68,7 +68,7 @@ start() {
 	checkParams
 
 	classpath=$(find $classpathLoc | tr $'\012' ':' | sed 's/:$//g')
-	command="java -cp $classpath com.linkedin.uif.scheduler.Worker $props"
+	command="java -Xmx6g -Xms4g -Xloggc:$base_path/uif-gc.log -cp $classpath com.linkedin.uif.scheduler.Worker $props"
 
 	if [ -f $pid ]; then
 		if kill -0 $pid_value > /dev/null 2>&1; then
@@ -77,7 +77,8 @@ start() {
 		fi
 	fi
 	echo 'Starting UIF'
-	nohup $command > "$base_path/uif.log" & echo $! > $pid
+	run_time=`date +"%Y%m%d_%H%M%S"`
+	nohup $command > "$base_path/logs/uif_$run_time.log" & echo $! > $pid
 }
 
 stop() {
