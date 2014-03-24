@@ -1,7 +1,7 @@
-job.name=SalesforceJob
-job.group=Salesforce
-job.description=Salesforce Job
-job.schedule=0 0/1 * * * ?
+job.name=Salesforce_Account
+job.group=Salesforce_Core
+job.description=Job to pull data from Account object as snapshot append
+job.schedule=0 5 0/1 * * ?
 
 source.class=com.linkedin.uif.source.extractor.extract.restapi.SalesforceSource
 converter.classes=com.linkedin.uif.converter.avro.JsonIntermediateToAvroConverter,com.linkedin.uif.converter.LumosAttributesConverter
@@ -18,21 +18,27 @@ qualitychecker.policy.types=OPTIONAL,OPTIONAL,OPTIONAL
 
 data.publisher.type=com.linkedin.uif.publisher.BaseDataPublisher
 
-extract.namespace=sfdc
-extract.table.type=snapshot_only
-source.schema=sfdc
+extract.namespace=Salesforce_Core
+extract.table.type=snapshot_append
+source.schema=Core
 source.entity=Account
-source.timezone=America/Los_Angeles
 extract.primary.key.fields=Id
 extract.delta.fields=LastModifiedDate
-source.query=SELECT Id,IsDeleted,MasterRecordId,Name,LastName,FirstName,Salutation,RecordTypeId,ParentId,BillingStreet,BillingCity,BillingState,BillingPostalCode,BillingCountry,BillingLatitude,BillingLongitude,ShippingStreet,LastModifiedDate FROM Account LIMIT 10
+
+source.timezone=UTC
+
 source.extract.type=snapshot
 source.watermark.type=timestamp
+source.start.value=20140312060001
+source.end.value=20140313060000
 
-source.start.value=20140201000000
-source.max.number.of.partitions=2
-source.partition.interval=24
+source.is.watermark.override=false
 source.low.watermark.backup.secs=0
+
+source.max.number.of.partitions=30
+source.partition.interval=1
+
+source.query=SELECT Id,IsDeleted,MasterRecordId,Name,LastName,FirstName,Salutation,RecordTypeId,ParentId,BillingStreet,BillingCity,BillingState,BillingPostalCode,BillingCountry,ShippingStreet,ShippingCity,ShippingState,ShippingPostalCode,ShippingCountry,Phone,Fax,AccountNumber,Website,Sic,Industry,AnnualRevenue,NumberOfEmployees,Ownership,TickerSymbol,Description,Rating,Site,CurrencyIsoCode,OwnerId,CreatedDate,CreatedById,LastModifiedDate,LastModifiedById,SystemModstamp,LastActivityDate,PersonContactId,IsPersonAccount,PersonMailingStreet,PersonMailingCity,PersonMailingState,PersonMailingPostalCode,PersonMailingCountry,PersonOtherStreet,PersonOtherCity,PersonOtherState,PersonOtherPostalCode,PersonOtherCountry,PersonMobilePhone,PersonHomePhone,PersonOtherPhone,PersonAssistantPhone,PersonEmail,PersonTitle,PersonDepartment,PersonAssistantName,PersonLeadSource,PersonBirthdate,PersonHasOptedOutOfEmail,PersonHasOptedOutOfFax,PersonDoNotCall,PersonLastCURequestDate,PersonLastCUUpdateDate,PersonEmailBouncedReason,PersonEmailBouncedDate,Account_Aggregate_Interest_Score__c,Account_Aggregate_Score_LMS__c,Account_Aggregate_Score_LSS__c,Billing_Email__c,ATS__c,Other_ATS__c,HQ_Phone__c,D_U_N_S__c,US_Fortune_500__c,leo_Recruiters__c,Account_Number__c,LSS_Hold_Over_Expiration__c,Geographic_Territory__c,Renewal_Count__c,Active_Renewal__c,SDAccountNumber__c,Hold_Over_Expiration__c,Latest_Contract_End_Date__c,Active_Sub_Account__c,Account_Aggregate_Int_Score_LHS_Cust__c,Ultimate_SOP_LTS__c,Inactive_Date__c,New_Customer_Date__c,LI_Co_ID__c,First_Contract_Start_Date__c,Job_Distributor__c FROM Account
 
 source.client.id=3MVG9ahGHqp.k2_w23R_WdConUVlVviXr7jsMYvU5VCymVxMftlI2JxNsRQ00pQR9QAYUAgXVTAKrj8sioIyD
 source.client.secret=2395380617903882329

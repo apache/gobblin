@@ -53,9 +53,7 @@ public class BaseDataPublisher extends DataPublisher
             WorkUnitState workUnitState = entry.getValue().get(0);
 
             Path tmpOutput = new Path(workUnitState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
-                                      extract.getNamespace().replaceAll("\\.", "/") + "/" + 
-                                      extract.getTable() + "/" + extract.getExtractId() + "_" + 
-                                      (extract.getIsFull() ? "FULL" : "APPEND"));
+                                      extract.getOutputFilePath());
 
             Path finalOutput = new Path(workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
                                       extract.getOutputFilePath());
