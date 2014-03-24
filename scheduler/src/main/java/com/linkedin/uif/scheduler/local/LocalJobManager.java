@@ -14,6 +14,10 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentMap;
 
+import org.apache.commons.io.monitor.FileAlterationListener;
+import org.apache.commons.io.monitor.FileAlterationListenerAdaptor;
+import org.apache.commons.io.monitor.FileAlterationMonitor;
+import org.apache.commons.io.monitor.FileAlterationObserver;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -36,6 +40,7 @@ import org.quartz.impl.StdSchedulerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -157,6 +162,7 @@ public class LocalJobManager extends AbstractIdleService {
         this.scheduler.start();
         if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)) {
             scheduleLocallyConfiguredJobs();
+            startJobConfigFileMonitor();
         }
     }
 
@@ -180,6 +186,16 @@ public class LocalJobManager extends AbstractIdleService {
      *                                                 with scheduling the job
      */
     public void scheduleJob(Properties jobProps, JobListener jobListener) throws JobException {
+        Preconditions.checkNotNull(jobProps);
+
+        if (!jobProps.contains(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
+            // A job without a cron schedule is considered a one-time job
+            jobProps.setProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "true");
+            // Run the job without going through the scheduler
+            runJob(jobProps, jobListener);
+            return;
+        }
+
         String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
         if (jobListener != null) {
             this.jobListenerMap.put(jobName, jobListener);
@@ -236,6 +252,8 @@ public class LocalJobManager extends AbstractIdleService {
      *                                                 with running the job
      */
     public void runJob(Properties jobProps, JobListener jobListener) throws JobException {
+        Preconditions.checkNotNull(jobProps);
+
         String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
         if (jobListener != null) {
             this.jobListenerMap.put(jobName, jobListener);
@@ -456,14 +474,14 @@ public class LocalJobManager extends AbstractIdleService {
         LOG.info("Loading job configurations from directory " + jobConfigFileDir);
         // Load all job configurations
         for (String jobConfigFile : jobConfigFiles) {
-            Properties properties = new Properties();
-            properties.putAll(this.properties);
+            Properties jobProps = new Properties();
+            jobProps.putAll(this.properties);
             try {
                 File file = new File(jobConfigFileDir, jobConfigFile);
-                properties.load(new FileReader(file));
-                properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY,
+                jobProps.load(new FileReader(file));
+                jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY,
                         file.getAbsolutePath());
-                jobConfigs.add(properties);
+                jobConfigs.add(jobProps);
             } catch (FileNotFoundException fnfe) {
                 LOG.error("Job configuration file " + jobConfigFile + " not found", fnfe);
             } catch (IOException ioe) {
@@ -472,12 +490,76 @@ public class LocalJobManager extends AbstractIdleService {
         }
 
         LOG.info(String.format(
-                jobConfigs.size() == 1 ?
+                jobConfigs.size() <= 1 ?
                         "Loaded %d job configuration" :
                         "Loaded %d job configurations",
                 jobConfigs.size()));
 
         return jobConfigs;
+    }
+
+    /**
+     * Start the job configuration file monitor.
+     *
+     * <p>
+     *     The job configuration file monitor currently only supports monitoring
+     *     newly added job configuration files.
+     * </p>
+     */
+    private void startJobConfigFileMonitor() throws Exception {
+        File jobConfigFileDir = new File(this.properties.getProperty(
+                ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY));
+        long pollingInterval = Long.parseLong(this.properties.getProperty(
+                ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
+                ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL));
+
+        FileAlterationObserver observer = new FileAlterationObserver(jobConfigFileDir);
+        FileAlterationMonitor monitor = new FileAlterationMonitor(pollingInterval);
+        FileAlterationListener listener = new FileAlterationListenerAdaptor() {
+            /**
+             * Called when a new job configuration file is dropped in.
+             */
+            @Override
+            public void onFileCreate(File file) {
+                if (!file.getName().endsWith(JOB_CONFIG_FILE_EXTENSION)) {
+                    // Not a job configuration file, ignore.
+                    return;
+                }
+
+                LOG.info("Detected new job configuration file " + file.getAbsolutePath());
+
+                // Load job configuration from the new job configuration file
+                Properties jobProps = new Properties();
+                try {
+                    jobProps.load(new FileReader(file));
+                    jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY,
+                            file.getAbsolutePath());
+                } catch (Exception e) {
+                    LOG.error("Failed to load job configuration from file " + file.getAbsolutePath());
+                    return;
+                }
+
+                boolean runOnce = Boolean.valueOf(
+                        jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
+                // Schedule the new job
+                try {
+                    if (runOnce) {
+                        scheduleJob(jobProps, new RunOnceJobListener());
+                    } else {
+                        scheduleJob(jobProps, null);
+                    }
+                } catch (JobException je) {
+                    LOG.error(
+                            "Failed to schedule new job loaded from job configuration file " +
+                                    file.getAbsolutePath(),
+                            je);
+                }
+            }
+        };
+
+        observer.addListener(listener);
+        monitor.addObserver(observer);
+        monitor.start();
     }
 
     /**
