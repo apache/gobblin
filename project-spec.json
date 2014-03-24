@@ -54,7 +54,8 @@
     "slf4jSimple": "org.slf4j:slf4j-simple:1.7.6",
     "jodaTime": "joda-time:joda-time:1.6",
     "metricsCore": "com.codahale.metrics:metrics-core:3.0.2",
-    "jclOverSlf4j": "org.slf4j:jcl-over-slf4j:1.7.6"
+    "jclOverSlf4j": "org.slf4j:jcl-over-slf4j:1.7.6",
+    "commonsIO": "commons-io:commons-io:2.4"
   },
   "product": {
     "container": {
