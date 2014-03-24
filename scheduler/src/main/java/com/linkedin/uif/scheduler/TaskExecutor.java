@@ -3,10 +3,10 @@ package com.linkedin.uif.scheduler;
 import java.util.Properties;
 import java.util.concurrent.*;
 
-import com.google.common.util.concurrent.AbstractIdleService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import com.google.common.util.concurrent.AbstractIdleService;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 
@@ -17,7 +17,7 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
  */
 public class TaskExecutor extends AbstractIdleService {
 
-    private static final Log LOG = LogFactory.getLog(TaskExecutor.class);
+    private static final Logger LOG = LoggerFactory.getLogger(TaskExecutor.class);
 
     // Thread pool executor for running tasks
     private final ExecutorService executor;

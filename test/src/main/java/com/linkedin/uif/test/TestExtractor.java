@@ -8,8 +8,8 @@ import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.Extractor;
@@ -21,7 +21,7 @@ import com.linkedin.uif.source.extractor.Extractor;
  */
 public class TestExtractor implements Extractor<String, String> {
 
-    private static final Log LOG = LogFactory.getLog(TestExtractor.class);
+    private static final Logger LOG = LoggerFactory.getLogger(TestExtractor.class);
 
     private static final String SOURCE_FILE_KEY = "source.file";
 

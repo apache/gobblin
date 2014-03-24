@@ -12,6 +12,7 @@ dependencies {
   compile spec.external.gson
   compile spec.external.jacksonCore
   compile spec.external.jacksonMapper
+  compile spec.external.slf4j
 
   testCompile spec.external.testng
 }

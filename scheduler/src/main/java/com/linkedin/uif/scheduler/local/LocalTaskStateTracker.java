@@ -6,11 +6,11 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.AbstractIdleService;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 
 import com.linkedin.uif.scheduler.Metrics;
 import com.linkedin.uif.scheduler.Task;
@@ -33,7 +33,7 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
 public class LocalTaskStateTracker extends AbstractIdleService
         implements TaskStateTracker {
 
-    private static final Log LOG = LogFactory.getLog(LocalJobManager.class);
+    private static final Logger LOG = LoggerFactory.getLogger(LocalTaskStateTracker.class);
 
     // This is used to retry failed tasks
     private final TaskExecutor taskExecutor;
