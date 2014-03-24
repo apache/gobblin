@@ -134,7 +134,6 @@ public class Task implements Runnable, Serializable {
             publisher = buildTaskPublisher(this.taskState, results);
             switch (publisher.canPublish()) {
             case SUCCESS:
-                LOG.info("Committing data of task " + this.taskId);
                 shouldCommit = true;
                 this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
                 break;
@@ -172,6 +171,7 @@ public class Task implements Runnable, Serializable {
                     // We need to close the writer before it can commit
                     this.writer.close();
                     if (shouldCommit) {
+                        LOG.info("Committing data of task " + this.taskId);
                         this.writer.commit();
                         // Change the state to COMMITTED after successful commit
                         this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);

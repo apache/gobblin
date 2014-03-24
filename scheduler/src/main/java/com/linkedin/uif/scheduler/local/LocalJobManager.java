@@ -526,7 +526,7 @@ public class LocalJobManager extends AbstractIdleService {
                     (commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS &&
                             jobState.getState() == JobState.RunningState.SUCCESSFUL)) {
 
-                LOG.info("Publishing job data of job " + jobId);
+                LOG.info("Publishing job data of job " + jobId + " with commit policy " + commitPolicy);
 
                 Class<? extends DataPublisher> dataPublisherClass = (Class<? extends DataPublisher>)
                         Class.forName(jobState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE));
@@ -538,6 +538,8 @@ public class LocalJobManager extends AbstractIdleService {
                 if (publisher.publish(jobState.getTaskStates())) {
                    jobState.setState(JobState.RunningState.COMMITTED);
                 }
+            } else {
+                LOG.info("Job data will not be committed due to commit policy: " + commitPolicy);
             }
         } catch (Exception e) {
             jobState.setState(JobState.RunningState.FAILED);
