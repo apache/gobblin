@@ -33,9 +33,9 @@ public class TaskPublisher
         if (allComponentsFinished()) {
             LOG.info("All components finished successfully, checking quality tests");
             if (passedAllTests()) {
-                LOG.info("All required test passed, committing data");
+                LOG.info("All required test passed for this task passed.");
                 if (cleanup()) {
-                    LOG.info("Cleanup executed successfully, finishing task");
+                    LOG.info("Cleanup for task publisher executed successfully.");
                     return PublisherState.SUCCESS;
                 } else {
                     return PublisherState.CLEANUP_FAIL;
