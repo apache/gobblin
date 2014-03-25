@@ -1,5 +1,6 @@
 package com.linkedin.uif.scheduler;
 
+import java.io.IOException;
 import java.util.List;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
@@ -24,7 +25,7 @@ public class SourceWrapperBase implements Source {
   }
 
   @Override
-  public Extractor getExtractor(WorkUnitState state) {
+  public Extractor getExtractor(WorkUnitState state) throws IOException {
     return source.getExtractor(state);
   }
 

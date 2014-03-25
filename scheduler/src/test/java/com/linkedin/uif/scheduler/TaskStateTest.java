@@ -10,6 +10,8 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.io.Closer;
+
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 
@@ -56,18 +58,14 @@ public class TaskStateTest {
 
     @Test(dependsOnMethods = {"testSetAndGet"})
     public void testSerDe() throws IOException {
-        ByteArrayOutputStream baos = null;
-        DataOutputStream dos = null;
-        ByteArrayInputStream bais = null;
-        DataInputStream dis = null;
-
+        Closer closer = Closer.create();
         try {
-            baos = new ByteArrayOutputStream();
-            dos = new DataOutputStream(baos);
+            ByteArrayOutputStream baos = closer.register(new ByteArrayOutputStream());
+            DataOutputStream dos = closer.register(new DataOutputStream(baos));
             this.taskState.write(dos);
 
-            bais = new ByteArrayInputStream(baos.toByteArray());
-            dis = new DataInputStream(bais);
+            ByteArrayInputStream bais = closer.register((new ByteArrayInputStream(baos.toByteArray())));
+            DataInputStream dis = closer.register((new DataInputStream(bais)));
             TaskState newTaskState = new TaskState();
             newTaskState.readFields(dis);
 
@@ -80,31 +78,7 @@ public class TaskStateTest {
             Assert.assertEquals(newTaskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
             Assert.assertEquals(newTaskState.getProp("foo"), "bar");
         } finally {
-            if (baos != null) {
-                try {
-                    baos.close();
-                } catch (IOException ioe) {
-                    // Ignored
-                }
-            }
-
-            if (dos != null) {
-                try {
-                    dos.close();
-                } catch (IOException ioe) {
-                    // Ignored
-                }
-            }
-
-            if (bais != null) {
-                try {
-                    bais.close();
-                } catch (IOException ioe) {
-                    // Ignored
-                }
-            }
-
-            dis.close();
+            closer.close();
         }
     }
 }
