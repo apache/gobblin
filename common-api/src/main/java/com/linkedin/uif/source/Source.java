@@ -1,5 +1,6 @@
 package com.linkedin.uif.source;
 
+import java.io.IOException;
 import java.util.List;
 
 import com.linkedin.uif.configuration.SourceState;
@@ -39,8 +40,9 @@ public interface Source<S, D> {
    * 
    * @param state
    * @return
+ * @throws IOException 
    */
-  public abstract Extractor<S, D> getExtractor(WorkUnitState state);
+  public abstract Extractor<S, D> getExtractor(WorkUnitState state) throws IOException;
   
   /**
    * <p>Called once when the pull job has completed.  Properties added to this instance of
