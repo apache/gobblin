@@ -1,6 +1,5 @@
 package com.linkedin.uif.publisher;
 
-import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -8,12 +7,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.State;
@@ -25,7 +25,7 @@ public class BaseDataPublisher extends DataPublisher
     private FileSystem fs;
     private final Map<Extract, List<WorkUnitState>> extractToStateMap;
     
-    private static final Log LOG = LogFactory.getLog(BaseDataPublisher.class);
+    private static final Logger LOG = LoggerFactory.getLogger(BaseDataPublisher.class);
         
     public BaseDataPublisher(State state)
     {

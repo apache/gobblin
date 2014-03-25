@@ -2,8 +2,8 @@ package com.linkedin.uif.qualitychecker;
 
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * PolicyChecker takes in a list of Policy objects
@@ -13,7 +13,7 @@ import org.apache.commons.logging.LogFactory;
 public class PolicyChecker
 {
     private final List<Policy> list;
-    private static final Log LOG = LogFactory.getLog(PolicyChecker.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PolicyChecker.class);
     
     public PolicyChecker(List<Policy> list) {
         this.list = list;
