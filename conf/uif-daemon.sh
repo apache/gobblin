@@ -77,8 +77,7 @@ start() {
 		fi
 	fi
 	echo 'Starting UIF'
-	run_time=`date +"%Y%m%d_%H%M%S"`
-	nohup $command > "$base_path/logs/uif_$run_time.log" & echo $! > $pid
+	nohup $command & echo $! > $pid
 }
 
 stop() {
