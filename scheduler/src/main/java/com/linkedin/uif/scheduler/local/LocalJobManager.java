@@ -549,11 +549,11 @@ public class LocalJobManager extends AbstractIdleService {
                     boolean runOnce = Boolean.valueOf(
                             jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
                     scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : null);
-                } catch (JobException je) {
+                } catch (Throwable t) {
                     LOG.error(
                             "Failed to schedule new job loaded from job configuration file " +
                                     file.getAbsolutePath(),
-                            je);
+                            t);
                 }
             }
 
@@ -582,8 +582,8 @@ public class LocalJobManager extends AbstractIdleService {
                             jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
                     // Reschedule the job with the new job configuration
                     scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : null);
-                } catch (JobException je) {
-                    LOG.error("Failed to update existing job " + jobName, je);
+                } catch (Throwable t) {
+                    LOG.error("Failed to update existing job " + jobName, t);
                 }
             }
 
