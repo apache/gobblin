@@ -2,10 +2,9 @@ apply plugin: 'li-java'
 
 dependencies {
     compile project(":common-api")
-    compile spec.external.jclOverSlf4j
     compile spec.external.guava
-    compile spec.external.log4j
     compile spec.external.hadoop
+    compile spec.external.slf4j
 
     testCompile spec.external.testng
 }

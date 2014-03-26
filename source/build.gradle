@@ -5,13 +5,13 @@ dependencies {
     compile spec.external.commonsDbcp
     compile spec.external.avro
     compile spec.external.guava
-    compile spec.external.jclOverSlf4j
     compile spec.external.hadoop
     compile spec.external.gson
     compile spec.external.httpclient
     compile spec.external.httpcore
     compile spec.external.commonsLang
-    runtime spec.external.gson
+    compile spec.external.jclOverSlf4j
+    compile spec.external.gson
 
     testCompile spec.external.testng
 }

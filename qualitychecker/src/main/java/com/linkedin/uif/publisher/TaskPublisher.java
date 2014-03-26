@@ -2,8 +2,8 @@ package com.linkedin.uif.publisher;
 
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.qualitychecker.Policy;
@@ -14,7 +14,7 @@ public class TaskPublisher
     private final PolicyCheckResults results;
     private final WorkUnitState workUnitState;
 
-    private static final Log LOG = LogFactory.getLog(TaskPublisher.class);
+    private static final Logger LOG = LoggerFactory.getLogger(TaskPublisher.class);
     
     public enum PublisherState {
         SUCCESS,                 // Data and metadata are successfully published

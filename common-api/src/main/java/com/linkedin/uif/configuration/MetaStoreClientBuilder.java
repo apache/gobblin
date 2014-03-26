@@ -2,14 +2,14 @@ package com.linkedin.uif.configuration;
 
 import java.lang.reflect.Constructor;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MetaStoreClientBuilder
 {
     private State state;
     
-    private static final Log LOG = LogFactory.getLog(MetaStoreClientBuilder.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MetaStoreClientBuilder.class);
     
     public MetaStoreClientBuilder(State state) {
         this.state = state;
