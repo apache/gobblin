@@ -11,6 +11,9 @@ dependencies {
 	runtime(project(':writer'))
 	runtime(project(':metastore'))
 	runtime(project(':source'))
+	runtime spec.external.log4j
+	runtime spec.external.log4jextras
+	runtime spec.external.slf4jLog4j
 }
 
 tgz {
@@ -28,5 +31,6 @@ tgz {
         from('.')
         from('../conf') { into('conf') }
         exclude('*build*')
+	exclude("**/commons-logging*")
         into('deployment')
 }
