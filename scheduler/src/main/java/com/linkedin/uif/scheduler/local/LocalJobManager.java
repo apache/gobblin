@@ -7,11 +7,7 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.URI;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 
 import org.apache.commons.io.monitor.FileAlterationListener;
@@ -195,6 +191,16 @@ public class LocalJobManager extends AbstractIdleService {
     public void scheduleJob(Properties jobProps, JobListener jobListener) throws JobException {
         Preconditions.checkNotNull(jobProps);
 
+        String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+
+        // Check if the job has been disabled
+        boolean disabled = Boolean.valueOf(
+                jobProps.getProperty(ConfigurationKeys.JOB_DISABLED_KEY, "false"));
+        if (disabled) {
+            LOG.info("Skipping disabled job " + jobName);
+            return;
+        }
+
         if (!jobProps.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
             // A job without a cron schedule is considered a one-time job
             jobProps.setProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "true");
@@ -203,7 +209,6 @@ public class LocalJobManager extends AbstractIdleService {
             return;
         }
 
-        String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
         if (jobListener != null) {
             this.jobListenerMap.put(jobName, jobListener);
         }
@@ -353,6 +358,15 @@ public class LocalJobManager extends AbstractIdleService {
                 throw new JobException("Failed to unschedule and delete job " + jobName, se);
             }
         }
+    }
+
+    /**
+     * Get the names of the scheduled jobs.
+     *
+     * @return names of the scheduled jobs
+     */
+    public Collection<String> getScheduledJobs() {
+        return this.scheduledJobs.keySet();
     }
 
     /**
