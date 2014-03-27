@@ -1,7 +1,7 @@
 job.name=Salesforce_Contact
 job.group=Salesforce_Core
 job.description=Job to pull data from Contact object as snapshot append
-job.schedule=0 43 0/1 * * ?
+job.schedule=0 5 0/1 * * ?
 
 source.class=com.linkedin.uif.source.extractor.extract.restapi.SalesforceSource
 converter.classes=com.linkedin.uif.converter.avro.JsonIntermediateToAvroConverter,com.linkedin.uif.converter.LumosAttributesConverter
