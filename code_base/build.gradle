@@ -14,6 +14,7 @@ dependencies {
 	runtime spec.external.log4j
 	runtime spec.external.log4jextras
 	runtime spec.external.slf4jLog4j
+	runtime spec.external.jclOverSlf4j
 }
 
 tgz {

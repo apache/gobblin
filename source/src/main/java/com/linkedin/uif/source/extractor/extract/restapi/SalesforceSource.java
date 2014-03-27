@@ -2,8 +2,8 @@ package com.linkedin.uif.source.extractor.extract.restapi;
 
 import java.io.IOException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.Extractor;
@@ -14,7 +14,7 @@ import com.linkedin.uif.source.extractor.extract.BaseSource;
  * An implementation of salesforce source to get work units
  */
 public class SalesforceSource<S, D> extends BaseSource<S, D> {
-	private static final Log LOG = LogFactory.getLog(BaseSource.class);
+	private static final Logger LOG = LoggerFactory.getLogger(BaseSource.class);
 
 	public Extractor<S, D> getExtractor(WorkUnitState state) throws IOException {
 		Extractor<S, D> extractor = null;

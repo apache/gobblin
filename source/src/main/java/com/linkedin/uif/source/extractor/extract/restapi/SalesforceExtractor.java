@@ -11,8 +11,8 @@ import java.util.ListIterator;
 import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
@@ -61,7 +61,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	private boolean pullStatus = true;
 	private String nextUrl;
 	private String servicesDataEnvPath;
-	protected Log log = LogFactory.getLog(SalesforceExtractor.class+this.getWorkUnitName());
+	protected Logger log = LoggerFactory.getLogger(SalesforceExtractor.class);
 	
 	public SalesforceExtractor(WorkUnitState state) {
 		super(state);
