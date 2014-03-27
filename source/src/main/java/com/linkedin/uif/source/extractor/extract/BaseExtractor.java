@@ -122,7 +122,7 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 		this.entity = this.workUnit.getProp(ConfigurationKeys.SOURCE_ENTITY);
 		this.setWorkUnitName();
 		this.log = LoggerFactory.getLogger(BaseExtractor.class);
-		MDC.put("workUnitName", this.getWorkUnitName());
+		MDC.put("tableName", this.getWorkUnitName());
 	}
 
 	/**
