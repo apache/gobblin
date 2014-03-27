@@ -8,8 +8,8 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.Map.Entry;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 import com.linkedin.uif.configuration.ConfigurationKeys;
@@ -30,7 +30,7 @@ import com.linkedin.uif.source.workunit.Extract.TableType;
  * An implementation of Base source to get work units
  */
 public abstract class BaseSource<S, D> implements Source<S, D> {
-	private static final Log LOG = LogFactory.getLog(BaseSource.class);
+	private static final Logger LOG = LoggerFactory.getLogger(BaseSource.class);
 
     /**
      * get work units using Source state

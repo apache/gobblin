@@ -6,8 +6,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.TimeZone;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Strings;
 
@@ -25,7 +25,7 @@ import com.linkedin.uif.source.extractor.watermark.WatermarkType;
 public class Partitioner {
 	private static final String WATERMARKTIMEFORMAT = "yyyyMMddHHmmss";
 	private static final SimpleDateFormat DATETIMEFORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-	private static final Log LOG = LogFactory.getLog(Partitioner.class);
+	private static final Logger LOG = LoggerFactory.getLogger(Partitioner.class);
 	private SourceState state;
 
 	public Partitioner(SourceState state) {

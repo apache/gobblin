@@ -3,8 +3,8 @@ package com.linkedin.uif.source.extractor.extract.restapi;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
@@ -50,7 +50,7 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 	private long createdAt;
 	protected String instanceUrl;
 	protected String updatedQuery;
-	protected Log log = LogFactory.getLog(RestApiExtractor.class+this.getWorkUnitName());
+	protected Logger log = LoggerFactory.getLogger(RestApiExtractor.class);
 
 	RestApiExtractor(WorkUnitState state) {
 		super(state);
