@@ -10,7 +10,9 @@ import java.util.Map.Entry;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
@@ -31,6 +33,16 @@ import com.linkedin.uif.source.workunit.Extract.TableType;
  */
 public abstract class BaseSource<S, D> implements Source<S, D> {
 	private static final Logger LOG = LoggerFactory.getLogger(BaseSource.class);
+	
+	public void initLogger(SourceState state) {
+	    StringBuilder sb = new StringBuilder();
+	    sb.append("[");
+	    sb.append(Strings.nullToEmpty(state.getProp(ConfigurationKeys.SOURCE_SCHEMA)));
+	    sb.append("_");
+	    sb.append(Strings.nullToEmpty(state.getProp(ConfigurationKeys.SOURCE_ENTITY)));
+	    sb.append("]");
+	    MDC.put("tableName", sb.toString());
+	}
 
     /**
      * get work units using Source state
@@ -40,6 +52,7 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
      */
 	@Override
 	public List<WorkUnit> getWorkunits(SourceState state) {
+	    initLogger(state);
 		LOG.info("Get work units");
 		List<WorkUnit> workUnits = Lists.newArrayList();
 		String nameSpaceName = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY);
