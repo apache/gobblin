@@ -1,7 +1,7 @@
 job.name=UIFTest1
 job.group=Test
 job.description=Test UIF job 1
-job.schedule=0 0/1 * * * ?
+job.schedule=0 0/2 * * * ?
 
 source.class=com.linkedin.uif.test.TestSource
 converter.classes=com.linkedin.uif.test.TestConverter

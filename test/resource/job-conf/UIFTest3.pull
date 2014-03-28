@@ -1,7 +1,7 @@
 job.name=UIFTest3
 job.group=Test
 job.description=Test UIF job 3
-job.schedule=0 0/1 * * * ?
+job.schedule=0 0/2 * * * ?
 
 source.class=com.linkedin.uif.source.extractor.extract.restapi.SalesforceSource
 converter.classes=com.linkedin.uif.converter.avro.JsonIntermediateToAvroConverter,com.linkedin.uif.converter.LumosAttributesConverter
