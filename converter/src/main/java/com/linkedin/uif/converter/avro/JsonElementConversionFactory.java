@@ -76,50 +76,50 @@ public class JsonElementConversionFactory {
     DateTimeZone timeZone = getTimeZone(state.getProp(ConfigurationKeys.CONVERTER_AVRO_DATE_TIMEZONE, "UTC"));
     switch (type) {
       case DATE:
-        return new DateConverter(fieldName, nullable, state.getProp(ConfigurationKeys.CONVERTER_AVRO_DATE_FORMAT,
+        return new DateConverter(fieldName, nullable, type.toString(), state.getProp(ConfigurationKeys.CONVERTER_AVRO_DATE_FORMAT,
             "yyyy-MM-dd HH:mm:ss"), timeZone);
 
       case TIMESTAMP:
-        return new DateConverter(fieldName, nullable, state.getProp(ConfigurationKeys.CONVERTER_AVRO_TIMESTAMP_FORMAT,
+        return new DateConverter(fieldName, nullable, type.toString(), state.getProp(ConfigurationKeys.CONVERTER_AVRO_TIMESTAMP_FORMAT,
             "yyyy-MM-dd HH:mm:ss"), timeZone);
 
       case TIME:
-        return new DateConverter(fieldName, nullable, state.getProp(ConfigurationKeys.CONVERTER_AVRO_TIME_FORMAT,
+        return new DateConverter(fieldName, nullable, type.toString(), state.getProp(ConfigurationKeys.CONVERTER_AVRO_TIME_FORMAT,
             "HH:mm:ss"), timeZone);
 
       case FIXED:
         throw new UnsupportedDateTypeException(fieldType + " is unsupported");
 
       case STRING:
-        return new StringConverter(fieldName, nullable);
+        return new StringConverter(fieldName, nullable, type.toString());
 
       case BYTES:
-        return new BinaryConverter(fieldName, nullable, state.getProp(ConfigurationKeys.CONVERTER_AVRO_BINARY_CHARSET,
+        return new BinaryConverter(fieldName, nullable, type.toString(), state.getProp(ConfigurationKeys.CONVERTER_AVRO_BINARY_CHARSET,
             "UTF8"));
 
       case INT:
-        return new IntConverter(fieldName, nullable);
+        return new IntConverter(fieldName, nullable, type.toString());
 
       case LONG:
-        return new LongConverter(fieldName, nullable);
+        return new LongConverter(fieldName, nullable, type.toString());
 
       case FLOAT:
-        return new FloatConverter(fieldName, nullable);
+        return new FloatConverter(fieldName, nullable, type.toString());
 
       case DOUBLE:
-        return new DoubleConverter(fieldName, nullable);
+        return new DoubleConverter(fieldName, nullable, type.toString());
 
       case BOOLEAN:
-        return new BooleanConverter(fieldName, nullable);
+        return new BooleanConverter(fieldName, nullable, type.toString());
 
       case ARRAY:
-        return new ArrayConverter(fieldName, nullable, schemaNode, state);
+        return new ArrayConverter(fieldName, nullable, type.toString(), schemaNode, state);
 
       case MAP:
-        return new MapConverter(fieldName, nullable, schemaNode, state);
+        return new MapConverter(fieldName, nullable, type.toString(), schemaNode, state);
 
       case ENUM:
-        return new EnumConverter(fieldName, nullable, schemaNode);
+        return new EnumConverter(fieldName, nullable, type.toString(), schemaNode);
 
       default:
         throw new UnsupportedDateTypeException(fieldType + " is unsupported");
@@ -149,15 +149,17 @@ public class JsonElementConversionFactory {
   public static abstract class JsonElementConverter {
     private String name;
     private boolean nullable;
+    private String sourceType;
 
     /**
      *
      * @param fieldName
      * @param nullable
      */
-    public JsonElementConverter(String fieldName, boolean nullable) {
+    public JsonElementConverter(String fieldName, boolean nullable, String sourceType) {
       this.name = fieldName;
       this.nullable = nullable;
+      this.sourceType = sourceType;
     }
 
     /**
@@ -185,7 +187,7 @@ public class JsonElementConversionFactory {
 
     protected Schema schema() {
       Schema schema = Schema.create(getTargetType());
-      schema.addProp("source.type", getTargetType().toString().toLowerCase());
+      schema.addProp("source.type", sourceType.toLowerCase());
       return schema;
     }
 
@@ -220,8 +222,8 @@ public class JsonElementConversionFactory {
 
   public static class StringConverter extends JsonElementConverter {
 
-    public StringConverter(String fieldName, boolean nullable) {
-      super(fieldName, nullable);
+    public StringConverter(String fieldName, boolean nullable, String sourceType) {
+      super(fieldName, nullable, sourceType);
     }
 
     @Override
@@ -237,8 +239,8 @@ public class JsonElementConversionFactory {
 
   public static class IntConverter extends JsonElementConverter {
 
-    public IntConverter(String fieldName, boolean nullable) {
-      super(fieldName, nullable);
+    public IntConverter(String fieldName, boolean nullable, String sourceType) {
+      super(fieldName, nullable, sourceType);
     }
 
     @Override
@@ -255,8 +257,8 @@ public class JsonElementConversionFactory {
 
   public static class LongConverter extends JsonElementConverter {
 
-    public LongConverter(String fieldName, boolean nullable) {
-      super(fieldName, nullable);
+    public LongConverter(String fieldName, boolean nullable, String sourceType) {
+      super(fieldName, nullable, sourceType);
     }
 
     @Override
@@ -274,8 +276,8 @@ public class JsonElementConversionFactory {
 
   public static class DoubleConverter extends JsonElementConverter {
 
-    public DoubleConverter(String fieldName, boolean nullable) {
-      super(fieldName, nullable);
+    public DoubleConverter(String fieldName, boolean nullable, String sourceType) {
+      super(fieldName, nullable, sourceType);
     }
 
     @Override
@@ -292,8 +294,8 @@ public class JsonElementConversionFactory {
 
   public static class FloatConverter extends JsonElementConverter {
 
-    public FloatConverter(String fieldName, boolean nullable) {
-      super(fieldName, nullable);
+    public FloatConverter(String fieldName, boolean nullable, String sourceType) {
+      super(fieldName, nullable, sourceType);
     }
 
     @Override
@@ -310,8 +312,8 @@ public class JsonElementConversionFactory {
 
   public static class BooleanConverter extends JsonElementConverter {
 
-    public BooleanConverter(String fieldName, boolean nullable) {
-      super(fieldName, nullable);
+    public BooleanConverter(String fieldName, boolean nullable, String sourceType) {
+      super(fieldName, nullable, sourceType);
     }
 
     @Override
@@ -330,8 +332,8 @@ public class JsonElementConversionFactory {
   public static class DateConverter extends JsonElementConverter {
     private DateTimeFormatter dtf;
 
-    public DateConverter(String fieldName, boolean nullable, String pattern, DateTimeZone zone) {
-      super(fieldName, nullable);
+    public DateConverter(String fieldName, boolean nullable, String sourceType, String pattern, DateTimeZone zone) {
+      super(fieldName, nullable, sourceType);
       dtf = DateTimeFormat.forPattern(pattern).withZone(zone);
     }
 
@@ -350,8 +352,8 @@ public class JsonElementConversionFactory {
   public static class BinaryConverter extends JsonElementConverter {
     private String charSet;
 
-    public BinaryConverter(String fieldName, boolean nullable, String charSet) {
-      super(fieldName, nullable);
+    public BinaryConverter(String fieldName, boolean nullable, String sourceType, String charSet) {
+      super(fieldName, nullable, sourceType);
       this.charSet = charSet;
     }
 
@@ -374,9 +376,9 @@ public class JsonElementConversionFactory {
   public static abstract class ComplexConverter extends JsonElementConverter {
     private JsonElementConverter elementConverter;
 
-    public ComplexConverter(String fieldName, boolean nullable, JsonObject schemaNode, WorkUnitState state)
+    public ComplexConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode, WorkUnitState state)
         throws UnsupportedDateTypeException {
-      super(fieldName, nullable);
+      super(fieldName, nullable, sourceType);
     }
 
     protected void setElementConverter(JsonElementConverter elementConverter) {
@@ -390,9 +392,9 @@ public class JsonElementConversionFactory {
 
   public static class ArrayConverter extends ComplexConverter {
 
-    public ArrayConverter(String fieldName, boolean nullable, JsonObject schemaNode, WorkUnitState state)
+    public ArrayConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode, WorkUnitState state)
         throws UnsupportedDateTypeException {
-      super(fieldName, nullable, schemaNode, state);
+      super(fieldName, nullable, sourceType, schemaNode, state);
       super.setElementConverter(getConvertor(fieldName, schemaNode.get("dataType").getAsJsonObject().get("items")
           .getAsString(), schemaNode.get("dataType").getAsJsonObject(), state));
 
@@ -425,9 +427,9 @@ public class JsonElementConversionFactory {
 
   public static class MapConverter extends ComplexConverter {
 
-    public MapConverter(String fieldName, boolean nullable, JsonObject schemaNode, WorkUnitState state)
+    public MapConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode, WorkUnitState state)
         throws UnsupportedDateTypeException {
-      super(fieldName, nullable, schemaNode, state);
+      super(fieldName, nullable, sourceType, schemaNode, state);
       super.setElementConverter(getConvertor(fieldName, schemaNode.get("dataType").getAsJsonObject().get("values")
           .getAsString(), schemaNode.get("dataType").getAsJsonObject(), state));
 
@@ -463,8 +465,8 @@ public class JsonElementConversionFactory {
     List<String> enumSet = new ArrayList<String>();
     Schema schema;
 
-    public EnumConverter(String fieldName, boolean nullable, JsonObject schemaNode) {
-      super(fieldName, nullable);
+    public EnumConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode) {
+      super(fieldName, nullable, sourceType);
 
       for (JsonElement elem : schemaNode.get("dataType").getAsJsonObject().get("symbols").getAsJsonArray()) {
         enumSet.add(elem.getAsString());
