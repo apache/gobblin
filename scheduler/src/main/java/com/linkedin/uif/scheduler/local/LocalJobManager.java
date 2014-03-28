@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -195,6 +196,16 @@ public class LocalJobManager extends AbstractIdleService {
     public void scheduleJob(Properties jobProps, JobListener jobListener) throws JobException {
         Preconditions.checkNotNull(jobProps);
 
+        String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+
+        // Check if the job has been disabled
+        boolean disabled = Boolean.valueOf(
+                jobProps.getProperty(ConfigurationKeys.JOB_DISABLED_KEY, "false"));
+        if (disabled) {
+            LOG.info("Skipping disabled job " + jobName);
+            return;
+        }
+
         if (!jobProps.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
             // A job without a cron schedule is considered a one-time job
             jobProps.setProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "true");
@@ -203,7 +214,6 @@ public class LocalJobManager extends AbstractIdleService {
             return;
         }
 
-        String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
         if (jobListener != null) {
             this.jobListenerMap.put(jobName, jobListener);
         }
@@ -356,6 +366,15 @@ public class LocalJobManager extends AbstractIdleService {
     }
 
     /**
+     * Get the names of the scheduled jobs.
+     *
+     * @return names of the scheduled jobs
+     */
+    public Collection<String> getScheduledJobs() {
+        return this.scheduledJobs.keySet();
+    }
+
+    /**
      * Callback method when a task is completed.
      *
      * @param jobId Job ID of the given job
@@ -382,8 +401,8 @@ public class LocalJobManager extends AbstractIdleService {
             String jobName = taskState.getWorkunit().getProp(ConfigurationKeys.JOB_NAME_KEY);
             try {
                 commitJob(jobId, jobName, getFinalJobState(jobState));
-            } catch (Exception e) {
-                LOG.error("Failed to commit job " + jobId, e);
+            } catch (Throwable t) {
+                LOG.error("Failed to commit job " + jobId, t);
             }
         }
     }
@@ -763,15 +782,15 @@ public class LocalJobManager extends AbstractIdleService {
         this.jobStateMap.remove(jobId);
 
         try {
-            if (!runOnce) {
-                // Remember the job ID of this most recent run of the job
-                this.lastJobIdMap.put(jobName, jobId);
-            } else {
+            if (runOnce) {
                 this.scheduledJobs.remove(jobName);
                 if (this.runOnceJobs.containsKey(jobName)) {
                     // Delete the job from the Quartz scheduler
                     this.scheduler.deleteJob(this.runOnceJobs.remove(jobName));
                 }
+            } else {
+                // Remember the job ID of this most recent run of the job
+                this.lastJobIdMap.put(jobName, jobId);
             }
         } catch (Exception e) {
             LOG.error("Failed to cleanup job " + jobId, e);
@@ -841,8 +860,8 @@ public class LocalJobManager extends AbstractIdleService {
 
             try {
                 jobManager.runJob(jobProps, jobListener);
-            } catch (JobException je) {
-                throw new JobExecutionException(je);
+            } catch (Throwable t) {
+                throw new JobExecutionException(t);
             }
         }
     }

@@ -31,6 +31,7 @@ public class ConfigurationKeys {
     public static final String JOB_COMMIT_POLICY_KEY = "job.commit.policy";
     public static final String DEFAULT_JOB_COMMIT_POLICY = "full";
     public static final String JOB_RUN_ONCE_KEY = "job.runonce";
+    public static final String JOB_DISABLED_KEY = "job.disabled";
 
     /**
      * Work unit related configuration properties
