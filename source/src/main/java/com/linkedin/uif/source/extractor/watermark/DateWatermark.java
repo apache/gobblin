@@ -6,14 +6,14 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.source.extractor.extract.BaseExtractor;
 
 public class DateWatermark implements Watermark {
-	private static final Log LOG = LogFactory.getLog(DateWatermark.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DateWatermark.class);
 	// default water mark format(input format) example: 20140301050505
 	private static final SimpleDateFormat INPUTFORMAT = new SimpleDateFormat("yyyyMMddHHmmss");
 	

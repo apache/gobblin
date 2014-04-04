@@ -2,13 +2,13 @@ package com.linkedin.uif.source.extractor.watermark;
 
 import java.util.HashMap;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.linkedin.uif.source.extractor.extract.BaseExtractor;
 
 public class SimpleWatermark implements Watermark {
-	private static final Log LOG = LogFactory.getLog(SimpleWatermark.class);
+	private static final Logger LOG = LoggerFactory.getLogger(SimpleWatermark.class);
 	private static final int deltaForNextWatermark = 1;
     private String watermarkColumn;
     
