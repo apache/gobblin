@@ -6,12 +6,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+
+import org.slf4j.MDC;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.Extractor;
@@ -53,7 +55,7 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 	private Iterator<D> iterator;
 	protected List<String> columnList = new ArrayList<String>();
 	private List<Predicate> predicateList = new ArrayList<Predicate>();
-	protected Log log = LogFactory.getLog(BaseExtractor.class);
+	protected Logger log = LoggerFactory.getLogger(BaseExtractor.class);
 
 	private S getOutputSchema() {
 		return this.outputSchema;
@@ -119,7 +121,8 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 		this.schema = this.workUnit.getProp(ConfigurationKeys.SOURCE_SCHEMA);
 		this.entity = this.workUnit.getProp(ConfigurationKeys.SOURCE_ENTITY);
 		this.setWorkUnitName();
-		this.log = LogFactory.getLog(BaseExtractor.class+this.getWorkUnitName());
+		this.log = LoggerFactory.getLogger(BaseExtractor.class);
+		MDC.put("tableName", this.getWorkUnitName());
 	}
 
 	/**
