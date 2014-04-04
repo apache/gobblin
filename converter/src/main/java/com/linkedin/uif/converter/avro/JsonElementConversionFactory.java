@@ -63,8 +63,7 @@ public class JsonElementConversionFactory {
    * @throws UnsupportedDateTypeException
    */
   public static JsonElementConverter getConvertor(String fieldName, String fieldType, JsonObject schemaNode,
-      WorkUnitState state) throws UnsupportedDateTypeException {
-    boolean nullable = schemaNode.has("isNullable") ? schemaNode.get("isNullable").getAsBoolean() : false;
+      WorkUnitState state, boolean nullable) throws UnsupportedDateTypeException {
 
     Type type;
     try {
@@ -168,6 +167,14 @@ public class JsonElementConversionFactory {
      */
     public String getName() {
       return this.name;
+    }
+    
+    /**
+     * is field nullable
+     * @return
+     */
+    public boolean isNullable() {
+      return nullable;
     }
 
     /**
@@ -396,7 +403,7 @@ public class JsonElementConversionFactory {
         throws UnsupportedDateTypeException {
       super(fieldName, nullable, sourceType, schemaNode, state);
       super.setElementConverter(getConvertor(fieldName, schemaNode.get("dataType").getAsJsonObject().get("items")
-          .getAsString(), schemaNode.get("dataType").getAsJsonObject(), state));
+          .getAsString(), schemaNode.get("dataType").getAsJsonObject(), state, isNullable()));
 
     }
 
@@ -431,7 +438,7 @@ public class JsonElementConversionFactory {
         throws UnsupportedDateTypeException {
       super(fieldName, nullable, sourceType, schemaNode, state);
       super.setElementConverter(getConvertor(fieldName, schemaNode.get("dataType").getAsJsonObject().get("values")
-          .getAsString(), schemaNode.get("dataType").getAsJsonObject(), state));
+          .getAsString(), schemaNode.get("dataType").getAsJsonObject(), state, isNullable()));
 
     }
 
