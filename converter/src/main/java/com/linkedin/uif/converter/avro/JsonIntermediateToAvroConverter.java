@@ -9,6 +9,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import org.codehaus.jackson.node.JsonNodeFactory;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -39,19 +40,20 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
 
       String columnName = map.get("columnName").getAsString();
       String comment = map.get("comment").getAsString();
+      boolean nullable = map.has("isNullable") ? map.get("isNullable").getAsBoolean() : false;
       Schema fldSchema;
 
       try {
         JsonElementConverter converter =
             JsonElementConversionFactory.getConvertor(columnName, map.get("dataType").getAsJsonObject().get("type")
-                .getAsString(), map, workUnit);
+                .getAsString(), map, workUnit, nullable);
         converters.put(columnName, converter);
         fldSchema = converter.getSchema();
       } catch (UnsupportedDateTypeException e) {
         throw new SchemaConversionException(e);
       }
 
-      Field fld = new Field(columnName, fldSchema, comment, null);
+      Field fld = new Field(columnName, fldSchema, comment, nullable ? JsonNodeFactory.instance.nullNode() : null);
       fld.addProp("source.type", map.get("dataType").getAsJsonObject().get("type").getAsString());
       fields.add(fld);
     }
