@@ -88,7 +88,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	private BufferedReader bulkBufferedReader = null;
 	private List<String> bulkResultIdList = new ArrayList<String>();
 	private int bulkResultIdCount = 0;
-	private boolean bulkReadCompleteStatus=false;
+	private boolean bulkJobFinished=true;
 	private List<String> bulkRecordHeader;
 	private int bulkResultColumCount;
 	
@@ -122,11 +122,11 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	
 
 	private boolean isBulkJobFinished() {
-		return this.bulkReadCompleteStatus;
+		return this.bulkJobFinished;
 	}
 	
-	private void setBulkStatus(boolean status) {
-		this.bulkReadCompleteStatus = status;
+	private void setBulkJobFinished(boolean bulkJobFinished) {
+		this.bulkJobFinished = bulkJobFinished;
 	}
 	
 	@Override
@@ -552,6 +552,8 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 			//Get query result ids in the first run
 			//result id is used to construct url while fetching data
 			if(this.bulkApiInitialRun == true) {
+				// set finish status to false before starting the bulk job
+				this.setBulkJobFinished(false);
 				this.bulkResultIdList = this.getQueryResultIds(schema, entity, predicateList);
 				this.log.info("Number of bulk api resultSet Ids:"+this.bulkResultIdList.size());
 			}
@@ -706,7 +708,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 				} else {
 					// if result stream processed for all resultset ids then finish the bulk job
 					this.log.info("Bulk job is finished");
-					this.setBulkStatus(false);
+					this.setBulkJobFinished(true);
 					
 					// Close bulk Connection
 					this.bulkConnection.closeJob(bulkJob.getId());
