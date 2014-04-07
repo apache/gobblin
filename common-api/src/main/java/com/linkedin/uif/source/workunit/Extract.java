@@ -158,8 +158,13 @@ public class Extract extends State {
     return getPropAsLong(ConfigurationKeys.EXTRACT_FULL_RUN_TIME_KEY, -1);
   }
 
-  protected void setFullTrue() {
-    setProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY, true);
+  /**
+   * sets full drop date to current time
+   *
+   * @param extractFullRunTime required for setting full to true
+   */
+  public void setFullTrue() {
+    setFullTrue(System.currentTimeMillis());
   }
 
   /**
@@ -168,7 +173,7 @@ public class Extract extends State {
    * @param extractFullRunTime required for setting full to true
    */
   public void setFullTrue(long extractFullRunTime) {
-    setFullTrue();
+    setProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY, true);
     setProp(ConfigurationKeys.EXTRACT_FULL_RUN_TIME_KEY, extractFullRunTime);
   }
 
