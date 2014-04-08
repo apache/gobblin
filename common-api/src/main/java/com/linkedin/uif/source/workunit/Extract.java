@@ -68,6 +68,12 @@ public class Extract extends State {
           }
         }
       }
+      
+      //setting full drop date if not already specified, the value can still be overridden if required
+      if (state.getPropAsBoolean(ConfigurationKeys.EXTRACT_IS_FULL_KEY) && 
+          ! state.contains(ConfigurationKeys.EXTRACT_FULL_RUN_TIME_KEY)){
+        super.setProp(ConfigurationKeys.EXTRACT_FULL_RUN_TIME_KEY, System.currentTimeMillis());
+      }
     }
   }
 
