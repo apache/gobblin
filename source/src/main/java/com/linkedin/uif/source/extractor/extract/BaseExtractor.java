@@ -99,10 +99,8 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 		String id = this.workUnitState.getId();
 		int seqIndex = id.lastIndexOf("_",id.length());
 		if(seqIndex>0) {
-			sb.append(id.substring(seqIndex+1));
-			sb.append("_");
-			id = id.substring(0, seqIndex);
-			int timeIndex = id.lastIndexOf("_",id.length());
+			String timeSeqStr = id.substring(0, seqIndex);
+			int timeIndex = timeSeqStr.lastIndexOf("_",timeSeqStr.length());
 			if(timeIndex>0) {
 				sb.append(id.substring(timeIndex+1));
 			}
