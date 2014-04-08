@@ -91,6 +91,8 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	private boolean bulkJobFinished=true;
 	private List<String> bulkRecordHeader;
 	private int bulkResultColumCount;
+	private boolean newBulkResultSet=true;
+	private int bulkRecordCount = 0;
 	
 	protected Logger log = LoggerFactory.getLogger(SalesforceExtractor.class);
 	
@@ -120,13 +122,20 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 		this.nextUrl = nextUrl;
 	}
 	
-
 	private boolean isBulkJobFinished() {
 		return this.bulkJobFinished;
 	}
 	
 	private void setBulkJobFinished(boolean bulkJobFinished) {
 		this.bulkJobFinished = bulkJobFinished;
+	}
+	
+	public boolean isNewBulkResultSet() {
+		return newBulkResultSet;
+	}
+
+	public void setNewBulkResultSet(boolean newBulkResultSet) {
+		this.newBulkResultSet = newBulkResultSet;
 	}
 	
 	@Override
@@ -607,12 +616,9 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 			config.setTraceFile("traceLogs.txt");
 			config.setTraceMessage(false);
 			config.setPrettyPrintXml(true);
-			config.setMaxResponseSize(10000);
-			System.out.println("AuthEndpoint: " +config.getServiceEndpoint());
 			PartnerConnection connection = new PartnerConnection(config);
-			System.out.println("SessionID: " + config.getSessionId());
 			config.setRestEndpoint(bulkAuthEndPoint);
-			bulkConnection = new BulkConnection(config);
+			this.bulkConnection = new BulkConnection(config);
 			success = true;
 			
 		} catch (Exception e) {
@@ -669,9 +675,10 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 			// Get batch info with complete resultset (info id - refers to the resultset id corresponding to entire resultset)
 			this.bulkBatchInfo = bulkConnection.getBatchInfo(this.bulkJob.getId(), this.bulkBatchInfo.getId());
 			while((this.bulkBatchInfo.getState() != BatchStateEnum.Completed) && (this.bulkBatchInfo.getState() != BatchStateEnum.Failed))  {
-				Thread.sleep(15 * 1000); // Retry to get batch info after 15 seconds
+				Thread.sleep(30 * 1000); // Retry for every 30 seconds to get the resultset ids
 				this.bulkBatchInfo = bulkConnection.getBatchInfo(this.bulkJob.getId(), this.bulkBatchInfo.getId());
 				this.log.debug("Bulk Api Batch Info:"+this.bulkBatchInfo);
+				this.log.info("Waiting for bulk resultSetIds");
 			}
 			
 			// Get resultset ids from the batch info
@@ -699,8 +706,8 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 				
 				// if there is unprocessed resultset id then get result stream for that id
 				if (this.bulkResultIdCount < this.bulkResultIdList.size()) {
-					this.log.info("Get resultset for resultId:" + bulkResultIdList.get(bulkResultIdCount));
-					
+					this.log.info("Stream resultset for resultId:" + bulkResultIdList.get(bulkResultIdCount));
+					this.setNewBulkResultSet(true);
 					this.bulkBufferedReader = new BufferedReader(new InputStreamReader(this.bulkConnection.getQueryResultStream(bulkJob.getId(),
 							bulkBatchInfo.getId(), bulkResultIdList.get(bulkResultIdCount))));
 					
@@ -726,10 +733,12 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 			
 			// Stream the resultset through CSV reader to identify columns in each record
 			CSVReader reader = new CSVReader(this.bulkBufferedReader);
-			if(this.bulkApiInitialRun) {
-				// If it is initial run, first record is the header
+			
+			// Get header if it is first run of a new resultset
+			if(this.isNewBulkResultSet()) {
 				this.bulkRecordHeader = reader.nextRecord();
 	            this.bulkResultColumCount = this.bulkRecordHeader.size();
+	            this.setNewBulkResultSet(false);
 			}
 			
 			List<String> csvRecord;
@@ -741,10 +750,11 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 				JsonObject jsonObject = Utils.csvToJsonObject(this.bulkRecordHeader, csvRecord, this.bulkResultColumCount);
                 rs.add((D) jsonObject);
                 recordCount++;
+				this.bulkRecordCount++;
                 
-                // Insert records in record set until it reaches batch size
+                // Insert records in record set until it reaches the batch size
 				if(recordCount>=batchSize) {
-					this.log.info("Processing batch with record count "+recordCount);
+					this.log.info("Total number of records processed so far: "+this.bulkRecordCount);
 					break;
 				}
 			}
