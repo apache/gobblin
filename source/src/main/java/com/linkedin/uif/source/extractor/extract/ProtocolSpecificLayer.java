@@ -103,4 +103,10 @@ public interface ProtocolSpecificLayer<S, D> {
      * @return Map of source and target data types
      */
 	public Map<String, String> getDataTypeMap();
+	
+    /**
+     * Close connection after the completion of extract whether its success or failure
+     * @throws Exception 
+     */
+	public void closeConnection() throws Exception;
 }
