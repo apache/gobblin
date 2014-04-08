@@ -196,6 +196,11 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 	public void close() {
 		this.log.info("Updating the current state high water mark with "+this.highWatermark);
 		this.workUnitState.setHighWaterMark(this.highWatermark);
+		try {
+			this.closeConnection();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 	
 	/**

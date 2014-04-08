@@ -48,6 +48,7 @@ import com.linkedin.uif.source.extractor.resultset.RecordSetList;
 import com.linkedin.uif.source.extractor.schema.Schema;
 import com.linkedin.uif.source.extractor.utils.Utils;
 import com.linkedin.uif.source.workunit.WorkUnit;
+import com.sforce.async.AsyncApiException;
 import com.sforce.async.BatchInfo;
 import com.sforce.async.BatchStateEnum;
 import com.sforce.async.BulkConnection;
@@ -55,6 +56,7 @@ import com.sforce.async.CSVReader;
 import com.sforce.async.ConcurrencyMode;
 import com.sforce.async.ContentType;
 import com.sforce.async.JobInfo;
+import com.sforce.async.JobStateEnum;
 import com.sforce.async.OperationEnum;
 import com.sforce.async.QueryResultList;
 import com.sforce.soap.partner.PartnerConnection;
@@ -672,10 +674,13 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 			
 			this.bulkBatchInfo = bulkConnection.createBatchFromStream(this.bulkJob, bout);
 			
+			int retryInterval = 30 + (int) Math.ceil((float)this.getExpectedRecordCount()/10000)*2;
+			this.log.info("Salesforce bulk api retry interval in seconds:" + retryInterval);
+			
 			// Get batch info with complete resultset (info id - refers to the resultset id corresponding to entire resultset)
 			this.bulkBatchInfo = bulkConnection.getBatchInfo(this.bulkJob.getId(), this.bulkBatchInfo.getId());
 			while((this.bulkBatchInfo.getState() != BatchStateEnum.Completed) && (this.bulkBatchInfo.getState() != BatchStateEnum.Failed))  {
-				Thread.sleep(30 * 1000); // Retry for every 30 seconds to get the resultset ids
+				Thread.sleep(retryInterval * 1000);
 				this.bulkBatchInfo = bulkConnection.getBatchInfo(this.bulkJob.getId(), this.bulkBatchInfo.getId());
 				this.log.debug("Bulk Api Batch Info:"+this.bulkBatchInfo);
 				this.log.info("Waiting for bulk resultSetIds");
@@ -701,7 +706,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 		RecordSetList<D> rs = new RecordSetList<D>();
 
 		try {
-			// if Buffer is empty then get stream for the new resultset id 
+			// if Buffer is empty then get stream for the new resultset id
 			if (this.bulkBufferedReader == null || !this.bulkBufferedReader.ready()) {
 				
 				// if there is unprocessed resultset id then get result stream for that id
@@ -716,9 +721,6 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 					// if result stream processed for all resultset ids then finish the bulk job
 					this.log.info("Bulk job is finished");
 					this.setBulkJobFinished(true);
-					
-					// Close bulk Connection
-					this.bulkConnection.closeJob(bulkJob.getId());
 					return rs;
 				}
 			}
@@ -765,5 +767,13 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 		}
 
 		return rs;
+	}
+	
+	@Override
+	public void closeConnection() throws Exception {
+		if(!this.bulkConnection.getJobStatus(this.bulkJob.getId()).getState().toString().equals("Closed")) {
+			this.log.info("Closing salesforce bulk job connection");
+			this.bulkConnection.closeJob(bulkJob.getId());
+		}
 	}
 }
