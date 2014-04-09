@@ -68,6 +68,12 @@ public class Extract extends State {
           }
         }
       }
+      
+      //setting full drop date if not already specified, the value can still be overridden if required
+      if (state.getPropAsBoolean(ConfigurationKeys.EXTRACT_IS_FULL_KEY) && 
+          ! state.contains(ConfigurationKeys.EXTRACT_FULL_RUN_TIME_KEY)){
+        super.setProp(ConfigurationKeys.EXTRACT_FULL_RUN_TIME_KEY, System.currentTimeMillis());
+      }
     }
   }
 
@@ -158,8 +164,13 @@ public class Extract extends State {
     return getPropAsLong(ConfigurationKeys.EXTRACT_FULL_RUN_TIME_KEY, -1);
   }
 
-  protected void setFullTrue() {
-    setProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY, true);
+  /**
+   * sets full drop date to current time
+   *
+   * @param extractFullRunTime required for setting full to true
+   */
+  public void setFullTrue() {
+    setFullTrue(System.currentTimeMillis());
   }
 
   /**
@@ -168,7 +179,7 @@ public class Extract extends State {
    * @param extractFullRunTime required for setting full to true
    */
   public void setFullTrue(long extractFullRunTime) {
-    setFullTrue();
+    setProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY, true);
     setProp(ConfigurationKeys.EXTRACT_FULL_RUN_TIME_KEY, extractFullRunTime);
   }
 

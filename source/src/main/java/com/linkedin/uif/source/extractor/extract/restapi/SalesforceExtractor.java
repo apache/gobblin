@@ -1,9 +1,13 @@
 package com.linkedin.uif.source.extractor.extract.restapi;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.InputStreamReader;
 import java.net.URI;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
@@ -21,6 +25,8 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.message.BasicNameValuePair;
+
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -42,6 +48,19 @@ import com.linkedin.uif.source.extractor.resultset.RecordSetList;
 import com.linkedin.uif.source.extractor.schema.Schema;
 import com.linkedin.uif.source.extractor.utils.Utils;
 import com.linkedin.uif.source.workunit.WorkUnit;
+import com.sforce.async.AsyncApiException;
+import com.sforce.async.BatchInfo;
+import com.sforce.async.BatchStateEnum;
+import com.sforce.async.BulkConnection;
+import com.sforce.async.CSVReader;
+import com.sforce.async.ConcurrencyMode;
+import com.sforce.async.ContentType;
+import com.sforce.async.JobInfo;
+import com.sforce.async.JobStateEnum;
+import com.sforce.async.OperationEnum;
+import com.sforce.async.QueryResultList;
+import com.sforce.soap.partner.PartnerConnection;
+import com.sforce.ws.ConnectorConfig;
 
 /**
  * An implementation of salesforce extractor for to extract data from SFDC
@@ -56,11 +75,27 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	private static final String SALESFORCE_TIMESTAMP_FORMAT = "yyyy-MM-dd'T'HH:mm:ss'.000Z'";
 	private static final String SALESFORCE_DATE_FORMAT = "yyyy-MM-dd";
 	private static final String SALESFORCE_HOUR_FORMAT = "HH";
+	private static final String SALESFORCE_SOAP_AUTH_SERVICE = "/services/Soap/u";
+	private static final String SALESFORCE_BULK_AUTH_SERVICE = "/services/async";
 	private static final Gson gson = new Gson();
 	
 	private boolean pullStatus = true;
 	private String nextUrl;
 	private String servicesDataEnvPath;
+	
+	private BulkConnection bulkConnection = null;
+	private boolean bulkApiInitialRun=true;
+	private JobInfo bulkJob = new JobInfo();
+	private BatchInfo bulkBatchInfo = null;
+	private BufferedReader bulkBufferedReader = null;
+	private List<String> bulkResultIdList = new ArrayList<String>();
+	private int bulkResultIdCount = 0;
+	private boolean bulkJobFinished=true;
+	private List<String> bulkRecordHeader;
+	private int bulkResultColumCount;
+	private boolean newBulkResultSet=true;
+	private int bulkRecordCount = 0;
+	
 	protected Logger log = LoggerFactory.getLogger(SalesforceExtractor.class);
 	
 	public SalesforceExtractor(WorkUnitState state) {
@@ -87,6 +122,22 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	 */
 	public void setNextUrl(String nextUrl) {
 		this.nextUrl = nextUrl;
+	}
+	
+	private boolean isBulkJobFinished() {
+		return this.bulkJobFinished;
+	}
+	
+	private void setBulkJobFinished(boolean bulkJobFinished) {
+		this.bulkJobFinished = bulkJobFinished;
+	}
+	
+	public boolean isNewBulkResultSet() {
+		return newBulkResultSet;
+	}
+
+	public void setNewBulkResultSet(boolean newBulkResultSet) {
+		this.newBulkResultSet = newBulkResultSet;
 	}
 	
 	@Override
@@ -406,7 +457,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	}
 	
 	private String getServiceBaseUrl() {
-		String dataEnvPath = DEFAULT_SERVICES_DATA_PATH + "/" + this.workUnit.getProp(ConfigurationKeys.SOURCE_VERSION);
+		String dataEnvPath = DEFAULT_SERVICES_DATA_PATH + "/v" + this.workUnit.getProp(ConfigurationKeys.SOURCE_VERSION);
 		this.setServicesDataEnvPath(dataEnvPath);
 		return this.instanceUrl + dataEnvPath;
 	}
@@ -492,5 +543,237 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 				.put("map", "string")
 				.put("enum", "string").build();
 		return dataTypeMap;
+	}
+	
+	/**
+	 * Get Record set using salesforce specific API(Bulk API)
+	 * @param schema/databasename
+	 * @param entity/tablename
+	 * @param workUnit
+	 * @param list of all predicate conditions
+     * @return iterator with batch of records
+	 */
+	
+	@Override
+	public Iterator<D> getRecordSet(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws DataRecordException {
+		this.log.debug("Getting salesforce data using bulk api");
+		RecordSet<D> rs = null;
+		
+		try {
+			//Get query result ids in the first run
+			//result id is used to construct url while fetching data
+			if(this.bulkApiInitialRun == true) {
+				// set finish status to false before starting the bulk job
+				this.setBulkJobFinished(false);
+				this.bulkResultIdList = this.getQueryResultIds(schema, entity, predicateList);
+				this.log.info("Number of bulk api resultSet Ids:"+this.bulkResultIdList.size());
+			}
+			
+			// Get data from input stream
+			// If bulk load load is not finished, get data from the stream
+			if(!this.isBulkJobFinished()) {
+				rs = getBulkData();
+			}
+			
+			// Set bulkApiInitialRun to false after the completion of first run
+			this.bulkApiInitialRun = false;
+			
+			if (rs == null) {
+				return null;
+			} else {
+				return rs.iterator();
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new DataRecordException("Failed to get records using bulk api; error-" + e.getMessage());
+		}
+	}
+	
+	/**
+	 * Login to salesforce
+     * @return login status
+	 */
+	private boolean bulkApiLogin() throws Exception {
+		this.log.info("Authenticating salesforce bulk api");
+		boolean success = false;
+		String hostName = this.workUnit.getProp(ConfigurationKeys.SOURCE_HOST_NAME);
+		String restUrl = this.workUnit.getProp(ConfigurationKeys.SOURCE_REST_URL);
+		
+		String apiVersion = this.workUnit.getProp(ConfigurationKeys.SOURCE_VERSION);
+		if(Strings.isNullOrEmpty(apiVersion)) {
+			apiVersion = "29.0";
+		}
+		
+		String soapAuthEndPoint = hostName+SALESFORCE_SOAP_AUTH_SERVICE+"/"+apiVersion;
+		String bulkAuthEndPoint = restUrl+SALESFORCE_BULK_AUTH_SERVICE+"/"+apiVersion;
+		
+		try {
+			ConnectorConfig config = new ConnectorConfig();
+			config.setUsername(this.workUnit.getProp(ConfigurationKeys.SOURCE_USERNAME));
+			config.setPassword(this.workUnit.getProp(ConfigurationKeys.SOURCE_PASSWORD));
+			config.setAuthEndpoint(soapAuthEndPoint);
+			//config.setAuthEndpoint("https://login.salesforce.com/services/Soap/u/24");
+			config.setCompression(true);
+			config.setTraceFile("traceLogs.txt");
+			config.setTraceMessage(false);
+			config.setPrettyPrintXml(true);
+			PartnerConnection connection = new PartnerConnection(config);
+			config.setRestEndpoint(bulkAuthEndPoint);
+			this.bulkConnection = new BulkConnection(config);
+			success = true;
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new Exception("Failed to connect to salesforce bulk api; error-" + e.getMessage());
+		}
+		return success;
+	}
+	
+	/**
+	 * Get Record set using salesforce specific API(Bulk API)
+	 * @param schema/databasename
+	 * @param entity/tablename
+	 * @param list of all predicate conditions
+     * @return iterator with batch of records
+	 */
+	private List<String> getQueryResultIds(String schema, String entity, List<Predicate> predicateList) throws Exception {
+		if (!bulkApiLogin()) {
+			throw new IllegalArgumentException("Invalid Login");
+		}
+		
+		try {
+			// Set bulk job attributes
+			this.bulkJob.setObject(entity);
+			this.bulkJob.setOperation(OperationEnum.query);
+			this.bulkJob.setConcurrencyMode(ConcurrencyMode.Parallel);
+
+			// Result type as CSV
+			this.bulkJob.setContentType(ContentType.CSV);
+			
+			this.bulkJob = bulkConnection.createJob(this.bulkJob);
+			this.bulkJob = bulkConnection.getJobStatus(this.bulkJob.getId());
+			
+			// Construct query with the predicates
+			String query = this.updatedQuery;
+			if (!isNullPredicate(predicateList)) {
+				String limitString = this.getLimitFromInputQuery(query);
+				query = query.replace(limitString, "");
+				
+				Iterator<Predicate> i = predicateList.listIterator();
+				while (i.hasNext()) {
+					Predicate predicate = i.next();
+					query = this.addPredicate(query, predicate.getCondition());
+				}
+				
+				query = query+limitString;
+			}
+			
+			this.log.info("QUERY:" + query);
+			ByteArrayInputStream bout = new ByteArrayInputStream(query.getBytes());
+			
+			this.bulkBatchInfo = bulkConnection.createBatchFromStream(this.bulkJob, bout);
+			
+			int retryInterval = 30 + (int) Math.ceil((float)this.getExpectedRecordCount()/10000)*2;
+			this.log.info("Salesforce bulk api retry interval in seconds:" + retryInterval);
+			
+			// Get batch info with complete resultset (info id - refers to the resultset id corresponding to entire resultset)
+			this.bulkBatchInfo = bulkConnection.getBatchInfo(this.bulkJob.getId(), this.bulkBatchInfo.getId());
+			while((this.bulkBatchInfo.getState() != BatchStateEnum.Completed) && (this.bulkBatchInfo.getState() != BatchStateEnum.Failed))  {
+				Thread.sleep(retryInterval * 1000);
+				this.bulkBatchInfo = bulkConnection.getBatchInfo(this.bulkJob.getId(), this.bulkBatchInfo.getId());
+				this.log.debug("Bulk Api Batch Info:"+this.bulkBatchInfo);
+				this.log.info("Waiting for bulk resultSetIds");
+			}
+			
+			// Get resultset ids from the batch info
+			QueryResultList list = bulkConnection.getQueryResultList(this.bulkJob.getId(), this.bulkBatchInfo.getId());
+			
+			return Arrays.asList(list.getResult());
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new Exception("Failed to get query result ids from salesforce using bulk api; error-" + e.getMessage());
+		}
+	}
+	
+	/**
+	 * Get data from the bulk api input stream
+     * @return record set with each record as a JsonObject
+	 */
+	private RecordSet<D> getBulkData() throws DataRecordException {
+		this.log.debug("Processing bulk api batch...");
+		RecordSetList<D> rs = new RecordSetList<D>();
+
+		try {
+			// if Buffer is empty then get stream for the new resultset id
+			if (this.bulkBufferedReader == null || !this.bulkBufferedReader.ready()) {
+				
+				// if there is unprocessed resultset id then get result stream for that id
+				if (this.bulkResultIdCount < this.bulkResultIdList.size()) {
+					this.log.info("Stream resultset for resultId:" + bulkResultIdList.get(bulkResultIdCount));
+					this.setNewBulkResultSet(true);
+					this.bulkBufferedReader = new BufferedReader(new InputStreamReader(this.bulkConnection.getQueryResultStream(bulkJob.getId(),
+							bulkBatchInfo.getId(), bulkResultIdList.get(bulkResultIdCount))));
+					
+					this.bulkResultIdCount++;
+				} else {
+					// if result stream processed for all resultset ids then finish the bulk job
+					this.log.info("Bulk job is finished");
+					this.setBulkJobFinished(true);
+					return rs;
+				}
+			}
+			
+			// if Buffer stream has data then process the same
+
+			// Get batch size from .pull file
+			int batchSize = Utils.getAsInt(this.workUnit.getProp(ConfigurationKeys.SOURCE_FETCH_SIZE));
+			if(batchSize == 0) {
+				batchSize = ConfigurationKeys.DEFAULT_SOURCE_FETCH_SIZE;
+			}
+			
+			// Stream the resultset through CSV reader to identify columns in each record
+			CSVReader reader = new CSVReader(this.bulkBufferedReader);
+			
+			// Get header if it is first run of a new resultset
+			if(this.isNewBulkResultSet()) {
+				this.bulkRecordHeader = reader.nextRecord();
+	            this.bulkResultColumCount = this.bulkRecordHeader.size();
+	            this.setNewBulkResultSet(false);
+			}
+			
+			List<String> csvRecord;
+			int recordCount = 0;
+			
+			// Get record from CSV reader stream
+			while ((csvRecord = reader.nextRecord()) != null) {
+				// Convert CSV record to JsonObject
+				JsonObject jsonObject = Utils.csvToJsonObject(this.bulkRecordHeader, csvRecord, this.bulkResultColumCount);
+                rs.add((D) jsonObject);
+                recordCount++;
+				this.bulkRecordCount++;
+                
+                // Insert records in record set until it reaches the batch size
+				if(recordCount>=batchSize) {
+					this.log.info("Total number of records processed so far: "+this.bulkRecordCount);
+					break;
+				}
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new DataRecordException("Failed to get records from salesforce; error-" + e.getMessage());
+		}
+
+		return rs;
+	}
+	
+	@Override
+	public void closeConnection() throws Exception {
+		if(!this.bulkConnection.getJobStatus(this.bulkJob.getId()).getState().toString().equals("Closed")) {
+			this.log.info("Closing salesforce bulk job connection");
+			this.bulkConnection.closeJob(bulkJob.getId());
+		}
 	}
 }
