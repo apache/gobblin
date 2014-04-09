@@ -21,6 +21,7 @@ configurations {
 
 test {
     useTestNG ()
+    workingDir rootProject.rootDir
     include '**/*Test*'
 }
 

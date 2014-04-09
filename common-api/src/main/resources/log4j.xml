@@ -3,6 +3,13 @@
 
 <log4j:configuration>
 
+   <appender name="consoleAppender" class="org.apache.log4j.ConsoleAppender">
+     <param name="Target" value="System.out"/> 
+       <layout class="org.apache.log4j.PatternLayout">
+         <param name="ConversionPattern" value="%d{yyyy-MM-dd HH:mm:ss z} %-5p [%t] %C %X{tableName} - %m%n"/>
+       </layout>
+   </appender>
+
   <appender name="FileRoll" class="org.apache.log4j.rolling.RollingFileAppender">
     <param name="file" value="/mnt/n001/data/sa_uif/logs/uif-current.log" />
     <param name="append" value="true" />
@@ -19,6 +26,7 @@
 
   <root>
     <priority value ="INFO" /> 
-    <appender-ref ref="FileRoll" /> 
+    <appender-ref ref="FileRoll" />
+    <appender-ref ref="consoleAppender" />
   </root>
 </log4j:configuration>

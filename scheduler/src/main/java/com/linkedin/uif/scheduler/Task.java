@@ -12,10 +12,14 @@ import com.linkedin.uif.converter.Converter;
 import com.linkedin.uif.publisher.TaskPublisher;
 import com.linkedin.uif.publisher.TaskPublisherBuilder;
 import com.linkedin.uif.publisher.TaskPublisherBuilderFactory;
-import com.linkedin.uif.qualitychecker.PolicyCheckResults;
-import com.linkedin.uif.qualitychecker.PolicyChecker;
-import com.linkedin.uif.qualitychecker.PolicyCheckerBuilder;
-import com.linkedin.uif.qualitychecker.PolicyCheckerBuilderFactory;
+import com.linkedin.uif.qualitychecker.row.RowLevelPolicyCheckResults;
+import com.linkedin.uif.qualitychecker.row.RowLevelPolicyChecker;
+import com.linkedin.uif.qualitychecker.row.RowLevelPolicyCheckerBuilder;
+import com.linkedin.uif.qualitychecker.row.RowLevelPolicyCheckerBuilderFactory;
+import com.linkedin.uif.qualitychecker.task.TaskLevelPolicyCheckResults;
+import com.linkedin.uif.qualitychecker.task.TaskLevelPolicyChecker;
+import com.linkedin.uif.qualitychecker.task.TaskLevelPolicyCheckerBuilder;
+import com.linkedin.uif.qualitychecker.task.TaskLevelPolicyCheckerBuilderFactory;
 import com.linkedin.uif.source.extractor.Extractor;
 import com.linkedin.uif.writer.DataWriter;
 import com.linkedin.uif.writer.DataWriterBuilder;
@@ -113,6 +117,9 @@ public class Task implements Runnable, Serializable {
                 schemaForWriter = converter.convertSchema(sourceSchema, this.taskState);
             }
             
+            RowLevelPolicyChecker rowChecker = buildRowLevelPolicyChecker(this.taskState); // should output results with number of rows for each result type
+            RowLevelPolicyCheckResults rowResults = new RowLevelPolicyCheckResults();
+            
             // Build the writer for writing the output of the extractor
             this.writer = buildWriter(this.taskContext, schemaForWriter);
 
@@ -127,9 +134,15 @@ public class Task implements Runnable, Serializable {
                 if (doConversion) {
                     record = converter.convertRecord(sourceSchema, record, this.taskState);
                 }
-                // Finally write the record
-                this.writer.write(record);
+                // Do quality checks
+                if (rowChecker.executePolicies(record, rowResults)) {
+                    // Finally write the record
+                    this.writer.write(record);
+                }
             }
+            
+            rowChecker.close();
+            LOG.info("Row quality checker finished with results: " + rowResults.getResults());
 
             // Do overall quality checking and publish task data
             this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_READ,
@@ -138,10 +151,10 @@ public class Task implements Runnable, Serializable {
                     this.writer.recordsWritten());
             this.taskState.setProp(ConfigurationKeys.EXTRACT_SCHEMA, schemaForWriter.toString());
 
-            PolicyChecker policyChecker = buildPolicyChecker(this.taskState);
-            PolicyCheckResults results = policyChecker.executePolicies();
+            TaskLevelPolicyChecker policyChecker = buildTaskLevelPolicyChecker(this.taskState);
+            TaskLevelPolicyCheckResults taskResults = policyChecker.executePolicies();
             
-            publisher = buildTaskPublisher(this.taskState, results);
+            publisher = buildTaskPublisher(this.taskState, taskResults);
             switch (publisher.canPublish()) {
             case SUCCESS:
                 shouldCommit = true;
@@ -332,13 +345,25 @@ public class Task implements Runnable, Serializable {
     }
 
     /**
-     * Build a {@link PolicyChecker} to execute all defined
-     * {@link com.linkedin.uif.qualitychecker.Policy}.
+     * Build a {@link TaskLevelPolicyChecker} to execute all defined
+     * {@link com.linkedin.uif.qualitychecker.task.TaskLevelPolicy}.
      *
-     * @return a {@link PolicyChecker}
+     * @return a {@link TaskLevelPolicyChecker}
      */
-    private PolicyChecker buildPolicyChecker(TaskState taskState) throws Exception {
-        PolicyCheckerBuilder builder = new PolicyCheckerBuilderFactory()
+    private TaskLevelPolicyChecker buildTaskLevelPolicyChecker(TaskState taskState) throws Exception {
+        TaskLevelPolicyCheckerBuilder builder = new TaskLevelPolicyCheckerBuilderFactory()
+                .newPolicyCheckerBuilder(taskState);
+        return builder.build();
+    }
+    
+    /**
+     * Build a {@link RowLevelPolicyChecker} to execute all defined
+     * {@link com.linkedin.uif.qualitychecker.row.RowLevelPolicy}.
+     *
+     * @return a {@link RowLevelPolicyChecker}
+     */
+    private RowLevelPolicyChecker buildRowLevelPolicyChecker(TaskState taskState) throws Exception {
+        RowLevelPolicyCheckerBuilder builder = new RowLevelPolicyCheckerBuilderFactory()
                 .newPolicyCheckerBuilder(taskState);
         return builder.build();
     }
@@ -348,7 +373,7 @@ public class Task implements Runnable, Serializable {
      *
      * @return a {@link TaskPublisher}
      */
-    private TaskPublisher buildTaskPublisher(TaskState taskState, PolicyCheckResults results)
+    private TaskPublisher buildTaskPublisher(TaskState taskState, TaskLevelPolicyCheckResults results)
             throws Exception {
 
         TaskPublisherBuilder builder = new TaskPublisherBuilderFactory()

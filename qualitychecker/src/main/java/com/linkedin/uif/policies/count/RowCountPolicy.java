@@ -2,16 +2,14 @@ package com.linkedin.uif.policies.count;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.State;
-import com.linkedin.uif.qualitychecker.Policy;
-import com.linkedin.uif.qualitychecker.Policy.Result;
-import com.linkedin.uif.qualitychecker.Policy.Type;
+import com.linkedin.uif.qualitychecker.task.TaskLevelPolicy;
 
-public class RowCountPolicy extends Policy
+public class RowCountPolicy extends TaskLevelPolicy
 {
     private final long rowsRead;
     private final long rowsWritten;
 
-    public RowCountPolicy(State state, Policy.Type type)
+    public RowCountPolicy(State state, TaskLevelPolicy.Type type)
     {
         super(state, type);
         this.rowsRead = state.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_READ);
