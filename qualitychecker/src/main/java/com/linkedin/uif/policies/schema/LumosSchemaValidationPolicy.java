@@ -11,9 +11,9 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.State;
-import com.linkedin.uif.qualitychecker.Policy;
+import com.linkedin.uif.qualitychecker.task.TaskLevelPolicy;
 
-public class LumosSchemaValidationPolicy extends Policy
+public class LumosSchemaValidationPolicy extends TaskLevelPolicy
 {
 
     private static final String ATTRIBUTES_JSON = "attributes_json";

@@ -7,6 +7,10 @@ dependencies {
     compile spec.external.hadoop
     compile spec.external.gson
     compile spec.external.slf4j
+    compile spec.external.log4j
+    compile spec.external.log4jextras
+    compile spec.external.slf4jLog4j
+    compile spec.external.jclOverSlf4j
 
     testCompile spec.external.testng
 }

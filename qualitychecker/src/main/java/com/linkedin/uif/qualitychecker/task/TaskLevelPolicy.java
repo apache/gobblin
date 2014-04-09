@@ -1,19 +1,15 @@
-package com.linkedin.uif.qualitychecker;
+package com.linkedin.uif.qualitychecker.task;
 
 import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.configuration.WorkUnitState;
 
-/**
- * Policy takes in a TaskState (Task metadata)
- * and a policy type
- */
-public abstract class Policy
+public abstract class TaskLevelPolicy
 {   
     private final State state;
     private final Type type;
     
     public enum Type {
-        MANDATORY,     // The test is mandatory
+        FAIL,          // Fail if the test does not pass
         OPTIONAL       // The test is optional
     };
     
@@ -22,16 +18,10 @@ public abstract class Policy
       FAILED           // The test failed
     };
     
-    public Policy(State state, Policy.Type type) {
+    public TaskLevelPolicy(State state, TaskLevelPolicy.Type type) {
         this.state = state;
         this.type = type;
     }
-    
-    /**
-     * Main method that defines the semantics of this policy
-     * This method will be executed by the PolicyChecker
-     */
-    public abstract Result executePolicy();
 
     public State getTaskState()
     {
@@ -43,14 +33,16 @@ public abstract class Policy
         return type;
     }
     
-    public State getPreviousTableState()
-    {
-        WorkUnitState workUnitState = (WorkUnitState) state;
-        return workUnitState.getPreviousTableState();
-    }
-    
+    public abstract Result executePolicy();
+        
     @Override
     public String toString() {
         return this.getClass().getName();
+    }
+
+    public State getPreviousTableState()
+    {
+        WorkUnitState workUnitState = (WorkUnitState) this.state;
+        return workUnitState.getPreviousTableState();
     }
 }

@@ -6,12 +6,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.linkedin.uif.configuration.WorkUnitState;
-import com.linkedin.uif.qualitychecker.Policy;
-import com.linkedin.uif.qualitychecker.PolicyCheckResults;
+import com.linkedin.uif.qualitychecker.task.TaskLevelPolicy;
+import com.linkedin.uif.qualitychecker.task.TaskLevelPolicyCheckResults;
 
 public class TaskPublisher
 {
-    private final PolicyCheckResults results;
+    private final TaskLevelPolicyCheckResults results;
     private final WorkUnitState workUnitState;
 
     private static final Logger LOG = LoggerFactory.getLogger(TaskPublisher.class);
@@ -23,7 +23,7 @@ public class TaskPublisher
         COMPONENTS_NOT_FINISHED  // All components did not complete, no data committed
     };
     
-    public TaskPublisher(WorkUnitState workUnitState, PolicyCheckResults results) throws Exception {
+    public TaskPublisher(WorkUnitState workUnitState, TaskLevelPolicyCheckResults results) throws Exception {
 
         this.results = results;
         this.workUnitState = workUnitState;
@@ -52,8 +52,8 @@ public class TaskPublisher
      * Returns true if all tests from the PolicyChecker pass, false otherwise
      */
     public boolean passedAllTests() {
-        for ( Map.Entry<Policy.Result, Policy.Type> entry : results.getPolicyResults().entrySet()) {
-            if (entry.getKey().equals(Policy.Result.FAILED) && entry.getValue().equals(Policy.Type.MANDATORY)) {
+        for ( Map.Entry<TaskLevelPolicy.Result, TaskLevelPolicy.Type> entry : results.getPolicyResults().entrySet()) {
+            if (entry.getKey().equals(TaskLevelPolicy.Result.FAILED) && entry.getValue().equals(TaskLevelPolicy.Type.FAIL)) {
                 return false;
             }
         }

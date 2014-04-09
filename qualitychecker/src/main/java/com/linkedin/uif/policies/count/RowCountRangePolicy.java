@@ -2,11 +2,9 @@ package com.linkedin.uif.policies.count;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.State;
-import com.linkedin.uif.qualitychecker.Policy;
-import com.linkedin.uif.qualitychecker.Policy.Result;
-import com.linkedin.uif.qualitychecker.Policy.Type;
+import com.linkedin.uif.qualitychecker.task.TaskLevelPolicy;
 
-public class RowCountRangePolicy extends Policy
+public class RowCountRangePolicy extends TaskLevelPolicy
 {
     private final long rowsRead;
     private final long rowsWritten;

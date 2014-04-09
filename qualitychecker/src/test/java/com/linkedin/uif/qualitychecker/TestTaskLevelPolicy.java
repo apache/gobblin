@@ -1,11 +1,11 @@
 package com.linkedin.uif.qualitychecker;
 
 import com.linkedin.uif.configuration.State;
-import com.linkedin.uif.qualitychecker.Policy;
+import com.linkedin.uif.qualitychecker.task.TaskLevelPolicy;
 
-public class TestPolicy extends Policy
+public class TestTaskLevelPolicy extends TaskLevelPolicy
 {
-    public TestPolicy(State state, Type type)
+    public TestTaskLevelPolicy(State state, Type type)
     {
         super(state, type);
     }
