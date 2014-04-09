@@ -5,16 +5,25 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.map.ObjectMapper;
+
 import com.google.common.base.Strings;
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.linkedin.uif.source.extractor.watermark.WatermarkType;
 
 public class Utils {
 
+	private static final Gson gson = new Gson();
+	
 	public static String getClause(String clause, String datePredicate) {
 		String retStr = "";
 		if (!Strings.isNullOrEmpty(datePredicate)) {
@@ -146,6 +155,25 @@ public class Utils {
 		int endIndex = queryLowerCase.indexOf("from ") - 1;
 		String[] inputQueryColumns = query.substring(startIndex, endIndex).toLowerCase().replaceAll(" ", "").split(",");
 		return Arrays.asList(inputQueryColumns);
+	}
+	
+	/**
+	 * Convert CSV record(List<Strings>) to JsonObject using header(column Names)
+	 * @param header record
+	 * @param data record
+	 * @param column Count
+     * @return JsonObject
+	 */
+	public static JsonObject csvToJsonObject(List<String> bulkRecordHeader, List<String> record, int columnCount) {
+		ObjectMapper mapper = new ObjectMapper();
+		Map<String, String> resultInfo = new HashMap<String, String>();
+        for (int i = 0; i < columnCount; i++) {
+            resultInfo.put(bulkRecordHeader.get(i), record.get(i));
+        }
+        
+        JsonNode json = mapper.valueToTree(resultInfo);
+        JsonElement element = gson.fromJson(json.toString(), JsonObject.class);
+        return element.getAsJsonObject();
 	}
 
 //	public static String JsonArrayToRelational(JsonArray jsonRecords, String colDelimiter, String rowDelimiter) {

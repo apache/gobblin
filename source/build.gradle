@@ -12,6 +12,10 @@ dependencies {
     compile spec.external.commonsLang
     compile spec.external.gson
     compile spec.external.slf4j
+    compile spec.external.salesforceWsc
+    compile spec.external.salesforcePartner
+    compile spec.external.jacksonCore
+    compile spec.external.jacksonMapper
 
     testCompile spec.external.testng
 }

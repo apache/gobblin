@@ -211,7 +211,11 @@ public class ConfigurationKeys {
     public static final String SOURCE_HOST_NAME = "source.host";
     public static final String SOURCE_VERSION = "source.version";
     public static final String SOURCE_TIMEOUT = "source.timeout";
+    public static final String SOURCE_REST_URL = "source.rest.url";
+    
+    public static final String SOURCE_FETCH_SIZE = "source.fetch.size";
     
     public static final long DEFAULT_WATERMARK_VALUE = -1;
     public static final int DEFAULT_MAX_NUMBER_OF_PARTITIONS = 20;
+    public static final int DEFAULT_SOURCE_FETCH_SIZE = 1000;
 }

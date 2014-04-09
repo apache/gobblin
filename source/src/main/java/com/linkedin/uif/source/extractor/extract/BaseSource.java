@@ -70,6 +70,11 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
 			partitionState.setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, entry.getKey());
 			partitionState.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, entry.getValue());
 			Extract extract = partitionState.createExtract(tableType, nameSpaceName, entityName);
+			
+			// setting current time for the full extract
+			if(Boolean.valueOf(state.getProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY))) {
+				extract.setFullTrue(System.currentTimeMillis());
+			}
 			workUnits.add(partitionState.createWorkUnit(extract));
 			workUnitCount++;
 		}
