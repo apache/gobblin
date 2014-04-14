@@ -30,19 +30,21 @@ public class TaskLevelPolicyCheckerBuilder
     @SuppressWarnings("unchecked")
     private List<TaskLevelPolicy> createPolicyList() throws Exception {
         List<TaskLevelPolicy> list = new ArrayList<TaskLevelPolicy>();
-        Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
-        List<String> policies = Lists.newArrayList(splitter.split(this.state.getProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST)));
-        List<String> types = Lists.newArrayList(splitter.split(this.state.getProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST_TYPE)));
-        if (policies.size() != types.size() ) throw new Exception("TaskLevelPolicy list and TaskLevelPolicies type list are not the same length");
-        for (int i = 0; i < policies.size(); i++) {
-            try {
-                Class<? extends TaskLevelPolicy> policyClass = (Class<? extends TaskLevelPolicy>) Class.forName(policies.get(i));
-                Constructor<? extends TaskLevelPolicy> policyConstructor = policyClass.getConstructor(State.class, TaskLevelPolicy.Type.class);
-                TaskLevelPolicy policy = policyConstructor.newInstance(this.state, TaskLevelPolicy.Type.valueOf(types.get(i)));
-                list.add(policy);
-            } catch (Exception e) {
-                LOG.error(ConfigurationKeys.TASK_LEVEL_POLICY_LIST + " contains a class " + policies.get(i) + " which doesn't extend Policy.", e);
-                throw e;
+        if (this.state.contains(ConfigurationKeys.TASK_LEVEL_POLICY_LIST) && this.state.contains(ConfigurationKeys.TASK_LEVEL_POLICY_LIST_TYPE)) {
+            Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
+            List<String> policies = Lists.newArrayList(splitter.split(this.state.getProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST)));
+            List<String> types = Lists.newArrayList(splitter.split(this.state.getProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST_TYPE)));
+            if (policies.size() != types.size() ) throw new Exception("TaskLevelPolicy list and TaskLevelPolicies type list are not the same length");
+            for (int i = 0; i < policies.size(); i++) {
+                try {
+                    Class<? extends TaskLevelPolicy> policyClass = (Class<? extends TaskLevelPolicy>) Class.forName(policies.get(i));
+                    Constructor<? extends TaskLevelPolicy> policyConstructor = policyClass.getConstructor(State.class, TaskLevelPolicy.Type.class);
+                    TaskLevelPolicy policy = policyConstructor.newInstance(this.state, TaskLevelPolicy.Type.valueOf(types.get(i)));
+                    list.add(policy);
+                } catch (Exception e) {
+                    LOG.error(ConfigurationKeys.TASK_LEVEL_POLICY_LIST + " contains a class " + policies.get(i) + " which doesn't extend Policy.", e);
+                    throw e;
+                }
             }
         }
         return list;

@@ -7,6 +7,10 @@ import java.util.Map;
 
 import com.google.common.base.Joiner;
 
+/**
+ * Stores the results of a RowLevelPolicy
+ * @author stakiar
+ */
 public class RowLevelPolicyCheckResults
 {
     Map<RowLevelPolicyResultPair, Long> results;

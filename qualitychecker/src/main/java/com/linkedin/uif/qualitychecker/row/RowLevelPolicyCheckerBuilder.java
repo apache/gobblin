@@ -26,18 +26,20 @@ public class RowLevelPolicyCheckerBuilder
     private List<RowLevelPolicy> createPolicyList() throws Exception {
         List<RowLevelPolicy> list = new ArrayList<RowLevelPolicy>();
         Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
-        List<String> policies = Lists.newArrayList(splitter.split(this.state.getProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST)));
-        List<String> types = Lists.newArrayList(splitter.split(this.state.getProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE)));
-        if (policies.size() != types.size() ) throw new Exception("Row Policies list and Row Policies list type are not the same length");
-        for (int i = 0; i < policies.size(); i++) {
-            try {
-                Class<? extends RowLevelPolicy> policyClass = (Class<? extends RowLevelPolicy>) Class.forName(policies.get(i));
-                Constructor<? extends RowLevelPolicy> policyConstructor = policyClass.getConstructor(State.class, RowLevelPolicy.Type.class);
-                RowLevelPolicy policy = policyConstructor.newInstance(this.state, RowLevelPolicy.Type.valueOf(types.get(i)));
-                list.add(policy);
-            } catch (Exception e) {
-                LOG.error(ConfigurationKeys.ROW_LEVEL_POLICY_LIST + " contains a class " + policies.get(i) + " which doesn't extend RowLevelPolicy.", e);
-                throw e;
+        if (this.state.contains(ConfigurationKeys.ROW_LEVEL_POLICY_LIST) && this.state.contains(ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE)) {
+            List<String> policies = Lists.newArrayList(splitter.split(this.state.getProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST)));
+            List<String> types = Lists.newArrayList(splitter.split(this.state.getProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE)));
+            if (policies.size() != types.size() ) throw new Exception("Row Policies list and Row Policies list type are not the same length");
+            for (int i = 0; i < policies.size(); i++) {
+                try {
+                    Class<? extends RowLevelPolicy> policyClass = (Class<? extends RowLevelPolicy>) Class.forName(policies.get(i));
+                    Constructor<? extends RowLevelPolicy> policyConstructor = policyClass.getConstructor(State.class, RowLevelPolicy.Type.class);
+                    RowLevelPolicy policy = policyConstructor.newInstance(this.state, RowLevelPolicy.Type.valueOf(types.get(i)));
+                    list.add(policy);
+                } catch (Exception e) {
+                    LOG.error(ConfigurationKeys.ROW_LEVEL_POLICY_LIST + " contains a class " + policies.get(i) + " which doesn't extend RowLevelPolicy.", e);
+                    throw e;
+                }
             }
         }
         return list;

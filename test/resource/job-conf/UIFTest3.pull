@@ -19,6 +19,6 @@ qualitychecker.task.policy.types=OPTIONAL,OPTIONAL,OPTIONAL
 
 qualitychecker.row.policies=com.linkedin.uif.policies.schema.SchemaRowCheckPolicy
 qualitychecker.row.policy.types=OPTIONAL
-qualitychecker.err.file=test/jobOutput
+qualitychecker.row.err.file=test/jobOutput
 
 data.publisher.type=com.linkedin.uif.publisher.BaseDataPublisher
