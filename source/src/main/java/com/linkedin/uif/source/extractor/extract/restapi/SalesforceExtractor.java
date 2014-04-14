@@ -775,7 +775,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	
 	@Override
 	public void closeConnection() throws Exception {
-		if(!this.bulkConnection.getJobStatus(this.bulkJob.getId()).getState().toString().equals("Closed")) {
+		if(this.bulkConnection != null && !this.bulkConnection.getJobStatus(this.bulkJob.getId()).getState().toString().equals("Closed")) {
 			this.log.info("Closing salesforce bulk job connection");
 			this.bulkConnection.closeJob(bulkJob.getId());
 		}
