@@ -679,6 +679,10 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 			
 			// Get batch info with complete resultset (info id - refers to the resultset id corresponding to entire resultset)
 			this.bulkBatchInfo = bulkConnection.getBatchInfo(this.bulkJob.getId(), this.bulkBatchInfo.getId());
+			if(this.bulkBatchInfo.getState() == BatchStateEnum.Failed) {
+				throw new Exception("Failed to get bulk batch info for jobId "+this.bulkBatchInfo.getJobId()+"error - "+this.bulkBatchInfo.getStateMessage());
+			}
+			
 			while((this.bulkBatchInfo.getState() != BatchStateEnum.Completed) && (this.bulkBatchInfo.getState() != BatchStateEnum.Failed))  {
 				Thread.sleep(retryInterval * 1000);
 				this.bulkBatchInfo = bulkConnection.getBatchInfo(this.bulkJob.getId(), this.bulkBatchInfo.getId());
@@ -771,7 +775,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	
 	@Override
 	public void closeConnection() throws Exception {
-		if(!this.bulkConnection.getJobStatus(this.bulkJob.getId()).getState().toString().equals("Closed")) {
+		if(this.bulkConnection != null && !this.bulkConnection.getJobStatus(this.bulkJob.getId()).getState().toString().equals("Closed")) {
 			this.log.info("Closing salesforce bulk job connection");
 			this.bulkConnection.closeJob(bulkJob.getId());
 		}
