@@ -84,6 +84,7 @@ public class Task implements Runnable, Serializable {
     public void run() {
         Extractor extractor = null;
         TaskPublisher publisher = null;
+        RowLevelPolicyChecker rowChecker = null;
 
         long startTime = System.currentTimeMillis();
         this.taskState.setStartTime(startTime);
@@ -117,7 +118,8 @@ public class Task implements Runnable, Serializable {
                 schemaForWriter = converter.convertSchema(sourceSchema, this.taskState);
             }
             
-            RowLevelPolicyChecker rowChecker = buildRowLevelPolicyChecker(this.taskState); // should output results with number of rows for each result type
+            // Construct the row level policy checker
+            rowChecker = buildRowLevelPolicyChecker(this.taskState);
             RowLevelPolicyCheckResults rowResults = new RowLevelPolicyCheckResults();
             
             // Build the writer for writing the output of the extractor
@@ -140,8 +142,7 @@ public class Task implements Runnable, Serializable {
                     this.writer.write(record);
                 }
             }
-            
-            rowChecker.close();
+
             LOG.info("Row quality checker finished with results: " + rowResults.getResults());
 
             // Do overall quality checking and publish task data
@@ -218,6 +219,14 @@ public class Task implements Runnable, Serializable {
                 try {
                     publisher.cleanup();
                 } catch (Exception e) {
+                    // Ignored
+                }
+            }
+            
+            if (rowChecker != null) {
+                try {
+                    rowChecker.close();
+                } catch (IOException ioe) {
                     // Ignored
                 }
             }
