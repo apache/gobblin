@@ -239,9 +239,7 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 		
 		try {
 			this.setTimeOut(this.workUnit.getProp(ConfigurationKeys.SOURCE_TIMEOUT));
-			
 			this.extractMetadata(this.schema, this.entity, this.workUnit);
-			System.out.println("SCHEMA:"+this.getOutputSchema());
 			
 			if(!Strings.isNullOrEmpty(watermarkColumn)) {
 				this.highWatermark = this.getLatestWatermark(watermarkColumn, watermarkType, lwm, hwm);
