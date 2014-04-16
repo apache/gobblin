@@ -1,6 +1,7 @@
 package com.linkedin.uif.source.extractor.extract;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -108,4 +109,17 @@ public interface SourceSpecificLayer<S, D> {
      * @return Map of source and target data types
      */
 	public Map<String, String> getDataTypeMap();
+
+    /**
+     * Get records using source specific api (Example: bulk api in salesforce source)
+     * record set: data records with an iterator
+     *
+     * @param source schema name
+     * @param source entity name
+     * @param work unit: properties
+     * @param list of all predicates that needs to be applied
+     * @return iterator with set of records
+     * @throws SchemaException if there is anything wrong in getting data records
+     */
+	public Iterator<D> getRecordSetFromSourceApi(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws IOException;
 }

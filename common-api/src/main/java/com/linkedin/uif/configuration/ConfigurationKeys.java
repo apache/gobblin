@@ -214,6 +214,7 @@ public class ConfigurationKeys {
     public static final String SOURCE_REST_URL = "source.rest.url";
     
     public static final String SOURCE_FETCH_SIZE = "source.fetch.size";
+    public static final String SOURCE_IS_SPECIFIC_API_ACTIVE = "source.is.specific.api.active";
     
     public static final long DEFAULT_WATERMARK_VALUE = -1;
     public static final int DEFAULT_MAX_NUMBER_OF_PARTITIONS = 20;

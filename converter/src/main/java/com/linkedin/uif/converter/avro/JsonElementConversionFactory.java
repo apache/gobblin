@@ -3,6 +3,7 @@ package com.linkedin.uif.converter.avro;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -337,16 +338,35 @@ public class JsonElementConversionFactory {
   }
 
   public static class DateConverter extends JsonElementConverter {
-    private DateTimeFormatter dtf;
+	private String inputPatterns;
+	private DateTimeZone timeZone;
 
     public DateConverter(String fieldName, boolean nullable, String sourceType, String pattern, DateTimeZone zone) {
       super(fieldName, nullable, sourceType);
-      dtf = DateTimeFormat.forPattern(pattern).withZone(zone);
+      this.inputPatterns = pattern;
+      this.timeZone = zone;
     }
 
     @Override
     Object convertField(JsonElement value) {
-      return dtf.parseDateTime(value.getAsString()).getMillis();
+      List<String> patterns = Arrays.asList(this.inputPatterns.split(","));
+      int patternFailCount = 0;
+      Object formattedDate = null;
+      for(String pattern: patterns) {
+    	  DateTimeFormatter dtf = DateTimeFormat.forPattern(pattern).withZone(this.timeZone);
+    	  try {
+    		  formattedDate = dtf.parseDateTime(value.getAsString()).getMillis();
+    		  break;
+    	  } catch(Exception e) {
+    		  patternFailCount++;
+    	  }
+      }
+      
+      if(patternFailCount == patterns.size()) {
+    	  throw new RuntimeException("Failed to parse the date");
+      }
+      
+      return formattedDate;
     }
 
     @Override
