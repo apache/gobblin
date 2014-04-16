@@ -109,4 +109,17 @@ public interface ProtocolSpecificLayer<S, D> {
      * @throws Exception 
      */
 	public void closeConnection() throws Exception;
+	
+    /**
+     * Get records using source specific api (Example: bulk api in salesforce source)
+     * record set: data records with an iterator
+     *
+     * @param source schema name
+     * @param source entity name
+     * @param work unit: properties
+     * @param list of all predicates that needs to be applied
+     * @return iterator with set of records
+     * @throws SchemaException if there is anything wrong in getting data records
+     */
+	public Iterator<D> getRecordSetFromSourceApi(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws IOException;
 }

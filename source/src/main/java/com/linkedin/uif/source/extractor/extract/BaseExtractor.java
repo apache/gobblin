@@ -140,7 +140,7 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 		try {
 			if (isInitialPull()) {
 				this.log.debug("initial pull");
-				iterator = this.getRecordSet(this.schema, this.entity, this.workUnit, this.predicateList);
+				iterator = this.getIterator();
 			}
 
 			if (iterator.hasNext()) {
@@ -149,7 +149,7 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 				if(iterator.hasNext()) {
 				} else {
 					this.log.debug("next pull");
-					iterator = this.getRecordSet(this.schema, this.entity, this.workUnit, this.predicateList);
+					iterator = this.getIterator();
 					if (iterator == null) {
 						this.setFetchStatus(false);
 					}
@@ -160,6 +160,18 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 		}
 		return nextElement;
 	};
+	
+	/**
+	 * Get iterator from protocol specific api if is.specific.api.active is false
+	 * Get iterator from source specific api if is.specific.api.active is true
+	 * @return iterator
+	 */
+	private Iterator<D> getIterator() throws DataRecordException, IOException {
+		if(Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_IS_SPECIFIC_API_ACTIVE))) {
+			return this.getRecordSetFromSourceApi(this.schema, this.entity, this.workUnit, this.predicateList);
+		}
+		return this.getRecordSet(this.schema, this.entity, this.workUnit, this.predicateList);
+	}
 
 	/**
 	 * get source record count from source
@@ -229,6 +241,7 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 			this.setTimeOut(this.workUnit.getProp(ConfigurationKeys.SOURCE_TIMEOUT));
 			
 			this.extractMetadata(this.schema, this.entity, this.workUnit);
+			System.out.println("SCHEMA:"+this.getOutputSchema());
 			
 			if(!Strings.isNullOrEmpty(watermarkColumn)) {
 				this.highWatermark = this.getLatestWatermark(watermarkColumn, watermarkType, lwm, hwm);
