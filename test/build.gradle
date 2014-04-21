@@ -4,6 +4,7 @@ dependencies {
   compile project(":common-api")
   compile project(":qualitychecker")
   compile project(":scheduler")
+  compile project(":runtime")
   compile spec.external.commonsDbcp
   compile spec.external.commonsCli
   compile spec.external.avro
@@ -16,6 +17,7 @@ dependencies {
   compile spec.external.slf4j
 
   testCompile project(':scheduler')
+  testCompile project(":runtime")
   testCompile project(':writer')
   testCompile project(path: ':writer', configuration: 'tests')
   testCompile spec.external.testng

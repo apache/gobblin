@@ -10,7 +10,9 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
+
 import com.linkedin.uif.configuration.ConfigurationKeys;
+import com.linkedin.uif.runtime.Metrics;
 
 /**
  * A class that runs the {@link JobScheduler} in a daemon process for standalone deployment.
