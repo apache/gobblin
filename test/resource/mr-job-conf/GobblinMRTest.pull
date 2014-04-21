@@ -1,0 +1,28 @@
+job.name=GobblinMRTest
+job.group=Test
+job.description=Test Gobblin job on Hadoop MR
+job.schedule=0 0/2 * * * ?
+
+source.class=com.linkedin.uif.test.TestSource
+converter.classes=com.linkedin.uif.test.TestConverter
+extract.namespace=com.linkedin.uif.MRTest
+
+writer.destination.type=HDFS
+writer.output.format=AVRO
+writer.fs.uri=hdfs://localhost:9000/
+writer.staging.dir=/gobblin/jobs/GobblinMRTest/staging
+writer.output.dir=/gobblin/jobs/GobblinMRTest/output
+writer.file.name=test
+
+source.files=/Users/ynli/uif/source/test.avro.0,/Users/ynli/uif/source/test.avro.1
+
+qualitychecker.task.policies=com.linkedin.uif.policies.count.RowCountPolicy,com.linkedin.uif.policies.schema.SchemaCompatibilityPolicy,com.linkedin.uif.policies.schema.LumosSchemaValidationPolicy
+qualitychecker.task.policy.types=OPTIONAL,OPTIONAL,OPTIONAL
+qualitychecker.row.policies=com.linkedin.uif.policies.schema.SchemaRowCheckPolicy
+qualitychecker.row.policy.types=OPTIONAL
+qualitychecker.row.err.file=/gobblin/jobs/GobblinMRTest/err
+
+job.jars=
+mr.input.path=/gobblin/jobs/GobblinMRTest/input
+mr.output.path=/gobblin/jobs/GobblinMRTest/taskstates
+
