@@ -21,15 +21,15 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
-import com.linkedin.uif.scheduler.JobException;
-import com.linkedin.uif.scheduler.JobListener;
-import com.linkedin.uif.scheduler.JobState;
-import com.linkedin.uif.scheduler.Metrics;
-import com.linkedin.uif.scheduler.TaskExecutor;
-import com.linkedin.uif.scheduler.TaskStateTracker;
-import com.linkedin.uif.scheduler.WorkUnitManager;
-import com.linkedin.uif.scheduler.local.LocalJobManager;
-import com.linkedin.uif.scheduler.local.LocalTaskStateTracker;
+import com.linkedin.uif.runtime.JobException;
+import com.linkedin.uif.runtime.JobListener;
+import com.linkedin.uif.runtime.JobState;
+import com.linkedin.uif.runtime.Metrics;
+import com.linkedin.uif.runtime.TaskExecutor;
+import com.linkedin.uif.runtime.TaskStateTracker;
+import com.linkedin.uif.runtime.WorkUnitManager;
+import com.linkedin.uif.runtime.local.LocalJobManager;
+import com.linkedin.uif.runtime.local.LocalTaskStateTracker;
 
 /**
  * A command-line utility for running tests of individual jobs.

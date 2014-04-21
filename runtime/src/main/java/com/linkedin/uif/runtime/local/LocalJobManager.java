@@ -1,16 +1,19 @@
-package com.linkedin.uif.scheduler;
+package com.linkedin.uif.runtime.local;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentMap;
 
 import org.apache.commons.io.monitor.FileAlterationListener;
 import org.apache.commons.io.monitor.FileAlterationListenerAdaptor;
@@ -39,26 +42,38 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
+import com.linkedin.uif.configuration.SourceState;
+import com.linkedin.uif.configuration.WorkUnitState;
+import com.linkedin.uif.metastore.FsStateStore;
+import com.linkedin.uif.metastore.StateStore;
+import com.linkedin.uif.publisher.DataPublisher;
+import com.linkedin.uif.runtime.JobCommitPolicy;
 import com.linkedin.uif.runtime.JobException;
-import com.linkedin.uif.runtime.JobLauncher;
-import com.linkedin.uif.runtime.JobLauncherFactory;
-import com.linkedin.uif.runtime.JobLauncherUtil;
 import com.linkedin.uif.runtime.JobListener;
+import com.linkedin.uif.runtime.JobLock;
+import com.linkedin.uif.runtime.JobState;
+import com.linkedin.uif.runtime.Metrics;
 import com.linkedin.uif.runtime.RunOnceJobListener;
+import com.linkedin.uif.runtime.SourceWrapperBase;
+import com.linkedin.uif.runtime.TaskState;
+import com.linkedin.uif.runtime.WorkUnitManager;
+import com.linkedin.uif.source.Source;
+import com.linkedin.uif.source.workunit.WorkUnit;
 
 /**
- * Gobblin job scheduler.
+ * A class for managing locally configured UIF jobs.
  *
  * <p>
- *     The scheduler is a pure scheduler in the sense that it is only responsible
- *     for scheduling Gobblin jobs. Job state tracking and monitoring are handled
- *     by the {@link JobLauncher}.
+ *     This class's responsibilities include scheduling and running locally configured
+ *     UIF jobs to run, keeping track of their states, and committing successfully
+ *     completed jobs. This is used only in single-node mode.
  * </p>
  *
  * <p>
@@ -69,15 +84,20 @@ import com.linkedin.uif.runtime.RunOnceJobListener;
  *
  * @author ynli
  */
-public class JobScheduler extends AbstractIdleService {
+public class LocalJobManager extends AbstractIdleService {
 
-    private static final Logger LOG = LoggerFactory.getLogger(JobScheduler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(LocalJobManager.class);
 
     private static final String JOB_CONFIG_FILE_EXTENSION = ".pull";
-    private static final String JOB_SCHEDULER_KEY = "jobScheduler";
+    private static final String JOB_MANAGER_KEY = "jobManager";
     private static final String PROPERTIES_KEY = "jobProps";
     private static final String JOB_LISTENER_KEY = "jobListener";
+
     private static final String TASK_STATE_STORE_TABLE_SUFFIX = ".tst";
+    private static final String JOB_STATE_STORE_TABLE_SUFFIX = ".jst";
+
+    // This is used to add newly generated work units
+    private final WorkUnitManager workUnitManager;
 
     // Worker configuration properties
     private final Properties properties;
@@ -97,16 +117,50 @@ public class JobScheduler extends AbstractIdleService {
     // A map for remembering config file paths of run-once jobs
     private final Map<String, String> runOnceJobConfigFiles = Maps.newHashMap();
 
+    // Mapping between Source wrapper keys and Source wrapper classes
+    private final Map<String, Class<SourceWrapperBase>> sourceWrapperMap = Maps.newHashMap();
+
+    // Mapping between jobs to the job locks they hold. This needs to be a
+    // concurrent map because two scheduled runs of the same job (handled
+    // by two separate threds) may access it concurrently.
+    private final ConcurrentMap<String, JobLock> jobLockMap = Maps.newConcurrentMap();
+
+    // Mapping between jobs to their job state objects
+    private final Map<String, JobState> jobStateMap = Maps.newHashMap();
+
+    // Mapping between jobs to the Source objects used to create work units
+    private final Map<String, Source> jobSourceMap = Maps.newHashMap();
+
     // Mapping between jobs to the job IDs of their last runs
     private final Map<String, String> lastJobIdMap = Maps.newHashMap();
+
+    // Store for persisting job state
+    private final StateStore jobStateStore;
+
+    // Store for persisting task states
+    private final StateStore taskStateStore;
 
     // A monitor for changes to job configuration files
     private FileAlterationMonitor fileAlterationMonitor;
 
-    public JobScheduler(Properties properties) throws Exception {
+    public LocalJobManager(WorkUnitManager workUnitManager, Properties properties)
+            throws Exception {
+
+        this.workUnitManager = workUnitManager;
         this.properties = properties;
         this.scheduler = new StdSchedulerFactory().getScheduler();
+
+        this.jobStateStore = new FsStateStore(
+                properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
+                properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
+                JobState.class);
+        this.taskStateStore = new FsStateStore(
+                properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
+                properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
+                TaskState.class);
+
         restoreLastJobIdMap();
+        populateSourceWrapperMap();
     }
 
     @Override
@@ -134,7 +188,7 @@ public class JobScheduler extends AbstractIdleService {
      * </p>
      *
      * @param jobProps Job configuration properties
-     * @param jobListener {@link com.linkedin.uif.runtime.JobListener} used for callback,
+     * @param jobListener {@link JobListener} used for callback,
      *                    can be <em>null</em> if no callback is needed.
      * @throws JobException when there is anything wrong
      *                      with scheduling the job
@@ -170,12 +224,12 @@ public class JobScheduler extends AbstractIdleService {
 
         // Build a data map that gets passed to the job
         JobDataMap jobDataMap = new JobDataMap();
-        jobDataMap.put(JOB_SCHEDULER_KEY, this);
+        jobDataMap.put(JOB_MANAGER_KEY, this);
         jobDataMap.put(PROPERTIES_KEY, jobProps);
         jobDataMap.put(JOB_LISTENER_KEY, jobListener);
 
         // Build a Quartz job
-        JobDetail job = JobBuilder.newJob(GobblinJob.class)
+        JobDetail job = JobBuilder.newJob(UIFJob.class)
                 .withIdentity(jobName, Strings.nullToEmpty(jobProps.getProperty(
                         ConfigurationKeys.JOB_GROUP_KEY)))
                 .withDescription(Strings.nullToEmpty(jobProps.getProperty(
@@ -203,6 +257,98 @@ public class JobScheduler extends AbstractIdleService {
     }
 
     /**
+     * Run a job.
+     *
+     * <p>
+     *     This method runs the job immediately without going through the Quartz scheduler.
+     *     This is particularly useful for testing.
+     * </p>
+     *
+     * @param jobProps Job configuration properties
+     * @param jobListener {@link JobListener} used for callback,
+     *                    can be <em>null</em> if no callback is needed.
+     * @throws JobException when there is anything wrong
+     *                      with running the job
+     */
+    public void runJob(Properties jobProps, JobListener jobListener) throws JobException {
+        Preconditions.checkNotNull(jobProps);
+
+        String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+        if (jobListener != null) {
+            this.jobListenerMap.put(jobName, jobListener);
+        }
+
+        // Try acquiring a job lock before proceeding
+        if (!acquireJobLock(jobName)) {
+            LOG.info(String.format(
+                    "Previous instance of job %s is still running, skipping this scheduled run",
+                    jobName));
+            return;
+        }
+
+        // If this is a run-once job
+        boolean runOnce = Boolean.valueOf(
+                jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
+
+        // Job ID in the form of job_<job_id_suffix>
+        // <job_id_suffix> is in the form of <job_name>_<current_timestamp>
+        String jobIdSuffix = String.format("%s_%d", jobName, System.currentTimeMillis());
+        String jobId = "job_" + jobIdSuffix;
+
+        JobState jobState = new JobState(jobName, jobId);
+        // Add all job configuration properties of this job
+        jobState.addAll(jobProps);
+
+        LOG.info("Starting job " + jobId);
+
+        SourceWrapperBase source;
+        SourceState sourceState;
+        try {
+            source = this.sourceWrapperMap.get(jobProps.getProperty(
+                    ConfigurationKeys.SOURCE_WRAPPER_CLASS_KEY,
+                    ConfigurationKeys.DEFAULT_SOURCE_WRAPPER)
+                    .toLowerCase()).newInstance();
+            sourceState = new SourceState(jobState, getPreviousWorkUnitStates(jobName));
+            source.init(sourceState);
+        } catch (Exception e) {
+            LOG.error("Failed to instantiate source for job " + jobId, e);
+            unlockJob(jobName, runOnce);
+            throw new JobException("Failed to run job " + jobId, e);
+        }
+
+        // Generate work units based on all previous work unit states
+        List<WorkUnit> workUnits = source.getWorkunits(sourceState);
+        // If no real work to do
+        if (workUnits == null || workUnits.isEmpty()) {
+            LOG.warn("No work units have been created for job " + jobId);
+            source.shutdown(jobState);
+            unlockJob(jobName, runOnce);
+            callJobListener(jobName, jobState, runOnce);
+            return;
+        }
+
+        jobState.setTasks(workUnits.size());
+        jobState.setStartTime(System.currentTimeMillis());
+        jobState.setState(JobState.RunningState.WORKING);
+
+        this.jobStateMap.put(jobId, jobState);
+        this.jobSourceMap.put(jobId, source);
+
+        // Add all generated work units
+        int sequence = 0;
+        for (WorkUnit workUnit : workUnits) {
+            // Task ID in the form of task_<job_id_suffix>_<task_sequence_number>
+            String taskId = String.format("task_%s_%d", jobIdSuffix, sequence++);
+            workUnit.setId(taskId);
+            WorkUnitState workUnitState = new WorkUnitState(workUnit);
+            workUnitState.setId(taskId);
+            workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
+            workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
+            this.workUnitManager.addWorkUnit(workUnitState);
+        }
+    }
+
+    /**
      * Unschedule and delete a job.
      *
      * @param jobName Job name
@@ -220,38 +366,44 @@ public class JobScheduler extends AbstractIdleService {
     }
 
     /**
-     * Run a job.
+     * Get the names of the scheduled jobs.
      *
-     * <p>
-     *     This method runs the job immediately without going through the Quartz scheduler.
-     *     This is particularly useful for testing.
-     * </p>
-     *
-     * @param jobProps Job configuration properties
-     * @param jobListener {@link JobListener} used for callback,
-     *                    can be <em>null</em> if no callback is needed.
-     * @throws JobException when there is anything wrong
-     *                      with running the job
+     * @return names of the scheduled jobs
      */
-    public void runJob(Properties jobProps, JobListener jobListener) throws JobException {
-        String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-        // Populate the assigned job ID
-        jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, JobLauncherUtil.newJobId(jobName));
-        // Populate the job ID of the previous run of the job if it exists
-        if (this.lastJobIdMap.containsKey(jobName)) {
-            jobProps.setProperty(
-                    ConfigurationKeys.JOB_PREVIOUS_RUN_ID_KEY,
-                    this.lastJobIdMap.get(jobName));
+    public Collection<String> getScheduledJobs() {
+        return this.scheduledJobs.keySet();
+    }
+
+    /**
+     * Callback method when a task is completed.
+     *
+     * @param jobId Job ID of the given job
+     * @param taskState {@link TaskState}
+     */
+    public synchronized void onTaskCompletion(String jobId, TaskState taskState) {
+        if (!this.jobStateMap.containsKey(jobId)) {
+            LOG.error(String.format("Job %s could not be found", jobId));
+            return;
         }
 
-        // Launch the job
-        try {
-            JobLauncher jobLauncher = JobLauncherFactory.newJobLauncher(this.properties);
-            jobLauncher.launchJob(jobProps);
-        } catch (Throwable t) {
-            String errMsg = "Failed to launch and run job " + jobName;
-            LOG.error(errMsg, t);
-            throw new JobException(errMsg, t);
+        if (Metrics.isEnabled(this.properties)) {
+            // Remove all task-level metrics after the task is done
+            taskState.removeMetrics();
+        }
+
+        JobState jobState = this.jobStateMap.get(jobId);
+        jobState.addTaskState(taskState);
+        // If all the tasks of the job have completed (regardless of
+        // success or failure), then trigger job committing.
+        if (jobState.getCompletedTasks() == jobState.getTasks()) {
+            LOG.info(String.format(
+                    "All tasks of job %s have completed, committing it", jobId));
+            String jobName = taskState.getWorkunit().getProp(ConfigurationKeys.JOB_NAME_KEY);
+            try {
+                commitJob(jobId, jobName, getFinalJobState(jobState));
+            } catch (Throwable t) {
+                LOG.error("Failed to commit job " + jobId, t);
+            }
         }
     }
 
@@ -490,20 +642,224 @@ public class JobScheduler extends AbstractIdleService {
     }
 
     /**
-     * A Gobblin job to be scheduled.
+     * Try acquring the job lock and return whether the lock is successfully locked.
+     */
+    private boolean acquireJobLock(String jobName) {
+        try {
+            this.jobLockMap.putIfAbsent(jobName, new LocalJobLock());
+            JobLock lock = this.jobLockMap.get(jobName);
+            return lock.tryLock();
+        } catch (IOException ioe) {
+            LOG.error("Failed to acquire the job lock for job " + jobName, ioe);
+            return false;
+        }
+    }
+
+    /**
+     * Unlock a completed or failed job.
+     */
+    private void unlockJob(String jobName, boolean runOnce) {
+        try {
+            if (runOnce) {
+                // Unlock so the next run of the same job can proceed
+                this.jobLockMap.remove(jobName).unlock();
+            } else {
+                // Unlock and remove the lock as it is no longer needed
+                this.jobLockMap.get(jobName).unlock();
+            }
+        } catch (IOException ioe) {
+            LOG.error("Failed to unlock for job " + jobName, ioe);
+        }
+    }
+
+    /**
+     * Commit a finished job.
+     */
+    @SuppressWarnings("unchecked")
+    private void commitJob(String jobId, String jobName, JobState jobState) throws Exception {
+        JobCommitPolicy commitPolicy = JobCommitPolicy.forName(jobState.getProp(
+                ConfigurationKeys.JOB_COMMIT_POLICY_KEY,
+                ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
+
+        DataPublisher publisher = null;
+        try {
+            // Do job publishing based on the job commit policy
+            if (commitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS ||
+                    (commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS &&
+                            jobState.getState() == JobState.RunningState.SUCCESSFUL)) {
+
+                LOG.info("Publishing job data of job " + jobId + " with commit policy " + commitPolicy);
+
+                Class<? extends DataPublisher> dataPublisherClass = (Class<? extends DataPublisher>)
+                        Class.forName(jobState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE));
+                Constructor<? extends DataPublisher> dataPublisherConstructor =
+                        dataPublisherClass.getConstructor(com.linkedin.uif.configuration.State.class);
+                publisher = dataPublisherConstructor.newInstance(jobState);
+
+                publisher.initialize();
+                if (publisher.publish(jobState.getTaskStates())) {
+                   jobState.setState(JobState.RunningState.COMMITTED);
+                }
+            } else {
+                LOG.info("Job data will not be committed due to commit policy: " + commitPolicy);
+            }
+        } catch (Exception e) {
+            jobState.setState(JobState.RunningState.FAILED);
+            LOG.error("Failed to publish job data of job " + jobId, e);
+            throw e;
+        } finally {
+            if (Metrics.isEnabled(this.properties)) {
+                // Remove all job-level metrics after the job is done
+                jobState.removeMetrics();
+            }
+            boolean runOnce = this.runOnceJobs.containsKey(jobName);
+            persistJobState(jobState);
+            cleanupJobOnCompletion(jobState, runOnce);
+            unlockJob(jobName, runOnce);
+            callJobListener(jobName, jobState, runOnce);
+            if (publisher != null) {
+                publisher.close();
+            }
+        }
+    }
+
+    /**
+     * Build a {@link JobState} object capturing the state of the given job.
+     */
+    private JobState getFinalJobState(JobState jobState) {
+        jobState.setEndTime(System.currentTimeMillis());
+        jobState.setDuration(jobState.getEndTime() - jobState.getStartTime());
+        jobState.setState(JobState.RunningState.SUCCESSFUL);
+
+        for (TaskState taskState : jobState.getTaskStates()) {
+            // The job is considered failed if any task failed
+            if (taskState.getWorkingState() == WorkUnitState.WorkingState.FAILED) {
+                jobState.setState(JobState.RunningState.FAILED);
+                break;
+            }
+
+            // The job is considered aborted if any task is aborted
+            if (taskState.getWorkingState() == WorkUnitState.WorkingState.ABORTED) {
+                jobState.setState(JobState.RunningState.ABORTED);
+                break;
+            }
+        }
+
+        return jobState;
+    }
+
+    /**
+     * Persiste job/task states of a completed job.
+     */
+    private void persistJobState(JobState jobState) {
+        String jobName = jobState.getJobName();
+        String jobId = jobState.getJobId();
+
+        LOG.info("Persisting job/task states of job " + jobId);
+        try {
+            this.taskStateStore.putAll(
+                    jobName, jobId + TASK_STATE_STORE_TABLE_SUFFIX, jobState.getTaskStates());
+            this.jobStateStore.put(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX,
+                    jobState);
+        } catch (IOException ioe) {
+            LOG.error("Failed to persist job/task states of job " + jobId, ioe);
+        }
+    }
+
+    /**
+     * Cleanup a job upon its completion (successful or failed).
+     */
+    private void cleanupJobOnCompletion(JobState jobState, boolean runOnce) {
+        String jobName = jobState.getJobName();
+        String jobId = jobState.getJobId();
+
+        LOG.info("Performing cleanup for job " + jobId);
+
+        if (this.jobSourceMap.containsKey(jobId)) {
+            // Remove all state bookkeeping information of this scheduled job run
+            this.jobSourceMap.remove(jobId).shutdown(jobState);
+        }
+        this.jobStateMap.remove(jobId);
+
+        try {
+            if (runOnce) {
+                this.scheduledJobs.remove(jobName);
+                if (this.runOnceJobs.containsKey(jobName)) {
+                    // Delete the job from the Quartz scheduler
+                    this.scheduler.deleteJob(this.runOnceJobs.remove(jobName));
+                }
+            } else {
+                // Remember the job ID of this most recent run of the job
+                this.lastJobIdMap.put(jobName, jobId);
+            }
+        } catch (Exception e) {
+            LOG.error("Failed to cleanup job " + jobId, e);
+        }
+    }
+
+    /**
+     * Get work unit states of the most recent run of the job.
+     */
+    @SuppressWarnings("unchecked")
+    private List<WorkUnitState> getPreviousWorkUnitStates(String jobName) throws IOException {
+
+        // This is the first run of the job
+        if (!this.lastJobIdMap.containsKey(jobName)) {
+            return Lists.newArrayList();
+        }
+
+        LOG.info("Loading task states of the most recent run of job " + jobName);
+        // Read the task states of the most recent run of the job
+        return (List<WorkUnitState>) this.taskStateStore.getAll(
+                jobName, this.lastJobIdMap.get(jobName) + TASK_STATE_STORE_TABLE_SUFFIX);
+    }
+
+    /**
+     * Call {@link JobListener} associated with the job.
+     */
+    private void callJobListener(String jobName, JobState jobState, boolean runOnce) {
+        JobListener jobListener = runOnce ?
+                this.jobListenerMap.remove(jobName) : this.jobListenerMap.get(jobName);
+        if (jobListener != null) {
+            jobListener.jobCompleted(jobState);
+        }
+    }
+
+    /**
+     * Populates map of String keys to {@link SourceWrapperBase} classes.
+     */
+    @SuppressWarnings("unchecked")
+    private void populateSourceWrapperMap() throws ClassNotFoundException {
+        // Default must be defined, but properties can overwrite if needed.
+        this.sourceWrapperMap.put(ConfigurationKeys.DEFAULT_SOURCE_WRAPPER,
+                SourceWrapperBase.class);
+
+        String propStr = this.properties.getProperty(
+                ConfigurationKeys.SOURCE_WRAPPERS,
+                "default:" + SourceWrapperBase.class.getName());
+        for (String entry : Splitter.on(";").trimResults().split(propStr)) {
+            List<String> tokens = Splitter.on(":").trimResults().splitToList(entry);
+            this.sourceWrapperMap.put(
+                    tokens.get(0).toLowerCase(),
+                    (Class<SourceWrapperBase>) Class.forName(tokens.get(1)));
+        }
+    }
+
+    /**
+     * A UIF job to schedule locally.
      */
     @DisallowConcurrentExecution
-    public static class GobblinJob implements Job {
+    public static class UIFJob implements Job {
 
         @Override
         public void execute(JobExecutionContext context) throws JobExecutionException {
             JobDataMap dataMap = context.getJobDetail().getJobDataMap();
-            JobScheduler jobScheduler = (JobScheduler) dataMap.get(JOB_SCHEDULER_KEY);
+            LocalJobManager jobManager = (LocalJobManager) dataMap.get(JOB_MANAGER_KEY);
             Properties jobProps = (Properties) dataMap.get(PROPERTIES_KEY);
             JobListener jobListener = (JobListener) dataMap.get(JOB_LISTENER_KEY);
 
             try {
-                jobScheduler.runJob(jobProps, jobListener);
+                jobManager.runJob(jobProps, jobListener);
             } catch (Throwable t) {
                 throw new JobExecutionException(t);
             }
