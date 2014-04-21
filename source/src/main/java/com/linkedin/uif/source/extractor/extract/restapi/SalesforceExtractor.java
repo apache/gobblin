@@ -2,6 +2,7 @@ package com.linkedin.uif.source.extractor.extract.restapi;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.text.ParseException;
@@ -48,7 +49,6 @@ import com.linkedin.uif.source.extractor.resultset.RecordSetList;
 import com.linkedin.uif.source.extractor.schema.Schema;
 import com.linkedin.uif.source.extractor.utils.Utils;
 import com.linkedin.uif.source.workunit.WorkUnit;
-import com.sforce.async.AsyncApiException;
 import com.sforce.async.BatchInfo;
 import com.sforce.async.BatchStateEnum;
 import com.sforce.async.BulkConnection;
@@ -56,7 +56,6 @@ import com.sforce.async.CSVReader;
 import com.sforce.async.ConcurrencyMode;
 import com.sforce.async.ContentType;
 import com.sforce.async.JobInfo;
-import com.sforce.async.JobStateEnum;
 import com.sforce.async.OperationEnum;
 import com.sforce.async.QueryResultList;
 import com.sforce.soap.partner.PartnerConnection;
@@ -70,7 +69,7 @@ import com.sforce.ws.ConnectorConfig;
  */
 public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	private static final String DEFAULT_SERVICES_DATA_PATH = "/services/data";
-	private static final String SOQL_RESOURCE = "/query";
+	private static final String SOQL_RESOURCE = "/queryAll";
 	private static final String DEFAULT_AUTH_TOKEN_PATH = "/services/oauth2/token";
 	private static final String SALESFORCE_TIMESTAMP_FORMAT = "yyyy-MM-dd'T'HH:mm:ss'.000Z'";
 	private static final String SALESFORCE_DATE_FORMAT = "yyyy-MM-dd";
@@ -235,6 +234,9 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 			}
 		}
 		query = query + existingPredicate;
+		
+		String limitString = this.getLimitFromInputQuery(query);
+		query = query.replace(limitString, "");
 
 		Iterator<Predicate> i = predicateList.listIterator();
 		while (i.hasNext()) {
@@ -300,6 +302,9 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 		}
 
 		String query = "SELECT COUNT() FROM " + entity + existingPredicate;
+		String limitString = this.getLimitFromInputQuery(query);
+		query = query.replace(limitString, "");
+		
 		try {
 			if (isNullPredicate(predicateList)) {
 				this.log.info("QUERY:" + query);
@@ -359,7 +364,11 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 					Predicate predicate = i.next();
 					query = this.addPredicate(query, predicate.getCondition());
 				}
-
+				
+				if(Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_IS_SPECIFIC_API_ACTIVE))) {
+					query = this.addPredicate(query, "IsDeleted = true");
+				}
+				
 				query = query+limitString;
 				this.log.info("QUERY:" + query);
 				url = this.getFullUri(this.getSoqlUrl(query));
@@ -545,17 +554,8 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 		return dataTypeMap;
 	}
 	
-	/**
-	 * Get Record set using salesforce specific API(Bulk API)
-	 * @param schema/databasename
-	 * @param entity/tablename
-	 * @param workUnit
-	 * @param list of all predicate conditions
-     * @return iterator with batch of records
-	 */
-	
 	@Override
-	public Iterator<D> getRecordSet(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws DataRecordException {
+	public Iterator<D> getRecordSetFromSourceApi(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws IOException {
 		this.log.debug("Getting salesforce data using bulk api");
 		RecordSet<D> rs = null;
 		
@@ -573,23 +573,33 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 			// If bulk load load is not finished, get data from the stream
 			if(!this.isBulkJobFinished()) {
 				rs = getBulkData();
-			}
+			} 
 			
 			// Set bulkApiInitialRun to false after the completion of first run
 			this.bulkApiInitialRun = false;
-			
-			if (rs == null) {
-				return null;
-			} else {
-				return rs.iterator();
+
+			// If bulk job is finished, get soft deleted records using Rest API
+			if(rs == null || rs.isEmpty()) {
+				return this.getSoftDeletedRecords(schema, entity, workUnit, predicateList);
 			}
+			
+			return rs.iterator();
 			
 		} catch (Exception e) {
 			e.printStackTrace();
-			throw new DataRecordException("Failed to get records using bulk api; error-" + e.getMessage());
+			throw new IOException("Failed to get records using bulk api; error-" + e.getMessage());
 		}
 	}
 	
+	/**
+	 * Get soft deleted records using Rest Api
+     * @return iterator with deleted records
+	 */
+	
+	private Iterator<D> getSoftDeletedRecords(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws DataRecordException {
+		return this.getRecordSet(schema, entity, workUnit, predicateList);
+	}
+
 	/**
 	 * Login to salesforce
      * @return login status
