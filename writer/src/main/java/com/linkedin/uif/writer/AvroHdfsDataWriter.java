@@ -48,6 +48,10 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
         this.fs = FileSystem.get(uri, conf);
         this.stagingFile = new Path(stagingDir, fileName);
         this.outputFile = new Path(outputDir, fileName);
+        // Create the parent directory of the output file if it does not exist
+        if (!this.fs.exists(this.outputFile.getParent())) {
+            this.fs.mkdirs(this.outputFile.getParent());
+        }
         this.dataConverter = dataConverter;
         this.writer = createDatumWriter(schema, this.stagingFile, bufferSize);
     }
@@ -59,7 +63,7 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
         try {
             this.writer.append(this.dataConverter.convert(sourceRecord));
         } catch (DataConversionException e) {
-            LOG.error("Failed to convert source data record: " + sourceRecord);
+            LOG.error("Failed to convert and write source data record: " + sourceRecord);
             throw new IOException(e);
         }
 
@@ -75,6 +79,10 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
 
     @Override
     public void commit() throws IOException {
+        if (!this.fs.exists(this.stagingFile)) {
+            throw new IOException(String.format("File %s does not exist", this.stagingFile));
+        }
+
         LOG.info(String.format("Moving data from %s to %s", this.stagingFile, this.outputFile));
         if (this.fs.exists(this.outputFile)) {
             throw new IOException(String.format("File %s already exists", this.outputFile));

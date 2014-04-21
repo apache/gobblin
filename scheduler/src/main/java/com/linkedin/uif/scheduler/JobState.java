@@ -3,6 +3,7 @@ package com.linkedin.uif.scheduler;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -181,6 +182,15 @@ public class JobState extends SourceState {
      */
     public void addTaskState(TaskState taskState) {
         this.taskStates.add(taskState);
+    }
+
+    /**
+     * Add a collection of {@link TaskState}s.
+     *
+     * @param taskStates collection of {@link TaskState}s to add
+     */
+    public void addTaskStates(Collection<TaskState> taskStates) {
+        this.taskStates.addAll(taskStates);
     }
 
     /**

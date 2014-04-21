@@ -5,6 +5,13 @@ package com.linkedin.uif.configuration;
  */
 public class ConfigurationKeys {
 
+    // Default file system URI for all file storages
+    // Overwritable by more specific configuration properties
+    public static final String FS_URI_KEY = "fs.uri";
+
+    // Local file system URI
+    public static final String LOCAL_FS_URI = "file:///";
+
     // Directory where all job configuration files are stored
     public static final String JOB_CONFIG_FILE_DIR_KEY = "jobconf.dir";
 
@@ -16,6 +23,8 @@ public class ConfigurationKeys {
 
     // Directory where metrics csv files are stored
     public static final String METRICS_DIR_KEY = "metrics.dir";
+
+    public static final String JOB_LAUNCHER_TYPE_KEY = "launcher.type";
 
     /**
      * Common job configuraion properties
@@ -32,6 +41,8 @@ public class ConfigurationKeys {
     public static final String DEFAULT_JOB_COMMIT_POLICY = "full";
     public static final String JOB_RUN_ONCE_KEY = "job.runonce";
     public static final String JOB_DISABLED_KEY = "job.disabled";
+    public static final String JOB_JAR_FILES_KEY = "job.jars";
+    public static final String JOB_PREVIOUS_RUN_ID_KEY = "job.previous.id";
 
     /**
      * Work unit related configuration properties
@@ -218,4 +229,11 @@ public class ConfigurationKeys {
     public static final long DEFAULT_WATERMARK_VALUE = -1;
     public static final int DEFAULT_MAX_NUMBER_OF_PARTITIONS = 20;
     public static final int DEFAULT_SOURCE_FETCH_SIZE = 1000;
+
+    /**
+     * Configuration properties used by the Hadoop MR job launcher.
+     */
+    public static final String MR_JOB_INPUT_PATH_KEY = "mr.input.path";
+    public static final String MR_JOB_OUTPUT_PATH_KEY = "mr.output.path";
+    public static final String MR_JOB_LOCK_DIR_KEY = "mr.job.lock.dir";
 }

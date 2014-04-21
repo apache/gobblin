@@ -205,7 +205,9 @@ public class Task implements Runnable, Serializable {
                         }
                     }
                 } catch (IOException ioe) {
-                    // Ignored
+                    if (this.taskState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED) {
+                        LOG.error("Failed to commit data of task " + this.taskId, ioe);
+                    }
                 } finally {
                     try {
                         this.writer.cleanup();

@@ -107,8 +107,10 @@ public class LocalTaskStateTracker extends AbstractIdleService
             scheduledReporter.cancel(true);
         }
 
-        // Update record-level metrics after the task is done
-        task.updateRecordMetrics();
+        if (Metrics.isEnabled(task.getTaskState().getWorkunit())) {
+            // Update record-level metrics after the task is done
+            task.updateRecordMetrics();
+        }
 
         // Check the task state and handle task retry if task failed and
         // it has not reached the maxium number of retries

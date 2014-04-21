@@ -1,8 +1,12 @@
 package com.linkedin.uif.scheduler;
 
 import java.util.Properties;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
+import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,28 +32,62 @@ public class TaskExecutor extends AbstractIdleService {
     // Task retry interval
     private final long retryIntervalInSeconds;
 
-    public TaskExecutor(Properties properties) {
+    /**
+     * Constructor used internally.
+     */
+    private TaskExecutor(int taskExecutorThreadPoolSize, int coreRetryThreadPoolSize,
+                         int maxRetryThreadPoolSize, long retryIntervalInSeconds) {
+
         // Currently a fixed-size thread pool is used to execute tasks.
         // We probably need to revisist this later.
-        this.executor = Executors.newFixedThreadPool(
+        this.executor = Executors.newFixedThreadPool(taskExecutorThreadPoolSize);
+
+        // Using a separate thread pool for task retries to achieve isolation
+        // between normal task execution and tasi retries
+        this.retryExecutor = new ScheduledThreadPoolExecutor(coreRetryThreadPoolSize);
+        this.retryExecutor.setMaximumPoolSize(maxRetryThreadPoolSize);
+
+        this.retryIntervalInSeconds = retryIntervalInSeconds;
+    }
+
+    /**
+     * Constructor to work with {@link java.util.Properties}.
+     */
+    public TaskExecutor(Properties properties) {
+        this(
                 Integer.parseInt(properties.getProperty(
                         ConfigurationKeys.TASK_EXECUTOR_THREADPOOL_SIZE_KEY,
-                        ConfigurationKeys.DEFAULT_TASK_SCHEDULER_THREADPOOL_SIZE)));
-
-         // Using a separate thread pool for task retries to achieve isolation
-         // between normal task execution and tasi retries
-        this.retryExecutor = new ScheduledThreadPoolExecutor(
+                        ConfigurationKeys.DEFAULT_TASK_SCHEDULER_THREADPOOL_SIZE)),
                 Integer.parseInt(properties.getProperty(
                         ConfigurationKeys.TASK_RETRY_THREAD_POOL_CORE_SIZE_KEY,
-                        ConfigurationKeys.DEFAULT_TASK_RETRY_THREAD_POOL_CORE_SIZE)));
-        this.retryExecutor.setMaximumPoolSize(
+                        ConfigurationKeys.DEFAULT_TASK_RETRY_THREAD_POOL_CORE_SIZE)),
                 Integer.parseInt(properties.getProperty(
                         ConfigurationKeys.TASK_RETRY_THREAD_POOL_MAX_SIZE_KEY,
-                        ConfigurationKeys.DEFAULT_TASK_RETRY_THREAD_POOL_MAX_SIZE)));
+                        ConfigurationKeys.DEFAULT_TASK_RETRY_THREAD_POOL_MAX_SIZE)),
+                Long.parseLong(properties.getProperty(
+                        ConfigurationKeys.TASK_RETRY_INTERVAL_IN_SEC_KEY,
+                        ConfigurationKeys.DEFAULT_TASK_RETRY_INTERVAL_IN_SEC))
+        );
+    }
 
-        this.retryIntervalInSeconds = Long.parseLong(properties.getProperty(
-                ConfigurationKeys.TASK_RETRY_INTERVAL_IN_SEC_KEY,
-                ConfigurationKeys.DEFAULT_TASK_RETRY_INTERVAL_IN_SEC));
+    /**
+     * Constructor to work with Hadoop {@link org.apache.hadoop.conf.Configuration}.
+     */
+    public TaskExecutor(Configuration conf) {
+        this(
+                Integer.parseInt(conf.get(
+                        ConfigurationKeys.TASK_EXECUTOR_THREADPOOL_SIZE_KEY,
+                        ConfigurationKeys.DEFAULT_TASK_SCHEDULER_THREADPOOL_SIZE)),
+                Integer.parseInt(conf.get(
+                        ConfigurationKeys.TASK_RETRY_THREAD_POOL_CORE_SIZE_KEY,
+                        ConfigurationKeys.DEFAULT_TASK_RETRY_THREAD_POOL_CORE_SIZE)),
+                Integer.parseInt(conf.get(
+                        ConfigurationKeys.TASK_RETRY_THREAD_POOL_MAX_SIZE_KEY,
+                        ConfigurationKeys.DEFAULT_TASK_RETRY_THREAD_POOL_MAX_SIZE)),
+                Long.parseLong(conf.get(
+                        ConfigurationKeys.TASK_RETRY_INTERVAL_IN_SEC_KEY,
+                        ConfigurationKeys.DEFAULT_TASK_RETRY_INTERVAL_IN_SEC))
+        );
     }
 
     @Override

@@ -9,6 +9,8 @@ dependencies {
   compile spec.external.avro
   compile spec.external.gson
   compile spec.external.guava
+  compile spec.external.hadoop
+  compile spec.external.commonsHttpClient
   compile spec.external.jacksonCore
   compile spec.external.jacksonMapper
   compile spec.external.slf4j
