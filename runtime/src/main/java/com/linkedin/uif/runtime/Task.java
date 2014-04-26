@@ -186,7 +186,7 @@ public class Task implements Runnable, Serializable {
                 try {
                     extractor.close();
                 } catch (Exception ioe) {
-                    // Ignored
+                    LOG.error("Failed to close the extractor for task " + taskId, ioe);
                 }
             }
 
@@ -212,7 +212,7 @@ public class Task implements Runnable, Serializable {
                     try {
                         this.writer.cleanup();
                     } catch (IOException ioe) {
-                        // Ignored
+                        LOG.error("The writer failed to cleanup for task " + taskId, ioe);
                     }
                 }
             }
@@ -221,7 +221,7 @@ public class Task implements Runnable, Serializable {
                 try {
                     publisher.cleanup();
                 } catch (Exception e) {
-                    // Ignored
+                    LOG.error("Failed to close the task publisher for task " + taskId, e);
                 }
             }
             
@@ -229,7 +229,7 @@ public class Task implements Runnable, Serializable {
                 try {
                     rowChecker.close();
                 } catch (IOException ioe) {
-                    // Ignored
+                    LOG.error("Failed to close the row quality checker for task " + taskId, ioe);
                 }
             }
 

@@ -29,7 +29,6 @@ public class SchedulerDaemon {
         this.properties = properties;
         JobScheduler jobScheduler = new JobScheduler(properties);
         this.serviceManager = new ServiceManager(Lists.newArrayList(
-                // The order matters due to dependencies between services
                 jobScheduler
         ));
     }

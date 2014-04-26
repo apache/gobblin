@@ -180,6 +180,7 @@ public class TaskState extends WorkUnitState {
         this.jobId = text.toString();
         text.readFields(in);
         this.taskId = text.toString();
+        this.setId(this.taskId);
         this.startTime = in.readLong();
         this.endTime = in.readLong();
         this.duration = in.readLong();

@@ -236,7 +236,7 @@ public class JobState extends SourceState {
         this.state = RunningState.valueOf(text.toString());
         this.tasks = in.readInt();
         int numTaskStates = in.readInt();
-        if (numTaskStates > 0) {
+        for (int i = 0; i < numTaskStates; i++) {
             TaskState taskState = new TaskState();
             taskState.readFields(in);
             this.taskStates.add(taskState);
@@ -258,7 +258,7 @@ public class JobState extends SourceState {
         text.write(out);
         out.writeInt(this.tasks);
         out.writeInt(this.taskStates.size());
-        for (TaskState taskState : taskStates) {
+        for (TaskState taskState : this.taskStates) {
             taskState.write(out);
         }
         super.write(out);

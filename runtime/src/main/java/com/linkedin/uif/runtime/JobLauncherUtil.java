@@ -22,6 +22,9 @@ public class JobLauncherUtil {
 
     /**
      * Create a new task ID for the job with the given job ID.
+     *
+     * @param jobId Job ID
+     * @param sequence Task sequence number
      */
     public static String newTaskId(String jobId, int sequence) {
         return String.format("task_%s_%d", jobId.substring(jobId.indexOf('_') + 1), sequence);

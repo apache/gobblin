@@ -46,7 +46,8 @@ public class LocalJobLauncher extends AbstractJobLauncher {
         super(properties);
 
         TaskExecutor taskExecutor = new TaskExecutor(properties);
-        TaskStateTracker taskStateTracker = new LocalTaskStateTracker(properties, taskExecutor);
+        TaskStateTracker taskStateTracker = new LocalTaskStateTracker2(properties, taskExecutor);
+        ((LocalTaskStateTracker2) taskStateTracker).setJobLauncher(this);
         this.workUnitManager = new WorkUnitManager(taskExecutor, taskStateTracker);
 
         this.serviceManager = new ServiceManager(Lists.newArrayList(
