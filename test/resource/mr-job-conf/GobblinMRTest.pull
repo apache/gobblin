@@ -9,10 +9,7 @@ extract.namespace=com.linkedin.uif.MRTest
 
 writer.destination.type=HDFS
 writer.output.format=AVRO
-writer.fs.uri=hdfs://localhost:9000/
-writer.staging.dir=/gobblin/jobs/GobblinMRTest/staging
-writer.output.dir=/gobblin/jobs/GobblinMRTest/output
-writer.file.name=test
+writer.fs.uri=file:///
 
 source.files=/Users/ynli/uif/source/test.avro.0,/Users/ynli/uif/source/test.avro.1
 
@@ -20,9 +17,11 @@ qualitychecker.task.policies=com.linkedin.uif.policies.count.RowCountPolicy,com.
 qualitychecker.task.policy.types=OPTIONAL,OPTIONAL,OPTIONAL
 qualitychecker.row.policies=com.linkedin.uif.policies.schema.SchemaRowCheckPolicy
 qualitychecker.row.policy.types=OPTIONAL
-qualitychecker.row.err.file=/gobblin/jobs/GobblinMRTest/err
+qualitychecker.row.err.file=test/err
+
+data.publisher.type=com.linkedin.uif.publisher.BaseDataPublisher
 
 job.jars=
-mr.input.path=/gobblin/jobs/GobblinMRTest/input
-mr.output.path=/gobblin/jobs/GobblinMRTest/taskstates
+mr.input.path=test/input
+mr.output.path=test/taskstates
 

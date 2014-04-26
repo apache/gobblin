@@ -7,8 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -17,6 +15,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
@@ -56,11 +56,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         this.properties = properties;
 
         this.jobStateStore = new FsStateStore(
-                properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
+                properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY,
+                        ConfigurationKeys.LOCAL_FS_URI),
                 properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
                 JobState.class);
         this.taskStateStore = new FsStateStore(
-                properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
+                properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY,
+                        ConfigurationKeys.LOCAL_FS_URI),
                 properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
                 TaskState.class);
 
@@ -96,7 +98,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         // assign a new job ID here.
         if (Strings.isNullOrEmpty(jobId)) {
             jobId = JobLauncherUtil.newJobId(jobName);
+            jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
         }
+
         JobState jobState = new JobState(jobName, jobId);
         // Add all job configuration properties of this job
         jobState.addAll(jobProps);

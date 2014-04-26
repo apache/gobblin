@@ -93,7 +93,6 @@ public class ConfigurationKeys {
     public static final String WRITER_DESTINATION_TYPE_KEY =
             WRITER_PREFIX + ".destination.type";
     public static final String WRITER_OUTPUT_FORMAT_KEY = WRITER_PREFIX + ".output.format";
-    public static final String WRITER_FILE_EXTENSION = WRITER_PREFIX + ".file.extension";
 
     /**
      * HDFS writer configuration properties
