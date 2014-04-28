@@ -57,6 +57,15 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
 		List<WorkUnit> workUnits = Lists.newArrayList();
 		String nameSpaceName = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY);
 		String entityName = state.getProp(ConfigurationKeys.SOURCE_ENTITY);
+		
+		// Override extract table name
+		String extractTableName = state.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY);
+		
+		// if extract table name is not found then consider entity name as extract table name
+		if(Strings.isNullOrEmpty(extractTableName)) {
+			extractTableName = entityName;
+		}
+		
 		TableType tableType = TableType.valueOf(state.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY).toUpperCase());
 		long previousWatermark = this.getLatestWatermarkFromMetadata(state);
 
@@ -69,7 +78,9 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
 			partitionState.addAll(state);
 			partitionState.setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, entry.getKey());
 			partitionState.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, entry.getValue());
-			Extract extract = partitionState.createExtract(tableType, nameSpaceName, entityName);
+			
+			// Use extract table name to create extract
+			Extract extract = partitionState.createExtract(tableType, nameSpaceName, extractTableName);
 			
 			// setting current time for the full extract
 			if(Boolean.valueOf(state.getProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY))) {
