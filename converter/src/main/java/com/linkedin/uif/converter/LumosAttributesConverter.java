@@ -25,12 +25,12 @@ public class LumosAttributesConverter extends AvroToAvroConverterBase {
     Extract extract = workUnit.getWorkunit().getExtract();
     
     att.setTableType(TableType.valueOf(extract.getType().toString()));
-
     att.setDropDate(extract.getExtractId());
 
     if (extract.getIsFull()) {
       att.isFull(true);
       att.setFullDropDate(extract.getFullExtractRunTime());
+      att.setBeginDate(extract.getFullExtractRunTime());
     }
 
     if (extract.getIsSharded()){
