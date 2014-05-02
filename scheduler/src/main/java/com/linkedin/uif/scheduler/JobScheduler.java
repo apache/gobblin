@@ -1,13 +1,14 @@
 package com.linkedin.uif.scheduler;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.URI;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -20,7 +21,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.PathFilter;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
@@ -42,6 +42,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.io.Closer;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
@@ -77,7 +78,6 @@ public class JobScheduler extends AbstractIdleService {
     private static final String JOB_SCHEDULER_KEY = "jobScheduler";
     private static final String PROPERTIES_KEY = "jobProps";
     private static final String JOB_LISTENER_KEY = "jobListener";
-    private static final String TASK_STATE_STORE_TABLE_SUFFIX = ".tst";
 
     // Worker configuration properties
     private final Properties properties;
@@ -260,55 +260,40 @@ public class JobScheduler extends AbstractIdleService {
      */
     private void restoreLastJobIdMap() throws IOException {
         FileSystem fs = FileSystem.get(
-                URI.create(this.properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY)),
+                URI.create(this.properties.getProperty(ConfigurationKeys.FS_URI_KEY)),
                 new Configuration());
-        // Root directory of task states store
-        Path taskStateStoreRootDir = new Path(
-                this.properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY));
 
-        // List subdirectories (one for each job) under the root directory
-        FileStatus[] rootStatuses = fs.listStatus(taskStateStoreRootDir);
-        if (rootStatuses == null || rootStatuses.length == 0) {
+        Path previousJobIdFileDir = new Path(
+                this.properties.getProperty(ConfigurationKeys.PREVIOUS_JOB_ID_FILE_DIR));
+        FileStatus[] stauses = fs.listStatus(previousJobIdFileDir);
+        if (stauses == null || stauses.length == 0) {
             return;
         }
 
         LOG.info("Restoring the mapping between jobs and IDs of their last runs");
 
-        for (FileStatus status : rootStatuses) {
-            // List the task states files under each subdirectory corresponding to a job
-            FileStatus[] statuses = fs.listStatus(status.getPath(), new PathFilter() {
-                @Override
-                public boolean accept(Path path) {
-                    return path.getName().endsWith(TASK_STATE_STORE_TABLE_SUFFIX);
-                }
-            });
+        for (FileStatus status : stauses) {
+            // Each file is for one job, and the file name is the job name.
+            String jobName = status.getPath().getName();
+            String lastJobId;
 
-            if (statuses == null || statuses.length == 0) {
+            Closer closer = Closer.create();
+            try {
+                Path previousJobIdFile = new Path(previousJobIdFileDir, jobName);
+                InputStream is = closer.register(fs.open(previousJobIdFile));
+                InputStreamReader isr = closer.register(new InputStreamReader(is));
+                BufferedReader bw = closer.register(new BufferedReader(isr));
+                lastJobId = bw.readLine().trim();
+            } finally {
+                closer.close();
+            }
+
+            if (Strings.isNullOrEmpty(lastJobId)) {
+                LOG.warn("No previous job ID found for job " + jobName);
                 continue;
             }
 
-            // Sort the task states files by timestamp in descending order
-            Arrays.sort(statuses, new Comparator<FileStatus>() {
-                @Override
-                public int compare(FileStatus fileStatus1, FileStatus fileStatus2) {
-                    String fileName1 = fileStatus1.getPath().getName();
-                    String taskId1 = fileName1.substring(0, fileName1.indexOf('.'));
-                    String fileName2 = fileStatus2.getPath().getName();
-                    String taskId2 = fileName2.substring(0, fileName2.indexOf('.'));
-
-                    Long ts1 = Long.parseLong(taskId1.substring(taskId1.lastIndexOf('_') + 1));
-                    Long ts2 = Long.parseLong(taskId2.substring(taskId2.lastIndexOf('_') + 1));
-
-                    return -ts1.compareTo(ts2);
-                }
-            });
-
-            // Each subdirectory is for one job, and the directory name is the job name.
-            String jobName = status.getPath().getName();
-            // The first task states file after sorting has the latest timestamp
-            String fileName = statuses[0].getPath().getName();
-            String lastJobId = fileName.substring(0, fileName.indexOf('.'));
-            LOG.info(String.format("Restored last job ID %s for job %s", lastJobId, jobName));
+            LOG.info(String.format("Restored previous job ID %s for job %s", lastJobId, jobName));
             this.lastJobIdMap.put(jobName, lastJobId);
         }
     }
