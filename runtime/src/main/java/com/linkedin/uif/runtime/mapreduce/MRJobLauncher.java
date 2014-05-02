@@ -115,10 +115,15 @@ public class MRJobLauncher extends AbstractJobLauncher {
             }
         }
 
+        // Whether to use a reducer to combine task states output by the mappers
+        boolean useReducer = Boolean.valueOf(
+                jobProps.getProperty(ConfigurationKeys.MR_JOB_USE_REDUCER_KEY, "true"));
+
         job.setMapperClass(TaskRunner.class);
         job.setReducerClass(TaskStateCollector.class);
-        // We need only one reducer to collect task states output by the mappers
-        job.setNumReduceTasks(1);
+        // We need one reducer to collect task states output by the mappers if a
+        // reducer is to be used, otherwise the job is mapper-only.
+        job.setNumReduceTasks(useReducer ? 1 : 0);
 
         job.setInputFormatClass(NLineInputFormat.class);
         job.setOutputFormatClass(SequenceFileOutputFormat.class);
@@ -133,7 +138,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
         // Job input path is where input work unit files are stored
         Path jobInputPath = new Path(
-                jobProps.getProperty(ConfigurationKeys.MR_JOB_INPUT_PATH_KEY));
+                jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY),
+                jobName + Path.SEPARATOR + "input");
         // Delete the job input path if it already exists
         if (this.fs.exists(jobInputPath)) {
             LOG.warn("Job input path already exists for job " + job.getJobName());
@@ -141,7 +147,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
         }
         // Job output path is where serialized task states are stored
         Path jobOutputPath = new Path(
-                jobProps.getProperty(ConfigurationKeys.MR_JOB_OUTPUT_PATH_KEY));
+                jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY),
+                jobName + Path.SEPARATOR + "output");
         // Delete the job output path if it already exists
         if (this.fs.exists(jobOutputPath)) {
             LOG.warn("Job output path already exists for job " + job.getJobName());
@@ -228,26 +235,25 @@ public class MRJobLauncher extends AbstractJobLauncher {
     }
 
     /**
-     * Collect the output file and return the list of {@link TaskState}s of the job.
+     * Collect the output {@link TaskState}s of the job as a list.
      */
     private List<TaskState> collectOutput(Path jobOutputPath) throws IOException {
         List<TaskState> taskStates = Lists.newArrayList();
         FileStatus[] fileStatuses = this.fs.globStatus(new Path(jobOutputPath, "part-*"));
-        if (fileStatuses == null || fileStatuses.length < 1) {
+        if (fileStatuses == null || fileStatuses.length == 0) {
             return taskStates;
         }
 
-        // There should be only one part file since there is only one reducer
-        Path jobOutputFile = fileStatuses[0].getPath();
-
-        // Read out the task states
-        SequenceFile.Reader reader = new SequenceFile.Reader(this.fs, jobOutputFile,
-                this.fs.getConf());
-        Text text = new Text();
-        TaskState taskState = new TaskState();
-        while (reader.next(text, taskState)) {
-            taskStates.add(taskState);
-            taskState = new TaskState();
+        for (FileStatus status : fileStatuses) {
+            // Read out the task states
+            SequenceFile.Reader reader = new SequenceFile.Reader(
+                    this.fs, status.getPath(), this.fs.getConf());
+            Text text = new Text();
+            TaskState taskState = new TaskState();
+            while (reader.next(text, taskState)) {
+                taskStates.add(taskState);
+                taskState = new TaskState();
+            }
         }
 
         return taskStates;

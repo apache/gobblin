@@ -22,8 +22,6 @@ dependencies {
   compile spec.external.metricsCore
   compile spec.external.commonsIO
   compile files('../converter/src/main/resources/lumos-common-2.0.0.jar')
-  compile files('./src/main/resources/azkaban-jobtype-2.1.jar')
-  compile files('./src/main/resources/azkaban-2.5.0-rc3.jar')
 
   testCompile project(":test")
   testCompile spec.external.testng
