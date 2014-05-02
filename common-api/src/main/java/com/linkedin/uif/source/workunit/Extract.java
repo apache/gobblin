@@ -166,8 +166,6 @@ public class Extract extends State {
 
   /**
    * sets full drop date to current time
-   *
-   * @param extractFullRunTime required for setting full to true
    */
   public void setFullTrue() {
     setFullTrue(System.currentTimeMillis());
