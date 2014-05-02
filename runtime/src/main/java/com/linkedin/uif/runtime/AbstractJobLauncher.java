@@ -272,7 +272,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             InputStream is = closer.register(this.fs.open(previousIdFilePath));
             InputStreamReader isr = closer.register(new InputStreamReader(is));
             BufferedReader bw = closer.register(new BufferedReader(isr));
-            return bw.readLine();
+            return bw.readLine().trim();
         } finally {
             closer.close();
         }
