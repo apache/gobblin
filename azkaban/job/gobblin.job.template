@@ -1,0 +1,19 @@
+###### DO NOT CHANGE #####
+type=java
+job.class=com.linkedin.uif.azkaban.AzkabanMRJobLauncher
+
+###### Core job configuration properties ######
+job.name=
+# job.group=
+# job.description=
+# job.jars=
+source.class=
+converter.classes=
+extract.namespace=
+
+###### Quality checker configuration properties ######
+qualitychecker.task.policies=
+qualitychecker.task.policy.types=
+qualitychecker.row.policies=
+qualitychecker.row.policy.types=
+

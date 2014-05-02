@@ -22,6 +22,4 @@ qualitychecker.row.err.file=test/err
 data.publisher.type=com.linkedin.uif.publisher.BaseDataPublisher
 
 job.jars=
-mr.input.path=test/input
-mr.output.path=test/taskstates
 

@@ -24,6 +24,10 @@ public class ConfigurationKeys {
     // Directory where metrics csv files are stored
     public static final String METRICS_DIR_KEY = "metrics.dir";
 
+    // Directory where files storing previous job IDs are stored
+    public static final String PREVIOUS_JOB_ID_FILE_DIR = "previousjobid.file.dir";
+
+    // Job launcher rtype
     public static final String JOB_LAUNCHER_TYPE_KEY = "launcher.type";
 
     /**
@@ -233,7 +237,7 @@ public class ConfigurationKeys {
     /**
      * Configuration properties used by the Hadoop MR job launcher.
      */
-    public static final String MR_JOB_INPUT_PATH_KEY = "mr.input.path";
-    public static final String MR_JOB_OUTPUT_PATH_KEY = "mr.output.path";
+    public static final String MR_JOB_ROOT_DIR_KEY = "mr.job.root.dir";
     public static final String MR_JOB_LOCK_DIR_KEY = "mr.job.lock.dir";
+    public static final String MR_JOB_USE_REDUCER_KEY = "mr.job.use.reducer";
 }

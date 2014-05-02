@@ -1,7 +1,7 @@
 apply plugin: 'li-tgz'
 
 dependencies {
-	runtime(project(':clustermanager'))
+	runtime(project(':azkaban'))
 	runtime(project(':converter'))
 	runtime(project(':common-api'))
 	runtime(project(':qualitychecker'))
@@ -16,7 +16,7 @@ dependencies {
 
 tgz {
         ext.jar_extension = ".jar"
-        rename("clustermanager-$version$jar_extension", "clustermanager.jar")
+        rename("azkaban-$version$jar_extension", "azkaban.jar")
         rename("converter-$version$jar_extension", "converter.jar")
         rename("common-api-$version$jar_extension", "common-api.jar")
         rename("qualitychecker-$version$jar_extension", "qualitychecker.jar")
