@@ -8,6 +8,7 @@ dependencies {
   compile spec.external.commonsDbcp
   compile spec.external.commonsCli
   compile spec.external.avro
+  compile spec.external.avroMapred
   compile spec.external.gson
   compile spec.external.guava
   compile spec.external.hadoop
