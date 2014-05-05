@@ -102,7 +102,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
         }
 
         // Preparing a Hadoop MR job
-        Job job = new Job(this.conf, JOB_NAME_PREFIX + jobName);
+        Job job = Job.getInstance(this.conf, JOB_NAME_PREFIX + jobName);
         job.setJarByClass(MRJobLauncher.class);
 
         // Add the job jar files to the classpath if configured

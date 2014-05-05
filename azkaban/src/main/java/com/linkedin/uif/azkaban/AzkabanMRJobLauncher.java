@@ -5,6 +5,8 @@ import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.log4j.Logger;
 
+import com.google.common.base.Strings;
+
 import azkaban.jobExecutor.AbstractJob;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
@@ -28,18 +30,21 @@ public class AzkabanMRJobLauncher extends AbstractJob {
 
         this.properties = properties;
         Configuration conf = new Configuration();
+
         String fsUri = conf.get("fs.default.name");
-        if (!this.properties.containsKey(ConfigurationKeys.FS_URI_KEY)) {
-            this.properties.setProperty(ConfigurationKeys.FS_URI_KEY, fsUri);
-        }
-        if (!this.properties.containsKey(ConfigurationKeys.WRITER_FILE_SYSTEM_URI)) {
-            this.properties.setProperty(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, fsUri);
-        }
-        if (!this.properties.containsKey(ConfigurationKeys.STATE_STORE_FS_URI_KEY)) {
-            this.properties.setProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, fsUri);
+        if (!Strings.isNullOrEmpty(fsUri)) {
+            if (!this.properties.containsKey(ConfigurationKeys.FS_URI_KEY)) {
+                this.properties.setProperty(ConfigurationKeys.FS_URI_KEY, fsUri);
+            }
+            if (!this.properties.containsKey(ConfigurationKeys.WRITER_FILE_SYSTEM_URI)) {
+                this.properties.setProperty(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, fsUri);
+            }
+            if (!this.properties.containsKey(ConfigurationKeys.STATE_STORE_FS_URI_KEY)) {
+                this.properties.setProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, fsUri);
+            }
         }
 
-        this.jobLauncher = new MRJobLauncher(this.properties);
+        this.jobLauncher = new MRJobLauncher(this.properties, conf);
     }
 
     @Override

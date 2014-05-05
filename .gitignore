@@ -39,3 +39,4 @@ state-store
 **/state-store
 test/metrics
 test/byteman
+test/previous-job-ids
