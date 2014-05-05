@@ -1,16 +1,21 @@
 package com.linkedin.uif.test;
 
-import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
+import org.apache.avro.mapred.FsInput;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.Extractor;
 
@@ -44,14 +49,19 @@ public class TestExtractor implements Extractor<String, String> {
     public TestExtractor(WorkUnitState workUnitState) {
         //super(workUnitState);
         Schema schema = new Schema.Parser().parse(AVRO_SCHEMA);
-        File sourceFile = new File(
+        Path sourceFile = new Path(
                 workUnitState.getWorkunit().getProp(SOURCE_FILE_KEY));
         LOG.info("Reading from source file " + sourceFile);
         DatumReader<GenericRecord> datumReader =
                 new GenericDatumReader<GenericRecord>(schema);
         try {
+            FileSystem fs = FileSystem.get(
+                    URI.create(workUnitState.getProp(ConfigurationKeys.FS_URI_KEY,
+                            ConfigurationKeys.LOCAL_FS_URI)),
+                    new Configuration());
+            fs.makeQualified(sourceFile);
             this.dataFileReader = new DataFileReader<GenericRecord>(
-                    sourceFile, datumReader);
+                    new FsInput(sourceFile, new Configuration()), datumReader);
         } catch (IOException ioe) {
             LOG.error("Failed to read the source file " + sourceFile, ioe);
         }

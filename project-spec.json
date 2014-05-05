@@ -36,6 +36,7 @@
   "dependencyResolution": {},
   "external": {
     "avro": "org.apache.avro:avro:1.7.1",
+    "avroMapred": "org.apache.avro:avro-mapred:1.7.6",
     "commonsCli": "commons-cli:commons-cli:1.2",
     "commonsDbcp": "commons-dbcp:commons-dbcp:1.4",
     "commonsLang": "commons-lang:commons-lang:2.4",
