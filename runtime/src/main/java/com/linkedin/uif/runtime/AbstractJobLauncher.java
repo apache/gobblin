@@ -1,12 +1,6 @@
 package com.linkedin.uif.runtime;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.util.List;
@@ -24,7 +18,6 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.io.Closer;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
@@ -53,8 +46,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     // Mapping between Source wrapper keys and Source wrapper classes
     private final Map<String, Class<SourceWrapperBase>> sourceWrapperMap = Maps.newHashMap();
 
-    private final FileSystem fs;
-
     // Store for persisting job state
     private final StateStore jobStateStore;
 
@@ -63,11 +54,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
     public AbstractJobLauncher(Properties properties) throws Exception {
         this.properties = properties;
-
-        this.fs = FileSystem.get(
-                URI.create(this.properties.getProperty(
-                        ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI)),
-                new Configuration());
 
         this.jobStateStore = new FsStateStore(
                 properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY,
@@ -125,8 +111,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         SourceState sourceState;
         SourceWrapperBase source;
         try {
-            sourceState = new SourceState(jobState, getPreviousWorkUnitStates(jobName,
-                    jobProps.getProperty(ConfigurationKeys.JOB_PREVIOUS_RUN_ID_KEY)));
+            sourceState = new SourceState(jobState, getPreviousWorkUnitStates(jobName));
             source = initSource(jobProps, sourceState);
         } catch (Throwable t) {
             String errMsg = "Failed to initialize source for job " + jobId;
@@ -236,46 +221,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
      * Get a list of work unit states of the most recent run of the given job.
      */
     @SuppressWarnings("unchecked")
-    private List<WorkUnitState> getPreviousWorkUnitStates(String jobName,
-                                                          String previousJobId)
-            throws IOException {
-
-        if (Strings.isNullOrEmpty(previousJobId)) {
-            // Try getting the previous job ID from the file storing it
-            previousJobId = getPreviousJobId(jobName);
+    private List<WorkUnitState> getPreviousWorkUnitStates(String jobName) throws IOException {
+        if (this.taskStateStore.exists(jobName, "current" + TASK_STATE_STORE_TABLE_SUFFIX)) {
+            // Read the task states of the most recent run of the job
+            return (List<WorkUnitState>) this.taskStateStore.getAll(
+                    jobName, "current" + TASK_STATE_STORE_TABLE_SUFFIX);
         }
 
-        if (Strings.isNullOrEmpty(previousJobId)) {
-            LOG.warn("No previous job ID found for job " + jobName);
-            return Lists.newArrayList();
-        }
-
-        LOG.info(String.format("Previous job ID of job %s is %s", jobName, previousJobId));
-        LOG.info("Loading task states of job " + previousJobId);
-        // Read the task states of the most recent run of the job
-        return (List<WorkUnitState>) this.taskStateStore.getAll(
-                jobName, previousJobId + TASK_STATE_STORE_TABLE_SUFFIX);
-    }
-
-    /**
-     * Get the job ID of the previous run of the given job.
-     */
-    private String getPreviousJobId(String jobName) throws IOException {
-        Path previousIdFilePath = new Path(this.properties.getProperty(
-                ConfigurationKeys.PREVIOUS_JOB_ID_FILE_DIR), jobName);
-        if (!this.fs.exists(previousIdFilePath)) {
-            return null;
-        }
-
-        Closer closer = Closer.create();
-        try {
-            InputStream is = closer.register(this.fs.open(previousIdFilePath));
-            InputStreamReader isr = closer.register(new InputStreamReader(is));
-            BufferedReader bw = closer.register(new BufferedReader(isr));
-            return bw.readLine().trim();
-        } finally {
-            closer.close();
-        }
+        return Lists.newArrayList();
     }
 
     /**
@@ -367,32 +320,16 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                     jobName, jobId + TASK_STATE_STORE_TABLE_SUFFIX, jobState.getTaskStates());
             this.jobStateStore.put(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX,
                     jobState);
-            savePreviousJobId(jobName, jobId);
+            this.taskStateStore.createAlias(
+                    jobName,
+                    jobId + TASK_STATE_STORE_TABLE_SUFFIX,
+                    "current" + TASK_STATE_STORE_TABLE_SUFFIX);
+            this.jobStateStore.createAlias(
+                    jobName,
+                    jobId + JOB_STATE_STORE_TABLE_SUFFIX,
+                    "current" + JOB_STATE_STORE_TABLE_SUFFIX);
         } catch (IOException ioe) {
             LOG.error("Failed to persist job/task states of job " + jobId, ioe);
-        }
-    }
-
-    /**
-     * Save the job ID of the last run of the given job.
-     */
-    private void savePreviousJobId(String jobName, String jobId) throws IOException {
-        Path previousIdFilePath = new Path(this.properties.getProperty(
-                ConfigurationKeys.PREVIOUS_JOB_ID_FILE_DIR), jobName);
-        // Delete the existing file if it exists
-        if (this.fs.exists(previousIdFilePath)) {
-            this.fs.delete(previousIdFilePath, false);
-        }
-
-        // Create a new file and write the job ID to it
-        Closer closer = Closer.create();
-        try {
-            OutputStream os = closer.register(this.fs.create(previousIdFilePath));
-            OutputStreamWriter osw = closer.register(new OutputStreamWriter(os));
-            BufferedWriter bw = closer.register(new BufferedWriter(osw));
-            bw.write(jobId);
-        } finally {
-            closer.close();
         }
     }
 

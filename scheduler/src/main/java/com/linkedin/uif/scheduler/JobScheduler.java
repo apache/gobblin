@@ -1,14 +1,10 @@
 package com.linkedin.uif.scheduler;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FilenameFilter;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -17,10 +13,6 @@ import org.apache.commons.io.monitor.FileAlterationListener;
 import org.apache.commons.io.monitor.FileAlterationListenerAdaptor;
 import org.apache.commons.io.monitor.FileAlterationMonitor;
 import org.apache.commons.io.monitor.FileAlterationObserver;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
@@ -42,7 +34,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.io.Closer;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
@@ -97,16 +88,12 @@ public class JobScheduler extends AbstractIdleService {
     // A map for remembering config file paths of run-once jobs
     private final Map<String, String> runOnceJobConfigFiles = Maps.newHashMap();
 
-    // Mapping between jobs to the job IDs of their last runs
-    private final Map<String, String> lastJobIdMap = Maps.newHashMap();
-
     // A monitor for changes to job configuration files
     private FileAlterationMonitor fileAlterationMonitor;
 
     public JobScheduler(Properties properties) throws Exception {
         this.properties = properties;
         this.scheduler = new StdSchedulerFactory().getScheduler();
-        restoreLastJobIdMap();
     }
 
     @Override
@@ -237,12 +224,6 @@ public class JobScheduler extends AbstractIdleService {
         String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
         // Populate the assigned job ID
         jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, JobLauncherUtil.newJobId(jobName));
-        // Populate the job ID of the previous run of the job if it exists
-        if (this.lastJobIdMap.containsKey(jobName)) {
-            jobProps.setProperty(
-                    ConfigurationKeys.JOB_PREVIOUS_RUN_ID_KEY,
-                    this.lastJobIdMap.get(jobName));
-        }
 
         // Launch the job
         try {
@@ -252,49 +233,6 @@ public class JobScheduler extends AbstractIdleService {
             String errMsg = "Failed to launch and run job " + jobName;
             LOG.error(errMsg, t);
             throw new JobException(errMsg, t);
-        }
-    }
-
-    /**
-     * Restore the lastJobIdMap.
-     */
-    private void restoreLastJobIdMap() throws IOException {
-        FileSystem fs = FileSystem.get(
-                URI.create(this.properties.getProperty(ConfigurationKeys.FS_URI_KEY)),
-                new Configuration());
-
-        Path previousJobIdFileDir = new Path(
-                this.properties.getProperty(ConfigurationKeys.PREVIOUS_JOB_ID_FILE_DIR));
-        FileStatus[] stauses = fs.listStatus(previousJobIdFileDir);
-        if (stauses == null || stauses.length == 0) {
-            return;
-        }
-
-        LOG.info("Restoring the mapping between jobs and IDs of their last runs");
-
-        for (FileStatus status : stauses) {
-            // Each file is for one job, and the file name is the job name.
-            String jobName = status.getPath().getName();
-            String lastJobId;
-
-            Closer closer = Closer.create();
-            try {
-                Path previousJobIdFile = new Path(previousJobIdFileDir, jobName);
-                InputStream is = closer.register(fs.open(previousJobIdFile));
-                InputStreamReader isr = closer.register(new InputStreamReader(is));
-                BufferedReader bw = closer.register(new BufferedReader(isr));
-                lastJobId = bw.readLine().trim();
-            } finally {
-                closer.close();
-            }
-
-            if (Strings.isNullOrEmpty(lastJobId)) {
-                LOG.warn("No previous job ID found for job " + jobName);
-                continue;
-            }
-
-            LOG.info(String.format("Restored previous job ID %s for job %s", lastJobId, jobName));
-            this.lastJobIdMap.put(jobName, lastJobId);
         }
     }
 
