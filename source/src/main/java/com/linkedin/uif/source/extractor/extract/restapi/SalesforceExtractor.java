@@ -620,6 +620,13 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 		
 		try {
 			ConnectorConfig config = new ConnectorConfig();
+			
+			if (super.workUnitState.contains(ConfigurationKeys.SOURCE_USE_PROXY_URL) &&
+				! super.workUnitState.getProp(ConfigurationKeys.SOURCE_USE_PROXY_URL).isEmpty()){
+				config.setProxy(super.workUnitState.getProp(ConfigurationKeys.SOURCE_USE_PROXY_URL),
+					super.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_USE_PROXY_PORT));
+			}
+			
 			config.setUsername(this.workUnit.getProp(ConfigurationKeys.SOURCE_USERNAME));
 			config.setPassword(this.workUnit.getProp(ConfigurationKeys.SOURCE_PASSWORD));
 			config.setAuthEndpoint(soapAuthEndPoint);

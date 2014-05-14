@@ -6,11 +6,13 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.conn.params.ConnRoutePNames;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.util.EntityUtils;
 import com.google.common.base.Joiner;
@@ -20,6 +22,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.watermark.Predicate;
 import com.linkedin.uif.source.extractor.DataRecordException;
@@ -67,6 +70,14 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 	protected HttpClient getHttpClient() {
 		if (httpClient == null) {
 			httpClient = new DefaultHttpClient();
+			
+			if (super.workUnitState.contains(ConfigurationKeys.SOURCE_USE_PROXY_URL) &&
+				! super.workUnitState.getProp(ConfigurationKeys.SOURCE_USE_PROXY_URL).isEmpty()){
+				HttpHost proxy = new HttpHost(super.workUnitState.getProp(ConfigurationKeys.SOURCE_USE_PROXY_URL),
+					super.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_USE_PROXY_PORT));
+				httpClient.getParams().setParameter(ConnRoutePNames.DEFAULT_PROXY, proxy);
+			}
+			
 		}
 		return httpClient;
 	}
