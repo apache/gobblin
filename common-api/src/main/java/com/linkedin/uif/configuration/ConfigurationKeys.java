@@ -199,6 +199,8 @@ public class ConfigurationKeys {
     /** 
     * Configuration properties used by the extractor
     */
+    public static final String SOURCE_USE_PROXY_URL = "source.use.proxy.url";
+    public static final String SOURCE_USE_PROXY_PORT = "source.use.proxy.port";
     public static final String SOURCE_SCHEMA = "source.schema";
     public static final String SOURCE_ENTITY = "source.entity";
     public static final String SOURCE_WATERMARK_TYPE = "source.watermark.type";
