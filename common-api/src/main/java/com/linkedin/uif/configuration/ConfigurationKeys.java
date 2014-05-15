@@ -24,9 +24,6 @@ public class ConfigurationKeys {
     // Directory where metrics csv files are stored
     public static final String METRICS_DIR_KEY = "metrics.dir";
 
-    // Directory where files storing previous job IDs are stored
-    public static final String PREVIOUS_JOB_ID_FILE_DIR = "previousjobid.file.dir";
-
     // Job launcher rtype
     public static final String JOB_LAUNCHER_TYPE_KEY = "launcher.type";
 
@@ -40,13 +37,11 @@ public class ConfigurationKeys {
     public static final String SOURCE_CLASS_KEY = "source.class";
     public static final String SOURCE_WRAPPER_CLASS_KEY = "source.wrapper.class";
     public static final String CONVERTER_CLASSES_KEY = "converter.classes";
-    public static final String SOURCE_SCHEMA_TYPE_KEY = "source.schema.type";
     public static final String JOB_COMMIT_POLICY_KEY = "job.commit.policy";
     public static final String DEFAULT_JOB_COMMIT_POLICY = "full";
     public static final String JOB_RUN_ONCE_KEY = "job.runonce";
     public static final String JOB_DISABLED_KEY = "job.disabled";
     public static final String JOB_JAR_FILES_KEY = "job.jars";
-    public static final String JOB_PREVIOUS_RUN_ID_KEY = "job.previous.id";
 
     /**
      * Work unit related configuration properties

@@ -431,7 +431,8 @@ public class LocalJobManager extends AbstractIdleService {
             FileStatus[] statuses = fs.listStatus(status.getPath(), new PathFilter() {
                 @Override
                 public boolean accept(Path path) {
-                    return path.getName().endsWith(TASK_STATE_STORE_TABLE_SUFFIX);
+                    return !path.getName().startsWith("current") &&
+                            path.getName().endsWith(TASK_STATE_STORE_TABLE_SUFFIX);
                 }
             });
 
