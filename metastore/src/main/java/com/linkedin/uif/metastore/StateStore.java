@@ -49,6 +49,16 @@ public interface StateStore {
     public boolean create(String storeName, String tableName) throws IOException;
 
     /**
+     * Check whether a given table exists.
+     *
+     * @param storeName store name
+     * @param tableName table name
+     * @return whether the given table exists
+     * @throws IOException
+     */
+    public boolean exists(String storeName, String tableName) throws IOException;
+
+    /**
      * Put a {@link State} into a table.
      *
      * <p>
@@ -112,4 +122,14 @@ public interface StateStore {
      * @throws IOException
      */
     public List<? extends State> getAll(String storeName) throws IOException;
+
+    /**
+     * Create an alias for an existing table.
+     *
+     * @param storeName store name
+     * @param original original table name
+     * @param alias alias table name
+     * @throws IOException
+     */
+    public void createAlias(String storeName, String original, String alias) throws IOException;
 }
