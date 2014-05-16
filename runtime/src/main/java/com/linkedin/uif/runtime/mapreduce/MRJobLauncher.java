@@ -101,23 +101,33 @@ public class MRJobLauncher extends AbstractJobLauncher {
             this.conf.set(name, jobProps.getProperty(name));
         }
 
-        // Preparing a Hadoop MR job
-        Job job = Job.getInstance(this.conf, JOB_NAME_PREFIX + jobName);
-        job.setJarByClass(MRJobLauncher.class);
-
-        // Add the job jar files to the classpath if configured
+        Path jarFileDir = new Path(
+                jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY),
+                jobName + Path.SEPARATOR + "_jars");
+        boolean hasJobJars = false;
         if (jobProps.containsKey(ConfigurationKeys.JOB_JAR_FILES_KEY)) {
+            hasJobJars = true;
             Iterable<String> jarFiles = SPLITTER.split(
                     jobProps.getProperty(ConfigurationKeys.JOB_JAR_FILES_KEY));
             for (String jarFile : jarFiles) {
-                LOG.info(String.format("Adding %s to DistributedCache", jarFile));
-                DistributedCache.addFileToClassPath(new Path(jarFile), this.conf, this.fs);
+                Path srcJarFile = new Path(jarFile);
+                // DistributedCache requires absolute path, so we need to use makeQualified.
+                Path destJarFile = new Path(this.fs.makeQualified(jarFileDir), srcJarFile.getName());
+                // Copy the jar file from local file system to HDFS
+                this.fs.copyFromLocalFile(srcJarFile, destJarFile);
+                // Then add the jar file on HDFS to the classpath
+                LOG.info(String.format("Adding %s to classpath", destJarFile));
+                DistributedCache.addFileToClassPath(destJarFile, this.conf, this.fs);
             }
         }
 
         // Whether to use a reducer to combine task states output by the mappers
         boolean useReducer = Boolean.valueOf(
                 jobProps.getProperty(ConfigurationKeys.MR_JOB_USE_REDUCER_KEY, "true"));
+
+        // Preparing a Hadoop MR job
+        Job job = Job.getInstance(this.conf, JOB_NAME_PREFIX + jobName);
+        job.setJarByClass(MRJobLauncher.class);
 
         job.setMapperClass(TaskRunner.class);
         job.setReducerClass(TaskStateCollector.class);
@@ -189,6 +199,15 @@ public class MRJobLauncher extends AbstractJobLauncher {
                 }
             } catch (IOException ioe) {
                 LOG.error("Failed to cleanup job output path for job " + job.getJobName());
+            }
+
+            // Cleanup job jar file directory
+            try {
+                if (hasJobJars) {
+                    this.fs.delete(jarFileDir, true);
+                }
+            } catch (IOException ioe) {
+                LOG.error("Failed to cleanup job jars for job " + job.getJobName());
             }
         }
     }
