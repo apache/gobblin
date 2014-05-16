@@ -3,7 +3,6 @@ apply plugin: 'li-java'
 dependencies {
   compile project(":common-api")
   compile project(":qualitychecker")
-  compile project(":runtime")
   compile spec.external.commonsCli
   compile spec.external.avro
   compile spec.external.avroMapred
@@ -14,7 +13,8 @@ dependencies {
   compile spec.external.jacksonMapper
   compile spec.external.slf4j
 
-  testCompile project(":runtime")
+  testCompile project(':runtime')
+  testCompile project(path: ':runtime', configuration: 'tests')
   testCompile project(':writer')
   testCompile project(path: ':writer', configuration: 'tests')
   testCompile spec.external.testng
