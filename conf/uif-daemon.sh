@@ -1,6 +1,6 @@
 #!/bin/bash
 
-usage="Usage: sh uif-daemon.sh (start | status | restart | stop | byteman) [-p | --props <props-file-location>] [-cp | --classpath <java-classpath>]"
+usage="Usage: sh uif-daemon.sh (start | status | restart | stop | byteman) [-p | --props <props-file-location>] [-cp | --classpath <java-classpath>] [-bp | --basePath <base-path>] [-lf | --log4jFile <log4j-file-location>]"
 
 start_stop=$1
 shift
@@ -19,6 +19,14 @@ while [ "$1" != "" ]; do
 			shift
 			classpathLoc=$1
 			;;
+                -bp | --basepath)
+                        shift
+                        base_path=$1
+                        ;;
+                -lf | --log4jFile)
+                        shift
+                        log4jFile=$1
+                        ;;
 		*)
 			echo $usage
 			exit 1
@@ -26,7 +34,6 @@ while [ "$1" != "" ]; do
 	shift
 done
 
-base_path=/mnt/n001/data/sa_uif
 pid="$base_path/uif-pid"
 
 if [ -f $pid ]; then
@@ -45,6 +52,16 @@ checkParams() {
         fi
         if [ -z $classpathLoc ]; then
                 echo "Classpath is not set"
+                echo $usage
+                exit 1
+        fi
+        if [ -z $base_path ]; then
+                echo "Base path is not set"
+                echo $usage
+                exit 1
+        fi
+        if [ -z $log4jFile ]; then
+                echo "log4j config file location is not set"
                 echo $usage
                 exit 1
         fi
@@ -68,7 +85,7 @@ start() {
 	checkParams
 
 	classpath=$(find $classpathLoc | tr $'\012' ':' | sed 's/:$//g')
-	command="java -Xmx6g -Xms4g -Xloggc:$base_path/uif-gc.log -cp $classpath com.linkedin.uif.scheduler.Worker $props"
+	command="java -Xmx6g -Xms4g -Xloggc:$base_path/uif-gc.log -Dlog4j.configuration=$log4jFile -cp $classpath com.linkedin.uif.scheduler.Worker $props"
 
 	if [ -f $pid ]; then
 		if kill -0 $pid_value > /dev/null 2>&1; then
