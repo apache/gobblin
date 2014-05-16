@@ -1,4 +1,4 @@
-package com.linkedin.uif.test;
+package com.linkedin.uif.runtime;
 
 import java.io.File;
 import java.io.FileReader;
@@ -18,23 +18,17 @@ import com.google.common.util.concurrent.ServiceManager;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
-import com.linkedin.uif.runtime.JobListener;
-import com.linkedin.uif.runtime.JobState;
-import com.linkedin.uif.runtime.TaskExecutor;
-import com.linkedin.uif.runtime.TaskState;
-import com.linkedin.uif.runtime.TaskStateTracker;
-import com.linkedin.uif.runtime.WorkUnitManager;
 import com.linkedin.uif.runtime.local.LocalJobManager;
 import com.linkedin.uif.runtime.local.LocalTaskStateTracker;
 import com.linkedin.uif.source.workunit.Extract;
 
 /**
- * The basic integration test.
+ * Unit test for {@link LocalJobManager}.
  *
  * @author ynli
  */
 @Test(groups = {"com.linkedin.uif.test"})
-public class BasicIntegrationTest {
+public class LocalJobManagerTest {
 
     private static final String SOURCE_FILE_LIST_KEY = "source.files";
     private static final String SOURCE_FILE_KEY = "source.file";
@@ -124,8 +118,7 @@ public class BasicIntegrationTest {
                                                e.getTable() + "/" + e.getExtractId() + "_" + 
                                                (e.getIsFull() ? "FULL" : "APPEND"),
                                                jobState.getProp(ConfigurationKeys.WRITER_FILE_NAME)
-                                               + "." + taskState.getId() + "."
-                                               + TestConstants.TEST_WRITER_FILE_EXTENSION);
+                                               + "." + taskState.getId() + ".avro");
 
                     Assert.assertEquals(taskState.getWorkingState(),
                             WorkUnitState.WorkingState.COMMITTED);
