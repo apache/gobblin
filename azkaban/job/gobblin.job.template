@@ -1,15 +1,22 @@
-###### DO NOT CHANGE #####
+###### DO NOT CHANGE ######
 type=java
 job.class=com.linkedin.uif.azkaban.AzkabanMRJobLauncher
+
+# This assumes all dependent jars are put into the 'lib' directory
+classpath=lib/*
+mapreduce.user.classpath.first=true
+mapreduce.job.user.classpath.first=true
 
 ###### Core job configuration properties ######
 job.name=
 # job.group=
 # job.description=
-# job.jars=
+# Comma-separated list of jars the mapper/reducer depends on; this is a minimum list.
+job.jars=lib/common-api.jar,lib/runtime.jar,lib/qualitychecker.jar,lib/converter.jar,lib/metastore.jar,lib/writer.jar,lib/guava-15.0.jar,lib/avro-1.7.1.jar,lib/gson-2.2.4.jar,lib/lumos-common-2.0.0.jar,lib/metrics-core-3.0.2.jar,lib/avro-mapred-1.7.6.jar
 source.class=
 converter.classes=
 extract.namespace=
+writer.file.name=
 
 ###### Quality checker configuration properties ######
 qualitychecker.task.policies=
@@ -17,3 +24,4 @@ qualitychecker.task.policy.types=
 qualitychecker.row.policies=
 qualitychecker.row.policy.types=
 
+###### Source-specific configuration properties ######
