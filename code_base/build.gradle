@@ -7,7 +7,6 @@ dependencies {
 	runtime(project(':qualitychecker'))
     runtime(project(':runtime'))
 	runtime(project(':scheduler'))
-	runtime(project(':test'))
 	runtime(project(':utility'))
 	runtime(project(':writer'))
 	runtime(project(':metastore'))
@@ -15,21 +14,20 @@ dependencies {
 }
 
 tgz {
-        ext.jar_extension = ".jar"
-        rename("azkaban-$version$jar_extension", "azkaban.jar")
-        rename("converter-$version$jar_extension", "converter.jar")
-        rename("common-api-$version$jar_extension", "common-api.jar")
-        rename("qualitychecker-$version$jar_extension", "qualitychecker.jar")
-        rename("runtime-$version$jar_extension", "runtime.jar")
-        rename("scheduler-$version$jar_extension", "scheduler.jar")
-        rename("test-$version$jar_extension", "test.jar")
-        rename("utility-$version$jar_extension", "utility.jar")
-        rename("writer-$version$jar_extension", "writer.jar")
-        rename("metastore-$version$jar_extension", "metastore.jar")
-        rename("source-$version$jar_extension", "source.jar")
-        from('.')
-        from('../conf') { into('conf') }
-        exclude('*build*')
-	exclude("**/commons-logging*")
-        into('deployment')
+    ext.jar_extension = ".jar"
+    rename("azkaban-$version$jar_extension", "azkaban.jar")
+    rename("converter-$version$jar_extension", "converter.jar")
+    rename("common-api-$version$jar_extension", "common-api.jar")
+    rename("qualitychecker-$version$jar_extension", "qualitychecker.jar")
+    rename("runtime-$version$jar_extension", "runtime.jar")
+    rename("scheduler-$version$jar_extension", "scheduler.jar")
+    rename("utility-$version$jar_extension", "utility.jar")
+    rename("writer-$version$jar_extension", "writer.jar")
+    rename("metastore-$version$jar_extension", "metastore.jar")
+    rename("source-$version$jar_extension", "source.jar")
+    from('.')
+    from('../conf') { into('conf') }
+    exclude('*build*')
+    exclude("**/commons-logging*")
+    into('deployment')
 }
