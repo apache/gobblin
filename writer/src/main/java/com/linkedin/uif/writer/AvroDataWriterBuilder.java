@@ -40,22 +40,26 @@ public class AvroDataWriterBuilder<SI, DI> extends
             schema = this.schemaConverter.convert(this.sourceSchema);
         } catch (SchemaConversionException e) {
             throw new IOException("Failed to convert the source schema: " +
-                    this.sourceSchema);
+                    this.sourceSchema, e);
         }
 
         switch (this.destination.getType()) {
             case HDFS:
-                Properties properties = this.destination.getProperties();
-                String uri = properties.getProperty(ConfigurationKeys.WRITER_FILE_SYSTEM_URI);
-                String stagingDir = properties.getProperty(ConfigurationKeys.WRITER_STAGING_DIR,
+                Properties destProps = this.destination.getProperties();
+
+                String uri = destProps.getProperty(ConfigurationKeys.WRITER_FILE_SYSTEM_URI);
+                String stagingDir = destProps.getProperty(ConfigurationKeys.WRITER_STAGING_DIR,
                         ConfigurationKeys.DEFAULT_STAGING_DIR) + Path.SEPARATOR + this.filePath;
-                String outputDir = properties.getProperty(ConfigurationKeys.WRITER_OUTPUT_DIR,
+                String outputDir = destProps.getProperty(ConfigurationKeys.WRITER_OUTPUT_DIR,
                         ConfigurationKeys.DEFAULT_OUTPUT_DIR) + Path.SEPARATOR + this.filePath;
                 // Add the writer ID to the file name so each writer writes to a different
                 // file of the same file group defined by the given file name
-                String fileName = properties.getProperty(ConfigurationKeys.WRITER_FILE_NAME) +
-                        "." + this.writerId + "." + this.format.getExtension();
-                int bufferSize = Integer.parseInt(properties.getProperty(
+                String fileName = String.format(
+                        "%s.%s.%s",
+                        destProps.getProperty(ConfigurationKeys.WRITER_FILE_NAME, "part"),
+                        this.writerId,
+                        this.format.getExtension());
+                int bufferSize = Integer.parseInt(destProps.getProperty(
                         ConfigurationKeys.WRITER_BUFFER_SIZE,
                         ConfigurationKeys.DEFAULT_BUFFER_SIZE));
 
