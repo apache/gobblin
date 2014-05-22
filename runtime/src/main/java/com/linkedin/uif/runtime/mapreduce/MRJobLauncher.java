@@ -116,16 +116,16 @@ public class MRJobLauncher extends AbstractJobLauncher {
             addJars(jarFileDir, jobProps.getProperty(ConfigurationKeys.JOB_JAR_FILES_KEY));
         }
 
-        // Whether to use a reducer to combine task states output by the mappers
-        boolean useReducer = Boolean.valueOf(
-                jobProps.getProperty(ConfigurationKeys.MR_JOB_USE_REDUCER_KEY, "true"));
-
         // Preparing a Hadoop MR job
         Job job = Job.getInstance(this.conf, JOB_NAME_PREFIX + jobName);
         job.setJarByClass(MRJobLauncher.class);
 
         job.setMapperClass(TaskRunner.class);
         job.setReducerClass(TaskStateCollector.class);
+
+        // Whether to use a reducer to combine task states output by the mappers
+        boolean useReducer = Boolean.valueOf(
+                jobProps.getProperty(ConfigurationKeys.MR_JOB_USE_REDUCER_KEY, "true"));
         // We need one reducer to collect task states output by the mappers if a
         // reducer is to be used, otherwise the job is mapper-only.
         job.setNumReduceTasks(useReducer ? 1 : 0);

@@ -78,28 +78,28 @@ public class MRTaskStateTracker extends AbstractIdleService implements TaskState
         if (Metrics.isEnabled(task.getTaskState().getWorkunit())) {
             task.updateRecordMetrics();
 
-            // Job-level record counter
-            String jobRecordMetric = Metrics.metricName(
-                    JobState.JOB_METRICS_PREFIX, task.getJobId(), "records");
-            this.context.getCounter("JOB", jobRecordMetric).setValue(
-                    Metrics.getCounter(jobRecordMetric).getCount());
-
             // Task-level record counter
             String taskRecordMetric = Metrics.metricName(
                     TaskState.TASK_METRICS_PREFIX, task.getTaskId(), "records");
             this.context.getCounter("TASK", taskRecordMetric).setValue(
                     Metrics.getCounter(taskRecordMetric).getCount());
 
-            // Job-level byte counter
-            String jobByteMetric = Metrics.metricName(
-                    JobState.JOB_METRICS_PREFIX, task.getJobId(), "bytes");
-            this.context.getCounter("JOB", jobByteMetric).setValue(
-                    Metrics.getCounter(jobByteMetric).getCount());
+            // Job-level record counter
+            String jobRecordMetric = Metrics.metricName(
+                    JobState.JOB_METRICS_PREFIX, task.getJobId(), "records");
+            this.context.getCounter("JOB", jobRecordMetric).setValue(
+                    Metrics.getCounter(taskRecordMetric).getCount());
 
             // Task-level byte counter
             String taskByteMetric = Metrics.metricName(
                     TaskState.TASK_METRICS_PREFIX, task.getTaskId(), "bytes");
             this.context.getCounter("TASK", taskByteMetric).setValue(
+                    Metrics.getCounter(taskByteMetric).getCount());
+
+            // Job-level byte counter
+            String jobByteMetric = Metrics.metricName(
+                    JobState.JOB_METRICS_PREFIX, task.getJobId(), "bytes");
+            this.context.getCounter("JOB", jobByteMetric).setValue(
                     Metrics.getCounter(taskByteMetric).getCount());
         }
 
@@ -134,16 +134,16 @@ public class MRTaskStateTracker extends AbstractIdleService implements TaskState
             if (Metrics.isEnabled(this.task.getTaskState().getWorkunit())) {
                 this.task.updateRecordMetrics();
 
-                // Job-level record counter
-                String jobRecordMetric = Metrics.metricName(
-                        JobState.JOB_METRICS_PREFIX, task.getJobId(), "records");
-                this.context.getCounter("JOB", jobRecordMetric).setValue(
-                        Metrics.getCounter(jobRecordMetric).getCount());
-
                 // Task-level record counter
                 String taskRecordMetric = Metrics.metricName(
                         TaskState.TASK_METRICS_PREFIX, task.getTaskId(), "records");
                 this.context.getCounter("TASK", taskRecordMetric).setValue(
+                        Metrics.getCounter(taskRecordMetric).getCount());
+
+                // Job-level record counter
+                String jobRecordMetric = Metrics.metricName(
+                        JobState.JOB_METRICS_PREFIX, task.getJobId(), "records");
+                this.context.getCounter("JOB", jobRecordMetric).setValue(
                         Metrics.getCounter(taskRecordMetric).getCount());
             }
         }
