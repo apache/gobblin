@@ -3,6 +3,7 @@ package com.linkedin.uif.source.extractor.extract.restapi;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.http.HttpEntity;
@@ -12,14 +13,17 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.CoreConnectionPNames;
+import org.apache.http.params.HttpParams;
 import org.apache.http.util.EntityUtils;
+
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.watermark.Predicate;
 import com.linkedin.uif.source.extractor.DataRecordException;
@@ -29,8 +33,9 @@ import com.linkedin.uif.source.extractor.exception.RestApiConnectionException;
 import com.linkedin.uif.source.extractor.exception.RestApiProcessingException;
 import com.linkedin.uif.source.extractor.exception.SchemaException;
 import com.linkedin.uif.source.extractor.extract.BaseExtractor;
+import com.linkedin.uif.source.extractor.extract.Command;
+import com.linkedin.uif.source.extractor.extract.CommandOutput;
 import com.linkedin.uif.source.extractor.extract.SourceSpecificLayer;
-import com.linkedin.uif.source.extractor.resultset.RecordSet;
 import com.linkedin.uif.source.extractor.schema.Schema;
 import com.linkedin.uif.source.extractor.utils.Utils;
 import com.linkedin.uif.source.workunit.WorkUnit;
@@ -66,7 +71,10 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 	 */
 	protected HttpClient getHttpClient() {
 		if (httpClient == null) {
-			httpClient = new DefaultHttpClient();
+		    HttpParams params = new BasicHttpParams();
+		    params.setIntParameter(CoreConnectionPNames.SO_TIMEOUT, 360000);
+		    httpClient = new DefaultHttpClient(params);
+			
 		}
 		return httpClient;
 	}
@@ -88,9 +96,9 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 				throw new SchemaException("Failed to connect.");
 			} else {
 				this.log.debug("Connected successfully.");
-				String url = this.getSchemaMetadata(schema, entity);
-				String response = this.getResponse(url);
-				array = this.getSchema(response);
+				List<Command> cmds = this.getSchemaMetadata(schema, entity);
+				CommandOutput response = this.getResponse(cmds);
+				array = (JsonArray) this.getSchema(response); // TODO why is this cast needed?
 
 				for (JsonElement columnElement : array) {
 					Schema obj = gson.fromJson(columnElement, Schema.class);
@@ -129,8 +137,7 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 			}
 
 		} catch (Exception e) {
-			e.printStackTrace();
-			throw new SchemaException("Failed to get schema using rest api; error-" + e.getMessage());
+			throw new SchemaException("Failed to get schema using rest api; error - " + e.getMessage(), e);
 		}
 	}
 
@@ -146,14 +153,14 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 			} else {
 				this.log.debug("Connected successfully.");
 				
-				String url = this.getHighWatermarkMetadata(schema, entity, watermarkColumn, predicateList);
-				String response = this.getResponse(url);
+				List<Command> cmds = this.getHighWatermarkMetadata(schema, entity, watermarkColumn, predicateList);
+				CommandOutput response = this.getResponse(cmds);
 				CalculatedHighWatermark = this.getHighWatermark(response, watermarkColumn, watermarkSourceFormat);
 			}
 			this.log.info("High watermark:" + CalculatedHighWatermark);
 			return CalculatedHighWatermark;
 		} catch (Exception e) {
-			throw new HighWatermarkException("Failed to get high watermark using rest api; error-" + e.getMessage());
+			throw new HighWatermarkException("Failed to get high watermark using rest api; error - " + e.getMessage(), e);
 		}
 	}
 
@@ -167,22 +174,22 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 				throw new RecordCountException("Failed to connect.");
 			} else {
 				this.log.debug("Connected successfully.");
-				String url = this.getCountMetadata(schema, entity, workUnit, predicateList);
-				String response = this.getResponse(url);
+				List<Command> cmds = this.getCountMetadata(schema, entity, workUnit, predicateList);
+				CommandOutput response = this.getResponse(cmds);
 				count = this.getCount(response);
 				this.log.info("Source record count:" + count);
 			}
 			return count;
 		} catch (Exception e) {
-			throw new RecordCountException("Failed to get record count using rest api; error-" + e.getMessage());
+			throw new RecordCountException("Failed to get record count using rest api; error - " + e.getMessage(), e);
 		}
 	}
 
 	@Override
 	public Iterator<D> getRecordSet(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws DataRecordException {
 		this.log.debug("Get data records using Rest Api");
-		RecordSet<D> rs = null;
-		String url;
+		Iterator<D> rs = null;
+		List<Command> cmds;
 		try {
 			boolean success = true;
 			if (isConnectionClosed()) {
@@ -197,17 +204,17 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 					return null;
 				} else {
 					if (this.getNextUrl() == null) {
-						url = this.getDataMetadata(schema, entity, workUnit, predicateList);
+					    cmds = this.getDataMetadata(schema, entity, workUnit, predicateList);
 					} else {
-						url = this.getNextUrl();
+					    cmds = SalesforceExtractor.constructGetCommand(this.getNextUrl());
 					}
-					String response = this.getResponse(url);
+					CommandOutput response = this.getResponse(cmds);
 					rs = this.getData(response);
 				}
 			}
-			return rs.iterator();
+			return rs;
 		} catch (Exception e) {
-			throw new DataRecordException("Failed to get records using rest api; error-" + e.getMessage());
+			throw new DataRecordException("Failed to get records using rest api; error - " + e.getMessage(), e);
 		}
 	}
 	
@@ -271,8 +278,7 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 				this.createdAt = System.currentTimeMillis();
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
-			throw new RestApiConnectionException("Failed to get rest api connection; error-" + e.getMessage());
+			throw new RestApiConnectionException("Failed to get rest api connection; error - " + e.getMessage(), e);
 		}
 
 		finally {
@@ -280,8 +286,7 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 				try {
 					EntityUtils.consume(httpEntity);
 				} catch (Exception e) {
-					e.printStackTrace();
-					throw new RestApiConnectionException("Failed to consume httpEntity; error-" + e.getMessage());
+					throw new RestApiConnectionException("Failed to consume httpEntity; error - " + e.getMessage(), e);
 				}
 			}
 		}
@@ -300,8 +305,10 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 	 * get http response in json format using url 
 	 * @return json string with the response
 	 */
-	private String getResponse(String url) throws RestApiProcessingException {
-		this.log.info("URL: " + url);
+	private CommandOutput<?, ?> getResponse(List<Command> cmds) throws RestApiProcessingException {
+		String url = cmds.get(0).getParams().get(0);
+	    
+	    this.log.info("URL: " + url);
 		String jsonStr = null;
 		HttpRequestBase httpRequest = new HttpGet(url);
 		addHeaders(httpRequest);
@@ -322,8 +329,7 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 				throw new RestApiProcessingException(this.getFirstErrorMessage("Failed to retrieve response from", jsonRet));
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
-			throw new RestApiProcessingException("Failed to process rest api request; error-" + e.getMessage());
+			throw new RestApiProcessingException("Failed to process rest api request; error - " + e.getMessage(), e);
 		}
 
 		finally {
@@ -333,13 +339,13 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 				}
 				// httpResponse.close();
 			} catch (Exception e) {
-				e.printStackTrace();
-				throw new RestApiProcessingException("Failed to consume httpEntity; error-" + e.getMessage());
+				throw new RestApiProcessingException("Failed to consume httpEntity; error - " + e.getMessage(), e);
 			}
 
 		}
-
-		return jsonStr;
+		CommandOutput<RestApiCommand, String> output = new RestApiCommandOutput();
+		output.put((RestApiCommand) cmds.get(0), jsonStr);
+		return output;
 	}
 
 	private void addHeaders(HttpRequestBase httpRequest) {

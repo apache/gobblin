@@ -104,7 +104,7 @@ public class TimestampWatermark implements Watermark {
 		try {
 			date = INPUTFORMAT.parse(dateTime);
 		} catch (ParseException e) {
-			e.printStackTrace();
+		    LOG.error(e.getMessage(), e);
 		}
 		return date.getTime();
 	}

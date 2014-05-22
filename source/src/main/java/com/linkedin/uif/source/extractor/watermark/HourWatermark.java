@@ -112,7 +112,7 @@ public class HourWatermark implements Watermark {
 			outDate = OUTPUTFORMAT.parse(dateStr);
 			
 		} catch (ParseException e) {
-			e.printStackTrace();
+		    LOG.error(e.getMessage(), e);
 		}
 		return outDate;
 	}

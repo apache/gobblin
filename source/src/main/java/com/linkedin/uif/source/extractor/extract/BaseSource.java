@@ -14,12 +14,12 @@ import org.slf4j.MDC;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.configuration.WorkUnitState.WorkingState;
 import com.linkedin.uif.source.Source;
-import com.linkedin.uif.source.extractor.extract.restapi.SalesforceSource;
 import com.linkedin.uif.source.extractor.partition.Partitioner;
 import com.linkedin.uif.source.extractor.utils.Utils;
 import com.linkedin.uif.source.extractor.watermark.WatermarkPredicate;
@@ -32,7 +32,7 @@ import com.linkedin.uif.source.workunit.Extract.TableType;
  * An implementation of Base source to get work units
  */
 public abstract class BaseSource<S, D> implements Source<S, D> {
-	private static final Logger LOG = LoggerFactory.getLogger(BaseSource.class);
+	private static final Logger log = LoggerFactory.getLogger(BaseSource.class);
 	
 	public void initLogger(SourceState state) {
 	    StringBuilder sb = new StringBuilder();
@@ -53,7 +53,7 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
 	@Override
 	public List<WorkUnit> getWorkunits(SourceState state) {
 	    initLogger(state);
-		LOG.info("Get work units");
+		log.info("Get work units");
 		List<WorkUnit> workUnits = Lists.newArrayList();
 		String nameSpaceName = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY);
 		String entityName = state.getProp(ConfigurationKeys.SOURCE_ENTITY);
@@ -89,10 +89,10 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
 			workUnits.add(partitionState.createWorkUnit(extract));
 			workUnitCount++;
 		}
-		LOG.info("Total number of work units for the current run: "+workUnitCount);
+		log.info("Total number of work units for the current run: " + workUnitCount);
 		
 		List<WorkUnit> previousWorkUnits = this.getPreviousIncompleteWorkUnits(state);
-		LOG.info("Total number of work units from the previous failed runs: "+previousWorkUnits.size());
+		log.info("Total number of work units from the previous failed runs: " + previousWorkUnits.size());
 		
 		workUnits.addAll(previousWorkUnits);
 		return workUnits;
@@ -105,11 +105,11 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
      * @return list of work units
      */
 	private List<WorkUnit> getPreviousIncompleteWorkUnits(SourceState state) {
-		LOG.debug("Getting previous unsuccessful work units");
+		log.debug("Getting previous unsuccessful work units");
 		List<WorkUnit> previousWorkUnits = new ArrayList<WorkUnit>();
 		List<WorkUnitState> previousWorkUnitStates = state.getPreviousStates();
 		if(previousWorkUnitStates.size() == 0) {
-			LOG.debug("Previous states are not found");
+			log.debug("Previous states are not found");
 			return previousWorkUnits;
 		}
 		
@@ -129,7 +129,7 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
      * @return latest water mark(high water mark of WorkUnitState)
      */
 	private long getLatestWatermarkFromMetadata(SourceState state) {
-		LOG.debug("Getting previous watermark");
+		log.debug("Getting previous watermark");
 		boolean hasDataInPreviousRun = false;
 		long latestWaterMark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
 		
@@ -138,7 +138,7 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
 		List<Long> previousWorkUnitLowWatermarks = new ArrayList<Long>();
 		
 		if(previousWorkUnitStates.size() == 0) {
-			LOG.info("Previous states are not found; Latest watermark - Default watermark:"+latestWaterMark);
+			log.info("Previous states are not found; Latest watermark - Default watermark: " + latestWaterMark);
 			return latestWaterMark;
 		}
 		
@@ -154,13 +154,13 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
 		
 		if(previousWorkUnitStateHighWatermarks.isEmpty()) {
 			latestWaterMark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
-			LOG.info("Previous Committed states are not found; Latest watermark - Default watermark:"+latestWaterMark);
+			log.info("Previous Committed states are not found; Latest watermark - Default watermark: " + latestWaterMark);
 		} else if(hasDataInPreviousRun) {
 			latestWaterMark = Collections.max(previousWorkUnitStateHighWatermarks);
-			LOG.info("Previous run has data; Latest watermark - Max watermark from WorkUnitStates:"+latestWaterMark);
+			log.info("Previous run has data; Latest watermark - Max watermark from WorkUnitStates: " + latestWaterMark);
 		} else {
 			latestWaterMark = Collections.min(previousWorkUnitLowWatermarks);
-			LOG.info("Previous run has no data; Latest watermark - Min watermark from WorkUnits:"+latestWaterMark);
+			log.info("Previous run has no data; Latest watermark - Min watermark from WorkUnits: " + latestWaterMark);
 		}
 		
 		return latestWaterMark;

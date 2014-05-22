@@ -1,9 +1,14 @@
 package com.linkedin.uif.source.extractor.exception;
 
-public class ExtractPrepareException extends Exception{
-	private static final long serialVersionUID = 1L;
+public class ExtractPrepareException extends Exception {
 
-	public ExtractPrepareException(String message) {
-		super(message);
-	}
+    private static final long serialVersionUID = 1L;
+
+    public ExtractPrepareException(String message) {
+        super(message);
+    }
+
+    public ExtractPrepareException(String message, Exception e) {
+        super(message, e);
+    }
 }

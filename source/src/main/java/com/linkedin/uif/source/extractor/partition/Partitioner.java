@@ -307,7 +307,7 @@ public class Partitioner {
 		try {
 			currentTime = DATETIMEFORMAT.parse(fmt.format(new Date()));
 		} catch (ParseException e) {
-			e.printStackTrace();
+		    LOG.error(e.getMessage(), e);
 		}
 		return currentTime;
 	}
