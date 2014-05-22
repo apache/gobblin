@@ -15,8 +15,12 @@ import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
-import com.linkedin.uif.scheduler.local.LocalJobManager;
-import com.linkedin.uif.scheduler.local.LocalTaskStateTracker;
+import com.linkedin.uif.runtime.Metrics;
+import com.linkedin.uif.runtime.TaskExecutor;
+import com.linkedin.uif.runtime.TaskStateTracker;
+import com.linkedin.uif.runtime.WorkUnitManager;
+import com.linkedin.uif.runtime.local.LocalJobManager;
+import com.linkedin.uif.runtime.local.LocalTaskStateTracker;
 
 /**
  * This is the main class that each UIF worker node runs.

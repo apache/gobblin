@@ -11,6 +11,7 @@ import com.google.common.collect.Lists;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
@@ -79,6 +80,12 @@ public class FsStateStore implements StateStore {
         }
 
         return this.fs.createNewFile(tablePath);
+    }
+
+    @Override
+    public boolean exists(String storeName, String tableName) throws IOException {
+        Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
+        return this.fs.exists(tablePath);
     }
 
     @Override
@@ -217,5 +224,22 @@ public class FsStateStore implements StateStore {
         }
 
         return taskStates;
+    }
+
+    @Override
+    public void createAlias(String storeName, String original, String alias)
+            throws IOException {
+
+        Path originalTablePath = new Path(new Path(this.storeRootDir, storeName), original);
+        if (!this.fs.exists(originalTablePath)) {
+            throw new IOException(String.format(
+                    "State file %s does not exist for table %s",
+                    originalTablePath, original));
+        }
+
+        Path aliasTablePath = new Path(new Path(this.storeRootDir, storeName), alias);
+        // Make a copy of the original table as a work-around because
+        // Hadoop version 1.2.1 has no support for symlink yet.
+        FileUtil.copy(this.fs, originalTablePath, this.fs, aliasTablePath, false, true, this.conf);
     }
 }

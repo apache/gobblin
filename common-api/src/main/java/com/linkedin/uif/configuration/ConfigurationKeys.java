@@ -5,6 +5,13 @@ package com.linkedin.uif.configuration;
  */
 public class ConfigurationKeys {
 
+    // Default file system URI for all file storages
+    // Overwritable by more specific configuration properties
+    public static final String FS_URI_KEY = "fs.uri";
+
+    // Local file system URI
+    public static final String LOCAL_FS_URI = "file:///";
+
     // Directory where all job configuration files are stored
     public static final String JOB_CONFIG_FILE_DIR_KEY = "jobconf.dir";
 
@@ -17,6 +24,9 @@ public class ConfigurationKeys {
     // Directory where metrics csv files are stored
     public static final String METRICS_DIR_KEY = "metrics.dir";
 
+    // Job launcher rtype
+    public static final String JOB_LAUNCHER_TYPE_KEY = "launcher.type";
+
     /**
      * Common job configuraion properties
      */
@@ -27,11 +37,11 @@ public class ConfigurationKeys {
     public static final String SOURCE_CLASS_KEY = "source.class";
     public static final String SOURCE_WRAPPER_CLASS_KEY = "source.wrapper.class";
     public static final String CONVERTER_CLASSES_KEY = "converter.classes";
-    public static final String SOURCE_SCHEMA_TYPE_KEY = "source.schema.type";
     public static final String JOB_COMMIT_POLICY_KEY = "job.commit.policy";
     public static final String DEFAULT_JOB_COMMIT_POLICY = "full";
     public static final String JOB_RUN_ONCE_KEY = "job.runonce";
     public static final String JOB_DISABLED_KEY = "job.disabled";
+    public static final String JOB_JAR_FILES_KEY = "job.jars";
 
     /**
      * Work unit related configuration properties
@@ -82,7 +92,6 @@ public class ConfigurationKeys {
     public static final String WRITER_DESTINATION_TYPE_KEY =
             WRITER_PREFIX + ".destination.type";
     public static final String WRITER_OUTPUT_FORMAT_KEY = WRITER_PREFIX + ".output.format";
-    public static final String WRITER_FILE_EXTENSION = WRITER_PREFIX + ".file.extension";
 
     /**
      * HDFS writer configuration properties
@@ -185,6 +194,8 @@ public class ConfigurationKeys {
     /** 
     * Configuration properties used by the extractor
     */
+    public static final String SOURCE_USE_PROXY_URL = "source.use.proxy.url";
+    public static final String SOURCE_USE_PROXY_PORT = "source.use.proxy.port";
     public static final String SOURCE_SCHEMA = "source.schema";
     public static final String SOURCE_ENTITY = "source.entity";
     public static final String SOURCE_WATERMARK_TYPE = "source.watermark.type";
@@ -224,9 +235,14 @@ public class ConfigurationKeys {
     public static final String SOURCE_SKIP_FIRST_LINE = "source.skip.first.line";
     public static final String SOURCE_DECRYPT_KEY = "source.decrypt.key.location";
 
-    
     public static final long DEFAULT_WATERMARK_VALUE = -1;
     public static final int DEFAULT_MAX_NUMBER_OF_PARTITIONS = 20;
     public static final int DEFAULT_SOURCE_FETCH_SIZE = 1000;
 
+    /**
+     * Configuration properties used by the Hadoop MR job launcher.
+     */
+    public static final String MR_JOB_ROOT_DIR_KEY = "mr.job.root.dir";
+    public static final String MR_JOB_LOCK_DIR_KEY = "mr.job.lock.dir";
+    public static final String MR_JOB_USE_REDUCER_KEY = "mr.job.use.reducer";
 }

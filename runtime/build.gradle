@@ -1,0 +1,55 @@
+apply plugin: 'li-java'
+
+dependencies {
+  compile project(":common-api")
+  compile project(":metastore")
+  compile project(":qualitychecker")
+  compile project(":writer")
+  compile spec.external.avro
+  compile spec.external.avroMapred
+  compile spec.external.commonsConfiguration
+  compile spec.external.quartz
+  compile spec.external.hadoop
+  compile spec.external.guava
+  compile spec.external.jacksonCore
+  compile spec.external.jacksonMapper
+  compile spec.external.jodaTime
+  compile spec.external.httpclient
+  compile spec.external.httpcore
+  compile spec.external.commonsLang
+  compile spec.external.slf4j
+  compile spec.external.commonsCli
+  compile spec.external.gson
+  compile spec.external.metricsCore
+  compile spec.external.commonsIO
+  compile files('../converter/src/main/resources/lumos-common-2.0.0.jar')
+
+  testCompile spec.external.testng
+}
+
+task testJar(type: Jar, dependsOn: testClasses) {
+    baseName = "test-${project.archivesBaseName}"
+    from sourceSets.test.output
+}
+
+configurations {
+    tests
+}
+
+configurations {
+    compile {
+        transitive = false
+    }
+}
+
+artifacts {
+    tests testJar
+}
+
+test {
+    useTestNG ()
+    workingDir rootProject.rootDir
+    include '**/*Test*'
+}
+
+classification="library"

@@ -57,6 +57,10 @@ public class BaseDataPublisher extends DataPublisher
 
             Path finalOutput = new Path(workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
                                       extract.getOutputFilePath());
+            // Create the parent directory of the final output directory if it does not exist
+            if (!this.fs.exists(finalOutput.getParent())) {
+                this.fs.mkdirs(finalOutput.getParent());
+            }
 
             LOG.info(String.format("Attemping to move %s to %s", tmpOutput, finalOutput));
 
@@ -71,7 +75,7 @@ public class BaseDataPublisher extends DataPublisher
                     continue;
                 }
             }
-            
+
             if (this.fs.rename(tmpOutput, finalOutput)) {
                 for (WorkUnitState state : entry.getValue()) {
                     state.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
