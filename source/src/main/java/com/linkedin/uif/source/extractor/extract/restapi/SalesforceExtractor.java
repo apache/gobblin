@@ -33,7 +33,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.watermark.Predicate;
@@ -44,6 +43,9 @@ import com.linkedin.uif.source.extractor.exception.RecordCountException;
 import com.linkedin.uif.source.extractor.exception.RestApiClientException;
 import com.linkedin.uif.source.extractor.exception.RestApiConnectionException;
 import com.linkedin.uif.source.extractor.exception.SchemaException;
+import com.linkedin.uif.source.extractor.extract.Command;
+import com.linkedin.uif.source.extractor.extract.CommandOutput;
+import com.linkedin.uif.source.extractor.extract.restapi.RestApiCommand.RestApiCommandType;
 import com.linkedin.uif.source.extractor.resultset.RecordSet;
 import com.linkedin.uif.source.extractor.resultset.RecordSetList;
 import com.linkedin.uif.source.extractor.schema.Schema;
@@ -164,23 +166,24 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 
 			return httpEntity;
 		} catch (Exception e) {
-			e.printStackTrace();
 			throw new RestApiConnectionException("Failed to authenticate salesforce using user:" + userName + " and host:" + host + "; error-"
-					+ e.getMessage());
+					+ e.getMessage(), e);
 		}
 	}
 
 	@Override
-	public String getSchemaMetadata(String schema, String entity) throws SchemaException {
+	public List<Command> getSchemaMetadata(String schema, String entity) throws SchemaException {
 		this.log.debug("Build url to retrieve schema");
-		return  this.getFullUri("/sobjects/" + entity.trim() + "/describe");
+		return SalesforceExtractor.constructGetCommand(this.getFullUri("/sobjects/" + entity.trim() + "/describe"));
 	}
 
 	@Override
-	public JsonArray getSchema(String response) throws SchemaException {
+	public S getSchema(CommandOutput<?, ?> response) throws SchemaException {
 		this.log.info("Get schema from salesforce:");
+		String output = (String) response.getResults().values().iterator().next();
+		
 		JsonArray fieldJsonArray = new JsonArray();
-		JsonElement element = gson.fromJson(response, JsonObject.class);
+		JsonElement element = gson.fromJson(output, JsonObject.class);
 		JsonObject jsonObject = element.getAsJsonObject();
 
 		try {
@@ -211,14 +214,13 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 				fieldJsonArray.add(obj);
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
-			throw new SchemaException("Failed to get schema from salesforce; error-" + e.getMessage());
+			throw new SchemaException("Failed to get schema from salesforce; error - " + e.getMessage(), e);
 		}
-		return fieldJsonArray;
+		return (S) fieldJsonArray;
 	}
 
 	@Override
-	public String getHighWatermarkMetadata(String schema, String entity, String watermarkColumn, List<Predicate> predicateList)
+	public List<Command> getHighWatermarkMetadata(String schema, String entity, String watermarkColumn, List<Predicate> predicateList)
 			throws HighWatermarkException {
 		this.log.debug("Build url to retrieve high watermark");
 		String query = "SELECT " + watermarkColumn + " FROM " + entity;
@@ -245,20 +247,21 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 		}
 		query = this.addPredicate(query, defaultPredicate);
 		query = query + defaultSortOrder;
-		this.log.info("QUERY:" + query);
+		this.log.info("QUERY: " + query);
 
 		try {
-			return this.getFullUri(this.getSoqlUrl(query));
+		    return SalesforceExtractor.constructGetCommand(this.getFullUri(this.getSoqlUrl(query)));
 		} catch (Exception e) {
-			e.printStackTrace();
-			throw new HighWatermarkException("Failed to get salesforce url for high watermark; error-" + e.getMessage());
+			throw new HighWatermarkException("Failed to get salesforce url for high watermark; error - " + e.getMessage(), e);
 		}
 	}
 
 	@Override
-	public long getHighWatermark(String response, String watermarkColumn, String format) throws HighWatermarkException {
+	public long getHighWatermark(CommandOutput<?, ?> response, String watermarkColumn, String format) throws HighWatermarkException {
 		this.log.info("Get high watermark from salesforce");
-		JsonElement element = gson.fromJson(response, JsonObject.class);
+        String output = (String) response.getResults().values().iterator().next();
+		
+		JsonElement element = gson.fromJson(output, JsonObject.class);
 		long high_ts;
 		try {
 			JsonObject jsonObject = element.getAsJsonObject();
@@ -274,7 +277,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 				try {
 					date = inFormat.parse(value);
 				} catch (ParseException e) {
-					e.printStackTrace();
+				    log.error("ParseException: " + e.getMessage(), e);
 				}
 				SimpleDateFormat outFormat = new SimpleDateFormat("yyyyMMddHHmmss");
 				high_ts = Long.parseLong(outFormat.format(date));
@@ -283,14 +286,13 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 			}
 
 		} catch (Exception e) {
-			e.printStackTrace();
-			throw new HighWatermarkException("Failed to get high watermark from salesforce; error-" + e.getMessage());
+			throw new HighWatermarkException("Failed to get high watermark from salesforce; error - " + e.getMessage(), e);
 		}
 		return high_ts;
 	}
 
 	@Override
-	public String getCountMetadata(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws RecordCountException {
+	public List<Command> getCountMetadata(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws RecordCountException {
 		this.log.debug("Build url to retrieve source record count");
 		String existingPredicate = "";
 		if (this.updatedQuery != null) {
@@ -307,8 +309,8 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 		
 		try {
 			if (isNullPredicate(predicateList)) {
-				this.log.info("QUERY:" + query);
-				return this.getFullUri(this.getSoqlUrl(query));
+				this.log.info("QUERY: " + query);
+				return SalesforceExtractor.constructGetCommand(this.getFullUri(this.getSoqlUrl(query)));
 			} else {
 				Iterator<Predicate> i = predicateList.listIterator();
 				while (i.hasNext()) {
@@ -317,33 +319,32 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 				}
 
 				query = query+this.getLimitFromInputQuery(this.updatedQuery);
-				this.log.info("QUERY:" + query);
-				return this.getFullUri(this.getSoqlUrl(query));
+				this.log.info("QUERY: " + query);
+				return SalesforceExtractor.constructGetCommand(this.getFullUri(this.getSoqlUrl(query)));
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
-			throw new RecordCountException("Failed to get salesforce url for record count; error-" + e.getMessage());
+			throw new RecordCountException("Failed to get salesforce url for record count; error - " + e.getMessage(), e);
 		}
 	}
 
 	@Override
-	public long getCount(String response) throws RecordCountException {
+	public long getCount(CommandOutput<?, ?> response) throws RecordCountException {
 		this.log.info("Get source record count from salesforce");
-		JsonElement element = gson.fromJson(response, JsonObject.class);
+        String output = (String) response.getResults().values().iterator().next();
+		
+		JsonElement element = gson.fromJson(output, JsonObject.class);
 		long count;
 		try {
 			JsonObject jsonObject = element.getAsJsonObject();
 			count = jsonObject.get("totalSize").getAsLong();
 		} catch (Exception e) {
-			e.printStackTrace();
-			throw new RecordCountException("Failed to get record count from salesforce; error-" + e.getMessage());
+			throw new RecordCountException("Failed to get record count from salesforce; error - " + e.getMessage(), e);
 		}
-
 		return count;
 	}
 
 	@Override
-	public String getDataMetadata(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws DataRecordException {
+	public List<Command> getDataMetadata(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws DataRecordException {
 		this.log.debug("Build url to retrieve data records");
 		String query = this.updatedQuery;
 		String url = null;
@@ -353,7 +354,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 			} else {
 				if (isNullPredicate(predicateList)) {
 					this.log.info("QUERY:" + query);
-					return this.getFullUri(this.getSoqlUrl(query));
+					return SalesforceExtractor.constructGetCommand(this.getFullUri(this.getSoqlUrl(query)));
 				}
 
 				String limitString = this.getLimitFromInputQuery(query);
@@ -370,15 +371,12 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 				}
 				
 				query = query+limitString;
-				this.log.info("QUERY:" + query);
+				this.log.info("QUERY: " + query);
 				url = this.getFullUri(this.getSoqlUrl(query));
 			}
-
-			return url;
-
+            return SalesforceExtractor.constructGetCommand(url);
 		} catch (Exception e) {
-			e.printStackTrace();
-			throw new DataRecordException("Failed to get salesforce url for data records; error-" + e.getMessage());
+			throw new DataRecordException("Failed to get salesforce url for data records; error - " + e.getMessage(), e);
 		}
 	}
 
@@ -392,10 +390,12 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	}
 
 	@Override
-	public RecordSet<D> getData(String response) throws DataRecordException {
+	public Iterator<D> getData(CommandOutput<?, ?> response) throws DataRecordException {
 		this.log.debug("Get data records from response");
-		RecordSetList<D> rs = new RecordSetList<D>();
-		JsonElement element = gson.fromJson(response, JsonObject.class);
+        String output = (String) response.getResults().values().iterator().next();
+		
+		List<D> rs = new ArrayList<D>();
+		JsonElement element = gson.fromJson(output, JsonObject.class);
 		JsonArray partRecords;
 		try {
 			JsonObject jsonObject = element.getAsJsonObject();
@@ -413,10 +413,9 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 				JsonElement recordElement = li.next();
 				rs.add((D) recordElement);
 			}
-			return rs;
+			return rs.iterator();
 		} catch (Exception e) {
-			e.printStackTrace();
-			throw new DataRecordException("Failed to get records from salesforce; error-" + e.getMessage());
+			throw new DataRecordException("Failed to get records from salesforce; error - " + e.getMessage(), e);
 		}
 	}
 
@@ -450,8 +449,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 		try {
 			uri = builder.build();
 		} catch (Exception e) {
-			e.printStackTrace();
-			throw new RestApiClientException("Failed to build url; error-" + e.getMessage());
+			throw new RestApiClientException("Failed to build url; error - " + e.getMessage(), e);
 		}
 		return new HttpGet(uri).getURI().toString();
 	}
@@ -586,16 +584,18 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 			return rs.iterator();
 			
 		} catch (Exception e) {
-			e.printStackTrace();
-			throw new IOException("Failed to get records using bulk api; error-" + e.getMessage());
+			throw new IOException("Failed to get records using bulk api; error - " + e.getMessage(), e);
 		}
+	}
+	
+	public static List<Command> constructGetCommand(String restQuery) {
+	    return Arrays.asList(new RestApiCommand().build(Arrays.asList(restQuery), RestApiCommandType.GET));
 	}
 	
 	/**
 	 * Get soft deleted records using Rest Api
      * @return iterator with deleted records
 	 */
-	
 	private Iterator<D> getSoftDeletedRecords(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws DataRecordException {
 		return this.getRecordSet(schema, entity, workUnit, predicateList);
 	}
@@ -634,8 +634,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 			success = true;
 			
 		} catch (Exception e) {
-			e.printStackTrace();
-			throw new Exception("Failed to connect to salesforce bulk api; error-" + e.getMessage());
+			throw new Exception("Failed to connect to salesforce bulk api; error - " + e.getMessage(), e);
 		}
 		return success;
 	}
@@ -706,8 +705,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 			return Arrays.asList(list.getResult());
 			
 		} catch (Exception e) {
-			e.printStackTrace();
-			throw new Exception("Failed to get query result ids from salesforce using bulk api; error-" + e.getMessage());
+			throw new Exception("Failed to get query result ids from salesforce using bulk api; error - " + e.getMessage(), e);
 		}
 	}
 	
@@ -776,8 +774,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 			}
 			
 		} catch (Exception e) {
-			e.printStackTrace();
-			throw new DataRecordException("Failed to get records from salesforce; error-" + e.getMessage());
+			throw new DataRecordException("Failed to get records from salesforce; error - " + e.getMessage(), e);
 		}
 
 		return rs;

@@ -2,8 +2,12 @@ package com.linkedin.uif.source.extractor.watermark;
 
 import java.util.HashMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.Strings;
 import com.linkedin.uif.source.extractor.extract.BaseExtractor;
+import com.linkedin.uif.source.extractor.extract.restapi.RestApiExtractor;
 
 public class WatermarkPredicate {
 	private static final String DEFAULT_WATERMARK_VALUE_FORMAT = "yyyyMMddHHmmss";
@@ -11,6 +15,8 @@ public class WatermarkPredicate {
 	private String watermarkColumn;
 	private WatermarkType watermarkType;
 	private Watermark watermark;
+
+	   private Logger log = LoggerFactory.getLogger(WatermarkPredicate.class);
 
 	public WatermarkPredicate(String watermarkColumn, WatermarkType watermarkType) {
 		super();
@@ -42,7 +48,17 @@ public class WatermarkPredicate {
 		if(watermarkValue != DEFAULT_WATERMARK_VALUE) {
 			condition = this.watermark.getWatermarkCondition(extractor, watermarkValue, operator);
 		}
-				
+		
+		if (watermarkColumn == null) {
+		    log.info("WMC is null");
+		}
+		
+		if (condition == null) {
+            log.info("Condition is null");
+        }
+		
+		Strings.isNullOrEmpty(watermarkColumn);
+		
 		if (Strings.isNullOrEmpty(watermarkColumn) || condition.equals("")) {
 			return null;
 		}

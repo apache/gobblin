@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.Extractor;
@@ -29,7 +30,6 @@ import com.linkedin.uif.source.extractor.schema.ArrayDataType;
 import com.linkedin.uif.source.extractor.schema.DataType;
 import com.linkedin.uif.source.extractor.schema.EnumDataType;
 import com.linkedin.uif.source.extractor.schema.MapDataType;
-import com.linkedin.uif.source.extractor.utils.Utils;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
 /**
@@ -132,23 +132,22 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 	@Override
 	public D readRecord() throws DataRecordException, IOException {
 		if (!this.isPullRequired()) {
-			this.log.debug("No more records");
+			this.log.info("No more records to read");
 			return null;
 		}
 
 		D nextElement = null;
 		try {
 			if (isInitialPull()) {
-				this.log.debug("initial pull");
+				this.log.info("Initial pull");
 				iterator = this.getIterator();
 			}
 
 			if (iterator.hasNext()) {
 				nextElement = iterator.next();
 				
-				if(iterator.hasNext()) {
-				} else {
-					this.log.debug("next pull");
+				if(!iterator.hasNext()) {
+					this.log.info("Getting next pull");
 					iterator = this.getIterator();
 					if (iterator == null) {
 						this.setFetchStatus(false);
@@ -156,7 +155,7 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 				}
 			}
 		} catch (Exception e) {
-			throw new DataRecordException("Failed to get records using rest api; error-" + e.getMessage());
+			throw new DataRecordException("Failed to get records using rest api; error - " + e.getMessage(), e);
 		}
 		return nextElement;
 	};
@@ -206,12 +205,12 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 	 */
 	@Override
 	public void close() {
-		this.log.info("Updating the current state high water mark with "+this.highWatermark);
+		log.info("Updating the current state high water mark with " + this.highWatermark);
 		this.workUnitState.setHighWaterMark(this.highWatermark);
 		try {
 			this.closeConnection();
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.error("Failed to close the extractor", e);
 		}
 	}
 	
@@ -229,7 +228,7 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 		String watermarkColumn = this.workUnit.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
 		long lwm = this.workUnit.getLowWaterMark();
 		long hwm = this.workUnit.getHighWaterMark();
-		this.log.info("Low water mark:"+lwm+"; and High water mark:"+hwm);
+		log.info("Low water mark: " + lwm + "; and High water mark: " + hwm);
 		WatermarkType watermarkType;
 		if(Strings.isNullOrEmpty(this.workUnit.getProp(ConfigurationKeys.SOURCE_WATERMARK_TYPE))) {
 			watermarkType = null;
@@ -243,10 +242,10 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 			
 			if(!Strings.isNullOrEmpty(watermarkColumn)) {
 				this.highWatermark = this.getLatestWatermark(watermarkColumn, watermarkType, lwm, hwm);
-				this.log.info("High water mark from source:"+this.highWatermark);
+				this.log.info("High water mark from source: " + this.highWatermark);
 				long currentRunHighWatermark = (this.highWatermark != ConfigurationKeys.DEFAULT_WATERMARK_VALUE ? this.highWatermark : hwm);
 				
-				this.log.info("High water mark for the current run:"+currentRunHighWatermark);
+				this.log.info("High water mark for the current run: " + currentRunHighWatermark);
 				this.setRangePredicates(watermarkColumn, watermarkType, lwm, currentRunHighWatermark);
 			}
 			
@@ -257,13 +256,13 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 			}
 			
 		} catch (SchemaException e) {
-			throw new ExtractPrepareException("Failed to get schema for this object; error-" + e.getMessage());
+			throw new ExtractPrepareException("Failed to get schema for this object; error - " + e.getMessage(), e);
 		} catch (HighWatermarkException e) {
-			throw new ExtractPrepareException("Failed to get high watermark; error-" + e.getMessage());
+			throw new ExtractPrepareException("Failed to get high watermark; error - " + e.getMessage(), e);
 		} catch (RecordCountException e) {
-			throw new ExtractPrepareException("Failed to get record count; error-" + e.getMessage());
+			throw new ExtractPrepareException("Failed to get record count; error - " + e.getMessage(), e);
 		} catch (Exception e) {
-			throw new ExtractPrepareException("Failed to prepare the extract build; error-" + e.getMessage());
+			throw new ExtractPrepareException("Failed to prepare the extract build; error - " + e.getMessage(), e);
 		}
 		return this;
 	}
