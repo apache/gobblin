@@ -3,17 +3,18 @@ apply plugin: 'li-java'
 dependencies {
   compile project(":common-api")
   compile project(":qualitychecker")
-  compile project(":scheduler")
-  compile spec.external.commonsDbcp
   compile spec.external.commonsCli
   compile spec.external.avro
+  compile spec.external.avroMapred
   compile spec.external.gson
   compile spec.external.guava
+  compile spec.external.hadoop
   compile spec.external.jacksonCore
   compile spec.external.jacksonMapper
   compile spec.external.slf4j
 
-  testCompile project(':scheduler')
+  testCompile project(':runtime')
+  testCompile project(path: ':runtime', configuration: 'tests')
   testCompile project(':writer')
   testCompile project(path: ':writer', configuration: 'tests')
   testCompile spec.external.testng
@@ -32,3 +33,20 @@ test {
 }
 
 classification="library"
+
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:0.8'
+    }
+}
+
+apply plugin: 'shadow'
+
+shadow {
+    artifactSet {
+        exclude 'org.apache.hadoop'
+    }
+}

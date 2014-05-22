@@ -6,16 +6,15 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpRequestBase;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.params.BasicHttpParams;
-import org.apache.http.params.CoreConnectionPNames;
-import org.apache.http.params.HttpParams;
+import org.apache.http.conn.params.ConnRoutePNames;
 import org.apache.http.util.EntityUtils;
 
 import com.google.common.base.Joiner;
@@ -24,6 +23,8 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+
+import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.watermark.Predicate;
 import com.linkedin.uif.source.extractor.DataRecordException;
@@ -71,10 +72,12 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 	 */
 	protected HttpClient getHttpClient() {
 		if (httpClient == null) {
-		    HttpParams params = new BasicHttpParams();
-		    params.setIntParameter(CoreConnectionPNames.SO_TIMEOUT, 360000);
-		    httpClient = new DefaultHttpClient(params);
-			
+			if (super.workUnitState.contains(ConfigurationKeys.SOURCE_USE_PROXY_URL) &&
+				! super.workUnitState.getProp(ConfigurationKeys.SOURCE_USE_PROXY_URL).isEmpty()){
+				HttpHost proxy = new HttpHost(super.workUnitState.getProp(ConfigurationKeys.SOURCE_USE_PROXY_URL),
+					super.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_USE_PROXY_PORT));
+				httpClient.getParams().setParameter(ConnRoutePNames.DEFAULT_PROXY, proxy);
+			}
 		}
 		return httpClient;
 	}
@@ -97,8 +100,8 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 			} else {
 				this.log.debug("Connected successfully.");
 				List<Command> cmds = this.getSchemaMetadata(schema, entity);
-				CommandOutput response = this.getResponse(cmds);
-				array = (JsonArray) this.getSchema(response); // TODO why is this cast needed?
+				CommandOutput<?, ?> response = this.getResponse(cmds);
+				array = (JsonArray) this.getSchema(response);
 
 				for (JsonElement columnElement : array) {
 					Schema obj = gson.fromJson(columnElement, Schema.class);
@@ -152,9 +155,8 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 				throw new HighWatermarkException("Failed to connect.");
 			} else {
 				this.log.debug("Connected successfully.");
-				
 				List<Command> cmds = this.getHighWatermarkMetadata(schema, entity, watermarkColumn, predicateList);
-				CommandOutput response = this.getResponse(cmds);
+				CommandOutput<?, ?> response = this.getResponse(cmds);
 				CalculatedHighWatermark = this.getHighWatermark(response, watermarkColumn, watermarkSourceFormat);
 			}
 			this.log.info("High watermark:" + CalculatedHighWatermark);
@@ -175,7 +177,7 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 			} else {
 				this.log.debug("Connected successfully.");
 				List<Command> cmds = this.getCountMetadata(schema, entity, workUnit, predicateList);
-				CommandOutput response = this.getResponse(cmds);
+				CommandOutput<?, ?> response = this.getResponse(cmds);
 				count = this.getCount(response);
 				this.log.info("Source record count:" + count);
 			}
@@ -208,7 +210,7 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 					} else {
 					    cmds = SalesforceExtractor.constructGetCommand(this.getNextUrl());
 					}
-					CommandOutput response = this.getResponse(cmds);
+					CommandOutput<?, ?> response = this.getResponse(cmds);
 					rs = this.getData(response);
 				}
 			}
@@ -308,7 +310,7 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 	private CommandOutput<?, ?> getResponse(List<Command> cmds) throws RestApiProcessingException {
 		String url = cmds.get(0).getParams().get(0);
 	    
-	    this.log.info("URL: " + url);
+	    	this.log.info("URL: " + url);
 		String jsonStr = null;
 		HttpRequestBase httpRequest = new HttpGet(url);
 		addHeaders(httpRequest);
@@ -391,5 +393,4 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 
 		return defaultMessage;
 	}
-
 }
