@@ -15,6 +15,7 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.conn.params.ConnRoutePNames;
+import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.util.EntityUtils;
 
 import com.google.common.base.Joiner;
@@ -72,6 +73,8 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 	 */
 	protected HttpClient getHttpClient() {
 		if (httpClient == null) {
+		    httpClient = new DefaultHttpClient();
+		    
 			if (super.workUnitState.contains(ConfigurationKeys.SOURCE_USE_PROXY_URL) &&
 				! super.workUnitState.getProp(ConfigurationKeys.SOURCE_USE_PROXY_URL).isEmpty()){
 				HttpHost proxy = new HttpHost(super.workUnitState.getProp(ConfigurationKeys.SOURCE_USE_PROXY_URL),
