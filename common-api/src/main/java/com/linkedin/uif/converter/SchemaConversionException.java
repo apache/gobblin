@@ -15,4 +15,9 @@ public class SchemaConversionException extends Exception {
     public SchemaConversionException(String message, Throwable cause) {
         super(message, cause);
     }
+
+    public SchemaConversionException(String message)
+    {
+        super(message);
+    }
 }

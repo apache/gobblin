@@ -40,6 +40,7 @@
     "commonsDbcp": "commons-dbcp:commons-dbcp:1.4",
     "commonsLang": "commons-lang:commons-lang:2.4",
     "commonsConfiguration": "commons-configuration:commons-configuration:1.10",
+    "commonsIo": "commons-io:commons-io:2.4",
     "guava": "com.google.guava:guava:15.0",
     "gson":"com.google.code.gson:gson:2.2.4",
     "hadoop": "org.apache.hadoop:hadoop-core:1.0.4-p2",
@@ -58,7 +59,10 @@
     "metricsCore": "com.codahale.metrics:metrics-core:3.0.2",
     "commonsIO": "commons-io:commons-io:2.4",
     "salesforceWsc": "com.force.api:force-wsc:29.0.0",
-    "salesforcePartner": "com.force.api:force-partner-api:29.0.0"
+    "salesforcePartner": "com.force.api:force-partner-api:29.0.0",
+    "jsch": "com.jcraft:jsch:0.1.46",
+    "bouncyCastle": "org.bouncycastle:bcprov-jdk15on:1.48",
+    "bouncyCastlePGP": "org.bouncycastle:bcpg-jdk15on:1.48"
   },
   "product": {
     "container": {
