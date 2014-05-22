@@ -190,7 +190,7 @@ public class SftpExecutor
      * @throws SftpCommandFormatException
      */
     public void executeGetFileCommand(SftpCommand cmd, ChannelSftp sftp) throws SftpException, SftpCommandFormatException {
-        if (cmd.getCommandType().equals(SftpCommandType.GET_FILE)) {
+        if (!cmd.getCommandType().equals(SftpCommandType.GET_FILE)) {
             throw new SftpCommandFormatException("Command must be of type GET_FILE");
         }
         
@@ -213,7 +213,7 @@ public class SftpExecutor
      * @throws SftpCommandFormatException
      */
     public InputStream executeGetStreamCommand(SftpCommand cmd, ChannelSftp sftp) throws SftpException, SftpCommandFormatException {
-        if (cmd.getCommandType().equals(SftpCommandType.GET_STREAM)) {
+        if (!cmd.getCommandType().equals(SftpCommandType.GET_STREAM)) {
             throw new SftpCommandFormatException("Command must be of type GET_STREAM");
         }
         
