@@ -102,7 +102,7 @@ public class Task implements Runnable, Serializable {
             // Original source schema
             Object sourceSchema = extractor.getSchema();
             if (sourceSchema == null) {
-                LOG.error("No source schema extracted for task " + this.taskId);
+                LOG.error("No source schema extracted for task " + this.taskId + " task will not extract data. Quitting.");
                 return;
             }
 
@@ -117,7 +117,7 @@ public class Task implements Runnable, Serializable {
                 // Convert the source schema to a schema ready for the writer
                 schemaForWriter = converter.convertSchema(sourceSchema, this.taskState);
             }
-            
+                        
             // Construct the row level policy checker
             rowChecker = buildRowLevelPolicyChecker(this.taskState);
             RowLevelPolicyCheckResults rowResults = new RowLevelPolicyCheckResults();

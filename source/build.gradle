@@ -10,12 +10,16 @@ dependencies {
     compile spec.external.httpclient
     compile spec.external.httpcore
     compile spec.external.commonsLang
+    compile spec.external.commonsIo
     compile spec.external.gson
     compile spec.external.slf4j
     compile spec.external.salesforceWsc
     compile spec.external.salesforcePartner
     compile spec.external.jacksonCore
     compile spec.external.jacksonMapper
+    compile spec.external.jsch
+    compile spec.external.bouncyCastle
+    compile spec.external.bouncyCastlePGP
 
     testCompile spec.external.testng
 }

@@ -22,7 +22,6 @@ import org.apache.hadoop.io.Writable;
  */
 public class State implements Writable
 {
-
   private String id;
 
   private Properties properties = new Properties();

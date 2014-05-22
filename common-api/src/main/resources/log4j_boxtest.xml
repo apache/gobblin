@@ -13,7 +13,7 @@
     </rollingPolicy>
     
     <layout class="org.apache.log4j.PatternLayout">
-      <param name="ConversionPattern" value="%d{yyyy-MM-dd HH:mm:ss z} %-5p [%t] %C %X{tableName} - %m%n"/>
+      <param name="ConversionPattern" value="%d{yyyy-MM-dd HH:mm:ss z} %-5p [%t] %C %X{tableName} %L - %m%n"/>
     </layout>
   </appender>
 
