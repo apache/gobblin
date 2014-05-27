@@ -104,26 +104,17 @@ public class MRJobLauncher extends AbstractJobLauncher {
         Path jarFileDir = new Path(
                 jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY),
                 jobName + Path.SEPARATOR + "_jars");
-        boolean hasJobJars = false;
-        if (jobProps.containsKey(ConfigurationKeys.JOB_JAR_FILES_KEY)) {
-            hasJobJars = true;
-            Iterable<String> jarFiles = SPLITTER.split(
-                    jobProps.getProperty(ConfigurationKeys.JOB_JAR_FILES_KEY));
-            for (String jarFile : jarFiles) {
-                Path srcJarFile = new Path(jarFile);
-                // DistributedCache requires absolute path, so we need to use makeQualified.
-                Path destJarFile = new Path(this.fs.makeQualified(jarFileDir), srcJarFile.getName());
-                // Copy the jar file from local file system to HDFS
-                this.fs.copyFromLocalFile(srcJarFile, destJarFile);
-                // Then add the jar file on HDFS to the classpath
-                LOG.info(String.format("Adding %s to classpath", destJarFile));
-                DistributedCache.addFileToClassPath(destJarFile, this.conf, this.fs);
-            }
+        boolean hasJars = false;
+        // Add frmework jars to the classpath for the mappers/reducer
+        if (jobProps.containsKey(ConfigurationKeys.FRAMEWORK_JAR_FILES_KEY)) {
+            hasJars = true;
+            addJars(jarFileDir, jobProps.getProperty(ConfigurationKeys.FRAMEWORK_JAR_FILES_KEY));
         }
-
-        // Whether to use a reducer to combine task states output by the mappers
-        boolean useReducer = Boolean.valueOf(
-                jobProps.getProperty(ConfigurationKeys.MR_JOB_USE_REDUCER_KEY, "true"));
+        // Add job-specific jars to the classpath for the mappers
+        if (jobProps.containsKey(ConfigurationKeys.JOB_JAR_FILES_KEY)) {
+            hasJars = true;
+            addJars(jarFileDir, jobProps.getProperty(ConfigurationKeys.JOB_JAR_FILES_KEY));
+        }
 
         // Preparing a Hadoop MR job
         Job job = Job.getInstance(this.conf, JOB_NAME_PREFIX + jobName);
@@ -131,6 +122,10 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
         job.setMapperClass(TaskRunner.class);
         job.setReducerClass(TaskStateCollector.class);
+
+        // Whether to use a reducer to combine task states output by the mappers
+        boolean useReducer = Boolean.valueOf(
+                jobProps.getProperty(ConfigurationKeys.MR_JOB_USE_REDUCER_KEY, "true"));
         // We need one reducer to collect task states output by the mappers if a
         // reducer is to be used, otherwise the job is mapper-only.
         job.setNumReduceTasks(useReducer ? 1 : 0);
@@ -203,7 +198,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
             // Cleanup job jar file directory
             try {
-                if (hasJobJars) {
+                if (hasJars) {
                     this.fs.delete(jarFileDir, true);
                 }
             } catch (IOException ioe) {
@@ -218,6 +213,24 @@ public class MRJobLauncher extends AbstractJobLauncher {
                 this.fs,
                 jobProps.getProperty(ConfigurationKeys.MR_JOB_LOCK_DIR_KEY),
                 jobName);
+    }
+
+    /**
+     * Add framework or job-specific jars to the classpath through DistributedCache
+     * so the mappers/reducer can use them.
+     */
+    private void addJars(Path jarFileDir, String jarFileList) throws IOException {
+        Iterable<String> jarFiles = SPLITTER.split(jarFileList);
+        for (String jarFile : jarFiles) {
+            Path srcJarFile = new Path(jarFile);
+            // DistributedCache requires absolute path, so we need to use makeQualified.
+            Path destJarFile = new Path(this.fs.makeQualified(jarFileDir), srcJarFile.getName());
+            // Copy the jar file from local file system to HDFS
+            this.fs.copyFromLocalFile(srcJarFile, destJarFile);
+            // Then add the jar file on HDFS to the classpath
+            LOG.info(String.format("Adding %s to classpath", destJarFile));
+            DistributedCache.addFileToClassPath(destJarFile, this.conf, this.fs);
+        }
     }
 
     /**

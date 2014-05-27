@@ -146,6 +146,8 @@ public class ConfigurationKeys {
     public static final String DEFAULT_METRICS_REPORT_INTERVAL = "60000";
     public static final String JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY = "jobconf.monitor.interval";
     public static final String DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL = "300000";
+    // Comma-separated list of framework jars to be added to the classpath
+    public static final String FRAMEWORK_JAR_FILES_KEY = "framework.jars";
 
     /**
      * Configuration properties used by the quality checker
