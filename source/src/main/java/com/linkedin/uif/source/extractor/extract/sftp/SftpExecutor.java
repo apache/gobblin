@@ -10,17 +10,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Splitter;
-
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.ChannelSftp.LsEntry;
 import com.jcraft.jsch.Channel;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.ProxyHTTP;
 import com.jcraft.jsch.Session;
 import com.jcraft.jsch.SftpException;
 import com.jcraft.jsch.SftpProgressMonitor;
 import com.jcraft.jsch.UserInfo;
-
 import com.linkedin.uif.source.extractor.extract.Command;
 import com.linkedin.uif.source.extractor.extract.CommandOutput;
 import com.linkedin.uif.source.extractor.extract.sftp.SftpCommand.SftpCommandType;
@@ -49,7 +48,7 @@ public class SftpExecutor
      * @param hostName is the host name to connect to
      * @return a SftpChannel that is connected to the host
      */
-    public static Channel connect(String privateKey, String knownHosts, String userName, String hostName) {
+    public static Channel connect(String privateKey, String knownHosts, String userName, String hostName, String proxyHost, int proxyPort) {
         JSch.setLogger(new JSchLogger());
         JSch jsch = new JSch();
         log.info("Attempting to connect to source via SFTP");
@@ -58,6 +57,11 @@ public class SftpExecutor
             jsch.setKnownHosts(knownHosts);
 
             Session session = jsch.getSession(userName, hostName);
+            
+            if (proxyHost != null && proxyPort >= 0) {
+                session.setProxy(new ProxyHTTP(proxyHost, proxyPort));
+            }
+            
             UserInfo ui = new MyUserInfo();
             session.setUserInfo(ui);
 
