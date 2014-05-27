@@ -130,6 +130,9 @@ public class JobScheduler extends AbstractIdleService {
         Preconditions.checkNotNull(jobProps);
 
         String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+        if (Strings.isNullOrEmpty(jobName)) {
+            throw new JobException("A job must have a job name specified by job.name");
+        }
 
         // Check if the job has been disabled
         boolean disabled = Boolean.valueOf(
@@ -222,6 +225,10 @@ public class JobScheduler extends AbstractIdleService {
      */
     public void runJob(Properties jobProps, JobListener jobListener) throws JobException {
         String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+        if (Strings.isNullOrEmpty(jobName)) {
+            throw new JobException("A job must have a job name specified by job.name");
+        }
+
         // Populate the assigned job ID
         jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, JobLauncherUtil.newJobId(jobName));
 
