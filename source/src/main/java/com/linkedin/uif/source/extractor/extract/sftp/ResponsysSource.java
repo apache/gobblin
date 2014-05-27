@@ -7,17 +7,14 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.SftpException;
-
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.WorkUnitState;
@@ -76,10 +73,13 @@ public class ResponsysSource implements Source<String, String>
     {
         initLogger(state);
         this.sourceState = state;
-        this.sftp = (ChannelSftp) SftpExecutor.connect(this.sourceState.getProp(ConfigurationKeys.SOURCE_PRIVATE_KEY),
-                                                       this.sourceState.getProp(ConfigurationKeys.SOURCE_KNOWN_HOSTS),
-                                                       this.sourceState.getProp(ConfigurationKeys.SOURCE_USERNAME),
-                                                       this.sourceState.getProp(ConfigurationKeys.SOURCE_HOST_NAME));
+        this.sftp = (ChannelSftp) SftpExecutor.connect(state.getProp(ConfigurationKeys.SOURCE_PRIVATE_KEY),
+                                                       state.getProp(ConfigurationKeys.SOURCE_KNOWN_HOSTS),
+                                                       state.getProp(ConfigurationKeys.SOURCE_USERNAME),
+                                                       state.getProp(ConfigurationKeys.SOURCE_HOST_NAME),
+                                                       state.getProp(ConfigurationKeys.SOURCE_USE_PROXY_URL),
+                                                       state.getPropAsInt(ConfigurationKeys.SOURCE_USE_PROXY_PORT, -1));
+        
         log.info("Get work units");
         List<WorkUnit> workUnits = Lists.newArrayList();
         String nameSpaceName = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY);

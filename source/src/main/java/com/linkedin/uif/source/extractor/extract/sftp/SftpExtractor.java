@@ -60,7 +60,9 @@ public abstract class SftpExtractor<S, D> extends BaseExtractor<S, D> implements
             sftp = (ChannelSftp) SftpExecutor.connect(this.workUnit.getProp(ConfigurationKeys.SOURCE_PRIVATE_KEY),
                                                       this.workUnit.getProp(ConfigurationKeys.SOURCE_KNOWN_HOSTS),
                                                       this.workUnit.getProp(ConfigurationKeys.SOURCE_USERNAME),
-                                                      this.workUnit.getProp(ConfigurationKeys.SOURCE_HOST_NAME));
+                                                      this.workUnit.getProp(ConfigurationKeys.SOURCE_HOST_NAME),
+                                                      this.workUnit.getProp(ConfigurationKeys.SOURCE_USE_PROXY_URL),
+                                                      this.workUnit.getPropAsInt(ConfigurationKeys.SOURCE_USE_PROXY_PORT, -1));
         }
         return this.sftp;
     }
