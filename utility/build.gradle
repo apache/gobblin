@@ -2,7 +2,8 @@ apply plugin: 'li-java'
 
 dependencies {
   compile project(":common-api")
-  compile spec.external.commonsDbcp
+  compile spec.external.commonsEmail
+  compile spec.external.guava
 
   testCompile spec.external.testng
 }

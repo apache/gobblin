@@ -148,6 +148,10 @@ public class ConfigurationKeys {
     public static final String DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL = "300000";
     // Comma-separated list of framework jars to be added to the classpath
     public static final String FRAMEWORK_JAR_FILES_KEY = "framework.jars";
+    public static final String TASK_FAILURE_EXCEPTION_KEY = "task.failure.exception";
+    public static final String JOB_FAILURES_KEY = "job.failures";
+    public static final String JOB_MAX_FAILURES_KEY = "job.max.failures";
+    public static final int DEFAULT_JOB_MAX_FAILURES = 1;
 
     /**
      * Configuration properties used by the quality checker
@@ -239,4 +243,17 @@ public class ConfigurationKeys {
     public static final String MR_JOB_ROOT_DIR_KEY = "mr.job.root.dir";
     public static final String MR_JOB_LOCK_DIR_KEY = "mr.job.lock.dir";
     public static final String MR_JOB_USE_REDUCER_KEY = "mr.job.use.reducer";
+
+    /**
+     * Configuration properties for email settings.
+     */
+    public static final String EMAIL_HOST_KEY = "email.host";
+    public static final String DEFAULT_EMAIL_HOST = "localhost";
+    public static final String EMAIL_SMTP_PORT_KEY = "email.smtp.port";
+    public static final int DEFAULT_EMAIL_SMTP_PORT = 465;
+    public static final String EMAIL_USER_KEY = "email.user";
+    public static final String EMAIL_PASSWORD_KEY = "email.password";
+    public static final String EMAIL_FROM_KEY = "email.from";
+    public static final String EMAIL_TOS_KEY = "email.tos";
+
 }

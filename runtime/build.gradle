@@ -5,6 +5,7 @@ dependencies {
   compile project(":metastore")
   compile project(":qualitychecker")
   compile project(":writer")
+  compile project(":utility")
   compile spec.external.avro
   compile spec.external.avroMapred
   compile spec.external.commonsConfiguration
@@ -22,6 +23,7 @@ dependencies {
   compile spec.external.gson
   compile spec.external.metricsCore
   compile spec.external.commonsIO
+  compile spec.external.commonsEmail
   compile files('../converter/src/main/resources/lumos-common-2.0.0.jar')
 
   testCompile spec.external.testng

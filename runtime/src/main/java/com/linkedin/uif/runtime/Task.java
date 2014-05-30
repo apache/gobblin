@@ -180,6 +180,7 @@ public class Task implements Runnable, Serializable {
         } catch (Exception e) {
             LOG.error(String.format("Task %s failed", this.taskId), e);
             this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+            this.taskState.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, e.toString());
         } finally {
             // Cleanup when the task completes or fails
             if (extractor != null) {

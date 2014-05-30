@@ -39,6 +39,7 @@
     "avroMapred": "org.apache.avro:avro-mapred:1.7.6",
     "commonsCli": "commons-cli:commons-cli:1.2",
     "commonsDbcp": "commons-dbcp:commons-dbcp:1.4",
+    "commonsEmail": "org.apache.commons:commons-email:1.3.2",
     "commonsLang": "commons-lang:commons-lang:2.4",
     "commonsConfiguration": "commons-configuration:commons-configuration:1.10",
     "commonsHttpClient": "commons-httpclient:commons-httpclient:3.1",
