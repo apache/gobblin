@@ -36,6 +36,7 @@ public abstract class JobLauncherTestBase {
 
         Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
         Assert.assertEquals(jobState.getCompletedTasks(), 2);
+        Assert.assertEquals(jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY), 0);
 
         for (TaskState taskState : jobState.getTaskStates()) {
             File sourceFile = new File(taskState.getProp(SOURCE_FILE_KEY));
