@@ -185,8 +185,8 @@ public class JsonElementConversionFactory {
     public Schema getSchema() {
       if (nullable) {
         List<Schema> list = new ArrayList<Schema>();
-        list.add(schema());
         list.add(Schema.create(Schema.Type.NULL));
+        list.add(schema());
         return Schema.createUnion(list);
       } else {
         return schema();
