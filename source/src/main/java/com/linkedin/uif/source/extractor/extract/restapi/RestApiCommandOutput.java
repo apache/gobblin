@@ -8,11 +8,7 @@ import com.linkedin.uif.source.extractor.extract.CommandOutput;
 public class RestApiCommandOutput implements CommandOutput<RestApiCommand, String>
 {
 
-    private Map<RestApiCommand, String> results;
-    
-    public RestApiCommandOutput() {
-        results = new HashMap<RestApiCommand, String>();
-    }
+    private Map<RestApiCommand, String> results = new HashMap<RestApiCommand, String>();
     
     @Override
     public void storeResults(Map<RestApiCommand, String> results)

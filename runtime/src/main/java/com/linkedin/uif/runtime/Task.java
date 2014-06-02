@@ -102,7 +102,7 @@ public class Task implements Runnable, Serializable {
             // Original source schema
             Object sourceSchema = extractor.getSchema();
             if (sourceSchema == null) {
-                LOG.error("No source schema extracted for task " + this.taskId + " task will not extract data. Quitting.");
+                LOG.error("Not extracting data because no source schema available for task " + this.taskId);
                 return;
             }
 

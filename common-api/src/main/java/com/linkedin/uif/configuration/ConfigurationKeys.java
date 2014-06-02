@@ -84,6 +84,7 @@ public class ConfigurationKeys {
     public static final String CONVERTER_AVRO_TIME_FORMAT = "converter.avro.time.format";
     public static final String CONVERTER_AVRO_TIMESTAMP_FORMAT = "converter.avro.timestamp.format";
     public static final String CONVERTER_AVRO_BINARY_CHARSET = "converter.avro.binary.charset";
+    public static final String CONVERTER_CSV_TO_JSON_DELIMITER = "converter.csv.to.json.delimiter";
 
     /**
      * Writer configuration properties
@@ -214,9 +215,6 @@ public class ConfigurationKeys {
     public static final String SOURCE_IS_WATERMARK_OVERRIDE = "source.is.watermark.override";
     public static final String SOURCE_MAX_NUMBER_OF_PARTITIONS = "source.max.number.of.partitions";
     public static final String SOURCE_LOW_WATERMARK_BACKUP_SECS = "source.low.watermark.backup.secs";
-    public static final String SOURCE_DATA_COMMANDS = "source.data.commands";
-    public static final String SOURCE_RESPONSYS_SCHEMA = "source.responsys.schema";
-    public static final String SOURCE_SCHEMA_DELIMITER = "source.schema.delimiter";
     public static final String SOURCE_CLIENT_ID = "source.client.id";
     public static final String SOURCE_CLIENT_SECRET = "source.client.secret";
     public static final String SOURCE_USERNAME = "source.username";
@@ -226,17 +224,19 @@ public class ConfigurationKeys {
     public static final String SOURCE_VERSION = "source.version";
     public static final String SOURCE_TIMEOUT = "source.timeout";
     public static final String SOURCE_REST_URL = "source.rest.url";
-    public static final String SOURCE_TEMP = "source.temp";
-    public static final String SOURCE_SINGLE_PULL = "source.is.single.pull";
-    public static final String SOURCE_RESPONSYS_FS_SNAPSHOT = "source.responsys.fs.snapshot";
-    public static final String SOURCE_FILES_TO_PULL = "source.files.to.pull";
-    public static final String SOURCE_PRIVATE_KEY = "source.private.key.location";
-    public static final String SOURCE_KNOWN_HOSTS = "source.known.hosts.location";
     public static final String SOURCE_FETCH_SIZE = "source.fetch.size";
     public static final String SOURCE_IS_SPECIFIC_API_ACTIVE = "source.is.specific.api.active";
-    public static final String SOURCE_SKIP_FIRST_LINE = "source.skip.first.line";
-    public static final String SOURCE_DECRYPT_KEY = "source.decrypt.key.location";
-
+    public static final String SOURCE_CSV_SKIP_FIRST_LINE = "source.csv.skip.first.line";
+    
+    /**
+     * Configuration properties for SFTP
+     */
+    public static final String SOURCE_SFTP_DATA_DIRECTORY = "source.sftp.data.directory";
+    public static final String SOURCE_SFTP_SETUP_COMMANDS = "source.sftp.setup.commands";
+    public static final String SOURCE_SFTP_FILES_TO_PULL = "source.sftp.files.to.pull";
+    public static final String SOURCE_SFTP_PRIVATE_KEY_LOCATION = "source.sftp.private.key.location";
+    public static final String SOURCE_SFTP_KNOWN_HOSTS_LOCATION = "source.sftp.known.hosts.location";
+    
     public static final long DEFAULT_WATERMARK_VALUE = -1;
     public static final int DEFAULT_MAX_NUMBER_OF_PARTITIONS = 20;
     public static final int DEFAULT_SOURCE_FETCH_SIZE = 1000;

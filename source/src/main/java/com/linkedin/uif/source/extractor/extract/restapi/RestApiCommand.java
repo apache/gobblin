@@ -21,25 +21,11 @@ public class RestApiCommand implements Command {
     public RestApiCommand() {
         this.params = new ArrayList<String>();
     }
-    
-    @Override
-    public Command withParams(Collection<String> params)
-    {
-        this.params.addAll(params);
-        return this;
-    }
 
     @Override
     public List<String> getParams()
     {
         return this.params;
-    }
-
-    @Override
-    public Command withCommandType(CommandType cmd)
-    {
-        this.cmd = (RestApiCommandType) cmd;
-        return this;
     }
 
     @Override
@@ -51,7 +37,9 @@ public class RestApiCommand implements Command {
     @Override
     public Command build(Collection<String> params, CommandType cmd)
     {
-        return this.withCommandType(cmd).withParams(params);
+        this.params.addAll(params);
+        this.cmd = (RestApiCommandType) cmd;
+        return this;
     }
     
     @Override

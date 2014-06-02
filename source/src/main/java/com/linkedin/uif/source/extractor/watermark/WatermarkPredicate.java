@@ -45,8 +45,6 @@ public class WatermarkPredicate
 		if(watermarkValue != DEFAULT_WATERMARK_VALUE) {
 			condition = this.watermark.getWatermarkCondition(extractor, watermarkValue, operator);
 		}
-
-		Strings.isNullOrEmpty(watermarkColumn);
 		
 		if (Strings.isNullOrEmpty(watermarkColumn) || condition.equals("")) {
 			return null;

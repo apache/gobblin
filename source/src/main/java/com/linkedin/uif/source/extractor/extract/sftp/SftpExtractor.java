@@ -36,7 +36,7 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  * @param <D> type of data record
  * @param <S> type of schema
  */
-public abstract class SftpExtractor<S, D> extends BaseExtractor<S, D> implements SourceSpecificLayer<S, D>
+public abstract class SftpExtractor extends BaseExtractor<String, String> implements SourceSpecificLayer<String, String>
 {
     private static final Logger log = LoggerFactory.getLogger(SftpExtractor.class);
     
@@ -46,27 +46,24 @@ public abstract class SftpExtractor<S, D> extends BaseExtractor<S, D> implements
     public SftpExtractor(WorkUnitState workUnitState)
     {
         super(workUnitState);
+        this.sftp = createSftpConnection();
         this.executor = new SftpExecutor();
     }
     
     /**
      * Initializes the ChannelSftp
-     * if it hasn't been created
-     * otherwise it just returns it
      * @return the ChannelSftp connection
      */
-    public ChannelSftp getSftp() {
-        if (sftp == null) {
-            sftp = (ChannelSftp) SftpExecutor.connect(this.workUnit.getProp(ConfigurationKeys.SOURCE_PRIVATE_KEY),
-                                                      this.workUnit.getProp(ConfigurationKeys.SOURCE_KNOWN_HOSTS),
-                                                      this.workUnit.getProp(ConfigurationKeys.SOURCE_USERNAME),
-                                                      this.workUnit.getProp(ConfigurationKeys.SOURCE_HOST_NAME),
-                                                      this.workUnit.getProp(ConfigurationKeys.SOURCE_USE_PROXY_URL),
-                                                      this.workUnit.getPropAsInt(ConfigurationKeys.SOURCE_USE_PROXY_PORT, -1));
-        }
-        return this.sftp;
+    public ChannelSftp createSftpConnection() {
+        ChannelSftp sftp = (ChannelSftp) SftpExecutor.connect(this.workUnit.getProp(ConfigurationKeys.SOURCE_SFTP_PRIVATE_KEY_LOCATION),
+                                                              this.workUnit.getProp(ConfigurationKeys.SOURCE_SFTP_KNOWN_HOSTS_LOCATION),
+                                                              this.workUnit.getProp(ConfigurationKeys.SOURCE_USERNAME),
+                                                              this.workUnit.getProp(ConfigurationKeys.SOURCE_HOST_NAME),
+                                                              this.workUnit.getProp(ConfigurationKeys.SOURCE_USE_PROXY_URL),
+                                                              this.workUnit.getPropAsInt(ConfigurationKeys.SOURCE_USE_PROXY_PORT, -1));
+        return sftp;
     }
-     
+
     /**
      * Gets the max watermark
      * @return the max watermark
@@ -77,7 +74,7 @@ public abstract class SftpExtractor<S, D> extends BaseExtractor<S, D> implements
         log.info("Getting max watermark");
         List<Command> cmds = this.getHighWatermarkMetadata(schema, entity, watermarkColumn, snapshotPredicateList);
         try {
-            CommandOutput<SftpCommand, List<String>> response = SftpExecutor.executeUnixCommands(cmds, getSftp());
+            CommandOutput<SftpCommand, List<String>> response = SftpExecutor.executeUnixCommands(cmds, this.sftp);
             return this.getHighWatermark(response, watermarkColumn, watermarkSourceFormat);
         }
         catch (SftpException e)
@@ -100,9 +97,9 @@ public abstract class SftpExtractor<S, D> extends BaseExtractor<S, D> implements
         List<Command> cmds = this.getSchemaMetadata(schema, entity);
         try
         {
-            CommandOutput<SftpCommand, List<String>> response = SftpExecutor.executeUnixCommands(cmds, getSftp());
-            S array = this.getSchema(response);
-            this.setOutputSchema((S) array);
+            CommandOutput<SftpCommand, List<String>> response = SftpExecutor.executeUnixCommands(cmds, this.sftp);
+            String array = this.getSchema(response);
+            this.setOutputSchema(array);
         }
         catch (SftpException e)
         {
@@ -119,7 +116,7 @@ public abstract class SftpExtractor<S, D> extends BaseExtractor<S, D> implements
      */
     @SuppressWarnings("unchecked")
     @Override
-    public Iterator<D> getRecordSet(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws DataRecordException, IOException
+    public Iterator<String> getRecordSet(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws DataRecordException, IOException
     {
         try
         {
@@ -132,12 +129,12 @@ public abstract class SftpExtractor<S, D> extends BaseExtractor<S, D> implements
                 if (cmd instanceof SftpCommand) {
                     SftpCommand sftpCmd = (SftpCommand) cmd;
                     if (sftpCmd.getCommandType().equals(SftpCommandType.GET_FILE)) {
-                        executor.executeGetFileCommand(sftpCmd, this.getSftp());
+                        executor.executeGetFileCommand(sftpCmd, this.sftp);
                     } else if (sftpCmd.getCommandType().equals(SftpCommandType.GET_STREAM)) {
-                        InputStream stream = executor.executeGetStreamCommand(sftpCmd, this.getSftp());
-                        return (Iterator<D>) IOUtils.lineIterator(stream, "UTF-8");
+                        InputStream stream = executor.executeGetStreamCommand(sftpCmd, this.sftp);
+                        return IOUtils.lineIterator(stream, "UTF-8");
                     } else {
-                        SftpExecutor.executeUnixCommand(sftpCmd, getSftp());
+                        SftpExecutor.executeUnixCommand(sftpCmd, this.sftp);
                     }
                 } else {
                     throw new DataRecordException("Illegal command given to getRecordSet()");
@@ -183,6 +180,6 @@ public abstract class SftpExtractor<S, D> extends BaseExtractor<S, D> implements
     @Override
     public void closeConnection() throws Exception
     {
-        this.getSftp().disconnect();
+        this.sftp.disconnect();
     }
 }

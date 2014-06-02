@@ -48,7 +48,7 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  * @param <D> type of data record
  * @param <S> type of schema
  */
-public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> implements SourceSpecificLayer<S, D>, RestApiSpecificLayer {
+public abstract class RestApiExtractor extends BaseExtractor<JsonArray, JsonElement> implements SourceSpecificLayer<JsonArray, JsonElement>, RestApiSpecificLayer {
 	private static final Gson gson = new Gson();
 	private HttpClient httpClient = null;
 	private boolean autoEstablishAuthToken = false;
@@ -89,7 +89,7 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 	public void extractMetadata(String schema, String entity, WorkUnit workUnit) throws SchemaException {
 		this.log.info("Extract Metadata using Rest Api");
 		JsonArray columnArray = new JsonArray();
-		String inputQuery = workUnit.getProp("source.query");
+		String inputQuery = workUnit.getProp(ConfigurationKeys.SOURCE_QUERY);
 		List<String> columnListInQuery = null;
 		JsonArray array = null;
 		if (!Strings.isNullOrEmpty(inputQuery)) {
@@ -104,7 +104,7 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 				this.log.debug("Connected successfully.");
 				List<Command> cmds = this.getSchemaMetadata(schema, entity);
 				CommandOutput<?, ?> response = this.getResponse(cmds);
-				array = (JsonArray) this.getSchema(response);
+				array = this.getSchema(response);
 
 				for (JsonElement columnElement : array) {
 					Schema obj = gson.fromJson(columnElement, Schema.class);
@@ -130,16 +130,16 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 					}
 				}
 
-				if (inputQuery == null && this.columnList.size() != 0) {
-					this.log.debug("New query with the required column list");
+//				if (inputQuery == null && this.columnList.size() != 0) {
+//					this.log.debug("New query with the required column list");
 					this.updatedQuery = "SELECT " + Joiner.on(",").join(columnList) + " FROM " + entity;
-
-				} else {
-					this.log.debug("Query is same as input query");
-					this.updatedQuery = inputQuery;
-				}
+					log.info(this.updatedQuery);
+//				} else {
+//					this.log.debug("Query is same as input query");
+//					this.updatedQuery = inputQuery;
+//				}
 				this.log.debug("Schema:" + columnArray);
-				this.setOutputSchema((S) columnArray);
+				this.setOutputSchema(columnArray);
 			}
 
 		} catch (Exception e) {
@@ -191,9 +191,9 @@ public abstract class RestApiExtractor<S, D> extends BaseExtractor<S, D> impleme
 	}
 
 	@Override
-	public Iterator<D> getRecordSet(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws DataRecordException {
+	public Iterator<JsonElement> getRecordSet(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws DataRecordException {
 		this.log.debug("Get data records using Rest Api");
-		Iterator<D> rs = null;
+		Iterator<JsonElement> rs = null;
 		List<Command> cmds;
 		try {
 			boolean success = true;
