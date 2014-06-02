@@ -43,20 +43,8 @@ public class SftpCommand implements Command {
     }
     
     @Override
-    public Command withParams(Collection<String> params) {
-        this.params.addAll(params);
-        return this;
-    }
-    
-    @Override
     public List<String> getParams() {
         return this.params;
-    }
-    
-    @Override
-    public Command withCommandType(CommandType cmd) {
-        this.cmd = (SftpCommandType) cmd;
-        return this;
     }
     
     @Override
@@ -72,6 +60,8 @@ public class SftpCommand implements Command {
 
     @Override
     public Command build(Collection<String> params, CommandType cmd) {
-        return this.withCommandType(cmd).withParams(params);
+        this.params.addAll(params);
+        this.cmd = (SftpCommandType) cmd;
+        return this;
     }
 }

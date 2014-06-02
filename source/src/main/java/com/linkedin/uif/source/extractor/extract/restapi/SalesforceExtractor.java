@@ -69,7 +69,7 @@ import com.sforce.ws.ConnectorConfig;
  * @param <D> type of data record
  * @param <S> type of schema
  */
-public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
+public class SalesforceExtractor extends RestApiExtractor {
 	private static final String DEFAULT_SERVICES_DATA_PATH = "/services/data";
 	private static final String SOQL_RESOURCE = "/queryAll";
 	private static final String DEFAULT_AUTH_TOKEN_PATH = "/services/oauth2/token";
@@ -178,9 +178,16 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	}
 
 	@Override
-	public S getSchema(CommandOutput<?, ?> response) throws SchemaException {
-		this.log.info("Get schema from salesforce:");
-		String output = (String) response.getResults().values().iterator().next();
+	public JsonArray getSchema(CommandOutput<?, ?> response) throws SchemaException {
+		this.log.info("Get schema from salesforce");
+		
+		String output;
+		Iterator<String> itr = (Iterator<String>) response.getResults().values().iterator();
+		if (itr.hasNext()) {
+		    output = itr.next();
+		} else {
+		    throw new SchemaException("Failed to get schema from salesforce; REST response has no output");
+		}
 		
 		JsonArray fieldJsonArray = new JsonArray();
 		JsonElement element = gson.fromJson(output, JsonObject.class);
@@ -216,7 +223,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 		} catch (Exception e) {
 			throw new SchemaException("Failed to get schema from salesforce; error - " + e.getMessage(), e);
 		}
-		return (S) fieldJsonArray;
+		return fieldJsonArray;
 	}
 
 	@Override
@@ -259,7 +266,14 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	@Override
 	public long getHighWatermark(CommandOutput<?, ?> response, String watermarkColumn, String format) throws HighWatermarkException {
 		this.log.info("Get high watermark from salesforce");
-        String output = (String) response.getResults().values().iterator().next();
+		
+        String output;
+        Iterator<String> itr = (Iterator<String>) response.getResults().values().iterator();
+        if (itr.hasNext()) {
+            output = itr.next();
+        } else {
+            throw new HighWatermarkException("Failed to get high watermark from salesforce; REST response has no output");
+        }
 		
 		JsonElement element = gson.fromJson(output, JsonObject.class);
 		long high_ts;
@@ -330,7 +344,14 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	@Override
 	public long getCount(CommandOutput<?, ?> response) throws RecordCountException {
 		this.log.info("Get source record count from salesforce");
-        String output = (String) response.getResults().values().iterator().next();
+        
+        String output;
+        Iterator<String> itr = (Iterator<String>) response.getResults().values().iterator();
+        if (itr.hasNext()) {
+            output = itr.next();
+        } else {
+            throw new RecordCountException("Failed to get count from salesforce; REST response has no output");
+        }
 		
 		JsonElement element = gson.fromJson(output, JsonObject.class);
 		long count;
@@ -390,11 +411,18 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	}
 
 	@Override
-	public Iterator<D> getData(CommandOutput<?, ?> response) throws DataRecordException {
+	public Iterator<JsonElement> getData(CommandOutput<?, ?> response) throws DataRecordException {
 		this.log.debug("Get data records from response");
-        String output = (String) response.getResults().values().iterator().next();
+
+        String output;
+        Iterator<String> itr = (Iterator<String>) response.getResults().values().iterator();
+        if (itr.hasNext()) {
+            output = itr.next();
+        } else {
+            throw new DataRecordException("Failed to get data from salesforce; REST response has no output");
+        }
 		
-		List<D> rs = new ArrayList<D>();
+		List<JsonElement> rs = new ArrayList<JsonElement>();
 		JsonElement element = gson.fromJson(output, JsonObject.class);
 		JsonArray partRecords;
 		try {
@@ -411,7 +439,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 			Iterator<JsonElement> li = array.iterator();
 			while (li.hasNext()) {
 				JsonElement recordElement = li.next();
-				rs.add((D) recordElement);
+				rs.add(recordElement);
 			}
 			return rs.iterator();
 		} catch (Exception e) {
@@ -553,9 +581,9 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	}
 	
 	@Override
-	public Iterator<D> getRecordSetFromSourceApi(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws IOException {
+	public Iterator<JsonElement> getRecordSetFromSourceApi(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws IOException {
 		this.log.debug("Getting salesforce data using bulk api");
-		RecordSet<D> rs = null;
+		RecordSet<JsonElement> rs = null;
 		
 		try {
 			//Get query result ids in the first run
@@ -596,7 +624,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	 * Get soft deleted records using Rest Api
      * @return iterator with deleted records
 	 */
-	private Iterator<D> getSoftDeletedRecords(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws DataRecordException {
+	private Iterator<JsonElement> getSoftDeletedRecords(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws DataRecordException {
 		return this.getRecordSet(schema, entity, workUnit, predicateList);
 	}
 
@@ -720,9 +748,9 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 	 * Get data from the bulk api input stream
      * @return record set with each record as a JsonObject
 	 */
-	private RecordSet<D> getBulkData() throws DataRecordException {
+	private RecordSet<JsonElement> getBulkData() throws DataRecordException {
 		this.log.debug("Processing bulk api batch...");
-		RecordSetList<D> rs = new RecordSetList<D>();
+		RecordSetList<JsonElement> rs = new RecordSetList<JsonElement>();
 
 		try {
 			// if Buffer is empty then get stream for the new resultset id
@@ -769,7 +797,7 @@ public class SalesforceExtractor<S, D> extends RestApiExtractor<S, D> {
 			while ((csvRecord = reader.nextRecord()) != null) {
 				// Convert CSV record to JsonObject
 				JsonObject jsonObject = Utils.csvToJsonObject(this.bulkRecordHeader, csvRecord, this.bulkResultColumCount);
-                rs.add((D) jsonObject);
+                rs.add(jsonObject);
                 recordCount++;
 				this.bulkRecordCount++;
                 

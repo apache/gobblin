@@ -38,7 +38,7 @@ public class CsvToJsonConverter implements Converter<String, JsonArray, String, 
     @Override
     public JsonObject convertRecord(JsonArray outputSchema, String inputRecord, WorkUnitState workUnit) throws DataConversionException
     {
-        List<String> recordSplit = Lists.newArrayList(Splitter.on(workUnit.getProp(ConfigurationKeys.SOURCE_SCHEMA_DELIMITER)).split(inputRecord));
+        List<String> recordSplit = Lists.newArrayList(Splitter.on(workUnit.getProp(ConfigurationKeys.CONVERTER_CSV_TO_JSON_DELIMITER)).trimResults().split(inputRecord));
         JsonObject outputRecord = new JsonObject();
         
         for (int i = 0; i < outputSchema.size(); i++) {

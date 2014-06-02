@@ -3,7 +3,9 @@ package com.linkedin.uif.source.extractor.extract.sftp;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.Vector;
 
 import org.slf4j.Logger;
@@ -33,6 +35,7 @@ public class SftpExecutor
 {   
     private static final String CD = "CD";
     private static final String CHMOD = "CHMOD";
+    private static final Set<String> knownCmds = new HashSet<String>(Arrays.asList(CD, CHMOD));
     
     private static Logger log = LoggerFactory.getLogger(SftpExecutor.class);
     
@@ -51,12 +54,14 @@ public class SftpExecutor
     public static Channel connect(String privateKey, String knownHosts, String userName, String hostName, String proxyHost, int proxyPort) {
         JSch.setLogger(new JSchLogger());
         JSch jsch = new JSch();
+        Session session = null;
+        Channel channel = null;
         log.info("Attempting to connect to source via SFTP");
         try {
             jsch.addIdentity(privateKey);
             jsch.setKnownHosts(knownHosts);
 
-            Session session = jsch.getSession(userName, hostName);
+            session = jsch.getSession(userName, hostName);
             
             if (proxyHost != null && proxyPort >= 0) {
                 session.setProxy(new ProxyHTTP(proxyHost, proxyPort));
@@ -67,15 +72,20 @@ public class SftpExecutor
 
             session.connect();
 
-            Channel channel = session.openChannel("sftp");
+            channel = session.openChannel("sftp");
             channel.connect();
             log.info("Finished connecting to source");
             return channel;
         } catch (JSchException e) {
+            if (session != null) {
+                session.disconnect();
+            }
+            if (channel != null) {
+                channel.disconnect();
+            }
             throw new RuntimeException("Cannot connect to SFTP source", e);
         }
     }
-    
     /**
      * Given a semicolon separate list of shell commands,
      * this method converts the command types and arguments
@@ -84,17 +94,15 @@ public class SftpExecutor
      * @param input string to convert to SftpCommands
      * @return a list of SftpCommands
      */
-    public static List<Command> parseInputCommands(String input) {
-        String[] knownCmds = {CD, CHMOD};
-        
+    public static List<Command> parseInputCommands(String input) {        
         List<Command> cmds = new ArrayList<Command>();
-        Iterable<String> inputList = Splitter.on(";").split(input);
+        Iterable<String> inputList = Splitter.on(";").trimResults().split(input);
         
         for (String cmd : inputList) {
             for (String knownCmd : knownCmds) {
                 if (cmd.toUpperCase().startsWith(knownCmd)) {
                     String[] cmdParams = cmd.substring(knownCmd.length() + 1).split("\\s+");
-                    cmds.add(new SftpCommand().withCommandType(SftpCommandType.valueOf(knownCmd)).withParams(Arrays.asList(cmdParams)));
+                    cmds.add(new SftpCommand().build(Arrays.asList(cmdParams), SftpCommandType.valueOf(knownCmd)));
                 }
             }
         }
@@ -160,7 +168,7 @@ public class SftpExecutor
                 }
                 break;
             case LS:
-                Vector<LsEntry> lsOut = new Vector<LsEntry>();
+                Vector<LsEntry> lsOut;
                 if (params.size() == 0) {
                     lsOut = (Vector<LsEntry>) sftp.ls("");
                 } else if (params.size() == 1) {

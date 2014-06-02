@@ -14,7 +14,6 @@ import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,9 +37,14 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  * @param <D> type of data record
  * @param <S> type of schema
  */
-public class ResponsysExtractor<S, D> extends SftpExtractor<S, D>
+public class ResponsysExtractor extends SftpExtractor
 {
     private static final Logger log = LoggerFactory.getLogger(ResponsysExtractor.class);
+    
+    private static final String RESPONSYS_SCHEMA = "responsys.schema";
+    private static final String RESPONSYS_DATA_TEMP_FOLDER = "responsys.data.temp.folder";
+    private static final String RESPONSYS_DECRYPT_KEY = "responsys.decrypt.key.location";
+
     
     private Iterator<String> filesToPull;
     private String currentFile;
@@ -54,7 +58,7 @@ public class ResponsysExtractor<S, D> extends SftpExtractor<S, D>
     public ResponsysExtractor(WorkUnitState workUnitState)
     {
         super(workUnitState);
-        this.filesToPull = new ArrayList<String>(workUnitState.getPropAsList(ConfigurationKeys.SOURCE_FILES_TO_PULL)).iterator();
+        this.filesToPull = new ArrayList<String>(workUnitState.getPropAsList(ResponsysSource.RESPONSYS_FILES_TO_PULL)).iterator();
     }
 
     /**
@@ -72,9 +76,9 @@ public class ResponsysExtractor<S, D> extends SftpExtractor<S, D>
      * from the config and is returned as a String
      */
     @Override
-    public S getSchema(CommandOutput<?, ?> response) throws SchemaException, IOException
+    public String getSchema(CommandOutput<?, ?> response) throws SchemaException, IOException
     {
-        return (S) this.workUnit.getProp(ConfigurationKeys.SOURCE_RESPONSYS_SCHEMA);
+        return this.workUnit.getProp(RESPONSYS_SCHEMA);
     }
 
     /**
@@ -114,7 +118,7 @@ public class ResponsysExtractor<S, D> extends SftpExtractor<S, D>
     @Override
     public long getCount(CommandOutput<?, ?> response) throws RecordCountException
     {
-        return -1;
+        throw new UnsupportedOperationException("Responsys data does not supporting getting counts");
     }
 
     /**
@@ -135,19 +139,19 @@ public class ResponsysExtractor<S, D> extends SftpExtractor<S, D>
         
         log.info("Current file to process: " + this.currentFile);
         
-        List<Command> cmds = SftpExecutor.parseInputCommands(workUnit.getProp(ConfigurationKeys.SOURCE_DATA_COMMANDS));
+        List<Command> cmds = SftpExecutor.parseInputCommands(workUnit.getProp(ConfigurationKeys.SOURCE_SFTP_SETUP_COMMANDS));
         List<String> getParams = new ArrayList<String>();
         getParams.add(this.currentFile);
-        getParams.add(this.workUnit.getProp(ConfigurationKeys.SOURCE_TEMP) + this.currentFile);
-        cmds.add(new SftpCommand().withCommandType(SftpCommandType.GET_FILE).withParams(getParams));
+        getParams.add(this.workUnit.getProp(RESPONSYS_DATA_TEMP_FOLDER) + this.currentFile);
+        cmds.add(new SftpCommand().build(getParams, SftpCommandType.GET_FILE));
         
         // Create temp folder if it doesn't exist
         try
         {
             FileSystem fs = FileSystem.get(new URI(this.workUnit.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI)), new Configuration());
-            if (!fs.exists(new Path(this.workUnit.getProp(ConfigurationKeys.SOURCE_TEMP)))) {
+            if (!fs.exists(new Path(this.workUnit.getProp(RESPONSYS_DATA_TEMP_FOLDER)))) {
                 log.info("Creating temp folder for extractor");
-                fs.mkdirs(new Path(this.workUnit.getProp(ConfigurationKeys.SOURCE_TEMP)));
+                fs.mkdirs(new Path(this.workUnit.getProp(RESPONSYS_DATA_TEMP_FOLDER)));
             }
         }
         catch (IOException e)
@@ -168,14 +172,14 @@ public class ResponsysExtractor<S, D> extends SftpExtractor<S, D>
      * to the data, which is then converted to an iterator
      */
     @Override
-    public Iterator<D> getData(CommandOutput<?, ?> response) throws DataRecordException, IOException
+    public Iterator<String> getData(CommandOutput<?, ?> response) throws DataRecordException, IOException
     {
         log.info("Decyrpting current file");
-        InputStream input = GPGFileDecrypter.decryptGPGFile(this.workUnit.getProp(ConfigurationKeys.SOURCE_TEMP) + "/" + this.currentFile, this.workUnit.getProp(ConfigurationKeys.SOURCE_DECRYPT_KEY));
+        InputStream input = GPGFileDecrypter.decryptGPGFile(this.workUnit.getProp(RESPONSYS_DATA_TEMP_FOLDER) + "/" + this.currentFile, this.workUnit.getProp(RESPONSYS_DECRYPT_KEY));
         log.info("Decryption has finished, returning decrypted file as input stream");
         
-        Iterator<D> dataItr = (Iterator<D>) IOUtils.lineIterator(input, "UTF-8");
-        if (this.workUnit.getPropAsBoolean(ConfigurationKeys.SOURCE_SKIP_FIRST_LINE, false) && dataItr.hasNext()) {
+        Iterator<String> dataItr = IOUtils.lineIterator(input, "UTF-8");
+        if (this.workUnit.getPropAsBoolean(ConfigurationKeys.SOURCE_CSV_SKIP_FIRST_LINE, false) && dataItr.hasNext()) {
             dataItr.next();
         }
         return dataItr;
@@ -193,7 +197,7 @@ public class ResponsysExtractor<S, D> extends SftpExtractor<S, D>
      * No-op because there is no source specific API for Responsys
      */
     @Override
-    public Iterator<D> getRecordSetFromSourceApi(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws IOException
+    public Iterator<String> getRecordSetFromSourceApi(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws IOException
     {
         return null;
     }

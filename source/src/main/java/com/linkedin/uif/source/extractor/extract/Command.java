@@ -10,9 +10,7 @@ import java.util.List;
  */
 public interface Command
 {
-    public Command withParams(Collection<String> params);
     public List<String> getParams();
-    public Command withCommandType(CommandType cmd);
     public CommandType getCommandType();
     public Command build(Collection<String> params, CommandType cmd);
 }

@@ -21,9 +21,9 @@ public class SalesforceSource extends BaseSource<JsonArray, JsonElement> {
 	public Extractor<JsonArray, JsonElement> getExtractor(WorkUnitState state) throws IOException {
 		Extractor<JsonArray, JsonElement> extractor = null;
 		try {
-			extractor = new SalesforceExtractor<JsonArray, JsonElement>(state).build();
+			extractor = new SalesforceExtractor(state).build();
 		} catch (ExtractPrepareException e) {
-			LOG.error("Failed to prepare extractor: error -" + e.getMessage());
+			LOG.error("Failed to prepare extractor: error - " + e.getMessage());
 			throw new IOException(e);
 		}
 		return extractor;

@@ -39,6 +39,9 @@ public class ResponsysSource implements Source<String, String>
 {  
     private static final Logger log = LoggerFactory.getLogger(ResponsysSource.class);
     
+    private static final String RESPONSYS_FS_SNAPSHOT = "responsys.fs.snapshot";
+    public static final String RESPONSYS_FILES_TO_PULL = "responsys.files.to.pull";
+    
     private ChannelSftp sftp;
     private SourceState sourceState;
     
@@ -54,13 +57,11 @@ public class ResponsysSource implements Source<String, String>
     
     @Override
     public Extractor<String, String> getExtractor(WorkUnitState state) throws IOException {
-        Extractor<String, String> extractor = null;
         try {
-            extractor = new ResponsysExtractor<String, String>(state).build();
+            return new ResponsysExtractor(state).build();
         } catch (ExtractPrepareException e) {
             throw new IOException("Failed to prepare extractor: error -" + e.getMessage(), e);
         }
-        return extractor;
     }
 
     /**
@@ -73,8 +74,8 @@ public class ResponsysSource implements Source<String, String>
     {
         initLogger(state);
         this.sourceState = state;
-        this.sftp = (ChannelSftp) SftpExecutor.connect(state.getProp(ConfigurationKeys.SOURCE_PRIVATE_KEY),
-                                                       state.getProp(ConfigurationKeys.SOURCE_KNOWN_HOSTS),
+        this.sftp = (ChannelSftp) SftpExecutor.connect(state.getProp(ConfigurationKeys.SOURCE_SFTP_PRIVATE_KEY_LOCATION),
+                                                       state.getProp(ConfigurationKeys.SOURCE_SFTP_KNOWN_HOSTS_LOCATION),
                                                        state.getProp(ConfigurationKeys.SOURCE_USERNAME),
                                                        state.getProp(ConfigurationKeys.SOURCE_HOST_NAME),
                                                        state.getProp(ConfigurationKeys.SOURCE_USE_PROXY_URL),
@@ -98,8 +99,8 @@ public class ResponsysSource implements Source<String, String>
         List<String> prevFsSnapshot = new ArrayList<String>();
         
         // Get list of files seen in the previous run
-        if (!previousWorkunits.isEmpty() && previousWorkunits.get(0).getWorkunit().contains(ConfigurationKeys.SOURCE_RESPONSYS_FS_SNAPSHOT)) {
-            prevFsSnapshot = previousWorkunits.get(0).getWorkunit().getPropAsList(ConfigurationKeys.SOURCE_RESPONSYS_FS_SNAPSHOT);
+        if (!previousWorkunits.isEmpty() && previousWorkunits.get(0).getWorkunit().contains(RESPONSYS_FS_SNAPSHOT)) {
+            prevFsSnapshot = previousWorkunits.get(0).getWorkunit().getPropAsList(RESPONSYS_FS_SNAPSHOT);
         }
 
         // Get list of files that need to be pulled
@@ -119,8 +120,8 @@ public class ResponsysSource implements Source<String, String>
         for (int i = 0; i < numPartitions; i++) {
             SourceState partitionState = new SourceState();
             partitionState.addAll(state);
-            partitionState.setProp(ConfigurationKeys.SOURCE_RESPONSYS_FS_SNAPSHOT, StringUtils.join(currentFsSnapshot, ","));
-            partitionState.setProp(ConfigurationKeys.SOURCE_FILES_TO_PULL, StringUtils.join(filesToPull.subList(fileOffset, fileOffset + filesPerPartition > filesToPull.size() ? filesToPull.size() : fileOffset + filesPerPartition), ","));
+            partitionState.setProp(RESPONSYS_FS_SNAPSHOT, StringUtils.join(currentFsSnapshot, ","));
+            partitionState.setProp(RESPONSYS_FILES_TO_PULL, StringUtils.join(filesToPull.subList(fileOffset, fileOffset + filesPerPartition > filesToPull.size() ? filesToPull.size() : fileOffset + filesPerPartition), ","));
             partitionState.setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, -1);
             partitionState.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, -1);
             
@@ -171,9 +172,9 @@ public class ResponsysSource implements Source<String, String>
      */
     private List<String> getcurrentFsSnapshot()
     {
-        List<Command> cmds = SftpExecutor.parseInputCommands(sourceState.getProp(ConfigurationKeys.SOURCE_DATA_COMMANDS));
-        List<String> list = Arrays.asList("*" + sourceState.getProp(ConfigurationKeys.SOURCE_ENTITY) + "*");
-        cmds.add(new SftpCommand().withCommandType(SftpCommandType.LS).withParams(list));
+        List<Command> cmds = SftpExecutor.parseInputCommands(sourceState.getProp(ConfigurationKeys.SOURCE_SFTP_SETUP_COMMANDS));
+        List<String> list = Arrays.asList(sourceState.getProp(ConfigurationKeys.SOURCE_SFTP_DATA_DIRECTORY) + "/*" + sourceState.getProp(ConfigurationKeys.SOURCE_ENTITY) + "*");
+        cmds.add(new SftpCommand().build(list, SftpCommandType.LS));
         CommandOutput<SftpCommand, List<String>> response = new SftpCommandOutput();
         
         try
