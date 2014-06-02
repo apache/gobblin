@@ -130,14 +130,14 @@ public abstract class RestApiExtractor extends BaseExtractor<JsonArray, JsonElem
 					}
 				}
 
-//				if (inputQuery == null && this.columnList.size() != 0) {
-//					this.log.debug("New query with the required column list");
+				if (inputQuery == null && this.columnList.size() != 0) {
+					this.log.debug("New query with the required column list");
 					this.updatedQuery = "SELECT " + Joiner.on(",").join(columnList) + " FROM " + entity;
 					log.info(this.updatedQuery);
-//				} else {
-//					this.log.debug("Query is same as input query");
-//					this.updatedQuery = inputQuery;
-//				}
+				} else {
+					this.log.debug("Query is same as input query");
+					this.updatedQuery = inputQuery;
+				}
 				this.log.debug("Schema:" + columnArray);
 				this.setOutputSchema(columnArray);
 			}
