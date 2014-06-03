@@ -11,7 +11,7 @@ import java.io.Writer;
 import java.net.URI;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -167,6 +167,19 @@ public class MRJobLauncher extends AbstractJobLauncher {
         NLineInputFormat.addInputPath(job, jobInputFile);
         SequenceFileOutputFormat.setOutputPath(job, jobOutputPath);
 
+        if (jobProps.containsKey(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY)) {
+            // When there is a limit on the number of mappers, each mapper may run
+            // multiple tasks if the total number of tasks is larger than the limit.
+            int maxMappers = Integer.parseInt(
+                    jobProps.getProperty(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY));
+            if (workUnits.size() > maxMappers) {
+                int numTasksPerMapper = workUnits.size() % maxMappers == 0 ?
+                        workUnits.size() / maxMappers :
+                        workUnits.size() / maxMappers + 1;
+                NLineInputFormat.setNumLinesPerSplit(job, numTasksPerMapper);
+            }
+        }
+
         try {
             LOG.info("Launching Hadoop MR job " + job.getJobName());
             // Start the MR job and wait for it to complete
@@ -296,9 +309,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
      */
     public static class TaskRunner extends Mapper<LongWritable, Text, Text, TaskState> {
 
-        // This is used for the mapper to wait for the task to complete
-        private final CountDownLatch countDownLatch = new CountDownLatch(1);
-
         private FileSystem fs;
         private TaskExecutor taskExecutor;
         private TaskStateTracker taskStateTracker;
@@ -314,7 +324,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
             }
 
             this.taskExecutor = new TaskExecutor(context.getConfiguration());
-            this.taskStateTracker = new MRTaskStateTracker(context, this.countDownLatch);
+            this.taskStateTracker = new MRTaskStateTracker(context);
             this.serviceManager = new ServiceManager(Lists.newArrayList(
                     this.taskExecutor,
                     this.taskStateTracker));
@@ -353,11 +363,12 @@ public class MRJobLauncher extends AbstractJobLauncher {
             workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
             Task task = new Task(new TaskContext(workUnitState), this.taskStateTracker);
             this.taskStateTracker.registerNewTask(task);
-            this.taskExecutor.execute(task);
-
-            LOG.info(String.format("Waiting for task %s to complete...", taskId));
-            // Wait for the task to complete
-            this.countDownLatch.await();
+            LOG.info(String.format("Submitting and waiting for task %s to complete...", taskId));
+            try {
+                this.taskExecutor.submit(task).get();
+            } catch (ExecutionException ee) {
+                LOG.error("Failed to submit and execute task " + task.getTaskId(), ee);
+            }
 
             // Emit the task state as the output upon task completion
             context.write(new Text(), task.getTaskState());
