@@ -38,7 +38,7 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  * @param <D> type of data record
  * @param <S> type of schema
  */
-public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSpecificLayer<S, D> {
+public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, ProtocolSpecificLayer<S, D> {
 	// default water mark format. example 20140301000000
 	private static final SimpleDateFormat DEFAULT_WATERMARK_TIMESTAMP_FORMAT = new SimpleDateFormat("yyyyMMddHHmmss");
 	private static final Gson gson = new Gson();
@@ -55,7 +55,7 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 	private Iterator<D> iterator;
 	protected List<String> columnList = new ArrayList<String>();
 	private List<Predicate> predicateList = new ArrayList<Predicate>();
-	protected Logger log = LoggerFactory.getLogger(BaseExtractor.class);
+	protected Logger log = LoggerFactory.getLogger(QueryBasedExtractor.class);
 
 	private S getOutputSchema() {
 		return this.outputSchema;
@@ -113,13 +113,13 @@ public abstract class BaseExtractor<S, D> implements Extractor<S, D>, ProtocolSp
 		return this.workUnitName;
 	}
 
-	public BaseExtractor(WorkUnitState workUnitState) {
+	public QueryBasedExtractor(WorkUnitState workUnitState) {
 		this.workUnitState = workUnitState;
 		this.workUnit = this.workUnitState.getWorkunit();
 		this.schema = this.workUnit.getProp(ConfigurationKeys.SOURCE_SCHEMA);
 		this.entity = this.workUnit.getProp(ConfigurationKeys.SOURCE_ENTITY);
 		this.setWorkUnitName();
-		this.log = LoggerFactory.getLogger(BaseExtractor.class);
+		this.log = LoggerFactory.getLogger(QueryBasedExtractor.class);
 		MDC.put("tableName", this.getWorkUnitName());
 	}
 

@@ -10,7 +10,7 @@ import java.util.Map;
  * @param <K> the key type of the Map
  * @param <V> the value type of the Map
  */
-public interface CommandOutput<K, V>
+public interface CommandOutput<K extends Command, V>
 {
     public void storeResults(Map<K, V> results);
     public Map<K, V> getResults();

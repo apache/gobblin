@@ -9,7 +9,7 @@ import java.util.HashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.linkedin.uif.source.extractor.extract.BaseExtractor;
+import com.linkedin.uif.source.extractor.extract.QueryBasedExtractor;
 import com.linkedin.uif.source.extractor.partition.Partitioner;
 
 public class TimestampWatermark implements Watermark {
@@ -30,7 +30,7 @@ public class TimestampWatermark implements Watermark {
 	}
 
 	@Override
-	public String getWatermarkCondition(BaseExtractor extractor, long watermarkValue, String operator) {
+	public String getWatermarkCondition(QueryBasedExtractor extractor, long watermarkValue, String operator) {
 		return extractor.getTimestampPredicateCondition(this.watermarkColumn, watermarkValue, this.watermarkFormat, operator);
 	}
 	
