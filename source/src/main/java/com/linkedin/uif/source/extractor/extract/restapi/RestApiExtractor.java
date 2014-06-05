@@ -34,7 +34,7 @@ import com.linkedin.uif.source.extractor.exception.RecordCountException;
 import com.linkedin.uif.source.extractor.exception.RestApiConnectionException;
 import com.linkedin.uif.source.extractor.exception.RestApiProcessingException;
 import com.linkedin.uif.source.extractor.exception.SchemaException;
-import com.linkedin.uif.source.extractor.extract.BaseExtractor;
+import com.linkedin.uif.source.extractor.extract.QueryBasedExtractor;
 import com.linkedin.uif.source.extractor.extract.Command;
 import com.linkedin.uif.source.extractor.extract.CommandOutput;
 import com.linkedin.uif.source.extractor.extract.SourceSpecificLayer;
@@ -48,7 +48,7 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  * @param <D> type of data record
  * @param <S> type of schema
  */
-public abstract class RestApiExtractor extends BaseExtractor<JsonArray, JsonElement> implements SourceSpecificLayer<JsonArray, JsonElement>, RestApiSpecificLayer {
+public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, JsonElement> implements SourceSpecificLayer<JsonArray, JsonElement>, RestApiSpecificLayer {
 	private static final Gson gson = new Gson();
 	private HttpClient httpClient = null;
 	private boolean autoEstablishAuthToken = false;

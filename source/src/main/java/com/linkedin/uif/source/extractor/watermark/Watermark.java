@@ -1,7 +1,7 @@
 package com.linkedin.uif.source.extractor.watermark;
 
 import java.util.HashMap;
-import com.linkedin.uif.source.extractor.extract.BaseExtractor;
+import com.linkedin.uif.source.extractor.extract.QueryBasedExtractor;
 
 public interface Watermark {
     /**
@@ -12,7 +12,7 @@ public interface Watermark {
      * @param relational operator between water mark column and value
      * @return condition statement
      */
-	public String getWatermarkCondition(BaseExtractor extractor, long watermarkValue, String operator);
+	public String getWatermarkCondition(QueryBasedExtractor extractor, long watermarkValue, String operator);
 	
     /**
      * Get partitions for the given range

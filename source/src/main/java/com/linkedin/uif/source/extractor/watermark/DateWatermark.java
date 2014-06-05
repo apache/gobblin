@@ -10,7 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
-import com.linkedin.uif.source.extractor.extract.BaseExtractor;
+import com.linkedin.uif.source.extractor.extract.QueryBasedExtractor;
 
 public class DateWatermark implements Watermark {
 	private static final Logger LOG = LoggerFactory.getLogger(DateWatermark.class);
@@ -29,7 +29,7 @@ public class DateWatermark implements Watermark {
 	}
 	
 	@Override
-	public String getWatermarkCondition(BaseExtractor extractor, long watermarkValue, String operator) {
+	public String getWatermarkCondition(QueryBasedExtractor extractor, long watermarkValue, String operator) {
 		return extractor.getDatePredicateCondition(this.watermarkColumn, watermarkValue, this.watermarkFormat, operator);
 	}
 	

@@ -5,7 +5,7 @@ import java.util.HashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.linkedin.uif.source.extractor.extract.BaseExtractor;
+import com.linkedin.uif.source.extractor.extract.QueryBasedExtractor;
 
 public class SimpleWatermark implements Watermark {
 	private static final Logger LOG = LoggerFactory.getLogger(SimpleWatermark.class);
@@ -17,7 +17,7 @@ public class SimpleWatermark implements Watermark {
 	}
 
 	@Override
-	public String getWatermarkCondition(BaseExtractor extractor, long watermarkValue, String operator) {
+	public String getWatermarkCondition(QueryBasedExtractor extractor, long watermarkValue, String operator) {
 		return this.watermarkColumn + operator +  watermarkValue;
 	}
 	

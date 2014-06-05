@@ -19,7 +19,7 @@ import com.linkedin.uif.source.extractor.DataRecordException;
 import com.linkedin.uif.source.extractor.exception.HighWatermarkException;
 import com.linkedin.uif.source.extractor.exception.RecordCountException;
 import com.linkedin.uif.source.extractor.exception.SchemaException;
-import com.linkedin.uif.source.extractor.extract.BaseExtractor;
+import com.linkedin.uif.source.extractor.extract.QueryBasedExtractor;
 import com.linkedin.uif.source.extractor.extract.Command;
 import com.linkedin.uif.source.extractor.extract.CommandOutput;
 import com.linkedin.uif.source.extractor.extract.SourceSpecificLayer;
@@ -36,7 +36,7 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  * @param <D> type of data record
  * @param <S> type of schema
  */
-public abstract class SftpExtractor extends BaseExtractor<String, String> implements SourceSpecificLayer<String, String>
+public abstract class SftpExtractor extends QueryBasedExtractor<String, String> implements SourceSpecificLayer<String, String>
 {
     private static final Logger log = LoggerFactory.getLogger(SftpExtractor.class);
     

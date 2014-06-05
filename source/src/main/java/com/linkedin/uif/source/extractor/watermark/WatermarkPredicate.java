@@ -4,7 +4,7 @@ import java.util.HashMap;
 
 import com.google.common.base.Strings;
 
-import com.linkedin.uif.source.extractor.extract.BaseExtractor;
+import com.linkedin.uif.source.extractor.extract.QueryBasedExtractor;
 
 public class WatermarkPredicate
 {    
@@ -39,7 +39,7 @@ public class WatermarkPredicate
 		}
 	}
 	
-	public Predicate getPredicate(BaseExtractor extractor, long watermarkValue, String operator) {
+	public Predicate getPredicate(QueryBasedExtractor extractor, long watermarkValue, String operator) {
 		String condition = "";
 		
 		if(watermarkValue != DEFAULT_WATERMARK_VALUE) {
@@ -52,7 +52,7 @@ public class WatermarkPredicate
 		return new Predicate(this.watermarkColumn, watermarkValue, condition, this.getWatermarkSourceFormat(extractor));
 	}
 	
-	public String getWatermarkSourceFormat(BaseExtractor extractor) {
+	public String getWatermarkSourceFormat(QueryBasedExtractor extractor) {
 		return extractor.getWatermarkSourceFormat(this.watermarkType);
 	}
 	
