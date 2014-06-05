@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import org.apache.commons.mail.EmailException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -21,11 +22,13 @@ import com.google.common.collect.Maps;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
+import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.metastore.FsStateStore;
 import com.linkedin.uif.metastore.StateStore;
 import com.linkedin.uif.publisher.DataPublisher;
 import com.linkedin.uif.source.workunit.WorkUnit;
+import com.linkedin.uif.util.EmailUtils;
 
 /**
  * An abstract implementation of {@link JobLauncher} for execution-framework-specific
@@ -108,6 +111,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         JobState jobState = new JobState(jobName, jobId);
         // Add all job configuration properties of this job
         jobState.addAll(jobProps);
+        // Remember the number of consecutive failures of this job in the past
+        jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY, getFailureCount(jobName));
 
         LOG.info("Starting job " + jobId);
 
@@ -188,6 +193,27 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             throws IOException;
 
     /**
+     * Get the number of consecutive failures of the given job in the past.
+     */
+    private int getFailureCount(String jobName) {
+        try {
+            List<? extends State> jobStateList = this.jobStateStore.getAll(
+                    jobName, "current" + JOB_STATE_STORE_TABLE_SUFFIX);
+            if (jobStateList.isEmpty()) {
+                return 0;
+            }
+
+            State prevJobState = jobStateList.get(0);
+            // Read failure count from the persisted job state of its most recent run
+            return prevJobState.contains(ConfigurationKeys.JOB_FAILURES_KEY) ?
+                    prevJobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY) : 0;
+        } catch (IOException ioe) {
+            LOG.warn("Failed to read the previous job state for job " + jobName, ioe);
+            return 0;
+        }
+    }
+
+    /**
      * Initialize the source for the given job.
      */
     private SourceWrapperBase initSource(Properties jobProps, SourceState sourceState)
@@ -265,8 +291,11 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     private JobState getFinalJobState(JobState jobState) {
         jobState.setEndTime(System.currentTimeMillis());
         jobState.setDuration(jobState.getEndTime() - jobState.getStartTime());
+
         if (jobState.getState() == JobState.RunningState.WORKING) {
             jobState.setState(JobState.RunningState.SUCCESSFUL);
+            // Reset the failure count if the job successfully completed
+            jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY, 0);
         }
 
         for (TaskState taskState : jobState.getTaskStates()) {
@@ -274,6 +303,23 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             if (taskState.getWorkingState() == WorkUnitState.WorkingState.FAILED) {
                 jobState.setState(JobState.RunningState.FAILED);
                 break;
+            }
+        }
+
+        if (jobState.getState() == JobState.RunningState.FAILED) {
+            // Increment the failure count by 1 if the job failed
+            int failures = jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY) + 1;
+            jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY, failures);
+            int maxFailures = jobState.getPropAsInt(ConfigurationKeys.JOB_MAX_FAILURES_KEY,
+                    ConfigurationKeys.DEFAULT_JOB_MAX_FAILURES);
+            if (failures >= maxFailures) {
+                // Send out alert email if the maximum number of consecutive failures is reached
+                try {
+                    EmailUtils.sendJobFailureAlertEmail(jobState.getJobName(),
+                            constructJobFailureEmailMessage(jobState), jobState);
+                } catch (EmailException ee) {
+                    LOG.warn("Failed to send job failure alert email for job " + jobState.getJobId());
+                }
             }
         }
 
@@ -375,5 +421,38 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             LOG.error("Failed to cleanup task output directory of job " +
                     jobState.getJobId(), ioe);
         }
+    }
+
+    /**
+     * Construct the message of a job failure alert email.
+     */
+    private String constructJobFailureEmailMessage(JobState jobState) {
+        StringBuilder messageBuilder = new StringBuilder();
+        messageBuilder.append("Job information:\n");
+        messageBuilder.append("------------------------------------------------------------\n");
+        messageBuilder.append("Job ID: " + jobState.getJobId() + "\n");
+        messageBuilder.append("Completed tasks: " + jobState.getCompletedTasks() + "\n");
+        messageBuilder.append("Job start time: " + jobState.getStartTime() + "\n");
+        messageBuilder.append("Job end time: " + jobState.getEndTime() + "\n");
+        messageBuilder.append("Job duration: " + jobState.getDuration() + "\n");
+        messageBuilder.append("\n\n");
+
+        messageBuilder.append("Task information:\n");
+        messageBuilder.append("------------------------------------------------------------\n");
+        for (TaskState taskState : jobState.getTaskStates()) {
+            messageBuilder.append("Task ID: " + taskState.getTaskId() + "\n");
+            messageBuilder.append("Task state: " + taskState.getWorkingState() + "\n");
+            messageBuilder.append("Task start time: " + taskState.getStartTime() + "\n");
+            messageBuilder.append("Task end time: " + taskState.getEndTime() + "\n");
+            messageBuilder.append("Task duration: " + taskState.getTaskDuration() + "\n");
+            messageBuilder.append("Task high watermark: " + taskState.getHighWaterMark() + "\n");
+            if (taskState.getWorkingState() == WorkUnitState.WorkingState.FAILED) {
+                messageBuilder.append("Task exception: " +
+                        taskState.getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY) + "\n");
+            }
+            messageBuilder.append("\n");
+        }
+
+        return messageBuilder.toString();
     }
 }
