@@ -251,6 +251,7 @@ public class ConfigurationKeys {
     public static final String MR_JOB_ROOT_DIR_KEY = "mr.job.root.dir";
     public static final String MR_JOB_LOCK_DIR_KEY = "mr.job.lock.dir";
     public static final String MR_JOB_USE_REDUCER_KEY = "mr.job.use.reducer";
+    public static final String MR_JOB_MAX_MAPPERS_KEY = "mr.job.max.mappers";
 
     /**
      * Configuration properties for email settings.

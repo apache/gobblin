@@ -84,6 +84,12 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             throw new JobException("A job must have a job name specified by job.name");
         }
 
+        String jobDisabled = jobProps.getProperty(ConfigurationKeys.JOB_DISABLED_KEY, "false");
+        if (Boolean.valueOf(jobDisabled)) {
+            LOG.info(String.format("Not launching job %s as it is disabled", jobName));
+            return;
+        }
+
         // Get the job lock
         JobLock jobLock;
         try {

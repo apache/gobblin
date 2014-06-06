@@ -34,7 +34,10 @@ public class LocalJobLauncherTest extends JobLauncherTestBase {
         jobProps.load(new FileReader("test/resource/job-conf/UIFTest1.pull"));
         jobProps.putAll(this.properties);
         jobProps.setProperty(SOURCE_FILE_LIST_KEY,
-                "test/resource/source/test.avro.2,test/resource/source/test.avro.3");
+                "test/resource/source/test.avro.0," +
+                "test/resource/source/test.avro.1," +
+                "test/resource/source/test.avro.2," +
+                "test/resource/source/test.avro.3");
 
         runTest(jobProps);
     }

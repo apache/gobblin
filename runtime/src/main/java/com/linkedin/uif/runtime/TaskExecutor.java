@@ -3,6 +3,7 @@ package com.linkedin.uif.runtime;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -110,8 +111,19 @@ public class TaskExecutor extends AbstractIdleService {
      * @param task {@link Task} to be executed
      */
     public void execute(Task task) {
+        LOG.info(String.format("Executing task %s", task.getTaskId()));
         this.executor.execute(task);
-        LOG.info(String.format("Scheduled task %s to run", task.getTaskId()));
+    }
+
+    /**
+     * Submit a {@link Task} to run.
+     *
+     * @param task {@link Task} to be submitted
+     * @return A {@link java.util.concurrent.Future} for the submitted {@link Task}
+     */
+    public Future<?> submit(Task task) {
+        LOG.info(String.format("Submitting task %s", task.getTaskId()));
+        return this.executor.submit(task);
     }
 
     /**

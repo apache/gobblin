@@ -1,6 +1,7 @@
 package com.linkedin.uif.runtime.mapreduce;
 
 import java.io.IOException;
+import java.util.concurrent.CountDownLatch;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -21,18 +22,20 @@ import com.linkedin.uif.runtime.JobLock;
 public class MRJobLockTest {
 
     private FileSystem fs;
+    private Path path;
 
     @BeforeClass
     public void setUp() throws IOException {
         this.fs = FileSystem.getLocal(new Configuration());
-        Path path = new Path("MRJobLockTest");
-        if (!this.fs.exists(path)) {
-            this.fs.mkdirs(path);
+        this.path = new Path("MRJobLockTest");
+        if (!this.fs.exists(this.path)) {
+            this.fs.mkdirs(this.path);
         }
     }
 
     public void testLocalJobLock() throws Exception {
-        final JobLock lock = new MRJobLock(this.fs, "MRJobLockTest", "MRJobLockTest");
+        final JobLock lock = new MRJobLock(this.fs, this.path.getName(), "MRJobLockTest");
+        final CountDownLatch latch = new CountDownLatch(2);
 
         Thread thread1 = new Thread(new Runnable() {
             @Override
@@ -41,6 +44,7 @@ public class MRJobLockTest {
                     Assert.assertTrue(lock.tryLock());
                     Thread.sleep(2000);
                     lock.unlock();
+                    latch.countDown();
                 } catch (Exception e) {
                     // Ignored
                 }
@@ -59,19 +63,21 @@ public class MRJobLockTest {
                     Assert.assertTrue(lock.tryLock());
                     Thread.sleep(1000);
                     lock.unlock();
+                    latch.countDown();
                 } catch (Exception e) {
                     // Ignored
                 }
             }
         });
         thread2.start();
+
+        latch.await();
     }
 
     @AfterClass
     public void tearDown() throws IOException {
-        Path path = new Path("MRJobLockTest");
-        if (this.fs.exists(path)) {
-            this.fs.delete(path, true);
+        if (this.fs.exists(this.path)) {
+            this.fs.delete(this.path, true);
         }
     }
 }
