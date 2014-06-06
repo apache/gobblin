@@ -1,6 +1,5 @@
 package com.linkedin.uif.runtime.mapreduce;
 
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -34,15 +33,10 @@ public class MRTaskStateTracker extends AbstractIdleService implements TaskState
     // and progress of running tasks
     private final ScheduledThreadPoolExecutor reporterExecutor;
 
-    // This is used to signal the mapper that the taks has completed
-    private final CountDownLatch countDownLatch;
-
     public MRTaskStateTracker(
-            Mapper<LongWritable, Text, Text, TaskState>.Context context,
-            CountDownLatch countDownLatch) {
+            Mapper<LongWritable, Text, Text, TaskState>.Context context) {
 
         this.context = context;
-        this.countDownLatch = countDownLatch;
 
         // Use a thread pool of size 1 since this is only used by a single task
         this.reporterExecutor = new ScheduledThreadPoolExecutor(1);
@@ -87,7 +81,7 @@ public class MRTaskStateTracker extends AbstractIdleService implements TaskState
             // Job-level record counter
             String jobRecordMetric = Metrics.metricName(
                     JobState.JOB_METRICS_PREFIX, task.getJobId(), "records");
-            this.context.getCounter("JOB", jobRecordMetric).setValue(
+            this.context.getCounter("JOB", jobRecordMetric).increment(
                     Metrics.getCounter(taskRecordMetric).getCount());
 
             // Task-level byte counter
@@ -99,12 +93,11 @@ public class MRTaskStateTracker extends AbstractIdleService implements TaskState
             // Job-level byte counter
             String jobByteMetric = Metrics.metricName(
                     JobState.JOB_METRICS_PREFIX, task.getJobId(), "bytes");
-            this.context.getCounter("JOB", jobByteMetric).setValue(
+            this.context.getCounter("JOB", jobByteMetric).increment(
                     Metrics.getCounter(taskByteMetric).getCount());
-        }
 
-        // Count down so signal the mapper the task is completed
-        this.countDownLatch.countDown();
+            task.getTaskState().removeMetrics();
+        }
     }
 
     /**
@@ -143,7 +136,7 @@ public class MRTaskStateTracker extends AbstractIdleService implements TaskState
                 // Job-level record counter
                 String jobRecordMetric = Metrics.metricName(
                         JobState.JOB_METRICS_PREFIX, task.getJobId(), "records");
-                this.context.getCounter("JOB", jobRecordMetric).setValue(
+                this.context.getCounter("JOB", jobRecordMetric).increment(
                         Metrics.getCounter(taskRecordMetric).getCount());
             }
         }
