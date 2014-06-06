@@ -59,14 +59,14 @@ public abstract class FileBasedExtractor<S, D, K extends Command, V> implements 
      * Gets a list of file system commands to fetch the schema
      * @return a list of commands to execute
      */
-    public abstract List<Command> getSchemaCommands();
+    protected abstract List<Command> getSchemaCommands();
     
     /**
      * Parses a command output and returns the schema
      * @param output the output of the schema commands
      * @return the schema
      */
-    public abstract S getSchemaFromOutput(CommandOutput<K, V> output);
+    protected abstract S getSchemaFromOutput(CommandOutput<K, V> output);
 
     /**
      * Initializes a list of files to pull on the first call to the method
@@ -77,7 +77,7 @@ public abstract class FileBasedExtractor<S, D, K extends Command, V> implements 
      */
     @Override
     public D readRecord() throws DataRecordException, IOException
-    {
+    {   
         if (!readRecordStart) {
             log.info("Starting to read records");
             filesToPull = getListOfFiles();
@@ -106,14 +106,14 @@ public abstract class FileBasedExtractor<S, D, K extends Command, V> implements 
      * Gets a list of files to pull
      * @return a list of files to pull
      */
-    public abstract List<File> getListOfFiles();
+    protected abstract List<File> getListOfFiles();
     
     /**
      * Downloads a file from the source
      * @param f is the file to download
      * @return an iterator over the file
      */
-    public abstract Iterator<D> downloadFile(File f);
+    protected abstract Iterator<D> downloadFile(File f);
     
     /**
      * Closes the source connection and protocol connection
@@ -129,12 +129,12 @@ public abstract class FileBasedExtractor<S, D, K extends Command, V> implements 
     /**
      * Closes the source connection
      */
-    public abstract void closeSource();
+    protected abstract void closeSource();
 
     /**
      * Closes the protocol connection
      */
-    public abstract void closeProtocol();
+    protected abstract void closeProtocol();
     
     /**
      * Gets a list of commands that will get the
@@ -156,7 +156,7 @@ public abstract class FileBasedExtractor<S, D, K extends Command, V> implements 
      * expected record count
      * @return a list of commands to execute
      */
-    public abstract List<Command> getCountCommands();
+    protected abstract List<Command> getCountCommands();
     
     /**
      * Parses a command output and gets the expected
@@ -164,7 +164,7 @@ public abstract class FileBasedExtractor<S, D, K extends Command, V> implements 
      * @param output is the output from the commands
      * @return the expected record count
      */
-    public abstract long getCountFromOutput(CommandOutput<K, V> output);
+    protected abstract long getCountFromOutput(CommandOutput<K, V> output);
 
     /**
      * Gets a list of commands that will get the
@@ -186,14 +186,14 @@ public abstract class FileBasedExtractor<S, D, K extends Command, V> implements 
      * high watermark
      * @return a list of commands to execute
      */
-    public abstract List<Command> getWatermarkCommands();
+    protected abstract List<Command> getWatermarkCommands();
     
     /**
      * Parses a command output and gets high watermark
      * @param output is the output from the commands
      * @return the high watermark
      */
-    public abstract long getWatermarkFromOutput(CommandOutput<K, V> output);
+    protected abstract long getWatermarkFromOutput(CommandOutput<K, V> output);
     
     /**
      * Executes a given list of protocol specific commands
