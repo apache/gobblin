@@ -90,7 +90,7 @@ public abstract class FileBasedExtractor<S, D, K extends Command, V> implements 
             readRecordStart = true;
         }
         
-        while (!filesToPull.isEmpty() && !currentFileItr.hasNext()){
+        while (!currentFileItr.hasNext() && !filesToPull.isEmpty()){
             currentFileItr = downloadFile(filesToPull.remove(0));
         }
         
