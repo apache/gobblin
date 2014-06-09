@@ -123,6 +123,9 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
 
 					String jsonStr = gson.toJson(obj);
 					JsonObject jsonObject = gson.fromJson(jsonStr, JsonObject.class).getAsJsonObject();
+
+					// If input query is null or provided '*' in the query select all columns.
+					// Else, consider only the columns mentioned in the column list 
 					if (inputQuery == null || columnListInQuery == null || (columnListInQuery.size() == 1 && columnListInQuery.get(0).equals("*"))
 							|| (columnListInQuery.size() >= 1 && this.isMetadataColumn(columnName, columnListInQuery))) {
 						this.columnList.add(columnName);
@@ -131,13 +134,22 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
 				}
 
 				if (inputQuery == null && this.columnList.size() != 0) {
-					this.log.debug("New query with the required column list");
+					// if input query is null, build the query from metadata
 					this.updatedQuery = "SELECT " + Joiner.on(",").join(columnList) + " FROM " + entity;
-					log.info(this.updatedQuery);
 				} else {
-					this.log.debug("Query is same as input query");
-					this.updatedQuery = inputQuery;
+					// if input query is not null, build the query with intersection of columns from input query and columns from Metadata
+					String queryLowerCase = inputQuery.toLowerCase();
+					int columnsStartIndex = queryLowerCase.indexOf("select ")+7;
+					int columnsEndIndex = queryLowerCase.indexOf(" from ");
+					if(columnsStartIndex > 0 && columnsEndIndex > 0) {
+						String givenColumnList = inputQuery.substring(columnsStartIndex, columnsEndIndex);
+						this.updatedQuery = inputQuery.replace(givenColumnList, Joiner.on(",").join(this.columnList));
+					} else {
+						this.updatedQuery = inputQuery;
+					}
 				}
+				
+				this.log.info("Updated input query: "+this.updatedQuery);
 				this.log.debug("Schema:" + columnArray);
 				this.setOutputSchema(columnArray);
 			}
