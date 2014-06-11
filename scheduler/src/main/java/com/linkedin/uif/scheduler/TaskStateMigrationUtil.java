@@ -16,7 +16,6 @@ import com.google.common.collect.Lists;
 
 import com.linkedin.uif.metastore.FsStateStore;
 import com.linkedin.uif.metastore.StateStore;
-import com.linkedin.uif.runtime.JobState;
 
 /**
  * A utility for migrating task states due to a recent package change.
@@ -63,27 +62,28 @@ public class TaskStateMigrationUtil {
             }
 
             sortFileStatuses(tables);
-            // After sorting, the first table in the array has the largest modification time
-            destStore.createAlias(storeName, tables[0].getPath().getName(), "current" + ".tst");
 
             for (FileStatus table : tables) {
                 String tableName = table.getPath().getName();
                 List<TaskState> srcTaskStates = (List<TaskState>) srcStore.getAll(storeName, tableName);
                 destStore.putAll(storeName, tableName, createNewTaskStates(srcTaskStates));
             }
+
+            // After sorting, the first table in the array has the largest modification time
+            destStore.createAlias(storeName, tables[0].getPath().getName(), "current" + ".tst");
         }
     }
 
     /**
-     * Copy existing job states.
+     * Migrate existing job states.
      *
      * @param fsUri File system URI
      * @param srcDir Source task state store directory
      * @param destDir Destination task state store directory
      */
-    public static void copyJobStates(String fsUri, String srcDir, String destDir) throws IOException {
+    public static void migrateJobStates(String fsUri, String srcDir, String destDir) throws IOException {
         StateStore srcStore = new FsStateStore(fsUri, srcDir, JobState.class);
-        StateStore destStore = new FsStateStore(fsUri, destDir, JobState.class);
+        StateStore destStore = new FsStateStore(fsUri, destDir, com.linkedin.uif.runtime.JobState.class);
 
         FileSystem fs = FileSystem.get(URI.create(fsUri), new Configuration());
 
@@ -109,19 +109,20 @@ public class TaskStateMigrationUtil {
             }
 
             sortFileStatuses(tables);
-            // After sorting, the first table in the array has the largest modification time
-            destStore.createAlias(storeName, tables[0].getPath().getName(), "current" + ".jst");
 
             for (FileStatus table : tables) {
                 String tableName = table.getPath().getName();
                 List<JobState> jobStates = (List<JobState>) srcStore.getAll(storeName, tableName);
-                destStore.putAll(storeName, tableName, jobStates);
+                destStore.putAll(storeName, tableName, createNewJobStates(jobStates));
             }
+
+            // After sorting, the first table in the array has the largest modification time
+            destStore.createAlias(storeName, tables[0].getPath().getName(), "current" + ".jst");
         }
     }
 
     /**
-     * Migrate individual task states.
+     * Create new task states.
      */
     private static List<com.linkedin.uif.runtime.TaskState> createNewTaskStates(
             List<TaskState> srcTaskStates) {
@@ -130,15 +131,42 @@ public class TaskStateMigrationUtil {
         for (TaskState src : srcTaskStates) {
             com.linkedin.uif.runtime.TaskState dest = new com.linkedin.uif.runtime.TaskState(src);
             dest.addAll(src);
+            dest.setJobId(src.getJobId());
+            dest.setTaskId(src.getTaskId());
+            dest.setId(src.getTaskId());
             dest.setStartTime(src.getStartTime());
             dest.setEndTime(src.getEndTime());
             dest.setTaskDuration(src.getTaskDuration());
-            dest.setHighWaterMark(src.getHighWaterMark());
+            dest.setHighWaterMark(src.getPropAsLong("workunit.high.water.mark"));
             dest.setWorkingState(src.getWorkingState());
             destTaskStates.add(dest);
         }
 
         return destTaskStates;
+    }
+
+    /**
+     * Create new job states.
+     */
+    private static List<com.linkedin.uif.runtime.JobState> createNewJobStates(
+            List<JobState> srcJobStates) {
+
+        List<com.linkedin.uif.runtime.JobState> destJobStates = Lists.newArrayList();
+        for (JobState src : srcJobStates) {
+            com.linkedin.uif.runtime.JobState dest = new com.linkedin.uif.runtime.JobState();
+            dest.addAll(src);
+            dest.setJobName(src.getJobName());
+            dest.setJobId(src.getId());
+            dest.setId(src.getJobId());
+            dest.setState(com.linkedin.uif.runtime.JobState.RunningState.valueOf(src.getState().name()));
+            dest.setTasks(src.getTasks());
+            dest.setStartTime(src.getStartTime());
+            dest.setEndTime(src.getEndTime());
+            dest.setDuration(src.getDuration());
+            dest.addTaskStates(createNewTaskStates(src.getTaskStates()));
+        }
+
+        return destJobStates;
     }
 
     /**
@@ -163,6 +191,6 @@ public class TaskStateMigrationUtil {
         }
 
         migrateTaskStates(args[0], args[1], args[2]);
-        copyJobStates(args[0], args[1], args[2]);
+        migrateJobStates(args[0], args[1], args[2]);
     }
 }
