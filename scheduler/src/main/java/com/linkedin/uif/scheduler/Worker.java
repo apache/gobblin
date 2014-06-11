@@ -1,12 +1,14 @@
 package com.linkedin.uif.scheduler;
 
-import java.io.FileReader;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration.ConfigurationConverter;
+import org.apache.commons.configuration.PropertiesConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -124,10 +126,9 @@ public class Worker {
             System.exit(1);
         }
 
-        Properties properties = new Properties();
-        // Load worker configuration properties
-        properties.load(new FileReader(args[0]));
+        // Load framework configuration properties
+        Configuration config = new PropertiesConfiguration(args[0]);
         // Start the worker
-        new Worker(properties).start();
+        new Worker(ConfigurationConverter.getProperties(config)).start();
     }
 }

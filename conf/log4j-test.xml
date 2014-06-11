@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE log4j:configuration SYSTEM "log4j.dtd">
+
+<log4j:configuration>
+
+  <appender name="FileRoll" class="org.apache.log4j.rolling.RollingFileAppender">
+    <param name="file" value="${gobblin.logs.dir}/gobblin-current.log" />
+    <param name="append" value="true" />
+    <param name="encoding" value="UTF-8" />
+
+    <rollingPolicy class="org.apache.log4j.rolling.TimeBasedRollingPolicy">
+      <param name="FileNamePattern" value="${gobblin.logs.dir}/archive/gobblin.%d{yyyy-MM-dd}.log"/>
+    </rollingPolicy>
+    
+    <layout class="org.apache.log4j.PatternLayout">
+      <param name="ConversionPattern" value="%d{yyyy-MM-dd HH:mm:ss z} %-5p [%t] %C %X{tableName} %L - %m%n"/>
+    </layout>
+  </appender>
+
+  <logger name="org.apache.commons.httpclient">
+  	<level value="DEBUG"/>
+  </logger>
+
+  <logger name="httpclient.wire">
+  	<level value="ERROR"/>
+  </logger>
+
+  <root>
+    <priority value ="INFO" /> 
+    <appender-ref ref="FileRoll" />
+  </root>
+  
+</log4j:configuration>

@@ -1,10 +1,12 @@
 package com.linkedin.uif.scheduler;
 
-import java.io.FileReader;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration.ConfigurationConverter;
+import org.apache.commons.configuration.PropertiesConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,10 +74,9 @@ public class SchedulerDaemon {
             System.exit(1);
         }
 
-        Properties properties = new Properties();
         // Load framework configuration properties
-        properties.load(new FileReader(args[0]));
+        Configuration config = new PropertiesConfiguration(args[0]);
         // Start the scheduler daemon
-        new SchedulerDaemon(properties).start();
+        new SchedulerDaemon(ConfigurationConverter.getProperties(config)).start();
     }
 }
