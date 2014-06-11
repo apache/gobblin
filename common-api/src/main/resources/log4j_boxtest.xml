@@ -16,11 +16,6 @@
       <param name="ConversionPattern" value="%d{yyyy-MM-dd HH:mm:ss z} %-5p [%t] %C %X{tableName} %L - %m%n"/>
     </layout>
   </appender>
-
-  <root>
-    <priority value ="INFO" /> 
-    <appender-ref ref="FileRoll" />
-  </root>
   
   <logger name="org.apache.commons.httpclient">
   	<level value="DEBUG"/>
@@ -29,5 +24,10 @@
   <logger name="httpclient.wire">
   	<level value="ERROR"/>
   </logger>
-  
+
+  <root>
+    <priority value ="INFO" />
+    <appender-ref ref="FileRoll" />
+  </root>
+
 </log4j:configuration>

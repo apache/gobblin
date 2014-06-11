@@ -48,12 +48,30 @@ public class TaskState extends WorkUnitState {
     }
 
     /**
+     * Set the ID of the job this {@link TaskState} is for.
+     *
+     * @param jobId ID of the job this {@link TaskState} is for
+     */
+    public void setJobId(String jobId) {
+        this.jobId = jobId;
+    }
+
+    /**
      * Get the ID of the task this {@link TaskState} is for.
      *
      * @return ID of the task this {@link TaskState} is for
      */
     public String getTaskId() {
         return this.taskId;
+    }
+
+    /**
+     * Set the ID of the task this {@link TaskState} is for.
+     *
+     * @param taskId ID of the task this {@link TaskState} is for
+     */
+    public void setTaskId(String taskId) {
+        this.taskId = taskId;
     }
 
     /**

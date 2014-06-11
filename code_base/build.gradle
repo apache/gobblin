@@ -30,5 +30,5 @@ tgz {
     from('../conf') { into('conf') }
     exclude('*build*')
     exclude("**/commons-logging*")
-    into('deployment')
+    into("gobblin-$version$jar_extension")
 }

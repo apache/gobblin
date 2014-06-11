@@ -1,15 +1,17 @@
 package com.linkedin.uif.scheduler;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+
+import org.apache.hadoop.io.Text;
+
 import com.codahale.metrics.Counter;
+
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.runtime.JobState;
 import com.linkedin.uif.runtime.Metrics;
-import org.apache.hadoop.io.Text;
-
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 
 /**
  * An extension to {@link com.linkedin.uif.configuration.WorkUnitState} with run-time task state information.
