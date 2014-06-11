@@ -151,8 +151,11 @@ public class Utils {
 			return null;
 		}
 		String queryLowerCase = query.toLowerCase();
-		int startIndex = queryLowerCase.indexOf("select") + 6;
-		int endIndex = queryLowerCase.indexOf("from ") - 1;
+		int startIndex = queryLowerCase.indexOf("select ") + 7;
+		int endIndex = queryLowerCase.indexOf(" from ");
+		if(startIndex < 0 || endIndex < 0) {
+			return null;
+		}
 		String[] inputQueryColumns = query.substring(startIndex, endIndex).toLowerCase().replaceAll(" ", "").split(",");
 		return Arrays.asList(inputQueryColumns);
 	}
