@@ -26,6 +26,7 @@ tgz {
     rename("metastore-$version$jar_extension", "metastore.jar")
     rename("source-$version$jar_extension", "source.jar")
     from('.')
+    from('../bin') { into('bin') }
     from('../conf') { into('conf') }
     exclude('*build*')
     exclude("**/commons-logging*")

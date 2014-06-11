@@ -14,6 +14,9 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
+import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration.ConfigurationConverter;
+import org.apache.commons.configuration.PropertiesConfiguration;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Splitter;
@@ -165,8 +168,8 @@ public class TestWorker {
         }
 
         // Start the test worker with the given configuration properties
-        Properties properties = new Properties();
-        properties.load(new FileReader(cmd.getOptionValue('c')));
+        Configuration config = new PropertiesConfiguration(cmd.getOptionValue('c'));
+        Properties properties = ConfigurationConverter.getProperties(config);
         TestWorker testWorker = new TestWorker(properties);
         testWorker.start();
 
