@@ -1,7 +1,6 @@
 package com.linkedin.uif.runtime;
 
 import java.io.IOException;
-import java.io.Serializable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,7 +46,7 @@ import com.linkedin.uif.writer.Destination;
  *
  * @author ynli
  */
-public class Task implements Runnable, Serializable {
+public class Task implements Runnable {
 
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
@@ -57,7 +56,10 @@ public class Task implements Runnable, Serializable {
     private final TaskStateTracker taskStateTracker;
     private final TaskState taskState;
 
+    private Extractor extractor;
     private DataWriter writer;
+    private TaskPublisher publisher;
+    private boolean shouldCommit = false;
 
     // Number of retries
     private int retryCount = 0;
@@ -82,25 +84,21 @@ public class Task implements Runnable, Serializable {
     @Override
     @SuppressWarnings("unchecked")
     public void run() {
-        Extractor extractor = null;
-        TaskPublisher publisher = null;
-        RowLevelPolicyChecker rowChecker = null;
-
         long startTime = System.currentTimeMillis();
         this.taskState.setStartTime(startTime);
-        // Should the writer commit its output
-        boolean shouldCommit = false;
 
+        RowLevelPolicyChecker rowChecker = null;
+        boolean writerClosed = false;
         try {
             // Build the extractor for pulling source schema and data records
-            extractor = this.taskContext.getSource().getExtractor(this.taskState);
-            if (extractor == null) {
+            this.extractor = this.taskContext.getSource().getExtractor(this.taskState);
+            if (this.extractor == null) {
                 LOG.error("No extractor created for task " + this.taskId);
                 return;
             }
 
             // Original source schema
-            Object sourceSchema = extractor.getSchema();
+            Object sourceSchema = this.extractor.getSchema();
             if (sourceSchema == null) {
                 LOG.error("Not extracting data because no source schema available for task " + this.taskId);
                 return;
@@ -131,7 +129,7 @@ public class Task implements Runnable, Serializable {
             // Extract and write data records
             Object record;
             // Read one source record at a time
-            while ((record = extractor.readRecord()) != null) {
+            while ((record = this.extractor.readRecord()) != null) {
                 // Apply the converters first if applicable
                 if (doConversion) {
                     record = converter.convertRecord(sourceSchema, record, this.taskState);
@@ -143,94 +141,56 @@ public class Task implements Runnable, Serializable {
                 }
             }
 
-            LOG.info("Row quality checker finished with results: " + rowResults.getResults());
-
-            // Do overall quality checking and publish task data
-            this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_READ,
-                    extractor.getExpectedRecordCount());
-            this.taskState.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN,
-                    this.writer.recordsWritten());
-            this.taskState.setProp(ConfigurationKeys.EXTRACT_SCHEMA, schemaForWriter.toString());
-
-            TaskLevelPolicyChecker policyChecker = buildTaskLevelPolicyChecker(this.taskState);
-            TaskLevelPolicyCheckResults taskResults = policyChecker.executePolicies();
-            
-            publisher = buildTaskPublisher(this.taskState, taskResults);
-            switch (publisher.canPublish()) {
-            case SUCCESS:
-                shouldCommit = true;
-                this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
-                break;
-            case CLEANUP_FAIL:
-                LOG.error("Cleanup failed for task " + this.taskId);
-                this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-                break;
-            case POLICY_TESTS_FAIL:
-                LOG.error("Not all quality checking passed for task " + this.taskId);
-                this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-                break;
-            case COMPONENTS_NOT_FINISHED:
-                LOG.error("Not all components completed for task " + this.taskId);
-                this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-                break;
-            default:
-                this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-                break;
-            }
-        } catch (Exception e) {
-            LOG.error(String.format("Task %s failed", this.taskId), e);
+            // Attempt to publish and commit the task data
+            publishData(rowResults, schemaForWriter);
+            // We need to close the writer before task data can be committed
+            this.writer.close();
+            writerClosed = true;
+            commitData();
+        } catch (Throwable t) {
+            LOG.error(String.format("Task %s failed", this.taskId), t);
             this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-            this.taskState.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, e.toString());
+            this.taskState.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, t.toString());
         } finally {
-            // Cleanup when the task completes or fails
-            if (extractor != null) {
+            // Properly close all components and cleanup
+            if (this.extractor != null) {
                 try {
-                    extractor.close();
+                    this.extractor.close();
                 } catch (Exception ioe) {
                     LOG.error("Failed to close the extractor for task " + taskId, ioe);
                 }
             }
 
-            if (this.writer != null) {
-                try {
-                    // We need to close the writer before it can commit
-                    this.writer.close();
-                    if (shouldCommit) {
-                        LOG.info("Committing data of task " + this.taskId);
-                        this.writer.commit();
-                        // Change the state to COMMITTED after successful commit
-                        this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
-                        if (Metrics.isEnabled(this.taskState.getWorkunit())) {
-                            // Update byte-level metrics after the writer commits
-                            updateByteMetrics();
-                        }
-                    }
-                } catch (IOException ioe) {
-                    if (this.taskState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED) {
-                        LOG.error("Failed to commit data of task " + this.taskId, ioe);
-                    }
-                } finally {
-                    try {
-                        this.writer.cleanup();
-                    } catch (IOException ioe) {
-                        LOG.error("The writer failed to cleanup for task " + taskId, ioe);
-                    }
-                }
-            }
-
-            if (publisher != null) {
-                try {
-                    publisher.cleanup();
-                } catch (Exception e) {
-                    LOG.error("Failed to close the task publisher for task " + taskId, e);
-                }
-            }
-            
             if (rowChecker != null) {
                 try {
                     rowChecker.close();
                 } catch (IOException ioe) {
                     LOG.error("Failed to close the row quality checker for task " + taskId, ioe);
+                }
+            }
+
+            if (this.publisher != null) {
+                try {
+                    this.publisher.cleanup();
+                } catch (Exception e) {
+                    LOG.error("Failed to close the task publisher for task " + taskId, e);
+                }
+            }
+
+            if (this.writer != null) {
+                if (!writerClosed) {
+                    // Close the writer if it has not been closed yet
+                    try {
+                        this.writer.close();
+                    } catch (IOException ioe) {
+                        LOG.error("Failed to close the writer for task " + taskId, ioe);
+                    }
+                }
+
+                try {
+                    this.writer.cleanup();
+                } catch (IOException ioe) {
+                    LOG.error("The writer failed to cleanup for task " + taskId, ioe);
                 }
             }
 
@@ -391,5 +351,69 @@ public class Task implements Runnable, Serializable {
         TaskPublisherBuilder builder = new TaskPublisherBuilderFactory()
                 .newTaskPublisherBuilder(taskState, results);
         return builder.build();
+    }
+
+    /**
+     * Publish task data.
+     */
+    private void publishData(RowLevelPolicyCheckResults rowResults, Object schemaForWriter)
+            throws Exception {
+
+        LOG.info("Row quality checker finished with results: " + rowResults.getResults());
+
+        // Do overall quality checking and publish task data
+        this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_READ,
+                extractor.getExpectedRecordCount());
+        this.taskState.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN,
+                this.writer.recordsWritten());
+        this.taskState.setProp(ConfigurationKeys.EXTRACT_SCHEMA, schemaForWriter.toString());
+
+        TaskLevelPolicyChecker policyChecker = buildTaskLevelPolicyChecker(this.taskState);
+        TaskLevelPolicyCheckResults taskResults = policyChecker.executePolicies();
+
+        this.publisher = buildTaskPublisher(this.taskState, taskResults);
+        switch (this.publisher.canPublish()) {
+            case SUCCESS:
+                this.shouldCommit = true;
+                this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
+                break;
+            case CLEANUP_FAIL:
+                LOG.error("Cleanup failed for task " + this.taskId);
+                this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+                break;
+            case POLICY_TESTS_FAIL:
+                LOG.error("Not all quality checking passed for task " + this.taskId);
+                this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+                break;
+            case COMPONENTS_NOT_FINISHED:
+                LOG.error("Not all components completed for task " + this.taskId);
+                this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+                break;
+            default:
+                this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+                break;
+        }
+    }
+
+    /**
+     * Commit task data.
+     */
+    private void commitData() {
+        if (this.shouldCommit) {
+            LOG.info("Committing data of task " + this.taskId);
+            try {
+                this.writer.commit();
+                // Change the state to COMMITTED after successful commit
+                this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+                if (Metrics.isEnabled(this.taskState.getWorkunit())) {
+                    // Update byte-level metrics after the writer commits
+                    updateByteMetrics();
+                }
+            } catch (IOException ioe) {
+                if (this.taskState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED) {
+                    LOG.error("Failed to commit data of task " + this.taskId, ioe);
+                }
+            }
+        }
     }
 }
