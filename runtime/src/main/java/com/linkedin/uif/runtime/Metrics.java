@@ -4,9 +4,10 @@ import java.io.File;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.State;
-import org.slf4j.Logger;
 
 import com.codahale.metrics.ConsoleReporter;
 import com.codahale.metrics.Counter;

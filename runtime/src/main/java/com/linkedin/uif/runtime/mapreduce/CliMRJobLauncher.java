@@ -3,6 +3,8 @@ package com.linkedin.uif.runtime.mapreduce;
 import java.io.FileReader;
 import java.util.Properties;
 
+import org.apache.commons.configuration.ConfigurationConverter;
+import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.util.Tool;
@@ -40,9 +42,12 @@ public class CliMRJobLauncher extends Configured implements Tool {
     }
 
     public static void main(String[] args) throws Exception {
-        Properties properties = new Properties();
         // Second to last argument is the framework configuration file
-        properties.load(new FileReader(args[args.length - 2]));
-        System.exit(ToolRunner.run(new Configuration(), new CliMRJobLauncher(properties), args));
+        String configFile = args[args.length - 2];
+        // Load framework configuration properties
+        Properties properties =  ConfigurationConverter.getProperties(
+                new PropertiesConfiguration(configFile));
+        System.exit(ToolRunner.run(
+                new Configuration(), new CliMRJobLauncher(properties), args));
     }
 }
