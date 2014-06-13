@@ -144,12 +144,12 @@ public class SalesforceExtractor extends RestApiExtractor {
 	@Override
 	public HttpEntity getAuthentication() throws RestApiConnectionException {
 		this.log.debug("Authenticating salesforce");
-		String clientId = this.workUnit.getProp(ConfigurationKeys.SOURCE_CLIENT_ID);
-		String clientSecret = this.workUnit.getProp(ConfigurationKeys.SOURCE_CLIENT_SECRET);
-		String userName = this.workUnit.getProp(ConfigurationKeys.SOURCE_USERNAME);
-		String password = this.workUnit.getProp(ConfigurationKeys.SOURCE_PASSWORD);
-		String securityToken = this.workUnit.getProp(ConfigurationKeys.SOURCE_SECURITY_TOKEN);
-		String host = this.workUnit.getProp(ConfigurationKeys.SOURCE_HOST_NAME);
+		String clientId = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_CLIENT_ID);
+		String clientSecret = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_CLIENT_SECRET);
+		String userName = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME);
+		String password = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD);
+		String securityToken = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_SECURITY_TOKEN);
+		String host = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
 
 		List<NameValuePair> formParams = new ArrayList<NameValuePair>();
 		formParams.add(new BasicNameValuePair("grant_type", "password"));
@@ -387,7 +387,7 @@ public class SalesforceExtractor extends RestApiExtractor {
 					query = this.addPredicate(query, predicate.getCondition());
 				}
 				
-				if(Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_IS_SPECIFIC_API_ACTIVE))) {
+				if(Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_SPECIFIC_API_ACTIVE))) {
 					query = this.addPredicate(query, "IsDeleted = true");
 				}
 				
@@ -492,7 +492,7 @@ public class SalesforceExtractor extends RestApiExtractor {
 	}
 	
 	private String getServiceBaseUrl() {
-		String dataEnvPath = DEFAULT_SERVICES_DATA_PATH + "/v" + this.workUnit.getProp(ConfigurationKeys.SOURCE_VERSION);
+		String dataEnvPath = DEFAULT_SERVICES_DATA_PATH + "/v" + this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_VERSION);
 		this.setServicesDataEnvPath(dataEnvPath);
 		return this.instanceUrl + dataEnvPath;
 	}
@@ -635,10 +635,10 @@ public class SalesforceExtractor extends RestApiExtractor {
 	private boolean bulkApiLogin() throws Exception {
 		this.log.info("Authenticating salesforce bulk api");
 		boolean success = false;
-		String hostName = this.workUnit.getProp(ConfigurationKeys.SOURCE_HOST_NAME);
-		String restUrl = this.workUnit.getProp(ConfigurationKeys.SOURCE_REST_URL);
+		String hostName = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
+		String restUrl = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_REST_URL);
 		
-		String apiVersion = this.workUnit.getProp(ConfigurationKeys.SOURCE_VERSION);
+		String apiVersion = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_VERSION);
 		if(Strings.isNullOrEmpty(apiVersion)) {
 			apiVersion = "29.0";
 		}
@@ -649,14 +649,14 @@ public class SalesforceExtractor extends RestApiExtractor {
 		try {
 			ConnectorConfig config = new ConnectorConfig();
 			
-			if (super.workUnitState.contains(ConfigurationKeys.SOURCE_USE_PROXY_URL) &&
-				! super.workUnitState.getProp(ConfigurationKeys.SOURCE_USE_PROXY_URL).isEmpty()){
-				config.setProxy(super.workUnitState.getProp(ConfigurationKeys.SOURCE_USE_PROXY_URL),
-					super.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_USE_PROXY_PORT));
+			if (super.workUnitState.contains(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL) &&
+				! super.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL).isEmpty()){
+				config.setProxy(super.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL),
+					super.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT));
 			}
 			
-			config.setUsername(this.workUnit.getProp(ConfigurationKeys.SOURCE_USERNAME));
-			config.setPassword(this.workUnit.getProp(ConfigurationKeys.SOURCE_PASSWORD));
+			config.setUsername(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME));
+			config.setPassword(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
 			config.setAuthEndpoint(soapAuthEndPoint);
 			//config.setAuthEndpoint("https://login.salesforce.com/services/Soap/u/24");
 			config.setCompression(true);
@@ -775,7 +775,7 @@ public class SalesforceExtractor extends RestApiExtractor {
 			// if Buffer stream has data then process the same
 
 			// Get batch size from .pull file
-			int batchSize = Utils.getAsInt(this.workUnit.getProp(ConfigurationKeys.SOURCE_FETCH_SIZE));
+			int batchSize = Utils.getAsInt(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_FETCH_SIZE));
 			if(batchSize == 0) {
 				batchSize = ConfigurationKeys.DEFAULT_SOURCE_FETCH_SIZE;
 			}

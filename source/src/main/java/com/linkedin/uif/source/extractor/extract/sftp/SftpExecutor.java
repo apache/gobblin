@@ -38,7 +38,7 @@ public class SftpExecutor
     private static final Set<String> knownCmds = new HashSet<String>(Arrays.asList(CD, CHMOD));
     
     private static Logger log = LoggerFactory.getLogger(SftpExecutor.class);
-    
+
     /**
      * Opens up a connection to specified host using the username
      * Connects to the source using a private key without prompting
@@ -83,9 +83,11 @@ public class SftpExecutor
             if (channel != null) {
                 channel.disconnect();
             }
+            log.error(e.getMessage(), e);
             throw new RuntimeException("Cannot connect to SFTP source", e);
         }
     }
+
     /**
      * Given a semicolon separate list of shell commands,
      * this method converts the command types and arguments

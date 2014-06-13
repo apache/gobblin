@@ -48,7 +48,7 @@ public class ResponsysSource implements Source<String, String>
     public void initLogger(SourceState state) {
         StringBuilder sb = new StringBuilder();
         sb.append("[");
-        sb.append(Strings.nullToEmpty(state.getProp(ConfigurationKeys.SOURCE_SCHEMA)));
+        sb.append(Strings.nullToEmpty(state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA)));
         sb.append("_");
         sb.append(Strings.nullToEmpty(state.getProp(ConfigurationKeys.SOURCE_ENTITY)));
         sb.append("]");
@@ -74,30 +74,30 @@ public class ResponsysSource implements Source<String, String>
     {
         initLogger(state);
         this.sourceState = state;
-        this.sftp = (ChannelSftp) SftpExecutor.connect(state.getProp(ConfigurationKeys.SOURCE_SFTP_PRIVATE_KEY_LOCATION),
-                                                       state.getProp(ConfigurationKeys.SOURCE_SFTP_KNOWN_HOSTS_LOCATION),
-                                                       state.getProp(ConfigurationKeys.SOURCE_USERNAME),
-                                                       state.getProp(ConfigurationKeys.SOURCE_HOST_NAME),
-                                                       state.getProp(ConfigurationKeys.SOURCE_USE_PROXY_URL),
-                                                       state.getPropAsInt(ConfigurationKeys.SOURCE_USE_PROXY_PORT, -1));
+        this.sftp = (ChannelSftp) SftpExecutor.connect(state.getProp(ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY),
+                                                       state.getProp(ConfigurationKeys.SOURCE_CONN_KNOWN_HOSTS),
+                                                       state.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME),
+                                                       state.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME),
+                                                       state.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL),
+                                                       state.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT, -1));
         
         log.info("Get work units");
         List<WorkUnit> workUnits = Lists.newArrayList();
         String nameSpaceName = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY);
         String entityName = state.getProp(ConfigurationKeys.SOURCE_ENTITY);
-        
+
         // Override extract table name
         String extractTableName = state.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY);
-        
+
         // If extract table name is not found then consider entity name as extract table name
-        if(Strings.isNullOrEmpty(extractTableName)) {
+        if (Strings.isNullOrEmpty(extractTableName)) {
             extractTableName = entityName;
         }
 
         TableType tableType = TableType.valueOf(state.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY).toUpperCase());        
         List<WorkUnitState> previousWorkunits = state.getPreviousStates();
         List<String> prevFsSnapshot = new ArrayList<String>();
-        
+
         // Get list of files seen in the previous run
         if (!previousWorkunits.isEmpty() && previousWorkunits.get(0).getWorkunit().contains(RESPONSYS_FS_SNAPSHOT)) {
             prevFsSnapshot = previousWorkunits.get(0).getWorkunit().getPropAsList(RESPONSYS_FS_SNAPSHOT);
@@ -172,8 +172,8 @@ public class ResponsysSource implements Source<String, String>
      */
     private List<String> getcurrentFsSnapshot()
     {
-        List<Command> cmds = SftpExecutor.parseInputCommands(sourceState.getProp(ConfigurationKeys.SOURCE_SFTP_SETUP_COMMANDS));
-        List<String> list = Arrays.asList(sourceState.getProp(ConfigurationKeys.SOURCE_SFTP_DATA_DIRECTORY) + "/*" + sourceState.getProp(ConfigurationKeys.SOURCE_ENTITY) + "*");
+        List<Command> cmds = new ArrayList<Command>();
+        List<String> list = Arrays.asList(sourceState.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY) + "/*" + sourceState.getProp(ConfigurationKeys.SOURCE_ENTITY) + "*");
         cmds.add(new SftpCommand().build(list, SftpCommandType.LS));
         CommandOutput<SftpCommand, List<String>> response = new SftpCommandOutput();
         

@@ -75,6 +75,7 @@ public class ConfigurationKeys {
     public static final String EXTRACT_PRIMARY_KEY_FIELDS_KEY = "extract.primary.key.fields";
     public static final String EXTRACT_DELTA_FIELDS_KEY = "extract.delta.fields";
     public static final String EXTRACT_SCHEMA = "extract.schema";
+    public static final String EXTRACT_PULL_LIMIT = "extract.pull.limit";
 
     /**
      * Converter configuration properties
@@ -199,47 +200,54 @@ public class ConfigurationKeys {
     public static final String DATA_PUBLISHER_REPLACE_FINAL_DIR =  DATA_PUBLISHER_PREFIX + ".replace.final.dir";
     
     /** 
-    * Configuration properties used by the extractor
-    */
-    public static final String SOURCE_USE_PROXY_URL = "source.use.proxy.url";
-    public static final String SOURCE_USE_PROXY_PORT = "source.use.proxy.port";
-    public static final String SOURCE_SCHEMA = "source.schema";
+     * Configuration properties used by the extractor
+     */
     public static final String SOURCE_ENTITY = "source.entity";
-    public static final String SOURCE_WATERMARK_TYPE = "source.watermark.type";
-    public static final String SOURCE_HOUR_COLUMN = "source.hour.column";
-    public static final String SOURCE_SKIP_HIGH_WATERMARK_CALC = "source.skip.high.watermark.calc";
-    public static final String SOURCE_QUERY = "source.query";
-    public static final String SOURCE_IS_HOURLY_EXTRACT = "source.hourly.extract";
-    public static final String SOURCE_EXTRACT_TYPE = "source.extract.type";
     public static final String SOURCE_TIMEZONE = "source.timezone";
-    public static final String SOURCE_PARTITION_INTERVAL = "source.partition.interval";
-    public static final String SOURCE_START_VALUE = "source.start.value";
-    public static final String SOURCE_END_VALUE = "source.end.value";
-    public static final String SOURCE_APPEND_MAX_WATERMARK_LIMIT = "source.append.max.watermark.limit";
-    public static final String SOURCE_IS_WATERMARK_OVERRIDE = "source.is.watermark.override";
     public static final String SOURCE_MAX_NUMBER_OF_PARTITIONS = "source.max.number.of.partitions";
-    public static final String SOURCE_LOW_WATERMARK_BACKUP_SECS = "source.low.watermark.backup.secs";
-    public static final String SOURCE_CLIENT_ID = "source.client.id";
-    public static final String SOURCE_CLIENT_SECRET = "source.client.secret";
-    public static final String SOURCE_USERNAME = "source.username";
-    public static final String SOURCE_PASSWORD = "source.password";
-    public static final String SOURCE_SECURITY_TOKEN = "source.security.token";
-    public static final String SOURCE_HOST_NAME = "source.host";
-    public static final String SOURCE_VERSION = "source.version";
-    public static final String SOURCE_TIMEOUT = "source.timeout";
-    public static final String SOURCE_REST_URL = "source.rest.url";
-    public static final String SOURCE_FETCH_SIZE = "source.fetch.size";
-    public static final String SOURCE_IS_SPECIFIC_API_ACTIVE = "source.is.specific.api.active";
-    public static final String SOURCE_CSV_SKIP_FIRST_LINE = "source.csv.skip.first.line";
+    public static final String SOURCE_SKIP_FIRST_RECORD = "source.skip.first.record";
     
     /**
-     * Configuration properties for SFTP
+     * Configuration properties used by the QueryBasedExtractor
      */
-    public static final String SOURCE_SFTP_DATA_DIRECTORY = "source.sftp.data.directory";
-    public static final String SOURCE_SFTP_SETUP_COMMANDS = "source.sftp.setup.commands";
-    public static final String SOURCE_SFTP_FILES_TO_PULL = "source.sftp.files.to.pull";
-    public static final String SOURCE_SFTP_PRIVATE_KEY_LOCATION = "source.sftp.private.key.location";
-    public static final String SOURCE_SFTP_KNOWN_HOSTS_LOCATION = "source.sftp.known.hosts.location";
+    public static final String SOURCE_QUERYBASED_WATERMARK_TYPE = "source.querybased.watermark.type";
+    public static final String SOURCE_QUERYBASED_HOUR_COLUMN = "source.querybased.hour.column";
+    public static final String SOURCE_QUERYBASED_SKIP_HIGH_WATERMARK_CALC = "source.querybased.skip.high.watermark.calc";
+    public static final String SOURCE_QUERYBASED_QUERY = "source.querybased.query";
+    public static final String SOURCE_QUERYBASED_IS_HOURLY_EXTRACT = "source.querybased.hourly.extract";
+    public static final String SOURCE_QUERYBASED_EXTRACT_TYPE = "source.querybased.extract.type";
+    public static final String SOURCE_QUERYBASED_PARTITION_INTERVAL = "source.querybased.partition.interval";
+    public static final String SOURCE_QUERYBASED_START_VALUE = "source.querybased.start.value";
+    public static final String SOURCE_QUERYBASED_END_VALUE = "source.querybased.end.value";
+    public static final String SOURCE_QUERYBASED_APPEND_MAX_WATERMARK_LIMIT = "source.querybased.append.max.watermark.limit";
+    public static final String SOURCE_QUERYBASED_IS_WATERMARK_OVERRIDE = "source.querybased.is.watermark.override";
+    public static final String SOURCE_QUERYBASED_LOW_WATERMARK_BACKUP_SECS = "source.querybased.low.watermark.backup.secs";
+    public static final String SOURCE_QUERYBASED_SCHEMA = "source.querybased.schema";
+    public static final String SOURCE_QUERYBASED_FETCH_SIZE = "source.querybased.fetch.size";
+    public static final String SOURCE_QUERYBASED_IS_SPECIFIC_API_ACTIVE = "source.querybased.is.specific.api.active";
+
+    /**
+     * Configuration properties used by the FileBasedExtractor
+     */
+    public static final String SOURCE_FILEBASED_DATA_DIRECTORY = "source.filebased.data.directory";
+    public static final String SOURCE_FILEBASED_FILES_TO_PULL = "source.filebased.files.to.pull";
+    
+    /**
+     * Configuration properties for source connection
+     */
+    public static final String SOURCE_CONN_PRIVATE_KEY = "source.conn.private.key";
+    public static final String SOURCE_CONN_KNOWN_HOSTS = "source.conn.known.hosts";
+    public static final String SOURCE_CONN_CLIENT_SECRET = "source.conn.client.secret";
+    public static final String SOURCE_CONN_CLIENT_ID = "source.conn.client.id";
+    public static final String SOURCE_CONN_USERNAME = "source.conn.username";
+    public static final String SOURCE_CONN_PASSWORD = "source.conn.password";
+    public static final String SOURCE_CONN_SECURITY_TOKEN = "source.conn.security.token";
+    public static final String SOURCE_CONN_HOST_NAME = "source.conn.host";
+    public static final String SOURCE_CONN_VERSION = "source.conn.version";
+    public static final String SOURCE_CONN_TIMEOUT = "source.conn.timeout";
+    public static final String SOURCE_CONN_REST_URL = "source.conn.rest.url";
+    public static final String SOURCE_CONN_USE_PROXY_URL = "source.conn.use.proxy.url";
+    public static final String SOURCE_CONN_USE_PROXY_PORT = "source.conn.use.proxy.port";
     
     public static final long DEFAULT_WATERMARK_VALUE = -1;
     public static final int DEFAULT_MAX_NUMBER_OF_PARTITIONS = 20;
@@ -264,5 +272,4 @@ public class ConfigurationKeys {
     public static final String EMAIL_PASSWORD_KEY = "email.password";
     public static final String EMAIL_FROM_KEY = "email.from";
     public static final String EMAIL_TOS_KEY = "email.tos";
-
 }

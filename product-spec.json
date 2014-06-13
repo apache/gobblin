@@ -24,8 +24,8 @@
     "gradle_opts": "-Xmx2048m -Xms1024m -XX:PermSize=128m -XX:MaxPermSize=512m",
     "type": "gradle",
     "versions": {
-      "gradle": "1.8",
-      "rum": "2.*.*"
+      "gradle": "1.*",
+      "rum": "3.*.*"
     }
   },
   "deploy": {},

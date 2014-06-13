@@ -92,7 +92,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 	private void setWorkUnitName() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("[");
-		sb.append(Strings.nullToEmpty(this.workUnit.getProp(ConfigurationKeys.SOURCE_SCHEMA)));
+		sb.append(Strings.nullToEmpty(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA)));
 		sb.append("_");
 		sb.append(Strings.nullToEmpty(this.workUnit.getProp(ConfigurationKeys.SOURCE_ENTITY)));
 		sb.append("_");
@@ -116,7 +116,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 	public QueryBasedExtractor(WorkUnitState workUnitState) {
 		this.workUnitState = workUnitState;
 		this.workUnit = this.workUnitState.getWorkunit();
-		this.schema = this.workUnit.getProp(ConfigurationKeys.SOURCE_SCHEMA);
+		this.schema = this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
 		this.entity = this.workUnit.getProp(ConfigurationKeys.SOURCE_ENTITY);
 		this.setWorkUnitName();
 		this.log = LoggerFactory.getLogger(QueryBasedExtractor.class);
@@ -166,7 +166,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 	 * @return iterator
 	 */
 	private Iterator<D> getIterator() throws DataRecordException, IOException {
-		if(Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_IS_SPECIFIC_API_ACTIVE))) {
+		if(Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_SPECIFIC_API_ACTIVE))) {
 			return this.getRecordSetFromSourceApi(this.schema, this.entity, this.workUnit, this.predicateList);
 		}
 		return this.getRecordSet(this.schema, this.entity, this.workUnit, this.predicateList);
@@ -230,14 +230,14 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 		long hwm = this.workUnit.getHighWaterMark();
 		log.info("Low water mark: " + lwm + "; and High water mark: " + hwm);
 		WatermarkType watermarkType;
-		if(Strings.isNullOrEmpty(this.workUnit.getProp(ConfigurationKeys.SOURCE_WATERMARK_TYPE))) {
+		if(Strings.isNullOrEmpty(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE))) {
 			watermarkType = null;
 		} else {
-			watermarkType = WatermarkType.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_WATERMARK_TYPE).toUpperCase());
+			watermarkType = WatermarkType.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE).toUpperCase());
 		}	
 		
 		try {
-			this.setTimeOut(this.workUnit.getProp(ConfigurationKeys.SOURCE_TIMEOUT));
+			this.setTimeOut(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_TIMEOUT));
 			this.extractMetadata(this.schema, this.entity, this.workUnit);
 			
 			if(!Strings.isNullOrEmpty(watermarkColumn)) {
@@ -280,7 +280,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 	private long getLatestWatermark(String watermarkColumn, WatermarkType watermarkType, long lwmValue, long hwmValue)
 			throws HighWatermarkException, IOException {
 		
-		if(!Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_SKIP_HIGH_WATERMARK_CALC))) {
+		if(!Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SKIP_HIGH_WATERMARK_CALC))) {
 			this.log.info("Getting high watermark");
 			List<Predicate> list = new ArrayList<Predicate>();
 			WatermarkPredicate watermark = new WatermarkPredicate(watermarkColumn, watermarkType);
@@ -316,8 +316,8 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 		this.addPredicates(watermark.getPredicate(this, lwmValue, ">="));
 		this.addPredicates(watermark.getPredicate(this, hwmValue, "<="));
 		
-		if(Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_IS_HOURLY_EXTRACT))) {
-			String hourColumn = this.workUnit.getProp(ConfigurationKeys.SOURCE_HOUR_COLUMN);
+		if(Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_HOURLY_EXTRACT))) {
+			String hourColumn = this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_HOUR_COLUMN);
 			if(!Strings.isNullOrEmpty(hourColumn)) {
 				WatermarkPredicate hourlyWatermark = new WatermarkPredicate(hourColumn, WatermarkType.HOUR);
 				this.addPredicates(hourlyWatermark.getPredicate(this, lwmValue, ">="));
