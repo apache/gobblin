@@ -41,4 +41,19 @@ public class LocalJobLauncherTest extends JobLauncherTestBase {
 
         runTest(jobProps);
     }
+
+    @Test
+    public void testLaunchJobWithPullLimit() throws Exception {
+        Properties jobProps = new Properties();
+        jobProps.load(new FileReader("test/resource/job-conf/UIFTest1.pull"));
+        jobProps.putAll(this.properties);
+        jobProps.setProperty(ConfigurationKeys.EXTRACT_PULL_LIMIT, "10");
+        jobProps.setProperty(SOURCE_FILE_LIST_KEY,
+                "test/resource/source/test.avro.0," +
+                "test/resource/source/test.avro.1," +
+                "test/resource/source/test.avro.2," +
+                "test/resource/source/test.avro.3");
+
+        runTestWithPullLimit(jobProps);
+    }
 }

@@ -62,4 +62,19 @@ public class MRJobLauncherTest extends JobLauncherTestBase {
         jobProps.setProperty(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, "5");
         runTest(jobProps);
     }
+
+    @Test
+    public void testLaunchJobWithPullLimit() throws Exception {
+        Properties jobProps = new Properties();
+        jobProps.load(new FileReader("test/resource/mr-job-conf/GobblinMRTest.pull"));
+        jobProps.putAll(this.properties);
+        jobProps.setProperty(ConfigurationKeys.EXTRACT_PULL_LIMIT, "10");
+        jobProps.setProperty(SOURCE_FILE_LIST_KEY,
+                "test/resource/source/test.avro.0," +
+                "test/resource/source/test.avro.1," +
+                "test/resource/source/test.avro.2," +
+                "test/resource/source/test.avro.3");
+
+        runTestWithPullLimit(jobProps);
+    }
 }

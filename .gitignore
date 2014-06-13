@@ -31,6 +31,8 @@ tmp
 out
 **/out
 output
+**/gradle
+**/ligradle
 **/output
 **/staging
 jobOutput
