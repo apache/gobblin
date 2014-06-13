@@ -2,6 +2,7 @@ package com.linkedin.uif.source.extractor.extract;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +20,7 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.configuration.WorkUnitState.WorkingState;
+import com.linkedin.uif.runtime.JobCommitPolicy;
 import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.extractor.partition.Partitioner;
 import com.linkedin.uif.source.extractor.utils.Utils;
@@ -92,7 +94,7 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
 		log.info("Total number of work units for the current run: " + workUnitCount);
 		
 		List<WorkUnit> previousWorkUnits = this.getPreviousIncompleteWorkUnits(state);
-		log.info("Total number of work units from the previous failed runs: " + previousWorkUnits.size());
+		log.info("Total number of incomplete tasks from the previous run: " + previousWorkUnits.size());
 		
 		workUnits.addAll(previousWorkUnits);
 		return workUnits;
@@ -106,6 +108,7 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
      */
 	private List<WorkUnit> getPreviousIncompleteWorkUnits(SourceState state) {
 		log.debug("Getting previous unsuccessful work units");
+        
 		List<WorkUnit> previousWorkUnits = new ArrayList<WorkUnit>();
 		List<WorkUnitState> previousWorkUnitStates = state.getPreviousStates();
 		if(previousWorkUnitStates.size() == 0) {
@@ -113,12 +116,14 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
 			return previousWorkUnits;
 		}
 		
+		// Load previous failed or aborted tasks if the previous run was with commit policy COMMIT_ON_PARTIAL_SUCCESS
+		// If job has commit policy as COMMIT_ON_FULL_SUCCESS and if it is failed, ignore the previous failed tasks as it is creating new tasks with the old water marks
 		for(WorkUnitState workUnitState : previousWorkUnitStates) {
-			if(workUnitState.getWorkingState() == WorkingState.FAILED || workUnitState.getWorkingState() == WorkingState.ABORTED) {
+			JobCommitPolicy commitPolicy = JobCommitPolicy.forName(workUnitState.getWorkunit().getProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
+			if(commitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS && (workUnitState.getWorkingState() == WorkingState.FAILED || workUnitState.getWorkingState() == WorkingState.ABORTED)) {
 				previousWorkUnits.add(workUnitState.getWorkunit());
 			}
 		}
-		
 		return previousWorkUnits;
 	}
 
@@ -129,8 +134,7 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
      * @return latest water mark(high water mark of WorkUnitState)
      */
 	private long getLatestWatermarkFromMetadata(SourceState state) {
-		log.debug("Getting previous watermark");
-		boolean hasDataInPreviousRun = false;
+		log.debug("Get latest watermark from the previou run");
 		long latestWaterMark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
 		
 		List<WorkUnitState> previousWorkUnitStates = state.getPreviousStates();
@@ -142,25 +146,43 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
 			return latestWaterMark;
 		}
 		
+		boolean hasFailedRun = false;
+		boolean isCommitOnFullSuccess = false;
+		
 		for(WorkUnitState workUnitState : previousWorkUnitStates) {
-			if(workUnitState.getWorkingState() == WorkingState.COMMITTED) {
-				if(workUnitState.getHighWaterMark() != ConfigurationKeys.DEFAULT_WATERMARK_VALUE) {
-					hasDataInPreviousRun = true;
-				}
-				previousWorkUnitStateHighWatermarks.add(workUnitState.getHighWaterMark());
-				previousWorkUnitLowWatermarks.add(this.getLowWatermarkFromWorkUnit(workUnitState.getWorkunit(), workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE)));
+			JobCommitPolicy commitPolicy = JobCommitPolicy.forName(workUnitState.getWorkunit().getProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
+			log.info("Commit policy of the previous task "+workUnitState.getId()+":"+commitPolicy);
+			
+			if(commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
+				isCommitOnFullSuccess = true;
 			}
+			
+			log.info("State of the previous task: "+workUnitState.getId()+":"+workUnitState.getWorkingState());
+			if(workUnitState.getWorkingState() == WorkingState.FAILED || workUnitState.getWorkingState() == WorkingState.ABORTED) {
+				hasFailedRun = true;
+			}
+			
+			log.info("High watermark of the previous task: "+workUnitState.getId()+":"+workUnitState.getHighWaterMark()+"\n");
+			previousWorkUnitStateHighWatermarks.add(workUnitState.getHighWaterMark());
+			previousWorkUnitLowWatermarks.add(this.getLowWatermarkFromWorkUnit(workUnitState));
 		}
 		
+		// If there are no previous water marks, return default water mark 
 		if(previousWorkUnitStateHighWatermarks.isEmpty()) {
 			latestWaterMark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
-			log.info("Previous Committed states are not found; Latest watermark - Default watermark: " + latestWaterMark);
-		} else if(hasDataInPreviousRun) {
-			latestWaterMark = Collections.max(previousWorkUnitStateHighWatermarks);
-			log.info("Previous run has data; Latest watermark - Max watermark from WorkUnitStates: " + latestWaterMark);
-		} else {
+			log.info("Previous states are not found; Latest watermark - Default watermark: " + latestWaterMark);
+		}
+		
+		// If commit policy is full and it has failed run, get latest water mark as minimum of low water marks from previous states
+		else if(isCommitOnFullSuccess && hasFailedRun) {
 			latestWaterMark = Collections.min(previousWorkUnitLowWatermarks);
-			log.info("Previous run has no data; Latest watermark - Min watermark from WorkUnits: " + latestWaterMark);
+			log.info("Previous job was COMMIT_ON_FULL_SUCCESS but it was failed; Latest watermark - Min watermark from WorkUnits: " + latestWaterMark);
+		} 
+		
+		// If commit policy is full and there are no failed tasks or commit policy is partial, get latest water mark as maximum of high water marks from previous tasks
+		else {
+			latestWaterMark = Collections.max(previousWorkUnitStateHighWatermarks);
+			log.info("Latest watermark - Max watermark from WorkUnitStates: " + latestWaterMark);
 		}
 		
 		return latestWaterMark;
@@ -173,18 +195,24 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
      * @param watermark type
      * @return latest water mark(low water mark of WorkUnit)
      */
-	private long getLowWatermarkFromWorkUnit(WorkUnit workunit, String watermarkType) {
-		if(workunit.getLowWaterMark() == ConfigurationKeys.DEFAULT_WATERMARK_VALUE) {
-			return ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
+	private long getLowWatermarkFromWorkUnit(WorkUnitState workUnitState) {
+		String watermarkType = workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE);
+		long lowWaterMark = workUnitState.getWorkunit().getLowWaterMark();
+		
+		if(lowWaterMark == ConfigurationKeys.DEFAULT_WATERMARK_VALUE) {
+			return lowWaterMark;
 		}
 		
 		WatermarkType wmType = WatermarkType.valueOf(watermarkType.toUpperCase());
 		int deltaNum = new WatermarkPredicate(null, wmType).getDeltaNumForNextWatermark();
+		int backupSecs = Utils.getAsInt(workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_LOW_WATERMARK_BACKUP_SECS));
 		
-		if(wmType == WatermarkType.SIMPLE) {
-			return workunit.getLowWaterMark() - deltaNum;
-		} else {
-			return Long.parseLong(Utils.dateToString(Utils.addSecondsToDate(Utils.toDate(workunit.getLowWaterMark(), "yyyyMMddHHmmss"),deltaNum*-1), "yyyyMMddHHmmss"));
+		switch(wmType) {
+		case SIMPLE:
+			return lowWaterMark + backupSecs - deltaNum ;
+		default:
+			Date lowWaterMarkDate = Utils.toDate(lowWaterMark, "yyyyMMddHHmmss");
+			return Long.parseLong(Utils.dateToString(Utils.addSecondsToDate(lowWaterMarkDate, backupSecs - deltaNum), "yyyyMMddHHmmss"));
 		}
 	}
 
