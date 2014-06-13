@@ -83,7 +83,7 @@ public abstract class JobLauncherTestBase {
             Assert.assertEquals(taskState.getWorkingState(),
                     WorkUnitState.WorkingState.COMMITTED);
             Assert.assertEquals(
-                    taskState.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_READ),
+                    taskState.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED),
                     taskState.getPropAsLong(ConfigurationKeys.EXTRACT_PULL_LIMIT));
             Assert.assertEquals(
                     taskState.getPropAsLong(ConfigurationKeys.WRITER_ROWS_WRITTEN),

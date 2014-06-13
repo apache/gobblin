@@ -12,7 +12,7 @@ public class RowCountPolicy extends TaskLevelPolicy
     public RowCountPolicy(State state, TaskLevelPolicy.Type type)
     {
         super(state, type);
-        this.rowsRead = state.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_READ);
+        this.rowsRead = state.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED);
         this.rowsWritten = state.getPropAsLong(ConfigurationKeys.WRITER_ROWS_WRITTEN);
     }
 

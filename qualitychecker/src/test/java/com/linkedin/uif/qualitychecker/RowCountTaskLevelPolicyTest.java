@@ -24,7 +24,7 @@ public class RowCountTaskLevelPolicyTest
         State state = new State();
         state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST, "com.linkedin.uif.policies.count.RowCountPolicy");
         state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST_TYPE, "FAIL");
-        state.setProp(ConfigurationKeys.EXTRACTOR_ROWS_READ, EXTRACTOR_ROWS_READ);
+        state.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, EXTRACTOR_ROWS_READ);
         state.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, WRITER_ROWS_WRITTEN);
 
         TaskLevelPolicyCheckResults results = getPolicyResults(state);
@@ -38,7 +38,7 @@ public class RowCountTaskLevelPolicyTest
         State state = new State();
         state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST, "com.linkedin.uif.policies.count.RowCountPolicy");
         state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST_TYPE, "FAIL");
-        state.setProp(ConfigurationKeys.EXTRACTOR_ROWS_READ, EXTRACTOR_ROWS_READ);
+        state.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, EXTRACTOR_ROWS_READ);
         state.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, -1);
 
         TaskLevelPolicyCheckResults results = getPolicyResults(state);
@@ -52,7 +52,7 @@ public class RowCountTaskLevelPolicyTest
         State state = new State();
         state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST, "com.linkedin.uif.policies.count.RowCountRangePolicy");
         state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST_TYPE, "FAIL");
-        state.setProp(ConfigurationKeys.EXTRACTOR_ROWS_READ, EXTRACTOR_ROWS_READ);
+        state.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, EXTRACTOR_ROWS_READ);
         state.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, WRITER_ROWS_WRITTEN);
         state.setProp(ConfigurationKeys.ROW_COUNT_RANGE, "0.05");
 
@@ -67,7 +67,7 @@ public class RowCountTaskLevelPolicyTest
         State state = new State();
         state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST, "com.linkedin.uif.policies.count.RowCountRangePolicy");
         state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST_TYPE, "FAIL");
-        state.setProp(ConfigurationKeys.EXTRACTOR_ROWS_READ, EXTRACTOR_ROWS_READ);
+        state.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, EXTRACTOR_ROWS_READ);
         state.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, (long) 0.03*EXTRACTOR_ROWS_READ + EXTRACTOR_ROWS_READ);
         state.setProp(ConfigurationKeys.ROW_COUNT_RANGE, "0.05");
 
@@ -82,7 +82,7 @@ public class RowCountTaskLevelPolicyTest
         State state = new State();
         state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST, "com.linkedin.uif.policies.count.RowCountRangePolicy");
         state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST_TYPE, "FAIL");
-        state.setProp(ConfigurationKeys.EXTRACTOR_ROWS_READ, EXTRACTOR_ROWS_READ);
+        state.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, EXTRACTOR_ROWS_READ);
         state.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, -1);
         state.setProp(ConfigurationKeys.ROW_COUNT_RANGE, "0.05");
 
@@ -97,7 +97,7 @@ public class RowCountTaskLevelPolicyTest
         State state = new State();
         state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST, "com.linkedin.uif.policies.count.RowCountPolicy,com.linkedin.uif.policies.count.RowCountRangePolicy");
         state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST_TYPE, "FAIL,FAIL");
-        state.setProp(ConfigurationKeys.EXTRACTOR_ROWS_READ, EXTRACTOR_ROWS_READ);
+        state.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, EXTRACTOR_ROWS_READ);
         state.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, WRITER_ROWS_WRITTEN);
         state.setProp(ConfigurationKeys.ROW_COUNT_RANGE, "0.05");
 
