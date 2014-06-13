@@ -13,7 +13,7 @@ public class RowCountRangePolicy extends TaskLevelPolicy
     public RowCountRangePolicy(State state, Type type)
     {
         super(state, type);
-        this.rowsRead = state.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_READ);
+        this.rowsRead = state.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED);
         this.rowsWritten = state.getPropAsLong(ConfigurationKeys.WRITER_ROWS_WRITTEN);
         this.range = state.getPropAsDouble(ConfigurationKeys.ROW_COUNT_RANGE);
     }
