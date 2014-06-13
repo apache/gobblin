@@ -2,6 +2,7 @@ package com.linkedin.uif.source.extractor.extract;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -149,9 +150,10 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
 		boolean isCommitOnFullSuccess = false;
 		
 		for(WorkUnitState workUnitState : previousWorkUnitStates) {
-			log.info("Commit policy of the previous task "+workUnitState.getId()+":"+JobCommitPolicy.forName(workUnitState.getWorkunit().getProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY)));
+			JobCommitPolicy commitPolicy = JobCommitPolicy.forName(workUnitState.getWorkunit().getProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
+			log.info("Commit policy of the previous task "+workUnitState.getId()+":"+commitPolicy);
 			
-			if(JobCommitPolicy.forName(workUnitState.getWorkunit().getProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY)) == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
+			if(commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
 				isCommitOnFullSuccess = true;
 			}
 			
@@ -195,19 +197,22 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
      */
 	private long getLowWatermarkFromWorkUnit(WorkUnitState workUnitState) {
 		String watermarkType = workUnitState.getProp(ConfigurationKeys.SOURCE_WATERMARK_TYPE);
-		WorkUnit workUnit = workUnitState.getWorkunit();
+		long lowWaterMark = workUnitState.getWorkunit().getLowWaterMark();
 		
-		if(workUnit.getLowWaterMark() == ConfigurationKeys.DEFAULT_WATERMARK_VALUE) {
-			return workUnit.getLowWaterMark();
+		if(lowWaterMark == ConfigurationKeys.DEFAULT_WATERMARK_VALUE) {
+			return lowWaterMark;
 		}
 		
 		WatermarkType wmType = WatermarkType.valueOf(watermarkType.toUpperCase());
 		int deltaNum = new WatermarkPredicate(null, wmType).getDeltaNumForNextWatermark();
+		int backupSecs = Utils.getAsInt(workUnitState.getProp(ConfigurationKeys.SOURCE_LOW_WATERMARK_BACKUP_SECS));
 		
-		if(wmType == WatermarkType.SIMPLE) {
-			return workUnit.getLowWaterMark() + Utils.getAsInt(workUnitState.getProp(ConfigurationKeys.SOURCE_LOW_WATERMARK_BACKUP_SECS)) - deltaNum ;
-		} else {
-			return Long.parseLong(Utils.dateToString(Utils.addSecondsToDate(Utils.toDate(workUnit.getLowWaterMark(), "yyyyMMddHHmmss"),Utils.getAsInt(workUnitState.getProp(ConfigurationKeys.SOURCE_LOW_WATERMARK_BACKUP_SECS)) - deltaNum), "yyyyMMddHHmmss"));
+		switch(wmType) {
+		case SIMPLE:
+			return lowWaterMark + backupSecs - deltaNum ;
+		default:
+			Date lowWaterMarkDate = Utils.toDate(lowWaterMark, "yyyyMMddHHmmss");
+			return Long.parseLong(Utils.dateToString(Utils.addSecondsToDate(lowWaterMarkDate, backupSecs - deltaNum), "yyyyMMddHHmmss"));
 		}
 	}
 
