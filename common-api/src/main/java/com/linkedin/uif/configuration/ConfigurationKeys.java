@@ -168,7 +168,7 @@ public class ConfigurationKeys {
     /**
      * Configuration properties used by the row count policies
      */
-    public static final String EXTRACTOR_ROWS_READ = QUALITY_CHECKER_PREFIX + ".rows.read";
+    public static final String EXTRACTOR_ROWS_EXPECTED = QUALITY_CHECKER_PREFIX + ".rows.expected";
     public static final String WRITER_ROWS_WRITTEN = QUALITY_CHECKER_PREFIX + ".rows.written";
     public static final String ROW_COUNT_RANGE = QUALITY_CHECKER_PREFIX + ".row.count.range";
     
