@@ -139,7 +139,7 @@ public class ResponsysExtractor extends SftpExtractor
         
         log.info("Current file to process: " + this.currentFile);
         
-        List<Command> cmds = SftpExecutor.parseInputCommands(workUnit.getProp(ConfigurationKeys.SOURCE_SFTP_SETUP_COMMANDS));
+        List<Command> cmds = new ArrayList<Command>();
         List<String> getParams = new ArrayList<String>();
         getParams.add(this.currentFile);
         getParams.add(this.workUnit.getProp(RESPONSYS_DATA_TEMP_FOLDER) + this.currentFile);
@@ -179,7 +179,7 @@ public class ResponsysExtractor extends SftpExtractor
         log.info("Decryption has finished, returning decrypted file as input stream");
         
         Iterator<String> dataItr = IOUtils.lineIterator(input, "UTF-8");
-        if (this.workUnit.getPropAsBoolean(ConfigurationKeys.SOURCE_CSV_SKIP_FIRST_LINE, false) && dataItr.hasNext()) {
+        if (this.workUnit.getPropAsBoolean(ConfigurationKeys.SOURCE_SKIP_FIRST_RECORD, false) && dataItr.hasNext()) {
             dataItr.next();
         }
         return dataItr;

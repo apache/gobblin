@@ -75,10 +75,12 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
 		if (httpClient == null) {
 		    httpClient = new DefaultHttpClient();
 		    
-			if (super.workUnitState.contains(ConfigurationKeys.SOURCE_USE_PROXY_URL) &&
-				! super.workUnitState.getProp(ConfigurationKeys.SOURCE_USE_PROXY_URL).isEmpty()){
-				HttpHost proxy = new HttpHost(super.workUnitState.getProp(ConfigurationKeys.SOURCE_USE_PROXY_URL),
-					super.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_USE_PROXY_PORT));
+			if (super.workUnitState.contains(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL) &&
+				!super.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL).isEmpty()) {
+			    log.info("Connecting via proxy: " + super.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL));
+			    
+				HttpHost proxy = new HttpHost(super.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL),
+				                              super.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT));
 				httpClient.getParams().setParameter(ConnRoutePNames.DEFAULT_PROXY, proxy);
 			}
 		}
@@ -89,7 +91,7 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
 	public void extractMetadata(String schema, String entity, WorkUnit workUnit) throws SchemaException {
 		this.log.info("Extract Metadata using Rest Api");
 		JsonArray columnArray = new JsonArray();
-		String inputQuery = workUnit.getProp(ConfigurationKeys.SOURCE_QUERY);
+		String inputQuery = workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_QUERY);
 		List<String> columnListInQuery = null;
 		JsonArray array = null;
 		if (!Strings.isNullOrEmpty(inputQuery)) {

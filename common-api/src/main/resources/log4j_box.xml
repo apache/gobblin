@@ -19,6 +19,6 @@
 
   <root>
     <priority value ="INFO" /> 
-    <appender-ref ref="consoleAppender" />
+    <appender-ref ref="FileRoll" />
   </root>
 </log4j:configuration>

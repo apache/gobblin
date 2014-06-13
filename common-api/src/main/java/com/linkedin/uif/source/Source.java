@@ -40,7 +40,7 @@ public interface Source<S, D> {
    * 
    * @param state
    * @return
- * @throws IOException 
+   * @throws IOException 
    */
   public abstract Extractor<S, D> getExtractor(WorkUnitState state) throws IOException;
   

@@ -37,7 +37,7 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
 	public void initLogger(SourceState state) {
 	    StringBuilder sb = new StringBuilder();
 	    sb.append("[");
-	    sb.append(Strings.nullToEmpty(state.getProp(ConfigurationKeys.SOURCE_SCHEMA)));
+	    sb.append(Strings.nullToEmpty(state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA)));
 	    sb.append("_");
 	    sb.append(Strings.nullToEmpty(state.getProp(ConfigurationKeys.SOURCE_ENTITY)));
 	    sb.append("]");
@@ -148,7 +148,7 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
 					hasDataInPreviousRun = true;
 				}
 				previousWorkUnitStateHighWatermarks.add(workUnitState.getHighWaterMark());
-				previousWorkUnitLowWatermarks.add(this.getLowWatermarkFromWorkUnit(workUnitState.getWorkunit(), workUnitState.getProp(ConfigurationKeys.SOURCE_WATERMARK_TYPE)));
+				previousWorkUnitLowWatermarks.add(this.getLowWatermarkFromWorkUnit(workUnitState.getWorkunit(), workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE)));
 			}
 		}
 		

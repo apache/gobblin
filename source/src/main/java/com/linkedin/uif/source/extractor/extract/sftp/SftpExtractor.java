@@ -55,12 +55,12 @@ public abstract class SftpExtractor extends QueryBasedExtractor<String, String> 
      * @return the ChannelSftp connection
      */
     public ChannelSftp createSftpConnection() {
-        ChannelSftp sftp = (ChannelSftp) SftpExecutor.connect(this.workUnit.getProp(ConfigurationKeys.SOURCE_SFTP_PRIVATE_KEY_LOCATION),
-                                                              this.workUnit.getProp(ConfigurationKeys.SOURCE_SFTP_KNOWN_HOSTS_LOCATION),
-                                                              this.workUnit.getProp(ConfigurationKeys.SOURCE_USERNAME),
-                                                              this.workUnit.getProp(ConfigurationKeys.SOURCE_HOST_NAME),
-                                                              this.workUnit.getProp(ConfigurationKeys.SOURCE_USE_PROXY_URL),
-                                                              this.workUnit.getPropAsInt(ConfigurationKeys.SOURCE_USE_PROXY_PORT, -1));
+        ChannelSftp sftp = (ChannelSftp) SftpExecutor.connect(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY),
+                                                              this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_KNOWN_HOSTS),
+                                                              this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME),
+                                                              this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME),
+                                                              this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL),
+                                                              this.workUnit.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT, -1));
         return sftp;
     }
 
