@@ -1,0 +1,13 @@
+job.name=HelloWorldFilePull
+job.group=HelloWorldJobs
+job.description=Simple job to pull move files
+
+source.class=com.linkedin.uif.helloworld.source.HelloWorldSource
+
+writer.destination.type=HDFS
+writer.output.format=AVRO
+writer.fs.uri=file://localhost/
+
+data.publisher.type=com.linkedin.uif.publisher.BaseDataPublisher
+
+source.files=<Insert location of files to copy>
