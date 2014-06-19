@@ -126,7 +126,8 @@ public class Task implements Runnable {
             this.taskState.setWorkingState(WorkUnitState.WorkingState.WORKING);
             this.taskStateTracker.registerNewTask(this);
 
-            // Extract and write data records
+            long recordsPulled = 0;
+            long pullLimit = this.taskState.getPropAsLong(ConfigurationKeys.EXTRACT_PULL_LIMIT, 0);
             Object record;
             // Read one source record at a time
             while ((record = this.extractor.readRecord()) != null) {
@@ -134,15 +135,24 @@ public class Task implements Runnable {
                 if (doConversion) {
                     record = converter.convertRecord(sourceSchema, record, this.taskState);
                 }
+
                 // Do quality checks
                 if (rowChecker.executePolicies(record, rowResults)) {
                     // Finally write the record
                     this.writer.write(record);
                 }
+
+                recordsPulled++;
+                // Check if the pull limit is reached
+                if (pullLimit > 0 && recordsPulled >= pullLimit) {
+                    break;
+                }
             }
 
+            LOG.info("Row quality checker finished with results: " + rowResults.getResults());
+
             // Attempt to publish and commit the task data
-            publishData(rowResults, schemaForWriter);
+            publishData(recordsPulled, pullLimit, schemaForWriter);
             // We need to close the writer before task data can be committed
             this.writer.close();
             writerClosed = true;
@@ -356,14 +366,19 @@ public class Task implements Runnable {
     /**
      * Publish task data.
      */
-    private void publishData(RowLevelPolicyCheckResults rowResults, Object schemaForWriter)
+    private void publishData(long recordsPulled, long pullLimit, Object schemaForWriter)
             throws Exception {
 
-        LOG.info("Row quality checker finished with results: " + rowResults.getResults());
-
         // Do overall quality checking and publish task data
-        this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_READ,
-                extractor.getExpectedRecordCount());
+        if (pullLimit > 0) {
+            // If pull limit is set, use the actual number of records pulled
+            this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED,
+                    recordsPulled);
+        } else {
+            // Otherwise use the expected record count
+            this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED,
+                    this.extractor.getExpectedRecordCount());
+        }
         this.taskState.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN,
                 this.writer.recordsWritten());
         this.taskState.setProp(ConfigurationKeys.EXTRACT_SCHEMA, schemaForWriter.toString());

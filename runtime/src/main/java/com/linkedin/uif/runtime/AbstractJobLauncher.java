@@ -203,6 +203,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
      */
     private int getFailureCount(String jobName) {
         try {
+            if (!this.jobStateStore.exists(jobName, "current" + JOB_STATE_STORE_TABLE_SUFFIX)) {
+                return 0;
+            }
+
             List<? extends State> jobStateList = this.jobStateStore.getAll(
                     jobName, "current" + JOB_STATE_STORE_TABLE_SUFFIX);
             if (jobStateList.isEmpty()) {
