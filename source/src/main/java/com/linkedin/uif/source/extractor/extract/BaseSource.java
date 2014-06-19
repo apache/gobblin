@@ -196,7 +196,7 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
      * @return latest water mark(low water mark of WorkUnit)
      */
 	private long getLowWatermarkFromWorkUnit(WorkUnitState workUnitState) {
-		String watermarkType = workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE);
+		String watermarkType = workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, ConfigurationKeys.DEFAULT_WATERMARK_TYPE);
 		long lowWaterMark = workUnitState.getWorkunit().getLowWaterMark();
 		
 		if(lowWaterMark == ConfigurationKeys.DEFAULT_WATERMARK_VALUE) {
@@ -205,7 +205,7 @@ public abstract class BaseSource<S, D> implements Source<S, D> {
 		
 		WatermarkType wmType = WatermarkType.valueOf(watermarkType.toUpperCase());
 		int deltaNum = new WatermarkPredicate(null, wmType).getDeltaNumForNextWatermark();
-		int backupSecs = Utils.getAsInt(workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_LOW_WATERMARK_BACKUP_SECS));
+		int backupSecs = Utils.getAsInt(workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_LOW_WATERMARK_BACKUP_SECS, ConfigurationKeys.DEFAULT_LOW_WATERMARK_BACKUP_SECONDS));
 		
 		switch(wmType) {
 		case SIMPLE:
