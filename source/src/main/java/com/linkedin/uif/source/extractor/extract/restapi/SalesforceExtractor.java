@@ -783,6 +783,10 @@ public class SalesforceExtractor extends RestApiExtractor {
 			// Stream the resultset through CSV reader to identify columns in each record
 			CSVReader reader = new CSVReader(this.bulkBufferedReader);
 			
+			// Override default max characters in file and max rows in file
+			reader.setMaxCharsInFile(ConfigurationKeys.DEFAULT_SALESFORCE_MAX_CHARS_IN_FILE);
+			reader.setMaxRowsInFile(ConfigurationKeys.DEFAULT_SALESFORCE_MAX_ROWS_IN_FILE);
+			
 			// Get header if it is first run of a new resultset
 			if(this.isNewBulkResultSet()) {
 				this.bulkRecordHeader = reader.nextRecord();

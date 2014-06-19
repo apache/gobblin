@@ -249,9 +249,15 @@ public class ConfigurationKeys {
     public static final String SOURCE_CONN_USE_PROXY_URL = "source.conn.use.proxy.url";
     public static final String SOURCE_CONN_USE_PROXY_PORT = "source.conn.use.proxy.port";
     
+    
+    /**
+     * Source default configurations
+     */
     public static final long DEFAULT_WATERMARK_VALUE = -1;
     public static final int DEFAULT_MAX_NUMBER_OF_PARTITIONS = 20;
     public static final int DEFAULT_SOURCE_FETCH_SIZE = 1000;
+    public static final int DEFAULT_SALESFORCE_MAX_CHARS_IN_FILE = 200000000;
+    public static final int DEFAULT_SALESFORCE_MAX_ROWS_IN_FILE = 1000000;
 
     /**
      * Configuration properties used by the Hadoop MR job launcher.
