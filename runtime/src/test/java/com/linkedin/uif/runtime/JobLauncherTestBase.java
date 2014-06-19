@@ -64,4 +64,30 @@ public abstract class JobLauncherTestBase {
             }
         }
     }
+
+    @SuppressWarnings("unchecked")
+    protected void runTestWithPullLimit(Properties jobProps) throws Exception {
+        JobLauncher jobLauncher = JobLauncherFactory.newJobLauncher(this.properties);
+        jobLauncher.launchJob(jobProps);
+        String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+        String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
+        List<JobState> jobStateList = (List<JobState>) this.jobStateStore.getAll(
+                jobName, jobId + ".jst");
+        JobState jobState = jobStateList.get(0);
+
+        Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
+        Assert.assertEquals(jobState.getCompletedTasks(), 4);
+        Assert.assertEquals(jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY), 0);
+
+        for (TaskState taskState : jobState.getTaskStates()) {
+            Assert.assertEquals(taskState.getWorkingState(),
+                    WorkUnitState.WorkingState.COMMITTED);
+            Assert.assertEquals(
+                    taskState.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED),
+                    taskState.getPropAsLong(ConfigurationKeys.EXTRACT_PULL_LIMIT));
+            Assert.assertEquals(
+                    taskState.getPropAsLong(ConfigurationKeys.WRITER_ROWS_WRITTEN),
+                    taskState.getPropAsLong(ConfigurationKeys.EXTRACT_PULL_LIMIT));
+        }
+    }
 }

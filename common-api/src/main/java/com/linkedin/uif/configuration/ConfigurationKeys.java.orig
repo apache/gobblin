@@ -249,17 +249,21 @@ public class ConfigurationKeys {
     public static final String SOURCE_CONN_USE_PROXY_URL = "source.conn.use.proxy.url";
     public static final String SOURCE_CONN_USE_PROXY_PORT = "source.conn.use.proxy.port";
     
+<<<<<<< HEAD
+    public static final String DEFAULT_WATERMARK_TYPE = "timestamp";
+    public static final String DEFAULT_LOW_WATERMARK_BACKUP_SECONDS = "1000";
+=======
+    
     /**
      * Source default configurations
      */
+>>>>>>> 3d7c27dedceabbe3ca35fa224d9ad34985371da2
     public static final long DEFAULT_WATERMARK_VALUE = -1;
     public static final int DEFAULT_MAX_NUMBER_OF_PARTITIONS = 20;
     public static final int DEFAULT_SOURCE_FETCH_SIZE = 1000;
     public static final int DEFAULT_SALESFORCE_MAX_CHARS_IN_FILE = 200000000;
     public static final int DEFAULT_SALESFORCE_MAX_ROWS_IN_FILE = 1000000;
-    public static final String DEFAULT_WATERMARK_TYPE = "timestamp";
-    public static final String DEFAULT_LOW_WATERMARK_BACKUP_SECONDS = "1000";
-    
+
     /**
      * Configuration properties used by the Hadoop MR job launcher.
      */
