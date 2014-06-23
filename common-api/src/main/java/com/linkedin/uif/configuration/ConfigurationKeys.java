@@ -225,6 +225,7 @@ public class ConfigurationKeys {
     public static final String SOURCE_QUERYBASED_SCHEMA = "source.querybased.schema";
     public static final String SOURCE_QUERYBASED_FETCH_SIZE = "source.querybased.fetch.size";
     public static final String SOURCE_QUERYBASED_IS_SPECIFIC_API_ACTIVE = "source.querybased.is.specific.api.active";
+    public static final String SOURCE_QUERYBASED_SKIP_COUNT_CALC = "source.querybased.skip.count.calc";
 
     /**
      * Configuration properties used by the FileBasedExtractor
@@ -274,7 +275,7 @@ public class ConfigurationKeys {
     public static final String EMAIL_HOST_KEY = "email.host";
     public static final String DEFAULT_EMAIL_HOST = "localhost";
     public static final String EMAIL_SMTP_PORT_KEY = "email.smtp.port";
-    public static final int DEFAULT_EMAIL_SMTP_PORT = 465;
+    public static final int    DEFAULT_EMAIL_SMTP_PORT = 465;
     public static final String EMAIL_USER_KEY = "email.user";
     public static final String EMAIL_PASSWORD_KEY = "email.password";
     public static final String EMAIL_FROM_KEY = "email.from";
