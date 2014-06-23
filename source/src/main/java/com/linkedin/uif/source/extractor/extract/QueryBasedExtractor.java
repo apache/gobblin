@@ -249,7 +249,14 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 				this.setRangePredicates(watermarkColumn, watermarkType, lwm, currentRunHighWatermark);
 			}
 			
-			this.sourceRecordCount = this.getSourceCount(this.schema, this.entity, this.workUnit, this.predicateList);
+			// if it is set to true, skip count calculation and set source count to -1
+			if(!Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SKIP_COUNT_CALC))) {
+				this.sourceRecordCount = this.getSourceCount(this.schema, this.entity, this.workUnit, this.predicateList);
+			} else {
+				this.log.info("Skip count calculation");
+				this.sourceRecordCount = -1;
+			}
+			
 			if(this.sourceRecordCount == 0) {
 				this.log.info("Record count is 0; Setting fetch status to false to skip readRecord()");
 				this.setFetchStatus(false);
