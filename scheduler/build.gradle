@@ -6,6 +6,7 @@ dependencies {
   compile project(":qualitychecker")
   compile project(":writer")
   compile project(":runtime")
+  compile project(":utility")
   compile spec.external.avro
   compile spec.external.commonsConfiguration
   compile spec.external.quartz

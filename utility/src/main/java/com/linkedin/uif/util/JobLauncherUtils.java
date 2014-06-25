@@ -1,11 +1,11 @@
-package com.linkedin.uif.runtime;
+package com.linkedin.uif.util;
 
 /**
  * Utility class for the job scheduler and job launchers.
  *
  * @author ynli
  */
-public class JobLauncherUtil {
+public class JobLauncherUtils {
 
     /**
      * Create a new job ID.
