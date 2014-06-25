@@ -97,7 +97,7 @@ public class WorkUnitState extends State
    */
   public long getHighWaterMark()
   {
-    return getPropAsLong(ConfigurationKeys.WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK);
+    return getPropAsLong(ConfigurationKeys.WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK, ConfigurationKeys.DEFAULT_WATERMARK_VALUE);
   }
 
   /**
