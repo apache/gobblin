@@ -247,6 +247,8 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 				
 				this.log.info("High water mark for the current run: " + currentRunHighWatermark);
 				this.setRangePredicates(watermarkColumn, watermarkType, lwm, currentRunHighWatermark);
+                                // If there are no records in the current run, updating high watermark of the current run to the max value of partition range
+                                this.highWatermark = currentRunHighWatermark;
 			}
 			
 			// if it is set to true, skip count calculation and set source count to -1
