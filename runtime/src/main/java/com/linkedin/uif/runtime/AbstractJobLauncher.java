@@ -14,6 +14,7 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
@@ -27,6 +28,7 @@ import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.metastore.FsStateStore;
 import com.linkedin.uif.metastore.StateStore;
 import com.linkedin.uif.publisher.DataPublisher;
+import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.workunit.WorkUnit;
 import com.linkedin.uif.util.EmailUtils;
 
@@ -73,6 +75,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public void launchJob(Properties jobProps) throws JobException {
         Preconditions.checkNotNull(jobProps);
 
@@ -124,10 +127,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
         // Initialize the source for the job
         SourceState sourceState;
-        SourceWrapperBase source;
+        Source<?, ?> source;
         try {
             sourceState = new SourceState(jobState, getPreviousWorkUnitStates(jobName));
-            source = initSource(jobProps, sourceState);
+            source = new SourceDecorator(initSource(jobProps, sourceState), jobId, LOG);
         } catch (Throwable t) {
             String errMsg = "Failed to initialize the source for job " + jobId;
             LOG.error(errMsg, t);
@@ -136,42 +139,29 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
 
         // Generate work units of the job from the source
-        List<WorkUnit> workUnits;
-        try {
-            workUnits = source.getWorkunits(sourceState);
-        } catch (Throwable t) {
-            String errMsg = "Failed to get work units for job " + jobId;
-            LOG.error(errMsg, t);
-            try {
-                source.shutdown(sourceState);
-            } catch (Throwable t1) {
-                // Catch any possible errors so unlockJob is guaranteed to be called below
-                LOG.error("Failed to shutdown the source for job " + jobId, t1);
-            }
+        Optional<List<WorkUnit>> workUnits = Optional.fromNullable(source.getWorkunits(sourceState));
+        if (!workUnits.isPresent()) {
+            // The absence means there is something wrong getting the work units
+            source.shutdown(sourceState);
             unlockJob(jobName, jobLock);
-            throw new JobException(errMsg, t);
+            throw new JobException("Failed to get work units for job " + jobId);
         }
 
-        // If there is no real work to do
-        if (workUnits == null || workUnits.isEmpty()) {
-            LOG.warn("No work units to do for job " + jobId);
-            try {
-                source.shutdown(sourceState);
-            } catch (Throwable t) {
-                // Catch any possible errors so unlockJob is guaranteed to be called below
-                LOG.error("Failed to shutdown the source for job " + jobId, t);
-            }
+        if (workUnits.get().isEmpty()) {
+            // No real work to do
+            LOG.warn("No work units have been created for job " + jobId);
+            source.shutdown(sourceState);
             unlockJob(jobName, jobLock);
             return;
         }
 
-        jobState.setTasks(workUnits.size());
+        jobState.setTasks(workUnits.get().size());
         jobState.setStartTime(System.currentTimeMillis());
         jobState.setState(JobState.RunningState.WORKING);
 
         // Populate job/task IDs
         int sequence = 0;
-        for (WorkUnit workUnit : workUnits) {
+        for (WorkUnit workUnit : workUnits.get()) {
             String taskId = JobLauncherUtil.newTaskId(jobId, sequence++);
             workUnit.setId(taskId);
             workUnit.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
@@ -180,7 +170,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
         // Actually launch the job to run
         try {
-            runJob(jobName, jobProps, jobState, workUnits);
+            runJob(jobName, jobProps, jobState, workUnits.get());
             jobState = getFinalJobState(jobState);
             commitJob(jobId, jobState);
         } catch (Throwable t) {
