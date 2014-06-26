@@ -62,6 +62,7 @@ import com.linkedin.uif.runtime.JobLock;
 import com.linkedin.uif.runtime.JobState;
 import com.linkedin.uif.runtime.Metrics;
 import com.linkedin.uif.runtime.RunOnceJobListener;
+import com.linkedin.uif.runtime.SourceDecorator;
 import com.linkedin.uif.runtime.SourceWrapperBase;
 import com.linkedin.uif.runtime.TaskState;
 import com.linkedin.uif.runtime.WorkUnitManager;
@@ -272,6 +273,7 @@ public class LocalJobManager extends AbstractIdleService {
      * @throws JobException when there is anything wrong
      *                      with running the job
      */
+    @SuppressWarnings("unchecked")
     public void runJob(Properties jobProps, JobListener jobListener) throws JobException {
         Preconditions.checkNotNull(jobProps);
 
@@ -306,26 +308,34 @@ public class LocalJobManager extends AbstractIdleService {
         Optional<SourceState> sourceStateOptional = Optional.absent();
         try {
             // Initialize the source
-            SourceWrapperBase source = this.sourceWrapperMap.get(jobProps.getProperty(
+            SourceWrapperBase sourceWrapper = this.sourceWrapperMap.get(jobProps.getProperty(
                     ConfigurationKeys.SOURCE_WRAPPER_CLASS_KEY,
                     ConfigurationKeys.DEFAULT_SOURCE_WRAPPER)
                     .toLowerCase()).newInstance();
             SourceState sourceState = new SourceState(jobState, getPreviousWorkUnitStates(jobName));
-            source.init(sourceState);
+            sourceWrapper.init(sourceState);
+            Source<?, ?> source = new SourceDecorator(sourceWrapper, jobId, LOG);
             sourceStateOptional = Optional.of(sourceState);
 
             // Generate work units based on all previous work unit states
-            List<WorkUnit> workUnits = source.getWorkunits(sourceState);
-            // If no real work to do
-            if (workUnits == null || workUnits.isEmpty()) {
+            Optional<List<WorkUnit>> workUnits = Optional.fromNullable(source.getWorkunits(sourceState));
+            if (!workUnits.isPresent()) {
+                // The absence means there is something wrong getting the work units
+                source.shutdown(sourceState);
+                unlockJob(jobName, runOnce);
+                throw new JobException("Failed to get work units for job " + jobId);
+            }
+
+            if (workUnits.get().isEmpty()) {
+                // No real work to do
                 LOG.warn("No work units have been created for job " + jobId);
-                source.shutdown(jobState);
+                source.shutdown(sourceState);
                 unlockJob(jobName, runOnce);
                 callJobListener(jobName, jobState, runOnce);
                 return;
             }
 
-            jobState.setTasks(workUnits.size());
+            jobState.setTasks(workUnits.get().size());
             jobState.setStartTime(System.currentTimeMillis());
             jobState.setState(JobState.RunningState.WORKING);
 
@@ -334,7 +344,7 @@ public class LocalJobManager extends AbstractIdleService {
 
             // Add all generated work units
             int sequence = 0;
-            for (WorkUnit workUnit : workUnits) {
+            for (WorkUnit workUnit : workUnits.get()) {
                 // Task ID in the form of task_<job_id_suffix>_<task_sequence_number>
                 String taskId = String.format("task_%s_%d", jobIdSuffix, sequence++);
                 workUnit.setId(taskId);
@@ -349,12 +359,7 @@ public class LocalJobManager extends AbstractIdleService {
             LOG.error(errMsg, t);
             // Shutdown the source if the source has already been initialized
             if (this.jobSourceMap.containsKey(jobId) && sourceStateOptional.isPresent()) {
-                try {
-                    this.jobSourceMap.remove(jobId).shutdown(sourceStateOptional.get());
-                } catch (Throwable t1) {
-                    // Catch any possible errors so unlockJob is guaranteed to be called below
-                    LOG.error("Failed to shutdown the source for job " + jobId, t1);
-                }
+                this.jobSourceMap.remove(jobId).shutdown(sourceStateOptional.get());
             }
             // Remove the cached job state
             this.jobStateMap.remove(jobId);
