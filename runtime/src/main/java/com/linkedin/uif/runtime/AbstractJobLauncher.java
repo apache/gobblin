@@ -130,18 +130,38 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             sourceState = new SourceState(jobState, getPreviousWorkUnitStates(jobName));
             source = initSource(jobProps, sourceState);
         } catch (Throwable t) {
-            String errMsg = "Failed to initialize source for job " + jobId;
+            String errMsg = "Failed to initialize the source for job " + jobId;
             LOG.error(errMsg, t);
             unlockJob(jobName, jobLock);
             throw new JobException(errMsg, t);
         }
 
         // Generate work units of the job from the source
-        List<WorkUnit> workUnits = source.getWorkunits(sourceState);
+        List<WorkUnit> workUnits;
+        try {
+            workUnits = source.getWorkunits(sourceState);
+        } catch (Throwable t) {
+            String errMsg = "Failed to get work units for job " + jobId;
+            LOG.error(errMsg, t);
+            try {
+                source.shutdown(sourceState);
+            } catch (Throwable t1) {
+                // Catch any possible errors so unlockJob is guaranteed to be called below
+                LOG.error("Failed to shutdown the source for job " + jobId, t1);
+            }
+            unlockJob(jobName, jobLock);
+            throw new JobException(errMsg, t);
+        }
+
         // If there is no real work to do
         if (workUnits == null || workUnits.isEmpty()) {
             LOG.warn("No work units to do for job " + jobId);
-            source.shutdown(sourceState);
+            try {
+                source.shutdown(sourceState);
+            } catch (Throwable t) {
+                // Catch any possible errors so unlockJob is guaranteed to be called below
+                LOG.error("Failed to shutdown the source for job " + jobId, t);
+            }
             unlockJob(jobName, jobLock);
             return;
         }
@@ -170,9 +190,15 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             jobState.setState(JobState.RunningState.FAILED);
             throw new JobException(errMsg, t);
         } finally {
-            source.shutdown(sourceState);
-            persistJobState(jobState);
-            cleanupStagingData(jobState);
+            try {
+                source.shutdown(sourceState);
+                persistJobState(jobState);
+                cleanupStagingData(jobState);
+            } catch (Throwable t) {
+                // Catch any possible errors so unlockJob is guaranteed to be called below
+                LOG.error("Failed to cleanup for job " + jobId, t);
+            }
+            // Finally release the job lock
             unlockJob(jobName, jobLock);
         }
     }
