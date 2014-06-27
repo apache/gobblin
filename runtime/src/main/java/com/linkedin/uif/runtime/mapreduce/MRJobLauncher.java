@@ -101,19 +101,23 @@ public class MRJobLauncher extends AbstractJobLauncher {
             this.conf.set(name, jobProps.getProperty(name));
         }
 
-        Path jarFileDir = new Path(
-                jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY),
-                jobName + Path.SEPARATOR + "_jars");
-        boolean hasJars = false;
+        Path mrJobDir = new Path(
+                jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY), jobName);
+
+        Path jarFileDir = new Path(mrJobDir, "_jars");
         // Add frmework jars to the classpath for the mappers/reducer
         if (jobProps.containsKey(ConfigurationKeys.FRAMEWORK_JAR_FILES_KEY)) {
-            hasJars = true;
             addJars(jarFileDir, jobProps.getProperty(ConfigurationKeys.FRAMEWORK_JAR_FILES_KEY));
         }
         // Add job-specific jars to the classpath for the mappers
         if (jobProps.containsKey(ConfigurationKeys.JOB_JAR_FILES_KEY)) {
-            hasJars = true;
             addJars(jarFileDir, jobProps.getProperty(ConfigurationKeys.JOB_JAR_FILES_KEY));
+        }
+
+        // Add other files (if any) the job depends on to DistributedCache
+        if (jobProps.containsKey(ConfigurationKeys.JOB_FILES_KEY)) {
+            addFiles(new Path(mrJobDir, "_files"),
+                    jobProps.getProperty(ConfigurationKeys.JOB_FILES_KEY));
         }
 
         // Preparing a Hadoop MR job
@@ -209,10 +213,10 @@ public class MRJobLauncher extends AbstractJobLauncher {
                 LOG.error("Failed to cleanup job output path for job " + job.getJobName());
             }
 
-            // Cleanup job jar file directory
+            // Cleanup job directory
             try {
-                if (hasJars) {
-                    this.fs.delete(jarFileDir, true);
+                if (this.fs.exists(mrJobDir)) {
+                    this.fs.delete(mrJobDir, true);
                 }
             } catch (IOException ioe) {
                 LOG.error("Failed to cleanup job jars for job " + job.getJobName());
@@ -233,8 +237,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
      * so the mappers/reducer can use them.
      */
     private void addJars(Path jarFileDir, String jarFileList) throws IOException {
-        Iterable<String> jarFiles = SPLITTER.split(jarFileList);
-        for (String jarFile : jarFiles) {
+        for (String jarFile : SPLITTER.split(jarFileList)) {
             Path srcJarFile = new Path(jarFile);
             // DistributedCache requires absolute path, so we need to use makeQualified.
             Path destJarFile = new Path(this.fs.makeQualified(jarFileDir), srcJarFile.getName());
@@ -243,6 +246,24 @@ public class MRJobLauncher extends AbstractJobLauncher {
             // Then add the jar file on HDFS to the classpath
             LOG.info(String.format("Adding %s to classpath", destJarFile));
             DistributedCache.addFileToClassPath(destJarFile, this.conf, this.fs);
+        }
+    }
+
+    /**
+     * Add non-jar files the job depends on to DistributedCache.
+     */
+    private void addFiles(Path jobFileDir, String jobFileList) throws IOException {
+        for (String jobFile : SPLITTER.split(jobFileList)) {
+            Path srcJobFile = new Path(jobFile);
+            // DistributedCache requires absolute path, so we need to use makeQualified.
+            Path destJobFile = new Path(this.fs.makeQualified(jobFileDir), srcJobFile.getName());
+            // Copy the file from local file system to HDFS
+            this.fs.copyFromLocalFile(srcJobFile, destJobFile);
+            // Create a URI that is in the form path#symlink
+            URI destFileUri = URI.create(destJobFile.toUri().getPath() + "#" + destJobFile.getName());
+            LOG.info(String.format("Adding %s to DistributedCache", destFileUri));
+            // Finally add the file to DistributedCache with a symlink named after the file name
+            DistributedCache.addCacheFile(destFileUri, this.conf);
         }
     }
 
