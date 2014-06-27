@@ -42,6 +42,7 @@ public class ConfigurationKeys {
     public static final String JOB_RUN_ONCE_KEY = "job.runonce";
     public static final String JOB_DISABLED_KEY = "job.disabled";
     public static final String JOB_JAR_FILES_KEY = "job.jars";
+    public static final String JOB_FILES_KEY = "job.files";
 
     /**
      * Work unit related configuration properties
