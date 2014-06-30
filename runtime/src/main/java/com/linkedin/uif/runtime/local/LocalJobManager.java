@@ -53,7 +53,6 @@ import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.metastore.FsStateStore;
 import com.linkedin.uif.metastore.StateStore;
 import com.linkedin.uif.publisher.DataPublisher;
-import com.linkedin.uif.runtime.JobCommitPolicy;
 import com.linkedin.uif.runtime.JobException;
 import com.linkedin.uif.runtime.JobListener;
 import com.linkedin.uif.runtime.JobLock;
@@ -64,6 +63,7 @@ import com.linkedin.uif.runtime.SourceWrapperBase;
 import com.linkedin.uif.runtime.TaskState;
 import com.linkedin.uif.runtime.WorkUnitManager;
 import com.linkedin.uif.source.Source;
+import com.linkedin.uif.source.extractor.JobCommitPolicy;
 import com.linkedin.uif.source.workunit.WorkUnit;
 import com.linkedin.uif.util.SchedulerUtils;
 

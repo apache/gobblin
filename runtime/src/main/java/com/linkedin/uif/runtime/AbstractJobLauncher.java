@@ -27,6 +27,7 @@ import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.metastore.FsStateStore;
 import com.linkedin.uif.metastore.StateStore;
 import com.linkedin.uif.publisher.DataPublisher;
+import com.linkedin.uif.source.extractor.JobCommitPolicy;
 import com.linkedin.uif.source.workunit.WorkUnit;
 import com.linkedin.uif.util.EmailUtils;
 import com.linkedin.uif.util.JobLauncherUtils;
