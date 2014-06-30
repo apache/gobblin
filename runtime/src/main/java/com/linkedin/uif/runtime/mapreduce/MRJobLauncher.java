@@ -253,6 +253,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
      * Add non-jar files the job depends on to DistributedCache.
      */
     private void addFiles(Path jobFileDir, String jobFileList) throws IOException {
+        DistributedCache.createSymlink(this.conf);
         for (String jobFile : SPLITTER.split(jobFileList)) {
             Path srcJobFile = new Path(jobFile);
             // DistributedCache requires absolute path, so we need to use makeQualified.
