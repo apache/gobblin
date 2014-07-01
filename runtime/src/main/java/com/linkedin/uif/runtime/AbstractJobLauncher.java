@@ -330,18 +330,33 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         jobState.setEndTime(System.currentTimeMillis());
         jobState.setDuration(jobState.getEndTime() - jobState.getStartTime());
 
-        if (jobState.getState() == JobState.RunningState.WORKING) {
-            jobState.setState(JobState.RunningState.SUCCESSFUL);
-            // Reset the failure count if the job successfully completed
-            jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY, 0);
-        }
+        JobCommitPolicy commitPolicy = JobCommitPolicy.forName(jobState.getProp(
+                ConfigurationKeys.JOB_COMMIT_POLICY_KEY,
+                ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
 
+        // Determine the job state based on the task states and job commit policy
         for (TaskState taskState : jobState.getTaskStates()) {
-            // The job is considered failed if any task failed
-            if (taskState.getWorkingState() == WorkUnitState.WorkingState.FAILED) {
+            if (taskState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED &&
+                    commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
+                // The job is considered failed if any task was not successfully committed
                 jobState.setState(JobState.RunningState.FAILED);
                 break;
             }
+        }
+
+        // Mark the task as being failed if COMMIT_ON_FULL_SUCCESS is used and the job failed
+        if (commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS &&
+                jobState.getState() == JobState.RunningState.FAILED) {
+            for (TaskState taskState : jobState.getTaskStates()) {
+                taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+            }
+        }
+
+        if (jobState.getState() == JobState.RunningState.WORKING ||
+            jobState.getState() == JobState.RunningState.SUCCESSFUL) {
+            jobState.setState(JobState.RunningState.SUCCESSFUL);
+            // Reset the failure count if the job successfully completed
+            jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY, 0);
         }
 
         if (jobState.getState() == JobState.RunningState.FAILED) {

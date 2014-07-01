@@ -40,7 +40,7 @@ public class ConfigurationKeys {
     public static final String JOB_COMMIT_POLICY_KEY = "job.commit.policy";
     public static final String DEFAULT_JOB_COMMIT_POLICY = "full";
     public static final String WORK_UNIT_RETRY_POLICY_KEY = "workunit.retry.policy";
-    public static final String DEFAULT_WORK_UNIT_RETRY_POLICY = "onpartial";
+    public static final String WORK_UNIT_RETRY_ENABLED_KEY = "workunit.retry.enabled";
     public static final String JOB_RUN_ONCE_KEY = "job.runonce";
     public static final String JOB_DISABLED_KEY = "job.disabled";
     public static final String JOB_JAR_FILES_KEY = "job.jars";
