@@ -17,14 +17,18 @@ public enum WorkUnitRetryPolicy {
     /**
      * Only retry failed/aborted work units when
      * {@link JobCommitPolicy#COMMIT_ON_PARTIAL_SUCCESS} is used.
+     * This option is useful for being a global policy for a group of jobs that
+     * have different commit policies.
      */
-    ON_PARTIAL_SUCCESS("onpartial"),
+    ON_COMMIT_ON_PARTIAL_SUCCESS("onpartial"),
 
     /**
      * Only retry failed/aborted work units when
      * {@link JobCommitPolicy#COMMIT_ON_FULL_SUCCESS} is used.
+     * This option is useful for being a global policy for a group of jobs that
+     * have different commit policies.
      */
-    ON_FULL_SUCCESS("onfull"),
+    ON_COMMIT_ON_FULL_SUCCESS("onfull"),
 
     /**
      * Never retry failed/aborted work units.
@@ -52,12 +56,12 @@ public enum WorkUnitRetryPolicy {
             return ALWAYS;
         }
 
-        if (ON_PARTIAL_SUCCESS.name.equalsIgnoreCase(name)) {
-            return ON_PARTIAL_SUCCESS;
+        if (ON_COMMIT_ON_PARTIAL_SUCCESS.name.equalsIgnoreCase(name)) {
+            return ON_COMMIT_ON_PARTIAL_SUCCESS;
         }
 
-        if (ON_FULL_SUCCESS.name.equalsIgnoreCase(name)) {
-            return ON_FULL_SUCCESS;
+        if (ON_COMMIT_ON_FULL_SUCCESS.name.equalsIgnoreCase(name)) {
+            return ON_COMMIT_ON_FULL_SUCCESS;
         }
 
         if (NEVER.name.equalsIgnoreCase(name)) {
