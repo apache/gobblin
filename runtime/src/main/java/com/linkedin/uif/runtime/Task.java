@@ -5,8 +5,6 @@ import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Optional;
-
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.Converter;
@@ -93,33 +91,24 @@ public class Task implements Runnable {
         boolean writerClosed = false;
         try {
             // Build the extractor for pulling source schema and data records
-            Optional<Extractor> extractorOptional = Optional.fromNullable(
+            this.extractor = new ExtractorDecorator(
                     new SourceDecorator(this.taskContext.getSource(), this.jobId, LOG)
-                            .getExtractor(this.taskState));
-            if (!extractorOptional.isPresent()) {
-                LOG.error("Failed to get extractor for task " + this.taskId);
-                return;
-            }
-
-            this.extractor = new ExtractorDecorator(extractorOptional.get(), this.taskId, LOG);
+                            .getExtractor(this.taskState),
+                    this.taskId, LOG);
 
             // Original source schema
-            Optional<Object> sourceSchema = Optional.fromNullable(this.extractor.getSchema());
-            if (!sourceSchema.isPresent()) {
-                LOG.error("Not extracting data because no source schema available for task " + this.taskId);
-                return;
-            }
+            Object sourceSchema = this.extractor.getSchema();
 
             // If conversion is needed on the source schema and data records
             // before they are passed to the writer
             boolean doConversion = !this.taskContext.getConverters().isEmpty();
             Converter converter = null;
             // (Possibly converted) source schema ready for the writer
-            Object schemaForWriter = sourceSchema.get();
+            Object schemaForWriter = sourceSchema;
             if (doConversion) {
                 converter = new MultiConverter(this.taskContext.getConverters());
                 // Convert the source schema to a schema ready for the writer
-                schemaForWriter = converter.convertSchema(sourceSchema.get(), this.taskState);
+                schemaForWriter = converter.convertSchema(sourceSchema, this.taskState);
             }
                         
             // Construct the row level policy checker
@@ -139,7 +128,7 @@ public class Task implements Runnable {
             while ((record = this.extractor.readRecord()) != null) {
                 // Apply the converters first if applicable
                 if (doConversion) {
-                    record = converter.convertRecord(sourceSchema.get(), record, this.taskState);
+                    record = converter.convertRecord(sourceSchema, record, this.taskState);
                 }
 
                 // Do quality checks

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
+import com.google.common.base.Throwables;
 import org.slf4j.Logger;
 
 import com.linkedin.uif.configuration.SourceState;
@@ -52,7 +53,8 @@ public class SourceDecorator<S, D> implements Source<S, D> {
             return this.source.getExtractor(state);
         } catch (Throwable t) {
             this.logger.error("Failed to get extractor for job " + this.jobId, t);
-            // Return null in case of errors
+            Throwables.propagate(t);
+            // Dummy return that is not reachable as propagate above throws RuntimeException
             return null;
         }
     }
