@@ -42,6 +42,8 @@ public class ResponsysExtractor extends SftpExtractor
     
     private Iterator<String> filesToPull;
     private String currentFile;
+    private InputStream decryptedInputStream;
+    private InputStream sftpInputStream;
 
     /**
      * filesToPull is a list of files to pull from Responsys
@@ -152,9 +154,9 @@ public class ResponsysExtractor extends SftpExtractor
             throw new DataRecordException("Response has more than one command output entry");
         }
         
-        InputStream sftpInputStream = (InputStream) response.getResults().values().iterator().next();
-        InputStream input = GPGFileDecrypter.decryptGPGFile(sftpInputStream, this.workUnit.getProp(RESPONSYS_DECRYPT_KEY));        
-        Iterator<String> dataItr = IOUtils.lineIterator(input, "UTF-8");
+        this.sftpInputStream = (InputStream) response.getResults().values().iterator().next();
+        this.decryptedInputStream = GPGFileDecrypter.decryptGPGFile(sftpInputStream, this.workUnit.getProp(RESPONSYS_DECRYPT_KEY));        
+        Iterator<String> dataItr = IOUtils.lineIterator(decryptedInputStream, "UTF-8");
         
         if (this.workUnit.getPropAsBoolean(ConfigurationKeys.SOURCE_SKIP_FIRST_RECORD, false) && dataItr.hasNext()) {
             dataItr.next();
@@ -218,5 +220,16 @@ public class ResponsysExtractor extends SftpExtractor
     @Override
     public void setTimeOut(String timeOut)
     {
+    }
+    
+    /**
+     * Close input streams
+     */
+    @Override
+    public void closeConnection() throws Exception
+    {
+        super.closeConnection();
+        IOUtils.closeQuietly(decryptedInputStream);
+        sftpInputStream.close();
     }
 }

@@ -1,4 +1,4 @@
-package com.linkedin.uif.helloworld.source;
+package com.linkedin.uif.example.source;
 
 import java.util.List;
 
@@ -7,14 +7,14 @@ import com.google.common.collect.Lists;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.WorkUnitState;
-import com.linkedin.uif.helloworld.extractor.HelloWorldExtractor;
+import com.linkedin.uif.example.extractor.ExampleExtractor;
 import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.extractor.Extractor;
 import com.linkedin.uif.source.workunit.Extract;
 import com.linkedin.uif.source.workunit.WorkUnit;
 import com.linkedin.uif.source.workunit.Extract.TableType;
 
-public class HelloWorldSource implements Source<String, String>
+public class ExampleSource implements Source<String, String>
 {
     private static final String SOURCE_FILE_LIST_KEY = "source.files";
     private static final String SOURCE_FILE_KEY = "source.file";
@@ -46,12 +46,11 @@ public class HelloWorldSource implements Source<String, String>
 
     @Override
     public Extractor<String, String> getExtractor(WorkUnitState state) {
-        return new HelloWorldExtractor(state);
+        return new ExampleExtractor(state);
     }
 
     @Override
-    public void shutdown(SourceState state)
-    {
+    public void shutdown(SourceState state) {
         // Do nothing
     }
 }

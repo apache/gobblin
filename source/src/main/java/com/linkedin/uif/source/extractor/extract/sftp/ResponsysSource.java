@@ -110,7 +110,7 @@ public class ResponsysSource implements Source<String, String>
         
         // Pre-pend all file names with the directory name
         for (int i = 0; i < filesToPull.size(); i++) {
-            filesToPull.add(i, state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY) + "/" + filesToPull.remove(i));
+            filesToPull.set(i, state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY) + "/" + filesToPull.get(i));
         }
         log.info("Will pull the following files in this run: " + Arrays.toString(filesToPull.toArray()));
 

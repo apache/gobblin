@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.Vector;
 
+import org.apache.jasper.tagplugins.jstl.core.Out;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -207,18 +208,25 @@ public class SftpExecutor
      * @param sftp is the channel to execute the command on
      * @throws SftpException
      * @throws SftpCommandFormatException
-     * @throws FileNotFoundException 
+     * @throws IOException 
      */
-    public void executeGetFileCommand(SftpCommand cmd, ChannelSftp sftp, String destUri) throws SftpException, SftpCommandFormatException, FileNotFoundException {
+    public void executeGetFileCommand(SftpCommand cmd, ChannelSftp sftp, String destUri) throws SftpException, SftpCommandFormatException, IOException {
         if (!cmd.getCommandType().equals(SftpCommandType.GET_FILE)) {
             throw new SftpCommandFormatException("Command must be of type GET_FILE");
         }
-        
         List<String> params = cmd.getParams();
         SftpGetMonitor monitor = new SftpGetMonitor();
         if (params.size() == 2) {
             log.info("Attempting to download file: " + params.get(0) + " to dest: " + params.get(1));
-            sftp.get(params.get(0), new FileOutputStream(new File(params.get(1))), monitor);
+            FileOutputStream out = null;
+            try {
+                out = new FileOutputStream(new File(params.get(1)));
+                sftp.get(params.get(0), out, monitor);
+            } finally {
+                if (out != null) {
+                    out.close();
+                }
+            }
         } else {
             throw new SftpCommandFormatException("GET command does correct number of arguments");
         }
