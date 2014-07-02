@@ -2,7 +2,6 @@ apply plugin: 'li-java'
 
 dependencies {
     compile project(":common-api")
-    compile project(":runtime")
     compile spec.external.commonsDbcp
     compile spec.external.avro
     compile spec.external.guava

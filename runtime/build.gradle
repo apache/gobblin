@@ -6,6 +6,7 @@ dependencies {
   compile project(":qualitychecker")
   compile project(":writer")
   compile project(":utility")
+  compile project(":source")
   compile spec.external.avro
   compile spec.external.avroMapred
   compile spec.external.commonsConfiguration

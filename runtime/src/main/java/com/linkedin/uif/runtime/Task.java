@@ -91,18 +91,13 @@ public class Task implements Runnable {
         boolean writerClosed = false;
         try {
             // Build the extractor for pulling source schema and data records
-            this.extractor = this.taskContext.getSource().getExtractor(this.taskState);
-            if (this.extractor == null) {
-                LOG.error("No extractor created for task " + this.taskId);
-                return;
-            }
+            this.extractor = new ExtractorDecorator(
+                    new SourceDecorator(this.taskContext.getSource(), this.jobId, LOG)
+                            .getExtractor(this.taskState),
+                    this.taskId, LOG);
 
             // Original source schema
             Object sourceSchema = this.extractor.getSchema();
-            if (sourceSchema == null) {
-                LOG.error("Not extracting data because no source schema available for task " + this.taskId);
-                return;
-            }
 
             // If conversion is needed on the source schema and data records
             // before they are passed to the writer
@@ -164,11 +159,7 @@ public class Task implements Runnable {
         } finally {
             // Properly close all components and cleanup
             if (this.extractor != null) {
-                try {
-                    this.extractor.close();
-                } catch (Exception ioe) {
-                    LOG.error("Failed to close the extractor for task " + taskId, ioe);
-                }
+                this.extractor.close();
             }
 
             if (rowChecker != null) {

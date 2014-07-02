@@ -1,4 +1,4 @@
-package com.linkedin.uif.source.extractor.extract.sftp;
+package com.linkedin.uif.source.extractor.extract;
 
 import java.io.File;
 import java.io.IOException;
