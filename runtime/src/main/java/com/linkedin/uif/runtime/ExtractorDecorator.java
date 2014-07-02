@@ -31,7 +31,8 @@ public class ExtractorDecorator<S, D> implements Extractor<S, D> {
             return this.extractor.getSchema();
         } catch (Throwable t) {
             this.logger.error("Failed to get schema for task " + this.taskId, t);
-            // Return null in case of errors
+            Throwables.propagate(t);
+            // Dummy return that is not reachable as propagate above throws RuntimeException
             return null;
         }
     }
