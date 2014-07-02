@@ -1,6 +1,7 @@
 package com.linkedin.uif.source.extractor.extract.sftp;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -206,10 +207,9 @@ public class SftpExecutor
      * @param sftp is the channel to execute the command on
      * @throws SftpException
      * @throws SftpCommandFormatException
-     * @throws URISyntaxException 
-     * @throws IOException 
+     * @throws FileNotFoundException 
      */
-    public void executeGetFileCommand(SftpCommand cmd, ChannelSftp sftp, String destUri) throws SftpException, SftpCommandFormatException, URISyntaxException, IOException {
+    public void executeGetFileCommand(SftpCommand cmd, ChannelSftp sftp, String destUri) throws SftpException, SftpCommandFormatException, FileNotFoundException {
         if (!cmd.getCommandType().equals(SftpCommandType.GET_FILE)) {
             throw new SftpCommandFormatException("Command must be of type GET_FILE");
         }
