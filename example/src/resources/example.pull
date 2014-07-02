@@ -1,8 +1,8 @@
-job.name=HelloWorldFilePull
-job.group=HelloWorldJobs
+job.name=ExampleFilePull
+job.group=ExampleJobs
 job.description=Simple job to pull move files
 
-source.class=com.linkedin.uif.helloworld.source.HelloWorldSource
+source.class=com.linkedin.uif.helloworld.source.ExampleSource
 
 writer.destination.type=HDFS
 writer.output.format=AVRO
