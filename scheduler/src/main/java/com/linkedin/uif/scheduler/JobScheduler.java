@@ -1,9 +1,7 @@
 package com.linkedin.uif.scheduler;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -32,7 +30,6 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.AbstractIdleService;
 
@@ -40,9 +37,10 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.runtime.JobException;
 import com.linkedin.uif.runtime.JobLauncher;
 import com.linkedin.uif.runtime.JobLauncherFactory;
-import com.linkedin.uif.runtime.JobLauncherUtil;
 import com.linkedin.uif.runtime.JobListener;
 import com.linkedin.uif.runtime.RunOnceJobListener;
+import com.linkedin.uif.util.JobLauncherUtils;
+import com.linkedin.uif.util.SchedulerUtils;
 
 /**
  * Gobblin job scheduler.
@@ -231,7 +229,7 @@ public class JobScheduler extends AbstractIdleService {
         }
 
         // Populate the assigned job ID
-        jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, JobLauncherUtil.newJobId(jobName));
+        jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, JobLauncherUtils.newJobId(jobName));
 
         // Launch the job
         try {
@@ -247,7 +245,7 @@ public class JobScheduler extends AbstractIdleService {
     /**
      * Schedule locally configured UIF jobs.
      */
-    private void scheduleLocallyConfiguredJobs() throws JobException {
+    private void scheduleLocallyConfiguredJobs() throws IOException, JobException {
         LOG.info("Scheduling locally configured jobs");
         for (Properties jobProps : loadLocalJobConfigs()) {
             boolean runOnce = Boolean.valueOf(jobProps.getProperty(
@@ -259,42 +257,8 @@ public class JobScheduler extends AbstractIdleService {
     /**
      * Load local job configurations.
      */
-    private List<Properties> loadLocalJobConfigs() {
-        File jobConfigFileDir = new File(this.properties.getProperty(
-                ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY));
-        // Find all job configuration files
-        String[] jobConfigFiles = jobConfigFileDir.list(new FilenameFilter() {
-
-            @Override
-            public boolean accept(File dir, String name) {
-                return name.toLowerCase().endsWith(JOB_CONFIG_FILE_EXTENSION);
-            }
-        });
-
-        List<Properties> jobConfigs = Lists.newArrayList();
-        if (jobConfigFiles == null) {
-            LOG.info("No job configuration files found");
-            return jobConfigs;
-        }
-
-        LOG.info("Loading job configurations from directory " + jobConfigFileDir);
-        // Load all job configurations
-        for (String jobConfigFile : jobConfigFiles) {
-            Properties jobProps = new Properties();
-            jobProps.putAll(this.properties);
-            try {
-                File file = new File(jobConfigFileDir, jobConfigFile);
-                jobProps.load(new FileReader(file));
-                jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY,
-                        file.getAbsolutePath());
-                jobConfigs.add(jobProps);
-            } catch (FileNotFoundException fnfe) {
-                LOG.error("Job configuration file " + jobConfigFile + " not found", fnfe);
-            } catch (IOException ioe) {
-                LOG.error("Failed to load job configuration from file " + jobConfigFile, ioe);
-            }
-        }
-
+    private List<Properties> loadLocalJobConfigs() throws IOException {
+        List<Properties> jobConfigs = SchedulerUtils.loadJobConfigs(this.properties);
         LOG.info(String.format(
                 jobConfigs.size() <= 1 ?
                         "Loaded %d job configuration" :

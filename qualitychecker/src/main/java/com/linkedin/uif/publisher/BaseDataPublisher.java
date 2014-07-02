@@ -57,6 +57,8 @@ public class BaseDataPublisher extends DataPublisher
 
             Path finalOutput = new Path(workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
                                       extract.getOutputFilePath());
+            
+            // TODO make this recursive
             // Create the parent directory of the final output directory if it does not exist
             if (!this.fs.exists(finalOutput.getParent())) {
                 this.fs.mkdirs(finalOutput.getParent());
