@@ -107,6 +107,11 @@ public class ResponsysSource implements Source<String, String>
         List<String> currentFsSnapshot = this.getcurrentFsSnapshot();
         List<String> filesToPull = new ArrayList<String>(currentFsSnapshot);
         filesToPull.removeAll(prevFsSnapshot);
+        
+        // Pre-pend all file names with the directory name
+        for (int i = 0; i < filesToPull.size(); i++) {
+            filesToPull.add(i, state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY) + "/" + filesToPull.remove(i));
+        }
         log.info("Will pull the following files in this run: " + Arrays.toString(filesToPull.toArray()));
 
         int numPartitions = state.contains((ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS)) &&
@@ -202,6 +207,7 @@ public class ResponsysSource implements Source<String, String>
     @Override
     public void shutdown(SourceState state)
     {
+        log.info("Shutting down the sftp connection");
         sftp.disconnect();
     }
 }

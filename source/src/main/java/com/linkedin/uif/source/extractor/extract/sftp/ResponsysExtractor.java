@@ -2,8 +2,6 @@ package com.linkedin.uif.source.extractor.extract.sftp;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -11,9 +9,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +37,6 @@ public class ResponsysExtractor extends SftpExtractor
     private static final Logger log = LoggerFactory.getLogger(ResponsysExtractor.class);
     
     private static final String RESPONSYS_SCHEMA = "responsys.schema";
-    private static final String RESPONSYS_DATA_TEMP_FOLDER = "responsys.data.temp.folder";
     private static final String RESPONSYS_DECRYPT_KEY = "responsys.decrypt.key.location";
 
     
@@ -142,27 +136,7 @@ public class ResponsysExtractor extends SftpExtractor
         List<Command> cmds = new ArrayList<Command>();
         List<String> getParams = new ArrayList<String>();
         getParams.add(this.currentFile);
-        getParams.add(this.workUnit.getProp(RESPONSYS_DATA_TEMP_FOLDER) + this.currentFile);
-        cmds.add(new SftpCommand().build(getParams, SftpCommandType.GET_FILE));
-        
-        // Create temp folder if it doesn't exist
-        try
-        {
-            FileSystem fs = FileSystem.get(new URI(this.workUnit.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI)), new Configuration());
-            if (!fs.exists(new Path(this.workUnit.getProp(RESPONSYS_DATA_TEMP_FOLDER)))) {
-                log.info("Creating temp folder for extractor");
-                fs.mkdirs(new Path(this.workUnit.getProp(RESPONSYS_DATA_TEMP_FOLDER)));
-            }
-        }
-        catch (IOException e)
-        {
-            throw new DataRecordException("Could not create tmp folder: " + e.getMessage(), e);
-        }
-        catch (URISyntaxException e)
-        {
-            throw new DataRecordException("Could not create tmp folder: " + e.getMessage(), e);
-        }
-        
+        cmds.add(new SftpCommand().build(getParams, SftpCommandType.GET_STREAM));
         return cmds;
     }
 
@@ -174,11 +148,14 @@ public class ResponsysExtractor extends SftpExtractor
     @Override
     public Iterator<String> getData(CommandOutput<?, ?> response) throws DataRecordException, IOException
     {
-        log.info("Decyrpting current file");
-        InputStream input = GPGFileDecrypter.decryptGPGFile(this.workUnit.getProp(RESPONSYS_DATA_TEMP_FOLDER) + "/" + this.currentFile, this.workUnit.getProp(RESPONSYS_DECRYPT_KEY));
-        log.info("Decryption has finished, returning decrypted file as input stream");
+        if (response.getResults().size() != 1) {
+            throw new DataRecordException("Response has more than one command output entry");
+        }
         
+        InputStream sftpInputStream = (InputStream) response.getResults().values().iterator().next();
+        InputStream input = GPGFileDecrypter.decryptGPGFile(sftpInputStream, this.workUnit.getProp(RESPONSYS_DECRYPT_KEY));        
         Iterator<String> dataItr = IOUtils.lineIterator(input, "UTF-8");
+        
         if (this.workUnit.getPropAsBoolean(ConfigurationKeys.SOURCE_SKIP_FIRST_RECORD, false) && dataItr.hasNext()) {
             dataItr.next();
         }

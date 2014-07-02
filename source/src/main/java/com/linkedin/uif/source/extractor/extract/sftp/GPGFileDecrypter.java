@@ -32,10 +32,9 @@ public class GPGFileDecrypter
 {
     private static final Logger log = LoggerFactory.getLogger(ResponsysExtractor.class);
     
-    public static InputStream decryptGPGFile(String gpgFile, String privateKeyFile) throws IOException
+    public static InputStream decryptGPGFile(InputStream gpgFile, String privateKeyFile) throws IOException
     {
-        log.info("Decrypting file from src: " + gpgFile);
-        InputStream fileIn = new BufferedInputStream(new FileInputStream(gpgFile));
+        InputStream fileIn = gpgFile;
         InputStream keyIn = new BufferedInputStream(new FileInputStream(privateKeyFile));
 
         fileIn = PGPUtil.getDecoderStream(fileIn);

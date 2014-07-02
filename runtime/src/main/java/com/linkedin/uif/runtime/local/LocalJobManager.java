@@ -1,9 +1,7 @@
 package com.linkedin.uif.runtime.local;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.URI;
@@ -41,6 +39,7 @@ import org.quartz.impl.StdSchedulerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
@@ -66,6 +65,7 @@ import com.linkedin.uif.runtime.TaskState;
 import com.linkedin.uif.runtime.WorkUnitManager;
 import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.workunit.WorkUnit;
+import com.linkedin.uif.util.SchedulerUtils;
 
 /**
  * A class for managing locally configured UIF jobs.
@@ -302,51 +302,67 @@ public class LocalJobManager extends AbstractIdleService {
 
         LOG.info("Starting job " + jobId);
 
-        SourceWrapperBase source;
-        SourceState sourceState;
+        Optional<SourceState> sourceStateOptional = Optional.absent();
         try {
-            source = this.sourceWrapperMap.get(jobProps.getProperty(
+            // Initialize the source
+            SourceWrapperBase source = this.sourceWrapperMap.get(jobProps.getProperty(
                     ConfigurationKeys.SOURCE_WRAPPER_CLASS_KEY,
                     ConfigurationKeys.DEFAULT_SOURCE_WRAPPER)
                     .toLowerCase()).newInstance();
-            sourceState = new SourceState(jobState, getPreviousWorkUnitStates(jobName));
+            SourceState sourceState = new SourceState(jobState, getPreviousWorkUnitStates(jobName));
             source.init(sourceState);
-        } catch (Exception e) {
-            LOG.error("Failed to instantiate source for job " + jobId, e);
+            sourceStateOptional = Optional.of(sourceState);
+
+            // Generate work units based on all previous work unit states
+            List<WorkUnit> workUnits = source.getWorkunits(sourceState);
+            // If no real work to do
+            if (workUnits == null || workUnits.isEmpty()) {
+                LOG.warn("No work units have been created for job " + jobId);
+                source.shutdown(jobState);
+                unlockJob(jobName, runOnce);
+                callJobListener(jobName, jobState, runOnce);
+                return;
+            }
+
+            jobState.setTasks(workUnits.size());
+            jobState.setStartTime(System.currentTimeMillis());
+            jobState.setState(JobState.RunningState.WORKING);
+
+            this.jobStateMap.put(jobId, jobState);
+            this.jobSourceMap.put(jobId, source);
+
+            // Add all generated work units
+            int sequence = 0;
+            for (WorkUnit workUnit : workUnits) {
+                // Task ID in the form of task_<job_id_suffix>_<task_sequence_number>
+                String taskId = String.format("task_%s_%d", jobIdSuffix, sequence++);
+                workUnit.setId(taskId);
+                WorkUnitState workUnitState = new WorkUnitState(workUnit);
+                workUnitState.setId(taskId);
+                workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
+                workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
+                this.workUnitManager.addWorkUnit(workUnitState);
+            }
+        } catch (Throwable t) {
+            String errMsg = "Failed to run job " + jobId;
+            LOG.error(errMsg, t);
+            // Shutdown the source if the source has already been initialized
+            if (this.jobSourceMap.containsKey(jobId) && sourceStateOptional.isPresent()) {
+                try {
+                    this.jobSourceMap.remove(jobId).shutdown(sourceStateOptional.get());
+                } catch (Throwable t1) {
+                    // Catch any possible errors so unlockJob is guaranteed to be called below
+                    LOG.error("Failed to shutdown the source for job " + jobId, t1);
+                }
+            }
+            // Remove the cached job state
+            this.jobStateMap.remove(jobId);
+            // Finally release the job lock
             unlockJob(jobName, runOnce);
-            throw new JobException("Failed to run job " + jobId, e);
+            throw new JobException(errMsg, t);
         }
 
-        // Generate work units based on all previous work unit states
-        List<WorkUnit> workUnits = source.getWorkunits(sourceState);
-        // If no real work to do
-        if (workUnits == null || workUnits.isEmpty()) {
-            LOG.warn("No work units have been created for job " + jobId);
-            source.shutdown(jobState);
-            unlockJob(jobName, runOnce);
-            callJobListener(jobName, jobState, runOnce);
-            return;
-        }
 
-        jobState.setTasks(workUnits.size());
-        jobState.setStartTime(System.currentTimeMillis());
-        jobState.setState(JobState.RunningState.WORKING);
-
-        this.jobStateMap.put(jobId, jobState);
-        this.jobSourceMap.put(jobId, source);
-
-        // Add all generated work units
-        int sequence = 0;
-        for (WorkUnit workUnit : workUnits) {
-            // Task ID in the form of task_<job_id_suffix>_<task_sequence_number>
-            String taskId = String.format("task_%s_%d", jobIdSuffix, sequence++);
-            workUnit.setId(taskId);
-            WorkUnitState workUnitState = new WorkUnitState(workUnit);
-            workUnitState.setId(taskId);
-            workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
-            workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
-            this.workUnitManager.addWorkUnit(workUnitState);
-        }
     }
 
     /**
@@ -470,7 +486,7 @@ public class LocalJobManager extends AbstractIdleService {
     /**
      * Schedule locally configured UIF jobs.
      */
-    private void scheduleLocallyConfiguredJobs() throws JobException {
+    private void scheduleLocallyConfiguredJobs() throws IOException, JobException {
         LOG.info("Scheduling locally configured jobs");
         for (Properties jobProps : loadLocalJobConfigs()) {
             boolean runOnce = Boolean.valueOf(jobProps.getProperty(
@@ -482,42 +498,8 @@ public class LocalJobManager extends AbstractIdleService {
     /**
      * Load local job configurations.
      */
-    private List<Properties> loadLocalJobConfigs() {
-        File jobConfigFileDir = new File(this.properties.getProperty(
-                ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY));
-        // Find all job configuration files
-        String[] jobConfigFiles = jobConfigFileDir.list(new FilenameFilter() {
-
-            @Override
-            public boolean accept(File dir, String name) {
-                return name.toLowerCase().endsWith(JOB_CONFIG_FILE_EXTENSION);
-            }
-        });
-
-        List<Properties> jobConfigs = Lists.newArrayList();
-        if (jobConfigFiles == null) {
-            LOG.info("No job configuration files found");
-            return jobConfigs;
-        }
-
-        LOG.info("Loading job configurations from directory " + jobConfigFileDir);
-        // Load all job configurations
-        for (String jobConfigFile : jobConfigFiles) {
-            Properties jobProps = new Properties();
-            jobProps.putAll(this.properties);
-            try {
-                File file = new File(jobConfigFileDir, jobConfigFile);
-                jobProps.load(new FileReader(file));
-                jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY,
-                        file.getAbsolutePath());
-                jobConfigs.add(jobProps);
-            } catch (FileNotFoundException fnfe) {
-                LOG.error("Job configuration file " + jobConfigFile + " not found", fnfe);
-            } catch (IOException ioe) {
-                LOG.error("Failed to load job configuration from file " + jobConfigFile, ioe);
-            }
-        }
-
+    private List<Properties> loadLocalJobConfigs() throws IOException {
+        List<Properties> jobConfigs = SchedulerUtils.loadJobConfigs(this.properties);
         LOG.info(String.format(
                 jobConfigs.size() <= 1 ?
                         "Loaded %d job configuration" :

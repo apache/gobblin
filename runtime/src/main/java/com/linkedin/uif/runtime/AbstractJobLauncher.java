@@ -29,6 +29,7 @@ import com.linkedin.uif.metastore.StateStore;
 import com.linkedin.uif.publisher.DataPublisher;
 import com.linkedin.uif.source.workunit.WorkUnit;
 import com.linkedin.uif.util.EmailUtils;
+import com.linkedin.uif.util.JobLauncherUtils;
 
 /**
  * An abstract implementation of {@link JobLauncher} for execution-framework-specific
@@ -110,7 +111,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         // If no job ID is assigned (e.g., if the job is assigned through Azkaban),
         // assign a new job ID here.
         if (Strings.isNullOrEmpty(jobId)) {
-            jobId = JobLauncherUtil.newJobId(jobName);
+            jobId = JobLauncherUtils.newJobId(jobName);
             jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
         }
 
@@ -129,18 +130,38 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             sourceState = new SourceState(jobState, getPreviousWorkUnitStates(jobName));
             source = initSource(jobProps, sourceState);
         } catch (Throwable t) {
-            String errMsg = "Failed to initialize source for job " + jobId;
+            String errMsg = "Failed to initialize the source for job " + jobId;
             LOG.error(errMsg, t);
             unlockJob(jobName, jobLock);
             throw new JobException(errMsg, t);
         }
 
         // Generate work units of the job from the source
-        List<WorkUnit> workUnits = source.getWorkunits(sourceState);
+        List<WorkUnit> workUnits;
+        try {
+            workUnits = source.getWorkunits(sourceState);
+        } catch (Throwable t) {
+            String errMsg = "Failed to get work units for job " + jobId;
+            LOG.error(errMsg, t);
+            try {
+                source.shutdown(sourceState);
+            } catch (Throwable t1) {
+                // Catch any possible errors so unlockJob is guaranteed to be called below
+                LOG.error("Failed to shutdown the source for job " + jobId, t1);
+            }
+            unlockJob(jobName, jobLock);
+            throw new JobException(errMsg, t);
+        }
+
         // If there is no real work to do
         if (workUnits == null || workUnits.isEmpty()) {
             LOG.warn("No work units to do for job " + jobId);
-            source.shutdown(sourceState);
+            try {
+                source.shutdown(sourceState);
+            } catch (Throwable t) {
+                // Catch any possible errors so unlockJob is guaranteed to be called below
+                LOG.error("Failed to shutdown the source for job " + jobId, t);
+            }
             unlockJob(jobName, jobLock);
             return;
         }
@@ -152,7 +173,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         // Populate job/task IDs
         int sequence = 0;
         for (WorkUnit workUnit : workUnits) {
-            String taskId = JobLauncherUtil.newTaskId(jobId, sequence++);
+            String taskId = JobLauncherUtils.newTaskId(jobId, sequence++);
             workUnit.setId(taskId);
             workUnit.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
             workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
@@ -169,9 +190,15 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             jobState.setState(JobState.RunningState.FAILED);
             throw new JobException(errMsg, t);
         } finally {
-            source.shutdown(sourceState);
-            persistJobState(jobState);
-            cleanupStagingData(jobState);
+            try {
+                source.shutdown(sourceState);
+                persistJobState(jobState);
+                cleanupStagingData(jobState);
+            } catch (Throwable t) {
+                // Catch any possible errors so unlockJob is guaranteed to be called below
+                LOG.error("Failed to cleanup for job " + jobId, t);
+            }
+            // Finally release the job lock
             unlockJob(jobName, jobLock);
         }
     }
@@ -438,24 +465,24 @@ public abstract class AbstractJobLauncher implements JobLauncher {
      */
     private String constructJobFailureEmailMessage(JobState jobState) {
         StringBuilder messageBuilder = new StringBuilder();
-        messageBuilder.append("Job information:\n");
-        messageBuilder.append("------------------------------------------------------------\n");
-        messageBuilder.append("Job ID: " + jobState.getJobId() + "\n");
-        messageBuilder.append("Completed tasks: " + jobState.getCompletedTasks() + "\n");
-        messageBuilder.append("Job start time: " + jobState.getStartTime() + "\n");
-        messageBuilder.append("Job end time: " + jobState.getEndTime() + "\n");
-        messageBuilder.append("Job duration: " + jobState.getDuration() + "\n");
-        messageBuilder.append("\n\n");
+        messageBuilder.append("Job information:\n")
+                .append("------------------------------------------------------------\n")
+                .append("Job ID: " + jobState.getJobId() + "\n")
+                .append("Completed tasks: " + jobState.getCompletedTasks() + "\n")
+                .append("Job start time: " + jobState.getStartTime() + "\n")
+                .append("Job end time: " + jobState.getEndTime() + "\n")
+                .append("Job duration: " + jobState.getDuration() + "\n")
+                .append("\n\n");
 
-        messageBuilder.append("Task information:\n");
-        messageBuilder.append("------------------------------------------------------------\n");
+        messageBuilder.append("Task information:\n")
+                .append("------------------------------------------------------------\n");
         for (TaskState taskState : jobState.getTaskStates()) {
-            messageBuilder.append("Task ID: " + taskState.getTaskId() + "\n");
-            messageBuilder.append("Task state: " + taskState.getWorkingState() + "\n");
-            messageBuilder.append("Task start time: " + taskState.getStartTime() + "\n");
-            messageBuilder.append("Task end time: " + taskState.getEndTime() + "\n");
-            messageBuilder.append("Task duration: " + taskState.getTaskDuration() + "\n");
-            messageBuilder.append("Task high watermark: " + taskState.getHighWaterMark() + "\n");
+            messageBuilder.append("Task ID: " + taskState.getTaskId() + "\n")
+                    .append("Task state: " + taskState.getWorkingState() + "\n")
+                    .append("Task start time: " + taskState.getStartTime() + "\n")
+                    .append("Task end time: " + taskState.getEndTime() + "\n")
+                    .append("Task duration: " + taskState.getTaskDuration() + "\n")
+                    .append("Task high watermark: " + taskState.getHighWaterMark() + "\n");
             if (taskState.getWorkingState() == WorkUnitState.WorkingState.FAILED) {
                 messageBuilder.append("Task exception: " +
                         taskState.getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY) + "\n");
