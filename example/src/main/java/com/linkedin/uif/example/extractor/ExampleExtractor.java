@@ -1,4 +1,4 @@
-package com.linkedin.uif.helloworld.extractor;
+package com.linkedin.uif.example.extractor;
 
 import java.io.IOException;
 import java.net.URI;
@@ -20,9 +20,9 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.Extractor;
 
-public class HelloWorldExtractor implements Extractor<String, String> {
+public class ExampleExtractor implements Extractor<String, String> {
 
-    private static final Logger log = LoggerFactory.getLogger(HelloWorldExtractor.class);
+    private static final Logger log = LoggerFactory.getLogger(ExampleExtractor.class);
 
     private static final String SOURCE_FILE_KEY = "source.file";
 
@@ -42,8 +42,7 @@ public class HelloWorldExtractor implements Extractor<String, String> {
 
     private DataFileReader<GenericRecord> dataFileReader;
 
-    public HelloWorldExtractor(WorkUnitState workUnitState)
-    {
+    public ExampleExtractor(WorkUnitState workUnitState) {
         Schema schema = new Schema.Parser().parse(AVRO_SCHEMA);
         Path sourceFile = new Path(workUnitState.getWorkunit().getProp(SOURCE_FILE_KEY));
         
@@ -63,14 +62,12 @@ public class HelloWorldExtractor implements Extractor<String, String> {
     }
 
     @Override
-    public String getSchema()
-    {
+    public String getSchema() {
         return AVRO_SCHEMA;
     }
 
     @Override
-    public String readRecord()
-    {
+    public String readRecord() {
         if (this.dataFileReader == null) {
             return null;
         }
@@ -82,8 +79,7 @@ public class HelloWorldExtractor implements Extractor<String, String> {
     }
 
     @Override
-    public void close()
-    {
+    public void close() {
         try {
             this.dataFileReader.close();
         } catch (IOException ioe) {
@@ -92,14 +88,12 @@ public class HelloWorldExtractor implements Extractor<String, String> {
     }
 
     @Override
-    public long getExpectedRecordCount()
-    {
+    public long getExpectedRecordCount() {
         return TOTAL_RECORDS;
     }
 
     @Override
-    public long getHighWatermark()
-    {
+    public long getHighWatermark() {
       return 0;
     }
 }

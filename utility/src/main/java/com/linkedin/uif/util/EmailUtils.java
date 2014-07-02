@@ -29,14 +29,12 @@ public class EmailUtils {
         Email email = new SimpleEmail();
         email.setHostName(state.getProp(ConfigurationKeys.EMAIL_HOST_KEY,
                 ConfigurationKeys.DEFAULT_EMAIL_HOST));
-        if (state.contains(ConfigurationKeys.EMAIL_SMTP_PORT_KEY))
-        {
+        if (state.contains(ConfigurationKeys.EMAIL_SMTP_PORT_KEY)) {
             email.setSmtpPort(state.getPropAsInt(ConfigurationKeys.EMAIL_SMTP_PORT_KEY));
         }
         email.setFrom(state.getProp(ConfigurationKeys.EMAIL_FROM_KEY));
         if (state.contains(ConfigurationKeys.EMAIL_USER_KEY)
-                && state.contains(ConfigurationKeys.EMAIL_PASSWORD_KEY))
-        {
+                && state.contains(ConfigurationKeys.EMAIL_PASSWORD_KEY)) {
             email.setAuthentication(state.getProp(ConfigurationKeys.EMAIL_USER_KEY),
                                     state.getProp(ConfigurationKeys.EMAIL_PASSWORD_KEY));
         }

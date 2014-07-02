@@ -107,6 +107,13 @@ public class GPGFileDecrypter
             {
                 log.error("UnderLyingException: " + e.getUnderlyingException().getMessage(), e.getUnderlyingException());
             }
+        } finally {
+            if (keyIn != null) {
+                keyIn.close();
+            }
+            if (fileIn != null) {
+                fileIn.close();
+            }
         }
         return unc;
     }

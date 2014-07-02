@@ -141,18 +141,10 @@ public abstract class SftpExtractor extends QueryBasedExtractor<String, String> 
                 }
             }
             return this.getData(new SftpCommandOutput());
-        }
-        catch (SftpException e)
-        {
+        } catch (SftpException e) {
             throw new DataRecordException(e.getMessage(),  e);
-        }
-        catch (SftpCommandFormatException e)
-        {
+        } catch (SftpCommandFormatException e) {
             throw new DataRecordException(e.getMessage(), e);
-        }
-        catch (URISyntaxException e)
-        {
-            throw new IOException(e.getMessage(), e);
         }
     }
     
