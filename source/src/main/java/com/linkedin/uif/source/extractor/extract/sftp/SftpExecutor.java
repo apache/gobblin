@@ -1,11 +1,9 @@
 package com.linkedin.uif.source.extractor.extract.sftp;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -13,7 +11,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.Vector;
 
-import org.apache.jasper.tagplugins.jstl.core.Out;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
