@@ -31,6 +31,8 @@ tmp
 out
 **/out
 output
+**/gradle
+**/ligradle
 **/output
 **/staging
 jobOutput
@@ -40,3 +42,4 @@ state-store
 test/metrics
 test/byteman
 test/previous-job-ids
+/eclipse_build
