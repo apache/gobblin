@@ -1,7 +1,7 @@
 {
   "name": "gobblin",
   "group": "com.linkedin.@spec.name@",
-  "version": "0.0.6",
+  "version": "0.0.2",
   "scmUrl": "git@gitli.corp.linkedin.com:ds-platform/gobblin.git",
   "owners": [
     "stakiar",
@@ -10,7 +10,7 @@
     "kgoodhop"
   ],
   "comment": "",
-  "description": "Universal Ingestion Framework - Gobblin",
+  "description": "Gobblin - Universal Ingestion Framework",
   "watchers": [],
   "build": {
     "commands": {
