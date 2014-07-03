@@ -1,11 +1,11 @@
 package com.linkedin.uif.source.extractor.extract.sftp;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import com.linkedin.uif.source.extractor.extract.AbstractSource;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,13 +13,13 @@ import org.slf4j.MDC;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.SftpException;
+
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.WorkUnitState;
-import com.linkedin.uif.configuration.WorkUnitState.WorkingState;
-import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.extractor.Extractor;
 import com.linkedin.uif.source.extractor.exception.ExtractPrepareException;
 import com.linkedin.uif.source.extractor.extract.Command;
@@ -35,7 +35,7 @@ import com.linkedin.uif.source.workunit.Extract.TableType;
  * distributes the files among the work units
  * @author stakiar
  */
-public class ResponsysSource implements Source<String, String>
+public class ResponsysSource extends AbstractSource<String, String>
 {  
     private static final Logger log = LoggerFactory.getLogger(ResponsysSource.class);
     
@@ -44,17 +44,7 @@ public class ResponsysSource implements Source<String, String>
     
     private ChannelSftp sftp;
     private SourceState sourceState;
-    
-    public void initLogger(SourceState state) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("[");
-        sb.append(Strings.nullToEmpty(state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA)));
-        sb.append("_");
-        sb.append(Strings.nullToEmpty(state.getProp(ConfigurationKeys.SOURCE_ENTITY)));
-        sb.append("]");
-        MDC.put("tableName", sb.toString());
-    }
-    
+
     @Override
     public Extractor<String, String> getExtractor(WorkUnitState state) throws IOException {
         try {
@@ -96,7 +86,7 @@ public class ResponsysSource implements Source<String, String>
 
         TableType tableType = TableType.valueOf(state.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY).toUpperCase());        
         List<WorkUnitState> previousWorkunits = state.getPreviousStates();
-        List<String> prevFsSnapshot = new ArrayList<String>();
+        List<String> prevFsSnapshot = Lists.newArrayList();
 
         // Get list of files seen in the previous run
         if (!previousWorkunits.isEmpty() && previousWorkunits.get(0).getWorkunit().contains(RESPONSYS_FS_SNAPSHOT)) {
@@ -105,8 +95,13 @@ public class ResponsysSource implements Source<String, String>
 
         // Get list of files that need to be pulled
         List<String> currentFsSnapshot = this.getcurrentFsSnapshot();
-        List<String> filesToPull = new ArrayList<String>(currentFsSnapshot);
+        List<String> filesToPull = Lists.newArrayList(currentFsSnapshot);
         filesToPull.removeAll(prevFsSnapshot);
+        
+        // Pre-pend all file names with the directory name
+        for (int i = 0; i < filesToPull.size(); i++) {
+            filesToPull.set(i, state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY) + "/" + filesToPull.get(i));
+        }
         log.info("Will pull the following files in this run: " + Arrays.toString(filesToPull.toArray()));
 
         int numPartitions = state.contains((ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS)) &&
@@ -134,35 +129,11 @@ public class ResponsysSource implements Source<String, String>
         
         log.info("Total number of work units for the current run: " + workUnitCount);
         
-        List<WorkUnit> previousWorkUnits = this.getPreviousIncompleteWorkUnits(state);
+        List<WorkUnit> previousWorkUnits = this.getPreviousWorkUnitsForRetry(state);
         log.info("Total number of work units from the previous failed runs: " + previousWorkUnits.size());
         
         workUnits.addAll(previousWorkUnits);
         return workUnits;
-    }
-
-    /**
-     * Get all the previous work units which are in incomplete state
-     *
-     * @param SourceState
-     * @return list of work units
-     */
-    private List<WorkUnit> getPreviousIncompleteWorkUnits(SourceState state) {
-        log.debug("Getting previous unsuccessful work units");
-        List<WorkUnit> previousWorkUnits = new ArrayList<WorkUnit>();
-        List<WorkUnitState> previousWorkUnitStates = state.getPreviousStates();
-        if(previousWorkUnitStates.size() == 0) {
-            log.debug("Previous states are not found");
-            return previousWorkUnits;
-        }
-        
-        for(WorkUnitState workUnitState : previousWorkUnitStates) {
-            if(workUnitState.getWorkingState() == WorkingState.FAILED || workUnitState.getWorkingState() == WorkingState.ABORTED) {
-                previousWorkUnits.add(workUnitState.getWorkunit());
-            }
-        }
-        
-        return previousWorkUnits;
     }
 
     /**
@@ -172,7 +143,7 @@ public class ResponsysSource implements Source<String, String>
      */
     private List<String> getcurrentFsSnapshot()
     {
-        List<Command> cmds = new ArrayList<Command>();
+        List<Command> cmds = Lists.newArrayList();
         List<String> list = Arrays.asList(sourceState.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY) + "/*" + sourceState.getProp(ConfigurationKeys.SOURCE_ENTITY) + "*");
         cmds.add(new SftpCommand().build(list, SftpCommandType.LS));
         CommandOutput<SftpCommand, List<String>> response = new SftpCommandOutput();
@@ -198,10 +169,24 @@ public class ResponsysSource implements Source<String, String>
         }
         return null;
     }
-    
+ 
     @Override
     public void shutdown(SourceState state)
     {
+        log.info("Shutting down the sftp connection");
         sftp.disconnect();
+    }
+
+    /**
+     * Initialize the logger.
+     *
+     * @param state Source state
+     */
+    private void initLogger(SourceState state) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("[");
+        sb.append(Strings.nullToEmpty(state.getProp(ConfigurationKeys.SOURCE_ENTITY)));
+        sb.append("]");
+        MDC.put("sourceInfo", sb.toString());
     }
 }

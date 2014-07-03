@@ -39,6 +39,8 @@ public class ConfigurationKeys {
     public static final String CONVERTER_CLASSES_KEY = "converter.classes";
     public static final String JOB_COMMIT_POLICY_KEY = "job.commit.policy";
     public static final String DEFAULT_JOB_COMMIT_POLICY = "full";
+    public static final String WORK_UNIT_RETRY_POLICY_KEY = "workunit.retry.policy";
+    public static final String WORK_UNIT_RETRY_ENABLED_KEY = "workunit.retry.enabled";
     public static final String JOB_RUN_ONCE_KEY = "job.runonce";
     public static final String JOB_DISABLED_KEY = "job.disabled";
     public static final String JOB_JAR_FILES_KEY = "job.jars";
@@ -251,7 +253,6 @@ public class ConfigurationKeys {
     public static final String SOURCE_CONN_USE_PROXY_URL = "source.conn.use.proxy.url";
     public static final String SOURCE_CONN_USE_PROXY_PORT = "source.conn.use.proxy.port";
     
-    
     /**
      * Source default configurations
      */
@@ -260,7 +261,9 @@ public class ConfigurationKeys {
     public static final int DEFAULT_SOURCE_FETCH_SIZE = 1000;
     public static final int DEFAULT_SALESFORCE_MAX_CHARS_IN_FILE = 200000000;
     public static final int DEFAULT_SALESFORCE_MAX_ROWS_IN_FILE = 1000000;
-
+    public static final String DEFAULT_WATERMARK_TYPE = "timestamp";
+    public static final String DEFAULT_LOW_WATERMARK_BACKUP_SECONDS = "1000";
+    
     /**
      * Configuration properties used by the Hadoop MR job launcher.
      */

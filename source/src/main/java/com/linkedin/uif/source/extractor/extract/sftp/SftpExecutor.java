@@ -1,5 +1,8 @@
 package com.linkedin.uif.source.extractor.extract.sftp;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -202,17 +205,25 @@ public class SftpExecutor
      * @param sftp is the channel to execute the command on
      * @throws SftpException
      * @throws SftpCommandFormatException
+     * @throws IOException 
      */
-    public void executeGetFileCommand(SftpCommand cmd, ChannelSftp sftp) throws SftpException, SftpCommandFormatException {
+    public void executeGetFileCommand(SftpCommand cmd, ChannelSftp sftp, String destUri) throws SftpException, SftpCommandFormatException, IOException {
         if (!cmd.getCommandType().equals(SftpCommandType.GET_FILE)) {
             throw new SftpCommandFormatException("Command must be of type GET_FILE");
         }
-        
         List<String> params = cmd.getParams();
         SftpGetMonitor monitor = new SftpGetMonitor();
         if (params.size() == 2) {
             log.info("Attempting to download file: " + params.get(0) + " to dest: " + params.get(1));
-            sftp.get(params.get(0), params.get(1), monitor);
+            FileOutputStream out = null;
+            try {
+                out = new FileOutputStream(new File(params.get(1)));
+                sftp.get(params.get(0), out, monitor);
+            } finally {
+                if (out != null) {
+                    out.close();
+                }
+            }
         } else {
             throw new SftpCommandFormatException("GET command does correct number of arguments");
         }
