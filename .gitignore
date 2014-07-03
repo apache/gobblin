@@ -42,3 +42,4 @@ state-store
 test/metrics
 test/byteman
 test/previous-job-ids
+/eclipse_build

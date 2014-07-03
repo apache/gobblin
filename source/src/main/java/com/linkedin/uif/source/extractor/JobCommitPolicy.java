@@ -1,4 +1,4 @@
-package com.linkedin.uif.runtime;
+package com.linkedin.uif.source.extractor;
 
 /**
  * A enumeration of policies on how to commit a completed job.

@@ -48,25 +48,25 @@ public class Partitioner {
 		}
 		
 		ExtractType extractType = ExtractType.valueOf(this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE).toUpperCase());
-		WatermarkType watermarkType = WatermarkType.valueOf(this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE).toUpperCase());
+		WatermarkType watermarkType = WatermarkType.valueOf(this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, ConfigurationKeys.DEFAULT_WATERMARK_TYPE).toUpperCase());
 		int interval = this.getUpdatedInterval(Utils.getAsInt(this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_PARTITION_INTERVAL)), extractType, watermarkType);
 		int sourceMaxAllowedPartitions = Utils.getAsInt(this.state.getProp(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS));
-		int maxPartitions = (sourceMaxAllowedPartitions != 0 ? sourceMaxAllowedPartitions :ConfigurationKeys.DEFAULT_MAX_NUMBER_OF_PARTITIONS);
+		int maxPartitions = (sourceMaxAllowedPartitions != 0 ? sourceMaxAllowedPartitions : ConfigurationKeys.DEFAULT_MAX_NUMBER_OF_PARTITIONS);
 		
 		WatermarkPredicate watermark = new WatermarkPredicate(null, watermarkType);
 		int deltaForNextWatermark = watermark.getDeltaNumForNextWatermark();
 		
-		LOG.info("is watermark override:"+this.isWatermarkOverride());
-		LOG.info("is full extract:"+this.isFullDump());
+		LOG.info("is watermark override: " + this.isWatermarkOverride());
+		LOG.info("is full extract: " + this.isFullDump());
 		long lowWatermark = this.getLowWatermark(extractType, watermarkType, previousWatermark, deltaForNextWatermark);
 		long highWatermark = this.getHighWatermark(extractType, watermarkType);
 		
 		if(lowWatermark == ConfigurationKeys.DEFAULT_WATERMARK_VALUE || highWatermark == ConfigurationKeys.DEFAULT_WATERMARK_VALUE) {
-			LOG.info("Low watermark or high water mark is not found. Hence cannot generate partitions - Default partition with low watermark: "+lowWatermark + " and high watermark: "+highWatermark);
+			LOG.info("Low watermark or high water mark is not found. Hence cannot generate partitions - Default partition with low watermark:  " + lowWatermark + " and high watermark: " + highWatermark);
 			defaultPartition.put(lowWatermark, highWatermark);
 			return defaultPartition;
 		}
-		LOG.info("Generate partitions with low watermark:"+lowWatermark+" ;high watermark:"+highWatermark+" ;partition interval in hours:"+interval+ " ;Maximum number of allowed partitions:"+maxPartitions);
+		LOG.info("Generate partitions with low watermark: " + lowWatermark + "; high watermark: " + highWatermark + "; partition interval in hours: " + interval + "; Maximum number of allowed partitions: " + maxPartitions);
 		return watermark.getPartitions(lowWatermark, highWatermark, interval,maxPartitions);
 	}
 

@@ -2,17 +2,15 @@ package com.linkedin.uif.source.extractor.extract.sftp;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URISyntaxException;
 import java.util.Iterator;
 import java.util.List;
-
-import org.apache.commons.io.IOUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.SftpException;
-
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.DataRecordException;
@@ -55,12 +53,12 @@ public abstract class SftpExtractor extends QueryBasedExtractor<String, String> 
      * @return the ChannelSftp connection
      */
     public ChannelSftp createSftpConnection() {
-        ChannelSftp sftp = (ChannelSftp) SftpExecutor.connect(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY),
-                                                              this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_KNOWN_HOSTS),
-                                                              this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME),
-                                                              this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME),
-                                                              this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL),
-                                                              this.workUnit.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT, -1));
+        ChannelSftp sftp = (ChannelSftp) SftpExecutor.connect(this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY),
+                                                              this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_KNOWN_HOSTS),
+                                                              this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME),
+                                                              this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME),
+                                                              this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL),
+                                                              this.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT, -1));
         return sftp;
     }
 
@@ -129,10 +127,12 @@ public abstract class SftpExtractor extends QueryBasedExtractor<String, String> 
                 if (cmd instanceof SftpCommand) {
                     SftpCommand sftpCmd = (SftpCommand) cmd;
                     if (sftpCmd.getCommandType().equals(SftpCommandType.GET_FILE)) {
-                        executor.executeGetFileCommand(sftpCmd, this.sftp);
+                        executor.executeGetFileCommand(sftpCmd, this.sftp, this.workUnit.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI));
                     } else if (sftpCmd.getCommandType().equals(SftpCommandType.GET_STREAM)) {
                         InputStream stream = executor.executeGetStreamCommand(sftpCmd, this.sftp);
-                        return IOUtils.lineIterator(stream, "UTF-8");
+                        CommandOutput<SftpCommand, InputStream> getStreamOutput = new SftpGetCommandOuput();
+                        getStreamOutput.put(sftpCmd, stream);
+                        return this.getData(getStreamOutput);
                     } else {
                         SftpExecutor.executeUnixCommand(sftpCmd, this.sftp);
                     }
@@ -141,13 +141,9 @@ public abstract class SftpExtractor extends QueryBasedExtractor<String, String> 
                 }
             }
             return this.getData(new SftpCommandOutput());
-        }
-        catch (SftpException e)
-        {
+        } catch (SftpException e) {
             throw new DataRecordException(e.getMessage(),  e);
-        }
-        catch (SftpCommandFormatException e)
-        {
+        } catch (SftpCommandFormatException e) {
             throw new DataRecordException(e.getMessage(), e);
         }
     }
@@ -180,6 +176,7 @@ public abstract class SftpExtractor extends QueryBasedExtractor<String, String> 
     @Override
     public void closeConnection() throws Exception
     {
+        log.info("Shutting down the sftp connection");
         this.sftp.disconnect();
     }
 }
