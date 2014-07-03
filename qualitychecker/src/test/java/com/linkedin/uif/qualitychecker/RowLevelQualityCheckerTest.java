@@ -35,7 +35,7 @@ public class RowLevelQualityCheckerTest
         FileReader<GenericRecord> fileReader = openFile(state);
         
         for (GenericRecord datum : fileReader) {
-            //Assert.assertTrue(checker.executePolicies(datum, results));
+            Assert.assertTrue(checker.executePolicies(datum, results));
         }
     }
     
@@ -53,12 +53,12 @@ public class RowLevelQualityCheckerTest
         FileReader<GenericRecord> fileReader = openFile(state);
         
         for (GenericRecord datum : fileReader) {
-            //Assert.assertFalse(checker.executePolicies(datum, results));
+            Assert.assertFalse(checker.executePolicies(datum, results));
         }
         
         FileSystem fs = FileSystem.get(new URI(TestConstants.TEST_FS_URI), new Configuration());
         Path outputPath = new Path(TestConstants.TEST_ERR_FILE, state.getProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST).replaceAll("\\.", "-") + ".err");
-        //Assert.assertTrue(fs.exists(outputPath));
+        Assert.assertTrue(fs.exists(outputPath));
         fs.delete(outputPath);
     }
 
