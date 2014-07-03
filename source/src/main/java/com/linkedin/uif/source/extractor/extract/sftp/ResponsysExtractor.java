@@ -39,6 +39,7 @@ public class ResponsysExtractor extends SftpExtractor
     private static final String RESPONSYS_SCHEMA = "responsys.schema";
     private static final String RESPONSYS_DECRYPT_KEY = "responsys.decrypt.key.location";
 
+    
     private Iterator<String> filesToPull;
     private String currentFile;
     private InputStream decryptedInputStream;
