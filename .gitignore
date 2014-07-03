@@ -43,3 +43,15 @@ test/metrics
 test/byteman
 test/previous-job-ids
 /eclipse_build
+.project
+.settings
+.classpath
+.gradle
+.idea
+*.iml
+*.ipr
+*.iws
+/build
+*/build
+out/
+*/bin/
