@@ -361,7 +361,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                     EmailUtils.sendJobFailureAlertEmail(jobState.getJobName(),
                             constructJobFailureEmailMessage(jobState), jobState);
                 } catch (EmailException ee) {
-                    LOG.warn("Failed to send job failure alert email for job " + jobState.getJobId());
+                    LOG.warn("Failed to send job failure alert email for job " + jobState.getJobId(), ee);
                 }
             }
         }
