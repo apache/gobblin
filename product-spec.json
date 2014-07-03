@@ -1,7 +1,7 @@
 {
   "name": "gobblin",
   "group": "com.linkedin.@spec.name@",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "scmUrl": "git@gitli.corp.linkedin.com:ds-platform/gobblin.git",
   "owners": [
     "stakiar",
@@ -12,9 +12,8 @@
   "comment": "",
   "description": "Universal Ingestion Framework - Gobblin",
   "watchers": [],
-
   "build": {
-      "commands": {
+    "commands": {
       "snapshot": "ligradle release -x test --parallel",
       "build": "ligradle -Prelease=true release -x test --parallel",
       "clean": "ligradle clean",
@@ -27,17 +26,13 @@
       "gradle": "1.12"
     }
   },
-
   "deploy": {},
-
   "archive": {
     "artifacts": {},
     "repo_name": "DA-SVC"
   },
-
   "dependencyResolution": {},
-
-    "external": {
+  "external": {
     "avro": "org.apache.avro:avro:1.7.1",
     "avroMapred": "org.apache.avro:avro-mapred:1.7.6",
     "commonsCli": "commons-cli:commons-cli:1.2",
@@ -48,7 +43,7 @@
     "commonsIo": "commons-io:commons-io:2.4",
     "commonsHttpClient": "commons-httpclient:commons-httpclient:3.1",
     "guava": "com.google.guava:guava:15.0",
-    "gson":"com.google.code.gson:gson:2.2.4",
+    "gson": "com.google.code.gson:gson:2.2.4",
     "hadoop": "org.apache.hadoop:hadoop-core:1.2.1",
     "httpclient": "org.apache.httpcomponents:httpclient:4.2.3",
     "httpcore": "org.apache.httpcomponents:httpcore:4.2.1",
@@ -76,11 +71,8 @@
       "version": "6.0.154"
     }
   },
-
   "trunkDev": {
     "autoRevert": true
   },
-
   "extSCM": {}
 }
-
