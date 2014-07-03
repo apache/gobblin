@@ -34,8 +34,10 @@ public class GPGFileDecrypter
     
     public static InputStream decryptGPGFile(InputStream gpgFile, String privateKeyFile) throws IOException
     {
+        InputStream fileIn = gpgFile;
         InputStream keyIn = new BufferedInputStream(new FileInputStream(privateKeyFile));
-        InputStream fileIn = PGPUtil.getDecoderStream(gpgFile);
+
+        fileIn = PGPUtil.getDecoderStream(fileIn);
         InputStream unc = null;
 
         try
