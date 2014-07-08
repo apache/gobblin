@@ -76,7 +76,7 @@ public class SchedulerUtilsTest {
         jobProps4.store(new FileWriter(new File(subDir2, "test21.pull")), "");
     }
 
-    @Test
+    @Test(groups = {"ignore"})
     public void testLoadJobConfigs() throws IOException {
         Properties properties = new Properties();
         properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, JOB_CONF_ROOT_DIR);
