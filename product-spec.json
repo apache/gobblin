@@ -17,7 +17,7 @@
       "snapshot": "ligradle release -x test --parallel",
       "build": "ligradle -Prelease=true release -x test --parallel",
       "clean": "ligradle clean",
-      "test": "ligradle check"
+      "test": "ligradle check -Dtest.excludeGroups=ignore"
     },
     "type": "gradle",
     "versions": {

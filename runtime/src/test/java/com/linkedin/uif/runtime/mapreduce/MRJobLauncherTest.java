@@ -14,7 +14,7 @@ import com.linkedin.uif.runtime.JobState;
 /**
  * Unit test for {@link MRJobLauncher}.
  */
-@Test(groups = {"com.linkedin.uif.runtime.mapreduce"})
+@Test(groups = {"com.linkedin.uif.runtime.mapreduce", "ignore"})
 public class MRJobLauncherTest extends JobLauncherTestBase {
 
     @BeforeClass
