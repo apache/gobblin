@@ -14,7 +14,7 @@ import com.linkedin.uif.runtime.JobState;
 /**
  * Unit test for {@link LocalJobLauncher}.
  */
-@Test(groups = {"com.linkedin.uif.runtime.local", "ignore"})
+@Test(groups = {"com.linkedin.uif.runtime.local"})
 public class LocalJobLauncherTest extends JobLauncherTestBase {
 
     @BeforeClass

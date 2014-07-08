@@ -17,7 +17,7 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
 /**
  * Unit tests for {@link SchedulerUtils}.
  */
-@Test(groups = {"com.linkedin.uif.util", "ignore"})
+@Test(groups = {"com.linkedin.uif.util"})
 public class SchedulerUtilsTest {
 
     private static final String JOB_CONF_ROOT_DIR = "test/test-job-conf-dir";
