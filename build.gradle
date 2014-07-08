@@ -1,7 +1,15 @@
 apply plugin: 'li-product'
 
 subprojects {
-	repositories {
-		mavenCentral()
-	}
+  plugins.withType(JavaPlugin) {
+    sourceCompatibility = 1.6
+    dependencies {
+      // dependency defined in product_spec.json
+      testCompile spec.external.testng
+    }
+
+    test {
+      useTestNG()
+    }
+  }
 }
