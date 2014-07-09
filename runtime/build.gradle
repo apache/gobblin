@@ -50,7 +50,9 @@ artifacts {
 }
 
 test {
-    useTestNG ()
+    useTestNG () {
+      excludeGroups 'ignore'
+    }
     workingDir rootProject.rootDir
     include '**/*Test*'
 }
