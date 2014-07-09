@@ -14,10 +14,10 @@ import com.linkedin.uif.runtime.JobState;
 /**
  * Unit test for {@link LocalJobLauncher}.
  */
-//@Test(groups = {"com.linkedin.uif.runtime.local"})
+@Test(groups = {"com.linkedin.uif.runtime.local"})
 public class LocalJobLauncherTest extends JobLauncherTestBase {
 
-    //@BeforeClass
+    @BeforeClass
     public void startUp() throws Exception {
         this.properties = new Properties();
         this.properties.load(new FileReader("test/resource/uif.test.properties"));
@@ -28,7 +28,7 @@ public class LocalJobLauncherTest extends JobLauncherTestBase {
                 JobState.class);
     }
 
-    //@Test(groups = {"ignore"})
+    @Test(groups = {"ignore"})
     public void testLaunchJob() throws Exception {
         Properties jobProps = new Properties();
         jobProps.load(new FileReader("test/resource/job-conf/UIFTest1.pull"));
@@ -42,7 +42,7 @@ public class LocalJobLauncherTest extends JobLauncherTestBase {
         runTest(jobProps);
     }
 
-    //@Test(groups = {"ignore"})
+    @Test(groups = {"ignore"})
     public void testLaunchJobWithPullLimit() throws Exception {
         Properties jobProps = new Properties();
         jobProps.load(new FileReader("test/resource/job-conf/UIFTest1.pull"));
