@@ -14,7 +14,7 @@ import com.linkedin.uif.runtime.JobState;
 /**
  * Unit test for {@link MRJobLauncher}.
  */
-@Test(groups = {"com.linkedin.uif.runtime.mapreduce"})
+//@Test(groups = {"com.linkedin.uif.runtime.mapreduce"})
 public class MRJobLauncherTest extends JobLauncherTestBase {
 
     @BeforeClass
@@ -28,7 +28,7 @@ public class MRJobLauncherTest extends JobLauncherTestBase {
                 JobState.class);
     }
 
-    @Test(groups = {"ignore"})
+    //@Test(groups = {"ignore"})
     public void testLaunchJob() throws Exception {
         Properties jobProps = new Properties();
         jobProps.load(new FileReader("test/resource/mr-job-conf/GobblinMRTest.pull"));
@@ -42,7 +42,7 @@ public class MRJobLauncherTest extends JobLauncherTestBase {
         runTest(jobProps);
     }
 
-    @Test(groups = {"ignore"})
+    //@Test(groups = {"ignore"})
     public void testLaunchJobWithConcurrencyLimit() throws Exception {
         Properties jobProps = new Properties();
         jobProps.load(new FileReader("test/resource/mr-job-conf/GobblinMRTest.pull"));
@@ -63,7 +63,7 @@ public class MRJobLauncherTest extends JobLauncherTestBase {
         runTest(jobProps);
     }
 
-    @Test(groups = {"ignore"})
+    //@Test(groups = {"ignore"})
     public void testLaunchJobWithPullLimit() throws Exception {
         Properties jobProps = new Properties();
         jobProps.load(new FileReader("test/resource/mr-job-conf/GobblinMRTest.pull"));
