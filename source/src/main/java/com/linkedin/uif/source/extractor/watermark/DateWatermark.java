@@ -15,9 +15,10 @@ import com.linkedin.uif.source.extractor.extract.QueryBasedExtractor;
 public class DateWatermark implements Watermark {
 	private static final Logger LOG = LoggerFactory.getLogger(DateWatermark.class);
 	// default water mark format(input format) example: 20140301050505
-	private static final String INPUTFORMAT = "yyyyMMddHHmmss";
+	private static final SimpleDateFormat INPUTFORMAT = new SimpleDateFormat("yyyyMMddHHmmss");
+	
 	// output format of date water mark example: 20140301
-	private static final String OUTPUTFORMAT = "yyyyMMdd";
+	private static final SimpleDateFormat OUTPUTFORMAT = new SimpleDateFormat("yyyyMMdd");
 	private static final int deltaForNextWatermark = 24*60*60;
 	private String watermarkColumn;
 	private String watermarkFormat;
@@ -38,10 +39,8 @@ public class DateWatermark implements Watermark {
 	}
 
 	@Override
-	synchronized public HashMap<Long, Long> getIntervals(long lowWatermarkValue, long highWatermarkValue, int partitionInterval, int maxIntervals) {
+	public HashMap<Long, Long> getIntervals(long lowWatermarkValue, long highWatermarkValue, int partitionInterval, int maxIntervals) {
 		HashMap<Long, Long> intervalMap = new HashMap<Long, Long>();
-		final SimpleDateFormat inputFormat  = new SimpleDateFormat(INPUTFORMAT);
-		
 		if(partitionInterval < 24) {
 			partitionInterval = 24;
 		}
@@ -53,26 +52,26 @@ public class DateWatermark implements Watermark {
 		final long lowWatermark = lowWatermarkDate.getTime();
 		final long highWatermark = highWatermarkDate.getTime();
 		
-		int interval = this.getInterval(highWatermark - lowWatermark, partitionInterval, maxIntervals) + 1;
+		int interval = this.getInterval(highWatermark - lowWatermark, partitionInterval, maxIntervals);
 		LOG.info("Recalculated partition interval:"+interval+" days");
-		if(interval < 0) {
+		if(interval <= 0) {
 			return intervalMap;
 		}
 		
 		Date startTime = new Date(lowWatermark);
 		Date endTime = new Date(highWatermark);
-		LOG.debug("Sart time:"+startTime+"; End time:"+endTime);
 		long lwm;
 		long hwm;
 		while(startTime.getTime() <= endTime.getTime()) {
-			lwm = Long.parseLong(inputFormat.format(startTime));
+			lwm = Long.parseLong(INPUTFORMAT.format(startTime));
 			
 			calendar.setTime(startTime);
 			calendar.add(Calendar.DATE, interval-1);
 			nextTime = calendar.getTime();
-			hwm = Long.parseLong(inputFormat.format(nextTime.getTime() <= endTime.getTime() ? nextTime : endTime));
+			hwm = Long.parseLong(INPUTFORMAT.format(nextTime.getTime() <= endTime.getTime() ? nextTime : endTime));
+			
 			intervalMap.put(lwm, hwm);
-			LOG.debug("Partition - low:"+lwm+"; high:"+hwm);
+			
 			calendar.add(Calendar.SECOND, deltaForNextWatermark);
 			startTime = calendar.getTime();
 		}
@@ -108,14 +107,12 @@ public class DateWatermark implements Watermark {
      * @param watermark value
      * @return value in date format
      */
-	synchronized private Date extractFromTimestamp(String watermark) {
-		final SimpleDateFormat inputFormat  = new SimpleDateFormat(INPUTFORMAT);
-		final SimpleDateFormat outputFormat  = new SimpleDateFormat(OUTPUTFORMAT);
+	private Date extractFromTimestamp(String watermark) {
 		Date outDate = null;
 		try {
-			Date date = inputFormat.parse(watermark);
-			String dateStr = outputFormat.format(date);
-			outDate = outputFormat.parse(dateStr);
+			Date date = INPUTFORMAT.parse(watermark);
+			String dateStr = OUTPUTFORMAT.format(date);
+			outDate = OUTPUTFORMAT.parse(dateStr);
 			
 		} catch (ParseException e) {
 		    LOG.error(e.getMessage(), e);
