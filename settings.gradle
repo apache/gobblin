@@ -1,12 +1,2 @@
-def modules = ['demo'] /* the name of the modules to use */
+include 'azkaban','converter','common-api','bin','qualitychecker','scheduler','runtime','test','utility','writer','metastore','source','example','code_base'
 
-modules.each { module ->
-  if (!file(module).directory) {
-    throw new GradleException("Module '$module' specified in the settings.gradle file must be a valid directory in the root project.")
-  }
-  file(module).eachDir { submodule ->
-    if (!submodule.name.startsWith('.')) {
-      include "${module}:${submodule.name}"
-    }
-  }
-}
