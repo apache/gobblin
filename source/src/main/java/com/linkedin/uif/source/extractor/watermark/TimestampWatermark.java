@@ -10,16 +10,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.linkedin.uif.source.extractor.extract.QueryBasedExtractor;
-import com.linkedin.uif.source.extractor.partition.Partitioner;
 
 public class TimestampWatermark implements Watermark {
 	private static final Logger LOG = LoggerFactory.getLogger(TimestampWatermark.class);
-	
 	// default water mark format(input format) example: 20140301050505
-	private static final SimpleDateFormat INPUTFORMAT = new SimpleDateFormat("yyyyMMddHHmmss");
-
+	private static final String INPUTFORMAT = "yyyyMMddHHmmss";
 	// output format of timestamp water mark example: 20140301050505
-	private static final SimpleDateFormat OUTPUTFORMAT = new SimpleDateFormat("yyyyMMddHHmmss");
+	private static final String OUTPUTFORMAT = "yyyyMMddHHmmss";
 	private static final int deltaForNextWatermark = 1;
     private String watermarkColumn;
     private String watermarkFormat;
@@ -40,16 +37,16 @@ public class TimestampWatermark implements Watermark {
 	}
 
 	@Override
-	public HashMap<Long, Long> getIntervals(long lowWatermarkValue, long highWatermarkValue, int partitionInterval, int maxIntervals) {
+	synchronized public HashMap<Long, Long> getIntervals(long lowWatermarkValue, long highWatermarkValue, int partitionInterval, int maxIntervals) {
 		HashMap<Long, Long> intervalMap = new HashMap<Long, Long>();
+		final SimpleDateFormat inputFormat  = new SimpleDateFormat(INPUTFORMAT);
+		
 		if(partitionInterval < 1) {
 			partitionInterval = 1;
 		}
 		
 		final Calendar calendar = Calendar.getInstance();
-		final SimpleDateFormat format  = new SimpleDateFormat("yyyyMMddHHmmss");
 		Date nextTime;
-		
 		final long lowWatermark = this.toEpoch(Long.toString(lowWatermarkValue));
 		final long highWatermark = this.toEpoch(Long.toString(highWatermarkValue));
 		
@@ -61,17 +58,17 @@ public class TimestampWatermark implements Watermark {
 		
 		Date startTime = new Date(lowWatermark);
 		Date endTime = new Date(highWatermark);
+		LOG.debug("Sart time:"+startTime+"; End time:"+endTime);
 		long lwm;
 		long hwm;
 		while(startTime.getTime() <= endTime.getTime()) {
-			lwm = Long.parseLong(INPUTFORMAT.format(startTime));
+			lwm = Long.parseLong(inputFormat.format(startTime));
 			calendar.setTime(startTime);
 			calendar.add(Calendar.HOUR, interval);
 			nextTime = calendar.getTime();
-			hwm = Long.parseLong(INPUTFORMAT.format(nextTime.getTime() <= endTime.getTime() ? nextTime : endTime));
-			
+			hwm = Long.parseLong(inputFormat.format(nextTime.getTime() <= endTime.getTime() ? nextTime : endTime));
 			intervalMap.put(lwm, hwm);
-			
+			LOG.debug("Partition - low:"+lwm+"; high:"+hwm);
 			calendar.add(Calendar.SECOND, deltaForNextWatermark);
 			startTime = calendar.getTime();
 		}
@@ -99,10 +96,11 @@ public class TimestampWatermark implements Watermark {
 		return hourInterval;
 	}
 	
-	private long toEpoch(String dateTime) {
+	synchronized private long toEpoch(String dateTime) {
 		Date date = null;
+		final SimpleDateFormat inputFormat  = new SimpleDateFormat(INPUTFORMAT);
 		try {
-			date = INPUTFORMAT.parse(dateTime);
+			date = inputFormat.parse(dateTime);
 		} catch (ParseException e) {
 		    LOG.error(e.getMessage(), e);
 		}
