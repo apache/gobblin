@@ -35,22 +35,17 @@ public class GPGFileDecrypter
     public static InputStream decryptGPGFile(InputStream gpgFile, String privateKeyFile) throws IOException
     {
         InputStream keyIn = new BufferedInputStream(new FileInputStream(privateKeyFile));
-        InputStream fileIn = PGPUtil.getDecoderStream(gpgFile);
         InputStream unc = null;
 
-        try
-        {
-            PGPObjectFactory pgpF = new PGPObjectFactory(fileIn);
+        try {
+            PGPObjectFactory pgpF = new PGPObjectFactory(PGPUtil.getDecoderStream(gpgFile));
             PGPEncryptedDataList enc;
             Object o = pgpF.nextObject();
 
             // The first object might be a PGP marker packet
-            if (o instanceof PGPEncryptedDataList)
-            {
+            if (o instanceof PGPEncryptedDataList) {
                 enc = (PGPEncryptedDataList) o;
-            }
-            else
-            {
+            } else {
                 enc = (PGPEncryptedDataList) pgpF.nextObject();
             }
 
@@ -60,16 +55,15 @@ public class GPGFileDecrypter
             PGPPublicKeyEncryptedData pbe = null;
             PGPSecretKeyRingCollection pgpSec =
                     new PGPSecretKeyRingCollection(PGPUtil.getDecoderStream(keyIn));
-            while (sKey == null && it.hasNext())
-            {
+            
+            while (sKey == null && it.hasNext()) {
                 pbe = (PGPPublicKeyEncryptedData) it.next();
 
                 PGPSecretKey pgpSecKey = pgpSec.getSecretKey(pbe.getKeyID());
                 sKey = pgpSecKey.extractPrivateKey(new BcPBESecretKeyDecryptorBuilder(new BcPGPDigestCalculatorProvider()).build(null));
             }
 
-            if (sKey == null)
-            {
+            if (sKey == null) {
                 throw new IllegalArgumentException("Secret key for message not found");
             }
 
@@ -77,40 +71,28 @@ public class GPGFileDecrypter
             PGPObjectFactory plainFact = new PGPObjectFactory(clear);
             Object message = plainFact.nextObject();
 
-            if (message instanceof PGPCompressedData)
-            {
+            if (message instanceof PGPCompressedData) {
                 PGPCompressedData cData = (PGPCompressedData) message;
                 PGPObjectFactory pgpFact = new PGPObjectFactory(cData.getDataStream());
                 message = pgpFact.nextObject();
             }
 
-            if (message instanceof PGPLiteralData)
-            {
+            if (message instanceof PGPLiteralData) {
                 PGPLiteralData ld = (PGPLiteralData) message;
                 unc = ld.getInputStream();
-            }
-            else if (message instanceof PGPOnePassSignatureList)
-            {
+            } else if (message instanceof PGPOnePassSignatureList)  {
                 throw new PGPException("Encrypted message contains a signed message - not literal data");
-            }
-            else
-            {
+            } else {
                 throw new PGPException("Message is not a simple encrypted file - type unknown");
             }
-        }
-        catch (PGPException e)
-        {
+        } catch (PGPException e) {
             log.error("PGPException: " + e.getMessage(), e);
-            if (e.getUnderlyingException() != null)
-            {
+            if (e.getUnderlyingException() != null) {
                 log.error("UnderLyingException: " + e.getUnderlyingException().getMessage(), e.getUnderlyingException());
             }
         } finally {
             if (keyIn != null) {
                 keyIn.close();
-            }
-            if (fileIn != null) {
-                fileIn.close();
             }
         }
         return unc;

@@ -34,13 +34,13 @@ import com.linkedin.uif.source.extractor.extract.sftp.SftpCommand.SftpCommandTyp
  * executes a given list of SFTP commands
  * @author stakiar
  */
-public class SftpExecutor
+public class SftpHelper
 {   
     private static final String CD = "CD";
     private static final String CHMOD = "CHMOD";
     private static final Set<String> knownCmds = new HashSet<String>(Arrays.asList(CD, CHMOD));
     
-    private static Logger log = LoggerFactory.getLogger(SftpExecutor.class);
+    private static Logger log = LoggerFactory.getLogger(SftpHelper.class);
 
     /**
      * Opens up a connection to specified host using the username
@@ -54,7 +54,7 @@ public class SftpExecutor
      * @param hostName is the host name to connect to
      * @return a SftpChannel that is connected to the host
      */
-    public static Channel connect(String privateKey, String knownHosts, String userName, String hostName, String proxyHost, int proxyPort) {
+    public static Channel connect(String privateKey, String knownHosts, String userName, String hostName, int port, String proxyHost, int proxyPort) {
         JSch.setLogger(new JSchLogger());
         JSch jsch = new JSch();
         Session session = null;
@@ -63,9 +63,9 @@ public class SftpExecutor
         try {
             jsch.addIdentity(privateKey);
             jsch.setKnownHosts(knownHosts);
-
-            session = jsch.getSession(userName, hostName);
             
+            session = jsch.getSession(userName, hostName, port);
+
             if (proxyHost != null && proxyPort >= 0) {
                 session.setProxy(new ProxyHTTP(proxyHost, proxyPort));
             }
@@ -128,7 +128,7 @@ public class SftpExecutor
         for (Command cmd : cmds) {
             if (cmd instanceof SftpCommand) {
                 SftpCommand sftpCmd = (SftpCommand) cmd;
-                output.put(sftpCmd, SftpExecutor.executeUnixCommand(sftpCmd, sftp));
+                output.put(sftpCmd, SftpHelper.executeUnixCommand(sftpCmd, sftp));
             }
         }
         return output;

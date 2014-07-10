@@ -1,19 +1,31 @@
 package com.linkedin.uif.source.extractor.extract;
 
-import java.io.File;
+import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.LineIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Throwables;
+import com.jcraft.jsch.SftpException;
+import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.DataRecordException;
 import com.linkedin.uif.source.extractor.Extractor;
 import com.linkedin.uif.source.extractor.extract.QueryBasedExtractor;
 import com.linkedin.uif.source.extractor.extract.Command;
 import com.linkedin.uif.source.extractor.extract.CommandOutput;
+import com.linkedin.uif.source.extractor.extract.sftp.SftpCommand;
+import com.linkedin.uif.source.extractor.extract.sftp.SftpCommandFormatException;
+import com.linkedin.uif.source.extractor.extract.sftp.SftpCommand.SftpCommandType;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
 /**
@@ -27,18 +39,20 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  */
 public abstract class FileBasedExtractor<S, D, K extends Command, V> implements Extractor<S, D>
 {
-    private WorkUnitState workUnitState;
-    private WorkUnit workUnit;
+    protected WorkUnitState workUnitState;
+    protected WorkUnit workUnit;
     
-    private List<File> filesToPull;
+    protected List<String> filesToPull;
     private Iterator<D> currentFileItr;
+    private String currentFile;
     private boolean readRecordStart;
     
-    private Logger log = LoggerFactory.getLogger(QueryBasedExtractor.class);
+    private Logger log = LoggerFactory.getLogger(FileBasedExtractor.class);
 
     public FileBasedExtractor(WorkUnitState workUnitState) {
         this.workUnitState = workUnitState;
         this.workUnit = workUnitState.getWorkunit();
+        this.filesToPull = new ArrayList<String>(workUnitState.getPropAsList(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, ""));
     }
     
     /**
@@ -73,16 +87,15 @@ public abstract class FileBasedExtractor<S, D, K extends Command, V> implements 
      * Iterates through the file and returns a new record upon each call
      * until there are no more records left in the file, then it moves on
      * to the next file
-     * @return a data record
      */
     @Override
     public D readRecord() throws DataRecordException, IOException
     {   
         if (!readRecordStart) {
             log.info("Starting to read records");
-            filesToPull = getListOfFiles();
             if (!filesToPull.isEmpty()) {
-                currentFileItr = downloadFile(filesToPull.remove(0));
+                currentFile = filesToPull.remove(0);
+                currentFileItr = downloadFile(currentFile);
             } else {
                 log.info("Finished reading records");
                 return null;
@@ -90,51 +103,33 @@ public abstract class FileBasedExtractor<S, D, K extends Command, V> implements 
             readRecordStart = true;
         }
         
-        while (!currentFileItr.hasNext() && !filesToPull.isEmpty()){
-            currentFileItr = downloadFile(filesToPull.remove(0));
+        while (!currentFileItr.hasNext() && !filesToPull.isEmpty()) {
+            closeFile(currentFile);
+            currentFile = filesToPull.remove(0);
+            currentFileItr = downloadFile(currentFile);
         }
         
         if (currentFileItr.hasNext()) {
-            return currentFileItr.next();
+            return (D) currentFileItr.next();
         } else {
             log.info("Finished reading records");
             return null;
         }
     }
-
-    /**
-     * Gets a list of files to pull
-     * @return a list of files to pull
-     */
-    protected abstract List<File> getListOfFiles();
     
     /**
      * Downloads a file from the source
      * @param f is the file to download
      * @return an iterator over the file
      */
-    protected abstract Iterator<D> downloadFile(File f);
+    protected abstract Iterator<D> downloadFile(String file) throws IOException;
     
     /**
-     * Closes the source connection and protocol connection
+     * Closes a file from the source
+     * @param f is the file to download
+     * @return an iterator over the file
      */
-    @Override
-    public void close()
-    {
-        log.info("Closing extractor");
-        closeSource();
-        closeProtocol();
-    }
-
-    /**
-     * Closes the source connection
-     */
-    protected abstract void closeSource();
-
-    /**
-     * Closes the protocol connection
-     */
-    protected abstract void closeProtocol();
+    protected abstract void closeFile(String file);
     
     /**
      * Gets a list of commands that will get the
@@ -175,25 +170,9 @@ public abstract class FileBasedExtractor<S, D, K extends Command, V> implements 
     @Override
     public long getHighWatermark()
     {
-        log.info("Getting high watermark");
-        List<Command> cmds = getWatermarkCommands();
-        CommandOutput<K, V> output = executeCommands(cmds);
-        return getWatermarkFromOutput(output);
+        log.info("High Watermark is -1 for file based extractors");
+        return -1;
     }
-
-    /**
-     * Gets a list of file system commands to get the
-     * high watermark
-     * @return a list of commands to execute
-     */
-    protected abstract List<Command> getWatermarkCommands();
-    
-    /**
-     * Parses a command output and gets high watermark
-     * @param output is the output from the commands
-     * @return the high watermark
-     */
-    protected abstract long getWatermarkFromOutput(CommandOutput<K, V> output);
     
     /**
      * Executes a given list of protocol specific commands

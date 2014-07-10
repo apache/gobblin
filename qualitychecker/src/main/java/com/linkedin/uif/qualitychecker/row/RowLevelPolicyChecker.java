@@ -1,6 +1,7 @@
 package com.linkedin.uif.qualitychecker.row;
 
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.URI;
@@ -34,7 +35,8 @@ public class RowLevelPolicyChecker
             
             if (p.getType().equals(RowLevelPolicy.Type.ERR_FILE)) {
                 if (!errFileOpen) {
-                    this.writer.open(new Path(p.getErrFileLocation(), p.toString().replaceAll("\\.", "-") + ".err"));
+                    Path file = new Path(p.getErrFileLocation(), p.toString().replaceAll("\\.", "-") + ".err");
+                    this.writer.open(file);
                     this.writer.write(record);
                 } else {
                     this.writer.write(record);
