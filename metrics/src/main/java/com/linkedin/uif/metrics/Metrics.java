@@ -1,13 +1,10 @@
-package com.linkedin.uif.runtime;
+package com.linkedin.uif.metrics;
 
 import java.io.File;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
-
-import com.linkedin.uif.configuration.ConfigurationKeys;
-import com.linkedin.uif.configuration.State;
 
 import com.codahale.metrics.ConsoleReporter;
 import com.codahale.metrics.Counter;
@@ -16,6 +13,9 @@ import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Slf4jReporter;
+
+import com.linkedin.uif.configuration.ConfigurationKeys;
+import com.linkedin.uif.configuration.State;
 
 /**
  * A convenient class for using {@link com.codahale.metrics.MetricRegistry}.

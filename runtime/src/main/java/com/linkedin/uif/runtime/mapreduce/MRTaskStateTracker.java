@@ -11,8 +11,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.util.concurrent.AbstractIdleService;
 
+import com.linkedin.uif.metrics.Metrics;
 import com.linkedin.uif.runtime.JobState;
-import com.linkedin.uif.runtime.Metrics;
 import com.linkedin.uif.runtime.Task;
 import com.linkedin.uif.runtime.TaskState;
 import com.linkedin.uif.runtime.TaskStateTracker;

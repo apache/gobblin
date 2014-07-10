@@ -14,7 +14,7 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
-import com.linkedin.uif.runtime.Metrics;
+import com.linkedin.uif.metrics.Metrics;
 
 /**
  * A class that runs the {@link JobScheduler} in a daemon process for standalone deployment.

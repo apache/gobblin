@@ -12,6 +12,7 @@ import com.google.common.collect.Lists;
 import org.apache.hadoop.io.Text;
 
 import com.linkedin.uif.configuration.SourceState;
+import com.linkedin.uif.metrics.Metrics;
 
 /**
  * A class for tracking job state information.

@@ -17,7 +17,7 @@ import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
-import com.linkedin.uif.runtime.Metrics;
+import com.linkedin.uif.metrics.Metrics;
 import com.linkedin.uif.runtime.TaskExecutor;
 import com.linkedin.uif.runtime.TaskStateTracker;
 import com.linkedin.uif.runtime.WorkUnitManager;

@@ -10,6 +10,7 @@ import com.codahale.metrics.Counter;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
+import com.linkedin.uif.metrics.Metrics;
 
 /**
  * An extension to {@link WorkUnitState} with run-time task state information.

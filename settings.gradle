@@ -1,2 +1,2 @@
-include 'azkaban','converter','common-api','bin','qualitychecker','scheduler','runtime','test','utility','writer','metastore','source','example','code_base'
+include 'azkaban','converter','common-api','bin','metrics','qualitychecker','scheduler','runtime','test','utility','writer','metastore','source','example','code_base'
 
