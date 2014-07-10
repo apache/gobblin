@@ -235,6 +235,8 @@ public class ConfigurationKeys {
      */
     public static final String SOURCE_FILEBASED_DATA_DIRECTORY = "source.filebased.data.directory";
     public static final String SOURCE_FILEBASED_FILES_TO_PULL = "source.filebased.files.to.pull";
+    public static final String SOURCE_FILEBASED_FS_SNAPSHOT = "source.filebased.fs.snapshot";
+    public static final String SOURCE_FILEBASED_FS_URI = "source.filebased.fs.uri";
     
     /**
      * Configuration properties for source connection
@@ -250,8 +252,10 @@ public class ConfigurationKeys {
     public static final String SOURCE_CONN_VERSION = "source.conn.version";
     public static final String SOURCE_CONN_TIMEOUT = "source.conn.timeout";
     public static final String SOURCE_CONN_REST_URL = "source.conn.rest.url";
+    public static final String SOURCE_CONN_PORT = "source.conn.port";
     public static final String SOURCE_CONN_USE_PROXY_URL = "source.conn.use.proxy.url";
     public static final String SOURCE_CONN_USE_PROXY_PORT = "source.conn.use.proxy.port";
+    public static final int SOURCE_CONN_DEFAULT_PORT = 22;
     
     /**
      * Source default configurations
