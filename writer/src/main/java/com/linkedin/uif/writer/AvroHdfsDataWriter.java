@@ -4,17 +4,18 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.google.common.base.Preconditions;
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Preconditions;
 
 import com.linkedin.uif.converter.DataConversionException;
 import com.linkedin.uif.writer.converter.DataConverter;
@@ -46,12 +47,24 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
 
         Configuration conf = new Configuration();
         this.fs = FileSystem.get(uri, conf);
+
         this.stagingFile = new Path(stagingDir, fileName);
+        // Deleting the staging file if it already exists, which can happen if the
+        // task failed and the staging file didn't get cleaned up for some reason.
+        // Deleting the staging file prevents the task retry from being blocked.
+        if (this.fs.exists(this.stagingFile)) {
+            LOG.warn(String.format(
+                    "Task staging file %s already exists, deleting it",
+                    this.stagingFile));
+            this.fs.delete(this.stagingFile, false);
+        }
+
         this.outputFile = new Path(outputDir, fileName);
         // Create the parent directory of the output file if it does not exist
         if (!this.fs.exists(this.outputFile.getParent())) {
             this.fs.mkdirs(this.outputFile.getParent());
         }
+
         this.dataConverter = dataConverter;
         this.writer = createDatumWriter(schema, this.stagingFile, bufferSize);
     }
@@ -84,8 +97,11 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
         }
 
         LOG.info(String.format("Moving data from %s to %s", this.stagingFile, this.outputFile));
+        // For the same reason as deleting the staging file if it already exists, deleting
+        // the output file if it already exists prevents task retry from being blocked.
         if (this.fs.exists(this.outputFile)) {
-            throw new IOException(String.format("File %s already exists", this.outputFile));
+            LOG.warn(String.format("Task output file %s already exists", this.outputFile));
+            this.fs.delete(this.outputFile, false);
         }
         this.fs.rename(this.stagingFile, this.outputFile);
     }
