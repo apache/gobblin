@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.Converter;
+import com.linkedin.uif.metrics.Metrics;
 import com.linkedin.uif.publisher.TaskPublisher;
 import com.linkedin.uif.publisher.TaskPublisherBuilder;
 import com.linkedin.uif.publisher.TaskPublisherBuilderFactory;

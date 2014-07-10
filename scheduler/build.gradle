@@ -3,6 +3,7 @@ apply plugin: 'li-java'
 dependencies {
   compile project(":common-api")
   compile project(":metastore")
+  compile project(":metrics")
   compile project(":qualitychecker")
   compile project(":writer")
   compile project(":runtime")

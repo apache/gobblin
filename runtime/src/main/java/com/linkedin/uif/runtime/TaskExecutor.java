@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
+import com.linkedin.uif.metrics.Metrics;
 
 /**
  * A class for executing new {@link Task}s and retrying failed ones.
