@@ -23,7 +23,7 @@ import com.linkedin.uif.qualitychecker.row.RowLevelPolicyCheckerBuilderFactory;
 @Test(groups = {"com.linkedin.uif.qualitychecker"})
 public class RowLevelQualityCheckerTest
 {
-    @Test
+    @Test(groups = {"ignore"})
     public void testRowLevelPolicy() throws Exception {        
         State state = new State();
         state.setProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST, "com.linkedin.uif.qualitychecker.TestRowLevelPolicy");
@@ -39,7 +39,7 @@ public class RowLevelQualityCheckerTest
         }
     }
     
-    @Test
+    @Test(groups = {"ignore"})
     public void testWriteToErrFile() throws Exception {        
         State state = new State();
         state.setProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST, "com.linkedin.uif.qualitychecker.TestRowLevelPolicyFail");

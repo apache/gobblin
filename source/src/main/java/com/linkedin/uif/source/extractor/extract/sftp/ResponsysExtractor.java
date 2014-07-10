@@ -36,6 +36,13 @@ public class ResponsysExtractor extends SftpExtractor<String, String>
     
     private Map<String, LineIterator> fileHandles;
     
+    /**
+     * filesToPull is a list of files to pull from Responsys
+     * This list is created by ResponsysSource and is passed
+     * through the workUnitState
+     * @param workUnitState is the state object for this extractor
+     */
+>>>>>>> 98c4c7c8a38d063513ad2211a9f8434e2b5a312c
     public ResponsysExtractor(WorkUnitState workUnitState)
     {
         super(workUnitState);
