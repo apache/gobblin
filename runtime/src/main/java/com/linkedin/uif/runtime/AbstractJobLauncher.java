@@ -401,7 +401,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
 
     /**
-     * Persiste job/task states of a completed job.
+     * Persist job/task states of a completed job.
      */
     private void persistJobState(JobState jobState) {
         String jobName = jobState.getJobName();
