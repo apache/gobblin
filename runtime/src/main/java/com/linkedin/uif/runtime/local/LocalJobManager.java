@@ -11,6 +11,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 
 import org.apache.commons.io.monitor.FileAlterationListener;
@@ -45,6 +46,7 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
@@ -89,7 +91,6 @@ public class LocalJobManager extends AbstractIdleService {
 
     private static final Logger LOG = LoggerFactory.getLogger(LocalJobManager.class);
 
-    private static final String JOB_CONFIG_FILE_EXTENSION = ".pull";
     private static final String JOB_MANAGER_KEY = "jobManager";
     private static final String PROPERTIES_KEY = "jobProps";
     private static final String JOB_LISTENER_KEY = "jobListener";
@@ -135,6 +136,9 @@ public class LocalJobManager extends AbstractIdleService {
     // Mapping between jobs to the job IDs of their last runs
     private final Map<String, String> lastJobIdMap = Maps.newHashMap();
 
+    // Set of supported job configuration file extensions
+    private final Set<String> jobConfigFileExtensions;
+
     // Store for persisting job state
     private final StateStore jobStateStore;
 
@@ -159,6 +163,12 @@ public class LocalJobManager extends AbstractIdleService {
                 properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
                 properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
                 TaskState.class);
+
+        this.jobConfigFileExtensions = Sets.newHashSet(
+                Splitter.on(",").omitEmptyStrings().split(
+                        this.properties.getProperty(
+                                ConfigurationKeys.JOB_CONFIG_FILE_EXTENSIONS_KEY,
+                                ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_EXTENSIONS)));
 
         restoreLastJobIdMap();
         populateSourceWrapperMap();
@@ -537,7 +547,9 @@ public class LocalJobManager extends AbstractIdleService {
              */
             @Override
             public void onFileCreate(File file) {
-                if (!file.getName().endsWith(JOB_CONFIG_FILE_EXTENSION)) {
+                int pos = file.getName().lastIndexOf(".");
+                String fileExtension = pos >= 0 ? file.getName().substring(pos + 1) : "";
+                if (!jobConfigFileExtensions.contains(fileExtension)) {
                     // Not a job configuration file, ignore.
                     return;
                 }
@@ -570,7 +582,9 @@ public class LocalJobManager extends AbstractIdleService {
              */
             @Override
             public void onFileChange(File file) {
-                if (!file.getName().endsWith(JOB_CONFIG_FILE_EXTENSION)) {
+                int pos = file.getName().lastIndexOf(".");
+                String fileExtension = pos >= 0 ? file.getName().substring(pos + 1) : "";
+                if (!jobConfigFileExtensions.contains(fileExtension)) {
                     // Not a job configuration file, ignore.
                     return;
                 }
