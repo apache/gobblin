@@ -15,6 +15,11 @@ public class ConfigurationKeys {
     // Directory where all job configuration files are stored
     public static final String JOB_CONFIG_FILE_DIR_KEY = "jobconf.dir";
 
+    // Job configuration file extensions
+    public static final String JOB_CONFIG_FILE_EXTENSIONS_KEY = "jobconf.extensions";
+    // Default job configuration file extensions
+    public static final String DEFAULT_JOB_CONFIG_FILE_EXTENSIONS = "pull,job";
+
     // Root directory where task state files are stored
     public static final String STATE_STORE_ROOT_DIR_KEY = "state.store.dir";
 
@@ -24,7 +29,7 @@ public class ConfigurationKeys {
     // Directory where metrics csv files are stored
     public static final String METRICS_DIR_KEY = "metrics.dir";
 
-    // Job launcher rtype
+    // Job launcher type
     public static final String JOB_LAUNCHER_TYPE_KEY = "launcher.type";
 
     /**

@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import org.apache.commons.io.monitor.FileAlterationListener;
 import org.apache.commons.io.monitor.FileAlterationListenerAdaptor;
@@ -29,8 +30,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
@@ -63,7 +66,6 @@ public class JobScheduler extends AbstractIdleService {
 
     private static final Logger LOG = LoggerFactory.getLogger(JobScheduler.class);
 
-    private static final String JOB_CONFIG_FILE_EXTENSION = ".pull";
     private static final String JOB_SCHEDULER_KEY = "jobScheduler";
     private static final String PROPERTIES_KEY = "jobProps";
     private static final String JOB_LISTENER_KEY = "jobListener";
@@ -86,12 +88,20 @@ public class JobScheduler extends AbstractIdleService {
     // A map for remembering config file paths of run-once jobs
     private final Map<String, String> runOnceJobConfigFiles = Maps.newHashMap();
 
+    // Set of supported job configuration file extensions
+    private final Set<String> jobConfigFileExtensions;
+
     // A monitor for changes to job configuration files
     private FileAlterationMonitor fileAlterationMonitor;
 
     public JobScheduler(Properties properties) throws Exception {
         this.properties = properties;
         this.scheduler = new StdSchedulerFactory().getScheduler();
+        this.jobConfigFileExtensions = Sets.newHashSet(
+                Splitter.on(",").omitEmptyStrings().split(
+                        this.properties.getProperty(
+                                ConfigurationKeys.JOB_CONFIG_FILE_EXTENSIONS_KEY,
+                                ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_EXTENSIONS)));
     }
 
     @Override
@@ -291,7 +301,9 @@ public class JobScheduler extends AbstractIdleService {
              */
             @Override
             public void onFileCreate(File file) {
-                if (!file.getName().endsWith(JOB_CONFIG_FILE_EXTENSION)) {
+                int pos = file.getName().lastIndexOf(".");
+                String fileExtension = pos >= 0 ? file.getName().substring(pos + 1) : "";
+                if (!jobConfigFileExtensions.contains(fileExtension)) {
                     // Not a job configuration file, ignore.
                     return;
                 }
@@ -324,7 +336,9 @@ public class JobScheduler extends AbstractIdleService {
              */
             @Override
             public void onFileChange(File file) {
-                if (!file.getName().endsWith(JOB_CONFIG_FILE_EXTENSION)) {
+                int pos = file.getName().lastIndexOf(".");
+                String fileExtension = pos >= 0 ? file.getName().substring(pos + 1) : "";
+                if (!jobConfigFileExtensions.contains(fileExtension)) {
                     // Not a job configuration file, ignore.
                     return;
                 }
