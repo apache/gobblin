@@ -1,30 +1,81 @@
 package com.linkedin.uif.metrics;
 
-import java.io.File;
+import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ConcurrentMap;
 
-import org.slf4j.Logger;
-
-import com.codahale.metrics.ConsoleReporter;
 import com.codahale.metrics.Counter;
-import com.codahale.metrics.CsvReporter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
+import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.Slf4jReporter;
+import com.codahale.metrics.MetricSet;
+
+import com.google.common.collect.Maps;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.State;
 
 /**
- * A convenient class for using {@link com.codahale.metrics.MetricRegistry}.
+ * A class that represents a set of metrics associated with a given name.
  *
  * @author ynli
  */
-public class Metrics {
+public class Metrics implements MetricSet {
 
-    private static final MetricRegistry METRICS = new MetricRegistry();
+    /**
+     * Enumeration of metric types.
+     */
+    public enum MetricType {
+        COUNTER, METER, GAUGE
+    }
+
+    // Mapping from job ID to metrics set
+    private static final ConcurrentMap<String, Metrics> METRICS_MAP =
+            Maps.newConcurrentMap();
+
+    private final String jobName;
+    private final String jobId;
+    private final MetricRegistry metricRegistry = new MetricRegistry();
+
+    public Metrics(String jobName, String jobId) {
+        this.jobName = jobName;
+        this.jobId = jobId;
+    }
+
+    /**
+     * Get a {@link Metrics} instance for the given metrics set name.
+     *
+     * @param jobName job name of this metrics set
+     * @param jobId job ID of this metrics set
+     * @return {@link Metrics} instance for the given metrics set name
+     */
+    public static Metrics get(String jobName, String jobId) {
+        return METRICS_MAP.putIfAbsent(jobId, new Metrics(jobName, jobId));
+    }
+
+    /**
+     * Remove the {@link Metrics} instance for the given metrics set name
+     *
+     * @param name metrics set name
+     * @return removed {@link Metrics} instance or <code>null</code> if {@link Metrics}
+     *         instance for the given metrics set name is not found
+     */
+    public static Metrics remove(String name) {
+        return METRICS_MAP.remove(name);
+    }
+
+    /**
+     * Create a metric name.
+     *
+     * @param metricPrefix metric name prefix
+     * @param id metric ID
+     * @param name metric name
+     * @return the concatenated metric name
+     */
+    public static String metricName(String metricPrefix, String id, String name) {
+        return MetricRegistry.name(metricPrefix, id, name);
+    }
 
     /**
      * Check whether metrics collection and reporting are enabled or not.
@@ -51,65 +102,89 @@ public class Metrics {
     }
 
     /**
-     * Get the {@link com.codahale.metrics.MetricRegistry}.
+     * Get the job name of this metrics set.
      *
-     * @return {@link com.codahale.metrics.MetricRegistry}
+     * @return job name of this metrics set
      */
-    public static MetricRegistry get() {
-        return METRICS;
+    public String getJobName() {
+        return this.jobName;
     }
 
     /**
-     * Create a metric name.
+     * Get the job ID of this metrics set.
      *
-     * @param cls Class where the metric.
-     * @param names name components
-     * @return the metric name
+     * @return job ID of this metrics set
      */
-    public static String metricName(Class<?> cls, String... names) {
-        return MetricRegistry.name(cls, names);
+    public String getJobId() {
+        return this.jobId;
     }
 
     /**
-     * Create a metric name.
+     * Create a new {@link com.codahale.metrics.Counter}.
      *
-     * @param rootName root metric name
-     * @param names name components
-     * @return the metric name
+     * @param metricPrefix metric name prefix
+     * @param id metric ID
+     * @param name metric name
+     * @return newly created {@link com.codahale.metrics.Counter}
      */
-    public static String metricName(String rootName, String... names) {
-        return MetricRegistry.name(rootName, names);
-    }
-
-    /**
-     * Register a {@link com.codahale.metrics.Gauge}.
-     *
-     * @param name name of the {@link com.codahale.metrics.Gauge}
-     * @param gauge the {@link com.codahale.metrics.Gauge} to register
-     * @param <T> gauge data type
-     */
-    public static <T> Gauge<T> getGauge(String name, Gauge<T> gauge) {
-        return METRICS.register(name, gauge);
+    public Counter getCounter(String metricPrefix, String id, String name) {
+        return metricRegistry.counter(metricName(metricPrefix, id, name));
     }
 
     /**
      * Create a new {@link com.codahale.metrics.Counter} with the given name.
      *
-     * @param name name of the {@link com.codahale.metrics.Counter}
+     * @param name concatenated metric name
      * @return newly created {@link com.codahale.metrics.Counter}
      */
-    public static Counter getCounter(String name) {
-        return METRICS.counter(name);
+    public Counter getCounter(String name) {
+        return metricRegistry.counter(name);
+    }
+
+    /**
+     * Get a {@link com.codahale.metrics.Meter}.
+     *
+     * @param metricPrefix metric name prefix
+     * @param id metric ID
+     * @param name metric name
+     * @return newly created {@link com.codahale.metrics.Meter}
+     */
+    public Meter getMeter(String metricPrefix, String id, String name) {
+        return metricRegistry.meter(metricName(metricPrefix, id, name));
     }
 
     /**
      * Get a {@link com.codahale.metrics.Meter} with the given name.
      *
-     * @param name name of the {@link com.codahale.metrics.Meter}
+     * @param name concatenated metric name
      * @return newly created {@link com.codahale.metrics.Meter}
      */
-    public static Meter getMeter(String name) {
-        return METRICS.meter(name);
+    public Meter getMeter(String name) {
+        return metricRegistry.meter(name);
+    }
+
+    /**
+     * Register a {@link com.codahale.metrics.Gauge}.
+     *
+     * @param metricPrefix metric name prefix
+     * @param id metric ID
+     * @param name metric name
+     * @param gauge the {@link com.codahale.metrics.Gauge} to register
+     * @param <T> gauge data type
+     */
+    public <T> Gauge<T> getGauge(String metricPrefix, String id, String name, Gauge<T> gauge) {
+        return metricRegistry.register(metricName(metricPrefix, id, name), gauge);
+    }
+
+    /**
+     * Register a {@link com.codahale.metrics.Gauge} with the given name.
+     *
+     * @param name concatenated metric name
+     * @param gauge the {@link com.codahale.metrics.Gauge} to register
+     * @param <T> gauge data type
+     */
+    public <T> Gauge<T> getGauge(String name, Gauge<T> gauge) {
+        return metricRegistry.register(name, gauge);
     }
 
     /**
@@ -117,54 +192,12 @@ public class Metrics {
      *
      * @param name metric object name
      */
-    public static void remove(String name) {
-        METRICS.remove(name);
+    public void removeMetric(String name) {
+        metricRegistry.remove(name);
     }
 
-    /**
-     * Start a {@link com.codahale.metrics.ConsoleReporter}.
-     *
-     * @param period interval between reports in milliseconds
-     */
-    public static void startConsoleReporter(long period) {
-        ConsoleReporter reporter = ConsoleReporter.forRegistry(METRICS)
-                .convertRatesTo(TimeUnit.SECONDS)
-                .convertDurationsTo(TimeUnit.MILLISECONDS)
-                .build();
-        reporter.start(period, TimeUnit.MILLISECONDS);
-    }
-
-    /**
-     * Start a {@link com.codahale.metrics.CsvReporter}.
-     *
-     * @param period interval between reports in milliseconds
-     * @param metricsDirStr directory where metrics csv files are stored
-     */
-    public static void startCsvReporter(long period, String metricsDirStr) {
-        File metricsDir = new File(metricsDirStr);
-        if (!metricsDir.exists()) {
-            metricsDir.mkdirs();
-        }
-
-        CsvReporter reporter = CsvReporter.forRegistry(METRICS)
-                .convertRatesTo(TimeUnit.SECONDS)
-                .convertDurationsTo(TimeUnit.MILLISECONDS)
-                .build(metricsDir);
-        reporter.start(period, TimeUnit.MILLISECONDS);
-    }
-
-    /**
-     * Start a {@link com.codahale.metrics.Slf4jReporter}.
-     *
-     * @param period interval between reports in milliseconds
-     * @param logger SLF4J logger
-     */
-    public static void startSlf4jReporter(long period, Logger logger) {
-        Slf4jReporter reporter = Slf4jReporter.forRegistry(METRICS)
-                .convertRatesTo(TimeUnit.SECONDS)
-                .convertDurationsTo(TimeUnit.MILLISECONDS)
-                .outputTo(logger)
-                .build();
-        reporter.start(period, TimeUnit.MILLISECONDS);
+    @Override
+    public Map<String, Metric> getMetrics() {
+        return metricRegistry.getMetrics();
     }
 }

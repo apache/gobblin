@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.util.concurrent.AbstractIdleService;
 
+import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.metrics.Metrics;
 import com.linkedin.uif.runtime.JobState;
 import com.linkedin.uif.runtime.Task;
@@ -66,8 +67,13 @@ public class MRTaskStateTracker extends AbstractIdleService implements TaskState
 
     @Override
     public void onTaskCompletion(Task task) {
+        Metrics metrics = Metrics.get(
+                task.getTaskState().getProp(ConfigurationKeys.JOB_NAME_KEY),
+                task.getJobId());
+
         /*
-         * Update record-level and byte-level metrics and Hadoop MR counters if enabled
+         * Update record-level and byte-level metrics and Hadoop MR counters
+         * if enabled at both the task level and job level (aggregated).
          */
         if (Metrics.isEnabled(task.getTaskState().getWorkunit())) {
             task.updateRecordMetrics();
@@ -75,26 +81,26 @@ public class MRTaskStateTracker extends AbstractIdleService implements TaskState
             // Task-level record counter
             String taskRecordMetric = Metrics.metricName(
                     TaskState.TASK_METRICS_PREFIX, task.getTaskId(), "records");
-            this.context.getCounter("TASK", taskRecordMetric).setValue(
-                    Metrics.getCounter(taskRecordMetric).getCount());
+            this.context.getCounter(TaskState.TASK_METRICS_PREFIX, taskRecordMetric).setValue(
+                    metrics.getCounter(taskRecordMetric).getCount());
 
             // Job-level record counter
             String jobRecordMetric = Metrics.metricName(
                     JobState.JOB_METRICS_PREFIX, task.getJobId(), "records");
-            this.context.getCounter("JOB", jobRecordMetric).increment(
-                    Metrics.getCounter(taskRecordMetric).getCount());
+            this.context.getCounter(JobState.JOB_METRICS_PREFIX, jobRecordMetric).increment(
+                    metrics.getCounter(taskRecordMetric).getCount());
 
             // Task-level byte counter
             String taskByteMetric = Metrics.metricName(
                     TaskState.TASK_METRICS_PREFIX, task.getTaskId(), "bytes");
-            this.context.getCounter("TASK", taskByteMetric).setValue(
-                    Metrics.getCounter(taskByteMetric).getCount());
+            this.context.getCounter(TaskState.TASK_METRICS_PREFIX, taskByteMetric).setValue(
+                    metrics.getCounter(taskByteMetric).getCount());
 
             // Job-level byte counter
             String jobByteMetric = Metrics.metricName(
                     JobState.JOB_METRICS_PREFIX, task.getJobId(), "bytes");
-            this.context.getCounter("JOB", jobByteMetric).increment(
-                    Metrics.getCounter(taskByteMetric).getCount());
+            this.context.getCounter(JobState.JOB_METRICS_PREFIX, jobByteMetric).increment(
+                    metrics.getCounter(taskByteMetric).getCount());
 
             task.getTaskState().removeMetrics();
         }
@@ -122,7 +128,9 @@ public class MRTaskStateTracker extends AbstractIdleService implements TaskState
             this.context.progress();
 
             /*
-             * Update record-level metrics and Hadoop MR counters if enabled
+             * Update record-level metrics and Hadoop MR counters if enabled at the
+             * task level ONLY. Job-level metrics are updated only after the job
+             * completes so metrics can be properly aggregated at the job level.
              */
             if (Metrics.isEnabled(this.task.getTaskState().getWorkunit())) {
                 this.task.updateRecordMetrics();
@@ -130,14 +138,11 @@ public class MRTaskStateTracker extends AbstractIdleService implements TaskState
                 // Task-level record counter
                 String taskRecordMetric = Metrics.metricName(
                         TaskState.TASK_METRICS_PREFIX, task.getTaskId(), "records");
-                this.context.getCounter("TASK", taskRecordMetric).setValue(
-                        Metrics.getCounter(taskRecordMetric).getCount());
-
-                // Job-level record counter
-                String jobRecordMetric = Metrics.metricName(
-                        JobState.JOB_METRICS_PREFIX, task.getJobId(), "records");
-                this.context.getCounter("JOB", jobRecordMetric).increment(
-                        Metrics.getCounter(taskRecordMetric).getCount());
+                this.context.getCounter(TaskState.TASK_METRICS_PREFIX, taskRecordMetric).setValue(
+                        Metrics.get(
+                                this.task.getTaskState().getProp(ConfigurationKeys.JOB_NAME_KEY),
+                                this.task.getJobId())
+                                .getCounter(taskRecordMetric).getCount());
             }
         }
     }

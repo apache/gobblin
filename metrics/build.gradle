@@ -2,6 +2,7 @@ apply plugin: 'li-java'
 
 dependencies {
   compile project(":common-api")
+  compile spec.external.guava
   compile spec.external.metricsCore
   compile spec.external.slf4j
   testCompile spec.external.testng
