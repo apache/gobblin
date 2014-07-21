@@ -24,7 +24,6 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.metastore.FsStateStore;
 import com.linkedin.uif.metastore.StateStore;
 import com.linkedin.uif.runtime.JobState;
-import com.linkedin.uif.runtime.TaskState;
 
 /**
  * A utility class for converting a {@link JobState} object to a json-formatted document.
@@ -120,21 +119,7 @@ public class JobStateToJsonConverter {
      * @throws IOException
      */
     private void writeJobState(JsonWriter jsonWriter, JobState jobState) throws IOException {
-        jsonWriter.beginObject();
-
-        jsonWriter.name("job name").value(jobState.getJobName())
-                .name("job id").value(jobState.getJobId())
-                .name("job state").value(jobState.getState().name())
-                .name("start time").value(jobState.getStartTime())
-                .name("end time").value(jobState.getEndTime())
-                .name("duration").value(jobState.getDuration())
-                .name("tasks").value(jobState.getTasks())
-                .name("completed tasks").value(jobState.getCompletedTasks());
-
-        jsonWriter.name("task states");
-        writeTaskStates(jsonWriter, jobState.getTaskStates());
-
-        jsonWriter.endObject();
+        jobState.toJson(jsonWriter);
     }
 
     /**
@@ -148,41 +133,6 @@ public class JobStateToJsonConverter {
         jsonWriter.beginArray();
         for (JobState jobState : jobStates) {
             writeJobState(jsonWriter, jobState);
-        }
-        jsonWriter.endArray();
-    }
-
-    /**
-     * Write a single {@link TaskState} to json document.
-     *
-     * @param jsonWriter {@link com.google.gson.stream.JsonWriter}
-     * @param taskState {@link TaskState} to write to json document
-     * @throws IOException
-     */
-    private void writeTaskState(JsonWriter jsonWriter, TaskState taskState) throws IOException {
-        jsonWriter.beginObject();
-
-        jsonWriter.name("task id").value(taskState.getTaskId())
-                .name("task state").value(taskState.getWorkingState().name())
-                .name("start time").value(taskState.getStartTime())
-                .name("end time").value(taskState.getEndTime())
-                .name("duration").value(taskState.getTaskDuration())
-                .name("high watermark").value(taskState.getHighWaterMark());
-
-        jsonWriter.endObject();
-    }
-
-    /**
-     * Write a list of {@link TaskState}s to json document.
-     *
-     * @param jsonWriter {@link com.google.gson.stream.JsonWriter}
-     * @param taskStates list of {@link TaskState}s to write to json document
-     * @throws IOException
-     */
-    private void writeTaskStates(JsonWriter jsonWriter, List<TaskState> taskStates) throws IOException {
-        jsonWriter.beginArray();
-        for (TaskState taskState : taskStates) {
-            writeTaskState(jsonWriter, taskState);
         }
         jsonWriter.endArray();
     }

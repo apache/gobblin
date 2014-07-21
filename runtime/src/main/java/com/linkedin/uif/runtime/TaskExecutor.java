@@ -98,12 +98,16 @@ public class TaskExecutor extends AbstractIdleService {
         if (this.executor.isShutdown() || this.executor.isTerminated()) {
             throw new IllegalStateException();
         }
+        if (this.retryExecutor.isShutdown() || this.retryExecutor.isTerminated()) {
+            throw new IllegalStateException();
+        }
     }
 
     @Override
     protected void shutDown() throws Exception {
         LOG.info("Stopping the task executor ");
         this.executor.shutdown();
+        this.retryExecutor.shutdown();
     }
 
     /**

@@ -70,7 +70,6 @@ public class Task implements Runnable {
      *
      * @param context Task context containing all necessary information
      *                to construct and run a {@link Task}
-     * @throws IOException if there is anything wrong constructing the task.
      */
     @SuppressWarnings("unchecked")
     public Task(TaskContext context, TaskStateTracker taskStateTracker) {

@@ -8,6 +8,8 @@ import org.apache.hadoop.io.Text;
 
 import com.codahale.metrics.Counter;
 
+import com.google.gson.stream.JsonWriter;
+
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.metrics.Metrics;
@@ -135,16 +137,18 @@ public class TaskState extends WorkUnitState {
      * @param recordsWritten number of records written by the writer
      */
     public void updateRecordMetrics(long recordsWritten) {
-        Counter taskRecordCounter = Metrics.getCounter(
+        Metrics metrics = Metrics.get(this.getProp(ConfigurationKeys.JOB_NAME_KEY), this.jobId);
+
+        Counter taskRecordCounter = metrics.getCounter(
                 Metrics.metricName(TASK_METRICS_PREFIX, this.taskId, "records"));
         long inc = recordsWritten - taskRecordCounter.getCount();
 
         taskRecordCounter.inc(inc);
-        Metrics.getMeter(Metrics.metricName(
+        metrics.getMeter(Metrics.metricName(
                 TASK_METRICS_PREFIX, this.taskId, "recordsPerSec")).mark(inc);
-        Metrics.getCounter(Metrics.metricName(
+        metrics.getCounter(Metrics.metricName(
                 JobState.JOB_METRICS_PREFIX, this.jobId, "records")).inc(inc);
-        Metrics.getMeter(Metrics.metricName(
+        metrics.getMeter(Metrics.metricName(
                 JobState.JOB_METRICS_PREFIX, this.jobId, "recordsPerSec")).mark(inc);
     }
 
@@ -158,13 +162,14 @@ public class TaskState extends WorkUnitState {
      * @param bytesWritten number of bytes written by the writer
      */
     public void updateByteMetrics(long bytesWritten) {
-        Metrics.getCounter(Metrics.metricName(
+        Metrics metrics = Metrics.get(this.getProp(ConfigurationKeys.JOB_NAME_KEY), this.jobId);
+        metrics.getCounter(Metrics.metricName(
                 TASK_METRICS_PREFIX, this.taskId, "bytes")).inc(bytesWritten);
-        Metrics.getMeter(Metrics.metricName(
+        metrics.getMeter(Metrics.metricName(
                 TASK_METRICS_PREFIX, this.taskId, "bytesPerSec")).mark(bytesWritten);
-        Metrics.getCounter(Metrics.metricName(
+        metrics.getCounter(Metrics.metricName(
                 JobState.JOB_METRICS_PREFIX, this.jobId, "bytes")).inc(bytesWritten);
-        Metrics.getMeter(Metrics.metricName(
+        metrics.getMeter(Metrics.metricName(
                 JobState.JOB_METRICS_PREFIX, this.jobId, "bytesPerSec")).mark(bytesWritten);
     }
 
@@ -172,13 +177,14 @@ public class TaskState extends WorkUnitState {
      * Adjust job-level metrics when the task gets retried.
      */
     public void adjustJobMetricsOnRetry() {
-        long recordsWritten = Metrics.getCounter(Metrics.metricName(
+        Metrics metrics = Metrics.get(this.getProp(ConfigurationKeys.JOB_NAME_KEY), this.jobId);
+        long recordsWritten = metrics.getCounter(Metrics.metricName(
                 TASK_METRICS_PREFIX, this.taskId, "records")).getCount();
-        long bytesWritten = Metrics.getCounter(Metrics.metricName(
+        long bytesWritten = metrics.getCounter(Metrics.metricName(
                 TASK_METRICS_PREFIX, this.taskId, "bytes")).getCount();
-        Metrics.getCounter(Metrics.metricName(
+        metrics.getCounter(Metrics.metricName(
                 JobState.JOB_METRICS_PREFIX, this.jobId, "records")).dec(recordsWritten);
-        Metrics.getCounter(Metrics.metricName(
+        metrics.getCounter(Metrics.metricName(
                 JobState.JOB_METRICS_PREFIX, this.jobId, "bytes")).dec(bytesWritten);
     }
 
@@ -186,10 +192,11 @@ public class TaskState extends WorkUnitState {
      * Remove all task-level metrics objects associated with this task.
      */
     public void removeMetrics() {
-        Metrics.remove(Metrics.metricName(TASK_METRICS_PREFIX, this.taskId, "records"));
-        Metrics.remove(Metrics.metricName(TASK_METRICS_PREFIX, this.taskId, "recordsPerSec"));
-        Metrics.remove(Metrics.metricName(TASK_METRICS_PREFIX, this.taskId, "bytes"));
-        Metrics.remove(Metrics.metricName(TASK_METRICS_PREFIX, this.taskId, "bytesPerSec"));
+        Metrics metrics = Metrics.get(this.getProp(ConfigurationKeys.JOB_NAME_KEY), this.jobId);
+        metrics.removeMetric(Metrics.metricName(TASK_METRICS_PREFIX, this.taskId, "records"));
+        metrics.removeMetric(Metrics.metricName(TASK_METRICS_PREFIX, this.taskId, "recordsPerSec"));
+        metrics.removeMetric(Metrics.metricName(TASK_METRICS_PREFIX, this.taskId, "bytes"));
+        metrics.removeMetric(Metrics.metricName(TASK_METRICS_PREFIX, this.taskId, "bytesPerSec"));
     }
 
     @Override
@@ -217,5 +224,25 @@ public class TaskState extends WorkUnitState {
         out.writeLong(this.endTime);
         out.writeLong(this.duration);
         super.write(out);
+    }
+
+    /**
+     * Convert this {@link TaskState} to a json document.
+     *
+     * @param jsonWriter a {@link com.google.gson.stream.JsonWriter}
+     *                   used to write the json document
+     * @throws IOException
+     */
+    public void toJson(JsonWriter jsonWriter) throws IOException {
+        jsonWriter.beginObject();
+
+        jsonWriter.name("task id").value(this.getTaskId())
+                .name("task state").value(this.getWorkingState().name())
+                .name("start time").value(this.getStartTime())
+                .name("end time").value(this.getEndTime())
+                .name("duration").value(this.getTaskDuration())
+                .name("high watermark").value(this.getHighWaterMark());
+
+        jsonWriter.endObject();
     }
 }

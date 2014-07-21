@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import com.linkedin.uif.metrics.Metrics;
 import org.apache.commons.mail.EmailException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -181,6 +182,11 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             jobState.setState(JobState.RunningState.FAILED);
             throw new JobException(errMsg, t);
         } finally {
+            if (Metrics.isEnabled(this.properties)) {
+                // Remove all job-level metrics after the job is done
+                jobState.removeMetrics();
+            }
+
             try {
                 source.shutdown(sourceState);
                 persistJobState(jobState);
@@ -189,6 +195,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                 // Catch any possible errors so unlockJob is guaranteed to be called below
                 LOG.error("Failed to cleanup for job " + jobId, t);
             }
+
             // Finally release the job lock
             unlockJob(jobName, jobLock);
         }
@@ -473,25 +480,25 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         StringBuilder messageBuilder = new StringBuilder();
         messageBuilder.append("Job information:\n")
                 .append("------------------------------------------------------------\n")
-                .append("Job ID: " + jobState.getJobId() + "\n")
-                .append("Completed tasks: " + jobState.getCompletedTasks() + "\n")
-                .append("Job start time: " + jobState.getStartTime() + "\n")
-                .append("Job end time: " + jobState.getEndTime() + "\n")
-                .append("Job duration: " + jobState.getDuration() + "\n")
+                .append("Job ID: ").append(jobState.getJobId()).append("\n")
+                .append("Completed tasks: ").append(jobState.getCompletedTasks()).append("\n")
+                .append("Job start time: ").append(jobState.getStartTime()).append("\n")
+                .append("Job end time: ").append(jobState.getEndTime()).append("\n")
+                .append("Job duration: ").append(jobState.getDuration()).append("\n")
                 .append("\n\n");
 
         messageBuilder.append("Task information:\n")
                 .append("------------------------------------------------------------\n");
         for (TaskState taskState : jobState.getTaskStates()) {
-            messageBuilder.append("Task ID: " + taskState.getTaskId() + "\n")
-                    .append("Task state: " + taskState.getWorkingState() + "\n")
-                    .append("Task start time: " + taskState.getStartTime() + "\n")
-                    .append("Task end time: " + taskState.getEndTime() + "\n")
-                    .append("Task duration: " + taskState.getTaskDuration() + "\n")
-                    .append("Task high watermark: " + taskState.getHighWaterMark() + "\n");
+            messageBuilder.append("Task ID: ").append(taskState.getTaskId()).append("\n")
+                    .append("Task state: ").append(taskState.getWorkingState()).append("\n")
+                    .append("Task start time: ").append(taskState.getStartTime()).append("\n")
+                    .append("Task end time: ").append(taskState.getEndTime()).append("\n")
+                    .append("Task duration: ").append(taskState.getTaskDuration()).append("\n")
+                    .append("Task high watermark: ").append(taskState.getHighWaterMark()).append("\n");
             if (taskState.getWorkingState() == WorkUnitState.WorkingState.FAILED) {
-                messageBuilder.append("Task exception: " +
-                        taskState.getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY) + "\n");
+                messageBuilder.append("Task exception: ").append(
+                        taskState.getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)).append("\n");
             }
             messageBuilder.append("\n");
         }
