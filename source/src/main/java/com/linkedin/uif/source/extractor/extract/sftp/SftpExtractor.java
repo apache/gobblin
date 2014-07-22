@@ -2,10 +2,11 @@ package com.linkedin.uif.source.extractor.extract.sftp;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URISyntaxException;
 import java.util.Iterator;
 import java.util.List;
 
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,21 +31,19 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  * protocol for connecting to source
  * and downloading files
  * @author stakiar
- *
- * @param <D> type of data record
- * @param <S> type of schema
  */
 public abstract class SftpExtractor extends QueryBasedExtractor<String, String> implements SourceSpecificLayer<String, String>
 {
     private static final Logger log = LoggerFactory.getLogger(SftpExtractor.class);
-    
-    private ChannelSftp sftp;
+
+    private Session session;
+    private ChannelSftp channelSftp;
     private SftpExecutor executor;
     
     public SftpExtractor(WorkUnitState workUnitState)
     {
         super(workUnitState);
-        this.sftp = createSftpConnection();
+        createSftpConnection();
         this.executor = new SftpExecutor();
     }
     
@@ -52,14 +51,22 @@ public abstract class SftpExtractor extends QueryBasedExtractor<String, String> 
      * Initializes the ChannelSftp
      * @return the ChannelSftp connection
      */
-    public ChannelSftp createSftpConnection() {
-        ChannelSftp sftp = (ChannelSftp) SftpExecutor.connect(this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY),
+    public void createSftpConnection() {
+        this.session = SftpExecutor.connect(this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY),
                                                               this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_KNOWN_HOSTS),
                                                               this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME),
                                                               this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME),
                                                               this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL),
                                                               this.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT, -1));
-        return sftp;
+
+        try {
+            log.info("Establishing a SFTP channel");
+            this.channelSftp = (ChannelSftp) this.session.openChannel("sftp");
+            this.channelSftp.connect();
+        } catch (JSchException je) {
+            log.error("Failed to establish a SFTP channel", je);
+            throw new RuntimeException(je);
+        }
     }
 
     /**
@@ -72,7 +79,7 @@ public abstract class SftpExtractor extends QueryBasedExtractor<String, String> 
         log.info("Getting max watermark");
         List<Command> cmds = this.getHighWatermarkMetadata(schema, entity, watermarkColumn, snapshotPredicateList);
         try {
-            CommandOutput<SftpCommand, List<String>> response = SftpExecutor.executeUnixCommands(cmds, this.sftp);
+            CommandOutput<SftpCommand, List<String>> response = SftpExecutor.executeUnixCommands(cmds, this.channelSftp);
             return this.getHighWatermark(response, watermarkColumn, watermarkSourceFormat);
         }
         catch (SftpException e)
@@ -95,7 +102,7 @@ public abstract class SftpExtractor extends QueryBasedExtractor<String, String> 
         List<Command> cmds = this.getSchemaMetadata(schema, entity);
         try
         {
-            CommandOutput<SftpCommand, List<String>> response = SftpExecutor.executeUnixCommands(cmds, this.sftp);
+            CommandOutput<SftpCommand, List<String>> response = SftpExecutor.executeUnixCommands(cmds, this.channelSftp);
             String array = this.getSchema(response);
             this.setOutputSchema(array);
         }
@@ -127,14 +134,14 @@ public abstract class SftpExtractor extends QueryBasedExtractor<String, String> 
                 if (cmd instanceof SftpCommand) {
                     SftpCommand sftpCmd = (SftpCommand) cmd;
                     if (sftpCmd.getCommandType().equals(SftpCommandType.GET_FILE)) {
-                        executor.executeGetFileCommand(sftpCmd, this.sftp, this.workUnit.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI));
+                        executor.executeGetFileCommand(sftpCmd, this.channelSftp, this.workUnit.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI));
                     } else if (sftpCmd.getCommandType().equals(SftpCommandType.GET_STREAM)) {
-                        InputStream stream = executor.executeGetStreamCommand(sftpCmd, this.sftp);
+                        InputStream stream = executor.executeGetStreamCommand(sftpCmd, this.channelSftp);
                         CommandOutput<SftpCommand, InputStream> getStreamOutput = new SftpGetCommandOuput();
                         getStreamOutput.put(sftpCmd, stream);
                         return this.getData(getStreamOutput);
                     } else {
-                        SftpExecutor.executeUnixCommand(sftpCmd, this.sftp);
+                        SftpExecutor.executeUnixCommand(sftpCmd, this.channelSftp);
                     }
                 } else {
                     throw new DataRecordException("Illegal command given to getRecordSet()");
@@ -177,6 +184,11 @@ public abstract class SftpExtractor extends QueryBasedExtractor<String, String> 
     public void closeConnection() throws Exception
     {
         log.info("Shutting down the sftp connection");
-        this.sftp.disconnect();
+        try {
+            this.channelSftp.disconnect();
+        } catch (Throwable t) {
+            log.error("Failed to disconnect the SFTP channel", t);
+        }
+        this.session.disconnect();
     }
 }

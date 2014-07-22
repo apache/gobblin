@@ -5,6 +5,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.Session;
 import com.linkedin.uif.source.extractor.extract.AbstractSource;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
@@ -42,7 +44,8 @@ public class ResponsysSource extends AbstractSource<String, String>
     private static final String RESPONSYS_FS_SNAPSHOT = "responsys.fs.snapshot";
     public static final String RESPONSYS_FILES_TO_PULL = "responsys.files.to.pull";
     
-    private ChannelSftp sftp;
+    private Session session;
+    private ChannelSftp channelSftp;
     private SourceState sourceState;
 
     @Override
@@ -64,13 +67,22 @@ public class ResponsysSource extends AbstractSource<String, String>
     {
         initLogger(state);
         this.sourceState = state;
-        this.sftp = (ChannelSftp) SftpExecutor.connect(state.getProp(ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY),
+        this.session = SftpExecutor.connect(state.getProp(ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY),
                                                        state.getProp(ConfigurationKeys.SOURCE_CONN_KNOWN_HOSTS),
                                                        state.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME),
                                                        state.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME),
                                                        state.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL),
                                                        state.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT, -1));
-        
+
+        try {
+            log.info("Establishing a SFTP channel");
+            this.channelSftp = (ChannelSftp) this.session.openChannel("sftp");
+            this.channelSftp.connect();
+        } catch (JSchException je) {
+            log.error("Failed to establish a SFTP channel", je);
+            throw new RuntimeException(je);
+        }
+
         log.info("Get work units");
         List<WorkUnit> workUnits = Lists.newArrayList();
         String nameSpaceName = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY);
@@ -147,10 +159,10 @@ public class ResponsysSource extends AbstractSource<String, String>
         List<String> list = Arrays.asList(sourceState.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY) + "/*" + sourceState.getProp(ConfigurationKeys.SOURCE_ENTITY) + "*");
         cmds.add(new SftpCommand().build(list, SftpCommandType.LS));
         CommandOutput<SftpCommand, List<String>> response = new SftpCommandOutput();
-        
+
         try
         {
-            response = SftpExecutor.executeUnixCommands(cmds, this.sftp);
+            response = SftpExecutor.executeUnixCommands(cmds, this.channelSftp);
         }
         catch (SftpException e)
         {
@@ -174,7 +186,12 @@ public class ResponsysSource extends AbstractSource<String, String>
     public void shutdown(SourceState state)
     {
         log.info("Shutting down the sftp connection");
-        sftp.disconnect();
+        try {
+            this.channelSftp.disconnect();
+        } catch (Throwable t) {
+            log.error("Failed to disconnect the SFTP channel", t);
+        }
+        this.session.disconnect();
     }
 
     /**

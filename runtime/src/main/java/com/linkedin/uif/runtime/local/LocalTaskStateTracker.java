@@ -118,6 +118,7 @@ public class LocalTaskStateTracker extends AbstractIdleService
         if (state == WorkUnitState.WorkingState.FAILED &&
                 task.getRetryCount() < this.maxTaskRetries) {
 
+            LOG.warn("Retrying failed task " + task.getTaskId());
             this.taskExecutor.retry(task);
             return;
         }
