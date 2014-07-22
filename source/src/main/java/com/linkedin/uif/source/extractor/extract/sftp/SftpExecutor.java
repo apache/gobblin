@@ -52,13 +52,14 @@ public class SftpExecutor
      * @param knownHosts is the location of the known hosts file
      * @param userName is the user name to connect with
      * @param hostName is the host name to connect to
-     * @return a SftpChannel that is connected to the host
+     * @return a Session that is connected to the host
      */
-    public static Channel connect(String privateKey, String knownHosts, String userName, String hostName, String proxyHost, int proxyPort) {
+    public static Session connect(String privateKey, String knownHosts, String userName,
+                                  String hostName, String proxyHost, int proxyPort) {
+
         JSch.setLogger(new JSchLogger());
         JSch jsch = new JSch();
         Session session = null;
-        Channel channel = null;
         log.info("Attempting to connect to source via SFTP");
         try {
             jsch.addIdentity(privateKey);
@@ -73,21 +74,17 @@ public class SftpExecutor
             UserInfo ui = new MyUserInfo();
             session.setUserInfo(ui);
 
+            // Establish the session connection
             session.connect();
 
-            channel = session.openChannel("sftp");
-            channel.connect();
-            log.info("Finished connecting to source");
-            return channel;
+            log.info("Connection established to the SFTP source");
+            return session;
         } catch (JSchException e) {
             if (session != null) {
                 session.disconnect();
             }
-            if (channel != null) {
-                channel.disconnect();
-            }
-            log.error(e.getMessage(), e);
-            throw new RuntimeException("Cannot connect to SFTP source", e);
+            log.error("Failed to establish a connection to the SFTP source", e);
+            throw new RuntimeException("Failed to establish a connection to the SFTP source", e);
         }
     }
 
