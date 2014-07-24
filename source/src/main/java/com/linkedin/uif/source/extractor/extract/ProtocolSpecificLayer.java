@@ -95,7 +95,7 @@ public interface ProtocolSpecificLayer<S, D> {
     /**
      * set timeout for the source connection
      */
-	public void setTimeOut(String timeOut);
+	public void setTimeOut(int timeOut);
 	
     /**
      * Data type of source

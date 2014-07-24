@@ -45,7 +45,7 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
 		String extractTableName = state.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY);
 		// If extract table name is not found then use the entity name
 		if(Strings.isNullOrEmpty(extractTableName)) {
-			extractTableName = entityName;
+			extractTableName = Utils.escapeChars(entityName, ConfigurationKeys.ESCAPE_CHARS_IN_TABLE_NAME, "_");
 		}
 		
 		TableType tableType = TableType.valueOf(

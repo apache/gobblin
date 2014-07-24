@@ -63,7 +63,8 @@
     "salesforcePartner": "com.force.api:force-partner-api:29.0.0",
     "jsch": "com.jcraft:jsch:0.1.46",
     "bouncyCastle": "org.bouncycastle:bcprov-jdk15on:1.48",
-    "bouncyCastlePGP": "org.bouncycastle:bcpg-jdk15on:1.48"
+    "bouncyCastlePGP": "org.bouncycastle:bcpg-jdk15on:1.48",
+    "mysqlDriver": "org.mysql:mysql-connector-java:5.1.14"
   },
   "product": {
     "container": {
