@@ -218,7 +218,7 @@ public class ResponsysExtractor extends SftpExtractor
     }
 
     @Override
-    public void setTimeOut(String timeOut)
+    public void setTimeOut(int timeOut)
     {
     }
     

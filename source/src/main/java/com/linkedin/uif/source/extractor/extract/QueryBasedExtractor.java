@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.MDC;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,7 +19,9 @@ import com.google.gson.JsonObject;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.Extractor;
+import com.linkedin.uif.source.extractor.utils.Utils;
 import com.linkedin.uif.source.extractor.watermark.Predicate;
+import com.linkedin.uif.source.extractor.watermark.Predicate.PredicateType;
 import com.linkedin.uif.source.extractor.watermark.WatermarkPredicate;
 import com.linkedin.uif.source.extractor.watermark.WatermarkType;
 import com.linkedin.uif.source.extractor.DataRecordException;
@@ -39,8 +42,6 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  * @param <S> type of schema
  */
 public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, ProtocolSpecificLayer<S, D> {
-	// default water mark format. example 20140301000000
-	private static final SimpleDateFormat DEFAULT_WATERMARK_TIMESTAMP_FORMAT = new SimpleDateFormat("yyyyMMddHHmmss");
 	private static final Gson gson = new Gson();
 	protected WorkUnitState workUnitState;
 	protected WorkUnit workUnit;
@@ -137,6 +138,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 		}
 
 		D nextElement = null;
+		
 		try {
 			if (isInitialPull()) {
 				this.log.info("Initial pull");
@@ -147,7 +149,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 				nextElement = iterator.next();
 				
 				if(!iterator.hasNext()) {
-					this.log.info("Getting next pull");
+					this.log.debug("Getting next pull");
 					iterator = this.getIterator();
 					if (iterator == null) {
 						this.setFetchStatus(false);
@@ -237,7 +239,8 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 		}	
 		
 		try {
-			this.setTimeOut(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_TIMEOUT));
+			
+			this.setTimeOut(Utils.getAsInt(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_TIMEOUT), ConfigurationKeys.DEFAULT_CONN_TIMEOUT));
 			this.extractMetadata(this.schema, this.entity, this.workUnit);
 			
 			if(!Strings.isNullOrEmpty(watermarkColumn)) {
@@ -247,8 +250,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 				
 				this.log.info("High water mark for the current run: " + currentRunHighWatermark);
 				this.setRangePredicates(watermarkColumn, watermarkType, lwm, currentRunHighWatermark);
-                                // If there are no records in the current run, updating high watermark of the current run to the max value of partition range
-                                this.highWatermark = currentRunHighWatermark;
+				this.highWatermark = currentRunHighWatermark;
 			}
 			
 			// if it is set to true, skip count calculation and set source count to -1
@@ -293,8 +295,8 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 			this.log.info("Getting high watermark");
 			List<Predicate> list = new ArrayList<Predicate>();
 			WatermarkPredicate watermark = new WatermarkPredicate(watermarkColumn, watermarkType);
-			Predicate lwmPredicate = watermark.getPredicate(this, lwmValue, ">=");
-			Predicate hwmPredicate = watermark.getPredicate(this, hwmValue, "<=");
+			Predicate lwmPredicate = watermark.getPredicate(this, lwmValue, ">=", PredicateType.LWM);
+			Predicate hwmPredicate = watermark.getPredicate(this, hwmValue, "<=", PredicateType.HWM);
 			if (lwmPredicate != null) {
 				list.add(lwmPredicate);
 			}
@@ -320,17 +322,17 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
      * @param high watermark value
 	 */
 	private void setRangePredicates(String watermarkColumn, WatermarkType watermarkType, long lwmValue, long hwmValue) {
-		this.log.info("Getting range predicates");
+		this.log.debug("Getting range predicates");
 		WatermarkPredicate watermark = new WatermarkPredicate(watermarkColumn, watermarkType);
-		this.addPredicates(watermark.getPredicate(this, lwmValue, ">="));
-		this.addPredicates(watermark.getPredicate(this, hwmValue, "<="));
+		this.addPredicates(watermark.getPredicate(this, lwmValue, ">=", PredicateType.LWM));
+		this.addPredicates(watermark.getPredicate(this, hwmValue, "<=", PredicateType.HWM));
 		
 		if(Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_HOURLY_EXTRACT))) {
 			String hourColumn = this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_HOUR_COLUMN);
 			if(!Strings.isNullOrEmpty(hourColumn)) {
 				WatermarkPredicate hourlyWatermark = new WatermarkPredicate(hourColumn, WatermarkType.HOUR);
-				this.addPredicates(hourlyWatermark.getPredicate(this, lwmValue, ">="));
-				this.addPredicates(hourlyWatermark.getPredicate(this, hwmValue, "<="));
+				this.addPredicates(hourlyWatermark.getPredicate(this, lwmValue, ">=", PredicateType.LWM));
+				this.addPredicates(hourlyWatermark.getPredicate(this, hwmValue, "<=", PredicateType.HWM));
 			}
 		}
 	}
@@ -347,7 +349,9 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 	}
 	
 	/**
-	 * True if the column is watermark column else return false
+	 * @param given list of watermark columns
+	 * @param column name to search for
+     * @return true, if column name is part of water mark columns. otherwise, return false
 	 */
 	protected boolean isWatermarkColumn(String watermarkColumn, String columnName) {
 		if (columnName != null) {
@@ -362,10 +366,27 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 		}
 		return false;
 	}
+	
+	/**
+	 * @param given list of watermark columns
+     * @return true, if there are multiple water mark columns. otherwise, return false
+	 */
+	protected boolean hasMultipleWatermarkColumns(String watermarkColumn) {
+		if(Strings.isNullOrEmpty(watermarkColumn)) {
+			return false;
+		}
+		
+		if(Arrays.asList(watermarkColumn.toLowerCase().split(",")).size() > 1) {
+			return true;
+		} else {
+			return false;
+		}
+	}
 
 	/**
-	 * Index of the primary key column from the given list of columns
-	 * Return the position of column(starting from 1) if it is found in the given list of primarykey columns. return 0 if it is not found.
+	 * @param given list of primary key columns
+	 * @param column name to search for
+     * @return index of the column if it exist in given list of primary key columns. otherwise, return 0
 	 */
 	protected int getPrimarykeyIndex(String primarykeyColumn, String columnName) {
 		if (columnName != null) {
@@ -380,9 +401,18 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 	}
 
 	/**
-	 * True if it is metadata column else return false
+	 * @param column name to search for
+	 * @param list of metadata columns
+     * @return true if column is part of metadata columns. otherwise, return false.
 	 */
 	protected boolean isMetadataColumn(String columnName, List<String> columnList) {
+		boolean isColumnCheckEnabled = Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED,
+				ConfigurationKeys.DEFAULT_SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED));
+		
+		if(!isColumnCheckEnabled) {
+			return true;
+		}
+		
 		columnName = columnName.trim().toLowerCase();
 		if (columnList.contains(columnName)) {
 			return true;
@@ -391,7 +421,11 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 	}
 
 	/**
-	 * Get intermediate form of data type using dataType map from source
+	 * @param column name
+	 * @param data type
+     * @param data type of elements
+     * @param elements
+     * @return converted data type
 	 */
 	protected JsonObject convertDataType(String columnName, String type, String elementType, List<String> enumSymbols) {
 		String dataType = this.getDataTypeMap().get(type);
@@ -410,5 +444,16 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 		}
 
 		return gson.fromJson(gson.toJson(convertedDataType), JsonObject.class).getAsJsonObject();
+	}
+	
+	/**
+	 * @param predicate list
+     * @return true, if there are any predicates. otherwise, return false.
+	 */
+	protected boolean isPredicateExists(List<Predicate> predicateList) {
+		if (predicateList == null || predicateList.size() == 0) {
+			return false;
+		}
+		return true;
 	}
 }
