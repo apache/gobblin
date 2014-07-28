@@ -204,6 +204,6 @@ public class ResponsysSource extends AbstractSource<String, String>
         sb.append("[");
         sb.append(Strings.nullToEmpty(state.getProp(ConfigurationKeys.SOURCE_ENTITY)));
         sb.append("]");
-        MDC.put("sourceInfo", sb.toString());
+        MDC.put("tableName", sb.toString());
     }
 }
