@@ -1,7 +1,7 @@
 {
   "name": "gobblin",
   "group": "com.linkedin.@spec.name@",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "scmUrl": "git@gitli.corp.linkedin.com:ds-platform/gobblin.git",
   "owners": [
     "kgoodhop",
@@ -23,7 +23,8 @@
     "versions": {
       "rum": "3.*.*",
       "scala": "2.10.4",
-      "gradle": "1.12"
+      "gradle": "1.12",
+      "java": "1.6"
     }
   },
   "deploy": {},
