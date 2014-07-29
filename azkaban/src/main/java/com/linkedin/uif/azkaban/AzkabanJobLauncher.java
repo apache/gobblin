@@ -2,6 +2,7 @@ package com.linkedin.uif.azkaban;
 
 import java.util.Properties;
 
+import com.linkedin.uif.runtime.JobLauncherFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.log4j.Logger;
 
@@ -18,14 +19,15 @@ import com.linkedin.uif.runtime.mapreduce.MRJobLauncher;
  *
  * @author ynli
  */
-public class AzkabanMRJobLauncher extends AbstractJob {
+@SuppressWarnings("unused")
+public class AzkabanJobLauncher extends AbstractJob {
 
-    private static final Logger LOG = Logger.getLogger(AzkabanMRJobLauncher.class);
+    private static final Logger LOG = Logger.getLogger(AzkabanJobLauncher.class);
 
     private final Properties properties;
     private final JobLauncher jobLauncher;
 
-    public AzkabanMRJobLauncher(String jobId, Properties properties) throws Exception {
+    public AzkabanJobLauncher(String jobId, Properties properties) throws Exception {
         super(jobId, LOG);
 
         this.properties = properties;
@@ -44,7 +46,8 @@ public class AzkabanMRJobLauncher extends AbstractJob {
             }
         }
 
-        this.jobLauncher = new MRJobLauncher(this.properties, conf);
+        // Create a JobLauncher instance depending on the configuration
+        this.jobLauncher = JobLauncherFactory.newJobLauncher(this.properties);
     }
 
     @Override
