@@ -241,6 +241,12 @@ public class TaskState extends WorkUnitState {
                 .name("duration").value(this.getTaskDuration())
                 .name("high watermark").value(this.getHighWaterMark());
 
+        // Also add failure exception information if it exists
+        if (this.contains(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)) {
+            jsonWriter.name("exception").value(
+                    this.getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY));
+        }
+
         jsonWriter.endObject();
     }
 }
