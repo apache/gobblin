@@ -1,6 +1,7 @@
 package com.linkedin.uif.runtime;
 
 import java.io.IOException;
+import java.io.StringWriter;
 import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.util.List;
@@ -8,7 +9,6 @@ import java.util.Map;
 import java.util.Properties;
 
 import com.linkedin.uif.metrics.Metrics;
-import org.apache.commons.mail.EmailException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -21,6 +21,7 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.gson.stream.JsonWriter;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
@@ -365,10 +366,16 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             if (failures >= maxFailures) {
                 // Send out alert email if the maximum number of consecutive failures is reached
                 try {
+                    // The email content is a json document converted from the job state
+                    StringWriter stringWriter = new StringWriter();
+                    JsonWriter jsonWriter = new JsonWriter(stringWriter);
+                    jsonWriter.setIndent("\t");
+                    jobState.toJson(jsonWriter);
                     EmailUtils.sendJobFailureAlertEmail(jobState.getJobName(),
-                            constructJobFailureEmailMessage(jobState), jobState);
-                } catch (EmailException ee) {
-                    LOG.warn("Failed to send job failure alert email for job " + jobState.getJobId());
+                            stringWriter.toString(), jobState);
+                } catch (Throwable t) {
+                    LOG.error("Failed to construct and send job failure alert email for job " +
+                            jobState.getJobId(), t);
                 }
             }
         }
@@ -471,38 +478,5 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             LOG.error("Failed to cleanup task output directory of job " +
                     jobState.getJobId(), ioe);
         }
-    }
-
-    /**
-     * Construct the message of a job failure alert email.
-     */
-    private String constructJobFailureEmailMessage(JobState jobState) {
-        StringBuilder messageBuilder = new StringBuilder();
-        messageBuilder.append("Job information:\n")
-                .append("------------------------------------------------------------\n")
-                .append("Job ID: ").append(jobState.getJobId()).append("\n")
-                .append("Completed tasks: ").append(jobState.getCompletedTasks()).append("\n")
-                .append("Job start time: ").append(jobState.getStartTime()).append("\n")
-                .append("Job end time: ").append(jobState.getEndTime()).append("\n")
-                .append("Job duration: ").append(jobState.getDuration()).append("\n")
-                .append("\n\n");
-
-        messageBuilder.append("Task information:\n")
-                .append("------------------------------------------------------------\n");
-        for (TaskState taskState : jobState.getTaskStates()) {
-            messageBuilder.append("Task ID: ").append(taskState.getTaskId()).append("\n")
-                    .append("Task state: ").append(taskState.getWorkingState()).append("\n")
-                    .append("Task start time: ").append(taskState.getStartTime()).append("\n")
-                    .append("Task end time: ").append(taskState.getEndTime()).append("\n")
-                    .append("Task duration: ").append(taskState.getTaskDuration()).append("\n")
-                    .append("Task high watermark: ").append(taskState.getHighWaterMark()).append("\n");
-            if (taskState.getWorkingState() == WorkUnitState.WorkingState.FAILED) {
-                messageBuilder.append("Task exception: ").append(
-                        taskState.getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)).append("\n");
-            }
-            messageBuilder.append("\n");
-        }
-
-        return messageBuilder.toString();
     }
 }
