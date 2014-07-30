@@ -257,7 +257,8 @@ public class ConfigurationKeys {
     public static final String SOURCE_CONN_REST_URL = "source.conn.rest.url";
     public static final String SOURCE_CONN_USE_PROXY_URL = "source.conn.use.proxy.url";
     public static final String SOURCE_CONN_USE_PROXY_PORT = "source.conn.use.proxy.port";
-    
+    public static final String SOURCE_CONN_PORT = "source.conn.port";
+
     /**
      * Source default configurations
      */

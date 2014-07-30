@@ -55,7 +55,7 @@ public class SftpExecutor
      * @return a Session that is connected to the host
      */
     public static Session connect(String privateKey, String knownHosts, String userName,
-                                  String hostName, String proxyHost, int proxyPort) {
+                                  String hostName, String proxyHost, int proxyPort, int port) {
 
         JSch.setLogger(new JSchLogger());
         JSch jsch = new JSch();
@@ -65,7 +65,7 @@ public class SftpExecutor
             jsch.addIdentity(privateKey);
             jsch.setKnownHosts(knownHosts);
 
-            session = jsch.getSession(userName, hostName);
+            session = jsch.getSession(userName, hostName, port);
             
             if (proxyHost != null && proxyPort >= 0) {
                 session.setProxy(new ProxyHTTP(proxyHost, proxyPort));
