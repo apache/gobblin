@@ -2,6 +2,8 @@ package com.linkedin.uif.source.extractor.watermark;
 
 import java.util.HashMap;
 
+import org.apache.commons.lang.StringUtils;
+
 import com.google.common.base.Strings;
 
 import com.linkedin.uif.source.extractor.extract.QueryBasedExtractor;
@@ -47,7 +49,7 @@ public class WatermarkPredicate
 			condition = this.watermark.getWatermarkCondition(extractor, watermarkValue, operator);
 		}
 		
-		if (Strings.isNullOrEmpty(watermarkColumn) || condition.equals("")) {
+		if (StringUtils.isBlank(watermarkColumn) || condition.equals("")) {
 			return null;
 		}
 		return new Predicate(this.watermarkColumn, watermarkValue, condition, this.getWatermarkSourceFormat(extractor), type);

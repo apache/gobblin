@@ -185,7 +185,7 @@ public class Utils {
 	}
 	
 	// escape characters in column name or table name
-	public static String escapeChars(String columnName, String escapeChars, String character) {
+	public static String escapeSpecialCharacters(String columnName, String escapeChars, String character) {
 		if(Strings.isNullOrEmpty(columnName)) {
 			return null;
 		}

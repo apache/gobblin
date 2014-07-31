@@ -35,7 +35,7 @@ import com.linkedin.uif.source.extractor.extract.QueryBasedExtractor;
 import com.linkedin.uif.source.extractor.extract.SourceSpecificLayer;
 import com.linkedin.uif.source.extractor.extract.jdbc.JdbcCommand.JdbcCommandType;
 import com.linkedin.uif.source.extractor.resultset.RecordSetList;
-import com.linkedin.uif.source.extractor.schema.ColumnMap;
+import com.linkedin.uif.source.extractor.schema.ColumnAttributes;
 import com.linkedin.uif.source.extractor.schema.Schema;
 import com.linkedin.uif.source.extractor.utils.Utils;
 import com.linkedin.uif.source.extractor.watermark.Predicate;
@@ -57,7 +57,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 	protected long sampleRecordCount;
 	protected JdbcProvider jdbcSource;
 	protected int timeOut;
-	private List<ColumnMap> columnAliasMap = new ArrayList<ColumnMap>();
+	private List<ColumnAttributes> columnAliasMap = new ArrayList<ColumnAttributes>();
 	private Map<String, Schema> metadataColumnMap = new HashMap<String, Schema>();
 	private List<String> metadataColumnList = new ArrayList<String>();
 	private String inputColumnProjection;
@@ -167,7 +167,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 	 * 
 	 * @return map of column name and alias name
 	 */
-	public List<ColumnMap> getColumnAliasMap() {
+	public List<ColumnAttributes> getColumnAliasMap() {
 		return columnAliasMap;
 	}
 
@@ -176,7 +176,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 	 * 
 	 * @param column mapping
 	 */
-	public void addToColumnAliasMap(ColumnMap columnAliasMap) {
+	public void addToColumnAliasMap(ColumnAttributes columnAliasMap) {
 		this.columnAliasMap.add(columnAliasMap);
 	}
 
@@ -266,7 +266,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 			this.parseInputQuery(inputQuery);
 			List<String> sourceColumns = this.getMetadataColumnList();
 
-			for (ColumnMap colMap : this.columnAliasMap) {
+			for (ColumnAttributes colMap : this.columnAliasMap) {
 				String alias = colMap.getAliasName();
 				String sourceColumnName = colMap.getColumnName();
 				if (this.isMetadataColumn(sourceColumnName, sourceColumns)) {
@@ -314,15 +314,13 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 	private String getExtractQuery(String schema, String entity, String inputQuery) {
 		String inputColProjection = this.getInputColumnProjection();
 		String outputColProjection = this.getOutputColumnProjection();
-		System.out.println("inputQuery:" + inputQuery);
 		String query = this.removeSampleClauseFromQuery(inputQuery);
-		System.out.println("query:" + query);
 		if (query == null) {
 			// if input query is null, build the query from metadata
 			query = "SELECT " + outputColProjection + " FROM " + schema + "." + entity;
 		} else {
 			// replace input column projection with output column projection
-			if (!Strings.isNullOrEmpty(inputColProjection)) {
+			if (StringUtils.isNotBlank(inputColProjection)) {
 				query = query.replace(inputColProjection, outputColProjection);
 			}
 		}
@@ -398,9 +396,9 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 			targetColumnName = (targetColumnName == null ? "unknown" + this.unknownColumnCounter : targetColumnName);
 			this.unknownColumnCounter++;
 		} else {
-			targetColumnName = (!Strings.isNullOrEmpty(targetColumnName) ? targetColumnName : sourceColumnName);
+			targetColumnName = (StringUtils.isNotBlank(targetColumnName) ? targetColumnName : sourceColumnName);
 		}
-		return Utils.escapeChars(targetColumnName, ConfigurationKeys.ESCAPE_CHARS_IN_COLUMN_NAME, "_");
+		return Utils.escapeSpecialCharacters(targetColumnName, ConfigurationKeys.ESCAPE_CHARS_IN_COLUMN_NAME, "_");
 	}
 
 	/**
@@ -464,7 +462,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 	 */
 	private void parseInputQuery(String query) {
 		List<String> projectedColumns = new ArrayList<String>();
-		if (!Strings.isNullOrEmpty(query)) {
+		if (StringUtils.isNotBlank(query)) {
 			String queryLowerCase = query.toLowerCase();
 			int startIndex = queryLowerCase.indexOf("select ") + 7;
 			int endIndex = queryLowerCase.indexOf(" from ");
@@ -478,7 +476,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 		if (this.isSelectAllColumns()) {
 			List<String> columnList = this.getMetadataColumnList();
 			for (String columnName : columnList) {
-				ColumnMap col = new ColumnMap();
+				ColumnAttributes col = new ColumnAttributes();
 				col.setColumnName(columnName);
 				col.setAliasName(columnName);
 				this.addToColumnAliasMap(col);
@@ -501,7 +499,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 					sourceColumn = sourceColumn.substring(sourceColumn.indexOf(".") + 1);
 				}
 
-				ColumnMap col = new ColumnMap();
+				ColumnAttributes col = new ColumnAttributes();
 				col.setColumnName(sourceColumn);
 				col.setAliasName(alias);
 				this.addToColumnAliasMap(col);
@@ -868,7 +866,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 			final ResultSetMetaData resultsetMetadata = resultset.getMetaData();
 			final int columnCount = resultsetMetadata.getColumnCount();
 
-			int batchSize = Utils.getAsInt(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_FETCH_SIZE));
+			int batchSize = this.workUnit.getPropAsInt(ConfigurationKeys.SOURCE_QUERYBASED_FETCH_SIZE, 0);
 			batchSize = (batchSize == 0 ? ConfigurationKeys.DEFAULT_SOURCE_FETCH_SIZE : batchSize);
 
 			int recordCount = 0;
@@ -917,9 +915,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 	 */
 	protected String concatPredicates(List<Predicate> predicateList) {
 		List<String> conditions = new ArrayList<String>();
-		Iterator<Predicate> i = predicateList.listIterator();
-		while (i.hasNext()) {
-			Predicate predicate = i.next();
+		for(Predicate predicate: predicateList) {
 			conditions.add(predicate.getCondition());
 		}
 		return Joiner.on(" and ").skipNulls().join(conditions);

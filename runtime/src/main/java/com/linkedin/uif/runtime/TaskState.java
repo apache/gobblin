@@ -21,8 +21,6 @@ import com.linkedin.uif.metrics.Metrics;
  */
 public class TaskState extends WorkUnitState {
 
-    public static final String TASK_METRICS_PREFIX = "task";
-
     private String jobId;
     private String taskId;
     private long startTime;
@@ -140,16 +138,16 @@ public class TaskState extends WorkUnitState {
         Metrics metrics = Metrics.get(this.getProp(ConfigurationKeys.JOB_NAME_KEY), this.jobId);
 
         Counter taskRecordCounter = metrics.getCounter(
-                Metrics.metricName(TASK_METRICS_PREFIX, this.taskId, "records"));
+                Metrics.metricName(Metrics.MetricGroup.TASK, this.taskId, "records"));
         long inc = recordsWritten - taskRecordCounter.getCount();
 
         taskRecordCounter.inc(inc);
         metrics.getMeter(Metrics.metricName(
-                TASK_METRICS_PREFIX, this.taskId, "recordsPerSec")).mark(inc);
+                Metrics.MetricGroup.TASK, this.taskId, "recordsPerSec")).mark(inc);
         metrics.getCounter(Metrics.metricName(
-                JobState.JOB_METRICS_PREFIX, this.jobId, "records")).inc(inc);
+                Metrics.MetricGroup.JOB, this.jobId, "records")).inc(inc);
         metrics.getMeter(Metrics.metricName(
-                JobState.JOB_METRICS_PREFIX, this.jobId, "recordsPerSec")).mark(inc);
+                Metrics.MetricGroup.JOB, this.jobId, "recordsPerSec")).mark(inc);
     }
 
     /**
@@ -164,13 +162,13 @@ public class TaskState extends WorkUnitState {
     public void updateByteMetrics(long bytesWritten) {
         Metrics metrics = Metrics.get(this.getProp(ConfigurationKeys.JOB_NAME_KEY), this.jobId);
         metrics.getCounter(Metrics.metricName(
-                TASK_METRICS_PREFIX, this.taskId, "bytes")).inc(bytesWritten);
+                Metrics.MetricGroup.TASK, this.taskId, "bytes")).inc(bytesWritten);
         metrics.getMeter(Metrics.metricName(
-                TASK_METRICS_PREFIX, this.taskId, "bytesPerSec")).mark(bytesWritten);
+                Metrics.MetricGroup.TASK, this.taskId, "bytesPerSec")).mark(bytesWritten);
         metrics.getCounter(Metrics.metricName(
-                JobState.JOB_METRICS_PREFIX, this.jobId, "bytes")).inc(bytesWritten);
+                Metrics.MetricGroup.JOB, this.jobId, "bytes")).inc(bytesWritten);
         metrics.getMeter(Metrics.metricName(
-                JobState.JOB_METRICS_PREFIX, this.jobId, "bytesPerSec")).mark(bytesWritten);
+                Metrics.MetricGroup.JOB, this.jobId, "bytesPerSec")).mark(bytesWritten);
     }
 
     /**
@@ -179,13 +177,13 @@ public class TaskState extends WorkUnitState {
     public void adjustJobMetricsOnRetry() {
         Metrics metrics = Metrics.get(this.getProp(ConfigurationKeys.JOB_NAME_KEY), this.jobId);
         long recordsWritten = metrics.getCounter(Metrics.metricName(
-                TASK_METRICS_PREFIX, this.taskId, "records")).getCount();
+                Metrics.MetricGroup.TASK, this.taskId, "records")).getCount();
         long bytesWritten = metrics.getCounter(Metrics.metricName(
-                TASK_METRICS_PREFIX, this.taskId, "bytes")).getCount();
+                Metrics.MetricGroup.TASK, this.taskId, "bytes")).getCount();
         metrics.getCounter(Metrics.metricName(
-                JobState.JOB_METRICS_PREFIX, this.jobId, "records")).dec(recordsWritten);
+                Metrics.MetricGroup.JOB, this.jobId, "records")).dec(recordsWritten);
         metrics.getCounter(Metrics.metricName(
-                JobState.JOB_METRICS_PREFIX, this.jobId, "bytes")).dec(bytesWritten);
+                Metrics.MetricGroup.JOB, this.jobId, "bytes")).dec(bytesWritten);
     }
 
     /**
@@ -193,10 +191,10 @@ public class TaskState extends WorkUnitState {
      */
     public void removeMetrics() {
         Metrics metrics = Metrics.get(this.getProp(ConfigurationKeys.JOB_NAME_KEY), this.jobId);
-        metrics.removeMetric(Metrics.metricName(TASK_METRICS_PREFIX, this.taskId, "records"));
-        metrics.removeMetric(Metrics.metricName(TASK_METRICS_PREFIX, this.taskId, "recordsPerSec"));
-        metrics.removeMetric(Metrics.metricName(TASK_METRICS_PREFIX, this.taskId, "bytes"));
-        metrics.removeMetric(Metrics.metricName(TASK_METRICS_PREFIX, this.taskId, "bytesPerSec"));
+        metrics.removeMetric(Metrics.metricName(Metrics.MetricGroup.TASK, this.taskId, "records"));
+        metrics.removeMetric(Metrics.metricName(Metrics.MetricGroup.TASK, this.taskId, "recordsPerSec"));
+        metrics.removeMetric(Metrics.metricName(Metrics.MetricGroup.TASK, this.taskId, "bytes"));
+        metrics.removeMetric(Metrics.metricName(Metrics.MetricGroup.TASK, this.taskId, "bytesPerSec"));
     }
 
     @Override
@@ -242,6 +240,12 @@ public class TaskState extends WorkUnitState {
                 .name("end time").value(this.getEndTime())
                 .name("duration").value(this.getTaskDuration())
                 .name("high watermark").value(this.getHighWaterMark());
+
+        // Also add failure exception information if it exists
+        if (this.contains(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)) {
+            jsonWriter.name("exception").value(
+                    this.getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY));
+        }
 
         jsonWriter.endObject();
     }

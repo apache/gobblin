@@ -235,7 +235,7 @@ public class ConfigurationKeys {
     public static final String SOURCE_QUERYBASED_IS_SPECIFIC_API_ACTIVE = "source.querybased.is.specific.api.active";
     public static final String SOURCE_QUERYBASED_SKIP_COUNT_CALC = "source.querybased.skip.count.calc";
     public static final String SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED = "source.querybased.is.metadata.column.check.enabled";
-    public static final String SOURCE_QUERYBASED_IS_COMPRESSION = "source.querybased.is.compression";
+    public static final String SOURCE_QUERYBASED_IS_COMPRESSION_ENABLED = "source.querybased.is.compression.enabled";
 
     /**
      * Configuration properties used by the FileBasedExtractor
