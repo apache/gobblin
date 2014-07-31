@@ -30,6 +30,13 @@ public class Metrics implements MetricSet {
         COUNTER, METER, GAUGE
     }
 
+    /**
+     * Enumeration of metric groups.
+     */
+    public enum MetricGroup {
+        SYSTEM, JOB, TASK
+    }
+
     // Mapping from job ID to metrics set
     private static final ConcurrentMap<String, Metrics> METRICS_MAP =
             Maps.newConcurrentMap();
@@ -68,13 +75,13 @@ public class Metrics implements MetricSet {
     /**
      * Create a metric name.
      *
-     * @param metricPrefix metric name prefix
+     * @param group metric group
      * @param id metric ID
      * @param name metric name
      * @return the concatenated metric name
      */
-    public static String metricName(String metricPrefix, String id, String name) {
-        return MetricRegistry.name(metricPrefix, id, name);
+    public static String metricName(MetricGroup group, String id, String name) {
+        return MetricRegistry.name(group.name(), id, name);
     }
 
     /**
@@ -122,13 +129,13 @@ public class Metrics implements MetricSet {
     /**
      * Create a new {@link com.codahale.metrics.Counter}.
      *
-     * @param metricPrefix metric name prefix
+     * @param group metric group
      * @param id metric ID
      * @param name metric name
      * @return newly created {@link com.codahale.metrics.Counter}
      */
-    public Counter getCounter(String metricPrefix, String id, String name) {
-        return metricRegistry.counter(metricName(metricPrefix, id, name));
+    public Counter getCounter(MetricGroup group, String id, String name) {
+        return metricRegistry.counter(metricName(group, id, name));
     }
 
     /**
@@ -144,13 +151,13 @@ public class Metrics implements MetricSet {
     /**
      * Get a {@link com.codahale.metrics.Meter}.
      *
-     * @param metricPrefix metric name prefix
+     * @param group metric group
      * @param id metric ID
      * @param name metric name
      * @return newly created {@link com.codahale.metrics.Meter}
      */
-    public Meter getMeter(String metricPrefix, String id, String name) {
-        return metricRegistry.meter(metricName(metricPrefix, id, name));
+    public Meter getMeter(MetricGroup group, String id, String name) {
+        return metricRegistry.meter(metricName(group, id, name));
     }
 
     /**
@@ -166,14 +173,14 @@ public class Metrics implements MetricSet {
     /**
      * Register a {@link com.codahale.metrics.Gauge}.
      *
-     * @param metricPrefix metric name prefix
+     * @param group metric group
      * @param id metric ID
      * @param name metric name
      * @param gauge the {@link com.codahale.metrics.Gauge} to register
      * @param <T> gauge data type
      */
-    public <T> Gauge<T> getGauge(String metricPrefix, String id, String name, Gauge<T> gauge) {
-        return metricRegistry.register(metricName(metricPrefix, id, name), gauge);
+    public <T> Gauge<T> getGauge(MetricGroup group, String id, String name, Gauge<T> gauge) {
+        return metricRegistry.register(metricName(group, id, name), gauge);
     }
 
     /**

@@ -93,9 +93,9 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 	private void setWorkUnitName() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("[");
-		sb.append(Strings.nullToEmpty(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA)));
+		sb.append(StringUtils.stripToEmpty(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA)));
 		sb.append("_");
-		sb.append(Strings.nullToEmpty(this.workUnit.getProp(ConfigurationKeys.SOURCE_ENTITY)));
+		sb.append(StringUtils.stripToEmpty(this.workUnit.getProp(ConfigurationKeys.SOURCE_ENTITY)));
 		sb.append("_");
 		String id = this.workUnitState.getId();
 		int seqIndex = id.lastIndexOf("_",id.length());
@@ -232,18 +232,17 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 		long hwm = this.workUnit.getHighWaterMark();
 		log.info("Low water mark: " + lwm + "; and High water mark: " + hwm);
 		WatermarkType watermarkType;
-		if(Strings.isNullOrEmpty(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE))) {
+		if(StringUtils.isBlank(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE))) {
 			watermarkType = null;
 		} else {
 			watermarkType = WatermarkType.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE).toUpperCase());
 		}	
 		
 		try {
-			
-			this.setTimeOut(Utils.getAsInt(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_TIMEOUT), ConfigurationKeys.DEFAULT_CONN_TIMEOUT));
+			this.setTimeOut(this.workUnit.getPropAsInt(ConfigurationKeys.SOURCE_CONN_TIMEOUT, ConfigurationKeys.DEFAULT_CONN_TIMEOUT));
 			this.extractMetadata(this.schema, this.entity, this.workUnit);
 			
-			if(!Strings.isNullOrEmpty(watermarkColumn)) {
+			if(StringUtils.isNotBlank(watermarkColumn)) {
 				this.highWatermark = this.getLatestWatermark(watermarkColumn, watermarkType, lwm, hwm);
 				this.log.info("High water mark from source: " + this.highWatermark);
 				long currentRunHighWatermark = (this.highWatermark != ConfigurationKeys.DEFAULT_WATERMARK_VALUE ? this.highWatermark : hwm);
@@ -329,7 +328,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 		
 		if(Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_HOURLY_EXTRACT))) {
 			String hourColumn = this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_HOUR_COLUMN);
-			if(!Strings.isNullOrEmpty(hourColumn)) {
+			if(StringUtils.isNotBlank(hourColumn)) {
 				WatermarkPredicate hourlyWatermark = new WatermarkPredicate(hourColumn, WatermarkType.HOUR);
 				this.addPredicates(hourlyWatermark.getPredicate(this, lwmValue, ">=", PredicateType.LWM));
 				this.addPredicates(hourlyWatermark.getPredicate(this, hwmValue, "<=", PredicateType.HWM));
@@ -358,7 +357,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 			columnName = columnName.toLowerCase();
 		}
 
-		if (!Strings.isNullOrEmpty(watermarkColumn)) {
+		if (StringUtils.isNotBlank(watermarkColumn)) {
 			List<String> waterMarkColumnList = Arrays.asList(watermarkColumn.toLowerCase().split(","));
 			if (waterMarkColumnList.contains(columnName)) {
 				return true;
@@ -372,7 +371,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
      * @return true, if there are multiple water mark columns. otherwise, return false
 	 */
 	protected boolean hasMultipleWatermarkColumns(String watermarkColumn) {
-		if(Strings.isNullOrEmpty(watermarkColumn)) {
+		if(StringUtils.isBlank(watermarkColumn)) {
 			return false;
 		}
 		
@@ -393,7 +392,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 			columnName = columnName.toLowerCase();
 		}
 
-		if (!Strings.isNullOrEmpty(primarykeyColumn)) {
+		if (StringUtils.isNotBlank(primarykeyColumn)) {
 			List<String> primarykeyColumnList = Arrays.asList(primarykeyColumn.toLowerCase().split(","));
 			return primarykeyColumnList.indexOf(columnName) + 1;
 		}
@@ -451,7 +450,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
      * @return true, if there are any predicates. otherwise, return false.
 	 */
 	protected boolean isPredicateExists(List<Predicate> predicateList) {
-		if (predicateList == null || predicateList.size() == 0) {
+		if (predicateList == null || predicateList.isEmpty()) {
 			return false;
 		}
 		return true;

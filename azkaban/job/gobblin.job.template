@@ -1,6 +1,6 @@
 ###### DO NOT CHANGE ######
 type=java
-job.class=com.linkedin.uif.azkaban.AzkabanMRJobLauncher
+job.class=com.linkedin.uif.azkaban.AzkabanJobLauncher
 
 # This assumes all dependent jars are put into the 'lib' directory
 classpath=lib/*

@@ -59,7 +59,7 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
     }
 
     Schema avroSchema =
-        Schema.createRecord(workUnit.getWorkunit().getExtract().getTable(), "", workUnit.getWorkunit().getExtract()
+        Schema.createRecord(workUnit.getExtract().getTable(), "", workUnit.getExtract()
             .getNamespace(), false);
     avroSchema.setFields(fields);
 

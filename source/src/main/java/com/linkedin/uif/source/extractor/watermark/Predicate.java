@@ -15,9 +15,8 @@ public class Predicate {
 	public PredicateType type;
 	
 	/**
-     * Enum which lists the CommandTypes
-     * supported by the SftpCommand class
-     * @author stakiar
+     * Enum which lists the predicate types
+     * LWM - low water mark and HWM - high water mark
      */
     public enum PredicateType {
     	LWM,

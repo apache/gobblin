@@ -19,6 +19,7 @@ import com.linkedin.uif.source.extractor.exception.RecordCountException;
 import com.linkedin.uif.source.extractor.exception.SchemaException;
 import com.linkedin.uif.source.extractor.extract.Command;
 import com.linkedin.uif.source.extractor.extract.jdbc.JdbcCommand.JdbcCommandType;
+import com.linkedin.uif.source.extractor.extract.sftp.SftpCommandFormatException;
 import com.linkedin.uif.source.extractor.utils.Utils;
 import com.linkedin.uif.source.extractor.watermark.Predicate;
 import com.linkedin.uif.source.extractor.watermark.WatermarkType;
@@ -42,22 +43,22 @@ public class MysqlExtractor extends JdbcExtractor {
 	@Override
 	public String getHourPredicateCondition(String column, long value, String valueFormat, String operator) {
 		this.log.debug("Getting hour predicate for Mysql");
-		String Formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, MYSQL_HOUR_FORMAT);
-		return this.getWatermarkColumnName(column) + " " + operator + " '" + Formattedvalue + "'";
+		String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, MYSQL_HOUR_FORMAT);
+		return this.getWatermarkColumnName(column) + " " + operator + " '" + formattedvalue + "'";
 	}
 
 	@Override
 	public String getDatePredicateCondition(String column, long value, String valueFormat, String operator) {
 		this.log.debug("Getting date predicate for Mysql");
-		String Formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, MYSQL_DATE_FORMAT);
-		return this.getWatermarkColumnName(column) + " " + operator + " '" + Formattedvalue + "'";
+		String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, MYSQL_DATE_FORMAT);
+		return this.getWatermarkColumnName(column) + " " + operator + " '" + formattedvalue + "'";
 	}
 
 	@Override
 	public String getTimestampPredicateCondition(String column, long value, String valueFormat, String operator) {
 		this.log.debug("Getting timestamp predicate for Mysql");
-		String Formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, MYSQL_TIMESTAMP_FORMAT);
-		return this.getWatermarkColumnName(column) + " " + operator + " '" + Formattedvalue + "'";
+		String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, MYSQL_TIMESTAMP_FORMAT);
+		return this.getWatermarkColumnName(column) + " " + operator + " '" + formattedvalue + "'";
 	}
 
 	@Override
@@ -94,7 +95,7 @@ public class MysqlExtractor extends JdbcExtractor {
 		String watermarkFilter = this.concatPredicates(predicateList);
 		String query = this.getExtractSql();
 
-		if (Strings.isNullOrEmpty(watermarkFilter)) {
+		if (StringUtils.isBlank(watermarkFilter)) {
 			watermarkFilter = "1=1";
 		}
 		query = query.replace(this.getOutputColumnProjection(), columnProjection).replace(
@@ -113,7 +114,7 @@ public class MysqlExtractor extends JdbcExtractor {
 		String watermarkFilter = this.concatPredicates(predicateList);
 		String query = this.getExtractSql();
 
-		if (Strings.isNullOrEmpty(watermarkFilter)) {
+		if (StringUtils.isBlank(watermarkFilter)) {
 			watermarkFilter = "1=1";
 		}
 		query = query.replace(this.getOutputColumnProjection(), columnProjection).replace(
@@ -136,7 +137,7 @@ public class MysqlExtractor extends JdbcExtractor {
 
 		String watermarkFilter = this.concatPredicates(predicateList);
 		String query = this.getExtractSql();
-		if (Strings.isNullOrEmpty(watermarkFilter)) {
+		if (StringUtils.isBlank(watermarkFilter)) {
 			watermarkFilter = "1=1";
 		}
 
@@ -156,7 +157,7 @@ public class MysqlExtractor extends JdbcExtractor {
 		String database = this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
 		String url = "jdbc:mysql://" + host.trim() + ":" + port + "/" + database.trim();
 
-		if (Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_COMPRESSION))) {
+		if (Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_COMPRESSION_ENABLED))) {
 			return url + "?useCompression=true";
 		}
 		return url;
@@ -195,19 +196,23 @@ public class MysqlExtractor extends JdbcExtractor {
 
 	@Override
 	public String getWatermarkSourceFormat(WatermarkType watermarkType) {
+		String columnFormat = null;
 		switch (watermarkType) {
 		case TIMESTAMP:
-			return "yyyy-MM-dd HH:mm:ss";
+			columnFormat = "yyyy-MM-dd HH:mm:ss";
+			break;
 		case DATE:
-			return "yyyy-MM-dd";
+			columnFormat = "yyyy-MM-dd";
+			break;
 		default:
-			return null;
+			log.error("Watermark type " + watermarkType.toString() + " not recognized");
 		}
+		return columnFormat;
 	}
 
 	@Override
 	public long exractSampleRecordCountFromQuery(String query) {
-		if (Strings.isNullOrEmpty(query)) {
+		if (StringUtils.isBlank(query)) {
 			return SAMPLERECORDCOUNT;
 		}
 
@@ -220,7 +225,7 @@ public class MysqlExtractor extends JdbcExtractor {
 			limit = query.substring(limitIndex + 7).trim();
 		}
 
-		if (!Strings.isNullOrEmpty(limit)) {
+		if (StringUtils.isNotBlank(limit)) {
 			try {
 				recordcount = Long.parseLong(limit);
 			} catch (Exception e) {
@@ -232,7 +237,7 @@ public class MysqlExtractor extends JdbcExtractor {
 
 	@Override
 	public String removeSampleClauseFromQuery(String query) {
-		if (Strings.isNullOrEmpty(query)) {
+		if (StringUtils.isBlank(query)) {
 			return null;
 		}
 		String limitString = "";
