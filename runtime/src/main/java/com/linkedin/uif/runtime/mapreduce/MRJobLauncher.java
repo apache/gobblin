@@ -15,7 +15,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import com.linkedin.uif.metrics.Metrics;
+import com.linkedin.uif.metrics.JobMetrics;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.fs.FileStatus;
@@ -196,7 +196,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
             // The metrics set is to be persisted to the metrics store later.
             countersToMetrics(
                     job.getCounters(),
-                    Metrics.get(jobName, jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY)));
+                    JobMetrics.get(jobName, jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY)));
         } catch (Exception t) {
             jobState.setState(JobState.RunningState.FAILED);
         } finally {
@@ -331,17 +331,17 @@ public class MRJobLauncher extends AbstractJobLauncher {
     }
 
     /**
-     * Create a {@link Metrics} instance for this job run from the Hadoop counters.
+     * Create a {@link com.linkedin.uif.metrics.JobMetrics} instance for this job run from the Hadoop counters.
      */
-    private void countersToMetrics(Counters counters, Metrics metrics) {
+    private void countersToMetrics(Counters counters, JobMetrics metrics) {
         // Write job-level counters
-        CounterGroup jobCounterGroup = counters.getGroup(Metrics.MetricGroup.JOB.name());
+        CounterGroup jobCounterGroup = counters.getGroup(JobMetrics.MetricGroup.JOB.name());
         for (Counter jobCounter : jobCounterGroup) {
             metrics.getCounter(jobCounter.getName()).inc(jobCounter.getValue());
         }
 
         // Write task-level counters
-        CounterGroup taskCounterGroup = counters.getGroup(Metrics.MetricGroup.TASK.name());
+        CounterGroup taskCounterGroup = counters.getGroup(JobMetrics.MetricGroup.TASK.name());
         for (Counter taskCounter : taskCounterGroup) {
             metrics.getCounter(taskCounter.getName()).inc(taskCounter.getValue());
         }

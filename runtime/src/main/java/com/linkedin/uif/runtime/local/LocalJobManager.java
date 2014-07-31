@@ -15,6 +15,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 
+import com.linkedin.uif.metrics.JobMetrics;
 import org.apache.commons.io.monitor.FileAlterationListener;
 import org.apache.commons.io.monitor.FileAlterationListenerAdaptor;
 import org.apache.commons.io.monitor.FileAlterationMonitor;
@@ -56,7 +57,6 @@ import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.metastore.FsStateStore;
 import com.linkedin.uif.metastore.StateStore;
-import com.linkedin.uif.metrics.Metrics;
 import com.linkedin.uif.publisher.DataPublisher;
 import com.linkedin.uif.runtime.JobException;
 import com.linkedin.uif.runtime.JobListener;
@@ -421,7 +421,7 @@ public class LocalJobManager extends AbstractIdleService {
             return;
         }
 
-        if (Metrics.isEnabled(this.properties)) {
+        if (JobMetrics.isEnabled(this.properties)) {
             // Remove all task-level metrics after the task is done
             taskState.removeMetrics();
         }
@@ -714,7 +714,7 @@ public class LocalJobManager extends AbstractIdleService {
             LOG.error("Failed to publish job data of job " + jobId, e);
             throw e;
         } finally {
-            if (Metrics.isEnabled(this.properties)) {
+            if (JobMetrics.isEnabled(this.properties)) {
                 // Remove all job-level metrics after the job is done
                 jobState.removeMetrics();
             }

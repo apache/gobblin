@@ -16,7 +16,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
-import com.linkedin.uif.source.workunit.Extract;
 import com.linkedin.uif.writer.converter.SchemaConverter;
 
 /**
@@ -91,7 +90,8 @@ public class AvroHdfsDataWriterTest {
 
         File outputFile = new File(
                 TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + this.filePath,
-                TestConstants.TEST_FILE_NAME + "." + TestConstants.TEST_WRITER_ID + "." + TestConstants.TEST_FILE_EXTENSION);
+                TestConstants.TEST_FILE_NAME + "." + TestConstants.TEST_WRITER_ID +
+                        "." + TestConstants.TEST_FILE_EXTENSION);
         DataFileReader<GenericRecord> reader = new DataFileReader<GenericRecord>(
                 outputFile, new GenericDatumReader<GenericRecord>(this.schema));
 
@@ -118,13 +118,9 @@ public class AvroHdfsDataWriterTest {
     @AfterClass
     public void tearDown() throws IOException {
         // Clean up the staging and/or output directories if necessary
-        File stagingDir = new File(TestConstants.TEST_STAGING_DIR);
-        File outputDir = new File(TestConstants.TEST_OUTPUT_DIR);
-        if (stagingDir.exists()) {
-            FileUtil.fullyDelete(stagingDir);
-        }
-        if (outputDir.exists()) {
-            FileUtil.fullyDelete(outputDir);
+        File testRootDir = new File(TestConstants.TEST_ROOT_DIR);
+        if (testRootDir.exists()) {
+            FileUtil.fullyDelete(testRootDir);
         }
     }
 }

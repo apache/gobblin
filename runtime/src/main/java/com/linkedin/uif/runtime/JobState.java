@@ -7,13 +7,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import com.linkedin.uif.metrics.JobMetrics;
 import org.apache.hadoop.io.Text;
 
 import com.google.common.collect.Lists;
 import com.google.gson.stream.JsonWriter;
 
 import com.linkedin.uif.configuration.SourceState;
-import com.linkedin.uif.metrics.Metrics;
 
 /**
  * A class for tracking job state information.
@@ -215,11 +215,11 @@ public class JobState extends SourceState {
      * Remove all job-level metrics objects associated with this job.
      */
     public void removeMetrics() {
-        Metrics metrics = Metrics.get(this.jobName, this.jobId);
-        metrics.removeMetric(Metrics.metricName(Metrics.MetricGroup.JOB, this.jobId, "records"));
-        metrics.removeMetric(Metrics.metricName(Metrics.MetricGroup.JOB, this.jobId, "recordsPerSec"));
-        metrics.removeMetric(Metrics.metricName(Metrics.MetricGroup.JOB, this.jobId, "bytes"));
-        metrics.removeMetric(Metrics.metricName(Metrics.MetricGroup.JOB, this.jobId, "bytesPerSec"));
+        JobMetrics metrics = JobMetrics.get(this.jobName, this.jobId);
+        metrics.removeMetric(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, "records"));
+        metrics.removeMetric(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, "recordsPerSec"));
+        metrics.removeMetric(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, "bytes"));
+        metrics.removeMetric(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, "bytesPerSec"));
     }
 
     @Override

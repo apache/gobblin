@@ -6,6 +6,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import com.linkedin.uif.metrics.JobMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,7 +15,6 @@ import com.google.common.util.concurrent.AbstractIdleService;
 
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.configuration.ConfigurationKeys;
-import com.linkedin.uif.metrics.Metrics;
 import com.linkedin.uif.runtime.Task;
 import com.linkedin.uif.runtime.TaskExecutor;
 import com.linkedin.uif.runtime.TaskStateTracker;
@@ -107,7 +107,7 @@ public class LocalTaskStateTracker extends AbstractIdleService
             scheduledReporter.cancel(true);
         }
 
-        if (Metrics.isEnabled(task.getTaskState().getWorkunit())) {
+        if (JobMetrics.isEnabled(task.getTaskState().getWorkunit())) {
             // Update record-level metrics after the task is done
             task.updateRecordMetrics();
         }
@@ -151,7 +151,7 @@ public class LocalTaskStateTracker extends AbstractIdleService
 
         @Override
         public void run() {
-            if (Metrics.isEnabled(this.task.getTaskState().getWorkunit())) {
+            if (JobMetrics.isEnabled(this.task.getTaskState().getWorkunit())) {
                 // Update record-level metrics
                 this.task.updateRecordMetrics();
             }
