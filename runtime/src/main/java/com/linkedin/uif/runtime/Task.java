@@ -2,13 +2,13 @@ package com.linkedin.uif.runtime;
 
 import java.io.IOException;
 
+import com.linkedin.uif.metrics.JobMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.Converter;
-import com.linkedin.uif.metrics.Metrics;
 import com.linkedin.uif.publisher.TaskPublisher;
 import com.linkedin.uif.publisher.TaskPublisherBuilder;
 import com.linkedin.uif.publisher.TaskPublisherBuilderFactory;
@@ -411,7 +411,7 @@ public class Task implements Runnable {
                 this.writer.commit();
                 // Change the state to COMMITTED after successful commit
                 this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
-                if (Metrics.isEnabled(this.taskState.getWorkunit())) {
+                if (JobMetrics.isEnabled(this.taskState.getWorkunit())) {
                     // Update byte-level metrics after the writer commits
                     updateByteMetrics();
                 }

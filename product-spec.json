@@ -64,7 +64,8 @@
     "salesforcePartner": "com.force.api:force-partner-api:29.0.0",
     "jsch": "com.jcraft:jsch:0.1.46",
     "bouncyCastle": "org.bouncycastle:bcprov-jdk15on:1.48",
-    "bouncyCastlePGP": "org.bouncycastle:bcpg-jdk15on:1.48"
+    "bouncyCastlePGP": "org.bouncycastle:bcpg-jdk15on:1.48",
+    "influxdb": "org.influxdb:influxdb-java:1.2"
   },
   "product": {
     "container": {
