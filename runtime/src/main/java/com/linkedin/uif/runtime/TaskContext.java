@@ -1,14 +1,19 @@
 package com.linkedin.uif.runtime;
 
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
 
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
-import com.linkedin.uif.converter.*;
+import com.linkedin.uif.converter.Converter;
+import com.linkedin.uif.converter.DataConversionException;
+import com.linkedin.uif.converter.SchemaConversionException;
 import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.workunit.WorkUnit;
 import com.linkedin.uif.writer.Destination;
@@ -122,10 +127,15 @@ public class TaskContext {
      *
      * @param schemaForWriter data schema ready for the writer
      *
-     * @return the {@link DataConverter}
+     * @return the {@link DataConverter} or <em>null</em> if no converter is specified
      */
     @SuppressWarnings("unchecked")
     public DataConverter getDataConverter(final Object schemaForWriter) {
+        if (!this.workUnit.contains(ConfigurationKeys.CONVERTER_CLASSES_KEY) ||
+                Strings.isNullOrEmpty(this.workUnit.getProp(ConfigurationKeys.CONVERTER_CLASSES_KEY))) {
+            return null;
+        }
+
         final Converter converter = getConverterForWriter();
         return new DataConverter() {
 
@@ -145,10 +155,15 @@ public class TaskContext {
      * Get the {@link SchemaConverter} used to convert a source schema into
      * Avro {@link org.apache.avro.Schema}.
      *
-     * @return the {@link SchemaConverter}
+     * @return the {@link SchemaConverter} or <em>null</em> if no converter is specified
      */
     @SuppressWarnings("unchecked")
     public SchemaConverter getSchemaConverter() {
+        if (!this.workUnit.contains(ConfigurationKeys.CONVERTER_CLASSES_KEY) ||
+                Strings.isNullOrEmpty(this.workUnit.getProp(ConfigurationKeys.CONVERTER_CLASSES_KEY))) {
+            return null;
+        }
+
         final Converter converter = getConverterForWriter();
         return new SchemaConverter() {
 
@@ -190,9 +205,14 @@ public class TaskContext {
      * Get the list of {@link Converter}s to be applied to the source schema
      * and data records before they are handed over to the writer.
      *
-     * @return list of {@link Converter}s
+     * @return list (possibly empty) of {@link Converter}s
      */
     public List<Converter> getConverters() {
+        if (!this.workUnit.contains(ConfigurationKeys.CONVERTER_CLASSES_KEY) ||
+                Strings.isNullOrEmpty(this.workUnit.getProp(ConfigurationKeys.CONVERTER_CLASSES_KEY))) {
+            return Collections.emptyList();
+        }
+
         // Get the comma-separated list of converter classes
         String converterClassesList = this.workUnit.getProp(
                 ConfigurationKeys.CONVERTER_CLASSES_KEY);

@@ -37,7 +37,11 @@ public class AvroDataWriterBuilder<SI, DI> extends
         // Convert the source schema to Avro schema
         Schema schema;
         try {
-            schema = this.schemaConverter.convert(this.sourceSchema);
+            if (this.schemaConverter != null) {
+                schema = this.schemaConverter.convert(this.sourceSchema);
+            } else {
+                schema = new Schema.Parser().parse(this.sourceSchema.toString());
+            }
         } catch (SchemaConversionException e) {
             throw new IOException("Failed to convert the source schema: " +
                     this.sourceSchema, e);
