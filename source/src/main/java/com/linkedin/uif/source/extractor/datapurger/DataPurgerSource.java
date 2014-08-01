@@ -43,22 +43,21 @@ public class DataPurgerSource extends FileBasedSource<Schema, GenericRecord>
     }
 
     @Override
-    public FileBasedHelper initFileSystemHelper(State state)
+    public void initFileSystemHelper(State state) throws FileBasedHelperException
     {
-        FileBasedHelper fsHelper = new HadoopFsHelper(state);
-        try {
-            fsHelper.connect();
-        } catch (FileBasedHelperException e) {
-            Throwables.propagate(e);
-        }
-        return fsHelper;
+        this.fsHelper = new HadoopFsHelper(state);
+        this.fsHelper.connect();
     }
     
     @Override
     public List<WorkUnit> getWorkunits(SourceState state)
     {
         initLogger(state);
-        this.fsHelper = initFileSystemHelper(state);
+        try {
+            initFileSystemHelper(state);
+        } catch (FileBasedHelperException e) {
+            Throwables.propagate(e);
+        }
         
         log.info("Getting work units");
         String nameSpaceName = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY);

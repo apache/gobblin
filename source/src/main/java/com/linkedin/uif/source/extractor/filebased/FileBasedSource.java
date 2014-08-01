@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
@@ -58,7 +59,11 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D>
     public List<WorkUnit> getWorkunits(SourceState state)
     {
         initLogger(state);
-        initFileSystemHelper(state);
+        try {
+            initFileSystemHelper(state);
+        } catch (FileBasedHelperException e) {
+            Throwables.propagate(e);
+        }
         
         log.info("Getting work units");
         String nameSpaceName = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY);
@@ -166,5 +171,5 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D>
         }
     }
     
-    public abstract FileBasedHelper initFileSystemHelper(State state);
+    public abstract void initFileSystemHelper(State state) throws FileBasedHelperException;
 }

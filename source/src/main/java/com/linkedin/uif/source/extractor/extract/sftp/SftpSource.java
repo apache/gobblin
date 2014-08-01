@@ -5,8 +5,8 @@ import java.io.IOException;
 import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.Extractor;
+import com.linkedin.uif.source.extractor.filebased.FileBasedHelperException;
 import com.linkedin.uif.source.extractor.filebased.FileBasedSource;
-import com.linkedin.uif.source.extractor.filebased.FileBasedHelper;
 
 public class SftpSource<S, D> extends FileBasedSource<S, D>
 {
@@ -17,8 +17,9 @@ public class SftpSource<S, D> extends FileBasedSource<S, D>
     }
 
     @Override
-    public FileBasedHelper initFileSystemHelper(State state)
+    public void initFileSystemHelper(State state) throws FileBasedHelperException
     {
-        return new SftpFsHelper(state);
+        this.fsHelper = new SftpFsHelper(state);
+        this.fsHelper.connect();
     }
 }
