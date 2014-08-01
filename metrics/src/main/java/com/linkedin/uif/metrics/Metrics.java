@@ -57,8 +57,9 @@ public class Metrics implements MetricSet {
      * @param jobId job ID of this metrics set
      * @return {@link Metrics} instance for the given metrics set name
      */
-    public static Metrics get(String jobName, String jobId) {
-        return METRICS_MAP.putIfAbsent(jobId, new Metrics(jobName, jobId));
+    public static synchronized Metrics get(String jobName, String jobId) {
+        METRICS_MAP.putIfAbsent(jobId, new Metrics(jobName, jobId));
+        return METRICS_MAP.get(jobId);
     }
 
     /**

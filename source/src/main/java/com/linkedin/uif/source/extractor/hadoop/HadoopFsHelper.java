@@ -67,13 +67,24 @@ public class HadoopFsHelper implements FileBasedHelper
     {
         List<String> results = new ArrayList<String>();
         try {
-            for (FileStatus status : this.fs.listStatus(new Path(path))) {
-                results.add(status.getPath().getName());
-            }
+            lsr(new Path(path), results);
         } catch (IOException e) {
             throw new FileBasedHelperException("Cannot do ls on path " + path + " due to "  + e.getMessage(), e);
         }
         return results;
+    }
+    
+    public void lsr(Path p, List<String> results) throws IOException {
+        if (!this.fs.getFileStatus(p).isDir()) {
+            results.add(p.toString());
+        }
+        for (FileStatus status : this.fs.listStatus(p)) {
+            if (status.isDir()) {
+                lsr(status.getPath(), results);
+            } else {
+                results.add(status.getPath().toString());
+            }
+        }
     }
 
     @Override
