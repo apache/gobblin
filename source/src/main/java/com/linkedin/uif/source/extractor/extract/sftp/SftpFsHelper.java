@@ -1,12 +1,15 @@
 package com.linkedin.uif.source.extractor.extract.sftp;
 
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Vector;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.jcraft.jsch.ChannelSftp;
+import com.jcraft.jsch.ChannelSftp.LsEntry;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.ProxyHTTP;
@@ -117,7 +120,12 @@ public class SftpFsHelper implements FileBasedHelper
     @SuppressWarnings("unchecked")
     public List<String> ls(String path) throws FileBasedHelperException {
         try {
-            return this.channelSftp.ls(path);
+            List<String> list = new ArrayList<String>();
+            Vector<LsEntry> vector = this.channelSftp.ls(path);
+            for (LsEntry entry : vector) {
+                list.add(entry.getFilename());
+            }
+            return list;
         } catch (SftpException e) {
             throw new FileBasedHelperException("Cannot execute ls command on sftp connection", e);
         }
