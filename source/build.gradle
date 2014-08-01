@@ -21,6 +21,7 @@ dependencies {
     compile spec.external.jsch
     compile spec.external.bouncyCastle
     compile spec.external.bouncyCastlePGP
+    compile spec.external.mysqlDriver
 
     testCompile spec.external.testng
 }

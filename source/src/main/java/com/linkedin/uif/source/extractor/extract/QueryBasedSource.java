@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -44,8 +45,8 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
 
 		String extractTableName = state.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY);
 		// If extract table name is not found then use the entity name
-		if(Strings.isNullOrEmpty(extractTableName)) {
-			extractTableName = entityName;
+		if(StringUtils.isBlank(extractTableName)) {
+			extractTableName = Utils.escapeSpecialCharacters(entityName, ConfigurationKeys.ESCAPE_CHARS_IN_TABLE_NAME, "_");
 		}
 		
 		TableType tableType = TableType.valueOf(
@@ -186,10 +187,10 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
     private void initLogger(SourceState state) {
         StringBuilder sb = new StringBuilder();
         sb.append("[");
-        sb.append(Strings.nullToEmpty(state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA)));
+        sb.append(StringUtils.stripToEmpty(state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA)));
         sb.append("_");
-        sb.append(Strings.nullToEmpty(state.getProp(ConfigurationKeys.SOURCE_ENTITY)));
+        sb.append(StringUtils.stripToEmpty(state.getProp(ConfigurationKeys.SOURCE_ENTITY)));
         sb.append("]");
-        MDC.put("tableName", sb.toString());
+        MDC.put("sourceInfo", sb.toString());
     }
 }
