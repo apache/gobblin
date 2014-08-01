@@ -30,12 +30,12 @@ import com.linkedin.uif.source.workunit.Extract.TableType;
 
 public class DataPurgerSource extends FileBasedSource<Schema, GenericRecord>
 {
-    private static final Logger log = LoggerFactory.getLogger(FileBasedSource.class);
-    
+    private static final Logger log = LoggerFactory.getLogger(DataPurgerSource.class);
+
     private static final String DATA_PURGER_WHITELIST = "data.purger.whitelist";
     private static final String DATA_PURGER_INPUT_PATH = "data.purger.input.path";
     private static final String DAILY_FOLDER = "daily";
-        
+
     @Override
     public Extractor<Schema, GenericRecord> getExtractor(WorkUnitState state) throws IOException
     {
@@ -46,14 +46,10 @@ public class DataPurgerSource extends FileBasedSource<Schema, GenericRecord>
     public FileBasedHelper initFileSystemHelper(State state)
     {
         FileBasedHelper fsHelper = new HadoopFsHelper(state);
-        try
-        {
+        try {
             fsHelper.connect();
-        }
-        catch (FileBasedHelperException e)
-        {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+        } catch (FileBasedHelperException e) {
+            Throwables.propagate(e);
         }
         return fsHelper;
     }

@@ -70,6 +70,8 @@ public class BaseDataPublisher extends DataPublisher
                     this.fs.delete(finalOutput, true);
                 } else {
                     // Add the files to the existing output folder
+                    // TODO this code has not been tested
+                    // TODO this does not publish the data atomically
                     for (FileStatus status : this.fs.listStatus(tmpOutput)) {
                         if (workUnitState.getPropAsBoolean(ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_PATH, false)) {
                             this.fs.rename(status.getPath(), new Path(finalOutput, workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_NAME)));

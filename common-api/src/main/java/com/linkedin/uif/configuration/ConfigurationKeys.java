@@ -95,6 +95,7 @@ public class ConfigurationKeys {
     public static final String CONVERTER_AVRO_BINARY_CHARSET = "converter.avro.binary.charset";
     public static final String CONVERTER_CSV_TO_JSON_DELIMITER = "converter.csv.to.json.delimiter";
     public static final String CONVERTER_FILTER_FIELD = "converter.filter.field";
+    public static final String CONVERTER_FILTER_IDS = "converter.filter.ids";
 
     /**
      * Writer configuration properties
@@ -241,7 +242,6 @@ public class ConfigurationKeys {
     public static final String SOURCE_FILEBASED_FILES_TO_PULL = "source.filebased.files.to.pull";
     public static final String SOURCE_FILEBASED_FS_SNAPSHOT = "source.filebased.fs.snapshot";
     public static final String SOURCE_FILEBASED_FS_URI = "source.filebased.fs.uri";
-    public static final String SOURCE_FILEBASED_DATA_TYPE = "source.filebased.data.type";
     public static final String SOURCE_FILEBASED_PRESERVE_FILE_PATH = "source.filebased.preserve.file.path";
 
     /**
