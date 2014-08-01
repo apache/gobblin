@@ -17,13 +17,13 @@ import com.linkedin.uif.configuration.State;
 public class EmailUtils {
 
     /**
-     * A general method for sending alert emails.
+     * A general method for sending emails.
      *
      * @param state A {@link State} object containing configuration properties
      * @param subject Email subject
      * @param message Email message
      */
-    public static void sendAlertEmail(State state, String subject, String message)
+    public static void sendEmail(State state, String subject, String message)
             throws EmailException {
 
         Email email = new SimpleEmail();
@@ -49,6 +49,25 @@ public class EmailUtils {
     }
 
     /**
+     * Send a job completion notification email.
+     *
+     * @param jobName Job name
+     * @param message Email message
+     * @param jobState Job state
+     * @throws EmailException
+     */
+    public static void sendJobCompletionEmail(String jobName, String message, State jobState)
+            throws EmailException {
+
+        sendEmail(
+                jobState,
+                String.format(
+                        "Gobblin notification: most recent run of job %s has completed",
+                        jobName),
+                message);
+    }
+
+    /**
      * Send a job failure alert email.
      *
      * @param jobName Job name
@@ -59,11 +78,11 @@ public class EmailUtils {
             throws EmailException {
 
         int failures = jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY);
-        sendAlertEmail(
+        sendEmail(
                 jobState,
                 String.format(
-                        "Gobblin Alert: Job %s has failed %d times consecutively in the past",
-                        jobName, failures),
+                        "Gobblin alert: job %s has failed %d %s consecutively in the past",
+                        jobName, failures, failures > 1 ? "times" : "time"),
                 message);
     }
 }
