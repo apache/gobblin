@@ -19,7 +19,6 @@ import com.linkedin.uif.source.extractor.exception.RecordCountException;
 import com.linkedin.uif.source.extractor.exception.SchemaException;
 import com.linkedin.uif.source.extractor.extract.Command;
 import com.linkedin.uif.source.extractor.extract.jdbc.JdbcCommand.JdbcCommandType;
-import com.linkedin.uif.source.extractor.extract.sftp.SftpCommandFormatException;
 import com.linkedin.uif.source.extractor.utils.Utils;
 import com.linkedin.uif.source.extractor.watermark.Predicate;
 import com.linkedin.uif.source.extractor.watermark.WatermarkType;
