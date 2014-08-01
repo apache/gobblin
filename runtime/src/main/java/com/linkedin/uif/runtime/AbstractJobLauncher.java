@@ -1,13 +1,14 @@
 package com.linkedin.uif.runtime;
 
 import java.io.IOException;
+import java.io.StringWriter;
 import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.commons.mail.EmailException;
+import com.linkedin.uif.metrics.Metrics;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -20,6 +21,7 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.gson.stream.JsonWriter;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
@@ -181,6 +183,11 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             jobState.setState(JobState.RunningState.FAILED);
             throw new JobException(errMsg, t);
         } finally {
+            if (Metrics.isEnabled(this.properties)) {
+                // Remove all job-level metrics after the job is done
+                jobState.removeMetrics();
+            }
+
             try {
                 source.shutdown(sourceState);
                 persistJobState(jobState);
@@ -189,6 +196,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                 // Catch any possible errors so unlockJob is guaranteed to be called below
                 LOG.error("Failed to cleanup for job " + jobId, t);
             }
+
             // Finally release the job lock
             unlockJob(jobName, jobLock);
         }
@@ -358,10 +366,16 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             if (failures >= maxFailures) {
                 // Send out alert email if the maximum number of consecutive failures is reached
                 try {
+                    // The email content is a json document converted from the job state
+                    StringWriter stringWriter = new StringWriter();
+                    JsonWriter jsonWriter = new JsonWriter(stringWriter);
+                    jsonWriter.setIndent("\t");
+                    jobState.toJson(jsonWriter);
                     EmailUtils.sendJobFailureAlertEmail(jobState.getJobName(),
-                            constructJobFailureEmailMessage(jobState), jobState);
-                } catch (EmailException ee) {
-                    LOG.warn("Failed to send job failure alert email for job " + jobState.getJobId());
+                            stringWriter.toString(), jobState);
+                } catch (Throwable t) {
+                    LOG.error("Failed to construct and send job failure alert email for job " +
+                            jobState.getJobId(), t);
                 }
             }
         }
@@ -401,7 +415,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
 
     /**
-     * Persiste job/task states of a completed job.
+     * Persist job/task states of a completed job.
      */
     private void persistJobState(JobState jobState) {
         String jobName = jobState.getJobName();
@@ -464,38 +478,5 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             LOG.error("Failed to cleanup task output directory of job " +
                     jobState.getJobId(), ioe);
         }
-    }
-
-    /**
-     * Construct the message of a job failure alert email.
-     */
-    private String constructJobFailureEmailMessage(JobState jobState) {
-        StringBuilder messageBuilder = new StringBuilder();
-        messageBuilder.append("Job information:\n")
-                .append("------------------------------------------------------------\n")
-                .append("Job ID: " + jobState.getJobId() + "\n")
-                .append("Completed tasks: " + jobState.getCompletedTasks() + "\n")
-                .append("Job start time: " + jobState.getStartTime() + "\n")
-                .append("Job end time: " + jobState.getEndTime() + "\n")
-                .append("Job duration: " + jobState.getDuration() + "\n")
-                .append("\n\n");
-
-        messageBuilder.append("Task information:\n")
-                .append("------------------------------------------------------------\n");
-        for (TaskState taskState : jobState.getTaskStates()) {
-            messageBuilder.append("Task ID: " + taskState.getTaskId() + "\n")
-                    .append("Task state: " + taskState.getWorkingState() + "\n")
-                    .append("Task start time: " + taskState.getStartTime() + "\n")
-                    .append("Task end time: " + taskState.getEndTime() + "\n")
-                    .append("Task duration: " + taskState.getTaskDuration() + "\n")
-                    .append("Task high watermark: " + taskState.getHighWaterMark() + "\n");
-            if (taskState.getWorkingState() == WorkUnitState.WorkingState.FAILED) {
-                messageBuilder.append("Task exception: " +
-                        taskState.getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY) + "\n");
-            }
-            messageBuilder.append("\n");
-        }
-
-        return messageBuilder.toString();
     }
 }

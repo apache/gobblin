@@ -1,0 +1,37 @@
+apply plugin: 'li-java'
+
+dependencies {
+  compile project(":common-api")
+  compile spec.external.guava
+  compile spec.external.metricsCore
+  compile spec.external.slf4j
+  testCompile spec.external.testng
+}
+
+task testJar(type: Jar, dependsOn: testClasses) {
+    baseName = "test-${project.archivesBaseName}"
+    from sourceSets.test.output
+}
+
+configurations {
+    tests
+}
+
+configurations {
+    compile {
+        transitive = false
+    }
+}
+
+artifacts {
+    tests testJar
+}
+
+test {
+    useTestNG () {
+      excludeGroups 'ignore'
+    }
+    workingDir rootProject.rootDir
+}
+
+classification="library"

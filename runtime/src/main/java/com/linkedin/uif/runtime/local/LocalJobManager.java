@@ -3,6 +3,7 @@ package com.linkedin.uif.runtime.local;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.util.Arrays;
@@ -11,6 +12,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 
 import org.apache.commons.io.monitor.FileAlterationListener;
@@ -45,19 +47,21 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.AbstractIdleService;
+import com.google.gson.stream.JsonWriter;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.metastore.FsStateStore;
 import com.linkedin.uif.metastore.StateStore;
+import com.linkedin.uif.metrics.Metrics;
 import com.linkedin.uif.publisher.DataPublisher;
 import com.linkedin.uif.runtime.JobException;
 import com.linkedin.uif.runtime.JobListener;
 import com.linkedin.uif.runtime.JobLock;
 import com.linkedin.uif.runtime.JobState;
-import com.linkedin.uif.runtime.Metrics;
 import com.linkedin.uif.runtime.RunOnceJobListener;
 import com.linkedin.uif.runtime.SourceDecorator;
 import com.linkedin.uif.runtime.SourceWrapperBase;
@@ -66,6 +70,7 @@ import com.linkedin.uif.runtime.WorkUnitManager;
 import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.extractor.JobCommitPolicy;
 import com.linkedin.uif.source.workunit.WorkUnit;
+import com.linkedin.uif.util.EmailUtils;
 import com.linkedin.uif.util.SchedulerUtils;
 
 /**
@@ -89,7 +94,6 @@ public class LocalJobManager extends AbstractIdleService {
 
     private static final Logger LOG = LoggerFactory.getLogger(LocalJobManager.class);
 
-    private static final String JOB_CONFIG_FILE_EXTENSION = ".pull";
     private static final String JOB_MANAGER_KEY = "jobManager";
     private static final String PROPERTIES_KEY = "jobProps";
     private static final String JOB_LISTENER_KEY = "jobListener";
@@ -135,6 +139,9 @@ public class LocalJobManager extends AbstractIdleService {
     // Mapping between jobs to the job IDs of their last runs
     private final Map<String, String> lastJobIdMap = Maps.newHashMap();
 
+    // Set of supported job configuration file extensions
+    private final Set<String> jobConfigFileExtensions;
+
     // Store for persisting job state
     private final StateStore jobStateStore;
 
@@ -159,6 +166,12 @@ public class LocalJobManager extends AbstractIdleService {
                 properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
                 properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
                 TaskState.class);
+
+        this.jobConfigFileExtensions = Sets.newHashSet(
+                Splitter.on(",").omitEmptyStrings().split(
+                        this.properties.getProperty(
+                                ConfigurationKeys.JOB_CONFIG_FILE_EXTENSIONS_KEY,
+                                ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_EXTENSIONS)));
 
         restoreLastJobIdMap();
         populateSourceWrapperMap();
@@ -537,7 +550,9 @@ public class LocalJobManager extends AbstractIdleService {
              */
             @Override
             public void onFileCreate(File file) {
-                if (!file.getName().endsWith(JOB_CONFIG_FILE_EXTENSION)) {
+                int pos = file.getName().lastIndexOf(".");
+                String fileExtension = pos >= 0 ? file.getName().substring(pos + 1) : "";
+                if (!jobConfigFileExtensions.contains(fileExtension)) {
                     // Not a job configuration file, ignore.
                     return;
                 }
@@ -570,7 +585,9 @@ public class LocalJobManager extends AbstractIdleService {
              */
             @Override
             public void onFileChange(File file) {
-                if (!file.getName().endsWith(JOB_CONFIG_FILE_EXTENSION)) {
+                int pos = file.getName().lastIndexOf(".");
+                String fileExtension = pos >= 0 ? file.getName().substring(pos + 1) : "";
+                if (!jobConfigFileExtensions.contains(fileExtension)) {
                     // Not a job configuration file, ignore.
                     return;
                 }
@@ -731,6 +748,22 @@ public class LocalJobManager extends AbstractIdleService {
             if (taskState.getWorkingState() == WorkUnitState.WorkingState.ABORTED) {
                 jobState.setState(JobState.RunningState.ABORTED);
                 break;
+            }
+        }
+
+        // Send out alert email if the job failed
+        if (jobState.getState() != JobState.RunningState.SUCCESSFUL) {
+            try {
+                // The email content is a json document converted from the job state
+                StringWriter stringWriter = new StringWriter();
+                JsonWriter jsonWriter = new JsonWriter(stringWriter);
+                jsonWriter.setIndent("\t");
+                jobState.toJson(jsonWriter);
+                EmailUtils.sendJobFailureAlertEmail(jobState.getJobName(),
+                        stringWriter.toString(), jobState);
+            } catch (Throwable t) {
+                LOG.error("Failed to construct and send job failure alert email for job " +
+                        jobState.getJobId(), t);
             }
         }
 

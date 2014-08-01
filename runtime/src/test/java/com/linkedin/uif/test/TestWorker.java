@@ -17,17 +17,14 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.commons.configuration.PropertiesConfiguration;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
 
-import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.runtime.JobException;
 import com.linkedin.uif.runtime.JobListener;
 import com.linkedin.uif.runtime.JobState;
-import com.linkedin.uif.runtime.Metrics;
 import com.linkedin.uif.runtime.TaskExecutor;
 import com.linkedin.uif.runtime.TaskStateTracker;
 import com.linkedin.uif.runtime.WorkUnitManager;
@@ -41,16 +38,12 @@ import com.linkedin.uif.runtime.local.LocalTaskStateTracker;
  */
 public class TestWorker {
 
-    private final Properties properties;
-
     // We use this to manage all services running within the worker
     private final ServiceManager serviceManager;
 
     private final LocalJobManager jobManager;
 
     public TestWorker(Properties properties) throws Exception {
-        this.properties = properties;
-
         // The worker runs the following services
         TaskExecutor taskExecutor = new TaskExecutor(properties);
         TaskStateTracker taskStateTracker = new LocalTaskStateTracker(properties, taskExecutor);
@@ -72,14 +65,6 @@ public class TestWorker {
      */
     public void start() {
         this.serviceManager.startAsync();
-
-        if (Metrics.isEnabled(this.properties)) {
-            long metricsReportInterval = Long.parseLong(this.properties.getProperty(
-                    ConfigurationKeys.METRICS_REPORT_INTERVAL_KEY,
-                    ConfigurationKeys.DEFAULT_METRICS_REPORT_INTERVAL));
-            Metrics.startSlf4jReporter(metricsReportInterval,
-                    LoggerFactory.getLogger(TestWorker.class));
-        }
     }
 
     /**
