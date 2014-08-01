@@ -57,7 +57,8 @@ public abstract class SftpExtractor extends QueryBasedExtractor<String, String> 
                                                               this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME),
                                                               this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME),
                                                               this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL),
-                                                              this.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT, -1));
+                                                              this.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT, -1),
+							      this.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_CONN_PORT, 22));
 
         try {
             log.info("Establishing a SFTP channel");

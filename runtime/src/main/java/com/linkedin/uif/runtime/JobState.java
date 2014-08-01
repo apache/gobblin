@@ -31,8 +31,6 @@ public class JobState extends SourceState {
         PENDING, WORKING, SUCCESSFUL, COMMITTED, FAILED, ABORTED
     }
 
-    public static final String JOB_METRICS_PREFIX = "job";
-
     private String jobName;
     private String jobId;
     private long startTime;
@@ -218,10 +216,10 @@ public class JobState extends SourceState {
      */
     public void removeMetrics() {
         Metrics metrics = Metrics.get(this.jobName, this.jobId);
-        metrics.removeMetric(Metrics.metricName(JOB_METRICS_PREFIX, this.jobId, "records"));
-        metrics.removeMetric(Metrics.metricName(JOB_METRICS_PREFIX, this.jobId, "recordsPerSec"));
-        metrics.removeMetric(Metrics.metricName(JOB_METRICS_PREFIX, this.jobId, "bytes"));
-        metrics.removeMetric(Metrics.metricName(JOB_METRICS_PREFIX, this.jobId, "bytesPerSec"));
+        metrics.removeMetric(Metrics.metricName(Metrics.MetricGroup.JOB, this.jobId, "records"));
+        metrics.removeMetric(Metrics.metricName(Metrics.MetricGroup.JOB, this.jobId, "recordsPerSec"));
+        metrics.removeMetric(Metrics.metricName(Metrics.MetricGroup.JOB, this.jobId, "bytes"));
+        metrics.removeMetric(Metrics.metricName(Metrics.MetricGroup.JOB, this.jobId, "bytesPerSec"));
     }
 
     @Override

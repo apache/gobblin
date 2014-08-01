@@ -13,7 +13,6 @@ import com.google.common.util.concurrent.AbstractIdleService;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.metrics.Metrics;
-import com.linkedin.uif.runtime.JobState;
 import com.linkedin.uif.runtime.Task;
 import com.linkedin.uif.runtime.TaskState;
 import com.linkedin.uif.runtime.TaskStateTracker;
@@ -80,26 +79,26 @@ public class MRTaskStateTracker extends AbstractIdleService implements TaskState
 
             // Task-level record counter
             String taskRecordMetric = Metrics.metricName(
-                    TaskState.TASK_METRICS_PREFIX, task.getTaskId(), "records");
-            this.context.getCounter(TaskState.TASK_METRICS_PREFIX, taskRecordMetric).setValue(
+                    Metrics.MetricGroup.TASK, task.getTaskId(), "records");
+            this.context.getCounter(Metrics.MetricGroup.TASK.name(), taskRecordMetric).setValue(
                     metrics.getCounter(taskRecordMetric).getCount());
 
             // Job-level record counter
             String jobRecordMetric = Metrics.metricName(
-                    JobState.JOB_METRICS_PREFIX, task.getJobId(), "records");
-            this.context.getCounter(JobState.JOB_METRICS_PREFIX, jobRecordMetric).increment(
+                    Metrics.MetricGroup.JOB, task.getJobId(), "records");
+            this.context.getCounter(Metrics.MetricGroup.JOB.name(), jobRecordMetric).increment(
                     metrics.getCounter(taskRecordMetric).getCount());
 
             // Task-level byte counter
             String taskByteMetric = Metrics.metricName(
-                    TaskState.TASK_METRICS_PREFIX, task.getTaskId(), "bytes");
-            this.context.getCounter(TaskState.TASK_METRICS_PREFIX, taskByteMetric).setValue(
+                    Metrics.MetricGroup.TASK, task.getTaskId(), "bytes");
+            this.context.getCounter(Metrics.MetricGroup.TASK.name(), taskByteMetric).setValue(
                     metrics.getCounter(taskByteMetric).getCount());
 
             // Job-level byte counter
             String jobByteMetric = Metrics.metricName(
-                    JobState.JOB_METRICS_PREFIX, task.getJobId(), "bytes");
-            this.context.getCounter(JobState.JOB_METRICS_PREFIX, jobByteMetric).increment(
+                    Metrics.MetricGroup.JOB, task.getJobId(), "bytes");
+            this.context.getCounter(Metrics.MetricGroup.JOB.name(), jobByteMetric).increment(
                     metrics.getCounter(taskByteMetric).getCount());
 
             task.getTaskState().removeMetrics();
@@ -137,8 +136,8 @@ public class MRTaskStateTracker extends AbstractIdleService implements TaskState
 
                 // Task-level record counter
                 String taskRecordMetric = Metrics.metricName(
-                        TaskState.TASK_METRICS_PREFIX, task.getTaskId(), "records");
-                this.context.getCounter(TaskState.TASK_METRICS_PREFIX, taskRecordMetric).setValue(
+                        Metrics.MetricGroup.TASK, task.getTaskId(), "records");
+                this.context.getCounter(Metrics.MetricGroup.TASK.name(), taskRecordMetric).setValue(
                         Metrics.get(
                                 this.task.getTaskState().getProp(ConfigurationKeys.JOB_NAME_KEY),
                                 this.task.getJobId())

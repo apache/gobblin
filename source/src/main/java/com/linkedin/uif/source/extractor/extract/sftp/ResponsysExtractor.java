@@ -153,10 +153,14 @@ public class ResponsysExtractor extends SftpExtractor
         if (response.getResults().size() != 1) {
             throw new DataRecordException("Response has more than one command output entry");
         }
-        
-        this.sftpInputStream = (InputStream) response.getResults().values().iterator().next();
-        this.decryptedInputStream = GPGFileDecrypter.decryptGPGFile(sftpInputStream, this.workUnit.getProp(RESPONSYS_DECRYPT_KEY));        
-        Iterator<String> dataItr = IOUtils.lineIterator(decryptedInputStream, "UTF-8");
+       
+	if (!this.workUnit.contains(RESPONSYS_DECRYPT_KEY)) {
+	    this.decryptedInputStream = this.sftpInputStream;
+	} else {
+	    this.decryptedInputStream = GPGFileDecrypter.decryptGPGFile(sftpInputStream, this.workUnit.getProp(RESPONSYS_DECRYPT_KEY));        
+	}
+ 
+        Iterator<String> dataItr = IOUtils.lineIterator(this.decryptedInputStream, "UTF-8");
         
         if (this.workUnit.getPropAsBoolean(ConfigurationKeys.SOURCE_SKIP_FIRST_RECORD, false) && dataItr.hasNext()) {
             dataItr.next();
@@ -218,7 +222,7 @@ public class ResponsysExtractor extends SftpExtractor
     }
 
     @Override
-    public void setTimeOut(String timeOut)
+    public void setTimeOut(int timeOut)
     {
     }
     

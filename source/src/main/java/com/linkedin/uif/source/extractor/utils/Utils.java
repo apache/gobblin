@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang.StringUtils;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 
@@ -177,6 +178,27 @@ public class Utils {
         JsonNode json = mapper.valueToTree(resultInfo);
         JsonElement element = gson.fromJson(json.toString(), JsonObject.class);
         return element.getAsJsonObject();
+	}
+
+	public static int getAsInt(String value, int defaultValue) {
+		return (Strings.isNullOrEmpty(value) ? defaultValue : Integer.parseInt(value));
+	}
+	
+	// escape characters in column name or table name
+	public static String escapeSpecialCharacters(String columnName, String escapeChars, String character) {
+		if(Strings.isNullOrEmpty(columnName)) {
+			return null;
+		}
+		
+		if(StringUtils.isEmpty(escapeChars)) {
+			return columnName;
+		}
+		
+		List<String> specialChars= Arrays.asList(escapeChars.split(","));
+		for (String specialChar: specialChars) {
+			columnName = columnName.replace(specialChar, character);
+		}
+		return columnName;
 	}
 
 //	public static String JsonArrayToRelational(JsonArray jsonRecords, String colDelimiter, String rowDelimiter) {
