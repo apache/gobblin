@@ -1,4 +1,4 @@
-package com.linkedin.uif.source.extractor.extract;
+package com.linkedin.uif.source.extractor.filebased;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
