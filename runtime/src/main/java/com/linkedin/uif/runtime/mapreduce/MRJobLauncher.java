@@ -15,6 +15,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import com.linkedin.uif.metrics.Metrics;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.fs.FileStatus;
@@ -23,9 +24,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.Mapper;
-import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.slf4j.Logger;
@@ -193,6 +192,11 @@ public class MRJobLauncher extends AbstractJobLauncher {
                     JobState.RunningState.FAILED);
             // Collect the output task states and add them to the job state
             jobState.addTaskStates(collectOutput(jobOutputPath));
+            // Create a metrics set for this job run from the Hadoop counters.
+            // The metrics set is to be persisted to the metrics store later.
+            countersToMetrics(
+                    job.getCounters(),
+                    Metrics.get(jobName, jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY)));
         } catch (Exception t) {
             jobState.setState(JobState.RunningState.FAILED);
         } finally {
@@ -324,6 +328,23 @@ public class MRJobLauncher extends AbstractJobLauncher {
         }
 
         return taskStates;
+    }
+
+    /**
+     * Create a {@link Metrics} instance for this job run from the Hadoop counters.
+     */
+    private void countersToMetrics(Counters counters, Metrics metrics) {
+        // Write job-level counters
+        CounterGroup jobCounterGroup = counters.getGroup(Metrics.MetricGroup.JOB.name());
+        for (Counter jobCounter : jobCounterGroup) {
+            metrics.getCounter(jobCounter.getName()).inc(jobCounter.getValue());
+        }
+
+        // Write task-level counters
+        CounterGroup taskCounterGroup = counters.getGroup(Metrics.MetricGroup.TASK.name());
+        for (Counter taskCounter : taskCounterGroup) {
+            metrics.getCounter(taskCounter.getName()).inc(taskCounter.getValue());
+        }
     }
 
     /**

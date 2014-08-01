@@ -72,7 +72,8 @@ public class ResponsysSource extends AbstractSource<String, String>
                                                        state.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME),
                                                        state.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME),
                                                        state.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL),
-                                                       state.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT, -1));
+                                                       state.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT, -1),
+						       state.getPropAsInt(ConfigurationKeys.SOURCE_CONN_PORT, 22));
 
         try {
             log.info("Establishing a SFTP channel");

@@ -234,6 +234,8 @@ public class ConfigurationKeys {
     public static final String SOURCE_QUERYBASED_FETCH_SIZE = "source.querybased.fetch.size";
     public static final String SOURCE_QUERYBASED_IS_SPECIFIC_API_ACTIVE = "source.querybased.is.specific.api.active";
     public static final String SOURCE_QUERYBASED_SKIP_COUNT_CALC = "source.querybased.skip.count.calc";
+    public static final String SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED = "source.querybased.is.metadata.column.check.enabled";
+    public static final String SOURCE_QUERYBASED_IS_COMPRESSION_ENABLED = "source.querybased.is.compression.enabled";
 
     /**
      * Configuration properties used by the FileBasedExtractor
@@ -257,6 +259,8 @@ public class ConfigurationKeys {
     public static final String SOURCE_CONN_REST_URL = "source.conn.rest.url";
     public static final String SOURCE_CONN_USE_PROXY_URL = "source.conn.use.proxy.url";
     public static final String SOURCE_CONN_USE_PROXY_PORT = "source.conn.use.proxy.port";
+    public static final String SOURCE_CONN_DRIVER = "source.conn.driver";
+    public static final String SOURCE_CONN_PORT = "source.conn.port";
     
     /**
      * Source default configurations
@@ -268,6 +272,11 @@ public class ConfigurationKeys {
     public static final int DEFAULT_SALESFORCE_MAX_ROWS_IN_FILE = 1000000;
     public static final String DEFAULT_WATERMARK_TYPE = "timestamp";
     public static final String DEFAULT_LOW_WATERMARK_BACKUP_SECONDS = "1000";
+    public static final int DEFAULT_CONN_TIMEOUT = 500000;
+    public static final String ESCAPE_CHARS_IN_COLUMN_NAME = "$,&";
+    public static final String ESCAPE_CHARS_IN_TABLE_NAME = "$,&";
+    public static final String DEFAULT_SOURCE_QUERYBASED_WATERMARK_PREDICATE_SYMBOL = "'$WATERMARK'";
+    public static final String DEFAULT_SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED = "true";
     
     /**
      * Configuration properties used by the Hadoop MR job launcher.

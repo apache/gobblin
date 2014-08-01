@@ -2,9 +2,12 @@ package com.linkedin.uif.source.extractor.watermark;
 
 import java.util.HashMap;
 
+import org.apache.commons.lang.StringUtils;
+
 import com.google.common.base.Strings;
 
 import com.linkedin.uif.source.extractor.extract.QueryBasedExtractor;
+import com.linkedin.uif.source.extractor.watermark.Predicate.PredicateType;
 
 public class WatermarkPredicate
 {    
@@ -39,17 +42,17 @@ public class WatermarkPredicate
 		}
 	}
 	
-	public Predicate getPredicate(QueryBasedExtractor extractor, long watermarkValue, String operator) {
+	public Predicate getPredicate(QueryBasedExtractor extractor, long watermarkValue, String operator, PredicateType type) {
 		String condition = "";
 		
 		if(watermarkValue != DEFAULT_WATERMARK_VALUE) {
 			condition = this.watermark.getWatermarkCondition(extractor, watermarkValue, operator);
 		}
 		
-		if (Strings.isNullOrEmpty(watermarkColumn) || condition.equals("")) {
+		if (StringUtils.isBlank(watermarkColumn) || condition.equals("")) {
 			return null;
 		}
-		return new Predicate(this.watermarkColumn, watermarkValue, condition, this.getWatermarkSourceFormat(extractor));
+		return new Predicate(this.watermarkColumn, watermarkValue, condition, this.getWatermarkSourceFormat(extractor), type);
 	}
 	
 	public String getWatermarkSourceFormat(QueryBasedExtractor extractor) {
