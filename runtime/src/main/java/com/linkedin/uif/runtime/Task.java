@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.Converter;
+import com.linkedin.uif.metrics.Metrics;
 import com.linkedin.uif.publisher.TaskPublisher;
 import com.linkedin.uif.publisher.TaskPublisherBuilder;
 import com.linkedin.uif.publisher.TaskPublisherBuilderFactory;
@@ -69,7 +70,6 @@ public class Task implements Runnable {
      *
      * @param context Task context containing all necessary information
      *                to construct and run a {@link Task}
-     * @throws IOException if there is anything wrong constructing the task.
      */
     @SuppressWarnings("unchecked")
     public Task(TaskContext context, TaskStateTracker taskStateTracker) {

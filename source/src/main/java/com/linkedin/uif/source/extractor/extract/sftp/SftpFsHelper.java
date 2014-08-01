@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.jcraft.jsch.ChannelSftp;
-import com.jcraft.jsch.Channel;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.ProxyHTTP;
@@ -28,7 +27,7 @@ import com.linkedin.uif.source.extractor.filebased.FileBasedHelperException;
 public class SftpFsHelper implements FileBasedHelper
 {   
     private static Logger log = LoggerFactory.getLogger(SftpFsHelper.class);
-    private ChannelSftp sftp;
+    private ChannelSftp channelSftp;
     private Session session;
     private State state;
 
@@ -37,7 +36,7 @@ public class SftpFsHelper implements FileBasedHelper
     }
     
     public ChannelSftp getSftpConnection() {
-        return this.sftp;
+        return this.channelSftp;
     }
     
     /**
@@ -52,9 +51,11 @@ public class SftpFsHelper implements FileBasedHelper
     public void connect() throws FileBasedHelperException {
         String privateKey = state.getProp(ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY);
         String knownHosts = state.getProp(ConfigurationKeys.SOURCE_CONN_KNOWN_HOSTS);
+        
         String userName = state.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME);
         String hostName = state.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
         int port = state.getPropAsInt(ConfigurationKeys.SOURCE_CONN_PORT, ConfigurationKeys.SOURCE_CONN_DEFAULT_PORT);
+        
         String proxyHost = state.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL);
         int proxyPort = state.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT, -1);
 
@@ -81,17 +82,16 @@ public class SftpFsHelper implements FileBasedHelper
 
             session.connect();
 
-//            sftp = session.openChannel("sftp");
-//            channel.connect();
-//            log.info("Finished connecting to source");
-//            this.sftp = (ChannelSftp) channel;
+            channelSftp = (ChannelSftp) session.openChannel("sftp");
+            channelSftp.connect();
+            log.info("Finished connecting to source");
         } catch (JSchException e) {
             if (session != null) {
                 session.disconnect();
             }
-//            if (channel != null) {
-//                channel.disconnect();
-//            }
+            if (channelSftp != null) {
+                channelSftp.disconnect();
+            }
             log.error(e.getMessage(), e);
             throw new FileBasedHelperException("Cannot connect to SFTP source", e);
         }
@@ -107,7 +107,7 @@ public class SftpFsHelper implements FileBasedHelper
     public InputStream getFileStream(String file) throws FileBasedHelperException {
         SftpGetMonitor monitor = new SftpGetMonitor();
         try {
-            return this.sftp.get(file, monitor);
+            return this.channelSftp.get(file, monitor);
         } catch (SftpException e) {
             throw new FileBasedHelperException("Cannot download file " + file + " due to " + e.getMessage(), e);
         }
@@ -117,7 +117,7 @@ public class SftpFsHelper implements FileBasedHelper
     @SuppressWarnings("unchecked")
     public List<String> ls(String path) throws FileBasedHelperException {
         try {
-            return this.sftp.ls(path);
+            return this.channelSftp.ls(path);
         } catch (SftpException e) {
             throw new FileBasedHelperException("Cannot execute ls command on sftp connection", e);
         }
@@ -126,8 +126,12 @@ public class SftpFsHelper implements FileBasedHelper
     @Override
     public void close()
     {
-        // TODO NEED to call disconnect on the channel connection also
-        this.sftp.disconnect();
+        if (session != null) {
+            session.disconnect();
+        }
+        if (channelSftp != null) {
+            channelSftp.disconnect();
+        }
     }
     
     /**

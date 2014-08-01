@@ -144,7 +144,9 @@ public class WorkUnitState extends State
    * @return
    */
   public Extract getExtract() {
-    return workunit.getExtract();
+    Extract curExtract = new Extract(workunit.getExtract());
+    curExtract.addAll(this);
+    return curExtract;
   }
   
   /**

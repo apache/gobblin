@@ -22,7 +22,7 @@ public class LumosAttributesConverter extends AvroToAvroConverterBase {
   public Schema convertSchema(Schema inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
     SchemaAttributes att = new SchemaAttributes(inputSchema);
 
-    Extract extract = workUnit.getWorkunit().getExtract();
+    Extract extract = workUnit.getExtract();
     
     att.setTableType(TableType.valueOf(extract.getType().toString()));
     att.setDropDate(extract.getExtractId());

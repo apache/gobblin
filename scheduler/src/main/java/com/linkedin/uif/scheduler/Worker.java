@@ -16,8 +16,6 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
 
-import com.linkedin.uif.configuration.ConfigurationKeys;
-import com.linkedin.uif.runtime.Metrics;
 import com.linkedin.uif.runtime.TaskExecutor;
 import com.linkedin.uif.runtime.TaskStateTracker;
 import com.linkedin.uif.runtime.WorkUnitManager;
@@ -33,14 +31,10 @@ public class Worker {
 
     private static final Logger LOG = LoggerFactory.getLogger(Worker.class);
 
-    private final Properties properties;
-
     // We use this to manage all services running within the worker
     private final ServiceManager serviceManager;
 
     public Worker(Properties properties) throws Exception {
-        this.properties = properties;
-
         // The worker runs the following services
         TaskExecutor taskExecutor = new TaskExecutor(properties);
         TaskStateTracker taskStateTracker = new LocalTaskStateTracker(
@@ -90,14 +84,6 @@ public class Worker {
             }
 
         }, Executors.newSingleThreadExecutor());
-
-        if (Metrics.isEnabled(this.properties)) {
-            long metricsReportInterval = Long.parseLong(this.properties.getProperty(
-                    ConfigurationKeys.METRICS_REPORT_INTERVAL_KEY,
-                    ConfigurationKeys.DEFAULT_METRICS_REPORT_INTERVAL));
-            Metrics.startCsvReporter(metricsReportInterval,
-                    this.properties.getProperty(ConfigurationKeys.METRICS_DIR_KEY));
-        }
 
         // Add a shutdown hook so the task scheduler gets properly shutdown
         Runtime.getRuntime().addShutdownHook(new Thread() {

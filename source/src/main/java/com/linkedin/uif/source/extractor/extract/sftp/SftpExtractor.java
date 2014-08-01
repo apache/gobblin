@@ -8,9 +8,6 @@ import com.linkedin.uif.source.extractor.filebased.FileBasedExtractor;
  * protocol for connecting to source
  * and downloading files
  * @author stakiar
- *
- * @param <D> type of data record
- * @param <S> type of schema
  */
 public class SftpExtractor<S, D> extends FileBasedExtractor<S, D>
 {

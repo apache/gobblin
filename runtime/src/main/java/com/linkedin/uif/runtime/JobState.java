@@ -7,11 +7,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import com.google.common.collect.Lists;
-
 import org.apache.hadoop.io.Text;
 
+import com.google.common.collect.Lists;
+import com.google.gson.stream.JsonWriter;
+
 import com.linkedin.uif.configuration.SourceState;
+import com.linkedin.uif.metrics.Metrics;
 
 /**
  * A class for tracking job state information.
@@ -28,8 +30,6 @@ public class JobState extends SourceState {
     public enum RunningState {
         PENDING, WORKING, SUCCESSFUL, COMMITTED, FAILED, ABORTED
     }
-
-    public static final String JOB_METRICS_PREFIX = "job";
 
     private String jobName;
     private String jobId;
@@ -215,10 +215,11 @@ public class JobState extends SourceState {
      * Remove all job-level metrics objects associated with this job.
      */
     public void removeMetrics() {
-        Metrics.remove(Metrics.metricName(JOB_METRICS_PREFIX, this.jobId, "records"));
-        Metrics.remove(Metrics.metricName(JOB_METRICS_PREFIX, this.jobId, "recordsPerSec"));
-        Metrics.remove(Metrics.metricName(JOB_METRICS_PREFIX, this.jobId, "bytes"));
-        Metrics.remove(Metrics.metricName(JOB_METRICS_PREFIX, this.jobId, "bytesPerSec"));
+        Metrics metrics = Metrics.get(this.jobName, this.jobId);
+        metrics.removeMetric(Metrics.metricName(Metrics.MetricGroup.JOB, this.jobId, "records"));
+        metrics.removeMetric(Metrics.metricName(Metrics.MetricGroup.JOB, this.jobId, "recordsPerSec"));
+        metrics.removeMetric(Metrics.metricName(Metrics.MetricGroup.JOB, this.jobId, "bytes"));
+        metrics.removeMetric(Metrics.metricName(Metrics.MetricGroup.JOB, this.jobId, "bytesPerSec"));
     }
 
     @Override
@@ -262,5 +263,34 @@ public class JobState extends SourceState {
             taskState.write(out);
         }
         super.write(out);
+    }
+
+    /**
+     * Convert this {@link JobState} to a json document.
+     *
+     * @param jsonWriter a {@link com.google.gson.stream.JsonWriter}
+     *                   used to write the json document
+     * @throws IOException
+     */
+    public void toJson(JsonWriter jsonWriter) throws IOException {
+        jsonWriter.beginObject();
+
+        jsonWriter.name("job name").value(this.getJobName())
+                .name("job id").value(this.getJobId())
+                .name("job state").value(this.getState().name())
+                .name("start time").value(this.getStartTime())
+                .name("end time").value(this.getEndTime())
+                .name("duration").value(this.getDuration())
+                .name("tasks").value(this.getTasks())
+                .name("completed tasks").value(this.getCompletedTasks());
+
+        jsonWriter.name("task states");
+        jsonWriter.beginArray();
+        for (TaskState taskState : taskStates) {
+            taskState.toJson(jsonWriter);
+        }
+        jsonWriter.endArray();
+
+        jsonWriter.endObject();
     }
 }
