@@ -29,8 +29,6 @@ public class AvroDataWriterBuilder<SI, DI> extends
     public DataWriter<DI, GenericRecord> build() throws IOException {
         Preconditions.checkNotNull(this.destination);
         Preconditions.checkArgument(!Strings.isNullOrEmpty(this.writerId));
-        Preconditions.checkNotNull(this.dataConverter);
-        Preconditions.checkNotNull(this.schemaConverter);
         Preconditions.checkNotNull(this.sourceSchema);
         Preconditions.checkArgument(this.format == WriterOutputFormat.AVRO);
 
