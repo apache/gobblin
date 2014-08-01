@@ -74,7 +74,11 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
         Preconditions.checkNotNull(sourceRecord);
 
         try {
-            this.writer.append(this.dataConverter.convert(sourceRecord));
+            if (this.dataConverter != null) {
+                this.writer.append(this.dataConverter.convert(sourceRecord));
+            } else {
+                this.writer.append((GenericRecord) sourceRecord);
+            }
         } catch (DataConversionException e) {
             LOG.error("Failed to convert and write source data record: " + sourceRecord);
             throw new IOException(e);
