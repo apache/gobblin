@@ -289,6 +289,7 @@ public class ConfigurationKeys {
     /**
      * Configuration properties for email settings.
      */
+    public static final String EMAIL_NOTIFICATION_ENABLED_KEY = "email.notification.enabled";
     public static final String EMAIL_HOST_KEY = "email.host";
     public static final String DEFAULT_EMAIL_HOST = "localhost";
     public static final String EMAIL_SMTP_PORT_KEY = "email.smtp.port";
