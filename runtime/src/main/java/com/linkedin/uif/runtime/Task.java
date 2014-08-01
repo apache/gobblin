@@ -132,7 +132,7 @@ public class Task implements Runnable {
                 }
 
                 // Do quality checks
-                if (rowChecker.executePolicies(record, rowResults)) {
+                if (record != null && rowChecker.executePolicies(record, rowResults)) {
                     // Finally write the record
                     this.writer.write(record);
                 }

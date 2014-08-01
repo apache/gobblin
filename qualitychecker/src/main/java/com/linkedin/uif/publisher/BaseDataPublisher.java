@@ -71,7 +71,11 @@ public class BaseDataPublisher extends DataPublisher
                 } else {
                     // Add the files to the existing output folder
                     for (FileStatus status : this.fs.listStatus(tmpOutput)) {
-                        this.fs.rename(status.getPath(), new Path(finalOutput, status.getPath().getName()));
+                        if (workUnitState.getPropAsBoolean(ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_PATH, false)) {
+                            this.fs.rename(status.getPath(), new Path(finalOutput, workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_NAME)));
+                        } else {
+                            this.fs.rename(status.getPath(), new Path(finalOutput, status.getPath().getName()));
+                        }
                     }
                     continue;
                 }
