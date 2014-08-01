@@ -1,4 +1,4 @@
-package com.linkedin.uif.source.extractor.extract.sftp;
+package com.linkedin.uif.source.extractor.responsys;
 
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;

@@ -1,5 +1,6 @@
-package com.linkedin.uif.source.extractor.extract;
+package com.linkedin.uif.source.extractor.filebased;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -12,7 +13,6 @@ import org.slf4j.MDC;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.State;
@@ -24,26 +24,27 @@ import com.linkedin.uif.source.workunit.Extract.TableType;
 /**
  * This class is a base class for file based sources, it provides default
  * functionality for keeping track of which files have already been pulled
- * by the framework and for determing which files need to be pulled in this run
+ * by the framework and for determining which files need to be pulled in this run
  * @author stakiar
  */
-public abstract class FileBasedSource<K, V> extends AbstractSource<K, V>
+public abstract class FileBasedSource<S, D> extends AbstractSource<S, D>
 {  
     private static final Logger log = LoggerFactory.getLogger(FileBasedSource.class);
-    
+    protected FileBasedHelper fsHelper;
+
     /**
      * Initialize the logger.
      *
      * @param state Source state
      */
-    private void initLogger(SourceState state) {
+    protected void initLogger(SourceState state) {
         StringBuilder sb = new StringBuilder();
         sb.append("[");
         sb.append(Strings.nullToEmpty(state.getProp(ConfigurationKeys.SOURCE_ENTITY)));
         sb.append("]");
         MDC.put("sourceInfo", sb.toString());
     }
-    
+        
     /**
      * This method takes the snapshot seen in the previous run, and compares it to the list
      * of files currently in the source - it then decided which files it needs to pull
@@ -57,6 +58,7 @@ public abstract class FileBasedSource<K, V> extends AbstractSource<K, V>
     public List<WorkUnit> getWorkunits(SourceState state)
     {
         initLogger(state);
+        initFileSystemHelper(state);
         
         log.info("Getting work units");
         String nameSpaceName = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY);
@@ -101,7 +103,15 @@ public abstract class FileBasedSource<K, V> extends AbstractSource<K, V>
             
             // Eventually these setters should be integrated with framework support for generalized watermark handling
             partitionState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT, StringUtils.join(currentFsSnapshot, ","));
-            partitionState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, StringUtils.join(filesToPull.subList(fileOffset, fileOffset + filesPerPartition > filesToPull.size() ? filesToPull.size() : fileOffset + filesPerPartition), ","));
+            
+            List<String> partitionFilesToPull = filesToPull.subList(fileOffset, fileOffset + filesPerPartition > filesToPull.size() ? filesToPull.size() : fileOffset + filesPerPartition);
+            partitionState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, StringUtils.join(partitionFilesToPull, ","));
+            if (state.getPropAsBoolean(ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_PATH, false)) {
+                if (partitionFilesToPull.size() != 1) {
+                    throw new RuntimeException("Cannot preserve the file name if a workunit is given multiple files");
+                }
+                partitionState.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, partitionState.getProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL));
+            }
             
             // Use extract table name to create extract
             Extract extract = partitionState.createExtract(tableType, nameSpaceName, extractTableName);
@@ -127,5 +137,34 @@ public abstract class FileBasedSource<K, V> extends AbstractSource<K, V>
      * @return a list of file name or paths present on the external data
      * directory
      */
-    public abstract List<String> getcurrentFsSnapshot(State state);
+    public List<String> getcurrentFsSnapshot(State state) {
+        List<String> results = new ArrayList<String>();
+        String path = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY) + "/*" + state.getProp(ConfigurationKeys.SOURCE_ENTITY) + "*";
+      
+        try {
+            log.info("Running ls command with input " + path);
+            results = this.fsHelper.ls(path);
+        } catch (FileBasedHelperException e) {
+            log.error("Not able to run ls command due to " + e.getMessage() + " will not pull any files", e);
+        }
+        for (int i = 0; i < results.size(); i++) {
+            results.set(i, state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY) + "/" + results.get(i));
+        }
+        return results;
+    }
+    
+    @Override
+    public void shutdown(SourceState state)
+    {
+        if (this.fsHelper != null) {
+            log.info("Shutting down the FileSystemHelper connection");
+            try {
+                this.fsHelper.close();
+            } catch (FileBasedHelperException e) {
+                log.error("Unable to shutdown FileSystemHelper", e);
+            }
+        }
+    }
+    
+    public abstract FileBasedHelper initFileSystemHelper(State state);
 }
