@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import com.linkedin.uif.metrics.Metrics;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -29,6 +28,7 @@ import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.metastore.FsStateStore;
 import com.linkedin.uif.metastore.StateStore;
+import com.linkedin.uif.metrics.JobMetrics;
 import com.linkedin.uif.publisher.DataPublisher;
 import com.linkedin.uif.source.extractor.JobCommitPolicy;
 import com.linkedin.uif.source.Source;
@@ -183,7 +183,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             jobState.setState(JobState.RunningState.FAILED);
             throw new JobException(errMsg, t);
         } finally {
-            if (Metrics.isEnabled(this.properties)) {
+            if (JobMetrics.isEnabled(this.properties)) {
                 // Remove all job-level metrics after the job is done
                 jobState.removeMetrics();
             }

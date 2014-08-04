@@ -28,15 +28,15 @@ public class TestConstants {
 
     public static final String TEST_FS_URI = "file://localhost/";
 
-    public static final String TEST_STAGING_DIR = "test/staging";
+    public static final String TEST_ROOT_DIR = "test";
 
-    public static final String TEST_OUTPUT_DIR = "test/output";
+    public static final String TEST_STAGING_DIR = TEST_ROOT_DIR + "/staging";
+
+    public static final String TEST_OUTPUT_DIR = TEST_ROOT_DIR + "/output";
 
     public static final String TEST_FILE_NAME = "test";
 
     public static final String TEST_WRITER_ID = "writer-1";
-
-    public static final String TEST_JOB_NAME = "test";
     
     public static final String TEST_FILE_EXTENSION = "avro";
 

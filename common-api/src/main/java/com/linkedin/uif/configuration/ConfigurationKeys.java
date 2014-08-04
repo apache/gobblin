@@ -5,7 +5,7 @@ package com.linkedin.uif.configuration;
  */
 public class ConfigurationKeys {
 
-    // Default file system URI for all file storages
+    // Default file system URI for all file storage
     // Overwritable by more specific configuration properties
     public static final String FS_URI_KEY = "fs.uri";
 
@@ -302,4 +302,13 @@ public class ConfigurationKeys {
     public static final String EMAIL_PASSWORD_KEY = "email.password";
     public static final String EMAIL_FROM_KEY = "email.from";
     public static final String EMAIL_TOS_KEY = "email.tos";
+
+    /**
+     * FluxDB metrics store configuration properties.
+     */
+    public static final String FLUXDB_URL_KEY = "fluxdb.url";
+    public static final String FLUXDB_USER_NAME_KEY = "fluxdb.user.name";
+    public static final String DEFAULT_FLUXDB_USER_NAME = "root";
+    public static final String FLUXDB_USER_PASSWORD_KEY = "fluxdb.user.password";
+    public static final String DEFAULT_FLUXDB_USER_PASSWORD = "root";
 }

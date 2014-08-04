@@ -4,6 +4,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import com.linkedin.uif.metrics.JobMetrics;
 import org.apache.hadoop.io.Text;
 
 import com.codahale.metrics.Counter;
@@ -12,7 +13,6 @@ import com.google.gson.stream.JsonWriter;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
-import com.linkedin.uif.metrics.Metrics;
 
 /**
  * An extension to {@link WorkUnitState} with run-time task state information.
@@ -135,19 +135,19 @@ public class TaskState extends WorkUnitState {
      * @param recordsWritten number of records written by the writer
      */
     public void updateRecordMetrics(long recordsWritten) {
-        Metrics metrics = Metrics.get(this.getProp(ConfigurationKeys.JOB_NAME_KEY), this.jobId);
+        JobMetrics metrics = JobMetrics.get(this.getProp(ConfigurationKeys.JOB_NAME_KEY), this.jobId);
 
         Counter taskRecordCounter = metrics.getCounter(
-                Metrics.metricName(Metrics.MetricGroup.TASK, this.taskId, "records"));
+                JobMetrics.metricName(JobMetrics.MetricGroup.TASK, this.taskId, "records"));
         long inc = recordsWritten - taskRecordCounter.getCount();
 
         taskRecordCounter.inc(inc);
-        metrics.getMeter(Metrics.metricName(
-                Metrics.MetricGroup.TASK, this.taskId, "recordsPerSec")).mark(inc);
-        metrics.getCounter(Metrics.metricName(
-                Metrics.MetricGroup.JOB, this.jobId, "records")).inc(inc);
-        metrics.getMeter(Metrics.metricName(
-                Metrics.MetricGroup.JOB, this.jobId, "recordsPerSec")).mark(inc);
+        metrics.getMeter(JobMetrics.metricName(
+                JobMetrics.MetricGroup.TASK, this.taskId, "recordsPerSec")).mark(inc);
+        metrics.getCounter(JobMetrics.metricName(
+                JobMetrics.MetricGroup.JOB, this.jobId, "records")).inc(inc);
+        metrics.getMeter(JobMetrics.metricName(
+                JobMetrics.MetricGroup.JOB, this.jobId, "recordsPerSec")).mark(inc);
     }
 
     /**
@@ -160,41 +160,41 @@ public class TaskState extends WorkUnitState {
      * @param bytesWritten number of bytes written by the writer
      */
     public void updateByteMetrics(long bytesWritten) {
-        Metrics metrics = Metrics.get(this.getProp(ConfigurationKeys.JOB_NAME_KEY), this.jobId);
-        metrics.getCounter(Metrics.metricName(
-                Metrics.MetricGroup.TASK, this.taskId, "bytes")).inc(bytesWritten);
-        metrics.getMeter(Metrics.metricName(
-                Metrics.MetricGroup.TASK, this.taskId, "bytesPerSec")).mark(bytesWritten);
-        metrics.getCounter(Metrics.metricName(
-                Metrics.MetricGroup.JOB, this.jobId, "bytes")).inc(bytesWritten);
-        metrics.getMeter(Metrics.metricName(
-                Metrics.MetricGroup.JOB, this.jobId, "bytesPerSec")).mark(bytesWritten);
+        JobMetrics metrics = JobMetrics.get(this.getProp(ConfigurationKeys.JOB_NAME_KEY), this.jobId);
+        metrics.getCounter(JobMetrics.metricName(
+                JobMetrics.MetricGroup.TASK, this.taskId, "bytes")).inc(bytesWritten);
+        metrics.getMeter(JobMetrics.metricName(
+                JobMetrics.MetricGroup.TASK, this.taskId, "bytesPerSec")).mark(bytesWritten);
+        metrics.getCounter(JobMetrics.metricName(
+                JobMetrics.MetricGroup.JOB, this.jobId, "bytes")).inc(bytesWritten);
+        metrics.getMeter(JobMetrics.metricName(
+                JobMetrics.MetricGroup.JOB, this.jobId, "bytesPerSec")).mark(bytesWritten);
     }
 
     /**
      * Adjust job-level metrics when the task gets retried.
      */
     public void adjustJobMetricsOnRetry() {
-        Metrics metrics = Metrics.get(this.getProp(ConfigurationKeys.JOB_NAME_KEY), this.jobId);
-        long recordsWritten = metrics.getCounter(Metrics.metricName(
-                Metrics.MetricGroup.TASK, this.taskId, "records")).getCount();
-        long bytesWritten = metrics.getCounter(Metrics.metricName(
-                Metrics.MetricGroup.TASK, this.taskId, "bytes")).getCount();
-        metrics.getCounter(Metrics.metricName(
-                Metrics.MetricGroup.JOB, this.jobId, "records")).dec(recordsWritten);
-        metrics.getCounter(Metrics.metricName(
-                Metrics.MetricGroup.JOB, this.jobId, "bytes")).dec(bytesWritten);
+        JobMetrics metrics = JobMetrics.get(this.getProp(ConfigurationKeys.JOB_NAME_KEY), this.jobId);
+        long recordsWritten = metrics.getCounter(JobMetrics.metricName(
+                JobMetrics.MetricGroup.TASK, this.taskId, "records")).getCount();
+        long bytesWritten = metrics.getCounter(JobMetrics.metricName(
+                JobMetrics.MetricGroup.TASK, this.taskId, "bytes")).getCount();
+        metrics.getCounter(JobMetrics.metricName(
+                JobMetrics.MetricGroup.JOB, this.jobId, "records")).dec(recordsWritten);
+        metrics.getCounter(JobMetrics.metricName(
+                JobMetrics.MetricGroup.JOB, this.jobId, "bytes")).dec(bytesWritten);
     }
 
     /**
      * Remove all task-level metrics objects associated with this task.
      */
     public void removeMetrics() {
-        Metrics metrics = Metrics.get(this.getProp(ConfigurationKeys.JOB_NAME_KEY), this.jobId);
-        metrics.removeMetric(Metrics.metricName(Metrics.MetricGroup.TASK, this.taskId, "records"));
-        metrics.removeMetric(Metrics.metricName(Metrics.MetricGroup.TASK, this.taskId, "recordsPerSec"));
-        metrics.removeMetric(Metrics.metricName(Metrics.MetricGroup.TASK, this.taskId, "bytes"));
-        metrics.removeMetric(Metrics.metricName(Metrics.MetricGroup.TASK, this.taskId, "bytesPerSec"));
+        JobMetrics metrics = JobMetrics.get(this.getProp(ConfigurationKeys.JOB_NAME_KEY), this.jobId);
+        metrics.removeMetric(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, this.taskId, "records"));
+        metrics.removeMetric(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, this.taskId, "recordsPerSec"));
+        metrics.removeMetric(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, this.taskId, "bytes"));
+        metrics.removeMetric(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, this.taskId, "bytesPerSec"));
     }
 
     @Override

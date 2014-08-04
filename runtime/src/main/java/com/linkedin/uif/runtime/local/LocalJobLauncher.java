@@ -6,6 +6,7 @@ import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import com.linkedin.uif.metrics.JobMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,7 +15,6 @@ import com.google.common.util.concurrent.ServiceManager;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
-import com.linkedin.uif.metrics.Metrics;
 import com.linkedin.uif.runtime.AbstractJobLauncher;
 import com.linkedin.uif.runtime.JobLauncher;
 import com.linkedin.uif.runtime.JobLock;
@@ -36,7 +36,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     private static final Logger LOG = LoggerFactory.getLogger(LocalJobLauncher.class);
 
     private final WorkUnitManager workUnitManager;
-    // Service manager to manage depedent services
+    // Service manager to manage dependent services
     private final ServiceManager serviceManager;
 
     private JobState jobState;
@@ -97,7 +97,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
      * @param taskState {@link TaskState}
      */
     public synchronized void onTaskCompletion(TaskState taskState) {
-        if (Metrics.isEnabled(this.properties)) {
+        if (JobMetrics.isEnabled(this.properties)) {
             // Remove all task-level metrics after the task is done
             taskState.removeMetrics();
         }
