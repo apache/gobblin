@@ -1,6 +1,7 @@
 package com.linkedin.uif.runtime;
 
 import java.io.IOException;
+import java.util.List;
 
 import com.linkedin.uif.metrics.JobMetrics;
 import org.slf4j.Logger;
@@ -99,14 +100,15 @@ public class Task implements Runnable {
             // Original source schema
             Object sourceSchema = this.extractor.getSchema();
 
+            List<Converter> converterList = this.taskContext.getConverters();
             // If conversion is needed on the source schema and data records
             // before they are passed to the writer
-            boolean doConversion = !this.taskContext.getConverters().isEmpty();
+            boolean doConversion = !converterList.isEmpty();
             Converter converter = null;
             // (Possibly converted) source schema ready for the writer
             Object schemaForWriter = sourceSchema;
             if (doConversion) {
-                converter = new MultiConverter(this.taskContext.getConverters());
+                converter = new MultiConverter(converterList);
                 // Convert the source schema to a schema ready for the writer
                 schemaForWriter = converter.convertSchema(sourceSchema, this.taskState);
             }
@@ -132,7 +134,7 @@ public class Task implements Runnable {
                 }
 
                 // Do quality checks
-                if (rowChecker.executePolicies(record, rowResults)) {
+                if (record != null && rowChecker.executePolicies(record, rowResults)) {
                     // Finally write the record
                     this.writer.write(record);
                 }

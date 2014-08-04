@@ -3,7 +3,6 @@ package com.linkedin.uif.runtime.local;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.StringWriter;
 import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.util.Arrays;
@@ -50,7 +49,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.AbstractIdleService;
-import com.google.gson.stream.JsonWriter;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
@@ -58,6 +56,7 @@ import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.metastore.FsStateStore;
 import com.linkedin.uif.metastore.StateStore;
 import com.linkedin.uif.publisher.DataPublisher;
+import com.linkedin.uif.runtime.EmailNotificationJobListener;
 import com.linkedin.uif.runtime.JobException;
 import com.linkedin.uif.runtime.JobListener;
 import com.linkedin.uif.runtime.JobLock;
@@ -70,7 +69,6 @@ import com.linkedin.uif.runtime.WorkUnitManager;
 import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.extractor.JobCommitPolicy;
 import com.linkedin.uif.source.workunit.WorkUnit;
-import com.linkedin.uif.util.EmailUtils;
 import com.linkedin.uif.util.SchedulerUtils;
 
 /**
@@ -509,7 +507,7 @@ public class LocalJobManager extends AbstractIdleService {
         for (Properties jobProps : loadLocalJobConfigs()) {
             boolean runOnce = Boolean.valueOf(jobProps.getProperty(
                     ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
-            scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : null);
+            scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : new EmailNotificationJobListener());
         }
     }
 
@@ -748,22 +746,6 @@ public class LocalJobManager extends AbstractIdleService {
             if (taskState.getWorkingState() == WorkUnitState.WorkingState.ABORTED) {
                 jobState.setState(JobState.RunningState.ABORTED);
                 break;
-            }
-        }
-
-        // Send out alert email if the job failed
-        if (jobState.getState() != JobState.RunningState.SUCCESSFUL) {
-            try {
-                // The email content is a json document converted from the job state
-                StringWriter stringWriter = new StringWriter();
-                JsonWriter jsonWriter = new JsonWriter(stringWriter);
-                jsonWriter.setIndent("\t");
-                jobState.toJson(jsonWriter);
-                EmailUtils.sendJobFailureAlertEmail(jobState.getJobName(),
-                        stringWriter.toString(), jobState);
-            } catch (Throwable t) {
-                LOG.error("Failed to construct and send job failure alert email for job " +
-                        jobState.getJobId(), t);
             }
         }
 
