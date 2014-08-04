@@ -49,7 +49,7 @@ public class CsvToJsonConverter implements Converter<String, JsonArray, String, 
                     outputRecord.addProperty(outputSchema.get(i).getAsJsonObject().get("columnName").getAsString(), recordSplit.get(i));
                 }
             } else {
-                outputRecord.add(outputSchema.get(i).getAsString(), JsonNull.INSTANCE);
+                outputRecord.add(outputSchema.get(i).getAsJsonObject().get("columnName").getAsString(), JsonNull.INSTANCE);
             }
         }
         return outputRecord;

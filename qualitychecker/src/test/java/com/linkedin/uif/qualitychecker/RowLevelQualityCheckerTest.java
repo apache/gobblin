@@ -59,7 +59,7 @@ public class RowLevelQualityCheckerTest
         FileSystem fs = FileSystem.get(new URI(TestConstants.TEST_FS_URI), new Configuration());
         Path outputPath = new Path(TestConstants.TEST_ERR_FILE, state.getProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST).replaceAll("\\.", "-") + ".err");
         Assert.assertTrue(fs.exists(outputPath));
-        fs.delete(outputPath);
+        fs.delete(new Path(TestConstants.TEST_ERR_FILE), true);
     }
 
     private FileReader<GenericRecord> openFile(State state) throws Exception {

@@ -94,6 +94,8 @@ public class ConfigurationKeys {
     public static final String CONVERTER_AVRO_TIMESTAMP_FORMAT = "converter.avro.timestamp.format";
     public static final String CONVERTER_AVRO_BINARY_CHARSET = "converter.avro.binary.charset";
     public static final String CONVERTER_CSV_TO_JSON_DELIMITER = "converter.csv.to.json.delimiter";
+    public static final String CONVERTER_FILTER_FIELD = "converter.filter.field";
+    public static final String CONVERTER_FILTER_IDS = "converter.filter.ids";
 
     /**
      * Writer configuration properties
@@ -116,6 +118,8 @@ public class ConfigurationKeys {
             WRITER_PREFIX + ".file.name";
     public static final String WRITER_BUFFER_SIZE =
             WRITER_PREFIX + ".buffer.size";
+    public static final String WRITER_PRESERVE_FILE_NAME = 
+            WRITER_PREFIX + ".preserve.file.name";
     public static final String DEFAULT_STAGING_DIR = "";
     public static final String DEFAULT_OUTPUT_DIR = "";
     public static final String DEFAULT_BUFFER_SIZE = "4096";
@@ -193,12 +197,6 @@ public class ConfigurationKeys {
     public static final String METADATA_CLIENT = "metadataclient";
     
     /**
-     * Configurations properties for the schema retriever
-     */
-    public static final String SCHEMA_RETRIEVER_PREFIX = "schema.retriever";
-    public static final String SCHEMA_RETRIEVER_TYPE = SCHEMA_RETRIEVER_PREFIX + ".type";
-    
-    /**
      * Configuration properties for the data publisher
      */
     public static final String DATA_PUBLISHER_PREFIX = "data.publisher";
@@ -206,12 +204,14 @@ public class ConfigurationKeys {
     public static final String DATA_PUBLISHER_TMP_DIR = DATA_PUBLISHER_PREFIX + ".tmp.dir";
     public static final String DATA_PUBLISHER_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".final.dir";
     public static final String DATA_PUBLISHER_REPLACE_FINAL_DIR =  DATA_PUBLISHER_PREFIX + ".replace.final.dir";
+    public static final String DATA_PUBLISHER_FINAL_NAME = DATA_PUBLISHER_PREFIX + ".final.name";
     
     /** 
      * Configuration properties used by the extractor
      */
     public static final String SOURCE_ENTITY = "source.entity";
     public static final String SOURCE_TIMEZONE = "source.timezone";
+    public static final String SOURCE_SCHEMA = "source.schema";
     public static final String SOURCE_MAX_NUMBER_OF_PARTITIONS = "source.max.number.of.partitions";
     public static final String SOURCE_SKIP_FIRST_RECORD = "source.skip.first.record";
     
@@ -234,13 +234,18 @@ public class ConfigurationKeys {
     public static final String SOURCE_QUERYBASED_FETCH_SIZE = "source.querybased.fetch.size";
     public static final String SOURCE_QUERYBASED_IS_SPECIFIC_API_ACTIVE = "source.querybased.is.specific.api.active";
     public static final String SOURCE_QUERYBASED_SKIP_COUNT_CALC = "source.querybased.skip.count.calc";
+    public static final String SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED = "source.querybased.is.metadata.column.check.enabled";
+    public static final String SOURCE_QUERYBASED_IS_COMPRESSION_ENABLED = "source.querybased.is.compression.enabled";
 
     /**
      * Configuration properties used by the FileBasedExtractor
      */
     public static final String SOURCE_FILEBASED_DATA_DIRECTORY = "source.filebased.data.directory";
     public static final String SOURCE_FILEBASED_FILES_TO_PULL = "source.filebased.files.to.pull";
-    
+    public static final String SOURCE_FILEBASED_FS_SNAPSHOT = "source.filebased.fs.snapshot";
+    public static final String SOURCE_FILEBASED_FS_URI = "source.filebased.fs.uri";
+    public static final String SOURCE_FILEBASED_PRESERVE_FILE_PATH = "source.filebased.preserve.file.path";
+
     /**
      * Configuration properties for source connection
      */
@@ -257,6 +262,9 @@ public class ConfigurationKeys {
     public static final String SOURCE_CONN_REST_URL = "source.conn.rest.url";
     public static final String SOURCE_CONN_USE_PROXY_URL = "source.conn.use.proxy.url";
     public static final String SOURCE_CONN_USE_PROXY_PORT = "source.conn.use.proxy.port";
+    public static final String SOURCE_CONN_DRIVER = "source.conn.driver";
+    public static final String SOURCE_CONN_PORT = "source.conn.port";
+    public static final int SOURCE_CONN_DEFAULT_PORT = 22;
     
     /**
      * Source default configurations
@@ -268,6 +276,11 @@ public class ConfigurationKeys {
     public static final int DEFAULT_SALESFORCE_MAX_ROWS_IN_FILE = 1000000;
     public static final String DEFAULT_WATERMARK_TYPE = "timestamp";
     public static final String DEFAULT_LOW_WATERMARK_BACKUP_SECONDS = "1000";
+    public static final int DEFAULT_CONN_TIMEOUT = 500000;
+    public static final String ESCAPE_CHARS_IN_COLUMN_NAME = "$,&";
+    public static final String ESCAPE_CHARS_IN_TABLE_NAME = "$,&";
+    public static final String DEFAULT_SOURCE_QUERYBASED_WATERMARK_PREDICATE_SYMBOL = "'$WATERMARK'";
+    public static final String DEFAULT_SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED = "true";
     
     /**
      * Configuration properties used by the Hadoop MR job launcher.
@@ -280,6 +293,7 @@ public class ConfigurationKeys {
     /**
      * Configuration properties for email settings.
      */
+    public static final String EMAIL_NOTIFICATION_ENABLED_KEY = "email.notification.enabled";
     public static final String EMAIL_HOST_KEY = "email.host";
     public static final String DEFAULT_EMAIL_HOST = "localhost";
     public static final String EMAIL_SMTP_PORT_KEY = "email.smtp.port";

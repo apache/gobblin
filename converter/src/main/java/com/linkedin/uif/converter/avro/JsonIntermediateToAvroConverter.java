@@ -82,5 +82,4 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
 
     return avroRecord;
   }
-
 }

@@ -238,8 +238,8 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
 	}
 	
 	@Override
-	public void setTimeOut(String timeOut) {
-		this.setAuthTokenTimeout(Long.parseLong(timeOut));
+	public void setTimeOut(int timeOut) {
+		this.setAuthTokenTimeout(timeOut);
 	}
 	
 	@Override

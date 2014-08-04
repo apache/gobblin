@@ -4,6 +4,7 @@ dependencies {
     compile project(":common-api")
     compile spec.external.commonsDbcp
     compile spec.external.avro
+    compile spec.external.avroMapred
     compile spec.external.guava
     compile spec.external.hadoop
     compile spec.external.gson
@@ -20,6 +21,7 @@ dependencies {
     compile spec.external.jsch
     compile spec.external.bouncyCastle
     compile spec.external.bouncyCastlePGP
+    compile spec.external.mysqlDriver
 
     testCompile spec.external.testng
 }

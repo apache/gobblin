@@ -1,6 +1,7 @@
 package com.linkedin.uif.qualitychecker.row;
 
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.URI;
