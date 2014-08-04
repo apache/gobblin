@@ -13,7 +13,9 @@ public interface JobLauncher {
      * Launch a Gobblin job.
      *
      * @param jobProps Job configuration properties
+     * @param jobListener {@link JobListener} used for callback,
+     *                    can be <em>null</em> if no callback is needed.
      * @throws JobException
      */
-    public void launchJob(Properties jobProps) throws JobException;
+    public void launchJob(Properties jobProps, JobListener jobListener) throws JobException;
 }

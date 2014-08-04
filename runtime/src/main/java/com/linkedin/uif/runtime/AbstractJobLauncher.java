@@ -80,7 +80,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
     @Override
     @SuppressWarnings("unchecked")
-    public void launchJob(Properties jobProps) throws JobException {
+    public void launchJob(Properties jobProps, JobListener jobListener) throws JobException {
         Preconditions.checkNotNull(jobProps);
 
         // Add all framework-specific configuration properties
@@ -199,6 +199,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
             // Finally release the job lock
             unlockJob(jobName, jobLock);
+
+            if (jobListener != null) {
+                jobListener.jobCompleted(jobState);
+            }
         }
     }
 

@@ -114,18 +114,12 @@ public class LocalJobManager extends AbstractIdleService {
     // A map for all scheduled jobs
     private final Map<String, JobKey> scheduledJobs = Maps.newHashMap();
 
-    // A map for remembering run-once jobs
-    private final Map<String, JobKey> runOnceJobs = Maps.newHashMap();
-
-    // A map for remembering config file paths of run-once jobs
-    private final Map<String, String> runOnceJobConfigFiles = Maps.newHashMap();
-
     // Mapping between Source wrapper keys and Source wrapper classes
     private final Map<String, Class<SourceWrapperBase>> sourceWrapperMap = Maps.newHashMap();
 
     // Mapping between jobs to the job locks they hold. This needs to be a
     // concurrent map because two scheduled runs of the same job (handled
-    // by two separate threds) may access it concurrently.
+    // by two separate threads) may access it concurrently.
     private final ConcurrentMap<String, JobLock> jobLockMap = Maps.newConcurrentMap();
 
     // Mapping between jobs to their job state objects
@@ -231,10 +225,6 @@ public class LocalJobManager extends AbstractIdleService {
             this.jobListenerMap.put(jobName, jobListener);
         }
 
-        // If this is a run-once job
-        boolean runOnce = Boolean.valueOf(
-                jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
-
         // Build a data map that gets passed to the job
         JobDataMap jobDataMap = new JobDataMap();
         jobDataMap.put(JOB_MANAGER_KEY, this);
@@ -259,14 +249,6 @@ public class LocalJobManager extends AbstractIdleService {
         }
 
         this.scheduledJobs.put(jobName, job.getKey());
-
-        // If the job should run only once, remember so it can be deleted after its
-        // single run is done.
-        if (runOnce) {
-            this.runOnceJobs.put(jobName, job.getKey());
-            this.runOnceJobConfigFiles.put(jobName,
-                    jobProps.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY));
-        }
     }
 
     /**
@@ -507,7 +489,8 @@ public class LocalJobManager extends AbstractIdleService {
         for (Properties jobProps : loadLocalJobConfigs()) {
             boolean runOnce = Boolean.valueOf(jobProps.getProperty(
                     ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
-            scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : new EmailNotificationJobListener());
+            scheduleJob(jobProps, runOnce ?
+                    new RunOnceJobListener() : new EmailNotificationJobListener());
         }
     }
 
@@ -569,7 +552,8 @@ public class LocalJobManager extends AbstractIdleService {
                 try {
                     boolean runOnce = Boolean.valueOf(
                             jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
-                    scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : null);
+                    scheduleJob(jobProps, runOnce ?
+                            new RunOnceJobListener() : new EmailNotificationJobListener());
                 } catch (Throwable t) {
                     LOG.error(
                             "Failed to schedule new job loaded from job configuration file " +
@@ -604,7 +588,8 @@ public class LocalJobManager extends AbstractIdleService {
                     boolean runOnce = Boolean.valueOf(
                             jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
                     // Reschedule the job with the new job configuration
-                    scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : null);
+                    scheduleJob(jobProps, runOnce ?
+                            new RunOnceJobListener() : new EmailNotificationJobListener());
                 } catch (Throwable t) {
                     LOG.error("Failed to update existing job " + jobName, t);
                 }
@@ -716,7 +701,8 @@ public class LocalJobManager extends AbstractIdleService {
                 // Remove all job-level metrics after the job is done
                 jobState.removeMetrics();
             }
-            boolean runOnce = this.runOnceJobs.containsKey(jobName);
+            boolean runOnce = Boolean.valueOf(
+                    jobState.getProp(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
             persistJobState(jobState);
             cleanupJobOnCompletion(jobState, runOnce);
             unlockJob(jobName, runOnce);
@@ -786,12 +772,9 @@ public class LocalJobManager extends AbstractIdleService {
         this.jobStateMap.remove(jobId);
 
         try {
-            if (runOnce) {
-                this.scheduledJobs.remove(jobName);
-                if (this.runOnceJobs.containsKey(jobName)) {
-                    // Delete the job from the Quartz scheduler
-                    this.scheduler.deleteJob(this.runOnceJobs.remove(jobName));
-                }
+            if (runOnce && this.scheduledJobs.containsKey(jobName)) {
+                // Delete the job from the Quartz scheduler
+                this.scheduler.deleteJob(this.scheduledJobs.remove(jobName));
             } else {
                 // Remember the job ID of this most recent run of the job
                 this.lastJobIdMap.put(jobName, jobId);

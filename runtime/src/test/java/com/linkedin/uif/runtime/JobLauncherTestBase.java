@@ -27,7 +27,7 @@ public abstract class JobLauncherTestBase {
     @SuppressWarnings("unchecked")
     protected void runTest(Properties jobProps) throws Exception {
         JobLauncher jobLauncher = JobLauncherFactory.newJobLauncher(this.properties);
-        jobLauncher.launchJob(jobProps);
+        jobLauncher.launchJob(jobProps, null);
         String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
         String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
         List<JobState> jobStateList = (List<JobState>) this.jobStateStore.getAll(
@@ -68,7 +68,7 @@ public abstract class JobLauncherTestBase {
     @SuppressWarnings("unchecked")
     protected void runTestWithPullLimit(Properties jobProps) throws Exception {
         JobLauncher jobLauncher = JobLauncherFactory.newJobLauncher(this.properties);
-        jobLauncher.launchJob(jobProps);
+        jobLauncher.launchJob(jobProps, null);
         String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
         String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
         List<JobState> jobStateList = (List<JobState>) this.jobStateStore.getAll(
