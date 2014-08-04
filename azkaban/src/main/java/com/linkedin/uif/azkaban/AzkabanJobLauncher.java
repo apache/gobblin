@@ -52,6 +52,6 @@ public class AzkabanJobLauncher extends AbstractJob {
 
     @Override
     public void run() throws Exception {
-        this.jobLauncher.launchJob(this.properties);
+        this.jobLauncher.launchJob(this.properties, null);
     }
 }

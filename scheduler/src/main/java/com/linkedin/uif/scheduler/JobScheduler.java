@@ -37,6 +37,7 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
+import com.linkedin.uif.runtime.EmailNotificationJobListener;
 import com.linkedin.uif.runtime.JobException;
 import com.linkedin.uif.runtime.JobLauncher;
 import com.linkedin.uif.runtime.JobLauncherFactory;
@@ -81,12 +82,6 @@ public class JobScheduler extends AbstractIdleService {
 
     // A map for all scheduled jobs
     private final Map<String, JobKey> scheduledJobs = Maps.newHashMap();
-
-    // A map for remembering run-once jobs
-    private final Map<String, JobKey> runOnceJobs = Maps.newHashMap();
-
-    // A map for remembering config file paths of run-once jobs
-    private final Map<String, String> runOnceJobConfigFiles = Maps.newHashMap();
 
     // Set of supported job configuration file extensions
     private final Set<String> jobConfigFileExtensions;
@@ -163,10 +158,6 @@ public class JobScheduler extends AbstractIdleService {
             this.jobListenerMap.put(jobName, jobListener);
         }
 
-        // If this is a run-once job
-        boolean runOnce = Boolean.valueOf(
-                jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
-
         // Build a data map that gets passed to the job
         JobDataMap jobDataMap = new JobDataMap();
         jobDataMap.put(JOB_SCHEDULER_KEY, this);
@@ -191,14 +182,6 @@ public class JobScheduler extends AbstractIdleService {
         }
 
         this.scheduledJobs.put(jobName, job.getKey());
-
-        // If the job should run only once, remember so it can be deleted after its
-        // single run is done.
-        if (runOnce) {
-            this.runOnceJobs.put(jobName, job.getKey());
-            this.runOnceJobConfigFiles.put(jobName,
-                    jobProps.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY));
-        }
     }
 
     /**
@@ -244,7 +227,12 @@ public class JobScheduler extends AbstractIdleService {
         // Launch the job
         try {
             JobLauncher jobLauncher = JobLauncherFactory.newJobLauncher(this.properties);
-            jobLauncher.launchJob(jobProps);
+            jobLauncher.launchJob(jobProps, jobListener);
+            boolean runOnce = Boolean.valueOf(
+                    jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
+            if (runOnce && this.scheduledJobs.containsKey(jobName)) {
+                this.scheduler.deleteJob(this.scheduledJobs.remove(jobName));
+            }
         } catch (Throwable t) {
             String errMsg = "Failed to launch and run job " + jobName;
             LOG.error(errMsg, t);
@@ -260,7 +248,8 @@ public class JobScheduler extends AbstractIdleService {
         for (Properties jobProps : loadLocalJobConfigs()) {
             boolean runOnce = Boolean.valueOf(jobProps.getProperty(
                     ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
-            scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : null);
+            scheduleJob(jobProps, runOnce ?
+                    new RunOnceJobListener() : new EmailNotificationJobListener());
         }
     }
 
@@ -322,7 +311,8 @@ public class JobScheduler extends AbstractIdleService {
                 try {
                     boolean runOnce = Boolean.valueOf(
                             jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
-                    scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : null);
+                    scheduleJob(jobProps, runOnce ?
+                            new RunOnceJobListener() : new EmailNotificationJobListener());
                 } catch (Throwable t) {
                     LOG.error(
                             "Failed to schedule new job loaded from job configuration file " +
@@ -357,7 +347,8 @@ public class JobScheduler extends AbstractIdleService {
                     boolean runOnce = Boolean.valueOf(
                             jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
                     // Reschedule the job with the new job configuration
-                    scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : null);
+                    scheduleJob(jobProps, runOnce ?
+                            new RunOnceJobListener() : new EmailNotificationJobListener());
                 } catch (Throwable t) {
                     LOG.error("Failed to update existing job " + jobName, t);
                 }

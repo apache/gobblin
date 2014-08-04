@@ -33,7 +33,7 @@ public class CliMRJobLauncher extends Configured implements Tool {
         jobProps.load(new FileReader(args[args.length - 1]));
         try {
             JobLauncher launcher = new MRJobLauncher(this.properties, getConf());
-            launcher.launchJob(jobProps);
+            launcher.launchJob(jobProps, null);
         } catch (JobException je) {
             return 1;
         }
