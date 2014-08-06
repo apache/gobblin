@@ -209,8 +209,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
             if (jobState.getState() == JobState.RunningState.FAILED) {
                 throw new Exception(String.format("Gobblin Hadoop MR job %s failed", job.getJobID()));
             }
-        } catch (Exception t) {
-            jobState.setState(JobState.RunningState.FAILED);
         } finally {
             // Cleanup job input and output paths upon job completion
             try {
