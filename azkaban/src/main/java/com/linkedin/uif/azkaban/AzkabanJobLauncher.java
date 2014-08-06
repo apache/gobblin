@@ -1,9 +1,11 @@
 package com.linkedin.uif.azkaban;
 
+import java.io.IOException;
 import java.util.Properties;
 
-import com.linkedin.uif.runtime.JobLauncherFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Logger;
 
 import com.google.common.base.Strings;
@@ -12,7 +14,8 @@ import azkaban.jobExecutor.AbstractJob;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.runtime.JobLauncher;
-import com.linkedin.uif.runtime.mapreduce.MRJobLauncher;
+import com.linkedin.uif.runtime.JobLauncherFactory;
+import com.linkedin.uif.runtime.mapreduce.MRJobLock;
 
 /**
  * A utility class for launching a Gobblin Hadoop MR job through Azkaban.
@@ -27,11 +30,11 @@ public class AzkabanJobLauncher extends AbstractJob {
     private final Properties properties;
     private final JobLauncher jobLauncher;
 
-    public AzkabanJobLauncher(String jobId, Properties properties) throws Exception {
+    public AzkabanJobLauncher(String jobId, final Properties properties) throws Exception {
         super(jobId, LOG);
 
         this.properties = properties;
-        Configuration conf = new Configuration();
+        final Configuration conf = new Configuration();
 
         String fsUri = conf.get("fs.default.name");
         if (!Strings.isNullOrEmpty(fsUri)) {
@@ -48,6 +51,26 @@ public class AzkabanJobLauncher extends AbstractJob {
 
         // Create a JobLauncher instance depending on the configuration
         this.jobLauncher = JobLauncherFactory.newJobLauncher(this.properties);
+
+        // Add a shutdown hook so the job lock file gets deleted even when the job is killed
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            @Override
+            public void run() {
+                String jobLockFile = properties.getProperty(ConfigurationKeys.JOB_NAME_KEY) +
+                        MRJobLock.LOCK_FILE_EXTENSION;
+                try {
+                    FileSystem fs = FileSystem.get(conf);
+                    Path jobLockPath = new Path(
+                            properties.getProperty(ConfigurationKeys.MR_JOB_LOCK_DIR_KEY),
+                            jobLockFile);
+                    if (fs.exists(jobLockPath)) {
+                        fs.delete(jobLockPath, false);
+                    }
+                } catch (IOException ioe) {
+                    LOG.error("Failed to delete job lock file " + jobLockFile);
+                }
+            }
+        });
     }
 
     @Override
