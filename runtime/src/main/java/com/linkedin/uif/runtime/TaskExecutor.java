@@ -41,11 +41,11 @@ public class TaskExecutor extends AbstractIdleService {
                          int maxRetryThreadPoolSize, long retryIntervalInSeconds) {
 
         // Currently a fixed-size thread pool is used to execute tasks.
-        // We probably need to revisist this later.
+        // We probably need to revisit this later.
         this.executor = Executors.newFixedThreadPool(taskExecutorThreadPoolSize);
 
         // Using a separate thread pool for task retries to achieve isolation
-        // between normal task execution and tasi retries
+        // between normal task execution and task retries
         this.retryExecutor = new ScheduledThreadPoolExecutor(coreRetryThreadPoolSize);
         this.retryExecutor.setMaximumPoolSize(maxRetryThreadPoolSize);
 
