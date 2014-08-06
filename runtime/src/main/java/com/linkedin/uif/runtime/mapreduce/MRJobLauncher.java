@@ -104,7 +104,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
                 jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY), jobName);
 
         Path jarFileDir = new Path(mrJobDir, "_jars");
-        // Add frmework jars to the classpath for the mappers/reducer
+        // Add framework jars to the classpath for the mappers/reducer
         if (jobProps.containsKey(ConfigurationKeys.FRAMEWORK_JAR_FILES_KEY)) {
             addJars(jarFileDir, jobProps.getProperty(ConfigurationKeys.FRAMEWORK_JAR_FILES_KEY));
         }
@@ -128,7 +128,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
         // Whether to use a reducer to combine task states output by the mappers
         boolean useReducer = Boolean.valueOf(
-                jobProps.getProperty(ConfigurationKeys.MR_JOB_USE_REDUCER_KEY, "true"));
+                jobProps.getProperty(ConfigurationKeys.MR_JOB_USE_REDUCER_KEY, "false"));
         // We need one reducer to collect task states output by the mappers if a
         // reducer is to be used, otherwise the job is mapper-only.
         job.setNumReduceTasks(useReducer ? 1 : 0);

@@ -302,7 +302,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
 
     /**
-     * Try acquring the job lock and return whether the lock is successfully locked.
+     * Try acquiring the job lock and return whether the lock is successfully locked.
      */
     private boolean tryLockJob(String jobName, JobLock jobLock) {
         try {

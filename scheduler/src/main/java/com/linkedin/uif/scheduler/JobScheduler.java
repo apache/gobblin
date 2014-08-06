@@ -87,7 +87,7 @@ public class JobScheduler extends AbstractIdleService {
     private final Set<String> jobConfigFileExtensions;
 
     // A monitor for changes to job configuration files
-    private FileAlterationMonitor fileAlterationMonitor;
+    private final FileAlterationMonitor fileAlterationMonitor;
 
     public JobScheduler(Properties properties) throws Exception {
         this.properties = properties;
@@ -97,6 +97,11 @@ public class JobScheduler extends AbstractIdleService {
                         this.properties.getProperty(
                                 ConfigurationKeys.JOB_CONFIG_FILE_EXTENSIONS_KEY,
                                 ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_EXTENSIONS)));
+
+        long pollingInterval = Long.parseLong(this.properties.getProperty(
+                ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
+                ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL));
+        this.fileAlterationMonitor = new FileAlterationMonitor(pollingInterval);
     }
 
     @Override
@@ -188,7 +193,7 @@ public class JobScheduler extends AbstractIdleService {
      * Unschedule and delete a job.
      *
      * @param jobName Job name
-     * @throws JobException when there is anything wrong unscheduling the job
+     * @throws JobException when there is anything wrong unschedule the job
      */
     public void unscheduleJob(String jobName) throws JobException {
         if (this.scheduledJobs.containsKey(jobName)) {
@@ -278,12 +283,7 @@ public class JobScheduler extends AbstractIdleService {
     private void startJobConfigFileMonitor() throws Exception {
         File jobConfigFileDir = new File(this.properties.getProperty(
                 ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY));
-        long pollingInterval = Long.parseLong(this.properties.getProperty(
-                ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
-                ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL));
-
         FileAlterationObserver observer = new FileAlterationObserver(jobConfigFileDir);
-        this.fileAlterationMonitor = new FileAlterationMonitor(pollingInterval);
         FileAlterationListener listener = new FileAlterationListenerAdaptor() {
             /**
              * Called when a new job configuration file is dropped in.

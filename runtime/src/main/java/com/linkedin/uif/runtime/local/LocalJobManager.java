@@ -14,7 +14,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 
-import com.linkedin.uif.metrics.JobMetrics;
 import org.apache.commons.io.monitor.FileAlterationListener;
 import org.apache.commons.io.monitor.FileAlterationListenerAdaptor;
 import org.apache.commons.io.monitor.FileAlterationMonitor;
@@ -55,6 +54,7 @@ import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.metastore.FsStateStore;
 import com.linkedin.uif.metastore.StateStore;
+import com.linkedin.uif.metrics.JobMetrics;
 import com.linkedin.uif.publisher.DataPublisher;
 import com.linkedin.uif.runtime.EmailNotificationJobListener;
 import com.linkedin.uif.runtime.JobException;
@@ -69,6 +69,7 @@ import com.linkedin.uif.runtime.WorkUnitManager;
 import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.extractor.JobCommitPolicy;
 import com.linkedin.uif.source.workunit.WorkUnit;
+import com.linkedin.uif.util.JobLauncherUtils;
 import com.linkedin.uif.util.SchedulerUtils;
 
 /**
@@ -141,7 +142,7 @@ public class LocalJobManager extends AbstractIdleService {
     private final StateStore taskStateStore;
 
     // A monitor for changes to job configuration files
-    private FileAlterationMonitor fileAlterationMonitor;
+    private final FileAlterationMonitor fileAlterationMonitor;
 
     public LocalJobManager(WorkUnitManager workUnitManager, Properties properties)
             throws Exception {
@@ -149,6 +150,11 @@ public class LocalJobManager extends AbstractIdleService {
         this.workUnitManager = workUnitManager;
         this.properties = properties;
         this.scheduler = new StdSchedulerFactory().getScheduler();
+        this.jobConfigFileExtensions = Sets.newHashSet(
+                Splitter.on(",").omitEmptyStrings().split(
+                        this.properties.getProperty(
+                                ConfigurationKeys.JOB_CONFIG_FILE_EXTENSIONS_KEY,
+                                ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_EXTENSIONS)));
 
         this.jobStateStore = new FsStateStore(
                 properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
@@ -159,11 +165,10 @@ public class LocalJobManager extends AbstractIdleService {
                 properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
                 TaskState.class);
 
-        this.jobConfigFileExtensions = Sets.newHashSet(
-                Splitter.on(",").omitEmptyStrings().split(
-                        this.properties.getProperty(
-                                ConfigurationKeys.JOB_CONFIG_FILE_EXTENSIONS_KEY,
-                                ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_EXTENSIONS)));
+        long pollingInterval = Long.parseLong(this.properties.getProperty(
+                ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
+                ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL));
+        this.fileAlterationMonitor = new FileAlterationMonitor(pollingInterval);
 
         restoreLastJobIdMap();
         populateSourceWrapperMap();
@@ -232,7 +237,7 @@ public class LocalJobManager extends AbstractIdleService {
         jobDataMap.put(JOB_LISTENER_KEY, jobListener);
 
         // Build a Quartz job
-        JobDetail job = JobBuilder.newJob(UIFJob.class)
+        JobDetail job = JobBuilder.newJob(GobblinJob.class)
                 .withIdentity(jobName, Strings.nullToEmpty(jobProps.getProperty(
                         ConfigurationKeys.JOB_GROUP_KEY)))
                 .withDescription(Strings.nullToEmpty(jobProps.getProperty(
@@ -286,11 +291,7 @@ public class LocalJobManager extends AbstractIdleService {
         boolean runOnce = Boolean.valueOf(
                 jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
 
-        // Job ID in the form of job_<job_id_suffix>
-        // <job_id_suffix> is in the form of <job_name>_<current_timestamp>
-        String jobIdSuffix = String.format("%s_%d", jobName, System.currentTimeMillis());
-        String jobId = "job_" + jobIdSuffix;
-
+        String jobId = JobLauncherUtils.newJobId(jobName);
         JobState jobState = new JobState(jobName, jobId);
         // Add all job configuration properties of this job
         jobState.addAll(jobProps);
@@ -337,8 +338,7 @@ public class LocalJobManager extends AbstractIdleService {
             // Add all generated work units
             int sequence = 0;
             for (WorkUnit workUnit : workUnits.get()) {
-                // Task ID in the form of task_<job_id_suffix>_<task_sequence_number>
-                String taskId = String.format("task_%s_%d", jobIdSuffix, sequence++);
+                String taskId = JobLauncherUtils.newTaskId(jobId, sequence++);
                 workUnit.setId(taskId);
                 WorkUnitState workUnitState = new WorkUnitState(workUnit);
                 workUnitState.setId(taskId);
@@ -367,7 +367,7 @@ public class LocalJobManager extends AbstractIdleService {
      * Unschedule and delete a job.
      *
      * @param jobName Job name
-     * @throws JobException when there is anything wrong unscheduling the job
+     * @throws JobException when there is anything wrong unschedule the job
      */
     public void unscheduleJob(String jobName) throws JobException {
         if (this.scheduledJobs.containsKey(jobName)) {
@@ -519,12 +519,7 @@ public class LocalJobManager extends AbstractIdleService {
     private void startJobConfigFileMonitor() throws Exception {
         File jobConfigFileDir = new File(this.properties.getProperty(
                 ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY));
-        long pollingInterval = Long.parseLong(this.properties.getProperty(
-                ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
-                ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL));
-
         FileAlterationObserver observer = new FileAlterationObserver(jobConfigFileDir);
-        this.fileAlterationMonitor = new FileAlterationMonitor(pollingInterval);
         FileAlterationListener listener = new FileAlterationListenerAdaptor() {
             /**
              * Called when a new job configuration file is dropped in.
@@ -631,7 +626,7 @@ public class LocalJobManager extends AbstractIdleService {
     }
 
     /**
-     * Try acquring the job lock and return whether the lock is successfully locked.
+     * Try acquiring the job lock and return whether the lock is successfully locked.
      */
     private boolean acquireJobLock(String jobName) {
         try {
@@ -739,7 +734,7 @@ public class LocalJobManager extends AbstractIdleService {
     }
 
     /**
-     * Persiste job/task states of a completed job.
+     * Persist job/task states of a completed job.
      */
     private void persistJobState(JobState jobState) {
         String jobName = jobState.getJobName();
@@ -836,7 +831,7 @@ public class LocalJobManager extends AbstractIdleService {
      * A UIF job to schedule locally.
      */
     @DisallowConcurrentExecution
-    public static class UIFJob implements Job {
+    public static class GobblinJob implements Job {
 
         @Override
         public void execute(JobExecutionContext context) throws JobExecutionException {

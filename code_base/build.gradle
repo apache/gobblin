@@ -11,6 +11,7 @@ dependencies {
 	runtime(project(':writer'))
 	runtime(project(':metastore'))
 	runtime(project(':source'))
+    runtime(project(':metrics'))
 }
 
 tgz {
@@ -25,6 +26,7 @@ tgz {
     rename("writer-$version$jar_extension", "writer.jar")
     rename("metastore-$version$jar_extension", "metastore.jar")
     rename("source-$version$jar_extension", "source.jar")
+    rename("metrics-$version$jar_extension", "metrics.jar")
     from('.')
     from('../bin') { into('bin') }
     from('../conf') { into('conf') }
