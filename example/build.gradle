@@ -8,6 +8,7 @@ dependencies {
     compile spec.external.jacksonCore
     compile spec.external.hadoop
     compile spec.external.slf4j
+    compile spec.external.gson
 
     testCompile spec.external.testng
 }

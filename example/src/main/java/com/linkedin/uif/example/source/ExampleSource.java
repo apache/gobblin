@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
+
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.WorkUnitState;
@@ -14,8 +15,11 @@ import com.linkedin.uif.source.workunit.Extract;
 import com.linkedin.uif.source.workunit.WorkUnit;
 import com.linkedin.uif.source.workunit.Extract.TableType;
 
-public class ExampleSource implements Source<String, String>
-{
+/**
+ * An example {@link Source} for testing and demonstration purposes.
+ */
+public class ExampleSource implements Source<String, String> {
+
     private static final String SOURCE_FILE_LIST_KEY = "source.files";
     private static final String SOURCE_FILE_KEY = "source.file";
 

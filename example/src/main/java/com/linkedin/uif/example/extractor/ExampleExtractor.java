@@ -20,6 +20,9 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.Extractor;
 
+/**
+ * An example {@link Extractor} for testing and demonstration purposes.
+ */
 public class ExampleExtractor implements Extractor<String, String> {
 
     private static final Logger log = LoggerFactory.getLogger(ExampleExtractor.class);
@@ -50,7 +53,8 @@ public class ExampleExtractor implements Extractor<String, String> {
         DatumReader<GenericRecord> datumReader = new GenericDatumReader<GenericRecord>(schema);
         
         try {
-            URI uri = URI.create(workUnitState.getProp(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
+            URI uri = URI.create(workUnitState.getProp(ConfigurationKeys.FS_URI_KEY,
+                    ConfigurationKeys.LOCAL_FS_URI));
             FileSystem fs = FileSystem.get(uri, new Configuration());
             fs.makeQualified(sourceFile);
             this.dataFileReader = new DataFileReader<GenericRecord>(
