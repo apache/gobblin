@@ -33,7 +33,7 @@ import com.linkedin.uif.runtime.JobLock;
  */
 public class MRJobLock implements JobLock {
 
-    private static final String LOCK_FILE_EXTENSION = ".lock";
+    public static final String LOCK_FILE_EXTENSION = ".lock";
 
     private final FileSystem fs;
     // Empty file associated with the lock
