@@ -2,12 +2,18 @@ job.name=ExampleFilePull
 job.group=ExampleJobs
 job.description=Simple job to pull move files
 
-source.class=com.linkedin.uif.helloworld.source.ExampleSource
+source.class=com.linkedin.uif.example.source.ExampleSource
+converter.classes=com.linkedin.uif.example.converter.ExampleConverter
+
+extract.namespace=test
 
 writer.destination.type=HDFS
 writer.output.format=AVRO
-writer.fs.uri=file://localhost/
+writer.fs.uri=file:///
 
 data.publisher.type=com.linkedin.uif.publisher.BaseDataPublisher
+
+email.notification.enabled=false
+metrics.enabled=false
 
 source.files=<Insert location of files to copy>

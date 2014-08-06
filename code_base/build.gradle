@@ -1,17 +1,18 @@
 apply plugin: 'li-tgz'
 
 dependencies {
-	runtime(project(':azkaban'))
-	runtime(project(':converter'))
-	runtime(project(':common-api'))
-	runtime(project(':qualitychecker'))
+    runtime(project(':azkaban'))
+    runtime(project(':converter'))
+    runtime(project(':common-api'))
+    runtime(project(':qualitychecker'))
     runtime(project(':runtime'))
-	runtime(project(':scheduler'))
-	runtime(project(':utility'))
-	runtime(project(':writer'))
-	runtime(project(':metastore'))
-	runtime(project(':source'))
+    runtime(project(':scheduler'))
+    runtime(project(':utility'))
+    runtime(project(':writer'))
+    runtime(project(':metastore'))
+    runtime(project(':source'))
     runtime(project(':metrics'))
+    runtime(project(':example'))
 }
 
 tgz {
@@ -27,6 +28,7 @@ tgz {
     rename("metastore-$version$jar_extension", "metastore.jar")
     rename("source-$version$jar_extension", "source.jar")
     rename("metrics-$version$jar_extension", "metrics.jar")
+    rename("example-$version$jar_extension", "example.jar")
     from('.')
     from('../bin') { into('bin') }
     from('../conf') { into('conf') }
