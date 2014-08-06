@@ -15,7 +15,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import com.linkedin.uif.metrics.JobMetrics;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.fs.FileStatus;
@@ -24,7 +23,12 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.*;
+import org.apache.hadoop.mapreduce.Counter;
+import org.apache.hadoop.mapreduce.CounterGroup;
+import org.apache.hadoop.mapreduce.Counters;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.slf4j.Logger;
@@ -37,6 +41,7 @@ import com.google.common.util.concurrent.ServiceManager;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
+import com.linkedin.uif.metrics.JobMetrics;
 import com.linkedin.uif.runtime.AbstractJobLauncher;
 import com.linkedin.uif.runtime.JobLauncher;
 import com.linkedin.uif.runtime.JobLock;
@@ -185,18 +190,25 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
         try {
             LOG.info("Launching Hadoop MR job " + job.getJobName());
+
             // Start the MR job and wait for it to complete
             job.waitForCompletion(true);
             jobState.setState(job.isSuccessful() ?
-                    JobState.RunningState.SUCCESSFUL :
-                    JobState.RunningState.FAILED);
+                    JobState.RunningState.SUCCESSFUL : JobState.RunningState.FAILED);
+
             // Collect the output task states and add them to the job state
             jobState.addTaskStates(collectOutput(jobOutputPath));
+
             // Create a metrics set for this job run from the Hadoop counters.
             // The metrics set is to be persisted to the metrics store later.
             countersToMetrics(
                     job.getCounters(),
                     JobMetrics.get(jobName, jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY)));
+
+            // Throw an exception if the Gobblin job failed so the framework knows the failure
+            if (jobState.getState() == JobState.RunningState.FAILED) {
+                throw new Exception(String.format("Gobblin Hadoop MR job %s failed", job.getJobID()));
+            }
         } catch (Exception t) {
             jobState.setState(JobState.RunningState.FAILED);
         } finally {
