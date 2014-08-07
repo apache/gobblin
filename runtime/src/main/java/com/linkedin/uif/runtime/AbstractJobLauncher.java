@@ -239,8 +239,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
             State prevJobState = jobStateList.get(0);
             // Read failure count from the persisted job state of its most recent run
-            return prevJobState.contains(ConfigurationKeys.JOB_FAILURES_KEY) ?
-                    prevJobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY) : 0;
+            return prevJobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY, 0);
         } catch (IOException ioe) {
             LOG.warn("Failed to read the previous job state for job " + jobName, ioe);
             return 0;
@@ -357,7 +356,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
         if (jobState.getState() == JobState.RunningState.FAILED) {
             // Increment the failure count by 1 if the job failed
-            int failures = jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY) + 1;
+            int failures = jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY, 0) + 1;
             jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY, failures);
         }
 

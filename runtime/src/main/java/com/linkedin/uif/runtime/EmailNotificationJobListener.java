@@ -24,12 +24,13 @@ public class EmailNotificationJobListener implements JobListener {
 
         // Send out alert email if the maximum number of consecutive failures is reached
         if (jobState.getState() == JobState.RunningState.FAILED) {
-            int failures = jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY);
+            int failures = jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY, 0);
             int maxFailures = jobState.getPropAsInt(ConfigurationKeys.JOB_MAX_FAILURES_KEY,
                     ConfigurationKeys.DEFAULT_JOB_MAX_FAILURES);
             if (failures >= maxFailures) {
                 try {
-                    EmailUtils.sendJobFailureAlertEmail(jobState.getJobName(), jobState.toString(), jobState);
+                    EmailUtils.sendJobFailureAlertEmail(
+                            jobState.getJobName(), jobState.toString(), failures, jobState);
                 } catch (EmailException ee) {
                     LOGGER.error("Failed to send job failure alert email for job " + jobState.getJobId(), ee);
                 }
