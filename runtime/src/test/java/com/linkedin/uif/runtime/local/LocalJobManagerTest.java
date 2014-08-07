@@ -1,4 +1,4 @@
-package com.linkedin.uif.runtime;
+package com.linkedin.uif.runtime.local;
 
 import java.io.File;
 import java.io.FileReader;
@@ -7,6 +7,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import com.linkedin.uif.runtime.*;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -27,6 +28,7 @@ import com.linkedin.uif.source.workunit.Extract;
  *
  * @author ynli
  */
+@Deprecated
 @Test(groups = {"com.linkedin.uif.test"})
 public class LocalJobManagerTest {
 

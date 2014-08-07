@@ -30,6 +30,7 @@ import com.linkedin.uif.runtime.TaskStateTracker;
  *
  * @author ynli
  */
+@Deprecated
 public class LocalTaskStateTracker extends AbstractIdleService
         implements TaskStateTracker {
 

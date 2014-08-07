@@ -36,6 +36,7 @@ import com.linkedin.uif.runtime.local.LocalTaskStateTracker;
  *
  * @author ynli
  */
+@Deprecated
 public class TestWorker {
 
     // We use this to manage all services running within the worker

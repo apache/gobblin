@@ -27,6 +27,7 @@ import com.linkedin.uif.runtime.local.LocalTaskStateTracker;
  *
  * @author ynli
  */
+@Deprecated
 public class Worker {
 
     private static final Logger LOG = LoggerFactory.getLogger(Worker.class);
