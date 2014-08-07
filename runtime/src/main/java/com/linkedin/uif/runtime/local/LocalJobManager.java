@@ -89,6 +89,7 @@ import com.linkedin.uif.util.SchedulerUtils;
  *
  * @author ynli
  */
+@Deprecated
 public class LocalJobManager extends AbstractIdleService {
 
     private static final Logger LOG = LoggerFactory.getLogger(LocalJobManager.class);
