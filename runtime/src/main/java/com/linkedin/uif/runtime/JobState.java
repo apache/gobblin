@@ -3,6 +3,7 @@ package com.linkedin.uif.runtime;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -292,5 +293,18 @@ public class JobState extends SourceState {
         jsonWriter.endArray();
 
         jsonWriter.endObject();
+    }
+
+    @Override
+    public String toString() {
+        StringWriter stringWriter = new StringWriter();
+        JsonWriter jsonWriter = new JsonWriter(stringWriter);
+        jsonWriter.setIndent("\t");
+        try {
+            this.toJson(jsonWriter);
+        } catch (IOException ioe) {
+            // Ignored
+        }
+        return stringWriter.toString();
     }
 }

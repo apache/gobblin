@@ -1,7 +1,6 @@
 package com.linkedin.uif.runtime;
 
 import java.io.IOException;
-import java.io.StringWriter;
 import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.util.List;
@@ -20,7 +19,6 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.gson.stream.JsonWriter;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
@@ -33,7 +31,6 @@ import com.linkedin.uif.publisher.DataPublisher;
 import com.linkedin.uif.source.extractor.JobCommitPolicy;
 import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.workunit.WorkUnit;
-import com.linkedin.uif.util.EmailUtils;
 import com.linkedin.uif.util.JobLauncherUtils;
 
 /**
@@ -362,23 +359,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             // Increment the failure count by 1 if the job failed
             int failures = jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY) + 1;
             jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY, failures);
-            int maxFailures = jobState.getPropAsInt(ConfigurationKeys.JOB_MAX_FAILURES_KEY,
-                    ConfigurationKeys.DEFAULT_JOB_MAX_FAILURES);
-            if (failures >= maxFailures) {
-                // Send out alert email if the maximum number of consecutive failures is reached
-                try {
-                    // The email content is a json document converted from the job state
-                    StringWriter stringWriter = new StringWriter();
-                    JsonWriter jsonWriter = new JsonWriter(stringWriter);
-                    jsonWriter.setIndent("\t");
-                    jobState.toJson(jsonWriter);
-                    EmailUtils.sendJobFailureAlertEmail(jobState.getJobName(),
-                            stringWriter.toString(), jobState);
-                } catch (Throwable t) {
-                    LOG.error("Failed to construct and send job failure alert email for job " +
-                            jobState.getJobId(), t);
-                }
-            }
         }
 
         return jobState;

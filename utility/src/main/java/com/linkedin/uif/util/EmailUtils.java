@@ -53,17 +53,19 @@ public class EmailUtils {
      *
      * @param jobName Job name
      * @param message Email message
-     * @param jobState Job state
+     * @param state Job state
+     * @param jobState A {@link State} object carrying job configuration properties
      * @throws EmailException
      */
-    public static void sendJobCompletionEmail(String jobName, String message, State jobState)
+    public static void sendJobCompletionEmail(String jobName, String message,
+                                              String state, State jobState)
             throws EmailException {
 
         sendEmail(
                 jobState,
                 String.format(
-                        "Gobblin notification: most recent run of job %s has completed",
-                        jobName),
+                        "Gobblin notification: most recent run of job %s has completed with state %s",
+                        jobName, state),
                 message);
     }
 

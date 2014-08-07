@@ -1,13 +1,8 @@
 package com.linkedin.uif.runtime;
 
-import java.io.IOException;
-import java.io.StringWriter;
-
 import org.apache.commons.mail.EmailException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.gson.stream.JsonWriter;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.util.EmailUtils;
@@ -27,23 +22,26 @@ public class EmailNotificationJobListener implements JobListener {
             return;
         }
 
-        try {
-            // The email content is a json document converted from the job state
-            StringWriter stringWriter = new StringWriter();
-            JsonWriter jsonWriter = new JsonWriter(stringWriter);
-            jsonWriter.setIndent("\t");
-            jobState.toJson(jsonWriter);
-            if (jobState.getState() == JobState.RunningState.FAILED) {
-                EmailUtils.sendJobFailureAlertEmail(
-                        jobState.getJobName(), stringWriter.toString(), jobState);
-            } else {
-                EmailUtils.sendJobCompletionEmail(
-                        jobState.getJobName(), stringWriter.toString(), jobState);
+        // Send out alert email if the maximum number of consecutive failures is reached
+        if (jobState.getState() == JobState.RunningState.FAILED) {
+            int failures = jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY);
+            int maxFailures = jobState.getPropAsInt(ConfigurationKeys.JOB_MAX_FAILURES_KEY,
+                    ConfigurationKeys.DEFAULT_JOB_MAX_FAILURES);
+            if (failures >= maxFailures) {
+                try {
+                    EmailUtils.sendJobFailureAlertEmail(jobState.getJobName(), jobState.toString(), jobState);
+                } catch (EmailException ee) {
+                    LOGGER.error("Failed to send job failure alert email for job " + jobState.getJobId(), ee);
+                }
+                return;
             }
-        } catch (IOException ioe) {
-            LOGGER.error("Failed to convert job state to json document", ioe);
+        }
+
+        try {
+            EmailUtils.sendJobCompletionEmail(
+                    jobState.getJobName(), jobState.toString(), jobState.getState().name(), jobState);
         } catch (EmailException ee) {
-            LOGGER.error("Failed to send job completion notification email", ee);
+            LOGGER.error("Failed to send job completion notification email for job " + jobState.getJobId(), ee);
         }
     }
 }
