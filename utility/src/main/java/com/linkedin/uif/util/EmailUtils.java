@@ -74,12 +74,13 @@ public class EmailUtils {
      *
      * @param jobName Job name
      * @param message Email message
-     * @param jobState Job state
+     * @param failures Number of consecutive job failures
+     * @param jobState A {@link State} object carrying job configuration properties
      */
-    public static void sendJobFailureAlertEmail(String jobName, String message, State jobState)
+    public static void sendJobFailureAlertEmail(String jobName, String message,
+                                                int failures, State jobState)
             throws EmailException {
 
-        int failures = jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY);
         sendEmail(
                 jobState,
                 String.format(
