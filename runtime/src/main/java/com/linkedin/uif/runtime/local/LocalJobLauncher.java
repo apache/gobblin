@@ -1,12 +1,14 @@
 package com.linkedin.uif.runtime.local;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import com.linkedin.uif.metrics.JobMetrics;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,6 +17,7 @@ import com.google.common.util.concurrent.ServiceManager;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
+import com.linkedin.uif.metrics.JobMetrics;
 import com.linkedin.uif.runtime.AbstractJobLauncher;
 import com.linkedin.uif.runtime.JobLauncher;
 import com.linkedin.uif.runtime.JobLock;
@@ -23,6 +26,7 @@ import com.linkedin.uif.runtime.TaskExecutor;
 import com.linkedin.uif.runtime.TaskState;
 import com.linkedin.uif.runtime.TaskStateTracker;
 import com.linkedin.uif.runtime.WorkUnitManager;
+import com.linkedin.uif.runtime.mapreduce.MRJobLock;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
 /**
@@ -88,6 +92,17 @@ public class LocalJobLauncher extends AbstractJobLauncher {
 
     @Override
     protected JobLock getJobLock(String jobName, Properties jobProps) throws IOException {
+        boolean useMRJobLock = Boolean.valueOf(jobProps.getProperty(
+                ConfigurationKeys.LOCAL_USE_MR_JOB_LOCK_KEY, Boolean.toString(false)));
+        if (useMRJobLock) {
+            URI fsUri = URI.create(jobProps.getProperty(
+                    ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
+            return new MRJobLock(
+                    FileSystem.get(fsUri, new Configuration()),
+                    jobProps.getProperty(ConfigurationKeys.MR_JOB_LOCK_DIR_KEY),
+                    jobName);
+        }
+
         return new LocalJobLock();
     }
 

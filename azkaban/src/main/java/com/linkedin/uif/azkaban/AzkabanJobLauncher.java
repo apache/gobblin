@@ -30,10 +30,10 @@ public class AzkabanJobLauncher extends AbstractJob {
     private final Properties properties;
     private final JobLauncher jobLauncher;
 
-    public AzkabanJobLauncher(String jobId, final Properties properties) throws Exception {
+    public AzkabanJobLauncher(String jobId, Properties props) throws Exception {
         super(jobId, LOG);
 
-        this.properties = properties;
+        this.properties = props;
         final Configuration conf = new Configuration();
 
         String fsUri = conf.get("fs.default.name");
@@ -48,6 +48,10 @@ public class AzkabanJobLauncher extends AbstractJob {
                 this.properties.setProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, fsUri);
             }
         }
+
+        // MR job lock should be used as the job will be run in a separate process
+        this.properties.setProperty(
+                ConfigurationKeys.LOCAL_USE_MR_JOB_LOCK_KEY, Boolean.toString(true));
 
         // Create a JobLauncher instance depending on the configuration
         this.jobLauncher = JobLauncherFactory.newJobLauncher(this.properties);
@@ -67,7 +71,7 @@ public class AzkabanJobLauncher extends AbstractJob {
                         fs.delete(jobLockPath, false);
                     }
                 } catch (IOException ioe) {
-                    LOG.error("Failed to delete job lock file " + jobLockFile);
+                    LOG.error("Failed to delete job lock file " + jobLockFile, ioe);
                 }
             }
         });

@@ -534,13 +534,12 @@ public class LocalJobManager extends AbstractIdleService {
                 }
 
                 LOG.info("Detected new job configuration file " + file.getAbsolutePath());
-                // Load job configuration from the new job configuration file
-                Properties jobProps = loadJobConfig(file);
-                if (jobProps == null) {
-                    return;
-                }
-
+                Properties jobProps = new Properties();
+                // First add framework configuration properties
                 jobProps.putAll(properties);
+                // Then load job configuration properties from the new job configuration file
+                loadJobConfig(jobProps, file);
+
                 jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY,
                         file.getAbsolutePath());
                 // Schedule the new job
@@ -570,12 +569,12 @@ public class LocalJobManager extends AbstractIdleService {
                 }
 
                 LOG.info("Detected change to job configuration file " + file.getAbsolutePath());
-                Properties jobProps = loadJobConfig(file);
-                if (jobProps == null) {
-                    return;
-                }
-
+                Properties jobProps = new Properties();
+                // First add framework configuration properties
                 jobProps.putAll(properties);
+                // Then load the updated job configuration properties
+                loadJobConfig(jobProps, file);
+
                 String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
                 try {
                     // First unschedule and delete the old job
@@ -590,17 +589,12 @@ public class LocalJobManager extends AbstractIdleService {
                 }
             }
 
-            private Properties loadJobConfig(File file) {
-                // Load job configuration from the new job configuration file
-                Properties jobProps = new Properties();
+            private void loadJobConfig(Properties jobProps, File file) {
                 try {
                     jobProps.load(new FileReader(file));
                 } catch (Exception e) {
-                    LOG.error("Failed to load job configuration from file " + file.getAbsolutePath());
-                    return null;
+                    LOG.error("Failed to load job configuration from file " + file.getAbsolutePath(), e);
                 }
-
-                return jobProps;
             }
         };
 

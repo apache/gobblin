@@ -83,9 +83,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     public void launchJob(Properties jobProps, JobListener jobListener) throws JobException {
         Preconditions.checkNotNull(jobProps);
 
-        // Add all framework-specific configuration properties
-        jobProps.putAll(this.properties);
-
         String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
         if (Strings.isNullOrEmpty(jobName)) {
             throw new JobException("A job must have a job name specified by job.name");
