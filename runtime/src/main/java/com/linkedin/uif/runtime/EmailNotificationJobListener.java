@@ -21,8 +21,8 @@ public class EmailNotificationJobListener implements JobListener {
 
     @Override
     public void jobCompleted(JobState jobState) {
-        boolean emailNotificationEnabled = Boolean.valueOf(
-                jobState.getProp(ConfigurationKeys.EMAIL_NOTIFICATION_ENABLED_KEY, "false"));
+        boolean emailNotificationEnabled = Boolean.valueOf(jobState.getProp(
+                ConfigurationKeys.EMAIL_NOTIFICATION_ENABLED_KEY, Boolean.toString(false)));
         if (!emailNotificationEnabled) {
             return;
         }

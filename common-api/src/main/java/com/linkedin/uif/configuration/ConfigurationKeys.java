@@ -155,7 +155,7 @@ public class ConfigurationKeys {
     public static final String SOURCE_WRAPPERS = "source.wrappers";
     public static final String DEFAULT_SOURCE_WRAPPER = "default";
     public static final String METRICS_ENABLED_KEY = "metrics.enabled";
-    public static final String DEFAULT_METRICS_ENABLED = "true";
+    public static final String DEFAULT_METRICS_ENABLED = Boolean.toString(false);
     public static final String METRICS_REPORT_INTERVAL_KEY = "metrics.report.interval";
     public static final String DEFAULT_METRICS_REPORT_INTERVAL = "60000";
     public static final String JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY = "jobconf.monitor.interval";
@@ -281,7 +281,12 @@ public class ConfigurationKeys {
     public static final String ESCAPE_CHARS_IN_TABLE_NAME = "$,&";
     public static final String DEFAULT_SOURCE_QUERYBASED_WATERMARK_PREDICATE_SYMBOL = "'$WATERMARK'";
     public static final String DEFAULT_SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED = "true";
-    
+
+    /**
+     * Configuration properties used by the local job launcher.
+     */
+    public static final String LOCAL_USE_MR_JOB_LOCK_KEY = "local.use.mr.job.lock";
+
     /**
      * Configuration properties used by the Hadoop MR job launcher.
      */
