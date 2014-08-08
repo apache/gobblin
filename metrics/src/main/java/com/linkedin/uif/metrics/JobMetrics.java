@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
@@ -12,6 +13,7 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.MetricSet;
+import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
 
@@ -224,6 +226,15 @@ public class JobMetrics implements MetricSet {
     }
 
     /**
+     * Get the wrapped {@link com.codahale.metrics.MetricRegistry} instance.
+     *
+     * @return wrapped {@link com.codahale.metrics.MetricRegistry} instance
+     */
+    public MetricRegistry getMetricRegistry() {
+        return this.metricRegistry;
+    }
+
+    /**
      * Get the job name of this metrics set.
      *
      * @return job name of this metrics set
@@ -250,7 +261,7 @@ public class JobMetrics implements MetricSet {
      * @return newly created {@link com.codahale.metrics.Counter}
      */
     public Counter getCounter(MetricGroup group, String id, String name) {
-        return metricRegistry.counter(metricName(group, id, name));
+        return this.metricRegistry.counter(metricName(group, id, name));
     }
 
     /**
@@ -260,7 +271,7 @@ public class JobMetrics implements MetricSet {
      * @return newly created {@link com.codahale.metrics.Counter}
      */
     public Counter getCounter(String name) {
-        return metricRegistry.counter(name);
+        return this.metricRegistry.counter(name);
     }
 
     /**
@@ -272,7 +283,7 @@ public class JobMetrics implements MetricSet {
      * @return newly created {@link com.codahale.metrics.Meter}
      */
     public Meter getMeter(MetricGroup group, String id, String name) {
-        return metricRegistry.meter(metricName(group, id, name));
+        return this.metricRegistry.meter(metricName(group, id, name));
     }
 
     /**
@@ -282,7 +293,7 @@ public class JobMetrics implements MetricSet {
      * @return newly created {@link com.codahale.metrics.Meter}
      */
     public Meter getMeter(String name) {
-        return metricRegistry.meter(name);
+        return this.metricRegistry.meter(name);
     }
 
     /**
@@ -295,7 +306,7 @@ public class JobMetrics implements MetricSet {
      * @param <T> gauge data type
      */
     public <T> Gauge<T> getGauge(MetricGroup group, String id, String name, Gauge<T> gauge) {
-        return metricRegistry.register(metricName(group, id, name), gauge);
+        return this.metricRegistry.register(metricName(group, id, name), gauge);
     }
 
     /**
@@ -306,7 +317,7 @@ public class JobMetrics implements MetricSet {
      * @param <T> gauge data type
      */
     public <T> Gauge<T> getGauge(String name, Gauge<T> gauge) {
-        return metricRegistry.register(name, gauge);
+        return this.metricRegistry.register(name, gauge);
     }
 
     /**
@@ -315,11 +326,29 @@ public class JobMetrics implements MetricSet {
      * @param name metric object name
      */
     public void removeMetric(String name) {
-        metricRegistry.remove(name);
+        this.metricRegistry.remove(name);
     }
 
     @Override
     public Map<String, Metric> getMetrics() {
-        return metricRegistry.getMetrics();
+        return this.metricRegistry.getMetrics();
+    }
+
+    /**
+     * Start the metrics reporter.
+     *
+     * @param properties Configuration properties
+     */
+    public void startMetricsReporter(Properties properties) {
+        ScheduledReporter reporter = InfluxDBReporter.forMetricSet(this)
+                .withProperties(properties)
+                .convertRatesTo(TimeUnit.SECONDS)
+                .convertDurationsTo(TimeUnit.MILLISECONDS)
+                .build();
+
+        long reportInterval = Long.parseLong(properties.getProperty(
+                ConfigurationKeys.METRICS_REPORT_INTERVAL_KEY,
+                ConfigurationKeys.DEFAULT_METRICS_REPORT_INTERVAL));
+        reporter.start(reportInterval, TimeUnit.MILLISECONDS);
     }
 }

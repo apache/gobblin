@@ -24,21 +24,3 @@ test {
 }
 
 classification="library"
-
-
-buildscript {
-    repositories {
-        jcenter()
-    }
-    dependencies {
-        classpath 'com.github.jengelman.gradle.plugins:shadow:0.8'
-    }
-}
-
-apply plugin: 'shadow'
-
-shadow {
-    artifactSet {
-        exclude 'org.apache.hadoop'
-    }
-}
