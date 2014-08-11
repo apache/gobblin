@@ -19,6 +19,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.SequenceFile;
@@ -38,7 +39,6 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ServiceManager;
-
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.metrics.JobMetrics;
@@ -251,15 +251,25 @@ public class MRJobLauncher extends AbstractJobLauncher {
      * so the mappers/reducer can use them.
      */
     private void addJars(Path jarFileDir, String jarFileList) throws IOException {
+    	LocalFileSystem lf = FileSystem.getLocal(conf);
+    	
         for (String jarFile : SPLITTER.split(jarFileList)) {
             Path srcJarFile = new Path(jarFile);
-            // DistributedCache requires absolute path, so we need to use makeQualified.
-            Path destJarFile = new Path(this.fs.makeQualified(jarFileDir), srcJarFile.getName());
-            // Copy the jar file from local file system to HDFS
-            this.fs.copyFromLocalFile(srcJarFile, destJarFile);
-            // Then add the jar file on HDFS to the classpath
-            LOG.info(String.format("Adding %s to classpath", destJarFile));
-            DistributedCache.addFileToClassPath(destJarFile, this.conf, this.fs);
+            
+            FileStatus[] fslist = lf.globStatus(srcJarFile);
+            for (FileStatus fstatus: fslist ){
+            
+	            // DistributedCache requires absolute path, so we need to use makeQualified.
+	            //Path destJarFile = new Path(this.fs.makeQualified(jarFileDir), srcJarFile.getName());
+	            Path destJarFile = new Path(this.fs.makeQualified(jarFileDir), fstatus.getPath().getName());
+	            
+	            // Copy the jar file from local file system to HDFS
+	            this.fs.copyFromLocalFile(srcJarFile, destJarFile);
+	            // Then add the jar file on HDFS to the classpath
+	            LOG.info(String.format("Adding %s to classpath", destJarFile));
+	            DistributedCache.addFileToClassPath(destJarFile, this.conf, this.fs);
+            
+            }
         }
     }
 
