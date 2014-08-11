@@ -260,11 +260,11 @@ public class MRJobLauncher extends AbstractJobLauncher {
             for (FileStatus fstatus: fslist ){
             
 	            // DistributedCache requires absolute path, so we need to use makeQualified.
-	            //Path destJarFile = new Path(this.fs.makeQualified(jarFileDir), srcJarFile.getName());
 	            Path destJarFile = new Path(this.fs.makeQualified(jarFileDir), fstatus.getPath().getName());
 	            
-	            // Copy the jar file from local file system to HDFS
-	            this.fs.copyFromLocalFile(srcJarFile, destJarFile);
+	            // Copy the jar file from local file system to HDFS 
+	            this.fs.copyFromLocalFile(fstatus.getPath(), destJarFile);
+	            
 	            // Then add the jar file on HDFS to the classpath
 	            LOG.info(String.format("Adding %s to classpath", destJarFile));
 	            DistributedCache.addFileToClassPath(destJarFile, this.conf, this.fs);
