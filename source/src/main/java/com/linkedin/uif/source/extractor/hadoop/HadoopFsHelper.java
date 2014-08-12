@@ -55,11 +55,19 @@ public class HadoopFsHelper implements FileBasedHelper
     @Override
     public void close() throws FileBasedHelperException
     {
-        try {
-            this.fs.close();
-        } catch (IOException e) {
-            throw new FileBasedHelperException("Cannot close Hadoop filesystem due to "  + e.getMessage(), e);
-        }
+        /*
+         * TODO
+         * Removing this for now, FileSystem.get() returns the same object each time it is called within a process
+         * If this method gets called in parallel across tasks it is going to cause problems
+         * Basically, close cannot be called multiple times within a process
+         * http://stackoverflow.com/questions/17421218/multiples-hadoop-filesystem-instances
+         */
+
+//        try {
+//            this.fs.close();
+//        } catch (IOException e) {
+//            throw new FileBasedHelperException("Cannot close Hadoop filesystem due to "  + e.getMessage(), e);
+//        }
     }
 
     @Override

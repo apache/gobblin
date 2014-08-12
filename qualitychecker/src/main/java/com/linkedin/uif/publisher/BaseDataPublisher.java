@@ -22,8 +22,8 @@ import com.linkedin.uif.source.workunit.Extract;
 
 public class BaseDataPublisher extends DataPublisher
 {
-    private FileSystem fs;
-    private final Map<Extract, List<WorkUnitState>> extractToStateMap;
+    protected FileSystem fs;
+    protected final Map<Extract, List<WorkUnitState>> extractToStateMap;
     
     private static final Logger LOG = LoggerFactory.getLogger(BaseDataPublisher.class);
         
@@ -40,7 +40,7 @@ public class BaseDataPublisher extends DataPublisher
     
     @Override
     public void close() throws Exception {
-        this.fs.close();
+//        this.fs.close();
     }
     
     @Override
@@ -94,7 +94,7 @@ public class BaseDataPublisher extends DataPublisher
         return true;
     }
     
-    private void collectExtractMapping(Collection<? extends WorkUnitState> states) {
+    protected void collectExtractMapping(Collection<? extends WorkUnitState> states) {
         for (WorkUnitState state : states) {
             if (!state.getWorkingState().equals(WorkUnitState.WorkingState.COMMITTED)) {
                 continue;

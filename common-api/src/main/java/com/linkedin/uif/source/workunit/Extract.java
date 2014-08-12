@@ -1,7 +1,6 @@
 package com.linkedin.uif.source.workunit;
 
 import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
@@ -53,7 +52,7 @@ public class Extract extends State {
   public Extract(SourceState state, TableType type, String namespace, String table) {
     // values should only be null for deserialization.
     if (state != null && type != null && namespace != null && table != null){
-      String extractId = DTF.format(new Date());
+      String extractId = String.valueOf(System.nanoTime());
       super.addAll(state);
       super.setProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY, type.toString());
       super.setProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, namespace);
