@@ -1,12 +1,9 @@
 package com.linkedin.uif.source.workunit;
 
+import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.Locale;
-
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
+import java.util.TimeZone;
 
 import com.google.common.base.Joiner;
 import com.linkedin.uif.configuration.ConfigurationKeys;
@@ -35,8 +32,12 @@ public class Extract extends State {
     APPEND_ONLY
   }
   
-  private static DateTimeFormatter DTF = DateTimeFormat.forPattern("yyyyMMddHHmmss").withLocale(Locale.US).withZone(DateTimeZone.UTC);
+  private static SimpleDateFormat DTF = new SimpleDateFormat("yyyyMMddHHmmss", Locale.US);
   private State previousTableState = new State();
+  
+  static {
+    DTF.setTimeZone(TimeZone.getTimeZone("UTC"));
+  }
 
   /**
    * Constructor
@@ -51,7 +52,7 @@ public class Extract extends State {
   public Extract(SourceState state, TableType type, String namespace, String table) {
     // values should only be null for deserialization.
     if (state != null && type != null && namespace != null && table != null){
-      String extractId = DTF.print(new DateTime());
+      String extractId = String.valueOf(System.nanoTime());
       super.addAll(state);
       super.setProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY, type.toString());
       super.setProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, namespace);
@@ -141,10 +142,6 @@ public class Extract extends State {
    */
   public String getExtractId() {
     return getProp(ConfigurationKeys.EXTRACT_EXTRACT_ID_KEY, "");
-  }
-
-  public void setExtractId(String extractId) {
-    setProp(ConfigurationKeys.EXTRACT_EXTRACT_ID_KEY, extractId);
   }
 
   /**

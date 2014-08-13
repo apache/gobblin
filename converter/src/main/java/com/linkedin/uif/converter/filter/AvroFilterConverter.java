@@ -6,9 +6,6 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericData.Record;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.AvroToAvroConverterBase;
@@ -17,8 +14,6 @@ import com.linkedin.uif.converter.SchemaConversionException;
 
 public class AvroFilterConverter extends AvroToAvroConverterBase
 {
-    private static final Logger log = LoggerFactory.getLogger(AvroFilterConverter.class);
-
     @Override
     public Schema convertSchema(Schema inputSchema, WorkUnitState workUnit) throws SchemaConversionException
     {
@@ -31,10 +26,9 @@ public class AvroFilterConverter extends AvroToAvroConverterBase
         String[] fieldPath = workUnit.getProp(ConfigurationKeys.CONVERTER_FILTER_FIELD).split("\\.");
         HashSet<String> filterIds = new HashSet<String>(workUnit.getPropAsList(ConfigurationKeys.CONVERTER_FILTER_IDS));
         if (filterIds.contains(extractField(inputRecord, fieldPath, 0))) {
-            log.info("Dropping record: " + inputRecord);
-            return null;
-        } else {
             return inputRecord;
+        } else {
+            return null;
         }
     }
     
@@ -45,9 +39,9 @@ public class AvroFilterConverter extends AvroToAvroConverterBase
      * @param field
      * @return
      */
-    public String extractField(Object data, String[] fieldPath, int field) {
+    public Object extractField(Object data, String[] fieldPath, int field) {
         if ((field + 1) == fieldPath.length) {
-            String result = String.valueOf(((Record) data).get(fieldPath[field]));
+            Object result = (Object) ((Record) data).get(fieldPath[field]);
             if (result == null) {
                 return null;
             } else
