@@ -24,12 +24,12 @@ public class ResponsysExtractor extends SftpExtractor<String, String>
 {
     private static final Logger log = LoggerFactory.getLogger(ResponsysExtractor.class);
     private static final String RESPONSYS_DECRYPT_KEY = "responsys.decrypt.key.location";
-    
+ 
     public ResponsysExtractor(WorkUnitState workUnitState)
     {
         super(workUnitState);
     }
-    
+
     @Override
     public Iterator<String> downloadFile(String file) throws IOException
     {
