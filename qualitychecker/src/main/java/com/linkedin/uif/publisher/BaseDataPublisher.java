@@ -11,7 +11,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +43,7 @@ public class BaseDataPublisher extends DataPublisher
     }
     
     @Override
-    public boolean publishData(Collection<? extends WorkUnitState> states) throws Exception {
+    public void publishData(Collection<? extends WorkUnitState> states) throws Exception {
         
         collectExtractMapping(states);
 
@@ -88,10 +87,9 @@ public class BaseDataPublisher extends DataPublisher
                     state.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
                 }
             } else {
-                return false;
+                throw new RuntimeException("Rename operation from " + tmpOutput + " to " + finalOutput + " failed!");
             }
         }
-        return true;
     }
     
     protected void collectExtractMapping(Collection<? extends WorkUnitState> states) {
@@ -111,7 +109,6 @@ public class BaseDataPublisher extends DataPublisher
     }
 
     @Override
-    public boolean publishMetadata(Collection<? extends WorkUnitState> states) throws Exception {
-        return true;
+    public void publishMetadata(Collection<? extends WorkUnitState> states) throws Exception {
     }
 }

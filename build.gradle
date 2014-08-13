@@ -4,4 +4,12 @@ subprojects {
 	repositories {
 		mavenCentral()
 	}
+	configurations {
+		compile
+	}
+	dependencies {
+		// compile spec.external.hadoop
+		compile spec.external.hadoopCommon
+		compile spec.external.hadoopClientCore
+	}
 }

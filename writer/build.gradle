@@ -7,7 +7,6 @@ dependencies {
   compile spec.external.guava
   compile spec.external.commonsConfiguration
   compile spec.external.commonsLang
-  compile spec.external.hadoop
   compile spec.external.gson
   compile spec.external.jacksonCore
   compile spec.external.jacksonMapper

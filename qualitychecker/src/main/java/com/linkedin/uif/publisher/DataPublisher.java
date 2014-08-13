@@ -25,16 +25,17 @@ public abstract class DataPublisher
      * Returns true if it successfully publishes the data,
      * false otherwise
      */
-    public abstract boolean publishData(Collection<? extends WorkUnitState> tasks) throws Exception;
+    public abstract void publishData(Collection<? extends WorkUnitState> tasks) throws Exception;
         
     /**
      * Returns true if it successfully publishes the metadata,
      * false otherwise. Examples are checkpoint files, offsets, etc.
      */
-    public abstract boolean publishMetadata(Collection<? extends WorkUnitState> tasks) throws Exception;
+    public abstract void publishMetadata(Collection<? extends WorkUnitState> tasks) throws Exception;
     
-    public boolean publish(Collection<? extends WorkUnitState> tasks) throws Exception {
-        return publishMetadata(tasks) && publishData(tasks);
+    public void publish(Collection<? extends WorkUnitState> tasks) throws Exception {
+        publishMetadata(tasks);
+        publishData(tasks);
     }
     
     public State getState()
