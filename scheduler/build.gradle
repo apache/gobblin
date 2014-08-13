@@ -11,6 +11,7 @@ dependencies {
   compile spec.external.avro
   compile spec.external.commonsConfiguration
   compile spec.external.quartz
+  compile spec.external.hadoop
   compile spec.external.guava
   compile spec.external.jacksonCore
   compile spec.external.jacksonMapper

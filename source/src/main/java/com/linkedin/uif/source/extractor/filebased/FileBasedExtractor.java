@@ -69,26 +69,23 @@ public class FileBasedExtractor<S, D> implements Extractor<S, D>
             if (!filesToPull.isEmpty()) {
                 currentFile = filesToPull.remove(0);
                 currentFileItr = downloadFile(currentFile);
-                log.info("Will start downloading file: " + currentFile);
             } else {
-                log.info("Finished reading records from all files");
+                log.info("Finished reading records");
                 return null;
             }
             readRecordStart = true;
         }
         
         while (!currentFileItr.hasNext() && !filesToPull.isEmpty()) {
-            log.info("Finished downloading file: " + currentFile);
             closeFile(currentFile);
             currentFile = filesToPull.remove(0);
             currentFileItr = downloadFile(currentFile);
-            log.info("Will start downloading file: " + currentFile);
         }
         
         if (currentFileItr.hasNext()) {
             return (D) currentFileItr.next();
         } else {
-            log.info("Finished reading records from all files");
+            log.info("Finished reading records");
             return null;
         }
     }

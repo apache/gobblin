@@ -2,11 +2,11 @@ apply plugin: 'li-java'
 
 dependencies {
     compile project(":common-api")
-    compile project(":qualitychecker")
     compile spec.external.commonsDbcp
     compile spec.external.avro
     compile spec.external.avroMapred
     compile spec.external.guava
+    compile spec.external.hadoop
     compile spec.external.gson
     compile spec.external.httpclient
     compile spec.external.httpcore
@@ -22,7 +22,6 @@ dependencies {
     compile spec.external.bouncyCastle
     compile spec.external.bouncyCastlePGP
     compile spec.external.mysqlDriver
-    compile spec.external.jodaTime
 
     testCompile spec.external.testng
 }

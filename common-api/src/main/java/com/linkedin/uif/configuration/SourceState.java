@@ -4,16 +4,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 
 import com.linkedin.uif.source.workunit.Extract;
 import com.linkedin.uif.source.workunit.Extract.TableType;
@@ -31,8 +22,6 @@ import com.linkedin.uif.source.workunit.WorkUnit;
 public class SourceState extends State
 {
   private List<WorkUnitState> previousTaskStates = new ArrayList<WorkUnitState>();
-  private Set<Extract> extractSet = Collections.synchronizedSet(new HashSet<Extract>());
-  private static DateTimeFormatter DTF = DateTimeFormat.forPattern("yyyyMMddHHmmss").withLocale(Locale.US).withZone(DateTimeZone.UTC);
 
   /**
    * default constructor
@@ -64,21 +53,14 @@ public class SourceState extends State
   /**
    * <p>
    * Builder for {@link Extract} that correctly populates the instance
-   * The create extract method should always return a unique extract
    * @param type {@link TableType} 
    * @param namespace namespace of the table this extract belongs to
    * @param table name of table this extract belongs to
    * @return
    */
-  public synchronized Extract createExtract(TableType type, String namespace, String table)
+  public Extract createExtract(TableType type, String namespace, String table)
   {
-    Extract extract = new Extract(this, type, namespace, table);
-    while (extractSet.contains(extract)) {
-        DateTime extractDateTime = DTF.parseDateTime(extract.getExtractId());
-        extract.setExtractId(DTF.print(extractDateTime.plusSeconds(1)));
-    }
-    extractSet.add(extract);
-    return extract;
+    return new Extract(this, type, namespace, table);
   }
 
   /**
