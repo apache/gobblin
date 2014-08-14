@@ -31,12 +31,10 @@ public class TestDataPublisher extends DataPublisher {
     }
 
     @Override
-    public boolean publishData(Collection<? extends WorkUnitState> tasks) throws Exception {
-        return true;
+    public void publishData(Collection<? extends WorkUnitState> tasks) throws Exception {
     }
 
     @Override
-    public boolean publishMetadata(Collection<? extends WorkUnitState> tasks) throws Exception {
-        return true;
+    public void publishMetadata(Collection<? extends WorkUnitState> tasks) throws Exception {
     }
 }

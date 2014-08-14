@@ -75,7 +75,10 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
 
         try {
             if (this.dataConverter != null) {
-                this.writer.append(this.dataConverter.convert(sourceRecord));
+                GenericRecord record = this.dataConverter.convert(sourceRecord);
+                if (record != null) {
+                    this.writer.append(record);
+                }
             } else {
                 this.writer.append((GenericRecord) sourceRecord);
             }
