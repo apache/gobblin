@@ -5,6 +5,7 @@ import java.net.URI;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.avro.Schema;
+import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
@@ -40,10 +41,15 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
 
     // Number of records successfully written
     private final AtomicLong count = new AtomicLong(0);
+    
+    private enum CodecType {
+      DEFLATE,
+      SNAPPY
+    };
 
     public AvroHdfsDataWriter(URI uri, String stagingDir, String outputDir,
             String fileName, int bufferSize, DataConverter<S,
-            GenericRecord> dataConverter, Schema schema) throws IOException {
+            GenericRecord> dataConverter, Schema schema, String codecType, int deflateLevel) throws IOException {
 
         Configuration conf = new Configuration();
         this.fs = FileSystem.get(uri, conf);
@@ -66,7 +72,7 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
         }
 
         this.dataConverter = dataConverter;
-        this.writer = createDatumWriter(schema, this.stagingFile, bufferSize);
+        this.writer = createDatumWriter(schema, this.stagingFile, bufferSize, CodecType.valueOf(codecType), deflateLevel);
     }
 
     @Override
@@ -143,14 +149,29 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
      * @throws IOException
      */
     private DataFileWriter<GenericRecord> createDatumWriter(Schema schema,
-            Path avroFile, int bufferSize) throws IOException {
+            Path avroFile, int bufferSize, CodecType codecType, int deflateLevel) throws IOException {
 
         if (this.fs.exists(avroFile)) {
             throw new IOException(String.format("File %s already exists", avroFile));
         }
-
+        
         FSDataOutputStream outputStream = this.fs.create(avroFile, true, bufferSize);
-        return new DataFileWriter<GenericRecord>(new GenericDatumWriter<GenericRecord>())
-                .create(schema, outputStream);
+        DataFileWriter<GenericRecord> writer = new DataFileWriter<GenericRecord>(new GenericDatumWriter<GenericRecord>());
+        
+        // Set compression type
+        switch(codecType) {
+          case DEFLATE:
+              writer.setCodec(CodecFactory.deflateCodec(deflateLevel));
+              break;
+          case SNAPPY:
+              writer.setCodec(CodecFactory.snappyCodec());
+              break;
+          default:
+              writer.setCodec(CodecFactory.deflateCodec(deflateLevel));
+              break;
+        }
+        
+        // Open the file and return the DataFileWriter
+        return writer.create(schema, outputStream);
     }
 }
