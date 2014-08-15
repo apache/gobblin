@@ -31,7 +31,7 @@ import com.linkedin.uif.source.workunit.WorkUnit;
 public class SourceState extends State
 {
   private List<WorkUnitState> previousTaskStates = new ArrayList<WorkUnitState>();
-  private Set<Extract> extractSet = Collections.synchronizedSet(new HashSet<Extract>());
+  private static Set<Extract> extractSet = Collections.synchronizedSet(new HashSet<Extract>());
   private static DateTimeFormatter DTF = DateTimeFormat.forPattern("yyyyMMddHHmmss").withLocale(Locale.US).withZone(DateTimeZone.UTC);
 
   /**
