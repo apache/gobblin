@@ -1,9 +1,9 @@
 package com.linkedin.uif.source.extractor.extract;
 
 import java.io.IOException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
@@ -12,7 +12,6 @@ import org.slf4j.MDC;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
@@ -245,7 +244,9 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 			if(StringUtils.isNotBlank(watermarkColumn)) {
 				this.highWatermark = this.getLatestWatermark(watermarkColumn, watermarkType, lwm, hwm);
 				this.log.info("High water mark from source: " + this.highWatermark);
-				long currentRunHighWatermark = (this.highWatermark != ConfigurationKeys.DEFAULT_WATERMARK_VALUE ? this.highWatermark : hwm);
+				// If high water mark is found, then consider the same as runtime high water mark. 
+				// Else, consider the low water mark as high water mark(with no delta).i.e, don't move the pointer 
+				long currentRunHighWatermark = (this.highWatermark != ConfigurationKeys.DEFAULT_WATERMARK_VALUE ? this.highWatermark : this.getLowWatermarkWithNoDelta(lwm));
 				
 				this.log.info("High water mark for the current run: " + currentRunHighWatermark);
 				this.setRangePredicates(watermarkColumn, watermarkType, lwm, currentRunHighWatermark);
@@ -275,6 +276,25 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 			throw new ExtractPrepareException("Failed to prepare the extract build; error - " + e.getMessage(), e);
 		}
 		return this;
+	}
+
+	private long getLowWatermarkWithNoDelta(long lwm) {
+		if(lwm == ConfigurationKeys.DEFAULT_WATERMARK_VALUE) {
+			return ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
+		}
+		
+		String watermarkType = this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, "TIMESTAMP");
+		WatermarkType wmType = WatermarkType.valueOf(watermarkType.toUpperCase());
+		int deltaNum = new WatermarkPredicate(wmType).getDeltaNumForNextWatermark();
+		
+		switch(wmType) {
+		case SIMPLE:
+			return lwm - deltaNum ;
+		default:
+			Date lowWaterMarkDate = Utils.toDate(lwm, "yyyyMMddHHmmss");
+			return Long.parseLong(Utils.dateToString(Utils.addSecondsToDate(
+                    lowWaterMarkDate, deltaNum*-1), "yyyyMMddHHmmss"));
+		}
 	}
 
 	/**

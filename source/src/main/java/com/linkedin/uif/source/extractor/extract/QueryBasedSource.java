@@ -11,7 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
-import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -104,6 +103,8 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
 		
 		boolean hasFailedRun = false;
 		boolean isCommitOnFullSuccess = false;
+		boolean isDataProcessedInPreviousRun = false;
+		
         JobCommitPolicy commitPolicy = JobCommitPolicy.forName(state.getProp(
                 ConfigurationKeys.JOB_COMMIT_POLICY_KEY,
                 ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
@@ -112,29 +113,50 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
         }
 
 		for(WorkUnitState workUnitState : previousWorkUnitStates) {
+			long processedRecordCount = 0;
 			LOG.info("State of the previous task: " + workUnitState.getId() + ":" +
                     workUnitState.getWorkingState());
 			if(workUnitState.getWorkingState() == WorkingState.FAILED ||
                     workUnitState.getWorkingState() == WorkingState.ABORTED) {
 				hasFailedRun = true;
+			} else {
+				processedRecordCount = workUnitState.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED);
+				if(processedRecordCount > 0) {
+					isDataProcessedInPreviousRun = true;
+				}
 			}
 			
+			LOG.info("Low watermark of the previous task: " + workUnitState.getId() + ":" +
+                    workUnitState.getWorkunit().getLowWaterMark());
 			LOG.info("High watermark of the previous task: " + workUnitState.getId() + ":" +
-                    workUnitState.getHighWaterMark() + "\n");
-			previousWorkUnitStateHighWatermarks.add(workUnitState.getHighWaterMark());
+                    workUnitState.getHighWaterMark());
+			LOG.info("Record count of the previous task: " + processedRecordCount + "\n");
+			
+			// Consider high water mark of the previous work unit, if it is extracted any data
+			if(processedRecordCount > 0) {
+				previousWorkUnitStateHighWatermarks.add(workUnitState.getHighWaterMark());
+			}
+			
 			previousWorkUnitLowWatermarks.add(this.getLowWatermarkFromWorkUnit(workUnitState));
-		}
-		
-		// If there are no previous water marks, return default water mark 
-		if(previousWorkUnitStateHighWatermarks.isEmpty()) {
-			latestWaterMark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
-			LOG.info("No previous high watermark found; Latest watermark - Default watermark: " + latestWaterMark);
 		}
 		
 		// If commit policy is full and it has failed run, get latest water mark as
 		// minimum of low water marks from previous states.
-		else if(isCommitOnFullSuccess && hasFailedRun) {
-			latestWaterMark = Collections.min(previousWorkUnitLowWatermarks);
+		if(isCommitOnFullSuccess && hasFailedRun) {
+			long previousLowWatermark = Collections.min(previousWorkUnitLowWatermarks);
+			
+			WorkUnitState previousState = previousWorkUnitStates.get(0);
+			ExtractType extractType = ExtractType.valueOf(previousState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE).toUpperCase());
+			
+			// add backup seconds only for snapshot extracts but not for appends
+			if(extractType == ExtractType.SNAPSHOT) {
+				int backupSecs =previousState.getPropAsInt(ConfigurationKeys.SOURCE_QUERYBASED_LOW_WATERMARK_BACKUP_SECS,0);
+				String watermarkType = previousState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE);
+				latestWaterMark = this.addBackedUpSeconds(previousLowWatermark, backupSecs, watermarkType);
+			} else {
+				latestWaterMark = previousLowWatermark;
+			}
+			
 			LOG.info("Previous job was COMMIT_ON_FULL_SUCCESS but it was failed; Latest watermark - " +
                     "Min watermark from WorkUnits: " + latestWaterMark);
 		} 
@@ -142,14 +164,35 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
 		// If commit policy is full and there are no failed tasks or commit policy is partial,
 		// get latest water mark as maximum of high water marks from previous tasks.
 		else {
-			latestWaterMark = Collections.max(previousWorkUnitStateHighWatermarks);
-			LOG.info("Latest watermark - Max watermark from WorkUnitStates: " + latestWaterMark);
+			if(isDataProcessedInPreviousRun) {
+				latestWaterMark = Collections.max(previousWorkUnitStateHighWatermarks);
+				LOG.info("Previous run was successful. Latest watermark - Max watermark from WorkUnitStates: " + latestWaterMark);
+			} else {
+				latestWaterMark = Collections.min(previousWorkUnitLowWatermarks);
+				LOG.info("Previous run was successful but no data found. Latest watermark - Min watermark from WorkUnitStates: " + latestWaterMark);
+			}
 		}
 		
 		return latestWaterMark;
 	}
 
-    /**
+    private long addBackedUpSeconds(long lowWatermark, int backupSecs, String watermarkType) {
+		if(lowWatermark == ConfigurationKeys.DEFAULT_WATERMARK_VALUE) {
+			return lowWatermark;
+		}
+		WatermarkType wmType = WatermarkType.valueOf(watermarkType.toUpperCase());
+		
+		switch(wmType) {
+		case SIMPLE:
+			return lowWatermark + backupSecs ;
+		default:
+			Date lowWaterMarkDate = Utils.toDate(lowWatermark, "yyyyMMddHHmmss");
+			return Long.parseLong(Utils.dateToString(Utils.addSecondsToDate(
+                    lowWaterMarkDate, backupSecs), "yyyyMMddHHmmss"));
+		}
+	}
+
+	/**
      * Get low water mark from the given work unit state.
      *
      * @param workUnitState Work unit state
@@ -157,7 +200,7 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
      */
 	private long getLowWatermarkFromWorkUnit(WorkUnitState workUnitState) {
 		String watermarkType = workUnitState.getProp(
-                ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE);
+                ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, ConfigurationKeys.DEFAULT_WATERMARK_TYPE);
 		long lowWaterMark = workUnitState.getWorkunit().getLowWaterMark();
 		
 		if(lowWaterMark == ConfigurationKeys.DEFAULT_WATERMARK_VALUE) {
@@ -165,17 +208,15 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
 		}
 		
 		WatermarkType wmType = WatermarkType.valueOf(watermarkType.toUpperCase());
-		int deltaNum = new WatermarkPredicate(null, wmType).getDeltaNumForNextWatermark();
-		int backupSecs =workUnitState.getPropAsInt(
-                ConfigurationKeys.SOURCE_QUERYBASED_LOW_WATERMARK_BACKUP_SECS);
-		
+		int deltaNum = new WatermarkPredicate(wmType).getDeltaNumForNextWatermark();
+
 		switch(wmType) {
 		case SIMPLE:
-			return lowWaterMark + backupSecs - deltaNum ;
+			return lowWaterMark - deltaNum ;
 		default:
 			Date lowWaterMarkDate = Utils.toDate(lowWaterMark, "yyyyMMddHHmmss");
 			return Long.parseLong(Utils.dateToString(Utils.addSecondsToDate(
-                    lowWaterMarkDate, backupSecs - deltaNum), "yyyyMMddHHmmss"));
+                    lowWaterMarkDate, deltaNum*-1), "yyyyMMddHHmmss"));
 		}
 	}
 
