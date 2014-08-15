@@ -54,6 +54,9 @@ public class AvroDataWriterBuilder<SI, DI> extends
                         ConfigurationKeys.DEFAULT_STAGING_DIR) + Path.SEPARATOR + this.filePath;
                 String outputDir = destProps.getProperty(ConfigurationKeys.WRITER_OUTPUT_DIR,
                         ConfigurationKeys.DEFAULT_OUTPUT_DIR) + Path.SEPARATOR + this.filePath;
+                String codecType = destProps.getProperty(ConfigurationKeys.WRITER_CODEC_TYPE,
+                                                         ConfigurationKeys.DEFAULT_CODEC_TYPE);
+                
                 // Add the writer ID to the file name so each writer writes to a different
                 // file of the same file group defined by the given file name
                 String fileName = String.format(
@@ -65,9 +68,13 @@ public class AvroDataWriterBuilder<SI, DI> extends
                 int bufferSize = Integer.parseInt(destProps.getProperty(
                         ConfigurationKeys.WRITER_BUFFER_SIZE,
                         ConfigurationKeys.DEFAULT_BUFFER_SIZE));
+                
+                int deflateLevel = Integer.parseInt(destProps.getProperty(
+                        ConfigurationKeys.WRITER_DEFLATE_LEVEL,
+                        ConfigurationKeys.DEFAULT_DEFLATE_LEVEL));
 
                 return new AvroHdfsDataWriter<DI>(URI.create(uri), stagingDir,
-                        outputDir, fileName, bufferSize, this.dataConverter, schema);
+                        outputDir, fileName, bufferSize, this.dataConverter, schema, codecType, deflateLevel);
             case KAFKA:
                 return new KafkaDataWriter<DI>();
             default:
