@@ -125,18 +125,22 @@ public class Task implements Runnable {
 
             long recordsPulled = 0;
             long pullLimit = this.taskState.getPropAsLong(ConfigurationKeys.EXTRACT_PULL_LIMIT, 0);
-            Object record;
+            Object record = null;
             // Read one source record at a time
-            while ((record = this.extractor.readRecord()) != null) {
+            while ((record = this.extractor.readRecord(record)) != null) {
                 // Apply the converters first if applicable
+                Object convertedRecord = null;
+                
                 if (doConversion) {
-                    record = converter.convertRecord(sourceSchema, record, this.taskState);
+                  convertedRecord = converter.convertRecord(sourceSchema, record, this.taskState);
+                } else {
+                  convertedRecord = record;
                 }
 
                 // Do quality checks
-                if (record != null && rowChecker.executePolicies(record, rowResults)) {
+                if (record != null && rowChecker.executePolicies(convertedRecord, rowResults)) {
                     // Finally write the record
-                    this.writer.write(record);
+                    this.writer.write(convertedRecord);
                 }
 
                 recordsPulled++;

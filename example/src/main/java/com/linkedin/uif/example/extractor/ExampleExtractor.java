@@ -71,7 +71,7 @@ public class ExampleExtractor implements Extractor<String, String> {
     }
 
     @Override
-    public String readRecord() {
+    public String readRecord(String reuse) {
         if (this.dataFileReader == null) {
             return null;
         }
