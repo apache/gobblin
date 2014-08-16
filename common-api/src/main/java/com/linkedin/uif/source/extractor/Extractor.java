@@ -26,7 +26,7 @@ public interface Extractor<S, D> {
 	 * @throws DataRecordException,IOException if it can't read data record
 	 * @return record of type D
 	 */
-	public D readRecord() throws DataRecordException, IOException;
+	public D readRecord(D reuse) throws DataRecordException, IOException;
 
 	/**
 	 * close extractor read stream

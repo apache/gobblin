@@ -131,7 +131,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 	 * @return record of type D
 	 */
 	@Override
-	public D readRecord() throws DataRecordException, IOException {
+	public D readRecord(D reuse) throws DataRecordException, IOException {
 		if (!this.isPullRequired()) {
 			this.log.info("No more records to read");
 			return null;

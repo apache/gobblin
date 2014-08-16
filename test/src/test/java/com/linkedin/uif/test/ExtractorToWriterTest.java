@@ -93,8 +93,8 @@ public class ExtractorToWriterTest
                 .withSourceSchema(schema)
                 .build();
         
-        String record;
-        while ((record = this.extractor.readRecord()) != null) {
+        String record = null;
+        while ((record = this.extractor.readRecord(record)) != null) {
             this.writer.write(record);
         }
         
