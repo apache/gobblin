@@ -17,7 +17,7 @@ import com.linkedin.uif.converter.SchemaConversionException;
  *
  * @author ynli
  */
-public class MultiConverter<SI, DI> implements Converter<SI, Object, DI, Object> {
+public class MultiConverter<SI, DI> extends Converter<SI, Object, DI, Object> {
 
     // The list of converters to be applied
     private final List<Converter<SI, ?, DI, ?>> converters;
