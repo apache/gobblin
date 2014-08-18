@@ -197,7 +197,7 @@ public class TaskContext {
                 throw new RuntimeException(e);
             }
         }
-
+        this.converterForWriter.init(workUnitState);
         return this.converterForWriter;
     }
 

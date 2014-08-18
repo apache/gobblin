@@ -19,6 +19,7 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.DataRecordException;
 import com.linkedin.uif.source.extractor.Extractor;
+import com.linkedin.uif.source.extractor.hadoop.HadoopFsHelper;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
 /**
@@ -27,7 +28,7 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  *
  * @param <S> type of schema
  * @param <D> type of data record
- * @param <K> key type of the command output 
+ * @param <K> key type of the command output
  * @param <V> value type of the command output
  */
 public class FileBasedExtractor<S, D> implements Extractor<S, D>
@@ -37,13 +38,14 @@ public class FileBasedExtractor<S, D> implements Extractor<S, D>
     private String currentFile;
     private boolean readRecordStart;
     private boolean supportsReuse = true;
-    
+    private boolean seenFirstRecord = false;
+
     protected WorkUnit workUnit;
     protected WorkUnitState workUnitState;
     protected FileBasedHelper fsHelper;
     protected List<String> filesToPull;
     protected Map<String, Closeable> fileHandles;
-    
+
     public FileBasedExtractor(WorkUnitState workUnitState, FileBasedHelper fsHelper) {
         this.workUnitState = workUnitState;
         this.workUnit = workUnitState.getWorkunit();
@@ -56,7 +58,7 @@ public class FileBasedExtractor<S, D> implements Extractor<S, D>
             Throwables.propagate(e);
         }
     }
-    
+
     /**
      * Initializes a list of files to pull on the first call to the method
      * Iterates through the file and returns a new record upon each call
@@ -65,12 +67,13 @@ public class FileBasedExtractor<S, D> implements Extractor<S, D>
      */
     @Override
     public D readRecord(D reuse) throws DataRecordException, IOException
-    {   
+    {
         if (!readRecordStart) {
             log.info("Starting to read records");
             if (!filesToPull.isEmpty()) {
                 currentFile = filesToPull.remove(0);
                 currentFileItr = downloadFile(currentFile);
+                seenFirstRecord = false;
                 log.info("Will start downloading file: " + currentFile);
             } else {
                 log.info("Finished reading records from all files");
@@ -78,32 +81,35 @@ public class FileBasedExtractor<S, D> implements Extractor<S, D>
             }
             readRecordStart = true;
         }
-        
+
         while (!currentFileItr.hasNext() && !filesToPull.isEmpty()) {
             log.info("Finished downloading file: " + currentFile);
             closeFile(currentFile);
             currentFile = filesToPull.remove(0);
             currentFileItr = downloadFile(currentFile);
+            seenFirstRecord = false;
             log.info("Will start downloading file: " + currentFile);
         }
-        
-        
+
+
         if (currentFileItr.hasNext()) {
-            if (supportsReuse){
+            if (supportsReuse && seenFirstRecord){
               try {
                 return (D) currentFileItr.getClass().getMethod("next", reuse.getClass()).invoke(currentFileItr, reuse);
               } catch (Exception e) {
+                e.printStackTrace();
                 log.info("Object reuse unsupported, continuing without reuse");
                 supportsReuse = false;
-              } 
+              }
             }
+            seenFirstRecord = true;
             return (D) currentFileItr.next();
         } else {
             log.info("Finished reading records from all files");
             return null;
         }
     }
-    
+
     /**
      * Get a list of commands to execute on the source file system,
      * executes the commands, and parses the output for the schema
@@ -115,7 +121,7 @@ public class FileBasedExtractor<S, D> implements Extractor<S, D>
     {
         return (S) this.workUnit.getProp(ConfigurationKeys.SOURCE_SCHEMA);
     }
-    
+
     /**
      * Gets a list of commands that will get the
      * expected record count from the source, executes the commands,
@@ -127,7 +133,7 @@ public class FileBasedExtractor<S, D> implements Extractor<S, D>
     {
         return -1;
     }
-    
+
     /**
      * Gets a list of commands that will get the
      * high watermark from the source, executes the commands,
@@ -164,7 +170,7 @@ public class FileBasedExtractor<S, D> implements Extractor<S, D>
             throw new IOException("Exception while downloading file " + file + " with message " + e.getMessage(), e);
         }
     }
-    
+
     /**
      * Closes a file from the source
      * @param f is the file to download
@@ -185,5 +191,5 @@ public class FileBasedExtractor<S, D> implements Extractor<S, D>
         } catch (FileBasedHelperException e) {
             log.error("Could not successfully close file system helper due to error: " + e.getMessage(), e);
         }
-    }    
+    }
 }
