@@ -25,19 +25,19 @@ import com.linkedin.uif.source.extractor.filebased.FileBasedHelper;
 import com.linkedin.uif.source.extractor.filebased.FileBasedHelperException;
 
 public class HadoopFsHelper implements FileBasedHelper
-{   
+{
     private static Logger log = LoggerFactory.getLogger(HadoopFsHelper.class);
     private State state;
     private FileSystem fs;
-    
+
     public HadoopFsHelper(State state) {
         this.state = state;
     }
-    
+
     public FileSystem getFileSystem() {
         return this.fs;
     }
-    
+
     @Override
     public void connect() throws FileBasedHelperException
     {
@@ -81,7 +81,7 @@ public class HadoopFsHelper implements FileBasedHelper
         }
         return results;
     }
-    
+
     public void lsr(Path p, List<String> results) throws IOException {
         if (!this.fs.getFileStatus(p).isDir()) {
             results.add(p.toString());
@@ -104,7 +104,7 @@ public class HadoopFsHelper implements FileBasedHelper
             throw new FileBasedHelperException("Cannot do open file " + path + " due to "  + e.getMessage(), e);
         }
     }
-    
+
     public Schema getAvroSchema(String file) throws FileBasedHelperException {
         DataFileReader<GenericRecord> dfr = null;
         try {
@@ -122,10 +122,10 @@ public class HadoopFsHelper implements FileBasedHelper
             }
         }
     }
-    
-    public <D> DataFileReader<D> getAvroFile(String file) throws FileBasedHelperException {
+
+    public DataFileReader<GenericRecord> getAvroFile(String file) throws FileBasedHelperException {
         try {
-            return new DataFileReader<D>(new FsInput(new Path(file), fs.getConf()), new GenericDatumReader<D>());
+            return new DataFileReader<GenericRecord>(new FsInput(new Path(file), fs.getConf()), new GenericDatumReader<GenericRecord>());
         } catch (IOException e) {
             throw new FileBasedHelperException("Failed to open avro file " + file + " due to error " + e.getMessage(), e);
         }
