@@ -3,6 +3,7 @@ package com.linkedin.uif.source.extractor.filebased;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -35,6 +36,7 @@ public class FileBasedExtractor<S, D> implements Extractor<S, D>
     private Iterator<D> currentFileItr;
     private String currentFile;
     private boolean readRecordStart;
+    private boolean supportsReuse = true;
     
     protected WorkUnit workUnit;
     protected WorkUnitState workUnitState;
@@ -62,7 +64,7 @@ public class FileBasedExtractor<S, D> implements Extractor<S, D>
      * to the next file
      */
     @Override
-    public D readRecord() throws DataRecordException, IOException
+    public D readRecord(D reuse) throws DataRecordException, IOException
     {   
         if (!readRecordStart) {
             log.info("Starting to read records");
@@ -85,7 +87,16 @@ public class FileBasedExtractor<S, D> implements Extractor<S, D>
             log.info("Will start downloading file: " + currentFile);
         }
         
+        
         if (currentFileItr.hasNext()) {
+            if (supportsReuse){
+              try {
+                return (D) currentFileItr.getClass().getMethod("next", reuse.getClass()).invoke(currentFileItr, reuse);
+              } catch (Exception e) {
+                log.info("Object reuse unsupported, continuing without reuse");
+                supportsReuse = false;
+              } 
+            }
             return (D) currentFileItr.next();
         } else {
             log.info("Finished reading records from all files");

@@ -229,6 +229,7 @@ public class TaskContext {
             try {
                 Converter converter =
                         (Converter) Class.forName(converterClass).newInstance();
+                converter.init(this.workUnitState);
                 converters.add(converter);
             } catch (Exception e) {
                 throw new RuntimeException(e);

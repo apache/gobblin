@@ -94,7 +94,7 @@ public class MultiConverterTest {
      * A {@link Converter} that simplifies the input data records.
      */
     private static class SchemaSimplificationConverter
-            implements Converter<String, String, String, String> {
+             extends Converter<String, String, String, String> {
 
         private static final Gson GSON = new Gson();
 
@@ -117,7 +117,7 @@ public class MultiConverterTest {
     /**
      * A {@link Converter} that returns the input schema and data records as they are.
      */
-    private static class IdentityConverter implements Converter<String, String, String, String> {
+    private static class IdentityConverter extends Converter<String, String, String, String> {
 
         @Override
         public String convertSchema(String inputSchema, WorkUnitState workUnit)

@@ -5,7 +5,7 @@ import org.apache.avro.generic.GenericRecord;
 
 import com.linkedin.uif.configuration.WorkUnitState;
 
-public abstract class ToAvroConverterBase<SI, DI> implements Converter<SI, Schema, DI, GenericRecord>
+public abstract class ToAvroConverterBase<SI, DI> extends Converter<SI, Schema, DI, GenericRecord>
 {
 
   @Override

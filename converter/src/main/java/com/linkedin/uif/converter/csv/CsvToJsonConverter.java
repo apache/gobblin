@@ -16,7 +16,7 @@ import com.linkedin.uif.converter.Converter;
 import com.linkedin.uif.converter.DataConversionException;
 import com.linkedin.uif.converter.SchemaConversionException;
 
-public class CsvToJsonConverter implements Converter<String, JsonArray, String, JsonObject>
+public class CsvToJsonConverter extends Converter<String, JsonArray, String, JsonObject>
 {
     /**
      * Take in an input schema of type string, the schema must be in JSON format
