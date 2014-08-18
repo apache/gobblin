@@ -19,7 +19,6 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.DataRecordException;
 import com.linkedin.uif.source.extractor.Extractor;
-import com.linkedin.uif.source.extractor.hadoop.HadoopFsHelper;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
 /**
