@@ -50,6 +50,7 @@ public class ConfigurationKeys {
     public static final String JOB_DISABLED_KEY = "job.disabled";
     public static final String JOB_JAR_FILES_KEY = "job.jars";
     public static final String JOB_FILES_KEY = "job.files";
+    public static final String JOB_HDFS_FILES_KEY = "job.hdfs.files";
 
     /**
      * Work unit related configuration properties
@@ -118,9 +119,9 @@ public class ConfigurationKeys {
             WRITER_PREFIX + ".file.name";
     public static final String WRITER_BUFFER_SIZE =
             WRITER_PREFIX + ".buffer.size";
-    public static final String WRITER_PRESERVE_FILE_NAME = 
+    public static final String WRITER_PRESERVE_FILE_NAME =
             WRITER_PREFIX + ".preserve.file.name";
-    public static final String WRITER_DEFLATE_LEVEL = 
+    public static final String WRITER_DEFLATE_LEVEL =
             WRITER_PREFIX + ".deflate.level";
     public static final String WRITER_CODEC_TYPE =
             WRITER_PREFIX + ".codec.type";
@@ -129,7 +130,7 @@ public class ConfigurationKeys {
     public static final String DEFAULT_STAGING_DIR = "";
     public static final String DEFAULT_OUTPUT_DIR = "";
     public static final String DEFAULT_BUFFER_SIZE = "4096";
-    
+
     /**
      * Configuration properties used internally
      */
@@ -182,26 +183,26 @@ public class ConfigurationKeys {
     public static final String ROW_LEVEL_POLICY_LIST = QUALITY_CHECKER_PREFIX + ".row.policies";
     public static final String ROW_LEVEL_POLICY_LIST_TYPE = QUALITY_CHECKER_PREFIX + ".row.policy.types";
     public static final String ROW_LEVEL_ERR_FILE = QUALITY_CHECKER_PREFIX + ".row.err.file";
-    
+
     /**
      * Configuration properties used by the row count policies
      */
     public static final String EXTRACTOR_ROWS_EXPECTED = QUALITY_CHECKER_PREFIX + ".rows.expected";
     public static final String WRITER_ROWS_WRITTEN = QUALITY_CHECKER_PREFIX + ".rows.written";
     public static final String ROW_COUNT_RANGE = QUALITY_CHECKER_PREFIX + ".row.count.range";
-    
+
     /**
      * Configuration properties for the task status
      */
     public static final String TASK_STATUS_REPORT_INTERVAL_IN_MS_KEY =
             "task.status.reportintervalinms";
     public static final long DEFAULT_TASK_STATUS_REPORT_INTERVAL_IN_MS = 30000;
-    
+
     /**
      * Configuration properties for the metadata client
      */
     public static final String METADATA_CLIENT = "metadataclient";
-    
+
     /**
      * Configuration properties for the data publisher
      */
@@ -211,8 +212,8 @@ public class ConfigurationKeys {
     public static final String DATA_PUBLISHER_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".final.dir";
     public static final String DATA_PUBLISHER_REPLACE_FINAL_DIR =  DATA_PUBLISHER_PREFIX + ".replace.final.dir";
     public static final String DATA_PUBLISHER_FINAL_NAME = DATA_PUBLISHER_PREFIX + ".final.name";
-    
-    /** 
+
+    /**
      * Configuration properties used by the extractor
      */
     public static final String SOURCE_ENTITY = "source.entity";
@@ -220,7 +221,7 @@ public class ConfigurationKeys {
     public static final String SOURCE_SCHEMA = "source.schema";
     public static final String SOURCE_MAX_NUMBER_OF_PARTITIONS = "source.max.number.of.partitions";
     public static final String SOURCE_SKIP_FIRST_RECORD = "source.skip.first.record";
-    
+
     /**
      * Configuration properties used by the QueryBasedExtractor
      */
@@ -271,7 +272,7 @@ public class ConfigurationKeys {
     public static final String SOURCE_CONN_DRIVER = "source.conn.driver";
     public static final String SOURCE_CONN_PORT = "source.conn.port";
     public static final int SOURCE_CONN_DEFAULT_PORT = 22;
-    
+
     /**
      * Source default configurations
      */

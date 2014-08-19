@@ -124,6 +124,12 @@ public class MRJobLauncher extends AbstractJobLauncher {
                     jobProps.getProperty(ConfigurationKeys.JOB_FILES_KEY));
         }
 
+        // Add HDFS files (if any) the job depends on to DistributedCache
+        if (jobProps.containsKey(ConfigurationKeys.JOB_HDFS_FILES_KEY)) {
+            addHdfsFiles(new Path(mrJobDir, "_hdfsfiles"),
+                    jobProps.getProperty(ConfigurationKeys.JOB_HDFS_FILES_KEY));
+        }
+
         // Preparing a Hadoop MR job
         Job job = Job.getInstance(this.conf, JOB_NAME_PREFIX + jobName);
         job.setJarByClass(MRJobLauncher.class);
@@ -252,23 +258,23 @@ public class MRJobLauncher extends AbstractJobLauncher {
      */
     private void addJars(Path jarFileDir, String jarFileList) throws IOException {
     	LocalFileSystem lf = FileSystem.getLocal(conf);
-    	
+
         for (String jarFile : SPLITTER.split(jarFileList)) {
             Path srcJarFile = new Path(jarFile);
-            
+
             FileStatus[] fslist = lf.globStatus(srcJarFile);
             for (FileStatus fstatus: fslist ){
-            
+
 	            // DistributedCache requires absolute path, so we need to use makeQualified.
 	            Path destJarFile = new Path(this.fs.makeQualified(jarFileDir), fstatus.getPath().getName());
-	            
-	            // Copy the jar file from local file system to HDFS 
+
+	            // Copy the jar file from local file system to HDFS
 	            this.fs.copyFromLocalFile(fstatus.getPath(), destJarFile);
-	            
+
 	            // Then add the jar file on HDFS to the classpath
 	            LOG.info(String.format("Adding %s to classpath", destJarFile));
 	            DistributedCache.addFileToClassPath(destJarFile, this.conf, this.fs);
-            
+
             }
         }
     }
@@ -286,6 +292,21 @@ public class MRJobLauncher extends AbstractJobLauncher {
             this.fs.copyFromLocalFile(srcJobFile, destJobFile);
             // Create a URI that is in the form path#symlink
             URI destFileUri = URI.create(destJobFile.toUri().getPath() + "#" + destJobFile.getName());
+            LOG.info(String.format("Adding %s to DistributedCache", destFileUri));
+            // Finally add the file to DistributedCache with a symlink named after the file name
+            DistributedCache.addCacheFile(destFileUri, this.conf);
+        }
+    }
+
+    /**
+     * Add HDFS files the job depends on to DistributedCache.
+     */
+    private void addHdfsFiles(Path jobFileDir, String jobFileList) throws IOException {
+        DistributedCache.createSymlink(this.conf);
+        for (String jobFile : SPLITTER.split(jobFileList)) {
+            Path srcJobFile = new Path(jobFile);
+            // Create a URI that is in the form path#symlink
+            URI destFileUri = URI.create(srcJobFile.toUri().getPath() + "#" + srcJobFile.getName());
             LOG.info(String.format("Adding %s to DistributedCache", destFileUri));
             // Finally add the file to DistributedCache with a symlink named after the file name
             DistributedCache.addCacheFile(destFileUri, this.conf);
