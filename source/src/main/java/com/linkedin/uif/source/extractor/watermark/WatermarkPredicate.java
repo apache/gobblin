@@ -18,6 +18,10 @@ public class WatermarkPredicate
 	private WatermarkType watermarkType;
 	private Watermark watermark;
 
+	public WatermarkPredicate(WatermarkType watermarkType) {
+		this(null, watermarkType);
+	}
+	
 	public WatermarkPredicate(String watermarkColumn, WatermarkType watermarkType) {
 		super();
 		this.watermarkColumn = watermarkColumn;

@@ -1,7 +1,7 @@
 {
   "name": "gobblin",
   "group": "com.linkedin.@spec.name@",
-  "version": "0.0.43",
+  "version": "0.0.45",
   "scmUrl": "git@gitli.corp.linkedin.com:ds-platform/gobblin.git",
   "owners": [
     "kgoodhop",
@@ -77,7 +77,8 @@
     }
   },
   "trunkDev": {
-    "autoRevert": true
+    "autoRevert": true,
+    "containerInfrastructure": true
   },
   "extSCM": {}
 }

@@ -13,7 +13,6 @@ import com.google.common.base.Strings;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
-import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.source.extractor.extract.ExtractType;
 import com.linkedin.uif.source.extractor.utils.Utils;
 import com.linkedin.uif.source.extractor.watermark.WatermarkPredicate;
@@ -227,14 +226,28 @@ public class Partitioner {
 			return highWatermark;
 		}
 		int limitDelta = this.getAppendLimitDelta(this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_APPEND_MAX_WATERMARK_LIMIT));
-		
-		switch(limitType) {
-		case CURRENTDATE:
-			highWatermark = Long.parseLong(Utils.dateToString(Utils.toDate(Utils.addHoursToDate(this.getCurrentTime(), limitDelta*24*-1), "yyyyMMdd"), WATERMARKTIMEFORMAT));
-			break;
-		case CURRENTHOUR:
-			highWatermark = Long.parseLong(Utils.dateToString(Utils.toDate(Utils.addHoursToDate(this.getCurrentTime(), limitDelta*-1), "yyyyMMddHH"), WATERMARKTIMEFORMAT));
-			break;
+		// if it is CURRENTDATE or CURRENTHOUR then high water mark is current time
+		if(limitDelta == 0) {
+			highWatermark = Long.parseLong(Utils.dateToString(this.getCurrentTime(), WATERMARKTIMEFORMAT));
+		}
+		// if CURRENTDATE or CURRENTHOUR has offset then high water mark is end of day of the given offset
+		else {
+			int seconds = 3599; // x:59:59
+			Date previousTime = null;
+			
+			switch(limitType) {
+			case CURRENTDATE:
+				previousTime = Utils.toDate(Utils.addHoursToDate(this.getCurrentTime(), limitDelta*24*-1), "yyyyMMdd");
+				seconds = 86399; // 23:59:59
+				break;
+			case CURRENTHOUR:
+				previousTime = Utils.toDate(Utils.addHoursToDate(this.getCurrentTime(), limitDelta*-1), "yyyyMMddHH");
+				seconds = 3599; // x:59:59
+				break;
+			}
+			
+			Date previousEndOfDate = Utils.addSecondsToDate(previousTime, seconds);
+			highWatermark = Long.parseLong(Utils.dateToString(previousEndOfDate, WATERMARKTIMEFORMAT));
 		}
 		return highWatermark;
 	}
