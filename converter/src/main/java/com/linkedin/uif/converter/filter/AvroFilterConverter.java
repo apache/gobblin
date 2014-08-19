@@ -1,14 +1,20 @@
 package com.linkedin.uif.converter.filter;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericData.Record;
-
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Throwables;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.AvroToAvroConverterBase;
@@ -25,7 +31,28 @@ public class AvroFilterConverter extends AvroToAvroConverterBase
     @Override
     public Converter<Schema, Schema, GenericRecord, GenericRecord> init(WorkUnitState workUnit) {
       fieldPath = workUnit.getProp(ConfigurationKeys.CONVERTER_FILTER_FIELD).split("\\.");
-      filterIds = new HashSet<String>(workUnit.getPropAsList(ConfigurationKeys.CONVERTER_FILTER_IDS));
+      Path filterIdsLoc = new Path(workUnit.getProp(ConfigurationKeys.CONVERTER_FILTER_IDS_FILE));
+      BufferedReader memberIdsReader = null;
+      try {
+          memberIdsReader = new BufferedReader(new FileReader(filterIdsLoc.getName()));
+          String memberId;
+          List<String> memberIds = new ArrayList<String>();
+
+          while ((memberId = memberIdsReader.readLine()) != null) {
+              memberIds.add(memberId);
+          }
+          filterIds = new HashSet<String>(memberIds);
+      } catch (IOException e) {
+          Throwables.propagate(e);
+      } finally {
+          if (memberIdsReader != null) {
+              try {
+                memberIdsReader.close();
+              } catch (IOException e) {
+                // Do nothing
+              }
+          }
+      }
       return super.init(workUnit);
     }
 

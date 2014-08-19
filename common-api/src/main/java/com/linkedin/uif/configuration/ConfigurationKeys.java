@@ -96,7 +96,7 @@ public class ConfigurationKeys {
     public static final String CONVERTER_AVRO_BINARY_CHARSET = "converter.avro.binary.charset";
     public static final String CONVERTER_CSV_TO_JSON_DELIMITER = "converter.csv.to.json.delimiter";
     public static final String CONVERTER_FILTER_FIELD = "converter.filter.field";
-    public static final String CONVERTER_FILTER_IDS = "converter.filter.ids";
+    public static final String CONVERTER_FILTER_IDS_FILE = "converter.filter.ids.file";
 
     /**
      * Writer configuration properties
