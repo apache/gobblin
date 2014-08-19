@@ -29,6 +29,10 @@ public class AvroFilterConverter extends AvroToAvroConverterBase
 
     @Override
     public Converter<Schema, Schema, GenericRecord, GenericRecord> init(WorkUnitState workUnit) {
+      if (!workUnit.contains(ConfigurationKeys.CONVERTER_FILTER_FIELD) || !workUnit.contains(ConfigurationKeys.CONVERTER_FILTER_IDS_FILE)) {
+          throw new RuntimeException("AvroFilterCoverter is not initialized properly please set: "
+              + ConfigurationKeys.CONVERTER_FILTER_FIELD + " and " + ConfigurationKeys.CONVERTER_FILTER_IDS_FILE);
+      }
       fieldPath = workUnit.getProp(ConfigurationKeys.CONVERTER_FILTER_FIELD).split("\\.");
       filterIds = new HashSet<String>();
       Path filterIdsLoc = new Path(workUnit.getProp(ConfigurationKeys.CONVERTER_FILTER_IDS_FILE));
@@ -45,9 +49,9 @@ public class AvroFilterConverter extends AvroToAvroConverterBase
       } finally {
           if (memberIdsReader != null) {
               try {
-                memberIdsReader.close();
+                  memberIdsReader.close();
               } catch (IOException e) {
-                // Do nothing
+                  // Do nothing
               }
           }
       }
