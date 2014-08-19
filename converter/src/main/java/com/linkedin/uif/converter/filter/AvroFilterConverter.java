@@ -21,14 +21,14 @@ public class AvroFilterConverter extends AvroToAvroConverterBase
     private static final Logger log = LoggerFactory.getLogger(AvroFilterConverter.class);
     private String[] fieldPath;
     private HashSet<String> filterIds;
-    
+
     @Override
     public Converter<Schema, Schema, GenericRecord, GenericRecord> init(WorkUnitState workUnit) {
       fieldPath = workUnit.getProp(ConfigurationKeys.CONVERTER_FILTER_FIELD).split("\\.");
       filterIds = new HashSet<String>(workUnit.getPropAsList(ConfigurationKeys.CONVERTER_FILTER_IDS));
       return super.init(workUnit);
     }
-    
+
     @Override
     public Schema convertSchema(Schema inputSchema, WorkUnitState workUnit) throws SchemaConversionException
     {
@@ -45,7 +45,7 @@ public class AvroFilterConverter extends AvroToAvroConverterBase
             return inputRecord;
         }
     }
-    
+
     /**
      * This method will only work with nested fields, it won't work for arrays or maps
      * @param data
