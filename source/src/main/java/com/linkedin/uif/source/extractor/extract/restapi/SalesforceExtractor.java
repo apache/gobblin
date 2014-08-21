@@ -49,12 +49,12 @@ import com.linkedin.uif.source.extractor.extract.restapi.RestApiCommand.RestApiC
 import com.linkedin.uif.source.extractor.resultset.RecordSet;
 import com.linkedin.uif.source.extractor.resultset.RecordSetList;
 import com.linkedin.uif.source.extractor.schema.Schema;
+import com.linkedin.uif.source.extractor.utils.InputStreamCSVReader;
 import com.linkedin.uif.source.extractor.utils.Utils;
 import com.linkedin.uif.source.workunit.WorkUnit;
 import com.sforce.async.BatchInfo;
 import com.sforce.async.BatchStateEnum;
 import com.sforce.async.BulkConnection;
-import com.sforce.async.CSVReader;
 import com.sforce.async.ConcurrencyMode;
 import com.sforce.async.ContentType;
 import com.sforce.async.JobInfo;
@@ -787,11 +787,7 @@ public class SalesforceExtractor extends RestApiExtractor {
 			}
 			
 			// Stream the resultset through CSV reader to identify columns in each record
-			CSVReader reader = new CSVReader(this.bulkBufferedReader);
-			
-			// Override default max characters in file and max rows in file
-			reader.setMaxCharsInFile(ConfigurationKeys.DEFAULT_SALESFORCE_MAX_CHARS_IN_FILE);
-			reader.setMaxRowsInFile(ConfigurationKeys.DEFAULT_SALESFORCE_MAX_ROWS_IN_FILE);
+			InputStreamCSVReader reader = new InputStreamCSVReader(this.bulkBufferedReader);
 			
 			// Get header if it is first run of a new resultset
 			if(this.isNewBulkResultSet()) {
