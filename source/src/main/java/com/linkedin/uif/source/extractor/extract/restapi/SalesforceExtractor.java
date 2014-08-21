@@ -605,8 +605,14 @@ public class SalesforceExtractor extends RestApiExtractor {
 			this.bulkApiInitialRun = false;
 
 			// If bulk job is finished, get soft deleted records using Rest API
+			boolean isSoftDeletesPullDisabled = Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SALESFORCE_IS_SOFT_DELETES_PULL_DISABLED));
 			if(rs == null || rs.isEmpty()) {
-				return this.getSoftDeletedRecords(schema, entity, workUnit, predicateList);
+				// Get soft delete records only if IsDeleted column exists and soft deletes pull is not disabled
+				if(this.columnList.contains("IsDeleted") && !isSoftDeletesPullDisabled) {
+					return this.getSoftDeletedRecords(schema, entity, workUnit, predicateList);
+				} else {
+					this.log.info("Ignoring soft delete records");
+				}
 			}
 			
 			return rs.iterator();
