@@ -221,6 +221,7 @@ public class ConfigurationKeys {
     public static final String SOURCE_SCHEMA = "source.schema";
     public static final String SOURCE_MAX_NUMBER_OF_PARTITIONS = "source.max.number.of.partitions";
     public static final String SOURCE_SKIP_FIRST_RECORD = "source.skip.first.record";
+    public static final String SOURCE_COLUMN_NAME_CASE = "source.column.name.case";
 
     /**
      * Configuration properties used by the QueryBasedExtractor
@@ -289,6 +290,7 @@ public class ConfigurationKeys {
     public static final String ESCAPE_CHARS_IN_TABLE_NAME = "$,&";
     public static final String DEFAULT_SOURCE_QUERYBASED_WATERMARK_PREDICATE_SYMBOL = "'$WATERMARK'";
     public static final String DEFAULT_SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED = "true";
+    public static final String DEFAULT_COLUMN_NAME_CASE = "NOCHANGE";
 
     /**
      * Configuration properties used by the local job launcher.
