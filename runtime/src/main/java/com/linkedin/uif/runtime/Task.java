@@ -155,7 +155,6 @@ public class Task implements Runnable {
             this.writer.close();
             writerClosed = true;
 
-
             // Runs Task Level Policies and checks their output
             if (canPublishData(recordsPulled, pullLimit, schemaForWriter)) {
                 // Commit the data from the writer's staging file to the writer's output file
