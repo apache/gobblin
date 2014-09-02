@@ -24,39 +24,18 @@ import com.linkedin.uif.source.extractor.watermark.WatermarkType;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
 /**
- * MySql extractor using JDBC protocol
+ * SqlServer extractor using JDBC protocol
  * 
  * @author nveeramr
  */
-public class MysqlExtractor extends JdbcExtractor {
-	private static final String MYSQL_TIMESTAMP_FORMAT = "yyyy-MM-dd HH:mm:ss";
-	private static final String MYSQL_DATE_FORMAT = "yyyy-MM-dd";
-	private static final String MYSQL_HOUR_FORMAT = "HH";
+public class SqlServerExtractor extends JdbcExtractor {
+	private static final String TIMESTAMP_FORMAT = "yyyy-MM-dd HH:mm:ss";
+	private static final String DATE_FORMAT = "yyyy-MM-dd";
+	private static final String HOUR_FORMAT = "HH";
 	private static final long SAMPLERECORDCOUNT = -1;
 
-	public MysqlExtractor(WorkUnitState workUnitState) {
+	public SqlServerExtractor(WorkUnitState workUnitState) {
 		super(workUnitState);
-	}
-
-	@Override
-	public String getHourPredicateCondition(String column, long value, String valueFormat, String operator) {
-		this.log.debug("Getting hour predicate for Mysql");
-		String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, MYSQL_HOUR_FORMAT);
-		return this.getWatermarkColumnName(column) + " " + operator + " '" + formattedvalue + "'";
-	}
-
-	@Override
-	public String getDatePredicateCondition(String column, long value, String valueFormat, String operator) {
-		this.log.debug("Getting date predicate for Mysql");
-		String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, MYSQL_DATE_FORMAT);
-		return this.getWatermarkColumnName(column) + " " + operator + " '" + formattedvalue + "'";
-	}
-
-	@Override
-	public String getTimestampPredicateCondition(String column, long value, String valueFormat, String operator) {
-		this.log.debug("Getting timestamp predicate for Mysql");
-		String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, MYSQL_TIMESTAMP_FORMAT);
-		return this.getWatermarkColumnName(column) + " " + operator + " '" + formattedvalue + "'";
 	}
 
 	@Override
@@ -69,9 +48,9 @@ public class MysqlExtractor extends JdbcExtractor {
 				+ " case when CHARACTER_OCTET_LENGTH is null then 0 else 0 end as length, "
 				+ " case when NUMERIC_PRECISION is null then 0 else NUMERIC_PRECISION end as precesion, "
 				+ " case when NUMERIC_SCALE is null then 0 else NUMERIC_SCALE end as scale, "
-				+ " case when is_nullable='NO' then 'false' else 'true' end as nullable, " + " '' as format, "
-				+ " case when col.column_comment is null then '' else col.column_comment end as comment " + " from information_schema.COLUMNS col "
-				+ " WHERE upper(col.table_name)=upper(?) AND upper(col.table_schema)=upper(?) " + " order by col.ORDINAL_POSITION ";
+				+ " case when is_nullable='NO' then 'false' else 'true' end as nullable, " + " '' as format, " + " '' as comment "
+				+ " from information_schema.COLUMNS col " + " WHERE upper(col.table_name)=upper(?) AND upper(col.table_schema)=upper(?) "
+				+ " order by col.ORDINAL_POSITION ";
 
 		commands.add(getCommand(metadataSql, JdbcCommandType.QUERY));
 		commands.add(getCommand(queryParams, JdbcCommandType.QUERYPARAMS));
@@ -113,10 +92,10 @@ public class MysqlExtractor extends JdbcExtractor {
 		query = query.replace(this.getOutputColumnProjection(), columnProjection).replace(
 				ConfigurationKeys.DEFAULT_SOURCE_QUERYBASED_WATERMARK_PREDICATE_SYMBOL, watermarkFilter);
 		String sampleFilter = this.constructSampleClause();
-		query = query + sampleFilter;
 
 		if (!StringUtils.isEmpty(sampleFilter)) {
-			query = "SELECT COUNT(1) FROM (" + query.replace(" COUNT(1) ", " 1 ") + ")temp";
+			String col = sampleFilter + " 1 as col ";
+			query = "SELECT COUNT(1) FROM (" + query.replace(" COUNT(1) ", col) + ")temp";
 		}
 		commands.add(getCommand(query, JdbcCommandType.QUERY));
 		return commands;
@@ -126,7 +105,9 @@ public class MysqlExtractor extends JdbcExtractor {
 	public List<Command> getDataMetadata(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) throws DataRecordException {
 		this.log.debug("Build query to extract data");
 		List<Command> commands = new ArrayList<Command>();
-		int fetchsize = Integer.MIN_VALUE;
+		int fetchSize = this.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_QUERYBASED_JDBC_RESULTSET_FETCH_SIZE,
+				ConfigurationKeys.DEFAULT_SOURCE_QUERYBASED_JDBC_RESULTSET_FETCH_SIZE);
+		this.log.info("Setting jdbc resultset fetch size as " + fetchSize);
 
 		String watermarkFilter = this.concatPredicates(predicateList);
 		String query = this.getExtractSql();
@@ -136,55 +117,136 @@ public class MysqlExtractor extends JdbcExtractor {
 
 		query = query.replace(ConfigurationKeys.DEFAULT_SOURCE_QUERYBASED_WATERMARK_PREDICATE_SYMBOL, watermarkFilter);
 		String sampleFilter = this.constructSampleClause();
-		query = query + sampleFilter;
+
+		if (!StringUtils.isEmpty(sampleFilter)) {
+			String columnProjection = this.getOutputColumnProjection();
+			String newColumnProjection = sampleFilter + " " + columnProjection;
+			query = query.replace(columnProjection, newColumnProjection);
+		}
 
 		commands.add(getCommand(query, JdbcCommandType.QUERY));
-		commands.add(getCommand(fetchsize, JdbcCommandType.FETCHSIZE));
+		commands.add(getCommand(fetchSize, JdbcCommandType.FETCHSIZE));
 		return commands;
+	}
+
+	@Override
+	public Map<String, String> getDataTypeMap() {
+		Map<String, String> dataTypeMap = ImmutableMap.<String, String> builder()
+				.put("smallint", "int")
+				.put("tinyint", "int")
+				.put("int", "int")
+				.put("bigint", "long")
+				.put("decimal", "double")
+				.put("numeric", "double")
+				.put("float", "float")
+				.put("real", "double")
+				.put("money", "double")
+				.put("smallmoney", "double")
+				.put("binary", "string")
+				.put("varbinary", "string")
+				.put("char", "string")
+				.put("varchar", "string")
+				.put("nchar", "string")
+				.put("nvarchar", "string")
+				.put("text", "string")
+				.put("ntext", "string")
+				.put("image", "string")
+				.put("hierarchyid", "string")
+				.put("uniqueidentifier", "string")
+				.put("date", "date")
+				.put("datetime", "timestamp")
+				.put("datetime2", "timestamp")
+				.put("datetimeoffset", "timestamp")
+				.put("smalldatetime", "timestamp")
+				.put("time", "time")
+				.put("bit", "boolean").build();
+		return dataTypeMap;
+	}
+
+	@Override
+	public Iterator<JsonElement> getRecordSetFromSourceApi(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList)
+			throws IOException {
+		return null;
 	}
 
 	@Override
 	public String getConnectionUrl() {
 		String host = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
 		String port = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PORT);
-		String database = this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
-		String url = "jdbc:mysql://" + host.trim() + ":" + port + "/" + database.trim();
-
-		if (Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_COMPRESSION_ENABLED))) {
-			return url + "?useCompression=true";
-		}
+		String url = "jdbc:sqlserver://" + host.trim() + ":" + port;
 		return url;
 	}
 
 	@Override
-	public Map<String, String> getDataTypeMap() {
-		Map<String, String> dataTypeMap = ImmutableMap.<String, String> builder()
-				.put("tinyint", "int")
-				.put("smallint", "int")
-				.put("mediumint", "int")
-				.put("int", "int")
-				.put("bigint", "long")
-				.put("float", "float")
-				.put("double", "double")
-				.put("decimal", "double")
-				.put("numeric", "double")
-				.put("date", "date")
-				.put("timestamp", "timestamp")
-				.put("datetime", "timestamp")
-				.put("time", "time")
-				.put("char", "string")
-				.put("varchar", "string")
-				.put("varbinary", "string")
-				.put("text", "string")
-				.put("tinytext", "string")
-				.put("mediumtext", "string")
-				.put("longtext", "string")
-				.put("blob", "string")
-				.put("tinyblob", "string")
-				.put("mediumblob", "string")
-				.put("longblob", "string")
-				.put("enum", "string").build();
-		return dataTypeMap;
+	public long exractSampleRecordCountFromQuery(String query) {
+		if (StringUtils.isBlank(query)) {
+			return SAMPLERECORDCOUNT;
+		}
+
+		long recordcount = SAMPLERECORDCOUNT;
+		String inputQuery = query.toLowerCase();
+
+		int limitStartIndex = inputQuery.indexOf(" top ");
+		int limitEndIndex = this.getLimitEndIndex(inputQuery, limitStartIndex);
+		if (limitStartIndex > 0) {
+			String limitValue = query.substring(limitStartIndex + 5, limitEndIndex);
+			try {
+				recordcount = Long.parseLong(limitValue);
+			} catch (Exception e) {
+				log.error("Ignoring incorrct limit value in input query:" + limitValue);
+			}
+		}
+		return recordcount;
+	}
+
+	@Override
+	public String removeSampleClauseFromQuery(String query) {
+		if (StringUtils.isBlank(query)) {
+			return null;
+		}
+
+		String outputQuery = query;
+		String inputQuery = query.toLowerCase();
+		int limitStartIndex = inputQuery.indexOf(" top ");
+		int limitEndIndex = this.getLimitEndIndex(inputQuery, limitStartIndex);
+		if (limitStartIndex > 0) {
+			outputQuery = query.substring(0, limitStartIndex) + " " + query.substring(limitEndIndex);
+		}
+		return outputQuery;
+	}
+
+	private int getLimitEndIndex(String inputQuery, int limitStartIndex) {
+		int limitEndIndex = -1;
+		if (limitStartIndex > 0) {
+			limitEndIndex = limitStartIndex + 5;
+			String remainingQuery = inputQuery.substring(limitEndIndex);
+			boolean numFound = false;
+
+			int pos = 0;
+			while (pos < remainingQuery.length()) {
+				char ch = remainingQuery.charAt(pos);
+				if (ch == ' ' && !numFound) {
+					pos++;
+					continue;
+				} else if (numFound && (!Character.isDigit(ch))) {
+					break;
+				} else {
+					numFound = true;
+				}
+				pos++;
+			}
+			limitEndIndex = limitEndIndex + pos;
+		}
+		return limitEndIndex;
+	}
+
+	@Override
+	public String constructSampleClause() {
+		long sampleRowCount = this.getSampleRecordCount();
+		if (sampleRowCount >= 0) {
+			return " top " + sampleRowCount;
+		}
+		return "";
 	}
 
 	@Override
@@ -204,57 +266,23 @@ public class MysqlExtractor extends JdbcExtractor {
 	}
 
 	@Override
-	public long exractSampleRecordCountFromQuery(String query) {
-		if (StringUtils.isBlank(query)) {
-			return SAMPLERECORDCOUNT;
-		}
-
-		long recordcount = SAMPLERECORDCOUNT;
-
-		String limit = null;
-		String inputQuery = query.toLowerCase();
-		int limitIndex = inputQuery.indexOf(" limit ");
-		if (limitIndex > 0) {
-			limit = query.substring(limitIndex + 7).trim();
-		}
-
-		if (StringUtils.isNotBlank(limit)) {
-			try {
-				recordcount = Long.parseLong(limit);
-			} catch (Exception e) {
-				log.error("Ignoring incorrct limit value in input query:" + limit);
-			}
-		}
-		return recordcount;
+	public String getHourPredicateCondition(String column, long value, String valueFormat, String operator) {
+		this.log.debug("Getting hour predicate for Sqlserver");
+		String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, HOUR_FORMAT);
+		return this.getWatermarkColumnName(column) + " " + operator + " '" + formattedvalue + "'";
 	}
 
 	@Override
-	public String removeSampleClauseFromQuery(String query) {
-		if (StringUtils.isBlank(query)) {
-			return null;
-		}
-		String limitString = "";
-		String inputQuery = query.toLowerCase();
-		int limitIndex = inputQuery.indexOf(" limit");
-		if (limitIndex > 0) {
-			limitString = query.substring(limitIndex);
-		}
-		return query.replace(limitString, "");
+	public String getDatePredicateCondition(String column, long value, String valueFormat, String operator) {
+		this.log.debug("Getting date predicate for Sqlserver");
+		String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, DATE_FORMAT);
+		return this.getWatermarkColumnName(column) + " " + operator + " '" + formattedvalue + "'";
 	}
 
 	@Override
-	public String constructSampleClause() {
-		long sampleRowCount = this.getSampleRecordCount();
-		if (sampleRowCount >= 0) {
-			return " limit " + sampleRowCount;
-		}
-		return "";
+	public String getTimestampPredicateCondition(String column, long value, String valueFormat, String operator) {
+		this.log.debug("Getting timestamp predicate for Sqlserver");
+		String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, TIMESTAMP_FORMAT);
+		return this.getWatermarkColumnName(column) + " " + operator + " '" + formattedvalue + "'";
 	}
-
-	@Override
-	public Iterator<JsonElement> getRecordSetFromSourceApi(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList)
-			throws IOException {
-		return null;
-	}
-
 }
