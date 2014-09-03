@@ -61,7 +61,6 @@ public class Task implements Runnable {
     private Extractor extractor;
     private DataWriter writer;
     private TaskPublisher publisher;
-    private boolean shouldCommit = false;
 
     // Number of retries
     private int retryCount = 0;
@@ -112,11 +111,11 @@ public class Task implements Runnable {
                 // Convert the source schema to a schema ready for the writer
                 schemaForWriter = converter.convertSchema(sourceSchema, this.taskState);
             }
-                        
+
             // Construct the row level policy checker
             rowChecker = buildRowLevelPolicyChecker(this.taskState);
             RowLevelPolicyCheckResults rowResults = new RowLevelPolicyCheckResults();
-            
+
             // Build the writer for writing the output of the extractor
             this.writer = buildWriter(this.taskContext, schemaForWriter);
 
@@ -130,7 +129,7 @@ public class Task implements Runnable {
             while ((record = this.extractor.readRecord(record)) != null) {
                 // Apply the converters first if applicable
                 Object convertedRecord = null;
-                
+
                 if (doConversion) {
                   convertedRecord = converter.convertRecord(sourceSchema, record, this.taskState);
                 } else {
@@ -152,12 +151,15 @@ public class Task implements Runnable {
 
             LOG.info("Row quality checker finished with results: " + rowResults.getResults());
 
-            // Attempt to publish and commit the task data
-            publishData(recordsPulled, pullLimit, schemaForWriter);
             // We need to close the writer before task data can be committed
             this.writer.close();
             writerClosed = true;
-            commitData();
+
+            // Runs Task Level Policies and checks their output
+            if (canPublishData(recordsPulled, pullLimit, schemaForWriter)) {
+                // Commit the data from the writer's staging file to the writer's output file
+                commitData();
+            }
         } catch (Throwable t) {
             LOG.error(String.format("Task %s failed", this.taskId), t);
             this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
@@ -207,7 +209,7 @@ public class Task implements Runnable {
             this.taskStateTracker.onTaskCompletion(this);
         }
     }
-    
+
     /** Get the ID of the job this {@link Task} belongs to.
      *
      * @return ID of the job this {@link Task} belongs to.
@@ -334,7 +336,7 @@ public class Task implements Runnable {
                 .newPolicyCheckerBuilder(taskState);
         return builder.build();
     }
-    
+
     /**
      * Build a {@link RowLevelPolicyChecker} to execute all defined
      * {@link com.linkedin.uif.qualitychecker.row.RowLevelPolicy}.
@@ -363,7 +365,7 @@ public class Task implements Runnable {
     /**
      * Publish task data.
      */
-    private void publishData(long recordsPulled, long pullLimit, Object schemaForWriter)
+    private boolean canPublishData(long recordsPulled, long pullLimit, Object schemaForWriter)
             throws Exception {
 
         // Do overall quality checking and publish task data
@@ -386,24 +388,22 @@ public class Task implements Runnable {
         this.publisher = buildTaskPublisher(this.taskState, taskResults);
         switch (this.publisher.canPublish()) {
             case SUCCESS:
-                this.shouldCommit = true;
-                this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
-                break;
+                return true;
             case CLEANUP_FAIL:
                 LOG.error("Cleanup failed for task " + this.taskId);
                 this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-                break;
+                return false;
             case POLICY_TESTS_FAIL:
                 LOG.error("Not all quality checking passed for task " + this.taskId);
                 this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-                break;
+                return false;
             case COMPONENTS_NOT_FINISHED:
                 LOG.error("Not all components completed for task " + this.taskId);
                 this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-                break;
+                return false;
             default:
                 this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-                break;
+                return false;
         }
     }
 
@@ -411,20 +411,18 @@ public class Task implements Runnable {
      * Commit task data.
      */
     private void commitData() {
-        if (this.shouldCommit) {
-            LOG.info("Committing data of task " + this.taskId);
-            try {
-                this.writer.commit();
-                // Change the state to COMMITTED after successful commit
-                this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
-                if (JobMetrics.isEnabled(this.taskState.getWorkunit())) {
-                    // Update byte-level metrics after the writer commits
-                    updateByteMetrics();
-                }
-            } catch (IOException ioe) {
-                if (this.taskState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED) {
-                    LOG.error("Failed to commit data of task " + this.taskId, ioe);
-                }
+        LOG.info("Committing data of task " + this.taskId);
+        try {
+            this.writer.commit();
+            // Change the state to SUCCESSFUL after successful commit
+            this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
+            if (JobMetrics.isEnabled(this.taskState.getWorkunit())) {
+                // Update byte-level metrics after the writer commits
+                updateByteMetrics();
+            }
+        } catch (IOException ioe) {
+            if (this.taskState.getWorkingState() != WorkUnitState.WorkingState.SUCCESSFUL) {
+                LOG.error("Failed to commit data of task " + this.taskId, ioe);
             }
         }
     }

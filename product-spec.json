@@ -1,7 +1,7 @@
 {
   "name": "gobblin",
   "group": "com.linkedin.@spec.name@",
-  "version": "0.0.50",
+  "version": "0.0.51",
   "scmUrl": "git@gitli.corp.linkedin.com:ds-platform/gobblin.git",
   "owners": [
     "kgoodhop",
@@ -64,10 +64,8 @@
     "commonsIO": "commons-io:commons-io:2.4",
     "salesforceWsc": "com.force.api:force-wsc:29.0.0",
     "salesforcePartner": "com.force.api:force-partner-api:29.0.0",
-    "jsch": "com.jcraft:jsch:0.1.46",
-    "bouncyCastle": "org.bouncycastle:bcprov-jdk15on:1.48",
-    "bouncyCastlePGP": "org.bouncycastle:bcpg-jdk15on:1.48",
     "influxdb": "org.influxdb:influxdb-java:1.2",
+    "jsch": "com.jcraft:jsch:0.1.46",
     "mysqlDriver": "org.mysql:mysql-connector-java:5.1.14"
   },
   "product": {

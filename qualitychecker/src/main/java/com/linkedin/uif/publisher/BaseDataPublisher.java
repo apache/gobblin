@@ -23,9 +23,9 @@ public class BaseDataPublisher extends DataPublisher
 {
     protected FileSystem fs;
     protected final Map<Extract, List<WorkUnitState>> extractToStateMap;
-    
+
     private static final Logger LOG = LoggerFactory.getLogger(BaseDataPublisher.class);
-        
+
     public BaseDataPublisher(State state)
     {
         super(state);
@@ -36,15 +36,15 @@ public class BaseDataPublisher extends DataPublisher
     public void initialize() throws Exception {
         this.fs = FileSystem.get(new URI(getState().getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI)), new Configuration());
     }
-    
+
     @Override
     public void close() throws Exception {
 //        this.fs.close();
     }
-    
+
     @Override
     public void publishData(Collection<? extends WorkUnitState> states) throws Exception {
-        
+
         collectExtractMapping(states);
 
         for (Map.Entry<Extract, List<WorkUnitState>> entry : extractToStateMap.entrySet()) {
@@ -56,7 +56,7 @@ public class BaseDataPublisher extends DataPublisher
 
             Path finalOutput = new Path(workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
                                       extract.getOutputFilePath());
-            
+
             // Create the parent directory of the final output directory if it does not exist
             if (!this.fs.exists(finalOutput.getParent())) {
                 this.fs.mkdirs(finalOutput.getParent());
@@ -91,10 +91,10 @@ public class BaseDataPublisher extends DataPublisher
             }
         }
     }
-    
+
     protected void collectExtractMapping(Collection<? extends WorkUnitState> states) {
         for (WorkUnitState state : states) {
-            if (!state.getWorkingState().equals(WorkUnitState.WorkingState.COMMITTED)) {
+            if (!state.getWorkingState().equals(WorkUnitState.WorkingState.SUCCESSFUL)) {
                 continue;
             }
 
