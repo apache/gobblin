@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 import org.apache.commons.lang.StringUtils;
 import com.google.common.base.Joiner;
-import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -36,6 +35,7 @@ import com.linkedin.uif.source.extractor.extract.SourceSpecificLayer;
 import com.linkedin.uif.source.extractor.extract.jdbc.JdbcCommand.JdbcCommandType;
 import com.linkedin.uif.source.extractor.resultset.RecordSetList;
 import com.linkedin.uif.source.extractor.schema.ColumnAttributes;
+import com.linkedin.uif.source.extractor.schema.ColumnNameCase;
 import com.linkedin.uif.source.extractor.schema.Schema;
 import com.linkedin.uif.source.extractor.utils.Utils;
 import com.linkedin.uif.source.extractor.watermark.Predicate;
@@ -398,6 +398,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 		} else {
 			targetColumnName = (StringUtils.isNotBlank(targetColumnName) ? targetColumnName : sourceColumnName);
 		}
+		targetColumnName = this.toCase(targetColumnName);
 		return Utils.escapeSpecialCharacters(targetColumnName, ConfigurationKeys.ESCAPE_CHARS_IN_COLUMN_NAME, "_");
 	}
 
@@ -1001,5 +1002,27 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 	private RecordSetList<JsonElement> getNewRecordSetList() {
 		return new RecordSetList<JsonElement>();
 	}
-
+	
+	/**
+	 * Change the column name case to upper, lower or nochange; Default nochange
+	 * 
+	 * @return column name with the required case
+	 */
+	private String toCase(String targetColumnName) {
+		String columnName = targetColumnName;
+		ColumnNameCase caseType = ColumnNameCase.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_COLUMN_NAME_CASE,
+				ConfigurationKeys.DEFAULT_COLUMN_NAME_CASE).toUpperCase());
+		switch (caseType) {
+		case TOUPPER:
+			columnName = targetColumnName.toUpperCase();
+			break;
+		case TOLOWER:
+			columnName = targetColumnName.toLowerCase();
+			break;
+		default:
+			columnName = targetColumnName;
+			break;
+		}
+		return columnName;
+	}
 }
