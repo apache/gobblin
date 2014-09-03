@@ -19,8 +19,6 @@ dependencies {
     compile spec.external.jacksonCore
     compile spec.external.jacksonMapper
     compile spec.external.jsch
-    compile spec.external.bouncyCastle
-    compile spec.external.bouncyCastlePGP
     compile spec.external.mysqlDriver
     compile spec.external.jodaTime
 
