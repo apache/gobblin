@@ -331,7 +331,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
         // Determine the job state based on the task states and job commit policy
         for (TaskState taskState : jobState.getTaskStates()) {
-            if (taskState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED &&
+            if (taskState.getWorkingState() != WorkUnitState.WorkingState.SUCCESSFUL &&
                     commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
                 // The job is considered failed if any task was not successfully committed
                 jobState.setState(JobState.RunningState.FAILED);
