@@ -315,7 +315,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 	private String getExtractQuery(String schema, String entity, String inputQuery) {
 		String inputColProjection = this.getInputColumnProjection();
 		String outputColProjection = this.getOutputColumnProjection();
-		String query = this.removeSampleClauseFromQuery(inputQuery);
+		String query = inputQuery;
 		if (query == null) {
 			// if input query is null, build the query from metadata
 			query = "SELECT " + outputColProjection + " FROM " + schema + "." + entity;
