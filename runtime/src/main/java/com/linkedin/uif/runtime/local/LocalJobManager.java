@@ -189,8 +189,10 @@ public class LocalJobManager extends AbstractIdleService {
     protected void shutDown() throws Exception {
         LOG.info("Stopping the local job manager");
         this.scheduler.shutdown(true);
-        // Stop the file alteration monitor in one second
-        this.fileAlterationMonitor.stop(1000);
+        if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)) {
+            // Stop the file alteration monitor in one second
+            this.fileAlterationMonitor.stop(1000);
+        }
     }
 
     /**
@@ -296,6 +298,7 @@ public class LocalJobManager extends AbstractIdleService {
         JobState jobState = new JobState(jobName, jobId);
         // Add all job configuration properties of this job
         jobState.addAll(jobProps);
+        jobState.setState(JobState.RunningState.PENDING);
 
         LOG.info("Starting job " + jobId);
 
@@ -331,7 +334,7 @@ public class LocalJobManager extends AbstractIdleService {
 
             jobState.setTasks(workUnits.get().size());
             jobState.setStartTime(System.currentTimeMillis());
-            jobState.setState(JobState.RunningState.WORKING);
+            jobState.setState(JobState.RunningState.RUNNING);
 
             this.jobStateMap.put(jobId, jobState);
             this.jobSourceMap.put(jobId, source);
@@ -717,9 +720,9 @@ public class LocalJobManager extends AbstractIdleService {
                 break;
             }
 
-            // The job is considered aborted if any task is aborted
-            if (taskState.getWorkingState() == WorkUnitState.WorkingState.ABORTED) {
-                jobState.setState(JobState.RunningState.ABORTED);
+            // The job is considered cancelled if any task is cancelled
+            if (taskState.getWorkingState() == WorkUnitState.WorkingState.CANCELLED) {
+                jobState.setState(JobState.RunningState.CANCELLED);
                 break;
             }
         }
@@ -731,6 +734,14 @@ public class LocalJobManager extends AbstractIdleService {
      * Persist job/task states of a completed job.
      */
     private void persistJobState(JobState jobState) {
+        JobState.RunningState runningState = jobState.getState();
+        if (runningState == JobState.RunningState.PENDING ||
+            runningState == JobState.RunningState.RUNNING ||
+            runningState == JobState.RunningState.CANCELLED) {
+            // Do not persist job state if the job has not completed
+            return;
+        }
+
         String jobName = jobState.getJobName();
         String jobId = jobState.getJobId();
 

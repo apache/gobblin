@@ -83,6 +83,8 @@ public class BaseDataPublisher extends DataPublisher
             }
 
             if (this.fs.rename(tmpOutput, finalOutput)) {
+                // Upon successfully committing the data to the final
+                // output directory, set states of all tasks to COMMITTED.
                 for (WorkUnitState state : entry.getValue()) {
                     state.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
                 }

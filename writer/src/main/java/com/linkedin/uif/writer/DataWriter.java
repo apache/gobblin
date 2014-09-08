@@ -1,7 +1,7 @@
 package com.linkedin.uif.writer;
 
+import java.io.Closeable;
 import java.io.IOException;
-import java.io.Serializable;
 
 /**
  * An interface for UIF data writers.
@@ -11,7 +11,7 @@ import java.io.Serializable;
  *
  * @author ynli
  */
-public interface DataWriter<S, O> extends Serializable {
+public interface DataWriter<S, O> extends Closeable {
 
     /**
      * Write a source data record in Avro format using the given converter.
@@ -20,13 +20,6 @@ public interface DataWriter<S, O> extends Serializable {
      * @throws IOException if there is anything wrong writing the record
      */
     public void write(S sourceRecord) throws IOException;
-
-    /**
-     * Close this writer.
-     *
-     * @throws IOException if there is anything wrong closing the writer
-     */
-    public void close() throws IOException;
 
     /**
      * Commit the data written.

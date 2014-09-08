@@ -1,8 +1,9 @@
-package com.linkedin.uif.runtime.mapreduce;
+package com.linkedin.uif.runtime;
 
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 
+import com.linkedin.uif.runtime.FileBasedJobLock;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -14,12 +15,12 @@ import org.testng.annotations.Test;
 import com.linkedin.uif.runtime.JobLock;
 
 /**
- * Unit test for {@link MRJobLock}.
+ * Unit test for {@link com.linkedin.uif.runtime.FileBasedJobLock}.
  *
  * @author ynli
  */
-@Test(groups = {"com.linkedin.uif.runtime.mapreduce"})
-public class MRJobLockTest {
+@Test(groups = {"com.linkedin.uif.runtime"})
+public class FileBasedJobLockTest {
 
     private FileSystem fs;
     private Path path;
@@ -34,7 +35,7 @@ public class MRJobLockTest {
     }
 
     public void testLocalJobLock() throws Exception {
-        final JobLock lock = new MRJobLock(this.fs, this.path.getName(), "MRJobLockTest");
+        final JobLock lock = new FileBasedJobLock(this.fs, this.path.getName(), "MRJobLockTest");
         final CountDownLatch latch = new CountDownLatch(2);
 
         Thread thread1 = new Thread(new Runnable() {

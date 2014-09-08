@@ -31,7 +31,7 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
      *     This one is particularly useful for being a global policy for a group of
      *     jobs that have different job commit policies and want work unit retries only
      *     for a specific job commit policy. The first one probably is sufficient for
-     *     most jobs tnat only need a way to enable/disable work unit retries. The
+     *     most jobs that only need a way to enable/disable work unit retries. The
      *     second one gives users more flexibilities.
      * </p>
      *

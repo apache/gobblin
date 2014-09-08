@@ -26,14 +26,14 @@ public class ConfigurationKeys {
     // File system URI for file-system-based task store
     public static final String STATE_STORE_FS_URI_KEY = "state.store.fs.uri";
 
-    // Directory where metrics csv files are stored
-    public static final String METRICS_DIR_KEY = "metrics.dir";
+    // Directory where job lock files are stored
+    public static final String JOB_LOCK_DIR_KEY = "job.lock.dir";
 
     // Job launcher type
     public static final String JOB_LAUNCHER_TYPE_KEY = "launcher.type";
 
     /**
-     * Common job configuraion properties
+     * Common job configuration properties
      */
     public static final String JOB_NAME_KEY = "job.name";
     public static final String JOB_GROUP_KEY = "job.group";
@@ -49,7 +49,7 @@ public class ConfigurationKeys {
     public static final String JOB_RUN_ONCE_KEY = "job.runonce";
     public static final String JOB_DISABLED_KEY = "job.disabled";
     public static final String JOB_JAR_FILES_KEY = "job.jars";
-    public static final String JOB_FILES_KEY = "job.files";
+    public static final String JOB_LOCAL_FILES_KEY = "job.local.files";
     public static final String JOB_HDFS_FILES_KEY = "job.hdfs.files";
 
     /**
@@ -293,16 +293,9 @@ public class ConfigurationKeys {
     public static final String DEFAULT_COLUMN_NAME_CASE = "NOCHANGE";
 
     /**
-     * Configuration properties used by the local job launcher.
-     */
-    public static final String LOCAL_USE_MR_JOB_LOCK_KEY = "local.use.mr.job.lock";
-
-    /**
      * Configuration properties used by the Hadoop MR job launcher.
      */
     public static final String MR_JOB_ROOT_DIR_KEY = "mr.job.root.dir";
-    public static final String MR_JOB_LOCK_DIR_KEY = "mr.job.lock.dir";
-    public static final String MR_JOB_USE_REDUCER_KEY = "mr.job.use.reducer";
     public static final String MR_JOB_MAX_MAPPERS_KEY = "mr.job.max.mappers";
 
     /**

@@ -1,19 +1,14 @@
 package com.linkedin.uif.qualitychecker.row;
 
-import java.io.BufferedWriter;
-import java.io.File;
+import java.io.Closeable;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-public class RowLevelPolicyChecker
-{
+public class RowLevelPolicyChecker implements Closeable {
+
     private final List<RowLevelPolicy> list;
     private boolean errFileOpen;
     private RowLevelErrFileWriter writer;
@@ -46,7 +41,8 @@ public class RowLevelPolicyChecker
         }
         return true;
     }
-    
+
+    @Override
     public void close() throws IOException {
         if (errFileOpen) {
             this.writer.close();

@@ -1,6 +1,7 @@
 package com.linkedin.uif.runtime.local;
 
 import java.io.FileReader;
+import java.io.IOException;
 import java.util.Properties;
 
 import org.testng.annotations.BeforeClass;
@@ -14,7 +15,7 @@ import com.linkedin.uif.runtime.JobState;
 /**
  * Unit test for {@link LocalJobLauncher}.
  */
-//@Test(groups = {"com.linkedin.uif.runtime.local"})
+@Test(groups = {"ignore", "com.linkedin.uif.runtime.local"})
 public class LocalJobLauncherTest extends JobLauncherTestBase {
 
     @BeforeClass
@@ -28,32 +29,33 @@ public class LocalJobLauncherTest extends JobLauncherTestBase {
                 JobState.class);
     }
 
-    //@Test(groups = {"ignore"})
+    @Test
     public void testLaunchJob() throws Exception {
-        Properties jobProps = new Properties();
-        jobProps.load(new FileReader("test/resource/job-conf/UIFTest1.pull"));
-        jobProps.putAll(this.properties);
-        jobProps.setProperty(SOURCE_FILE_LIST_KEY,
-                "test/resource/source/test.avro.0," +
-                "test/resource/source/test.avro.1," +
-                "test/resource/source/test.avro.2," +
-                "test/resource/source/test.avro.3");
-
-        runTest(jobProps);
+        runTest(loadJobProps());
     }
 
-    //@Test(groups = {"ignore"})
+    @Test
     public void testLaunchJobWithPullLimit() throws Exception {
+        Properties jobProps = loadJobProps();
+        jobProps.setProperty(ConfigurationKeys.EXTRACT_PULL_LIMIT, "10");
+        runTestWithPullLimit(jobProps);
+    }
+
+    @Test
+    public void testCancelJob() throws Exception {
+        runTestWithCancellation(loadJobProps());
+    }
+
+    private Properties loadJobProps() throws IOException {
         Properties jobProps = new Properties();
         jobProps.load(new FileReader("test/resource/job-conf/UIFTest1.pull"));
         jobProps.putAll(this.properties);
-        jobProps.setProperty(ConfigurationKeys.EXTRACT_PULL_LIMIT, "10");
         jobProps.setProperty(SOURCE_FILE_LIST_KEY,
                 "test/resource/source/test.avro.0," +
-                "test/resource/source/test.avro.1," +
-                "test/resource/source/test.avro.2," +
-                "test/resource/source/test.avro.3");
+                        "test/resource/source/test.avro.1," +
+                        "test/resource/source/test.avro.2," +
+                        "test/resource/source/test.avro.3");
 
-        runTestWithPullLimit(jobProps);
+        return jobProps;
     }
 }

@@ -1,10 +1,11 @@
 package com.linkedin.uif.runtime.mapreduce;
 
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import com.linkedin.uif.metrics.JobMetrics;
 import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.slf4j.Logger;
@@ -13,8 +14,8 @@ import org.slf4j.LoggerFactory;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
+import com.linkedin.uif.metrics.JobMetrics;
 import com.linkedin.uif.runtime.Task;
-import com.linkedin.uif.runtime.TaskState;
 import com.linkedin.uif.runtime.TaskStateTracker;
 
 /**
@@ -27,14 +28,14 @@ public class MRTaskStateTracker extends AbstractIdleService implements TaskState
     private static final Logger LOG = LoggerFactory.getLogger(MRTaskStateTracker.class);
 
     // Mapper context used to signal progress and update counters
-    private final Mapper<LongWritable, Text, Text, TaskState>.Context context;
+    private final Mapper<LongWritable, Text, NullWritable, NullWritable>.Context context;
 
     // This is used to schedule and run reporters for reporting state
     // and progress of running tasks
     private final ScheduledThreadPoolExecutor reporterExecutor;
 
     public MRTaskStateTracker(
-            Mapper<LongWritable, Text, Text, TaskState>.Context context) {
+            Mapper<LongWritable, Text, NullWritable, NullWritable>.Context context) {
 
         this.context = context;
 
@@ -56,12 +57,17 @@ public class MRTaskStateTracker extends AbstractIdleService implements TaskState
 
     @Override
     public void registerNewTask(Task task) {
-        this.reporterExecutor.scheduleAtFixedRate(
-                new TaskStateUpdater(this.context, task),
-                0,
-                task.getTaskContext().getStatusReportingInterval(),
-                TimeUnit.MILLISECONDS
-        );
+        try {
+            this.reporterExecutor.scheduleAtFixedRate(
+                    new TaskStateUpdater(this.context, task),
+                    task.getTaskContext().getStatusReportingInterval(),
+                    task.getTaskContext().getStatusReportingInterval(),
+                    TimeUnit.MILLISECONDS
+            );
+        } catch (RejectedExecutionException ree) {
+            LOG.error(String.format(
+                    "Scheduling of task state reporter for task %s was rejected", task.getTaskId()));
+        }
     }
 
     @Override
@@ -110,11 +116,11 @@ public class MRTaskStateTracker extends AbstractIdleService implements TaskState
      */
     private static class TaskStateUpdater implements Runnable {
 
-        private final Mapper<LongWritable, Text, Text, TaskState>.Context context;
+        private final Mapper<LongWritable, Text, NullWritable, NullWritable>.Context context;
         private final Task task;
 
         public TaskStateUpdater(
-                Mapper<LongWritable, Text, Text, TaskState>.Context context,
+                Mapper<LongWritable, Text, NullWritable, NullWritable>.Context context,
                 Task task) {
 
             this.context = context;

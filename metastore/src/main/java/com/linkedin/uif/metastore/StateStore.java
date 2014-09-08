@@ -132,4 +132,21 @@ public interface StateStore {
      * @throws IOException
      */
     public void createAlias(String storeName, String original, String alias) throws IOException;
+
+    /**
+     * Delete a table from a store.
+     *
+     * @param storeName store name
+     * @param tableName table name
+     * @throws IOException
+     */
+    public void delete(String storeName, String tableName) throws IOException;
+
+    /**
+     * Delete a store.
+     *
+     * @param storeName store name
+     * @throws IOException
+     */
+    public void delete(String storeName) throws IOException;
 }

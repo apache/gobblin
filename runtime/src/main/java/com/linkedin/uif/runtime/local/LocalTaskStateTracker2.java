@@ -2,11 +2,11 @@ package com.linkedin.uif.runtime.local;
 
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import com.linkedin.uif.metrics.JobMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,6 +15,7 @@ import com.google.common.util.concurrent.AbstractIdleService;
 
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.configuration.ConfigurationKeys;
+import com.linkedin.uif.metrics.JobMetrics;
 import com.linkedin.uif.runtime.Task;
 import com.linkedin.uif.runtime.TaskExecutor;
 import com.linkedin.uif.runtime.TaskStateTracker;
@@ -45,7 +46,7 @@ public class LocalTaskStateTracker2 extends AbstractIdleService
     private final ScheduledThreadPoolExecutor reporterExecutor;
 
     // Mapping between tasks and the task state reporters associated with them
-    private final Map<String, ScheduledFuture<?>> scheduledReporters;
+    private final Map<String, ScheduledFuture<?>> scheduledReporters = Maps.newHashMap();
 
     // This is used to report final state when a task is completed
     private LocalJobLauncher localJobLauncher;
@@ -63,7 +64,6 @@ public class LocalTaskStateTracker2 extends AbstractIdleService
                 Integer.parseInt(properties.getProperty(
                         ConfigurationKeys.TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE_KEY,
                         ConfigurationKeys.DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE)));
-        this.scheduledReporters = Maps.newHashMap();
         this.maxTaskRetries = Integer.parseInt(properties.getProperty(
                 ConfigurationKeys.MAX_TASK_RETRIES_KEY,
                 ConfigurationKeys.DEFAULT_MAX_TASK_RETRIES));
@@ -82,40 +82,40 @@ public class LocalTaskStateTracker2 extends AbstractIdleService
 
     @Override
     public void registerNewTask(Task task) {
-        TaskStateReporter reporter = new TaskStateReporter(task);
-        // Schedule a reporter to periodically report state and progress
-        // of the given task
-        this.scheduledReporters.put(
-                task.getTaskId(),
-                this.reporterExecutor.scheduleAtFixedRate(
-                        reporter,
-                        0,
-                        task.getTaskContext().getStatusReportingInterval(),
-                        TimeUnit.MILLISECONDS
-                )
-        );
+        try {
+            // Schedule a reporter to periodically report state and progress
+            // of the given task
+            this.scheduledReporters.put(
+                    task.getTaskId(),
+                    this.reporterExecutor.scheduleAtFixedRate(
+                            new TaskStateReporter(task),
+                            task.getTaskContext().getStatusReportingInterval(),
+                            task.getTaskContext().getStatusReportingInterval(),
+                            TimeUnit.MILLISECONDS
+                    )
+            );
+        } catch (RejectedExecutionException ree) {
+            LOG.error(String.format(
+                    "Scheduling of task state reporter for task %s was rejected", task.getTaskId()));
+        }
     }
 
     @Override
     public void onTaskCompletion(Task task) {
-        // Cancel the task state reporter associated with this task
-        ScheduledFuture<?> scheduledReporter =
-                this.scheduledReporters.remove(task.getTaskId());
-
-        if (scheduledReporter != null) {
-            // The reporter might not be found for the given task because
-            // the task fails before the task is registered. So we need
-            // to make sure the reporter exists before calling cancel.
-            scheduledReporter.cancel(true);
-        }
-
         if (JobMetrics.isEnabled(task.getTaskState().getWorkunit())) {
             // Update record-level metrics after the task is done
             task.updateRecordMetrics();
         }
 
+        // Cancel the task state reporter associated with this task. The reporter might
+        // not be found  for the given task because the task fails before the task is
+        // registered. So we need to make sure the reporter exists before calling cancel.
+        if (this.scheduledReporters.containsKey(task.getTaskId())) {
+            this.scheduledReporters.remove(task.getTaskId()).cancel(false);
+        }
+
         // Check the task state and handle task retry if task failed and
-        // it has not reached the maxium number of retries
+        // it has not reached the maximum number of retries
         WorkUnitState.WorkingState state = task.getTaskState().getWorkingState();
         if (state == WorkUnitState.WorkingState.FAILED &&
                 task.getRetryCount() < this.maxTaskRetries) {

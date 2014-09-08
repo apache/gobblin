@@ -117,7 +117,7 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
 			LOG.info("State of the previous task: " + workUnitState.getId() + ":" +
                     workUnitState.getWorkingState());
 			if(workUnitState.getWorkingState() == WorkingState.FAILED ||
-                    workUnitState.getWorkingState() == WorkingState.ABORTED) {
+                    workUnitState.getWorkingState() == WorkingState.CANCELLED) {
 				hasFailedRun = true;
 			} else {
 				processedRecordCount = workUnitState.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED);

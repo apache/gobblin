@@ -41,15 +41,19 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
 
     // Number of records successfully written
     private final AtomicLong count = new AtomicLong(0);
-    
+
+    // Whether the writer has already been closed or not
+    private volatile boolean closed = false;
+
     private enum CodecType {
       DEFLATE,
       SNAPPY
-    };
+    }
 
-    public AvroHdfsDataWriter(URI uri, String stagingDir, String outputDir,
-            String fileName, int bufferSize, DataConverter<S,
-            GenericRecord> dataConverter, Schema schema, String codecType, int deflateLevel) throws IOException {
+    public AvroHdfsDataWriter(URI uri, String stagingDir, String outputDir, String fileName,
+                              int bufferSize, DataConverter<S, GenericRecord> dataConverter,
+                              Schema schema, String codecType, int deflateLevel)
+            throws IOException {
 
         Configuration conf = new Configuration();
         this.fs = FileSystem.get(uri, conf);
@@ -72,7 +76,8 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
         }
 
         this.dataConverter = dataConverter;
-        this.writer = createDatumWriter(schema, this.stagingFile, bufferSize, CodecType.valueOf(codecType), deflateLevel);
+        this.writer = createDatumWriter(schema, this.stagingFile, bufferSize,
+                CodecType.valueOf(codecType), deflateLevel);
     }
 
     @Override
@@ -99,8 +104,13 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
 
     @Override
     public void close() throws IOException {
+        if (this.closed) {
+            return;
+        }
+
         this.writer.flush();
         this.writer.close();
+        this.closed = true;
     }
 
     @Override
@@ -146,17 +156,22 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
      *
      * @param schema Avro schema
      * @param avroFile Avro file to write to
+     * @param bufferSize Buffer size
+     * @param codecType Compression codec type
+     * @param deflateLevel Deflate level
      * @throws IOException
      */
     private DataFileWriter<GenericRecord> createDatumWriter(Schema schema,
-            Path avroFile, int bufferSize, CodecType codecType, int deflateLevel) throws IOException {
+            Path avroFile, int bufferSize, CodecType codecType, int deflateLevel)
+            throws IOException {
 
         if (this.fs.exists(avroFile)) {
             throw new IOException(String.format("File %s already exists", avroFile));
         }
         
         FSDataOutputStream outputStream = this.fs.create(avroFile, true, bufferSize);
-        DataFileWriter<GenericRecord> writer = new DataFileWriter<GenericRecord>(new GenericDatumWriter<GenericRecord>());
+        DataFileWriter<GenericRecord> writer = new DataFileWriter<GenericRecord>(
+                new GenericDatumWriter<GenericRecord>());
         
         // Set compression type
         switch(codecType) {

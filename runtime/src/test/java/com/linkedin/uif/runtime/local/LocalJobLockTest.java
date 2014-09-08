@@ -10,6 +10,7 @@ import com.linkedin.uif.runtime.JobLock;
  *
  * @author ynli
  */
+@Deprecated
 @Test(groups = {"com.linkedin.uif.runtime.local"})
 public class LocalJobLockTest {
 

@@ -29,7 +29,7 @@ public class JobState extends SourceState {
      * in terms of naming.
      */
     public enum RunningState {
-        PENDING, WORKING, SUCCESSFUL, COMMITTED, FAILED, ABORTED
+        PENDING, RUNNING, SUCCESSFUL, COMMITTED, FAILED, CANCELLED
     }
 
     private String jobName;

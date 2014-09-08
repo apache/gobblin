@@ -17,6 +17,7 @@ import com.linkedin.uif.runtime.JobLock;
  *
  * @author ynli
  */
+@Deprecated
 public class LocalJobLock implements JobLock {
 
     private final Semaphore lock = new Semaphore(1);
