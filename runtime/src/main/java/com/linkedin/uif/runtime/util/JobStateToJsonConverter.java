@@ -38,14 +38,16 @@ public class JobStateToJsonConverter {
     private static final String JOB_STATE_STORE_TABLE_SUFFIX = ".jst";
 
     private final StateStore jobStateStore;
+    private final boolean keepConfig;
 
-    public JobStateToJsonConverter(Properties properties) throws IOException {
+    public JobStateToJsonConverter(Properties properties, boolean keepConfig) throws IOException {
         this.jobStateStore = new FsStateStore(
                 properties.getProperty(
                         ConfigurationKeys.STATE_STORE_FS_URI_KEY,
                         ConfigurationKeys.LOCAL_FS_URI),
                 properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
                 JobState.class);
+        this.keepConfig = keepConfig;
     }
 
     /**
@@ -119,7 +121,7 @@ public class JobStateToJsonConverter {
      * @throws IOException
      */
     private void writeJobState(JsonWriter jsonWriter, JobState jobState) throws IOException {
-        jobState.toJson(jsonWriter);
+        jobState.toJson(jsonWriter, this.keepConfig);
     }
 
     /**
@@ -163,12 +165,17 @@ public class JobStateToJsonConverter {
                 .withDescription("Whether to convert all past job states of the given job")
                 .withLongOpt("all")
                 .create('a');
+        Option keepConfigOption = OptionBuilder
+                .withDescription("Whether to keep all configuration properties")
+                .withLongOpt("keepConfig")
+                .create("kc");
 
         Options options = new Options();
         options.addOption(propertiesOption);
         options.addOption(jobNameOption);
         options.addOption(jobIdOption);
         options.addOption(convertAllOption);
+        options.addOption(keepConfigOption);
 
         CommandLine cmd = null;
         try {
@@ -182,7 +189,8 @@ public class JobStateToJsonConverter {
 
         Properties properties = new Properties();
         properties.load(new FileReader(cmd.getOptionValue('p')));
-        JobStateToJsonConverter converter = new JobStateToJsonConverter(properties);
+        JobStateToJsonConverter converter = new JobStateToJsonConverter(
+                properties, Boolean.valueOf(cmd.getOptionValue("kc")));
         StringWriter stringWriter = new StringWriter();
         if (cmd.hasOption('i')) {
             converter.convert(cmd.getOptionValue('n'), cmd.getOptionValue('i'), stringWriter);
