@@ -1,19 +1,22 @@
 package com.linkedin.uif.source.extractor;
 
+import java.io.Closeable;
 import java.io.IOException;
 
-import com.linkedin.uif.source.extractor.DataRecordException;
-
 /**
- * <p>Responsible for pulling data from a data source.  All source specific logic for
- * a data source should be encapsulated in an implementation of this class and {@link Source}
+ * <p>
+ *     Responsible for pulling data from a data source. All source specific logic for
+ *     a data source should be encapsulated in an implementation of this class and
+ *     {@link com.linkedin.uif.source.Source}.
  * </p>
+ *
  * @author kgoodhop
  *
  * @param <S> output schema type
  * @param <D> output record type
  */
-public interface Extractor<S, D> {
+public interface Extractor<S, D> extends Closeable {
+
 	/**
 	 * get schema(Metadata) corresponding to the data records
 	 * @return schema
@@ -27,12 +30,6 @@ public interface Extractor<S, D> {
 	 * @return record of type D
 	 */
 	public D readRecord(D reuse) throws DataRecordException, IOException;
-
-	/**
-	 * close extractor read stream
-	 * update high watermark
-	 */
-	public void close();
 
 	/**
 	 * get source record count from source

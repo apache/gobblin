@@ -1,27 +1,27 @@
 package com.linkedin.uif.runtime.local;
 
-import java.io.File;
 import java.io.FileReader;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import com.linkedin.uif.runtime.*;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.io.Files;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
-import com.linkedin.uif.runtime.local.LocalJobManager;
-import com.linkedin.uif.runtime.local.LocalTaskStateTracker;
-import com.linkedin.uif.source.workunit.Extract;
+import com.linkedin.uif.runtime.JobListener;
+import com.linkedin.uif.runtime.JobState;
+import com.linkedin.uif.runtime.TaskExecutor;
+import com.linkedin.uif.runtime.TaskState;
+import com.linkedin.uif.runtime.TaskStateTracker;
+import com.linkedin.uif.runtime.WorkUnitManager;
 
 /**
  * Unit test for {@link LocalJobManager}.
@@ -33,7 +33,6 @@ import com.linkedin.uif.source.workunit.Extract;
 public class LocalJobManagerTest {
 
     private static final String SOURCE_FILE_LIST_KEY = "source.files";
-    private static final String SOURCE_FILE_KEY = "source.file";
 
     private ServiceManager serviceManager;
     private LocalJobManager jobManager;
@@ -110,26 +109,8 @@ public class LocalJobManagerTest {
             try {
                 Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
                 Assert.assertEquals(jobState.getCompletedTasks(), 2);
-
                 for (TaskState taskState : jobState.getTaskStates()) {
-                    File sourceFile = new File(taskState.getProp(SOURCE_FILE_KEY));
-
-                    Extract e = taskState.getExtract();
-                    File targetFile = new File(jobState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR)
-                                               + "/" + e.getNamespace().replaceAll("\\.", "/") + "/" + 
-                                               e.getTable() + "/" + e.getExtractId() + "_" + 
-                                               (e.getIsFull() ? "FULL" : "APPEND"),
-                                               jobState.getProp(ConfigurationKeys.WRITER_FILE_NAME)
-                                               + "." + taskState.getId() + ".avro");
-
-                    Assert.assertEquals(taskState.getWorkingState(),
-                            WorkUnitState.WorkingState.COMMITTED);
-                    try {
-                        Assert.assertEquals(sourceFile.length(), targetFile.length());
-                        Assert.assertFalse(Files.equal(sourceFile, targetFile));
-                    } catch (Exception ex) {
-                        Assert.fail();
-                    }
+                    Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
                 }
             } finally {
                 // Make sure this is always called so the test can end

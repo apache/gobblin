@@ -50,12 +50,8 @@ public class ExtractorDecorator<S, D> implements Extractor<S, D> {
     }
 
     @Override
-    public void close() {
-        try {
-            this.extractor.close();
-        } catch (Throwable t) {
-            this.logger.error("Failed to close extractor for task " + this.taskId, t);
-        }
+    public void close() throws IOException {
+        this.extractor.close();
     }
 
     @Override

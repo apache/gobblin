@@ -53,6 +53,16 @@ public class FsStateStore implements StateStore {
         this.stateClass = stateClass;
     }
 
+    public FsStateStore(FileSystem fs, String storeRootDir,
+                        Class<? extends State> stateClass)
+            throws IOException {
+
+        this.fs = fs;
+        this.conf = this.fs.getConf();
+        this.storeRootDir = storeRootDir;
+        this.stateClass = stateClass;
+    }
+
     @Override
     public boolean create(String storeName) throws IOException {
         Path storePath = new Path(this.storeRootDir, storeName);
@@ -146,9 +156,7 @@ public class FsStateStore implements StateStore {
 
         Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
         if (!this.fs.exists(tablePath)) {
-            throw new IOException(String.format(
-                    "State file %s does not exist for table %s",
-                    tablePath, tableName));
+            return null;
         }
 
         SequenceFile.Reader reader = null;
@@ -178,14 +186,13 @@ public class FsStateStore implements StateStore {
     public List<? extends State> getAll(String storeName, String tableName)
             throws IOException {
 
+        List<State> states = Lists.newArrayList();
+
         Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
         if (!this.fs.exists(tablePath)) {
-            throw new IOException(String.format(
-                    "State file %s does not exist for table %s",
-                    tablePath, tableName));
+            return states;
         }
 
-        List<State> states = Lists.newArrayList();
         SequenceFile.Reader reader = null;
         try {
             reader = new SequenceFile.Reader(this.fs, tablePath, this.conf);
@@ -211,19 +218,18 @@ public class FsStateStore implements StateStore {
 
     @Override
     public List<? extends State> getAll(String storeName) throws IOException {
+        List<State> states = Lists.newArrayList();
+
         Path storePath = new Path(this.storeRootDir, storeName);
         if (!this.fs.exists(storePath)) {
-            throw new IOException(String.format(
-                    "Store directory %s does not exist for store %s",
-                    storePath, storeName));
+            return states;
         }
 
-        List<State> taskStates = Lists.newArrayList();
         for (FileStatus status : this.fs.listStatus(storePath)) {
-            taskStates.addAll(getAll(storeName, status.getPath().getName()));
+            states.addAll(getAll(storeName, status.getPath().getName()));
         }
 
-        return taskStates;
+        return states;
     }
 
     @Override
@@ -241,5 +247,21 @@ public class FsStateStore implements StateStore {
         // Make a copy of the original table as a work-around because
         // Hadoop version 1.2.1 has no support for symlink yet.
         FileUtil.copy(this.fs, originalTablePath, this.fs, aliasTablePath, false, true, this.conf);
+    }
+
+    @Override
+    public void delete(String storeName, String tableName) throws IOException {
+        Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
+        if (this.fs.exists(tablePath)) {
+            this.fs.delete(tablePath, false);
+        }
+    }
+
+    @Override
+    public void delete(String storeName) throws IOException {
+        Path storePath = new Path(this.storeRootDir, storeName);
+        if (this.fs.exists(storePath)) {
+            this.fs.delete(storePath, true);
+        }
     }
 }

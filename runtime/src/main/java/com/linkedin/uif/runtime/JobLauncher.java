@@ -18,4 +18,12 @@ public interface JobLauncher {
      * @throws JobException
      */
     public void launchJob(Properties jobProps, JobListener jobListener) throws JobException;
+
+    /**
+     * Cancel a Gobblin job.
+     *
+     * @param jobProps Job configuration properties
+     * @throws JobException
+     */
+    public void cancelJob(Properties jobProps) throws JobException;
 }

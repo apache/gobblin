@@ -3,13 +3,15 @@ package com.linkedin.uif.runtime;
 import java.io.IOException;
 import java.util.List;
 
-import com.linkedin.uif.metrics.JobMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.io.Closer;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.Converter;
+import com.linkedin.uif.metrics.JobMetrics;
 import com.linkedin.uif.publisher.TaskPublisher;
 import com.linkedin.uif.publisher.TaskPublisherBuilder;
 import com.linkedin.uif.publisher.TaskPublisherBuilderFactory;
@@ -58,15 +60,13 @@ public class Task implements Runnable {
     private final TaskStateTracker taskStateTracker;
     private final TaskState taskState;
 
-    private Extractor extractor;
-    private DataWriter writer;
-    private TaskPublisher publisher;
+    private volatile DataWriter writer;
 
     // Number of retries
     private int retryCount = 0;
 
     /**
-     * Instantitate a new {@link Task}.
+     * Instantiate a new {@link Task}.
      *
      * @param context Task context containing all necessary information
      *                to construct and run a {@link Task}
@@ -86,18 +86,20 @@ public class Task implements Runnable {
     public void run() {
         long startTime = System.currentTimeMillis();
         this.taskState.setStartTime(startTime);
+        this.taskStateTracker.registerNewTask(this);
+        this.taskState.setWorkingState(WorkUnitState.WorkingState.RUNNING);
 
-        RowLevelPolicyChecker rowChecker = null;
-        boolean writerClosed = false;
+        Closer closer = Closer.create();
         try {
             // Build the extractor for pulling source schema and data records
-            this.extractor = new ExtractorDecorator(
+            Extractor extractor = new ExtractorDecorator(
                     new SourceDecorator(this.taskContext.getSource(), this.jobId, LOG)
                             .getExtractor(this.taskState),
                     this.taskId, LOG);
+            closer.register(extractor);
 
             // Original source schema
-            Object sourceSchema = this.extractor.getSchema();
+            Object sourceSchema = extractor.getSchema();
 
             List<Converter> converterList = this.taskContext.getConverters();
             // If conversion is needed on the source schema and data records
@@ -113,31 +115,27 @@ public class Task implements Runnable {
             }
 
             // Construct the row level policy checker
-            rowChecker = buildRowLevelPolicyChecker(this.taskState);
+            RowLevelPolicyChecker rowChecker = buildRowLevelPolicyChecker(this.taskState);
+            closer.register(rowChecker);
             RowLevelPolicyCheckResults rowResults = new RowLevelPolicyCheckResults();
 
             // Build the writer for writing the output of the extractor
-            this.writer = buildWriter(this.taskContext, schemaForWriter);
+            buildWriter(this.taskContext, schemaForWriter);
+            closer.register(this.writer);
 
-            this.taskState.setWorkingState(WorkUnitState.WorkingState.WORKING);
-            this.taskStateTracker.registerNewTask(this);
-
-            long recordsPulled = 0;
             long pullLimit = this.taskState.getPropAsLong(ConfigurationKeys.EXTRACT_PULL_LIMIT, 0);
+            long recordsPulled = 0;
             Object record = null;
             // Read one source record at a time
-            while ((record = this.extractor.readRecord(record)) != null) {
+            while ((record = extractor.readRecord(record)) != null) {
                 // Apply the converters first if applicable
-                Object convertedRecord = null;
-
+                Object convertedRecord = record;
                 if (doConversion) {
                   convertedRecord = converter.convertRecord(sourceSchema, record, this.taskState);
-                } else {
-                  convertedRecord = record;
                 }
 
                 // Do quality checks
-                if (record != null && rowChecker.executePolicies(convertedRecord, rowResults)) {
+                if (convertedRecord != null && rowChecker.executePolicies(convertedRecord, rowResults)) {
                     // Finally write the record
                     this.writer.write(convertedRecord);
                 }
@@ -153,11 +151,12 @@ public class Task implements Runnable {
 
             // We need to close the writer before task data can be committed
             this.writer.close();
-            writerClosed = true;
 
-            // Runs Task Level Policies and checks their output
-            if (canPublishData(recordsPulled, pullLimit, schemaForWriter)) {
-                // Commit the data from the writer's staging file to the writer's output file
+            // Runs task level quality checking policies and checks their output
+            boolean shouldCommit = checkDataQuality(recordsPulled,
+                    extractor.getExpectedRecordCount(), pullLimit, schemaForWriter);
+            if (shouldCommit) {
+                // Commit the data if all quality checkers pass
                 commitData();
             }
         } catch (Throwable t) {
@@ -165,42 +164,16 @@ public class Task implements Runnable {
             this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
             this.taskState.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, t.toString());
         } finally {
-            // Properly close all components and cleanup
-            if (this.extractor != null) {
-                this.extractor.close();
+            try {
+                closer.close();
+            } catch (IOException ioe) {
+                LOG.error("Failed to close all open resources", ioe);
             }
 
-            if (rowChecker != null) {
-                try {
-                    rowChecker.close();
-                } catch (IOException ioe) {
-                    LOG.error("Failed to close the row quality checker for task " + taskId, ioe);
-                }
-            }
-
-            if (this.publisher != null) {
-                try {
-                    this.publisher.cleanup();
-                } catch (Exception e) {
-                    LOG.error("Failed to close the task publisher for task " + taskId, e);
-                }
-            }
-
-            if (this.writer != null) {
-                if (!writerClosed) {
-                    // Close the writer if it has not been closed yet
-                    try {
-                        this.writer.close();
-                    } catch (IOException ioe) {
-                        LOG.error("Failed to close the writer for task " + taskId, ioe);
-                    }
-                }
-
-                try {
-                    this.writer.cleanup();
-                } catch (IOException ioe) {
-                    LOG.error("The writer failed to cleanup for task " + taskId, ioe);
-                }
+            try {
+                this.writer.cleanup();
+            } catch (IOException ioe) {
+                LOG.error("The writer failed to cleanup for task " + taskId, ioe);
             }
 
             long endTime = System.currentTimeMillis();
@@ -250,7 +223,7 @@ public class Task implements Runnable {
      */
     public void updateRecordMetrics() {
         if (this.writer == null) {
-            LOG.error(String.format(
+            LOG.warn(String.format(
                     "Could not update record metrics for task %s: writer was not built",
                     this.taskId));
             return;
@@ -300,19 +273,15 @@ public class Task implements Runnable {
 
     /**
      * Build a {@link DataWriter} for writing fetched data records.
-     *
-     * @return newly built {@link DataWriter}
      */
     @SuppressWarnings("unchecked")
-    private DataWriter buildWriter(TaskContext context, Object schema)
-            throws IOException {
-
+    private void buildWriter(TaskContext context, Object schema) throws IOException {
         // First create the right writer builder using the factory
         DataWriterBuilder builder = new DataWriterBuilderFactory()
                 .newDataWriterBuilder(context.getWriterOutputFormat());
 
         // Then build the right writer using the builder
-        return builder
+        this.writer = builder
                 .writeTo(Destination.of(
                         context.getDestinationType(),
                         context.getDestinationProperties()))
@@ -363,48 +332,47 @@ public class Task implements Runnable {
     }
 
     /**
-     * Publish task data.
+     * Check data quality.
+     *
+     * @return whether data publishing is successful and data should be committed
      */
-    private boolean canPublishData(long recordsPulled, long pullLimit, Object schemaForWriter)
-            throws Exception {
+    private boolean checkDataQuality(long recordsPulled, long expectedCount,
+                                     long pullLimit, Object schemaForWriter)
+        throws Exception {
 
         // Do overall quality checking and publish task data
         if (pullLimit > 0) {
             // If pull limit is set, use the actual number of records pulled
-            this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED,
-                    recordsPulled);
+            this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, recordsPulled);
         } else {
             // Otherwise use the expected record count
-            this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED,
-                    this.extractor.getExpectedRecordCount());
+            this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, expectedCount);
         }
-        this.taskState.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN,
-                this.writer.recordsWritten());
+        this.taskState.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, this.writer.recordsWritten());
         this.taskState.setProp(ConfigurationKeys.EXTRACT_SCHEMA, schemaForWriter.toString());
 
         TaskLevelPolicyChecker policyChecker = buildTaskLevelPolicyChecker(this.taskState);
         TaskLevelPolicyCheckResults taskResults = policyChecker.executePolicies();
+        TaskPublisher publisher = buildTaskPublisher(this.taskState, taskResults);
 
-        this.publisher = buildTaskPublisher(this.taskState, taskResults);
-        switch (this.publisher.canPublish()) {
+        switch (publisher.canPublish()) {
             case SUCCESS:
                 return true;
             case CLEANUP_FAIL:
                 LOG.error("Cleanup failed for task " + this.taskId);
-                this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-                return false;
+                break;
             case POLICY_TESTS_FAIL:
                 LOG.error("Not all quality checking passed for task " + this.taskId);
-                this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-                return false;
+                break;
             case COMPONENTS_NOT_FINISHED:
                 LOG.error("Not all components completed for task " + this.taskId);
-                this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-                return false;
+                break;
             default:
-                this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-                return false;
+                break;
         }
+
+        this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+        return false;
     }
 
     /**
@@ -414,7 +382,8 @@ public class Task implements Runnable {
         LOG.info("Committing data of task " + this.taskId);
         try {
             this.writer.commit();
-            // Change the state to SUCCESSFUL after successful commit
+            // Change the state to SUCCESSFUL after successful commit. The state is not changed
+            // to COMMITTED as the data publisher will do that upon successful data publishing.
             this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
             if (JobMetrics.isEnabled(this.taskState.getWorkunit())) {
                 // Update byte-level metrics after the writer commits

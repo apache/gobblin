@@ -118,8 +118,10 @@ public class JobScheduler extends AbstractIdleService {
     protected void shutDown() throws Exception {
         LOG.info("Stopping the local job manager");
         this.scheduler.shutdown(true);
-        // Stop the file alteration monitor in one second
-        this.fileAlterationMonitor.stop(1000);
+        if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)) {
+            // Stop the file alteration monitor in one second
+            this.fileAlterationMonitor.stop(1000);
+        }
     }
 
     /**

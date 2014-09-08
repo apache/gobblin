@@ -29,12 +29,11 @@ public class WorkUnitState extends State
    * SUCCESSFUL only implies a task has finished, but doesn't imply the work
    * has been committed.
    * </p>
-   * @author yli
+   * @author ynli
    *
    */
-  public enum WorkingState
-  {
-    PENDING, WORKING, SUCCESSFUL, COMMITTED, FAILED, ABORTED
+  public enum WorkingState {
+    PENDING, RUNNING, SUCCESSFUL, COMMITTED, FAILED, CANCELLED
   }
 
   private WorkUnit workunit;

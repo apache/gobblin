@@ -1,6 +1,7 @@
 package com.linkedin.uif.runtime.mapreduce;
 
 import java.io.FileReader;
+import java.io.IOException;
 import java.util.Properties;
 
 import org.testng.annotations.BeforeClass;
@@ -14,7 +15,7 @@ import com.linkedin.uif.runtime.JobState;
 /**
  * Unit test for {@link MRJobLauncher}.
  */
-//@Test(groups = {"com.linkedin.uif.runtime.mapreduce"})
+@Test(groups = {"ignore", "com.linkedin.uif.runtime.mapreduce"})
 public class MRJobLauncherTest extends JobLauncherTestBase {
 
     @BeforeClass
@@ -28,53 +29,44 @@ public class MRJobLauncherTest extends JobLauncherTestBase {
                 JobState.class);
     }
 
-    //@Test(groups = {"ignore"})
+    @Test
     public void testLaunchJob() throws Exception {
-        Properties jobProps = new Properties();
-        jobProps.load(new FileReader("test/resource/mr-job-conf/GobblinMRTest.pull"));
-        jobProps.putAll(this.properties);
-        jobProps.setProperty(SOURCE_FILE_LIST_KEY,
-                "test/resource/source/test.avro.0," +
-                "test/resource/source/test.avro.1," +
-                "test/resource/source/test.avro.2," +
-                "test/resource/source/test.avro.3");
-
-        runTest(jobProps);
+        runTest(loadJobProps());
     }
 
-    //@Test(groups = {"ignore"})
+    @Test
     public void testLaunchJobWithConcurrencyLimit() throws Exception {
-        Properties jobProps = new Properties();
-        jobProps.load(new FileReader("test/resource/mr-job-conf/GobblinMRTest.pull"));
-        jobProps.putAll(this.properties);
-        jobProps.setProperty(SOURCE_FILE_LIST_KEY,
-                "test/resource/source/test.avro.0," +
-                "test/resource/source/test.avro.1," +
-                "test/resource/source/test.avro.2," +
-                "test/resource/source/test.avro.3");
-
+        Properties jobProps = loadJobProps();
         jobProps.setProperty(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, "2");
         runTest(jobProps);
-
         jobProps.setProperty(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, "3");
         runTest(jobProps);
-
         jobProps.setProperty(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, "5");
         runTest(jobProps);
     }
 
-    //@Test(groups = {"ignore"})
+    @Test
     public void testLaunchJobWithPullLimit() throws Exception {
+        Properties jobProps = loadJobProps();
+        jobProps.setProperty(ConfigurationKeys.EXTRACT_PULL_LIMIT, "10");
+        runTestWithPullLimit(jobProps);
+    }
+
+    @Test
+    public void testCancelJob() throws Exception {
+        runTestWithCancellation(loadJobProps());
+    }
+
+    private Properties loadJobProps() throws IOException {
         Properties jobProps = new Properties();
         jobProps.load(new FileReader("test/resource/mr-job-conf/GobblinMRTest.pull"));
         jobProps.putAll(this.properties);
-        jobProps.setProperty(ConfigurationKeys.EXTRACT_PULL_LIMIT, "10");
         jobProps.setProperty(SOURCE_FILE_LIST_KEY,
                 "test/resource/source/test.avro.0," +
-                "test/resource/source/test.avro.1," +
-                "test/resource/source/test.avro.2," +
-                "test/resource/source/test.avro.3");
+                        "test/resource/source/test.avro.1," +
+                        "test/resource/source/test.avro.2," +
+                        "test/resource/source/test.avro.3");
 
-        runTestWithPullLimit(jobProps);
+        return jobProps;
     }
 }

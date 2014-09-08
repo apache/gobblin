@@ -43,8 +43,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
     private static final Logger LOG = LoggerFactory.getLogger(AbstractJobLauncher.class);
 
-    private static final String TASK_STATE_STORE_TABLE_SUFFIX = ".tst";
-    private static final String JOB_STATE_STORE_TABLE_SUFFIX = ".jst";
+    protected static final String TASK_STATE_STORE_TABLE_SUFFIX = ".tst";
+    protected static final String JOB_STATE_STORE_TABLE_SUFFIX = ".jst";
 
     // Framework configuration properties
     protected final Properties properties;
@@ -120,6 +120,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         jobState.addAll(jobProps);
         // Remember the number of consecutive failures of this job in the past
         jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY, getFailureCount(jobName));
+        jobState.setState(JobState.RunningState.PENDING);
 
         LOG.info("Starting job " + jobId);
 
@@ -155,7 +156,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
         jobState.setTasks(workUnits.get().size());
         jobState.setStartTime(System.currentTimeMillis());
-        jobState.setState(JobState.RunningState.WORKING);
+        jobState.setState(JobState.RunningState.RUNNING);
 
         // Populate job/task IDs
         int sequence = 0;
@@ -169,6 +170,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         // Actually launch the job to run
         try {
             runJob(jobName, jobProps, jobState, workUnits.get());
+            if (jobState.getState() == JobState.RunningState.CANCELLED) {
+                LOG.info(String.format("Job %s has been cancelled", jobId));
+                return;
+            }
             jobState = getFinalJobState(jobState);
             commitJob(jobId, jobState);
         } catch (Throwable t) {
@@ -177,11 +182,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             jobState.setState(JobState.RunningState.FAILED);
             throw new JobException(errMsg, t);
         } finally {
-            if (JobMetrics.isEnabled(this.properties)) {
-                // Remove all job-level metrics after the job is done
-                jobState.removeMetrics();
-            }
-
             try {
                 source.shutdown(sourceState);
                 persistJobState(jobState);
@@ -191,10 +191,15 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                 LOG.error("Failed to cleanup for job " + jobId, t);
             }
 
-            // Finally release the job lock
+            if (JobMetrics.isEnabled(this.properties)) {
+                // Remove all job-level metrics after the job is done
+                jobState.removeMetrics();
+            }
+
+            // Release the job lock
             unlockJob(jobName, jobLock);
 
-            if (jobListener != null) {
+            if (Optional.fromNullable(jobListener).isPresent()) {
                 jobListener.jobCompleted(jobState);
             }
         }
@@ -339,17 +344,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             }
         }
 
-        // Mark the task as being failed if COMMIT_ON_FULL_SUCCESS is used and the job failed
-        if (commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS &&
-                jobState.getState() == JobState.RunningState.FAILED) {
-            for (TaskState taskState : jobState.getTaskStates()) {
-                taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-            }
-        }
-
-        if (jobState.getState() == JobState.RunningState.WORKING ||
-            jobState.getState() == JobState.RunningState.SUCCESSFUL) {
-            jobState.setState(JobState.RunningState.SUCCESSFUL);
+        if (jobState.getState() == JobState.RunningState.SUCCESSFUL) {
             // Reset the failure count if the job successfully completed
             jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY, 0);
         }
@@ -397,6 +392,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
      * Persist job/task states of a completed job.
      */
     private void persistJobState(JobState jobState) {
+        JobState.RunningState runningState = jobState.getState();
+        if (runningState == JobState.RunningState.PENDING ||
+            runningState == JobState.RunningState.RUNNING ||
+            runningState == JobState.RunningState.CANCELLED) {
+            // Do not persist job state if the job has not completed
+            return;
+        }
+
         String jobName = jobState.getJobName();
         String jobId = jobState.getJobId();
 
@@ -443,8 +446,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                 fs.delete(taskStagingPath, true);
             }
         } catch (IOException ioe) {
-            LOG.error("Failed to cleanup task staging directory of job " +
-                    jobState.getJobId(), ioe);
+            LOG.error("Failed to cleanup task staging directory of job " + jobState.getJobId(), ioe);
         }
 
         try {
@@ -454,8 +456,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                 fs.delete(taskOutputPath, true);
             }
         } catch (IOException ioe) {
-            LOG.error("Failed to cleanup task output directory of job " +
-                    jobState.getJobId(), ioe);
+            LOG.error("Failed to cleanup task output directory of job " + jobState.getJobId(), ioe);
         }
     }
 }
