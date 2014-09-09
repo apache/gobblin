@@ -59,7 +59,7 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
 	protected String updatedQuery;
 	protected Logger log = LoggerFactory.getLogger(RestApiExtractor.class);
 
-	RestApiExtractor(WorkUnitState state) {
+	public RestApiExtractor(WorkUnitState state) {
 		super(state);
 	}
 
@@ -74,11 +74,11 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
 	protected HttpClient getHttpClient() {
 		if (httpClient == null) {
 		    httpClient = new DefaultHttpClient();
-		    
+
 			if (super.workUnitState.contains(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL) &&
 				!super.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL).isEmpty()) {
 			    log.info("Connecting via proxy: " + super.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL));
-			    
+
 				HttpHost proxy = new HttpHost(super.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL),
 				                              super.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT));
 				httpClient.getParams().setParameter(ConnRoutePNames.DEFAULT_PROXY, proxy);
@@ -86,7 +86,7 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
 		}
 		return httpClient;
 	}
-	
+
 	@Override
 	public void extractMetadata(String schema, String entity, WorkUnit workUnit) throws SchemaException {
 		this.log.info("Extract Metadata using Rest Api");
@@ -113,21 +113,21 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
 					String columnName = obj.getColumnName();
 
 					obj.setWaterMark(this.isWatermarkColumn(workUnit.getProp("extract.delta.fields"), columnName));
-					
+
 					if(this.isWatermarkColumn(workUnit.getProp("extract.delta.fields"), columnName)) {
 						obj.setNullable(false);
 					} else if (this.getPrimarykeyIndex(workUnit.getProp("extract.primary.key.fields"), columnName) == 0){
 						// set all columns as nullable except primary key and watermark columns
 						obj.setNullable(true);
 					}
-					
+
 					obj.setPrimaryKey(this.getPrimarykeyIndex(workUnit.getProp("extract.primary.key.fields"), columnName));
 
 					String jsonStr = gson.toJson(obj);
 					JsonObject jsonObject = gson.fromJson(jsonStr, JsonObject.class).getAsJsonObject();
 
 					// If input query is null or provided '*' in the query select all columns.
-					// Else, consider only the columns mentioned in the column list 
+					// Else, consider only the columns mentioned in the column list
 					if (inputQuery == null || columnListInQuery == null || (columnListInQuery.size() == 1 && columnListInQuery.get(0).equals("*"))
 							|| (columnListInQuery.size() >= 1 && this.isMetadataColumn(columnName, columnListInQuery))) {
 						this.columnList.add(columnName);
@@ -150,7 +150,7 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
 						this.updatedQuery = inputQuery;
 					}
 				}
-				
+
 				this.log.info("Updated input query: "+this.updatedQuery);
 				this.log.debug("Schema:" + columnArray);
 				this.setOutputSchema(columnArray);
@@ -236,12 +236,12 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
 			throw new DataRecordException("Failed to get records using rest api; error - " + e.getMessage(), e);
 		}
 	}
-	
+
 	@Override
 	public void setTimeOut(int timeOut) {
 		this.setAuthTokenTimeout(timeOut);
 	}
-	
+
 	@Override
 	public Map<String, String> getDataTypeMap() {
 		return this.getDataTypeMap();
@@ -255,7 +255,7 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
 		this.log.debug("Connecting to the source using Rest Api");
 		return this.connect();
 	}
-	
+
 	/**
 	 * Check if connection is closed
 	 * @return true if the connection is closed else false
@@ -266,7 +266,7 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
 		}
 		return false;
 	}
-	
+
 	/**
 	 * get http connection
 	 * @return true if the connection is success else false
@@ -321,12 +321,12 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
 	}
 
 	/**
-	 * get http response in json format using url 
+	 * get http response in json format using url
 	 * @return json string with the response
 	 */
 	private CommandOutput<?, ?> getResponse(List<Command> cmds) throws RestApiProcessingException {
 		String url = cmds.get(0).getParams().get(0);
-	    
+
 	    	this.log.info("URL: " + url);
 		String jsonStr = null;
 		HttpRequestBase httpRequest = new HttpGet(url);

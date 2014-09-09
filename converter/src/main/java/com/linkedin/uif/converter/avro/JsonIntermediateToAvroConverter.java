@@ -14,12 +14,14 @@ import org.codehaus.jackson.node.JsonNodeFactory;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.DataConversionException;
 import com.linkedin.uif.converter.SchemaConversionException;
 import com.linkedin.uif.converter.ToAvroConverterBase;
 import com.linkedin.uif.converter.avro.JsonElementConversionFactory.JsonElementConverter;
-
 
 /**
  * Converts Integra's intermediate data format to avro
@@ -30,6 +32,8 @@ import com.linkedin.uif.converter.avro.JsonElementConversionFactory.JsonElementC
 public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArray, JsonObject> {
   private Map<String, JsonElementConversionFactory.JsonElementConverter> converters =
       new HashMap<String, JsonElementConversionFactory.JsonElementConverter>();
+  private static final Logger log = LoggerFactory.getLogger(JsonIntermediateToAvroConverter.class);
+  private long numFailedConversion = 0;
 
   @Override
   public Schema convertSchema(JsonArray schema, WorkUnitState workUnit) throws SchemaConversionException {
@@ -59,8 +63,7 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
     }
 
     Schema avroSchema =
-        Schema.createRecord(workUnit.getExtract().getTable(), "", workUnit.getExtract()
-            .getNamespace(), false);
+        Schema.createRecord(workUnit.getExtract().getTable(), "", workUnit.getExtract().getNamespace(), false);
     avroSchema.setFields(fields);
 
     return avroSchema;
@@ -69,15 +72,25 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
   @Override
   public GenericRecord convertRecord(Schema outputSchema, JsonObject inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
+
     GenericRecord avroRecord = new GenericData.Record(outputSchema);
+    long maxFailedConversions =
+        workUnit.getPropAsLong(ConfigurationKeys.CONVERTER_AVRO_MAX_CONVERSION_FAILURES,
+            ConfigurationKeys.DEFAULT_CONVERTER_AVRO_MAX_CONVERSION_FAILURES);
 
     for (Map.Entry<String, JsonElement> entry : inputRecord.entrySet()) {
       try {
         avroRecord.put(entry.getKey(), converters.get(entry.getKey()).convert(entry.getValue()));
       } catch (Exception e) {
-        throw new RuntimeException("unable to convert field:" + entry.getKey() + " for value:" + entry.getValue(), e);
+        numFailedConversion++;
+        if (numFailedConversion < maxFailedConversions) {
+          log.error("Dropping record " + inputRecord + " because it cannot be converted to Avro", e);
+          return null;
+        } else {
+          throw new RuntimeException("Unable to convert field:" + entry.getKey() + " for value:" + entry.getValue()
+              + " for record: " + inputRecord, e);
+        }
       }
-
     }
 
     return avroRecord;
