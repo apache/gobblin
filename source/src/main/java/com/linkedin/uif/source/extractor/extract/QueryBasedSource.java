@@ -66,10 +66,9 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
     }
 
     for (Entry<Long, Long> entry : sortedPartitions.entrySet()) {
-      WorkUnit wu = partitionState.createWorkUnit(extract);
-      wu.setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, entry.getKey());
-      wu.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, entry.getValue());
-			workUnits.add(wu);
+      extract.setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, entry.getKey());
+      extract.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, entry.getValue());
+			workUnits.add(partitionState.createWorkUnit(extract));
 		}
 
 		LOG.info("Total number of work units for the current run: " + workUnits.size());
