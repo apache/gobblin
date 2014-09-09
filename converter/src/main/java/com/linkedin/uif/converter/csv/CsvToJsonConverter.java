@@ -17,7 +17,7 @@ import com.linkedin.uif.converter.SchemaConversionException;
 
 public class CsvToJsonConverter extends Converter<String, JsonArray, String, JsonObject>
 {
-    private final static String NULL = "null";
+    private static final String NULL = "null";
 
     /**
      * Take in an input schema of type string, the schema must be in JSON format

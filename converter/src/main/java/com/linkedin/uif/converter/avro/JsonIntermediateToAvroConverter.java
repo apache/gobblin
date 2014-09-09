@@ -5,17 +5,20 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+
 import org.codehaus.jackson.node.JsonNodeFactory;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.DataConversionException;
@@ -32,7 +35,7 @@ import com.linkedin.uif.converter.avro.JsonElementConversionFactory.JsonElementC
 public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArray, JsonObject> {
   private Map<String, JsonElementConversionFactory.JsonElementConverter> converters =
       new HashMap<String, JsonElementConversionFactory.JsonElementConverter>();
-  private static final Logger log = LoggerFactory.getLogger(JsonIntermediateToAvroConverter.class);
+  private static final Logger LOG = LoggerFactory.getLogger(JsonIntermediateToAvroConverter.class);
   private long numFailedConversion = 0;
 
   @Override
@@ -84,10 +87,10 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
       } catch (Exception e) {
         numFailedConversion++;
         if (numFailedConversion < maxFailedConversions) {
-          log.error("Dropping record " + inputRecord + " because it cannot be converted to Avro", e);
+          LOG.error("Dropping record " + inputRecord + " because it cannot be converted to Avro", e);
           return null;
         } else {
-          throw new RuntimeException("Unable to convert field:" + entry.getKey() + " for value:" + entry.getValue()
+          throw new DataConversionException("Unable to convert field:" + entry.getKey() + " for value:" + entry.getValue()
               + " for record: " + inputRecord, e);
         }
       }
