@@ -1,13 +1,10 @@
 package com.linkedin.uif.source.extractor.extract.sftp;
 
-import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
 
-import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -251,25 +248,5 @@ public class SftpFsHelper implements FileBasedHelper {
     public void showMessage(String message) {
       log.info(message);
     }
-  }
-
-  public static void main(String args[]) throws IOException, FileBasedHelperException {
-    State state = new State();
-    state.setProp(ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY,
-        "/Users/stakiar/Documents/workspace_linkedin/gobblin-responsys/azkaban/azkaban/conf/properties/magic/id_dsa");
-    state
-        .setProp(ConfigurationKeys.SOURCE_CONN_KNOWN_HOSTS,
-            "/Users/stakiar/Documents/workspace_linkedin/gobblin-responsys/azkaban/azkaban/conf/properties/magic/known_hosts");
-    state.setProp(ConfigurationKeys.SOURCE_CONN_USERNAME, "linkedin_scp");
-    state.setProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME, "files.dc2.responsys.net");
-    //      state.setProp(ConfigurationKeys.SOURCE_CONN_PORT, "");
-    state.setProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL, "eat1-gaap-proxy-2.stg.linkedin.com");
-    state.setProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT, "10340");
-
-    SftpFsHelper sftpHelper = new SftpFsHelper(state);
-    sftpHelper.connect();
-    FileUtils.copyInputStreamToFile(sftpHelper
-        .getFileStream("/home/cli/linkedin_scp/download/50563_OPEN_20140908_202138.txt.gpg"), new File(
-        "50563_OPEN_20140908_202138.txt.gpg"));
   }
 }
