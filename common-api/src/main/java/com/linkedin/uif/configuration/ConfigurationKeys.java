@@ -94,6 +94,8 @@ public class ConfigurationKeys {
     public static final String CONVERTER_AVRO_TIME_FORMAT = "converter.avro.time.format";
     public static final String CONVERTER_AVRO_TIMESTAMP_FORMAT = "converter.avro.timestamp.format";
     public static final String CONVERTER_AVRO_BINARY_CHARSET = "converter.avro.binary.charset";
+    public static final String CONVERTER_AVRO_MAX_CONVERSION_FAILURES = "converter.avro.max.conversion.failures";
+    public static final long DEFAULT_CONVERTER_AVRO_MAX_CONVERSION_FAILURES = 0;
     public static final String CONVERTER_CSV_TO_JSON_DELIMITER = "converter.csv.to.json.delimiter";
     public static final String CONVERTER_FILTER_FIELD = "converter.filter.field";
     public static final String CONVERTER_FILTER_IDS_FILE = "converter.filter.ids.file";
@@ -245,6 +247,7 @@ public class ConfigurationKeys {
     public static final String SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED = "source.querybased.is.metadata.column.check.enabled";
     public static final String SOURCE_QUERYBASED_IS_COMPRESSION_ENABLED = "source.querybased.is.compression.enabled";
     public static final String SOURCE_QUERYBASED_SALESFORCE_IS_SOFT_DELETES_PULL_DISABLED = "source.querybased.salesforce.is.soft.deletes.pull.disabled";
+    public static final String SOURCE_QUERYBASED_JDBC_RESULTSET_FETCH_SIZE = "source.querybased.jdbc.resultset.fetch.size";
 
     /**
      * Configuration properties used by the FileBasedExtractor
@@ -291,6 +294,7 @@ public class ConfigurationKeys {
     public static final String DEFAULT_SOURCE_QUERYBASED_WATERMARK_PREDICATE_SYMBOL = "'$WATERMARK'";
     public static final String DEFAULT_SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED = "true";
     public static final String DEFAULT_COLUMN_NAME_CASE = "NOCHANGE";
+    public static final int DEFAULT_SOURCE_QUERYBASED_JDBC_RESULTSET_FETCH_SIZE = 1000;
 
     /**
      * Configuration properties used by the local job launcher.
