@@ -3,6 +3,7 @@ apply plugin: 'li-java'
 dependencies {
     compile project(":common-api")
     compile project(":qualitychecker")
+    compile files('./src/main/resources/sqljdbc4.jar')
     compile spec.external.commonsDbcp
     compile spec.external.avro
     compile spec.external.avroMapred
