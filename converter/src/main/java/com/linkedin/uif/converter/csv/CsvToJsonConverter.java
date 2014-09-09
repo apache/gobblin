@@ -1,6 +1,5 @@
 package com.linkedin.uif.converter.csv;
 
-import java.util.Arrays;
 import java.util.List;
 
 import com.google.common.base.Splitter;
@@ -55,13 +54,5 @@ public class CsvToJsonConverter extends Converter<String, JsonArray, String, Jso
             }
         }
         return outputRecord;
-    }
-
-    public static void main(String args[]) {
-      String input = "&_mSplash=1\t2014-05-31\t\t\t\t\t\t1\t0";
-      List<String> recordSplit = Lists.newArrayList(Splitter.onPattern("\t").trimResults().split(input));
-      System.out.println(Arrays.toString(recordSplit.toArray()));
-      System.out.println(recordSplit.get(3).isEmpty());
-      // That pig filter is weird because the records has 1 and 0 for the values yet somehow pig still filters it?
     }
 }
