@@ -1,12 +1,12 @@
 package com.linkedin.uif.source.extractor.extract.restapi;
 
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
@@ -24,7 +24,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.watermark.Predicate;
@@ -38,6 +37,7 @@ import com.linkedin.uif.source.extractor.extract.QueryBasedExtractor;
 import com.linkedin.uif.source.extractor.extract.Command;
 import com.linkedin.uif.source.extractor.extract.CommandOutput;
 import com.linkedin.uif.source.extractor.extract.SourceSpecificLayer;
+import com.linkedin.uif.source.extractor.extract.restapi.RestApiCommand.RestApiCommandType;
 import com.linkedin.uif.source.extractor.schema.Schema;
 import com.linkedin.uif.source.extractor.utils.Utils;
 import com.linkedin.uif.source.workunit.WorkUnit;
@@ -225,7 +225,7 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
 					if (this.getNextUrl() == null) {
 					    cmds = this.getDataMetadata(schema, entity, workUnit, predicateList);
 					} else {
-					    cmds = SalesforceExtractor.constructGetCommand(this.getNextUrl());
+					    cmds = RestApiExtractor.constructGetCommand(this.getNextUrl());
 					}
 					CommandOutput<?, ?> response = this.getResponse(cmds);
 					rs = this.getData(response);
@@ -410,4 +410,8 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
 
 		return defaultMessage;
 	}
+
+	public static List<Command> constructGetCommand(String restQuery) {
+    return Arrays.asList(new RestApiCommand().build(Arrays.asList(restQuery), RestApiCommandType.GET));
+  }
 }

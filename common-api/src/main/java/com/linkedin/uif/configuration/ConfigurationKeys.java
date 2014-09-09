@@ -246,7 +246,6 @@ public class ConfigurationKeys {
     public static final String SOURCE_QUERYBASED_SKIP_COUNT_CALC = "source.querybased.skip.count.calc";
     public static final String SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED = "source.querybased.is.metadata.column.check.enabled";
     public static final String SOURCE_QUERYBASED_IS_COMPRESSION_ENABLED = "source.querybased.is.compression.enabled";
-    public static final String SOURCE_QUERYBASED_SALESFORCE_IS_SOFT_DELETES_PULL_DISABLED = "source.querybased.salesforce.is.soft.deletes.pull.disabled";
     public static final String SOURCE_QUERYBASED_JDBC_RESULTSET_FETCH_SIZE = "source.querybased.jdbc.resultset.fetch.size";
 
     /**
@@ -284,8 +283,6 @@ public class ConfigurationKeys {
     public static final long DEFAULT_WATERMARK_VALUE = -1;
     public static final int DEFAULT_MAX_NUMBER_OF_PARTITIONS = 20;
     public static final int DEFAULT_SOURCE_FETCH_SIZE = 1000;
-    public static final int DEFAULT_SALESFORCE_MAX_CHARS_IN_FILE = 200000000;
-    public static final int DEFAULT_SALESFORCE_MAX_ROWS_IN_FILE = 1000000;
     public static final String DEFAULT_WATERMARK_TYPE = "timestamp";
     public static final String DEFAULT_LOW_WATERMARK_BACKUP_SECONDS = "1000";
     public static final int DEFAULT_CONN_TIMEOUT = 500000;
