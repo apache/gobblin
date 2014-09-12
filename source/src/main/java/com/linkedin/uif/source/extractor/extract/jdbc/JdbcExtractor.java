@@ -254,6 +254,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 		JsonObject defaultWatermark = this.getDefaultWatermark();
 		String defaultWatermarkColumnName = defaultWatermark.get("columnName").getAsString();
 		this.setSampleRecordCount(this.exractSampleRecordCountFromQuery(inputQuery));
+		inputQuery = this.removeSampleClauseFromQuery(inputQuery);
 		JsonArray targetSchema = new JsonArray();
 		List<String> headerColumns = new ArrayList<String>();
 
@@ -314,7 +315,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 	private String getExtractQuery(String schema, String entity, String inputQuery) {
 		String inputColProjection = this.getInputColumnProjection();
 		String outputColProjection = this.getOutputColumnProjection();
-		String query = this.removeSampleClauseFromQuery(inputQuery);
+		String query = inputQuery;
 		if (query == null) {
 			// if input query is null, build the query from metadata
 			query = "SELECT " + outputColProjection + " FROM " + schema + "." + entity;
@@ -448,7 +449,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 	 */
 	private boolean isSelectAllColumns() {
 		String columnProjection = this.getInputColumnProjection();
-		if (columnProjection == null || columnProjection.trim().equals("*")) {
+		if (columnProjection == null || columnProjection.trim().equals("*") || columnProjection.contains(".*")) {
 			return true;
 		}
 		return false;
@@ -701,7 +702,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 	 * @return query
 	 */
 	protected String addPredicate(String query, String predicateCond) {
-		String predicate = "where";
+		String predicate = " where ";
 		if (query.toLowerCase().contains(predicate)) {
 			predicate = "and";
 		} else if (query.toLowerCase().contains(predicate)) {
@@ -1024,5 +1025,10 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 			break;
 		}
 		return columnName;
+	}
+	
+	@Override
+	public void closeConnection() throws Exception {
+		this.jdbcSource.close();
 	}
 }

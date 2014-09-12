@@ -1,8 +1,7 @@
-package com.linkedin.uif.source.extractor.extract.restapi;
+package com.linkedin.uif.source.extractor.extract.jdbc;
 
 import java.io.IOException;
 
-import com.linkedin.uif.source.extractor.extract.QueryBasedSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,17 +10,20 @@ import com.google.gson.JsonElement;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.Extractor;
 import com.linkedin.uif.source.extractor.exception.ExtractPrepareException;
+import com.linkedin.uif.source.extractor.extract.QueryBasedSource;
 
 /**
- * An implementation of salesforce source to get work units
+ * An implementation of sqlserver source to get work units
+ * 
+ * @author nveeramr
  */
-public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
-	private static final Logger LOG = LoggerFactory.getLogger(QueryBasedSource.class);
+public class SqlServerSource extends QueryBasedSource<JsonArray, JsonElement> {
+	private static final Logger LOG = LoggerFactory.getLogger(SqlServerSource.class);
 
 	public Extractor<JsonArray, JsonElement> getExtractor(WorkUnitState state) throws IOException {
 		Extractor<JsonArray, JsonElement> extractor = null;
 		try {
-			extractor = new SalesforceExtractor(state).build();
+			extractor = new SqlServerExtractor(state).build();
 		} catch (ExtractPrepareException e) {
 			LOG.error("Failed to prepare extractor: error - " + e.getMessage());
 			throw new IOException(e);

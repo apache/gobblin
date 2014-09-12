@@ -8,13 +8,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import com.linkedin.uif.metrics.JobMetrics;
 import org.apache.hadoop.io.Text;
 
 import com.google.common.collect.Lists;
 import com.google.gson.stream.JsonWriter;
 
 import com.linkedin.uif.configuration.SourceState;
+import com.linkedin.uif.metrics.JobMetrics;
 
 /**
  * A class for tracking job state information.
@@ -271,9 +271,10 @@ public class JobState extends SourceState {
      *
      * @param jsonWriter a {@link com.google.gson.stream.JsonWriter}
      *                   used to write the json document
+     * @param keepConfig whether to keep all configuration properties
      * @throws IOException
      */
-    public void toJson(JsonWriter jsonWriter) throws IOException {
+    public void toJson(JsonWriter jsonWriter, boolean keepConfig) throws IOException {
         jsonWriter.beginObject();
 
         jsonWriter.name("job name").value(this.getJobName())
@@ -292,6 +293,15 @@ public class JobState extends SourceState {
         }
         jsonWriter.endArray();
 
+        if (keepConfig) {
+            jsonWriter.name("properties");
+            jsonWriter.beginObject();
+            for (String key : this.getPropertyNames()) {
+                jsonWriter.name(key).value(this.getProp(key));
+            }
+            jsonWriter.endObject();
+        }
+
         jsonWriter.endObject();
     }
 
@@ -301,7 +311,7 @@ public class JobState extends SourceState {
         JsonWriter jsonWriter = new JsonWriter(stringWriter);
         jsonWriter.setIndent("\t");
         try {
-            this.toJson(jsonWriter);
+            this.toJson(jsonWriter, false);
         } catch (IOException ioe) {
             // Ignored
         }
