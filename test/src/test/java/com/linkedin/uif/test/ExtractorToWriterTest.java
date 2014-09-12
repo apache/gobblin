@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Properties;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
@@ -18,12 +17,12 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
+import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.SchemaConversionException;
 import com.linkedin.uif.source.extractor.DataRecordException;
 import com.linkedin.uif.source.extractor.Extractor;
 import com.linkedin.uif.source.workunit.WorkUnit;
-import com.linkedin.uif.test.TestExtractor;
 import com.linkedin.uif.writer.DataWriter;
 import com.linkedin.uif.writer.DataWriterBuilderFactory;
 import com.linkedin.uif.writer.Destination;
@@ -66,16 +65,16 @@ public class ExtractorToWriterTest
 
         this.fs = FileSystem.get(new URI(TestConstants.TEST_FS_URI), new Configuration());
         
-        Properties properties = new Properties();
-        properties.setProperty(ConfigurationKeys.WRITER_BUFFER_SIZE,
+        State properties = new State();
+        properties.setProp(ConfigurationKeys.WRITER_BUFFER_SIZE,
                 ConfigurationKeys.DEFAULT_BUFFER_SIZE);
-        properties.setProperty(ConfigurationKeys.WRITER_FILE_SYSTEM_URI,
+        properties.setProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI,
                 TestConstants.TEST_FS_URI);
-        properties.setProperty(ConfigurationKeys.WRITER_STAGING_DIR,
+        properties.setProp(ConfigurationKeys.WRITER_STAGING_DIR,
                 TestConstants.TEST_STAGING_DIR);
-        properties.setProperty(ConfigurationKeys.WRITER_OUTPUT_DIR,
+        properties.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR,
                 TestConstants.TEST_OUTPUT_DIR);
-        properties.setProperty(ConfigurationKeys.WRITER_FILE_NAME,
+        properties.setProp(ConfigurationKeys.WRITER_FILE_NAME,
                 TestConstants.TEST_FILE_NAME);
 
         SchemaConverter<String, Schema> schemaConverter = new TestSchemaConverter();

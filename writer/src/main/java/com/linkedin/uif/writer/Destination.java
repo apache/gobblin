@@ -1,6 +1,6 @@
 package com.linkedin.uif.writer;
 
-import java.util.Properties;
+import com.linkedin.uif.configuration.State;
 
 /**
  * A class representing a destination for a writer to write to.
@@ -22,9 +22,9 @@ public class Destination {
     private final DestinationType type;
 
     // Destination properties
-    private final Properties properties;
+    private final State properties;
 
-    private Destination(DestinationType type, Properties properties) {
+    private Destination(DestinationType type, State properties) {
         this.type = type;
         this.properties = properties;
     }
@@ -43,7 +43,7 @@ public class Destination {
      *
      * @return configuration properties
      */
-    public Properties getProperties() {
+    public State getProperties() {
         return this.properties;
     }
 
@@ -54,7 +54,7 @@ public class Destination {
      * @param properties destination properties
      * @return newly created {@link Destination} instance
      */
-    public static Destination of(DestinationType type, Properties properties) {
+    public static Destination of(DestinationType type, State properties) {
         return new Destination(type, properties);
     }
 }

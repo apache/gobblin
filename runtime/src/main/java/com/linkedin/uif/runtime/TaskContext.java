@@ -3,7 +3,6 @@ package com.linkedin.uif.runtime;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Properties;
 
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
@@ -32,7 +31,7 @@ public class TaskContext {
     private final WorkUnitState workUnitState;
     private final WorkUnit workUnit;
 
-    // This is the converter that converts the source schema and data ecords
+    // This is the converter that converts the source schema and data records
     // into the target schema and data records expected by the writer
     private Converter converterForWriter;
 
@@ -87,27 +86,6 @@ public class TaskContext {
                 this.workUnit.getProp(
                         ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY,
                         Destination.DestinationType.HDFS.name()));
-    }
-
-    /**
-     * Get writer destination {@link Properties}.
-     *
-     * @return writer destination {@link Properties}
-     */
-    public Properties getDestinationProperties() {
-        Properties properties = new Properties();
-
-        for (String name : this.workUnit.getPropertyNames()) {
-            // Find properties whose names start with hte pre-defined
-            // prefix for all writer destination configuration keys
-            if (name.toLowerCase().startsWith(
-                    ConfigurationKeys.WRITER_PREFIX)) {
-
-                properties.setProperty(name, this.workUnit.getProp(name));
-            }
-        }
-
-        return properties;
     }
 
     /**

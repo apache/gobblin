@@ -282,9 +282,7 @@ public class Task implements Runnable {
 
         // Then build the right writer using the builder
         this.writer = builder
-                .writeTo(Destination.of(
-                        context.getDestinationType(),
-                        context.getDestinationProperties()))
+                .writeTo(Destination.of(context.getDestinationType(), this.taskState))
                 .writeInFormat(context.getWriterOutputFormat())
                 .withWriterId(this.taskId)
                 .useSchemaConverter(context.getSchemaConverter())

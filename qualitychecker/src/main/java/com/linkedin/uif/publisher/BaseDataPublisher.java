@@ -19,8 +19,8 @@ import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.workunit.Extract;
 
-public class BaseDataPublisher extends DataPublisher
-{
+public class BaseDataPublisher extends DataPublisher {
+
     protected FileSystem fs;
     protected final Map<Extract, List<WorkUnitState>> extractToStateMap;
 
@@ -34,7 +34,12 @@ public class BaseDataPublisher extends DataPublisher
 
     @Override
     public void initialize() throws Exception {
-        this.fs = FileSystem.get(new URI(getState().getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI)), new Configuration());
+        Configuration conf = new Configuration();
+        // Add all job configuration properties so they are picked up by Hadoop
+        for (String key : this.state.getPropertyNames()) {
+            conf.set(key, this.state.getProp(key));
+        }
+        this.fs = FileSystem.get(URI.create(getState().getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI)), conf);
     }
 
     @Override
@@ -62,7 +67,7 @@ public class BaseDataPublisher extends DataPublisher
                 this.fs.mkdirs(finalOutput.getParent());
             }
 
-            LOG.info(String.format("Attemping to move %s to %s", tmpOutput, finalOutput));
+            LOG.info(String.format("Attempting to move %s to %s", tmpOutput, finalOutput));
 
             if (this.fs.exists(finalOutput)) {
                 if (this.getState().getPropAsBoolean((ConfigurationKeys.DATA_PUBLISHER_REPLACE_FINAL_DIR))) {
