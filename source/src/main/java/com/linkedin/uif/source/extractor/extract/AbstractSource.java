@@ -1,5 +1,6 @@
 package com.linkedin.uif.source.extractor.extract;
 
+import java.util.Collections;
 import java.util.List;
 
 import com.google.common.collect.Lists;
@@ -39,11 +40,9 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
      * @return list of previously failed/aborted work units that are to be retried
      */
     protected List<WorkUnit> getPreviousWorkUnitsForRetry(SourceState state) {
-        List<WorkUnit> previousWorkUnits = Lists.newArrayList();
-
         List<WorkUnitState> previousWorkUnitStates = state.getPreviousStates();
         if (previousWorkUnitStates.isEmpty()) {
-            return previousWorkUnits;
+            return Collections.emptyList();
         }
 
         // Determine a work unit retry policy
@@ -61,9 +60,10 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
         }
 
         if (workUnitRetryPolicy == WorkUnitRetryPolicy.NEVER) {
-            return previousWorkUnits;
+            return Collections.emptyList();
         }
 
+        List<WorkUnit> previousWorkUnits = Lists.newArrayList();
         // Get previous work units that were not successfully committed (subject for retries)
         for (WorkUnitState workUnitState : previousWorkUnitStates) {
             if (workUnitState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED) {
@@ -83,9 +83,10 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
             (workUnitRetryPolicy == WorkUnitRetryPolicy.ON_COMMIT_ON_FULL_SUCCESS &&
                 jobCommitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS)) {
             return previousWorkUnits;
+        } else {
+            // Return an empty list if job commit policy and work unit retry policy do not match
+            return Collections.emptyList();
         }
-
-        return previousWorkUnits;
     }
 
 }
