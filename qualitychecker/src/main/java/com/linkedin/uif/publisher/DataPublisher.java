@@ -11,7 +11,7 @@ import com.linkedin.uif.configuration.WorkUnitState;
  */
 public abstract class DataPublisher
 {
-    private State state;
+    protected State state;
 
     public DataPublisher(State state) {
         this.setState(state);

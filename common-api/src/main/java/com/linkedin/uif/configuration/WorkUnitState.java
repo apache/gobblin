@@ -5,6 +5,8 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Set;
 
+import com.google.common.collect.Sets;
+
 import com.linkedin.uif.source.workunit.Extract;
 import com.linkedin.uif.source.workunit.ImmutableWorkUnit;
 import com.linkedin.uif.source.workunit.WorkUnit;
@@ -128,7 +130,7 @@ public class WorkUnitState extends State
   
   @Override
   public Set<String> getPropertyNames() {
-    Set<String> set = super.getPropertyNames();
+    Set<String> set = Sets.newHashSet(super.getPropertyNames());
     set.addAll(workunit.getPropertyNames());
     return set;
   }

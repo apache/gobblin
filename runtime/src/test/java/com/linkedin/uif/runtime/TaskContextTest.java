@@ -116,20 +116,5 @@ public class TaskContextTest {
                 this.taskContext.getWriterOutputFormat(),
                 WriterOutputFormat.AVRO);
         Assert.assertTrue(this.taskContext.getConverters().isEmpty());
-
-        Properties destinationProps = this.taskContext.getDestinationProperties();
-        Assert.assertEquals(destinationProps.size(), 6);
-        Assert.assertEquals(
-                destinationProps.getProperty("writer.fs.uri"),
-                "file://localhost/");
-        Assert.assertEquals(
-                destinationProps.getProperty("writer.staging.dir"),
-                "test/staging");
-        Assert.assertEquals(
-                destinationProps.getProperty("writer.output.dir"),
-                "test/output");
-        Assert.assertEquals(
-                destinationProps.getProperty("writer.file.name"),
-                "test.avro");
     }
 }

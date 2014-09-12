@@ -18,6 +18,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 
+import com.linkedin.uif.configuration.ConfigurationKeys;
+import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.converter.DataConversionException;
 import com.linkedin.uif.writer.converter.DataConverter;
 
@@ -45,18 +47,33 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
     // Whether the writer has already been closed or not
     private volatile boolean closed = false;
 
-    private enum CodecType {
-      DEFLATE,
-      SNAPPY
+    public enum CodecType {
+        DEFLATE,
+        SNAPPY
     }
 
-    public AvroHdfsDataWriter(URI uri, String stagingDir, String outputDir, String fileName,
-                              int bufferSize, DataConverter<S, GenericRecord> dataConverter,
-                              Schema schema, String codecType, int deflateLevel)
+    public AvroHdfsDataWriter(State properties, String relFilePath, String fileName,
+                              DataConverter<S, GenericRecord> dataConverter, Schema schema)
             throws IOException {
 
+        String uri = properties.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI);
+        String stagingDir = properties.getProp(ConfigurationKeys.WRITER_STAGING_DIR,
+                ConfigurationKeys.DEFAULT_STAGING_DIR) + Path.SEPARATOR + relFilePath;
+        String outputDir = properties.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR,
+                ConfigurationKeys.DEFAULT_OUTPUT_DIR) + Path.SEPARATOR + relFilePath;
+        String codecType = properties.getProp(ConfigurationKeys.WRITER_CODEC_TYPE,
+                AvroHdfsDataWriter.CodecType.DEFLATE.name());
+        int bufferSize = Integer.parseInt(properties.getProp(
+                ConfigurationKeys.WRITER_BUFFER_SIZE, ConfigurationKeys.DEFAULT_BUFFER_SIZE));
+        int deflateLevel = Integer.parseInt(properties.getProp(
+                ConfigurationKeys.WRITER_DEFLATE_LEVEL, ConfigurationKeys.DEFAULT_DEFLATE_LEVEL));
+
         Configuration conf = new Configuration();
-        this.fs = FileSystem.get(uri, conf);
+        // Add all job configuration properties so they are picked up by Hadoop
+        for (String key : properties.getPropertyNames()) {
+            conf.set(key, properties.getProp(key));
+        }
+        this.fs = FileSystem.get(URI.create(uri), conf);
 
         this.stagingFile = new Path(stagingDir, fileName);
         // Deleting the staging file if it already exists, which can happen if the
