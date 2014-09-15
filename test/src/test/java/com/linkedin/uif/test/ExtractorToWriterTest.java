@@ -45,7 +45,7 @@ public class ExtractorToWriterTest
     @SuppressWarnings("unchecked")
     @BeforeClass
     public void setUp() throws SchemaConversionException, IOException, URISyntaxException, DataRecordException {
-        WorkUnit workUnit = new WorkUnit(null, null);
+        WorkUnit workUnit = new WorkUnit();
         workUnit.setProp(SOURCE_FILE_KEY, SOURCE_FILES);
         WorkUnitState workUnitState = new WorkUnitState(workUnit);
         

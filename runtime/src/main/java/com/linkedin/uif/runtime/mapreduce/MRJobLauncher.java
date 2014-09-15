@@ -11,7 +11,6 @@ import java.io.Writer;
 import java.net.URI;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -59,6 +58,7 @@ import com.linkedin.uif.runtime.TaskContext;
 import com.linkedin.uif.runtime.TaskExecutor;
 import com.linkedin.uif.runtime.TaskState;
 import com.linkedin.uif.runtime.TaskStateTracker;
+import com.linkedin.uif.source.workunit.MultiWorkUnit;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
 /**
@@ -80,6 +80,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
     private static final Logger LOG = LoggerFactory.getLogger(MRJobLauncher.class);
 
     private static final String JOB_NAME_PREFIX = "Gobblin-";
+
+    private static final String WORK_UNIT_FILE_EXTENSION = ".wu";
+    private static final String MULTI_WORK_UNIT_FILE_EXTENSION = ".mwu";
 
     private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
 
@@ -326,9 +329,10 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
             // Serialize each work unit into a file named after the task ID
             for (WorkUnit workUnit : workUnits) {
-                Path workUnitFile = new Path(
-                        jobInputPath,
-                        workUnit.getProp(ConfigurationKeys.TASK_ID_KEY) + ".wu");
+                Path workUnitFile = new Path(jobInputPath,
+                        workUnit.getProp(ConfigurationKeys.TASK_ID_KEY) +
+                                ((workUnit instanceof MultiWorkUnit) ?
+                                        MULTI_WORK_UNIT_FILE_EXTENSION : WORK_UNIT_FILE_EXTENSION));
                 os = closer.register(this.fs.create(workUnitFile));
                 DataOutputStream dos = closer.register(new DataOutputStream(os));
                 workUnit.write(dos);
@@ -435,7 +439,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
                 return;
             }
 
-            WorkUnit workUnit = new WorkUnit(null, null);
+            WorkUnit workUnit = (value.toString().endsWith(MULTI_WORK_UNIT_FILE_EXTENSION) ?
+                    new MultiWorkUnit() : new WorkUnit());
             Closer closer = Closer.create();
             // Deserialize the work unit of the assigned task
             try {
@@ -446,37 +451,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
                 closer.close();
             }
 
-            String jobId = workUnit.getProp(ConfigurationKeys.JOB_ID_KEY);
-            String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
-
-            // Delete the task state file for the task if it already exists.
-            // This usually happens if the task is retried upon failure.
-            if (this.taskStateStore.exists(jobId, taskId + TASK_STATE_STORE_TABLE_SUFFIX)) {
-                this.taskStateStore.delete(jobId, taskId + TASK_STATE_STORE_TABLE_SUFFIX);
-            }
-
-            // Create a task for the given work unit and submit the task for execution
-            WorkUnitState workUnitState = new WorkUnitState(workUnit);
-            workUnitState.setId(taskId);
-            workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
-            workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
-            Task task = new Task(new TaskContext(workUnitState), this.taskStateTracker);
-            this.taskStateTracker.registerNewTask(task);
-            LOG.info(String.format("Submitting and waiting for task %s to complete...", taskId));
-            try {
-                this.taskExecutor.submit(task).get();
-            } catch (ExecutionException ee) {
-                LOG.error("Failed to submit and execute task " + task.getTaskId(), ee);
-            }
-
-            // Write out the task state upon task completion
-            this.taskStateStore.put(jobId, taskId + TASK_STATE_STORE_TABLE_SUFFIX, task.getTaskState());
-
-            // Let the mapper fail if the task failed by throwing an exception
-            if (task.getTaskState().getWorkingState() == WorkUnitState.WorkingState.FAILED) {
-                throw new IOException(String.format("Task %s of job %s failed",
-                        task.getTaskId(), task.getJobId()));
-            }
+            runWorkUnits(workUnit instanceof MultiWorkUnit ?
+                    ((MultiWorkUnit) workUnit).getWorkUnits() : Lists.newArrayList(workUnit));
         }
 
         @Override
@@ -485,6 +461,50 @@ public class MRJobLauncher extends AbstractJobLauncher {
                 this.serviceManager.stopAsync().awaitStopped(5, TimeUnit.SECONDS);
             } catch (TimeoutException te) {
                 // Ignored
+            }
+        }
+
+        /**
+         * Run the given list of {@link WorkUnit}s sequentially. If any work unit/task fails,
+         * an {@link java.io.IOException} is thrown so the mapper is failed and retried.
+         */
+        private void runWorkUnits(List<WorkUnit> workUnits) throws IOException {
+            boolean hasTaskFailure = false;
+            for (WorkUnit workUnit : workUnits) {
+                String jobId = workUnit.getProp(ConfigurationKeys.JOB_ID_KEY);
+                String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
+
+                // Delete the task state file for the task if it already exists.
+                // This usually happens if the task is retried upon failure.
+                if (this.taskStateStore.exists(jobId, taskId + TASK_STATE_STORE_TABLE_SUFFIX)) {
+                    this.taskStateStore.delete(jobId, taskId + TASK_STATE_STORE_TABLE_SUFFIX);
+                }
+
+                // Create a task for the given work unit and submit the task for execution
+                WorkUnitState workUnitState = new WorkUnitState(workUnit);
+                workUnitState.setId(taskId);
+                workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
+                workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
+                Task task = new Task(new TaskContext(workUnitState), this.taskStateTracker);
+                this.taskStateTracker.registerNewTask(task);
+                LOG.info(String.format("Submitting and waiting for task %s to complete...", taskId));
+                try {
+                    this.taskExecutor.submit(task).get();
+                } catch (Exception e) {
+                    LOG.error("Failed to submit and execute task " + task.getTaskId(), e);
+                }
+
+                // Write out the task state upon task completion
+                this.taskStateStore.put(jobId, taskId + TASK_STATE_STORE_TABLE_SUFFIX, task.getTaskState());
+
+                if (task.getTaskState().getWorkingState() == WorkUnitState.WorkingState.FAILED) {
+                    LOG.error(String.format("Task %s of job %s failed", task.getTaskId(), task.getJobId()));
+                    hasTaskFailure = true;
+                }
+            }
+
+            if (hasTaskFailure) {
+                throw new IOException("Not all tasks completed successfully");
             }
         }
     }

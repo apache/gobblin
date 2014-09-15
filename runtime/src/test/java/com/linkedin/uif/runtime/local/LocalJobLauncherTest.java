@@ -42,6 +42,13 @@ public class LocalJobLauncherTest extends JobLauncherTestBase {
     }
 
     @Test
+    public void testLaunchJobWithMultiWorkUnit() throws Exception {
+        Properties jobProps = loadJobProps();
+        jobProps.setProperty("use.multiworkunit", Boolean.toString(true));
+        runTest(jobProps);
+    }
+
+    @Test
     public void testCancelJob() throws Exception {
         runTestWithCancellation(loadJobProps());
     }

@@ -29,6 +29,7 @@ import com.linkedin.uif.runtime.TaskExecutor;
 import com.linkedin.uif.runtime.TaskState;
 import com.linkedin.uif.runtime.TaskStateTracker;
 import com.linkedin.uif.runtime.WorkUnitManager;
+import com.linkedin.uif.source.workunit.MultiWorkUnit;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
 /**
@@ -89,12 +90,21 @@ public class LocalJobLauncher extends AbstractJobLauncher {
                           List<WorkUnit> workUnits) throws Exception {
 
         this.jobState = jobState;
-        this.countDownLatch = new CountDownLatch(workUnits.size());
+
+        // Figure out the actual work units to run by flattening MultiWorkUnits
+        List<WorkUnit> workUnitsToRun = Lists.newArrayList();
+        for (WorkUnit workUnit : workUnits) {
+            if (workUnit instanceof MultiWorkUnit) {
+                workUnitsToRun.addAll(((MultiWorkUnit) workUnit).getWorkUnits());
+            } else {
+                workUnitsToRun.add(workUnit);
+            }
+        }
 
         String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
 
-        // Add all generated work units
-        for (WorkUnit workUnit : workUnits) {
+        // Add all work units to run
+        for (WorkUnit workUnit : workUnitsToRun) {
             String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
             WorkUnitState workUnitState = new WorkUnitState(workUnit);
             workUnitState.setId(taskId);
@@ -103,6 +113,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
             this.workUnitManager.addWorkUnit(workUnitState);
         }
 
+        this.countDownLatch = new CountDownLatch(workUnitsToRun.size());
         LOG.info(String.format("Waiting for job %s to complete...", jobId));
         // Wait for all tasks to complete
         this.countDownLatch.await();

@@ -30,6 +30,7 @@ import com.linkedin.uif.metrics.JobMetrics;
 import com.linkedin.uif.publisher.DataPublisher;
 import com.linkedin.uif.source.extractor.JobCommitPolicy;
 import com.linkedin.uif.source.Source;
+import com.linkedin.uif.source.workunit.MultiWorkUnit;
 import com.linkedin.uif.source.workunit.WorkUnit;
 import com.linkedin.uif.util.JobLauncherUtils;
 
@@ -161,10 +162,19 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         // Populate job/task IDs
         int sequence = 0;
         for (WorkUnit workUnit : workUnits.get()) {
-            String taskId = JobLauncherUtils.newTaskId(jobId, sequence++);
-            workUnit.setId(taskId);
-            workUnit.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
-            workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
+            if (workUnit instanceof MultiWorkUnit) {
+                for (WorkUnit innerWorkUnit : ((MultiWorkUnit) workUnit).getWorkUnits()) {
+                    innerWorkUnit.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
+                    String taskId = JobLauncherUtils.newTaskId(jobId, sequence++);
+                    innerWorkUnit.setId(taskId);
+                    innerWorkUnit.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
+                }
+            } else {
+                workUnit.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
+                String taskId = JobLauncherUtils.newTaskId(jobId, sequence++);
+                workUnit.setId(taskId);
+                workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
+            }
         }
 
         // Actually launch the job to run
