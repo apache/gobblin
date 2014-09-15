@@ -11,6 +11,7 @@ import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.extractor.Extractor;
 import com.linkedin.uif.source.workunit.Extract;
 import com.linkedin.uif.source.workunit.Extract.TableType;
+import com.linkedin.uif.source.workunit.MultiWorkUnit;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
 /**
@@ -29,22 +30,28 @@ public class TestSource implements Source<String, String> {
 
     @Override
     public List<WorkUnit> getWorkunits(SourceState state) {
-        Extract extract1 = new Extract(state, TableType.SNAPSHOT_ONLY,
+        Extract extract1 = state.createExtract(TableType.SNAPSHOT_ONLY,
                         state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY), "TestTable1");
         
-        Extract extract2 = new Extract(state, TableType.SNAPSHOT_ONLY,
+        Extract extract2 = state.createExtract(TableType.SNAPSHOT_ONLY,
                         state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY), "TestTable2");
         
         String sourceFileList = state.getProp(SOURCE_FILE_LIST_KEY);
-        List<WorkUnit> workUnits = Lists.newArrayList();
-        
         List<String> list = SPLITTER.splitToList(sourceFileList);
-        
+        List<WorkUnit> workUnits = Lists.newArrayList();
         for (int i = 0; i < list.size(); i++) {
             WorkUnit workUnit = new WorkUnit(state, i % 2 == 0 ? extract1 : extract2);
             workUnit.setProp(SOURCE_FILE_KEY, list.get(i));
             workUnits.add(workUnit);
         }
+
+        if (state.getPropAsBoolean("use.multiworkunit", false)) {
+            MultiWorkUnit multiWorkUnit = new MultiWorkUnit();
+            multiWorkUnit.addWorkUnits(workUnits);
+            workUnits.clear();
+            workUnits.add(multiWorkUnit);
+        }
+
         return workUnits;
     }
 
@@ -54,8 +61,7 @@ public class TestSource implements Source<String, String> {
     }
 
     @Override
-    public void shutdown(SourceState state)
-    {
+    public void shutdown(SourceState state) {
         // Do nothing
     }
 }

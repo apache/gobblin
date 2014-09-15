@@ -24,6 +24,13 @@ public class WorkUnit extends State {
   private Extract extract;
 
   /**
+   * Default constructor
+   */
+  public WorkUnit() {
+    this(null, null);
+  }
+
+  /**
    * Constructor
    *
    * @param state {@link SourceState} all properties will be copied into this workunit
