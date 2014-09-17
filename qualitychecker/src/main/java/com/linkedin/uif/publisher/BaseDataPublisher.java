@@ -1,5 +1,6 @@
 package com.linkedin.uif.publisher;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -26,14 +27,13 @@ public class BaseDataPublisher extends DataPublisher {
 
     private static final Logger LOG = LoggerFactory.getLogger(BaseDataPublisher.class);
 
-    public BaseDataPublisher(State state)
-    {
+    public BaseDataPublisher(State state) {
         super(state);
         extractToStateMap = new HashMap<Extract, List<WorkUnitState>>();
     }
 
     @Override
-    public void initialize() throws Exception {
+    public void initialize() throws IOException {
         Configuration conf = new Configuration();
         // Add all job configuration properties so they are picked up by Hadoop
         for (String key : this.state.getPropertyNames()) {
@@ -43,12 +43,12 @@ public class BaseDataPublisher extends DataPublisher {
     }
 
     @Override
-    public void close() throws Exception {
-//        this.fs.close();
+    public void close() throws IOException {
+        // Nothing to do
     }
 
     @Override
-    public void publishData(Collection<? extends WorkUnitState> states) throws Exception {
+    public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
 
         collectExtractMapping(states);
 
@@ -116,6 +116,6 @@ public class BaseDataPublisher extends DataPublisher {
     }
 
     @Override
-    public void publishMetadata(Collection<? extends WorkUnitState> states) throws Exception {
+    public void publishMetadata(Collection<? extends WorkUnitState> states) throws IOException {
     }
 }
