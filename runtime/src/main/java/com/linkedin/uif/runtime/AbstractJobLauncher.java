@@ -19,6 +19,7 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.io.Closer;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
@@ -382,17 +383,23 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                 (commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS &&
                         jobState.getState() == JobState.RunningState.SUCCESSFUL)) {
 
-            LOG.info("Publishing job data of job " + jobId + " with commit policy " + commitPolicy);
-
             Class<? extends DataPublisher> dataPublisherClass = (Class<? extends DataPublisher>)
                     Class.forName(jobState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE));
             Constructor<? extends DataPublisher> dataPublisherConstructor =
-                    dataPublisherClass.getConstructor(com.linkedin.uif.configuration.State.class);
-            DataPublisher publisher = dataPublisherConstructor.newInstance(jobState);
+                    dataPublisherClass.getConstructor(State.class);
 
-            publisher.initialize();
-            publisher.publish(jobState.getTaskStates());
-            jobState.setState(JobState.RunningState.COMMITTED);
+            LOG.info(String.format("Publishing job data of job %s with commit policy %s",
+                    jobId, commitPolicy.name()));
+
+            Closer closer = Closer.create();
+            try {
+                DataPublisher publisher = closer.register(dataPublisherConstructor.newInstance(jobState));
+                publisher.initialize();
+                publisher.publish(jobState.getTaskStates());
+                jobState.setState(JobState.RunningState.COMMITTED);
+            } finally {
+                closer.close();
+            }
         } else {
             LOG.info("Job data will not be committed due to commit policy: " + commitPolicy);
         }
