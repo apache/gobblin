@@ -1,6 +1,5 @@
 package com.linkedin.uif.test;
 
-import java.io.IOException;
 import java.util.Collection;
 
 import com.linkedin.uif.configuration.State;
@@ -22,20 +21,20 @@ public class TestDataPublisher extends DataPublisher {
     }
 
     @Override
-    public void initialize() throws IOException {
+    public void initialize() throws Exception {
         // Do nothing
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() throws Exception {
         // Do nothing
     }
 
     @Override
-    public void publishData(Collection<? extends WorkUnitState> tasks) throws IOException {
+    public void publishData(Collection<? extends WorkUnitState> tasks) throws Exception {
     }
 
     @Override
-    public void publishMetadata(Collection<? extends WorkUnitState> tasks) throws IOException {
+    public void publishMetadata(Collection<? extends WorkUnitState> tasks) throws Exception {
     }
 }
