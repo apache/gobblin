@@ -39,7 +39,6 @@ import com.linkedin.uif.writer.Destination;
  *
  * <ul>
  *     <li>Extracting data records from the data source.</li>
- *     <li>Performing row-level quality checking.</li>
  *     <li>Writing extracted data records to the specified sink.</li>
  *     <li>
  *         Performing quality checking when all extracted data records
@@ -93,10 +92,11 @@ public class Task implements Runnable {
         Closer closer = Closer.create();
         try {
             // Build the extractor for pulling source schema and data records
-            Extractor extractor = closer.register(new ExtractorDecorator(
+            Extractor extractor = new ExtractorDecorator(
                     new SourceDecorator(this.taskContext.getSource(), this.jobId, LOG)
                             .getExtractor(this.taskState),
-                    this.taskId, LOG));
+                    this.taskId, LOG);
+            closer.register(extractor);
 
             // Original source schema
             Object sourceSchema = extractor.getSchema();
@@ -115,7 +115,8 @@ public class Task implements Runnable {
             }
 
             // Construct the row level policy checker
-            RowLevelPolicyChecker rowChecker = closer.register(buildRowLevelPolicyChecker(this.taskState));
+            RowLevelPolicyChecker rowChecker = buildRowLevelPolicyChecker(this.taskState);
+            closer.register(rowChecker);
             RowLevelPolicyCheckResults rowResults = new RowLevelPolicyCheckResults();
 
             // Build the writer for writing the output of the extractor
