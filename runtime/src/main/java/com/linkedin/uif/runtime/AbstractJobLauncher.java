@@ -157,7 +157,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
 
         jobState.setTasks(workUnits.get().size());
-        jobState.setStartTime(System.currentTimeMillis());
+        long startTime = System.currentTimeMillis();
+        jobState.setStartTime(startTime);
         jobState.setState(JobState.RunningState.RUNNING);
 
         // Populate job/task IDs
@@ -193,6 +194,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             jobState.setState(JobState.RunningState.FAILED);
             throw new JobException(errMsg, t);
         } finally {
+            long endTime = System.currentTimeMillis();
+            jobState.setEndTime(endTime);
+            jobState.setDuration(endTime - startTime);
+
             try {
                 source.shutdown(sourceState);
                 persistJobState(jobState);
