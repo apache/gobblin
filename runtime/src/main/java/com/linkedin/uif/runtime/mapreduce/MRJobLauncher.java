@@ -170,6 +170,10 @@ public class MRJobLauncher extends AbstractJobLauncher {
             addHDFSFiles(jobProps.getProperty(ConfigurationKeys.JOB_HDFS_FILES_KEY));
         }
 
+        // Let the job and all mappers finish even if some mappers fail
+        this.conf.set("mapred.max.map.failures.percent", "100"); // For Hadoop 1.x
+        this.conf.set("mapreduce.map.failures.maxpercent", "100"); // For Hadoop 2.x
+
         // Preparing a Hadoop MR job
         this.job = Job.getInstance(this.conf, JOB_NAME_PREFIX + jobName);
         this.job.setJarByClass(MRJobLauncher.class);
@@ -363,16 +367,23 @@ public class MRJobLauncher extends AbstractJobLauncher {
         }
 
         for (FileStatus status : fileStatuses) {
-            // Read out the task states
-            SequenceFile.Reader reader = new SequenceFile.Reader(
-                    this.fs, status.getPath(), this.fs.getConf());
-            Text text = new Text();
-            TaskState taskState = new TaskState();
-            while (reader.next(text, taskState)) {
-                taskStates.add(taskState);
-                taskState = new TaskState();
+            Closer closer = Closer.create();
+            try {
+                // Read out the task states
+                SequenceFile.Reader reader = closer.register(
+                        new SequenceFile.Reader(this.fs, status.getPath(), this.fs.getConf()));
+                Text text = new Text();
+                TaskState taskState = new TaskState();
+                while (reader.next(text, taskState)) {
+                    taskStates.add(taskState);
+                    taskState = new TaskState();
+                }
+            } finally {
+                closer.close();
             }
         }
+
+        LOG.info(String.format("Collected task state of %d completed tasks", taskStates.size()));
 
         return taskStates;
     }
@@ -480,21 +491,24 @@ public class MRJobLauncher extends AbstractJobLauncher {
                     this.taskStateStore.delete(jobId, taskId + TASK_STATE_STORE_TABLE_SUFFIX);
                 }
 
-                // Create a task for the given work unit and submit the task for execution
                 WorkUnitState workUnitState = new WorkUnitState(workUnit);
                 workUnitState.setId(taskId);
                 workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
                 workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
+
+                // Create a new task from the work unit and register the task
                 Task task = new Task(new TaskContext(workUnitState), this.taskStateTracker);
                 this.taskStateTracker.registerNewTask(task);
                 LOG.info(String.format("Submitting and waiting for task %s to complete...", taskId));
                 try {
+                    // Submit the task to run and wait for it to complete
                     this.taskExecutor.submit(task).get();
                 } catch (Exception e) {
                     LOG.error("Failed to submit and execute task " + task.getTaskId(), e);
                 }
 
                 // Write out the task state upon task completion
+                LOG.info("Writing task state for task " + taskId);
                 this.taskStateStore.put(jobId, taskId + TASK_STATE_STORE_TABLE_SUFFIX, task.getTaskState());
 
                 if (task.getTaskState().getWorkingState() == WorkUnitState.WorkingState.FAILED) {

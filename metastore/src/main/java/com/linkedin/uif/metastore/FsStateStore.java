@@ -5,9 +5,6 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -15,6 +12,10 @@ import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.io.Closer;
 
 import com.linkedin.uif.configuration.State;
 
@@ -44,8 +45,8 @@ public class FsStateStore implements StateStore {
     // Class of the state objects to be put into the store
     private final Class<? extends State> stateClass;
 
-    public FsStateStore(String fsUri, String storeRootDir,
-            Class<? extends State> stateClass) throws IOException {
+    public FsStateStore(String fsUri, String storeRootDir, Class<? extends State> stateClass)
+            throws IOException {
 
         this.conf = new Configuration();
         this.fs = FileSystem.get(URI.create(fsUri), this.conf);
@@ -53,8 +54,7 @@ public class FsStateStore implements StateStore {
         this.stateClass = stateClass;
     }
 
-    public FsStateStore(FileSystem fs, String storeRootDir,
-                        Class<? extends State> stateClass)
+    public FsStateStore(FileSystem fs, String storeRootDir, Class<? extends State> stateClass)
             throws IOException {
 
         this.fs = fs;
@@ -99,27 +99,22 @@ public class FsStateStore implements StateStore {
     }
 
     @Override
-    public void put(String storeName, String tableName, State state)
-            throws IOException {
-
+    public void put(String storeName, String tableName, State state) throws IOException {
         Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
         if (!this.fs.exists(tablePath) && !create(storeName, tableName)) {
-            throw new IOException(
-                    "Failed to create a state file for table " + tableName);
+            throw new IOException("Failed to create a state file for table " + tableName);
         }
 
-        SequenceFile.Writer writer = null;
+        Closer closer = Closer.create();
         try {
-            writer = new SequenceFile.Writer(
-                    this.fs, this.conf, tablePath, Text.class, this.stateClass);
+            SequenceFile.Writer writer = closer.register(
+                    new SequenceFile.Writer(this.fs, this.conf, tablePath, Text.class, this.stateClass));
             // Append will overwrite existing data, so it's not real append.
             // Real append is to be supported for SequenceFile (HADOOP-7139).
             // TODO: implement a workaround.
             writer.append(new Text(Strings.nullToEmpty(state.getId())), state);
         } finally {
-            if (writer != null) {
-                writer.close();
-            }
+            closer.close();
         }
     }
 
@@ -129,14 +124,13 @@ public class FsStateStore implements StateStore {
 
         Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
         if (!this.fs.exists(tablePath) && !create(storeName, tableName)) {
-            throw new IOException(
-                    "Failed to create a state file for table " + tableName);
+            throw new IOException("Failed to create a state file for table " + tableName);
         }
 
-        SequenceFile.Writer writer = null;
+        Closer closer = Closer.create();
         try {
-            writer = new SequenceFile.Writer(
-                    this.fs, this.conf, tablePath, Text.class, this.stateClass);
+            SequenceFile.Writer writer = closer.register(
+                    new SequenceFile.Writer(this.fs, this.conf, tablePath, Text.class, this.stateClass));
             for (State state : states) {
                 // Append will overwrite existing data, so it's not real append.
                 // Real append is to be supported for SequenceFile (HADOOP-7139).
@@ -144,9 +138,7 @@ public class FsStateStore implements StateStore {
                 writer.append(new Text(Strings.nullToEmpty(state.getId())), state);
             }
         } finally {
-            if (writer != null) {
-                writer.close();
-            }
+            closer.close();
         }
     }
 
@@ -159,9 +151,9 @@ public class FsStateStore implements StateStore {
             return null;
         }
 
-        SequenceFile.Reader reader = null;
+        Closer closer = Closer.create();
         try {
-            reader = new SequenceFile.Reader(this.fs, tablePath, this.conf);
+            SequenceFile.Reader reader = closer.register(new SequenceFile.Reader(this.fs, tablePath, this.conf));
             try {
                 Text key = new Text();
                 State state = this.stateClass.newInstance();
@@ -174,9 +166,7 @@ public class FsStateStore implements StateStore {
                 throw new IOException(e);
             }
         } finally {
-            if (reader != null) {
-                reader.close();
-            }
+            closer.close();
         }
 
         return null;
@@ -193,9 +183,9 @@ public class FsStateStore implements StateStore {
             return states;
         }
 
-        SequenceFile.Reader reader = null;
+        Closer closer = Closer.create();
         try {
-            reader = new SequenceFile.Reader(this.fs, tablePath, this.conf);
+            SequenceFile.Reader reader = closer.register(new SequenceFile.Reader(this.fs, tablePath, this.conf));
             try {
                 Text key = new Text();
                 State state = this.stateClass.newInstance();
@@ -208,9 +198,7 @@ public class FsStateStore implements StateStore {
                 throw new IOException(e);
             }
         } finally {
-            if (reader != null) {
-                reader.close();
-            }
+            closer.close();
         }
 
         return states;
