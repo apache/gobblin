@@ -1,0 +1,39 @@
+#########################################################################
+###################### Demo job configuration file ######################
+#########################################################################
+
+job.name=GobblinDemo
+job.group=demo
+job.description=A Gobblin job for demo purpose
+
+source.class=com.linkedin.uif.demo.source.DemoSource
+converter.classes=com.linkedin.uif.demo.converter.DemoConverter
+extract.namespace=gobblin.demo
+
+# source configuration properties
+# comma-separated list of file URIs (supporting different schemes, e.g., file://, ftp://, sftp://, http://, etc)
+source.filebased.files.to.pull=
+# whether to use authentication or not (default is false)
+source.conn.use.authentication=
+# credential for authentication purpose (optional)
+source.conn.domain=
+source.conn.username=
+source.conn.password=
+# source data schema
+source.schema={"namespace":"example.avro", "type":"record", "name":"User", "fields":[{"name":"name", "type":"string"}, {"name":"favorite_number",  "type":"int"}, {"name":"favorite_color", "type":"string"}]}
+
+# quality checker configuration properties
+qualitychecker.task.policies=com.linkedin.uif.policies.count.RowCountPolicy,com.linkedin.uif.policies.schema.SchemaCompatibilityPolicy
+qualitychecker.task.policy.types=OPTIONAL,OPTIONAL
+qualitychecker.row.policies=com.linkedin.uif.policies.schema.SchemaRowCheckPolicy
+qualitychecker.row.policy.types=OPTIONAL
+qualitychecker.row.err.file=test/jobOutput
+
+# data publisher class to be used
+data.publisher.type=com.linkedin.uif.publisher.BaseDataPublisher
+
+# writer configuration properties
+writer.destination.type=HDFS
+writer.output.format=AVRO
+writer.fs.uri=file:///
+

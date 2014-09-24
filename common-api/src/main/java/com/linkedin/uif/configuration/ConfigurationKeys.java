@@ -260,10 +260,12 @@ public class ConfigurationKeys {
     /**
      * Configuration properties for source connection
      */
+    public static final String SOURCE_CONN_USE_AUTHENTICATION = "source.conn.use.authentication";
     public static final String SOURCE_CONN_PRIVATE_KEY = "source.conn.private.key";
     public static final String SOURCE_CONN_KNOWN_HOSTS = "source.conn.known.hosts";
     public static final String SOURCE_CONN_CLIENT_SECRET = "source.conn.client.secret";
     public static final String SOURCE_CONN_CLIENT_ID = "source.conn.client.id";
+    public static final String SOURCE_CONN_DOMAIN = "source.conn.domain";
     public static final String SOURCE_CONN_USERNAME = "source.conn.username";
     public static final String SOURCE_CONN_PASSWORD = "source.conn.password";
     public static final String SOURCE_CONN_SECURITY_TOKEN = "source.conn.security.token";

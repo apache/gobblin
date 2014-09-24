@@ -13,6 +13,7 @@ dependencies {
     runtime(project(':source'))
     runtime(project(':metrics'))
     runtime(project(':example'))
+    runtime(project(':demo'))
 }
 
 tgz {
@@ -29,6 +30,7 @@ tgz {
     rename("source-$version$jar_extension", "source.jar")
     rename("metrics-$version$jar_extension", "metrics.jar")
     rename("example-$version$jar_extension", "example.jar")
+    rename("demo-$version$jar_extension", "demo.jar")
     from('.')
     from('../bin') { into('bin') }
     from('../conf') { into('conf') }
