@@ -1,0 +1,27 @@
+apply plugin: 'li-java'
+
+dependencies {
+    compile project(":common-api")
+    compile spec.external.avro
+    compile spec.external.avroMapred
+    compile spec.external.guava
+    compile spec.external.jacksonCore
+    compile spec.external.slf4j
+    compile spec.external.gson
+    compile spec.external.commonsVfs
+
+    testCompile spec.external.testng
+}
+
+configurations {
+    compile {
+        transitive = false
+    }
+}
+
+test {
+    useTestNG ()
+    include '**/*Test*'
+}
+
+classification="library"
