@@ -1,20 +1,18 @@
 package com.linkedin.uif.writer;
 
-import org.apache.avro.generic.GenericRecord;
-
 import java.io.IOException;
+
+import org.apache.avro.generic.GenericRecord;
 
 /**
  * An implementation of {@link DataWriter} that writes to a Kafka topic.
  *
- * @param <S> type of source data record representation
- *
  * @author ynli
  */
-class KafkaDataWriter<S> implements DataWriter<S, GenericRecord> {
+class AvroKafkaDataWriter implements DataWriter<GenericRecord> {
 
     @Override
-    public void write(S sourceRecord) throws IOException {
+    public void write(GenericRecord record) throws IOException {
     }
 
     @Override

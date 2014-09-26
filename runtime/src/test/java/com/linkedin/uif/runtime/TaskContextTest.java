@@ -3,8 +3,6 @@ package com.linkedin.uif.runtime;
 import java.io.StringReader;
 import java.util.Properties;
 
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -15,8 +13,6 @@ import com.linkedin.uif.source.workunit.WorkUnit;
 import com.linkedin.uif.test.TestSource;
 import com.linkedin.uif.writer.Destination;
 import com.linkedin.uif.writer.WriterOutputFormat;
-import com.linkedin.uif.writer.converter.DataConverter;
-import com.linkedin.uif.writer.converter.SchemaConverter;
 
 /**
  * Unit tests for {@link TaskContext}.
@@ -32,7 +28,6 @@ public class TaskContextTest {
             "job.description=Test UIF job 1\n" +
             "job.schedule=0 0/1 * * * ?\n" +
             "source.class=com.linkedin.uif.test.TestSource\n" +
-            "converter.classes=com.linkedin.uif.test.TestConverter\n" +
             "workunit.namespace=test\n" +
             "workunit.table=test\n" +
             "writer.destination.type=HDFS\n" +
@@ -41,25 +36,6 @@ public class TaskContextTest {
             "writer.staging.dir=test/staging\n" +
             "writer.output.dir=test/output\n" +
             "writer.file.name=test.avro";
-
-    private static final String TEST_SCHEMA =
-            "{\"namespace\": \"example.avro\",\n" +
-                    " \"type\": \"record\",\n" +
-                    " \"name\": \"User\",\n" +
-                    " \"fields\": [\n" +
-                    "     {\"name\": \"name\", \"type\": \"string\"},\n" +
-                    "     {\"name\": \"favorite_number\",  \"type\": \"int\"},\n" +
-                    "     {\"name\": \"favorite_color\", \"type\": \"string\"}\n" +
-                    " ]\n" +
-                    "}";
-
-    // Test Avro data in json format
-    private static final String TEST_DATA_RECORD =
-            "{" +
-                    "\"name\": \"Alyssa\", " +
-                    "\"favorite_number\": 256, " +
-                    "\"favorite_color\": \"yellow\"" +
-            "}";
 
     private TaskContext taskContext;
 
@@ -70,38 +46,6 @@ public class TaskContextTest {
         properties.load(new StringReader(TEST_JOB_CONFIG));
         workUnit.addAll(properties);
         this.taskContext = new TaskContext(new WorkUnitState(workUnit));
-    }
-
-    @Test
-    public void testConverters() throws Exception {
-        // Test schema converter
-        SchemaConverter schemaConverter = this.taskContext.getSchemaConverter();
-        Schema schema = (Schema) schemaConverter.convert(TEST_SCHEMA);
-
-        Assert.assertEquals(schema.getNamespace(), "example.avro");
-        Assert.assertEquals(schema.getType(), Schema.Type.RECORD);
-        Assert.assertEquals(schema.getName(), "User");
-        Assert.assertEquals(schema.getFields().size(), 3);
-
-        Schema.Field nameField = schema.getField("name");
-        Assert.assertEquals(nameField.name(), "name");
-        Assert.assertEquals(nameField.schema().getType(), Schema.Type.STRING);
-
-        Schema.Field favNumberField = schema.getField("favorite_number");
-        Assert.assertEquals(favNumberField.name(), "favorite_number");
-        Assert.assertEquals(favNumberField.schema().getType(), Schema.Type.INT);
-
-        Schema.Field favColorField = schema.getField("favorite_color");
-        Assert.assertEquals(favColorField.name(), "favorite_color");
-        Assert.assertEquals(favColorField.schema().getType(), Schema.Type.STRING);
-
-        // Test data converter
-        DataConverter dataConverter = this.taskContext.getDataConverter(TEST_SCHEMA);
-        GenericRecord record = (GenericRecord) dataConverter.convert(TEST_DATA_RECORD);
-
-        Assert.assertEquals(record.get("name"), "Alyssa");
-        Assert.assertEquals(record.get("favorite_number"), 256d);
-        Assert.assertEquals(record.get("favorite_color"), "yellow");
     }
 
     @Test

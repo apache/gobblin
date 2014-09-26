@@ -36,7 +36,9 @@ artifacts {
 }
 
 test {
-    useTestNG ()
+    useTestNG () {
+        excludeGroups 'ignore'
+    }
     include '**/*Test*'
 }
 

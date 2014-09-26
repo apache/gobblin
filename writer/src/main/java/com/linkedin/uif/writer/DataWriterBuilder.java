@@ -2,27 +2,20 @@ package com.linkedin.uif.writer;
 
 import java.io.IOException;
 
-import com.linkedin.uif.writer.converter.DataConverter;
-import com.linkedin.uif.writer.converter.SchemaConverter;
-
 /**
  * A builder class for {@link DataWriter}.
  *
- * @param <SI> type of source schema representation
- * @param <SO> target schema type
- * @param <DI> type of source data record representation
- * @param <DO> target record data type
+ * @param <S> schema type
+ * @param <D> data record type
  *
  * @author ynli
  */
-public abstract class DataWriterBuilder<SI, SO, DI, DO> {
+public abstract class DataWriterBuilder<S, D> {
 
     protected Destination destination;
     protected String writerId;
     protected WriterOutputFormat format;
-    protected DataConverter<DI, DO> dataConverter;
-    protected SchemaConverter<SI, SO> schemaConverter;
-    protected SI sourceSchema;
+    protected S schema;
     protected String filePath;
 
     /**
@@ -31,7 +24,7 @@ public abstract class DataWriterBuilder<SI, SO, DI, DO> {
      * @param destination destination to write to
      * @return this {@link DataWriterBuilder} instance
      */
-    public DataWriterBuilder<SI, SO, DI, DO> writeTo(Destination destination) {
+    public DataWriterBuilder<S, D> writeTo(Destination destination) {
         this.destination = destination;
         return this;
     }
@@ -42,7 +35,7 @@ public abstract class DataWriterBuilder<SI, SO, DI, DO> {
      * @param format output format of the writer
      * @return this {@link DataWriterBuilder} instance
      */
-    public DataWriterBuilder<SI, SO, DI, DO> writeInFormat(WriterOutputFormat format) {
+    public DataWriterBuilder<S, D> writeInFormat(WriterOutputFormat format) {
         this.format = format;
         return this;
     }
@@ -53,50 +46,19 @@ public abstract class DataWriterBuilder<SI, SO, DI, DO> {
      * @param writerId unique writer ID
      * @return this {@link DataWriterBuilder} instance
      */
-    public DataWriterBuilder<SI, SO, DI, DO> withWriterId(String writerId) {
+    public DataWriterBuilder<S, D> withWriterId(String writerId) {
         this.writerId = writerId;
-        return this;
-    }
-
-    /**
-     * Tell the writer what {@link DataConverter} to use.
-     *
-     * @param dataConverter converter to convert the source record to a
-     *                      {@link org.apache.avro.generic.GenericRecord}
-     * @return this {@link DataWriterBuilder} instance
-     */
-    public DataWriterBuilder<SI, SO, DI, DO> useDataConverter(
-            DataConverter<DI, DO> dataConverter) {
-
-        this.dataConverter = dataConverter;
-        return this;
-    }
-
-    /**
-     * Tell the writer what {@link SchemaConverter} to use.
-     *
-     * @param schemaConverter converter to convert the source schema to a
-     *                        {@link org.apache.avro.Schema}
-     * @return this {@link DataWriterBuilder} instance
-     */
-    public DataWriterBuilder<SI, SO, DI, DO> useSchemaConverter(
-            SchemaConverter<SI, SO> schemaConverter) {
-
-        this.schemaConverter = schemaConverter;
         return this;
     }
 
     /**
      * Tell the writer the data schema.
      *
-     * @param sourceSchema source data schema
-     * @param schemaType type of schema expected and used by the target
-     *                   consumer, e.g., Lumos
+     * @param schema data schema
      * @return this {@link DataWriterBuilder} instance
      */
-    public DataWriterBuilder<SI, SO, DI, DO> withSourceSchema(
-            SI sourceSchema) {
-        this.sourceSchema = sourceSchema;
+    public DataWriterBuilder<S, D> withSchema(S schema) {
+        this.schema = schema;
         return this;
     }
 
@@ -106,7 +68,7 @@ public abstract class DataWriterBuilder<SI, SO, DI, DO> {
      * @param filePath is the path the file will be written to
      * @return this {@link DataWriterBuilder} instance
      */
-    public DataWriterBuilder<SI, SO, DI, DO> withFilePath(String filePath) {
+    public DataWriterBuilder<S, D> withFilePath(String filePath) {
         this.filePath = filePath;
         return this;
     }
@@ -118,5 +80,5 @@ public abstract class DataWriterBuilder<SI, SO, DI, DO> {
      * @return the built {@link DataWriter}
      */
     @SuppressWarnings("unchecked")
-    public abstract DataWriter<DI, DO> build() throws IOException;
+    public abstract DataWriter<D> build() throws IOException;
 }
