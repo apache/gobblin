@@ -42,6 +42,7 @@ public class ConfigurationKeys {
     public static final String SOURCE_CLASS_KEY = "source.class";
     public static final String SOURCE_WRAPPER_CLASS_KEY = "source.wrapper.class";
     public static final String CONVERTER_CLASSES_KEY = "converter.classes";
+    public static final String FORK_OPERATOR_CLASS_KEY = "fork.operator.class";
     public static final String JOB_COMMIT_POLICY_KEY = "job.commit.policy";
     public static final String DEFAULT_JOB_COMMIT_POLICY = "full";
     public static final String WORK_UNIT_RETRY_POLICY_KEY = "workunit.retry.policy";
@@ -99,6 +100,11 @@ public class ConfigurationKeys {
     public static final String CONVERTER_CSV_TO_JSON_DELIMITER = "converter.csv.to.json.delimiter";
     public static final String CONVERTER_FILTER_FIELD = "converter.filter.field";
     public static final String CONVERTER_FILTER_IDS_FILE = "converter.filter.ids.file";
+
+    /**
+     * Fork operator configuration properties
+     */
+    public static final String FORK_BRANCHES_KEY = "fork.branches";
 
     /**
      * Writer configuration properties

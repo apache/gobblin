@@ -4,22 +4,21 @@ import java.io.Closeable;
 import java.io.IOException;
 
 /**
- * An interface for UIF data writers.
+ * An interface for data writers.
  *
- * @param <S> type of source data record representation
- * @param <O> output record data type
+ * @param <D> data record type
  *
  * @author ynli
  */
-public interface DataWriter<S, O> extends Closeable {
+public interface DataWriter<D> extends Closeable {
 
     /**
      * Write a source data record in Avro format using the given converter.
      *
-     * @param sourceRecord source data record
+     * @param record data record to write
      * @throws IOException if there is anything wrong writing the record
      */
-    public void write(S sourceRecord) throws IOException;
+    public void write(D record) throws IOException;
 
     /**
      * Commit the data written.

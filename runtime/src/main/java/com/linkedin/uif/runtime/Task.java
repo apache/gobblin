@@ -148,9 +148,6 @@ public class Task implements Runnable {
 
             LOG.info("Row quality checker finished with results: " + rowResults.getResults());
 
-            // We need to close the writer before task data can be committed
-            this.writer.close();
-
             // Runs task level quality checking policies and checks their output
             boolean shouldCommit = checkDataQuality(recordsPulled,
                     extractor.getExpectedRecordCount(), pullLimit, schemaForWriter);
@@ -284,9 +281,7 @@ public class Task implements Runnable {
                 .writeTo(Destination.of(context.getDestinationType(), this.taskState))
                 .writeInFormat(context.getWriterOutputFormat())
                 .withWriterId(this.taskId)
-                .useSchemaConverter(context.getSchemaConverter())
-                .useDataConverter(context.getDataConverter(schema))
-                .withSourceSchema(schema)
+                .withSchema(schema)
                 .withFilePath(this.taskState.getExtract().getOutputFilePath())
                 .build();
     }

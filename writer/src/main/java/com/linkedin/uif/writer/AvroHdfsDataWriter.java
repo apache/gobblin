@@ -20,25 +20,19 @@ import com.google.common.base.Preconditions;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.State;
-import com.linkedin.uif.converter.DataConversionException;
-import com.linkedin.uif.writer.converter.DataConverter;
 
 /**
- * An implementation of {@link DataWriter} that writes directly
- * to HDFS in Avro format.
- *
- * @param <S> type of source data record representation
+ * An implementation of {@link DataWriter} that writes directly to HDFS in Avro format.
  *
  * @author ynli
  */
-class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
+class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
 
     private static final Logger LOG = LoggerFactory.getLogger(AvroHdfsDataWriter.class);
 
     private final FileSystem fs;
     private final Path stagingFile;
     private final Path outputFile;
-    private final DataConverter<S, GenericRecord> dataConverter;
     private final DataFileWriter<GenericRecord> writer;
 
     // Number of records successfully written
@@ -53,8 +47,7 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
     }
 
     public AvroHdfsDataWriter(State properties, String relFilePath, String fileName,
-                              DataConverter<S, GenericRecord> dataConverter, Schema schema)
-            throws IOException {
+                              Schema schema) throws IOException {
 
         String uri = properties.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI);
         String stagingDir = properties.getProp(ConfigurationKeys.WRITER_STAGING_DIR,
@@ -92,29 +85,14 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
             this.fs.mkdirs(this.outputFile.getParent());
         }
 
-        this.dataConverter = dataConverter;
         this.writer = createDatumWriter(schema, this.stagingFile, bufferSize,
                 CodecType.valueOf(codecType), deflateLevel);
     }
 
     @Override
-    public void write(S sourceRecord) throws IOException {
-        Preconditions.checkNotNull(sourceRecord);
-
-        try {
-            if (this.dataConverter != null) {
-                GenericRecord record = this.dataConverter.convert(sourceRecord);
-                if (record != null) {
-                    this.writer.append(record);
-                }
-            } else {
-                this.writer.append((GenericRecord) sourceRecord);
-            }
-        } catch (DataConversionException e) {
-            LOG.error("Failed to convert and write source data record: " + sourceRecord);
-            throw new IOException(e);
-        }
-
+    public void write(GenericRecord record) throws IOException {
+        Preconditions.checkNotNull(record);
+        this.writer.append(record);
         // Only increment when write is successful
         this.count.incrementAndGet();
     }
@@ -132,6 +110,11 @@ class AvroHdfsDataWriter<S> implements DataWriter<S, GenericRecord> {
 
     @Override
     public void commit() throws IOException {
+        // Close the writer first if it has not been closed yet
+        if (!this.closed) {
+            this.close();
+        }
+
         if (!this.fs.exists(this.stagingFile)) {
             throw new IOException(String.format("File %s does not exist", this.stagingFile));
         }
