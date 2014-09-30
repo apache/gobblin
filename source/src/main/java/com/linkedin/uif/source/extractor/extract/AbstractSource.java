@@ -67,7 +67,8 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
         // Get previous work units that were not successfully committed (subject for retries)
         for (WorkUnitState workUnitState : previousWorkUnitStates) {
             if (workUnitState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED) {
-                previousWorkUnits.add(workUnitState.getWorkunit());
+                // Make a copy here as getWorkUnit() below returns an ImmutableWorkUnit
+                previousWorkUnits.add(new WorkUnit(workUnitState.getWorkunit()));
             }
         }
 
