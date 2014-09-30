@@ -1,7 +1,6 @@
 package com.linkedin.uif.runtime;
 
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 
 import com.google.common.base.Splitter;
@@ -11,18 +10,14 @@ import com.google.common.collect.Lists;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.Converter;
-import com.linkedin.uif.converter.DataConversionException;
-import com.linkedin.uif.converter.SchemaConversionException;
+import com.linkedin.uif.converter.ForkOperator;
 import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.workunit.WorkUnit;
 import com.linkedin.uif.writer.Destination;
 import com.linkedin.uif.writer.WriterOutputFormat;
-import com.linkedin.uif.writer.converter.DataConverter;
-import com.linkedin.uif.writer.converter.SchemaConverter;
 
 /**
- * A class containing all necessary information to construct
- * and run a {@link Task}.
+ * A class containing all necessary information to construct and run a {@link Task}.
  *
  * @author ynli
  */
@@ -30,10 +25,6 @@ public class TaskContext {
 
     private final WorkUnitState workUnitState;
     private final WorkUnit workUnit;
-
-    // This is the converter that converts the source schema and data records
-    // into the target schema and data records expected by the writer
-    private Converter converterForWriter;
 
     public TaskContext(WorkUnitState workUnitState) {
         this.workUnitState = workUnitState;
@@ -58,8 +49,7 @@ public class TaskContext {
     public Source getSource() {
         try {
             return (Source) Class.forName(
-                    this.workUnit.getProp(ConfigurationKeys.SOURCE_CLASS_KEY))
-                    .newInstance();
+                    this.workUnit.getProp(ConfigurationKeys.SOURCE_CLASS_KEY)).newInstance();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -82,10 +72,8 @@ public class TaskContext {
      * @return writer {@link Destination.DestinationType}
      */
     public Destination.DestinationType getDestinationType() {
-        return Destination.DestinationType.valueOf(
-                this.workUnit.getProp(
-                        ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY,
-                        Destination.DestinationType.HDFS.name()));
+        return Destination.DestinationType.valueOf(this.workUnit.getProp(
+                ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY, Destination.DestinationType.HDFS.name()));
     }
 
     /**
@@ -95,88 +83,7 @@ public class TaskContext {
      */
     public WriterOutputFormat getWriterOutputFormat() {
         return WriterOutputFormat.valueOf(this.workUnit.getProp(
-                ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY,
-                WriterOutputFormat.AVRO.name()));
-    }
-
-    /**
-     * Get the {@link DataConverter} used to convert source data records into
-     * Avro {@link org.apache.avro.generic.GenericRecord}s.
-     *
-     * @param schemaForWriter data schema ready for the writer
-     *
-     * @return the {@link DataConverter} or <em>null</em> if no converter is specified
-     */
-    @SuppressWarnings("unchecked")
-    public DataConverter getDataConverter(final Object schemaForWriter) {
-        if (!this.workUnit.contains(ConfigurationKeys.CONVERTER_CLASSES_KEY) ||
-                Strings.isNullOrEmpty(this.workUnit.getProp(ConfigurationKeys.CONVERTER_CLASSES_KEY))) {
-            return null;
-        }
-
-        final Converter converter = getConverterForWriter();
-        return new DataConverter() {
-
-            @Override
-            public Object convert(Object sourceRecord) throws DataConversionException {
-                try {
-                    return converter.convertRecord(converter.convertSchema(
-                          schemaForWriter, workUnitState), sourceRecord, workUnitState);
-                } catch (SchemaConversionException e) {
-                    throw new DataConversionException(e);
-                }
-            }
-        };
-    }
-
-    /**
-     * Get the {@link SchemaConverter} used to convert a source schema into
-     * Avro {@link org.apache.avro.Schema}.
-     *
-     * @return the {@link SchemaConverter} or <em>null</em> if no converter is specified
-     */
-    @SuppressWarnings("unchecked")
-    public SchemaConverter getSchemaConverter() {
-        if (!this.workUnit.contains(ConfigurationKeys.CONVERTER_CLASSES_KEY) ||
-                Strings.isNullOrEmpty(this.workUnit.getProp(ConfigurationKeys.CONVERTER_CLASSES_KEY))) {
-            return null;
-        }
-
-        final Converter converter = getConverterForWriter();
-        return new SchemaConverter() {
-
-            @Override
-            public Object convert(Object sourceSchema) throws SchemaConversionException {
-                return converter.convertSchema(sourceSchema, workUnitState);
-            }
-        };
-    }
-
-    /**
-     * Get the {@link Converter} that converts the source schema and data
-     * records into the target schema and data records expected by the writer.
-     */
-    private Converter getConverterForWriter() {
-        if (this.converterForWriter == null) {
-            // Get the comma-separated list of converter classes
-            String converterClassesList = this.workUnit.getProp(
-                    ConfigurationKeys.CONVERTER_CLASSES_KEY);
-            // Get the last converter class which is assumed to be for the writer
-            String converterClassForWriter = Lists.newLinkedList(
-                    Splitter.on(",")
-                            .omitEmptyStrings()
-                            .trimResults()
-                            .split(converterClassesList))
-                    .getLast();
-            try {
-                this.converterForWriter = (Converter) Class.forName(
-                        converterClassForWriter).newInstance();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
-        this.converterForWriter.init(workUnitState);
-        return this.converterForWriter;
+                ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY, WriterOutputFormat.AVRO.name()));
     }
 
     /**
@@ -192,21 +99,14 @@ public class TaskContext {
         }
 
         // Get the comma-separated list of converter classes
-        String converterClassesList = this.workUnit.getProp(
-                ConfigurationKeys.CONVERTER_CLASSES_KEY);
-        LinkedList<String> converterClasses = Lists.newLinkedList(
-                Splitter.on(",")
-                        .omitEmptyStrings()
-                        .trimResults()
-                        .split(converterClassesList));
-        // Remove the last one which is assumed to be for the writer
-        converterClasses.removeLast();
+        String converterClassesList = this.workUnit.getProp(ConfigurationKeys.CONVERTER_CLASSES_KEY);
+        List<String> converterClasses = Lists.newLinkedList(
+                Splitter.on(",").omitEmptyStrings().trimResults().split(converterClassesList));
 
         List<Converter> converters = Lists.newArrayList();
         for (String converterClass : converterClasses) {
             try {
-                Converter converter =
-                        (Converter) Class.forName(converterClass).newInstance();
+                Converter converter = (Converter) Class.forName(converterClass).newInstance();
                 converter.init(this.workUnitState);
                 converters.add(converter);
             } catch (Exception e) {
@@ -215,5 +115,23 @@ public class TaskContext {
         }
 
         return converters;
+    }
+
+    /**
+     * Get the {@link ForkOperator} to be applied to converted input schema and data record.
+     *
+     * @return {@link ForkOperator} to be used or <code>null</code> if none is specified
+     */
+    public ForkOperator getForkOperator() {
+        if (!this.workUnit.contains(ConfigurationKeys.FORK_OPERATOR_CLASS_KEY)) {
+            return null;
+        }
+
+        try {
+            return (ForkOperator) Class.forName(
+                    this.workUnit.getProp(ConfigurationKeys.FORK_OPERATOR_CLASS_KEY)).newInstance();
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

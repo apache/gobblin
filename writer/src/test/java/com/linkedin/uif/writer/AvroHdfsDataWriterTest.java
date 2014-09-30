@@ -2,9 +2,12 @@ package com.linkedin.uif.writer;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Type;
+import java.util.Map;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.fs.FileUtil;
@@ -14,9 +17,12 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.reflect.TypeToken;
+
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.State;
-import com.linkedin.uif.writer.converter.SchemaConverter;
 
 /**
  * Unit tests for {@link AvroHdfsDataWriter}.
@@ -26,8 +32,10 @@ import com.linkedin.uif.writer.converter.SchemaConverter;
 @Test(groups = {"com.linkedin.uif.writer"})
 public class AvroHdfsDataWriterTest {
 
+    private static final Type FIELD_ENTRY_TYPE = new TypeToken<Map<String, Object>>(){}.getType();
+
     private Schema schema;
-    private DataWriter<String, GenericRecord> writer;
+    private DataWriter<GenericRecord> writer;
     private String filePath;
 
     @BeforeClass
@@ -43,35 +51,26 @@ public class AvroHdfsDataWriterTest {
             outputDir.mkdirs();
         }
 
-        State properties = new State();
-        properties.setProp(ConfigurationKeys.WRITER_BUFFER_SIZE,
-                ConfigurationKeys.DEFAULT_BUFFER_SIZE);
-        properties.setProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI,
-                TestConstants.TEST_FS_URI);
-        properties.setProp(ConfigurationKeys.WRITER_STAGING_DIR,
-                TestConstants.TEST_STAGING_DIR);
-        properties.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR,
-                TestConstants.TEST_OUTPUT_DIR);
-        properties.setProp(ConfigurationKeys.WRITER_FILE_NAME,
-                TestConstants.TEST_FILE_NAME);
+        this.schema = new Schema.Parser().parse(TestConstants.AVRO_SCHEMA);
 
-        SchemaConverter<String, Schema> schemaConverter = new TestSchemaConverter();
-        this.schema = schemaConverter.convert(TestConstants.AVRO_SCHEMA);
-
-        this.filePath = TestConstants.TEST_EXTRACT_NAMESPACE.replaceAll("\\.", "/") + "/" + 
-                TestConstants.TEST_EXTRACT_TABLE + "/" + TestConstants.TEST_EXTRACT_ID + "_" + 
+        this.filePath = TestConstants.TEST_EXTRACT_NAMESPACE.replaceAll("\\.", "/") + "/" +
+                TestConstants.TEST_EXTRACT_TABLE + "/" + TestConstants.TEST_EXTRACT_ID + "_" +
                 TestConstants.TEST_EXTRACT_PULL_TYPE;
-                
+
+        State properties = new State();
+        properties.setProp(ConfigurationKeys.WRITER_BUFFER_SIZE, ConfigurationKeys.DEFAULT_BUFFER_SIZE);
+        properties.setProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, TestConstants.TEST_FS_URI);
+        properties.setProp(ConfigurationKeys.WRITER_STAGING_DIR, TestConstants.TEST_STAGING_DIR);
+        properties.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, TestConstants.TEST_OUTPUT_DIR);
+        properties.setProp(ConfigurationKeys.WRITER_FILE_NAME, TestConstants.TEST_FILE_NAME);
+
         // Build a writer to write test records
         this.writer = new DataWriterBuilderFactory().newDataWriterBuilder(
                 WriterOutputFormat.AVRO)
                 .writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
                 .writeInFormat(WriterOutputFormat.AVRO)
                 .withWriterId(TestConstants.TEST_WRITER_ID)
-                .useDataConverter(new TestDataConverter(
-                        schemaConverter.convert(TestConstants.AVRO_SCHEMA)))
-                .useSchemaConverter(new TestSchemaConverter())
-                .withSourceSchema(TestConstants.AVRO_SCHEMA)
+                .withSchema(this.schema)
                 .withFilePath(filePath)
                 .build();
     }
@@ -80,7 +79,7 @@ public class AvroHdfsDataWriterTest {
     public void testWrite() throws IOException {
         // Write all test records
         for (String record : TestConstants.JSON_RECORDS) {
-            this.writer.write(record);
+            this.writer.write(convertRecord(record));
         }
 
         Assert.assertEquals(this.writer.recordsWritten(), 3);
@@ -88,10 +87,9 @@ public class AvroHdfsDataWriterTest {
         this.writer.close();
         this.writer.commit();
 
-        File outputFile = new File(
-                TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + this.filePath,
-                TestConstants.TEST_FILE_NAME + "." + TestConstants.TEST_WRITER_ID +
-                        "." + TestConstants.TEST_FILE_EXTENSION);
+        File outputFile = new File(TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + this.filePath,
+                TestConstants.TEST_FILE_NAME + "." + TestConstants.TEST_WRITER_ID + "." +
+                        TestConstants.TEST_FILE_EXTENSION);
         DataFileReader<GenericRecord> reader = new DataFileReader<GenericRecord>(
                 outputFile, new GenericDatumReader<GenericRecord>(this.schema));
 
@@ -122,5 +120,17 @@ public class AvroHdfsDataWriterTest {
         if (testRootDir.exists()) {
             FileUtil.fullyDelete(testRootDir);
         }
+    }
+
+    private GenericRecord convertRecord(String inputRecord) {
+        Gson gson = new Gson();
+        JsonElement element = gson.fromJson(inputRecord, JsonElement.class);
+        Map<String, Object> fields = gson.fromJson(element, FIELD_ENTRY_TYPE);
+        GenericRecord outputRecord = new GenericData.Record(schema);
+        for (Map.Entry<String, Object> entry : fields.entrySet()) {
+            outputRecord.put(entry.getKey(), entry.getValue());
+        }
+
+        return outputRecord;
     }
 }
