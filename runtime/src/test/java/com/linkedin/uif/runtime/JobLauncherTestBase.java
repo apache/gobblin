@@ -102,4 +102,35 @@ public abstract class JobLauncherTestBase {
                 jobName + FileBasedJobLock.LOCK_FILE_EXTENSION);
         Assert.assertFalse(lfs.exists(jobLockFile));
     }
+
+    @SuppressWarnings("unchecked")
+    protected void runTestWithFork(Properties jobProps) throws Exception {
+        JobLauncher jobLauncher = JobLauncherFactory.newJobLauncher(this.properties);
+        jobLauncher.launchJob(jobProps, null);
+        String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+        String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
+        List<JobState> jobStateList = (List<JobState>) this.jobStateStore.getAll(
+                jobName, jobId + ".jst");
+        JobState jobState = jobStateList.get(0);
+
+        Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
+        Assert.assertEquals(jobState.getCompletedTasks(), 4);
+        Assert.assertEquals(jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY), 0);
+
+        FileSystem lfs = FileSystem.getLocal(new Configuration());
+        for (TaskState taskState : jobState.getTaskStates()) {
+            Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
+            Path path = new Path(
+                    taskState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
+                    new Path(taskState.getExtract().getOutputFilePath(), "fork_0"));
+            System.out.println(path);
+            Assert.assertTrue(lfs.exists(path));
+            Assert.assertEquals(lfs.listStatus(path).length, 2);
+            path = new Path(
+                    taskState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
+                    new Path(taskState.getExtract().getOutputFilePath(), "fork_1"));
+            Assert.assertTrue(lfs.exists(path));
+            Assert.assertEquals(lfs.listStatus(path).length, 2);
+        }
+    }
 }

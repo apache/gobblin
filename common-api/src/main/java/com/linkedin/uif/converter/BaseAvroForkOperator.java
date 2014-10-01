@@ -22,7 +22,7 @@ public abstract class BaseAvroForkOperator
 
   @Override
   public int getBranches(WorkUnitState workUnitState) {
-    return workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY);
+    return workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
   }
 
   @Override
