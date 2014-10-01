@@ -11,6 +11,13 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.Converter;
 import com.linkedin.uif.converter.ForkOperator;
+import com.linkedin.uif.publisher.TaskPublisher;
+import com.linkedin.uif.publisher.TaskPublisherBuilderFactory;
+import com.linkedin.uif.qualitychecker.row.RowLevelPolicyChecker;
+import com.linkedin.uif.qualitychecker.row.RowLevelPolicyCheckerBuilderFactory;
+import com.linkedin.uif.qualitychecker.task.TaskLevelPolicyCheckResults;
+import com.linkedin.uif.qualitychecker.task.TaskLevelPolicyChecker;
+import com.linkedin.uif.qualitychecker.task.TaskLevelPolicyCheckerBuilderFactory;
 import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.workunit.WorkUnit;
 import com.linkedin.uif.writer.Destination;
@@ -69,21 +76,27 @@ public class TaskContext {
     /**
      * Get the writer {@link Destination.DestinationType}.
      *
+     * @param branches number of forked branches
+     * @param index branch index
      * @return writer {@link Destination.DestinationType}
      */
-    public Destination.DestinationType getDestinationType() {
+    public Destination.DestinationType getDestinationType(int branches, int index) {
         return Destination.DestinationType.valueOf(this.workUnit.getProp(
-                ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY, Destination.DestinationType.HDFS.name()));
+                ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY + (branches > 1 ? "." + index : ""),
+                Destination.DestinationType.HDFS.name()));
     }
 
     /**
      * Get the output format of the writer of type {@link WriterOutputFormat}.
      *
+     * @param branches number of forked branches
+     * @param index branch index
      * @return output format of the writer
      */
-    public WriterOutputFormat getWriterOutputFormat() {
+    public WriterOutputFormat getWriterOutputFormat(int branches, int index) {
         return WriterOutputFormat.valueOf(this.workUnit.getProp(
-                ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY, WriterOutputFormat.AVRO.name()));
+                ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY + (branches > 1 ? "." + index : ""),
+                WriterOutputFormat.AVRO.name()));
     }
 
     /**
@@ -123,15 +136,50 @@ public class TaskContext {
      * @return {@link ForkOperator} to be used or <code>null</code> if none is specified
      */
     public ForkOperator getForkOperator() {
-        if (!this.workUnit.contains(ConfigurationKeys.FORK_OPERATOR_CLASS_KEY)) {
-            return null;
-        }
-
         try {
             return (ForkOperator) Class.forName(
-                    this.workUnit.getProp(ConfigurationKeys.FORK_OPERATOR_CLASS_KEY)).newInstance();
+                    this.workUnit.getProp(
+                            ConfigurationKeys.FORK_OPERATOR_CLASS_KEY,
+                            ConfigurationKeys.DEFAULT_FORK_OPERATOR_CLASS))
+                    .newInstance();
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /**
+     * Get a {@link RowLevelPolicyChecker} for executing row-level
+     * {@link com.linkedin.uif.qualitychecker.row.RowLevelPolicy}.
+     *
+     * @param taskState {@link TaskState} of a {@link Task}
+     * @return a {@link RowLevelPolicyChecker}
+     */
+    public RowLevelPolicyChecker getRowLevelPolicyChecker(TaskState taskState) throws Exception {
+        return new RowLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(taskState).build();
+    }
+
+    /**
+     * Get a {@link TaskLevelPolicyChecker} for executing task-level
+     * {@link com.linkedin.uif.qualitychecker.task.TaskLevelPolicy}.
+     *
+     * @param taskState {@link TaskState} of a {@link Task}
+     * @return a {@link TaskLevelPolicyChecker}
+     * @throws Exception
+     */
+    public TaskLevelPolicyChecker getTaskLevelPolicyChecker(TaskState taskState) throws Exception {
+        return new TaskLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(taskState).build();
+    }
+
+    /**
+     * Get a {@link TaskPublisher} for publishing data extracted by a {@link Task}.
+     *
+     * @param taskState {@link TaskState} of a {@link Task}
+     * @param results Task-level policy checking results
+     * @return a {@link TaskPublisher}
+     */
+    public TaskPublisher geTaskPublisher(TaskState taskState, TaskLevelPolicyCheckResults results)
+            throws Exception {
+
+        return new TaskPublisherBuilderFactory().newTaskPublisherBuilder(taskState, results).build();
     }
 }

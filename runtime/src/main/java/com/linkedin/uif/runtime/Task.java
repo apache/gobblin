@@ -6,23 +6,20 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.Converter;
+import com.linkedin.uif.converter.ForkOperator;
 import com.linkedin.uif.metrics.JobMetrics;
 import com.linkedin.uif.publisher.TaskPublisher;
-import com.linkedin.uif.publisher.TaskPublisherBuilder;
-import com.linkedin.uif.publisher.TaskPublisherBuilderFactory;
 import com.linkedin.uif.qualitychecker.row.RowLevelPolicyCheckResults;
 import com.linkedin.uif.qualitychecker.row.RowLevelPolicyChecker;
-import com.linkedin.uif.qualitychecker.row.RowLevelPolicyCheckerBuilder;
-import com.linkedin.uif.qualitychecker.row.RowLevelPolicyCheckerBuilderFactory;
 import com.linkedin.uif.qualitychecker.task.TaskLevelPolicyCheckResults;
 import com.linkedin.uif.qualitychecker.task.TaskLevelPolicyChecker;
-import com.linkedin.uif.qualitychecker.task.TaskLevelPolicyCheckerBuilder;
-import com.linkedin.uif.qualitychecker.task.TaskLevelPolicyCheckerBuilderFactory;
 import com.linkedin.uif.source.extractor.Extractor;
 import com.linkedin.uif.writer.DataWriter;
 import com.linkedin.uif.writer.DataWriterBuilder;
@@ -61,10 +58,11 @@ public class Task implements Runnable {
     private final TaskStateTracker taskStateTracker;
     private final TaskState taskState;
 
-    private volatile DataWriter writer;
+    // Data writers, one for each forked stream.
+    private final List<DataWriter> writers = Lists.newArrayList();
 
     // Number of retries
-    private int retryCount = 0;
+    private volatile int retryCount = 0;
 
     /**
      * Instantiate a new {@link Task}.
@@ -90,6 +88,9 @@ public class Task implements Runnable {
         this.taskStateTracker.registerNewTask(this);
         this.taskState.setWorkingState(WorkUnitState.WorkingState.RUNNING);
 
+        // Number of forked branches. Default is 1, indicating there is no fork/branching.
+        int branches = 1;
+
         Closer closer = Closer.create();
         try {
             // Build the extractor for pulling source schema and data records
@@ -106,21 +107,33 @@ public class Task implements Runnable {
             // before they are passed to the writer
             boolean doConversion = !converterList.isEmpty();
             Converter converter = null;
-            // (Possibly converted) source schema ready for the writer
-            Object schemaForWriter = sourceSchema;
             if (doConversion) {
                 converter = new MultiConverter(converterList);
                 // Convert the source schema to a schema ready for the writer
-                schemaForWriter = converter.convertSchema(sourceSchema, this.taskState);
+                sourceSchema = converter.convertSchema(sourceSchema, this.taskState);
+            }
+
+            // Get the fork operator. By default the IdentityForkOperator is
+            // used with a single branch to make the logic below simpler.
+            ForkOperator forkOperator = closer.register(this.taskContext.getForkOperator());
+            branches = forkOperator.getBranches(this.taskState);
+            List<Optional<Object>> forkedSchemas = forkOperator.forkSchema(this.taskState, sourceSchema);
+            if (forkedSchemas.size() != branches) {
+                throw new ForkBranchMismatchException(String.format(
+                        "Number of forked schemas [%d] is not equal to number of branches [%d]",
+                        forkedSchemas.size(), branches));
             }
 
             // Construct the row level policy checker
-            RowLevelPolicyChecker rowChecker = closer.register(buildRowLevelPolicyChecker(this.taskState));
+            RowLevelPolicyChecker rowChecker = closer.register(
+                    this.taskContext.getRowLevelPolicyChecker(this.taskState));
             RowLevelPolicyCheckResults rowResults = new RowLevelPolicyCheckResults();
 
-            // Build the writer for writing the output of the extractor
-            buildWriter(this.taskContext, schemaForWriter);
-            closer.register(this.writer);
+            // Build the writers (one per forked stream) for writing the output data records
+            buildWriters(this.taskContext, branches, forkedSchemas);
+            for (DataWriter writer : this.writers) {
+                closer.register(writer);
+            }
 
             long pullLimit = this.taskState.getPropAsLong(ConfigurationKeys.EXTRACT_PULL_LIMIT, 0);
             long recordsPulled = 0;
@@ -130,13 +143,26 @@ public class Task implements Runnable {
                 // Apply the converters first if applicable
                 Object convertedRecord = record;
                 if (doConversion) {
-                  convertedRecord = converter.convertRecord(sourceSchema, record, this.taskState);
+                    convertedRecord = converter.convertRecord(sourceSchema, record, this.taskState);
                 }
 
-                // Do quality checks
+                // Perform quality checks and write out data if all quality checks pass
                 if (convertedRecord != null && rowChecker.executePolicies(convertedRecord, rowResults)) {
-                    // Finally write the record
-                    this.writer.write(convertedRecord);
+                    // Fork the converted record
+                    List<Optional<Object>> forkedRecords = forkOperator.forkDataRecord(
+                            this.taskState, convertedRecord);
+                    if (forkedRecords.size() != branches) {
+                        throw new ForkBranchMismatchException(String.format(
+                                "Number of forked data records [%d] is not equal to number of branches [%d]",
+                                forkedSchemas.size(), branches));
+                    }
+
+                    // Write out the forked records
+                    for (int i = 0; i < branches; i++) {
+                        if (forkedRecords.get(i).isPresent()) {
+                            this.writers.get(i).write(forkedRecords.get(i).get());
+                        }
+                    }
                 }
 
                 recordsPulled++;
@@ -148,12 +174,15 @@ public class Task implements Runnable {
 
             LOG.info("Row quality checker finished with results: " + rowResults.getResults());
 
-            // Runs task level quality checking policies and checks their output
-            boolean shouldCommit = checkDataQuality(recordsPulled,
-                    extractor.getExpectedRecordCount(), pullLimit, schemaForWriter);
-            if (shouldCommit) {
-                // Commit the data if all quality checkers pass
-                commitData();
+            // Commit data of each forked stream
+            for (int i = 0; i < branches; i++) {
+                // Runs task level quality checking policies and checks their output
+                boolean shouldCommit = checkDataQuality(recordsPulled, extractor.getExpectedRecordCount(),
+                        pullLimit, i, forkedSchemas.get(i).get());
+                if (shouldCommit) {
+                    // Commit the data if all quality checkers pass
+                    commitData(i);
+                }
             }
         } catch (Throwable t) {
             LOG.error(String.format("Task %s failed", this.taskId), t);
@@ -166,10 +195,12 @@ public class Task implements Runnable {
                 LOG.error("Failed to close all open resources", ioe);
             }
 
-            try {
-                this.writer.cleanup();
-            } catch (IOException ioe) {
-                LOG.error("The writer failed to cleanup for task " + taskId, ioe);
+            for (int i = 0; i < branches; i++) {
+                try {
+                    this.writers.get(i).cleanup();
+                } catch (IOException ioe) {
+                    LOG.error("The writer failed to cleanup for task " + taskId, ioe);
+                }
             }
 
             long endTime = System.currentTimeMillis();
@@ -218,14 +249,9 @@ public class Task implements Runnable {
      * Update record-level metrics.
      */
     public void updateRecordMetrics() {
-        if (this.writer == null) {
-            LOG.warn(String.format(
-                    "Could not update record metrics for task %s: writer was not built",
-                    this.taskId));
-            return;
+        for (DataWriter writer : this.writers) {
+            this.taskState.updateRecordMetrics(writer.recordsWritten());
         }
-
-        this.taskState.updateRecordMetrics(this.writer.recordsWritten());
     }
 
     /**
@@ -236,14 +262,9 @@ public class Task implements Runnable {
      * </p>
      */
     public void updateByteMetrics() throws IOException {
-        if (this.writer == null) {
-            LOG.error(String.format(
-                    "Could not update byte metrics for task %s: writer was not built",
-                    this.taskId));
-            return;
+        for (DataWriter writer : this.writers) {
+            this.taskState.updateByteMetrics(writer.bytesWritten());
         }
-
-        this.taskState.updateByteMetrics(this.writer.bytesWritten());
     }
 
     /**
@@ -271,56 +292,30 @@ public class Task implements Runnable {
      * Build a {@link DataWriter} for writing fetched data records.
      */
     @SuppressWarnings("unchecked")
-    private void buildWriter(TaskContext context, Object schema) throws IOException {
-        // First create the right writer builder using the factory
-        DataWriterBuilder builder = new DataWriterBuilderFactory()
-                .newDataWriterBuilder(context.getWriterOutputFormat());
+    private void buildWriters(TaskContext context, int branches, List<Optional<Object>> schemas)
+            throws IOException {
 
-        // Then build the right writer using the builder
-        this.writer = builder
-                .writeTo(Destination.of(context.getDestinationType(), this.taskState))
-                .writeInFormat(context.getWriterOutputFormat())
-                .withWriterId(this.taskId)
-                .withSchema(schema)
-                .withFilePath(this.taskState.getExtract().getOutputFilePath())
-                .build();
-    }
+        for (int i = 0; i < branches; i++) {
+            // Create the right writer builder using the factory
+            DataWriterBuilder builder = new DataWriterBuilderFactory()
+                    .newDataWriterBuilder(context.getWriterOutputFormat(branches, i));
 
-    /**
-     * Build a {@link TaskLevelPolicyChecker} to execute all defined
-     * {@link com.linkedin.uif.qualitychecker.task.TaskLevelPolicy}.
-     *
-     * @return a {@link TaskLevelPolicyChecker}
-     */
-    private TaskLevelPolicyChecker buildTaskLevelPolicyChecker(TaskState taskState) throws Exception {
-        TaskLevelPolicyCheckerBuilder builder = new TaskLevelPolicyCheckerBuilderFactory()
-                .newPolicyCheckerBuilder(taskState);
-        return builder.build();
-    }
+            String branchName = this.taskState.getProp(
+                    ConfigurationKeys.FORK_BRANCH_NAME_KEY + "." + i, "fork_" + String.valueOf(i));
 
-    /**
-     * Build a {@link RowLevelPolicyChecker} to execute all defined
-     * {@link com.linkedin.uif.qualitychecker.row.RowLevelPolicy}.
-     *
-     * @return a {@link RowLevelPolicyChecker}
-     */
-    private RowLevelPolicyChecker buildRowLevelPolicyChecker(TaskState taskState) throws Exception {
-        RowLevelPolicyCheckerBuilder builder = new RowLevelPolicyCheckerBuilderFactory()
-                .newPolicyCheckerBuilder(taskState);
-        return builder.build();
-    }
+            // Then build the right writer using the builder
+            DataWriter writer = builder
+                    .writeTo(Destination.of(context.getDestinationType(branches, i), this.taskState))
+                    .writeInFormat(context.getWriterOutputFormat(branches, i))
+                    .withWriterId(this.taskId)
+                    .withSchema(schemas.get(i).get())
+                    // Write data records of different branches to different sub directories
+                    .withFilePath(this.taskState.getExtract().getOutputFilePath() +
+                            (branches > 1 ? "/" +  branchName : ""))
+                    .build();
 
-    /**
-     * Build a {@link TaskPublisher} to publish this {@link Task}'s data.
-     *
-     * @return a {@link TaskPublisher}
-     */
-    private TaskPublisher buildTaskPublisher(TaskState taskState, TaskLevelPolicyCheckResults results)
-            throws Exception {
-
-        TaskPublisherBuilder builder = new TaskPublisherBuilderFactory()
-                .newTaskPublisherBuilder(taskState, results);
-        return builder.build();
+            this.writers.add(writer);
+        }
     }
 
     /**
@@ -328,9 +323,8 @@ public class Task implements Runnable {
      *
      * @return whether data publishing is successful and data should be committed
      */
-    private boolean checkDataQuality(long recordsPulled, long expectedCount,
-                                     long pullLimit, Object schemaForWriter)
-        throws Exception {
+    private boolean checkDataQuality(long recordsPulled, long expectedCount, long pullLimit,
+                                     int index, Object schema) throws Exception {
 
         // Do overall quality checking and publish task data
         if (pullLimit > 0) {
@@ -340,12 +334,12 @@ public class Task implements Runnable {
             // Otherwise use the expected record count
             this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, expectedCount);
         }
-        this.taskState.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, this.writer.recordsWritten());
-        this.taskState.setProp(ConfigurationKeys.EXTRACT_SCHEMA, schemaForWriter.toString());
+        this.taskState.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, this.writers.get(index).recordsWritten());
+        this.taskState.setProp(ConfigurationKeys.EXTRACT_SCHEMA, schema.toString());
 
-        TaskLevelPolicyChecker policyChecker = buildTaskLevelPolicyChecker(this.taskState);
+        TaskLevelPolicyChecker policyChecker = this.taskContext.getTaskLevelPolicyChecker(this.taskState);
         TaskLevelPolicyCheckResults taskResults = policyChecker.executePolicies();
-        TaskPublisher publisher = buildTaskPublisher(this.taskState, taskResults);
+        TaskPublisher publisher = this.taskContext.geTaskPublisher(this.taskState, taskResults);
 
         switch (publisher.canPublish()) {
             case SUCCESS:
@@ -370,10 +364,10 @@ public class Task implements Runnable {
     /**
      * Commit task data.
      */
-    private void commitData() {
-        LOG.info("Committing data of task " + this.taskId);
+    private void commitData(int index) {
+        LOG.info(String.format("Committing data of branch %d of task %s", index, this.taskId));
         try {
-            this.writer.commit();
+            this.writers.get(index).commit();
             // Change the state to SUCCESSFUL after successful commit. The state is not changed
             // to COMMITTED as the data publisher will do that upon successful data publishing.
             this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);

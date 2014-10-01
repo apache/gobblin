@@ -11,6 +11,8 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.metastore.FsStateStore;
 import com.linkedin.uif.runtime.JobLauncherTestBase;
 import com.linkedin.uif.runtime.JobState;
+import com.linkedin.uif.writer.Destination;
+import com.linkedin.uif.writer.WriterOutputFormat;
 
 /**
  * Unit test for {@link LocalJobLauncher}.
@@ -53,15 +55,30 @@ public class LocalJobLauncherTest extends JobLauncherTestBase {
         runTestWithCancellation(loadJobProps());
     }
 
+    @Test
+    public void testLaunchJobWithFork() throws Exception {
+        Properties jobProps = loadJobProps();
+        jobProps.setProperty(ConfigurationKeys.FORK_BRANCHES_KEY, "2");
+        jobProps.setProperty(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY + ".0",
+                WriterOutputFormat.AVRO.name());
+        jobProps.setProperty(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY + ".1",
+                WriterOutputFormat.AVRO.name());
+        jobProps.setProperty(ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY + ".0",
+                Destination.DestinationType.HDFS.name());
+        jobProps.setProperty(ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY + ".1",
+                Destination.DestinationType.HDFS.name());
+        runTestWithFork(jobProps);
+    }
+
     private Properties loadJobProps() throws IOException {
         Properties jobProps = new Properties();
         jobProps.load(new FileReader("test/resource/job-conf/UIFTest1.pull"));
         jobProps.putAll(this.properties);
         jobProps.setProperty(SOURCE_FILE_LIST_KEY,
                 "test/resource/source/test.avro.0," +
-                        "test/resource/source/test.avro.1," +
-                        "test/resource/source/test.avro.2," +
-                        "test/resource/source/test.avro.3");
+                "test/resource/source/test.avro.1," +
+                "test/resource/source/test.avro.2," +
+                "test/resource/source/test.avro.3");
 
         return jobProps;
     }

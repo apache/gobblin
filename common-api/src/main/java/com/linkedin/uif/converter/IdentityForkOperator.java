@@ -21,7 +21,7 @@ public class IdentityForkOperator<S, D> implements ForkOperator<S, S, D, D> {
 
   @Override
   public int getBranches(WorkUnitState workUnitState) {
-    return workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY);
+    return workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
   }
 
   @Override
