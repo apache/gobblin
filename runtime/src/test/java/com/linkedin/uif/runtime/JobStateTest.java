@@ -5,11 +5,14 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
@@ -44,8 +47,9 @@ public class JobStateTest {
         for (int i = 0; i < 3; i++) {
             WorkUnitState workUnitState = new WorkUnitState();
             workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, "TestJob-1");
-            workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, "TestTask-1");
+            workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, "TestTask-" + i);
             TaskState taskState = new TaskState(workUnitState);
+            taskState.setTaskId("TestTask-" + i);
             taskState.setId(taskState.getTaskId());
             taskState.setStartTime(this.startTime);
             taskState.setEndTime(this.startTime + 1000);
@@ -89,16 +93,19 @@ public class JobStateTest {
         Assert.assertEquals(this.jobState.getCompletedTasks(), 3);
         Assert.assertEquals(this.jobState.getProp("foo"), "bar");
 
+        List<String> taskStateIds = Lists.newArrayList();
         for (int i = 0; i < this.jobState.getCompletedTasks(); i++) {
             TaskState taskState = this.jobState.getTaskStates().get(i);
             Assert.assertEquals(taskState.getJobId(), "TestJob-1");
-            Assert.assertEquals(taskState.getTaskId(), "TestTask-1");
-            Assert.assertEquals(taskState.getId(), "TestTask-1");
             Assert.assertEquals(taskState.getStartTime(), this.startTime);
             Assert.assertEquals(taskState.getEndTime(), this.startTime + 1000);
             Assert.assertEquals(taskState.getTaskDuration(), 1000);
             Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
             Assert.assertEquals(taskState.getProp("foo"), "bar");
+            taskStateIds.add(taskState.getTaskId());
         }
+
+        Collections.sort(taskStateIds);
+        Assert.assertEquals(taskStateIds, Lists.newArrayList("TestTask-0", "TestTask-1", "TestTask-2"));
     }
 }

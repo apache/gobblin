@@ -165,18 +165,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         for (WorkUnit workUnit : workUnits.get()) {
             if (workUnit instanceof MultiWorkUnit) {
                 for (WorkUnit innerWorkUnit : ((MultiWorkUnit) workUnit).getWorkUnits()) {
-                    innerWorkUnit.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
-                    String taskId = JobLauncherUtils.newTaskId(jobId, sequence++);
-                    innerWorkUnit.setId(taskId);
-                    innerWorkUnit.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
-                    jobState.addTask();
+                    addWorkUnit(innerWorkUnit, jobState, sequence);
                 }
             } else {
-                workUnit.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
-                String taskId = JobLauncherUtils.newTaskId(jobId, sequence++);
-                workUnit.setId(taskId);
-                workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
-                jobState.addTask();
+                addWorkUnit(workUnit, jobState, sequence);
             }
         }
 
@@ -286,6 +278,20 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                 .toLowerCase()).newInstance();
         source.init(sourceState);
         return source;
+    }
+
+    /**
+     * Add the given {@link WorkUnit} for execution.
+     */
+    private void addWorkUnit(WorkUnit workUnit, JobState jobState, int sequence) {
+        workUnit.setProp(ConfigurationKeys.JOB_ID_KEY, jobState.getJobId());
+        String taskId = JobLauncherUtils.newTaskId(jobState.getJobId(), sequence);
+        workUnit.setId(taskId);
+        workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
+        jobState.addTask();
+        // Pre-add a task state so if the task fails and no task state is written out,
+        // there is still task state for the task when job/task states are persisted.
+        jobState.addTaskState(new TaskState(new WorkUnitState(workUnit)));
     }
 
     /**

@@ -88,10 +88,13 @@ public class BaseDataPublisher extends DataPublisher {
             }
 
             if (this.fs.rename(tmpOutput, finalOutput)) {
-                // Upon successfully committing the data to the final
-                // output directory, set states of all tasks to COMMITTED.
+                // Upon successfully committing the data to the final output directory, set states
+                // of successful tasks to COMMITTED. leaving states of unsuccessful ones unchanged.
+                // This makes sense to the COMMIT_ON_PARTIAL_SUCCESS policy.
                 for (WorkUnitState state : entry.getValue()) {
-                    state.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+                    if (state.getWorkingState() == WorkUnitState.WorkingState.SUCCESSFUL) {
+                        state.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+                    }
                 }
             } else {
                 throw new RuntimeException("Rename operation from " + tmpOutput + " to " + finalOutput + " failed!");
