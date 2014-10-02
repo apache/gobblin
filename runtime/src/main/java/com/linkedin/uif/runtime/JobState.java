@@ -5,12 +5,13 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.hadoop.io.Text;
 
-import com.google.common.collect.Lists;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import com.google.gson.stream.JsonWriter;
 
 import com.linkedin.uif.configuration.SourceState;
@@ -39,7 +40,7 @@ public class JobState extends SourceState {
     private long duration;
     private RunningState state = RunningState.PENDING;
     private int tasks;
-    private List<TaskState> taskStates = Lists.newArrayList();
+    private Map<String, TaskState> taskStates = Maps.newHashMap();
 
     // Necessary for serialization/deserialization
     public JobState() {}
@@ -189,7 +190,7 @@ public class JobState extends SourceState {
      * @param taskState {@link TaskState} to add
      */
     public void addTaskState(TaskState taskState) {
-        this.taskStates.add(taskState);
+        this.taskStates.put(taskState.getTaskId(), taskState);
     }
 
     /**
@@ -198,7 +199,9 @@ public class JobState extends SourceState {
      * @param taskStates collection of {@link TaskState}s to add
      */
     public void addTaskStates(Collection<TaskState> taskStates) {
-        this.taskStates.addAll(taskStates);
+        for (TaskState taskState : taskStates) {
+            this.taskStates.put(taskState.getTaskId(), taskState);
+        }
     }
 
     /**
@@ -216,7 +219,7 @@ public class JobState extends SourceState {
      * @return {@link TaskState}s of {@link Task}s of this job
      */
     public List<TaskState> getTaskStates() {
-        return Collections.unmodifiableList(this.taskStates);
+        return ImmutableList.<TaskState>builder().addAll(this.taskStates.values()).build();
     }
 
     /**
@@ -248,7 +251,7 @@ public class JobState extends SourceState {
         for (int i = 0; i < numTaskStates; i++) {
             TaskState taskState = new TaskState();
             taskState.readFields(in);
-            this.taskStates.add(taskState);
+            this.taskStates.put(taskState.getTaskId(), taskState);
         }
         super.readFields(in);
     }
@@ -267,7 +270,7 @@ public class JobState extends SourceState {
         text.write(out);
         out.writeInt(this.tasks);
         out.writeInt(this.taskStates.size());
-        for (TaskState taskState : this.taskStates) {
+        for (TaskState taskState : this.taskStates.values()) {
             taskState.write(out);
         }
         super.write(out);
@@ -295,7 +298,7 @@ public class JobState extends SourceState {
 
         jsonWriter.name("task states");
         jsonWriter.beginArray();
-        for (TaskState taskState : taskStates) {
+        for (TaskState taskState : taskStates.values()) {
             taskState.toJson(jsonWriter);
         }
         jsonWriter.endArray();
