@@ -22,7 +22,7 @@ import com.linkedin.uif.source.workunit.WorkUnit;
 public abstract class AbstractSource<S, D> implements Source<S, D> {
 
     /**
-     * Get all the previously uncommitted work units that are subject for retries.
+     * Get a list of {@link WorkUnitState}s of previous {@link WorkUnit}s subject for retries.
      *
      * <p>
      *     We use two keys for configuring work unit retries. The first one specifies
@@ -37,11 +37,10 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
      * </p>
      *
      * @param state Source state
-     * @return list of previously failed/aborted work units that are to be retried
+     * @return list of {@link WorkUnitState}s of previous {@link WorkUnit}s subject for retries
      */
-    protected List<WorkUnit> getPreviousWorkUnitsForRetry(SourceState state) {
-        List<WorkUnitState> previousWorkUnitStates = state.getPreviousStates();
-        if (previousWorkUnitStates.isEmpty()) {
+    protected List<WorkUnitState> getPreviousWorkUnitStatesForRetry(SourceState state) {
+        if (state.getPreviousStates().isEmpty()) {
             return Collections.emptyList();
         }
 
@@ -63,17 +62,16 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
             return Collections.emptyList();
         }
 
-        List<WorkUnit> previousWorkUnits = Lists.newArrayList();
+        List<WorkUnitState> previousWorkUnitStates = Lists.newArrayList();
         // Get previous work units that were not successfully committed (subject for retries)
-        for (WorkUnitState workUnitState : previousWorkUnitStates) {
+        for (WorkUnitState workUnitState : state.getPreviousStates()) {
             if (workUnitState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED) {
-                // Make a copy here as getWorkUnit() below returns an ImmutableWorkUnit
-                previousWorkUnits.add(new WorkUnit(workUnitState.getWorkunit()));
+                previousWorkUnitStates.add(workUnitState);
             }
         }
 
         if (workUnitRetryPolicy == WorkUnitRetryPolicy.ALWAYS) {
-            return previousWorkUnits;
+            return previousWorkUnitStates;
         }
 
         JobCommitPolicy jobCommitPolicy = JobCommitPolicy.forName(state.getProp(
@@ -83,11 +81,31 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
                 jobCommitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS) ||
             (workUnitRetryPolicy == WorkUnitRetryPolicy.ON_COMMIT_ON_FULL_SUCCESS &&
                 jobCommitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS)) {
-            return previousWorkUnits;
+            return previousWorkUnitStates;
         } else {
             // Return an empty list if job commit policy and work unit retry policy do not match
             return Collections.emptyList();
         }
+    }
+
+    /**
+     * Get a list of previous {@link WorkUnit}s subject for retries.
+     *
+     * <p>
+     *     This method uses {@link AbstractSource#getPreviousWorkUnitStatesForRetry(SourceState)}.
+     * </p>
+     *
+     * @param state Source state
+     * @return list of previous {@link WorkUnit}s subject for retries
+     */
+    protected List<WorkUnit> getPreviousWorkUnitsForRetry(SourceState state) {
+        List<WorkUnit> workUnits = Lists.newArrayList();
+        for (WorkUnitState workUnitState : getPreviousWorkUnitStatesForRetry(state)) {
+            // Make a copy here as getWorkUnit() below returns an ImmutableWorkUnit
+            workUnits.add(new WorkUnit(workUnitState.getWorkunit()));
+        }
+
+        return workUnits;
     }
 
 }
