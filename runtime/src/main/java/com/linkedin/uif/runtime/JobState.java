@@ -177,6 +177,13 @@ public class JobState extends SourceState {
     }
 
     /**
+     * Increment the number of tasks by 1.
+     */
+    public void addTask() {
+        this.tasks++;
+    }
+
+    /**
      * Add a single {@link TaskState}.
      *
      * @param taskState {@link TaskState} to add
