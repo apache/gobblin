@@ -89,11 +89,9 @@ public class TestJsonIntermediateToAvroConverter {
     Assert.assertEquals(jsonRecord.get("date_type").getAsString(),
         new DateTime(record.get("date_type")).toString(format));
 
-//    format = DateTimeFormat.forPattern("HH:mm:ss").withZone(DateTimeZone.forTimeZone(TimeZone.getTimeZone("PST")));
-//    Assert.assertEquals(jsonRecord.get("time_type").getAsString(),
-//        new DateTime(record.get("time_type")).toString(format));
-    
-    Assert.assertEquals(jsonRecord.get("time_type").getAsString(), record.get("time_type").toString());
+    format = DateTimeFormat.forPattern("HH:mm:ss").withZone(DateTimeZone.forTimeZone(TimeZone.getTimeZone("PST")));
+    Assert.assertEquals(jsonRecord.get("time_type").getAsString(),
+        new DateTime(record.get("time_type")).toString(format));
     Assert.assertEquals(jsonRecord.get("bytes_type").getAsString().getBytes(),
         ((ByteBuffer) record.get("bytes_type")).array());
     Assert.assertEquals(jsonRecord.get("int_type").getAsInt(), record.get("int_type"));
