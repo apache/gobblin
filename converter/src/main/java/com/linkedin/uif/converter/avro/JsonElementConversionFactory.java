@@ -84,7 +84,8 @@ public class JsonElementConversionFactory {
             "yyyy-MM-dd HH:mm:ss"), timeZone);
 
       case TIME:
-        return new StringConverter(fieldName, nullable, type.toString());
+        return new DateConverter(fieldName, nullable, type.toString(), state.getProp(ConfigurationKeys.CONVERTER_AVRO_TIME_FORMAT,
+            "HH:mm:ss"), timeZone);
 
       case FIXED:
         throw new UnsupportedDateTypeException(fieldType + " is unsupported");
