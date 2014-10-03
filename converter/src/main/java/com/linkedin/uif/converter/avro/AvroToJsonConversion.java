@@ -1,0 +1,54 @@
+package com.linkedin.uif.converter.avro;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.avro.Schema.Field;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.util.Utf8;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.linkedin.uif.configuration.WorkUnitState;
+import com.linkedin.uif.converter.Converter;
+import com.linkedin.uif.converter.DataConversionException;
+import com.linkedin.uif.converter.SchemaConversionException;
+
+/**
+ * Converts Avro record to Json record
+ * 
+ * @author nveeramr
+ * 
+ */
+public class AvroToJsonConversion extends Converter<String, JsonArray, GenericRecord, JsonObject> {
+    @Override
+    public JsonArray convertSchema(String inputSchema, WorkUnitState workUnit)
+            throws SchemaConversionException {
+        JsonParser jsonParser = new JsonParser();
+        JsonElement jsonSchema = jsonParser.parse(inputSchema.toString());
+        JsonArray array = jsonSchema.getAsJsonArray();
+        return array;
+    }
+
+    @Override
+    public JsonObject convertRecord(JsonArray outputSchema, GenericRecord inputRecord,
+            WorkUnitState workUnit) throws DataConversionException {
+        Map<String, Object> record = new HashMap<String, Object>();
+        for (Field field : inputRecord.getSchema().getFields()) {
+            Object col = inputRecord.get(field.name());
+            if (col != null && col instanceof Utf8) {
+                col = col.toString();
+            }
+            record.put(field.name(), col);
+        }
+        Gson gson = new GsonBuilder().create();
+        String json = gson.toJson(record);
+        JsonElement element = gson.fromJson(json.toString(), JsonObject.class);
+        JsonObject jsonObject = element.getAsJsonObject();
+        return jsonObject;
+    }
+}
