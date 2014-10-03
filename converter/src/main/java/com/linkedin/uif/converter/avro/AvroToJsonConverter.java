@@ -24,7 +24,7 @@ import com.linkedin.uif.converter.SchemaConversionException;
  * @author nveeramr
  * 
  */
-public class AvroToJsonConversion extends Converter<String, JsonArray, GenericRecord, JsonObject> {
+public class AvroToJsonConverter extends Converter<String, JsonArray, GenericRecord, JsonObject> {
     @Override
     public JsonArray convertSchema(String inputSchema, WorkUnitState workUnit)
             throws SchemaConversionException {
