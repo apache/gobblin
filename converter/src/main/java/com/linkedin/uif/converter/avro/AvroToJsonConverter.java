@@ -7,8 +7,6 @@ import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -45,9 +43,8 @@ public class AvroToJsonConverter extends Converter<String, JsonArray, GenericRec
             }
             record.put(field.name(), col);
         }
-        Gson gson = new GsonBuilder().create();
-        String json = gson.toJson(record);
-        JsonElement element = gson.fromJson(json.toString(), JsonObject.class);
+        String json = this.gson.toJson(record);
+        JsonElement element = this.gson.fromJson(json.toString(), JsonObject.class);
         JsonObject jsonObject = element.getAsJsonObject();
         return jsonObject;
     }
