@@ -1,7 +1,7 @@
 {
   "name": "gobblin",
   "group": "com.linkedin.@spec.name@",
-  "version": "0.0.72",
+  "version": "0.0.73",
   "scmUrl": "git@gitli.corp.linkedin.com:ds-platform/gobblin.git",
   "owners": [
     "kgoodhop",
