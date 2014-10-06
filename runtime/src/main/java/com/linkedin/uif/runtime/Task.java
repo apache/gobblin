@@ -273,8 +273,10 @@ public class Task implements Runnable {
     @SuppressWarnings("unchecked")
     private void buildWriter(TaskContext context, Object schema) throws IOException {
         // First create the right writer builder using the factory
-        DataWriterBuilder builder = new DataWriterBuilderFactory()
-                .newDataWriterBuilder(context.getWriterOutputFormat());
+        DataWriterBuilder builder = new DataWriterBuilderFactory().newDataWriterBuilder(this.taskState);
+
+        this.taskState.setProp(
+                ConfigurationKeys.WRITER_FILE_PATH, this.taskState.getExtract().getOutputFilePath());
 
         // Then build the right writer using the builder
         this.writer = builder
@@ -282,7 +284,6 @@ public class Task implements Runnable {
                 .writeInFormat(context.getWriterOutputFormat())
                 .withWriterId(this.taskId)
                 .withSchema(schema)
-                .withFilePath(this.taskState.getExtract().getOutputFilePath())
                 .build();
     }
 

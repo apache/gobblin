@@ -165,10 +165,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         for (WorkUnit workUnit : workUnits.get()) {
             if (workUnit instanceof MultiWorkUnit) {
                 for (WorkUnit innerWorkUnit : ((MultiWorkUnit) workUnit).getWorkUnits()) {
-                    addWorkUnit(innerWorkUnit, jobState, sequence);
+                    addWorkUnit(innerWorkUnit, jobState, sequence++);
                 }
             } else {
-                addWorkUnit(workUnit, jobState, sequence);
+                addWorkUnit(workUnit, jobState, sequence++);
             }
         }
 

@@ -117,22 +117,17 @@ public class ConfigurationKeys {
     /**
      * HDFS writer configuration properties
      */
-    public static final String WRITER_FILE_SYSTEM_URI =
-            WRITER_PREFIX + ".fs.uri";
-    public static final String WRITER_STAGING_DIR =
-            WRITER_PREFIX + ".staging.dir";
-    public static final String WRITER_OUTPUT_DIR =
-            WRITER_PREFIX + ".output.dir";
-    public static final String WRITER_FILE_NAME =
-            WRITER_PREFIX + ".file.name";
-    public static final String WRITER_BUFFER_SIZE =
-            WRITER_PREFIX + ".buffer.size";
-    public static final String WRITER_PRESERVE_FILE_NAME =
-            WRITER_PREFIX + ".preserve.file.name";
-    public static final String WRITER_DEFLATE_LEVEL =
-            WRITER_PREFIX + ".deflate.level";
-    public static final String WRITER_CODEC_TYPE =
-            WRITER_PREFIX + ".codec.type";
+    public static final String WRITER_FILE_SYSTEM_URI = WRITER_PREFIX + ".fs.uri";
+    public static final String WRITER_STAGING_DIR = WRITER_PREFIX + ".staging.dir";
+    public static final String WRITER_OUTPUT_DIR = WRITER_PREFIX + ".output.dir";
+    public static final String WRITER_BUILDER_CLASS = WRITER_PREFIX + ".builder.class";
+    public static final String DEFAULT_WRITER_BUILDER_CLASS = "com.linkedin.uif.writer.AvroDataWriterBuilder";
+    public static final String WRITER_FILE_NAME = WRITER_PREFIX + ".file.name";
+    public static final String WRITER_FILE_PATH = WRITER_PREFIX + ".file.path";
+    public static final String WRITER_BUFFER_SIZE = WRITER_PREFIX + ".buffer.size";
+    public static final String WRITER_PRESERVE_FILE_NAME = WRITER_PREFIX + ".preserve.file.name";
+    public static final String WRITER_DEFLATE_LEVEL = WRITER_PREFIX + ".deflate.level";
+    public static final String WRITER_CODEC_TYPE = WRITER_PREFIX + ".codec.type";
     public static final String DEFAULT_CODEC_TYPE = "DEFLATE";
     public static final String DEFAULT_DEFLATE_LEVEL = "9";
     public static final String DEFAULT_STAGING_DIR = "";
