@@ -62,16 +62,15 @@ public class AvroHdfsDataWriterTest {
         properties.setProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, TestConstants.TEST_FS_URI);
         properties.setProp(ConfigurationKeys.WRITER_STAGING_DIR, TestConstants.TEST_STAGING_DIR);
         properties.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, TestConstants.TEST_OUTPUT_DIR);
+        properties.setProp(ConfigurationKeys.WRITER_FILE_PATH, this.filePath);
         properties.setProp(ConfigurationKeys.WRITER_FILE_NAME, TestConstants.TEST_FILE_NAME);
 
         // Build a writer to write test records
-        this.writer = new DataWriterBuilderFactory().newDataWriterBuilder(
-                WriterOutputFormat.AVRO)
+        this.writer = new DataWriterBuilderFactory().newDataWriterBuilder(properties)
                 .writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
                 .writeInFormat(WriterOutputFormat.AVRO)
                 .withWriterId(TestConstants.TEST_WRITER_ID)
                 .withSchema(this.schema)
-                .withFilePath(filePath)
                 .build();
     }
 
