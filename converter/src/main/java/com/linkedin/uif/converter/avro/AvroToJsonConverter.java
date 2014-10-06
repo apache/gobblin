@@ -7,6 +7,8 @@ import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -23,6 +25,14 @@ import com.linkedin.uif.converter.SchemaConversionException;
  * 
  */
 public class AvroToJsonConverter extends Converter<String, JsonArray, GenericRecord, JsonObject> {
+    private Gson gson;
+
+    @Override
+    public Converter<String, JsonArray, GenericRecord, JsonObject> init(WorkUnitState workUnit) {
+        this.gson = new GsonBuilder().create();
+        return this;
+    }
+
     @Override
     public JsonArray convertSchema(String inputSchema, WorkUnitState workUnit)
             throws SchemaConversionException {
