@@ -100,6 +100,7 @@ public class ConfigurationKeys {
     public static final String CONVERTER_CSV_TO_JSON_DELIMITER = "converter.csv.to.json.delimiter";
     public static final String CONVERTER_FILTER_FIELD = "converter.filter.field";
     public static final String CONVERTER_FILTER_IDS_FILE = "converter.filter.ids.file";
+    public static final String CONVERTER_IS_EPOCH_TIME_IN_SECONDS = "converter.is.epoch.time.in.seconds";
 
     /**
      * Fork operator configuration properties
@@ -110,8 +111,7 @@ public class ConfigurationKeys {
      * Writer configuration properties
      */
     public static final String WRITER_PREFIX = "writer";
-    public static final String WRITER_DESTINATION_TYPE_KEY =
-            WRITER_PREFIX + ".destination.type";
+    public static final String WRITER_DESTINATION_TYPE_KEY = WRITER_PREFIX + ".destination.type";
     public static final String WRITER_OUTPUT_FORMAT_KEY = WRITER_PREFIX + ".output.format";
 
     /**
@@ -137,27 +137,19 @@ public class ConfigurationKeys {
     /**
      * Configuration properties used internally
      */
-    public static final String TASK_EXECUTOR_THREADPOOL_SIZE_KEY =
-            "taskexecutor.threadpool.size";
-    public static final String TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE_KEY =
-            "tasktracker.threadpool.coresize";
-    public static final String TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE_KEY =
-            "tasktracker.threadpool.maxsize";
-    public static final String TASK_RETRY_THREAD_POOL_CORE_SIZE_KEY =
-            "taskretry.threadpool.coresize";
-    public static final String TASK_RETRY_THREAD_POOL_MAX_SIZE_KEY =
-            "taskretry.threadpool.maxsize";
+    public static final String TASK_EXECUTOR_THREADPOOL_SIZE_KEY = "taskexecutor.threadpool.size";
+    public static final String TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE_KEY = "tasktracker.threadpool.coresize";
+    public static final String TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE_KEY = "tasktracker.threadpool.maxsize";
+    public static final String TASK_RETRY_THREAD_POOL_CORE_SIZE_KEY = "taskretry.threadpool.coresize";
+    public static final String TASK_RETRY_THREAD_POOL_MAX_SIZE_KEY = "taskretry.threadpool.maxsize";
     public static final String DEFAULT_TASK_SCHEDULER_THREADPOOL_SIZE = "10";
     public static final String DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE = "10";
     public static final String DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE = "10";
-    public static final String DEFAULT_TASK_RETRY_THREAD_POOL_CORE_SIZE =
-            "2";
-    public static final String DEFAULT_TASK_RETRY_THREAD_POOL_MAX_SIZE =
-            "2";
+    public static final String DEFAULT_TASK_RETRY_THREAD_POOL_CORE_SIZE = "2";
+    public static final String DEFAULT_TASK_RETRY_THREAD_POOL_MAX_SIZE = "2";
     public static final String MAX_TASK_RETRIES_KEY = "task.maxretries";
     public static final String DEFAULT_MAX_TASK_RETRIES = "5";
-    public static final String TASK_RETRY_INTERVAL_IN_SEC_KEY =
-            "task.retry.intervalinsec";
+    public static final String TASK_RETRY_INTERVAL_IN_SEC_KEY = "task.retry.intervalinsec";
     public static final String DEFAULT_TASK_RETRY_INTERVAL_IN_SEC = "300";
     public static final String JOB_ID_KEY = "job.id";
     public static final String TASK_ID_KEY = "task.id";
@@ -182,9 +174,11 @@ public class ConfigurationKeys {
      */
     public static final String QUALITY_CHECKER_PREFIX = "qualitychecker";
     public static final String TASK_LEVEL_POLICY_LIST = QUALITY_CHECKER_PREFIX + ".task.policies";
-    public static final String TASK_LEVEL_POLICY_LIST_TYPE = QUALITY_CHECKER_PREFIX + ".task.policy.types";
+    public static final String TASK_LEVEL_POLICY_LIST_TYPE = QUALITY_CHECKER_PREFIX
+            + ".task.policy.types";
     public static final String ROW_LEVEL_POLICY_LIST = QUALITY_CHECKER_PREFIX + ".row.policies";
-    public static final String ROW_LEVEL_POLICY_LIST_TYPE = QUALITY_CHECKER_PREFIX + ".row.policy.types";
+    public static final String ROW_LEVEL_POLICY_LIST_TYPE = QUALITY_CHECKER_PREFIX
+            + ".row.policy.types";
     public static final String ROW_LEVEL_ERR_FILE = QUALITY_CHECKER_PREFIX + ".row.err.file";
 
     /**
@@ -197,8 +191,7 @@ public class ConfigurationKeys {
     /**
      * Configuration properties for the task status
      */
-    public static final String TASK_STATUS_REPORT_INTERVAL_IN_MS_KEY =
-            "task.status.reportintervalinms";
+    public static final String TASK_STATUS_REPORT_INTERVAL_IN_MS_KEY = "task.status.reportintervalinms";
     public static final long DEFAULT_TASK_STATUS_REPORT_INTERVAL_IN_MS = 30000;
 
     /**
@@ -213,7 +206,8 @@ public class ConfigurationKeys {
     public static final String DATA_PUBLISHER_TYPE = DATA_PUBLISHER_PREFIX + ".type";
     public static final String DATA_PUBLISHER_TMP_DIR = DATA_PUBLISHER_PREFIX + ".tmp.dir";
     public static final String DATA_PUBLISHER_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".final.dir";
-    public static final String DATA_PUBLISHER_REPLACE_FINAL_DIR =  DATA_PUBLISHER_PREFIX + ".replace.final.dir";
+    public static final String DATA_PUBLISHER_REPLACE_FINAL_DIR = DATA_PUBLISHER_PREFIX
+            + ".replace.final.dir";
     public static final String DATA_PUBLISHER_FINAL_NAME = DATA_PUBLISHER_PREFIX + ".final.name";
 
     /**
@@ -295,6 +289,7 @@ public class ConfigurationKeys {
     public static final String DEFAULT_SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED = "true";
     public static final String DEFAULT_COLUMN_NAME_CASE = "NOCHANGE";
     public static final int DEFAULT_SOURCE_QUERYBASED_JDBC_RESULTSET_FETCH_SIZE = 1000;
+    public static final int DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT = 10000;
 
     /**
      * Configuration properties used by the Hadoop MR job launcher.
@@ -309,7 +304,7 @@ public class ConfigurationKeys {
     public static final String EMAIL_HOST_KEY = "email.host";
     public static final String DEFAULT_EMAIL_HOST = "localhost";
     public static final String EMAIL_SMTP_PORT_KEY = "email.smtp.port";
-    public static final int    DEFAULT_EMAIL_SMTP_PORT = 465;
+    public static final int DEFAULT_EMAIL_SMTP_PORT = 465;
     public static final String EMAIL_USER_KEY = "email.user";
     public static final String EMAIL_PASSWORD_KEY = "email.password";
     public static final String EMAIL_FROM_KEY = "email.from";
