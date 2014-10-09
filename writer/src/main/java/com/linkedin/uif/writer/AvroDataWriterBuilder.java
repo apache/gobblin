@@ -16,6 +16,7 @@ import com.linkedin.uif.configuration.State;
  *
  * @author ynli
  */
+@SuppressWarnings("unused")
 public class AvroDataWriterBuilder extends DataWriterBuilder<Schema, GenericRecord> {
 
     @Override
@@ -28,6 +29,8 @@ public class AvroDataWriterBuilder extends DataWriterBuilder<Schema, GenericReco
         switch (this.destination.getType()) {
             case HDFS:
                 State properties = this.destination.getProperties();
+
+                String filePath = properties.getProp(ConfigurationKeys.WRITER_FILE_PATH);
                 // Add the writer ID to the file name so each writer writes to a different
                 // file of the same file group defined by the given file name
                 String fileName = String.format(
@@ -35,7 +38,8 @@ public class AvroDataWriterBuilder extends DataWriterBuilder<Schema, GenericReco
                         properties.getProp(ConfigurationKeys.WRITER_FILE_NAME, "part"),
                        this.writerId,
                        this.format.getExtension());
-                return new AvroHdfsDataWriter(properties, this.filePath, fileName, this.schema);
+
+                return new AvroHdfsDataWriter(properties, filePath, fileName, this.schema);
             case KAFKA:
                 return new AvroKafkaDataWriter();
             default:

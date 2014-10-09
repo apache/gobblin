@@ -16,7 +16,6 @@ public abstract class DataWriterBuilder<S, D> {
     protected String writerId;
     protected WriterOutputFormat format;
     protected S schema;
-    protected String filePath;
 
     /**
      * Tell the writer the destination to write to.
@@ -30,7 +29,7 @@ public abstract class DataWriterBuilder<S, D> {
     }
 
     /**
-     * Tell the writer the output format of type {@link WriterOutputFormat}
+     * Tell the writer the output format of type {@link WriterOutputFormat}.
      *
      * @param format output format of the writer
      * @return this {@link DataWriterBuilder} instance
@@ -59,17 +58,6 @@ public abstract class DataWriterBuilder<S, D> {
      */
     public DataWriterBuilder<S, D> withSchema(S schema) {
         this.schema = schema;
-        return this;
-    }
-
-    /**
-     * Tell the writer the file path for the output file.
-     *
-     * @param filePath is the path the file will be written to
-     * @return this {@link DataWriterBuilder} instance
-     */
-    public DataWriterBuilder<S, D> withFilePath(String filePath) {
-        this.filePath = filePath;
         return this;
     }
     

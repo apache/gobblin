@@ -296,12 +296,14 @@ public class Task implements Runnable {
             throws IOException {
 
         for (int i = 0; i < branches; i++) {
-            // Create the right writer builder using the factory
-            DataWriterBuilder builder = new DataWriterBuilderFactory()
-                    .newDataWriterBuilder(context.getWriterOutputFormat(branches, i));
+            // First create the right writer builder using the factory
+            DataWriterBuilder builder = new DataWriterBuilderFactory().newDataWriterBuilder(this.taskState);
 
             String branchName = this.taskState.getProp(
                     ConfigurationKeys.FORK_BRANCH_NAME_KEY + "." + i, "fork_" + String.valueOf(i));
+
+            this.taskState.setProp(ConfigurationKeys.WRITER_FILE_PATH,
+                    this.taskState.getExtract().getOutputFilePath() + (branches > 1 ? "/" + branchName : ""));
 
             // Then build the right writer using the builder
             DataWriter writer = builder
@@ -309,9 +311,6 @@ public class Task implements Runnable {
                     .writeInFormat(context.getWriterOutputFormat(branches, i))
                     .withWriterId(this.taskId)
                     .withSchema(schemas.get(i).get())
-                    // Write data records of different branches to different sub directories
-                    .withFilePath(this.taskState.getExtract().getOutputFilePath() +
-                            (branches > 1 ? "/" +  branchName : ""))
                     .build();
 
             this.writers.add(writer);

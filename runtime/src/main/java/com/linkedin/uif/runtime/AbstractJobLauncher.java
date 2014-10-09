@@ -156,7 +156,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             return;
         }
 
-        jobState.setTasks(workUnits.get().size());
         long startTime = System.currentTimeMillis();
         jobState.setStartTime(startTime);
         jobState.setState(JobState.RunningState.RUNNING);
@@ -166,16 +165,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         for (WorkUnit workUnit : workUnits.get()) {
             if (workUnit instanceof MultiWorkUnit) {
                 for (WorkUnit innerWorkUnit : ((MultiWorkUnit) workUnit).getWorkUnits()) {
-                    innerWorkUnit.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
-                    String taskId = JobLauncherUtils.newTaskId(jobId, sequence++);
-                    innerWorkUnit.setId(taskId);
-                    innerWorkUnit.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
+                    addWorkUnit(innerWorkUnit, jobState, sequence++);
                 }
             } else {
-                workUnit.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
-                String taskId = JobLauncherUtils.newTaskId(jobId, sequence++);
-                workUnit.setId(taskId);
-                workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
+                addWorkUnit(workUnit, jobState, sequence++);
             }
         }
 
@@ -186,12 +179,11 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                 LOG.info(String.format("Job %s has been cancelled", jobId));
                 return;
             }
-            jobState = getFinalJobState(jobState);
+            setFinalJobState(jobState);
             commitJob(jobId, jobState);
         } catch (Throwable t) {
             String errMsg = "Failed to launch job " + jobId;
             LOG.error(errMsg, t);
-            jobState.setState(JobState.RunningState.FAILED);
             throw new JobException(errMsg, t);
         } finally {
             long endTime = System.currentTimeMillis();
@@ -223,6 +215,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
     /**
      * Run the given job.
+     *
+     * <p>
+     *     The contract between {@link AbstractJobLauncher#launchJob(java.util.Properties, JobListener)}
+     *     and this method is this method is responsible for for setting {@link JobState.RunningState}
+     *     properly and upon returning from this method (either normally or due to exceptions) whatever
+     *     {@link JobState.RunningState} is set in this method is used to determine if the job has finished.
+     * </p>
      *
      * @param jobName Job name
      * @param jobProps Job configuration properties
@@ -279,6 +278,20 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                 .toLowerCase()).newInstance();
         source.init(sourceState);
         return source;
+    }
+
+    /**
+     * Add the given {@link WorkUnit} for execution.
+     */
+    private void addWorkUnit(WorkUnit workUnit, JobState jobState, int sequence) {
+        workUnit.setProp(ConfigurationKeys.JOB_ID_KEY, jobState.getJobId());
+        String taskId = JobLauncherUtils.newTaskId(jobState.getJobId(), sequence);
+        workUnit.setId(taskId);
+        workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
+        jobState.addTask();
+        // Pre-add a task state so if the task fails and no task state is written out,
+        // there is still task state for the task when job/task states are persisted.
+        jobState.addTaskState(new TaskState(new WorkUnitState(workUnit)));
     }
 
     /**
@@ -340,9 +353,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
 
     /**
-     * Build a {@link JobState} object capturing the state of the given job.
+     * Set final {@link JobState} of the given job.
      */
-    private JobState getFinalJobState(JobState jobState) {
+    private void setFinalJobState(JobState jobState) {
         jobState.setEndTime(System.currentTimeMillis());
         jobState.setDuration(jobState.getEndTime() - jobState.getStartTime());
 
@@ -370,8 +383,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             int failures = jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY, 0) + 1;
             jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY, failures);
         }
-
-        return jobState;
     }
 
     /**

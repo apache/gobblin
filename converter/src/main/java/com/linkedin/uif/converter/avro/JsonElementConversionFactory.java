@@ -77,15 +77,15 @@ public class JsonElementConversionFactory {
     switch (type) {
       case DATE:
         return new DateConverter(fieldName, nullable, type.toString(), state.getProp(ConfigurationKeys.CONVERTER_AVRO_DATE_FORMAT,
-            "yyyy-MM-dd HH:mm:ss"), timeZone);
+            "yyyy-MM-dd HH:mm:ss"), timeZone, state);
 
       case TIMESTAMP:
         return new DateConverter(fieldName, nullable, type.toString(), state.getProp(ConfigurationKeys.CONVERTER_AVRO_TIMESTAMP_FORMAT,
-            "yyyy-MM-dd HH:mm:ss"), timeZone);
+            "yyyy-MM-dd HH:mm:ss"), timeZone, state);
 
       case TIME:
         return new DateConverter(fieldName, nullable, type.toString(), state.getProp(ConfigurationKeys.CONVERTER_AVRO_TIME_FORMAT,
-            "HH:mm:ss"), timeZone);
+            "HH:mm:ss"), timeZone, state);
 
       case FIXED:
         throw new UnsupportedDateTypeException(fieldType + " is unsupported");
@@ -340,11 +340,13 @@ public class JsonElementConversionFactory {
   public static class DateConverter extends JsonElementConverter {
 	private String inputPatterns;
 	private DateTimeZone timeZone;
+	private WorkUnitState state;
 
-    public DateConverter(String fieldName, boolean nullable, String sourceType, String pattern, DateTimeZone zone) {
+    public DateConverter(String fieldName, boolean nullable, String sourceType, String pattern, DateTimeZone zone, WorkUnitState state) {
       super(fieldName, nullable, sourceType);
       this.inputPatterns = pattern;
       this.timeZone = zone;
+      this.state = state;
     }
 
     @Override
@@ -356,6 +358,9 @@ public class JsonElementConversionFactory {
     	  DateTimeFormatter dtf = DateTimeFormat.forPattern(pattern).withZone(this.timeZone);
     	  try {
     		  formattedDate = dtf.parseDateTime(value.getAsString()).getMillis();
+    		  if(Boolean.valueOf(this.state.getProp(ConfigurationKeys.CONVERTER_IS_EPOCH_TIME_IN_SECONDS))) {
+    		      formattedDate = (Long)formattedDate / 1000;
+    		  }
     		  break;
     	  } catch(Exception e) {
     		  patternFailCount++;
