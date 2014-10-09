@@ -19,6 +19,10 @@ import com.linkedin.uif.configuration.WorkUnitState;
 @SuppressWarnings("unused")
 public class IdentityForkOperator<S, D> implements ForkOperator<S, S, D, D> {
 
+  // Reuse both lists to save the cost of allocating new lists
+  private final List<Optional<S>> schemas = Lists.newArrayList();
+  private final List<Optional<D>> records = Lists.newArrayList();
+
   @Override
   public int getBranches(WorkUnitState workUnitState) {
     return workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
@@ -28,8 +32,8 @@ public class IdentityForkOperator<S, D> implements ForkOperator<S, S, D, D> {
   public List<Optional<S>> forkSchema(WorkUnitState workUnitState, S input)
       throws SchemaConversionException {
 
+    schemas.clear();
     Optional<S> copy = Optional.of(input);
-    List<Optional<S>> schemas = Lists.newArrayList();
     for (int i = 0; i < getBranches(workUnitState); i++) {
       schemas.add(copy);
     }
@@ -41,8 +45,8 @@ public class IdentityForkOperator<S, D> implements ForkOperator<S, S, D, D> {
   public List<Optional<D>> forkDataRecord(WorkUnitState workUnitState, D input)
       throws DataConversionException {
 
+    records.clear();
     Optional<D> copy = Optional.of(input);
-    List<Optional<D>> records = Lists.newArrayList();
     for (int i = 0; i < getBranches(workUnitState); i++) {
       records.add(copy);
     }

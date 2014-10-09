@@ -23,7 +23,6 @@ import com.linkedin.uif.qualitychecker.task.TaskLevelPolicyChecker;
 import com.linkedin.uif.source.extractor.Extractor;
 import com.linkedin.uif.writer.DataWriter;
 import com.linkedin.uif.writer.DataWriterBuilder;
-import com.linkedin.uif.writer.DataWriterBuilderFactory;
 import com.linkedin.uif.writer.Destination;
 
 /**
@@ -297,7 +296,7 @@ public class Task implements Runnable {
 
         for (int i = 0; i < branches; i++) {
             // First create the right writer builder using the factory
-            DataWriterBuilder builder = new DataWriterBuilderFactory().newDataWriterBuilder(this.taskState);
+            DataWriterBuilder builder = this.taskContext.getDataWriterBuilder(branches, i);
 
             String branchName = this.taskState.getProp(
                     ConfigurationKeys.FORK_BRANCH_NAME_KEY + "." + i, "fork_" + String.valueOf(i));

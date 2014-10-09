@@ -1,5 +1,6 @@
 package com.linkedin.uif.runtime;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
@@ -20,6 +21,7 @@ import com.linkedin.uif.qualitychecker.task.TaskLevelPolicyChecker;
 import com.linkedin.uif.qualitychecker.task.TaskLevelPolicyCheckerBuilderFactory;
 import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.workunit.WorkUnit;
+import com.linkedin.uif.writer.DataWriterBuilder;
 import com.linkedin.uif.writer.Destination;
 import com.linkedin.uif.writer.WriterOutputFormat;
 
@@ -181,5 +183,25 @@ public class TaskContext {
             throws Exception {
 
         return new TaskPublisherBuilderFactory().newTaskPublisherBuilder(taskState, results).build();
+    }
+
+    /**
+     * Get a {@link DataWriterBuilder} for building a {@link com.linkedin.uif.writer.DataWriter}.
+     *
+     * @param branches number of forked branches
+     * @param index branch index
+     * @return a {@link DataWriterBuilder}
+     * @throws IOException
+     */
+    public DataWriterBuilder getDataWriterBuilder(int branches, int index) throws IOException {
+        try {
+            return (DataWriterBuilder) Class.forName(
+                    this.workUnit.getProp(
+                            ConfigurationKeys.WRITER_BUILDER_CLASS + (branches > 1 ? "." + index : ""),
+                            ConfigurationKeys.DEFAULT_WRITER_BUILDER_CLASS))
+                    .newInstance();
+        } catch (Exception e) {
+            throw new IOException("Failed to instantiate a DataWriterBuilder", e);
+        }
     }
 }
