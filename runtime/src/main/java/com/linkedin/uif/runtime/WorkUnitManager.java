@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,11 +108,13 @@ public class WorkUnitManager extends AbstractIdleService {
             while (!this.stopped) {
                 try {
                     // Take one work unit at a time from the queue
-                    WorkUnitState workUnitState = this.workUnitQueue.take();
+                    WorkUnitState workUnitState = this.workUnitQueue.poll(5, TimeUnit.SECONDS);
+                    if (workUnitState == null) {
+                        continue;
+                    }
 
                     // Create a task based off the work unit
-                    Task task = new Task(new TaskContext(workUnitState),
-                            this.taskStateTracker);
+                    Task task = new Task(new TaskContext(workUnitState), this.taskStateTracker);
                     // And then execute the task
                     this.taskExecutor.execute(task);
                 } catch (InterruptedException ie) {
