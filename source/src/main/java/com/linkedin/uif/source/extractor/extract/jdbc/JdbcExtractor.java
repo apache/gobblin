@@ -247,62 +247,68 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 	}
 
 	@Override
-	public void extractMetadata(String schema, String entity, WorkUnit workUnit) throws SchemaException, IOException {
-		this.log.info("Extract metadata using JDBC");
-		String inputQuery = workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_QUERY);
-		String watermarkColumn = workUnit.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
-		JsonObject defaultWatermark = this.getDefaultWatermark();
-		String defaultWatermarkColumnName = defaultWatermark.get("columnName").getAsString();
-		this.setSampleRecordCount(this.exractSampleRecordCountFromQuery(inputQuery));
-		inputQuery = this.removeSampleClauseFromQuery(inputQuery);
-		JsonArray targetSchema = new JsonArray();
-		List<String> headerColumns = new ArrayList<String>();
+    public void extractMetadata(String schema, String entity, WorkUnit workUnit)
+            throws SchemaException, IOException {
+        this.log.info("Extract metadata using JDBC");
+        String inputQuery = workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_QUERY);
+        String watermarkColumn = workUnit.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
+        JsonObject defaultWatermark = this.getDefaultWatermark();
+        String defaultWatermarkColumnName = defaultWatermark.get("columnName").getAsString();
+        this.setSampleRecordCount(this.exractSampleRecordCountFromQuery(inputQuery));
+        inputQuery = this.removeSampleClauseFromQuery(inputQuery);
+        JsonArray targetSchema = new JsonArray();
+        List<String> headerColumns = new ArrayList<String>();
 
-		try {
-			List<Command> cmds = this.getSchemaMetadata(schema, entity);
-			CommandOutput<?, ?> response = this.executePreparedSql(cmds);
-			JsonArray array = this.getSchema(response);
+        try {
+            List<Command> cmds = this.getSchemaMetadata(schema, entity);
+            CommandOutput<?, ?> response = this.executePreparedSql(cmds);
+            JsonArray array = this.getSchema(response);
 
-			this.buildMetadataColumnMap(array);
-			this.parseInputQuery(inputQuery);
-			List<String> sourceColumns = this.getMetadataColumnList();
+            this.buildMetadataColumnMap(array);
+            this.parseInputQuery(inputQuery);
+            List<String> sourceColumns = this.getMetadataColumnList();
 
-			for (ColumnAttributes colMap : this.columnAliasMap) {
-				String alias = colMap.getAliasName();
-				String sourceColumnName = colMap.getColumnName();
-				if (this.isMetadataColumn(sourceColumnName, sourceColumns)) {
-					String targetColumnName = this.getTargetColumnName(sourceColumnName, alias);
-					Schema obj = this.getUpdatedSchemaObject(sourceColumnName, targetColumnName);
-					String jsonStr = gson.toJson(obj);
-					JsonObject jsonObject = gson.fromJson(jsonStr, JsonObject.class).getAsJsonObject();
-					targetSchema.add(jsonObject);
-					headerColumns.add(targetColumnName);
-					this.columnList.add(sourceColumnName);
-				}
-			}
+            for (ColumnAttributes colMap : this.columnAliasMap) {
+                String alias = colMap.getAliasName();
+                String columnName = colMap.getColumnName();
+                String sourceColumnName = colMap.getSourceColumnName();
+                if (this.isMetadataColumn(columnName, sourceColumns)) {
+                    String targetColumnName = this.getTargetColumnName(columnName, alias);
+                    Schema obj = this.getUpdatedSchemaObject(columnName, alias, targetColumnName);
+                    String jsonStr = gson.toJson(obj);
+                    JsonObject jsonObject = gson.fromJson(jsonStr, JsonObject.class)
+                            .getAsJsonObject();
+                    targetSchema.add(jsonObject);
+                    headerColumns.add(targetColumnName);
+                    this.columnList.add(sourceColumnName);
+                }
+            }
 
-			if (this.hasMultipleWatermarkColumns(watermarkColumn)) {
-				this.columnList.add(defaultWatermarkColumnName);
-				headerColumns.add(defaultWatermarkColumnName);
-				targetSchema.add(defaultWatermark);
-			}
+            if (this.hasMultipleWatermarkColumns(watermarkColumn)) {
+                this.columnList.add(defaultWatermarkColumnName);
+                headerColumns.add(defaultWatermarkColumnName);
+                targetSchema.add(defaultWatermark);
+            }
 
-			String outputColProjection = Joiner.on(",").useForNull("null").join(this.columnList);
-			outputColProjection = outputColProjection.replace(defaultWatermarkColumnName, getWatermarkColumnName(watermarkColumn) + " AS "
-					+ defaultWatermarkColumnName);
-			this.setOutputColumnProjection(outputColProjection);
-			String extractQuery = this.getExtractQuery(schema, entity, inputQuery);
+            String outputColProjection = Joiner.on(",").useForNull("null").join(this.columnList);
+            outputColProjection = outputColProjection.replace(defaultWatermarkColumnName,
+                    getWatermarkColumnName(watermarkColumn) + " AS " + defaultWatermarkColumnName);
+            this.setOutputColumnProjection(outputColProjection);
+            String extractQuery = this.getExtractQuery(schema, entity, inputQuery);
 
-			this.setHeaderRecord(headerColumns);
-			this.setOutputSchema(targetSchema);
-			this.setExtractSql(extractQuery);
-			//this.workUnit.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, this.escapeCharsInColumnName(this.workUnit.getProp(ConfigurationKeys.SOURCE_ENTITY), ConfigurationKeys.ESCAPE_CHARS_IN_COLUMN_NAME, "_"));
-			this.log.info("Schema:" + targetSchema);
-			this.log.info("Extract query: " + this.getExtractSql());
-		} catch (Exception e) {
-			throw new SchemaException("Failed to get metadata using JDBC; error - " + e.getMessage(), e);
-		}
-	}
+            this.setHeaderRecord(headerColumns);
+            this.setOutputSchema(targetSchema);
+            this.setExtractSql(extractQuery);
+            // this.workUnit.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY,
+            // this.escapeCharsInColumnName(this.workUnit.getProp(ConfigurationKeys.SOURCE_ENTITY),
+            // ConfigurationKeys.ESCAPE_CHARS_IN_COLUMN_NAME, "_"));
+            this.log.info("Schema:" + targetSchema);
+            this.log.info("Extract query: " + this.getExtractSql());
+        } catch (Exception e) {
+            throw new SchemaException("Failed to get metadata using JDBC; error - "
+                    + e.getMessage(), e);
+        }
+    }
 
 	/**
 	 * Build/Format input query in the required format
@@ -341,45 +347,57 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 	 * @param targetColumnName
 	 * @return schema object of a column
 	 */
-	private Schema getUpdatedSchemaObject(String sourceColumnName, String targetColumnName) {
-		Schema obj = this.getMetadataColumnMap().get(sourceColumnName.toLowerCase());
-		if (obj == null) {
-			obj = getCustomColumnSchema(targetColumnName);
-		} else {
-			String watermarkColumn = workUnit.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
-			String primarykeyColumn = workUnit.getProp(ConfigurationKeys.EXTRACT_PRIMARY_KEY_FIELDS_KEY);
-			boolean isMultiColumnWatermark = this.hasMultipleWatermarkColumns(watermarkColumn);
+    private Schema getUpdatedSchemaObject(String sourceColumnName, String alias,
+            String targetColumnName) {
+        // Check for source column and alias
+        Schema obj = this.getMetadataColumnMap().get(sourceColumnName.toLowerCase());
+        if (obj == null && alias != null) {
+            obj = this.getMetadataColumnMap().get(alias.toLowerCase());
+        }
 
-			obj.setColumnName(targetColumnName);
-			boolean isWatermarkColumn = this.isWatermarkColumn(watermarkColumn, sourceColumnName);
-			if (isWatermarkColumn) {
-				this.updateDeltaFieldConfig(sourceColumnName, targetColumnName);
-			}
+        if (obj == null) {
+            obj = getCustomColumnSchema(targetColumnName);
+        } else {
+            String watermarkColumn = workUnit.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
+            String primarykeyColumn = workUnit
+                    .getProp(ConfigurationKeys.EXTRACT_PRIMARY_KEY_FIELDS_KEY);
+            boolean isMultiColumnWatermark = this.hasMultipleWatermarkColumns(watermarkColumn);
 
-			// If there is only one watermark column, then consider it as a
-			// watermark. Otherwise add a default watermark column in the end
-			if (!isMultiColumnWatermark) {
-				obj.setWaterMark(isWatermarkColumn);
-			}
+            obj.setColumnName(targetColumnName);
+            boolean isWatermarkColumn = this.isWatermarkColumn(watermarkColumn, sourceColumnName);
+            if (isWatermarkColumn) {
+                this.updateDeltaFieldConfig(sourceColumnName, targetColumnName);
+            } else if (alias != null) {
+                // Check for alias
+                isWatermarkColumn = this.isWatermarkColumn(watermarkColumn, alias);
+                this.updateDeltaFieldConfig(alias, targetColumnName);
+            }
 
-			// override all columns to nullable except primary key and watermark
-			// columns
-			if ((isWatermarkColumn && !isMultiColumnWatermark) || this.getPrimarykeyIndex(primarykeyColumn, sourceColumnName) > 0) {
-				obj.setNullable(false);
-			} else {
-				obj.setNullable(true);
-			}
+            // If there is only one watermark column, then consider it as a
+            // watermark. Otherwise add a default watermark column in the end
+            if (!isMultiColumnWatermark) {
+                obj.setWaterMark(isWatermarkColumn);
+            }
 
-			// set primary key index for all the primary key fields
-			int primarykeyIndex = this.getPrimarykeyIndex(primarykeyColumn, sourceColumnName);
-			if (primarykeyIndex > 0 && (!sourceColumnName.equalsIgnoreCase(targetColumnName))) {
-				this.updatePrimaryKeyConfig(sourceColumnName, targetColumnName);
-			}
+            // override all columns to nullable except primary key and watermark
+            // columns
+            if ((isWatermarkColumn && !isMultiColumnWatermark)
+                    || this.getPrimarykeyIndex(primarykeyColumn, sourceColumnName) > 0) {
+                obj.setNullable(false);
+            } else {
+                obj.setNullable(true);
+            }
 
-			obj.setPrimaryKey(primarykeyIndex);
-		}
-		return obj;
-	}
+            // set primary key index for all the primary key fields
+            int primarykeyIndex = this.getPrimarykeyIndex(primarykeyColumn, sourceColumnName);
+            if (primarykeyIndex > 0 && (!sourceColumnName.equalsIgnoreCase(targetColumnName))) {
+                this.updatePrimaryKeyConfig(sourceColumnName, targetColumnName);
+            }
+
+            obj.setPrimaryKey(primarykeyIndex);
+        }
+        return obj;
+    }
 
 	/**
 	 * Get target column name if column is not found in metadata, then name it
@@ -462,52 +480,80 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 	 * 
 	 * @param input query
 	 */
-	private void parseInputQuery(String query) {
-		List<String> projectedColumns = new ArrayList<String>();
-		if (StringUtils.isNotBlank(query)) {
-			String queryLowerCase = query.toLowerCase();
-			int startIndex = queryLowerCase.indexOf("select ") + 7;
-			int endIndex = queryLowerCase.indexOf(" from ");
-			if (startIndex >= 0 && endIndex >= 0) {
-				String columnProjection = query.substring(startIndex, endIndex);
-				this.setInputColumnProjection(columnProjection);
-				projectedColumns = Arrays.asList(columnProjection.split(","));
-			}
-		}
+    private void parseInputQuery(String query) {
+        List<String> projectedColumns = new ArrayList<String>();
+        if (StringUtils.isNotBlank(query)) {
+            String queryLowerCase = query.toLowerCase();
+            int startIndex = queryLowerCase.indexOf("select ") + 7;
+            int endIndex = queryLowerCase.indexOf(" from ");
+            if (startIndex >= 0 && endIndex >= 0) {
+                String columnProjection = query.substring(startIndex, endIndex);
+                this.setInputColumnProjection(columnProjection);
+                // parse the select list
+                StringBuffer sb = new StringBuffer();
+                int bracketCount = 0;
+                for (int i = 0; i < columnProjection.length(); i++) {
+                    char c = columnProjection.charAt(i);
+                    if (c == '(') {
+                        bracketCount++;
+                    }
 
-		if (this.isSelectAllColumns()) {
-			List<String> columnList = this.getMetadataColumnList();
-			for (String columnName : columnList) {
-				ColumnAttributes col = new ColumnAttributes();
-				col.setColumnName(columnName);
-				col.setAliasName(columnName);
-				this.addToColumnAliasMap(col);
-			}
-		} else {
-			for (String column : projectedColumns) {
-				String sourceColumn = column.trim();
-				String alias = null;
-				int spaceOccurences = StringUtils.countMatches(sourceColumn.trim(), " ");
-				if (spaceOccurences > 0) {
-					// separate column and alias if they are separated by "as" or space
-					String formattedColumn = sourceColumn.replaceAll(" as ", " ").replaceAll(" +", " ");
-					int lastSpaceIndex = formattedColumn.lastIndexOf(" ");
-					sourceColumn = formattedColumn.substring(0, lastSpaceIndex);
-					alias = formattedColumn.substring(lastSpaceIndex + 1);
-				}
+                    if (c == ')') {
+                        bracketCount--;
+                    }
 
-				// extract column name if projection has table name in it
-				if (sourceColumn.contains(".")) {
-					sourceColumn = sourceColumn.substring(sourceColumn.indexOf(".") + 1);
-				}
+                    if (bracketCount != 0) {
+                        sb.append(c);
+                    } else {
+                        if (c != ',') {
+                            sb.append(c);
+                        } else {
+                            projectedColumns.add(sb.toString());
+                            sb = new StringBuffer();
+                        }
+                    }
+                }
+                projectedColumns.add(sb.toString());
+            }
+        }
 
-				ColumnAttributes col = new ColumnAttributes();
-				col.setColumnName(sourceColumn);
-				col.setAliasName(alias);
-				this.addToColumnAliasMap(col);
-			}
-		}
-	}
+        if (this.isSelectAllColumns()) {
+            List<String> columnList = this.getMetadataColumnList();
+            for (String columnName : columnList) {
+                ColumnAttributes col = new ColumnAttributes();
+                col.setColumnName(columnName);
+                col.setAliasName(columnName);
+                col.setSourceColumnName(columnName);
+                this.addToColumnAliasMap(col);
+            }
+        } else {
+            for (String projectedColumn : projectedColumns) {
+                String column = projectedColumn.trim();
+                String alias = null;
+                String sourceColumn = column;
+                int spaceOccurences = StringUtils.countMatches(column.trim(), " ");
+                if (spaceOccurences > 0) {
+                    // separate column and alias if they are separated by "as"
+                    // or space
+                    int lastSpaceIndex = column.toLowerCase().lastIndexOf(" as ");
+                    sourceColumn = column.substring(0, lastSpaceIndex);
+                    alias = column.substring(lastSpaceIndex + 4);
+                }
+
+                // extract column name if projection has table name in it
+                String columnName = sourceColumn;
+                if (sourceColumn.contains(".")) {
+                    columnName = sourceColumn.substring(sourceColumn.indexOf(".") + 1);
+                }
+
+                ColumnAttributes col = new ColumnAttributes();
+                col.setColumnName(columnName);
+                col.setAliasName(alias);
+                col.setSourceColumnName(sourceColumn);
+                this.addToColumnAliasMap(col);
+            }
+        }
+    }
 
 	/**
 	 * Execute query using JDBC simple Statement Set fetch size
