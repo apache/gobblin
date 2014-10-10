@@ -24,6 +24,11 @@ public class IdentityForkOperator<S, D> implements ForkOperator<S, S, D, D> {
   private final List<Optional<D>> records = Lists.newArrayList();
 
   @Override
+  public void init(WorkUnitState workUnitState) {
+    // Do nothing
+  }
+
+  @Override
   public int getBranches(WorkUnitState workUnitState) {
     return workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
   }
