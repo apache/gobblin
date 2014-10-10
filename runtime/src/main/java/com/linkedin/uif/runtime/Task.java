@@ -115,6 +115,7 @@ public class Task implements Runnable {
             // Get the fork operator. By default the IdentityForkOperator is
             // used with a single branch to make the logic below simpler.
             ForkOperator forkOperator = closer.register(this.taskContext.getForkOperator());
+            forkOperator.init(this.taskState);
             branches = forkOperator.getBranches(this.taskState);
             List<Optional<Object>> forkedSchemas = forkOperator.forkSchema(this.taskState, sourceSchema);
             if (forkedSchemas.size() != branches) {

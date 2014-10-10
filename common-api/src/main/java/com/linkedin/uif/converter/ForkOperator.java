@@ -22,6 +22,13 @@ import com.linkedin.uif.configuration.WorkUnitState;
 public interface ForkOperator<SI, SO, DI, DO> extends Closeable {
 
   /**
+   * Initialize this {@link ForkOperator}.
+   *
+   * @param workUnitState {@link WorkUnitState} carrying the configuration
+   */
+  public void init(WorkUnitState workUnitState) throws Exception;
+
+  /**
    * Get the number of branches after the fork.
    *
    * @param workUnitState {@link WorkUnitState} carrying the configuration
