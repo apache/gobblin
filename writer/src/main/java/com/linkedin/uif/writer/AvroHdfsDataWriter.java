@@ -20,6 +20,7 @@ import com.google.common.base.Preconditions;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.State;
+import com.linkedin.uif.util.ForkOperatorUtils;
 
 /**
  * An implementation of {@link DataWriter} that writes directly to HDFS in Avro format.
@@ -47,19 +48,26 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
     }
 
     public AvroHdfsDataWriter(State properties, String relFilePath, String fileName,
-                              Schema schema) throws IOException {
+                              Schema schema, int branch) throws IOException {
 
-        String uri = properties.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI);
-        String stagingDir = properties.getProp(ConfigurationKeys.WRITER_STAGING_DIR,
+        String uri = properties.getProp(
+                ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, branch),
+                ConfigurationKeys.LOCAL_FS_URI);
+        String stagingDir = properties.getProp(
+                ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_DIR, branch),
                 ConfigurationKeys.DEFAULT_STAGING_DIR) + Path.SEPARATOR + relFilePath;
-        String outputDir = properties.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR,
+        String outputDir = properties.getProp(
+                ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR, branch),
                 ConfigurationKeys.DEFAULT_OUTPUT_DIR) + Path.SEPARATOR + relFilePath;
-        String codecType = properties.getProp(ConfigurationKeys.WRITER_CODEC_TYPE,
+        String codecType = properties.getProp(
+                ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_CODEC_TYPE, branch),
                 AvroHdfsDataWriter.CodecType.DEFLATE.name());
         int bufferSize = Integer.parseInt(properties.getProp(
-                ConfigurationKeys.WRITER_BUFFER_SIZE, ConfigurationKeys.DEFAULT_BUFFER_SIZE));
+                ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUFFER_SIZE, branch),
+                ConfigurationKeys.DEFAULT_BUFFER_SIZE));
         int deflateLevel = Integer.parseInt(properties.getProp(
-                ConfigurationKeys.WRITER_DEFLATE_LEVEL, ConfigurationKeys.DEFAULT_DEFLATE_LEVEL));
+                ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DEFLATE_LEVEL, branch),
+                ConfigurationKeys.DEFAULT_DEFLATE_LEVEL));
 
         Configuration conf = new Configuration();
         // Add all job configuration properties so they are picked up by Hadoop

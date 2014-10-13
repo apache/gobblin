@@ -33,6 +33,7 @@ import com.linkedin.uif.source.extractor.JobCommitPolicy;
 import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.workunit.MultiWorkUnit;
 import com.linkedin.uif.source.workunit.WorkUnit;
+import com.linkedin.uif.util.ForkOperatorUtils;
 import com.linkedin.uif.util.JobLauncherUtils;
 
 /**
@@ -363,8 +364,12 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                 ConfigurationKeys.JOB_COMMIT_POLICY_KEY,
                 ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
 
-        // Determine the job state based on the task states and job commit policy
         for (TaskState taskState : jobState.getTaskStates()) {
+            // Set fork.branches explicitly here so the rest job flow can pick it up
+            jobState.setProp(
+                    ConfigurationKeys.FORK_BRANCHES_KEY,
+                    taskState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1));
+            // Determine the job state based on the task states and job commit policy
             if (taskState.getWorkingState() != WorkUnitState.WorkingState.SUCCESSFUL &&
                     commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
                 // The job is considered failed if any task was not successfully committed
@@ -459,37 +464,45 @@ public abstract class AbstractJobLauncher implements JobLauncher {
      * Cleanup the job's task staging/output directories.
      */
     private void cleanupStagingData(JobState jobState) {
-        FileSystem fs;
-        try {
-            fs = FileSystem.get(
-                    URI.create(jobState.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI)),
-                    new Configuration());
-        } catch (IOException ioe) {
-            LOG.error("Failed to get a file system instance", ioe);
-            return;
-        }
-
-        String relPath = jobState.getProp(
-                ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY).replaceAll("\\.", "/");
-
-        try {
-            Path taskStagingPath = new Path(
-                    jobState.getProp(ConfigurationKeys.WRITER_STAGING_DIR), relPath);
-            if (fs.exists(taskStagingPath)) {
-                fs.delete(taskStagingPath, true);
+        int branches = jobState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
+        for (int i = 0; i < branches; i++) {
+            FileSystem fs;
+            try {
+                fs = FileSystem.get(
+                        URI.create(jobState.getProp(
+                                ForkOperatorUtils.getPropertyNameForBranch(
+                                        ConfigurationKeys.WRITER_FILE_SYSTEM_URI, branches, i),
+                                ConfigurationKeys.LOCAL_FS_URI)),
+                        new Configuration());
+            } catch (IOException ioe) {
+                LOG.error("Failed to get a file system instance", ioe);
+                return;
             }
-        } catch (IOException ioe) {
-            LOG.error("Failed to cleanup task staging directory of job " + jobState.getJobId(), ioe);
-        }
 
-        try {
-            Path taskOutputPath = new Path(
-                    jobState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR), relPath);
-            if (fs.exists(taskOutputPath)) {
-                fs.delete(taskOutputPath, true);
+            String relPath = jobState.getProp(
+                    ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY).replaceAll("\\.", "/");
+
+            try {
+                Path taskStagingPath = new Path(
+                        jobState.getProp(ForkOperatorUtils.getPropertyNameForBranch(
+                                ConfigurationKeys.WRITER_STAGING_DIR, branches, i)), relPath);
+                if (fs.exists(taskStagingPath)) {
+                    fs.delete(taskStagingPath, true);
+                }
+            } catch (IOException ioe) {
+                LOG.error("Failed to cleanup task staging directory of job " + jobState.getJobId(), ioe);
             }
-        } catch (IOException ioe) {
-            LOG.error("Failed to cleanup task output directory of job " + jobState.getJobId(), ioe);
+
+            try {
+                Path taskOutputPath = new Path(
+                        jobState.getProp(ForkOperatorUtils.getPropertyNameForBranch(
+                                ConfigurationKeys.WRITER_OUTPUT_DIR, branches, i)), relPath);
+                if (fs.exists(taskOutputPath)) {
+                    fs.delete(taskOutputPath, true);
+                }
+            } catch (IOException ioe) {
+                LOG.error("Failed to cleanup task output directory of job " + jobState.getJobId(), ioe);
+            }
         }
     }
 }

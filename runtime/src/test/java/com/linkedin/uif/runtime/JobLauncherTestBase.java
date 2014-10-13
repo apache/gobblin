@@ -123,7 +123,6 @@ public abstract class JobLauncherTestBase {
             Path path = new Path(
                     taskState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
                     new Path(taskState.getExtract().getOutputFilePath(), "fork_0"));
-            System.out.println(path);
             Assert.assertTrue(lfs.exists(path));
             Assert.assertEquals(lfs.listStatus(path).length, 2);
             path = new Path(

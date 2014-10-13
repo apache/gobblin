@@ -10,6 +10,7 @@ import com.google.common.base.Strings;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.State;
+import com.linkedin.uif.util.ForkOperatorUtils;
 
 /**
  * A {@link DataWriterBuilder} for building {@link DataWriter} that writes in Avro format.
@@ -30,16 +31,18 @@ public class AvroDataWriterBuilder extends DataWriterBuilder<Schema, GenericReco
             case HDFS:
                 State properties = this.destination.getProperties();
 
-                String filePath = properties.getProp(ConfigurationKeys.WRITER_FILE_PATH);
+                String filePath = properties.getProp(ForkOperatorUtils.getPropertyNameForBranch(
+                        ConfigurationKeys.WRITER_FILE_PATH, this.branch));
                 // Add the writer ID to the file name so each writer writes to a different
                 // file of the same file group defined by the given file name
                 String fileName = String.format(
                        "%s.%s.%s",
-                        properties.getProp(ConfigurationKeys.WRITER_FILE_NAME, "part"),
+                        properties.getProp(ForkOperatorUtils.getPropertyNameForBranch(
+                                ConfigurationKeys.WRITER_FILE_NAME, this.branch), "part"),
                        this.writerId,
                        this.format.getExtension());
 
-                return new AvroHdfsDataWriter(properties, filePath, fileName, this.schema);
+                return new AvroHdfsDataWriter(properties, filePath, fileName, this.schema, this.branch);
             case KAFKA:
                 return new AvroKafkaDataWriter();
             default:

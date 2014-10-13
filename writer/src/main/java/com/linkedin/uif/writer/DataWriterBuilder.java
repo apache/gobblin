@@ -16,6 +16,7 @@ public abstract class DataWriterBuilder<S, D> {
     protected String writerId;
     protected WriterOutputFormat format;
     protected S schema;
+    protected int branch;
 
     /**
      * Tell the writer the destination to write to.
@@ -60,7 +61,18 @@ public abstract class DataWriterBuilder<S, D> {
         this.schema = schema;
         return this;
     }
-    
+
+    /**
+     * Tell the writer which branch it is associated with.
+     *
+     * @param branch branch index
+     * @return this {@link DataWriterBuilder} instance
+     */
+    public DataWriterBuilder<S, D> forBranch(int branch) {
+        this.branch = branch;
+        return this;
+    }
+
     /**
      * Build a {@link DataWriter}.
      *

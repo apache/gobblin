@@ -67,6 +67,18 @@ public class LocalJobLauncherTest extends JobLauncherTestBase {
                 Destination.DestinationType.HDFS.name());
         jobProps.setProperty(ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY + ".1",
                 Destination.DestinationType.HDFS.name());
+        jobProps.setProperty(ConfigurationKeys.WRITER_STAGING_DIR + ".0",
+                "test/basicTest/tmp/taskStaging");
+        jobProps.setProperty(ConfigurationKeys.WRITER_STAGING_DIR + ".1",
+                "test/basicTest/tmp/taskStaging");
+        jobProps.setProperty(ConfigurationKeys.WRITER_OUTPUT_DIR + ".0",
+                "test/basicTest/tmp/taskOutput");
+        jobProps.setProperty(ConfigurationKeys.WRITER_OUTPUT_DIR + ".1",
+                "test/basicTest/tmp/taskOutput");
+        jobProps.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR + ".0",
+                "test/jobOutput");
+        jobProps.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR + ".1",
+                "test/jobOutput");
         runTestWithFork(jobProps);
     }
 
