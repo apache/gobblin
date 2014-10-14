@@ -2,6 +2,7 @@ package com.linkedin.uif.qualitychecker.row;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.State;
+import com.linkedin.uif.util.ForkOperatorUtils;
 
 /**
  * A policy that operates on each row
@@ -44,9 +45,10 @@ public abstract class RowLevelPolicy
         return this.state.getProp(ConfigurationKeys.ROW_LEVEL_ERR_FILE);
     }
     
-    public String getFileSystemURI()
+    public String getFileSystemURI(int branches, int index)
     {
-        return this.state.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI);
+        return this.state.getProp(ForkOperatorUtils.getPropertyNameForBranch(
+                ConfigurationKeys.WRITER_FILE_SYSTEM_URI, branches, index));
     }
         
     public abstract Result executePolicy(Object record);

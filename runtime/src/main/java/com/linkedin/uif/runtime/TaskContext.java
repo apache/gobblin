@@ -21,6 +21,7 @@ import com.linkedin.uif.qualitychecker.task.TaskLevelPolicyChecker;
 import com.linkedin.uif.qualitychecker.task.TaskLevelPolicyCheckerBuilderFactory;
 import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.workunit.WorkUnit;
+import com.linkedin.uif.util.ForkOperatorUtils;
 import com.linkedin.uif.writer.DataWriterBuilder;
 import com.linkedin.uif.writer.Destination;
 import com.linkedin.uif.writer.WriterOutputFormat;
@@ -84,7 +85,8 @@ public class TaskContext {
      */
     public Destination.DestinationType getDestinationType(int branches, int index) {
         return Destination.DestinationType.valueOf(this.workUnit.getProp(
-                ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY + (branches > 1 ? "." + index : ""),
+                ForkOperatorUtils.getPropertyNameForBranch(
+                        ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY, branches, index),
                 Destination.DestinationType.HDFS.name()));
     }
 
@@ -97,7 +99,8 @@ public class TaskContext {
      */
     public WriterOutputFormat getWriterOutputFormat(int branches, int index) {
         return WriterOutputFormat.valueOf(this.workUnit.getProp(
-                ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY + (branches > 1 ? "." + index : ""),
+                ForkOperatorUtils.getPropertyNameForBranch(
+                        ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY, branches, index),
                 WriterOutputFormat.AVRO.name()));
     }
 
@@ -197,7 +200,8 @@ public class TaskContext {
         try {
             return (DataWriterBuilder) Class.forName(
                     this.workUnit.getProp(
-                            ConfigurationKeys.WRITER_BUILDER_CLASS + (branches > 1 ? "." + index : ""),
+                            ForkOperatorUtils.getPropertyNameForBranch(
+                                    ConfigurationKeys.WRITER_BUILDER_CLASS, branches, index),
                             ConfigurationKeys.DEFAULT_WRITER_BUILDER_CLASS))
                     .newInstance();
         } catch (Exception e) {
