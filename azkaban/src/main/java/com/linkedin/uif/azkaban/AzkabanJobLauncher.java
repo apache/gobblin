@@ -38,9 +38,6 @@ public class AzkabanJobLauncher extends AbstractJob {
             if (!this.properties.containsKey(ConfigurationKeys.FS_URI_KEY)) {
                 this.properties.setProperty(ConfigurationKeys.FS_URI_KEY, fsUri);
             }
-            if (!this.properties.containsKey(ConfigurationKeys.WRITER_FILE_SYSTEM_URI)) {
-                this.properties.setProperty(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, fsUri);
-            }
             if (!this.properties.containsKey(ConfigurationKeys.STATE_STORE_FS_URI_KEY)) {
                 this.properties.setProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, fsUri);
             }

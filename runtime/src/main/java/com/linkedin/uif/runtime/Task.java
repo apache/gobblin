@@ -21,6 +21,7 @@ import com.linkedin.uif.qualitychecker.row.RowLevelPolicyChecker;
 import com.linkedin.uif.qualitychecker.task.TaskLevelPolicyCheckResults;
 import com.linkedin.uif.qualitychecker.task.TaskLevelPolicyChecker;
 import com.linkedin.uif.source.extractor.Extractor;
+import com.linkedin.uif.util.ForkOperatorUtils;
 import com.linkedin.uif.writer.DataWriter;
 import com.linkedin.uif.writer.DataWriterBuilder;
 import com.linkedin.uif.writer.Destination;
@@ -117,6 +118,8 @@ public class Task implements Runnable {
             ForkOperator forkOperator = closer.register(this.taskContext.getForkOperator());
             forkOperator.init(this.taskState);
             branches = forkOperator.getBranches(this.taskState);
+            // Set fork.branches explicitly here so the rest task flow can pick it up
+            this.taskState.setProp(ConfigurationKeys.FORK_BRANCHES_KEY, branches);
             List<Optional<Object>> forkedSchemas = forkOperator.forkSchema(this.taskState, sourceSchema);
             if (forkedSchemas.size() != branches) {
                 throw new ForkBranchMismatchException(String.format(
@@ -299,11 +302,13 @@ public class Task implements Runnable {
             // First create the right writer builder using the factory
             DataWriterBuilder builder = this.taskContext.getDataWriterBuilder(branches, i);
 
-            String branchName = this.taskState.getProp(
-                    ConfigurationKeys.FORK_BRANCH_NAME_KEY + "." + i, "fork_" + String.valueOf(i));
-
-            this.taskState.setProp(ConfigurationKeys.WRITER_FILE_PATH,
-                    this.taskState.getExtract().getOutputFilePath() + (branches > 1 ? "/" + branchName : ""));
+            String branchName = ForkOperatorUtils.getBranchName(
+                    this.taskState, i, ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME + i);
+            this.taskState.setProp(
+                    ForkOperatorUtils.getPropertyNameForBranch(
+                            ConfigurationKeys.WRITER_FILE_PATH, branches, i),
+                    ForkOperatorUtils.getPathForBranch(
+                            this.taskState.getExtract().getOutputFilePath(), branchName, branches));
 
             // Then build the right writer using the builder
             DataWriter writer = builder
@@ -311,6 +316,7 @@ public class Task implements Runnable {
                     .writeInFormat(context.getWriterOutputFormat(branches, i))
                     .withWriterId(this.taskId)
                     .withSchema(schemas.get(i).get())
+                    .forBranch(branches > 1 ? i : -1)
                     .build();
 
             this.writers.add(writer);

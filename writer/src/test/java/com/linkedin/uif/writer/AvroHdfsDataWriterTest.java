@@ -71,6 +71,7 @@ public class AvroHdfsDataWriterTest {
                 .writeInFormat(WriterOutputFormat.AVRO)
                 .withWriterId(TestConstants.TEST_WRITER_ID)
                 .withSchema(this.schema)
+                .forBranch(-1)
                 .build();
     }
 
