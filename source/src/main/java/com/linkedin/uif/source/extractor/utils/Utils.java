@@ -13,6 +13,10 @@ import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang.StringUtils;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
@@ -24,7 +28,12 @@ import com.linkedin.uif.source.extractor.watermark.WatermarkType;
 public class Utils {
 
 	private static final Gson gson = new Gson();
-	
+
+	private static final String CURRENT_DAY = "CURRENTDAY";
+	private static final String CURRENT_HOUR = "CURRENTHOUR";
+
+	private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormat.forPattern("yyyyMMddHHmmss").withZone(DateTimeZone.forID("America/Los_Angeles"));
+
 	public static String getClause(String clause, String datePredicate) {
 		String retStr = "";
 		if (!Strings.isNullOrEmpty(datePredicate)) {
@@ -32,7 +41,7 @@ public class Utils {
 		}
 		return retStr;
 	}
-	
+
 	public static JsonArray removeElementFromJsonArray(JsonArray inputJsonArray, String key) {
 		JsonArray outputJsonArray = new JsonArray();
 		for (int i = 0; i < inputJsonArray.size(); i += 1) {
@@ -49,7 +58,7 @@ public class Utils {
 		}
 		return null;
 	}
-	
+
 	public static String toDateTimeFormat(String input, String inputfmt, String outputfmt) {
 		Date date = null;
 		SimpleDateFormat infmt = new SimpleDateFormat(inputfmt);
@@ -61,27 +70,27 @@ public class Utils {
 		SimpleDateFormat outFormat = new SimpleDateFormat(outputfmt);
 		return outFormat.format(date);
 	}
-	
+
 	public static String epochToDate(long epoch, String format) {
 		SimpleDateFormat sdf  = new SimpleDateFormat(format);
 		Date date = new Date(epoch);
 		return sdf.format(date);
 	}
-	
+
 	public static long getAsLong(String value) {
 		if(Strings.isNullOrEmpty(value)) {
 			return 0;
 		}
 		return Long.parseLong(value);
 	}
-	
+
 	public static int getAsInt(String value) {
 		if(Strings.isNullOrEmpty(value)) {
 			return 0;
 		}
 		return Integer.parseInt(value);
 	}
-	
+
 	public static Date toDate(long value, String format) {
 		SimpleDateFormat fmt = new SimpleDateFormat(format);
 		Date date = null;
@@ -92,7 +101,7 @@ public class Utils {
 		}
 		return date;
 	}
-	
+
 	public static Date toDate(Date date, String format) {
 		SimpleDateFormat fmt = new SimpleDateFormat(format);
 		String dateStr = fmt.format(date);
@@ -104,33 +113,33 @@ public class Utils {
 		}
 		return outDate;
 	}
-	
+
 	public static String dateToString(Date datetime, String format) {
 		SimpleDateFormat fmt = new SimpleDateFormat(format);
 		return fmt.format(datetime);
 	}
-	
+
 	public static Date addHoursToDate(Date datetime, int hours) {
 		Calendar calendar = Calendar.getInstance();
 		calendar.setTime(datetime);
 		calendar.add(Calendar.HOUR, hours);
 		return calendar.getTime();
 	}
-	
+
 	public static Date addSecondsToDate(Date datetime, int seconds) {
 		Calendar calendar = Calendar.getInstance();
 		calendar.setTime(datetime);
 		calendar.add(Calendar.SECOND, seconds);
 		return calendar.getTime();
 	}
-	
+
 	public static boolean isSimpleWatermark(WatermarkType watermarkType) {
 		if(watermarkType == WatermarkType.SIMPLE) {
 			return true;
 		}
 		return false;
 	}
-	
+
 	/**
 	 * Print time difference in minutes, seconds and milliseconds
 	 */
@@ -141,11 +150,11 @@ public class Utils {
 		long millis = TimeUnit.MILLISECONDS.toMillis(totalMillis) - TimeUnit.MINUTES.toMillis(mins) - TimeUnit.SECONDS.toMillis(secs);
 		return String.format("%d min, %d sec, %d millis", mins, secs, millis);
 	}
-	
+
 	/**
 	 * get column list from the user provided query to build schema with the respective columns
 	 * @param input query
-     * @return list of columns 
+     * @return list of columns
 	 */
 	public static List<String> getColumnListFromQuery(String query) {
 		if (Strings.isNullOrEmpty(query)) {
@@ -160,7 +169,7 @@ public class Utils {
 		String[] inputQueryColumns = query.substring(startIndex, endIndex).toLowerCase().replaceAll(" ", "").split(",");
 		return Arrays.asList(inputQueryColumns);
 	}
-	
+
 	/**
 	 * Convert CSV record(List<Strings>) to JsonObject using header(column Names)
 	 * @param header record
@@ -174,7 +183,7 @@ public class Utils {
         for (int i = 0; i < columnCount; i++) {
             resultInfo.put(bulkRecordHeader.get(i), record.get(i));
         }
-        
+
         JsonNode json = mapper.valueToTree(resultInfo);
         JsonElement element = gson.fromJson(json.toString(), JsonObject.class);
         return element.getAsJsonObject();
@@ -183,22 +192,42 @@ public class Utils {
 	public static int getAsInt(String value, int defaultValue) {
 		return (Strings.isNullOrEmpty(value) ? defaultValue : Integer.parseInt(value));
 	}
-	
+
 	// escape characters in column name or table name
 	public static String escapeSpecialCharacters(String columnName, String escapeChars, String character) {
 		if(Strings.isNullOrEmpty(columnName)) {
 			return null;
 		}
-		
+
 		if(StringUtils.isEmpty(escapeChars)) {
 			return columnName;
 		}
-		
+
 		List<String> specialChars= Arrays.asList(escapeChars.split(","));
 		for (String specialChar: specialChars) {
 			columnName = columnName.replace(specialChar, character);
 		}
 		return columnName;
+	}
+
+	/**
+	 * Helper method for getting a value containing CURRENTDAY-1 or CURRENTHOUR-1 in the form yyyyMMddHHmmss
+	 * @param value
+	 * @return
+	 */
+	public static long getLongWithCurrentDate(String value) {
+	  if (Strings.isNullOrEmpty(value)) {
+	    return 0;
+	  }
+
+	  DateTime time = new DateTime(DateTimeZone.forID("America/Los_Angeles"));
+	  if (value.toUpperCase().startsWith(CURRENT_DAY)) {
+	    return Long.valueOf(DATE_FORMATTER.print(time.minusDays(Integer.parseInt(value.substring(CURRENT_DAY.length() + 1)))));
+	  }
+	  if (value.toUpperCase().startsWith(CURRENT_HOUR)) {
+      return Long.valueOf(DATE_FORMATTER.print(time.minusHours(Integer.parseInt(value.substring(CURRENT_HOUR.length() + 1)))));
+	  }
+	  return Long.parseLong(value);
 	}
 
 //	public static String JsonArrayToRelational(JsonArray jsonRecords, String colDelimiter, String rowDelimiter) {
@@ -207,7 +236,7 @@ public class Utils {
 //		if (keys == null || keys.size() == 0) {
 //			return null;
 //		}
-//		
+//
 //		StringBuffer sb = new StringBuffer();
 //		for (int i = 0; i < jsonRecords.size(); i += 1) {
 //			JsonObject jo = jsonRecords.optJSONObject(i);
@@ -217,14 +246,14 @@ public class Utils {
 //		}
 //		return sb.toString();
 //	}
-//	
+//
 //	public static String JsonObjectToRelational(JsonObject jsonObject, String colDelimiter) {
 //		JsonArray keys = getKeysFromJsonObject(jsonObject);
 //
 //		if (keys == null || keys.size() == 0) {
 //			return null;
 //		}
-//		
+//
 //		return MergeJsonValues(jsonObject.toJSONArray(keys), colDelimiter, null);
 //	}
 //
@@ -233,7 +262,7 @@ public class Utils {
 //		    String key = entry.getKey();
 //		    System.out.println("Key:"+key);
 //		}
-//		
+//
 //		if (jsonObject != null) {
 //			return jsonObject.entrySet();
 //		}
