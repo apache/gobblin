@@ -132,7 +132,7 @@ public class Partitioner {
 		} else {
 			// if previous watermark is not found, override with the start value(irrespective of source.is.watermark.override flag)
 			LOG.info("Overriding low water mark with the given start value: " + Utils.getLongWithCurrentDate(this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_START_VALUE)));
-			return Utils.getAsLong(this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_START_VALUE));
+			return Utils.getLongWithCurrentDate(this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_START_VALUE));
 		}
 	}
 
