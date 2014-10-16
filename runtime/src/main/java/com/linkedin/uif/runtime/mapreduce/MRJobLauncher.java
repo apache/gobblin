@@ -235,11 +235,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
             countersToMetrics(
                     this.job.getCounters(),
                     JobMetrics.get(jobName, jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY)));
-
-            // Throw an exception if the Gobblin job failed so the framework knows the failure
-            if (jobState.getState() == JobState.RunningState.FAILED) {
-                throw new Exception(String.format("Gobblin Hadoop MR job %s failed", this.job.getJobID()));
-            }
         } finally {
             // Cleanup job working directory
             try {
