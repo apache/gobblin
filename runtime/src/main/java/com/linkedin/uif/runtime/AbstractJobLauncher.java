@@ -183,34 +183,40 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             setFinalJobState(jobState);
             commitJob(jobId, jobState);
         } catch (Throwable t) {
-            String errMsg = "Failed to launch job " + jobId;
+            String errMsg = "Failed to launch and run job " + jobId;
             LOG.error(errMsg, t);
             throw new JobException(errMsg, t);
         } finally {
+            source.shutdown(sourceState);
+
             long endTime = System.currentTimeMillis();
             jobState.setEndTime(endTime);
             jobState.setDuration(endTime - startTime);
 
             try {
-                source.shutdown(sourceState);
                 persistJobState(jobState);
                 cleanupStagingData(jobState);
             } catch (Throwable t) {
                 // Catch any possible errors so unlockJob is guaranteed to be called below
-                LOG.error("Failed to cleanup for job " + jobId, t);
+                LOG.error("Failed to persist job state and cleanup for job " + jobId, t);
             }
+
+            // Release the job lock
+            unlockJob(jobName, jobLock);
 
             if (JobMetrics.isEnabled(this.properties)) {
                 // Remove all job-level metrics after the job is done
                 jobState.removeMetrics();
             }
 
-            // Release the job lock
-            unlockJob(jobName, jobLock);
-
             if (Optional.fromNullable(jobListener).isPresent()) {
                 jobListener.jobCompleted(jobState);
             }
+        }
+
+        // Throw an exception at the end if the job failed so the caller knows the job failure
+        if (jobState.getState() == JobState.RunningState.FAILED) {
+            throw new JobException(String.format("Job %s failed", jobId));
         }
     }
 
@@ -369,10 +375,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             jobState.setProp(
                     ConfigurationKeys.FORK_BRANCHES_KEY,
                     taskState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1));
-            // Determine the job state based on the task states and job commit policy
+
+            // Determine the final job state based on the task states and the job commit policy.
+            // If COMMIT_ON_FULL_SUCCESS is used, the job is considered failed if any task failed.
+            // On the other hand, if COMMIT_ON_PARTIAL_SUCCESS is used, the job is considered
+            // successful even if some tasks failed.
             if (taskState.getWorkingState() != WorkUnitState.WorkingState.SUCCESSFUL &&
                     commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
-                // The job is considered failed if any task was not successfully committed
                 jobState.setState(JobState.RunningState.FAILED);
                 break;
             }
@@ -399,7 +408,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                 ConfigurationKeys.JOB_COMMIT_POLICY_KEY,
                 ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
 
-        // Do job publishing based on the job commit policy
+        // Only commit job data if 1) COMMIT_ON_PARTIAL_SUCCESS is used,
+        // or 2) COMMIT_ON_FULL_SUCCESS is used and the job is successful.
         if (commitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS ||
                 (commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS &&
                         jobState.getState() == JobState.RunningState.SUCCESSFUL)) {
