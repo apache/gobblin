@@ -75,7 +75,7 @@ public class FileBasedExtractor<S, D> implements Extractor<S, D> {
         int statusCount = this.workUnit.getPropAsInt(ConfigurationKeys.FILEBASED_REPORT_STATUS_ON_COUNT, 
         	ConfigurationKeys.DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT );
         
-	if (statusCount > 0 && this.totalRecordCount % statusCount==0) {
+	if (statusCount > 0 && this.totalRecordCount % statusCount == 0) {
 	    this.log.info("Total number of records processed so far: "
 		    + this.totalRecordCount);
 	}
