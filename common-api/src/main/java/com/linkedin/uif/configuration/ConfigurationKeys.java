@@ -290,6 +290,8 @@ public class ConfigurationKeys {
     public static final String DEFAULT_SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED = "true";
     public static final String DEFAULT_COLUMN_NAME_CASE = "NOCHANGE";
     public static final int DEFAULT_SOURCE_QUERYBASED_JDBC_RESULTSET_FETCH_SIZE = 1000;
+    
+    public static final String FILEBASED_REPORT_STATUS_ON_COUNT="filebased.report.status.on.count";
     public static final int DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT = 10000;
 
     /**
