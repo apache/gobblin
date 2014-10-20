@@ -62,8 +62,6 @@
     "jodaTime": "joda-time:joda-time:1.6",
     "metricsCore": "com.codahale.metrics:metrics-core:3.0.2",
     "commonsIO": "commons-io:commons-io:2.4",
-    "salesforceWsc": "com.force.api:force-wsc:29.0.0",
-    "salesforcePartner": "com.force.api:force-partner-api:29.0.0",
     "influxdb": "org.influxdb:influxdb-java:1.2",
     "jsch": "com.jcraft:jsch:0.1.46",
     "mysqlDriver": "org.mysql:mysql-connector-java:5.1.14",
