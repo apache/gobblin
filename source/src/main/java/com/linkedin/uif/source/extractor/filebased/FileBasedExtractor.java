@@ -71,10 +71,11 @@ public class FileBasedExtractor<S, D> implements Extractor<S, D> {
      */
     @Override
     public D readRecord(D reuse) throws DataRecordException, IOException {
-        this.totalRecordCount++;
-        int statusCount = this.workUnit.getPropAsInt(ConfigurationKeys.FILEBASED_REPORT_STATUS_ON_COUNT, 
-        	ConfigurationKeys.DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT );
-        
+	this.totalRecordCount++;
+	int statusCount = this.workUnit.getPropAsInt(
+		ConfigurationKeys.FILEBASED_REPORT_STATUS_ON_COUNT,
+		ConfigurationKeys.DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT);
+
 	if (statusCount > 0 && this.totalRecordCount % statusCount == 0) {
 	    this.log.info("Total number of records processed so far: "
 		    + this.totalRecordCount);
