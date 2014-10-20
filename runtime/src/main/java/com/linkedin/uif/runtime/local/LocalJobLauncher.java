@@ -64,8 +64,6 @@ public class LocalJobLauncher extends AbstractJobLauncher {
                 taskStateTracker,
                 this.workUnitManager
         ));
-        // Start all dependent services
-        this.serviceManager.startAsync().awaitHealthy(5, TimeUnit.SECONDS);
     }
 
     @Override
@@ -90,6 +88,9 @@ public class LocalJobLauncher extends AbstractJobLauncher {
                           List<WorkUnit> workUnits) throws Exception {
 
         this.jobState = jobState;
+
+        // Start all dependent services
+        this.serviceManager.startAsync().awaitHealthy(5, TimeUnit.SECONDS);
 
         // Figure out the actual work units to run by flattening MultiWorkUnits
         List<WorkUnit> workUnitsToRun = Lists.newArrayList();
