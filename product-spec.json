@@ -75,7 +75,7 @@
   },
   "trunkDev": {
     "autoRevert": true,
-    "containerInfrastructure": true
+    "containerInfrastructure": false
   },
   "extSCM": {}
 }
