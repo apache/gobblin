@@ -69,7 +69,22 @@ public class MRJobLauncherTest extends JobLauncherTestBase {
     @Test
     public void testLaunchJobWithFork() throws Exception {
         Properties jobProps = loadJobProps();
+        jobProps.setProperty(ConfigurationKeys.CONVERTER_CLASSES_KEY, "com.linkedin.uif.test.TestConverter2");
         jobProps.setProperty(ConfigurationKeys.FORK_BRANCHES_KEY, "2");
+        jobProps.setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST + ".0",
+                "com.linkedin.uif.policies.schema.SchemaRowCheckPolicy");
+        jobProps.setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST + ".1",
+                "com.linkedin.uif.policies.schema.SchemaRowCheckPolicy");
+        jobProps.setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE + ".0", "OPTIONAL");
+        jobProps.setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE + ".1", "OPTIONAL");
+        jobProps.setProperty(ConfigurationKeys.TASK_LEVEL_POLICY_LIST + ".0",
+                "com.linkedin.uif.policies.count.RowCountPolicy," +
+                "com.linkedin.uif.policies.schema.SchemaCompatibilityPolicy");
+        jobProps.setProperty(ConfigurationKeys.TASK_LEVEL_POLICY_LIST + ".1",
+                "com.linkedin.uif.policies.count.RowCountPolicy," +
+                "com.linkedin.uif.policies.schema.SchemaCompatibilityPolicy");
+        jobProps.setProperty(ConfigurationKeys.TASK_LEVEL_POLICY_LIST_TYPE + ".0", "OPTIONAL,OPTIONAL");
+        jobProps.setProperty(ConfigurationKeys.TASK_LEVEL_POLICY_LIST_TYPE + ".1", "OPTIONAL,OPTIONAL");
         jobProps.setProperty(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY + ".0",
                 WriterOutputFormat.AVRO.name());
         jobProps.setProperty(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY + ".1",

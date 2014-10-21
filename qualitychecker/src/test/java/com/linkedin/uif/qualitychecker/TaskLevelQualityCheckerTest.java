@@ -44,7 +44,7 @@ public class TaskLevelQualityCheckerTest
     }
     
     private TaskLevelPolicyCheckResults getPolicyResults(State state) throws Exception {
-        TaskLevelPolicyChecker checker = new TaskLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(state).build();
+        TaskLevelPolicyChecker checker = new TaskLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(state, -1).build();
         return checker.executePolicies();
     }
 }

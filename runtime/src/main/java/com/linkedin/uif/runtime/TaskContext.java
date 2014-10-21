@@ -5,13 +5,12 @@ import java.util.Collections;
 import java.util.List;
 
 import com.google.common.base.Splitter;
-import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.Converter;
-import com.linkedin.uif.converter.ForkOperator;
+import com.linkedin.uif.fork.ForkOperator;
 import com.linkedin.uif.publisher.TaskPublisher;
 import com.linkedin.uif.publisher.TaskPublisherBuilderFactory;
 import com.linkedin.uif.qualitychecker.row.RowLevelPolicyChecker;
@@ -105,24 +104,30 @@ public class TaskContext {
     }
 
     /**
-     * Get the list of {@link Converter}s to be applied to the source schema
-     * and data records before they are handed over to the writer.
+     * Get the list of pre-fork {@link Converter}s.
      *
      * @return list (possibly empty) of {@link Converter}s
      */
     public List<Converter> getConverters() {
-        if (!this.workUnit.contains(ConfigurationKeys.CONVERTER_CLASSES_KEY) ||
-                Strings.isNullOrEmpty(this.workUnit.getProp(ConfigurationKeys.CONVERTER_CLASSES_KEY))) {
+        return getConverters(-1);
+    }
+
+    /**
+     * Get the list of post-fork {@link Converter}s for a given branch.
+     *
+     * @param index branch index
+     * @return list (possibly empty) of {@link Converter}s
+     */
+    public List<Converter> getConverters(int index) {
+        String converterClassKey = ForkOperatorUtils.getPropertyNameForBranch(
+                ConfigurationKeys.CONVERTER_CLASSES_KEY, index);
+        if (!this.workUnit.contains(converterClassKey)) {
             return Collections.emptyList();
         }
 
-        // Get the comma-separated list of converter classes
-        String converterClassesList = this.workUnit.getProp(ConfigurationKeys.CONVERTER_CLASSES_KEY);
-        List<String> converterClasses = Lists.newLinkedList(
-                Splitter.on(",").omitEmptyStrings().trimResults().split(converterClassesList));
-
         List<Converter> converters = Lists.newArrayList();
-        for (String converterClass : converterClasses) {
+        for (String converterClass : Splitter.on(",").omitEmptyStrings().trimResults().split(
+                this.workUnit.getProp(converterClassKey))) {
             try {
                 Converter converter = (Converter) Class.forName(converterClass).newInstance();
                 converter.init(this.workUnitState);
@@ -153,39 +158,60 @@ public class TaskContext {
     }
 
     /**
-     * Get a {@link RowLevelPolicyChecker} for executing row-level
+     * Get a pre-fork {@link RowLevelPolicyChecker} for executing row-level
      * {@link com.linkedin.uif.qualitychecker.row.RowLevelPolicy}.
      *
      * @param taskState {@link TaskState} of a {@link Task}
      * @return a {@link RowLevelPolicyChecker}
      */
     public RowLevelPolicyChecker getRowLevelPolicyChecker(TaskState taskState) throws Exception {
-        return new RowLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(taskState).build();
+        return getRowLevelPolicyChecker(taskState, -1);
     }
 
     /**
-     * Get a {@link TaskLevelPolicyChecker} for executing task-level
-     * {@link com.linkedin.uif.qualitychecker.task.TaskLevelPolicy}.
+     * Get a post-fork {@link RowLevelPolicyChecker} for executing row-level
+     * {@link com.linkedin.uif.qualitychecker.row.RowLevelPolicy} in the given branch.
      *
      * @param taskState {@link TaskState} of a {@link Task}
+     * @param index branch index
+     * @return a {@link RowLevelPolicyChecker}
+     */
+    public RowLevelPolicyChecker getRowLevelPolicyChecker(TaskState taskState, int index)
+            throws Exception {
+
+        return new RowLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(
+                taskState, index).build();
+    }
+
+    /**
+     * Get a post-fork {@link TaskLevelPolicyChecker} for executing task-level
+     * {@link com.linkedin.uif.qualitychecker.task.TaskLevelPolicy} in the given branch.
+     *
+     * @param taskState {@link TaskState} of a {@link Task}
+     * @param index branch index
      * @return a {@link TaskLevelPolicyChecker}
      * @throws Exception
      */
-    public TaskLevelPolicyChecker getTaskLevelPolicyChecker(TaskState taskState) throws Exception {
-        return new TaskLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(taskState).build();
+    public TaskLevelPolicyChecker getTaskLevelPolicyChecker(TaskState taskState, int index)
+            throws Exception {
+
+        return new TaskLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(
+                taskState, index).build();
     }
 
     /**
-     * Get a {@link TaskPublisher} for publishing data extracted by a {@link Task}.
+     * Get a post-fork {@link TaskPublisher} for publishing data in the given branch.
      *
      * @param taskState {@link TaskState} of a {@link Task}
      * @param results Task-level policy checking results
+     * @param index branch index
      * @return a {@link TaskPublisher}
      */
-    public TaskPublisher geTaskPublisher(TaskState taskState, TaskLevelPolicyCheckResults results)
-            throws Exception {
+    public TaskPublisher getTaskPublisher(TaskState taskState, TaskLevelPolicyCheckResults results,
+                                          int index) throws Exception {
 
-        return new TaskPublisherBuilderFactory().newTaskPublisherBuilder(taskState, results).build();
+        return new TaskPublisherBuilderFactory().newTaskPublisherBuilder(
+                taskState, results, index).build();
     }
 
     /**

@@ -105,6 +105,7 @@ public class LocalTaskStateTracker2 extends AbstractIdleService
         if (JobMetrics.isEnabled(task.getTaskState().getWorkunit())) {
             // Update record-level metrics after the task is done
             task.updateRecordMetrics();
+            task.updateByteMetrics();
         }
 
         // Cancel the task state reporter associated with this task. The reporter might
@@ -117,9 +118,7 @@ public class LocalTaskStateTracker2 extends AbstractIdleService
         // Check the task state and handle task retry if task failed and
         // it has not reached the maximum number of retries
         WorkUnitState.WorkingState state = task.getTaskState().getWorkingState();
-        if (state == WorkUnitState.WorkingState.FAILED &&
-                task.getRetryCount() < this.maxTaskRetries) {
-
+        if (state == WorkUnitState.WorkingState.FAILED && task.getRetryCount() < this.maxTaskRetries) {
             this.taskExecutor.retry(task);
             return;
         }

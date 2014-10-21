@@ -29,7 +29,7 @@ public class RowLevelQualityCheckerTest
         state.setProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST, "com.linkedin.uif.qualitychecker.TestRowLevelPolicy");
         state.setProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE, "FAIL");
 
-        RowLevelPolicyChecker checker = new RowLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(state).build();    
+        RowLevelPolicyChecker checker = new RowLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(state, -1).build();
         RowLevelPolicyCheckResults results = new RowLevelPolicyCheckResults();
         
         FileReader<GenericRecord> fileReader = openFile(state);
@@ -47,7 +47,7 @@ public class RowLevelQualityCheckerTest
         state.setProp(ConfigurationKeys.ROW_LEVEL_ERR_FILE, TestConstants.TEST_ERR_FILE);
         state.setProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, TestConstants.TEST_FS_URI);
 
-        RowLevelPolicyChecker checker = new RowLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(state).build();    
+        RowLevelPolicyChecker checker = new RowLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(state, -1).build();
         RowLevelPolicyCheckResults results = new RowLevelPolicyCheckResults();
         
         FileReader<GenericRecord> fileReader = openFile(state);

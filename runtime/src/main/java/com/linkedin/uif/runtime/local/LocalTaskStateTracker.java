@@ -104,6 +104,7 @@ public class LocalTaskStateTracker extends AbstractIdleService
         if (JobMetrics.isEnabled(task.getTaskState().getWorkunit())) {
             // Update record-level metrics after the task is done
             task.updateRecordMetrics();
+            task.updateByteMetrics();
         }
 
         // Cancel the task state reporter associated with this task. The reporter might

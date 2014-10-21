@@ -1,9 +1,8 @@
-package com.linkedin.uif.converter;
+package com.linkedin.uif.fork;
 
 import java.io.IOException;
 import java.util.List;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
@@ -17,11 +16,11 @@ import com.linkedin.uif.configuration.WorkUnitState;
  * @author ynli
  */
 @SuppressWarnings("unused")
-public class IdentityForkOperator<S, D> implements ForkOperator<S, S, D, D> {
+public class IdentityForkOperator<S, D> implements ForkOperator<S, D> {
 
   // Reuse both lists to save the cost of allocating new lists
-  private final List<Optional<S>> schemas = Lists.newArrayList();
-  private final List<Optional<D>> records = Lists.newArrayList();
+  private final List<Boolean> schemas = Lists.newArrayList();
+  private final List<Boolean> records = Lists.newArrayList();
 
   @Override
   public void init(WorkUnitState workUnitState) {
@@ -34,26 +33,22 @@ public class IdentityForkOperator<S, D> implements ForkOperator<S, S, D, D> {
   }
 
   @Override
-  public List<Optional<S>> forkSchema(WorkUnitState workUnitState, S input)
-      throws SchemaConversionException {
+  public List<Boolean> forkSchema(WorkUnitState workUnitState, S input) {
 
     schemas.clear();
-    Optional<S> copy = Optional.of(input);
     for (int i = 0; i < getBranches(workUnitState); i++) {
-      schemas.add(copy);
+      schemas.add(Boolean.TRUE);
     }
 
     return schemas;
   }
 
   @Override
-  public List<Optional<D>> forkDataRecord(WorkUnitState workUnitState, D input)
-      throws DataConversionException {
+  public List<Boolean> forkDataRecord(WorkUnitState workUnitState, D input) {
 
     records.clear();
-    Optional<D> copy = Optional.of(input);
     for (int i = 0; i < getBranches(workUnitState); i++) {
-      records.add(copy);
+      records.add(Boolean.TRUE);
     }
 
     return records;

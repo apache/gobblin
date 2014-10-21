@@ -13,36 +13,25 @@ import com.google.common.io.Closer;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.Converter;
-import com.linkedin.uif.converter.ForkOperator;
-import com.linkedin.uif.metrics.JobMetrics;
-import com.linkedin.uif.publisher.TaskPublisher;
+import com.linkedin.uif.fork.CopyNotSupportedException;
+import com.linkedin.uif.fork.Copyable;
+import com.linkedin.uif.fork.ForkOperator;
 import com.linkedin.uif.qualitychecker.row.RowLevelPolicyCheckResults;
 import com.linkedin.uif.qualitychecker.row.RowLevelPolicyChecker;
-import com.linkedin.uif.qualitychecker.task.TaskLevelPolicyCheckResults;
-import com.linkedin.uif.qualitychecker.task.TaskLevelPolicyChecker;
 import com.linkedin.uif.source.extractor.Extractor;
-import com.linkedin.uif.util.ForkOperatorUtils;
-import com.linkedin.uif.writer.DataWriter;
-import com.linkedin.uif.writer.DataWriterBuilder;
-import com.linkedin.uif.writer.Destination;
 
 /**
- * A physical unit of execution for a UIF work unit.
+ * A physical unit of execution for a Gobblin {@link com.linkedin.uif.source.workunit.WorkUnit}.
  *
  * <p>
- *     Each task will be executed by a single thread within a thread pool
- *     managed by the {@link TaskExecutor} and it consists of the following
- *     steps:
+ *     Each task will be executed by a single thread within a thread pool managed by the
+ *     {@link TaskExecutor} and it consists of the following steps:
  *
  * <ul>
- *     <li>Extracting data records from the data source.</li>
- *     <li>Performing row-level quality checking.</li>
- *     <li>Writing extracted data records to the specified sink.</li>
- *     <li>
- *         Performing quality checking when all extracted data records
- *         have been written.
- *     </li>
- *     <li>Cleaning up when the task is completed or failed.</li>
+ *     <li>Extracting, converting, and forking the source schema.</li>
+ *     <li>Extracting, converting, doing row-level quality checking, and forking each data record.</li>
+ *     <li>Processing the forked record in each forked branch in a {@link Fork} instance.</li>
+ *     <li>Cleaning up and exiting.</li>
  * </ul>
  * </p>
  *
@@ -58,19 +47,18 @@ public class Task implements Runnable {
     private final TaskStateTracker taskStateTracker;
     private final TaskState taskState;
 
-    // Data writers, one for each forked stream.
-    private final List<DataWriter> writers = Lists.newArrayList();
+    private final List<Optional<Fork>> forks = Lists.newArrayList();
 
-    // Number of retries
+    // Number of task retries
     private volatile int retryCount = 0;
 
     /**
      * Instantiate a new {@link Task}.
      *
-     * @param context Task context containing all necessary information
+     * @param context a {@link TaskContext} containing all necessary information
      *                to construct and run a {@link Task}
+     * @param taskStateTracker a {@link TaskStateTracker} for tracking task state
      */
-    @SuppressWarnings("unchecked")
     public Task(TaskContext context, TaskStateTracker taskStateTracker) {
         this.taskContext = context;
         // Task manager is used to register failed tasks
@@ -88,103 +76,98 @@ public class Task implements Runnable {
         this.taskStateTracker.registerNewTask(this);
         this.taskState.setWorkingState(WorkUnitState.WorkingState.RUNNING);
 
-        // Number of forked branches. Default is 1, indicating there is no fork/branching.
-        int branches = 1;
+        // Clear the list so it starts with a fresh list of forks for each run/retry
+        this.forks.clear();
 
         Closer closer = Closer.create();
         try {
-            // Build the extractor for pulling source schema and data records
-            Extractor extractor = closer.register(new ExtractorDecorator(
-                    new SourceDecorator(this.taskContext.getSource(), this.jobId, LOG)
-                            .getExtractor(this.taskState),
+            List<Converter> converterList = this.taskContext.getConverters();
+            // Whether to do schema and data record conversion
+            boolean doConversion = !converterList.isEmpty();
+            Converter converter = new MultiConverter(converterList);
+
+            // Get the fork operator. By default IdentityForkOperator is used with a single branch.
+            ForkOperator forkOperator = closer.register(this.taskContext.getForkOperator());
+            forkOperator.init(this.taskState);
+            int branches = forkOperator.getBranches(this.taskState);
+            // Set fork.branches explicitly here so the rest task flow can pick it up
+            this.taskState.setProp(ConfigurationKeys.FORK_BRANCHES_KEY, branches);
+
+            // Build the extractor for extracting source schema and data records
+            Extractor extractor = closer.register(
+                    new ExtractorDecorator(new SourceDecorator(
+                            this.taskContext.getSource(), this.jobId, LOG).getExtractor(this.taskState),
                     this.taskId, LOG));
 
-            // Original source schema
+            // Extract, convert, and fork the source schema.
             Object sourceSchema = extractor.getSchema();
-
-            List<Converter> converterList = this.taskContext.getConverters();
-            // If conversion is needed on the source schema and data records
-            // before they are passed to the writer
-            boolean doConversion = !converterList.isEmpty();
-            Converter converter = null;
             if (doConversion) {
-                converter = new MultiConverter(converterList);
-                // Convert the source schema to a schema ready for the writer
                 sourceSchema = converter.convertSchema(sourceSchema, this.taskState);
             }
 
-            // Get the fork operator. By default the IdentityForkOperator is
-            // used with a single branch to make the logic below simpler.
-            ForkOperator forkOperator = closer.register(this.taskContext.getForkOperator());
-            forkOperator.init(this.taskState);
-            branches = forkOperator.getBranches(this.taskState);
-            // Set fork.branches explicitly here so the rest task flow can pick it up
-            this.taskState.setProp(ConfigurationKeys.FORK_BRANCHES_KEY, branches);
-            List<Optional<Object>> forkedSchemas = forkOperator.forkSchema(this.taskState, sourceSchema);
+            List<Boolean> forkedSchemas = forkOperator.forkSchema(this.taskState, sourceSchema);
             if (forkedSchemas.size() != branches) {
                 throw new ForkBranchMismatchException(String.format(
                         "Number of forked schemas [%d] is not equal to number of branches [%d]",
                         forkedSchemas.size(), branches));
             }
 
-            // Construct the row level policy checker
+            if (inMultipleBranches(forkedSchemas) && !(sourceSchema instanceof Copyable)) {
+                throw new CopyNotSupportedException(sourceSchema + " is not copyable");
+            }
+
+            // Create one Fork for each forked branch
+            for (int i = 0; i < branches; i++) {
+                if (forkedSchemas.get(i)) {
+                    Fork fork = closer.register(new Fork(this.taskContext, this.taskState,
+                            branches > 1 ? ((Copyable) sourceSchema).copy() : sourceSchema, branches, i));
+                    this.forks.add(Optional.of(fork));
+                } else {
+                    this.forks.add(Optional.<Fork>absent());
+                }
+            }
+
+            // Build the row-level quality checker
             RowLevelPolicyChecker rowChecker = closer.register(
                     this.taskContext.getRowLevelPolicyChecker(this.taskState));
             RowLevelPolicyCheckResults rowResults = new RowLevelPolicyCheckResults();
 
-            // Build the writers (one per forked stream) for writing the output data records
-            buildWriters(this.taskContext, branches, forkedSchemas);
-            for (DataWriter writer : this.writers) {
-                closer.register(writer);
-            }
-
             long pullLimit = this.taskState.getPropAsLong(ConfigurationKeys.EXTRACT_PULL_LIMIT, 0);
             long recordsPulled = 0;
             Object record = null;
-            // Read one source record at a time
-            while ((record = extractor.readRecord(record)) != null) {
-                // Apply the converters first if applicable
-                Object convertedRecord = record;
-                if (doConversion) {
-                    convertedRecord = converter.convertRecord(sourceSchema, record, this.taskState);
-                }
-
-                // Perform quality checks and write out data if all quality checks pass
+            // Extract, convert, and fork one source record at a time.
+            while ((pullLimit <= 0 || recordsPulled < pullLimit) && (record = extractor.readRecord(record)) != null) {
+                recordsPulled++;
+                Object convertedRecord = doConversion ?
+                        converter.convertRecord(sourceSchema, record, this.taskState) : record;
                 if (convertedRecord != null && rowChecker.executePolicies(convertedRecord, rowResults)) {
-                    // Fork the converted record
-                    List<Optional<Object>> forkedRecords = forkOperator.forkDataRecord(
-                            this.taskState, convertedRecord);
+                    List<Boolean> forkedRecords = forkOperator.forkDataRecord(this.taskState, convertedRecord);
                     if (forkedRecords.size() != branches) {
                         throw new ForkBranchMismatchException(String.format(
                                 "Number of forked data records [%d] is not equal to number of branches [%d]",
-                                forkedSchemas.size(), branches));
+                                forkedRecords.size(), branches));
                     }
 
-                    // Write out the forked records
+                    if (inMultipleBranches(forkedRecords) && !(convertedRecord instanceof Copyable)) {
+                        throw new CopyNotSupportedException(convertedRecord + " is not copyable");
+                    }
+
                     for (int i = 0; i < branches; i++) {
-                        if (forkedRecords.get(i).isPresent()) {
-                            this.writers.get(i).write(forkedRecords.get(i).get());
+                        if (this.forks.get(i).isPresent() && forkedRecords.get(i)) {
+                            this.forks.get(i).get().processRecord(
+                                    branches > 1 ? ((Copyable) convertedRecord).copy() : convertedRecord);
                         }
                     }
                 }
-
-                recordsPulled++;
-                // Check if the pull limit is reached
-                if (pullLimit > 0 && recordsPulled >= pullLimit) {
-                    break;
-                }
             }
 
+            LOG.info("Extracted " + recordsPulled + " data records");
             LOG.info("Row quality checker finished with results: " + rowResults.getResults());
 
-            // Commit data of each forked stream
-            for (int i = 0; i < branches; i++) {
-                // Runs task level quality checking policies and checks their output
-                boolean shouldCommit = checkDataQuality(recordsPulled, extractor.getExpectedRecordCount(),
-                        pullLimit, i, forkedSchemas.get(i).get());
-                if (shouldCommit) {
-                    // Commit the data if all quality checkers pass
-                    commitData(i);
+            // Commit data of each forked branch
+            for (Optional<Fork> fork : this.forks) {
+                if (fork.isPresent()) {
+                    fork.get().commit(recordsPulled, extractor.getExpectedRecordCount(), pullLimit);
                 }
             }
         } catch (Throwable t) {
@@ -194,16 +177,8 @@ public class Task implements Runnable {
         } finally {
             try {
                 closer.close();
-            } catch (IOException ioe) {
-                LOG.error("Failed to close all open resources", ioe);
-            }
-
-            for (int i = 0; i < branches; i++) {
-                try {
-                    this.writers.get(i).cleanup();
-                } catch (IOException ioe) {
-                    LOG.error("The writer failed to cleanup for task " + taskId, ioe);
-                }
+            } catch (Throwable t) {
+                LOG.error("Failed to close all open resources", t);
             }
 
             long endTime = System.currentTimeMillis();
@@ -252,8 +227,10 @@ public class Task implements Runnable {
      * Update record-level metrics.
      */
     public void updateRecordMetrics() {
-        for (DataWriter writer : this.writers) {
-            this.taskState.updateRecordMetrics(writer.recordsWritten());
+        for (Optional<Fork> fork : this.forks) {
+            if (fork.isPresent()) {
+                fork.get().updateRecordMetrics();
+            }
         }
     }
 
@@ -264,9 +241,15 @@ public class Task implements Runnable {
      *     This method is only supposed to be called after the writer commits.
      * </p>
      */
-    public void updateByteMetrics() throws IOException {
-        for (DataWriter writer : this.writers) {
-            this.taskState.updateByteMetrics(writer.bytesWritten());
+    public void updateByteMetrics() {
+        try {
+            for (Optional<Fork> fork : this.forks) {
+                if (fork.isPresent()) {
+                    fork.get().updateByteMetrics();
+                }
+            }
+        } catch (IOException ioe) {
+            LOG.error("Failed to update byte-level metrics for task " + this.taskId);
         }
     }
 
@@ -292,98 +275,15 @@ public class Task implements Runnable {
     }
 
     /**
-     * Build a {@link DataWriter} for writing fetched data records.
+     * Check if a schema or data record is being passed to more than one branches.
      */
-    @SuppressWarnings("unchecked")
-    private void buildWriters(TaskContext context, int branches, List<Optional<Object>> schemas)
-            throws IOException {
-
-        for (int i = 0; i < branches; i++) {
-            // First create the right writer builder using the factory
-            DataWriterBuilder builder = this.taskContext.getDataWriterBuilder(branches, i);
-
-            String branchName = ForkOperatorUtils.getBranchName(
-                    this.taskState, i, ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME + i);
-            this.taskState.setProp(
-                    ForkOperatorUtils.getPropertyNameForBranch(
-                            ConfigurationKeys.WRITER_FILE_PATH, branches, i),
-                    ForkOperatorUtils.getPathForBranch(
-                            this.taskState.getExtract().getOutputFilePath(), branchName, branches));
-
-            // Then build the right writer using the builder
-            DataWriter writer = builder
-                    .writeTo(Destination.of(context.getDestinationType(branches, i), this.taskState))
-                    .writeInFormat(context.getWriterOutputFormat(branches, i))
-                    .withWriterId(this.taskId)
-                    .withSchema(schemas.get(i).get())
-                    .forBranch(branches > 1 ? i : -1)
-                    .build();
-
-            this.writers.add(writer);
-        }
-    }
-
-    /**
-     * Check data quality.
-     *
-     * @return whether data publishing is successful and data should be committed
-     */
-    private boolean checkDataQuality(long recordsPulled, long expectedCount, long pullLimit,
-                                     int index, Object schema) throws Exception {
-
-        // Do overall quality checking and publish task data
-        if (pullLimit > 0) {
-            // If pull limit is set, use the actual number of records pulled
-            this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, recordsPulled);
-        } else {
-            // Otherwise use the expected record count
-            this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, expectedCount);
-        }
-        this.taskState.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, this.writers.get(index).recordsWritten());
-        this.taskState.setProp(ConfigurationKeys.EXTRACT_SCHEMA, schema.toString());
-
-        TaskLevelPolicyChecker policyChecker = this.taskContext.getTaskLevelPolicyChecker(this.taskState);
-        TaskLevelPolicyCheckResults taskResults = policyChecker.executePolicies();
-        TaskPublisher publisher = this.taskContext.geTaskPublisher(this.taskState, taskResults);
-
-        switch (publisher.canPublish()) {
-            case SUCCESS:
-                return true;
-            case CLEANUP_FAIL:
-                LOG.error("Cleanup failed for task " + this.taskId);
+    private boolean inMultipleBranches(List<Boolean> branches) {
+        int inBranches = 0;
+        for (Boolean bool : branches) {
+            if (bool && ++inBranches > 1) {
                 break;
-            case POLICY_TESTS_FAIL:
-                LOG.error("Not all quality checking passed for task " + this.taskId);
-                break;
-            case COMPONENTS_NOT_FINISHED:
-                LOG.error("Not all components completed for task " + this.taskId);
-                break;
-            default:
-                break;
-        }
-
-        this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-        return false;
-    }
-
-    /**
-     * Commit task data.
-     */
-    private void commitData(int index) {
-        LOG.info(String.format("Committing data of branch %d of task %s", index, this.taskId));
-        try {
-            this.writers.get(index).commit();
-            // Change the state to SUCCESSFUL after successful commit. The state is not changed
-            // to COMMITTED as the data publisher will do that upon successful data publishing.
-            this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
-            if (JobMetrics.isEnabled(this.taskState.getWorkunit())) {
-                // Update byte-level metrics after the writer commits
-                updateByteMetrics();
-            }
-        } catch (IOException ioe) {
-            if (this.taskState.getWorkingState() != WorkUnitState.WorkingState.SUCCESSFUL) {
-                LOG.error("Failed to commit data of task " + this.taskId, ioe);
             }
         }
+        return inBranches > 1;
     }
 }

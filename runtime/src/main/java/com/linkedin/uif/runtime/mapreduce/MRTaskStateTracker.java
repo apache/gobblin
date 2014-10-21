@@ -82,6 +82,7 @@ public class MRTaskStateTracker extends AbstractIdleService implements TaskState
          */
         if (JobMetrics.isEnabled(task.getTaskState().getWorkunit())) {
             task.updateRecordMetrics();
+            task.updateByteMetrics();
 
             // Task-level record counter
             String taskRecordMetric = JobMetrics.metricName(

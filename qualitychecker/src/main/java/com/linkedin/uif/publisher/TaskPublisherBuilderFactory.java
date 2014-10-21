@@ -5,7 +5,10 @@ import com.linkedin.uif.qualitychecker.task.TaskLevelPolicyCheckResults;
 
 public class TaskPublisherBuilderFactory
 {
-    public TaskPublisherBuilder newTaskPublisherBuilder(WorkUnitState workUnitState, TaskLevelPolicyCheckResults results) {
-        return new TaskPublisherBuilder(workUnitState, results);
+    public TaskPublisherBuilder newTaskPublisherBuilder(WorkUnitState workUnitState,
+                                                        TaskLevelPolicyCheckResults results,
+                                                        int index) {
+
+        return TaskPublisherBuilder.newBuilder(workUnitState, results, index);
     }
 }

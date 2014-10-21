@@ -11,6 +11,8 @@ dependencies {
     compile spec.external.slf4jLog4j
     compile spec.external.jclOverSlf4j
     compile spec.external.jodaTime
+    compile spec.external.jacksonCore
+    compile spec.external.jacksonMapper
 
     testCompile spec.external.testng
 }

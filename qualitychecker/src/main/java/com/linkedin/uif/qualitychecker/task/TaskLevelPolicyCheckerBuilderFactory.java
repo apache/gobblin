@@ -4,7 +4,7 @@ import com.linkedin.uif.configuration.State;
 
 public class TaskLevelPolicyCheckerBuilderFactory
 {
-    public TaskLevelPolicyCheckerBuilder newPolicyCheckerBuilder(State state) {
-        return new TaskLevelPolicyCheckerBuilder(state);
+    public TaskLevelPolicyCheckerBuilder newPolicyCheckerBuilder(State state, int index) {
+        return TaskLevelPolicyCheckerBuilder.newBuilder(state, index);
     }
 }
