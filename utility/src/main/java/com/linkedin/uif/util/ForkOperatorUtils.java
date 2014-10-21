@@ -4,7 +4,7 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.State;
 
 /**
- * Utility class for use with the {@link com.linkedin.uif.converter.ForkOperator} class.
+ * Utility class for use with the {@link com.linkedin.uif.fork.ForkOperator} class.
  *
  * @author ynli
  */

@@ -69,12 +69,6 @@
     "mysqlDriver": "org.mysql:mysql-connector-java:5.1.14",
     "commonsVfs": "org.apache.commons:commons-vfs2:2.0"
   },
-  "product": {
-    "container": {
-      "containerImpl": "com.linkedin.container:container-impl:@spec.product.container.version@",
-      "version": "6.0.154"
-    }
-  },
   "trunkDev": {
     "autoRevert": true,
     "containerInfrastructure": true
