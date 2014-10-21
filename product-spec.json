@@ -64,7 +64,6 @@
     "commonsIO": "commons-io:commons-io:2.4",
     "influxdb": "org.influxdb:influxdb-java:1.2",
     "jsch": "com.jcraft:jsch:0.1.46",
-    "mysqlDriver": "org.mysql:mysql-connector-java:5.1.14",
     "commonsVfs": "org.apache.commons:commons-vfs2:2.0"
   },
   "product": {
