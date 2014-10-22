@@ -109,6 +109,13 @@ public class MRTaskStateTracker extends AbstractIdleService implements TaskState
 
             task.getTaskState().removeMetrics();
         }
+
+        // Mark the completion of this task
+        task.markTaskCompletion();
+
+        LOG.info(String.format(
+                "Task %s completed in %dms with state %s", task.getTaskId(),
+                task.getTaskState().getTaskDuration(), task.getTaskState().getWorkingState()));
     }
 
     /**

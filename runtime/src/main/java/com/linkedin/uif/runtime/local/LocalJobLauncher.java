@@ -18,17 +18,16 @@ import com.google.common.util.concurrent.ServiceManager;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
-import com.linkedin.uif.metrics.JobMetrics;
 import com.linkedin.uif.runtime.AbstractJobLauncher;
 import com.linkedin.uif.runtime.FileBasedJobLock;
 import com.linkedin.uif.runtime.JobException;
 import com.linkedin.uif.runtime.JobLauncher;
 import com.linkedin.uif.runtime.JobLock;
 import com.linkedin.uif.runtime.JobState;
+import com.linkedin.uif.runtime.Task;
+import com.linkedin.uif.runtime.TaskContext;
 import com.linkedin.uif.runtime.TaskExecutor;
-import com.linkedin.uif.runtime.TaskState;
 import com.linkedin.uif.runtime.TaskStateTracker;
-import com.linkedin.uif.runtime.WorkUnitManager;
 import com.linkedin.uif.source.workunit.MultiWorkUnit;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
@@ -42,27 +41,23 @@ public class LocalJobLauncher extends AbstractJobLauncher {
 
     private static final Logger LOG = LoggerFactory.getLogger(LocalJobLauncher.class);
 
-    private final WorkUnitManager workUnitManager;
+    private final TaskExecutor taskExecutor;
+    private final TaskStateTracker taskStateTracker;
     // Service manager to manage dependent services
     private final ServiceManager serviceManager;
 
-    private volatile JobState jobState;
     private volatile CountDownLatch countDownLatch;
     private volatile boolean isCancelled = false;
 
     public LocalJobLauncher(Properties properties) throws Exception {
         super(properties);
 
-        TaskExecutor taskExecutor = new TaskExecutor(properties);
-        TaskStateTracker taskStateTracker = new LocalTaskStateTracker2(properties, taskExecutor);
-        ((LocalTaskStateTracker2) taskStateTracker).setJobLauncher(this);
-        this.workUnitManager = new WorkUnitManager(taskExecutor, taskStateTracker);
-
+        this.taskExecutor = new TaskExecutor(properties);
+        this.taskStateTracker = new LocalTaskStateTracker2(properties, this.taskExecutor);
         this.serviceManager = new ServiceManager(Lists.newArrayList(
                 // The order matters due to dependencies between services
-                taskExecutor,
-                taskStateTracker,
-                this.workUnitManager
+                this.taskExecutor,
+                this.taskStateTracker
         ));
     }
 
@@ -87,8 +82,6 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     protected void runJob(String jobName, Properties jobProps, JobState jobState,
                           List<WorkUnit> workUnits) throws Exception {
 
-        this.jobState = jobState;
-
         // Start all dependent services
         this.serviceManager.startAsync().awaitHealthy(5, TimeUnit.SECONDS);
 
@@ -104,26 +97,45 @@ public class LocalJobLauncher extends AbstractJobLauncher {
 
         String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
 
-        // Add all work units to run
+        this.countDownLatch = new CountDownLatch(workUnitsToRun.size());
+        List<Task> tasks = Lists.newArrayList();
         for (WorkUnit workUnit : workUnitsToRun) {
             String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
             WorkUnitState workUnitState = new WorkUnitState(workUnit);
             workUnitState.setId(taskId);
             workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
             workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
-            this.workUnitManager.addWorkUnit(workUnitState);
+
+            // Create a new task from the work unit and submit the task to run
+            Task task = new Task(new TaskContext(workUnitState), this.taskStateTracker,
+                    Optional.of(this.countDownLatch));
+            this.taskStateTracker.registerNewTask(task);
+            tasks.add(task);
+            LOG.info(String.format("Submitting task %s to run", taskId));
+            this.taskExecutor.submit(task);
         }
 
-        this.countDownLatch = new CountDownLatch(workUnitsToRun.size());
-        LOG.info(String.format("Waiting for job %s to complete...", jobId));
-        // Wait for all tasks to complete
-        this.countDownLatch.await();
+        LOG.info(String.format("Waiting for submitted tasks of job %s to complete...", jobId));
+        while (countDownLatch.getCount() > 0) {
+            LOG.info(String.format("%d out of %d tasks of job %s are running",
+                    countDownLatch.getCount(), workUnits.size(), jobId));
+            countDownLatch.await(1, TimeUnit.MINUTES);
+        }
+        LOG.info(String.format("All tasks of job %s have completed", jobId));
 
         // Set job state appropriately
         if (isCancelled) {
             jobState.setState(JobState.RunningState.CANCELLED);
-        } else if (this.jobState.getState() == JobState.RunningState.RUNNING) {
-            this.jobState.setState(JobState.RunningState.SUCCESSFUL);
+        } else if (jobState.getState() == JobState.RunningState.RUNNING) {
+            jobState.setState(JobState.RunningState.SUCCESSFUL);
+        }
+
+        // Collect task states and set job state to FAILED if any task failed
+        for (Task task : tasks) {
+            jobState.addTaskState(task.getTaskState());
+            if (task.getTaskState().getWorkingState() == WorkUnitState.WorkingState.FAILED) {
+                jobState.setState(JobState.RunningState.FAILED);
+            }
         }
 
         // Stop all dependent services
@@ -138,26 +150,5 @@ public class LocalJobLauncher extends AbstractJobLauncher {
                 FileSystem.get(fsUri, new Configuration()),
                 jobProps.getProperty(ConfigurationKeys.JOB_LOCK_DIR_KEY),
                 jobName);
-    }
-
-    /**
-     * Callback method when a task is completed.
-     *
-     * @param taskState {@link TaskState}
-     */
-    public synchronized void onTaskCompletion(TaskState taskState) {
-        if (JobMetrics.isEnabled(this.properties)) {
-            // Remove all task-level metrics after the task is done
-            taskState.removeMetrics();
-        }
-
-        LOG.info(String.format("Task %s completed with state %s", taskState.getTaskId(),
-                taskState.getWorkingState().name()));
-        if (taskState.getWorkingState() == WorkUnitState.WorkingState.FAILED) {
-            // The job is considered being failed if any task failed
-            this.jobState.setState(JobState.RunningState.FAILED);
-        }
-        this.jobState.addTaskState(taskState);
-        this.countDownLatch.countDown();
     }
 }
