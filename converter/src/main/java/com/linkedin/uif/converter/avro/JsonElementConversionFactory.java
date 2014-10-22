@@ -357,7 +357,7 @@ public class JsonElementConversionFactory {
       for(String pattern: patterns) {
     	  DateTimeFormatter dtf = DateTimeFormat.forPattern(pattern).withZone(this.timeZone);
     	  try {
-    		  formattedDate = dtf.parseDateTime(value.getAsString()).getMillis();
+    		  formattedDate = dtf.parseDateTime(value.getAsString()).withZone(DateTimeZone.forID("UTC")).getMillis();
     		  if(Boolean.valueOf(this.state.getProp(ConfigurationKeys.CONVERTER_IS_EPOCH_TIME_IN_SECONDS))) {
     		      formattedDate = (Long)formattedDate / 1000;
     		  }
