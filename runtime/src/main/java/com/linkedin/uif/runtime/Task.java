@@ -2,6 +2,7 @@ package com.linkedin.uif.runtime;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,8 +56,9 @@ public class Task implements Runnable {
     private final String jobId;
     private final String taskId;
     private final TaskContext taskContext;
-    private final TaskStateTracker taskStateTracker;
     private final TaskState taskState;
+    private final TaskStateTracker taskStateTracker;
+    private final Optional<CountDownLatch> countDownLatch;
 
     // Data writers, one for each forked stream.
     private final List<DataWriter> writers = Lists.newArrayList();
@@ -71,13 +73,15 @@ public class Task implements Runnable {
      *                to construct and run a {@link Task}
      */
     @SuppressWarnings("unchecked")
-    public Task(TaskContext context, TaskStateTracker taskStateTracker) {
+    public Task(TaskContext context, TaskStateTracker taskStateTracker,
+                Optional<CountDownLatch> countDownLatch) {
+
         this.taskContext = context;
-        // Task manager is used to register failed tasks
-        this.taskStateTracker = taskStateTracker;
         this.taskState = context.getTaskState();
         this.jobId = this.taskState.getJobId();
         this.taskId = this.taskState.getTaskId();
+        this.taskStateTracker = taskStateTracker;
+        this.countDownLatch = countDownLatch;
     }
 
     @Override
@@ -284,6 +288,15 @@ public class Task implements Runnable {
      */
     public int getRetryCount() {
         return this.retryCount;
+    }
+
+    /**
+     * Mark the completion of this {@link Task}.
+     */
+    public void markTaskCompletion() {
+        if (this.countDownLatch.isPresent()) {
+            this.countDownLatch.get().countDown();
+        }
     }
 
     @Override

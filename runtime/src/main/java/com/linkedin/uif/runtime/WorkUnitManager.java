@@ -2,6 +2,7 @@ package com.linkedin.uif.runtime;
 
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -9,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Queues;
 import com.google.common.util.concurrent.AbstractIdleService;
 
@@ -114,7 +116,8 @@ public class WorkUnitManager extends AbstractIdleService {
                     }
 
                     // Create a task based off the work unit
-                    Task task = new Task(new TaskContext(workUnitState), this.taskStateTracker);
+                    Task task = new Task(new TaskContext(workUnitState), this.taskStateTracker,
+                            Optional.<CountDownLatch>absent());
                     // And then execute the task
                     this.taskExecutor.execute(task);
                 } catch (InterruptedException ie) {
