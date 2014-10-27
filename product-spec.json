@@ -69,12 +69,7 @@
     "jsch": "com.jcraft:jsch:0.1.46",
     "commonsVfs": "org.apache.commons:commons-vfs2:2.0"
   },
-  "product": {
-    "container": {
-      "containerImpl": "com.linkedin.container:container-impl:@spec.product.container.version@",
-      "version": "6.0.548"
-    }
-  },
+  "product": {},
   "trunkDev": {
     "autoRevert": true,
     "containerInfrastructure": false
