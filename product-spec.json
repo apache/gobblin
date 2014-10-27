@@ -72,7 +72,7 @@
   "product": {
     "container": {
       "containerImpl": "com.linkedin.container:container-impl:@spec.product.container.version@",
-      "version": "6.0.154"
+      "version": "6.0.548"
     }
   },
   "trunkDev": {
