@@ -249,6 +249,10 @@ public class LocalJobManager extends AbstractIdleService {
                 .build();
 
         try {
+            if (this.scheduler.checkExists(job.getKey())) {
+                throw new JobException(String.format("Job %s has already been scheduled", jobName));
+            }
+
             // Schedule the Quartz job with a trigger built from the job configuration
             this.scheduler.scheduleJob(job, getTrigger(job.getKey(), jobProps));
         } catch (SchedulerException se) {
