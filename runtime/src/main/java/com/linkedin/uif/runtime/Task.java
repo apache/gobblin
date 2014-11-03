@@ -311,6 +311,9 @@ public class Task implements Runnable {
     private void buildWriters(TaskContext context, int branches, List<Optional<Object>> schemas)
             throws IOException {
 
+        // Clear the writer list so it starts with a fresh list of writers for each run/retry
+        this.writers.clear();
+
         for (int i = 0; i < branches; i++) {
             // First create the right writer builder using the factory
             DataWriterBuilder builder = this.taskContext.getDataWriterBuilder(branches, i);
