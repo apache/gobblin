@@ -21,22 +21,15 @@ import com.linkedin.uif.runtime.TaskExecutor;
 import com.linkedin.uif.runtime.TaskStateTracker;
 
 /**
- * An implementation of {@link com.linkedin.uif.runtime.TaskStateTracker}
- * that reports {@link com.linkedin.uif.runtime.TaskState}s to the
- * {@link LocalJobLauncher}.
+ * An implementation of {@link com.linkedin.uif.runtime.TaskStateTracker} for local mode.
  *
- * <p>
- *     This is the implementation used only in single-node mode.
- * </p>
- *
- * TODO: rename this to LocalTaskStateTracker once LocalJobManager becomes obsolete.
+ * TODO: rename this to LocalTaskStateTracker once {@link LocalTaskStateTracker} is retired.
  *
  * @author ynli
  */
-public class LocalTaskStateTracker2 extends AbstractIdleService
-        implements TaskStateTracker {
+public class LocalTaskStateTracker2 extends AbstractIdleService implements TaskStateTracker {
 
-    private static final Logger LOG = LoggerFactory.getLogger(LocalTaskStateTracker.class);
+    private static final Logger LOG = LoggerFactory.getLogger(LocalTaskStateTracker2.class);
 
     // This is used to retry failed tasks
     private final TaskExecutor taskExecutor;
@@ -47,9 +40,6 @@ public class LocalTaskStateTracker2 extends AbstractIdleService
 
     // Mapping between tasks and the task state reporters associated with them
     private final Map<String, ScheduledFuture<?>> scheduledReporters = Maps.newHashMap();
-
-    // This is used to report final state when a task is completed
-    private LocalJobLauncher localJobLauncher;
 
     // Maximum number of task retries allowed
     private final int maxTaskRetries;
@@ -105,6 +95,7 @@ public class LocalTaskStateTracker2 extends AbstractIdleService
         if (JobMetrics.isEnabled(task.getTaskState().getWorkunit())) {
             // Update record-level metrics after the task is done
             task.updateRecordMetrics();
+            task.getTaskState().removeMetrics();
         }
 
         // Cancel the task state reporter associated with this task. The reporter might
@@ -117,26 +108,17 @@ public class LocalTaskStateTracker2 extends AbstractIdleService
         // Check the task state and handle task retry if task failed and
         // it has not reached the maximum number of retries
         WorkUnitState.WorkingState state = task.getTaskState().getWorkingState();
-        if (state == WorkUnitState.WorkingState.FAILED &&
-                task.getRetryCount() < this.maxTaskRetries) {
-
+        if (state == WorkUnitState.WorkingState.FAILED && task.getRetryCount() < this.maxTaskRetries) {
             this.taskExecutor.retry(task);
             return;
         }
 
+        // Mark the completion of this task
+        task.markTaskCompletion();
+
         // At this point, the task is considered being completed.
         LOG.info(String.format("Task %s completed in %dms with state %s",
                 task.getTaskId(), task.getTaskState().getTaskDuration(), state));
-        this.localJobLauncher.onTaskCompletion(task.getTaskState());
-    }
-
-    /**
-     * Set the {@link LocalJobLauncher} used by this {@link TaskStateTracker}.
-     *
-     * @param localJobLauncher {@link LocalJobLauncher}
-     */
-    public void setJobLauncher(LocalJobLauncher localJobLauncher) {
-        this.localJobLauncher = localJobLauncher;
     }
 
     /**
