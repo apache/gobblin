@@ -289,10 +289,16 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
 
 			if (httpEntity != null) {
 				JsonElement json = gson.fromJson(EntityUtils.toString(httpEntity), JsonObject.class);
-				JsonObject jsonRet = json.getAsJsonObject();
+                if (json == null) {
+                    throw new RestApiConnectionException(
+                            "Failed on authentication with the following HTTP response received:\n" +
+                                    EntityUtils.toString(httpEntity));
+                }
 
+				JsonObject jsonRet = json.getAsJsonObject();
 				if (!this.hasId(jsonRet)) {
-					throw new RestApiConnectionException(this.getFirstErrorMessage("Failed to establish auth token.", json));
+                    throw new RestApiConnectionException(
+                            "Failed on authentication with the following HTTP response received:\n" + json);
 				}
 
 				this.instanceUrl = jsonRet.get("instance_url").getAsString();
