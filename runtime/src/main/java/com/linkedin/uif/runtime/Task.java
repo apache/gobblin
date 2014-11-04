@@ -92,9 +92,6 @@ public class Task implements Runnable {
         this.taskStateTracker.registerNewTask(this);
         this.taskState.setWorkingState(WorkUnitState.WorkingState.RUNNING);
 
-        // Number of forked branches. Default is 1, indicating there is no fork/branching.
-        int branches = 1;
-
         Closer closer = Closer.create();
         try {
             // Build the extractor for pulling source schema and data records
@@ -121,7 +118,8 @@ public class Task implements Runnable {
             // used with a single branch to make the logic below simpler.
             ForkOperator forkOperator = closer.register(this.taskContext.getForkOperator());
             forkOperator.init(this.taskState);
-            branches = forkOperator.getBranches(this.taskState);
+            // Number of forked branches. Default is 1, indicating there is no fork/branching.
+            int branches = forkOperator.getBranches(this.taskState);
             // Set fork.branches explicitly here so the rest task flow can pick it up
             this.taskState.setProp(ConfigurationKeys.FORK_BRANCHES_KEY, branches);
             List<Optional<Object>> forkedSchemas = forkOperator.forkSchema(this.taskState, sourceSchema);
@@ -198,15 +196,15 @@ public class Task implements Runnable {
         } finally {
             try {
                 closer.close();
-            } catch (IOException ioe) {
-                LOG.error("Failed to close all open resources", ioe);
+            } catch (Throwable t) {
+                LOG.error("Failed to close all open resources", t);
             }
 
-            for (int i = 0; i < branches; i++) {
+            for (DataWriter writer : this.writers) {
                 try {
-                    this.writers.get(i).cleanup();
-                } catch (IOException ioe) {
-                    LOG.error("The writer failed to cleanup for task " + taskId, ioe);
+                    writer.cleanup();
+                } catch (Throwable t) {
+                    LOG.error("A writer failed to cleanup for task " + this.taskId, t);
                 }
             }
 

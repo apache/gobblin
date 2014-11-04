@@ -55,7 +55,6 @@ import com.linkedin.uif.runtime.JobLauncher;
 import com.linkedin.uif.runtime.JobLock;
 import com.linkedin.uif.runtime.JobState;
 import com.linkedin.uif.runtime.Task;
-import com.linkedin.uif.runtime.TaskContext;
 import com.linkedin.uif.runtime.TaskExecutor;
 import com.linkedin.uif.runtime.TaskState;
 import com.linkedin.uif.runtime.TaskStateTracker;
@@ -482,39 +481,17 @@ public class MRJobLauncher extends AbstractJobLauncher {
             }
 
             String jobId = workUnits.get(0).getProp(ConfigurationKeys.JOB_ID_KEY);
-
-            CountDownLatch countDownLatch = new CountDownLatch(workUnits.size());
-            List<Task> tasks = Lists.newArrayList();
             for (WorkUnit workUnit : workUnits) {
                 String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
-
                 // Delete the task state file for the task if it already exists.
                 // This usually happens if the task is retried upon failure.
                 if (this.taskStateStore.exists(jobId, taskId + TASK_STATE_STORE_TABLE_SUFFIX)) {
                     this.taskStateStore.delete(jobId, taskId + TASK_STATE_STORE_TABLE_SUFFIX);
                 }
-
-                WorkUnitState workUnitState = new WorkUnitState(workUnit);
-                workUnitState.setId(taskId);
-                workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
-                workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
-
-                // Create a new task from the work unit and submit the task to run
-                Task task = new Task(new TaskContext(workUnitState), this.taskStateTracker,
-                        Optional.of(countDownLatch));
-                this.taskStateTracker.registerNewTask(task);
-                tasks.add(task);
-                LOG.info(String.format("Submitting task %s to run", taskId));
-                this.taskExecutor.submit(task);
             }
 
-            LOG.info(String.format("Waiting for submitted tasks of job %s to complete...", jobId));
-            while (countDownLatch.getCount() > 0) {
-                LOG.info(String.format("%d out of %d tasks of job %s are running",
-                        countDownLatch.getCount(), workUnits.size(), jobId));
-                countDownLatch.await(1, TimeUnit.MINUTES);
-            }
-            LOG.info(String.format("All tasks of job %s have completed", jobId));
+            List<Task> tasks = AbstractJobLauncher.runWorkUnits(jobId, workUnits, this.taskStateTracker,
+                    this.taskExecutor, new CountDownLatch(workUnits.size()));
 
             boolean hasTaskFailure = false;
             for (Task task : tasks) {

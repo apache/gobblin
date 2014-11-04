@@ -6,6 +6,8 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -76,6 +78,50 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                 TaskState.class);
 
         populateSourceWrapperMap();
+    }
+
+    /**
+     * Run the given list of {@link WorkUnit}s of the given job.
+     *
+     * @param jobId job ID
+     * @param workUnits given list of {@link WorkUnit}s to run
+     * @param stateTracker a {@link TaskStateTracker} for task state tracking
+     * @param taskExecutor a {@link TaskExecutor} for task execution
+     * @param countDownLatch a {@link java.util.concurrent.CountDownLatch} waited on for job completion
+     * @return a list of {@link Task}s from the {@link WorkUnit}s
+     * @throws InterruptedException
+     */
+    public static List<Task> runWorkUnits(String jobId, List<WorkUnit> workUnits,
+                                          TaskStateTracker stateTracker,
+                                          TaskExecutor taskExecutor,
+                                          CountDownLatch countDownLatch)
+            throws InterruptedException {
+
+        List<Task> tasks = Lists.newArrayList();
+        for (WorkUnit workUnit : workUnits) {
+            String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
+            WorkUnitState workUnitState = new WorkUnitState(workUnit);
+            workUnitState.setId(taskId);
+            workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
+            workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
+
+            // Create a new task from the work unit and submit the task to run
+            Task task = new Task(new TaskContext(workUnitState), stateTracker, Optional.of(countDownLatch));
+            stateTracker.registerNewTask(task);
+            tasks.add(task);
+            LOG.info(String.format("Submitting task %s to run", taskId));
+            taskExecutor.submit(task);
+        }
+
+        LOG.info(String.format("Waiting for submitted tasks of job %s to complete...", jobId));
+        while (countDownLatch.getCount() > 0) {
+            LOG.info(String.format("%d out of %d tasks of job %s are running",
+                    countDownLatch.getCount(), workUnits.size(), jobId));
+            countDownLatch.await(1, TimeUnit.MINUTES);
+        }
+        LOG.info(String.format("All tasks of job %s have completed", jobId));
+
+        return tasks;
     }
 
     @Override

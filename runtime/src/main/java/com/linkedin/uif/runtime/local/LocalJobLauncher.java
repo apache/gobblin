@@ -25,7 +25,6 @@ import com.linkedin.uif.runtime.JobLauncher;
 import com.linkedin.uif.runtime.JobLock;
 import com.linkedin.uif.runtime.JobState;
 import com.linkedin.uif.runtime.Task;
-import com.linkedin.uif.runtime.TaskContext;
 import com.linkedin.uif.runtime.TaskExecutor;
 import com.linkedin.uif.runtime.TaskStateTracker;
 import com.linkedin.uif.source.workunit.MultiWorkUnit;
@@ -95,33 +94,15 @@ public class LocalJobLauncher extends AbstractJobLauncher {
             }
         }
 
+        if (workUnitsToRun.isEmpty()) {
+            LOG.warn("No work units to run");
+            return;
+        }
+
         String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
-
         this.countDownLatch = new CountDownLatch(workUnitsToRun.size());
-        List<Task> tasks = Lists.newArrayList();
-        for (WorkUnit workUnit : workUnitsToRun) {
-            String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
-            WorkUnitState workUnitState = new WorkUnitState(workUnit);
-            workUnitState.setId(taskId);
-            workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
-            workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
-
-            // Create a new task from the work unit and submit the task to run
-            Task task = new Task(new TaskContext(workUnitState), this.taskStateTracker,
-                    Optional.of(this.countDownLatch));
-            this.taskStateTracker.registerNewTask(task);
-            tasks.add(task);
-            LOG.info(String.format("Submitting task %s to run", taskId));
-            this.taskExecutor.submit(task);
-        }
-
-        LOG.info(String.format("Waiting for submitted tasks of job %s to complete...", jobId));
-        while (countDownLatch.getCount() > 0) {
-            LOG.info(String.format("%d out of %d tasks of job %s are running",
-                    countDownLatch.getCount(), workUnits.size(), jobId));
-            countDownLatch.await(1, TimeUnit.MINUTES);
-        }
-        LOG.info(String.format("All tasks of job %s have completed", jobId));
+        List<Task> tasks = AbstractJobLauncher.runWorkUnits(
+                jobId, workUnitsToRun, this.taskStateTracker, this.taskExecutor, this.countDownLatch);
 
         // Set job state appropriately
         if (isCancelled) {
