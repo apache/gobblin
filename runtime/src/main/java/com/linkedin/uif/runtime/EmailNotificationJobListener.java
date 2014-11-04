@@ -19,6 +19,7 @@ public class EmailNotificationJobListener implements JobListener {
         boolean emailNotificationEnabled = Boolean.valueOf(jobState.getProp(
                 ConfigurationKeys.EMAIL_NOTIFICATION_ENABLED_KEY, Boolean.toString(false)));
         if (!emailNotificationEnabled) {
+            LOGGER.info("Email notification is not enabled for job " + jobState.getJobName());
             return;
         }
 
