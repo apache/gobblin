@@ -249,6 +249,10 @@ public class LocalJobManager extends AbstractIdleService {
                 .build();
 
         try {
+            if (this.scheduler.checkExists(job.getKey())) {
+                throw new JobException(String.format("Job %s has already been scheduled", jobName));
+            }
+
             // Schedule the Quartz job with a trigger built from the job configuration
             this.scheduler.scheduleJob(job, getTrigger(job.getKey(), jobProps));
         } catch (SchedulerException se) {
@@ -544,8 +548,6 @@ public class LocalJobManager extends AbstractIdleService {
                 // Then load job configuration properties from the new job configuration file
                 loadJobConfig(jobProps, file);
 
-                jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY,
-                        file.getAbsolutePath());
                 // Schedule the new job
                 try {
                     boolean runOnce = Boolean.valueOf(
@@ -596,6 +598,7 @@ public class LocalJobManager extends AbstractIdleService {
             private void loadJobConfig(Properties jobProps, File file) {
                 try {
                     jobProps.load(new FileReader(file));
+                    jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, file.getAbsolutePath());
                 } catch (Exception e) {
                     LOG.error("Failed to load job configuration from file " + file.getAbsolutePath(), e);
                 }

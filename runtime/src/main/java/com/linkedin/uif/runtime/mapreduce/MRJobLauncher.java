@@ -11,6 +11,7 @@ import java.io.Writer;
 import java.net.URI;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -54,7 +55,6 @@ import com.linkedin.uif.runtime.JobLauncher;
 import com.linkedin.uif.runtime.JobLock;
 import com.linkedin.uif.runtime.JobState;
 import com.linkedin.uif.runtime.Task;
-import com.linkedin.uif.runtime.TaskContext;
 import com.linkedin.uif.runtime.TaskExecutor;
 import com.linkedin.uif.runtime.TaskState;
 import com.linkedin.uif.runtime.TaskStateTracker;
@@ -65,12 +65,12 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  * An implementation of {@link JobLauncher} that launches a Gobblin job as a Hadoop MR job.
  *
  * <p>
- *     In the Hadoop MP job, each mapper is responsible for executing one task. The mapper
- *     uses its input to get the path of the file storing serialized work unit, deserializes
- *     the work unit and creates a task, and executes the task. {@link TaskExecutor} and
- *     {@link Task} remain the same as in local single-node mode. Each mapper outputs the
- *     task state upon task completion and the single reducer collects all the task states
- *     and write them out as job output.
+ *     The basic idea of this implementation is to use mappers as containers to run tasks.
+ *     In the Hadoop MP job, each mapper is responsible for executing one or more tasks.
+ *     A mapper uses its input to get the paths of the files storing serialized work units,
+ *     deserializes the work units and creates tasks, and executes the tasks in a thread
+ *     pool. {@link TaskExecutor} and {@link Task} remain the same as in local single-node
+ *     mode. Each mapper writes out task states upon task completion.
  * </p>
  *
  * @author ynli
@@ -474,40 +474,32 @@ public class MRJobLauncher extends AbstractJobLauncher {
          * Run the given list of {@link WorkUnit}s sequentially. If any work unit/task fails,
          * an {@link java.io.IOException} is thrown so the mapper is failed and retried.
          */
-        private void runWorkUnits(List<WorkUnit> workUnits) throws IOException {
-            boolean hasTaskFailure = false;
-            for (WorkUnit workUnit : workUnits) {
-                String jobId = workUnit.getProp(ConfigurationKeys.JOB_ID_KEY);
-                String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
+        private void runWorkUnits(List<WorkUnit> workUnits) throws IOException, InterruptedException {
+            if (workUnits.isEmpty()) {
+                LOG.warn("No work units to run");
+                return;
+            }
 
+            String jobId = workUnits.get(0).getProp(ConfigurationKeys.JOB_ID_KEY);
+            for (WorkUnit workUnit : workUnits) {
+                String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
                 // Delete the task state file for the task if it already exists.
                 // This usually happens if the task is retried upon failure.
                 if (this.taskStateStore.exists(jobId, taskId + TASK_STATE_STORE_TABLE_SUFFIX)) {
                     this.taskStateStore.delete(jobId, taskId + TASK_STATE_STORE_TABLE_SUFFIX);
                 }
+            }
 
-                WorkUnitState workUnitState = new WorkUnitState(workUnit);
-                workUnitState.setId(taskId);
-                workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
-                workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
+            List<Task> tasks = AbstractJobLauncher.runWorkUnits(jobId, workUnits, this.taskStateTracker,
+                    this.taskExecutor, new CountDownLatch(workUnits.size()));
 
-                // Create a new task from the work unit and register the task
-                Task task = new Task(new TaskContext(workUnitState), this.taskStateTracker);
-                this.taskStateTracker.registerNewTask(task);
-                LOG.info(String.format("Submitting and waiting for task %s to complete...", taskId));
-                try {
-                    // Submit the task to run and wait for it to complete
-                    this.taskExecutor.submit(task).get();
-                } catch (Exception e) {
-                    LOG.error("Failed to submit and execute task " + task.getTaskId(), e);
-                }
-
-                // Write out the task state upon task completion
-                LOG.info("Writing task state for task " + taskId);
-                this.taskStateStore.put(jobId, taskId + TASK_STATE_STORE_TABLE_SUFFIX, task.getTaskState());
+            boolean hasTaskFailure = false;
+            for (Task task : tasks) {
+                LOG.info("Writing task state for task " + task.getTaskId());
+                this.taskStateStore.put(task.getJobId(),
+                        task.getTaskId() + TASK_STATE_STORE_TABLE_SUFFIX, task.getTaskState());
 
                 if (task.getTaskState().getWorkingState() == WorkUnitState.WorkingState.FAILED) {
-                    LOG.error(String.format("Task %s of job %s failed", task.getTaskId(), task.getJobId()));
                     hasTaskFailure = true;
                 }
             }
