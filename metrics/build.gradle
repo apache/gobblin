@@ -1,12 +1,12 @@
-apply plugin: 'li-java'
+apply plugin: 'java'
 
 dependencies {
   compile project(":common-api")
-  compile spec.external.guava
-  compile spec.external.metricsCore
-  compile spec.external.slf4j
-  compile spec.external.influxdb
-  testCompile spec.external.testng
+  compile externalDependency.guava
+  compile externalDependency.metricsCore
+  compile externalDependency.slf4j
+  compile externalDependency.influxdb
+  testCompile externalDependency.testng
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {

@@ -1,20 +1,20 @@
-apply plugin: 'li-java'
+apply plugin: 'java'
 
 dependencies {
-    compile spec.external.commonsDbcp
-    compile spec.external.avro
-    compile spec.external.guava
-    compile spec.external.gson
-    compile spec.external.slf4j
-    compile spec.external.log4j
-    compile spec.external.log4jextras
-    compile spec.external.slf4jLog4j
-    compile spec.external.jclOverSlf4j
-    compile spec.external.jodaTime
-    compile spec.external.jacksonCore
-    compile spec.external.jacksonMapper
+    compile externalDependency.commonsDbcp
+    compile externalDependency.avro
+    compile externalDependency.guava
+    compile externalDependency.gson
+    compile externalDependency.slf4j
+    compile externalDependency.log4j
+    compile externalDependency.log4jextras
+    compile externalDependency.slf4jLog4j
+    compile externalDependency.jclOverSlf4j
+    compile externalDependency.jodaTime
+    compile externalDependency.jacksonCore
+    compile externalDependency.jacksonMapper
 
-    testCompile spec.external.testng
+    testCompile externalDependency.testng
 }
 
 configurations {

@@ -1,4 +1,4 @@
-apply plugin: 'li-java'
+apply plugin: 'java'
 
 dependencies {
   compile project(":common-api")
@@ -8,24 +8,24 @@ dependencies {
   compile project(":writer")
   compile project(":runtime")
   compile project(":utility")
-  compile spec.external.avro
-  compile spec.external.commonsConfiguration
-  compile spec.external.quartz
-  compile spec.external.guava
-  compile spec.external.jacksonCore
-  compile spec.external.jacksonMapper
-  compile spec.external.jodaTime
-  compile spec.external.httpclient
-  compile spec.external.httpcore
-  compile spec.external.commonsLang
-  compile spec.external.slf4j
-  compile spec.external.commonsCli
-  compile spec.external.gson
-  compile spec.external.metricsCore
-  compile spec.external.commonsIO
+  compile externalDependency.avro
+  compile externalDependency.commonsConfiguration
+  compile externalDependency.quartz
+  compile externalDependency.guava
+  compile externalDependency.jacksonCore
+  compile externalDependency.jacksonMapper
+  compile externalDependency.jodaTime
+  compile externalDependency.httpclient
+  compile externalDependency.httpcore
+  compile externalDependency.commonsLang
+  compile externalDependency.slf4j
+  compile externalDependency.commonsCli
+  compile externalDependency.gson
+  compile externalDependency.metricsCore
+  compile externalDependency.commonsIO
   compile files('../converter/src/main/resources/lumos-common-2.0.0.jar')
 
-  testCompile spec.external.testng
+  testCompile externalDependency.testng
 }
 
 configurations {
