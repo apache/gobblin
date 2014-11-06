@@ -1,11 +1,11 @@
-apply plugin: 'li-java'
+apply plugin: 'java'
 
 dependencies {
     compile project(":common-api")
-    compile spec.external.guava
-    compile spec.external.slf4j
+    compile externalDependency.guava
+    compile externalDependency.slf4j
 
-    testCompile spec.external.testng
+    testCompile externalDependency.testng
 }
 
 configurations {

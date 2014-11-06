@@ -1,19 +1,19 @@
-apply plugin: 'li-java'
+apply plugin: 'java'
 
 dependencies {
   compile project(":common-api")
   compile project(":utility")
-  compile spec.external.commonsDbcp
-  compile spec.external.avro
-  compile spec.external.guava
-  compile spec.external.commonsConfiguration
-  compile spec.external.commonsLang
-  compile spec.external.gson
-  compile spec.external.jacksonCore
-  compile spec.external.jacksonMapper
-  compile spec.external.slf4j
+  compile externalDependency.commonsDbcp
+  compile externalDependency.avro
+  compile externalDependency.guava
+  compile externalDependency.commonsConfiguration
+  compile externalDependency.commonsLang
+  compile externalDependency.gson
+  compile externalDependency.jacksonCore
+  compile externalDependency.jacksonMapper
+  compile externalDependency.slf4j
 
-  testCompile spec.external.testng
+  testCompile externalDependency.testng
 }
 
 

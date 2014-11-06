@@ -1,23 +1,23 @@
-apply plugin: 'li-java'
+apply plugin: 'java'
 
 dependencies {
   compile project(":common-api")
   compile project(":qualitychecker")
-  compile spec.external.commonsCli
-  compile spec.external.avro
-  compile spec.external.avroMapred
-  compile spec.external.gson
-  compile spec.external.guava
-  compile spec.external.hadoop
-  compile spec.external.jacksonCore
-  compile spec.external.jacksonMapper
-  compile spec.external.slf4j
+  compile externalDependency.commonsCli
+  compile externalDependency.avro
+  compile externalDependency.avroMapred
+  compile externalDependency.gson
+  compile externalDependency.guava
+  compile externalDependency.hadoop
+  compile externalDependency.jacksonCore
+  compile externalDependency.jacksonMapper
+  compile externalDependency.slf4j
 
   testCompile project(':runtime')
   testCompile project(path: ':runtime', configuration: 'tests')
   testCompile project(':writer')
   testCompile project(path: ':writer', configuration: 'tests')
-  testCompile spec.external.testng
+  testCompile externalDependency.testng
 }
 
 configurations {
