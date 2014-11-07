@@ -73,11 +73,11 @@ import com.linkedin.uif.util.JobLauncherUtils;
 import com.linkedin.uif.util.SchedulerUtils;
 
 /**
- * A class for managing locally configured UIF jobs.
+ * A class for managing locally configured Gobblin jobs.
  *
  * <p>
  *     This class's responsibilities include scheduling and running locally configured
- *     UIF jobs to run, keeping track of their states, and committing successfully
+ *     Gobblin jobs to run, keeping track of their states, and committing successfully
  *     completed jobs. This is used only in single-node mode.
  * </p>
  *
@@ -490,7 +490,7 @@ public class LocalJobManager extends AbstractIdleService {
     }
 
     /**
-     * Schedule locally configured UIF jobs.
+     * Schedule locally configured Gobblin jobs.
      */
     private void scheduleLocallyConfiguredJobs() throws IOException, JobException {
         LOG.info("Scheduling locally configured jobs");
@@ -836,7 +836,7 @@ public class LocalJobManager extends AbstractIdleService {
     }
 
     /**
-     * A UIF job to schedule locally.
+     * A Gobblin job to schedule locally.
      */
     @DisallowConcurrentExecution
     public static class GobblinJob implements Job {
