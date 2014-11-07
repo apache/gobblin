@@ -3,7 +3,6 @@ apply plugin: 'java'
 dependencies {
     compile project(":common-api")
     compile project(":qualitychecker")
-    compile files('./src/main/resources/sqljdbc4.jar')
     compile externalDependency.commonsDbcp
     compile externalDependency.avro
     compile externalDependency.avroMapred
