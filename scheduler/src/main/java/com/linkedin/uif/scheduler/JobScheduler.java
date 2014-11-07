@@ -248,7 +248,7 @@ public class JobScheduler extends AbstractIdleService {
     }
 
     /**
-     * Schedule locally configured UIF jobs.
+     * Schedule locally configured Gobblin jobs.
      */
     private void scheduleLocallyConfiguredJobs() throws IOException, JobException {
         LOG.info("Scheduling locally configured jobs");
@@ -306,8 +306,6 @@ public class JobScheduler extends AbstractIdleService {
                 // Then load job configuration properties from the new job configuration file
                 loadJobConfig(jobProps, file);
 
-                jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY,
-                        file.getAbsolutePath());
                 // Schedule the new job
                 try {
                     boolean runOnce = Boolean.valueOf(
@@ -358,6 +356,7 @@ public class JobScheduler extends AbstractIdleService {
             private void loadJobConfig(Properties jobProps, File file) {
                 try {
                     jobProps.load(new FileReader(file));
+                    jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, file.getAbsolutePath());
                 } catch (Exception e) {
                     LOG.error("Failed to load job configuration from file " + file.getAbsolutePath(), e);
                 }
