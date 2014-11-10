@@ -303,11 +303,11 @@ public class ConfigurationKeys {
     /**
      * Configuration properties for email settings.
      */
-    public static final String EMAIL_NOTIFICATION_ENABLED_KEY = "email.notification.enabled";
+    public static final String ALERT_EMAIL_ENABLED_KEY = "email.alert.enabled";
+    public static final String NOTIFICATION_EMAIL_ENABLED_KEY = "email.notification.enabled";
     public static final String EMAIL_HOST_KEY = "email.host";
     public static final String DEFAULT_EMAIL_HOST = "localhost";
     public static final String EMAIL_SMTP_PORT_KEY = "email.smtp.port";
-    public static final int DEFAULT_EMAIL_SMTP_PORT = 465;
     public static final String EMAIL_USER_KEY = "email.user";
     public static final String EMAIL_PASSWORD_KEY = "email.password";
     public static final String EMAIL_FROM_KEY = "email.from";
