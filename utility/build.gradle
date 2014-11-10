@@ -4,7 +4,7 @@ dependencies {
   compile project(":common-api")
   compile externalDependency.commonsEmail
   compile externalDependency.guava
-
+  compile externalDependency.slf4j
   testCompile externalDependency.testng
 }
 
