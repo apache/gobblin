@@ -148,7 +148,7 @@ def main(argv):
     if not os.path.exists(os.path.join(cur_dir,"build.gradle")):
       print "current directory does not have build.gradle! Use --skip_build to skip ligradle call"
       sys.exit(1)
-    os.system("ligradle jar eclipse")
+    os.system("./gradlew jar eclipse")
   classpath_files = find_file_recursively(".classpath")
   if not classpath_files:
     print "There is no .classpath under current directory!"
