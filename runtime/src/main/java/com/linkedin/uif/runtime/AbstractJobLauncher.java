@@ -540,7 +540,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                     jobState.getProp(ConfigurationKeys.SOURCE_ENTITY));
 
             try {
-              Path taskStagingPath = new Path(
+                Path taskStagingPath = new Path(
                         jobState.getProp(ForkOperatorUtils.getPropertyNameForBranch(
                                 ConfigurationKeys.WRITER_STAGING_DIR, branches, i)), relPath);
                 if (fs.exists(taskStagingPath)) {
