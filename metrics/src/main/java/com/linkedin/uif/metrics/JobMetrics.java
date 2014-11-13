@@ -17,6 +17,7 @@ import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -332,6 +333,24 @@ public class JobMetrics implements MetricSet {
     @Override
     public Map<String, Metric> getMetrics() {
         return this.metricRegistry.getMetrics();
+    }
+
+    /**
+     * Get metrics belong to the given {@link MetricGroup}.
+     *
+     * @param group given {@link MetricGroup}
+     * @return metrics of the {@link MetricGroup} in a {@link com.google.common.collect.ImmutableMap}
+     *         with keys being metric names and values being the {@link com.codahale.metrics.Metric}s
+     */
+    public Map<String, Metric> getMetricsOfGroup(MetricGroup group) {
+        ImmutableMap.Builder<String, Metric> metricMapBuilder = ImmutableMap.builder();
+        for (Map.Entry<String, Metric> metric : getMetrics().entrySet()) {
+            if (metric.getKey().startsWith(group.name())) {
+                metricMapBuilder.put(metric.getKey(), metric.getValue());
+            }
+        }
+
+        return metricMapBuilder.build();
     }
 
     /**
