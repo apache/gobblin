@@ -535,8 +535,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                 return;
             }
 
-            String relPath = jobState.getProp(
-                    ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY).replaceAll("\\.", "/");
+            Path relPath =
+                new Path(jobState.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY).replaceAll("\\.", "/"),
+                    jobState.getProp(ConfigurationKeys.SOURCE_ENTITY));
 
             try {
                 Path taskStagingPath = new Path(
