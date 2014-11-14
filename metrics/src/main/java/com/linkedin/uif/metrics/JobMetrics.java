@@ -39,7 +39,7 @@ public class JobMetrics implements MetricSet {
     }
 
     /**
-     * Enumeration of metric groups.
+     * Enumeration of metric groups used internally.
      */
     public enum MetricGroup {
         JOB, TASK
@@ -89,7 +89,7 @@ public class JobMetrics implements MetricSet {
      * @param name metric name
      * @return the concatenated metric name
      */
-    public static String metricName(MetricGroup group, String id, String name) {
+    public static String metricName(Enum<?> group, String id, String name) {
         return MetricRegistry.name(group.name(), id, name);
     }
 
@@ -261,7 +261,7 @@ public class JobMetrics implements MetricSet {
      * @param name metric name
      * @return newly created {@link com.codahale.metrics.Counter}
      */
-    public Counter getCounter(MetricGroup group, String id, String name) {
+    public Counter getCounter(Enum<?> group, String id, String name) {
         return this.metricRegistry.counter(metricName(group, id, name));
     }
 
@@ -283,7 +283,7 @@ public class JobMetrics implements MetricSet {
      * @param name metric name
      * @return newly created {@link com.codahale.metrics.Meter}
      */
-    public Meter getMeter(MetricGroup group, String id, String name) {
+    public Meter getMeter(Enum<?> group, String id, String name) {
         return this.metricRegistry.meter(metricName(group, id, name));
     }
 
@@ -306,7 +306,7 @@ public class JobMetrics implements MetricSet {
      * @param gauge the {@link com.codahale.metrics.Gauge} to register
      * @param <T> gauge data type
      */
-    public <T> Gauge<T> getGauge(MetricGroup group, String id, String name, Gauge<T> gauge) {
+    public <T> Gauge<T> getGauge(Enum<?> group, String id, String name, Gauge<T> gauge) {
         return this.metricRegistry.register(metricName(group, id, name), gauge);
     }
 
@@ -336,13 +336,13 @@ public class JobMetrics implements MetricSet {
     }
 
     /**
-     * Get metrics belong to the given {@link MetricGroup}.
+     * Get metrics belong to the given metric group.
      *
-     * @param group given {@link MetricGroup}
-     * @return metrics of the {@link MetricGroup} in a {@link com.google.common.collect.ImmutableMap}
+     * @param group given metric group
+     * @return metrics of the metric group in a {@link com.google.common.collect.ImmutableMap}
      *         with keys being metric names and values being the {@link com.codahale.metrics.Metric}s
      */
-    public Map<String, Metric> getMetricsOfGroup(MetricGroup group) {
+    public Map<String, Metric> getMetricsOfGroup(Enum<?> group) {
         ImmutableMap.Builder<String, Metric> metricMapBuilder = ImmutableMap.builder();
         for (Map.Entry<String, Metric> metric : getMetrics().entrySet()) {
             if (metric.getKey().startsWith(group.name())) {
