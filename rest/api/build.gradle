@@ -1,0 +1,21 @@
+apply plugin: 'pegasus'
+apply plugin: 'java'
+
+dependencies {
+    dataModel externalDependency.pegasus.restliCommon
+    compile externalDependency.pegasus.data
+    compile externalDependency.pegasus.restliClient
+    compile externalDependency.pegasus.restliCommon
+    compile externalDependency.pegasus.pegasusCommon
+}
+
+buildscript {
+    repositories {
+        mavenCentral()
+        mavenLocal()
+    }
+
+    dependencies {
+        classpath group: 'com.linkedin.pegasus', name: 'gradle-plugins', version: '1.15.9'
+    }
+}
