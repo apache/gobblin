@@ -1,0 +1,23 @@
+{
+  "name" : "jobExecutions",
+  "namespace" : "com.linkedin.gobblin.rest",
+  "path" : "/jobExecutions",
+  "schema" : "com.linkedin.gobblin.rest.JobExecutionQueryResult",
+  "doc" : "A Rest.li resource for serving queries of Gobblin job executions.\n\ngenerated from: com.linkedin.gobblin.rest.JobExecutionInfoResource",
+  "collection" : {
+    "identifier" : {
+      "name" : "jobExecutionsId",
+      "type" : "com.linkedin.gobblin.rest.JobExecutionQuery",
+      "params" : "com.linkedin.restli.common.EmptyRecord"
+    },
+    "supports" : [ "batch_get", "get" ],
+    "methods" : [ {
+      "method" : "get"
+    }, {
+      "method" : "batch_get"
+    } ],
+    "entity" : {
+      "path" : "/jobExecutions/{jobExecutionsId}"
+    }
+  }
+}

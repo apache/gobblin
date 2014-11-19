@@ -1,3 +1,6 @@
+apply plugin: 'idea'
+apply plugin: 'eclipse'
+
 ext.build_script_dir = "${projectDir.path}/build_script"
 
 ext.isDefaultEnvironment = !project.hasProperty('overrideBuildEnvironment')
@@ -10,6 +13,8 @@ File getEnvironmentScript()
 }
 
 apply from: environmentScript
+
+pegasusVersion = '1.15.9'
 
 ext.externalDependency = [
     "avro": "org.apache.avro:avro:1.7.1",
@@ -43,7 +48,20 @@ ext.externalDependency = [
     "influxdb": "org.influxdb:influxdb-java:1.2",
     "jsch": "com.jcraft:jsch:0.1.46",
     "azkaban": "com.linkedin.azkaban:azkaban:2.5.0",
-    "commonsVfs": "org.apache.commons:commons-vfs2:2.0"
+    "commonsVfs": "org.apache.commons:commons-vfs2:2.0",
+    "javaxInject": "javax.inject:javax.inject:1",
+    "pegasus" : [
+        "data" : "com.linkedin.pegasus:data:"+pegasusVersion,
+        "generator" : "com.linkedin.pegasus:generator:"+pegasusVersion,
+        "restliClient" : "com.linkedin.pegasus:restli-client:"+pegasusVersion,
+        "restliServer" : "com.linkedin.pegasus:restli-server:"+pegasusVersion,
+        "restliTools" : "com.linkedin.pegasus:restli-tools:"+pegasusVersion,
+        "pegasusCommon" : "com.linkedin.pegasus:pegasus-common:"+pegasusVersion,
+        "restliCommon" : "com.linkedin.pegasus:restli-common:"+pegasusVersion,
+        "r2" : "com.linkedin.pegasus:r2:"+pegasusVersion,
+        "d2" : "com.linkedin.pegasus:d2:"+pegasusVersion,
+        "restliNettyStandalone" : "com.linkedin.pegasus:restli-netty-standalone:"+pegasusVersion
+    ]
 ];
 
 if (!isDefaultEnvironment)
@@ -99,4 +117,13 @@ subprojects {
     testOutputDir = sourceSets.test.output.classesDir
   }
 
+  afterEvaluate {
+    // add the standard pegasus dependencies wherever the plugin is used
+    if (project.plugins.hasPlugin('pegasus')) {
+      dependencies {
+        dataTemplateCompile externalDependency.pegasus.data
+        restClientCompile externalDependency.pegasus.restliClient,externalDependency.pegasus.restliCommon,externalDependency.pegasus.restliTools
+      }
+    }
+  }
 }
