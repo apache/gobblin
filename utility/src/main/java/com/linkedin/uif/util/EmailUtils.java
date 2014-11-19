@@ -1,8 +1,13 @@
 package com.linkedin.uif.util;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
 import org.apache.commons.mail.Email;
 import org.apache.commons.mail.EmailException;
 import org.apache.commons.mail.SimpleEmail;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Splitter;
 
@@ -15,6 +20,8 @@ import com.linkedin.uif.configuration.State;
  * @author ynli
  */
 public class EmailUtils {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(EmailUtils.class);
 
     /**
      * A general method for sending emails.
@@ -43,8 +50,18 @@ public class EmailUtils {
         for (String to : tos) {
             email.addTo(to);
         }
+
+        String hostName;
+        try {
+            hostName = InetAddress.getLocalHost().getHostName();
+        } catch (UnknownHostException uhe) {
+            LOGGER.error("Failed to get the host name", uhe);
+            hostName = "unknown";
+        }
+
         email.setSubject(subject);
-        email.setMsg(message);
+        String fromHostLine = String.format("This email was sent from host: %s\n\n", hostName);
+        email.setMsg(fromHostLine + message);
         email.send();
     }
 
