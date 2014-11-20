@@ -517,48 +517,52 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
 
     /**
-     * Cleanup the job's task staging/output directories.
+     * Cleanup the job's task staging data. This is not doing anything in case job succeeds
+     * and data is successfully committed because the staging data has already been moved
+     * to the job output directory. But in case the job fails and data is not committed,
+     * we want the staging data to be cleaned up.
      */
     private void cleanupStagingData(JobState jobState) {
-        int branches = jobState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
-        for (int i = 0; i < branches; i++) {
-            FileSystem fs;
-            try {
-                fs = FileSystem.get(
-                        URI.create(jobState.getProp(
-                                ForkOperatorUtils.getPropertyNameForBranch(
-                                        ConfigurationKeys.WRITER_FILE_SYSTEM_URI, branches, i),
-                                ConfigurationKeys.LOCAL_FS_URI)),
-                        new Configuration());
-            } catch (IOException ioe) {
-                LOG.error("Failed to get a file system instance", ioe);
-                return;
-            }
+        for (TaskState taskState : jobState.getTaskStates()) {
+            int branches = taskState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
+            for (int i = 0; i < branches; i++) {
+                try {
+                    String writerFsUri = taskState.getProp(
+                            ForkOperatorUtils.getPropertyNameForBranch(
+                                    ConfigurationKeys.WRITER_FILE_SYSTEM_URI, branches, i),
+                            ConfigurationKeys.LOCAL_FS_URI);
+                    FileSystem fs = FileSystem.get(URI.create(writerFsUri), new Configuration());
 
-            Path relPath =
-                new Path(jobState.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY).replaceAll("\\.", "/"),
-                    jobState.getProp(ConfigurationKeys.SOURCE_ENTITY));
+                    String writerFilePath = taskState.getProp(ForkOperatorUtils.getPropertyNameForBranch(
+                            ConfigurationKeys.WRITER_FILE_PATH, branches, i));
+                    if (Strings.isNullOrEmpty(writerFilePath)) {
+                        // The job may be cancelled before the task starts, so this may not be set.
+                        continue;
+                    }
 
-            try {
-                Path taskStagingPath = new Path(
-                        jobState.getProp(ForkOperatorUtils.getPropertyNameForBranch(
-                                ConfigurationKeys.WRITER_STAGING_DIR, branches, i)), relPath);
-                if (fs.exists(taskStagingPath)) {
-                    fs.delete(taskStagingPath, true);
+                    String stagingDirKey = ForkOperatorUtils.getPropertyNameForBranch(
+                            ConfigurationKeys.WRITER_STAGING_DIR, branches > 1 ? i : -1);
+                    if (taskState.contains(stagingDirKey)) {
+                        Path stagingPath = new Path(taskState.getProp(stagingDirKey), writerFilePath);
+                        if (fs.exists(stagingPath)) {
+                            LOG.info("Cleaning up staging directory " + stagingPath.toUri().getPath());
+                            fs.delete(stagingPath, true);
+                        }
+                    }
+
+                    String outputDirKey = ForkOperatorUtils.getPropertyNameForBranch(
+                            ConfigurationKeys.WRITER_OUTPUT_DIR, branches > 1 ? i : -1);
+                    if (taskState.contains(outputDirKey)) {
+                        Path outputPath = new Path(taskState.getProp(outputDirKey), writerFilePath);
+                        if (fs.exists(outputPath)) {
+                            LOG.info("Cleaning up output directory " + outputPath.toUri().getPath());
+                            fs.delete(outputPath, true);
+                        }
+                    }
+                } catch (IOException ioe) {
+                    LOG.error(String.format("Failed to clean staging data for branch %d of task %s",
+                            i, taskState.getTaskId()), ioe);
                 }
-            } catch (IOException ioe) {
-                LOG.error("Failed to cleanup task staging directory of job " + jobState.getJobId(), ioe);
-            }
-
-            try {
-                Path taskOutputPath = new Path(
-                        jobState.getProp(ForkOperatorUtils.getPropertyNameForBranch(
-                                ConfigurationKeys.WRITER_OUTPUT_DIR, branches, i)), relPath);
-                if (fs.exists(taskOutputPath)) {
-                    fs.delete(taskOutputPath, true);
-                }
-            } catch (IOException ioe) {
-                LOG.error("Failed to cleanup task output directory of job " + jobState.getJobId(), ioe);
             }
         }
     }
