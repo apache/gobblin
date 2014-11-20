@@ -32,6 +32,9 @@ public class ConfigurationKeys {
     // Job launcher type
     public static final String JOB_LAUNCHER_TYPE_KEY = "launcher.type";
 
+    // Job executor thread pool size
+    public static final String JOB_EXECUTOR_THREAD_POOL_SIZE_KEY = "jobexecutor.threadpool.size";
+    public static final String DEFAULT_JOB_EXECUTOR_THREAD_POOL_SIZE = "5";
     /**
      * Common job configuration properties
      */
