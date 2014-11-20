@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.commons.io.monitor.FileAlterationListener;
 import org.apache.commons.io.monitor.FileAlterationListenerAdaptor;
@@ -71,11 +73,14 @@ public class JobScheduler extends AbstractIdleService {
     private static final String PROPERTIES_KEY = "jobProps";
     private static final String JOB_LISTENER_KEY = "jobListener";
 
-    // Worker configuration properties
+    // System configuration properties
     private final Properties properties;
 
     // A Quartz scheduler
     private final Scheduler scheduler;
+
+    // A thread pool executor for running jobs without schedules
+    private final ExecutorService jobExecutor;
 
     // Mapping between jobs to job listeners associated with them
     private final Map<String, JobListener> jobListenerMap = Maps.newHashMap();
@@ -92,6 +97,12 @@ public class JobScheduler extends AbstractIdleService {
     public JobScheduler(Properties properties) throws Exception {
         this.properties = properties;
         this.scheduler = new StdSchedulerFactory().getScheduler();
+
+        this.jobExecutor = Executors.newFixedThreadPool(
+                Integer.parseInt(properties.getProperty(
+                        ConfigurationKeys.JOB_EXECUTOR_THREAD_POOL_SIZE_KEY,
+                        ConfigurationKeys.DEFAULT_JOB_EXECUTOR_THREAD_POOL_SIZE)));
+
         this.jobConfigFileExtensions = Sets.newHashSet(
                 Splitter.on(",").omitEmptyStrings().split(
                         this.properties.getProperty(
@@ -156,8 +167,8 @@ public class JobScheduler extends AbstractIdleService {
         if (!jobProps.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
             // A job without a cron schedule is considered a one-time job
             jobProps.setProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "true");
-            // Run the job without going through the scheduler
-            runJob(jobProps, jobListener);
+            // Submit the job to run
+            this.jobExecutor.submit(new NonScheduledJobRunner(jobProps, jobListener));
             return;
         }
 
@@ -401,6 +412,29 @@ public class JobScheduler extends AbstractIdleService {
                 jobScheduler.runJob(jobProps, jobListener);
             } catch (Throwable t) {
                 throw new JobExecutionException(t);
+            }
+        }
+    }
+
+    /**
+     * A class for running non-scheduled Gobblin jobs.
+     */
+    class NonScheduledJobRunner implements Runnable {
+
+        private final Properties jobProps;
+        private final JobListener jobListener;
+
+        public NonScheduledJobRunner(Properties jobProps, JobListener jobListener) {
+            this.jobProps = jobProps;
+            this.jobListener = jobListener;
+        }
+
+        @Override
+        public void run() {
+            try {
+                JobScheduler.this.runJob(this.jobProps, this.jobListener);
+            } catch (JobException je) {
+                LOG.error("Failed to run job " + this.jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), je);
             }
         }
     }
