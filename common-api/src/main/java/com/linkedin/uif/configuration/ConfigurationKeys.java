@@ -132,8 +132,6 @@ public class ConfigurationKeys {
     public static final String WRITER_DEFLATE_LEVEL = WRITER_PREFIX + ".deflate.level";
     public static final String WRITER_CODEC_TYPE = WRITER_PREFIX + ".codec.type";
     public static final String DEFAULT_DEFLATE_LEVEL = "9";
-    public static final String DEFAULT_STAGING_DIR = "";
-    public static final String DEFAULT_OUTPUT_DIR = "";
     public static final String DEFAULT_BUFFER_SIZE = "4096";
 
     /**
