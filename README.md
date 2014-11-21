@@ -1,5 +1,5 @@
 
-**Gobblin is a universal data ingestion framework by which we can extract/transform terabytes of data from various data source (database, file, web service data source) into Hadoop.  Gobblin handles the common routine tasks required for all ingestion ETLs; this includes scheduling, fault tolerance, retry logic, quality checking, and consistent publishing semantics.  It is self-serving, extendable, auto-scaling and comes with data quality assurance and data model evolution**.
+**Gobblin is a universal data ingestion framework by which we can extract/transform volume data from various data source (database, file, web service data source) into Hadoop.  Gobblin handles the common routine tasks required for all ingestion ETLs; this includes scheduling, fault tolerance, retry logic, quality checking, and consistent publishing semantics.  It is self-serving, extendable, auto-scaling and comes with data quality assurance and data model evolution**.
 
 [Gobblin Documentation](http://linkedin.github.io/Gobblin) hosted at github.
 
