@@ -71,6 +71,10 @@ public class SchedulerUtils {
         }
 
         String[] names = jobConfigDir.list();
+        if (names == null || names.length == 0) {
+            return;
+        }
+
         for (String name : names) {
             File file = new File(jobConfigDir, name);
             if (file.isDirectory()) {

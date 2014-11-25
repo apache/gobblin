@@ -74,3 +74,30 @@ CREATE TABLE IF NOT EXISTS gobblin_task_metrics (
 	INDEX (metric_type)
 );
 
+CREATE TABLE IF NOT EXISTS gobblin_job_properties (
+    property_id BIGINT(21) NOT NULL AUTO_INCREMENT,
+    job_id VARCHAR(128) NOT NULL,
+    property_key VARCHAR(128) NOT NULL,
+    property_value VARCHAR(128) NOT NULL,
+	created_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	last_modified_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	PRIMARY KEY (property_id),
+	FOREIGN KEY (job_id)
+    REFERENCES gobblin_job_executions(job_id)
+    ON DELETE CASCADE,
+    INDEX (property_key)
+);
+
+CREATE TABLE IF NOT EXISTS gobblin_task_properties (
+    property_id BIGINT(21) NOT NULL AUTO_INCREMENT,
+    task_id VARCHAR(128) NOT NULL,
+    property_key VARCHAR(128) NOT NULL,
+    property_value VARCHAR(128) NOT NULL,
+	created_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	last_modified_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	PRIMARY KEY (property_id),
+	FOREIGN KEY (task_id)
+    REFERENCES gobblin_task_executions(task_id)
+    ON DELETE CASCADE,
+    INDEX (property_key)
+);

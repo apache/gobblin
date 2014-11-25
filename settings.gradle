@@ -1,2 +1,9 @@
-include 'azkaban','converter','common-api','bin','metrics','qualitychecker','scheduler','runtime','test','utility','writer','metastore','source','example','demo','rest:api'
+def modules = ['azkaban','converter','common-api','bin','metrics','qualitychecker','scheduler','runtime','test','utility','writer','metastore','source','example','demo','rest']
 
+modules.each { module ->
+  file(module).eachDir { submodule ->
+    if (!submodule.name.startsWith('.')) {
+      include "${module}:${submodule.name}"
+    }
+  }
+}

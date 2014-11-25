@@ -32,6 +32,9 @@ public class ConfigurationKeys {
     // Job launcher type
     public static final String JOB_LAUNCHER_TYPE_KEY = "launcher.type";
 
+    // If job execution info server is enabled
+    public static final String JOB_EXECINFO_SERVER_ENABLED_KEY = "job.execinfo.server.enabled";
+
     /**
      * Common job configuration properties
      */
@@ -321,4 +324,21 @@ public class ConfigurationKeys {
     public static final String DEFAULT_FLUXDB_USER_NAME = "root";
     public static final String FLUXDB_USER_PASSWORD_KEY = "fluxdb.user.password";
     public static final String DEFAULT_FLUXDB_USER_PASSWORD = "root";
+
+    /**
+     * Rest server configuration properties.
+     */
+    public static final String REST_SERVER_HOST_KEY = "rest.server.host";
+    public static final String DEFAULT_REST_SERVER_HOST = "localhost";
+    public static final String REST_SERVER_PORT_KEY = "rest.server.port";
+    public static final String DEFAULT_REST_SERVER_PORT = "8080";
+
+    /**
+     * MySQL job history store configuration properties.
+     */
+    public static final String JOB_HISTORY_STORE_URL_KEY = "job.history.store.url";
+    public static final String JOB_HISTORY_STORE_USER_KEY = "job.history.store.user";
+    public static final String DEFAULT_JOB_HISTORY_STORE_USER = "gobblin";
+    public static final String JOB_HISTORY_STORE_PASSWORD_KEY = "job.history.store.password";
+    public static final String DEFAULT_JOB_HISTORY_STORE_PASSWORD = "gobblin";
 }

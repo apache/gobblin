@@ -1,0 +1,44 @@
+apply plugin: 'pegasus'
+
+ext.apiProject = project(':rest:api')
+
+pegasus.main.idlOptions.addIdlItem(['com.linkedin.gobblin.rest'])
+
+dependencies {
+    compile project(path: ':rest:api', configuration: 'dataTemplate')
+    compile project(":rest:client")
+    compile project(":common-api")
+    compile project(":metastore")
+    compile externalDependency.pegasus.d2
+    compile externalDependency.pegasus.restliCommon
+    compile externalDependency.pegasus.restliServer
+    compile externalDependency.pegasus.restliNettyStandalone
+    compile externalDependency.guava
+    compile externalDependency.javaxInject
+
+    testCompile project(":metastore")
+    testCompile externalDependency.testng
+    testRuntime externalDependency.derby
+}
+
+buildscript {
+    repositories {
+        mavenCentral()
+        mavenLocal()
+    }
+
+    dependencies {
+        classpath group: 'com.linkedin.pegasus', name: 'gradle-plugins', version: '1.15.9'
+    }
+}
+
+test {
+    useTestNG () {
+        excludeGroups 'ignore'
+    }
+    workingDir rootProject.rootDir
+}
+
+
+
+
