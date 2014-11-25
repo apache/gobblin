@@ -299,6 +299,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
                 this.columnList.add(defaultWatermarkColumnName);
                 headerColumns.add(defaultWatermarkColumnName);
                 targetSchema.add(defaultWatermark);
+                this.workUnitState.setProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY, defaultWatermarkColumnName);
             }
 
             String outputColProjection = Joiner.on(",").useForNull("null").join(this.columnList);
