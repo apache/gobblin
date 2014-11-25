@@ -8,6 +8,7 @@ dependencies {
   compile project(":writer")
   compile project(":runtime")
   compile project(":utility")
+  compile project(":rest:server")
   compile externalDependency.avro
   compile externalDependency.commonsConfiguration
   compile externalDependency.quartz

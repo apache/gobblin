@@ -2,10 +2,16 @@ apply plugin: 'java'
 
 dependencies {
     compile project(":common-api")
+    compile project(path: ':rest:api', configuration: 'restClient')
     compile externalDependency.guava
     compile externalDependency.slf4j
+    compile externalDependency.pegasus.data
+    compile externalDependency.hikariCp
+    compile externalDependency.guice
+    compile externalDependency.javaxInject
 
     testCompile externalDependency.testng
+    testRuntime externalDependency.derby
 }
 
 configurations {
@@ -15,8 +21,10 @@ configurations {
 }
 
 test {
-    useTestNG ()
-    include '**/*Test*'
+    useTestNG () {
+        excludeGroups 'ignore'
+    }
+    workingDir rootProject.rootDir
 }
 
 classification="library"

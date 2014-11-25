@@ -49,7 +49,11 @@ ext.externalDependency = [
     "jsch": "com.jcraft:jsch:0.1.46",
     "azkaban": "com.linkedin.azkaban:azkaban:2.5.0",
     "commonsVfs": "org.apache.commons:commons-vfs2:2.0",
+    "mysqlConnector": "mysql:mysql-connector-java:5.1.34",
     "javaxInject": "javax.inject:javax.inject:1",
+    "guice": "com.google.inject:guice:3.0",
+    "hikariCp": "com.zaxxer:HikariCP-java6:2.2.5",
+    "derby": "org.apache.derby:derby:10.11.1.1",
     "pegasus" : [
         "data" : "com.linkedin.pegasus:data:"+pegasusVersion,
         "generator" : "com.linkedin.pegasus:generator:"+pegasusVersion,

@@ -3,12 +3,12 @@
     "type" : "enum",
     "name" : "JobStateEnum",
     "namespace" : "com.linkedin.gobblin.rest",
-    "symbols" : [ "PENDING", "RUNNING", "SUCCESSFUL", "FAILED", "CANCELLED" ]
+    "symbols" : [ "PENDING", "RUNNING", "SUCCESSFUL", "COMMITTED", "FAILED", "CANCELLED" ]
   }, {
     "type" : "enum",
     "name" : "TaskStateEnum",
     "namespace" : "com.linkedin.gobblin.rest",
-    "symbols" : [ "PENDING", "RUNNING", "SUCCESSFUL", "FAILED", "CANCELLED" ]
+    "symbols" : [ "PENDING", "RUNNING", "SUCCESSFUL", "COMMITTED", "FAILED", "CANCELLED" ]
   }, {
     "type" : "enum",
     "name" : "TableTypeEnum",
