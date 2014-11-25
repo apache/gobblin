@@ -140,11 +140,12 @@ public class Fork implements Closeable {
     private DataWriter<Object> buildWriter() throws IOException, SchemaConversionException {
         String branchName = ForkOperatorUtils.getBranchName(
                 this.taskState, this.index, ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME + this.index);
-        this.taskState.setProp(
-                ForkOperatorUtils.getPropertyNameForBranch(
-                        ConfigurationKeys.WRITER_FILE_PATH, this.branches, this.index),
-                ForkOperatorUtils.getPathForBranch(
-                        this.taskState.getExtract().getOutputFilePath(), branchName, this.branches));
+        String writerFilePathKey = ForkOperatorUtils.getPropertyNameForBranch(
+                ConfigurationKeys.WRITER_FILE_PATH, this.branches, this.index);
+        if (!this.taskState.contains(writerFilePathKey)) {
+            this.taskState.setProp(writerFilePathKey, ForkOperatorUtils.getPathForBranch(
+                    this.taskState.getExtract().getOutputFilePath(), branchName, this.branches));
+        }
 
         return this.taskContext.getDataWriterBuilder(this.branches, this.index)
                 .writeTo(Destination.of(
