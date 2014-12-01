@@ -99,9 +99,9 @@ subprojects {
   configurations {
     compile
     dependencies {
-      compile externalDependency.hadoop
-      // compile externalDependency.hadoopCommon
-      // compile externalDependency.hadoopClientCore
+      // compile externalDependency.hadoop
+      compile externalDependency.hadoopCommon
+      compile externalDependency.hadoopClientCore
     }
   }
 
