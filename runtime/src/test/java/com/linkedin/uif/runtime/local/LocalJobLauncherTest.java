@@ -28,7 +28,7 @@ import com.linkedin.uif.writer.WriterOutputFormat;
 /**
  * Unit test for {@link LocalJobLauncher}.
  */
-@Test(groups = {"ignore", "com.linkedin.uif.runtime.local"})
+@Test(groups = {"com.linkedin.uif.runtime.local"})
 public class LocalJobLauncherTest extends JobLauncherTestBase {
 
     @BeforeClass
@@ -61,7 +61,7 @@ public class LocalJobLauncherTest extends JobLauncherTestBase {
         runTest(jobProps);
     }
 
-    @Test
+    @Test(groups = {"ignore"})
     public void testCancelJob() throws Exception {
         runTestWithCancellation(loadJobProps());
     }
