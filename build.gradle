@@ -42,6 +42,7 @@ ext.externalDependency = [
     "hadoop": "org.apache.hadoop:hadoop-core:1.2.1",
     "hadoopCommon": "org.apache.hadoop:hadoop-common:2.3.0",
     "hadoopClientCore": "org.apache.hadoop:hadoop-mapreduce-client-core:2.3.0",
+    "hadoopClientCommon": "org.apache.hadoop:hadoop-mapreduce-client-common:2.3.0",
     "httpclient": "org.apache.httpcomponents:httpclient:4.2.3",
     "httpcore": "org.apache.httpcomponents:httpcore:4.2.1",
     "quartz": "org.quartz-scheduler:quartz:2.2.1",
@@ -99,9 +100,9 @@ subprojects {
   configurations {
     compile
     dependencies {
-      compile externalDependency.hadoop
-      // compile externalDependency.hadoopCommon
-      // compile externalDependency.hadoopClientCore
+      // compile externalDependency.hadoop
+      compile externalDependency.hadoopCommon
+      compile externalDependency.hadoopClientCore
     }
   }
 

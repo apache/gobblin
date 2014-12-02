@@ -122,7 +122,7 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D>
             
             List<String> partitionFilesToPull = filesToPull.subList(fileOffset, fileOffset + filesPerPartition > filesToPull.size() ? filesToPull.size() : fileOffset + filesPerPartition);
             partitionState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, StringUtils.join(partitionFilesToPull, ","));
-            if (state.getPropAsBoolean(ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_PATH, false)) {
+            if (state.getPropAsBoolean(ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, false)) {
                 if (partitionFilesToPull.size() != 1) {
                     throw new RuntimeException("Cannot preserve the file name if a workunit is given multiple files");
                 }
