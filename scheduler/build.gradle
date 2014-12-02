@@ -34,7 +34,6 @@ dependencies {
   compile externalDependency.gson
   compile externalDependency.metricsCore
   compile externalDependency.commonsIO
-  compile files('../converter/src/main/resources/lumos-common-2.0.0.jar')
 
   testCompile externalDependency.testng
 }

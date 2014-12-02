@@ -21,7 +21,7 @@ FWDIR="$(cd `dirname $0`/..; pwd)"
 LIBJARS=$FWDIR/lib/common-api.jar,$FWDIR/lib/metastore.jar,$FWDIR/lib/qualitychecker.jar,\
 $FWDIR/lib/source.jar,$FWDIR/lib/converter.jar,$FWDIR/lib/writer.jar,$FWDIR/lib/utility.jar,\
 $FWDIR/lib/guava-15.0.jar,$FWDIR/lib/avro-1.7.1.jar,$FWDIR/lib/avro-mapred-1.7.6.jar,\
-$FWDIR/lib/metrics-core-3.0.2.jar,$FWDIR/lib/gson-2.2.4.jar,$FWDIR/lib/lumos-common-2.0.0.jar
+$FWDIR/lib/metrics-core-3.0.2.jar,$FWDIR/lib/gson-2.2.4.jar
 
 export HADOOP_CLASSPATH=$FWDIR/lib/*
 
