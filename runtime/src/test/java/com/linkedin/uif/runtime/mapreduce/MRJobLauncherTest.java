@@ -28,7 +28,7 @@ import com.linkedin.uif.writer.WriterOutputFormat;
 /**
  * Unit test for {@link MRJobLauncher}.
  */
-@Test(groups = {"ignore", "com.linkedin.uif.runtime.mapreduce"})
+@Test(groups = {"com.linkedin.uif.runtime.mapreduce"})
 public class MRJobLauncherTest extends JobLauncherTestBase {
 
     @BeforeClass
@@ -72,7 +72,7 @@ public class MRJobLauncherTest extends JobLauncherTestBase {
         runTest(jobProps);
     }
 
-    @Test
+    @Test(groups = {"ignore"})
     public void testCancelJob() throws Exception {
         runTestWithCancellation(loadJobProps());
     }

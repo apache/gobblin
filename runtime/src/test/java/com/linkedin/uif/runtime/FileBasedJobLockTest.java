@@ -14,7 +14,6 @@ package com.linkedin.uif.runtime;
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 
-import com.linkedin.uif.runtime.FileBasedJobLock;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -22,8 +21,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import com.linkedin.uif.runtime.JobLock;
 
 /**
  * Unit test for {@link com.linkedin.uif.runtime.FileBasedJobLock}.
