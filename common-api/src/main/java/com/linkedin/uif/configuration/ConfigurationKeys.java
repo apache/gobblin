@@ -263,7 +263,7 @@ public class ConfigurationKeys {
     public static final String SOURCE_FILEBASED_FILES_TO_PULL = "source.filebased.files.to.pull";
     public static final String SOURCE_FILEBASED_FS_SNAPSHOT = "source.filebased.fs.snapshot";
     public static final String SOURCE_FILEBASED_FS_URI = "source.filebased.fs.uri";
-    public static final String SOURCE_FILEBASED_PRESERVE_FILE_PATH = "source.filebased.preserve.file.path";
+    public static final String SOURCE_FILEBASED_PRESERVE_FILE_NAME = "source.filebased.preserve.file.name";
 
     /**
      * Configuration properties for source connection
