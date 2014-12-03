@@ -51,7 +51,7 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
      * @return list of {@link WorkUnitState}s of previous {@link WorkUnit}s subject for retries
      */
     protected List<WorkUnitState> getPreviousWorkUnitStatesForRetry(SourceState state) {
-        if (state.getPreviousStates().isEmpty()) {
+        if (state.getPreviousWorkUnitStates().isEmpty()) {
             return Collections.emptyList();
         }
 
@@ -75,7 +75,7 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
 
         List<WorkUnitState> previousWorkUnitStates = Lists.newArrayList();
         // Get previous work units that were not successfully committed (subject for retries)
-        for (WorkUnitState workUnitState : state.getPreviousStates()) {
+        for (WorkUnitState workUnitState : state.getPreviousWorkUnitStates()) {
             if (workUnitState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED) {
                 previousWorkUnitStates.add(workUnitState);
             }

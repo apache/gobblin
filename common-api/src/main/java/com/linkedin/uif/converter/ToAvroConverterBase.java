@@ -16,13 +16,18 @@ import org.apache.avro.generic.GenericRecord;
 
 import com.linkedin.uif.configuration.WorkUnitState;
 
-public abstract class ToAvroConverterBase<SI, DI> extends Converter<SI, Schema, DI, GenericRecord>
-{
+/**
+ * A base abstract {@link Converter} class for data transformation to Avro.
+ *
+ * @param <SI> input schema type
+ * @param <DI> input data type
+ */
+public abstract class ToAvroConverterBase<SI, DI> extends Converter<SI, Schema, DI, GenericRecord> {
 
   @Override
   public abstract Schema convertSchema(SI schema, WorkUnitState workUnit) throws SchemaConversionException;
 
   @Override
-  public abstract GenericRecord convertRecord(Schema outputSchema, DI inputRecord, WorkUnitState workUnit) throws DataConversionException;
-
+  public abstract GenericRecord convertRecord(Schema outputSchema, DI inputRecord, WorkUnitState workUnit)
+      throws DataConversionException;
 }

@@ -22,45 +22,49 @@ import com.linkedin.uif.source.extractor.Extractor;
 
 
 /**
- * <p>Represents the definition for a finite pull task.  An instance of WorkUnit
- * should contain all the properties {@link Extractor} needs to perform the pull
- * task.
+ * A logic concept that defines a unit of work or task for extracting a portion of the data
+ * to be pulled in a job run.
+ * <p>
+ *   An instance of this class should contain all the properties an {@link Extractor} needs
+ *   to extract the schema and data records.
  * </p>
  * 
  * @author kgoodhop
- *
  */
 public class WorkUnit extends State {
 
   private Extract extract;
 
   /**
-   * Default constructor
+   * Default constructor.
    */
   public WorkUnit() {
     this(null, null);
   }
 
   /**
-   * Constructor
+   * Constructor.
    *
-   * @param state {@link SourceState} all properties will be copied into this workunit
-   * @param extract {@link Extract}
+   * @param state a {@link SourceState} the properties of which will be copied into this {@link WorkUnit} instance
+   * @param extract an {@link Extract}
    */
   public WorkUnit(SourceState state, Extract extract) {
-    // values should only be null for deserialization.
-    if (state != null)
+    // Values should only be null for deserialization
+    if (state != null) {
       this.addAll(state);
+    }
 
-    if (extract != null)
+    if (extract != null) {
       this.extract = extract;
-    else
+    } else {
       this.extract = new Extract(null, null, null, null);
+    }
   }
 
   /**
-   * Copy constructor
-   * @param other
+   * Copy constructor.
+   *
+   * @param other the other {@link WorkUnit} instance
    */
   public WorkUnit(WorkUnit other) {
     addAll(other);
@@ -68,40 +72,45 @@ public class WorkUnit extends State {
   }
 
   /**
-   * Attributes object for differing pull types.
-   * @return {@link Extract}
+   * Get the {@link Extract} associated with this {@link WorkUnit}.
+   *
+   * @return the {@link Extract} associated with this {@link WorkUnit}
    */
   public Extract getExtract() {
-    return extract;
+    return this.extract;
   }
 
   /**
-   * getter for max water mark for this WorkUnit
-   * @return
+   * Get the high watermark of this {@link WorkUnit}.
+   *
+   * @return high watermark
    */
   public long getHighWaterMark() {
     return getPropAsLong(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY);
   }
 
   /**
-   * setter for max water mark for this WorkUnit
-   * @param highWaterMark
+   * Set the high watermark of this {@link WorkUnit}.
+   *
+   * @param highWaterMark high watermark
    */
   public void setHighWaterMark(long highWaterMark) {
     setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, highWaterMark);
   }
 
   /**
-   * getter for min water mark for this WorkUnit
-   * @return
+   * Get the low watermark of this {@link WorkUnit}.
+   *
+   * @return low watermark
    */
   public long getLowWaterMark() {
     return getPropAsLong(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY);
   }
 
   /**
-   * setter for min water mark for this WorkUnit
-   * @param lowWaterMark
+   * Set the low watermark of this {@link WorkUnit}.
+   *
+   * @param lowWaterMark low watermark
    */
   public void setLowWaterMark(long lowWaterMark) {
     setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, lowWaterMark);
