@@ -12,10 +12,13 @@
 package com.linkedin.uif.configuration;
 
 /**
- * A central place for all UIF configuration property keys.
+ * A central place for all Gobblin configuration property keys.
  */
 public class ConfigurationKeys {
 
+    /**
+     * System configuration properties.
+     */
     // Default file system URI for all file storage
     // Overwritable by more specific configuration properties
     public static final String FS_URI_KEY = "fs.uri";
@@ -46,110 +49,9 @@ public class ConfigurationKeys {
     // Job executor thread pool size
     public static final String JOB_EXECUTOR_THREAD_POOL_SIZE_KEY = "jobexecutor.threadpool.size";
     public static final String DEFAULT_JOB_EXECUTOR_THREAD_POOL_SIZE = "5";
-    /**
-     * Common job configuration properties
-     */
-    public static final String JOB_NAME_KEY = "job.name";
-    public static final String JOB_GROUP_KEY = "job.group";
-    public static final String JOB_DESCRIPTION_KEY = "job.description";
-    public static final String JOB_SCHEDULE_KEY = "job.schedule";
-    public static final String SOURCE_CLASS_KEY = "source.class";
-    public static final String SOURCE_WRAPPER_CLASS_KEY = "source.wrapper.class";
-    public static final String CONVERTER_CLASSES_KEY = "converter.classes";
-    public static final String FORK_OPERATOR_CLASS_KEY = "fork.operator.class";
-    public static final String DEFAULT_FORK_OPERATOR_CLASS = "com.linkedin.uif.fork.IdentityForkOperator";
-    public static final String JOB_COMMIT_POLICY_KEY = "job.commit.policy";
-    public static final String DEFAULT_JOB_COMMIT_POLICY = "full";
-    public static final String WORK_UNIT_RETRY_POLICY_KEY = "workunit.retry.policy";
-    public static final String WORK_UNIT_RETRY_ENABLED_KEY = "workunit.retry.enabled";
-    public static final String JOB_RUN_ONCE_KEY = "job.runonce";
-    public static final String JOB_DISABLED_KEY = "job.disabled";
-    public static final String JOB_JAR_FILES_KEY = "job.jars";
-    public static final String JOB_LOCAL_FILES_KEY = "job.local.files";
-    public static final String JOB_HDFS_FILES_KEY = "job.hdfs.files";
 
     /**
-     * Work unit related configuration properties
-     */
-    public static final String WORK_UNIT_LOW_WATER_MARK_KEY = "workunit.low.water.mark";
-    public static final String WORK_UNIT_HIGH_WATER_MARK_KEY = "workunit.high.water.mark";
-
-    /**
-     * Work unit runtime state related configuration properties
-     */
-    public static final String WORK_UNIT_WORKING_STATE_KEY = "workunit.working.state";
-    public static final String WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK = "workunit.state.runtime.high.water.mark";
-
-    /**
-     * Extract related configuration properties
-     */
-    public static final String EXTRACT_TABLE_TYPE_KEY = "extract.table.type";
-    public static final String EXTRACT_NAMESPACE_NAME_KEY = "extract.namespace";
-    public static final String EXTRACT_TABLE_NAME_KEY = "extract.table.name";
-    public static final String EXTRACT_EXTRACT_ID_KEY = "extract.extract.id";
-    public static final String EXTRACT_IS_FULL_KEY = "extract.is.full";
-    public static final String EXTRACT_FULL_RUN_TIME_KEY = "extract.full.run.time";
-    public static final String EXTRACT_RECORD_COUNT_KEY = "extract.record.count";
-    public static final String EXTRACT_RECORD_COUNT_ESTIMATED_KEY = "extract.record.count.estimated";
-    public static final String EXTRACT_VALIDATION_RECORD_COUNT_KEY = "extract.validation.record.count";
-    public static final String EXTRACT_VALIDATION_RECORD_COUNT_HWM_KEY = "extract.validation.record.count.high.water.mark";
-    public static final String EXTRACT_IS_SHARDED_KEY = "extract.is.sharded";
-    public static final String EXTRACT_SHARDED_REAL_NAMESPACE_KEY = "extract.sharded.real.namespace";
-    public static final String EXTRACT_IS_SECURED_KEY = "extract.is.secured";
-    public static final String EXTRACT_SECURITY_PERMISSION_GROUP_KEY = "extract.security.permission.group";
-    public static final String EXTRACT_PRIMARY_KEY_FIELDS_KEY = "extract.primary.key.fields";
-    public static final String EXTRACT_DELTA_FIELDS_KEY = "extract.delta.fields";
-    public static final String EXTRACT_SCHEMA = "extract.schema";
-    public static final String EXTRACT_PULL_LIMIT = "extract.pull.limit";
-
-    /**
-     * Converter configuration properties
-     */
-    public static final String CONVERTER_AVRO_DATE_FORMAT = "converter.avro.date.format";
-    public static final String CONVERTER_AVRO_DATE_TIMEZONE = "converter.avro.date.timezone";
-    public static final String CONVERTER_AVRO_TIME_FORMAT = "converter.avro.time.format";
-    public static final String CONVERTER_AVRO_TIMESTAMP_FORMAT = "converter.avro.timestamp.format";
-    public static final String CONVERTER_AVRO_BINARY_CHARSET = "converter.avro.binary.charset";
-    public static final String CONVERTER_AVRO_MAX_CONVERSION_FAILURES = "converter.avro.max.conversion.failures";
-    public static final long DEFAULT_CONVERTER_AVRO_MAX_CONVERSION_FAILURES = 0;
-    public static final String CONVERTER_CSV_TO_JSON_DELIMITER = "converter.csv.to.json.delimiter";
-    public static final String CONVERTER_FILTER_FIELD = "converter.filter.field";
-    public static final String CONVERTER_FILTER_IDS_FILE = "converter.filter.ids.file";
-    public static final String CONVERTER_IS_EPOCH_TIME_IN_SECONDS = "converter.is.epoch.time.in.seconds";
-
-    /**
-     * Fork operator configuration properties
-     */
-    public static final String FORK_BRANCHES_KEY = "fork.branches";
-    public static final String FORK_BRANCH_NAME_KEY = "fork.branch.name";
-    public static final String DEFAULT_FORK_BRANCH_NAME = "fork_";
-
-    /**
-     * Writer configuration properties
-     */
-    public static final String WRITER_PREFIX = "writer";
-    public static final String WRITER_DESTINATION_TYPE_KEY = WRITER_PREFIX + ".destination.type";
-    public static final String WRITER_OUTPUT_FORMAT_KEY = WRITER_PREFIX + ".output.format";
-
-    /**
-     * HDFS writer configuration properties
-     */
-    public static final String WRITER_FILE_SYSTEM_URI = WRITER_PREFIX + ".fs.uri";
-    public static final String WRITER_STAGING_DIR = WRITER_PREFIX + ".staging.dir";
-    public static final String WRITER_OUTPUT_DIR = WRITER_PREFIX + ".output.dir";
-    public static final String WRITER_BUILDER_CLASS = WRITER_PREFIX + ".builder.class";
-    public static final String DEFAULT_WRITER_BUILDER_CLASS = "com.linkedin.uif.writer.AvroDataWriterBuilder";
-    public static final String WRITER_FILE_NAME = WRITER_PREFIX + ".file.name";
-    public static final String WRITER_FILE_PATH = WRITER_PREFIX + ".file.path";
-    public static final String WRITER_BUFFER_SIZE = WRITER_PREFIX + ".buffer.size";
-    public static final String WRITER_PRESERVE_FILE_NAME = WRITER_PREFIX + ".preserve.file.name";
-    public static final String WRITER_DEFLATE_LEVEL = WRITER_PREFIX + ".deflate.level";
-    public static final String WRITER_CODEC_TYPE = WRITER_PREFIX + ".codec.type";
-    public static final String DEFAULT_DEFLATE_LEVEL = "9";
-    public static final String DEFAULT_BUFFER_SIZE = "4096";
-
-    /**
-     * Configuration properties used internally
+     * Configuration properties used internally.
      */
     public static final String TASK_EXECUTOR_THREADPOOL_SIZE_KEY = "taskexecutor.threadpool.size";
     public static final String TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE_KEY = "tasktracker.threadpool.coresize";
@@ -184,7 +86,97 @@ public class ConfigurationKeys {
     public static final int DEFAULT_JOB_MAX_FAILURES = 1;
 
     /**
-     * Configuration properties used by the quality checker
+     * Common job configuration properties.
+     */
+    public static final String JOB_NAME_KEY = "job.name";
+    public static final String JOB_GROUP_KEY = "job.group";
+    public static final String JOB_DESCRIPTION_KEY = "job.description";
+    public static final String JOB_SCHEDULE_KEY = "job.schedule";
+    public static final String SOURCE_CLASS_KEY = "source.class";
+    public static final String SOURCE_WRAPPER_CLASS_KEY = "source.wrapper.class";
+    public static final String CONVERTER_CLASSES_KEY = "converter.classes";
+    public static final String FORK_OPERATOR_CLASS_KEY = "fork.operator.class";
+    public static final String DEFAULT_FORK_OPERATOR_CLASS = "com.linkedin.uif.fork.IdentityForkOperator";
+    public static final String JOB_COMMIT_POLICY_KEY = "job.commit.policy";
+    public static final String DEFAULT_JOB_COMMIT_POLICY = "full";
+    public static final String WORK_UNIT_RETRY_POLICY_KEY = "workunit.retry.policy";
+    public static final String WORK_UNIT_RETRY_ENABLED_KEY = "workunit.retry.enabled";
+    public static final String JOB_RUN_ONCE_KEY = "job.runonce";
+    public static final String JOB_DISABLED_KEY = "job.disabled";
+    public static final String JOB_JAR_FILES_KEY = "job.jars";
+    public static final String JOB_LOCAL_FILES_KEY = "job.local.files";
+    public static final String JOB_HDFS_FILES_KEY = "job.hdfs.files";
+
+    /**
+     * Work unit related configuration properties.
+     */
+    public static final String WORK_UNIT_LOW_WATER_MARK_KEY = "workunit.low.water.mark";
+    public static final String WORK_UNIT_HIGH_WATER_MARK_KEY = "workunit.high.water.mark";
+
+    /**
+     * Work unit runtime state related configuration properties.
+     */
+    public static final String WORK_UNIT_WORKING_STATE_KEY = "workunit.working.state";
+    public static final String WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK = "workunit.state.runtime.high.water.mark";
+
+    /**
+     * Extract related configuration properties.
+     */
+    public static final String EXTRACT_TABLE_TYPE_KEY = "extract.table.type";
+    public static final String EXTRACT_NAMESPACE_NAME_KEY = "extract.namespace";
+    public static final String EXTRACT_TABLE_NAME_KEY = "extract.table.name";
+    public static final String EXTRACT_EXTRACT_ID_KEY = "extract.extract.id";
+    public static final String EXTRACT_IS_FULL_KEY = "extract.is.full";
+    public static final String EXTRACT_FULL_RUN_TIME_KEY = "extract.full.run.time";
+    public static final String EXTRACT_PRIMARY_KEY_FIELDS_KEY = "extract.primary.key.fields";
+    public static final String EXTRACT_DELTA_FIELDS_KEY = "extract.delta.fields";
+    public static final String EXTRACT_SCHEMA = "extract.schema";
+    public static final String EXTRACT_PULL_LIMIT = "extract.pull.limit";
+
+    /**
+     * Converter configuration properties.
+     */
+    public static final String CONVERTER_AVRO_DATE_FORMAT = "converter.avro.date.format";
+    public static final String CONVERTER_AVRO_DATE_TIMEZONE = "converter.avro.date.timezone";
+    public static final String CONVERTER_AVRO_TIME_FORMAT = "converter.avro.time.format";
+    public static final String CONVERTER_AVRO_TIMESTAMP_FORMAT = "converter.avro.timestamp.format";
+    public static final String CONVERTER_AVRO_BINARY_CHARSET = "converter.avro.binary.charset";
+    public static final String CONVERTER_AVRO_MAX_CONVERSION_FAILURES = "converter.avro.max.conversion.failures";
+    public static final long DEFAULT_CONVERTER_AVRO_MAX_CONVERSION_FAILURES = 0;
+    public static final String CONVERTER_CSV_TO_JSON_DELIMITER = "converter.csv.to.json.delimiter";
+    public static final String CONVERTER_FILTER_FIELD = "converter.filter.field";
+    public static final String CONVERTER_FILTER_IDS_FILE = "converter.filter.ids.file";
+    public static final String CONVERTER_IS_EPOCH_TIME_IN_SECONDS = "converter.is.epoch.time.in.seconds";
+
+    /**
+     * Fork operator configuration properties.
+     */
+    public static final String FORK_BRANCHES_KEY = "fork.branches";
+    public static final String FORK_BRANCH_NAME_KEY = "fork.branch.name";
+    public static final String DEFAULT_FORK_BRANCH_NAME = "fork_";
+
+    /**
+     * Writer configuration properties.
+     */
+    public static final String WRITER_PREFIX = "writer";
+    public static final String WRITER_DESTINATION_TYPE_KEY = WRITER_PREFIX + ".destination.type";
+    public static final String WRITER_OUTPUT_FORMAT_KEY = WRITER_PREFIX + ".output.format";
+    public static final String WRITER_FILE_SYSTEM_URI = WRITER_PREFIX + ".fs.uri";
+    public static final String WRITER_STAGING_DIR = WRITER_PREFIX + ".staging.dir";
+    public static final String WRITER_OUTPUT_DIR = WRITER_PREFIX + ".output.dir";
+    public static final String WRITER_BUILDER_CLASS = WRITER_PREFIX + ".builder.class";
+    public static final String DEFAULT_WRITER_BUILDER_CLASS = "com.linkedin.uif.writer.AvroDataWriterBuilder";
+    public static final String WRITER_FILE_NAME = WRITER_PREFIX + ".file.name";
+    public static final String WRITER_FILE_PATH = WRITER_PREFIX + ".file.path";
+    public static final String WRITER_BUFFER_SIZE = WRITER_PREFIX + ".buffer.size";
+    public static final String WRITER_PRESERVE_FILE_NAME = WRITER_PREFIX + ".preserve.file.name";
+    public static final String WRITER_DEFLATE_LEVEL = WRITER_PREFIX + ".deflate.level";
+    public static final String WRITER_CODEC_TYPE = WRITER_PREFIX + ".codec.type";
+    public static final String DEFAULT_DEFLATE_LEVEL = "9";
+    public static final String DEFAULT_BUFFER_SIZE = "4096";
+
+    /**
+     * Configuration properties used by the quality checker.
      */
     public static final String QUALITY_CHECKER_PREFIX = "qualitychecker";
     public static final String TASK_LEVEL_POLICY_LIST = QUALITY_CHECKER_PREFIX + ".task.policies";
@@ -196,25 +188,20 @@ public class ConfigurationKeys {
     public static final String ROW_LEVEL_ERR_FILE = QUALITY_CHECKER_PREFIX + ".row.err.file";
 
     /**
-     * Configuration properties used by the row count policies
+     * Configuration properties used by the row count policies.
      */
     public static final String EXTRACTOR_ROWS_EXPECTED = QUALITY_CHECKER_PREFIX + ".rows.expected";
     public static final String WRITER_ROWS_WRITTEN = QUALITY_CHECKER_PREFIX + ".rows.written";
     public static final String ROW_COUNT_RANGE = QUALITY_CHECKER_PREFIX + ".row.count.range";
 
     /**
-     * Configuration properties for the task status
+     * Configuration properties for the task status.
      */
     public static final String TASK_STATUS_REPORT_INTERVAL_IN_MS_KEY = "task.status.reportintervalinms";
     public static final long DEFAULT_TASK_STATUS_REPORT_INTERVAL_IN_MS = 30000;
 
     /**
-     * Configuration properties for the metadata client
-     */
-    public static final String METADATA_CLIENT = "metadataclient";
-
-    /**
-     * Configuration properties for the data publisher
+     * Configuration properties for the data publisher.
      */
     public static final String DATA_PUBLISHER_PREFIX = "data.publisher";
     public static final String DATA_PUBLISHER_TYPE = DATA_PUBLISHER_PREFIX + ".type";
@@ -224,7 +211,7 @@ public class ConfigurationKeys {
     public static final String DATA_PUBLISHER_FINAL_NAME = DATA_PUBLISHER_PREFIX + ".final.name";
 
     /**
-     * Configuration properties used by the extractor
+     * Configuration properties used by the extractor.
      */
     public static final String SOURCE_ENTITY = "source.entity";
     public static final String SOURCE_TIMEZONE = "source.timezone";
@@ -234,7 +221,7 @@ public class ConfigurationKeys {
     public static final String SOURCE_COLUMN_NAME_CASE = "source.column.name.case";
 
     /**
-     * Configuration properties used by the QueryBasedExtractor
+     * Configuration properties used by the QueryBasedExtractor.
      */
     public static final String SOURCE_QUERYBASED_WATERMARK_TYPE = "source.querybased.watermark.type";
     public static final String SOURCE_QUERYBASED_HOUR_COLUMN = "source.querybased.hour.column";
@@ -266,7 +253,7 @@ public class ConfigurationKeys {
     public static final String SOURCE_FILEBASED_PRESERVE_FILE_NAME = "source.filebased.preserve.file.name";
 
     /**
-     * Configuration properties for source connection
+     * Configuration properties for source connection.
      */
     public static final String SOURCE_CONN_USE_AUTHENTICATION = "source.conn.use.authentication";
     public static final String SOURCE_CONN_PRIVATE_KEY = "source.conn.private.key";
@@ -288,7 +275,7 @@ public class ConfigurationKeys {
     public static final int SOURCE_CONN_DEFAULT_PORT = 22;
 
     /**
-     * Source default configurations
+     * Source default configurations.
      */
     public static final long DEFAULT_WATERMARK_VALUE = -1;
     public static final int DEFAULT_MAX_NUMBER_OF_PARTITIONS = 20;

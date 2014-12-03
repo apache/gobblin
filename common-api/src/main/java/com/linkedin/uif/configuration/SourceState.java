@@ -14,9 +14,6 @@ package com.linkedin.uif.configuration;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -26,63 +23,70 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
 import com.linkedin.uif.source.workunit.Extract;
 import com.linkedin.uif.source.workunit.Extract.TableType;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
 /**
- * <p>
- * Container for all meta data related to a particular source. This includes all properties 
- * defined in .pull property files and all properties stored by tasks of the previous run. 
- * </p>
- * 
- * @author kgoodhop
+ * A container for all meta data related to a particular source. This includes all properties
+ * defined in job configuration files and all properties from tasks of the previous run.
  *
+ * <p>
+ *   Properties can be overwritten at runtime and persisted upon job completion. Persisted
+ *   properties will be loaded in the next run and made available to use by the
+ *   {@link com.linkedin.uif.source.Source}.
+ * </p>
+ *
+ * @author kgoodhop
  */
-public class SourceState extends State
-{
-  private List<WorkUnitState> previousTaskStates = new ArrayList<WorkUnitState>();
-  private static Set<Extract> extractSet = Collections.synchronizedSet(new HashSet<Extract>());
-  private static DateTimeFormatter DTF = DateTimeFormat.forPattern("yyyyMMddHHmmss").withLocale(Locale.US).withZone(DateTimeZone.UTC);
+public class SourceState extends State {
+
+  private final List<WorkUnitState> previousTaskStates = Lists.newArrayList();
+  private static final Set<Extract> extractSet = Sets.newConcurrentHashSet();
+  private static final DateTimeFormatter DTF = DateTimeFormat.forPattern("yyyyMMddHHmmss")
+      .withLocale(Locale.US).withZone(DateTimeZone.UTC);
 
   /**
-   * default constructor
+   * Default constructor.
    */
-  public SourceState()
-  {
-  }
+  public SourceState() {}
 
   /**
    * 
    * @param properties <p>properties defined in the .pull file</p>
    * @param previousTaskStates <p>properties stored the tasks of the previous run for this source</p>
    */
-  public SourceState(State properties, List<WorkUnitState> previousTaskStates)
-  {
+  public SourceState(State properties, List<WorkUnitState> previousTaskStates) {
     addAll(properties);
     this.previousTaskStates.addAll(previousTaskStates);
   }
 
   /**
+   * Get a (possibly empty) list of {@link WorkUnitState}s from the previous job run.
    * 
-   * @return list of {@link WorkUnitState} from the previous run
+   * @return (possibly empty) list of {@link WorkUnitState}s from the previous job run
    */
-  public List<WorkUnitState> getPreviousStates()
-  {
-    return previousTaskStates;
+  public List<WorkUnitState> getPreviousWorkUnitStates() {
+    return ImmutableList.<WorkUnitState>builder().addAll(this.previousTaskStates).build();
   }
   
   /**
+   * Create a new properly populated {@link Extract} instance.
+   *
    * <p>
-   * Builder for {@link Extract} that correctly populates the instance
-   * The create extract method should always return a unique extract
+   *   This method should always return a new unique {@link Extract} instance.
+   * </p>
+   *
    * @param type {@link TableType} 
    * @param namespace namespace of the table this extract belongs to
-   * @param table name of table this extract belongs to
-   * @return
+   * @param table name of the table this extract belongs to
+   * @return a new unique {@link Extract} instance
    */
-  public synchronized Extract createExtract(TableType type, String namespace, String table)
-  {
+  public synchronized Extract createExtract(TableType type, String namespace, String table) {
     Extract extract = new Extract(this, type, namespace, table);
     while (extractSet.contains(extract)) {
         DateTime extractDateTime = DTF.parseDateTime(extract.getExtractId());
@@ -93,37 +97,31 @@ public class SourceState extends State
   }
 
   /**
-   * builder for WorkUnit that correctly populates WorkUnit from config if needed
-   * @param extract {@link Extract}
-   * @return
+   * Create a new {@link WorkUnit} instance from a given {@link Extract}.
+   *
+   * @param extract given {@link Extract}
+   * @return a new {@link WorkUnit} instance
    */
   public WorkUnit createWorkUnit(Extract extract){
     return new WorkUnit(this, extract);
   }
 
   @Override
-  public void write(DataOutput out) throws IOException
-  {
-    out.writeInt(previousTaskStates.size());
-
-    for (WorkUnitState state : previousTaskStates)
-    {
+  public void write(DataOutput out) throws IOException {
+    out.writeInt(this.previousTaskStates.size());
+    for (WorkUnitState state : this.previousTaskStates) {
       state.write(out);
     }
     super.write(out);
   }
 
   @Override
-  public void readFields(DataInput in) throws IOException
-  {
+  public void readFields(DataInput in) throws IOException {
     int size = in.readInt();
-
-    for (int i = 0; i < size; i++)
-    {
+    for (int i = 0; i < size; i++) {
       WorkUnitState state = new WorkUnitState();
       state.readFields(in);
-
-      previousTaskStates.add(state);
+      this.previousTaskStates.add(state);
     }
     super.readFields(in);
   }
