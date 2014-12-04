@@ -22,6 +22,7 @@ import java.util.Set;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.common.io.Closer;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 
@@ -58,8 +59,7 @@ public class SchedulerUtils {
      * Recursively load job configuration files under the given directory.
      */
     private static void loadJobConfigsRecursive(List<Properties> jobConfigs, Properties rootProps,
-                                                Set<String> jobConfigFileExtensions, File jobConfigDir)
-            throws IOException {
+        Set<String> jobConfigFileExtensions, File jobConfigDir) throws IOException {
 
         // Get the properties file that ends with .properties if any
         String[] propertiesFiles = jobConfigDir.list(new FilenameFilter() {
@@ -69,42 +69,53 @@ public class SchedulerUtils {
             }
         });
 
-        if (propertiesFiles != null && propertiesFiles.length > 0) {
-            // There should be a single properties file in each directory (or sub directory)
-            if (propertiesFiles.length != 1) {
-                throw new RuntimeException(
-                        "Found more than one .properties files in directory: " + jobConfigDir);
-            }
-
-            // Load the properties, which may overwrite the same properties defined
-            // in the parent or ancestor directories.
-            rootProps.load(new FileReader(new File(jobConfigDir, propertiesFiles[0])));
-        }
-
-        String[] names = jobConfigDir.list();
-        for (String name : names) {
-            File file = new File(jobConfigDir, name);
-            if (file.isDirectory()) {
-                Properties rootPropsCopy = new Properties();
-                rootPropsCopy.putAll(rootProps);
-                loadJobConfigsRecursive(jobConfigs, rootPropsCopy, jobConfigFileExtensions, file);
-            } else {
-                int pos = file.getName().lastIndexOf(".");
-                String fileExtension = pos >= 0 ? file.getName().substring(pos + 1) : "";
-                if (!jobConfigFileExtensions.contains(fileExtension)) {
-                    // Not a job configuration file, ignore.
-                    continue;
+        Closer closer = Closer.create();
+        try {
+            if (propertiesFiles != null && propertiesFiles.length > 0) {
+                // There should be a single properties file in each directory (or sub directory)
+                if (propertiesFiles.length != 1) {
+                    throw new RuntimeException("Found more than one .properties file in directory: " + jobConfigDir);
                 }
 
-                Properties jobProps = new Properties();
-                // Put all parent/ancestor properties first
-                jobProps.putAll(rootProps);
-                // Then load the job configuration properties defined in the pull file
-                jobProps.load(new FileReader(file));
-                jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY,
-                        file.getAbsolutePath());
-                jobConfigs.add(jobProps);
+                // Load the properties, which may overwrite the same properties defined
+                // in the parent or ancestor directories.
+                rootProps.load(closer.register(new FileReader(new File(jobConfigDir, propertiesFiles[0]))));
             }
+
+            String[] names = jobConfigDir.list();
+            for (String name : names) {
+                File file = new File(jobConfigDir, name);
+                if (file.isDirectory()) {
+                    Properties rootPropsCopy = new Properties();
+                    rootPropsCopy.putAll(rootProps);
+                    loadJobConfigsRecursive(jobConfigs, rootPropsCopy, jobConfigFileExtensions, file);
+                } else {
+                    int pos = file.getName().lastIndexOf(".");
+                    String fileExtension = pos >= 0 ? file.getName().substring(pos + 1) : "";
+                    if (!jobConfigFileExtensions.contains(fileExtension)) {
+                        // Not a job configuration file, ignore.
+                        continue;
+                    }
+
+                    File doneFile = new File(file + ".done");
+                    if (doneFile.exists()) {
+                        // Skip the job configuration file when a .done file with the same name exists,
+                        // which means the job configuration file is for a one-time job and the job has
+                        // already run and finished.
+                        continue;
+                    }
+
+                    Properties jobProps = new Properties();
+                    // Put all parent/ancestor properties first
+                    jobProps.putAll(rootProps);
+                    // Then load the job configuration properties defined in the pull file
+                    jobProps.load(closer.register(new FileReader(file)));
+                    jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, file.getAbsolutePath());
+                    jobConfigs.add(jobProps);
+                }
+            }
+        } finally {
+            closer.close();
         }
     }
 }
