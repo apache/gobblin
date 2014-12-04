@@ -440,9 +440,13 @@ public class LocalJobManager extends AbstractIdleService {
         FileSystem fs = FileSystem.get(
                 URI.create(this.properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY)),
                 new Configuration());
+
         // Root directory of task states store
         Path taskStateStoreRootDir = new Path(
                 this.properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY));
+        if (!fs.exists(taskStateStoreRootDir)) {
+            return;
+        }
 
         // List subdirectories (one for each job) under the root directory
         FileStatus[] rootStatuses = fs.listStatus(taskStateStoreRootDir);
