@@ -15,7 +15,6 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -28,10 +27,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
@@ -65,9 +62,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     // Framework configuration properties
     protected final Properties properties;
 
-    // Mapping between Source wrapper keys and Source wrapper classes
-    private final Map<String, Class<SourceWrapperBase>> sourceWrapperMap = Maps.newHashMap();
-
     // Store for persisting job state
     private final StateStore jobStateStore;
 
@@ -87,8 +81,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                         ConfigurationKeys.LOCAL_FS_URI),
                 properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
                 TaskState.class);
-
-        populateSourceWrapperMap();
     }
 
     /**
@@ -189,7 +181,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         Source<?, ?> source;
         try {
             sourceState = new SourceState(jobState, getPreviousWorkUnitStates(jobName));
-            source = new SourceDecorator(initSource(jobProps, sourceState), jobId, LOG);
+            source = new SourceDecorator(initSource(jobProps), jobId, LOG);
         } catch (Throwable t) {
             String errMsg = "Failed to initialize the source for job " + jobId;
             LOG.error(errMsg, t);
@@ -333,15 +325,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     /**
      * Initialize the source for the given job.
      */
-    private SourceWrapperBase initSource(Properties jobProps, SourceState sourceState)
-            throws Exception {
-
-        SourceWrapperBase source = this.sourceWrapperMap.get(jobProps.getProperty(
-                ConfigurationKeys.SOURCE_WRAPPER_CLASS_KEY,
-                ConfigurationKeys.DEFAULT_SOURCE_WRAPPER)
-                .toLowerCase()).newInstance();
-        source.init(sourceState);
-        return source;
+    private Source<?, ?> initSource(Properties jobProps) throws Exception {
+        return (Source<?, ?>) Class.forName(jobProps.getProperty(ConfigurationKeys.SOURCE_CLASS_KEY))
+            .newInstance();
     }
 
     /**
@@ -356,26 +342,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         // Pre-add a task state so if the task fails and no task state is written out,
         // there is still task state for the task when job/task states are persisted.
         jobState.addTaskState(new TaskState(new WorkUnitState(workUnit)));
-    }
-
-    /**
-     * Populates map of String keys to {@link SourceWrapperBase} classes.
-     */
-    @SuppressWarnings("unchecked")
-    private void populateSourceWrapperMap() throws ClassNotFoundException {
-        // Default must be defined, but properties can overwrite if needed.
-        this.sourceWrapperMap.put(ConfigurationKeys.DEFAULT_SOURCE_WRAPPER,
-                SourceWrapperBase.class);
-
-        String propStr = this.properties.getProperty(
-                ConfigurationKeys.SOURCE_WRAPPERS,
-                "default:" + SourceWrapperBase.class.getName());
-        for (String entry : Splitter.on(";").trimResults().split(propStr)) {
-            List<String> tokens = Splitter.on(":").trimResults().splitToList(entry);
-            this.sourceWrapperMap.put(
-                    tokens.get(0).toLowerCase(),
-                    (Class<SourceWrapperBase>) Class.forName(tokens.get(1)));
-        }
     }
 
     /**

@@ -74,7 +74,6 @@ import com.linkedin.uif.runtime.JobLock;
 import com.linkedin.uif.runtime.JobState;
 import com.linkedin.uif.runtime.RunOnceJobListener;
 import com.linkedin.uif.runtime.SourceDecorator;
-import com.linkedin.uif.runtime.SourceWrapperBase;
 import com.linkedin.uif.runtime.TaskState;
 import com.linkedin.uif.runtime.WorkUnitManager;
 import com.linkedin.uif.source.Source;
@@ -126,9 +125,6 @@ public class LocalJobManager extends AbstractIdleService {
 
     // A map for all scheduled jobs
     private final Map<String, JobKey> scheduledJobs = Maps.newHashMap();
-
-    // Mapping between Source wrapper keys and Source wrapper classes
-    private final Map<String, Class<SourceWrapperBase>> sourceWrapperMap = Maps.newHashMap();
 
     // Mapping between jobs to the job locks they hold. This needs to be a
     // concurrent map because two scheduled runs of the same job (handled
@@ -183,7 +179,6 @@ public class LocalJobManager extends AbstractIdleService {
         this.fileAlterationMonitor = new FileAlterationMonitor(pollingInterval);
 
         restoreLastJobIdMap();
-        populateSourceWrapperMap();
     }
 
     @Override
@@ -320,13 +315,10 @@ public class LocalJobManager extends AbstractIdleService {
         Optional<SourceState> sourceStateOptional = Optional.absent();
         try {
             // Initialize the source
-            SourceWrapperBase sourceWrapper = this.sourceWrapperMap.get(jobProps.getProperty(
-                    ConfigurationKeys.SOURCE_WRAPPER_CLASS_KEY,
-                    ConfigurationKeys.DEFAULT_SOURCE_WRAPPER)
-                    .toLowerCase()).newInstance();
             SourceState sourceState = new SourceState(jobState, getPreviousWorkUnitStates(jobName));
-            sourceWrapper.init(sourceState);
-            Source<?, ?> source = new SourceDecorator(sourceWrapper, jobId, LOG);
+            Source<?, ?> sourceInstance = (Source<?, ?>) Class.forName(
+                jobProps.getProperty(ConfigurationKeys.SOURCE_CLASS_KEY)).newInstance();
+            Source<?, ?> source = new SourceDecorator(sourceInstance, jobId, LOG);
             sourceStateOptional = Optional.of(sourceState);
 
             // Generate work units based on all previous work unit states
@@ -823,26 +815,6 @@ public class LocalJobManager extends AbstractIdleService {
                 this.jobListenerMap.remove(jobName) : this.jobListenerMap.get(jobName);
         if (jobListener != null) {
             jobListener.jobCompleted(jobState);
-        }
-    }
-
-    /**
-     * Populates map of String keys to {@link SourceWrapperBase} classes.
-     */
-    @SuppressWarnings("unchecked")
-    private void populateSourceWrapperMap() throws ClassNotFoundException {
-        // Default must be defined, but properties can overwrite if needed.
-        this.sourceWrapperMap.put(ConfigurationKeys.DEFAULT_SOURCE_WRAPPER,
-                SourceWrapperBase.class);
-
-        String propStr = this.properties.getProperty(
-                ConfigurationKeys.SOURCE_WRAPPERS,
-                "default:" + SourceWrapperBase.class.getName());
-        for (String entry : Splitter.on(";").trimResults().split(propStr)) {
-            List<String> tokens = Splitter.on(":").trimResults().splitToList(entry);
-            this.sourceWrapperMap.put(
-                    tokens.get(0).toLowerCase(),
-                    (Class<SourceWrapperBase>) Class.forName(tokens.get(1)));
         }
     }
 
