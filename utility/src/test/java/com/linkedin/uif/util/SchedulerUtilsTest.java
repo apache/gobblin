@@ -23,6 +23,8 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.io.Files;
+
 import com.linkedin.uif.configuration.ConfigurationKeys;
 
 /**
@@ -132,6 +134,42 @@ public class SchedulerUtilsTest {
         Assert.assertEquals(jobProps4.getProperty("k1"), "a1");
         Assert.assertEquals(jobProps4.getProperty("k2"), "b2");
         Assert.assertEquals(jobProps4.getProperty("k5"), "b5");
+    }
+
+    @Test(dependsOnMethods = {"testLoadJobConfigs"})
+    public void testLoadJobConfigsWithDoneFile() throws IOException {
+        File subDir2 = new File(JOB_CONF_ROOT_DIR, "test2");
+        // Create a .done file for test21.pull so it should not be loaded
+        Files.copy(new File(subDir2, "test21.pull"), new File(subDir2, "test21.pull.done"));
+
+        Properties properties = new Properties();
+        properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, JOB_CONF_ROOT_DIR);
+        List<Properties> jobConfigs = SchedulerUtils.loadJobConfigs(properties);
+        Assert.assertEquals(jobConfigs.size(), 3);
+
+        // test-job-conf-dir/test1/test11/test111.pull
+        Properties jobProps1 = jobConfigs.get(0);
+        Assert.assertEquals(jobProps1.stringPropertyNames().size(), 6);
+        Assert.assertEquals(jobProps1.getProperty("k1"), "d1");
+        Assert.assertEquals(jobProps1.getProperty("k2"), "a2");
+        Assert.assertEquals(jobProps1.getProperty("k3"), "a3");
+        Assert.assertEquals(jobProps1.getProperty("k8"), "a8");
+
+        // test-job-conf-dir/test1/test11.pull
+        Properties jobProps2 = jobConfigs.get(1);
+        Assert.assertEquals(jobProps2.stringPropertyNames().size(), 6);
+        Assert.assertEquals(jobProps2.getProperty("k1"), "c1");
+        Assert.assertEquals(jobProps2.getProperty("k2"), "a2");
+        Assert.assertEquals(jobProps2.getProperty("k3"), "b3");
+        Assert.assertEquals(jobProps2.getProperty("k6"), "a6");
+
+        // test-job-conf-dir/test1/test12.pull
+        Properties jobProps3 = jobConfigs.get(2);
+        Assert.assertEquals(jobProps3.stringPropertyNames().size(), 6);
+        Assert.assertEquals(jobProps3.getProperty("k1"), "b1");
+        Assert.assertEquals(jobProps3.getProperty("k2"), "a2");
+        Assert.assertEquals(jobProps3.getProperty("k3"), "a3");
+        Assert.assertEquals(jobProps3.getProperty("k7"), "a7");
     }
 
     @AfterClass
