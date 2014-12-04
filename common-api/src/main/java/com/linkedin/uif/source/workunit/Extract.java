@@ -11,6 +11,7 @@
 
 package com.linkedin.uif.source.workunit;
 
+import java.util.List;
 import java.util.Locale;
 
 import org.joda.time.DateTime;
@@ -18,6 +19,7 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
@@ -184,6 +186,72 @@ public class Extract extends State {
   public void setFullTrue(long extractFullRunTime) {
     setProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY, true);
     setProp(ConfigurationKeys.EXTRACT_FULL_RUN_TIME_KEY, extractFullRunTime);
+  }
+
+  /**
+   * Set primary keys.
+   *
+   * <p>
+   *   The order of primary keys does not matter.
+   * </p>
+   *
+   * @param primaryKeyFieldName primary key names
+   */
+  public void setPrimaryKeys(String... primaryKeyFieldName) {
+    setProp(ConfigurationKeys.EXTRACT_PRIMARY_KEY_FIELDS_KEY, Joiner.on(",").join(primaryKeyFieldName));
+  }
+
+  /**
+   * Add more primary keys to the existing set of primary keys.
+   *
+   * @param primaryKeyFieldName primary key names
+   */
+  public void addPrimaryKey(String... primaryKeyFieldName) {
+    StringBuilder sb = new StringBuilder(getProp(ConfigurationKeys.EXTRACT_PRIMARY_KEY_FIELDS_KEY, ""));
+    Joiner.on(",").appendTo(sb, primaryKeyFieldName);
+    setProp(ConfigurationKeys.EXTRACT_PRIMARY_KEY_FIELDS_KEY, sb.toString());
+  }
+
+  /**
+   * Get the list of primary keys.
+   *
+   * @return list of primary keys
+   */
+  public List<String> getPrimaryKeys() {
+    return getPropAsList(ConfigurationKeys.EXTRACT_PRIMARY_KEY_FIELDS_KEY);
+  }
+
+  /**
+   * Set delta fields.
+   *
+   * <p>
+   *   The order of delta fields does not matter.
+   * </p>
+   *
+   * @param deltaFieldName delta field names
+   */
+  public void setDeltaFields(String... deltaFieldName) {
+    setProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY, Joiner.on(",").join(deltaFieldName));
+  }
+
+  /**
+   * Add more delta fields to the existing set of delta fields.
+   *
+   * @param deltaFieldName delta field names
+   */
+  public void addDeltaField(String... deltaFieldName) {
+    StringBuilder sb = new StringBuilder(getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY, ""));
+    Joiner.on(",").appendTo(sb, deltaFieldName);
+    setProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY, sb.toString());
+  }
+
+  /**
+   * Get the list of delta fields.
+   *
+   * @return list of delta fields
+   */
+  public List<String> getDeltaFields() {
+    return getPropAsList(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
   }
 
   /**
