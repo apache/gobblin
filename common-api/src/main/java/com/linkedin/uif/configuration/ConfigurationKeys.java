@@ -333,6 +333,8 @@ public class ConfigurationKeys {
      * MySQL job history store configuration properties.
      */
     public static final String JOB_HISTORY_STORE_URL_KEY = "job.history.store.url";
+    public static final String JOB_HISTORY_STORE_JDBC_DRIVER_KEY = "job.history.store.jdbc.driver";
+    public static final String DEFAULT_JOB_HISTORY_STORE_JDBC_DRIVER = "com.mysql.jdbc.Driver";
     public static final String JOB_HISTORY_STORE_USER_KEY = "job.history.store.user";
     public static final String DEFAULT_JOB_HISTORY_STORE_USER = "gobblin";
     public static final String JOB_HISTORY_STORE_PASSWORD_KEY = "job.history.store.password";

@@ -128,7 +128,7 @@ public class JobScheduler extends AbstractIdleService {
 
     @Override
     protected void startUp() throws Exception {
-        LOG.info("Starting the local job manager");
+        LOG.info("Starting the job scheduler");
         this.scheduler.start();
         if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)) {
             scheduleLocallyConfiguredJobs();
@@ -138,7 +138,7 @@ public class JobScheduler extends AbstractIdleService {
 
     @Override
     protected void shutDown() throws Exception {
-        LOG.info("Stopping the local job manager");
+        LOG.info("Stopping the job scheduler");
         this.scheduler.shutdown(true);
         if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)) {
             // Stop the file alteration monitor in one second
