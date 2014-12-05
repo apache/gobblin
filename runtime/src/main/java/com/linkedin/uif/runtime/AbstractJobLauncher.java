@@ -1,10 +1,20 @@
+/* (c) 2014 LinkedIn Corp. All rights reserved.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package com.linkedin.uif.runtime;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -17,10 +27,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
@@ -54,9 +62,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     // Framework configuration properties
     protected final Properties properties;
 
-    // Mapping between Source wrapper keys and Source wrapper classes
-    private final Map<String, Class<SourceWrapperBase>> sourceWrapperMap = Maps.newHashMap();
-
     // Store for persisting job state
     private final StateStore jobStateStore;
 
@@ -76,8 +81,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                         ConfigurationKeys.LOCAL_FS_URI),
                 properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
                 TaskState.class);
-
-        populateSourceWrapperMap();
     }
 
     /**
@@ -178,7 +181,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         Source<?, ?> source;
         try {
             sourceState = new SourceState(jobState, getPreviousWorkUnitStates(jobName));
-            source = new SourceDecorator(initSource(jobProps, sourceState), jobId, LOG);
+            source = new SourceDecorator(initSource(jobProps), jobId, LOG);
         } catch (Throwable t) {
             String errMsg = "Failed to initialize the source for job " + jobId;
             LOG.error(errMsg, t);
@@ -322,15 +325,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     /**
      * Initialize the source for the given job.
      */
-    private SourceWrapperBase initSource(Properties jobProps, SourceState sourceState)
-            throws Exception {
-
-        SourceWrapperBase source = this.sourceWrapperMap.get(jobProps.getProperty(
-                ConfigurationKeys.SOURCE_WRAPPER_CLASS_KEY,
-                ConfigurationKeys.DEFAULT_SOURCE_WRAPPER)
-                .toLowerCase()).newInstance();
-        source.init(sourceState);
-        return source;
+    private Source<?, ?> initSource(Properties jobProps) throws Exception {
+        return (Source<?, ?>) Class.forName(jobProps.getProperty(ConfigurationKeys.SOURCE_CLASS_KEY))
+            .newInstance();
     }
 
     /**
@@ -345,26 +342,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         // Pre-add a task state so if the task fails and no task state is written out,
         // there is still task state for the task when job/task states are persisted.
         jobState.addTaskState(new TaskState(new WorkUnitState(workUnit)));
-    }
-
-    /**
-     * Populates map of String keys to {@link SourceWrapperBase} classes.
-     */
-    @SuppressWarnings("unchecked")
-    private void populateSourceWrapperMap() throws ClassNotFoundException {
-        // Default must be defined, but properties can overwrite if needed.
-        this.sourceWrapperMap.put(ConfigurationKeys.DEFAULT_SOURCE_WRAPPER,
-                SourceWrapperBase.class);
-
-        String propStr = this.properties.getProperty(
-                ConfigurationKeys.SOURCE_WRAPPERS,
-                "default:" + SourceWrapperBase.class.getName());
-        for (String entry : Splitter.on(";").trimResults().split(propStr)) {
-            List<String> tokens = Splitter.on(":").trimResults().splitToList(entry);
-            this.sourceWrapperMap.put(
-                    tokens.get(0).toLowerCase(),
-                    (Class<SourceWrapperBase>) Class.forName(tokens.get(1)));
-        }
     }
 
     /**
@@ -517,48 +494,52 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
 
     /**
-     * Cleanup the job's task staging/output directories.
+     * Cleanup the job's task staging data. This is not doing anything in case job succeeds
+     * and data is successfully committed because the staging data has already been moved
+     * to the job output directory. But in case the job fails and data is not committed,
+     * we want the staging data to be cleaned up.
      */
     private void cleanupStagingData(JobState jobState) {
-        int branches = jobState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
-        for (int i = 0; i < branches; i++) {
-            FileSystem fs;
-            try {
-                fs = FileSystem.get(
-                        URI.create(jobState.getProp(
-                                ForkOperatorUtils.getPropertyNameForBranch(
-                                        ConfigurationKeys.WRITER_FILE_SYSTEM_URI, branches, i),
-                                ConfigurationKeys.LOCAL_FS_URI)),
-                        new Configuration());
-            } catch (IOException ioe) {
-                LOG.error("Failed to get a file system instance", ioe);
-                return;
-            }
+        for (TaskState taskState : jobState.getTaskStates()) {
+            int branches = taskState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
+            for (int i = 0; i < branches; i++) {
+                try {
+                    String writerFsUri = taskState.getProp(
+                            ForkOperatorUtils.getPropertyNameForBranch(
+                                    ConfigurationKeys.WRITER_FILE_SYSTEM_URI, branches, i),
+                            ConfigurationKeys.LOCAL_FS_URI);
+                    FileSystem fs = FileSystem.get(URI.create(writerFsUri), new Configuration());
 
-            Path relPath =
-                new Path(jobState.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY).replaceAll("\\.", "/"),
-                    jobState.getProp(ConfigurationKeys.SOURCE_ENTITY));
+                    String writerFilePath = taskState.getProp(ForkOperatorUtils.getPropertyNameForBranch(
+                            ConfigurationKeys.WRITER_FILE_PATH, branches, i));
+                    if (Strings.isNullOrEmpty(writerFilePath)) {
+                        // The job may be cancelled before the task starts, so this may not be set.
+                        continue;
+                    }
 
-            try {
-                Path taskStagingPath = new Path(
-                        jobState.getProp(ForkOperatorUtils.getPropertyNameForBranch(
-                                ConfigurationKeys.WRITER_STAGING_DIR, branches, i)), relPath);
-                if (fs.exists(taskStagingPath)) {
-                    fs.delete(taskStagingPath, true);
+                    String stagingDirKey = ForkOperatorUtils.getPropertyNameForBranch(
+                            ConfigurationKeys.WRITER_STAGING_DIR, branches > 1 ? i : -1);
+                    if (taskState.contains(stagingDirKey)) {
+                        Path stagingPath = new Path(taskState.getProp(stagingDirKey), writerFilePath);
+                        if (fs.exists(stagingPath)) {
+                            LOG.info("Cleaning up staging directory " + stagingPath.toUri().getPath());
+                            fs.delete(stagingPath, true);
+                        }
+                    }
+
+                    String outputDirKey = ForkOperatorUtils.getPropertyNameForBranch(
+                            ConfigurationKeys.WRITER_OUTPUT_DIR, branches > 1 ? i : -1);
+                    if (taskState.contains(outputDirKey)) {
+                        Path outputPath = new Path(taskState.getProp(outputDirKey), writerFilePath);
+                        if (fs.exists(outputPath)) {
+                            LOG.info("Cleaning up output directory " + outputPath.toUri().getPath());
+                            fs.delete(outputPath, true);
+                        }
+                    }
+                } catch (IOException ioe) {
+                    LOG.error(String.format("Failed to clean staging data for branch %d of task %s",
+                            i, taskState.getTaskId()), ioe);
                 }
-            } catch (IOException ioe) {
-                LOG.error("Failed to cleanup task staging directory of job " + jobState.getJobId(), ioe);
-            }
-
-            try {
-                Path taskOutputPath = new Path(
-                        jobState.getProp(ForkOperatorUtils.getPropertyNameForBranch(
-                                ConfigurationKeys.WRITER_OUTPUT_DIR, branches, i)), relPath);
-                if (fs.exists(taskOutputPath)) {
-                    fs.delete(taskOutputPath, true);
-                }
-            } catch (IOException ioe) {
-                LOG.error("Failed to cleanup task output directory of job " + jobState.getJobId(), ioe);
             }
         }
     }

@@ -1,3 +1,14 @@
+/* (c) 2014 LinkedIn Corp. All rights reserved.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package com.linkedin.uif.source;
 
 import java.io.IOException;
@@ -9,9 +20,14 @@ import com.linkedin.uif.source.extractor.Extractor;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
 /**
- * <p>Primary plugin point for end users.  A Source implementation should contain all the logic
- * required for a specific data source.  This usually includes work determination and 
- * connection protocols</p>
+ * An interface for classes that the end users implement to work with a data source from which
+ * schema and data records can be extracted.
+ *
+ * <p>
+ *   An implementation of this interface should contain all the logic required to work with a
+ *   specific data source. This usually includes work determination and partitioning, and details
+ *   of the connection protocol to work with the data source.
+ * </p>
  * 
  * @author kgoodhop
  *
@@ -21,35 +37,50 @@ import com.linkedin.uif.source.workunit.WorkUnit;
 public interface Source<S, D> {
   
   /**
-   * <p>Returns a list of {@link WorkUnit}.  Each {@link WorkUnit} will be used instantiate
-   * a {@link WorkUnitState} and passed to {@link #getExtractor(WorkUnitState)} method.  The 
-   * {@link WorkUnit} instance should have all the properties needed by {@link Extractor}
+   * Get a list of {@link WorkUnit}s, each of which is for extracting a portion of the data.
+   *
+   * <p>
+   *   Each {@link WorkUnit} will be used instantiate a {@link WorkUnitState} that gets passed to the
+   *   {@link #getExtractor(WorkUnitState)} method to get an {@link Extractor} for extracting schema
+   *   and data records from the source. The {@link WorkUnit} instance should have all the properties
+   *   needed for the {@link Extractor} to work.
+   * </p>
+   *
+   * <p>
+   *   Typically the list of {@link WorkUnit}s for the current run is determined by taking into account
+   *   the list of {@link WorkUnit}s from the previous run so data gets extracted incrementally. The
+   *   method {@link SourceState#getPreviousWorkUnitStates} can be used to get the list of {@link WorkUnit}s
+   *   from the previous run.
    * </p>
    * 
    * @param state see {@link SourceState}
-   * @return
+   * @return a list of {@link WorkUnit}s
    */
   public abstract List<WorkUnit> getWorkunits(SourceState state);
 
   /**
+   * Get an {@link Extractor} based on a given {@link WorkUnitState}.
+   *
    * <p>
-   * Returns the {@link Extractor} instance responsible for doing the actual pulling of
-   * the data.  The {@link Extractor} can use {@link WorkUnitState} for storing values that
-   * will be persisted to the next scheduled run.
+   *   The {@link Extractor} returned can use {@link WorkUnitState} to store arbitrary key-value pairs
+   *   that will be persisted to the state store and loaded in the next scheduled job run.
    * </p>
    * 
-   * @param state
-   * @return
-   * @throws IOException 
+   * @param state a {@link WorkUnitState} carrying properties needed by the returned {@link Extractor}
+   * @return an {@link Extractor} used to extract schema and data records from the data source
+   * @throws IOException if it fails to create an {@link Extractor}
    */
   public abstract Extractor<S, D> getExtractor(WorkUnitState state) throws IOException;
   
   /**
-   * <p>Called once when the pull job has completed.  Properties added to this instance of
-   * {@link SourceState} will be persisted and available to the next scheduled run through the
-   * call to {@link #getWorkunits(SourceState)}.  If there is no cleanup or reporting required 
-   * for a particular implementation of this interface, then it is acceptable to provided a 
-   * default implementation of this method.
+   * Shutdown this {@link Source} instance.
+   *
+   * <p>
+   *   This method is called once when the job completes. Properties (key-value pairs) added to the input
+   *   {@link SourceState} instance will be persisted and available to the next scheduled job run through
+   *   the method {@link #getWorkunits(SourceState)}.  If there is no cleanup or reporting required for a
+   *   particular implementation of this interface, then it is acceptable to have a default implementation
+   *   of this method.
    * </p>
    * 
    * @param state see {@link SourceState}

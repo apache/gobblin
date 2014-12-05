@@ -1,3 +1,14 @@
+/* (c) 2014 LinkedIn Corp. All rights reserved.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package com.linkedin.uif.runtime;
 
 import java.io.Closeable;
@@ -140,11 +151,12 @@ public class Fork implements Closeable {
     private DataWriter<Object> buildWriter() throws IOException, SchemaConversionException {
         String branchName = ForkOperatorUtils.getBranchName(
                 this.taskState, this.index, ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME + this.index);
-        this.taskState.setProp(
-                ForkOperatorUtils.getPropertyNameForBranch(
-                        ConfigurationKeys.WRITER_FILE_PATH, this.branches, this.index),
-                ForkOperatorUtils.getPathForBranch(
-                        this.taskState.getExtract().getOutputFilePath(), branchName, this.branches));
+        String writerFilePathKey = ForkOperatorUtils.getPropertyNameForBranch(
+                ConfigurationKeys.WRITER_FILE_PATH, this.branches, this.index);
+        if (!this.taskState.contains(writerFilePathKey)) {
+            this.taskState.setProp(writerFilePathKey, ForkOperatorUtils.getPathForBranch(
+                    this.taskState.getExtract().getOutputFilePath(), branchName, this.branches));
+        }
 
         return this.taskContext.getDataWriterBuilder(this.branches, this.index)
                 .writeTo(Destination.of(

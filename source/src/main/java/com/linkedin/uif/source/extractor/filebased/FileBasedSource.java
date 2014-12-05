@@ -1,3 +1,14 @@
+/* (c) 2014 LinkedIn Corp. All rights reserved.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package com.linkedin.uif.source.extractor.filebased;
 
 import java.util.ArrayList;
@@ -78,7 +89,7 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D>
         }
 
         TableType tableType = TableType.valueOf(state.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY).toUpperCase());        
-        List<WorkUnitState> previousWorkunits = state.getPreviousStates();
+        List<WorkUnitState> previousWorkunits = state.getPreviousWorkUnitStates();
         List<String> prevFsSnapshot = Lists.newArrayList();
 
         // Get list of files seen in the previous run
@@ -111,7 +122,7 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D>
             
             List<String> partitionFilesToPull = filesToPull.subList(fileOffset, fileOffset + filesPerPartition > filesToPull.size() ? filesToPull.size() : fileOffset + filesPerPartition);
             partitionState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, StringUtils.join(partitionFilesToPull, ","));
-            if (state.getPropAsBoolean(ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_PATH, false)) {
+            if (state.getPropAsBoolean(ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, false)) {
                 if (partitionFilesToPull.size() != 1) {
                     throw new RuntimeException("Cannot preserve the file name if a workunit is given multiple files");
                 }
