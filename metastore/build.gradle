@@ -17,7 +17,7 @@ dependencies {
     compile externalDependency.guava
     compile externalDependency.slf4j
     compile externalDependency.pegasus.data
-    compile externalDependency.hikariCp
+    compile externalDependency.commonsDbcp
     compile externalDependency.guice
     compile externalDependency.javaxInject
 

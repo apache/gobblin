@@ -1,3 +1,14 @@
+/* (c) 2014 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package com.linkedin.uif.metastore;
 
 import java.io.File;
@@ -17,6 +28,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
@@ -55,8 +67,10 @@ public class DatabaseJobHistoryStoreTest {
     @BeforeClass
     public void setUp() throws Exception {
         Properties properties = new Properties();
+        properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY,
+            "org.apache.derby.jdbc.EmbeddedDriver");
         properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY,
-                "jdbc:derby:memory:gobblin;create=true");
+            "jdbc:derby:memory:gobblin;create=true");
         prepareJobHistoryStoreDatabase(properties);
         Injector injector = Guice.createInjector(new MetaStoreModule(properties));
         this.jobHistoryStore = injector.getInstance(JobHistoryStore.class);
@@ -161,9 +175,18 @@ public class DatabaseJobHistoryStoreTest {
     }
 
     private void prepareJobHistoryStoreDatabase(Properties properties) throws Exception {
-        String statements = Files.toString(
-                new File("metastore/src/test/resources/gobblin_job_history_store.sql"),
-                Charset.defaultCharset());
+        // Read the DDL statements
+        List<String> statementLines = Lists.newArrayList();
+        List<String> lines = Files.readLines(
+            new File("metastore/src/test/resources/gobblin_job_history_store.sql"), Charset.defaultCharset());
+        for (String line : lines) {
+            // Skip a comment line
+            if (line.startsWith("--")) {
+                continue;
+            }
+            statementLines.add(line);
+        }
+        String statements = Joiner.on("\n").skipNulls().join(statementLines);
 
         Optional<Connection> connectionOptional = Optional.absent();
         try {
