@@ -42,6 +42,8 @@ state-store
 test/metrics
 test/byteman
 test/previous-job-ids
+test/locks
+test/mr-jobs
 /eclipse_build
 .project
 .classpath

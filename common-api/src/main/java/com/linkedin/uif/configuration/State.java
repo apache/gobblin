@@ -1,3 +1,14 @@
+/* (c) 2014 LinkedIn Corp. All rights reserved.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package com.linkedin.uif.configuration;
 
 import java.io.DataInput;
@@ -7,45 +18,44 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
-import com.google.common.base.Splitter;
-
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
+import com.google.common.base.Splitter;
+
 /**
- * <p>
- * Serializable property class for persisting state among different runtime instances
- * </p>
+ * A serializable wrapper class that can be persisted for {@link java.util.Properties}.
  * 
  * @author kgoodhop
- *
  */
-public class State implements Writable
-{
+public class State implements Writable {
+
   private String id;
 
-  private Properties properties = new Properties();
+  private final Properties properties = new Properties();
 
   /**
-   * Populates this instance with the properties of the other instance.
+   * Populates this instance with properties of the other instance.
    * 
-   * @param otherState
+   * @param otherState the other {@link State} instance
    */
   public void addAll(State otherState) {
     this.properties.putAll(otherState.properties);
   }
 
   /**
-   * Populates this instance with the values of {@link Properties}
-   * @param properties
+   * Populates this instance with values of a {@link Properties} instance.
+   *
+   * @param properties a {@link Properties} instance
    */
   public void addAll(Properties properties) {
     this.properties.putAll(properties);
   }
 
   /**
-   * Id used for state persistence and logging.
-   * @param id
+   * Set the id used for state persistence and logging.
+   *
+   * @param id id of this instance
    */
   public void setId(String id)
   {
@@ -53,8 +63,9 @@ public class State implements Writable
   }
 
   /**
+   * Get the id of this instance.
    * 
-   * @return this instance's id
+   * @return id of this instance
    */
   public String getId()
   {
@@ -62,123 +73,140 @@ public class State implements Writable
   }
 
   /**
-   * Setter for property that will be persisted, value will be stored as string.
-   * @param key
-   * @param value
+   * Set a property.
+   *
+   * <p>
+   *   Both key and value are stored as strings.
+   * </p>
+   *
+   * @param key property key
+   * @param value property value
    */
   public void setProp(String key, Object value) {
     properties.put(key, value.toString());
   }
 
   /**
-   * Getter
-   * @param key 
-   * @return String value associated with key
+   * Get the value of a property.
+   *
+   * @param key property key
+   * @return value associated with the key as a string or <code>null</code> if the property is not set
    */
   public String getProp(String key) {
     return getProperty(key);
   }
 
   /**
-   * Getter with default
-   * @param key
-   * @param def value returned if key is not set
-   * @return
+   * Get the value of a property, using the given default value if the property is not set.
+   *
+   * @param key property key
+   * @param def default value
+   * @return value associated with the key or the default value if the property is not set
    */
   public String getProp(String key, String def) {
     return getProperty(key, def);
   }
 
   /**
-   * Converts comma delimited value into List<String> 
-   * @param key
-   * @return List<String> value associated with key
+   * Get the value of a property as a {@link java.util.List} of strings.
+   *
+   * @param key property key
+   * @return value associated with the key as a {@link java.util.List} of strings
    */
   public List<String> getPropAsList(String key) {
-    return Splitter.on(",").trimResults().splitToList(getProperty(key));
+    return Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProperty(key));
   }
 
   /**
-   * Converts comma delimited value into List<String> 
-   * @param key
-   * @param def value parsed into List if key is not set
-   * @return List<String> value associated with key
+   * Get the value of a property as a list of strings, using the given default value if the property is not set.
+   *
+   * @param key property key
+   * @param def default value
+   * @return value (the default value if the property is not set) associated with the key as a list of strings
    */
   public List<String> getPropAsList(String key, String def) {
     return Splitter.on(",").trimResults().splitToList(getProperty(key, def));
   }
 
   /**
-   * Parses value as long
-   * @param key
-   * @return long value associated with key
+   * Get the value of a property as a long integer.
+   *
+   * @param key property key
+   * @return long integer value associated with the key
    */
   public long getPropAsLong(String key) {
     return Long.valueOf(getProperty(key));
   }
 
   /**
-   * Parses value as long
-   * @param key
-   * @param def
-   * @return long value associated with key or def if key is not set
+   * Get the value of a property as a long integer, using the given default value if the property is not set.
+   *
+   * @param key property key
+   * @param def default value
+   * @return long integer value associated with the key or the default value if the property is not set
    */
   public long getPropAsLong(String key, long def) {
     return Long.valueOf(getProperty(key, String.valueOf(def)));
   }
 
   /**
-   * Parses value as int 
-   * @param key
-   * @return int value associated with key
+   * Get the value of a property as an integer.
+   *
+   * @param key property key
+   * @return integer value associated with the key
    */
   public int getPropAsInt(String key) {
     return Integer.valueOf(getProperty(key));
   }
 
   /**
-   * Parses value as int 
-   * @param key
-   * @param def
-   * @return int value associated with key or def if key is not set
+   * Get the value of a property as an integer, using the given default value if the property is not set.
+   *
+   * @param key property key
+   * @param def default value
+   * @return integer value associated with the key or the default value if the property is not set
    */
   public int getPropAsInt(String key, int def) {
     return Integer.valueOf(getProperty(key, String.valueOf(def)));
   }
 
   /**
-   * Parses value as double
-   * @param key
-   * @return double value associated with key
+   * Get the value of a property as a double.
+   *
+   * @param key property key
+   * @return double value associated with the key
    */
   public double getPropAsDouble(String key) {
     return Double.valueOf(getProperty(key));
   }
 
   /**
-   * Parses value as double
-   * @param key
-   * @param def
-   * @return double value associated with key or def if key is not set
+   * Get the value of a property as a double, using the given default value if the property is not set.
+   *
+   * @param key property key
+   * @param def default value
+   * @return double value associated with the key or the default value if the property is not set
    */
   public double getPropAsDouble(String key, double def) {
     return Double.valueOf(getProperty(key, String.valueOf(def)));
   }
 
   /**
-   * Parses value as boolean
-   * @param key
-   * @return boolean value associated with key
+   * Get the value of a property as a boolean.
+   *
+   * @param key property key
+   * @return boolean value associated with the key
    */
   public boolean getPropAsBoolean(String key) {
     return Boolean.valueOf(getProperty(key));
   }
 
   /**
-   * Parses value as boolean
-   * @param key
-   * @param def
-   * @return boolean value associated with key or def if key is not set
+   * Get the value of a property as a boolean, using the given default value if the property is not set.
+   *
+   * @param key property key
+   * @param def default value
+   * @return boolean value associated with the key or the default value if the property is not set
    */
   public boolean getPropAsBoolean(String key, boolean def) {
     return Boolean.valueOf(getProperty(key, String.valueOf(def)));
@@ -193,17 +221,19 @@ public class State implements Writable
   }
 
   /**
-   * Returns all the properties currently set in this {@link State}
-   * @return
+   * Get the names of all the properties set in a {@link java.util.Set}.
+   *
+   * @return names of all the properties set in a {@link java.util.Set}
    */
   public Set<String> getPropertyNames() {
     return this.properties.stringPropertyNames();
   }
 
   /**
-   * Returns true if this {@link State} has this key set
-   * @param key
-   * @return
+   * Check if a property is set.
+   *
+   * @param key property key
+   * @return <code>true</code> if the property is set or <code>false</code> otherwise
    */
   public boolean contains(String key) {
     return properties.getProperty(key) != null;

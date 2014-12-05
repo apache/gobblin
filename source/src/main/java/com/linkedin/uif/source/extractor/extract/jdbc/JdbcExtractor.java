@@ -1,3 +1,14 @@
+/* (c) 2014 LinkedIn Corp. All rights reserved.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package com.linkedin.uif.source.extractor.extract.jdbc;
 
 import java.io.IOException;
@@ -253,7 +264,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
         String inputQuery = workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_QUERY);
         String watermarkColumn = workUnit.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
         JsonObject defaultWatermark = this.getDefaultWatermark();
-        String defaultWatermarkColumnName = defaultWatermark.get("columnName").getAsString();
+        String derivedWatermarkColumnName = defaultWatermark.get("columnName").getAsString();
         this.setSampleRecordCount(this.exractSampleRecordCountFromQuery(inputQuery));
         inputQuery = this.removeSampleClauseFromQuery(inputQuery);
         JsonArray targetSchema = new JsonArray();
@@ -285,14 +296,15 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
             }
 
             if (this.hasMultipleWatermarkColumns(watermarkColumn)) {
-                this.columnList.add(defaultWatermarkColumnName);
-                headerColumns.add(defaultWatermarkColumnName);
+                this.columnList.add(derivedWatermarkColumnName);
+                headerColumns.add(derivedWatermarkColumnName);
                 targetSchema.add(defaultWatermark);
+                this.workUnitState.setProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY, derivedWatermarkColumnName);
             }
 
             String outputColProjection = Joiner.on(",").useForNull("null").join(this.columnList);
-            outputColProjection = outputColProjection.replace(defaultWatermarkColumnName,
-                    getWatermarkColumnName(watermarkColumn) + " AS " + defaultWatermarkColumnName);
+            outputColProjection = outputColProjection.replace(derivedWatermarkColumnName,
+                    getWatermarkColumnName(watermarkColumn) + " AS " + derivedWatermarkColumnName);
             this.setOutputColumnProjection(outputColProjection);
             String extractQuery = this.getExtractQuery(schema, entity, inputQuery);
 
@@ -977,7 +989,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 	private JsonObject getDefaultWatermark() {
 		Schema schema = new Schema();
 		String dataType;
-		String columnName = "DefaultWatermarkColumn";
+		String columnName = "derivedwatermarkcolumn";
 
 		schema.setColumnName(columnName);
 

@@ -14,8 +14,8 @@ writer.fs.uri=file://localhost/
 
 source.files=test/resource/source/test.avro.0,test/resource/source/test.avro.1
 
-qualitychecker.task.policies=com.linkedin.uif.policies.count.RowCountPolicy,com.linkedin.uif.policies.schema.SchemaCompatibilityPolicy,com.linkedin.uif.policies.schema.LumosSchemaValidationPolicy
-qualitychecker.task.policy.types=OPTIONAL,OPTIONAL,OPTIONAL
+qualitychecker.task.policies=com.linkedin.uif.policies.count.RowCountPolicy,com.linkedin.uif.policies.schema.SchemaCompatibilityPolicy
+qualitychecker.task.policy.types=OPTIONAL,OPTIONAL
 
 qualitychecker.row.policies=com.linkedin.uif.policies.schema.SchemaRowCheckPolicy
 qualitychecker.row.policy.types=OPTIONAL

@@ -1,3 +1,14 @@
+/* (c) 2014 LinkedIn Corp. All rights reserved.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package com.linkedin.uif.configuration;
 
 import java.io.DataInput;
@@ -12,27 +23,28 @@ import com.linkedin.uif.source.workunit.ImmutableWorkUnit;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
 /**
- * <p> Holds all the task runtime state for a single WorkUnit.  WorkUnit properties can be 
- * overridden at runtime, with the original values available through the {@link #getWorkunit()} method.
- * Getters will return properties set at task runtime if available, or the corresponding values from {@link WorkUnit}
- * if they are not set at task runtime.
- * </p>
- * <p> All WorkUnitStates are collected at job completion, populated to {@link SourceState}, and made available through
- * {@link SourceState#getPreviousStates()}.
+ * This class encapsulates a {@link WorkUnit} instance and additionally holds all the
+ * task runtime state of that {@link WorkUnit}.
+ *
+ * <p>
+ *   Properties set in the encapsulated {@link WorkUnit} can be overridden at runtime,
+ *   with the original values available through the {@link #getWorkunit()} method.
+ *   Getters will return values set at task runtime if available, or the corresponding
+ *   values from encapsulated {@link WorkUnit} if they are not set at task runtime.
  * </p>
  * 
  * @author kgoodhop
- *
  */
-public class WorkUnitState extends State
-{
+public class WorkUnitState extends State {
+
   /**
-   * <p>Runtime state for this {@link WorkUnit}.  The final state is COMMITTED.
-   * SUCCESSFUL only implies a task has finished, but doesn't imply the work
-   * has been committed.
-   * </p>
-   * @author ynli
+   * Runtime state of the {@link WorkUnit}.
    *
+   * <p>
+   *   The final state indicating successfully completed work is COMMITTED.
+   *   SUCCESSFUL only implies a task has finished, but doesn't imply the work
+   *   has been committed.
+   * </p>
    */
   public enum WorkingState {
     PENDING, RUNNING, SUCCESSFUL, COMMITTED, FAILED, CANCELLED
@@ -41,24 +53,25 @@ public class WorkUnitState extends State
   private WorkUnit workunit;
 
   /**
-   * Default, should only be used by the framework for SerDe
+   * Default constructor used for deserialization.
    */
   public WorkUnitState() {
     this.workunit = new WorkUnit(null, null);
   }
 
   /**
-   * Constructor used by the framework to encapsulate task runtime state for every
-   * {@link WorkUnit}
-   * @param workUnit
+   * Constructor.
+   *
+   * @param workUnit a {@link WorkUnit} instance based on which a {@link WorkUnitState} instance is constructed
    */
   public WorkUnitState(WorkUnit workUnit) {
       this.workunit = workUnit;
   }
 
   /**
-   * <p>Returns an {@link ImmutableWorkUnit}, useful for checking pre-runtime properties.</p>
-   * @return
+   * Get an {@link ImmutableWorkUnit} that wraps the internal {@link WorkUnit}.
+   *
+   * @return an {@link ImmutableWorkUnit} that wraps the internal {@link WorkUnit}
    */
   public WorkUnit getWorkunit()
   {
@@ -66,8 +79,9 @@ public class WorkUnitState extends State
   }
   
   /**
-   * @see State#addAll(State)
-   * @param otherState
+   * @see State#addAll(State).
+   *
+   * @param otherState another {@link WorkUnitState} instance
    */
   public void addAll(WorkUnitState otherState) {
     super.addAll(otherState);
@@ -75,17 +89,19 @@ public class WorkUnitState extends State
   }
 
   /**
-   * Returns current runtime state
-   * @return {@link WorkingState}
+   * Get the current runtime state of the {@link WorkUnit}.
+   *
+   * @return {@link WorkingState} of the {@link WorkUnit}
    */
-  public WorkingState getWorkingState()
-  {
-    return WorkingState.valueOf(getProp(ConfigurationKeys.WORK_UNIT_WORKING_STATE_KEY, WorkingState.PENDING.toString()));
+  public WorkingState getWorkingState() {
+    return WorkingState.valueOf(getProp(ConfigurationKeys.WORK_UNIT_WORKING_STATE_KEY,
+        WorkingState.PENDING.toString()));
   }
 
   /**
-   * Setter for runtime state
-   * @param state
+   * Set the current runtime state of the {@link WorkUnit}.
+   *
+   * @param state {@link WorkingState} of the {@link WorkUnit}
    */
   public void setWorkingState(WorkingState state)
   {
@@ -93,17 +109,19 @@ public class WorkUnitState extends State
   }
 
   /**
-   * Returns high water mark as set by {@link Extractor}
-   * @return
+   * Get the high watermark as set in {@link com.linkedin.uif.source.extractor.Extractor}.
+   *
+   * @return high watermark
    */
-  public long getHighWaterMark()
-  {
-    return getPropAsLong(ConfigurationKeys.WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK, ConfigurationKeys.DEFAULT_WATERMARK_VALUE);
+  public long getHighWaterMark() {
+    return getPropAsLong(ConfigurationKeys.WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK,
+        ConfigurationKeys.DEFAULT_WATERMARK_VALUE);
   }
 
   /**
-   * Used by {@link Extractor} to set high water mark
-   * @param value
+   * Set the high watermark.
+   *
+   * @param value high watermark
    */
   public void setHighWaterMark(long value)
   {
@@ -141,8 +159,9 @@ public class WorkUnitState extends State
   }
   
   /**
-   * Getter for the {@link Extract} instance for the {@link WorkUnit}
-   * @return
+   * Get the {@link Extract} associated with the {@link WorkUnit}.
+   *
+   * @return {@link Extract} associated with the {@link WorkUnit}
    */
   public Extract getExtract() {
     Extract curExtract = new Extract(workunit.getExtract());
@@ -151,8 +170,9 @@ public class WorkUnitState extends State
   }
   
   /**
-   * Getter for properties set in the previous run for the same table as this {@link WorkUnit}
-   * @return
+   * Get properties set in the previous run for the same table as the {@link WorkUnit}.
+   *
+   * @return properties as a {@link State} object
    */
   public State getPreviousTableState() {
     return getExtract().getPreviousTableState();

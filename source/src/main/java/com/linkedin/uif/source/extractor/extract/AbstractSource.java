@@ -1,3 +1,14 @@
+/* (c) 2014 LinkedIn Corp. All rights reserved.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package com.linkedin.uif.source.extractor.extract;
 
 import java.util.Collections;
@@ -40,7 +51,7 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
      * @return list of {@link WorkUnitState}s of previous {@link WorkUnit}s subject for retries
      */
     protected List<WorkUnitState> getPreviousWorkUnitStatesForRetry(SourceState state) {
-        if (state.getPreviousStates().isEmpty()) {
+        if (state.getPreviousWorkUnitStates().isEmpty()) {
             return Collections.emptyList();
         }
 
@@ -64,7 +75,7 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
 
         List<WorkUnitState> previousWorkUnitStates = Lists.newArrayList();
         // Get previous work units that were not successfully committed (subject for retries)
-        for (WorkUnitState workUnitState : state.getPreviousStates()) {
+        for (WorkUnitState workUnitState : state.getPreviousWorkUnitStates()) {
             if (workUnitState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED) {
                 previousWorkUnitStates.add(workUnitState);
             }
