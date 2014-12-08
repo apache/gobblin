@@ -106,6 +106,7 @@ public class ConfigurationKeys {
     public static final String JOB_JAR_FILES_KEY = "job.jars";
     public static final String JOB_LOCAL_FILES_KEY = "job.local.files";
     public static final String JOB_HDFS_FILES_KEY = "job.hdfs.files";
+    public static final String JOB_LOCK_ENABLED_KEY = "job.lock.enabled";
 
     /**
      * Work unit related configuration properties.

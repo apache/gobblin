@@ -144,19 +144,22 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
 
         // Get the job lock
-        JobLock jobLock;
-        try {
-            jobLock = getJobLock(jobName, jobProps);
-        } catch (IOException ioe) {
-            throw new JobException("Failed to get job lock for job " + jobName, ioe);
+        Optional<JobLock> jobLockOptional = Optional.absent();
+        boolean jobLockEnabled = Boolean.valueOf(
+            jobProps.getProperty(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, Boolean.TRUE.toString()));
+        if (jobLockEnabled) {
+            try {
+                jobLockOptional = Optional.of(getJobLock(jobName, jobProps));
+            } catch (IOException ioe) {
+                throw new JobException("Failed to get job lock for job " + jobName, ioe);
+            }
         }
 
         // Try acquiring the job lock before proceeding
-        if (!tryLockJob(jobName, jobLock)) {
-            LOG.info(String.format(
+        if (!tryLockJob(jobName, jobLockOptional)) {
+            throw new JobException(String.format(
                     "Previous instance of job %s is still running, skipping this scheduled run",
                     jobName));
-            return;
         }
 
         String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
@@ -185,7 +188,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         } catch (Throwable t) {
             String errMsg = "Failed to initialize the source for job " + jobId;
             LOG.error(errMsg, t);
-            unlockJob(jobName, jobLock);
+            unlockJob(jobName, jobLockOptional);
             throw new JobException(errMsg, t);
         }
 
@@ -194,7 +197,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         if (!workUnits.isPresent()) {
             // The absence means there is something wrong getting the work units
             source.shutdown(sourceState);
-            unlockJob(jobName, jobLock);
+            unlockJob(jobName, jobLockOptional);
             throw new JobException("Failed to get work units for job " + jobId);
         }
 
@@ -202,7 +205,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             // No real work to do
             LOG.warn("No work units have been created for job " + jobId);
             source.shutdown(sourceState);
-            unlockJob(jobName, jobLock);
+            unlockJob(jobName, jobLockOptional);
             return;
         }
 
@@ -251,7 +254,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             }
 
             // Release the job lock
-            unlockJob(jobName, jobLock);
+            unlockJob(jobName, jobLockOptional);
 
             if (JobMetrics.isEnabled(this.properties)) {
                 // Remove all job-level metrics after the job is done
@@ -361,9 +364,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     /**
      * Try acquiring the job lock and return whether the lock is successfully locked.
      */
-    private boolean tryLockJob(String jobName, JobLock jobLock) {
+    private boolean tryLockJob(String jobName, Optional<JobLock> jobLockOptional) {
+        if (!jobLockOptional.isPresent()) {
+            return true;
+        }
+
         try {
-            return jobLock.tryLock();
+            return jobLockOptional.get().tryLock();
         } catch (IOException ioe) {
             LOG.error("Failed to acquire the job lock for job " + jobName, ioe);
             return false;
@@ -373,10 +380,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     /**
      * Unlock a completed or failed job.
      */
-    private void unlockJob(String jobName, JobLock jobLock) {
+    private void unlockJob(String jobName, Optional<JobLock> jobLockOptional) {
+        if (!jobLockOptional.isPresent()) {
+            return;
+        }
+
         try {
             // Unlock so the next run of the same job can proceed
-            jobLock.unlock();
+            jobLockOptional.get().unlock();
         } catch (IOException ioe) {
             LOG.error("Failed to unlock for job " + jobName, ioe);
         }
