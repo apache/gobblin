@@ -29,6 +29,7 @@ import com.linkedin.uif.fork.CopyNotSupportedException;
 import com.linkedin.uif.fork.CopyableGenericRecord;
 import com.linkedin.uif.fork.CopyableSchema;
 
+
 /**
  * An implementation of {@link Converter} for tests related to the
  * {@link com.linkedin.uif.fork.ForkOperator}.
@@ -38,39 +39,39 @@ import com.linkedin.uif.fork.CopyableSchema;
 @SuppressWarnings("unused")
 public class TestConverter2 extends Converter<String, CopyableSchema, String, CopyableGenericRecord> {
 
-    private static final Gson GSON = new Gson();
-    // Expect the input JSON string to be key-value pairs
-    private static final Type FIELD_ENTRY_TYPE =
-            new TypeToken<Map<String, Object>>(){}.getType();
+  private static final Gson GSON = new Gson();
+  // Expect the input JSON string to be key-value pairs
+  private static final Type FIELD_ENTRY_TYPE = new TypeToken<Map<String, Object>>() {
+  }.getType();
 
-    @Override
-    public CopyableSchema convertSchema(String schema, WorkUnitState workUnit) {
-        return new CopyableSchema(new Schema.Parser().parse(schema));
-    }
+  @Override
+  public CopyableSchema convertSchema(String schema, WorkUnitState workUnit) {
+    return new CopyableSchema(new Schema.Parser().parse(schema));
+  }
 
-    @Override
-    public CopyableGenericRecord convertRecord(CopyableSchema schema, String inputRecord,
-                                               WorkUnitState workUnit) throws DataConversionException {
+  @Override
+  public CopyableGenericRecord convertRecord(CopyableSchema schema, String inputRecord, WorkUnitState workUnit)
+      throws DataConversionException {
 
-        JsonElement element = GSON.fromJson(inputRecord, JsonElement.class);
-        Map<String, Object> fields = GSON.fromJson(element, FIELD_ENTRY_TYPE);
-        try {
-            Schema avroSchema = schema.copy();
-            GenericRecord record = new GenericData.Record(avroSchema);
-            for (Map.Entry<String, Object> entry : fields.entrySet()) {
-                if (entry.getValue() instanceof Double) {
-                    // Gson reads the integers in the input Json documents as doubles, so we have
-                    // to convert doubles to integers here as the Avro schema specifies integers.
-                    record.put(entry.getKey(), ((Double) entry.getValue()).intValue());
-                } else {
-                    record.put(entry.getKey(), entry.getValue());
-                }
-            }
-
-            return new CopyableGenericRecord(record);
-        } catch (CopyNotSupportedException cnse) {
-            throw new DataConversionException(cnse);
+    JsonElement element = GSON.fromJson(inputRecord, JsonElement.class);
+    Map<String, Object> fields = GSON.fromJson(element, FIELD_ENTRY_TYPE);
+    try {
+      Schema avroSchema = schema.copy();
+      GenericRecord record = new GenericData.Record(avroSchema);
+      for (Map.Entry<String, Object> entry : fields.entrySet()) {
+        if (entry.getValue() instanceof Double) {
+          // Gson reads the integers in the input Json documents as doubles, so we have
+          // to convert doubles to integers here as the Avro schema specifies integers.
+          record.put(entry.getKey(), ((Double) entry.getValue()).intValue());
+        } else {
+          record.put(entry.getKey(), entry.getValue());
         }
+      }
+
+      return new CopyableGenericRecord(record);
+    } catch (CopyNotSupportedException cnse) {
+      throw new DataConversionException(cnse);
     }
+  }
 }
 

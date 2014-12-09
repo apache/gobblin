@@ -26,76 +26,82 @@ import com.google.common.collect.Lists;
 
 import com.linkedin.uif.configuration.State;
 
+
 /**
  * Unit tests for {@link FsStateStore}.
  */
 @Test(groups = {"com.linkedin.uif.metastore"})
 public class FsStateStoreTest {
 
-    private StateStore stateStore;
+  private StateStore stateStore;
 
-    @BeforeClass
-    public void setUp() throws IOException {
-        this.stateStore = new FsStateStore(
-                "file:///", "metastore-test", State.class);
+  @BeforeClass
+  public void setUp()
+      throws IOException {
+    this.stateStore = new FsStateStore("file:///", "metastore-test", State.class);
+  }
+
+  @Test
+  public void testPut()
+      throws IOException {
+    List<State> states = Lists.newArrayList();
+
+    State state1 = new State();
+    state1.setId("s1");
+    state1.setProp("k1", "v1");
+    states.add(state1);
+
+    State state2 = new State();
+    state2.setId("s2");
+    state2.setProp("k2", "v2");
+    states.add(state2);
+
+    State state3 = new State();
+    state3.setId("s3");
+    state3.setProp("k3", "v3");
+    states.add(state3);
+
+    Assert.assertFalse(this.stateStore.exists("testStore", "testTable"));
+    this.stateStore.putAll("testStore", "testTable", states);
+    Assert.assertTrue(this.stateStore.exists("testStore", "testTable"));
+  }
+
+  @Test(dependsOnMethods = {"testPut"})
+  public void testGet()
+      throws IOException {
+    List<? extends State> states = this.stateStore.getAll("testStore", "testTable");
+    Assert.assertEquals(states.size(), 3);
+
+    Assert.assertEquals(states.get(0).getProp("k1"), "v1");
+    Assert.assertEquals(states.get(1).getProp("k2"), "v2");
+    Assert.assertEquals(states.get(2).getProp("k3"), "v3");
+  }
+
+  @Test(dependsOnMethods = {"testPut"})
+  public void testCreateAlias()
+      throws IOException {
+    this.stateStore.createAlias("testStore", "testTable", "testTable1");
+    Assert.assertTrue(this.stateStore.exists("testStore", "testTable1"));
+  }
+
+  @Test(dependsOnMethods = {"testCreateAlias"})
+  public void testGetAlias()
+      throws IOException {
+    List<? extends State> states = this.stateStore.getAll("testStore", "testTable1");
+    Assert.assertEquals(states.size(), 3);
+
+    Assert.assertEquals(states.get(0).getProp("k1"), "v1");
+    Assert.assertEquals(states.get(1).getProp("k2"), "v2");
+    Assert.assertEquals(states.get(2).getProp("k3"), "v3");
+  }
+
+  @AfterClass
+  public void tearDown()
+      throws IOException {
+    FileSystem fs = FileSystem.getLocal(new Configuration(false));
+    Path rootDir = new Path("metastore-test");
+    if (fs.exists(rootDir)) {
+      fs.delete(rootDir, true);
     }
-
-    @Test
-    public void testPut() throws IOException {
-        List<State> states = Lists.newArrayList();
-
-        State state1 = new State();
-        state1.setId("s1");
-        state1.setProp("k1", "v1");
-        states.add(state1);
-
-        State state2 = new State();
-        state2.setId("s2");
-        state2.setProp("k2", "v2");
-        states.add(state2);
-
-        State state3 = new State();
-        state3.setId("s3");
-        state3.setProp("k3", "v3");
-        states.add(state3);
-
-        Assert.assertFalse(this.stateStore.exists("testStore", "testTable"));
-        this.stateStore.putAll("testStore", "testTable", states);
-        Assert.assertTrue(this.stateStore.exists("testStore", "testTable"));
-    }
-
-    @Test(dependsOnMethods = {"testPut"})
-    public void testGet() throws IOException {
-        List<? extends State> states = this.stateStore.getAll("testStore", "testTable");
-        Assert.assertEquals(states.size(), 3);
-
-        Assert.assertEquals(states.get(0).getProp("k1"), "v1");
-        Assert.assertEquals(states.get(1).getProp("k2"), "v2");
-        Assert.assertEquals(states.get(2).getProp("k3"), "v3");
-    }
-
-    @Test(dependsOnMethods = {"testPut"})
-    public void testCreateAlias() throws IOException {
-        this.stateStore.createAlias("testStore", "testTable", "testTable1");
-        Assert.assertTrue(this.stateStore.exists("testStore", "testTable1"));
-    }
-
-    @Test(dependsOnMethods = {"testCreateAlias"})
-    public void testGetAlias() throws IOException {
-        List<? extends State> states = this.stateStore.getAll("testStore", "testTable1");
-        Assert.assertEquals(states.size(), 3);
-
-        Assert.assertEquals(states.get(0).getProp("k1"), "v1");
-        Assert.assertEquals(states.get(1).getProp("k2"), "v2");
-        Assert.assertEquals(states.get(2).getProp("k3"), "v3");
-    }
-
-    @AfterClass
-    public void tearDown() throws IOException {
-        FileSystem fs = FileSystem.getLocal(new Configuration(false));
-        Path rootDir = new Path("metastore-test");
-        if (fs.exists(rootDir)) {
-            fs.delete(rootDir, true);
-        }
-    }
+  }
 }

@@ -27,6 +27,7 @@ import com.google.common.io.Closer;
 import com.linkedin.uif.source.workunit.MultiWorkUnit;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
+
 /**
  * Unit tests for {@link MultiWorkUnit}.
  */
@@ -53,7 +54,8 @@ public class MultiWorkUnitTest {
   }
 
   @Test
-  public void testSerDe() throws IOException {
+  public void testSerDe()
+      throws IOException {
     Closer closer = Closer.create();
     try {
       ByteArrayOutputStream baos = closer.register(new ByteArrayOutputStream());

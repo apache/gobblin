@@ -16,10 +16,10 @@ package com.linkedin.uif.runtime;
  */
 public interface JobListener {
 
-    /**
-     * Called when a job is completed.
-     *
-     * @param jobState Job state
-     */
-    public void jobCompleted(JobState jobState);
+  /**
+   * Called when a job is completed.
+   *
+   * @param jobState Job state
+   */
+  public void jobCompleted(JobState jobState);
 }

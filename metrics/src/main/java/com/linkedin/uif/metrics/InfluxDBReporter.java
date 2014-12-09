@@ -27,6 +27,7 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Timer;
 
+
 /**
  * A {@link com.codahale.metrics.ScheduledReporter} that reports metrics to InfluxDB.
  *
@@ -34,122 +35,111 @@ import com.codahale.metrics.Timer;
  */
 public class InfluxDBReporter extends ScheduledReporter {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(InfluxDBReporter.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(InfluxDBReporter.class);
+
+  private final JobMetrics jobMetrics;
+  private final JobMetricsStore metricsStore;
+
+  public InfluxDBReporter(JobMetrics jobMetrics, Properties properties, TimeUnit rateUnit, TimeUnit durationUnit,
+      MetricFilter filter) {
+
+    super(jobMetrics.getMetricRegistry(), "influxdb-reporter", filter, rateUnit, durationUnit);
+    this.jobMetrics = jobMetrics;
+    this.metricsStore = new InfluxDBJobMetricsStore(properties);
+  }
+
+  /**
+   * Returns a new {@link Builder} for {@link InfluxDBReporter}.
+   *
+   * @param jobMetrics the {@link JobMetrics} to report
+   * @return new {@link Builder} instance for {@link InfluxDBReporter}
+   */
+  public static Builder forMetricSet(JobMetrics jobMetrics) {
+    return new Builder(jobMetrics);
+  }
+
+  @Override
+  public void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters,
+      SortedMap<String, Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers) {
+
+    try {
+      this.metricsStore.put(this.jobMetrics);
+    } catch (IOException ioe) {
+      LOGGER.error("Failed to put metrics for job " + this.jobMetrics.getJobId(), ioe);
+    }
+  }
+
+  /**
+   * A builder class for {@link InfluxDBReporter}.
+   *
+   * @author ynli
+   */
+  public static class Builder {
 
     private final JobMetrics jobMetrics;
-    private final JobMetricsStore metricsStore;
+    private Properties properties;
+    private TimeUnit rateUnit;
+    private TimeUnit durationUnit;
+    private MetricFilter filter;
 
-    public InfluxDBReporter(JobMetrics jobMetrics,
-                            Properties properties,
-                            TimeUnit rateUnit,
-                            TimeUnit durationUnit,
-                            MetricFilter filter) {
-
-        super(jobMetrics.getMetricRegistry(), "influxdb-reporter", filter, rateUnit, durationUnit);
-        this.jobMetrics = jobMetrics;
-        this.metricsStore = new InfluxDBJobMetricsStore(properties);
+    private Builder(JobMetrics jobMetrics) {
+      this.jobMetrics = jobMetrics;
+      this.rateUnit = TimeUnit.SECONDS;
+      this.durationUnit = TimeUnit.MILLISECONDS;
+      this.filter = MetricFilter.ALL;
     }
 
     /**
-     * Returns a new {@link Builder} for {@link InfluxDBReporter}.
+     * Use the given {@link java.util.Properties} instance for Gobblin configuration.
      *
-     * @param jobMetrics the {@link JobMetrics} to report
-     * @return new {@link Builder} instance for {@link InfluxDBReporter}
+     * @param properties given {@link java.util.Properties} instance
+     * @return {@code this}
      */
-    public static Builder forMetricSet(JobMetrics jobMetrics) {
-        return new Builder(jobMetrics);
-    }
-
-    @Override
-    public void report(SortedMap<String, Gauge> gauges,
-                       SortedMap<String, Counter> counters,
-                       SortedMap<String, Histogram> histograms,
-                       SortedMap<String, Meter> meters,
-                       SortedMap<String, Timer> timers) {
-
-        try {
-            this.metricsStore.put(this.jobMetrics);
-        } catch (IOException ioe) {
-            LOGGER.error("Failed to put metrics for job " + this.jobMetrics.getJobId(), ioe);
-        }
+    public Builder withProperties(Properties properties) {
+      this.properties = properties;
+      return this;
     }
 
     /**
-     * A builder class for {@link InfluxDBReporter}.
+     * Convert rates to the given time unit.
      *
-     * @author ynli
+     * @param rateUnit given rate time unit
+     * @return {@code this}
      */
-    public static class Builder {
-
-        private final JobMetrics jobMetrics;
-        private Properties properties;
-        private TimeUnit rateUnit;
-        private TimeUnit durationUnit;
-        private MetricFilter filter;
-
-        private Builder(JobMetrics jobMetrics) {
-            this.jobMetrics = jobMetrics;
-            this.rateUnit = TimeUnit.SECONDS;
-            this.durationUnit = TimeUnit.MILLISECONDS;
-            this.filter = MetricFilter.ALL;
-        }
-
-        /**
-         * Use the given {@link java.util.Properties} instance for Gobblin configuration.
-         *
-         * @param properties given {@link java.util.Properties} instance
-         * @return {@code this}
-         */
-        public Builder withProperties(Properties properties) {
-            this.properties = properties;
-            return this;
-        }
-
-        /**
-         * Convert rates to the given time unit.
-         *
-         * @param rateUnit given rate time unit
-         * @return {@code this}
-         */
-        public Builder convertRatesTo(TimeUnit rateUnit) {
-            this.rateUnit = rateUnit;
-            return this;
-        }
-
-        /**
-         * Convert durations to the given time unit.
-         *
-         * @param durationUnit given duration time unit
-         * @return {@code this}
-         */
-        public Builder convertDurationsTo(TimeUnit durationUnit) {
-            this.durationUnit = durationUnit;
-            return this;
-        }
-
-        /**
-         * Use the given {@link com.codahale.metrics.MetricFilter}.
-         *
-         * @param filter given {@link com.codahale.metrics.MetricFilter}
-         * @return {@code this}
-         */
-        public Builder withFilter(MetricFilter filter) {
-            this.filter = filter;
-            return this;
-        }
-
-        /**
-         * Build a new {@link InfluxDBReporter} instance.
-         *
-         * @return newly built {@link InfluxDBReporter} instance
-         */
-        public InfluxDBReporter build() {
-            return new InfluxDBReporter(
-                    this.jobMetrics,
-                    this.properties,
-                    this.rateUnit,
-                    this.durationUnit,
-                    this.filter);
-        }
+    public Builder convertRatesTo(TimeUnit rateUnit) {
+      this.rateUnit = rateUnit;
+      return this;
     }
+
+    /**
+     * Convert durations to the given time unit.
+     *
+     * @param durationUnit given duration time unit
+     * @return {@code this}
+     */
+    public Builder convertDurationsTo(TimeUnit durationUnit) {
+      this.durationUnit = durationUnit;
+      return this;
+    }
+
+    /**
+     * Use the given {@link com.codahale.metrics.MetricFilter}.
+     *
+     * @param filter given {@link com.codahale.metrics.MetricFilter}
+     * @return {@code this}
+     */
+    public Builder withFilter(MetricFilter filter) {
+      this.filter = filter;
+      return this;
+    }
+
+    /**
+     * Build a new {@link InfluxDBReporter} instance.
+     *
+     * @return newly built {@link InfluxDBReporter} instance
+     */
+    public InfluxDBReporter build() {
+      return new InfluxDBReporter(this.jobMetrics, this.properties, this.rateUnit, this.durationUnit, this.filter);
+    }
+  }
 }

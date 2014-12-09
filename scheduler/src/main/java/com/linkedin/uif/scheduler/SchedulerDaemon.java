@@ -29,6 +29,7 @@ import com.google.common.util.concurrent.ServiceManager;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.gobblin.rest.JobExecutionInfoServer;
 
+
 /**
  * A class that runs the {@link JobScheduler} in a daemon process for standalone deployment.
  *
@@ -36,53 +37,54 @@ import com.linkedin.gobblin.rest.JobExecutionInfoServer;
  */
 public class SchedulerDaemon {
 
-    private static final Logger LOG = LoggerFactory.getLogger(SchedulerDaemon.class);
+  private static final Logger LOG = LoggerFactory.getLogger(SchedulerDaemon.class);
 
-    private final ServiceManager serviceManager;
+  private final ServiceManager serviceManager;
 
-    public SchedulerDaemon(Properties properties) throws Exception {
-        List<Service> services = Lists.<Service>newArrayList(new JobScheduler(properties));
-        if (Boolean.valueOf(properties.getProperty(
-            ConfigurationKeys.JOB_EXECINFO_SERVER_ENABLED_KEY, Boolean.FALSE.toString()))) {
-            services.add(new JobExecutionInfoServer(properties));
+  public SchedulerDaemon(Properties properties)
+      throws Exception {
+    List<Service> services = Lists.<Service>newArrayList(new JobScheduler(properties));
+    if (Boolean
+        .valueOf(properties.getProperty(ConfigurationKeys.JOB_EXECINFO_SERVER_ENABLED_KEY, Boolean.FALSE.toString()))) {
+      services.add(new JobExecutionInfoServer(properties));
+    }
+    this.serviceManager = new ServiceManager(services);
+  }
+
+  /**
+   * Start this scheduler daemon.
+   */
+  public void start() {
+    // Add a shutdown hook so the task scheduler gets properly shutdown
+    Runtime.getRuntime().addShutdownHook(new Thread() {
+
+      public void run() {
+        // Give the services 5 seconds to stop to ensure that we are
+        // responsive to shutdown requests
+        LOG.info("Shutting down the scheduler daemon");
+        try {
+          serviceManager.stopAsync().awaitStopped(5, TimeUnit.SECONDS);
+        } catch (TimeoutException te) {
+          LOG.error("Timeout in stopping the service manager", te);
         }
-        this.serviceManager = new ServiceManager(services);
+      }
+    });
+
+    LOG.info("Starting the scheduler daemon");
+    // Start the scheduler daemon
+    this.serviceManager.startAsync();
+  }
+
+  public static void main(String[] args)
+      throws Exception {
+    if (args.length != 1) {
+      System.err.println("Usage: SchedulerDaemon <configuration properties file>");
+      System.exit(1);
     }
 
-    /**
-     * Start this scheduler daemon.
-     */
-    public void start() {
-        // Add a shutdown hook so the task scheduler gets properly shutdown
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-
-            public void run() {
-                // Give the services 5 seconds to stop to ensure that we are
-                // responsive to shutdown requests
-                LOG.info("Shutting down the scheduler daemon");
-                try {
-                    serviceManager.stopAsync().awaitStopped(5, TimeUnit.SECONDS);
-                } catch (TimeoutException te) {
-                    LOG.error("Timeout in stopping the service manager", te);
-                }
-            }
-
-        });
-
-        LOG.info("Starting the scheduler daemon");
-        // Start the scheduler daemon
-        this.serviceManager.startAsync();
-    }
-
-    public static void main(String[] args) throws Exception {
-        if (args.length != 1) {
-            System.err.println("Usage: SchedulerDaemon <configuration properties file>");
-            System.exit(1);
-        }
-
-        // Load framework configuration properties
-        Configuration config = new PropertiesConfiguration(args[0]);
-        // Start the scheduler daemon
-        new SchedulerDaemon(ConfigurationConverter.getProperties(config)).start();
-    }
+    // Load framework configuration properties
+    Configuration config = new PropertiesConfiguration(args[0]);
+    // Start the scheduler daemon
+    new SchedulerDaemon(ConfigurationConverter.getProperties(config)).start();
+  }
 }

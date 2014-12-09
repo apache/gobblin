@@ -25,52 +25,58 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.util.ForkOperatorUtils;
 
-public class RowLevelPolicyCheckerBuilder
-{
-    private final State state;
-    private final int index;
 
-    private static final Logger LOG = LoggerFactory.getLogger(RowLevelPolicyCheckerBuilder.class);
-    
-    public RowLevelPolicyCheckerBuilder(State state, int index) {
-        this.state = state;
-        this.index = index;
-    }
-    
-    @SuppressWarnings("unchecked")
-    private List<RowLevelPolicy> createPolicyList() throws Exception {
-        List<RowLevelPolicy> list = new ArrayList<RowLevelPolicy>();
-        Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
-        String rowLevelPoliciesKey = ForkOperatorUtils.getPropertyNameForBranch(
-                ConfigurationKeys.ROW_LEVEL_POLICY_LIST, this.index);
-        String rowLevelPolicyTypesKey = ForkOperatorUtils.getPropertyNameForBranch(
-                ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE, this.index);
-        if (this.state.contains(rowLevelPoliciesKey) && this.state.contains(rowLevelPolicyTypesKey)) {
-            List<String> policies = Lists.newArrayList(splitter.split(this.state.getProp(rowLevelPoliciesKey)));
-            List<String> types = Lists.newArrayList(splitter.split(this.state.getProp(rowLevelPolicyTypesKey)));
-            if (policies.size() != types.size()) {
-                throw new Exception("Row Policies list and Row Policies list type are not the same length");
-            }
-            for (int i = 0; i < policies.size(); i++) {
-                try {
-                    Class<? extends RowLevelPolicy> policyClass = (Class<? extends RowLevelPolicy>) Class.forName(policies.get(i));
-                    Constructor<? extends RowLevelPolicy> policyConstructor = policyClass.getConstructor(State.class, RowLevelPolicy.Type.class);
-                    RowLevelPolicy policy = policyConstructor.newInstance(this.state, RowLevelPolicy.Type.valueOf(types.get(i)));
-                    list.add(policy);
-                } catch (Exception e) {
-                    LOG.error(rowLevelPoliciesKey + " contains a class " + policies.get(i) + " which doesn't extend RowLevelPolicy.", e);
-                    throw e;
-                }
-            }
+public class RowLevelPolicyCheckerBuilder {
+  private final State state;
+  private final int index;
+
+  private static final Logger LOG = LoggerFactory.getLogger(RowLevelPolicyCheckerBuilder.class);
+
+  public RowLevelPolicyCheckerBuilder(State state, int index) {
+    this.state = state;
+    this.index = index;
+  }
+
+  @SuppressWarnings("unchecked")
+  private List<RowLevelPolicy> createPolicyList()
+      throws Exception {
+    List<RowLevelPolicy> list = new ArrayList<RowLevelPolicy>();
+    Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
+    String rowLevelPoliciesKey =
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.ROW_LEVEL_POLICY_LIST, this.index);
+    String rowLevelPolicyTypesKey =
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE, this.index);
+    if (this.state.contains(rowLevelPoliciesKey) && this.state.contains(rowLevelPolicyTypesKey)) {
+      List<String> policies = Lists.newArrayList(splitter.split(this.state.getProp(rowLevelPoliciesKey)));
+      List<String> types = Lists.newArrayList(splitter.split(this.state.getProp(rowLevelPolicyTypesKey)));
+      if (policies.size() != types.size()) {
+        throw new Exception("Row Policies list and Row Policies list type are not the same length");
+      }
+      for (int i = 0; i < policies.size(); i++) {
+        try {
+          Class<? extends RowLevelPolicy> policyClass =
+              (Class<? extends RowLevelPolicy>) Class.forName(policies.get(i));
+          Constructor<? extends RowLevelPolicy> policyConstructor =
+              policyClass.getConstructor(State.class, RowLevelPolicy.Type.class);
+          RowLevelPolicy policy = policyConstructor.newInstance(this.state, RowLevelPolicy.Type.valueOf(types.get(i)));
+          list.add(policy);
+        } catch (Exception e) {
+          LOG.error(
+              rowLevelPoliciesKey + " contains a class " + policies.get(i) + " which doesn't extend RowLevelPolicy.",
+              e);
+          throw e;
         }
-        return list;
+      }
     }
-    
-    public static RowLevelPolicyCheckerBuilder newBuilder(State state, int index) {
-        return new RowLevelPolicyCheckerBuilder(state, index);
-    }
-    
-    public RowLevelPolicyChecker build() throws Exception {
-        return new RowLevelPolicyChecker(createPolicyList());
-    }
+    return list;
+  }
+
+  public static RowLevelPolicyCheckerBuilder newBuilder(State state, int index) {
+    return new RowLevelPolicyCheckerBuilder(state, index);
+  }
+
+  public RowLevelPolicyChecker build()
+      throws Exception {
+    return new RowLevelPolicyChecker(createPolicyList());
+  }
 }

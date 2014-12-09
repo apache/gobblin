@@ -22,6 +22,7 @@ import com.google.inject.name.Named;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 
+
 /**
  * A provider class for {@link javax.sql.DataSource}s.
  *
@@ -29,25 +30,23 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
  */
 public class DataSourceProvider implements Provider<DataSource> {
 
-    private final BasicDataSource basicDataSource;
+  private final BasicDataSource basicDataSource;
 
-    @Inject
-    public DataSourceProvider(@Named("dataSourceProperties") Properties properties) {
-        this.basicDataSource = new BasicDataSource();
-        basicDataSource.setDriverClassName(
-            properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY,
-                ConfigurationKeys.DEFAULT_JOB_HISTORY_STORE_JDBC_DRIVER));
-        basicDataSource.setUrl(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY));
-        if (properties.containsKey(ConfigurationKeys.JOB_HISTORY_STORE_USER_KEY) &&
-            properties.containsKey(ConfigurationKeys.JOB_HISTORY_STORE_PASSWORD_KEY)) {
-            basicDataSource.setUsername(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_USER_KEY));
-            basicDataSource.setPassword(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_PASSWORD_KEY));
-        }
-
+  @Inject
+  public DataSourceProvider(@Named("dataSourceProperties") Properties properties) {
+    this.basicDataSource = new BasicDataSource();
+    basicDataSource.setDriverClassName(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY,
+            ConfigurationKeys.DEFAULT_JOB_HISTORY_STORE_JDBC_DRIVER));
+    basicDataSource.setUrl(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY));
+    if (properties.containsKey(ConfigurationKeys.JOB_HISTORY_STORE_USER_KEY) && properties
+        .containsKey(ConfigurationKeys.JOB_HISTORY_STORE_PASSWORD_KEY)) {
+      basicDataSource.setUsername(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_USER_KEY));
+      basicDataSource.setPassword(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_PASSWORD_KEY));
     }
+  }
 
-    @Override
-    public DataSource get() {
-        return this.basicDataSource;
-    }
+  @Override
+  public DataSource get() {
+    return this.basicDataSource;
+  }
 }

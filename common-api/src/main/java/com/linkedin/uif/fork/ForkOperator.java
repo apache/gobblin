@@ -16,6 +16,7 @@ import java.util.List;
 
 import com.linkedin.uif.configuration.WorkUnitState;
 
+
 /**
  * An interface for fork operators that convert one input data record into multiple
  * records. So essentially this operator forks one input data stream into multiple
@@ -33,7 +34,8 @@ public interface ForkOperator<S, D> extends Closeable {
    *
    * @param workUnitState {@link WorkUnitState} carrying the configuration
    */
-  public void init(WorkUnitState workUnitState) throws Exception;
+  public void init(WorkUnitState workUnitState)
+      throws Exception;
 
   /**
    * Get the number of branches after the fork.

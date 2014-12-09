@@ -30,6 +30,7 @@ import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.DataRecordException;
 import com.linkedin.uif.source.extractor.Extractor;
 
+
 /**
  * A demo implementation of {@link Extractor}.
  *
@@ -50,16 +51,17 @@ public class DemoExtractor implements Extractor<String, String> {
   private final FileObject fileObject;
   private final BufferedReader bufferedReader;
 
-  public DemoExtractor(WorkUnitState workUnitState) throws FileSystemException {
+  public DemoExtractor(WorkUnitState workUnitState)
+      throws FileSystemException {
     this.workUnitState = workUnitState;
 
     // Resolve the file to pull
     if (workUnitState.getPropAsBoolean(ConfigurationKeys.SOURCE_CONN_USE_AUTHENTICATION, false)) {
       // Add authentication credential if authentication is needed
-      UserAuthenticator auth = new StaticUserAuthenticator(
-          workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_DOMAIN, ""),
-          workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME),
-          workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
+      UserAuthenticator auth =
+          new StaticUserAuthenticator(workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_DOMAIN, ""),
+              workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME),
+              workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
       FileSystemOptions opts = new FileSystemOptions();
       DefaultFileSystemConfigBuilder.getInstance().setUserAuthenticator(opts, auth);
       this.fileObject = VFS.getManager().resolveFile(workUnitState.getProp(SOURCE_FILE_KEY), opts);
@@ -69,8 +71,7 @@ public class DemoExtractor implements Extractor<String, String> {
 
     // Open the file for reading
     LOGGER.info("Opening file " + this.fileObject.getURL().toString());
-    this.bufferedReader = new BufferedReader(
-        new InputStreamReader(this.fileObject.getContent().getInputStream()));
+    this.bufferedReader = new BufferedReader(new InputStreamReader(this.fileObject.getContent().getInputStream()));
   }
 
   @Override
@@ -79,7 +80,8 @@ public class DemoExtractor implements Extractor<String, String> {
   }
 
   @Override
-  public String readRecord(String reuse) throws DataRecordException, IOException {
+  public String readRecord(String reuse)
+      throws DataRecordException, IOException {
     // Read the next line
     return this.bufferedReader.readLine();
   }
@@ -97,7 +99,8 @@ public class DemoExtractor implements Extractor<String, String> {
   }
 
   @Override
-  public void close() throws IOException {
+  public void close()
+      throws IOException {
     try {
       this.bufferedReader.close();
     } catch (IOException ioe) {

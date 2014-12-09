@@ -19,66 +19,66 @@ package com.linkedin.uif.source.extractor.watermark;
  * format: column format
  */
 public class Predicate {
-	public String columnName;
-	public long value;
-	public String condition;
-	public String format;
-	public PredicateType type;
-	
-	/**
-     * Enum which lists the predicate types
-     * LWM - low water mark and HWM - high water mark
-     */
-    public enum PredicateType {
-    	LWM,
-    	HWM
-    }
+  public String columnName;
+  public long value;
+  public String condition;
+  public String format;
+  public PredicateType type;
 
-	public Predicate(String columnName, long value, String condition, String format, PredicateType type) {
-		this.columnName = columnName;
-		this.value = value;
-		this.condition = condition;
-		this.format = format;
-		this.type = type;
-	}
+  /**
+   * Enum which lists the predicate types
+   * LWM - low water mark and HWM - high water mark
+   */
+  public enum PredicateType {
+    LWM,
+    HWM
+  }
 
-	public String getColumnName() {
-		return columnName;
-	}
+  public Predicate(String columnName, long value, String condition, String format, PredicateType type) {
+    this.columnName = columnName;
+    this.value = value;
+    this.condition = condition;
+    this.format = format;
+    this.type = type;
+  }
 
-	public void setColumnName(String columnName) {
-		this.columnName = columnName;
-	}
+  public String getColumnName() {
+    return columnName;
+  }
 
-	public long getValue() {
-		return value;
-	}
+  public void setColumnName(String columnName) {
+    this.columnName = columnName;
+  }
 
-	public void setValue(long value) {
-		this.value = value;
-	}
+  public long getValue() {
+    return value;
+  }
 
-	public String getCondition() {
-		return condition;
-	}
+  public void setValue(long value) {
+    this.value = value;
+  }
 
-	public void setCondition(String condition) {
-		this.condition = condition;
-	}
+  public String getCondition() {
+    return condition;
+  }
 
-	public String getFormat() {
-		return format;
-	}
+  public void setCondition(String condition) {
+    this.condition = condition;
+  }
 
-	public void setFormat(String format) {
-		this.format = format;
-	}
-	
-    public PredicateType getType() {
-		return type;
-	}
+  public String getFormat() {
+    return format;
+  }
 
-	public void setType(PredicateType type) {
-		this.type = type;
-	}
+  public void setFormat(String format) {
+    this.format = format;
+  }
+
+  public PredicateType getType() {
+    return type;
+  }
+
+  public void setType(PredicateType type) {
+    this.type = type;
+  }
 }

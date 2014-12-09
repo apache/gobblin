@@ -31,6 +31,7 @@ import com.linkedin.uif.source.workunit.Extract;
 import com.linkedin.uif.source.workunit.Extract.TableType;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
+
 /**
  * A container for all meta data related to a particular source. This includes all properties
  * defined in job configuration files and all properties from tasks of the previous run.
@@ -47,16 +48,17 @@ public class SourceState extends State {
 
   private final List<WorkUnitState> previousTaskStates = Lists.newArrayList();
   private static final Set<Extract> extractSet = Sets.newConcurrentHashSet();
-  private static final DateTimeFormatter DTF = DateTimeFormat.forPattern("yyyyMMddHHmmss")
-      .withLocale(Locale.US).withZone(DateTimeZone.UTC);
+  private static final DateTimeFormatter DTF =
+      DateTimeFormat.forPattern("yyyyMMddHHmmss").withLocale(Locale.US).withZone(DateTimeZone.UTC);
 
   /**
    * Default constructor.
    */
-  public SourceState() {}
+  public SourceState() {
+  }
 
   /**
-   * 
+   *
    * @param properties <p>properties defined in the .pull file</p>
    * @param previousTaskStates <p>properties stored the tasks of the previous run for this source</p>
    */
@@ -67,13 +69,13 @@ public class SourceState extends State {
 
   /**
    * Get a (possibly empty) list of {@link WorkUnitState}s from the previous job run.
-   * 
+   *
    * @return (possibly empty) list of {@link WorkUnitState}s from the previous job run
    */
   public List<WorkUnitState> getPreviousWorkUnitStates() {
     return ImmutableList.<WorkUnitState>builder().addAll(this.previousTaskStates).build();
   }
-  
+
   /**
    * Create a new properly populated {@link Extract} instance.
    *
@@ -89,8 +91,8 @@ public class SourceState extends State {
   public synchronized Extract createExtract(TableType type, String namespace, String table) {
     Extract extract = new Extract(this, type, namespace, table);
     while (extractSet.contains(extract)) {
-        DateTime extractDateTime = DTF.parseDateTime(extract.getExtractId());
-        extract.setExtractId(DTF.print(extractDateTime.plusSeconds(1)));
+      DateTime extractDateTime = DTF.parseDateTime(extract.getExtractId());
+      extract.setExtractId(DTF.print(extractDateTime.plusSeconds(1)));
     }
     extractSet.add(extract);
     return extract;
@@ -102,12 +104,13 @@ public class SourceState extends State {
    * @param extract given {@link Extract}
    * @return a new {@link WorkUnit} instance
    */
-  public WorkUnit createWorkUnit(Extract extract){
+  public WorkUnit createWorkUnit(Extract extract) {
     return new WorkUnit(this, extract);
   }
 
   @Override
-  public void write(DataOutput out) throws IOException {
+  public void write(DataOutput out)
+      throws IOException {
     out.writeInt(this.previousTaskStates.size());
     for (WorkUnitState state : this.previousTaskStates) {
       state.write(out);
@@ -116,7 +119,8 @@ public class SourceState extends State {
   }
 
   @Override
-  public void readFields(DataInput in) throws IOException {
+  public void readFields(DataInput in)
+      throws IOException {
     int size = in.readInt();
     for (int i = 0; i < size; i++) {
       WorkUnitState state = new WorkUnitState();
@@ -125,5 +129,4 @@ public class SourceState extends State {
     }
     super.readFields(in);
   }
-
 }

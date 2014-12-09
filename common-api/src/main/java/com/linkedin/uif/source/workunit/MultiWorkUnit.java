@@ -20,6 +20,7 @@ import java.util.List;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
+
 /**
  * A class that wraps multiple {@link WorkUnit}s so they can executed within a single task.
  *
@@ -57,7 +58,8 @@ public class MultiWorkUnit extends WorkUnit {
   }
 
   @Override
-  public void readFields(DataInput in) throws IOException {
+  public void readFields(DataInput in)
+      throws IOException {
     int numWorkUnits = in.readInt();
     for (int i = 0; i < numWorkUnits; i++) {
       WorkUnit workUnit = new WorkUnit(null, null);
@@ -67,7 +69,8 @@ public class MultiWorkUnit extends WorkUnit {
   }
 
   @Override
-  public void write(DataOutput out) throws IOException {
+  public void write(DataOutput out)
+      throws IOException {
     out.writeInt(this.workUnits.size());
     for (WorkUnit workUnit : this.workUnits) {
       workUnit.write(out);

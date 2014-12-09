@@ -26,6 +26,7 @@ import com.linkedin.uif.source.extractor.Extractor;
 import com.linkedin.uif.source.workunit.Extract;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
+
 /**
  * An demo implementation of {@link Source}.
  *
@@ -50,11 +51,8 @@ public class DemoSource implements Source<String, String> {
     }
 
     // Create a single snapshot-type extract for all files
-    Extract extract = new Extract(
-        state,
-        Extract.TableType.SNAPSHOT_ONLY,
-        state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, "DemoNamespace"),
-        "DemoTable");
+    Extract extract = new Extract(state, Extract.TableType.SNAPSHOT_ONLY,
+        state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, "DemoNamespace"), "DemoTable");
 
     String filesToPull = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL);
     for (String file : Splitter.on(',').omitEmptyStrings().split(filesToPull)) {
@@ -68,7 +66,8 @@ public class DemoSource implements Source<String, String> {
   }
 
   @Override
-  public Extractor<String, String> getExtractor(WorkUnitState state) throws IOException {
+  public Extractor<String, String> getExtractor(WorkUnitState state)
+      throws IOException {
     return new DemoExtractor(state);
   }
 

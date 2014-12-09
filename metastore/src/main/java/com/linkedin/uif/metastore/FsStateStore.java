@@ -30,6 +30,7 @@ import com.google.common.io.Closer;
 
 import com.linkedin.uif.configuration.State;
 
+
 /**
  * An implementation of {@link StateStore} backed by a {@link FileSystem}.
  *
@@ -47,220 +48,221 @@ import com.linkedin.uif.configuration.State;
  */
 public class FsStateStore implements StateStore {
 
-    private final Configuration conf;
-    private final FileSystem fs;
+  private final Configuration conf;
+  private final FileSystem fs;
 
-    // Root directory for the task state store
-    private final String storeRootDir;
+  // Root directory for the task state store
+  private final String storeRootDir;
 
-    // Class of the state objects to be put into the store
-    private final Class<? extends State> stateClass;
+  // Class of the state objects to be put into the store
+  private final Class<? extends State> stateClass;
 
-    public FsStateStore(String fsUri, String storeRootDir, Class<? extends State> stateClass)
-            throws IOException {
+  public FsStateStore(String fsUri, String storeRootDir, Class<? extends State> stateClass)
+      throws IOException {
 
-        this.conf = new Configuration();
-        this.fs = FileSystem.get(URI.create(fsUri), this.conf);
-        this.storeRootDir = storeRootDir;
-        this.stateClass = stateClass;
+    this.conf = new Configuration();
+    this.fs = FileSystem.get(URI.create(fsUri), this.conf);
+    this.storeRootDir = storeRootDir;
+    this.stateClass = stateClass;
+  }
+
+  public FsStateStore(FileSystem fs, String storeRootDir, Class<? extends State> stateClass)
+      throws IOException {
+
+    this.fs = fs;
+    this.conf = this.fs.getConf();
+    this.storeRootDir = storeRootDir;
+    this.stateClass = stateClass;
+  }
+
+  @Override
+  public boolean create(String storeName)
+      throws IOException {
+    Path storePath = new Path(this.storeRootDir, storeName);
+    if (this.fs.exists(storePath)) {
+      throw new IOException(String.format("Store directory %s already exists for store %s", storePath, storeName));
     }
 
-    public FsStateStore(FileSystem fs, String storeRootDir, Class<? extends State> stateClass)
-            throws IOException {
+    return this.fs.mkdirs(storePath);
+  }
 
-        this.fs = fs;
-        this.conf = this.fs.getConf();
-        this.storeRootDir = storeRootDir;
-        this.stateClass = stateClass;
+  @Override
+  public boolean create(String storeName, String tableName)
+      throws IOException {
+    Path storePath = new Path(this.storeRootDir, storeName);
+    if (!this.fs.exists(storePath) && !create(storeName)) {
+      return false;
     }
 
-    @Override
-    public boolean create(String storeName) throws IOException {
-        Path storePath = new Path(this.storeRootDir, storeName);
-        if (this.fs.exists(storePath)) {
-            throw new IOException(String.format(
-                    "Store directory %s already exists for store %s",
-                    storePath, storeName));
-        }
-
-        return this.fs.mkdirs(storePath);
+    Path tablePath = new Path(storePath, tableName);
+    if (this.fs.exists(tablePath)) {
+      throw new IOException(String.format("State file %s already exists for table %s", tablePath, tableName));
     }
 
-    @Override
-    public boolean create(String storeName, String tableName) throws IOException {
-        Path storePath = new Path(this.storeRootDir, storeName);
-        if (!this.fs.exists(storePath) && !create(storeName)) {
-            return false;
-        }
+    return this.fs.createNewFile(tablePath);
+  }
 
-        Path tablePath = new Path(storePath, tableName);
-        if (this.fs.exists(tablePath)) {
-            throw new IOException(String.format(
-                    "State file %s already exists for table %s",
-                    tablePath, tableName));
-        }
+  @Override
+  public boolean exists(String storeName, String tableName)
+      throws IOException {
+    Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
+    return this.fs.exists(tablePath);
+  }
 
-        return this.fs.createNewFile(tablePath);
+  @Override
+  public void put(String storeName, String tableName, State state)
+      throws IOException {
+    Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
+    if (!this.fs.exists(tablePath) && !create(storeName, tableName)) {
+      throw new IOException("Failed to create a state file for table " + tableName);
     }
 
-    @Override
-    public boolean exists(String storeName, String tableName) throws IOException {
-        Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
-        return this.fs.exists(tablePath);
+    Closer closer = Closer.create();
+    try {
+      SequenceFile.Writer writer =
+          closer.register(new SequenceFile.Writer(this.fs, this.conf, tablePath, Text.class, this.stateClass));
+      // Append will overwrite existing data, so it's not real append.
+      // Real append is to be supported for SequenceFile (HADOOP-7139).
+      // TODO: implement a workaround.
+      writer.append(new Text(Strings.nullToEmpty(state.getId())), state);
+    } finally {
+      closer.close();
+    }
+  }
+
+  @Override
+  public void putAll(String storeName, String tableName, Collection<? extends State> states)
+      throws IOException {
+
+    Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
+    if (!this.fs.exists(tablePath) && !create(storeName, tableName)) {
+      throw new IOException("Failed to create a state file for table " + tableName);
     }
 
-    @Override
-    public void put(String storeName, String tableName, State state) throws IOException {
-        Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
-        if (!this.fs.exists(tablePath) && !create(storeName, tableName)) {
-            throw new IOException("Failed to create a state file for table " + tableName);
-        }
+    Closer closer = Closer.create();
+    try {
+      SequenceFile.Writer writer =
+          closer.register(new SequenceFile.Writer(this.fs, this.conf, tablePath, Text.class, this.stateClass));
+      for (State state : states) {
+        // Append will overwrite existing data, so it's not real append.
+        // Real append is to be supported for SequenceFile (HADOOP-7139).
+        // TODO: implement a workaround.
+        writer.append(new Text(Strings.nullToEmpty(state.getId())), state);
+      }
+    } finally {
+      closer.close();
+    }
+  }
 
-        Closer closer = Closer.create();
-        try {
-            SequenceFile.Writer writer = closer.register(
-                    new SequenceFile.Writer(this.fs, this.conf, tablePath, Text.class, this.stateClass));
-            // Append will overwrite existing data, so it's not real append.
-            // Real append is to be supported for SequenceFile (HADOOP-7139).
-            // TODO: implement a workaround.
-            writer.append(new Text(Strings.nullToEmpty(state.getId())), state);
-        } finally {
-            closer.close();
-        }
+  @Override
+  public State get(String storeName, String tableName, String stateId)
+      throws IOException {
+
+    Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
+    if (!this.fs.exists(tablePath)) {
+      return null;
     }
 
-    @Override
-    public void putAll(String storeName, String tableName, Collection<? extends State> states)
-            throws IOException {
-
-        Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
-        if (!this.fs.exists(tablePath) && !create(storeName, tableName)) {
-            throw new IOException("Failed to create a state file for table " + tableName);
+    Closer closer = Closer.create();
+    try {
+      SequenceFile.Reader reader = closer.register(new SequenceFile.Reader(this.fs, tablePath, this.conf));
+      try {
+        Text key = new Text();
+        State state = this.stateClass.newInstance();
+        while (reader.next(key, state)) {
+          if (key.toString().equals(stateId)) {
+            return state;
+          }
         }
-
-        Closer closer = Closer.create();
-        try {
-            SequenceFile.Writer writer = closer.register(
-                    new SequenceFile.Writer(this.fs, this.conf, tablePath, Text.class, this.stateClass));
-            for (State state : states) {
-                // Append will overwrite existing data, so it's not real append.
-                // Real append is to be supported for SequenceFile (HADOOP-7139).
-                // TODO: implement a workaround.
-                writer.append(new Text(Strings.nullToEmpty(state.getId())), state);
-            }
-        } finally {
-            closer.close();
-        }
+      } catch (Exception e) {
+        throw new IOException(e);
+      }
+    } finally {
+      closer.close();
     }
 
-    @Override
-    public State get(String storeName, String tableName, String stateId)
-            throws IOException {
+    return null;
+  }
 
-        Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
-        if (!this.fs.exists(tablePath)) {
-            return null;
-        }
+  @Override
+  public List<? extends State> getAll(String storeName, String tableName)
+      throws IOException {
 
-        Closer closer = Closer.create();
-        try {
-            SequenceFile.Reader reader = closer.register(new SequenceFile.Reader(this.fs, tablePath, this.conf));
-            try {
-                Text key = new Text();
-                State state = this.stateClass.newInstance();
-                while (reader.next(key, state)) {
-                    if (key.toString().equals(stateId)) {
-                        return state;
-                    }
-                }
-            } catch (Exception e) {
-                throw new IOException(e);
-            }
-        } finally {
-            closer.close();
-        }
+    List<State> states = Lists.newArrayList();
 
-        return null;
+    Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
+    if (!this.fs.exists(tablePath)) {
+      return states;
     }
 
-    @Override
-    public List<? extends State> getAll(String storeName, String tableName)
-            throws IOException {
-
-        List<State> states = Lists.newArrayList();
-
-        Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
-        if (!this.fs.exists(tablePath)) {
-            return states;
+    Closer closer = Closer.create();
+    try {
+      SequenceFile.Reader reader = closer.register(new SequenceFile.Reader(this.fs, tablePath, this.conf));
+      try {
+        Text key = new Text();
+        State state = this.stateClass.newInstance();
+        while (reader.next(key, state)) {
+          states.add(state);
+          // We need a new object for each read state
+          state = this.stateClass.newInstance();
         }
-
-        Closer closer = Closer.create();
-        try {
-            SequenceFile.Reader reader = closer.register(new SequenceFile.Reader(this.fs, tablePath, this.conf));
-            try {
-                Text key = new Text();
-                State state = this.stateClass.newInstance();
-                while (reader.next(key, state)) {
-                    states.add(state);
-                    // We need a new object for each read state
-                    state = this.stateClass.newInstance();
-                }
-            } catch (Exception e) {
-                throw new IOException(e);
-            }
-        } finally {
-            closer.close();
-        }
-
-        return states;
+      } catch (Exception e) {
+        throw new IOException(e);
+      }
+    } finally {
+      closer.close();
     }
 
-    @Override
-    public List<? extends State> getAll(String storeName) throws IOException {
-        List<State> states = Lists.newArrayList();
+    return states;
+  }
 
-        Path storePath = new Path(this.storeRootDir, storeName);
-        if (!this.fs.exists(storePath)) {
-            return states;
-        }
+  @Override
+  public List<? extends State> getAll(String storeName)
+      throws IOException {
+    List<State> states = Lists.newArrayList();
 
-        for (FileStatus status : this.fs.listStatus(storePath)) {
-            states.addAll(getAll(storeName, status.getPath().getName()));
-        }
-
-        return states;
+    Path storePath = new Path(this.storeRootDir, storeName);
+    if (!this.fs.exists(storePath)) {
+      return states;
     }
 
-    @Override
-    public void createAlias(String storeName, String original, String alias)
-            throws IOException {
-
-        Path originalTablePath = new Path(new Path(this.storeRootDir, storeName), original);
-        if (!this.fs.exists(originalTablePath)) {
-            throw new IOException(String.format(
-                    "State file %s does not exist for table %s",
-                    originalTablePath, original));
-        }
-
-        Path aliasTablePath = new Path(new Path(this.storeRootDir, storeName), alias);
-        // Make a copy of the original table as a work-around because
-        // Hadoop version 1.2.1 has no support for symlink yet.
-        FileUtil.copy(this.fs, originalTablePath, this.fs, aliasTablePath, false, true, this.conf);
+    for (FileStatus status : this.fs.listStatus(storePath)) {
+      states.addAll(getAll(storeName, status.getPath().getName()));
     }
 
-    @Override
-    public void delete(String storeName, String tableName) throws IOException {
-        Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
-        if (this.fs.exists(tablePath)) {
-            this.fs.delete(tablePath, false);
-        }
+    return states;
+  }
+
+  @Override
+  public void createAlias(String storeName, String original, String alias)
+      throws IOException {
+
+    Path originalTablePath = new Path(new Path(this.storeRootDir, storeName), original);
+    if (!this.fs.exists(originalTablePath)) {
+      throw new IOException(String.format("State file %s does not exist for table %s", originalTablePath, original));
     }
 
-    @Override
-    public void delete(String storeName) throws IOException {
-        Path storePath = new Path(this.storeRootDir, storeName);
-        if (this.fs.exists(storePath)) {
-            this.fs.delete(storePath, true);
-        }
+    Path aliasTablePath = new Path(new Path(this.storeRootDir, storeName), alias);
+    // Make a copy of the original table as a work-around because
+    // Hadoop version 1.2.1 has no support for symlink yet.
+    FileUtil.copy(this.fs, originalTablePath, this.fs, aliasTablePath, false, true, this.conf);
+  }
+
+  @Override
+  public void delete(String storeName, String tableName)
+      throws IOException {
+    Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
+    if (this.fs.exists(tablePath)) {
+      this.fs.delete(tablePath, false);
     }
+  }
+
+  @Override
+  public void delete(String storeName)
+      throws IOException {
+    Path storePath = new Path(this.storeRootDir, storeName);
+    if (this.fs.exists(storePath)) {
+      this.fs.delete(storePath, true);
+    }
+  }
 }
