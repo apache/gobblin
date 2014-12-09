@@ -17,5 +17,4 @@ public class UnsupportedDateTypeException extends Exception {
     super(arg0);
     // TODO Auto-generated constructor stub
   }
-
 }

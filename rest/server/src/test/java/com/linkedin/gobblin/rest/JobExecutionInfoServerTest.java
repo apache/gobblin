@@ -67,10 +67,8 @@ public class JobExecutionInfoServerTest {
   public void setUp()
       throws Exception {
     Properties properties = new Properties();
-    properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY,
-        "org.apache.derby.jdbc.EmbeddedDriver");
-    properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY,
-        "jdbc:derby:memory:gobblin;create=true");
+    properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY, "org.apache.derby.jdbc.EmbeddedDriver");
+    properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY, "jdbc:derby:memory:gobblin;create=true");
     prepareJobHistoryStoreDatabase(properties);
     Injector injector = Guice.createInjector(new MetaStoreModule(properties));
     this.jobHistoryStore = injector.getInstance(JobHistoryStore.class);
@@ -152,11 +150,12 @@ public class JobExecutionInfoServerTest {
     }
   }
 
-  private void prepareJobHistoryStoreDatabase(Properties properties) throws Exception {
+  private void prepareJobHistoryStoreDatabase(Properties properties)
+      throws Exception {
     // Read the DDL statements
     List<String> statementLines = Lists.newArrayList();
-    List<String> lines = Files.readLines(
-        new File("metastore/src/test/resources/gobblin_job_history_store.sql"), Charset.defaultCharset());
+    List<String> lines = Files
+        .readLines(new File("metastore/src/test/resources/gobblin_job_history_store.sql"), Charset.defaultCharset());
     for (String line : lines) {
       // Skip a comment line
       if (line.startsWith("--")) {

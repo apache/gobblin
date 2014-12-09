@@ -18,6 +18,7 @@ import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.publisher.DataPublisher;
 
+
 /**
  * An implementation of {@link DataPublisher} for integration test.
  *
@@ -28,25 +29,29 @@ import com.linkedin.uif.publisher.DataPublisher;
  */
 public class TestDataPublisher extends DataPublisher {
 
-    public TestDataPublisher(State state) {
-        super(state);
-    }
+  public TestDataPublisher(State state) {
+    super(state);
+  }
 
-    @Override
-    public void initialize() throws IOException {
-        // Do nothing
-    }
+  @Override
+  public void initialize()
+      throws IOException {
+    // Do nothing
+  }
 
-    @Override
-    public void close() throws IOException {
-        // Do nothing
-    }
+  @Override
+  public void close()
+      throws IOException {
+    // Do nothing
+  }
 
-    @Override
-    public void publishData(Collection<? extends WorkUnitState> tasks) throws IOException {
-    }
+  @Override
+  public void publishData(Collection<? extends WorkUnitState> tasks)
+      throws IOException {
+  }
 
-    @Override
-    public void publishMetadata(Collection<? extends WorkUnitState> tasks) throws IOException {
-    }
+  @Override
+  public void publishMetadata(Collection<? extends WorkUnitState> tasks)
+      throws IOException {
+  }
 }

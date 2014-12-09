@@ -19,6 +19,7 @@ import com.google.common.collect.Lists;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 
+
 /**
  * An implementation of {@link ForkOperator} that simply copy the input schema
  * and data record into each forked branch. This class is useful if a converted
@@ -66,7 +67,8 @@ public class IdentityForkOperator<S, D> implements ForkOperator<S, D> {
   }
 
   @Override
-  public void close() throws IOException {
+  public void close()
+      throws IOException {
     // Nothing to do
   }
 }

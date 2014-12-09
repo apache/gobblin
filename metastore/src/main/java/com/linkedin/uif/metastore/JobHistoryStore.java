@@ -18,6 +18,7 @@ import java.util.List;
 import com.linkedin.gobblin.rest.JobExecutionInfo;
 import com.linkedin.gobblin.rest.JobExecutionQuery;
 
+
 /**
  * An interface for stores that store job execution information.
  *
@@ -25,20 +26,22 @@ import com.linkedin.gobblin.rest.JobExecutionQuery;
  */
 public interface JobHistoryStore extends Closeable {
 
-    /**
-     * Insert a new or update an existing job execution record.
-     *
-     * @param jobExecutionInfo a {@link JobExecutionInfo} record
-     * @throws java.io.IOException if the insertion or update fails
-     */
-    public void put(JobExecutionInfo jobExecutionInfo) throws IOException;
+  /**
+   * Insert a new or update an existing job execution record.
+   *
+   * @param jobExecutionInfo a {@link JobExecutionInfo} record
+   * @throws java.io.IOException if the insertion or update fails
+   */
+  public void put(JobExecutionInfo jobExecutionInfo)
+      throws IOException;
 
-    /**
-     * Get a list of {@link JobExecutionInfo} records as results of the given query.
-     *
-     * @param query a {@link JobExecutionQuery} instance
-     * @return a list of {@link JobExecutionInfo} records
-     * @throws IOException if the query fails
-     */
-    public List<JobExecutionInfo> get(JobExecutionQuery query) throws IOException;
+  /**
+   * Get a list of {@link JobExecutionInfo} records as results of the given query.
+   *
+   * @param query a {@link JobExecutionQuery} instance
+   * @return a list of {@link JobExecutionInfo} records
+   * @throws IOException if the query fails
+   */
+  public List<JobExecutionInfo> get(JobExecutionQuery query)
+      throws IOException;
 }

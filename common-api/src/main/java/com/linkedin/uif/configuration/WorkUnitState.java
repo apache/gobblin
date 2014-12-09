@@ -22,6 +22,7 @@ import com.linkedin.uif.source.workunit.Extract;
 import com.linkedin.uif.source.workunit.ImmutableWorkUnit;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
+
 /**
  * This class encapsulates a {@link WorkUnit} instance and additionally holds all the
  * task runtime state of that {@link WorkUnit}.
@@ -32,7 +33,7 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  *   Getters will return values set at task runtime if available, or the corresponding
  *   values from encapsulated {@link WorkUnit} if they are not set at task runtime.
  * </p>
- * 
+ *
  * @author kgoodhop
  */
 public class WorkUnitState extends State {
@@ -65,7 +66,7 @@ public class WorkUnitState extends State {
    * @param workUnit a {@link WorkUnit} instance based on which a {@link WorkUnitState} instance is constructed
    */
   public WorkUnitState(WorkUnit workUnit) {
-      this.workunit = workUnit;
+    this.workunit = workUnit;
   }
 
   /**
@@ -73,11 +74,10 @@ public class WorkUnitState extends State {
    *
    * @return an {@link ImmutableWorkUnit} that wraps the internal {@link WorkUnit}
    */
-  public WorkUnit getWorkunit()
-  {
+  public WorkUnit getWorkunit() {
     return new ImmutableWorkUnit(workunit);
   }
-  
+
   /**
    * @see State#addAll(State).
    *
@@ -94,8 +94,8 @@ public class WorkUnitState extends State {
    * @return {@link WorkingState} of the {@link WorkUnit}
    */
   public WorkingState getWorkingState() {
-    return WorkingState.valueOf(getProp(ConfigurationKeys.WORK_UNIT_WORKING_STATE_KEY,
-        WorkingState.PENDING.toString()));
+    return WorkingState
+        .valueOf(getProp(ConfigurationKeys.WORK_UNIT_WORKING_STATE_KEY, WorkingState.PENDING.toString()));
   }
 
   /**
@@ -103,8 +103,7 @@ public class WorkUnitState extends State {
    *
    * @param state {@link WorkingState} of the {@link WorkUnit}
    */
-  public void setWorkingState(WorkingState state)
-  {
+  public void setWorkingState(WorkingState state) {
     setProp(ConfigurationKeys.WORK_UNIT_WORKING_STATE_KEY, state.toString());
   }
 
@@ -123,41 +122,42 @@ public class WorkUnitState extends State {
    *
    * @param value high watermark
    */
-  public void setHighWaterMark(long value)
-  {
+  public void setHighWaterMark(long value) {
     setProp(ConfigurationKeys.WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK, value);
   }
-  
+
   @Override
   protected String getProperty(String key) {
     String propStr = super.getProperty(key);
-    if (propStr != null)
+    if (propStr != null) {
       return propStr;
-    else
+    } else {
       return workunit.getProperty(key);
+    }
   }
-  
+
   @Override
   protected String getProperty(String key, String def) {
     String propStr = super.getProperty(key);
-    if (propStr != null)
+    if (propStr != null) {
       return propStr;
-    else
+    } else {
       return workunit.getProperty(key, def);
+    }
   }
-  
+
   @Override
   public Set<String> getPropertyNames() {
     Set<String> set = Sets.newHashSet(super.getPropertyNames());
     set.addAll(workunit.getPropertyNames());
     return set;
   }
-  
+
   @Override
   public boolean contains(String key) {
     return super.contains(key) || workunit.contains(key);
   }
-  
+
   /**
    * Get the {@link Extract} associated with the {@link WorkUnit}.
    *
@@ -168,7 +168,7 @@ public class WorkUnitState extends State {
     curExtract.addAll(this);
     return curExtract;
   }
-  
+
   /**
    * Get properties set in the previous run for the same table as the {@link WorkUnit}.
    *
@@ -179,22 +179,21 @@ public class WorkUnitState extends State {
   }
 
   @Override
-  public void readFields(DataInput in) throws IOException
-  {
+  public void readFields(DataInput in)
+      throws IOException {
     workunit.readFields(in);
     super.readFields(in);
   }
 
   @Override
-  public void write(DataOutput out) throws IOException
-  {
+  public void write(DataOutput out)
+      throws IOException {
     workunit.write(out);
     super.write(out);
   }
-  
+
   @Override
   public String toString() {
     return super.toString() + "\nWorkUnit: " + getWorkunit().toString() + "\nExtract: " + getExtract().toString();
   }
-
 }

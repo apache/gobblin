@@ -16,6 +16,7 @@ import java.io.IOException;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+
 /**
  * An implementation of {@link JobLock} that relies on new file creation on a file system.
  *
@@ -28,42 +29,46 @@ import org.apache.hadoop.fs.Path;
  */
 public class FileBasedJobLock implements JobLock {
 
-    public static final String LOCK_FILE_EXTENSION = ".lock";
+  public static final String LOCK_FILE_EXTENSION = ".lock";
 
-    private final FileSystem fs;
-    // Empty file associated with the lock
-    private final Path lockFile;
+  private final FileSystem fs;
+  // Empty file associated with the lock
+  private final Path lockFile;
 
-    public FileBasedJobLock(FileSystem fs, String lockFileDir, String jobName)
-            throws IOException {
+  public FileBasedJobLock(FileSystem fs, String lockFileDir, String jobName)
+      throws IOException {
 
-        this.fs = fs;
-        this.lockFile = new Path(lockFileDir, jobName + LOCK_FILE_EXTENSION);
+    this.fs = fs;
+    this.lockFile = new Path(lockFileDir, jobName + LOCK_FILE_EXTENSION);
+  }
+
+  @Override
+  public void lock()
+      throws IOException {
+    if (!this.fs.createNewFile(this.lockFile)) {
+      throw new IOException("Failed to create lock file " + this.lockFile.getName());
+    }
+  }
+
+  @Override
+  public void unlock()
+      throws IOException {
+    if (!isLocked()) {
+      return;
     }
 
-    @Override
-    public void lock() throws IOException {
-        if (!this.fs.createNewFile(this.lockFile)) {
-            throw new IOException("Failed to create lock file " + this.lockFile.getName());
-        }
-    }
+    this.fs.delete(this.lockFile, false);
+  }
 
-    @Override
-    public void unlock() throws IOException {
-        if (!isLocked()) {
-            return;
-        }
+  @Override
+  public boolean tryLock()
+      throws IOException {
+    return this.fs.createNewFile(this.lockFile);
+  }
 
-        this.fs.delete(this.lockFile, false);
-    }
-
-    @Override
-    public boolean tryLock() throws IOException {
-        return this.fs.createNewFile(this.lockFile);
-    }
-
-    @Override
-    public boolean isLocked() throws IOException {
-        return this.fs.exists(this.lockFile);
-    }
+  @Override
+  public boolean isLocked()
+      throws IOException {
+    return this.fs.exists(this.lockFile);
+  }
 }

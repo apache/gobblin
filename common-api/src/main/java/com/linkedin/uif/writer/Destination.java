@@ -13,6 +13,7 @@ package com.linkedin.uif.writer;
 
 import com.linkedin.uif.configuration.State;
 
+
 /**
  * A class representing a destination for a writer to write to.
  * It currently supports HDFS and Kafka as destinations.
@@ -21,51 +22,51 @@ import com.linkedin.uif.configuration.State;
  */
 public class Destination {
 
-    /**
-     * Enumeration of supported destination types.
-     */
-    public static enum DestinationType {
-        HDFS,
-        KAFKA
-    }
+  /**
+   * Enumeration of supported destination types.
+   */
+  public static enum DestinationType {
+    HDFS,
+    KAFKA
+  }
 
-    // Type of destination
-    private final DestinationType type;
+  // Type of destination
+  private final DestinationType type;
 
-    // Destination properties
-    private final State properties;
+  // Destination properties
+  private final State properties;
 
-    private Destination(DestinationType type, State properties) {
-        this.type = type;
-        this.properties = properties;
-    }
+  private Destination(DestinationType type, State properties) {
+    this.type = type;
+    this.properties = properties;
+  }
 
-    /**
-     * Get the destination type.
-     *
-     * @return destination type
-     */
-    public DestinationType getType() {
-        return this.type;
-    }
+  /**
+   * Get the destination type.
+   *
+   * @return destination type
+   */
+  public DestinationType getType() {
+    return this.type;
+  }
 
-    /**
-     * Get configuration properties for the destination type.
-     *
-     * @return configuration properties
-     */
-    public State getProperties() {
-        return this.properties;
-    }
+  /**
+   * Get configuration properties for the destination type.
+   *
+   * @return configuration properties
+   */
+  public State getProperties() {
+    return this.properties;
+  }
 
-    /**
-     * Create a new {@link Destination} instance.
-     *
-     * @param type destination type
-     * @param properties destination properties
-     * @return newly created {@link Destination} instance
-     */
-    public static Destination of(DestinationType type, State properties) {
-        return new Destination(type, properties);
-    }
+  /**
+   * Create a new {@link Destination} instance.
+   *
+   * @param type destination type
+   * @param properties destination properties
+   * @return newly created {@link Destination} instance
+   */
+  public static Destination of(DestinationType type, State properties) {
+    return new Destination(type, properties);
+  }
 }

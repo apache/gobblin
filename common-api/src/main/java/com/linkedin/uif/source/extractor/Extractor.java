@@ -14,6 +14,7 @@ package com.linkedin.uif.source.extractor;
 import java.io.Closeable;
 import java.io.IOException;
 
+
 /**
  * An interface for classes that are responsible for extracting data from a data source.
  *
@@ -29,38 +30,39 @@ import java.io.IOException;
  */
 public interface Extractor<S, D> extends Closeable {
 
-	/**
-	 * Get the schema (Metadata) of the extracted data records.
-	 *
-	 * @return schema of the extracted data records
-	 */
-	public S getSchema();
+  /**
+   * Get the schema (Metadata) of the extracted data records.
+   *
+   * @return schema of the extracted data records
+   */
+  public S getSchema();
 
-	/**
-	 * Read a data record from the data source.
-	 *
-	 * <p>
-	 *   This method allows data record object reuse through the one passed in if the
-	 *   implementation class decides to do so.
-	 * </p>
-	 *
-	 * @param reuse the data record object to be used
-	 * @return a data record
-	 * @throws DataRecordException if there is problem with the extracted data record
-	 * @throws java.io.IOException if there is problem extract a data record from the source
-	 */
-	public D readRecord(D reuse) throws DataRecordException, IOException;
+  /**
+   * Read a data record from the data source.
+   *
+   * <p>
+   *   This method allows data record object reuse through the one passed in if the
+   *   implementation class decides to do so.
+   * </p>
+   *
+   * @param reuse the data record object to be used
+   * @return a data record
+   * @throws DataRecordException if there is problem with the extracted data record
+   * @throws java.io.IOException if there is problem extract a data record from the source
+   */
+  public D readRecord(D reuse)
+      throws DataRecordException, IOException;
 
-	/**
-	 * Get the expected source record count.
-	 *
-	 * @return expected source record count
-	 */
-	public long getExpectedRecordCount();
+  /**
+   * Get the expected source record count.
+   *
+   * @return expected source record count
+   */
+  public long getExpectedRecordCount();
 
-	/**
-	 * Get the calculated high watermark up to which data records are to be extracted.
-	 * @return high watermark
-	 */
-	public long getHighWatermark();
+  /**
+   * Get the calculated high watermark up to which data records are to be extracted.
+   * @return high watermark
+   */
+  public long getHighWatermark();
 }

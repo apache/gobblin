@@ -15,26 +15,25 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.qualitychecker.task.TaskLevelPolicy;
 
-public class RowCountRangePolicy extends TaskLevelPolicy
-{
-    private final long rowsRead;
-    private final long rowsWritten;
-    private final double range;
 
-    public RowCountRangePolicy(State state, Type type)
-    {
-        super(state, type);
-        this.rowsRead = state.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED);
-        this.rowsWritten = state.getPropAsLong(ConfigurationKeys.WRITER_ROWS_WRITTEN);
-        this.range = state.getPropAsDouble(ConfigurationKeys.ROW_COUNT_RANGE);
-    }
+public class RowCountRangePolicy extends TaskLevelPolicy {
+  private final long rowsRead;
+  private final long rowsWritten;
+  private final double range;
 
-    @Override
-    public Result executePolicy() {
-        if (Math.abs((this.rowsWritten - this.rowsRead) / this.rowsRead) <= this.range) {
-            return Result.PASSED;
-        } else {
-            return Result.FAILED;
-        }
+  public RowCountRangePolicy(State state, Type type) {
+    super(state, type);
+    this.rowsRead = state.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED);
+    this.rowsWritten = state.getPropAsLong(ConfigurationKeys.WRITER_ROWS_WRITTEN);
+    this.range = state.getPropAsDouble(ConfigurationKeys.ROW_COUNT_RANGE);
+  }
+
+  @Override
+  public Result executePolicy() {
+    if (Math.abs((this.rowsWritten - this.rowsRead) / this.rowsRead) <= this.range) {
+      return Result.PASSED;
+    } else {
+      return Result.FAILED;
     }
+  }
 }

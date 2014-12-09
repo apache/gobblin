@@ -37,6 +37,7 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.metastore.JobHistoryStore;
 import com.linkedin.uif.metastore.MetaStoreModule;
 
+
 /**
  * A server running the Rest.li resource for job execution queries.
  *
@@ -44,50 +45,51 @@ import com.linkedin.uif.metastore.MetaStoreModule;
  */
 public class JobExecutionInfoServer extends AbstractIdleService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(JobExecutionInfoServer.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(JobExecutionInfoServer.class);
 
-    private final Properties properties;
-    private volatile Optional<HttpServer> httpServer;
+  private final Properties properties;
+  private volatile Optional<HttpServer> httpServer;
 
-    public JobExecutionInfoServer(Properties properties) {
-        this.properties = properties;
+  public JobExecutionInfoServer(Properties properties) {
+    this.properties = properties;
+  }
+
+  @Override
+  protected void startUp()
+      throws Exception {
+    // Server port
+    int port = Integer.parseInt(
+        properties.getProperty(ConfigurationKeys.REST_SERVER_PORT_KEY, ConfigurationKeys.DEFAULT_REST_SERVER_PORT));
+
+    // Server configuration
+    RestLiConfig config = new RestLiConfig();
+    config.addResourcePackageNames(JobExecutionInfoResource.class.getPackage().getName());
+    config.setServerNodeUri(URI.create(String.format("http://%s:%d",
+        properties.getProperty(ConfigurationKeys.REST_SERVER_HOST_KEY, ConfigurationKeys.DEFAULT_REST_SERVER_HOST),
+        port)));
+    config.setDocumentationRequestHandler(new DefaultDocumentationRequestHandler());
+
+    // Handle dependency injection
+    Injector injector = Guice.createInjector(new MetaStoreModule(properties));
+    JobHistoryStore jobHistoryStore = injector.getInstance(JobHistoryStore.class);
+    SimpleBeanProvider beanProvider = new SimpleBeanProvider();
+    beanProvider.add("jobHistoryStore", jobHistoryStore);
+    // Use InjectMockResourceFactory to keep this Spring free
+    ResourceFactory factory = new InjectMockResourceFactory(beanProvider);
+
+    // Create and start the HTTP server
+    TransportDispatcher dispatcher = new DelegatingTransportDispatcher(new RestLiServer(config, factory));
+    this.httpServer = Optional.of(new HttpNettyServerFactory(FilterChains.empty()).createServer(port, dispatcher));
+    LOGGER.info("Starting the job execution information server");
+    this.httpServer.get().start();
+  }
+
+  @Override
+  protected void shutDown()
+      throws Exception {
+    if (this.httpServer.isPresent()) {
+      LOGGER.info("Stopping the job execution information server");
+      this.httpServer.get().stop();
     }
-
-    @Override
-    protected void startUp() throws Exception {
-        // Server port
-        int port = Integer.parseInt(properties.getProperty(
-            ConfigurationKeys.REST_SERVER_PORT_KEY, ConfigurationKeys.DEFAULT_REST_SERVER_PORT));
-
-        // Server configuration
-        RestLiConfig config = new RestLiConfig();
-        config.addResourcePackageNames(JobExecutionInfoResource.class.getPackage().getName());
-        config.setServerNodeUri(URI.create(String.format("http://%s:%d",
-            properties.getProperty(ConfigurationKeys.REST_SERVER_HOST_KEY,
-                ConfigurationKeys.DEFAULT_REST_SERVER_HOST),
-            port)));
-        config.setDocumentationRequestHandler(new DefaultDocumentationRequestHandler());
-
-        // Handle dependency injection
-        Injector injector = Guice.createInjector(new MetaStoreModule(properties));
-        JobHistoryStore jobHistoryStore = injector.getInstance(JobHistoryStore.class);
-        SimpleBeanProvider beanProvider = new SimpleBeanProvider();
-        beanProvider.add("jobHistoryStore", jobHistoryStore);
-        // Use InjectMockResourceFactory to keep this Spring free
-        ResourceFactory factory = new InjectMockResourceFactory(beanProvider);
-
-        // Create and start the HTTP server
-        TransportDispatcher dispatcher = new DelegatingTransportDispatcher(new RestLiServer(config, factory));
-        this.httpServer = Optional.of(new HttpNettyServerFactory(FilterChains.empty()).createServer(port, dispatcher));
-        LOGGER.info("Starting the job execution information server");
-        this.httpServer.get().start();
-    }
-
-    @Override
-    protected void shutDown() throws Exception {
-        if (this.httpServer.isPresent()) {
-            LOGGER.info("Stopping the job execution information server");
-            this.httpServer.get().stop();
-        }
-    }
+  }
 }
