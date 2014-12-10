@@ -26,7 +26,7 @@ import java.util.Properties;
 public class JobLauncherFactory {
 
   /**
-   * Suppported types of {@link JobLauncher}.
+   * Supported types of {@link JobLauncher}.
    */
   enum JobLauncherType {
     LOCAL,

@@ -77,14 +77,22 @@ public class CliMRJobLauncher extends Configured implements Tool {
   public static void main(String[] args)
       throws Exception {
     // Build command-line options
-    Option sysConfigOption =
-        OptionBuilder.withArgName("system configuration file").withDescription("Gobblin system configuration file")
-            .hasArgs().withLongOpt("sysconfig").create();
-    Option jobConfigOption =
-        OptionBuilder.withArgName("job configuration file").withDescription("Gobblin job configuration file").hasArgs()
-            .withLongOpt("jobconfig").create();
-    Option helpOption =
-        OptionBuilder.withArgName("help").withDescription("Display usage information").withLongOpt("help").create('h');
+    Option sysConfigOption = OptionBuilder
+        .withArgName("system configuration file")
+        .withDescription("Gobblin system configuration file")
+        .hasArgs()
+        .withLongOpt("sysconfig")
+        .create();
+    Option jobConfigOption = OptionBuilder
+        .withArgName("job configuration file")
+        .withDescription("Gobblin job configuration file")
+        .hasArgs()
+        .withLongOpt("jobconfig")
+        .create();
+    Option helpOption = OptionBuilder.withArgName("help")
+        .withDescription("Display usage information")
+        .withLongOpt("help")
+        .create('h');
 
     Options options = new Options();
     options.addOption(sysConfigOption);

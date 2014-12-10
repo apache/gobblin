@@ -156,21 +156,34 @@ public class JobStateToJsonConverter {
   @SuppressWarnings("all")
   public static void main(String[] args)
       throws Exception {
-    Option propertiesOption = OptionBuilder.withArgName("gobblin properties file")
-        .withDescription("gobblin framework configuration properties file").withLongOpt("properties").hasArgs()
-        .isRequired().create('p');
-    Option jobNameOption =
-        OptionBuilder.withArgName("gobblin job name").withDescription("Gobblin job name").withLongOpt("name").hasArgs()
-            .isRequired().create('n');
-    Option jobIdOption =
-        OptionBuilder.withArgName("gobblin job id").withDescription("Gobblin job id").withLongOpt("id").hasArgs()
-            .create('i');
-    Option convertAllOption =
-        OptionBuilder.withDescription("Whether to convert all past job states of the given job").withLongOpt("all")
-            .create('a');
-    Option keepConfigOption =
-        OptionBuilder.withDescription("Whether to keep all configuration properties").withLongOpt("keepConfig")
-            .create("kc");
+    Option propertiesOption = OptionBuilder
+        .withArgName("gobblin properties file")
+        .withDescription("gobblin framework configuration properties file")
+        .withLongOpt("properties")
+        .hasArgs()
+        .isRequired()
+        .create('p');
+    Option jobNameOption = OptionBuilder
+        .withArgName("gobblin job name")
+        .withDescription("Gobblin job name")
+        .withLongOpt("name")
+        .hasArgs()
+        .isRequired()
+        .create('n');
+    Option jobIdOption = OptionBuilder
+        .withArgName("gobblin job id")
+        .withDescription("Gobblin job id")
+        .withLongOpt("id")
+        .hasArgs()
+        .create('i');
+    Option convertAllOption = OptionBuilder
+        .withDescription("Whether to convert all past job states of the given job")
+        .withLongOpt("all")
+        .create('a');
+    Option keepConfigOption = OptionBuilder
+        .withDescription("Whether to keep all configuration properties")
+        .withLongOpt("keepConfig")
+        .create("kc");
 
     Options options = new Options();
     options.addOption(propertiesOption);
