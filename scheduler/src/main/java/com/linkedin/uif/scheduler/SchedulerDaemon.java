@@ -44,8 +44,9 @@ public class SchedulerDaemon {
   public SchedulerDaemon(Properties properties)
       throws Exception {
     List<Service> services = Lists.<Service>newArrayList(new JobScheduler(properties));
-    if (Boolean
-        .valueOf(properties.getProperty(ConfigurationKeys.JOB_EXECINFO_SERVER_ENABLED_KEY, Boolean.FALSE.toString()))) {
+    boolean jobExecInfoServerEnabled = Boolean
+        .valueOf(properties.getProperty(ConfigurationKeys.JOB_EXECINFO_SERVER_ENABLED_KEY, Boolean.FALSE.toString()));
+    if (jobExecInfoServerEnabled) {
       services.add(new JobExecutionInfoServer(properties));
     }
     this.serviceManager = new ServiceManager(services);

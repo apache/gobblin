@@ -47,7 +47,6 @@ public class MRTaskStateTracker extends AbstractIdleService implements TaskState
   private final ScheduledThreadPoolExecutor reporterExecutor;
 
   public MRTaskStateTracker(Mapper<LongWritable, Text, NullWritable, NullWritable>.Context context) {
-
     this.context = context;
 
     // Use a thread pool of size 1 since this is only used by a single task
@@ -81,10 +80,10 @@ public class MRTaskStateTracker extends AbstractIdleService implements TaskState
   public void onTaskCompletion(Task task) {
     JobMetrics metrics = JobMetrics.get(task.getTaskState().getProp(ConfigurationKeys.JOB_NAME_KEY), task.getJobId());
 
-        /*
-         * Update record-level and byte-level metrics and Hadoop MR counters
-         * if enabled at both the task level and job level (aggregated).
-         */
+    /*
+     * Update record-level and byte-level metrics and Hadoop MR counters
+     * if enabled at both the task level and job level (aggregated).
+     */
     if (JobMetrics.isEnabled(task.getTaskState().getWorkunit())) {
       task.updateRecordMetrics();
       task.updateByteMetrics();
@@ -129,7 +128,6 @@ public class MRTaskStateTracker extends AbstractIdleService implements TaskState
     private final Task task;
 
     public TaskStateUpdater(Mapper<LongWritable, Text, NullWritable, NullWritable>.Context context, Task task) {
-
       this.context = context;
       this.task = task;
     }
@@ -139,11 +137,11 @@ public class MRTaskStateTracker extends AbstractIdleService implements TaskState
       // Tell the TaskTracker it's making progress
       this.context.progress();
 
-            /*
-             * Update record-level metrics and Hadoop MR counters if enabled at the
-             * task level ONLY. Job-level metrics are updated only after the job
-             * completes so metrics can be properly aggregated at the job level.
-             */
+      /*
+       * Update record-level metrics and Hadoop MR counters if enabled at the
+       * task level ONLY. Job-level metrics are updated only after the job
+       * completes so metrics can be properly aggregated at the job level.
+       */
       if (JobMetrics.isEnabled(this.task.getTaskState().getWorkunit())) {
         this.task.updateRecordMetrics();
 
