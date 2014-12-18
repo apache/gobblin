@@ -55,6 +55,7 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
   private volatile boolean closed = false;
 
   public enum CodecType {
+    NOCOMPRESSION,
     DEFLATE,
     SNAPPY
   }
@@ -201,6 +202,8 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
         break;
       case SNAPPY:
         writer.setCodec(CodecFactory.snappyCodec());
+        break;
+      case NOCOMPRESSION:
         break;
       default:
         writer.setCodec(CodecFactory.deflateCodec(deflateLevel));
