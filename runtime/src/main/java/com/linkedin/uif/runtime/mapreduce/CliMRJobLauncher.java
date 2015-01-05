@@ -28,6 +28,7 @@ import org.apache.hadoop.util.ToolRunner;
 
 import com.linkedin.uif.runtime.JobException;
 
+
 /**
  * A utility class for launching a Gobblin Hadoop MR job through the command line.
  *
@@ -35,88 +36,89 @@ import com.linkedin.uif.runtime.JobException;
  */
 public class CliMRJobLauncher extends Configured implements Tool {
 
-    private final Properties sysConfig;
-    private final Properties jobConfig;
+  private final Properties sysConfig;
+  private final Properties jobConfig;
 
-    public CliMRJobLauncher(Properties sysConfig, Properties jobConfig) throws Exception {
-        this.sysConfig = sysConfig;
-        this.jobConfig = jobConfig;
+  public CliMRJobLauncher(Properties sysConfig, Properties jobConfig)
+      throws Exception {
+    this.sysConfig = sysConfig;
+    this.jobConfig = jobConfig;
+  }
+
+  @Override
+  public int run(String[] args)
+      throws Exception {
+    final Properties jobProps = new Properties();
+    // First load system configuration properties
+    jobProps.putAll(this.sysConfig);
+    // Then load job configuration properties that might overwrite system configuration properties
+    jobProps.putAll(this.jobConfig);
+
+    try {
+      new MRJobLauncher(this.sysConfig, getConf()).launchJob(jobProps, null);
+    } catch (JobException je) {
+      System.err.println("Failed to launch the job due to the following exception:");
+      System.err.println(je.toString());
+      return 1;
     }
 
-    @Override
-    public int run(String[] args) throws Exception {
-        final Properties jobProps = new Properties();
-        // First load system configuration properties
-        jobProps.putAll(this.sysConfig);
-        // Then load job configuration properties that might overwrite system configuration properties
-        jobProps.putAll(this.jobConfig);
+    return 0;
+  }
 
-        try {
-            new MRJobLauncher(this.sysConfig, getConf()).launchJob(jobProps, null);
-        } catch (JobException je) {
-            System.err.println("Failed to launch the job due to the following exception:");
-            System.err.println(je.toString());
-            return 1;
-        }
+  /**
+   * Print usage information.
+   *
+   * @param options command-line options
+   */
+  public static void printUsage(Options options) {
+    new HelpFormatter().printHelp(CliMRJobLauncher.class.getSimpleName(), options);
+  }
 
-        return 0;
+  public static void main(String[] args)
+      throws Exception {
+    // Build command-line options
+    Option sysConfigOption = OptionBuilder
+        .withArgName("system configuration file")
+        .withDescription("Gobblin system configuration file")
+        .hasArgs()
+        .withLongOpt("sysconfig")
+        .create();
+    Option jobConfigOption = OptionBuilder
+        .withArgName("job configuration file")
+        .withDescription("Gobblin job configuration file")
+        .hasArgs()
+        .withLongOpt("jobconfig")
+        .create();
+    Option helpOption = OptionBuilder.withArgName("help")
+        .withDescription("Display usage information")
+        .withLongOpt("help")
+        .create('h');
+
+    Options options = new Options();
+    options.addOption(sysConfigOption);
+    options.addOption(jobConfigOption);
+    options.addOption(helpOption);
+
+    // Parse command-line options
+    CommandLine cmd = new BasicParser().parse(options, args);
+
+    if (cmd.hasOption('h')) {
+      printUsage(options);
+      System.exit(0);
     }
 
-
-    /**
-     * Print usage information.
-     *
-     * @param options command-line options
-     */
-    public static void printUsage(Options options) {
-        new HelpFormatter().printHelp(CliMRJobLauncher.class.getSimpleName(), options);
+    if (!cmd.hasOption("sysconfig") || !cmd.hasOption("jobconfig")) {
+      printUsage(options);
+      System.exit(1);
     }
 
-    public static void main(String[] args) throws Exception {
-        // Build command-line options
-        Option sysConfigOption = OptionBuilder
-                .withArgName("system configuration file")
-                .withDescription("Gobblin system configuration file")
-                .hasArgs()
-                .withLongOpt("sysconfig")
-                .create();
-        Option jobConfigOption = OptionBuilder
-                .withArgName("job configuration file")
-                .withDescription("Gobblin job configuration file")
-                .hasArgs()
-                .withLongOpt("jobconfig")
-                .create();
-        Option helpOption = OptionBuilder
-                .withArgName("help")
-                .withDescription("Display usage information")
-                .withLongOpt("help")
-                .create('h');
+    // Load system and job configuration properties
+    Properties sysConfig =
+        ConfigurationConverter.getProperties(new PropertiesConfiguration(cmd.getOptionValue("sysconfig")));
+    Properties jobConfig =
+        ConfigurationConverter.getProperties(new PropertiesConfiguration(cmd.getOptionValue("jobconfig")));
 
-        Options options = new Options();
-        options.addOption(sysConfigOption);
-        options.addOption(jobConfigOption);
-        options.addOption(helpOption);
-
-        // Parse command-line options
-        CommandLine cmd = new BasicParser().parse(options, args);
-
-        if (cmd.hasOption('h')) {
-            printUsage(options);
-            System.exit(0);
-        }
-
-        if (!cmd.hasOption("sysconfig") || !cmd.hasOption("jobconfig")) {
-            printUsage(options);
-            System.exit(1);
-        }
-
-        // Load system and job configuration properties
-        Properties sysConfig = ConfigurationConverter.getProperties(new PropertiesConfiguration(
-                cmd.getOptionValue("sysconfig")));
-        Properties jobConfig = ConfigurationConverter.getProperties(new PropertiesConfiguration(
-                cmd.getOptionValue("jobconfig")));
-
-        // Launch and run the job
-        System.exit(ToolRunner.run(new Configuration(), new CliMRJobLauncher(sysConfig, jobConfig), args));
-    }
+    // Launch and run the job
+    System.exit(ToolRunner.run(new Configuration(), new CliMRJobLauncher(sysConfig, jobConfig), args));
+  }
 }

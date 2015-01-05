@@ -17,11 +17,11 @@ package com.linkedin.uif.runtime;
  */
 public class JobException extends Exception {
 
-    public JobException(String message, Throwable t) {
-        super(message, t);
-    }
+  public JobException(String message, Throwable t) {
+    super(message, t);
+  }
 
-    public JobException(String message) {
-        super(message);
-    }
+  public JobException(String message) {
+    super(message);
+  }
 }

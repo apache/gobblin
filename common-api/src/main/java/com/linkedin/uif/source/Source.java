@@ -19,6 +19,7 @@ import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.Extractor;
 import com.linkedin.uif.source.workunit.WorkUnit;
 
+
 /**
  * An interface for classes that the end users implement to work with a data source from which
  * schema and data records can be extracted.
@@ -28,14 +29,14 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  *   specific data source. This usually includes work determination and partitioning, and details
  *   of the connection protocol to work with the data source.
  * </p>
- * 
+ *
  * @author kgoodhop
  *
  * @param <S> output schema type
  * @param <D> output record type
  */
 public interface Source<S, D> {
-  
+
   /**
    * Get a list of {@link WorkUnit}s, each of which is for extracting a portion of the data.
    *
@@ -52,7 +53,7 @@ public interface Source<S, D> {
    *   method {@link SourceState#getPreviousWorkUnitStates} can be used to get the list of {@link WorkUnit}s
    *   from the previous run.
    * </p>
-   * 
+   *
    * @param state see {@link SourceState}
    * @return a list of {@link WorkUnit}s
    */
@@ -65,13 +66,14 @@ public interface Source<S, D> {
    *   The {@link Extractor} returned can use {@link WorkUnitState} to store arbitrary key-value pairs
    *   that will be persisted to the state store and loaded in the next scheduled job run.
    * </p>
-   * 
+   *
    * @param state a {@link WorkUnitState} carrying properties needed by the returned {@link Extractor}
    * @return an {@link Extractor} used to extract schema and data records from the data source
    * @throws IOException if it fails to create an {@link Extractor}
    */
-  public abstract Extractor<S, D> getExtractor(WorkUnitState state) throws IOException;
-  
+  public abstract Extractor<S, D> getExtractor(WorkUnitState state)
+      throws IOException;
+
   /**
    * Shutdown this {@link Source} instance.
    *
@@ -82,7 +84,7 @@ public interface Source<S, D> {
    *   particular implementation of this interface, then it is acceptable to have a default implementation
    *   of this method.
    * </p>
-   * 
+   *
    * @param state see {@link SourceState}
    */
   public abstract void shutdown(SourceState state);

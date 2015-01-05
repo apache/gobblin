@@ -23,6 +23,7 @@ import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.util.ForkOperatorUtils;
 
+
 /**
  * A {@link DataWriterBuilder} for building {@link DataWriter} that writes in Avro format.
  *
@@ -31,33 +32,31 @@ import com.linkedin.uif.util.ForkOperatorUtils;
 @SuppressWarnings("unused")
 public class AvroDataWriterBuilder extends DataWriterBuilder<Schema, GenericRecord> {
 
-    @Override
-    public DataWriter<GenericRecord> build() throws IOException {
-        Preconditions.checkNotNull(this.destination);
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(this.writerId));
-        Preconditions.checkNotNull(this.schema);
-        Preconditions.checkArgument(this.format == WriterOutputFormat.AVRO);
+  @Override
+  public DataWriter<GenericRecord> build()
+      throws IOException {
+    Preconditions.checkNotNull(this.destination);
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(this.writerId));
+    Preconditions.checkNotNull(this.schema);
+    Preconditions.checkArgument(this.format == WriterOutputFormat.AVRO);
 
-        switch (this.destination.getType()) {
-            case HDFS:
-                State properties = this.destination.getProperties();
+    switch (this.destination.getType()) {
+      case HDFS:
+        State properties = this.destination.getProperties();
 
-                String filePath = properties.getProp(ForkOperatorUtils.getPropertyNameForBranch(
-                        ConfigurationKeys.WRITER_FILE_PATH, this.branch));
-                // Add the writer ID to the file name so each writer writes to a different
-                // file of the same file group defined by the given file name
-                String fileName = String.format(
-                       "%s.%s.%s",
-                        properties.getProp(ForkOperatorUtils.getPropertyNameForBranch(
-                                ConfigurationKeys.WRITER_FILE_NAME, this.branch), "part"),
-                       this.writerId,
-                       this.format.getExtension());
+        String filePath = properties
+            .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, this.branch));
+        // Add the writer ID to the file name so each writer writes to a different
+        // file of the same file group defined by the given file name
+        String fileName = String.format("%s.%s.%s", properties
+                .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_NAME, this.branch),
+                    "part"), this.writerId, this.format.getExtension());
 
-                return new AvroHdfsDataWriter(properties, filePath, fileName, this.schema, this.branch);
-            case KAFKA:
-                return new AvroKafkaDataWriter();
-            default:
-                throw new RuntimeException("Unknown destination type: " + this.destination.getType());
-        }
+        return new AvroHdfsDataWriter(properties, filePath, fileName, this.schema, this.branch);
+      case KAFKA:
+        return new AvroKafkaDataWriter();
+      default:
+        throw new RuntimeException("Unknown destination type: " + this.destination.getType());
     }
+  }
 }

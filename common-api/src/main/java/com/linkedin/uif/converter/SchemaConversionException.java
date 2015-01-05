@@ -19,16 +19,15 @@ package com.linkedin.uif.converter;
  */
 public class SchemaConversionException extends Exception {
 
-    public SchemaConversionException(Throwable cause) {
-        super(cause);
-    }
+  public SchemaConversionException(Throwable cause) {
+    super(cause);
+  }
 
-    public SchemaConversionException(String message, Throwable cause) {
-        super(message, cause);
-    }
+  public SchemaConversionException(String message, Throwable cause) {
+    super(message, cause);
+  }
 
-    public SchemaConversionException(String message)
-    {
-        super(message);
-    }
+  public SchemaConversionException(String message) {
+    super(message);
+  }
 }

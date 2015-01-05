@@ -17,6 +17,6 @@ package com.linkedin.uif.metrics;
  * @author ynli
  */
 public enum AggregationFunction {
-    COUNT, MIN, MAX, MEAN, MODE, MEDIAN, DISTINCT, DERIVATIVE,
-    SUM, STDDEV, FIRST, LAST, DIFFERENCE, TOP, BOTTOM
+  COUNT, MIN, MAX, MEAN, MODE, MEDIAN, DISTINCT, DERIVATIVE,
+  SUM, STDDEV, FIRST, LAST, DIFFERENCE, TOP, BOTTOM
 }

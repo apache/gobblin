@@ -59,7 +59,8 @@ public class SftpFsHelper implements FileBasedHelper {
    * @throws FileBasedHelperException
    */
   @Override
-  public void connect() throws FileBasedHelperException {
+  public void connect()
+      throws FileBasedHelperException {
     String privateKey = state.getProp(ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY);
     String knownHosts = state.getProp(ConfigurationKeys.SOURCE_CONN_KNOWN_HOSTS);
 
@@ -73,9 +74,10 @@ public class SftpFsHelper implements FileBasedHelper {
     JSch.setLogger(new JSchLogger());
     JSch jsch = new JSch();
 
-    log.info("Attempting to connect to source via SFTP with" + " privateKey: " + privateKey + " knownHosts: "
-        + knownHosts + " userName: " + userName + " hostName: " + hostName + " port: " + port + " proxyHost: "
-        + proxyHost + " proxyPort: " + proxyPort);
+    log.info(
+        "Attempting to connect to source via SFTP with" + " privateKey: " + privateKey + " knownHosts: " + knownHosts
+            + " userName: " + userName + " hostName: " + hostName + " port: " + port + " proxyHost: " + proxyHost
+            + " proxyPort: " + proxyPort);
     try {
       jsch.addIdentity(privateKey);
       jsch.setKnownHosts(knownHosts);
@@ -112,7 +114,8 @@ public class SftpFsHelper implements FileBasedHelper {
    * @param sftp is the channel to execute the command on
    * @throws SftpException
    */
-  public InputStream getFileStream(String file) throws FileBasedHelperException {
+  public InputStream getFileStream(String file)
+      throws FileBasedHelperException {
     SftpGetMonitor monitor = new SftpGetMonitor();
     try {
       return this.channelSftp.get(file, monitor);
@@ -123,7 +126,8 @@ public class SftpFsHelper implements FileBasedHelper {
 
   @Override
   @SuppressWarnings("unchecked")
-  public List<String> ls(String path) throws FileBasedHelperException {
+  public List<String> ls(String path)
+      throws FileBasedHelperException {
     try {
       List<String> list = new ArrayList<String>();
       Vector<LsEntry> vector = this.channelSftp.ls(path);
@@ -163,14 +167,16 @@ public class SftpFsHelper implements FileBasedHelper {
       this.op = op;
       this.src = src;
       this.dest = dest;
-      log.info("Operation GET (" + op + ") has started with src: " + src + " dest: " + dest + " and file length: "
-          + max);
+      log.info(
+          "Operation GET (" + op + ") has started with src: " + src + " dest: " + dest + " and file length: " + max);
     }
 
     @Override
     public boolean count(long count) {
       this.totalCount += count;
-      log.info("Transfer is in progress for file: " + src + ". Finished transferring " + this.totalCount + " bytes " + System.currentTimeMillis());
+      log.info(
+          "Transfer is in progress for file: " + src + ". Finished transferring " + this.totalCount + " bytes " + System
+              .currentTimeMillis());
       return true;
     }
 

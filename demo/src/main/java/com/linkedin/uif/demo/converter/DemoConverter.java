@@ -28,6 +28,7 @@ import com.linkedin.uif.converter.DataConversionException;
 import com.linkedin.uif.converter.SchemaConversionException;
 import com.linkedin.uif.converter.ToAvroConverterBase;
 
+
 /**
  * A demo implementation of {@link Converter}.
  *
@@ -42,9 +43,8 @@ import com.linkedin.uif.converter.ToAvroConverterBase;
 public class DemoConverter extends ToAvroConverterBase<String, String> {
 
   // Expect the input JSON string to be key-value pairs
-  private static final Type FIELD_ENTRY_TYPE =
-      new TypeToken<Map<String, Object>>() {
-      }.getType();
+  private static final Type FIELD_ENTRY_TYPE = new TypeToken<Map<String, Object>>() {
+  }.getType();
 
   @Override
   public Schema convertSchema(String inputSchema, WorkUnitState workUnit)

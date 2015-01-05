@@ -20,7 +20,7 @@ package com.linkedin.uif.runtime;
  */
 public class ForkBranchMismatchException extends Exception {
 
-    public ForkBranchMismatchException(String message) {
-        super(message);
-    }
+  public ForkBranchMismatchException(String message) {
+    super(message);
+  }
 }
