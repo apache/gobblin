@@ -18,7 +18,7 @@ package com.linkedin.uif.fork;
  */
 public class CopyNotSupportedException extends Exception {
 
-    public CopyNotSupportedException(String message) {
-        super(message);
-    }
+  public CopyNotSupportedException(String message) {
+    super(message);
+  }
 }

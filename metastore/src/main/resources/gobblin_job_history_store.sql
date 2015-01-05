@@ -1,3 +1,13 @@
+-- (c) 2014 LinkedIn Corp. All rights reserved.
+--
+-- Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+-- this file except in compliance with the License. You may obtain a copy of the
+-- License at  http://www.apache.org/licenses/LICENSE-2.0
+--
+-- Unless required by applicable law or agreed to in writing, software distributed
+-- under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+-- CONDITIONS OF ANY KIND, either express or implied.
+
 CREATE TABLE IF NOT EXISTS gobblin_job_executions (
 	job_name VARCHAR(128) NOT NULL,
 	job_id VARCHAR(128) NOT NULL,
@@ -74,3 +84,30 @@ CREATE TABLE IF NOT EXISTS gobblin_task_metrics (
 	INDEX (metric_type)
 );
 
+CREATE TABLE IF NOT EXISTS gobblin_job_properties (
+    property_id BIGINT(21) NOT NULL AUTO_INCREMENT,
+    job_id VARCHAR(128) NOT NULL,
+    property_key VARCHAR(128) NOT NULL,
+    property_value VARCHAR(128) NOT NULL,
+	created_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	last_modified_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	PRIMARY KEY (property_id),
+	FOREIGN KEY (job_id)
+    REFERENCES gobblin_job_executions(job_id)
+    ON DELETE CASCADE,
+    INDEX (property_key)
+);
+
+CREATE TABLE IF NOT EXISTS gobblin_task_properties (
+    property_id BIGINT(21) NOT NULL AUTO_INCREMENT,
+    task_id VARCHAR(128) NOT NULL,
+    property_key VARCHAR(128) NOT NULL,
+    property_value VARCHAR(128) NOT NULL,
+	created_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	last_modified_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	PRIMARY KEY (property_id),
+	FOREIGN KEY (task_id)
+    REFERENCES gobblin_task_executions(task_id)
+    ON DELETE CASCADE,
+    INDEX (property_key)
+);

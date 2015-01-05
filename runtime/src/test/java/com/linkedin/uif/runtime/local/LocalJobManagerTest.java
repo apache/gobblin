@@ -34,6 +34,7 @@ import com.linkedin.uif.runtime.TaskState;
 import com.linkedin.uif.runtime.TaskStateTracker;
 import com.linkedin.uif.runtime.WorkUnitManager;
 
+
 /**
  * Unit test for {@link LocalJobManager}.
  *
@@ -43,90 +44,86 @@ import com.linkedin.uif.runtime.WorkUnitManager;
 @Test(groups = {"com.linkedin.uif.test"})
 public class LocalJobManagerTest {
 
-    private static final String SOURCE_FILE_LIST_KEY = "source.files";
+  private static final String SOURCE_FILE_LIST_KEY = "source.files";
 
-    private ServiceManager serviceManager;
-    private LocalJobManager jobManager;
-    private Properties properties;
+  private ServiceManager serviceManager;
+  private LocalJobManager jobManager;
+  private Properties properties;
 
-    @BeforeClass
-    public void startUp() throws Exception {
-        this.properties = new Properties();
-        this.properties.load(new FileReader("test/resource/uif.test.properties"));
-        this.properties.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "false");
+  @BeforeClass
+  public void startUp()
+      throws Exception {
+    this.properties = new Properties();
+    this.properties.load(new FileReader("test/resource/uif.test.properties"));
+    this.properties.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "false");
 
-        TaskExecutor taskExecutor = new TaskExecutor(this.properties);
-        TaskStateTracker taskStateTracker = new LocalTaskStateTracker(
-                this.properties, taskExecutor);
-        WorkUnitManager workUnitManager = new WorkUnitManager(
-                taskExecutor, taskStateTracker);
-        this.jobManager = new LocalJobManager(workUnitManager, this.properties);
-        ((LocalTaskStateTracker) taskStateTracker).setJobManager(this.jobManager);
+    TaskExecutor taskExecutor = new TaskExecutor(this.properties);
+    TaskStateTracker taskStateTracker = new LocalTaskStateTracker(this.properties, taskExecutor);
+    WorkUnitManager workUnitManager = new WorkUnitManager(taskExecutor, taskStateTracker);
+    this.jobManager = new LocalJobManager(workUnitManager, this.properties);
+    ((LocalTaskStateTracker) taskStateTracker).setJobManager(this.jobManager);
 
-        this.serviceManager = new ServiceManager(Lists.newArrayList(
-                // The order matters due to dependencies between services
-                taskExecutor,
-                taskStateTracker,
-                workUnitManager,
-                this.jobManager
-        ));
+    this.serviceManager = new ServiceManager(Lists.newArrayList(
+        // The order matters due to dependencies between services
+        taskExecutor, taskStateTracker, workUnitManager, this.jobManager));
 
-        this.serviceManager.startAsync();
+    this.serviceManager.startAsync();
+  }
+
+  @Test
+  public void runTest1()
+      throws Exception {
+    Properties jobProps = new Properties();
+    jobProps.load(new FileReader("test/resource/job-conf/UIFTest1.pull"));
+    jobProps.putAll(this.properties);
+    jobProps.setProperty(SOURCE_FILE_LIST_KEY, "test/resource/source/test.avro.2,test/resource/source/test.avro.3");
+    jobProps.setProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "true");
+
+    CountDownLatch latch = new CountDownLatch(1);
+    this.jobManager.runJob(jobProps, new TestJobListener(latch));
+    latch.await();
+  }
+
+  @Test
+  public void runTest2()
+      throws Exception {
+    Properties jobProps = new Properties();
+    jobProps.load(new FileReader("test/resource/job-conf/UIFTest2.pull"));
+    jobProps.putAll(this.properties);
+    jobProps.setProperty(SOURCE_FILE_LIST_KEY, "test/resource/source/test.avro.2,test/resource/source/test.avro.3");
+    jobProps.setProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "true");
+
+    CountDownLatch latch = new CountDownLatch(1);
+    this.jobManager.runJob(jobProps, new TestJobListener(latch));
+    latch.await();
+  }
+
+  @AfterClass
+  public void tearDown()
+      throws TimeoutException {
+    this.serviceManager.stopAsync().awaitStopped(5, TimeUnit.SECONDS);
+  }
+
+  private static class TestJobListener implements JobListener {
+
+    private final CountDownLatch latch;
+
+    public TestJobListener(CountDownLatch latch) {
+      this.latch = latch;
     }
 
-    @Test
-    public void runTest1() throws Exception {
-        Properties jobProps = new Properties();
-        jobProps.load(new FileReader("test/resource/job-conf/UIFTest1.pull"));
-        jobProps.putAll(this.properties);
-        jobProps.setProperty(SOURCE_FILE_LIST_KEY,
-                "test/resource/source/test.avro.2,test/resource/source/test.avro.3");
-        jobProps.setProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "true");
-
-        CountDownLatch latch = new CountDownLatch(1);
-        this.jobManager.runJob(jobProps, new TestJobListener(latch));
-        latch.await();
-    }
-
-    @Test
-    public void runTest2() throws Exception {
-        Properties jobProps = new Properties();
-        jobProps.load(new FileReader("test/resource/job-conf/UIFTest2.pull"));
-        jobProps.putAll(this.properties);
-        jobProps.setProperty(SOURCE_FILE_LIST_KEY,
-                "test/resource/source/test.avro.2,test/resource/source/test.avro.3");
-        jobProps.setProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "true");
-
-        CountDownLatch latch = new CountDownLatch(1);
-        this.jobManager.runJob(jobProps, new TestJobListener(latch));
-        latch.await();
-    }
-
-    @AfterClass
-    public void tearDown() throws TimeoutException {
-        this.serviceManager.stopAsync().awaitStopped(5, TimeUnit.SECONDS);
-    }
-
-    private static class TestJobListener implements JobListener {
-
-        private final CountDownLatch latch;
-
-        public TestJobListener(CountDownLatch latch) {
-            this.latch = latch;
+    @Override
+    public void jobCompleted(JobState jobState) {
+      try {
+        Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
+        Assert.assertEquals(jobState.getCompletedTasks(), 2);
+        for (TaskState taskState : jobState.getTaskStates()) {
+          Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
         }
-
-        @Override
-        public void jobCompleted(JobState jobState) {
-            try {
-                Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
-                Assert.assertEquals(jobState.getCompletedTasks(), 2);
-                for (TaskState taskState : jobState.getTaskStates()) {
-                    Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
-                }
-            } finally {
-                // Make sure this is always called so the test can end
-                this.latch.countDown();
-            }
-        }
+      } finally {
+        // Make sure this is always called so the test can end
+        this.latch.countDown();
+      }
     }
+  }
 }

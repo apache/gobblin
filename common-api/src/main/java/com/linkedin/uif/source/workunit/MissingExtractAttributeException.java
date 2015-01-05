@@ -21,5 +21,4 @@ public class MissingExtractAttributeException extends Exception {
   public MissingExtractAttributeException(String arg0) {
     super(arg0);
   }
-
 }

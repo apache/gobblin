@@ -18,12 +18,12 @@ package com.linkedin.uif.source.workunit;
  */
 public class ImmutableWorkUnit extends WorkUnit {
 
-    public ImmutableWorkUnit(WorkUnit workUnit) {
-        super(workUnit);
-    }
+  public ImmutableWorkUnit(WorkUnit workUnit) {
+    super(workUnit);
+  }
 
-    @Override
-    public void setProp(String key, Object value) {
-        throw new UnsupportedOperationException();
-    }
+  @Override
+  public void setProp(String key, Object value) {
+    throw new UnsupportedOperationException();
+  }
 }

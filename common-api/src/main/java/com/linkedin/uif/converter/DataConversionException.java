@@ -19,11 +19,11 @@ package com.linkedin.uif.converter;
  */
 public class DataConversionException extends Exception {
 
-    public DataConversionException(Throwable cause) {
-        super(cause);
-    }
+  public DataConversionException(Throwable cause) {
+    super(cause);
+  }
 
-    public DataConversionException(String message, Throwable cause) {
-        super(message, cause);
-    }
+  public DataConversionException(String message, Throwable cause) {
+    super(message, cause);
+  }
 }

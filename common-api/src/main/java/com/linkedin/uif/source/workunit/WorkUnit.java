@@ -28,7 +28,7 @@ import com.linkedin.uif.source.extractor.Extractor;
  *   An instance of this class should contain all the properties an {@link Extractor} needs
  *   to extract the schema and data records.
  * </p>
- * 
+ *
  * @author kgoodhop
  */
 public class WorkUnit extends State {
@@ -117,13 +117,15 @@ public class WorkUnit extends State {
   }
 
   @Override
-  public void readFields(DataInput in) throws IOException {
+  public void readFields(DataInput in)
+      throws IOException {
     super.readFields(in);
     this.extract.readFields(in);
   }
 
   @Override
-  public void write(DataOutput out) throws IOException {
+  public void write(DataOutput out)
+      throws IOException {
     super.write(out);
     this.extract.write(out);
   }

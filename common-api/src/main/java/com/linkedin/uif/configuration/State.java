@@ -23,9 +23,10 @@ import org.apache.hadoop.io.Writable;
 
 import com.google.common.base.Splitter;
 
+
 /**
  * A serializable wrapper class that can be persisted for {@link java.util.Properties}.
- * 
+ *
  * @author kgoodhop
  */
 public class State implements Writable {
@@ -36,7 +37,7 @@ public class State implements Writable {
 
   /**
    * Populates this instance with properties of the other instance.
-   * 
+   *
    * @param otherState the other {@link State} instance
    */
   public void addAll(State otherState) {
@@ -57,19 +58,17 @@ public class State implements Writable {
    *
    * @param id id of this instance
    */
-  public void setId(String id)
-  {
-      this.id = id;
+  public void setId(String id) {
+    this.id = id;
   }
 
   /**
    * Get the id of this instance.
-   * 
+   *
    * @return id of this instance
    */
-  public String getId()
-  {
-      return this.id;
+  public String getId() {
+    return this.id;
   }
 
   /**
@@ -211,11 +210,11 @@ public class State implements Writable {
   public boolean getPropAsBoolean(String key, boolean def) {
     return Boolean.valueOf(getProperty(key, String.valueOf(def)));
   }
-  
+
   protected String getProperty(String key) {
     return properties.getProperty(key);
   }
-  
+
   protected String getProperty(String key, String def) {
     return properties.getProperty(key, def);
   }
@@ -240,13 +239,13 @@ public class State implements Writable {
   }
 
   @Override
-  public void readFields(DataInput in) throws IOException {
+  public void readFields(DataInput in)
+      throws IOException {
     Text txt = new Text();
 
     int numEntries = in.readInt();
 
-    while (numEntries-- > 0)
-    {
+    while (numEntries-- > 0) {
       txt.readFields(in);
       String key = txt.toString();
       txt.readFields(in);
@@ -257,7 +256,8 @@ public class State implements Writable {
   }
 
   @Override
-  public void write(DataOutput out) throws IOException {
+  public void write(DataOutput out)
+      throws IOException {
     Text txt = new Text();
     out.writeInt(properties.size());
 
@@ -269,7 +269,7 @@ public class State implements Writable {
       txt.write(out);
     }
   }
-  
+
   @Override
   public String toString() {
     return properties.toString();

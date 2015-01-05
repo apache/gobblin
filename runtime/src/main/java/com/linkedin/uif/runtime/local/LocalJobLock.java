@@ -16,6 +16,7 @@ import java.util.concurrent.Semaphore;
 
 import com.linkedin.uif.runtime.JobLock;
 
+
 /**
  * A implementation of {@link JobLock} backed by a {@link Semaphore}.
  *
@@ -31,31 +32,35 @@ import com.linkedin.uif.runtime.JobLock;
 @Deprecated
 public class LocalJobLock implements JobLock {
 
-    private final Semaphore lock = new Semaphore(1);
+  private final Semaphore lock = new Semaphore(1);
 
-    @Override
-    public void lock() throws IOException {
-        try {
-            this.lock.acquire();
-        } catch (InterruptedException ie) {
-            throw new IOException(ie);
-        }
+  @Override
+  public void lock()
+      throws IOException {
+    try {
+      this.lock.acquire();
+    } catch (InterruptedException ie) {
+      throw new IOException(ie);
     }
+  }
 
-    @Override
-    public void unlock() throws IOException {
-        this.lock.release();
-    }
+  @Override
+  public void unlock()
+      throws IOException {
+    this.lock.release();
+  }
 
-    @Override
-    public boolean tryLock() throws IOException {
-        return this.lock.tryAcquire();
-    }
+  @Override
+  public boolean tryLock()
+      throws IOException {
+    return this.lock.tryAcquire();
+  }
 
-    @Override
-    public boolean isLocked() throws IOException {
-        // This is not supported because it requires synchronizing all methods of
-        // this class plus this method is not used at all when this class is used.
-        throw new UnsupportedOperationException();
-    }
+  @Override
+  public boolean isLocked()
+      throws IOException {
+    // This is not supported because it requires synchronizing all methods of
+    // this class plus this method is not used at all when this class is used.
+    throw new UnsupportedOperationException();
+  }
 }

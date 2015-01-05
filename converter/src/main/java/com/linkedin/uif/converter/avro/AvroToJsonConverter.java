@@ -29,44 +29,45 @@ import com.linkedin.uif.converter.Converter;
 import com.linkedin.uif.converter.DataConversionException;
 import com.linkedin.uif.converter.SchemaConversionException;
 
+
 /**
  * Converts Avro record to Json record
- * 
+ *
  * @author nveeramr
- * 
+ *
  */
 public class AvroToJsonConverter extends Converter<String, JsonArray, GenericRecord, JsonObject> {
-    private Gson gson;
+  private Gson gson;
 
-    @Override
-    public Converter<String, JsonArray, GenericRecord, JsonObject> init(WorkUnitState workUnit) {
-        this.gson = new GsonBuilder().create();
-        return this;
-    }
+  @Override
+  public Converter<String, JsonArray, GenericRecord, JsonObject> init(WorkUnitState workUnit) {
+    this.gson = new GsonBuilder().create();
+    return this;
+  }
 
-    @Override
-    public JsonArray convertSchema(String inputSchema, WorkUnitState workUnit)
-            throws SchemaConversionException {
-        JsonParser jsonParser = new JsonParser();
-        JsonElement jsonSchema = jsonParser.parse(inputSchema.toString());
-        JsonArray array = jsonSchema.getAsJsonArray();
-        return array;
-    }
+  @Override
+  public JsonArray convertSchema(String inputSchema, WorkUnitState workUnit)
+      throws SchemaConversionException {
+    JsonParser jsonParser = new JsonParser();
+    JsonElement jsonSchema = jsonParser.parse(inputSchema.toString());
+    JsonArray array = jsonSchema.getAsJsonArray();
+    return array;
+  }
 
-    @Override
-    public JsonObject convertRecord(JsonArray outputSchema, GenericRecord inputRecord,
-            WorkUnitState workUnit) throws DataConversionException {
-        Map<String, Object> record = new HashMap<String, Object>();
-        for (Field field : inputRecord.getSchema().getFields()) {
-            Object col = inputRecord.get(field.name());
-            if (col != null && col instanceof Utf8) {
-                col = col.toString();
-            }
-            record.put(field.name(), col);
-        }
-        String json = this.gson.toJson(record);
-        JsonElement element = this.gson.fromJson(json.toString(), JsonObject.class);
-        JsonObject jsonObject = element.getAsJsonObject();
-        return jsonObject;
+  @Override
+  public JsonObject convertRecord(JsonArray outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
+      throws DataConversionException {
+    Map<String, Object> record = new HashMap<String, Object>();
+    for (Field field : inputRecord.getSchema().getFields()) {
+      Object col = inputRecord.get(field.name());
+      if (col != null && col instanceof Utf8) {
+        col = col.toString();
+      }
+      record.put(field.name(), col);
     }
+    String json = this.gson.toJson(record);
+    JsonElement element = this.gson.fromJson(json.toString(), JsonObject.class);
+    JsonObject jsonObject = element.getAsJsonObject();
+    return jsonObject;
+  }
 }

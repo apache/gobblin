@@ -13,116 +13,117 @@ package com.linkedin.uif.source.extractor.schema;
 
 import com.google.gson.JsonObject;
 
+
 /**
  * Schema from extractor
  */
 public class Schema {
-	private String columnName;
-	private JsonObject dataType;
-	private boolean isWaterMark;
-	private int primaryKey;
-	private long length;
-	private int precision;
-	private int scale;
-	private boolean isNullable;
-	private String format;
-	private String comment;
-	private String defaultValue;
-	private boolean isUnique;
-	
-	public String getColumnName() {
-		return columnName;
-	}
+  private String columnName;
+  private JsonObject dataType;
+  private boolean isWaterMark;
+  private int primaryKey;
+  private long length;
+  private int precision;
+  private int scale;
+  private boolean isNullable;
+  private String format;
+  private String comment;
+  private String defaultValue;
+  private boolean isUnique;
 
-	public void setColumnName(String columnName) {
-		this.columnName = columnName;
-	}
+  public String getColumnName() {
+    return columnName;
+  }
 
-	public JsonObject getDataType() {
-		return dataType;
-	}
+  public void setColumnName(String columnName) {
+    this.columnName = columnName;
+  }
 
-	public void setDataType(JsonObject dataType) {
-		this.dataType = dataType;
-	}
+  public JsonObject getDataType() {
+    return dataType;
+  }
 
-	public int getPrimaryKey() {
-		return primaryKey;
-	}
+  public void setDataType(JsonObject dataType) {
+    this.dataType = dataType;
+  }
 
-	public void setPrimaryKey(int primaryKey) {
-		this.primaryKey = primaryKey;
-	}
+  public int getPrimaryKey() {
+    return primaryKey;
+  }
 
-	public long getLength() {
-		return length;
-	}
+  public void setPrimaryKey(int primaryKey) {
+    this.primaryKey = primaryKey;
+  }
 
-	public void setLength(long length) {
-		this.length = length;
-	}
+  public long getLength() {
+    return length;
+  }
 
-	public int getPrecision() {
-		return precision;
-	}
+  public void setLength(long length) {
+    this.length = length;
+  }
 
-	public void setPrecision(int precision) {
-		this.precision = precision;
-	}
+  public int getPrecision() {
+    return precision;
+  }
 
-	public int getScale() {
-		return scale;
-	}
+  public void setPrecision(int precision) {
+    this.precision = precision;
+  }
 
-	public void setScale(int scale) {
-		this.scale = scale;
-	}
+  public int getScale() {
+    return scale;
+  }
 
-	public String getFormat() {
-		return format;
-	}
+  public void setScale(int scale) {
+    this.scale = scale;
+  }
 
-	public void setFormat(String format) {
-		this.format = format;
-	}
+  public String getFormat() {
+    return format;
+  }
 
-	public String getComment() {
-		return comment;
-	}
+  public void setFormat(String format) {
+    this.format = format;
+  }
 
-	public void setComment(String comment) {
-		this.comment = comment;
-	}
-	
-	public String getDefaultValue() {
-		return defaultValue;
-	}
+  public String getComment() {
+    return comment;
+  }
 
-	public void setDefaultValue(String defaultValue) {
-		this.defaultValue = defaultValue;
-	}
-	
-	public boolean isWaterMark() {
-		return isWaterMark;
-	}
+  public void setComment(String comment) {
+    this.comment = comment;
+  }
 
-	public void setWaterMark(boolean isWaterMark) {
-		this.isWaterMark = isWaterMark;
-	}
+  public String getDefaultValue() {
+    return defaultValue;
+  }
 
-	public boolean isNullable() {
-		return isNullable;
-	}
+  public void setDefaultValue(String defaultValue) {
+    this.defaultValue = defaultValue;
+  }
 
-	public void setNullable(boolean isNullable) {
-		this.isNullable = isNullable;
-	}
+  public boolean isWaterMark() {
+    return isWaterMark;
+  }
 
-	public boolean isUnique() {
-		return isUnique;
-	}
+  public void setWaterMark(boolean isWaterMark) {
+    this.isWaterMark = isWaterMark;
+  }
 
-	public void setUnique(boolean isUnique) {
-		this.isUnique = isUnique;
-	}
+  public boolean isNullable() {
+    return isNullable;
+  }
+
+  public void setNullable(boolean isNullable) {
+    this.isNullable = isNullable;
+  }
+
+  public boolean isUnique() {
+    return isUnique;
+  }
+
+  public void setUnique(boolean isUnique) {
+    this.isUnique = isUnique;
+  }
 }

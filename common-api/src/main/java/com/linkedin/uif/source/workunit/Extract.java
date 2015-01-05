@@ -27,6 +27,7 @@ import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.configuration.WorkUnitState;
 
+
 /**
  * A class representing all the base attributes required by all tables types. Subclasses
  * will be expected to validate each table type for their respective required attributes.
@@ -48,7 +49,7 @@ public class Extract extends State {
     SNAPSHOT_APPEND,
     APPEND_ONLY
   }
-  
+
   private static final DateTimeFormatter DTF =
       DateTimeFormat.forPattern("yyyyMMddHHmmss").withLocale(Locale.US).withZone(DateTimeZone.UTC);
   private final State previousTableState = new State();
@@ -77,15 +78,14 @@ public class Extract extends State {
           this.previousTableState.addAll(pre);
         }
       }
-      
+
       // Setting full drop date if not already specified, the value can still be overridden if required.
-      if (state.getPropAsBoolean(ConfigurationKeys.EXTRACT_IS_FULL_KEY) && 
-          ! state.contains(ConfigurationKeys.EXTRACT_FULL_RUN_TIME_KEY)){
+      if (state.getPropAsBoolean(ConfigurationKeys.EXTRACT_IS_FULL_KEY) && !state
+          .contains(ConfigurationKeys.EXTRACT_FULL_RUN_TIME_KEY)) {
         super.setProp(ConfigurationKeys.EXTRACT_FULL_RUN_TIME_KEY, System.currentTimeMillis());
       }
     }
   }
-
 
   /**
    * Deep copy constructor.
@@ -98,18 +98,17 @@ public class Extract extends State {
 
   @Override
   public boolean equals(Object other) {
-      if (!(other instanceof Extract)) {
-          return false;
-      }
-      Extract otherExtract = (Extract) other;
-      return this.getNamespace().equals(otherExtract.getNamespace()) 
-              && this.getTable().equals(otherExtract.getTable())
-              && this.getExtractId().equals(otherExtract.getExtractId());
+    if (!(other instanceof Extract)) {
+      return false;
+    }
+    Extract otherExtract = (Extract) other;
+    return this.getNamespace().equals(otherExtract.getNamespace()) && this.getTable().equals(otherExtract.getTable())
+        && this.getExtractId().equals(otherExtract.getExtractId());
   }
-  
+
   @Override
   public int hashCode() {
-      return (this.getNamespace() + this.getTable() + this.getExtractId()).hashCode();
+    return (this.getNamespace() + this.getTable() + this.getExtractId()).hashCode();
   }
 
   /**
@@ -118,11 +117,11 @@ public class Extract extends State {
    * @return writer output file path corresponding to this {@link Extract}
    */
   public String getOutputFilePath() {
-      return this.getNamespace().replaceAll("\\.", "/") + "/" + 
-             this.getTable() + "/" + this.getExtractId() + "_" + 
-             (this.getIsFull() ? "full" : "append");
+    return this.getNamespace().replaceAll("\\.", "/") + "/" +
+        this.getTable() + "/" + this.getExtractId() + "_" +
+        (this.getIsFull() ? "full" : "append");
   }
-  
+
   /**
    * Get the {@link TableType} of the table.
    *

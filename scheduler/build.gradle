@@ -13,26 +13,15 @@ apply plugin: 'java'
 
 dependencies {
   compile project(":common-api")
-  compile project(":metastore")
-  compile project(":metrics")
-  compile project(":qualitychecker")
-  compile project(":writer")
   compile project(":runtime")
   compile project(":utility")
-  compile externalDependency.avro
+  compile project(":rest:server")
   compile externalDependency.commonsConfiguration
   compile externalDependency.quartz
   compile externalDependency.guava
-  compile externalDependency.jacksonCore
-  compile externalDependency.jacksonMapper
-  compile externalDependency.jodaTime
-  compile externalDependency.httpclient
-  compile externalDependency.httpcore
   compile externalDependency.commonsLang
   compile externalDependency.slf4j
   compile externalDependency.commonsCli
-  compile externalDependency.gson
-  compile externalDependency.metricsCore
   compile externalDependency.commonsIO
 
   testCompile externalDependency.testng
@@ -51,3 +40,9 @@ test {
 }
 
 classification="library"
+
+task startSchedulerDarmon(type: JavaExec) {
+  main = 'com.linkedin.uif.scheduler.SchedulerDaemon'
+  args = ['../conf/gobblin-test.properties']
+  classpath = sourceSets.main.runtimeClasspath
+}

@@ -13,6 +13,7 @@ package com.linkedin.uif.converter;
 
 import com.linkedin.uif.configuration.WorkUnitState;
 
+
 /**
  * An interface for classes that implement data transformations, e.g., data type
  * conversions, schema projections, data manipulations, data filtering, etc.
@@ -30,19 +31,17 @@ import com.linkedin.uif.configuration.WorkUnitState;
  * @param <DI> input data type
  * @param <DO> output data type
  */
-public abstract class Converter<SI, SO, DI, DO>
-{
+public abstract class Converter<SI, SO, DI, DO> {
   /**
    * Initialize this {@link Converter}.
    *
    * @param workUnit a {@link WorkUnitState} object carrying configuration properties
    * @return an initialized {@link Converter} instance
    */
-  public Converter<SI, SO, DI, DO> init(WorkUnitState workUnit)
-  {
+  public Converter<SI, SO, DI, DO> init(WorkUnitState workUnit) {
     return this;
   }
-  
+
   /**
    * Convert an input schema.
    *
@@ -51,7 +50,8 @@ public abstract class Converter<SI, SO, DI, DO>
    * @return converted output schema
    * @throws SchemaConversionException if it fails to convert the input schema
    */
-  public abstract SO convertSchema(SI inputSchema, WorkUnitState workUnit) throws SchemaConversionException;
+  public abstract SO convertSchema(SI inputSchema, WorkUnitState workUnit)
+      throws SchemaConversionException;
 
   /**
    * Convert an input data record.
@@ -64,5 +64,4 @@ public abstract class Converter<SI, SO, DI, DO>
    */
   public abstract DO convertRecord(SO outputSchema, DI inputRecord, WorkUnitState workUnit)
       throws DataConversionException;
-
 }

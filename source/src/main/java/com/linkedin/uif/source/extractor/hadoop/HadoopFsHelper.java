@@ -35,37 +35,37 @@ import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.source.extractor.filebased.FileBasedHelper;
 import com.linkedin.uif.source.extractor.filebased.FileBasedHelperException;
 
-public class HadoopFsHelper implements FileBasedHelper
-{
-    private static Logger log = LoggerFactory.getLogger(HadoopFsHelper.class);
-    private State state;
-    private FileSystem fs;
 
-    public HadoopFsHelper(State state) {
-        this.state = state;
+public class HadoopFsHelper implements FileBasedHelper {
+  private static Logger log = LoggerFactory.getLogger(HadoopFsHelper.class);
+  private State state;
+  private FileSystem fs;
+
+  public HadoopFsHelper(State state) {
+    this.state = state;
+  }
+
+  public FileSystem getFileSystem() {
+    return this.fs;
+  }
+
+  @Override
+  public void connect()
+      throws FileBasedHelperException {
+    URI uri = null;
+    try {
+      uri = new URI(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI));
+      this.fs = FileSystem.get(uri, new Configuration());
+    } catch (IOException e) {
+      throw new FileBasedHelperException("Cannot connect to given URI " + uri + " due to " + e.getMessage(), e);
+    } catch (URISyntaxException e) {
+      throw new FileBasedHelperException("Malformed uri " + uri + " due to " + e.getMessage(), e);
     }
+  }
 
-    public FileSystem getFileSystem() {
-        return this.fs;
-    }
-
-    @Override
-    public void connect() throws FileBasedHelperException
-    {
-        URI uri = null;
-        try {
-            uri = new URI(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI));
-            this.fs = FileSystem.get(uri, new Configuration());
-        } catch (IOException e) {
-            throw new FileBasedHelperException("Cannot connect to given URI " + uri + " due to "  + e.getMessage(), e);
-        } catch (URISyntaxException e) {
-            throw new FileBasedHelperException("Malformed uri " + uri + " due to "  + e.getMessage(), e);
-        }
-    }
-
-    @Override
-    public void close() throws FileBasedHelperException
-    {
+  @Override
+  public void close()
+      throws FileBasedHelperException {
         /*
          * TODO
          * Removing this for now, FileSystem.get() returns the same object each time it is called within a process
@@ -79,66 +79,71 @@ public class HadoopFsHelper implements FileBasedHelper
 //        } catch (IOException e) {
 //            throw new FileBasedHelperException("Cannot close Hadoop filesystem due to "  + e.getMessage(), e);
 //        }
-    }
+  }
 
-    @Override
-    public List<String> ls(String path) throws FileBasedHelperException
-    {
-        List<String> results = new ArrayList<String>();
+  @Override
+  public List<String> ls(String path)
+      throws FileBasedHelperException {
+    List<String> results = new ArrayList<String>();
+    try {
+      lsr(new Path(path), results);
+    } catch (IOException e) {
+      throw new FileBasedHelperException("Cannot do ls on path " + path + " due to " + e.getMessage(), e);
+    }
+    return results;
+  }
+
+  public void lsr(Path p, List<String> results)
+      throws IOException {
+    if (!this.fs.getFileStatus(p).isDir()) {
+      results.add(p.toString());
+    }
+    for (FileStatus status : this.fs.listStatus(p)) {
+      if (status.isDir()) {
+        lsr(status.getPath(), results);
+      } else {
+        results.add(status.getPath().toString());
+      }
+    }
+  }
+
+  @Override
+  public InputStream getFileStream(String path)
+      throws FileBasedHelperException {
+    try {
+      return this.fs.open(new Path(path));
+    } catch (IOException e) {
+      throw new FileBasedHelperException("Cannot do open file " + path + " due to " + e.getMessage(), e);
+    }
+  }
+
+  public Schema getAvroSchema(String file)
+      throws FileBasedHelperException {
+    DataFileReader<GenericRecord> dfr = null;
+    try {
+      dfr = new DataFileReader<GenericRecord>(new FsInput(new Path(file), fs.getConf()),
+          new GenericDatumReader<GenericRecord>());
+      return dfr.getSchema();
+    } catch (IOException e) {
+      throw new FileBasedHelperException("Failed to open avro file " + file + " due to error " + e.getMessage(), e);
+    } finally {
+      if (dfr != null) {
         try {
-            lsr(new Path(path), results);
+          dfr.close();
         } catch (IOException e) {
-            throw new FileBasedHelperException("Cannot do ls on path " + path + " due to "  + e.getMessage(), e);
+          log.error("Failed to close avro file " + file, e);
         }
-        return results;
+      }
     }
+  }
 
-    public void lsr(Path p, List<String> results) throws IOException {
-        if (!this.fs.getFileStatus(p).isDir()) {
-            results.add(p.toString());
-        }
-        for (FileStatus status : this.fs.listStatus(p)) {
-            if (status.isDir()) {
-                lsr(status.getPath(), results);
-            } else {
-                results.add(status.getPath().toString());
-            }
-        }
+  public DataFileReader<GenericRecord> getAvroFile(String file)
+      throws FileBasedHelperException {
+    try {
+      return new DataFileReader<GenericRecord>(new FsInput(new Path(file), fs.getConf()),
+          new GenericDatumReader<GenericRecord>());
+    } catch (IOException e) {
+      throw new FileBasedHelperException("Failed to open avro file " + file + " due to error " + e.getMessage(), e);
     }
-
-    @Override
-    public InputStream getFileStream(String path) throws FileBasedHelperException
-    {
-        try {
-            return this.fs.open(new Path(path));
-        } catch (IOException e) {
-            throw new FileBasedHelperException("Cannot do open file " + path + " due to "  + e.getMessage(), e);
-        }
-    }
-
-    public Schema getAvroSchema(String file) throws FileBasedHelperException {
-        DataFileReader<GenericRecord> dfr = null;
-        try {
-            dfr = new DataFileReader<GenericRecord>(new FsInput(new Path(file), fs.getConf()), new GenericDatumReader<GenericRecord>());
-            return dfr.getSchema();
-        } catch (IOException e) {
-            throw new FileBasedHelperException("Failed to open avro file " + file + " due to error " + e.getMessage(), e);
-        } finally {
-            if (dfr != null) {
-                try {
-                    dfr.close();
-                } catch (IOException e) {
-                    log.error("Failed to close avro file " + file, e);
-                }
-            }
-        }
-    }
-
-    public DataFileReader<GenericRecord> getAvroFile(String file) throws FileBasedHelperException {
-        try {
-            return new DataFileReader<GenericRecord>(new FsInput(new Path(file), fs.getConf()), new GenericDatumReader<GenericRecord>());
-        } catch (IOException e) {
-            throw new FileBasedHelperException("Failed to open avro file " + file + " due to error " + e.getMessage(), e);
-        }
-    }
+  }
 }

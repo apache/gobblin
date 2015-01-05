@@ -26,46 +26,47 @@ import com.linkedin.uif.source.workunit.Extract;
 import com.linkedin.uif.source.workunit.WorkUnit;
 import com.linkedin.uif.source.workunit.Extract.TableType;
 
+
 /**
  * An example {@link Source} for testing and demonstration purposes.
  */
 public class ExampleSource implements Source<String, String> {
 
-    private static final String SOURCE_FILE_LIST_KEY = "source.files";
-    private static final String SOURCE_FILE_KEY = "source.file";
+  private static final String SOURCE_FILE_LIST_KEY = "source.files";
+  private static final String SOURCE_FILE_KEY = "source.file";
 
-    private static final Splitter SPLITTER = Splitter.on(",")
-            .omitEmptyStrings()
-            .trimResults();
+  private static final Splitter SPLITTER = Splitter.on(",").omitEmptyStrings().trimResults();
 
-    @Override
-    public List<WorkUnit> getWorkunits(SourceState state) {
-        Extract extract1 = new Extract(state, TableType.SNAPSHOT_ONLY,
-                           state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY), "TestTable1");
-        
-        Extract extract2 = new Extract(state, TableType.SNAPSHOT_ONLY,
-                           state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY), "TestTable2");
-        
-        String sourceFileList = state.getProp(SOURCE_FILE_LIST_KEY);
-        List<WorkUnit> workUnits = Lists.newArrayList();
-        
-        List<String> list = SPLITTER.splitToList(sourceFileList);
-        
-        for (int i = 0; i < list.size(); i++) {
-            WorkUnit workUnit = new WorkUnit(state, i % 2 == 0 ? extract1 : extract2);
-            workUnit.setProp(SOURCE_FILE_KEY, list.get(i));
-            workUnits.add(workUnit);
-        }
-        return workUnits;
+  @Override
+  public List<WorkUnit> getWorkunits(SourceState state) {
+    Extract extract1 =
+        new Extract(state, TableType.SNAPSHOT_ONLY, state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY),
+            "TestTable1");
+
+    Extract extract2 =
+        new Extract(state, TableType.SNAPSHOT_ONLY, state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY),
+            "TestTable2");
+
+    String sourceFileList = state.getProp(SOURCE_FILE_LIST_KEY);
+    List<WorkUnit> workUnits = Lists.newArrayList();
+
+    List<String> list = SPLITTER.splitToList(sourceFileList);
+
+    for (int i = 0; i < list.size(); i++) {
+      WorkUnit workUnit = new WorkUnit(state, i % 2 == 0 ? extract1 : extract2);
+      workUnit.setProp(SOURCE_FILE_KEY, list.get(i));
+      workUnits.add(workUnit);
     }
+    return workUnits;
+  }
 
-    @Override
-    public Extractor<String, String> getExtractor(WorkUnitState state) {
-        return new ExampleExtractor(state);
-    }
+  @Override
+  public Extractor<String, String> getExtractor(WorkUnitState state) {
+    return new ExampleExtractor(state);
+  }
 
-    @Override
-    public void shutdown(SourceState state) {
-        // Do nothing
-    }
+  @Override
+  public void shutdown(SourceState state) {
+    // Do nothing
+  }
 }

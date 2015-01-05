@@ -23,22 +23,24 @@ import com.linkedin.uif.source.extractor.Extractor;
 import com.linkedin.uif.source.extractor.exception.ExtractPrepareException;
 import com.linkedin.uif.source.extractor.extract.QueryBasedSource;
 
+
 /**
  * An implementation of sqlserver source to get work units
- * 
+ *
  * @author nveeramr
  */
 public class SqlServerSource extends QueryBasedSource<JsonArray, JsonElement> {
-	private static final Logger LOG = LoggerFactory.getLogger(SqlServerSource.class);
+  private static final Logger LOG = LoggerFactory.getLogger(SqlServerSource.class);
 
-	public Extractor<JsonArray, JsonElement> getExtractor(WorkUnitState state) throws IOException {
-		Extractor<JsonArray, JsonElement> extractor = null;
-		try {
-			extractor = new SqlServerExtractor(state).build();
-		} catch (ExtractPrepareException e) {
-			LOG.error("Failed to prepare extractor: error - " + e.getMessage());
-			throw new IOException(e);
-		}
-		return extractor;
-	}
+  public Extractor<JsonArray, JsonElement> getExtractor(WorkUnitState state)
+      throws IOException {
+    Extractor<JsonArray, JsonElement> extractor = null;
+    try {
+      extractor = new SqlServerExtractor(state).build();
+    } catch (ExtractPrepareException e) {
+      LOG.error("Failed to prepare extractor: error - " + e.getMessage());
+      throw new IOException(e);
+    }
+    return extractor;
+  }
 }

@@ -26,44 +26,47 @@ import com.linkedin.uif.converter.Converter;
 import com.linkedin.uif.converter.DataConversionException;
 import com.linkedin.uif.converter.SchemaConversionException;
 
-public class CsvToJsonConverter extends Converter<String, JsonArray, String, JsonObject>
-{
-    private static final String NULL = "null";
 
-    /**
-     * Take in an input schema of type string, the schema must be in JSON format
-     * @return a JsonArray representation of the schema
-     */
-    @Override
-    public JsonArray convertSchema(String inputSchema, WorkUnitState workUnit) throws SchemaConversionException
-    {
-        JsonParser jsonParser = new JsonParser();
-        JsonElement jsonSchema = jsonParser.parse(inputSchema);
-        return jsonSchema.getAsJsonArray();
-    }
+public class CsvToJsonConverter extends Converter<String, JsonArray, String, JsonObject> {
+  private static final String NULL = "null";
 
-    /**
-     * Takes in a record with format String and splits the data based on SOURCE_SCHEMA_DELIMITER
-     * Uses the inputSchema and the split record to convert the record to a JsonObject
-     * @return a JsonObject representing the record
-     */
-    @Override
-    public JsonObject convertRecord(JsonArray outputSchema, String inputRecord, WorkUnitState workUnit) throws DataConversionException
-    {
-        List<String> recordSplit = Lists.newArrayList(Splitter.onPattern(workUnit.getProp(ConfigurationKeys.CONVERTER_CSV_TO_JSON_DELIMITER)).trimResults().split(inputRecord));
-        JsonObject outputRecord = new JsonObject();
+  /**
+   * Take in an input schema of type string, the schema must be in JSON format
+   * @return a JsonArray representation of the schema
+   */
+  @Override
+  public JsonArray convertSchema(String inputSchema, WorkUnitState workUnit)
+      throws SchemaConversionException {
+    JsonParser jsonParser = new JsonParser();
+    JsonElement jsonSchema = jsonParser.parse(inputSchema);
+    return jsonSchema.getAsJsonArray();
+  }
 
-        for (int i = 0; i < outputSchema.size(); i++) {
-            if (i < recordSplit.size()) {
-                if (recordSplit.get(i).isEmpty() || recordSplit.get(i).toLowerCase().equals(NULL)) {
-                    outputRecord.add(outputSchema.get(i).getAsJsonObject().get("columnName").getAsString(), JsonNull.INSTANCE);
-                } else {
-                    outputRecord.addProperty(outputSchema.get(i).getAsJsonObject().get("columnName").getAsString(), recordSplit.get(i));
-                }
-            } else {
-                outputRecord.add(outputSchema.get(i).getAsJsonObject().get("columnName").getAsString(), JsonNull.INSTANCE);
-            }
+  /**
+   * Takes in a record with format String and splits the data based on SOURCE_SCHEMA_DELIMITER
+   * Uses the inputSchema and the split record to convert the record to a JsonObject
+   * @return a JsonObject representing the record
+   */
+  @Override
+  public JsonObject convertRecord(JsonArray outputSchema, String inputRecord, WorkUnitState workUnit)
+      throws DataConversionException {
+    List<String> recordSplit = Lists.newArrayList(
+        Splitter.onPattern(workUnit.getProp(ConfigurationKeys.CONVERTER_CSV_TO_JSON_DELIMITER)).trimResults()
+            .split(inputRecord));
+    JsonObject outputRecord = new JsonObject();
+
+    for (int i = 0; i < outputSchema.size(); i++) {
+      if (i < recordSplit.size()) {
+        if (recordSplit.get(i).isEmpty() || recordSplit.get(i).toLowerCase().equals(NULL)) {
+          outputRecord.add(outputSchema.get(i).getAsJsonObject().get("columnName").getAsString(), JsonNull.INSTANCE);
+        } else {
+          outputRecord
+              .addProperty(outputSchema.get(i).getAsJsonObject().get("columnName").getAsString(), recordSplit.get(i));
         }
-        return outputRecord;
+      } else {
+        outputRecord.add(outputSchema.get(i).getAsJsonObject().get("columnName").getAsString(), JsonNull.INSTANCE);
+      }
     }
+    return outputRecord;
+  }
 }

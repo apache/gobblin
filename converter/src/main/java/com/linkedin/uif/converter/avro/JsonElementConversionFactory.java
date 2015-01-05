@@ -75,7 +75,8 @@ public class JsonElementConversionFactory {
    * @throws UnsupportedDateTypeException
    */
   public static JsonElementConverter getConvertor(String fieldName, String fieldType, JsonObject schemaNode,
-      WorkUnitState state, boolean nullable) throws UnsupportedDateTypeException {
+      WorkUnitState state, boolean nullable)
+      throws UnsupportedDateTypeException {
 
     Type type;
     try {
@@ -87,16 +88,16 @@ public class JsonElementConversionFactory {
     DateTimeZone timeZone = getTimeZone(state.getProp(ConfigurationKeys.CONVERTER_AVRO_DATE_TIMEZONE, "UTC"));
     switch (type) {
       case DATE:
-        return new DateConverter(fieldName, nullable, type.toString(), state.getProp(ConfigurationKeys.CONVERTER_AVRO_DATE_FORMAT,
-            "yyyy-MM-dd HH:mm:ss"), timeZone, state);
+        return new DateConverter(fieldName, nullable, type.toString(),
+            state.getProp(ConfigurationKeys.CONVERTER_AVRO_DATE_FORMAT, "yyyy-MM-dd HH:mm:ss"), timeZone, state);
 
       case TIMESTAMP:
-        return new DateConverter(fieldName, nullable, type.toString(), state.getProp(ConfigurationKeys.CONVERTER_AVRO_TIMESTAMP_FORMAT,
-            "yyyy-MM-dd HH:mm:ss"), timeZone, state);
+        return new DateConverter(fieldName, nullable, type.toString(),
+            state.getProp(ConfigurationKeys.CONVERTER_AVRO_TIMESTAMP_FORMAT, "yyyy-MM-dd HH:mm:ss"), timeZone, state);
 
       case TIME:
-        return new DateConverter(fieldName, nullable, type.toString(), state.getProp(ConfigurationKeys.CONVERTER_AVRO_TIME_FORMAT,
-            "HH:mm:ss"), timeZone, state);
+        return new DateConverter(fieldName, nullable, type.toString(),
+            state.getProp(ConfigurationKeys.CONVERTER_AVRO_TIME_FORMAT, "HH:mm:ss"), timeZone, state);
 
       case FIXED:
         throw new UnsupportedDateTypeException(fieldType + " is unsupported");
@@ -105,8 +106,8 @@ public class JsonElementConversionFactory {
         return new StringConverter(fieldName, nullable, type.toString());
 
       case BYTES:
-        return new BinaryConverter(fieldName, nullable, type.toString(), state.getProp(ConfigurationKeys.CONVERTER_AVRO_BINARY_CHARSET,
-            "UTF8"));
+        return new BinaryConverter(fieldName, nullable, type.toString(),
+            state.getProp(ConfigurationKeys.CONVERTER_AVRO_BINARY_CHARSET, "UTF8"));
 
       case INT:
         return new IntConverter(fieldName, nullable, type.toString());
@@ -145,8 +146,9 @@ public class JsonElementConversionFactory {
       TimeZone timeZone = ZoneInfo.getTimeZone(id);
 
       //throw error if unrecognized zone
-      if (timeZone == null)
+      if (timeZone == null) {
         throw new IllegalArgumentException("TimeZone " + id + " not recognized");
+      }
       zone = DateTimeZone.forTimeZone(timeZone);
     }
     return zone;
@@ -180,7 +182,7 @@ public class JsonElementConversionFactory {
     public String getName() {
       return this.name;
     }
-    
+
     /**
      * is field nullable
      * @return
@@ -215,16 +217,17 @@ public class JsonElementConversionFactory {
      * @param value is JsonNull will return null if allowed or exception if not allowed
      * @return Avro safe type
      */
-    public Object convert(JsonElement value){
+    public Object convert(JsonElement value) {
       if (value.isJsonNull()) {
-        if (nullable)
+        if (nullable) {
           return null;
-        else
+        } else {
           throw new RuntimeException("Field: " + getName() + " is not nullable and contains a null value");
+        }
       }
       return convertField(value);
     }
-    
+
     /**
      * Convert JsonElement to Avro type
      * @param value
@@ -289,7 +292,6 @@ public class JsonElementConversionFactory {
     @Override
     public org.apache.avro.Schema.Type getTargetType() {
       return Schema.Type.LONG;
-
     }
   }
 
@@ -307,7 +309,6 @@ public class JsonElementConversionFactory {
     @Override
     public org.apache.avro.Schema.Type getTargetType() {
       return Schema.Type.DOUBLE;
-
     }
   }
 
@@ -325,7 +326,6 @@ public class JsonElementConversionFactory {
     @Override
     public org.apache.avro.Schema.Type getTargetType() {
       return Schema.Type.FLOAT;
-
     }
   }
 
@@ -344,16 +344,16 @@ public class JsonElementConversionFactory {
     @Override
     public org.apache.avro.Schema.Type getTargetType() {
       return Schema.Type.BOOLEAN;
-
     }
   }
 
   public static class DateConverter extends JsonElementConverter {
-	private String inputPatterns;
-	private DateTimeZone timeZone;
-	private WorkUnitState state;
+    private String inputPatterns;
+    private DateTimeZone timeZone;
+    private WorkUnitState state;
 
-    public DateConverter(String fieldName, boolean nullable, String sourceType, String pattern, DateTimeZone zone, WorkUnitState state) {
+    public DateConverter(String fieldName, boolean nullable, String sourceType, String pattern, DateTimeZone zone,
+        WorkUnitState state) {
       super(fieldName, nullable, sourceType);
       this.inputPatterns = pattern;
       this.timeZone = zone;
@@ -365,30 +365,29 @@ public class JsonElementConversionFactory {
       List<String> patterns = Arrays.asList(this.inputPatterns.split(","));
       int patternFailCount = 0;
       Object formattedDate = null;
-      for(String pattern: patterns) {
-    	  DateTimeFormatter dtf = DateTimeFormat.forPattern(pattern).withZone(this.timeZone);
-    	  try {
-    		  formattedDate = dtf.parseDateTime(value.getAsString()).withZone(DateTimeZone.forID("UTC")).getMillis();
-    		  if(Boolean.valueOf(this.state.getProp(ConfigurationKeys.CONVERTER_IS_EPOCH_TIME_IN_SECONDS))) {
-    		      formattedDate = (Long)formattedDate / 1000;
-    		  }
-    		  break;
-    	  } catch(Exception e) {
-    		  patternFailCount++;
-    	  }
+      for (String pattern : patterns) {
+        DateTimeFormatter dtf = DateTimeFormat.forPattern(pattern).withZone(this.timeZone);
+        try {
+          formattedDate = dtf.parseDateTime(value.getAsString()).withZone(DateTimeZone.forID("UTC")).getMillis();
+          if (Boolean.valueOf(this.state.getProp(ConfigurationKeys.CONVERTER_IS_EPOCH_TIME_IN_SECONDS))) {
+            formattedDate = (Long) formattedDate / 1000;
+          }
+          break;
+        } catch (Exception e) {
+          patternFailCount++;
+        }
       }
-      
-      if(patternFailCount == patterns.size()) {
-    	  throw new RuntimeException("Failed to parse the date");
+
+      if (patternFailCount == patterns.size()) {
+        throw new RuntimeException("Failed to parse the date");
       }
-      
+
       return formattedDate;
     }
 
     @Override
     public org.apache.avro.Schema.Type getTargetType() {
       return Schema.Type.LONG;
-
     }
   }
 
@@ -412,14 +411,14 @@ public class JsonElementConversionFactory {
     @Override
     public org.apache.avro.Schema.Type getTargetType() {
       return Schema.Type.BYTES;
-
     }
   }
 
   public static abstract class ComplexConverter extends JsonElementConverter {
     private JsonElementConverter elementConverter;
 
-    public ComplexConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode, WorkUnitState state)
+    public ComplexConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode,
+        WorkUnitState state)
         throws UnsupportedDateTypeException {
       super(fieldName, nullable, sourceType);
     }
@@ -435,12 +434,13 @@ public class JsonElementConversionFactory {
 
   public static class ArrayConverter extends ComplexConverter {
 
-    public ArrayConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode, WorkUnitState state)
+    public ArrayConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode,
+        WorkUnitState state)
         throws UnsupportedDateTypeException {
       super(fieldName, nullable, sourceType, schemaNode, state);
-      super.setElementConverter(getConvertor(fieldName, schemaNode.get("dataType").getAsJsonObject().get("items")
-          .getAsString(), schemaNode.get("dataType").getAsJsonObject(), state, isNullable()));
-
+      super.setElementConverter(
+          getConvertor(fieldName, schemaNode.get("dataType").getAsJsonObject().get("items").getAsString(),
+              schemaNode.get("dataType").getAsJsonObject(), state, isNullable()));
     }
 
     @Override
@@ -457,7 +457,6 @@ public class JsonElementConversionFactory {
     @Override
     public org.apache.avro.Schema.Type getTargetType() {
       return Schema.Type.ARRAY;
-
     }
 
     @Override
@@ -470,12 +469,13 @@ public class JsonElementConversionFactory {
 
   public static class MapConverter extends ComplexConverter {
 
-    public MapConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode, WorkUnitState state)
+    public MapConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode,
+        WorkUnitState state)
         throws UnsupportedDateTypeException {
       super(fieldName, nullable, sourceType, schemaNode, state);
-      super.setElementConverter(getConvertor(fieldName, schemaNode.get("dataType").getAsJsonObject().get("values")
-          .getAsString(), schemaNode.get("dataType").getAsJsonObject(), state, isNullable()));
-
+      super.setElementConverter(
+          getConvertor(fieldName, schemaNode.get("dataType").getAsJsonObject().get("values").getAsString(),
+              schemaNode.get("dataType").getAsJsonObject(), state, isNullable()));
     }
 
     @Override
@@ -492,7 +492,6 @@ public class JsonElementConversionFactory {
     @Override
     public org.apache.avro.Schema.Type getTargetType() {
       return Schema.Type.MAP;
-
     }
 
     @Override
@@ -534,5 +533,4 @@ public class JsonElementConversionFactory {
       return schema;
     }
   }
-
 }

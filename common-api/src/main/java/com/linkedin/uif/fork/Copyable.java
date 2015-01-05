@@ -18,10 +18,11 @@ package com.linkedin.uif.fork;
  */
 public interface Copyable<T> {
 
-    /**
-     * Make a new copy of this instance.
-     *
-     * @return new copy of this instance
-     */
-    public T copy() throws CopyNotSupportedException;
+  /**
+   * Make a new copy of this instance.
+   *
+   * @return new copy of this instance
+   */
+  public T copy()
+      throws CopyNotSupportedException;
 }

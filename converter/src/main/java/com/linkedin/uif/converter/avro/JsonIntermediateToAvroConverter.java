@@ -37,6 +37,7 @@ import com.linkedin.uif.converter.SchemaConversionException;
 import com.linkedin.uif.converter.ToAvroConverterBase;
 import com.linkedin.uif.converter.avro.JsonElementConversionFactory.JsonElementConverter;
 
+
 /**
  * Converts Integra's intermediate data format to avro
  *
@@ -50,7 +51,8 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
   private long numFailedConversion = 0;
 
   @Override
-  public Schema convertSchema(JsonArray schema, WorkUnitState workUnit) throws SchemaConversionException {
+  public Schema convertSchema(JsonArray schema, WorkUnitState workUnit)
+      throws SchemaConversionException {
     List<Schema.Field> fields = new ArrayList<Schema.Field>();
 
     for (JsonElement elem : schema) {
@@ -62,9 +64,9 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
       Schema fldSchema;
 
       try {
-        JsonElementConverter converter =
-            JsonElementConversionFactory.getConvertor(columnName, map.get("dataType").getAsJsonObject().get("type")
-                .getAsString(), map, workUnit, nullable);
+        JsonElementConverter converter = JsonElementConversionFactory
+            .getConvertor(columnName, map.get("dataType").getAsJsonObject().get("type").getAsString(), map, workUnit,
+                nullable);
         converters.put(columnName, converter);
         fldSchema = converter.getSchema();
       } catch (UnsupportedDateTypeException e) {
@@ -88,9 +90,8 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
       throws DataConversionException {
 
     GenericRecord avroRecord = new GenericData.Record(outputSchema);
-    long maxFailedConversions =
-        workUnit.getPropAsLong(ConfigurationKeys.CONVERTER_AVRO_MAX_CONVERSION_FAILURES,
-            ConfigurationKeys.DEFAULT_CONVERTER_AVRO_MAX_CONVERSION_FAILURES);
+    long maxFailedConversions = workUnit.getPropAsLong(ConfigurationKeys.CONVERTER_AVRO_MAX_CONVERSION_FAILURES,
+        ConfigurationKeys.DEFAULT_CONVERTER_AVRO_MAX_CONVERSION_FAILURES);
 
     for (Map.Entry<String, JsonElement> entry : inputRecord.entrySet()) {
       try {
@@ -101,8 +102,9 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
           LOG.error("Dropping record " + inputRecord + " because it cannot be converted to Avro", e);
           return null;
         } else {
-          throw new DataConversionException("Unable to convert field:" + entry.getKey() + " for value:" + entry.getValue()
-              + " for record: " + inputRecord, e);
+          throw new DataConversionException(
+              "Unable to convert field:" + entry.getKey() + " for value:" + entry.getValue() + " for record: "
+                  + inputRecord, e);
         }
       }
     }

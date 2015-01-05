@@ -53,7 +53,6 @@ ext.externalDependency = [
     "log4j": "log4j:log4j:1.2.17",
     "log4jextras": "log4j:apache-log4j-extras:1.2.17",
     "slf4jLog4j": "org.slf4j:slf4j-log4j12:1.7.6",
-    "jclOverSlf4j": "org.slf4j:jcl-over-slf4j:1.7.6",
     "jodaTime": "joda-time:joda-time:1.6",
     "metricsCore": "com.codahale.metrics:metrics-core:3.0.2",
     "commonsIO": "commons-io:commons-io:2.4",
@@ -61,7 +60,10 @@ ext.externalDependency = [
     "jsch": "com.jcraft:jsch:0.1.46",
     "azkaban": "com.linkedin.azkaban:azkaban:2.5.0",
     "commonsVfs": "org.apache.commons:commons-vfs2:2.0",
+    "mysqlConnector": "mysql:mysql-connector-java:5.1.34",
     "javaxInject": "javax.inject:javax.inject:1",
+    "guice": "com.google.inject:guice:3.0",
+    "derby": "org.apache.derby:derby:10.11.1.1",
     "pegasus" : [
         "data" : "com.linkedin.pegasus:data:"+pegasusVersion,
         "generator" : "com.linkedin.pegasus:generator:"+pegasusVersion,
