@@ -1,9 +1,9 @@
 /* (c) 2014 LinkedIn Corp. All rights reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
  * License at  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
@@ -30,12 +30,16 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.State;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.metastore.FsStateStore;
+import com.linkedin.uif.metastore.JobHistoryStore;
+import com.linkedin.uif.metastore.MetaStoreModule;
 import com.linkedin.uif.metastore.StateStore;
 import com.linkedin.uif.metrics.JobMetrics;
 import com.linkedin.uif.publisher.DataPublisher;
@@ -69,6 +73,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   // Store for persisting task states
   private final StateStore taskStateStore;
 
+  // Job history store that stores job execution information
+  private final Optional<JobHistoryStore> jobHistoryStore;
+
   public AbstractJobLauncher(Properties properties)
       throws Exception {
     this.properties = properties;
@@ -79,6 +86,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     this.taskStateStore = new FsStateStore(
         properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI),
         properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY), TaskState.class);
+
+    if (Boolean
+        .valueOf(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, Boolean.FALSE.toString()))) {
+      Injector injector = Guice.createInjector(new MetaStoreModule(properties));
+      this.jobHistoryStore = Optional.of(injector.getInstance(JobHistoryStore.class));
+    } else {
+      this.jobHistoryStore = Optional.absent();
+    }
   }
 
   /**
@@ -183,7 +198,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       source = new SourceDecorator(initSource(jobProps), jobId, LOG);
     } catch (Throwable t) {
       String errMsg = "Failed to initialize the source for job " + jobId;
-      LOG.error(errMsg, t);
+      LOG.error(errMsg + ": " + t, t);
       unlockJob(jobName, jobLockOptional);
       throw new JobException(errMsg, t);
     }
@@ -221,6 +236,15 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       }
     }
 
+    // Write job execution info to the job history store before the job runs
+    if (this.jobHistoryStore.isPresent()) {
+      try {
+        this.jobHistoryStore.get().put(jobState.toJobExecutionInfo());
+      } catch (Throwable t) {
+        LOG.error("Failed to write job execution information to the job history store: " + t, t);
+      }
+    }
+
     // Actually launch the job to run
     try {
       runJob(jobName, jobProps, jobState, workUnits.get());
@@ -232,7 +256,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       commitJob(jobId, jobState);
     } catch (Throwable t) {
       String errMsg = "Failed to launch and run job " + jobId;
-      LOG.error(errMsg, t);
+      LOG.error(errMsg + ": " + t, t);
       throw new JobException(errMsg, t);
     } finally {
       source.shutdown(sourceState);
@@ -246,11 +270,20 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         cleanupStagingData(jobState);
       } catch (Throwable t) {
         // Catch any possible errors so unlockJob is guaranteed to be called below
-        LOG.error("Failed to persist job state and cleanup for job " + jobId, t);
+        LOG.error(String.format("Failed to persist job state and cleanup for job %s: %s", jobId, t), t);
       }
 
       // Release the job lock
       unlockJob(jobName, jobLockOptional);
+
+      // Write job execution info to the job history store upon job completion
+      if (this.jobHistoryStore.isPresent()) {
+        try {
+          this.jobHistoryStore.get().put(jobState.toJobExecutionInfo());
+        } catch (Throwable t) {
+          LOG.error("Failed to write job execution information to the job history store: " + t, t);
+        }
+      }
 
       if (JobMetrics.isEnabled(this.properties)) {
         // Remove all job-level metrics after the job is done
@@ -366,7 +399,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     try {
       return jobLockOptional.get().tryLock();
     } catch (IOException ioe) {
-      LOG.error("Failed to acquire the job lock for job " + jobName, ioe);
+      LOG.error(String.format("Failed to acquire job lock for job %s: %s", jobName, ioe), ioe);
       return false;
     }
   }
@@ -383,7 +416,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       // Unlock so the next run of the same job can proceed
       jobLockOptional.get().unlock();
     } catch (IOException ioe) {
-      LOG.error("Failed to unlock for job " + jobName, ioe);
+      LOG.error(String.format("Failed to unlock for job %s: %s", jobName, ioe), ioe);
     }
   }
 
@@ -484,7 +517,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       this.jobStateStore
           .createAlias(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX, "current" + JOB_STATE_STORE_TABLE_SUFFIX);
     } catch (IOException ioe) {
-      LOG.error("Failed to persist job/task states of job " + jobId, ioe);
+      LOG.error(String.format("Failed to persist job/task states of job %s: %s", jobId, ioe), ioe);
     }
   }
 
@@ -531,7 +564,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             }
           }
         } catch (IOException ioe) {
-          LOG.error(String.format("Failed to clean staging data for branch %d of task %s", i, taskState.getTaskId()),
+          LOG.error(
+              String.format("Failed to clean staging data for branch %d of task %s: %s", i, taskState.getTaskId(), ioe),
               ioe);
         }
       }
