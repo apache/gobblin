@@ -39,6 +39,7 @@ import com.linkedin.data.template.StringMap;
 import com.linkedin.gobblin.rest.JobExecutionInfo;
 import com.linkedin.gobblin.rest.JobExecutionQuery;
 import com.linkedin.gobblin.rest.JobStateEnum;
+import com.linkedin.gobblin.rest.LauncherTypeEnum;
 import com.linkedin.gobblin.rest.Metric;
 import com.linkedin.gobblin.rest.MetricArray;
 import com.linkedin.gobblin.rest.MetricTypeEnum;
@@ -64,13 +65,13 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
   private static final Logger LOGGER = LoggerFactory.getLogger(DatabaseJobHistoryStore.class);
 
   private static final String JOB_EXECUTION_INSERT_STATEMENT_TEMPLATE =
-      "INSERT INTO gobblin_job_executions (job_name,job_id,start_time,end_time,duration,"
-          + "state,launched_tasks,completed_tasks) VALUES(?,?,?,?,?,?,?,?)";
+      "INSERT INTO gobblin_job_executions (job_name,job_id,start_time,end_time,duration,state,"
+          + "launched_tasks,completed_tasks,launcher_type,tracking_url) VALUES(?,?,?,?,?,?,?,?,?,?)";
 
   private static final String TASK_EXECUTION_INSERT_STATEMENT_TEMPLATE =
       "INSERT INTO gobblin_task_executions (task_id,job_id,start_time,end_time,duration," +
-          "state,low_watermark,high_watermark,table_namespace,table_name,table_type) " +
-          "VALUES(?,?,?,?,?,?,?,?,?,?,?)";
+          "state,failure_exception,low_watermark,high_watermark,table_namespace,table_name,table_type) " +
+          "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)";
 
   private static final String JOB_METRIC_INSERT_STATEMENT_TEMPLATE =
       "INSERT INTO gobblin_job_metrics (job_id,metric_group,metric_name,"
@@ -88,11 +89,11 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
 
   private static final String JOB_EXECUTION_UPDATE_STATEMENT_TEMPLATE =
       "UPDATE gobblin_job_executions SET start_time=?,end_time=?,duration=?,"
-          + "state=?,launched_tasks=?,completed_tasks=? WHERE job_id=?";
+          + "state=?,launched_tasks=?,completed_tasks=?,launcher_type=?,tracking_url=? WHERE job_id=?";
 
   private static final String TASK_EXECUTION_UPDATE_STATEMENT_TEMPLATE =
-      "UPDATE gobblin_task_executions SET start_time=?,end_time=?,duration=?,state=?,low_watermark=?,"
-          + "high_watermark=?,table_namespace=?,table_name=?,table_type=? WHERE task_id=?";
+      "UPDATE gobblin_task_executions SET start_time=?,end_time=?,duration=?,state=?,failure_exception=?,"
+          + "low_watermark=?,high_watermark=?,table_namespace=?,table_name=?,table_type=? WHERE task_id=?";
 
   private static final String JOB_METRIC_UPDATE_STATEMENT_TEMPLATE =
       "UPDATE gobblin_job_metrics SET metric_value=? WHERE job_id=? AND "
@@ -317,16 +318,19 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     Preconditions.checkArgument(info.hasJobId());
 
     PreparedStatement insertStatement = connection.prepareStatement(JOB_EXECUTION_INSERT_STATEMENT_TEMPLATE);
-    insertStatement.setString(1, info.getJobName());
-    insertStatement.setString(2, info.getJobId());
-    insertStatement.setTimestamp(3,
+    int index = 0;
+    insertStatement.setString(++index, info.getJobName());
+    insertStatement.setString(++index, info.getJobId());
+    insertStatement.setTimestamp(++index,
         info.hasStartTime() ? new Timestamp(info.getStartTime()) : Timestamp.valueOf(DEFAULT_TIMESTAMP));
-    insertStatement
-        .setTimestamp(4, info.hasEndTime() ? new Timestamp(info.getEndTime()) : Timestamp.valueOf(DEFAULT_TIMESTAMP));
-    insertStatement.setLong(5, info.hasDuration() ? info.getDuration() : -1);
-    insertStatement.setString(6, info.hasState() ? info.getState().name() : null);
-    insertStatement.setInt(7, info.hasLaunchedTasks() ? info.getLaunchedTasks() : -1);
-    insertStatement.setInt(8, info.hasCompletedTasks() ? info.getCompletedTasks() : -1);
+    insertStatement.setTimestamp(++index,
+        info.hasEndTime() ? new Timestamp(info.getEndTime()) : Timestamp.valueOf(DEFAULT_TIMESTAMP));
+    insertStatement.setLong(++index, info.hasDuration() ? info.getDuration() : -1);
+    insertStatement.setString(++index, info.hasState() ? info.getState().name() : null);
+    insertStatement.setInt(++index, info.hasLaunchedTasks() ? info.getLaunchedTasks() : -1);
+    insertStatement.setInt(++index, info.hasCompletedTasks() ? info.getCompletedTasks() : -1);
+    insertStatement.setString(++index, info.hasLauncherType() ? info.getLauncherType().name() : null);
+    insertStatement.setString(++index, info.hasTrackingUrl() ? info.getTrackingUrl() : null);
     insertStatement.executeUpdate();
   }
 
@@ -335,15 +339,18 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     Preconditions.checkArgument(info.hasJobId());
 
     PreparedStatement updateStatement = connection.prepareStatement(JOB_EXECUTION_UPDATE_STATEMENT_TEMPLATE);
-    updateStatement.setTimestamp(1,
+    int index = 0;
+    updateStatement.setTimestamp(++index,
         info.hasStartTime() ? new Timestamp(info.getStartTime()) : Timestamp.valueOf(DEFAULT_TIMESTAMP));
-    updateStatement
-        .setTimestamp(2, info.hasEndTime() ? new Timestamp(info.getEndTime()) : Timestamp.valueOf(DEFAULT_TIMESTAMP));
-    updateStatement.setLong(3, info.hasDuration() ? info.getDuration() : -1);
-    updateStatement.setString(4, info.hasState() ? info.getState().name() : null);
-    updateStatement.setInt(5, info.hasLaunchedTasks() ? info.getLaunchedTasks() : -1);
-    updateStatement.setInt(6, info.hasCompletedTasks() ? info.getCompletedTasks() : -1);
-    updateStatement.setString(7, info.getJobId());
+    updateStatement.setTimestamp(++index,
+        info.hasEndTime() ? new Timestamp(info.getEndTime()) : Timestamp.valueOf(DEFAULT_TIMESTAMP));
+    updateStatement.setLong(++index, info.hasDuration() ? info.getDuration() : -1);
+    updateStatement.setString(++index, info.hasState() ? info.getState().name() : null);
+    updateStatement.setInt(++index, info.hasLaunchedTasks() ? info.getLaunchedTasks() : -1);
+    updateStatement.setInt(++index, info.hasCompletedTasks() ? info.getCompletedTasks() : -1);
+    updateStatement.setString(++index, info.hasLauncherType() ? info.getLauncherType().name() : null);
+    updateStatement.setString(++index, info.hasTrackingUrl() ? info.getTrackingUrl() : null);
+    updateStatement.setString(++index, info.getJobId());
     updateStatement.executeUpdate();
   }
 
@@ -362,21 +369,23 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     Preconditions.checkArgument(info.hasJobId());
 
     PreparedStatement insertStatement = connection.prepareStatement(TASK_EXECUTION_INSERT_STATEMENT_TEMPLATE);
-    insertStatement.setString(1, info.getTaskId());
-    insertStatement.setString(2, info.getJobId());
-    insertStatement.setTimestamp(3,
+    int index = 0;
+    insertStatement.setString(++index, info.getTaskId());
+    insertStatement.setString(++index, info.getJobId());
+    insertStatement.setTimestamp(++index,
         info.hasStartTime() ? new Timestamp(info.getStartTime()) : Timestamp.valueOf(DEFAULT_TIMESTAMP));
+    insertStatement.setTimestamp(++index,
+        info.hasEndTime() ? new Timestamp(info.getEndTime()) : Timestamp.valueOf(DEFAULT_TIMESTAMP));
+    insertStatement.setLong(++index, info.hasDuration() ? info.getDuration() : -1);
+    insertStatement.setString(++index, info.hasState() ? info.getState().name() : null);
+    insertStatement.setString(++index, info.hasFailureException() ? info.getFailureException() : null);
+    insertStatement.setLong(++index, info.hasLowWatermark() ? info.getLowWatermark() : -1);
+    insertStatement.setLong(++index, info.hasHighWatermark() ? info.getHighWatermark() : -1);
     insertStatement
-        .setTimestamp(4, info.hasEndTime() ? new Timestamp(info.getEndTime()) : Timestamp.valueOf(DEFAULT_TIMESTAMP));
-    insertStatement.setLong(5, info.hasDuration() ? info.getDuration() : -1);
-    insertStatement.setString(6, info.hasState() ? info.getState().name() : null);
-    insertStatement.setLong(7, info.hasLowWatermark() ? info.getLowWatermark() : -1);
-    insertStatement.setLong(8, info.hasHighWatermark() ? info.getHighWatermark() : -1);
+        .setString(++index, info.hasTable() && info.getTable().hasNamespace() ? info.getTable().getNamespace() : null);
+    insertStatement.setString(++index, info.hasTable() && info.getTable().hasName() ? info.getTable().getName() : null);
     insertStatement
-        .setString(9, info.hasTable() && info.getTable().hasNamespace() ? info.getTable().getNamespace() : null);
-    insertStatement.setString(10, info.hasTable() && info.getTable().hasName() ? info.getTable().getName() : null);
-    insertStatement
-        .setString(11, info.hasTable() && info.getTable().hasType() ? info.getTable().getType().name() : null);
+        .setString(++index, info.hasTable() && info.getTable().hasType() ? info.getTable().getType().name() : null);
     insertStatement.executeUpdate();
   }
 
@@ -385,20 +394,22 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     Preconditions.checkArgument(info.hasTaskId());
 
     PreparedStatement updateStatement = connection.prepareStatement(TASK_EXECUTION_UPDATE_STATEMENT_TEMPLATE);
-    updateStatement.setTimestamp(1,
+    int index = 0;
+    updateStatement.setTimestamp(++index,
         info.hasStartTime() ? new Timestamp(info.getStartTime()) : Timestamp.valueOf(DEFAULT_TIMESTAMP));
+    updateStatement.setTimestamp(++index,
+        info.hasEndTime() ? new Timestamp(info.getEndTime()) : Timestamp.valueOf(DEFAULT_TIMESTAMP));
+    updateStatement.setLong(++index, info.hasDuration() ? info.getDuration() : -1);
+    updateStatement.setString(++index, info.hasState() ? info.getState().name() : null);
+    updateStatement.setString(++index, info.hasFailureException() ? info.getFailureException() : null);
+    updateStatement.setLong(++index, info.hasLowWatermark() ? info.getLowWatermark() : -1);
+    updateStatement.setLong(++index, info.hasHighWatermark() ? info.getHighWatermark() : -1);
     updateStatement
-        .setTimestamp(2, info.hasEndTime() ? new Timestamp(info.getEndTime()) : Timestamp.valueOf(DEFAULT_TIMESTAMP));
-    updateStatement.setLong(3, info.hasDuration() ? info.getDuration() : -1);
-    updateStatement.setString(4, info.hasState() ? info.getState().name() : null);
-    updateStatement.setLong(5, info.hasLowWatermark() ? info.getLowWatermark() : -1);
-    updateStatement.setLong(6, info.hasHighWatermark() ? info.getHighWatermark() : -1);
+        .setString(++index, info.hasTable() && info.getTable().hasNamespace() ? info.getTable().getNamespace() : null);
+    updateStatement.setString(++index, info.hasTable() && info.getTable().hasName() ? info.getTable().getName() : null);
     updateStatement
-        .setString(7, info.hasTable() && info.getTable().hasNamespace() ? info.getTable().getNamespace() : null);
-    updateStatement.setString(8, info.hasTable() && info.getTable().hasName() ? info.getTable().getName() : null);
-    updateStatement
-        .setString(9, info.hasTable() && info.getTable().hasType() ? info.getTable().getType().name() : null);
-    updateStatement.setString(10, info.getTaskId());
+        .setString(++index, info.hasTable() && info.getTable().hasType() ? info.getTable().getType().name() : null);
+    updateStatement.setString(++index, info.getTaskId());
     updateStatement.executeUpdate();
   }
 
@@ -411,10 +422,11 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     Preconditions.checkArgument(metric.hasType());
 
     PreparedStatement queryStatement = connection.prepareStatement(template);
-    queryStatement.setString(1, id);
-    queryStatement.setString(2, metric.getGroup());
-    queryStatement.setString(3, metric.getName());
-    queryStatement.setString(4, metric.getType().name());
+    int index = 0;
+    queryStatement.setString(++index, id);
+    queryStatement.setString(++index, metric.getGroup());
+    queryStatement.setString(++index, metric.getName());
+    queryStatement.setString(++index, metric.getType().name());
     return queryStatement.executeQuery().next();
   }
 
@@ -428,18 +440,19 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     Preconditions.checkArgument(metric.hasValue());
 
     PreparedStatement updateStatement = connection.prepareStatement(template);
+    int index = 0;
     if (insert) {
-      updateStatement.setString(1, id);
-      updateStatement.setString(2, metric.getGroup());
-      updateStatement.setString(3, metric.getName());
-      updateStatement.setString(4, metric.getType().name());
-      updateStatement.setString(5, metric.getValue());
+      updateStatement.setString(++index, id);
+      updateStatement.setString(++index, metric.getGroup());
+      updateStatement.setString(++index, metric.getName());
+      updateStatement.setString(++index, metric.getType().name());
+      updateStatement.setString(++index, metric.getValue());
     } else {
-      updateStatement.setString(1, metric.getValue());
-      updateStatement.setString(2, id);
-      updateStatement.setString(3, metric.getGroup());
-      updateStatement.setString(4, metric.getName());
-      updateStatement.setString(5, metric.getType().name());
+      updateStatement.setString(++index, metric.getValue());
+      updateStatement.setString(++index, id);
+      updateStatement.setString(++index, metric.getGroup());
+      updateStatement.setString(++index, metric.getName());
+      updateStatement.setString(++index, metric.getType().name());
     }
     updateStatement.executeUpdate();
   }
@@ -451,8 +464,9 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(key));
 
     PreparedStatement queryStatement = connection.prepareStatement(template);
-    queryStatement.setString(1, id);
-    queryStatement.setString(2, key);
+    int index = 0;
+    queryStatement.setString(++index, id);
+    queryStatement.setString(++index, key);
     return queryStatement.executeQuery().next();
   }
 
@@ -465,14 +479,15 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(value));
 
     PreparedStatement updateStatement = connection.prepareStatement(template);
+    int index = 0;
     if (insert) {
-      updateStatement.setString(1, id);
-      updateStatement.setString(2, key);
-      updateStatement.setString(3, value);
+      updateStatement.setString(++index, id);
+      updateStatement.setString(++index, key);
+      updateStatement.setString(++index, value);
     } else {
-      updateStatement.setString(1, value);
-      updateStatement.setString(2, id);
-      updateStatement.setString(3, key);
+      updateStatement.setString(++index, value);
+      updateStatement.setString(++index, id);
+      updateStatement.setString(++index, key);
     }
     updateStatement.executeUpdate();
   }
@@ -626,26 +641,33 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
       throws SQLException {
     JobExecutionInfo jobExecutionInfo = new JobExecutionInfo();
 
-    jobExecutionInfo.setJobName(rs.getString(1));
-    jobExecutionInfo.setJobId(rs.getString(2));
+    jobExecutionInfo.setJobName(rs.getString("job_name"));
+    jobExecutionInfo.setJobId(rs.getString("job_id"));
     try {
-      jobExecutionInfo.setStartTime(rs.getTimestamp(3).getTime());
+      jobExecutionInfo.setStartTime(rs.getTimestamp("start_time").getTime());
     } catch (SQLException se) {
       jobExecutionInfo.setStartTime(0);
     }
     try {
-      jobExecutionInfo.setEndTime(rs.getTimestamp(4).getTime());
+      jobExecutionInfo.setEndTime(rs.getTimestamp("end_time").getTime());
     } catch (SQLException se) {
       jobExecutionInfo.setEndTime(0);
     }
-    jobExecutionInfo.setDuration(rs.getLong(5));
-    String state = rs.getString(6);
+    jobExecutionInfo.setDuration(rs.getLong("duration"));
+    String state = rs.getString("state");
     if (!Strings.isNullOrEmpty(state)) {
       jobExecutionInfo.setState(JobStateEnum.valueOf(state));
     }
-    jobExecutionInfo.setLaunchedTasks(rs.getInt(7));
-    jobExecutionInfo.setCompletedTasks(rs.getInt(8));
-
+    jobExecutionInfo.setLaunchedTasks(rs.getInt("launched_tasks"));
+    jobExecutionInfo.setCompletedTasks(rs.getInt("completed_tasks"));
+    String launcherType = rs.getString("launcher_type");
+    if (!Strings.isNullOrEmpty(launcherType)) {
+      jobExecutionInfo.setLauncherType(LauncherTypeEnum.valueOf(launcherType));
+    }
+    String trackingUrl = rs.getString("tracking_url");
+    if (!Strings.isNullOrEmpty(trackingUrl)) {
+      jobExecutionInfo.setTrackingUrl(trackingUrl);
+    }
     return jobExecutionInfo;
   }
 
@@ -653,35 +675,39 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
       throws SQLException {
     TaskExecutionInfo taskExecutionInfo = new TaskExecutionInfo();
 
-    taskExecutionInfo.setTaskId(rs.getString(1));
-    taskExecutionInfo.setJobId(rs.getString(2));
+    taskExecutionInfo.setTaskId(rs.getString("task_id"));
+    taskExecutionInfo.setJobId(rs.getString("job_id"));
     try {
-      taskExecutionInfo.setStartTime(rs.getTimestamp(3).getTime());
+      taskExecutionInfo.setStartTime(rs.getTimestamp("start_time").getTime());
     } catch (SQLException se) {
       taskExecutionInfo.setStartTime(0);
     }
     try {
-      taskExecutionInfo.setEndTime(rs.getTimestamp(4).getTime());
+      taskExecutionInfo.setEndTime(rs.getTimestamp("end_time").getTime());
     } catch (SQLException se) {
       taskExecutionInfo.setEndTime(0);
     }
-    taskExecutionInfo.setDuration(rs.getLong(5));
-    String state = rs.getString(6);
+    taskExecutionInfo.setDuration(rs.getLong("duration"));
+    String state = rs.getString("state");
     if (!Strings.isNullOrEmpty(state)) {
       taskExecutionInfo.setState(TaskStateEnum.valueOf(state));
     }
-    taskExecutionInfo.setLowWatermark(rs.getLong(7));
-    taskExecutionInfo.setHighWatermark(rs.getLong(8));
+    String failureException = rs.getString("failure_exception");
+    if (!Strings.isNullOrEmpty(failureException)) {
+      taskExecutionInfo.setFailureException(failureException);
+    }
+    taskExecutionInfo.setLowWatermark(rs.getLong("low_watermark"));
+    taskExecutionInfo.setHighWatermark(rs.getLong("high_watermark"));
     Table table = new Table();
-    String namespace = rs.getString(9);
+    String namespace = rs.getString("table_namespace");
     if (!Strings.isNullOrEmpty(namespace)) {
       table.setNamespace(namespace);
     }
-    String name = rs.getString(10);
+    String name = rs.getString("table_name");
     if (!Strings.isNullOrEmpty(name)) {
       table.setName(name);
     }
-    String type = rs.getString(11);
+    String type = rs.getString("table_type");
     if (!Strings.isNullOrEmpty(type)) {
       table.setType(TableTypeEnum.valueOf(type));
     }
@@ -694,10 +720,10 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
       throws SQLException {
     Metric metric = new Metric();
 
-    metric.setGroup(rs.getString(1));
-    metric.setName(rs.getString(2));
-    metric.setType(MetricTypeEnum.valueOf(rs.getString(3)));
-    metric.setValue(rs.getString(4));
+    metric.setGroup(rs.getString("metric_group"));
+    metric.setName(rs.getString("metric_name"));
+    metric.setType(MetricTypeEnum.valueOf(rs.getString("metric_type")));
+    metric.setValue(rs.getString("metric_value"));
 
     return metric;
   }

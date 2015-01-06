@@ -13,8 +13,11 @@ package com.linkedin.uif.runtime.local;
 
 import java.io.FileReader;
 import java.io.IOException;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.Properties;
 
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -38,6 +41,11 @@ public class LocalJobLauncherTest extends JobLauncherTestBase {
     this.properties = new Properties();
     this.properties.load(new FileReader("test/resource/uif.test.properties"));
     this.properties.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "false");
+    this.properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, "true");
+    this.properties
+        .setProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY, "org.apache.derby.jdbc.EmbeddedDriver");
+    this.properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY, "jdbc:derby:memory:gobblin1;create=true");
+    prepareJobHistoryStoreDatabase(this.properties);
     this.jobStateStore = new FsStateStore(this.properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
         this.properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY), JobState.class);
   }
@@ -101,6 +109,15 @@ public class LocalJobLauncherTest extends JobLauncherTestBase {
     jobProps.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR + ".0", "test/jobOutput");
     jobProps.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR + ".1", "test/jobOutput");
     runTestWithFork(jobProps);
+  }
+
+  @AfterClass
+  public void tearDown() {
+    try {
+      DriverManager.getConnection("jdbc:derby:memory:gobblin1;shutdown=true");
+    } catch (SQLException se) {
+      // An exception is expected when shutting down the database
+    }
   }
 
   private Properties loadJobProps()

@@ -85,6 +85,7 @@ public class ConfigurationKeys {
   public static final String JOB_FAILURES_KEY = "job.failures";
   public static final String JOB_MAX_FAILURES_KEY = "job.max.failures";
   public static final int DEFAULT_JOB_MAX_FAILURES = 1;
+  public static final String JOB_TRACKING_URL_KEY = "job.tracking.url";
 
   /**
    * Common job configuration properties.
@@ -334,6 +335,7 @@ public class ConfigurationKeys {
   /**
    * MySQL job history store configuration properties.
    */
+  public static final String JOB_HISTORY_STORE_ENABLED_KEY = "job.history.store.enabled";
   public static final String JOB_HISTORY_STORE_URL_KEY = "job.history.store.url";
   public static final String JOB_HISTORY_STORE_JDBC_DRIVER_KEY = "job.history.store.jdbc.driver";
   public static final String DEFAULT_JOB_HISTORY_STORE_JDBC_DRIVER = "com.mysql.jdbc.Driver";

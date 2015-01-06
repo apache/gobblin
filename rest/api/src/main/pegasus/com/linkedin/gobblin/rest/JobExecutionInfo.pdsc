@@ -55,6 +55,22 @@
         "doc": "Number of completed tasks"
     },
     {
+        "name": "launcherType",
+        "type": {
+            "name": "LauncherTypeEnum",
+            "type": "enum",
+            "symbols" : [ "LOCAL", "MAPREDUCE", "YARN" ]
+        },
+        "optional": true,
+        "doc": "Job launcher type"
+    },
+    {
+        "name": "trackingUrl",
+        "type": "string",
+        "optional": true,
+        "doc": "Job execution tracking URL"
+    },
+    {
         "name": "taskExecutions",
         "type": {
             "type": "array",

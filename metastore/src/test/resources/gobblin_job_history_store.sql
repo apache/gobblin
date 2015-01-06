@@ -17,6 +17,8 @@ CREATE TABLE gobblin_job_executions (
 	state VARCHAR(16),
 	launched_tasks INT,
 	completed_tasks INT,
+	launcher_type VARCHAR(16),
+  tracking_url VARCHAR(512),
 	created_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	last_modified_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	PRIMARY KEY (job_id)
@@ -29,6 +31,7 @@ CREATE TABLE gobblin_task_executions (
 	end_time TIMESTAMP,
 	duration BIGINT,
 	state VARCHAR(16),
+	failure_exception VARCHAR(1024),
 	low_watermark BIGINT,
 	high_watermark BIGINT,
 	table_namespace VARCHAR(128),
@@ -73,27 +76,27 @@ CREATE TABLE gobblin_task_metrics (
 );
 
 CREATE TABLE gobblin_job_properties (
-    property_id BIGINT NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 1, INCREMENT BY 1),
-    job_id VARCHAR(128) NOT NULL,
-    property_key VARCHAR(128) NOT NULL,
-    property_value VARCHAR(128) NOT NULL,
+  property_id BIGINT NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 1, INCREMENT BY 1),
+  job_id VARCHAR(128) NOT NULL,
+  property_key VARCHAR(128) NOT NULL,
+  property_value VARCHAR(1024) NOT NULL,
 	created_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	last_modified_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	PRIMARY KEY (property_id),
 	FOREIGN KEY (job_id)
-    REFERENCES gobblin_job_executions(job_id)
-    ON DELETE CASCADE
+  REFERENCES gobblin_job_executions(job_id)
+  ON DELETE CASCADE
 );
 
 CREATE TABLE gobblin_task_properties (
-    property_id BIGINT NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 1, INCREMENT BY 1),
-    task_id VARCHAR(128) NOT NULL,
-    property_key VARCHAR(128) NOT NULL,
-    property_value VARCHAR(128) NOT NULL,
+  property_id BIGINT NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 1, INCREMENT BY 1),
+  task_id VARCHAR(128) NOT NULL,
+  property_key VARCHAR(128) NOT NULL,
+  property_value VARCHAR(1024) NOT NULL,
 	created_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	last_modified_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	PRIMARY KEY (property_id),
 	FOREIGN KEY (task_id)
-    REFERENCES gobblin_task_executions(task_id)
-    ON DELETE CASCADE
+  REFERENCES gobblin_task_executions(task_id)
+  ON DELETE CASCADE
 );
