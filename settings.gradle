@@ -18,3 +18,5 @@ modules.each { module ->
     }
   }
 }
+
+include 'distribution'
