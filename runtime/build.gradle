@@ -36,6 +36,7 @@ dependencies {
   compile externalDependency.metricsCore
   compile externalDependency.commonsIO
   compile externalDependency.commonsEmail
+  compile externalDependency.hadoopClientCommon
 
   testCompile externalDependency.testng
 }
