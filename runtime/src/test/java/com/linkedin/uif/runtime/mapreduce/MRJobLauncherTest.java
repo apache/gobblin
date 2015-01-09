@@ -37,7 +37,6 @@ public class MRJobLauncherTest extends JobLauncherTestBase {
       throws Exception {
     this.properties = new Properties();
     this.properties.load(new FileReader("test/resource/uif.mr-test.properties"));
-    this.properties.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "true");
     this.jobStateStore = new FsStateStore(this.properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
         this.properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY), JobState.class);
   }

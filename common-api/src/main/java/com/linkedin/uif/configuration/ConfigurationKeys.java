@@ -53,8 +53,15 @@ public class ConfigurationKeys {
   public static final String JOB_EXECUTOR_THREAD_POOL_SIZE_KEY = "jobexecutor.threadpool.size";
   public static final String DEFAULT_JOB_EXECUTOR_THREAD_POOL_SIZE = "5";
 
+  // Job configuration file monitor polling interval in milliseconds
+  public static final String JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY = "jobconf.monitor.interval";
+  public static final String DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL = "300000";
+
+  // Comma-separated list of framework jars to include
+  public static final String FRAMEWORK_JAR_FILES_KEY = "framework.jars";
+  
   /**
-   * Configuration properties used internally.
+   * Task executor and state tracker configuration properties.
    */
   public static final String TASK_EXECUTOR_THREADPOOL_SIZE_KEY = "taskexecutor.threadpool.size";
   public static final String TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE_KEY = "tasktracker.threadpool.coresize";
@@ -66,25 +73,6 @@ public class ConfigurationKeys {
   public static final String DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE = "10";
   public static final String DEFAULT_TASK_RETRY_THREAD_POOL_CORE_SIZE = "2";
   public static final String DEFAULT_TASK_RETRY_THREAD_POOL_MAX_SIZE = "2";
-  public static final String MAX_TASK_RETRIES_KEY = "task.maxretries";
-  public static final String DEFAULT_MAX_TASK_RETRIES = "5";
-  public static final String TASK_RETRY_INTERVAL_IN_SEC_KEY = "task.retry.intervalinsec";
-  public static final String DEFAULT_TASK_RETRY_INTERVAL_IN_SEC = "300";
-  public static final String JOB_ID_KEY = "job.id";
-  public static final String TASK_ID_KEY = "task.id";
-  public static final String JOB_CONFIG_FILE_PATH_KEY = "job.config.path";
-  public static final String METRICS_ENABLED_KEY = "metrics.enabled";
-  public static final String DEFAULT_METRICS_ENABLED = Boolean.toString(false);
-  public static final String METRICS_REPORT_INTERVAL_KEY = "metrics.report.interval";
-  public static final String DEFAULT_METRICS_REPORT_INTERVAL = "60000";
-  public static final String JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY = "jobconf.monitor.interval";
-  public static final String DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL = "300000";
-  // Comma-separated list of framework jars to be added to the classpath
-  public static final String FRAMEWORK_JAR_FILES_KEY = "framework.jars";
-  public static final String TASK_FAILURE_EXCEPTION_KEY = "task.failure.exception";
-  public static final String JOB_FAILURES_KEY = "job.failures";
-  public static final String JOB_MAX_FAILURES_KEY = "job.max.failures";
-  public static final int DEFAULT_JOB_MAX_FAILURES = 1;
 
   /**
    * Common job configuration properties.
@@ -107,6 +95,21 @@ public class ConfigurationKeys {
   public static final String JOB_LOCAL_FILES_KEY = "job.local.files";
   public static final String JOB_HDFS_FILES_KEY = "job.hdfs.files";
   public static final String JOB_LOCK_ENABLED_KEY = "job.lock.enabled";
+  public static final String JOB_MAX_FAILURES_KEY = "job.max.failures";
+  public static final int DEFAULT_JOB_MAX_FAILURES = 1;
+  public static final String MAX_TASK_RETRIES_KEY = "task.maxretries";
+  public static final String DEFAULT_MAX_TASK_RETRIES = "5";
+  public static final String TASK_RETRY_INTERVAL_IN_SEC_KEY = "task.retry.intervalinsec";
+  public static final String DEFAULT_TASK_RETRY_INTERVAL_IN_SEC = "300";
+  
+  /**
+   * Configuration properties used internally.
+   */
+  public static final String JOB_ID_KEY = "job.id";
+  public static final String TASK_ID_KEY = "task.id";
+  public static final String JOB_CONFIG_FILE_PATH_KEY = "job.config.path";
+  public static final String TASK_FAILURE_EXCEPTION_KEY = "task.failure.exception";
+  public static final String JOB_FAILURES_KEY = "job.failures";
 
   /**
    * Work unit related configuration properties.
@@ -314,6 +317,19 @@ public class ConfigurationKeys {
   public static final String EMAIL_FROM_KEY = "email.from";
   public static final String EMAIL_TOS_KEY = "email.tos";
 
+  /**
+   * Common metrics configuration properties.
+   */
+  public static final String METRICS_LOG_DIR_KEY = "metrics.log.dir";
+  public static final String METRICS_ENABLED_KEY = "metrics.enabled";
+  public static final String DEFAULT_METRICS_ENABLED = Boolean.toString(false);
+  public static final String METRICS_REPORTING_FILE_ENABLED_KEY = "metrics.reporting.file.enabled";
+  public static final String DEFAULT_METRICS_REPORTING_FILE_ENABLED = Boolean.toString(true);
+  public static final String METRICS_REPORTING_JMX_ENABLED_KEY = "metrics.reporting.jmx.enabled";
+  public static final String DEFAULT_METRICS_REPORTING_JMX_ENABLED = Boolean.toString(false);
+  public static final String METRICS_REPORT_INTERVAL_KEY = "metrics.report.interval";
+  public static final String DEFAULT_METRICS_REPORT_INTERVAL = "30000";
+  
   /**
    * FluxDB metrics store configuration properties.
    */

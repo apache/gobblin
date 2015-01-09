@@ -1,9 +1,9 @@
 /* (c) 2014 LinkedIn Corp. All rights reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
  * License at  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
@@ -221,8 +221,16 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       }
     }
 
+    Optional<JobMetrics> jobMetrics = Optional.absent();
     // Actually launch the job to run
     try {
+      if (JobMetrics.isEnabled(jobProps)) {
+        // Start metric reporting
+        jobMetrics = Optional.fromNullable(JobMetrics.get(jobName, jobId));
+        if (jobMetrics.isPresent()) {
+          jobMetrics.get().startMetricReporting(jobProps);
+        }
+      }
       runJob(jobName, jobProps, jobState, workUnits.get());
       if (jobState.getState() == JobState.RunningState.CANCELLED) {
         LOG.info(String.format("Job %s has been cancelled", jobId));
@@ -252,9 +260,12 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       // Release the job lock
       unlockJob(jobName, jobLockOptional);
 
-      if (JobMetrics.isEnabled(this.properties)) {
-        // Remove all job-level metrics after the job is done
-        jobState.removeMetrics();
+      if (JobMetrics.isEnabled(jobProps)) {
+        // Stop metric reporting
+        if (jobMetrics.isPresent()) {
+          jobMetrics.get().stopMetricReporting();
+        }
+        JobMetrics.remove(jobId);
       }
 
       if (Optional.fromNullable(jobListener).isPresent()) {

@@ -40,9 +40,3 @@ test {
 }
 
 classification="library"
-
-task startSchedulerDarmon(type: JavaExec) {
-  main = 'com.linkedin.uif.scheduler.SchedulerDaemon'
-  args = ['../conf/gobblin-test.properties']
-  classpath = sourceSets.main.runtimeClasspath
-}

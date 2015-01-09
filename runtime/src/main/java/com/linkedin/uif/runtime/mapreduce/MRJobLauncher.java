@@ -106,10 +106,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
   public MRJobLauncher(Properties properties)
       throws Exception {
-    super(properties);
-    this.conf = new Configuration();
-    URI fsUri = URI.create(this.properties.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
-    this.fs = FileSystem.get(fsUri, this.conf);
+    this(properties, new Configuration());
   }
 
   public MRJobLauncher(Properties properties, Configuration conf)

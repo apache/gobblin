@@ -107,8 +107,6 @@ public class MRTaskStateTracker extends AbstractIdleService implements TaskState
       String jobByteMetric = JobMetrics.metricName(JobMetrics.MetricGroup.JOB, task.getJobId(), "bytes");
       this.context.getCounter(JobMetrics.MetricGroup.JOB.name(), jobByteMetric)
           .increment(metrics.getCounter(taskByteMetric).getCount());
-
-      task.getTaskState().removeMetrics();
     }
 
     // Mark the completion of this task
