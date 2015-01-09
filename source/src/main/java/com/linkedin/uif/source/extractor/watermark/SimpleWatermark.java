@@ -47,7 +47,7 @@ public class SimpleWatermark implements Watermark {
       partitionInterval = 1;
     }
 
-    int interval = this.getInterval(highWatermarkValue - lowWatermarkValue, partitionInterval, maxIntervals);
+    long interval = this.getInterval(highWatermarkValue - lowWatermarkValue, partitionInterval, maxIntervals);
     LOG.info("Recalculated partition interval:" + interval);
     if (interval == 0) {
       return intervalMap;
@@ -71,14 +71,16 @@ public class SimpleWatermark implements Watermark {
    * @param Maximum number of allowed partitions
    * @return calculated interval
    */
-  private int getInterval(long diff, int partitionInterval, int maxIntervals) {
+  private long getInterval(long diff, int partitionInterval, int maxIntervals) {
     if (diff == 0) {
       return 0;
     }
-    long totalIntervals = (int) Math.ceil((float) diff / (partitionInterval));
+    long outputInterval = partitionInterval;
+    
+    long totalIntervals = (long) Math.ceil((double) diff / (partitionInterval));
     if (totalIntervals > maxIntervals) {
-      partitionInterval = (int) Math.ceil((float) diff / maxIntervals);
+        outputInterval = (long) Math.ceil((double) diff / maxIntervals);
     }
-    return partitionInterval;
+    return outputInterval;
   }
 }
