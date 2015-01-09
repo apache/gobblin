@@ -25,7 +25,17 @@ File getEnvironmentScript()
 
 apply from: environmentScript
 
-pegasusVersion = '1.15.9'
+if (!project.hasProperty('hadoopVersion')) {
+  if (project.hasProperty('useHadoop2')) {
+    hadoopVersion = '2.3.0'
+  } else {
+    hadoopVersion = '1.2.1'
+  }
+}
+
+if (!project.hasProperty('pegasusVersion')) {
+  pegasusVersion = '1.15.9'
+}
 
 ext.externalDependency = [
     "avro": "org.apache.avro:avro:1.7.1",
@@ -39,10 +49,10 @@ ext.externalDependency = [
     "commonsHttpClient": "commons-httpclient:commons-httpclient:3.1",
     "guava": "com.google.guava:guava:15.0",
     "gson": "com.google.code.gson:gson:2.2.4",
-    "hadoop": "org.apache.hadoop:hadoop-core:1.2.1",
-    "hadoopCommon": "org.apache.hadoop:hadoop-common:2.3.0",
-    "hadoopClientCore": "org.apache.hadoop:hadoop-mapreduce-client-core:2.3.0",
-    "hadoopClientCommon": "org.apache.hadoop:hadoop-mapreduce-client-common:2.3.0",
+    "hadoop": "org.apache.hadoop:hadoop-core:"+hadoopVersion,
+    "hadoopCommon": "org.apache.hadoop:hadoop-common:"+hadoopVersion,
+    "hadoopClientCore": "org.apache.hadoop:hadoop-mapreduce-client-core:"+hadoopVersion,
+    "hadoopClientCommon": "org.apache.hadoop:hadoop-mapreduce-client-common:"+hadoopVersion,
     "httpclient": "org.apache.httpcomponents:httpclient:4.2.3",
     "httpcore": "org.apache.httpcomponents:httpcore:4.2.1",
     "quartz": "org.quartz-scheduler:quartz:2.2.1",
@@ -102,9 +112,15 @@ subprojects {
   configurations {
     compile
     dependencies {
-      // compile externalDependency.hadoop
-      compile externalDependency.hadoopCommon
-      compile externalDependency.hadoopClientCore
+      if (project.hasProperty('useHadoop2')) {
+        compile externalDependency.hadoopCommon
+        compile externalDependency.hadoopClientCore
+        if (project.name.equals('runtime')) {
+          compile externalDependency.hadoopClientCommon
+        }
+      } else {
+        compile externalDependency.hadoop
+      }
     }
   }
 
