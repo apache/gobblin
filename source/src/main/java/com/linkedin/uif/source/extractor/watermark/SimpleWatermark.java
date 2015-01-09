@@ -11,11 +11,13 @@
 
 package com.linkedin.uif.source.extractor.watermark;
 
+import java.math.RoundingMode;
 import java.util.HashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.math.DoubleMath;
 import com.linkedin.uif.source.extractor.extract.QueryBasedExtractor;
 
 
@@ -56,7 +58,7 @@ public class SimpleWatermark implements Watermark {
     long startNum = lowWatermarkValue;
     long endNum = highWatermarkValue;
     while (startNum <= endNum) {
-      nextNum = startNum + (interval - 1);
+      nextNum = startNum + interval;
       intervalMap.put(startNum, (nextNum <= endNum ? nextNum : endNum));
       startNum = nextNum + deltaForNextWatermark;
     }
@@ -77,9 +79,9 @@ public class SimpleWatermark implements Watermark {
     }
     long outputInterval = partitionInterval;
     
-    long totalIntervals = (long) Math.ceil((double) diff / (partitionInterval));
+    long totalIntervals = DoubleMath.roundToLong((double) diff / partitionInterval, RoundingMode.CEILING);
     if (totalIntervals > maxIntervals) {
-        outputInterval = (long) Math.ceil((double) diff / maxIntervals);
+        outputInterval = DoubleMath.roundToLong((double) diff / maxIntervals, RoundingMode.CEILING);
     }
     return outputInterval;
   }

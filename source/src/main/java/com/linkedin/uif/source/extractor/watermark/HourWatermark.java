@@ -11,6 +11,7 @@
 
 package com.linkedin.uif.source.extractor.watermark;
 
+import java.math.RoundingMode;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -20,6 +21,7 @@ import java.util.HashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.math.DoubleMath;
 import com.linkedin.uif.source.extractor.extract.QueryBasedExtractor;
 
 
@@ -103,10 +105,10 @@ public class HourWatermark implements Watermark {
       return 0;
     }
 
-    int totalHours = (int) Math.ceil(((double) diffInMilliSecs / (60 * 60 * 1000)));
-    long totalIntervals = (long) Math.ceil((float) totalHours / hourInterval);
+    int totalHours = DoubleMath.roundToInt((double) diffInMilliSecs / (60 * 60 * 1000), RoundingMode.CEILING);
+    int totalIntervals = DoubleMath.roundToInt((double) totalHours / hourInterval, RoundingMode.CEILING);
     if (totalIntervals > maxIntervals) {
-      hourInterval = (int) Math.ceil((float) totalHours / maxIntervals);
+      hourInterval = DoubleMath.roundToInt((double) totalHours / maxIntervals, RoundingMode.CEILING);
     }
     return hourInterval;
   }
