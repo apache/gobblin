@@ -21,5 +21,3 @@ qualitychecker.row.err.file=test/err
 
 data.publisher.type=com.linkedin.uif.publisher.BaseDataPublisher
 
-job.jars=
-
