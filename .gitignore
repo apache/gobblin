@@ -53,3 +53,4 @@ out/
 */bin/
 **/mainGeneratedDataTemplate
 **/mainGeneratedRest
+gobblin-dist*.tar.gz
