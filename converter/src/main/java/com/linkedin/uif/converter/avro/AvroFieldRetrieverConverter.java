@@ -3,8 +3,8 @@ package com.linkedin.uif.converter.avro;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.Converter;
@@ -36,6 +36,11 @@ public class AvroFieldRetrieverConverter extends Converter<Schema, Object, Gener
   @Override
   public Object convertRecord(Object outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
-    return AvroUtils.getField(inputRecord, this.fieldLocation);
+    Optional<Object> logField = AvroUtils.getField(inputRecord, this.fieldLocation);
+    if (logField.isPresent()) {
+      return logField.get();
+    } else {
+      return null;
+    }
   }
 }
