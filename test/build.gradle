@@ -19,7 +19,6 @@ dependencies {
   compile externalDependency.avroMapred
   compile externalDependency.gson
   compile externalDependency.guava
-  compile externalDependency.hadoop
   compile externalDependency.jacksonCore
   compile externalDependency.jacksonMapper
   compile externalDependency.slf4j
