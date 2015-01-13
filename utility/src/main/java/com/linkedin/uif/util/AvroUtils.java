@@ -3,18 +3,28 @@ package com.linkedin.uif.util;
 import org.apache.avro.generic.GenericData.Record;
 import org.apache.avro.generic.GenericRecord;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Iterables;
+
 public class AvroUtils {
 
   /**
-   * Given a GenericRecord, this method will return the field specified by the path parameter. The path parameter is
-   * an ordered array specifying the location of the nested field to retrieve. For example, field1.nestedField1 takes
-   * the the value of the field "field1", and retrieves the field "nestedField1" from it.
+   * Given a GenericRecord, this method will return the field specified by the path parameter. The fieldLocation
+   * parameter is an ordered array specifying the location of the nested field to retrieve. For example,
+   * field1.nestedField1 takes the the value of the field "field1", and retrieves the field "nestedField1" from it.
    * @param record is the record to retrieve the field from
-   * @param path is the location of the field
+   * @param fieldLocation is the location of the field
    * @return the value of the field
    */
-  public static Object getField(GenericRecord record, String[] path) {
-    return extractFieldHelper(record, path, 0);
+  public static Object getField(GenericRecord record, String fieldLocation) {
+    Preconditions.checkNotNull(record);
+    Preconditions.checkNotNull(fieldLocation);
+
+    Splitter splitter = Splitter.on(".").omitEmptyStrings().trimResults();
+    String[] pathArray = Iterables.toArray(splitter.split(fieldLocation), String.class);
+
+    return extractFieldHelper(record, pathArray, 0);
   }
 
   /**
