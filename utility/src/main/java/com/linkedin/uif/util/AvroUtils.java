@@ -7,10 +7,11 @@ public class AvroUtils {
 
   /**
    * Given a GenericRecord, this method will return the field specified by the path parameter. The path parameter is
-   * an ordered array specified the location of the nested field to retrieve.
+   * an ordered array specifying the location of the nested field to retrieve. For example, field1.nestedField1 takes
+   * the the value of the field "field1", and retrieves the field "nestedField1" from it.
    * @param record is the record to retrieve the field from
    * @param path is the location of the field
-   * @return is the value of the field
+   * @return the value of the field
    */
   public static Object getField(GenericRecord record, String[] path) {
     return extractFieldHelper(record, path, 0);
@@ -21,9 +22,8 @@ public class AvroUtils {
    * @param data passed from {@link #extractField(Object, String[])}
    * @param fieldPath passed from {@link #extractField(Object, String[])}
    * @param field keeps track of the index used to access the array fieldPath
-   * @return the field
+   * @return the value of the field
    */
-  @SuppressWarnings("unchecked")
   private static Object extractFieldHelper(Object data, String[] fieldPath, int field) {
     if (data == null) {
       return null;
