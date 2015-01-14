@@ -10,6 +10,8 @@ import com.google.common.collect.Iterables;
 
 public class AvroUtils {
 
+  private static final String FIELD_LOCATION_DELIMITER = ".";
+
   /**
    * Given a GenericRecord, this method will return the field specified by the path parameter. The fieldLocation
    * parameter is an ordered array specifying the location of the nested field to retrieve. For example,
@@ -22,7 +24,7 @@ public class AvroUtils {
     Preconditions.checkNotNull(record);
     Preconditions.checkNotNull(fieldLocation);
 
-    Splitter splitter = Splitter.on(".").omitEmptyStrings().trimResults();
+    Splitter splitter = Splitter.on(FIELD_LOCATION_DELIMITER).omitEmptyStrings().trimResults();
     String[] pathArray = Iterables.toArray(splitter.split(fieldLocation), String.class);
 
     if (pathArray.length == 0) {

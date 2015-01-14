@@ -5,6 +5,7 @@ import org.apache.avro.generic.GenericRecord;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.Converter;
