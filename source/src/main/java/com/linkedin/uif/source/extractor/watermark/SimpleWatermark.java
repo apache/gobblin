@@ -11,11 +11,13 @@
 
 package com.linkedin.uif.source.extractor.watermark;
 
+import java.math.RoundingMode;
 import java.util.HashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.math.DoubleMath;
 import com.linkedin.uif.source.extractor.extract.QueryBasedExtractor;
 
 
@@ -47,7 +49,7 @@ public class SimpleWatermark implements Watermark {
       partitionInterval = 1;
     }
 
-    int interval = this.getInterval(highWatermarkValue - lowWatermarkValue, partitionInterval, maxIntervals);
+    long interval = this.getInterval(highWatermarkValue - lowWatermarkValue, partitionInterval, maxIntervals);
     LOG.info("Recalculated partition interval:" + interval);
     if (interval == 0) {
       return intervalMap;
@@ -56,7 +58,7 @@ public class SimpleWatermark implements Watermark {
     long startNum = lowWatermarkValue;
     long endNum = highWatermarkValue;
     while (startNum <= endNum) {
-      nextNum = startNum + (interval - 1);
+      nextNum = startNum + interval;
       intervalMap.put(startNum, (nextNum <= endNum ? nextNum : endNum));
       startNum = nextNum + deltaForNextWatermark;
     }
@@ -71,14 +73,16 @@ public class SimpleWatermark implements Watermark {
    * @param Maximum number of allowed partitions
    * @return calculated interval
    */
-  private int getInterval(long diff, int partitionInterval, int maxIntervals) {
+  private long getInterval(long diff, int partitionInterval, int maxIntervals) {
     if (diff == 0) {
       return 0;
     }
-    long totalIntervals = (int) Math.ceil((float) diff / (partitionInterval));
+    long outputInterval = partitionInterval;
+    
+    long totalIntervals = DoubleMath.roundToLong((double) diff / partitionInterval, RoundingMode.CEILING);
     if (totalIntervals > maxIntervals) {
-      partitionInterval = (int) Math.ceil((float) diff / maxIntervals);
+        outputInterval = DoubleMath.roundToLong((double) diff / maxIntervals, RoundingMode.CEILING);
     }
-    return partitionInterval;
+    return outputInterval;
   }
 }
