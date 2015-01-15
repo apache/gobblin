@@ -9,11 +9,12 @@
 // CONDITIONS OF ANY KIND, either express or implied.
 //
 
-def modules = ['azkaban','converter','common-api','bin','metrics','qualitychecker','scheduler','runtime','test','utility','writer','metastore','source','example','demo','rest']
+def modules = ['azkaban','converter','common-api','bin','metrics','qualitychecker','scheduler','runtime','test','utility','writer','metastore','source','example','demo','rest','distribution']
 
 modules.each { module ->
+  include "${module}"
   file(module).eachDir { submodule ->
-    if (!submodule.name.startsWith('.')) {
+    if (!submodule.name.startsWith('.') && !submodule.name.equals('src')) {
       include "${module}:${submodule.name}"
     }
   }

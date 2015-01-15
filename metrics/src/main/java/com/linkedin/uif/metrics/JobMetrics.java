@@ -11,27 +11,39 @@
 
 package com.linkedin.uif.metrics;
 
+import java.io.IOException;
+import java.io.PrintStream;
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.codahale.metrics.ConsoleReporter;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
+import com.codahale.metrics.JmxReporter;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.MetricSet;
-import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import com.google.common.collect.MapMaker;
+import com.google.common.io.Closer;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.State;
@@ -58,12 +70,24 @@ public class JobMetrics implements MetricSet {
     JOB, TASK
   }
 
-  // Mapping from job ID to metrics set
-  private static final ConcurrentMap<String, JobMetrics> METRICS_MAP = Maps.newConcurrentMap();
+  private static final Logger LOGGER = LoggerFactory.getLogger(JobMetrics.class);
+
+  // Mapping from job ID to metrics set. This map is needed so an instance of
+  // this class for a job run can be accessed from anywhere in the same JVM.
+  // This map uses weak references for values (instances of this class) so
+  // they can be garbage-collected if they are no longer in regular use.
+  private static final ConcurrentMap<String, JobMetrics> METRICS_MAP = new MapMaker().weakValues().makeMap();
 
   private final String jobName;
   private final String jobId;
   private final MetricRegistry metricRegistry = new MetricRegistry();
+
+  // Closer for closing the metric output stream
+  private final Closer closer = Closer.create();
+  // File metric reporter
+  private Optional<ConsoleReporter> fileReporter = Optional.absent();
+  // JMX metric reporter
+  private Optional<JmxReporter> jmxReporter = Optional.absent();
 
   public JobMetrics(String jobName, String jobId) {
     this.jobName = jobName;
@@ -71,11 +95,11 @@ public class JobMetrics implements MetricSet {
   }
 
   /**
-   * Get a {@link JobMetrics} instance for the given metrics set name.
+   * Get a new {@link JobMetrics} instance for a given job.
    *
-   * @param jobName job name of this metrics set
-   * @param jobId job ID of this metrics set
-   * @return {@link JobMetrics} instance for the given metrics set name
+   * @param jobName job name
+   * @param jobId job ID
+   * @return a new {@link JobMetrics} instance for the given job
    */
   public static JobMetrics get(String jobName, String jobId) {
     METRICS_MAP.putIfAbsent(jobId, new JobMetrics(jobName, jobId));
@@ -83,14 +107,14 @@ public class JobMetrics implements MetricSet {
   }
 
   /**
-   * Remove the {@link JobMetrics} instance for the given metrics set name
+   * Remove the {@link JobMetrics} instance for the given job.
    *
-   * @param name metrics set name
-   * @return removed {@link JobMetrics} instance or <code>null</code> if {@link JobMetrics}
-   *         instance for the given metrics set name is not found
+   * @param jobId job ID
+   * @return removed {@link JobMetrics} instance or <code>null</code> if no {@link JobMetrics}
+   *         instance for the given job is not found
    */
-  public static JobMetrics remove(String name) {
-    return METRICS_MAP.remove(name);
+  public static JobMetrics remove(String jobId) {
+    return METRICS_MAP.remove(jobId);
   }
 
   /**
@@ -393,17 +417,94 @@ public class JobMetrics implements MetricSet {
   }
 
   /**
-   * Start the metrics reporter.
+   * Start metric reporting.
    *
-   * @param properties Configuration properties
+   * @param properties configuration properties
    */
-  public void startMetricsReporter(Properties properties) {
-    ScheduledReporter reporter =
-        InfluxDBReporter.forMetricSet(this).withProperties(properties).convertRatesTo(TimeUnit.SECONDS)
-            .convertDurationsTo(TimeUnit.MILLISECONDS).build();
+  public void startMetricReporting(Properties properties) {
+    buildFileMetricReporter(properties);
+    long reportInterval = Long.parseLong(properties.getProperty(ConfigurationKeys.METRICS_REPORT_INTERVAL_KEY,
+        ConfigurationKeys.DEFAULT_METRICS_REPORT_INTERVAL));
+    if (this.fileReporter.isPresent()) {
+      this.fileReporter.get().start(reportInterval, TimeUnit.MILLISECONDS);
+    }
 
-    long reportInterval = Long.parseLong(properties
-        .getProperty(ConfigurationKeys.METRICS_REPORT_INTERVAL_KEY, ConfigurationKeys.DEFAULT_METRICS_REPORT_INTERVAL));
-    reporter.start(reportInterval, TimeUnit.MILLISECONDS);
+    buildJmxMetricReporter(properties);
+    if (this.jmxReporter.isPresent()) {
+      this.jmxReporter.get().start();
+    }
+  }
+
+  /**
+   * Stop the metric reporting.
+   */
+  public void stopMetricReporting() {
+    if (this.fileReporter.isPresent()) {
+      this.fileReporter.get().stop();
+    }
+
+    if (this.jmxReporter.isPresent()) {
+      this.jmxReporter.get().stop();
+    }
+
+    try {
+      this.closer.close();
+    } catch (IOException ioe) {
+      LOGGER.error("Failed to close metric output stream for job " + this.jobId, ioe);
+    }
+  }
+
+  private void buildFileMetricReporter(Properties properties) {
+    if (!Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_FILE_ENABLED_KEY,
+        ConfigurationKeys.DEFAULT_METRICS_REPORTING_FILE_ENABLED))) {
+      LOGGER.info("Not reporting metrics to log files");
+      return;
+    }
+
+    if (!properties.containsKey(ConfigurationKeys.METRICS_LOG_DIR_KEY)) {
+      LOGGER.error(
+          "Not reporting metrics to log files because " + ConfigurationKeys.METRICS_LOG_DIR_KEY + " is undefined");
+      return;
+    }
+
+    try {
+      String fsUri = properties.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI);
+      FileSystem fs = FileSystem.get(URI.create(fsUri), new Configuration());
+
+      // Each job gets its own metric log subdirectory
+      Path metricsLogDir = new Path(properties.getProperty(ConfigurationKeys.METRICS_LOG_DIR_KEY), this.jobName);
+      if (!fs.exists(metricsLogDir) && !fs.mkdirs(metricsLogDir)) {
+        LOGGER.error("Failed to create metric log directory for job " + this.jobName);
+        return;
+      }
+
+      // Each job run gets its own metric log file
+      Path metricLogFile = new Path(metricsLogDir, this.jobId + ".metrics.log");
+      boolean append = false;
+      // Append to the metric file if it already exists
+      if (fs.exists(metricLogFile)) {
+        LOGGER.info(String.format("Metric log file %s already exists, appending to it", metricLogFile));
+        append = true;
+      }
+
+      PrintStream ps = append ? this.closer.register(new PrintStream(fs.append(metricLogFile)))
+          : this.closer.register(new PrintStream(fs.create(metricLogFile)));
+      this.fileReporter = Optional
+          .of(ConsoleReporter.forRegistry(this.metricRegistry).outputTo(ps).convertRatesTo(TimeUnit.SECONDS)
+              .convertDurationsTo(TimeUnit.MILLISECONDS).build());
+    } catch (IOException ioe) {
+      LOGGER.error("Failed to build file metric reporter for job " + this.jobId, ioe);
+    }
+  }
+
+  private void buildJmxMetricReporter(Properties properties) {
+    if (!Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_JMX_ENABLED_KEY,
+        ConfigurationKeys.DEFAULT_METRICS_REPORTING_JMX_ENABLED))) {
+      LOGGER.info("Not reporting metrics to JMX");
+      return;
+    }
+
+    this.jmxReporter = Optional.of(JmxReporter.forRegistry(this.metricRegistry).convertRatesTo(TimeUnit.SECONDS)
+        .convertDurationsTo(TimeUnit.MILLISECONDS).build());
   }
 }
