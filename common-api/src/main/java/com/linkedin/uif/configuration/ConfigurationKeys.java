@@ -297,6 +297,7 @@ public class ConfigurationKeys {
 
   public static final String FILEBASED_REPORT_STATUS_ON_COUNT = "filebased.report.status.on.count";
   public static final int DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT = 10000;
+  public static final String DEFAULT_SOURCE_TIMEZONE = "America/Los_Angeles";
 
   /**
    * Configuration properties used by the Hadoop MR job launcher.
