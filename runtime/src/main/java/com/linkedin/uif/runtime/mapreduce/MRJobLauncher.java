@@ -1,9 +1,9 @@
 /* (c) 2014 LinkedIn Corp. All rights reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
  * License at  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
@@ -106,10 +106,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
   public MRJobLauncher(Properties properties)
       throws Exception {
-    super(properties);
-    this.conf = new Configuration();
-    URI fsUri = URI.create(this.properties.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
-    this.fs = FileSystem.get(fsUri, this.conf);
+    this(properties, new Configuration());
   }
 
   public MRJobLauncher(Properties properties, Configuration conf)
@@ -181,6 +178,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
     // Let the job and all mappers finish even if some mappers fail
     this.conf.set("mapred.max.map.failures.percent", "100"); // For Hadoop 1.x
     this.conf.set("mapreduce.map.failures.maxpercent", "100"); // For Hadoop 2.x
+
+    // Do not cancel delegation tokens after job has completed (HADOOP-7002)
+    this.conf.setBoolean("mapreduce.job.complete.cancel.delegation.tokens", false);
 
     // Preparing a Hadoop MR job
     this.job = Job.getInstance(this.conf, JOB_NAME_PREFIX + jobName);

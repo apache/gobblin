@@ -236,47 +236,17 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       }
     }
 
-    // Write job execution info to the job history store before the job runs
-    if (this.jobHistoryStore.isPresent()) {
-      try {
-        this.jobHistoryStore.get().put(jobState.toJobExecutionInfo());
-      } catch (Throwable t) {
-        LOG.error("Failed to write job execution information to the job history store: " + t, t);
-      }
-    }
-
-    // Actually launch the job to run
+    Optional<JobMetrics> jobMetrics = Optional.absent();
     try {
-      runJob(jobName, jobProps, jobState, workUnits.get());
-      if (jobState.getState() == JobState.RunningState.CANCELLED) {
-        LOG.info(String.format("Job %s has been cancelled", jobId));
-        return;
-      }
-      setFinalJobState(jobState);
-      commitJob(jobId, jobState);
-    } catch (Throwable t) {
-      String errMsg = "Failed to launch and run job " + jobId;
-      LOG.error(errMsg + ": " + t, t);
-      throw new JobException(errMsg, t);
-    } finally {
-      source.shutdown(sourceState);
-
-      long endTime = System.currentTimeMillis();
-      jobState.setEndTime(endTime);
-      jobState.setDuration(endTime - startTime);
-
-      try {
-        persistJobState(jobState);
-        cleanupStagingData(jobState);
-      } catch (Throwable t) {
-        // Catch any possible errors so unlockJob is guaranteed to be called below
-        LOG.error(String.format("Failed to persist job state and cleanup for job %s: %s", jobId, t), t);
+      if (JobMetrics.isEnabled(jobProps)) {
+        // Start metric reporting
+        jobMetrics = Optional.fromNullable(JobMetrics.get(jobName, jobId));
+        if (jobMetrics.isPresent()) {
+          jobMetrics.get().startMetricReporting(jobProps);
+        }
       }
 
-      // Release the job lock
-      unlockJob(jobName, jobLockOptional);
-
-      // Write job execution info to the job history store upon job completion
+      // Write job execution info to the job history store before the job starts to run
       if (this.jobHistoryStore.isPresent()) {
         try {
           this.jobHistoryStore.get().put(jobState.toJobExecutionInfo());
@@ -285,14 +255,62 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
       }
 
-      if (JobMetrics.isEnabled(this.properties)) {
-        // Remove all job-level metrics after the job is done
-        jobState.removeMetrics();
+      // Start the job and wait for it to finish
+      runJob(jobName, jobProps, jobState, workUnits.get());
+
+      // Check and set final job state upon job completion
+      if (jobState.getState() == JobState.RunningState.CANCELLED) {
+        LOG.info(String.format("Job %s has been cancelled", jobId));
+        return;
+      }
+      setFinalJobState(jobState);
+
+      // Commit and publish job data
+      commitJob(jobId, jobState);
+    } catch (Throwable t) {
+      String errMsg = "Failed to launch and run job " + jobId;
+      LOG.error(errMsg + ": " + t, t);
+      throw new JobException(errMsg, t);
+    } finally {
+      // Make sure the source connection is shutdown
+      source.shutdown(sourceState);
+
+      // Persist job/task state and cleanup staging/temporary data
+      try {
+        persistJobState(jobState);
+        cleanupStagingData(jobState);
+      } catch (Throwable t) {
+        // Catch any possible errors so unlockJob is guaranteed to be called below
+        LOG.error(String.format("Failed to persist job state and cleanup for job %s: %s", jobId, t), t);
       }
 
-      if (Optional.fromNullable(jobListener).isPresent()) {
-        jobListener.jobCompleted(jobState);
+      long endTime = System.currentTimeMillis();
+      jobState.setEndTime(endTime);
+      jobState.setDuration(endTime - startTime);
+
+      // Release the job lock
+      unlockJob(jobName, jobLockOptional);
+
+      // Write job execution info to the job history store upon job completion/termination
+      if (this.jobHistoryStore.isPresent()) {
+        try {
+          this.jobHistoryStore.get().put(jobState.toJobExecutionInfo());
+        } catch (Throwable t) {
+          LOG.error("Failed to write job execution information to the job history store: " + t, t);
+        }
       }
+
+      if (JobMetrics.isEnabled(jobProps)) {
+        // Stop metric reporting
+        if (jobMetrics.isPresent()) {
+          jobMetrics.get().stopMetricReporting();
+        }
+        JobMetrics.remove(jobId);
+      }
+    }
+
+    if (Optional.fromNullable(jobListener).isPresent()) {
+      jobListener.jobCompleted(jobState);
     }
 
     // Throw an exception at the end if the job failed so the caller knows the job failure
