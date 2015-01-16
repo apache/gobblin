@@ -1,0 +1,17 @@
+job.name=HelloWorldFromWikipedia
+job.group=HelloWorld
+job.description=A getting started example for Gobblin
+
+source.class=com.linkedin.uif.example.hellowiki.HelloWorldSource
+source.page.titles=NASA,LinkedIn,Parris_Cues,Barbara_Corcoran
+source.revisions.cnt=5
+
+converter.classes=com.linkedin.uif.example.hellowiki.HelloWorldConverter
+
+extract.namespace=com.linkedin.uif.helloworldwikipedia
+
+writer.destination.type=HDFS
+writer.output.format=AVRO
+writer.fs.uri=file://localhost/
+
+data.publisher.type=com.linkedin.uif.publisher.BaseDataPublisher
