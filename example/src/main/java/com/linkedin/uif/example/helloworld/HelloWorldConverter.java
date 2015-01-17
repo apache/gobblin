@@ -32,29 +32,31 @@ import com.linkedin.uif.converter.ToAvroConverterBase;
  */
 
 public class HelloWorldConverter extends ToAvroConverterBase<String, JsonElement>{
-
-	private static final Gson GSON = new Gson();
+  
+  private static final String JSON_CONTENT_MEMBER = "content";
+  
+  private static final Gson GSON = new Gson();
   // Expect the input JSON string to be key-value pairs
   private static final Type FIELD_ENTRY_TYPE = new TypeToken<Map<String, Object>>() {
   }.getType();
 
-	@Override
-	public Schema convertSchema(String schema, WorkUnitState workUnit) {
-		return new Schema.Parser().parse(schema);
-	}
+  @Override
+  public Schema convertSchema(String schema, WorkUnitState workUnit) {
+    return new Schema.Parser().parse(schema);
+  }
 
-	@Override
-	public GenericRecord convertRecord(Schema outputSchema, JsonElement inputRecord, WorkUnitState workUnit) {
-		JsonElement element = GSON.fromJson(inputRecord, JsonElement.class);
+  @Override
+  public GenericRecord convertRecord(Schema outputSchema, JsonElement inputRecord, WorkUnitState workUnit) {
+    JsonElement element = GSON.fromJson(inputRecord, JsonElement.class);
     Map<String, Object> fields = GSON.fromJson(element, FIELD_ENTRY_TYPE);
     GenericRecord record = new GenericData.Record(outputSchema);
     for (Map.Entry<String, Object> entry : fields.entrySet()) {
       if (entry.getKey().equals("*"))
-        record.put("content", entry.getValue()); //switch '*' to 'content' since '*' is not a valid avro schema field name
+        record.put(JSON_CONTENT_MEMBER, entry.getValue()); //switch '*' to 'content' since '*' is not a valid avro schema field name
       else
         record.put(entry.getKey(), entry.getValue());
     }
     return record;
-	}
+  }
 
 }

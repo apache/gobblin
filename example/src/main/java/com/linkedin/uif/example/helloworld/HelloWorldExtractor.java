@@ -41,16 +41,19 @@ import com.linkedin.uif.source.extractor.Extractor;
 
 public class HelloWorldExtractor implements Extractor<String, JsonElement>{
 
-	private static final Logger LOG = LoggerFactory.getLogger(HelloWorldExtractor.class);
+  private static final Logger LOG = LoggerFactory.getLogger(HelloWorldExtractor.class);
 
-	private static final String SOURCE_PAGE_TITLES = "source.page.titles";
-	private static final String SOURCE_REVISIONS_CNT = "source.revisions.cnt";
+  private static final String SOURCE_PAGE_TITLES = "source.page.titles";
+  private static final String SOURCE_REVISIONS_CNT = "source.revisions.cnt";
+  private static final String ROOT_URL = "http://en.wikipedia.org/w/api.php?"
+      + "format=json&action=query&prop=revisions&"
+      + "rvprop=content|timestamp|user|userid|size";
 
-	private static final Splitter SPLITTER = Splitter.on(",").omitEmptyStrings().trimResults();
+  private static final Splitter SPLITTER = Splitter.on(",").omitEmptyStrings().trimResults();
 
-	private static final Gson GSON = new Gson();
+  private static final Gson GSON = new Gson();
 
-	private static final String AVRO_WIKIPEDIA_SCHEMA = "{\"namespace\": \"example.wikipedia.avro\",\n" +
+  private static final String AVRO_WIKIPEDIA_SCHEMA = "{\"namespace\": \"example.wikipedia.avro\",\n" +
       " \"type\": \"record\",\n" +
       " \"name\": \"WikipediaArticle\",\n" +
       " \"fields\": [\n" +
@@ -67,128 +70,115 @@ public class HelloWorldExtractor implements Extractor<String, JsonElement>{
       " ]\n" +
       "}";
 
-	private List<JsonElement> elements;
-	private WikiResponseReader reader;
+  private List<JsonElement> _elements;
+  private WikiResponseReader _reader;
 
-	private class WikiResponseReader implements Iterator<JsonElement> {
-		private int recordsRead;
+  private class WikiResponseReader implements Iterator<JsonElement> {
+    private int _recordsRead;
 
-		private WikiResponseReader() {
-			this.recordsRead = 0;
-		}
+    private WikiResponseReader() {
+      this._recordsRead = 0;
+    }
 
-		@Override
-		public boolean hasNext() {
-			return HelloWorldExtractor.this.elements != null
-					&& this.recordsRead < HelloWorldExtractor.this.elements.size();
-		}
+    @Override
+    public boolean hasNext() {
+      return HelloWorldExtractor.this._elements != null
+          && this._recordsRead < HelloWorldExtractor.this._elements.size();
+    }
 
-		@Override
-		public JsonElement next() {
-			if (!hasNext()) return null;
-			return HelloWorldExtractor.this.elements.get(this.recordsRead++);
-		}
-	}
+    @Override
+    public JsonElement next() {
+      if (!hasNext()) return null;
+      return HelloWorldExtractor.this._elements.get(this._recordsRead++);
+    }
+  }
 
-	public HelloWorldExtractor(WorkUnitState workUnitState) throws IOException {
-		this.elements = new ArrayList<JsonElement>();
-		List<String> pageTitles = SPLITTER.splitToList(workUnitState.getWorkunit().getProp(SOURCE_PAGE_TITLES));
+  public HelloWorldExtractor(WorkUnitState workUnitState) throws IOException {
+    this._elements = new ArrayList<JsonElement>();
+    List<String> pageTitles = SPLITTER.splitToList(workUnitState.getWorkunit().getProp(SOURCE_PAGE_TITLES));
 
-		for (String pageTitle : pageTitles) {
+    for (String pageTitle : pageTitles) {
+      String urlStr = ROOT_URL + "&titles=" + pageTitle
+          + "&rvlimit=" + workUnitState.getWorkunit().getProp(SOURCE_REVISIONS_CNT);
+      URL url = null;
+      HttpURLConnection conn = null;
+      url = new URL(urlStr);
+      conn = (HttpURLConnection) url.openConnection();
 
-			String urlStr = "http://en.wikipedia.org/w/api.php?"
-					+ "format=json&action=query&titles=" + pageTitle
-					+ "&prop=revisions&rvprop=content|timestamp|user|userid|size"
-					+ "&rvlimit=" + workUnitState.getWorkunit().getProp(SOURCE_REVISIONS_CNT);
-			URL url = null;
-			HttpURLConnection conn = null;
-		  url = new URL(urlStr);
-			conn = (HttpURLConnection) url.openConnection();
+      BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+      StringBuilder sb = new StringBuilder();
+      String line;
+      while ((line = br.readLine()) != null) {
+        sb.append(line);
+      }
+      br.close();
+      conn.disconnect();
+      JsonElement jsonElement = GSON.fromJson(sb.toString(), JsonElement.class);
+      JsonObject jsonObj = jsonElement.getAsJsonObject();
+      JsonObject queryObj = null, pagesObj = null, pageIdObj = null;
+      JsonArray jsonArr = null;
+      queryObj = jsonObj.getAsJsonObject("query");
+      if (queryObj != null) {
+        pagesObj = queryObj.getAsJsonObject("pages");
+      }
+      if (pagesObj != null && pagesObj.entrySet().size() == 1) {
+        pageIdObj = pagesObj.getAsJsonObject(pagesObj.entrySet().iterator().next().getKey());
+      }
+      if (pageIdObj != null) {
 
-			BufferedReader br = null;
-			try {
-				br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-			} catch (IOException e) {
-				LOG.error("Error while getting response from Wikipedia API");
-			}
-			StringBuilder sb = new StringBuilder();
-			String line;
-			try {
-				while ((line = br.readLine()) != null) {
-					sb.append(line);
-				}
-			} catch (IOException e) {
-				LOG.error("Error while reading response from Wikipedia API");
-			}
-			try {
-				br.close();
-			} catch (IOException e) {
-				LOG.error("Error while closing BufferReader");
-			}
-			conn.disconnect();
-			JsonElement jsonElement = GSON.fromJson(sb.toString(), JsonElement.class);
-			JsonObject jsonObj = jsonElement.getAsJsonObject();
-			JsonObject queryObj = null, pagesObj = null, pageIdObj = null;
-			JsonArray jsonArr = null;
-			queryObj = jsonObj.getAsJsonObject("query");
-			if (queryObj != null) {
-				pagesObj = queryObj.getAsJsonObject("pages");
-			}
-			if (pagesObj != null && pagesObj.entrySet().size() == 1) {
-				pageIdObj = pagesObj.getAsJsonObject(pagesObj.entrySet().iterator().next().getKey());
-			}
-			if (pageIdObj != null) {
+        //retrieve revisions of the current pageTitle
+        jsonArr = pageIdObj.getAsJsonArray("revisions");
+        for (Iterator<JsonElement> it = jsonArr.iterator(); it.hasNext(); ) {
+          JsonElement revElement = it.next();
+          JsonObject revObj = revElement.getAsJsonObject();
 
-				//retrieve revisions of the current pageTitle
-				jsonArr = pageIdObj.getAsJsonArray("revisions");
-				for (Iterator<JsonElement> it = jsonArr.iterator(); it.hasNext(); ) {
-					JsonElement revElement = it.next();
-					JsonObject revObj = revElement.getAsJsonObject();
+          /*'pageid' and 'title' are associated with the parent object
+           * of all revisions. Add them to each individual revision.
+           */
+          if (pageIdObj.has("pageid"))
+            revObj.add("pageid", pageIdObj.get("pageid"));
+          if (pageIdObj.has("title"))
+            revObj.add("title", pageIdObj.get("title"));
+          this._elements.add((JsonElement) revObj);
+        }
+      }
+      if (pageIdObj == null) {
+        LOG.error("Page title '" + pageTitle + "' did not return any revision");
+      }
+    }
+    this._reader = new WikiResponseReader();
+  }
 
-					/*'pageid' and 'title' are associated with the parent object
-					 * of all revisions. Add them to each individual revision.
-					 */
-					if (pageIdObj.has("pageid"))
-						revObj.add("pageid", pageIdObj.get("pageid"));
-					if (pageIdObj.has("title"))
-						revObj.add("title", pageIdObj.get("title"));
-					this.elements.add((JsonElement) revObj);
-				}
-			}
-		}
-		this.reader = new WikiResponseReader();
-	}
+  @Override
+  public void close() throws IOException {
+    // There's nothing to close
+  }
 
-	@Override
-	public void close() throws IOException {
-		// There's nothing to close
-	}
+  @Override
+  public String getSchema() {
+    return AVRO_WIKIPEDIA_SCHEMA;
+  }
 
-	@Override
-	public String getSchema() {
-		return AVRO_WIKIPEDIA_SCHEMA;
-	}
+  @Override
+  public JsonElement readRecord(JsonElement reuse)
+      throws DataRecordException, IOException {
+    if (this._reader == null) {
+        return null;
+      }
+    if (this._reader.hasNext()) {
+        return this._reader.next();
+      }
+    return null;
+  }
 
-	@Override
-	public JsonElement readRecord(JsonElement reuse)
-			throws DataRecordException, IOException {
-		if (this.reader == null) {
-	      return null;
-	    }
-		if (this.reader.hasNext()) {
-	      return this.reader.next();
-	    }
-		return null;
-	}
+  @Override
+  public long getExpectedRecordCount() {
+    return this._elements == null ? 0 : this._elements.size();
+  }
 
-	@Override
-	public long getExpectedRecordCount() {
-		return this.elements == null ? 0 : this.elements.size();
-	}
-
-	@Override
-	public long getHighWatermark() {
-		return 0;
-	}
+  @Override
+  public long getHighWatermark() {
+    return 0;
+  }
 
 }
