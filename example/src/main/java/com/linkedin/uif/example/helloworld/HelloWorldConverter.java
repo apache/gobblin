@@ -32,9 +32,9 @@ import com.linkedin.uif.converter.ToAvroConverterBase;
  */
 
 public class HelloWorldConverter extends ToAvroConverterBase<String, JsonElement>{
-  
+
   private static final String JSON_CONTENT_MEMBER = "content";
-  
+
   private static final Gson GSON = new Gson();
   // Expect the input JSON string to be key-value pairs
   private static final Type FIELD_ENTRY_TYPE = new TypeToken<Map<String, Object>>() {
