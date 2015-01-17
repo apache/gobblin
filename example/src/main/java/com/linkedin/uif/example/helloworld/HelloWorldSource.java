@@ -34,24 +34,24 @@ import com.linkedin.uif.source.workunit.Extract.TableType;
 
 public class HelloWorldSource implements Source<String, JsonElement> {
 
-	@Override
-	public List<WorkUnit> getWorkunits(SourceState state) {
-		Extract extract = state
-		        .createExtract(TableType.SNAPSHOT_ONLY, state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY),
-		            "HelloWorldOutput");
+  @Override
+  public List<WorkUnit> getWorkunits(SourceState state) {
+    Extract extract = state
+            .createExtract(TableType.SNAPSHOT_ONLY, state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY),
+                "HelloWorldOutput");
 
-		WorkUnit workUnit = new WorkUnit(state, extract);
-		return Arrays.asList(workUnit);
-	}
+    WorkUnit workUnit = new WorkUnit(state, extract);
+    return Arrays.asList(workUnit);
+  }
 
-	@Override
-	public Extractor<String, JsonElement> getExtractor(WorkUnitState state)
-			throws IOException {
-		return new HelloWorldExtractor(state);
-	}
+  @Override
+  public Extractor<String, JsonElement> getExtractor(WorkUnitState state)
+      throws IOException {
+    return new HelloWorldExtractor(state);
+  }
 
-	@Override
-	public void shutdown(SourceState state) {
-		//nothing to do
-	}
+  @Override
+  public void shutdown(SourceState state) {
+    //nothing to do
+  }
 }
