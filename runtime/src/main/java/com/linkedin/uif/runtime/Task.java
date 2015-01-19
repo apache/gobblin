@@ -1,9 +1,9 @@
 /* (c) 2014 LinkedIn Corp. All rights reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
  * License at  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
@@ -96,10 +96,12 @@ public class Task implements Runnable {
 
     Closer closer = Closer.create();
     try {
-      List<Converter> converterList = this.taskContext.getConverters();
-      // Whether to do schema and data record conversion
-      boolean doConversion = !converterList.isEmpty();
-      Converter converter = new MultiConverter(converterList);
+      // Build the extractor for extracting source schema and data records
+      Extractor extractor = closer.register(new ExtractorDecorator(
+              new SourceDecorator(this.taskContext.getSource(), this.jobId, LOG).getExtractor(this.taskState),
+              this.taskId, LOG));
+
+      Converter converter = new MultiConverter(this.taskContext.getConverters());
 
       // Get the fork operator. By default IdentityForkOperator is used with a single branch.
       ForkOperator forkOperator = closer.register(this.taskContext.getForkOperator());
@@ -108,33 +110,24 @@ public class Task implements Runnable {
       // Set fork.branches explicitly here so the rest task flow can pick it up
       this.taskState.setProp(ConfigurationKeys.FORK_BRANCHES_KEY, branches);
 
-      // Build the extractor for extracting source schema and data records
-      Extractor extractor = closer.register(new ExtractorDecorator(
-              new SourceDecorator(this.taskContext.getSource(), this.jobId, LOG).getExtractor(this.taskState),
-              this.taskId, LOG));
-
       // Extract, convert, and fork the source schema.
-      Object sourceSchema = extractor.getSchema();
-      if (doConversion) {
-        sourceSchema = converter.convertSchema(sourceSchema, this.taskState);
-      }
-
-      List<Boolean> forkedSchemas = forkOperator.forkSchema(this.taskState, sourceSchema);
+      Object schema = converter.convertSchema(extractor.getSchema(), this.taskState);
+      List<Boolean> forkedSchemas = forkOperator.forkSchema(this.taskState, schema);
       if (forkedSchemas.size() != branches) {
         throw new ForkBranchMismatchException(String
             .format("Number of forked schemas [%d] is not equal to number of branches [%d]", forkedSchemas.size(),
                 branches));
       }
 
-      if (inMultipleBranches(forkedSchemas) && !(sourceSchema instanceof Copyable)) {
-        throw new CopyNotSupportedException(sourceSchema + " is not copyable");
+      if (inMultipleBranches(forkedSchemas) && !(schema instanceof Copyable)) {
+        throw new CopyNotSupportedException(schema + " is not copyable");
       }
 
       // Create one Fork for each forked branch
       for (int i = 0; i < branches; i++) {
         if (forkedSchemas.get(i)) {
           Fork fork = closer.register(
-              new Fork(this.taskContext, this.taskState, branches > 1 ? ((Copyable) sourceSchema).copy() : sourceSchema,
+              new Fork(this.taskContext, this.taskState, branches > 1 ? ((Copyable) schema).copy() : schema,
                   branches, i));
           this.forks.add(Optional.of(fork));
         } else {
@@ -152,25 +145,8 @@ public class Task implements Runnable {
       // Extract, convert, and fork one source record at a time.
       while ((pullLimit <= 0 || recordsPulled < pullLimit) && (record = extractor.readRecord(record)) != null) {
         recordsPulled++;
-        Object convertedRecord = doConversion ? converter.convertRecord(sourceSchema, record, this.taskState) : record;
-        if (convertedRecord != null && rowChecker.executePolicies(convertedRecord, rowResults)) {
-          List<Boolean> forkedRecords = forkOperator.forkDataRecord(this.taskState, convertedRecord);
-          if (forkedRecords.size() != branches) {
-            throw new ForkBranchMismatchException(String
-                .format("Number of forked data records [%d] is not equal to number of branches [%d]",
-                    forkedRecords.size(), branches));
-          }
-
-          if (inMultipleBranches(forkedRecords) && !(convertedRecord instanceof Copyable)) {
-            throw new CopyNotSupportedException(convertedRecord + " is not copyable");
-          }
-
-          for (int i = 0; i < branches; i++) {
-            if (this.forks.get(i).isPresent() && forkedRecords.get(i)) {
-              this.forks.get(i).get()
-                  .processRecord(branches > 1 ? ((Copyable) convertedRecord).copy() : convertedRecord);
-            }
-          }
+        for (Object convertedRecord : converter.convertRecord(schema, record, this.taskState)) {
+          processRecord(convertedRecord, forkOperator, rowChecker, rowResults, branches);
         }
       }
 
@@ -294,6 +270,37 @@ public class Task implements Runnable {
   @Override
   public String toString() {
     return this.taskId;
+  }
+
+  /**
+   * Process a (possibly converted) record.
+   */
+  @SuppressWarnings("unchecked")
+  private void processRecord(Object convertedRecord, ForkOperator forkOperator, RowLevelPolicyChecker rowChecker,
+      RowLevelPolicyCheckResults rowResults, int branches)
+      throws Exception {
+    // Skip the record if quality checking fails
+    if (!rowChecker.executePolicies(convertedRecord, rowResults)) {
+      return;
+    }
+
+    List<Boolean> forkedRecords = forkOperator.forkDataRecord(this.taskState, convertedRecord);
+    if (forkedRecords.size() != branches) {
+      throw new ForkBranchMismatchException(String
+          .format("Number of forked data records [%d] is not equal to number of branches [%d]", forkedRecords.size(),
+              branches));
+    }
+
+    boolean makesCopy = inMultipleBranches(forkedRecords);
+    if (makesCopy && !(convertedRecord instanceof Copyable)) {
+      throw new CopyNotSupportedException(convertedRecord + " is not copyable");
+    }
+
+    for (int i = 0; i < branches; i++) {
+      if (this.forks.get(i).isPresent() && forkedRecords.get(i)) {
+        this.forks.get(i).get().processRecord(makesCopy ? ((Copyable) convertedRecord).copy() : convertedRecord);
+      }
+    }
   }
 
   /**

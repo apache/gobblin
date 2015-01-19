@@ -1,9 +1,9 @@
 /* (c) 2014 LinkedIn Corp. All rights reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
  * License at  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
@@ -20,11 +20,13 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.Converter;
 import com.linkedin.uif.converter.DataConversionException;
 import com.linkedin.uif.converter.SchemaConversionException;
+import com.linkedin.uif.converter.SingleRecordIterable;
 
 
 public class CsvToJsonConverter extends Converter<String, JsonArray, String, JsonObject> {
@@ -48,7 +50,7 @@ public class CsvToJsonConverter extends Converter<String, JsonArray, String, Jso
    * @return a JsonObject representing the record
    */
   @Override
-  public JsonObject convertRecord(JsonArray outputSchema, String inputRecord, WorkUnitState workUnit)
+  public Iterable<JsonObject> convertRecord(JsonArray outputSchema, String inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
     List<String> recordSplit = Lists.newArrayList(
         Splitter.onPattern(workUnit.getProp(ConfigurationKeys.CONVERTER_CSV_TO_JSON_DELIMITER)).trimResults()
@@ -67,6 +69,7 @@ public class CsvToJsonConverter extends Converter<String, JsonArray, String, Jso
         outputRecord.add(outputSchema.get(i).getAsJsonObject().get("columnName").getAsString(), JsonNull.INSTANCE);
       }
     }
-    return outputRecord;
+
+    return new SingleRecordIterable<JsonObject>(outputRecord);
   }
 }

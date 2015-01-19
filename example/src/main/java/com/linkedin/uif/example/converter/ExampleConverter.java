@@ -1,9 +1,9 @@
 /* (c) 2014 LinkedIn Corp. All rights reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
  * License at  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
@@ -23,6 +23,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.reflect.TypeToken;
 
 import com.linkedin.uif.configuration.WorkUnitState;
+import com.linkedin.uif.converter.SingleRecordIterable;
 import com.linkedin.uif.converter.ToAvroConverterBase;
 
 
@@ -43,7 +44,7 @@ public class ExampleConverter extends ToAvroConverterBase<String, String> {
   }
 
   @Override
-  public GenericRecord convertRecord(Schema schema, String inputRecord, WorkUnitState workUnit) {
+  public Iterable<GenericRecord> convertRecord(Schema schema, String inputRecord, WorkUnitState workUnit) {
 
     JsonElement element = GSON.fromJson(inputRecord, JsonElement.class);
     Map<String, Object> fields = GSON.fromJson(element, FIELD_ENTRY_TYPE);
@@ -52,6 +53,6 @@ public class ExampleConverter extends ToAvroConverterBase<String, String> {
       record.put(entry.getKey(), entry.getValue());
     }
 
-    return record;
+    return new SingleRecordIterable<GenericRecord>(record);
   }
 }

@@ -1,9 +1,9 @@
 /* (c) 2014 LinkedIn Corp. All rights reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
  * License at  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
@@ -25,6 +25,7 @@ import com.google.gson.reflect.TypeToken;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.Converter;
 import com.linkedin.uif.converter.DataConversionException;
+import com.linkedin.uif.converter.SingleRecordIterable;
 import com.linkedin.uif.fork.CopyNotSupportedException;
 import com.linkedin.uif.fork.CopyableGenericRecord;
 import com.linkedin.uif.fork.CopyableSchema;
@@ -50,7 +51,8 @@ public class TestConverter2 extends Converter<String, CopyableSchema, String, Co
   }
 
   @Override
-  public CopyableGenericRecord convertRecord(CopyableSchema schema, String inputRecord, WorkUnitState workUnit)
+  public Iterable<CopyableGenericRecord> convertRecord(CopyableSchema schema, String inputRecord,
+      WorkUnitState workUnit)
       throws DataConversionException {
 
     JsonElement element = GSON.fromJson(inputRecord, JsonElement.class);
@@ -68,7 +70,7 @@ public class TestConverter2 extends Converter<String, CopyableSchema, String, Co
         }
       }
 
-      return new CopyableGenericRecord(record);
+      return new SingleRecordIterable<CopyableGenericRecord>(new CopyableGenericRecord(record));
     } catch (CopyNotSupportedException cnse) {
       throw new DataConversionException(cnse);
     }
