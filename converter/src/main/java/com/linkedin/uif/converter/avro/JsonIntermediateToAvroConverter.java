@@ -1,9 +1,9 @@
 /* (c) 2014 LinkedIn Corp. All rights reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
  * License at  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
@@ -33,7 +33,9 @@ import com.google.gson.JsonObject;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.DataConversionException;
+import com.linkedin.uif.converter.EmptyIterable;
 import com.linkedin.uif.converter.SchemaConversionException;
+import com.linkedin.uif.converter.SingleRecordIterable;
 import com.linkedin.uif.converter.ToAvroConverterBase;
 import com.linkedin.uif.converter.avro.JsonElementConversionFactory.JsonElementConverter;
 
@@ -86,7 +88,7 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
   }
 
   @Override
-  public GenericRecord convertRecord(Schema outputSchema, JsonObject inputRecord, WorkUnitState workUnit)
+  public Iterable<GenericRecord> convertRecord(Schema outputSchema, JsonObject inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
 
     GenericRecord avroRecord = new GenericData.Record(outputSchema);
@@ -100,7 +102,7 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
         numFailedConversion++;
         if (numFailedConversion < maxFailedConversions) {
           LOG.error("Dropping record " + inputRecord + " because it cannot be converted to Avro", e);
-          return null;
+          return new EmptyIterable<GenericRecord>();
         } else {
           throw new DataConversionException(
               "Unable to convert field:" + entry.getKey() + " for value:" + entry.getValue() + " for record: "
@@ -109,6 +111,6 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
       }
     }
 
-    return avroRecord;
+    return new SingleRecordIterable<GenericRecord>(avroRecord);
   }
 }

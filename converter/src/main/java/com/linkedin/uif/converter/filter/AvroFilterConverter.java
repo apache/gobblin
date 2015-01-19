@@ -1,9 +1,9 @@
 /* (c) 2014 LinkedIn Corp. All rights reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
  * License at  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
@@ -30,7 +30,9 @@ import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.converter.AvroToAvroConverterBase;
 import com.linkedin.uif.converter.Converter;
 import com.linkedin.uif.converter.DataConversionException;
+import com.linkedin.uif.converter.EmptyIterable;
 import com.linkedin.uif.converter.SchemaConversionException;
+import com.linkedin.uif.converter.SingleRecordIterable;
 
 
 public class AvroFilterConverter extends AvroToAvroConverterBase {
@@ -78,13 +80,13 @@ public class AvroFilterConverter extends AvroToAvroConverterBase {
   }
 
   @Override
-  public GenericRecord convertRecord(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
+  public Iterable<GenericRecord> convertRecord(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
     if (filterIds.contains(extractField(inputRecord, fieldPath, 0))) {
       log.info("Dropping record: " + inputRecord);
-      return null;
+      return new EmptyIterable<GenericRecord>();
     } else {
-      return inputRecord;
+      return new SingleRecordIterable<GenericRecord>(inputRecord);
     }
   }
 

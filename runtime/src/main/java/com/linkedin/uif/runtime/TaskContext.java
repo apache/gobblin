@@ -1,9 +1,9 @@
 /* (c) 2014 LinkedIn Corp. All rights reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
  * License at  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
@@ -116,7 +116,7 @@ public class TaskContext {
    *
    * @return list (possibly empty) of {@link Converter}s
    */
-  public List<Converter> getConverters() {
+  public List<Converter<?, ?, ?, ?>> getConverters() {
     return getConverters(-1);
   }
 
@@ -126,18 +126,18 @@ public class TaskContext {
    * @param index branch index
    * @return list (possibly empty) of {@link Converter}s
    */
-  public List<Converter> getConverters(int index) {
+  public List<Converter<?, ?, ?, ?>> getConverters(int index) {
     String converterClassKey =
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.CONVERTER_CLASSES_KEY, index);
     if (!this.workUnit.contains(converterClassKey)) {
       return Collections.emptyList();
     }
 
-    List<Converter> converters = Lists.newArrayList();
+    List<Converter<?, ?, ?, ?>> converters = Lists.newArrayList();
     for (String converterClass : Splitter.on(",").omitEmptyStrings().trimResults()
         .split(this.workUnit.getProp(converterClassKey))) {
       try {
-        Converter converter = (Converter) Class.forName(converterClass).newInstance();
+        Converter<?, ?, ?, ?> converter = (Converter<?, ?, ?, ?>) Class.forName(converterClass).newInstance();
         converter.init(this.workUnitState);
         converters.add(converter);
       } catch (Exception e) {
@@ -156,7 +156,7 @@ public class TaskContext {
   public ForkOperator getForkOperator() {
     try {
       return (ForkOperator) Class.forName(this.workUnit
-              .getProp(ConfigurationKeys.FORK_OPERATOR_CLASS_KEY, ConfigurationKeys.DEFAULT_FORK_OPERATOR_CLASS))
+          .getProp(ConfigurationKeys.FORK_OPERATOR_CLASS_KEY, ConfigurationKeys.DEFAULT_FORK_OPERATOR_CLASS))
           .newInstance();
     } catch (Exception e) {
       return null;
@@ -185,7 +185,6 @@ public class TaskContext {
    */
   public RowLevelPolicyChecker getRowLevelPolicyChecker(TaskState taskState, int index)
       throws Exception {
-
     return new RowLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(taskState, index).build();
   }
 
@@ -200,7 +199,6 @@ public class TaskContext {
    */
   public TaskLevelPolicyChecker getTaskLevelPolicyChecker(TaskState taskState, int index)
       throws Exception {
-
     return new TaskLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(taskState, index).build();
   }
 
@@ -214,7 +212,6 @@ public class TaskContext {
    */
   public TaskPublisher getTaskPublisher(TaskState taskState, TaskLevelPolicyCheckResults results, int index)
       throws Exception {
-
     return new TaskPublisherBuilderFactory().newTaskPublisherBuilder(taskState, results, index).build();
   }
 
@@ -229,8 +226,8 @@ public class TaskContext {
   public DataWriterBuilder getDataWriterBuilder(int branches, int index)
       throws IOException {
     try {
-      return (DataWriterBuilder) Class.forName(this.workUnit.getProp(
-              ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUILDER_CLASS, branches, index),
+      return (DataWriterBuilder) Class.forName(this.workUnit
+          .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUILDER_CLASS, branches, index),
               ConfigurationKeys.DEFAULT_WRITER_BUILDER_CLASS)).newInstance();
     } catch (Exception e) {
       throw new IOException("Failed to instantiate a DataWriterBuilder", e);
