@@ -248,10 +248,10 @@ public class Utils {
 
   /**
    * Convert joda time to a string in the given format
-   * @param joda time
-   * @param expected format
-   * @param timezone; if time zone is not set then consider default time zone
-   * @return formatted date
+   * @param input timestamp
+   * @param format expected format
+   * @param timezone time zone of timestamp
+   * @return string format of timestamp
    */
   public static String dateTimeToString(DateTime input, String format, String timezone) {
     String tz = StringUtils.defaultString(timezone, ConfigurationKeys.DEFAULT_SOURCE_TIMEZONE);
@@ -262,8 +262,8 @@ public class Utils {
 
   /**
    * Get current time - joda
-   * @param timezone; if time zone is not set then consider default time zone
-   * @return current time in joda format
+   * @param timezone time zone of current time
+   * @return current datetime in the given timezone
    */
   public static DateTime getCurrentTime(String timezone) {
     String tz = StringUtils.defaultString(timezone, ConfigurationKeys.DEFAULT_SOURCE_TIMEZONE);
@@ -273,10 +273,10 @@ public class Utils {
   }
 
   /**
-   * Convert string of a given format to joda time
-   * @param date in string format
-   * @param date format of input string
-   * @param timezone; if time zone is not set then consider default time zone
+   * Convert timestamp in a string format to joda time
+   * @param input timestamp
+   * @param format timestamp format
+   * @param timezone time zone of timestamp
    * @return joda time
    */
   public static DateTime toDateTime(String input, String format, String timezone) {
@@ -288,10 +288,10 @@ public class Utils {
   }
 
   /**
-   * Convert string of a given format to joda time
-   * @param date as long value
-   * @param date format of input string
-   * @param timezone; if time zone is not set then consider default time zone
+   * Convert timestamp in a long format to joda time
+   * @param input timestamp
+   * @param format timestamp format
+   * @param timezone time zone of timestamp
    * @return joda time
    */
   public static DateTime toDateTime(long input, String format, String timezone) {
@@ -299,9 +299,9 @@ public class Utils {
   }
 
   /**
-   * Get joda time zone
-   * @param time zone id
-   * @return joda timezone
+   * Get time zone of time zone id
+   * @param id timezone id
+   * @return timezone
    */
   private static DateTimeZone getTimeZone(String id) {
     DateTimeZone zone;
