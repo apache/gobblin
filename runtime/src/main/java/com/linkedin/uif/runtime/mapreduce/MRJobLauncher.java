@@ -220,7 +220,12 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     try {
       LOG.info("Launching Hadoop MR job " + this.job.getJobName());
-      // Start the MR job and wait for it to complete
+      this.job.submit();
+      // Set job tracking URL to the Hadoop job tracking URL if it is not set yet
+      if (!jobState.contains(ConfigurationKeys.JOB_TRACKING_URL_KEY)) {
+        jobState.setProp(ConfigurationKeys.JOB_TRACKING_URL_KEY, job.getTrackingURL());
+      }
+      // Wait for the job to complete
       this.job.waitForCompletion(true);
 
       if (this.isCancelled) {

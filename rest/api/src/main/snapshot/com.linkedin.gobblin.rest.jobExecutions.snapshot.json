@@ -6,6 +6,11 @@
     "symbols" : [ "PENDING", "RUNNING", "SUCCESSFUL", "COMMITTED", "FAILED", "CANCELLED" ]
   }, {
     "type" : "enum",
+    "name" : "LauncherTypeEnum",
+    "namespace" : "com.linkedin.gobblin.rest",
+    "symbols" : [ "LOCAL", "MAPREDUCE", "YARN" ]
+  }, {
+    "type" : "enum",
     "name" : "TaskStateEnum",
     "namespace" : "com.linkedin.gobblin.rest",
     "symbols" : [ "PENDING", "RUNNING", "SUCCESSFUL", "COMMITTED", "FAILED", "CANCELLED" ]
@@ -95,6 +100,11 @@
       "doc" : "Task state",
       "optional" : true
     }, {
+      "name" : "failureException",
+      "type" : "string",
+      "doc" : "Task failure exception message",
+      "optional" : true
+    }, {
       "name" : "lowWatermark",
       "type" : "long",
       "doc" : "Low watermark",
@@ -167,6 +177,16 @@
       "name" : "completedTasks",
       "type" : "int",
       "doc" : "Number of completed tasks",
+      "optional" : true
+    }, {
+      "name" : "launcherType",
+      "type" : "LauncherTypeEnum",
+      "doc" : "Job launcher type",
+      "optional" : true
+    }, {
+      "name" : "trackingUrl",
+      "type" : "string",
+      "doc" : "Job execution tracking URL",
       "optional" : true
     }, {
       "name" : "taskExecutions",

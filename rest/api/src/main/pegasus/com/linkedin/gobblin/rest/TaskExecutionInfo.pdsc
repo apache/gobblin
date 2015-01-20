@@ -43,6 +43,12 @@
          "doc": "Task state"
     },
     {
+        "name": "failureException",
+        "type": "string",
+        "optional": true,
+        "doc": "Task failure exception message"
+    },
+    {
         "name": "lowWatermark",
         "type": "long",
         "optional": true,
