@@ -21,10 +21,24 @@ import java.util.Map;
 
 import org.apache.hadoop.io.Text;
 
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Meter;
+
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.gson.stream.JsonWriter;
 
+import com.linkedin.data.template.StringMap;
+import com.linkedin.gobblin.rest.JobExecutionInfo;
+import com.linkedin.gobblin.rest.JobStateEnum;
+import com.linkedin.gobblin.rest.LauncherTypeEnum;
+import com.linkedin.gobblin.rest.Metric;
+import com.linkedin.gobblin.rest.MetricArray;
+import com.linkedin.gobblin.rest.MetricTypeEnum;
+import com.linkedin.gobblin.rest.TaskExecutionInfoArray;
+import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.metrics.JobMetrics;
 
@@ -240,10 +254,11 @@ public class JobState extends SourceState {
    */
   public void removeMetrics() {
     JobMetrics metrics = JobMetrics.get(this.jobName, this.jobId);
-    metrics.removeMetric(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, "records"));
-    metrics.removeMetric(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, "recordsPerSec"));
-    metrics.removeMetric(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, "bytes"));
-    metrics.removeMetric(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, "bytesPerSec"));
+    for (String name : metrics.getMetricsOfGroup(JobMetrics.MetricGroup.JOB).keySet()) {
+      if (name.contains(this.jobId)) {
+        metrics.removeMetric(name);
+      }
+    }
   }
 
   @Override
@@ -338,5 +353,82 @@ public class JobState extends SourceState {
       // Ignored
     }
     return stringWriter.toString();
+  }
+
+  /**
+   * Convert this {@link JobState} instance to a {@link JobExecutionInfo} instance.
+   *
+   * @return a {@link JobExecutionInfo} instance
+   */
+  public JobExecutionInfo toJobExecutionInfo() {
+    JobExecutionInfo jobExecutionInfo = new JobExecutionInfo();
+
+    jobExecutionInfo.setJobName(this.jobName);
+    jobExecutionInfo.setJobId(this.jobId);
+    jobExecutionInfo.setStartTime(this.startTime);
+    jobExecutionInfo.setEndTime(this.endTime);
+    jobExecutionInfo.setDuration(this.duration);
+    jobExecutionInfo.setState(JobStateEnum.valueOf(this.state.name()));
+    jobExecutionInfo.setLaunchedTasks(this.tasks);
+    jobExecutionInfo.setCompletedTasks(this.getCompletedTasks());
+    jobExecutionInfo.setLauncherType(LauncherTypeEnum.valueOf(this.getProp(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY,
+        JobLauncherFactory.JobLauncherType.LOCAL.name())));
+    if (this.contains(ConfigurationKeys.JOB_TRACKING_URL_KEY)) {
+      jobExecutionInfo.setTrackingUrl(this.getProp(ConfigurationKeys.JOB_TRACKING_URL_KEY));
+    }
+
+    // Add task execution information
+    TaskExecutionInfoArray taskExecutionInfos = new TaskExecutionInfoArray();
+    for (TaskState taskState : this.getTaskStates()) {
+      taskExecutionInfos.add(taskState.toTaskExecutionInfo());
+    }
+    jobExecutionInfo.setTaskExecutions(taskExecutionInfos);
+
+    // Add job metrics
+    JobMetrics jobMetrics = JobMetrics.get(this.jobName, this.jobId);
+    MetricArray metricArray = new MetricArray();
+
+    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics
+        .getMetricsOfType(JobMetrics.MetricType.COUNTER, JobMetrics.MetricGroup.JOB, this.jobId).entrySet()) {
+      Metric counter = new Metric();
+      counter.setGroup(JobMetrics.MetricGroup.JOB.name());
+      counter.setName(entry.getKey());
+      counter.setType(MetricTypeEnum.valueOf(JobMetrics.MetricType.COUNTER.name()));
+      counter.setValue(Long.toString(((Counter) entry.getValue()).getCount()));
+      metricArray.add(counter);
+    }
+
+    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics
+        .getMetricsOfType(JobMetrics.MetricType.METER, JobMetrics.MetricGroup.JOB, this.jobId).entrySet()) {
+      Metric meter = new Metric();
+      meter.setGroup(JobMetrics.MetricGroup.JOB.name());
+      meter.setName(entry.getKey());
+      meter.setType(MetricTypeEnum.valueOf(JobMetrics.MetricType.METER.name()));
+      meter.setValue(Double.toString(((Meter) entry.getValue()).getMeanRate()));
+      metricArray.add(meter);
+    }
+
+    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics
+        .getMetricsOfType(JobMetrics.MetricType.GAUGE, JobMetrics.MetricGroup.JOB, this.jobId).entrySet()) {
+      Metric gauge = new Metric();
+      gauge.setGroup(JobMetrics.MetricGroup.JOB.name());
+      gauge.setName(entry.getKey());
+      gauge.setType(MetricTypeEnum.valueOf(JobMetrics.MetricType.GAUGE.name()));
+      gauge.setValue(((Gauge) entry.getValue()).getValue().toString());
+      metricArray.add(gauge);
+    }
+
+    jobExecutionInfo.setMetrics(metricArray);
+
+    // Add job properties
+    Map<String, String> jobProperties = Maps.newHashMap();
+    for (String name : this.getPropertyNames()) {
+      String value = this.getProp(name);
+      if (!Strings.isNullOrEmpty(value))
+      jobProperties.put(name, value);
+    }
+    jobExecutionInfo.setJobProperties(new StringMap(jobProperties));
+
+    return jobExecutionInfo;
   }
 }

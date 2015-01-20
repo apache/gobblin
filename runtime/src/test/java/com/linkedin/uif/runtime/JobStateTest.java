@@ -1,9 +1,9 @@
 /* (c) 2014 LinkedIn Corp. All rights reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
  * License at  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
@@ -26,6 +26,8 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
+import com.linkedin.gobblin.rest.JobExecutionInfo;
+import com.linkedin.gobblin.rest.TaskExecutionInfo;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 
@@ -116,6 +118,34 @@ public class JobStateTest {
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
       Assert.assertEquals(taskState.getProp("foo"), "bar");
       taskStateIds.add(taskState.getTaskId());
+    }
+
+    Collections.sort(taskStateIds);
+    Assert.assertEquals(taskStateIds, Lists.newArrayList("TestTask-0", "TestTask-1", "TestTask-2"));
+  }
+
+  @Test(dependsOnMethods = {"testSetAndGet"})
+  public void testToJobExecutionInfo() {
+    JobExecutionInfo jobExecutionInfo = this.jobState.toJobExecutionInfo();
+    Assert.assertEquals(jobExecutionInfo.getJobName(), "TestJob");
+    Assert.assertEquals(jobExecutionInfo.getJobId(), "TestJob-1");
+    Assert.assertEquals(jobExecutionInfo.getStartTime().longValue(), this.startTime);
+    Assert.assertEquals(jobExecutionInfo.getEndTime().longValue(), this.startTime + 1000);
+    Assert.assertEquals(jobExecutionInfo.getDuration().longValue(), 1000L);
+    Assert.assertEquals(jobExecutionInfo.getState().name(), JobState.RunningState.COMMITTED.name());
+    Assert.assertEquals(jobExecutionInfo.getLaunchedTasks().intValue(), 3);
+    Assert.assertEquals(jobExecutionInfo.getCompletedTasks().intValue(), 3);
+    Assert.assertEquals(jobExecutionInfo.getJobProperties().get("foo"), "bar");
+
+    List<String> taskStateIds = Lists.newArrayList();
+    for (TaskExecutionInfo taskExecutionInfo : jobExecutionInfo.getTaskExecutions()) {
+      Assert.assertEquals(taskExecutionInfo.getJobId(), "TestJob-1");
+      Assert.assertEquals(taskExecutionInfo.getStartTime().longValue(), this.startTime);
+      Assert.assertEquals(taskExecutionInfo.getEndTime().longValue(), this.startTime + 1000);
+      Assert.assertEquals(taskExecutionInfo.getDuration().longValue(), 1000);
+      Assert.assertEquals(taskExecutionInfo.getState().name(), WorkUnitState.WorkingState.COMMITTED.name());
+      Assert.assertEquals(taskExecutionInfo.getTaskProperties().get("foo"), "bar");
+      taskStateIds.add(taskExecutionInfo.getTaskId());
     }
 
     Collections.sort(taskStateIds);

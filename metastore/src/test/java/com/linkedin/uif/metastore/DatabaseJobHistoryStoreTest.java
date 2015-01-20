@@ -41,6 +41,7 @@ import com.linkedin.data.template.StringMap;
 import com.linkedin.gobblin.rest.JobExecutionInfo;
 import com.linkedin.gobblin.rest.JobExecutionQuery;
 import com.linkedin.gobblin.rest.JobStateEnum;
+import com.linkedin.gobblin.rest.LauncherTypeEnum;
 import com.linkedin.gobblin.rest.Metric;
 import com.linkedin.gobblin.rest.MetricArray;
 import com.linkedin.gobblin.rest.MetricTypeEnum;
@@ -220,6 +221,8 @@ public class DatabaseJobHistoryStoreTest {
     jobExecutionInfo.setState(JobStateEnum.PENDING);
     jobExecutionInfo.setLaunchedTasks(2);
     jobExecutionInfo.setCompletedTasks(0);
+    jobExecutionInfo.setLauncherType(LauncherTypeEnum.LOCAL);
+    jobExecutionInfo.setTrackingUrl("localhost");
 
     MetricArray jobMetrics = new MetricArray();
     Metric jobMetric1 = new Metric();
@@ -303,6 +306,8 @@ public class DatabaseJobHistoryStoreTest {
     Assert.assertEquals(actual.getState(), expected.getState());
     Assert.assertEquals(actual.getLaunchedTasks(), expected.getLaunchedTasks());
     Assert.assertEquals(actual.getCompletedTasks(), expected.getCompletedTasks());
+    Assert.assertEquals(actual.getLauncherType(), expected.getLauncherType());
+    Assert.assertEquals(actual.getTrackingUrl(), expected.getTrackingUrl());
 
     Assert.assertEquals(actual.getMetrics(), expected.getMetrics());
     for (int i = 0; i < actual.getMetrics().size(); i++) {
