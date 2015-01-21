@@ -32,7 +32,7 @@ public class SimpleWatermark implements Watermark {
 
   @Override
   public String getWatermarkCondition(QueryBasedExtractor extractor, long watermarkValue, String operator) {
-    return this.watermarkColumn + operator + watermarkValue;
+    return this.watermarkColumn + " " + operator + " " + watermarkValue;
   }
 
   @Override
@@ -48,8 +48,12 @@ public class SimpleWatermark implements Watermark {
     if (partitionInterval < 1) {
       partitionInterval = 1;
     }
-
-    long interval = this.getInterval(highWatermarkValue - lowWatermarkValue, partitionInterval, maxIntervals);
+    
+    if (maxIntervals <= 0) {
+      return intervalMap;
+    }
+    
+    long interval = this.getInterval(lowWatermarkValue, highWatermarkValue, partitionInterval, maxIntervals);
     LOG.info("Recalculated partition interval:" + interval);
     if (interval == 0) {
       return intervalMap;
@@ -57,8 +61,10 @@ public class SimpleWatermark implements Watermark {
 
     long startNum = lowWatermarkValue;
     long endNum = highWatermarkValue;
-    while (startNum <= endNum) {
-      nextNum = startNum + interval;
+    boolean longOverflow = false;
+    while (startNum <= endNum && !longOverflow) {
+      longOverflow = (Long.MAX_VALUE - interval < startNum);
+      nextNum = longOverflow ? Long.MAX_VALUE : startNum + interval;
       intervalMap.put(startNum, (nextNum <= endNum ? nextNum : endNum));
       startNum = nextNum + deltaForNextWatermark;
     }
@@ -73,15 +79,23 @@ public class SimpleWatermark implements Watermark {
    * @param Maximum number of allowed partitions
    * @return calculated interval
    */
-  private long getInterval(long diff, int partitionInterval, int maxIntervals) {
-    if (diff == 0) {
+  private long getInterval(long lowWatermarkValue, long highWatermarkValue, int partitionInterval, int maxIntervals) {
+    if (lowWatermarkValue > highWatermarkValue) {
       return 0;
     }
     long outputInterval = partitionInterval;
     
-    long totalIntervals = DoubleMath.roundToLong((double) diff / partitionInterval, RoundingMode.CEILING);
-    if (totalIntervals > maxIntervals) {
-        outputInterval = DoubleMath.roundToLong((double) diff / maxIntervals, RoundingMode.CEILING);
+    boolean longOverflow = false;
+    long totalIntervals = Long.MAX_VALUE;
+    try {
+      totalIntervals = DoubleMath.roundToLong((double) highWatermarkValue / partitionInterval
+          - (double) lowWatermarkValue / partitionInterval, RoundingMode.CEILING);
+    } catch (java.lang.ArithmeticException e) {
+      longOverflow = true;
+    }
+    if (longOverflow || totalIntervals > maxIntervals) {
+        outputInterval = DoubleMath.roundToLong((double) highWatermarkValue / maxIntervals
+            - (double) lowWatermarkValue / maxIntervals, RoundingMode.CEILING);
     }
     return outputInterval;
   }
