@@ -48,11 +48,11 @@ public class SimpleWatermark implements Watermark {
     if (partitionInterval < 1) {
       partitionInterval = 1;
     }
-    
+
     if (maxIntervals <= 0) {
       return intervalMap;
     }
-    
+
     long interval = this.getInterval(lowWatermarkValue, highWatermarkValue, partitionInterval, maxIntervals);
     LOG.info("Recalculated partition interval:" + interval);
     if (interval == 0) {
@@ -74,7 +74,8 @@ public class SimpleWatermark implements Watermark {
   /**
    * recalculate interval if total number of partitions greater than maximum number of allowed partitions
    *
-   * @param difference in range
+   * @param low watermark value
+   * @param high watermark value
    * @param partition interval
    * @param Maximum number of allowed partitions
    * @return calculated interval
@@ -84,7 +85,7 @@ public class SimpleWatermark implements Watermark {
       return 0;
     }
     long outputInterval = partitionInterval;
-    
+
     boolean longOverflow = false;
     long totalIntervals = Long.MAX_VALUE;
     try {
