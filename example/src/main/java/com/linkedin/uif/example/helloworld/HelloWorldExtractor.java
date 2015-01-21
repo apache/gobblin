@@ -74,7 +74,7 @@ public class HelloWorldExtractor implements Extractor<String, JsonElement>{
       } else if (currentTitleId >= requestedTitles.size() - 1) {
         return false;
       } else {
-        
+
         /*
          * Retrieve revisions for the next title. Repeat until we find a title that has at least one revision,
          * otherwise return false
@@ -82,7 +82,7 @@ public class HelloWorldExtractor implements Extractor<String, JsonElement>{
         while (currentTitleId < requestedTitles.size() - 1) {
           currentTitleId++;
           try {
-            recordsOfCurrentTitle = 
+            recordsOfCurrentTitle =
                 retrievePageRevisions(HelloWorldExtractor.this.requestedTitles.get(currentTitleId));
           } catch (IOException e) {
             e.printStackTrace();
@@ -117,14 +117,14 @@ public class HelloWorldExtractor implements Extractor<String, JsonElement>{
       String firstTitle = requestedTitles.get(0);
       recordsOfCurrentTitle = retrievePageRevisions(firstTitle);
     }
-    
+
     this.reader = new WikiResponseReader();
   }
 
   private List<JsonElement> retrievePageRevisions(String pageTitle) throws IOException {
-    List<JsonElement> retrievedRevisions = new ArrayList<JsonElement>(); 
-        
-    Closer closer = Closer.create();     
+    List<JsonElement> retrievedRevisions = new ArrayList<JsonElement>();
+
+    Closer closer = Closer.create();
     HttpURLConnection conn = null;
     StringBuilder sb = new StringBuilder();
     String urlStr = rootUrl + "&titles=" + pageTitle
@@ -148,14 +148,14 @@ public class HelloWorldExtractor implements Extractor<String, JsonElement>{
         conn.disconnect();
       }
     }
-    
+
     JsonElement jsonElement = GSON.fromJson(sb.toString(), JsonElement.class);
-    
+
     JsonObject jsonObj = jsonElement.getAsJsonObject();
     if (jsonObj == null || !jsonObj.has("query")) {
       return retrievedRevisions;
     }
-    
+
     JsonObject queryObj = jsonObj.getAsJsonObject("query");
     if (!queryObj.has("pages")) {
       return retrievedRevisions;
@@ -185,12 +185,11 @@ public class HelloWorldExtractor implements Extractor<String, JsonElement>{
         revObj.add("title", pageIdObj.get("title"));
       retrievedRevisions.add((JsonElement) revObj);
     }
-    
+
     LOG.info(retrievedRevisions.size() + " record(s) retrieved for title " + pageTitle);
     return retrievedRevisions;
   }
-  
-  
+
   @Override
   public void close() throws IOException {
     // There's nothing to close
