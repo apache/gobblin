@@ -29,9 +29,7 @@ import com.linkedin.uif.source.workunit.Extract.TableType;
  * An implementation of {@link Source} for the HelloWorld Wikipedia example.
  *
  * @author ziliu
- *
  */
-
 public class HelloWorldSource implements Source<String, JsonElement> {
 
   @Override
