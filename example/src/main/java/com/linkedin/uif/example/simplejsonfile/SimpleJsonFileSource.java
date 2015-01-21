@@ -9,7 +9,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package com.linkedin.uif.demo.source;
+package com.linkedin.uif.example.simplejsonfile;
 
 import java.io.IOException;
 import java.util.List;
@@ -20,7 +20,6 @@ import com.google.common.collect.Lists;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.WorkUnitState;
-import com.linkedin.uif.demo.extractor.DemoExtractor;
 import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.extractor.Extractor;
 import com.linkedin.uif.source.workunit.Extract;
@@ -32,13 +31,13 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  *
  * <p>
  *   This source creates one {@link com.linkedin.uif.source.workunit.WorkUnit}
- *   for each file to pull and uses the {@link DemoExtractor} to pull the data.
+ *   for each file to pull and uses the {@link SimpleJsonFileExtractor} to pull the data.
  * </p>
  *
  * @author ynli
  */
 @SuppressWarnings("unused")
-public class DemoSource implements Source<String, String> {
+public class SimpleJsonFileSource implements Source<String, String> {
 
   private static final String SOURCE_FILE_KEY = "source.file";
 
@@ -68,7 +67,7 @@ public class DemoSource implements Source<String, String> {
   @Override
   public Extractor<String, String> getExtractor(WorkUnitState state)
       throws IOException {
-    return new DemoExtractor(state);
+    return new SimpleJsonFileExtractor(state);
   }
 
   @Override

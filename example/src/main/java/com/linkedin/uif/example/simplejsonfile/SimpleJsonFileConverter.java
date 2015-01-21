@@ -9,7 +9,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package com.linkedin.uif.demo.converter;
+package com.linkedin.uif.example.simplejsonfile;
 
 import java.lang.reflect.Type;
 import java.util.Map;
@@ -40,7 +40,7 @@ import com.linkedin.uif.converter.ToAvroConverterBase;
  * @author ynli
  */
 @SuppressWarnings("unused")
-public class DemoConverter extends ToAvroConverterBase<String, String> {
+public class SimpleJsonFileConverter extends ToAvroConverterBase<String, String> {
 
   // Expect the input JSON string to be key-value pairs
   private static final Type FIELD_ENTRY_TYPE = new TypeToken<Map<String, Object>>() {

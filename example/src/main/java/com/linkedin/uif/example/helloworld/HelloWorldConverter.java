@@ -28,9 +28,7 @@ import com.linkedin.uif.converter.ToAvroConverterBase;
  * An implementation of {@link Converter} for the HelloWorld Wikipedia example.
  *
  * @author ziliu
- *
  */
-
 public class HelloWorldConverter extends ToAvroConverterBase<String, JsonElement>{
 
   private static final String JSON_CONTENT_MEMBER = "content";
