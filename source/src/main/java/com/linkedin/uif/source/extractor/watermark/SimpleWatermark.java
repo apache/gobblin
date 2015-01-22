@@ -81,10 +81,10 @@ public class SimpleWatermark implements Watermark {
     if (lowWatermarkValue > highWatermarkValue) {
       LOG.info("lowWatermarkValue: " + lowWatermarkValue + " is greater than highWatermarkValue: "
           + highWatermarkValue);
+
       return 0;
     }
     long outputInterval = partitionInterval;
-
     boolean longOverflow = false;
     long totalIntervals = Long.MAX_VALUE;
     try {
@@ -96,6 +96,7 @@ public class SimpleWatermark implements Watermark {
     if (longOverflow || totalIntervals > maxIntervals) {
         outputInterval = DoubleMath.roundToLong((double) highWatermarkValue / maxIntervals
             - (double) lowWatermarkValue / maxIntervals, RoundingMode.CEILING);
+
     }
     return outputInterval;
   }

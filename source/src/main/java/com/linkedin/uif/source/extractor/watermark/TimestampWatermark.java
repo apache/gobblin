@@ -1,9 +1,9 @@
 /* (c) 2014 LinkedIn Corp. All rights reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
  * License at  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.math.DoubleMath;
+import com.google.common.primitives.Ints;
 import com.linkedin.uif.source.extractor.extract.QueryBasedExtractor;
 
 
@@ -110,7 +111,7 @@ public class TimestampWatermark implements Watermark {
     if (totalIntervals > maxIntervals) {
       hourInterval = DoubleMath.roundToInt((double) totalHours / maxIntervals, RoundingMode.CEILING);
     }
-    return hourInterval;
+    return Ints.checkedCast(hourInterval);
   }
 
   synchronized private long toEpoch(String dateTime) {
