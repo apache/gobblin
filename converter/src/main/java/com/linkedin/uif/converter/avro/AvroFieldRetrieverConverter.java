@@ -25,7 +25,8 @@ public class AvroFieldRetrieverConverter extends Converter<Schema, Object, Gener
 
   @Override
   public Converter<Schema, Object, GenericRecord, Object> init(WorkUnitState workUnit) {
-    this.fieldLocation = Preconditions.checkNotNull(workUnit.getProp(ConfigurationKeys.CONVERTER_AVRO_EXTRACTOR_FIELD_PATH));
+    this.fieldLocation =
+        Preconditions.checkNotNull(workUnit.getProp(ConfigurationKeys.CONVERTER_AVRO_EXTRACTOR_FIELD_PATH));
     return this;
   }
 
