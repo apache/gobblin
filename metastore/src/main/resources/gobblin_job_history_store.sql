@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS gobblin_job_executions (
 	state ENUM('PENDING', 'RUNNING', 'SUCCESSFUL', 'COMMITTED', 'FAILED', 'CANCELLED'),
 	launched_tasks INT,
 	completed_tasks INT,
+	launcher_type ENUM('LOCAL', 'MAPREDUCE', 'YARN'),
+  tracking_url VARCHAR(512),
 	created_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	last_modified_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	PRIMARY KEY (job_id),
@@ -31,6 +33,7 @@ CREATE TABLE IF NOT EXISTS gobblin_task_executions (
 	end_time TIMESTAMP,
 	duration BIGINT(21),
 	state ENUM('PENDING', 'RUNNING', 'SUCCESSFUL', 'COMMITTED', 'FAILED', 'CANCELLED'),
+	failure_exception TEXT,
 	low_watermark BIGINT(21),
 	high_watermark BIGINT(21),
 	table_namespace VARCHAR(128),
@@ -39,8 +42,8 @@ CREATE TABLE IF NOT EXISTS gobblin_task_executions (
 	created_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	last_modified_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	PRIMARY KEY (task_id),
-	FOREIGN KEY (job_id) 
-	REFERENCES gobblin_job_executions(job_id) 
+	FOREIGN KEY (job_id)
+	REFERENCES gobblin_job_executions(job_id)
 	ON DELETE CASCADE,
 	INDEX (state),
 	INDEX (table_namespace),
@@ -53,13 +56,13 @@ CREATE TABLE IF NOT EXISTS gobblin_job_metrics (
 	job_id VARCHAR(128) NOT NULL,
 	metric_group VARCHAR(128) NOT NULL,
 	metric_name VARCHAR(128) NOT NULL,
-	metric_type ENUM('COUNTER', 'METER', 'GAUGE') NOT NULL,
+	metric_type ENUM('COUNTER', 'METER', 'GAUGE'),
 	metric_value VARCHAR(256) NOT NULL,
 	created_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	last_modified_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	PRIMARY KEY (metric_id),
-	FOREIGN KEY (job_id) 
-	REFERENCES gobblin_job_executions(job_id) 
+	FOREIGN KEY (job_id)
+	REFERENCES gobblin_job_executions(job_id)
 	ON DELETE CASCADE,
 	INDEX (metric_group),
 	INDEX (metric_name),
@@ -71,13 +74,13 @@ CREATE TABLE IF NOT EXISTS gobblin_task_metrics (
 	task_id VARCHAR(128) NOT NULL,
 	metric_group VARCHAR(128) NOT NULL,
 	metric_name VARCHAR(128) NOT NULL,
-	metric_type ENUM('COUNTER', 'METER', 'GAUGE') NOT NULL,
+	metric_type ENUM('COUNTER', 'METER', 'GAUGE'),
 	metric_value VARCHAR(256) NOT NULL,
 	created_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	last_modified_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	PRIMARY KEY (metric_id),
-	FOREIGN KEY (task_id) 
-	REFERENCES gobblin_task_executions(task_id) 
+	FOREIGN KEY (task_id)
+	REFERENCES gobblin_task_executions(task_id)
 	ON DELETE CASCADE,
 	INDEX (metric_group),
 	INDEX (metric_name),
@@ -85,29 +88,29 @@ CREATE TABLE IF NOT EXISTS gobblin_task_metrics (
 );
 
 CREATE TABLE IF NOT EXISTS gobblin_job_properties (
-    property_id BIGINT(21) NOT NULL AUTO_INCREMENT,
-    job_id VARCHAR(128) NOT NULL,
-    property_key VARCHAR(128) NOT NULL,
-    property_value VARCHAR(128) NOT NULL,
+  property_id BIGINT(21) NOT NULL AUTO_INCREMENT,
+  job_id VARCHAR(128) NOT NULL,
+  property_key VARCHAR(128) NOT NULL,
+  property_value TEXT NOT NULL,
 	created_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	last_modified_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	PRIMARY KEY (property_id),
 	FOREIGN KEY (job_id)
-    REFERENCES gobblin_job_executions(job_id)
-    ON DELETE CASCADE,
-    INDEX (property_key)
+  REFERENCES gobblin_job_executions(job_id)
+  ON DELETE CASCADE,
+  INDEX (property_key)
 );
 
 CREATE TABLE IF NOT EXISTS gobblin_task_properties (
-    property_id BIGINT(21) NOT NULL AUTO_INCREMENT,
-    task_id VARCHAR(128) NOT NULL,
-    property_key VARCHAR(128) NOT NULL,
-    property_value VARCHAR(128) NOT NULL,
+	property_id BIGINT(21) NOT NULL AUTO_INCREMENT,
+	task_id VARCHAR(128) NOT NULL,
+  property_key VARCHAR(128) NOT NULL,
+  property_value TEXT NOT NULL,
 	created_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	last_modified_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	PRIMARY KEY (property_id),
 	FOREIGN KEY (task_id)
-    REFERENCES gobblin_task_executions(task_id)
-    ON DELETE CASCADE,
-    INDEX (property_key)
+  REFERENCES gobblin_task_executions(task_id)
+  ON DELETE CASCADE,
+  INDEX (property_key)
 );

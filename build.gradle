@@ -1,9 +1,9 @@
 // (c) 2014 LinkedIn Corp. All rights reserved.
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not use
 // this file except in compliance with the License. You may obtain a copy of the
 // License at  http://www.apache.org/licenses/LICENSE-2.0
-// 
+//
 // Unless required by applicable law or agreed to in writing, software distributed
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied.
@@ -25,7 +25,17 @@ File getEnvironmentScript()
 
 apply from: environmentScript
 
-pegasusVersion = '1.15.9'
+if (!project.hasProperty('hadoopVersion')) {
+  if (project.hasProperty('useHadoop2')) {
+    hadoopVersion = '2.3.0'
+  } else {
+    hadoopVersion = '1.2.1'
+  }
+}
+
+if (!project.hasProperty('pegasusVersion')) {
+  pegasusVersion = '1.15.9'
+}
 
 ext.externalDependency = [
     "avro": "org.apache.avro:avro:1.7.1",
@@ -39,10 +49,10 @@ ext.externalDependency = [
     "commonsHttpClient": "commons-httpclient:commons-httpclient:3.1",
     "guava": "com.google.guava:guava:15.0",
     "gson": "com.google.code.gson:gson:2.2.4",
-    "hadoop": "org.apache.hadoop:hadoop-core:1.2.1",
-    "hadoopCommon": "org.apache.hadoop:hadoop-common:2.3.0",
-    "hadoopClientCore": "org.apache.hadoop:hadoop-mapreduce-client-core:2.3.0",
-    "hadoopClientCommon": "org.apache.hadoop:hadoop-mapreduce-client-common:2.3.0",
+    "hadoop": "org.apache.hadoop:hadoop-core:"+hadoopVersion,
+    "hadoopCommon": "org.apache.hadoop:hadoop-common:"+hadoopVersion,
+    "hadoopClientCore": "org.apache.hadoop:hadoop-mapreduce-client-core:"+hadoopVersion,
+    "hadoopClientCommon": "org.apache.hadoop:hadoop-mapreduce-client-common:"+hadoopVersion,
     "httpclient": "org.apache.httpcomponents:httpclient:4.2.3",
     "httpcore": "org.apache.httpcomponents:httpcore:4.2.1",
     "quartz": "org.quartz-scheduler:quartz:2.2.1",
@@ -55,6 +65,7 @@ ext.externalDependency = [
     "slf4jLog4j": "org.slf4j:slf4j-log4j12:1.7.6",
     "jodaTime": "joda-time:joda-time:1.6",
     "metricsCore": "com.codahale.metrics:metrics-core:3.0.2",
+    "metricsJvm": "com.codahale.metrics:metrics-jvm:3.0.2",
     "commonsIO": "commons-io:commons-io:2.4",
     "influxdb": "org.influxdb:influxdb-java:1.2",
     "jsch": "com.jcraft:jsch:0.1.46",
@@ -102,9 +113,15 @@ subprojects {
   configurations {
     compile
     dependencies {
-      // compile externalDependency.hadoop
-      compile externalDependency.hadoopCommon
-      compile externalDependency.hadoopClientCore
+      if (project.hasProperty('useHadoop2')) {
+        compile externalDependency.hadoopCommon
+        compile externalDependency.hadoopClientCore
+        if (project.name.equals('runtime') || project.name.equals('test')) {
+          compile externalDependency.hadoopClientCommon
+        }
+      } else {
+        compile externalDependency.hadoop
+      }
     }
   }
 

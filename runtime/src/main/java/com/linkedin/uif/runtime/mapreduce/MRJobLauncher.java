@@ -106,10 +106,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
   public MRJobLauncher(Properties properties)
       throws Exception {
-    super(properties);
-    this.conf = new Configuration();
-    URI fsUri = URI.create(this.properties.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
-    this.fs = FileSystem.get(fsUri, this.conf);
+    this(properties, new Configuration());
   }
 
   public MRJobLauncher(Properties properties, Configuration conf)
@@ -223,7 +220,12 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     try {
       LOG.info("Launching Hadoop MR job " + this.job.getJobName());
-      // Start the MR job and wait for it to complete
+      this.job.submit();
+      // Set job tracking URL to the Hadoop job tracking URL if it is not set yet
+      if (!jobState.contains(ConfigurationKeys.JOB_TRACKING_URL_KEY)) {
+        jobState.setProp(ConfigurationKeys.JOB_TRACKING_URL_KEY, job.getTrackingURL());
+      }
+      // Wait for the job to complete
       this.job.waitForCompletion(true);
 
       if (this.isCancelled) {
