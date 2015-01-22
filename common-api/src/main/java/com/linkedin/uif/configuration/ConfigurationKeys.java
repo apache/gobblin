@@ -145,8 +145,8 @@ public class ConfigurationKeys {
   public static final String CONVERTER_AVRO_MAX_CONVERSION_FAILURES = "converter.avro.max.conversion.failures";
   public static final long DEFAULT_CONVERTER_AVRO_MAX_CONVERSION_FAILURES = 0;
   public static final String CONVERTER_CSV_TO_JSON_DELIMITER = "converter.csv.to.json.delimiter";
-  public static final String CONVERTER_FILTER_FIELD = "converter.filter.field";
-  public static final String CONVERTER_FILTER_IDS_FILE = "converter.filter.ids.file";
+  public static final String CONVERTER_FILTER_FIELD_NAME = "converter.filter.field";
+  public static final String CONVERTER_FILTER_FIELD_VALUE = "converter.filter.value";
   public static final String CONVERTER_IS_EPOCH_TIME_IN_SECONDS = "converter.is.epoch.time.in.seconds";
   public static final String CONVERTER_AVRO_EXTRACTOR_FIELD_PATH = "converter.avro.extractor.field.path";
 

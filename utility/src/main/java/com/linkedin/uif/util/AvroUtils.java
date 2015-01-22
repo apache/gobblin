@@ -8,13 +8,16 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
 
+/**
+ * A Utils class for dealing with Avro objects
+ */
 public class AvroUtils {
 
   private static final String FIELD_LOCATION_DELIMITER = ".";
 
   /**
    * Given a GenericRecord, this method will return the field specified by the path parameter. The fieldLocation
-   * parameter is an ordered array specifying the location of the nested field to retrieve. For example,
+   * parameter is an ordered string specifying the location of the nested field to retrieve. For example,
    * field1.nestedField1 takes the the value of the field "field1", and retrieves the field "nestedField1" from it.
    * @param record is the record to retrieve the field from
    * @param fieldLocation is the location of the field
