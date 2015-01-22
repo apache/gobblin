@@ -98,7 +98,6 @@ public class LocalTaskStateTracker2 extends AbstractIdleService implements TaskS
       // Update record-level metrics after the task is done
       task.updateRecordMetrics();
       task.updateByteMetrics();
-      task.getTaskState().removeMetrics();
     }
 
     // Cancel the task state reporter associated with this task. The reporter might

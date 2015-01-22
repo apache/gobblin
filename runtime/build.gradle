@@ -1,9 +1,9 @@
 // (c) 2014 LinkedIn Corp. All rights reserved.
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not use
 // this file except in compliance with the License. You may obtain a copy of the
 // License at  http://www.apache.org/licenses/LICENSE-2.0
-// 
+//
 // Unless required by applicable law or agreed to in writing, software distributed
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied.
@@ -19,6 +19,7 @@ dependencies {
   compile project(":writer")
   compile project(":utility")
   compile project(":source")
+  compile project(path: ':rest:api', configuration: 'restClient')
   compile externalDependency.avro
   compile externalDependency.avroMapred
   compile externalDependency.commonsConfiguration
@@ -36,9 +37,12 @@ dependencies {
   compile externalDependency.metricsCore
   compile externalDependency.commonsIO
   compile externalDependency.commonsEmail
-  compile externalDependency.hadoopClientCommon
+  compile externalDependency.pegasus.data
+  compile externalDependency.guice
+  compile externalDependency.javaxInject
 
   testCompile externalDependency.testng
+  testRuntime externalDependency.derby
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {
