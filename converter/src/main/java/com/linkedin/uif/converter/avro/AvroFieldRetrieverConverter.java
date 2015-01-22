@@ -1,3 +1,14 @@
+/* (c) 2014 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package com.linkedin.uif.converter.avro;
 
 import org.apache.avro.Schema;
@@ -19,24 +30,25 @@ import com.linkedin.uif.util.AvroUtils;
  * specifies the location of the field to retrieve. Nested fields can be specified by following use the following
  * syntax: field.nestedField
  */
-public class AvroFieldRetrieverConverter extends Converter<Schema, Object, GenericRecord, Object> {
+public class AvroFieldRetrieverConverter extends Converter<Schema, Class<Object>, GenericRecord, Object> {
 
   private String fieldLocation;
 
   @Override
-  public Converter<Schema, Object, GenericRecord, Object> init(WorkUnitState workUnit) {
-    this.fieldLocation =
-        Preconditions.checkNotNull(workUnit.getProp(ConfigurationKeys.CONVERTER_AVRO_EXTRACTOR_FIELD_PATH));
+  public Converter<Schema, Class<Object>, GenericRecord, Object> init(WorkUnitState workUnit) {
+    Preconditions.checkArgument(workUnit.contains(ConfigurationKeys.CONVERTER_AVRO_EXTRACTOR_FIELD_PATH),
+        "Missing required property converter.avro.extractor.field.path for the AvroFieldRetrieverConverter class.");
+    this.fieldLocation = workUnit.getProp(ConfigurationKeys.CONVERTER_AVRO_EXTRACTOR_FIELD_PATH);
     return this;
   }
 
   @Override
-  public Object convertSchema(Schema inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
-    return null;
+  public Class<Object> convertSchema(Schema inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
+    return Object.class;
   }
 
   @Override
-  public Object convertRecord(Object outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
+  public Object convertRecord(Class<Object> outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
     Optional<Object> logField = AvroUtils.getField(inputRecord, this.fieldLocation);
     if (logField.isPresent()) {
