@@ -44,8 +44,10 @@ public class AvroFilterConverter extends AvroToAvroConverterBase {
    */
   @Override
   public Converter<Schema, Schema, GenericRecord, GenericRecord> init(WorkUnitState workUnit) {
-    Preconditions.checkNotNull(workUnit.getProp(ConfigurationKeys.CONVERTER_FILTER_FIELD_NAME));
-    Preconditions.checkNotNull(workUnit.getProp(ConfigurationKeys.CONVERTER_FILTER_FIELD_VALUE));
+    Preconditions.checkArgument(workUnit.contains(ConfigurationKeys.CONVERTER_FILTER_FIELD_NAME),
+        "Missing required property converter.filter.field for the AvroFilterConverter class.");
+    Preconditions.checkArgument(workUnit.contains(ConfigurationKeys.CONVERTER_FILTER_FIELD_VALUE),
+        "Missing required property converter.filter.value for the AvroFilterConverter class.");
 
     this.fieldName = workUnit.getProp(ConfigurationKeys.CONVERTER_FILTER_FIELD_NAME);
     this.fieldValue = workUnit.getProp(ConfigurationKeys.CONVERTER_FILTER_FIELD_VALUE);
