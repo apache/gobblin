@@ -52,7 +52,7 @@ public class HourWatermark implements Watermark {
 
   @Override
   synchronized public HashMap<Long, Long> getIntervals(long lowWatermarkValue, long highWatermarkValue,
-      int partitionInterval, int maxIntervals) {
+      long partitionInterval, int maxIntervals) {
     HashMap<Long, Long> intervalMap = new HashMap<Long, Long>();
     final SimpleDateFormat inputFormat = new SimpleDateFormat(INPUTFORMAT);
 
@@ -67,7 +67,7 @@ public class HourWatermark implements Watermark {
     final long lowWatermark = lowWatermarkDate.getTime();
     final long highWatermark = highWatermarkDate.getTime();
 
-    int interval = this.getInterval(highWatermark - lowWatermark, partitionInterval, maxIntervals) + 1;
+    long interval = this.getInterval(highWatermark - lowWatermark, partitionInterval, maxIntervals) + 1;
     LOG.info("Recalculated partition interval:" + interval + " hours");
     if (interval == 0) {
       return intervalMap;
@@ -81,7 +81,7 @@ public class HourWatermark implements Watermark {
     while (startTime.getTime() <= endTime.getTime()) {
       lwm = Long.parseLong(inputFormat.format(startTime));
       calendar.setTime(startTime);
-      calendar.add(Calendar.HOUR, interval - 1);
+      calendar.add(Calendar.HOUR, (int) (interval - 1));
       nextTime = calendar.getTime();
       hwm = Long.parseLong(inputFormat.format(nextTime.getTime() <= endTime.getTime() ? nextTime : endTime));
       intervalMap.put(lwm, hwm);
@@ -100,7 +100,7 @@ public class HourWatermark implements Watermark {
    * @param Maximum number of allowed partitions
    * @return calculated interval in hours
    */
-  private int getInterval(long diffInMilliSecs, int hourInterval, int maxIntervals) {
+  private long getInterval(long diffInMilliSecs, long hourInterval, int maxIntervals) {
     if (diffInMilliSecs == 0) {
       return 0;
     }
