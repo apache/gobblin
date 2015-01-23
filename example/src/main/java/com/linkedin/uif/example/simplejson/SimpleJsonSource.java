@@ -9,8 +9,9 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package com.linkedin.uif.example.source;
+package com.linkedin.uif.example.simplejson;
 
+import java.io.IOException;
 import java.util.List;
 
 import com.google.common.base.Splitter;
@@ -19,54 +20,58 @@ import com.google.common.collect.Lists;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.SourceState;
 import com.linkedin.uif.configuration.WorkUnitState;
-import com.linkedin.uif.example.extractor.ExampleExtractor;
 import com.linkedin.uif.source.Source;
 import com.linkedin.uif.source.extractor.Extractor;
 import com.linkedin.uif.source.workunit.Extract;
 import com.linkedin.uif.source.workunit.WorkUnit;
-import com.linkedin.uif.source.workunit.Extract.TableType;
 
 
 /**
- * An example {@link Source} for testing and demonstration purposes.
+ * An implementation of {@link Source} for the simple JSON example.
+ *
+ * <p>
+ *   This source creates one {@link com.linkedin.uif.source.workunit.WorkUnit}
+ *   for each file to pull and uses the {@link SimpleJsonExtractor} to pull the data.
+ * </p>
+ *
+ * @author ynli
  */
-public class ExampleSource implements Source<String, String> {
+@SuppressWarnings("unused")
+public class SimpleJsonSource implements Source<String, String> {
 
-  private static final String SOURCE_FILE_LIST_KEY = "source.files";
   private static final String SOURCE_FILE_KEY = "source.file";
-
-  private static final Splitter SPLITTER = Splitter.on(",").omitEmptyStrings().trimResults();
 
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
-    Extract extract1 =
-        new Extract(state, TableType.SNAPSHOT_ONLY, state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY),
-            "TestTable1");
-
-    Extract extract2 =
-        new Extract(state, TableType.SNAPSHOT_ONLY, state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY),
-            "TestTable2");
-
-    String sourceFileList = state.getProp(SOURCE_FILE_LIST_KEY);
     List<WorkUnit> workUnits = Lists.newArrayList();
 
-    List<String> list = SPLITTER.splitToList(sourceFileList);
+    if (!state.contains(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL)) {
+      return workUnits;
+    }
 
-    for (int i = 0; i < list.size(); i++) {
-      WorkUnit workUnit = new WorkUnit(state, i % 2 == 0 ? extract1 : extract2);
-      workUnit.setProp(SOURCE_FILE_KEY, list.get(i));
+    // Create a single snapshot-type extract for all files
+    Extract extract = new Extract(state, Extract.TableType.SNAPSHOT_ONLY,
+        state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, "ExampleNamespace"), "ExampleTable");
+
+    String filesToPull = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL);
+    for (String file : Splitter.on(',').omitEmptyStrings().split(filesToPull)) {
+      // Create one work unit for each file to pull
+      WorkUnit workUnit = new WorkUnit(state, extract);
+      workUnit.setProp(SOURCE_FILE_KEY, file);
       workUnits.add(workUnit);
     }
+
     return workUnits;
   }
 
   @Override
-  public Extractor<String, String> getExtractor(WorkUnitState state) {
-    return new ExampleExtractor(state);
+  public Extractor<String, String> getExtractor(WorkUnitState state)
+      throws IOException {
+    return new SimpleJsonExtractor(state);
   }
 
   @Override
   public void shutdown(SourceState state) {
-    // Do nothing
+    // Nothing to do
   }
 }

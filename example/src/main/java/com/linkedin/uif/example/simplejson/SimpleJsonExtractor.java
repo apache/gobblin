@@ -9,7 +9,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package com.linkedin.uif.demo.extractor;
+package com.linkedin.uif.example.simplejson;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -32,7 +32,7 @@ import com.linkedin.uif.source.extractor.Extractor;
 
 
 /**
- * A demo implementation of {@link Extractor}.
+ * An implementation of {@link Extractor} for the simple JSON example.
  *
  * <p>
  *   This extractor uses the commons-vfs library to read the assigned input file storing
@@ -41,9 +41,9 @@ import com.linkedin.uif.source.extractor.Extractor;
  *
  * @author ynli
  */
-public class DemoExtractor implements Extractor<String, String> {
+public class SimpleJsonExtractor implements Extractor<String, String> {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(DemoExtractor.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(SimpleJsonExtractor.class);
 
   private static final String SOURCE_FILE_KEY = "source.file";
 
@@ -51,7 +51,7 @@ public class DemoExtractor implements Extractor<String, String> {
   private final FileObject fileObject;
   private final BufferedReader bufferedReader;
 
-  public DemoExtractor(WorkUnitState workUnitState)
+  public SimpleJsonExtractor(WorkUnitState workUnitState)
       throws FileSystemException {
     this.workUnitState = workUnitState;
 

@@ -9,7 +9,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package com.linkedin.uif.example.converter;
+package com.linkedin.uif.example.simplejson;
 
 import java.lang.reflect.Type;
 import java.util.Map;
@@ -23,27 +23,39 @@ import com.google.gson.JsonElement;
 import com.google.gson.reflect.TypeToken;
 
 import com.linkedin.uif.configuration.WorkUnitState;
+import com.linkedin.uif.converter.Converter;
+import com.linkedin.uif.converter.DataConversionException;
+import com.linkedin.uif.converter.SchemaConversionException;
 import com.linkedin.uif.converter.ToAvroConverterBase;
 
 
 /**
- * An example {@link com.linkedin.uif.converter.Converter} for testing and
- * demonstration purposes.
+ * An implementation of {@link Converter} for the simple JSON example.
+ *
+ * <p>
+ *   This converter converts the input string schema into an Avro {@link org.apache.avro.Schema}
+ *   and each input json document into an Avro {@link org.apache.avro.generic.GenericRecord}.
+ * </p>
+ *
+ * @author ynli
  */
-public class ExampleConverter extends ToAvroConverterBase<String, String> {
+@SuppressWarnings("unused")
+public class SimpleJsonConverter extends ToAvroConverterBase<String, String> {
 
   private static final Gson GSON = new Gson();
   // Expect the input JSON string to be key-value pairs
-  private static final Type FIELD_ENTRY_TYPE = new TypeToken<Map<String, Object>>() {
-  }.getType();
+  private static final Type FIELD_ENTRY_TYPE = new TypeToken<Map<String, Object>>() {}.getType();
 
   @Override
-  public Schema convertSchema(String schema, WorkUnitState workUnit) {
-    return new Schema.Parser().parse(schema);
+  public Schema convertSchema(String inputSchema, WorkUnitState workUnit)
+      throws SchemaConversionException {
+
+    return new Schema.Parser().parse(inputSchema);
   }
 
   @Override
-  public GenericRecord convertRecord(Schema schema, String inputRecord, WorkUnitState workUnit) {
+  public GenericRecord convertRecord(Schema schema, String inputRecord, WorkUnitState workUnit)
+      throws DataConversionException {
 
     JsonElement element = GSON.fromJson(inputRecord, JsonElement.class);
     Map<String, Object> fields = GSON.fromJson(element, FIELD_ENTRY_TYPE);
