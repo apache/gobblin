@@ -32,7 +32,7 @@ import com.linkedin.uif.source.extractor.Extractor;
 
 
 /**
- * An example implementation of {@link Extractor}.
+ * An implementation of {@link Extractor} for the simple JSON example.
  *
  * <p>
  *   This extractor uses the commons-vfs library to read the assigned input file storing

@@ -16,10 +16,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Queue;
 
 import org.slf4j.Logger;
@@ -34,9 +32,15 @@ import com.google.gson.JsonObject;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.DataRecordException;
 import com.linkedin.uif.source.extractor.Extractor;
+import com.linkedin.uif.source.workunit.WorkUnit;
 
 /**
  * An implementation of {@link Extractor} for the Wikipedia example.
+ *
+ * <p>
+ *   This extractor uses the MediaWiki web API to retrieve a certain number of latest revisions
+ *   for each specified title from Wikipedia. Each revision is returned as a JSON document.
+ * </p>
  *
  * @author ziliu
  */
@@ -48,6 +52,12 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
   private static final String SOURCE_REVISIONS_CNT = "source.revisions.cnt";
   private static final String WIKIPEDIA_API_ROOTURL = "wikipedia.api.rooturl";
   private static final String WIKIPEDIA_AVRO_SCHEMA = "wikipedia.avro.schema";
+
+  private static final String JSON_MEMBER_QUERY = "query";
+  private static final String JSON_MEMBER_PAGES = "pages";
+  private static final String JSON_MEMBER_REVISIONS = "revisions";
+  private static final String JSON_MEMBER_PAGEID = "pageid";
+  private static final String JSON_MEMBER_TITLE = "title";
 
   private static final Splitter SPLITTER = Splitter.on(",").omitEmptyStrings().trimResults();
 
@@ -101,10 +111,11 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
   }
 
   public WikipediaExtractor(WorkUnitState workUnitState) throws IOException {
-    rootUrl = workUnitState.getWorkunit().getProp(WIKIPEDIA_API_ROOTURL);
-    schema = workUnitState.getWorkunit().getProp(WIKIPEDIA_AVRO_SCHEMA);
-    requestedTitles = new LinkedList<String>(SPLITTER.splitToList(workUnitState.getWorkunit().getProp(SOURCE_PAGE_TITLES)));
-    revisionsCnt = Integer.parseInt(workUnitState.getWorkunit().getProp(SOURCE_REVISIONS_CNT));
+    WorkUnit workUnit = workUnitState.getWorkunit();
+    rootUrl = workUnit.getProp(WIKIPEDIA_API_ROOTURL);
+    schema = workUnit.getProp(WIKIPEDIA_AVRO_SCHEMA);
+    requestedTitles = new LinkedList<String>(SPLITTER.splitToList(workUnit.getProp(SOURCE_PAGE_TITLES)));
+    revisionsCnt = Integer.parseInt(workUnit.getProp(SOURCE_REVISIONS_CNT));
     numRequestedTitles = requestedTitles.size();
 
     if (requestedTitles.isEmpty()) {
@@ -137,7 +148,8 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
       try {
         closer.close();
       } catch (IOException e) {
-        LOG.error("IOException in Closer.close() while retrieving revisions for title '" + pageTitle + "'");
+        LOG.error("IOException in Closer.close() while retrieving revisions for title '" + pageTitle
+            + "' from URL '" + urlStr + "'");
       }
       if (conn != null) {
         conn.disconnect();
@@ -146,39 +158,43 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
 
     JsonElement jsonElement = GSON.fromJson(sb.toString(), JsonElement.class);
 
+    if (!jsonElement.isJsonObject()) {
+      return retrievedRevisions;
+    }
+
     JsonObject jsonObj = jsonElement.getAsJsonObject();
-    if (jsonObj == null || !jsonObj.has("query")) {
+    if (jsonObj == null || !jsonObj.has(JSON_MEMBER_QUERY)) {
       return retrievedRevisions;
     }
 
-    JsonObject queryObj = jsonObj.getAsJsonObject("query");
-    if (!queryObj.has("pages")) {
+    JsonObject queryObj = jsonObj.getAsJsonObject(JSON_MEMBER_QUERY);
+    if (!queryObj.has(JSON_MEMBER_PAGES)) {
       return retrievedRevisions;
     }
 
-    JsonObject pagesObj = queryObj.getAsJsonObject("pages");
+    JsonObject pagesObj = queryObj.getAsJsonObject(JSON_MEMBER_PAGES);
     if (pagesObj.entrySet().isEmpty()) {
       return retrievedRevisions;
     }
 
     JsonObject pageIdObj = pagesObj.getAsJsonObject(pagesObj.entrySet().iterator().next().getKey());
-    if (!pageIdObj.has("revisions")) {
+    if (!pageIdObj.has(JSON_MEMBER_REVISIONS)) {
       return retrievedRevisions;
     }
 
     //retrieve revisions of the current pageTitle
-    JsonArray jsonArr = pageIdObj.getAsJsonArray("revisions");
+    JsonArray jsonArr = pageIdObj.getAsJsonArray(JSON_MEMBER_REVISIONS);
     for (JsonElement revElement : jsonArr) {
       JsonObject revObj = revElement.getAsJsonObject();
 
       /*'pageid' and 'title' are associated with the parent object
        * of all revisions. Add them to each individual revision.
        */
-      if (pageIdObj.has("pageid")) {
-        revObj.add("pageid", pageIdObj.get("pageid"));
+      if (pageIdObj.has(JSON_MEMBER_PAGEID)) {
+        revObj.add(JSON_MEMBER_PAGEID, pageIdObj.get(JSON_MEMBER_PAGEID));
       }
-      if (pageIdObj.has("title")) {
-        revObj.add("title", pageIdObj.get("title"));
+      if (pageIdObj.has(JSON_MEMBER_TITLE)) {
+        revObj.add(JSON_MEMBER_TITLE, pageIdObj.get(JSON_MEMBER_TITLE));
       }
       retrievedRevisions.add((JsonElement) revObj);
     }

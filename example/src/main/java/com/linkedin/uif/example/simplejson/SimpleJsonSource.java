@@ -27,7 +27,7 @@ import com.linkedin.uif.source.workunit.WorkUnit;
 
 
 /**
- * An example implementation of {@link Source}.
+ * An implementation of {@link Source} for the simple JSON example.
  *
  * <p>
  *   This source creates one {@link com.linkedin.uif.source.workunit.WorkUnit}

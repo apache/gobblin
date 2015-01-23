@@ -28,6 +28,11 @@ import com.linkedin.uif.source.workunit.Extract.TableType;
 /**
  * An implementation of {@link Source} for the Wikipedia example.
  *
+ * <p>
+ *   This source creates a {@link com.linkedin.uif.source.workunit.WorkUnit}, and uses 
+ *   {@link WikipediaExtractor} to pull the data from Wikipedia.
+ * </p>
+ *
  * @author ziliu
  */
 public class WikipediaSource implements Source<String, JsonElement> {

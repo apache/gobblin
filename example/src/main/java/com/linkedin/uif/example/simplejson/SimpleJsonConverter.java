@@ -30,7 +30,7 @@ import com.linkedin.uif.converter.ToAvroConverterBase;
 
 
 /**
- * An example implementation of {@link Converter}.
+ * An implementation of {@link Converter} for the simple JSON example.
  *
  * <p>
  *   This converter converts the input string schema into an Avro {@link org.apache.avro.Schema}
@@ -42,6 +42,7 @@ import com.linkedin.uif.converter.ToAvroConverterBase;
 @SuppressWarnings("unused")
 public class SimpleJsonConverter extends ToAvroConverterBase<String, String> {
 
+  private static final Gson GSON = new Gson();
   // Expect the input JSON string to be key-value pairs
   private static final Type FIELD_ENTRY_TYPE = new TypeToken<Map<String, Object>>() {}.getType();
 
@@ -56,9 +57,8 @@ public class SimpleJsonConverter extends ToAvroConverterBase<String, String> {
   public GenericRecord convertRecord(Schema schema, String inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
 
-    Gson gson = new Gson();
-    JsonElement element = gson.fromJson(inputRecord, JsonElement.class);
-    Map<String, Object> fields = gson.fromJson(element, FIELD_ENTRY_TYPE);
+    JsonElement element = GSON.fromJson(inputRecord, JsonElement.class);
+    Map<String, Object> fields = GSON.fromJson(element, FIELD_ENTRY_TYPE);
     GenericRecord record = new GenericData.Record(schema);
     for (Map.Entry<String, Object> entry : fields.entrySet()) {
       record.put(entry.getKey(), entry.getValue());

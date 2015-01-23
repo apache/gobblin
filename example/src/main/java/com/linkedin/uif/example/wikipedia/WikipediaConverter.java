@@ -27,6 +27,11 @@ import com.linkedin.uif.converter.ToAvroConverterBase;
 /**
  * An implementation of {@link Converter} for the Wikipedia example.
  *
+ *<p>
+ *   This converter converts the input string schema into an Avro {@link org.apache.avro.Schema}
+ *   and each input JSON document into an Avro {@link org.apache.avro.generic.GenericRecord}.
+ * </p>
+ * 
  * @author ziliu
  */
 public class WikipediaConverter extends ToAvroConverterBase<String, JsonElement>{
@@ -49,12 +54,14 @@ public class WikipediaConverter extends ToAvroConverterBase<String, JsonElement>
     Map<String, Object> fields = GSON.fromJson(element, FIELD_ENTRY_TYPE);
     GenericRecord record = new GenericData.Record(outputSchema);
     for (Map.Entry<String, Object> entry : fields.entrySet()) {
-      if (entry.getKey().equals("*"))
-        record.put(JSON_CONTENT_MEMBER, entry.getValue()); //switch '*' to 'content' since '*' is not a valid avro schema field name
-      else
+      if (entry.getKey().equals("*")) {
+        //switch '*' to 'content' since '*' is not a valid avro schema field name
+        record.put(JSON_CONTENT_MEMBER, entry.getValue());
+      }
+      else {
         record.put(entry.getKey(), entry.getValue());
+      }
     }
     return record;
   }
-
 }
