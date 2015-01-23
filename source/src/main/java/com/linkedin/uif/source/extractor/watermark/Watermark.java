@@ -35,7 +35,7 @@ public interface Watermark {
    * @param maximum number of partitions
    * @return partitions
    */
-  public HashMap<Long, Long> getIntervals(long lowWatermarkValue, long highWatermarkValue, int partitionInterval,
+  public HashMap<Long, Long> getIntervals(long lowWatermarkValue, long highWatermarkValue, long partitionInterval,
       int maxIntervals);
 
   /**
