@@ -9,7 +9,7 @@
 // CONDITIONS OF ANY KIND, either express or implied.
 //
 
-def modules = ['azkaban','converter','common-api','bin','metrics','qualitychecker','scheduler','runtime','test','utility','writer','metastore','source','example','demo','rest','distribution']
+def modules = ['azkaban','converter','common-api','bin','metrics','qualitychecker','scheduler','runtime','test','utility','writer','metastore','source','example','rest','distribution']
 
 modules.each { module ->
   include "${module}"
