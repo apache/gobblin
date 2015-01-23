@@ -108,6 +108,11 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
       }
       return WikipediaExtractor.this.recordsOfCurrentTitle.poll();
     }
+
+    @Override
+    public void remove() {
+      throw new UnsupportedOperationException();
+    }
   }
 
   public WikipediaExtractor(WorkUnitState workUnitState) throws IOException {
