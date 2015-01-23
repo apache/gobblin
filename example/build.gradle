@@ -19,7 +19,8 @@ dependencies {
     compile externalDependency.jacksonCore
     compile externalDependency.slf4j
     compile externalDependency.gson
-
+    compile externalDependency.commonsVfs
+    
     testCompile externalDependency.testng
 }
 
