@@ -275,14 +275,17 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       // Make sure the source connection is shutdown
       source.shutdown(sourceState);
 
-      // Persist job/task state and cleanup staging/temporary data
+      // Persist job/task state
       try {
         persistJobState(jobState);
-        cleanupStagingData(jobState);
       } catch (Throwable t) {
-        // Catch any possible errors so unlockJob is guaranteed to be called below
-        LOG.error(String.format("Failed to persist job state and cleanup for job %s: %s", jobId, t), t);
+        LOG.error(String.format("Failed to persist job/task states of job %s: %s", jobId, t), t);
+        // Fail the job if there is anything wrong with state persistence
+        jobState.setState(JobState.RunningState.FAILED);
       }
+
+      // Cleanup staging/temporary data
+      cleanupStagingData(jobState);
 
       long endTime = System.currentTimeMillis();
       jobState.setEndTime(endTime);
@@ -514,7 +517,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   /**
    * Persist job/task states of a completed job.
    */
-  private void persistJobState(JobState jobState) {
+  private void persistJobState(JobState jobState)
+      throws IOException {
     JobState.RunningState runningState = jobState.getState();
     if (runningState == JobState.RunningState.PENDING ||
         runningState == JobState.RunningState.RUNNING ||
@@ -527,16 +531,12 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     String jobId = jobState.getJobId();
 
     LOG.info("Persisting job/task states of job " + jobId);
-    try {
-      this.taskStateStore.putAll(jobName, jobId + TASK_STATE_STORE_TABLE_SUFFIX, jobState.getTaskStates());
-      this.jobStateStore.put(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX, jobState);
-      this.taskStateStore
-          .createAlias(jobName, jobId + TASK_STATE_STORE_TABLE_SUFFIX, "current" + TASK_STATE_STORE_TABLE_SUFFIX);
-      this.jobStateStore
-          .createAlias(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX, "current" + JOB_STATE_STORE_TABLE_SUFFIX);
-    } catch (IOException ioe) {
-      LOG.error(String.format("Failed to persist job/task states of job %s: %s", jobId, ioe), ioe);
-    }
+    this.taskStateStore.putAll(jobName, jobId + TASK_STATE_STORE_TABLE_SUFFIX, jobState.getTaskStates());
+    this.jobStateStore.put(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX, jobState);
+    this.taskStateStore
+        .createAlias(jobName, jobId + TASK_STATE_STORE_TABLE_SUFFIX, "current" + TASK_STATE_STORE_TABLE_SUFFIX);
+    this.jobStateStore
+        .createAlias(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX, "current" + JOB_STATE_STORE_TABLE_SUFFIX);
   }
 
   /**
