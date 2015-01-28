@@ -91,6 +91,8 @@ public class JobStateTest {
       newJobState.readFields(dis);
 
       doAsserts();
+    } catch (Throwable t) {
+      throw closer.rethrow(t);
     } finally {
       closer.close();
     }

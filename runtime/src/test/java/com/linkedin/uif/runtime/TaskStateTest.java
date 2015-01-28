@@ -91,6 +91,8 @@ public class TaskStateTest {
       Assert.assertEquals(newTaskState.getTaskDuration(), 1000);
       Assert.assertEquals(newTaskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
       Assert.assertEquals(newTaskState.getProp("foo"), "bar");
+    } catch (Throwable t) {
+      throw closer.rethrow(t);
     } finally {
       closer.close();
     }

@@ -149,6 +149,8 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
       while ((line = br.readLine()) != null) {
         sb.append(line + "\n");
       }
+    } catch (Throwable t) {
+      throw closer.rethrow(t);
     } finally {
       try {
         closer.close();
