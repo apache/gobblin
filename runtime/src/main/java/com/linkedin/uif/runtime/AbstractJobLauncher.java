@@ -503,6 +503,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         publisher.initialize();
         publisher.publish(jobState.getTaskStates());
         jobState.setState(JobState.RunningState.COMMITTED);
+      } catch (Throwable t) {
+        throw closer.rethrow(t);
       } finally {
         closer.close();
       }

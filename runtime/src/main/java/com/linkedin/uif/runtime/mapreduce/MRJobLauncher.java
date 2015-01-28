@@ -347,6 +347,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
       }
 
       return jobInputFile;
+    } catch (Throwable t) {
+      throw closer.rethrow(t);
     } finally {
       closer.close();
     }
@@ -381,6 +383,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
           taskStates.add(taskState);
           taskState = new TaskState();
         }
+      } catch (Throwable t) {
+        throw closer.rethrow(t);
       } finally {
         closer.close();
       }
@@ -458,6 +462,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
         InputStream is = closer.register(this.fs.open(new Path(value.toString())));
         DataInputStream dis = closer.register((new DataInputStream(is)));
         workUnit.readFields(dis);
+      } catch (Throwable t) {
+        throw closer.rethrow(t);
       } finally {
         closer.close();
       }
