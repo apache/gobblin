@@ -13,6 +13,7 @@ apply plugin: 'java'
 
 dependencies {
   compile project(":common-api")
+  compile project(":utility")
   compile externalDependency.commonsDbcp
   compile externalDependency.avro
   compile externalDependency.guava

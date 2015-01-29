@@ -24,7 +24,6 @@ dependencies {
   compile project(':source')
   compile project(':metrics')
   compile project(':example')
-  compile project(':demo')
   compile project(":rest:api")
   compile project(":rest:client")
   compile project(":rest:server")

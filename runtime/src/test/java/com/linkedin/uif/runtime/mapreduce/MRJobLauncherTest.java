@@ -1,9 +1,9 @@
 /* (c) 2014 LinkedIn Corp. All rights reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
  * License at  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
@@ -13,8 +13,11 @@ package com.linkedin.uif.runtime.mapreduce;
 
 import java.io.FileReader;
 import java.io.IOException;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.Properties;
 
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -37,6 +40,11 @@ public class MRJobLauncherTest extends JobLauncherTestBase {
       throws Exception {
     this.properties = new Properties();
     this.properties.load(new FileReader("test/resource/uif.mr-test.properties"));
+    this.properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, "true");
+    this.properties
+        .setProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY, "org.apache.derby.jdbc.EmbeddedDriver");
+    this.properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY, "jdbc:derby:memory:gobblin2;create=true");
+    prepareJobHistoryStoreDatabase(this.properties);
     this.jobStateStore = new FsStateStore(this.properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
         this.properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY), JobState.class);
   }
@@ -112,6 +120,15 @@ public class MRJobLauncherTest extends JobLauncherTestBase {
     jobProps.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR + ".0", "test/jobOutput");
     jobProps.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR + ".1", "test/jobOutput");
     runTestWithFork(jobProps);
+  }
+
+  @AfterClass
+  public void tearDown() {
+    try {
+      DriverManager.getConnection("jdbc:derby:memory:gobblin2;shutdown=true");
+    } catch (SQLException se) {
+      // An exception is expected when shutting down the database
+    }
   }
 
   private Properties loadJobProps()
