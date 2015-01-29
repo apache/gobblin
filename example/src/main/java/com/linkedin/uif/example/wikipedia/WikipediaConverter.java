@@ -9,7 +9,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package com.linkedin.uif.demo.converter;
+package com.linkedin.uif.example.wikipedia;
 
 import java.lang.reflect.Type;
 import java.util.Map;
@@ -21,49 +21,45 @@ import org.apache.avro.generic.GenericRecord;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.reflect.TypeToken;
-
 import com.linkedin.uif.configuration.WorkUnitState;
-import com.linkedin.uif.converter.Converter;
-import com.linkedin.uif.converter.DataConversionException;
-import com.linkedin.uif.converter.SchemaConversionException;
 import com.linkedin.uif.converter.SingleRecordIterable;
 import com.linkedin.uif.converter.ToAvroConverterBase;
 
-
 /**
- * A demo implementation of {@link Converter}.
+ * An implementation of {@link com.linkedin.uif.converter.Converter} for the Wikipedia example.
  *
- * <p>
+ *<p>
  *   This converter converts the input string schema into an Avro {@link org.apache.avro.Schema}
- *   and each input json document into an Avro {@link org.apache.avro.generic.GenericRecord}.
+ *   and each input JSON document into an Avro {@link org.apache.avro.generic.GenericRecord}.
  * </p>
  *
- * @author ynli
+ * @author ziliu
  */
-@SuppressWarnings("unused")
-public class DemoConverter extends ToAvroConverterBase<String, String> {
+public class WikipediaConverter extends ToAvroConverterBase<String, JsonElement>{
 
+  private static final String JSON_CONTENT_MEMBER = "content";
+
+  private static final Gson GSON = new Gson();
   // Expect the input JSON string to be key-value pairs
-  private static final Type FIELD_ENTRY_TYPE = new TypeToken<Map<String, Object>>() {
-  }.getType();
+  private static final Type FIELD_ENTRY_TYPE = new TypeToken<Map<String, Object>>() {}.getType();
 
   @Override
-  public Schema convertSchema(String inputSchema, WorkUnitState workUnit)
-      throws SchemaConversionException {
-
-    return new Schema.Parser().parse(inputSchema);
+  public Schema convertSchema(String schema, WorkUnitState workUnit) {
+    return new Schema.Parser().parse(schema);
   }
 
-  @Override
-  public Iterable<GenericRecord> convertRecord(Schema schema, String inputRecord, WorkUnitState workUnit)
-      throws DataConversionException {
-
-    Gson gson = new Gson();
-    JsonElement element = gson.fromJson(inputRecord, JsonElement.class);
-    Map<String, Object> fields = gson.fromJson(element, FIELD_ENTRY_TYPE);
-    GenericRecord record = new GenericData.Record(schema);
+  public Iterable<GenericRecord> convertRecord(Schema outputSchema, JsonElement inputRecord, WorkUnitState workUnit) {
+    JsonElement element = GSON.fromJson(inputRecord, JsonElement.class);
+    Map<String, Object> fields = GSON.fromJson(element, FIELD_ENTRY_TYPE);
+    GenericRecord record = new GenericData.Record(outputSchema);
     for (Map.Entry<String, Object> entry : fields.entrySet()) {
-      record.put(entry.getKey(), entry.getValue());
+      if (entry.getKey().equals("*")) {
+        //switch '*' to 'content' since '*' is not a valid avro schema field name
+        record.put(JSON_CONTENT_MEMBER, entry.getValue());
+      }
+      else {
+        record.put(entry.getKey(), entry.getValue());
+      }
     }
 
     return new SingleRecordIterable<GenericRecord>(record);

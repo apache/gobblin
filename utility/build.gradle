@@ -16,6 +16,8 @@ dependencies {
   compile externalDependency.commonsEmail
   compile externalDependency.guava
   compile externalDependency.slf4j
+  compile externalDependency.avro
+
   testCompile externalDependency.testng
 }
 

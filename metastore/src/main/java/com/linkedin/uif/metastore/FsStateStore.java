@@ -1,9 +1,9 @@
 /* (c) 2014 LinkedIn Corp. All rights reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
  * License at  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
@@ -125,6 +125,8 @@ public class FsStateStore implements StateStore {
       // Real append is to be supported for SequenceFile (HADOOP-7139).
       // TODO: implement a workaround.
       writer.append(new Text(Strings.nullToEmpty(state.getId())), state);
+    } catch (Throwable t) {
+      throw closer.rethrow(t);
     } finally {
       closer.close();
     }
@@ -149,6 +151,8 @@ public class FsStateStore implements StateStore {
         // TODO: implement a workaround.
         writer.append(new Text(Strings.nullToEmpty(state.getId())), state);
       }
+    } catch (Throwable t) {
+      throw closer.rethrow(t);
     } finally {
       closer.close();
     }
@@ -177,6 +181,8 @@ public class FsStateStore implements StateStore {
       } catch (Exception e) {
         throw new IOException(e);
       }
+    } catch (Throwable t) {
+      throw closer.rethrow(t);
     } finally {
       closer.close();
     }
@@ -209,6 +215,8 @@ public class FsStateStore implements StateStore {
       } catch (Exception e) {
         throw new IOException(e);
       }
+    } catch (Throwable t) {
+      throw closer.rethrow(t);
     } finally {
       closer.close();
     }

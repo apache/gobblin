@@ -1,9 +1,9 @@
 /* (c) 2014 LinkedIn Corp. All rights reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
  * License at  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
@@ -33,6 +33,7 @@ import com.codahale.metrics.Histogram;
 import com.codahale.metrics.JmxReporter;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Metric;
+import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.MetricSet;
 import com.codahale.metrics.Snapshot;
@@ -70,24 +71,24 @@ public class JobMetrics implements MetricSet {
   }
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JobMetrics.class);
-  
-  // Mapping from job ID to metrics set. This map is needed so an instance of 
-  // this class for a job run can be accessed from anywhere in the same JVM. 
-  // This map uses weak references for values (instances of this class) so 
+
+  // Mapping from job ID to metrics set. This map is needed so an instance of
+  // this class for a job run can be accessed from anywhere in the same JVM.
+  // This map uses weak references for values (instances of this class) so
   // they can be garbage-collected if they are no longer in regular use.
   private static final ConcurrentMap<String, JobMetrics> METRICS_MAP = new MapMaker().weakValues().makeMap();
 
   private final String jobName;
   private final String jobId;
   private final MetricRegistry metricRegistry = new MetricRegistry();
-  
+
   // Closer for closing the metric output stream
   private final Closer closer = Closer.create();
   // File metric reporter
   private Optional<ConsoleReporter> fileReporter = Optional.absent();
   // JMX metric reporter
   private Optional<JmxReporter> jmxReporter = Optional.absent();
-  
+
   public JobMetrics(String jobName, String jobId) {
     this.jobName = jobName;
     this.jobId = jobId;
@@ -104,7 +105,7 @@ public class JobMetrics implements MetricSet {
     METRICS_MAP.putIfAbsent(jobId, new JobMetrics(jobName, jobId));
     return METRICS_MAP.get(jobId);
   }
-  
+
   /**
    * Remove the {@link JobMetrics} instance for the given job.
    *
@@ -369,11 +370,11 @@ public class JobMetrics implements MetricSet {
   }
 
   /**
-   * Get metrics belong to the given metric group.
+   * Get metrics of the given group.
    *
-   * @param group given metric group
-   * @return metrics of the metric group in a {@link com.google.common.collect.ImmutableMap}
-   *         with keys being metric names and values being the {@link com.codahale.metrics.Metric}s
+   * @param group metric group
+   * @return a {@link java.util.Map} with keys being metric names and values being the
+   *         {@link com.codahale.metrics.Metric}s
    */
   public Map<String, Metric> getMetricsOfGroup(Enum<?> group) {
     ImmutableMap.Builder<String, Metric> metricMapBuilder = ImmutableMap.builder();
@@ -384,6 +385,35 @@ public class JobMetrics implements MetricSet {
     }
 
     return metricMapBuilder.build();
+  }
+
+  /**
+   * Get metrics of the given type in the given group with the given ID (either a job ID or a task ID).
+   *
+   * @param type metric type
+   * @param group metric group
+   * @param id metric ID (either a job ID or a task ID)
+   * @return a {@link java.util.Map} with keys being metric names and values being the
+   *         {@link com.codahale.metrics.Metric}s
+   */
+  public Map<String, ? extends Metric> getMetricsOfType(MetricType type, final MetricGroup group, final String id) {
+    MetricFilter filter = new MetricFilter() {
+      @Override
+      public boolean matches(String name, Metric metric) {
+        return name.startsWith(group.name()) && name.contains(id);
+      }
+    };
+
+    switch (type) {
+      case COUNTER:
+        return this.metricRegistry.getCounters(filter);
+      case METER:
+        return this.metricRegistry.getMeters(filter);
+      case GAUGE:
+        return this.metricRegistry.getGauges(filter);
+      default:
+        throw new IllegalArgumentException("Unknown metric type: " + type.name());
+    }
   }
 
   /**
@@ -412,18 +442,18 @@ public class JobMetrics implements MetricSet {
     if (this.fileReporter.isPresent()) {
       this.fileReporter.get().stop();
     }
-    
+
     if (this.jmxReporter.isPresent()) {
       this.jmxReporter.get().stop();
     }
-    
+
     try {
       this.closer.close();
     } catch (IOException ioe) {
       LOGGER.error("Failed to close metric output stream for job " + this.jobId, ioe);
     }
   }
-  
+
   private void buildFileMetricReporter(Properties properties) {
     if (!Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_FILE_ENABLED_KEY,
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_FILE_ENABLED))) {
@@ -440,7 +470,7 @@ public class JobMetrics implements MetricSet {
     try {
       String fsUri = properties.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI);
       FileSystem fs = FileSystem.get(URI.create(fsUri), new Configuration());
-      
+
       // Each job gets its own metric log subdirectory
       Path metricsLogDir = new Path(properties.getProperty(ConfigurationKeys.METRICS_LOG_DIR_KEY), this.jobName);
       if (!fs.exists(metricsLogDir) && !fs.mkdirs(metricsLogDir)) {
@@ -473,7 +503,7 @@ public class JobMetrics implements MetricSet {
       LOGGER.info("Not reporting metrics to JMX");
       return;
     }
-    
+
     this.jmxReporter = Optional.of(JmxReporter.forRegistry(this.metricRegistry).convertRatesTo(TimeUnit.SECONDS)
         .convertDurationsTo(TimeUnit.MILLISECONDS).build());
   }

@@ -11,19 +11,11 @@
 
 package com.linkedin.uif.converter.filter;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
-import java.util.HashSet;
-
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.generic.GenericData.Record;
-import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Throwables;
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
@@ -33,80 +25,62 @@ import com.linkedin.uif.converter.DataConversionException;
 import com.linkedin.uif.converter.EmptyIterable;
 import com.linkedin.uif.converter.SchemaConversionException;
 import com.linkedin.uif.converter.SingleRecordIterable;
+import com.linkedin.uif.util.AvroUtils;
 
 
+/**
+ * Basic implementation of a filter converter for Avro data. It filters out Avro records based on a specified Avro
+ * field name, and its expected value. The converter only supports equality operations and only performs the comparison
+ * based on the string representation of the value.
+ */
 public class AvroFilterConverter extends AvroToAvroConverterBase {
-  private static final Logger log = LoggerFactory.getLogger(AvroFilterConverter.class);
-  private String[] fieldPath;
-  private HashSet<String> filterIds;
 
+  private String fieldName;
+  private String fieldValue;
+
+  /**
+   * The config must specify {@link ConfigurationKeys#CONVERTER_FILTER_FIELD_NAME} to indicate which field to retrieve
+   * from the Avro record and {@link ConfigurationKeys#CONVERTER_FILTER_FIELD_VALUE} to indicate the expected value of
+   * the field.
+   * {@inheritDoc}
+   * @see com.linkedin.uif.converter.Converter#init(com.linkedin.uif.configuration.WorkUnitState)
+   */
   @Override
   public Converter<Schema, Schema, GenericRecord, GenericRecord> init(WorkUnitState workUnit) {
-    if (!workUnit.contains(ConfigurationKeys.CONVERTER_FILTER_FIELD) || !workUnit
-        .contains(ConfigurationKeys.CONVERTER_FILTER_IDS_FILE)) {
-      throw new RuntimeException(
-          "AvroFilterCoverter is not initialized properly please set: " + ConfigurationKeys.CONVERTER_FILTER_FIELD
-              + " and " + ConfigurationKeys.CONVERTER_FILTER_IDS_FILE);
-    }
-    fieldPath = workUnit.getProp(ConfigurationKeys.CONVERTER_FILTER_FIELD).split("\\.");
-    filterIds = new HashSet<String>();
-    Path filterIdsLoc = new Path(workUnit.getProp(ConfigurationKeys.CONVERTER_FILTER_IDS_FILE));
-    BufferedReader memberIdsReader = null;
-    try {
-      memberIdsReader = new BufferedReader(new FileReader(filterIdsLoc.getName()));
-      String memberId;
+    Preconditions.checkArgument(workUnit.contains(ConfigurationKeys.CONVERTER_FILTER_FIELD_NAME),
+        "Missing required property converter.filter.field for the AvroFilterConverter class.");
+    Preconditions.checkArgument(workUnit.contains(ConfigurationKeys.CONVERTER_FILTER_FIELD_VALUE),
+        "Missing required property converter.filter.value for the AvroFilterConverter class.");
 
-      while ((memberId = memberIdsReader.readLine()) != null) {
-        filterIds.add(memberId);
-      }
-    } catch (IOException e) {
-      Throwables.propagate(e);
-    } finally {
-      if (memberIdsReader != null) {
-        try {
-          memberIdsReader.close();
-        } catch (IOException e) {
-          // Do nothing
-        }
-      }
-    }
+    this.fieldName = workUnit.getProp(ConfigurationKeys.CONVERTER_FILTER_FIELD_NAME);
+    this.fieldValue = workUnit.getProp(ConfigurationKeys.CONVERTER_FILTER_FIELD_VALUE);
     return super.init(workUnit);
   }
 
+  /**
+   * Returns the inputSchema unmodified.
+   * {@inheritDoc}
+   * @see com.linkedin.uif.converter.AvroToAvroConverterBase#convertSchema(org.apache.avro.Schema, com.linkedin.uif.configuration.WorkUnitState)
+   */
   @Override
-  public Schema convertSchema(Schema inputSchema, WorkUnitState workUnit)
-      throws SchemaConversionException {
+  public Schema convertSchema(Schema inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
     return inputSchema;
   }
 
+  /**
+   * Retrieves the specified field from the inputRecord, and checks if it is equal to the expected value
+   * {@link #fieldValue}. If it is then it returns a {@link SingleRecordIterable} for the input record.
+   * Otherwise it returns a {@link EmptyIterable}.
+   * {@inheritDoc}
+   * @see com.linkedin.uif.converter.AvroToAvroConverterBase#convertRecord(org.apache.avro.Schema, org.apache.avro.generic.GenericRecord, com.linkedin.uif.configuration.WorkUnitState)
+   */
   @Override
   public Iterable<GenericRecord> convertRecord(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
-    if (filterIds.contains(extractField(inputRecord, fieldPath, 0))) {
-      log.info("Dropping record: " + inputRecord);
-      return new EmptyIterable<GenericRecord>();
-    } else {
+    Optional<Object> fieldValue = AvroUtils.getFieldValue(inputRecord, this.fieldName);
+    if (fieldValue.isPresent() && fieldValue.get().toString().equals(this.fieldValue)) {
       return new SingleRecordIterable<GenericRecord>(inputRecord);
     }
-  }
-
-  /**
-   * This method will only work with nested fields, it won't work for arrays or maps
-   * @param data
-   * @param fieldPath
-   * @param field
-   * @return
-   */
-  public String extractField(Object data, String[] fieldPath, int field) {
-    if ((field + 1) == fieldPath.length) {
-      String result = String.valueOf(((Record) data).get(fieldPath[field]));
-      if (result == null) {
-        return null;
-      } else {
-        return result;
-      }
-    } else {
-      return extractField(((Record) data).get(fieldPath[field]), fieldPath, ++field);
-    }
+    return new EmptyIterable<GenericRecord>();
   }
 }

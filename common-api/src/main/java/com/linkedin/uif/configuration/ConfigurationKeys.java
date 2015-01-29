@@ -1,9 +1,9 @@
 /* (c) 2014 LinkedIn Corp. All rights reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
  * License at  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
@@ -59,7 +59,7 @@ public class ConfigurationKeys {
 
   // Comma-separated list of framework jars to include
   public static final String FRAMEWORK_JAR_FILES_KEY = "framework.jars";
-  
+
   /**
    * Task executor and state tracker configuration properties.
    */
@@ -101,7 +101,7 @@ public class ConfigurationKeys {
   public static final String DEFAULT_MAX_TASK_RETRIES = "5";
   public static final String TASK_RETRY_INTERVAL_IN_SEC_KEY = "task.retry.intervalinsec";
   public static final String DEFAULT_TASK_RETRY_INTERVAL_IN_SEC = "300";
-  
+
   /**
    * Configuration properties used internally.
    */
@@ -110,6 +110,7 @@ public class ConfigurationKeys {
   public static final String JOB_CONFIG_FILE_PATH_KEY = "job.config.path";
   public static final String TASK_FAILURE_EXCEPTION_KEY = "task.failure.exception";
   public static final String JOB_FAILURES_KEY = "job.failures";
+  public static final String JOB_TRACKING_URL_KEY = "job.tracking.url";
 
   /**
    * Work unit related configuration properties.
@@ -148,9 +149,10 @@ public class ConfigurationKeys {
   public static final String CONVERTER_AVRO_MAX_CONVERSION_FAILURES = "converter.avro.max.conversion.failures";
   public static final long DEFAULT_CONVERTER_AVRO_MAX_CONVERSION_FAILURES = 0;
   public static final String CONVERTER_CSV_TO_JSON_DELIMITER = "converter.csv.to.json.delimiter";
-  public static final String CONVERTER_FILTER_FIELD = "converter.filter.field";
-  public static final String CONVERTER_FILTER_IDS_FILE = "converter.filter.ids.file";
+  public static final String CONVERTER_FILTER_FIELD_NAME = "converter.filter.field";
+  public static final String CONVERTER_FILTER_FIELD_VALUE = "converter.filter.value";
   public static final String CONVERTER_IS_EPOCH_TIME_IN_SECONDS = "converter.is.epoch.time.in.seconds";
+  public static final String CONVERTER_AVRO_EXTRACTOR_FIELD_PATH = "converter.avro.extractor.field.path";
 
   /**
    * Fork operator configuration properties.
@@ -297,6 +299,7 @@ public class ConfigurationKeys {
 
   public static final String FILEBASED_REPORT_STATUS_ON_COUNT = "filebased.report.status.on.count";
   public static final int DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT = 10000;
+  public static final String DEFAULT_SOURCE_TIMEZONE = "America/Los_Angeles";
 
   /**
    * Configuration properties used by the Hadoop MR job launcher.
@@ -329,7 +332,7 @@ public class ConfigurationKeys {
   public static final String DEFAULT_METRICS_REPORTING_JMX_ENABLED = Boolean.toString(false);
   public static final String METRICS_REPORT_INTERVAL_KEY = "metrics.report.interval";
   public static final String DEFAULT_METRICS_REPORT_INTERVAL = "30000";
-  
+
   /**
    * FluxDB metrics store configuration properties.
    */
@@ -350,6 +353,7 @@ public class ConfigurationKeys {
   /**
    * MySQL job history store configuration properties.
    */
+  public static final String JOB_HISTORY_STORE_ENABLED_KEY = "job.history.store.enabled";
   public static final String JOB_HISTORY_STORE_URL_KEY = "job.history.store.url";
   public static final String JOB_HISTORY_STORE_JDBC_DRIVER_KEY = "job.history.store.jdbc.driver";
   public static final String DEFAULT_JOB_HISTORY_STORE_JDBC_DRIVER = "com.mysql.jdbc.Driver";

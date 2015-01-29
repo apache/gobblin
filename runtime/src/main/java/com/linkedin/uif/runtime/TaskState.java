@@ -1,9 +1,9 @@
 /* (c) 2014 LinkedIn Corp. All rights reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
  * License at  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
@@ -14,16 +14,30 @@ package com.linkedin.uif.runtime;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.Map;
 
-import com.linkedin.uif.metrics.JobMetrics;
 import org.apache.hadoop.io.Text;
 
 import com.codahale.metrics.Counter;
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Meter;
 
+import com.google.common.base.Strings;
+import com.google.common.collect.Maps;
 import com.google.gson.stream.JsonWriter;
 
+import com.linkedin.data.template.StringMap;
+import com.linkedin.gobblin.rest.Metric;
+import com.linkedin.gobblin.rest.MetricArray;
+import com.linkedin.gobblin.rest.MetricTypeEnum;
+import com.linkedin.gobblin.rest.Table;
+import com.linkedin.gobblin.rest.TableTypeEnum;
+import com.linkedin.gobblin.rest.TaskExecutionInfo;
+import com.linkedin.gobblin.rest.TaskStateEnum;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
+import com.linkedin.uif.metrics.JobMetrics;
+import com.linkedin.uif.source.workunit.Extract;
 
 
 /**
@@ -195,10 +209,11 @@ public class TaskState extends WorkUnitState {
    */
   public void removeMetrics() {
     JobMetrics metrics = JobMetrics.get(this.getProp(ConfigurationKeys.JOB_NAME_KEY), this.jobId);
-    metrics.removeMetric(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, this.taskId, "records"));
-    metrics.removeMetric(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, this.taskId, "recordsPerSec"));
-    metrics.removeMetric(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, this.taskId, "bytes"));
-    metrics.removeMetric(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, this.taskId, "bytesPerSec"));
+    for (String name : metrics.getMetricsOfGroup(JobMetrics.MetricGroup.TASK).keySet()) {
+      if (name.contains(this.taskId)) {
+        metrics.removeMetric(name);
+      }
+    }
   }
 
   @Override
@@ -251,5 +266,82 @@ public class TaskState extends WorkUnitState {
     }
 
     jsonWriter.endObject();
+  }
+
+  /**
+   * Convert this {@link TaskState} instance to a {@link TaskExecutionInfo} instance.
+   *
+   * @return a {@link TaskExecutionInfo} instance
+   */
+  public TaskExecutionInfo toTaskExecutionInfo() {
+    TaskExecutionInfo taskExecutionInfo = new TaskExecutionInfo();
+
+    taskExecutionInfo.setJobId(this.jobId);
+    taskExecutionInfo.setTaskId(this.taskId);
+    taskExecutionInfo.setStartTime(this.startTime);
+    taskExecutionInfo.setEndTime(this.endTime);
+    taskExecutionInfo.setDuration(this.duration);
+    taskExecutionInfo.setState(TaskStateEnum.valueOf(getWorkingState().name()));
+    if (this.contains(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)) {
+      taskExecutionInfo.setFailureException(this.getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY));
+    }
+    taskExecutionInfo.setHighWatermark(this.getHighWaterMark());
+
+    // Add extract/table information
+    Table table = new Table();
+    Extract extract = this.getExtract();
+    table.setNamespace(extract.getNamespace());
+    table.setName(extract.getTable());
+    if (extract.hasType()) {
+      table.setType(TableTypeEnum.valueOf(extract.getType().name()));
+    }
+    taskExecutionInfo.setTable(table);
+
+    // Add task metrics
+    JobMetrics jobMetrics = JobMetrics.get(this.getProp(ConfigurationKeys.JOB_NAME_KEY), this.jobId);
+    MetricArray metricArray = new MetricArray();
+
+    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics
+        .getMetricsOfType(JobMetrics.MetricType.COUNTER, JobMetrics.MetricGroup.TASK, this.taskId).entrySet()) {
+      Metric counter = new Metric();
+      counter.setGroup(JobMetrics.MetricGroup.TASK.name());
+      counter.setName(entry.getKey());
+      counter.setType(MetricTypeEnum.valueOf(JobMetrics.MetricType.COUNTER.name()));
+      counter.setValue(Long.toString(((Counter) entry.getValue()).getCount()));
+      metricArray.add(counter);
+    }
+
+    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics
+        .getMetricsOfType(JobMetrics.MetricType.METER, JobMetrics.MetricGroup.TASK, this.taskId).entrySet()) {
+      Metric meter = new Metric();
+      meter.setGroup(JobMetrics.MetricGroup.TASK.name());
+      meter.setName(entry.getKey());
+      meter.setType(MetricTypeEnum.valueOf(JobMetrics.MetricType.METER.name()));
+      meter.setValue(Double.toString(((Meter) entry.getValue()).getMeanRate()));
+      metricArray.add(meter);
+    }
+
+    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics
+        .getMetricsOfType(JobMetrics.MetricType.GAUGE, JobMetrics.MetricGroup.TASK, this.taskId).entrySet()) {
+      Metric gauge = new Metric();
+      gauge.setGroup(JobMetrics.MetricGroup.TASK.name());
+      gauge.setName(entry.getKey());
+      gauge.setType(MetricTypeEnum.valueOf(JobMetrics.MetricType.GAUGE.name()));
+      gauge.setValue(((Gauge) entry.getValue()).getValue().toString());
+      metricArray.add(gauge);
+    }
+
+    taskExecutionInfo.setMetrics(metricArray);
+
+    // Add task properties
+    Map<String, String> taskProperties = Maps.newHashMap();
+    for (String name : this.getPropertyNames()) {
+      String value = this.getProp(name);
+      if (!Strings.isNullOrEmpty(value))
+        taskProperties.put(name, value);
+    }
+    taskExecutionInfo.setTaskProperties(new StringMap(taskProperties));
+
+    return taskExecutionInfo;
   }
 }

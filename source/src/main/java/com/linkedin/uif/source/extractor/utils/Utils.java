@@ -34,18 +34,18 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.source.extractor.watermark.WatermarkType;
 
 
 public class Utils {
 
   private static final Gson gson = new Gson();
-
   private static final String CURRENT_DAY = "CURRENTDAY";
   private static final String CURRENT_HOUR = "CURRENTHOUR";
 
-  private static final DateTimeFormatter DATE_FORMATTER =
-      DateTimeFormat.forPattern("yyyyMMddHHmmss").withZone(DateTimeZone.forID("America/Los_Angeles"));
+  private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormat.forPattern("yyyyMMddHHmmss").withZone(
+      DateTimeZone.forID(ConfigurationKeys.DEFAULT_SOURCE_TIMEZONE));
 
   public static String getClause(String clause, String datePredicate) {
     String retStr = "";
@@ -234,7 +234,7 @@ public class Utils {
       return 0;
     }
 
-    DateTime time = new DateTime(DateTimeZone.forID("America/Los_Angeles"));
+    DateTime time = new DateTime(DateTimeZone.forID(ConfigurationKeys.DEFAULT_SOURCE_TIMEZONE));
     if (value.toUpperCase().startsWith(CURRENT_DAY)) {
       return Long
           .valueOf(DATE_FORMATTER.print(time.minusDays(Integer.parseInt(value.substring(CURRENT_DAY.length() + 1)))));
@@ -246,60 +246,70 @@ public class Utils {
     return Long.parseLong(value);
   }
 
-//	public static String JsonArrayToRelational(JsonArray jsonRecords, String colDelimiter, String rowDelimiter) {
-//		JsonArray keys = getKeysFromJsonObject(jsonRecords.get(0).getAsJsonObject());
-//
-//		if (keys == null || keys.size() == 0) {
-//			return null;
-//		}
-//
-//		StringBuffer sb = new StringBuffer();
-//		for (int i = 0; i < jsonRecords.size(); i += 1) {
-//			JsonObject jo = jsonRecords.optJSONObject(i);
-//			if (jo != null) {
-//				sb.append(MergeJsonValues(jo.toJSONArray(keys), colDelimiter, rowDelimiter));
-//			}
-//		}
-//		return sb.toString();
-//	}
-//
-//	public static String JsonObjectToRelational(JsonObject jsonObject, String colDelimiter) {
-//		JsonArray keys = getKeysFromJsonObject(jsonObject);
-//
-//		if (keys == null || keys.size() == 0) {
-//			return null;
-//		}
-//
-//		return MergeJsonValues(jsonObject.toJSONArray(keys), colDelimiter, null);
-//	}
-//
-//	private static JsonArray getKeysFromJsonObject(JsonObject jsonObject) {
-//		for (Map.Entry<String,JsonElement> entry : jsonObject.entrySet()) {
-//		    String key = entry.getKey();
-//		    System.out.println("Key:"+key);
-//		}
-//
-//		if (jsonObject != null) {
-//			return jsonObject.entrySet();
-//		}
-//		return null;
-//	}
-//
-//	public static String MergeJsonValues(JSONArray jsonArray, String colDelimiter, String rowDelimiter) {
-//		StringBuffer sb = new StringBuffer();
-//		for (int i = 0; i < jsonArray.size(); i += 1) {
-//			if (i > 0) {
-//				sb.append(colDelimiter);
-//			}
-//			Object object = jsonArray.opt(i);
-//			if (object != null) {
-//				String string = object.toString();
-//				sb.append(string);
-//			}
-//		}
-//		if(rowDelimiter != null) {
-//			sb.append(rowDelimiter);
-//		}
-//		return sb.toString();
-//	}
+  /**
+   * Convert joda time to a string in the given format
+   * @param input timestamp
+   * @param format expected format
+   * @param timezone time zone of timestamp
+   * @return string format of timestamp
+   */
+  public static String dateTimeToString(DateTime input, String format, String timezone) {
+    String tz = StringUtils.defaultString(timezone, ConfigurationKeys.DEFAULT_SOURCE_TIMEZONE);
+    DateTimeZone dateTimeZone = getTimeZone(tz);
+    DateTimeFormatter outputDtFormat = DateTimeFormat.forPattern(format).withZone(dateTimeZone);
+    return outputDtFormat.print(input);
+  }
+
+  /**
+   * Get current time - joda
+   * @param timezone time zone of current time
+   * @return current datetime in the given timezone
+   */
+  public static DateTime getCurrentTime(String timezone) {
+    String tz = StringUtils.defaultString(timezone, ConfigurationKeys.DEFAULT_SOURCE_TIMEZONE);
+    DateTimeZone dateTimeZone = getTimeZone(tz);
+    DateTime currentTime = new DateTime(dateTimeZone);
+    return currentTime;
+  }
+
+  /**
+   * Convert timestamp in a string format to joda time
+   * @param input timestamp
+   * @param format timestamp format
+   * @param timezone time zone of timestamp
+   * @return joda time
+   */
+  public static DateTime toDateTime(String input, String format, String timezone) {
+    String tz = StringUtils.defaultString(timezone, ConfigurationKeys.DEFAULT_SOURCE_TIMEZONE);
+    DateTimeZone dateTimeZone = getTimeZone(tz);
+    DateTimeFormatter inputDtFormat = DateTimeFormat.forPattern(format).withZone(dateTimeZone);
+    DateTime outputDateTime = inputDtFormat.parseDateTime(input).withZone(dateTimeZone);
+    return outputDateTime;
+  }
+
+  /**
+   * Convert timestamp in a long format to joda time
+   * @param input timestamp
+   * @param format timestamp format
+   * @param timezone time zone of timestamp
+   * @return joda time
+   */
+  public static DateTime toDateTime(long input, String format, String timezone) {
+    return toDateTime(Long.toString(input), format, timezone);
+  }
+
+  /**
+   * Get time zone of time zone id
+   * @param id timezone id
+   * @return timezone
+   */
+  private static DateTimeZone getTimeZone(String id) {
+    DateTimeZone zone;
+    try {
+      zone = DateTimeZone.forID(id);
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException("TimeZone " + id + " not recognized");
+    }
+    return zone;
+  }
 }

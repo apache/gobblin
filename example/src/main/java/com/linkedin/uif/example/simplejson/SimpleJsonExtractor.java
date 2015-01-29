@@ -1,15 +1,15 @@
 /* (c) 2014 LinkedIn Corp. All rights reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
  * License at  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package com.linkedin.uif.demo.extractor;
+package com.linkedin.uif.example.simplejson;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -25,6 +25,8 @@ import org.apache.commons.vfs2.impl.DefaultFileSystemConfigBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.io.Closer;
+
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.DataRecordException;
@@ -32,7 +34,7 @@ import com.linkedin.uif.source.extractor.Extractor;
 
 
 /**
- * A demo implementation of {@link Extractor}.
+ * An implementation of {@link Extractor} for the simple JSON example.
  *
  * <p>
  *   This extractor uses the commons-vfs library to read the assigned input file storing
@@ -41,17 +43,18 @@ import com.linkedin.uif.source.extractor.Extractor;
  *
  * @author ynli
  */
-public class DemoExtractor implements Extractor<String, String> {
+public class SimpleJsonExtractor implements Extractor<String, String> {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(DemoExtractor.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(SimpleJsonExtractor.class);
 
   private static final String SOURCE_FILE_KEY = "source.file";
 
   private final WorkUnitState workUnitState;
   private final FileObject fileObject;
   private final BufferedReader bufferedReader;
+  private final Closer closer = Closer.create();
 
-  public DemoExtractor(WorkUnitState workUnitState)
+  public SimpleJsonExtractor(WorkUnitState workUnitState)
       throws FileSystemException {
     this.workUnitState = workUnitState;
 
@@ -71,7 +74,8 @@ public class DemoExtractor implements Extractor<String, String> {
 
     // Open the file for reading
     LOGGER.info("Opening file " + this.fileObject.getURL().toString());
-    this.bufferedReader = new BufferedReader(new InputStreamReader(this.fileObject.getContent().getInputStream()));
+    this.bufferedReader =
+        this.closer.register(new BufferedReader(new InputStreamReader(this.fileObject.getContent().getInputStream())));
   }
 
   @Override
@@ -102,7 +106,7 @@ public class DemoExtractor implements Extractor<String, String> {
   public void close()
       throws IOException {
     try {
-      this.bufferedReader.close();
+      this.closer.close();
     } catch (IOException ioe) {
       LOGGER.error("Failed to close the input stream", ioe);
     }
