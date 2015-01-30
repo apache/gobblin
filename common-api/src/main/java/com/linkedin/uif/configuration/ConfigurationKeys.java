@@ -109,6 +109,7 @@ public class ConfigurationKeys {
   public static final String TASK_ID_KEY = "task.id";
   public static final String JOB_CONFIG_FILE_PATH_KEY = "job.config.path";
   public static final String TASK_FAILURE_EXCEPTION_KEY = "task.failure.exception";
+  public static final String TASK_RETRIES_KEY = "task.retries";
   public static final String JOB_FAILURES_KEY = "job.failures";
   public static final String JOB_TRACKING_URL_KEY = "job.tracking.url";
 
