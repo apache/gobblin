@@ -248,19 +248,23 @@ public class TaskState extends WorkUnitState {
   /**
    * Convert this {@link TaskState} to a json document.
    *
-   * @param jsonWriter a {@link com.google.gson.stream.JsonWriter}
-   *                   used to write the json document
+   * @param jsonWriter a {@link com.google.gson.stream.JsonWriter} used to write the json document
    * @throws IOException
    */
   public void toJson(JsonWriter jsonWriter)
       throws IOException {
     jsonWriter.beginObject();
 
-    jsonWriter.name("task id").value(this.getTaskId()).name("task state").value(this.getWorkingState().name())
-        .name("start time").value(this.getStartTime()).name("end time").value(this.getEndTime()).name("duration")
-        .value(this.getTaskDuration()).name("high watermark").value(this.getHighWaterMark());
+    jsonWriter.name("task id").value(this.getTaskId())
+        .name("task state").value(this.getWorkingState().name())
+        .name("start time").value(this.getStartTime())
+        .name("end time").value(this.getEndTime())
+        .name("duration").value(this.getTaskDuration())
+        .name("high watermark").value(this.getHighWaterMark())
+        .name("retry count").value(this.getPropAsInt(ConfigurationKeys.TASK_RETRIES_KEY, 0));
 
-    // Also add failure exception information if it exists
+    // Also add failure exception information if it exists. This information is useful even in the
+    // case that the task finally succeeds so we know what happened in the course of task execution.
     if (this.contains(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)) {
       jsonWriter.name("exception").value(this.getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY));
     }
