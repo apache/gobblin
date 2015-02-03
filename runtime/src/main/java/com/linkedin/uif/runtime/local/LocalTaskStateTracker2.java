@@ -1,9 +1,9 @@
 /* (c) 2014 LinkedIn Corp. All rights reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
  * License at  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
@@ -15,40 +15,33 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
-import com.google.common.util.concurrent.AbstractIdleService;
 
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.metrics.JobMetrics;
+import com.linkedin.uif.runtime.AbstractTaskStateTracker;
 import com.linkedin.uif.runtime.Task;
 import com.linkedin.uif.runtime.TaskExecutor;
-import com.linkedin.uif.runtime.TaskStateTracker;
 
 
 /**
- * An implementation of {@link com.linkedin.uif.runtime.TaskStateTracker} for local mode.
+ * A concrete extension to {@link AbstractTaskStateTracker}  for standalone mode.
  *
- * TODO: rename this to LocalTaskStateTracker once {@link LocalTaskStateTracker} is retired.
+ * TODO: rename this to LocalTaskStateTracker once {@link LocalTaskStateTracker} is fully retired.
  *
  * @author ynli
  */
-public class LocalTaskStateTracker2 extends AbstractIdleService implements TaskStateTracker {
+public class LocalTaskStateTracker2 extends AbstractTaskStateTracker {
 
   private static final Logger LOG = LoggerFactory.getLogger(LocalTaskStateTracker2.class);
 
   // This is used to retry failed tasks
   private final TaskExecutor taskExecutor;
-
-  // This is used to schedule and run reporters for reporting state
-  // and progress of running tasks
-  private final ScheduledThreadPoolExecutor reporterExecutor;
 
   // Mapping between tasks and the task state reporters associated with them
   private final Map<String, ScheduledFuture<?>> scheduledReporters = Maps.newHashMap();
@@ -57,36 +50,16 @@ public class LocalTaskStateTracker2 extends AbstractIdleService implements TaskS
   private final int maxTaskRetries;
 
   public LocalTaskStateTracker2(Properties properties, TaskExecutor taskExecutor) {
+    super(properties, LOG);
     this.taskExecutor = taskExecutor;
-    this.reporterExecutor = new ScheduledThreadPoolExecutor(Integer.parseInt(properties
-        .getProperty(ConfigurationKeys.TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE_KEY,
-            ConfigurationKeys.DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE)));
-    this.reporterExecutor.setMaximumPoolSize(Integer.parseInt(properties
-            .getProperty(ConfigurationKeys.TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE_KEY,
-                ConfigurationKeys.DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE)));
     this.maxTaskRetries = Integer.parseInt(
         properties.getProperty(ConfigurationKeys.MAX_TASK_RETRIES_KEY, ConfigurationKeys.DEFAULT_MAX_TASK_RETRIES));
   }
 
   @Override
-  protected void startUp() {
-    LOG.info("Starting the local task state tracker");
-  }
-
-  @Override
-  protected void shutDown() {
-    LOG.info("Stopping the local task state tracker");
-    this.reporterExecutor.shutdown();
-  }
-
-  @Override
   public void registerNewTask(Task task) {
     try {
-      // Schedule a reporter to periodically report state and progress
-      // of the given task
-      this.scheduledReporters.put(task.getTaskId(), this.reporterExecutor
-              .scheduleAtFixedRate(new TaskStateReporter(task), task.getTaskContext().getStatusReportingInterval(),
-                  task.getTaskContext().getStatusReportingInterval(), TimeUnit.MILLISECONDS));
+      this.scheduledReporters.put(task.getTaskId(), scheduleTaskMetricsUpdater(new TaskMetricsUpdater(task), task));
     } catch (RejectedExecutionException ree) {
       LOG.error(String.format("Scheduling of task state reporter for task %s was rejected", task.getTaskId()));
     }
@@ -122,25 +95,5 @@ public class LocalTaskStateTracker2 extends AbstractIdleService implements TaskS
     LOG.info(String
         .format("Task %s completed in %dms with state %s", task.getTaskId(), task.getTaskState().getTaskDuration(),
             state));
-  }
-
-  /**
-   * A class for reporting the state of a task while the task is running.
-   */
-  private static class TaskStateReporter implements Runnable {
-
-    public final Task task;
-
-    public TaskStateReporter(Task task) {
-      this.task = task;
-    }
-
-    @Override
-    public void run() {
-      if (JobMetrics.isEnabled(this.task.getTaskState().getWorkunit())) {
-        // Update record-level metrics
-        this.task.updateRecordMetrics();
-      }
-    }
   }
 }

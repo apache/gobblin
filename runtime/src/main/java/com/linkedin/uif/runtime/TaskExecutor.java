@@ -1,9 +1,9 @@
 /* (c) 2014 LinkedIn Corp. All rights reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
  * License at  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
@@ -69,7 +69,7 @@ public class TaskExecutor extends AbstractIdleService {
    */
   public TaskExecutor(Properties properties) {
     this(Integer.parseInt(properties.getProperty(ConfigurationKeys.TASK_EXECUTOR_THREADPOOL_SIZE_KEY,
-            ConfigurationKeys.DEFAULT_TASK_SCHEDULER_THREADPOOL_SIZE)), Integer.parseInt(properties
+            ConfigurationKeys.DEFAULT_TASK_EXECUTOR_THREADPOOL_SIZE)), Integer.parseInt(properties
             .getProperty(ConfigurationKeys.TASK_RETRY_THREAD_POOL_CORE_SIZE_KEY,
                 ConfigurationKeys.DEFAULT_TASK_RETRY_THREAD_POOL_CORE_SIZE)), Integer.parseInt(properties
             .getProperty(ConfigurationKeys.TASK_RETRY_THREAD_POOL_MAX_SIZE_KEY,
@@ -83,7 +83,7 @@ public class TaskExecutor extends AbstractIdleService {
    */
   public TaskExecutor(Configuration conf) {
     this(Integer.parseInt(conf.get(ConfigurationKeys.TASK_EXECUTOR_THREADPOOL_SIZE_KEY,
-            ConfigurationKeys.DEFAULT_TASK_SCHEDULER_THREADPOOL_SIZE)), Integer.parseInt(
+            ConfigurationKeys.DEFAULT_TASK_EXECUTOR_THREADPOOL_SIZE)), Integer.parseInt(
             conf.get(ConfigurationKeys.TASK_RETRY_THREAD_POOL_CORE_SIZE_KEY,
                 ConfigurationKeys.DEFAULT_TASK_RETRY_THREAD_POOL_CORE_SIZE)), Integer.parseInt(
             conf.get(ConfigurationKeys.TASK_RETRY_THREAD_POOL_MAX_SIZE_KEY,
