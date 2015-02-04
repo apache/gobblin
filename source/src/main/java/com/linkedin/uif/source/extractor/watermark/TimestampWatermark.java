@@ -1,9 +1,9 @@
 /* (c) 2014 LinkedIn Corp. All rights reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
  * License at  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
@@ -21,7 +21,9 @@ import java.util.HashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
 import com.google.common.math.DoubleMath;
+import com.google.common.primitives.Ints;
 import com.linkedin.uif.source.extractor.extract.QueryBasedExtractor;
 
 
@@ -31,6 +33,8 @@ public class TimestampWatermark implements Watermark {
   private static final String INPUTFORMAT = "yyyyMMddHHmmss";
   // output format of timestamp water mark example: 20140301050505
   private static final String OUTPUTFORMAT = "yyyyMMddHHmmss";
+  private static final SimpleDateFormat INPUTFORMATPARSER = new SimpleDateFormat(INPUTFORMAT);
+
   private static final int deltaForNextWatermark = 1;
   private String watermarkColumn;
   private String watermarkFormat;
@@ -53,12 +57,17 @@ public class TimestampWatermark implements Watermark {
 
   @Override
   synchronized public HashMap<Long, Long> getIntervals(long lowWatermarkValue, long highWatermarkValue,
-      int partitionInterval, int maxIntervals) {
-    HashMap<Long, Long> intervalMap = new HashMap<Long, Long>();
-    final SimpleDateFormat inputFormat = new SimpleDateFormat(INPUTFORMAT);
+      long partitionInterval, int maxIntervals) {
+    Preconditions.checkArgument(partitionInterval >= 1,
+        "Invalid value for partitionInterval, value should be at least 1.");
+    Preconditions.checkArgument(maxIntervals > 0, "Invalid value for maxIntervals, positive value expected.");
 
-    if (partitionInterval < 1) {
-      partitionInterval = 1;
+    HashMap<Long, Long> intervalMap = new HashMap<Long, Long>();
+
+    if (lowWatermarkValue > highWatermarkValue) {
+      LOG.warn("lowWatermarkValue: " + lowWatermarkValue + " is greater than highWatermarkValue: "
+          + highWatermarkValue);
+      return intervalMap;
     }
 
     final Calendar calendar = Calendar.getInstance();
@@ -66,7 +75,7 @@ public class TimestampWatermark implements Watermark {
     final long lowWatermark = this.toEpoch(Long.toString(lowWatermarkValue));
     final long highWatermark = this.toEpoch(Long.toString(highWatermarkValue));
 
-    int interval = this.getInterval(highWatermark - lowWatermark, partitionInterval, maxIntervals);
+    long interval = this.getInterval(highWatermark - lowWatermark, partitionInterval, maxIntervals);
     LOG.info("Recalculated partition interval:" + interval + " hours");
     if (interval == 0) {
       return intervalMap;
@@ -78,11 +87,11 @@ public class TimestampWatermark implements Watermark {
     long lwm;
     long hwm;
     while (startTime.getTime() <= endTime.getTime()) {
-      lwm = Long.parseLong(inputFormat.format(startTime));
+      lwm = Long.parseLong(INPUTFORMATPARSER.format(startTime));
       calendar.setTime(startTime);
-      calendar.add(Calendar.HOUR, interval);
+      calendar.add(Calendar.HOUR, (int) interval);
       nextTime = calendar.getTime();
-      hwm = Long.parseLong(inputFormat.format(nextTime.getTime() <= endTime.getTime() ? nextTime : endTime));
+      hwm = Long.parseLong(INPUTFORMATPARSER.format(nextTime.getTime() <= endTime.getTime() ? nextTime : endTime));
       intervalMap.put(lwm, hwm);
       LOG.debug("Partition - low:" + lwm + "; high:" + hwm);
       calendar.add(Calendar.SECOND, deltaForNextWatermark);
@@ -99,18 +108,16 @@ public class TimestampWatermark implements Watermark {
    * @param Maximum number of allowed partitions
    * @return calculated interval in hours
    */
-  private int getInterval(long diffInMilliSecs, int hourInterval, int maxIntervals) {
-    if (diffInMilliSecs == 0) {
-      return 0;
-    }
 
-    int totalHours = DoubleMath.roundToInt((double) diffInMilliSecs / (60 * 60 * 1000),
+  private int getInterval(long diffInMilliSecs, long hourInterval, int maxIntervals) {
+
+    long totalHours = DoubleMath.roundToInt((double) diffInMilliSecs / (60 * 60 * 1000),
             RoundingMode.CEILING);
-    int totalIntervals = DoubleMath.roundToInt((double) totalHours / hourInterval, RoundingMode.CEILING);
+    long totalIntervals = DoubleMath.roundToInt((double) totalHours / hourInterval, RoundingMode.CEILING);
     if (totalIntervals > maxIntervals) {
       hourInterval = DoubleMath.roundToInt((double) totalHours / maxIntervals, RoundingMode.CEILING);
     }
-    return hourInterval;
+    return Ints.checkedCast(hourInterval);
   }
 
   synchronized private long toEpoch(String dateTime) {
