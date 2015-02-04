@@ -26,13 +26,14 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.commons.lang.StringUtils;
+
 import com.google.common.base.Joiner;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-
 import com.linkedin.uif.configuration.ConfigurationKeys;
 import com.linkedin.uif.configuration.WorkUnitState;
 import com.linkedin.uif.source.extractor.DataRecordException;
@@ -59,12 +60,12 @@ import com.linkedin.uif.source.workunit.WorkUnit;
  *
  * @author nveeramr
  */
-public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonElement> implements SourceSpecificLayer<JsonArray, JsonElement>, JdbcSpecificLayer {
+public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonElement> implements
+    SourceSpecificLayer<JsonArray, JsonElement>, JdbcSpecificLayer {
   private static final Gson gson = new Gson();
   private List<String> headerRecord;
   private boolean firstPull = true;
-  private CommandOutput<?, ?> dataResponse = null;
-  ;
+  private CommandOutput<?, ?> dataResponse = null;;
   protected String extractSql;
   protected long sampleRecordCount;
   protected JdbcProvider jdbcSource;
@@ -259,8 +260,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   }
 
   @Override
-  public void extractMetadata(String schema, String entity, WorkUnit workUnit)
-      throws SchemaException, IOException {
+  public void extractMetadata(String schema, String entity, WorkUnit workUnit) throws SchemaException, IOException {
     this.log.info("Extract metadata using JDBC");
     String inputQuery = workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_QUERY);
     String watermarkColumn = workUnit.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
@@ -303,8 +303,9 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       }
 
       String outputColProjection = Joiner.on(",").useForNull("null").join(this.columnList);
-      outputColProjection = outputColProjection.replace(derivedWatermarkColumnName,
-          getWatermarkColumnName(watermarkColumn) + " AS " + derivedWatermarkColumnName);
+      outputColProjection =
+          outputColProjection.replace(derivedWatermarkColumnName, getWatermarkColumnName(watermarkColumn) + " AS "
+              + derivedWatermarkColumnName);
       this.setOutputColumnProjection(outputColProjection);
       String extractQuery = this.getExtractQuery(schema, entity, inputQuery);
 
@@ -454,9 +455,11 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @param target column name
    */
   private void updateDeltaFieldConfig(String srcColumnName, String tgtColumnName) {
-    String watermarkCol = this.workUnitState.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
-    this.workUnitState
-        .setProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY, watermarkCol.replaceAll(srcColumnName, tgtColumnName));
+    if (this.workUnitState.contains(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY)) {
+      String watermarkCol = this.workUnitState.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
+      this.workUnitState.setProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY,
+          watermarkCol.replaceAll(srcColumnName, tgtColumnName));
+    }
   }
 
   /**
@@ -466,9 +469,11 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @param target column name
    */
   private void updatePrimaryKeyConfig(String srcColumnName, String tgtColumnName) {
-    String primarykey = this.workUnitState.getProp(ConfigurationKeys.EXTRACT_PRIMARY_KEY_FIELDS_KEY);
-    this.workUnitState
-        .setProp(ConfigurationKeys.EXTRACT_PRIMARY_KEY_FIELDS_KEY, primarykey.replaceAll(srcColumnName, tgtColumnName));
+    if (this.workUnitState.contains(ConfigurationKeys.EXTRACT_PRIMARY_KEY_FIELDS_KEY)) {
+      String primarykey = this.workUnitState.getProp(ConfigurationKeys.EXTRACT_PRIMARY_KEY_FIELDS_KEY);
+      this.workUnitState.setProp(ConfigurationKeys.EXTRACT_PRIMARY_KEY_FIELDS_KEY,
+          primarykey.replaceAll(srcColumnName, tgtColumnName));
+    }
   }
 
   /**
@@ -702,8 +707,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
   @Override
   public long getMaxWatermark(String schema, String entity, String watermarkColumn, List<Predicate> predicateList,
-      String watermarkSourceFormat)
-      throws HighWatermarkException {
+      String watermarkSourceFormat) throws HighWatermarkException {
     this.log.info("Get high watermark using JDBC");
     long CalculatedHighWatermark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
 
@@ -735,8 +739,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
   @Override
   public Iterator<JsonElement> getRecordSet(String schema, String entity, WorkUnit workUnit,
-      List<Predicate> predicateList)
-      throws DataRecordException, IOException {
+      List<Predicate> predicateList) throws DataRecordException, IOException {
     Iterator<JsonElement> rs = null;
     List<Command> cmds;
     try {
@@ -796,8 +799,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   }
 
   @Override
-  public JsonArray getSchema(CommandOutput<?, ?> response)
-      throws SchemaException, IOException {
+  public JsonArray getSchema(CommandOutput<?, ?> response) throws SchemaException, IOException {
     this.log.debug("Extract schema from resultset");
     ResultSet resultset = null;
     Iterator<ResultSet> itr = (Iterator<ResultSet>) response.getResults().values().iterator();
@@ -886,8 +888,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   }
 
   @Override
-  public long getCount(CommandOutput<?, ?> response)
-      throws RecordCountException {
+  public long getCount(CommandOutput<?, ?> response) throws RecordCountException {
     this.log.debug("Extract source record count from resultset");
     ResultSet resultset = null;
     Iterator<ResultSet> itr = (Iterator<ResultSet>) response.getResults().values().iterator();
@@ -910,8 +911,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   }
 
   @Override
-  public Iterator<JsonElement> getData(CommandOutput<?, ?> response)
-      throws DataRecordException, IOException {
+  public Iterator<JsonElement> getData(CommandOutput<?, ?> response) throws DataRecordException, IOException {
     this.log.debug("Extract data records from resultset");
     RecordSetList<JsonElement> recordSet = this.getNewRecordSetList();
 
@@ -998,8 +998,9 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
     schema.setColumnName(columnName);
 
-    WatermarkType wmType = WatermarkType.valueOf(
-        this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, "TIMESTAMP").toUpperCase());
+    WatermarkType wmType =
+        WatermarkType.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE,
+            "TIMESTAMP").toUpperCase());
     switch (wmType) {
       case TIMESTAMP:
         dataType = "timestamp";
@@ -1074,8 +1075,9 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    */
   private String toCase(String targetColumnName) {
     String columnName = targetColumnName;
-    ColumnNameCase caseType = ColumnNameCase.valueOf(this.workUnitState
-        .getProp(ConfigurationKeys.SOURCE_COLUMN_NAME_CASE, ConfigurationKeys.DEFAULT_COLUMN_NAME_CASE).toUpperCase());
+    ColumnNameCase caseType =
+        ColumnNameCase.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_COLUMN_NAME_CASE,
+            ConfigurationKeys.DEFAULT_COLUMN_NAME_CASE).toUpperCase());
     switch (caseType) {
       case TOUPPER:
         columnName = targetColumnName.toUpperCase();
@@ -1091,8 +1093,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   }
 
   @Override
-  public void closeConnection()
-      throws Exception {
+  public void closeConnection() throws Exception {
     this.jdbcSource.close();
   }
 }
