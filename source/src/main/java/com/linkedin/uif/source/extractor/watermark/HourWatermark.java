@@ -31,7 +31,7 @@ public class HourWatermark implements Watermark {
   private static final Logger LOG = LoggerFactory.getLogger(HourWatermark.class);
   // default water mark format(input format) example: 20140301050505
   private static final String INPUTFORMAT = "yyyyMMddHHmmss";
-  // output format of date water mark example: 20140301
+  // output format of hour water mark example: 2014030105
   private static final String OUTPUTFORMAT = "yyyyMMddHH";
   private static final int deltaForNextWatermark = 60 * 60;
   private static final SimpleDateFormat INPUTFORMATPARSER = new SimpleDateFormat(INPUTFORMAT);
