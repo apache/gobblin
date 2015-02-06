@@ -1,9 +1,9 @@
 /* (c) 2014 LinkedIn Corp. All rights reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
  * License at  http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
@@ -656,7 +656,8 @@ public class LocalJobManager extends AbstractIdleService {
         LOG.info("Publishing job data of job " + jobId + " with commit policy " + commitPolicy);
 
         Class<? extends DataPublisher> dataPublisherClass =
-            (Class<? extends DataPublisher>) Class.forName(jobState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE));
+            (Class<? extends DataPublisher>) Class.forName(jobState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE,
+                ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
         Constructor<? extends DataPublisher> dataPublisherConstructor =
             dataPublisherClass.getConstructor(com.linkedin.uif.configuration.State.class);
         publisher = dataPublisherConstructor.newInstance(jobState);
