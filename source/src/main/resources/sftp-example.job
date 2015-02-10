@@ -1,0 +1,36 @@
+# Job properties
+job.name=SftpExampleJob
+job.group=ExampleJobs
+job.description=An example config file for SFTP jobs
+
+# Source properties
+source.class=com.linkedin.uif.source.extractor.extract.sftp.SftpSource
+
+# The SftpSource class will look for data on the SFTP server under this directory
+source.filebased.data.directory=example/input
+
+# The SftpSource class will performs an "ls {source.filebased.data.directory}/*{source.entity}*" in order to determine what files to download
+source.entity=ExampleFileGroup
+
+# SftpSource assumes that all data read is in this schema
+source.schema=[{"columnName":"col1","comment":"","isNullable":"true","dataType":{"type":"string"}},{"columnName":"col2","comment":"","isNullable":"true","dataType":{"type":"string"}},{"columnName":"col3`","comment":"","isNullable":"true","dataType":{"type":"string"}}]
+
+# Extract properties
+extract.table.name=Example
+extract.namespace=com.linkedin.example.sftp
+extract.table.type=append_only
+
+# Converter properties
+# By specifying these converters, Gobblin will take each record returned by SftpSource, split each record by some delimiter, and then convert the record to an Avro record
+converter.classes=com.linkedin.uif.converter.csv.CsvToJsonConverter,com.linkedin.uif.converter.avro.JsonIntermediateToAvroConverter
+converter.csv.to.json.delimiter=,
+
+# Source connection properties
+# The current implementation of SftpSource only allows Gobblin to authenticate to the Sftp Server via public-key authentication. This requires a private key file and a known hosts file
+source.conn.private.key=/path/to/private-key-file
+source.conn.known.hosts=/path/to/known-hosts-file
+
+# The host and port to connect to, along with the username to connect with
+source.conn.username=example-username
+source.conn.host=localhost
+source.conn.port=22
