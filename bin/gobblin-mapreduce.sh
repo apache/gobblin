@@ -4,11 +4,12 @@
 ############### Run Gobblin Jobs on Hadoop MR ################
 ##############################################################
 
-USAGE="launch-mr-job.sh <job tracker URL> <file system URL> <job configuration file>"
+USAGE="gobblin-mapreduce.sh <job tracker URL> <file system URL> <job configuration file>"
 
 if [ "$#" -ne 3 ]; then
     echo "Usage:"
     echo $USAGE
+    exit 1
 fi
 
 JOB_TRACKER_URL=$1
@@ -25,7 +26,7 @@ $FWDIR/lib/metrics-core-3.0.2.jar,$FWDIR/lib/gson-2.2.4.jar
 
 export HADOOP_CLASSPATH=$FWDIR/lib/*
 
-GOBBLIN_CONFIG_FILE=$FWDIR/conf/gobblin-mr-test.properties
+GOBBLIN_CONFIG_FILE=$FWDIR/conf/gobblin-mapreduce.properties
 
 # Launch the job to run on Hadoop
 $HADOOP_BIN_DIR/hadoop jar \
