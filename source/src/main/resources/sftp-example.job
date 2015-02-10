@@ -1,0 +1,25 @@
+# Job properties
+job.name=SftpExampleJob
+job.group=ExampleJobs
+job.description=An example config file for SFTP jobs
+
+# Source properties
+source.class=com.linkedin.uif.source.extractor.extract.sftp.SftpSource
+source.filebased.data.directory=example/input
+source.entity=ExampleFileGroup
+source.schema=[{"columnName":"col1","comment":"","isNullable":"true","dataType":{"type":"string"}},{"columnName":"col2","comment":"","isNullable":"true","dataType":{"type":"string"}},{"columnName":"col3`","comment":"","isNullable":"true","dataType":{"type":"string"}}]
+
+# Extract properties
+extract.table.name=Example
+extract.namespace=com.linkedin.example.sftp
+extract.table.type=append_only
+
+converter.classes=com.linkedin.uif.converter.csv.CsvToJsonConverter,com.linkedin.uif.converter.avro.JsonIntermediateToAvroConverter
+converter.csv.to.json.delimiter=,
+
+# Source connection properties
+source.conn.private.key=/path/to/private-key-file
+source.conn.known.hosts=/path/to/known-hosts-file
+source.conn.username=example-username
+source.conn.host=localhost
+source.conn.port=22
