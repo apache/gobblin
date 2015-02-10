@@ -495,7 +495,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             && jobState.getState() == JobState.RunningState.SUCCESSFUL)) {
 
       Class<? extends DataPublisher> dataPublisherClass =
-          (Class<? extends DataPublisher>) Class.forName(jobState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE));
+          (Class<? extends DataPublisher>) Class.forName(jobState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE,
+              ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
       Constructor<? extends DataPublisher> dataPublisherConstructor = dataPublisherClass.getConstructor(State.class);
 
       LOG.info(String.format("Publishing job data of job %s with commit policy %s", jobId, commitPolicy.name()));
