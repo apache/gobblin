@@ -21,14 +21,16 @@ extract.namespace=com.linkedin.example.sftp
 extract.table.type=append_only
 
 # Converter properties
-# By specifying these converters, Gobblin will take each record returned by SftpSource, split each record by some delimiter, and then convert the record to Avro
+# By specifying these converters, Gobblin will take each record returned by SftpSource, split each record by some delimiter, and then convert the record to an Avro record
 converter.classes=com.linkedin.uif.converter.csv.CsvToJsonConverter,com.linkedin.uif.converter.avro.JsonIntermediateToAvroConverter
 converter.csv.to.json.delimiter=,
 
 # Source connection properties
-# The current implementation of SftpSource only allows Gobblin to authenticate to the Sftp Server via public-key authentication
+# The current implementation of SftpSource only allows Gobblin to authenticate to the Sftp Server via public-key authentication. This requires a private key file and a known hosts file
 source.conn.private.key=/path/to/private-key-file
 source.conn.known.hosts=/path/to/known-hosts-file
+
+# The host and port to connect to, along with the username to connect with
 source.conn.username=example-username
 source.conn.host=localhost
 source.conn.port=22
