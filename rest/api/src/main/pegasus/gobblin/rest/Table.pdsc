@@ -1,0 +1,29 @@
+{
+    "type": "record",
+    "name": "Table",
+    "namespace": "gobblin.rest",
+    "doc": "Gobblin table definition",
+    "fields": [
+      {
+          "name": "namespace",
+          "type": "string",
+          "optional": true,
+          "doc": "Table namespace"
+      },
+      {
+          "name": "name",
+          "type": "string",
+          "doc": "Table name"
+      },
+      {
+          "name": "type",
+          "type": {
+              "name": "TableTypeEnum",
+              "type": "enum",
+              "symbols" : [ "SNAPSHOT_ONLY", "SNAPSHOT_APPEND", "APPEND_ONLY" ]
+          },
+          "optional": true,
+          "doc": "Table type"
+      }
+    ]
+}

@@ -31,7 +31,7 @@ GOBBLIN_CONFIG_FILE=$FWDIR/conf/gobblin-mapreduce.properties
 # Launch the job to run on Hadoop
 $HADOOP_BIN_DIR/hadoop jar \
         $FWDIR/lib/runtime.jar \
-        com.linkedin.uif.runtime.mapreduce.CliMRJobLauncher \
+        gobblin.runtime.mapreduce.CliMRJobLauncher \
         -jt $JOB_TRACKER_URL \
         -fs $FS_URL \
         -libjars $LIBJARS \

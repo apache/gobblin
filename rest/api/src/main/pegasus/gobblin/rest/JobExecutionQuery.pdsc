@@ -1,0 +1,50 @@
+{
+    "type": "record",
+    "name": "JobExecutionQuery",
+    "namespace": "gobblin.rest",
+    "doc": "Gobblin job execution query",
+    "fields": [
+      {
+          "name": "id",
+          "type": [
+              "string",
+              "Table"
+          ],
+          "doc": "Query ID (a job ID, job name, or table definition)"
+      },
+      {
+          "name": "idType",
+          "type": {
+              "name": "QueryIdTypeEnum",
+              "type": "enum",
+              "symbols" : [ "JOB_NAME", "JOB_ID", "TABLE" ]
+          },
+          "doc": "Query ID type"
+      },
+      {
+          "name": "timeRange",
+          "type": "TimeRange",
+          "optional": true,
+          "doc": "Query time range"
+      },
+      {
+          "name": "limit",
+          "type": "int",
+          "optional": true,
+          "default": 1,
+          "doc": "Query limit"
+      },
+      {
+          "name": "jobProperties",
+          "type": "string",
+          "optional": true,
+          "doc": "Comma-separated list of job properties to include in the query result"
+      },
+      {
+          "name": "taskProperties",
+          "type": "string",
+          "optional": true,
+          "doc": "Comma-separated list of task properties to include in the query result"
+      }
+    ]
+}

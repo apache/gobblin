@@ -1,0 +1,99 @@
+{
+  "type": "record",
+  "name": "JobExecutionInfo",
+  "namespace": "gobblin.rest",
+  "doc": "Gobblin job execution information",
+  "fields": [
+    {
+        "name": "jobName",
+        "type": "string",
+        "doc": "Job name"
+    },
+    {
+        "name": "jobId",
+        "type": "string",
+        "doc": "Job ID"
+    },
+    {
+        "name": "startTime",
+        "type": "long",
+        "optional": true,
+        "doc": "Job start time (epoch time)"
+    },
+    {
+        "name": "endTime",
+        "type": "long",
+        "optional": true,
+        "doc": "Job end time (epoch time)"
+    },
+    {
+        "name": "duration",
+        "type": "long",
+        "optional": true,
+        "doc": "Job duration in milliseconds"
+    },
+    {
+        "name": "state",
+        "type": {
+            "name": "JobStateEnum",
+            "type": "enum",
+            "symbols" : [ "PENDING", "RUNNING", "SUCCESSFUL", "COMMITTED", "FAILED", "CANCELLED" ]
+        },
+        "optional": true,
+        "doc": "Job state"
+    },
+    {
+        "name": "launchedTasks",
+        "type": "int",
+        "optional": true,
+        "doc": "Number of launched tasks"
+    },
+    {
+        "name": "completedTasks",
+        "type": "int",
+        "optional": true,
+        "doc": "Number of completed tasks"
+    },
+    {
+        "name": "launcherType",
+        "type": {
+            "name": "LauncherTypeEnum",
+            "type": "enum",
+            "symbols" : [ "LOCAL", "MAPREDUCE", "YARN" ]
+        },
+        "optional": true,
+        "doc": "Job launcher type"
+    },
+    {
+        "name": "trackingUrl",
+        "type": "string",
+        "optional": true,
+        "doc": "Job execution tracking URL"
+    },
+    {
+        "name": "taskExecutions",
+        "type": {
+            "type": "array",
+            "items": "TaskExecutionInfo"
+        },
+        "doc": "An array of task execution information records"
+    },
+    {
+        "name": "jobProperties",
+        "type": {
+            "type": "map",
+            "values": "string"
+        },
+        "optional": true,
+        "doc": "Job properties"
+    },
+    {
+        "name": "metrics",
+        "type": {
+            "type": "array",
+            "items": "Metric"
+        },
+        "doc": "Job metrics"
+    }
+  ]
+}

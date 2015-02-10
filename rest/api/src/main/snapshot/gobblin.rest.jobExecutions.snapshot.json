@@ -1,0 +1,320 @@
+{
+  "models" : [ {
+    "type" : "enum",
+    "name" : "JobStateEnum",
+    "namespace" : "gobblin.rest",
+    "symbols" : [ "PENDING", "RUNNING", "SUCCESSFUL", "COMMITTED", "FAILED", "CANCELLED" ]
+  }, {
+    "type" : "enum",
+    "name" : "LauncherTypeEnum",
+    "namespace" : "gobblin.rest",
+    "symbols" : [ "LOCAL", "MAPREDUCE", "YARN" ]
+  }, {
+    "type" : "enum",
+    "name" : "TaskStateEnum",
+    "namespace" : "gobblin.rest",
+    "symbols" : [ "PENDING", "RUNNING", "SUCCESSFUL", "COMMITTED", "FAILED", "CANCELLED" ]
+  }, {
+    "type" : "enum",
+    "name" : "TableTypeEnum",
+    "namespace" : "gobblin.rest",
+    "symbols" : [ "SNAPSHOT_ONLY", "SNAPSHOT_APPEND", "APPEND_ONLY" ]
+  }, {
+    "type" : "record",
+    "name" : "Table",
+    "namespace" : "gobblin.rest",
+    "doc" : "Gobblin table definition",
+    "fields" : [ {
+      "name" : "namespace",
+      "type" : "string",
+      "doc" : "Table namespace",
+      "optional" : true
+    }, {
+      "name" : "name",
+      "type" : "string",
+      "doc" : "Table name"
+    }, {
+      "name" : "type",
+      "type" : "TableTypeEnum",
+      "doc" : "Table type",
+      "optional" : true
+    } ]
+  }, {
+    "type" : "enum",
+    "name" : "MetricTypeEnum",
+    "namespace" : "gobblin.rest",
+    "symbols" : [ "COUNTER", "METER", "GAUGE" ]
+  }, {
+    "type" : "record",
+    "name" : "Metric",
+    "namespace" : "gobblin.rest",
+    "doc" : "Gobblin metric",
+    "fields" : [ {
+      "name" : "group",
+      "type" : "string",
+      "doc" : "Metric group"
+    }, {
+      "name" : "name",
+      "type" : "string",
+      "doc" : "Metric name"
+    }, {
+      "name" : "type",
+      "type" : "MetricTypeEnum",
+      "doc" : "Metric type"
+    }, {
+      "name" : "value",
+      "type" : "string",
+      "doc" : "Metric value"
+    } ]
+  }, {
+    "type" : "record",
+    "name" : "TaskExecutionInfo",
+    "namespace" : "gobblin.rest",
+    "doc" : "Gobblin task execution information",
+    "fields" : [ {
+      "name" : "jobId",
+      "type" : "string",
+      "doc" : "Job ID"
+    }, {
+      "name" : "taskId",
+      "type" : "string",
+      "doc" : "Task ID"
+    }, {
+      "name" : "startTime",
+      "type" : "long",
+      "doc" : "Task start time (epoch time)",
+      "optional" : true
+    }, {
+      "name" : "endTime",
+      "type" : "long",
+      "doc" : "Task end time (epoch time)",
+      "optional" : true
+    }, {
+      "name" : "duration",
+      "type" : "long",
+      "doc" : "Task duration in milliseconds",
+      "optional" : true
+    }, {
+      "name" : "state",
+      "type" : "TaskStateEnum",
+      "doc" : "Task state",
+      "optional" : true
+    }, {
+      "name" : "failureException",
+      "type" : "string",
+      "doc" : "Task failure exception message",
+      "optional" : true
+    }, {
+      "name" : "lowWatermark",
+      "type" : "long",
+      "doc" : "Low watermark",
+      "optional" : true
+    }, {
+      "name" : "highWatermark",
+      "type" : "long",
+      "doc" : "High watermark",
+      "optional" : true
+    }, {
+      "name" : "table",
+      "type" : "Table",
+      "doc" : "Table definition",
+      "optional" : true
+    }, {
+      "name" : "taskProperties",
+      "type" : {
+        "type" : "map",
+        "values" : "string"
+      },
+      "doc" : "Task properties",
+      "optional" : true
+    }, {
+      "name" : "metrics",
+      "type" : {
+        "type" : "array",
+        "items" : "Metric"
+      },
+      "doc" : "Job metrics"
+    } ]
+  }, {
+    "type" : "record",
+    "name" : "JobExecutionInfo",
+    "namespace" : "gobblin.rest",
+    "doc" : "Gobblin job execution information",
+    "fields" : [ {
+      "name" : "jobName",
+      "type" : "string",
+      "doc" : "Job name"
+    }, {
+      "name" : "jobId",
+      "type" : "string",
+      "doc" : "Job ID"
+    }, {
+      "name" : "startTime",
+      "type" : "long",
+      "doc" : "Job start time (epoch time)",
+      "optional" : true
+    }, {
+      "name" : "endTime",
+      "type" : "long",
+      "doc" : "Job end time (epoch time)",
+      "optional" : true
+    }, {
+      "name" : "duration",
+      "type" : "long",
+      "doc" : "Job duration in milliseconds",
+      "optional" : true
+    }, {
+      "name" : "state",
+      "type" : "JobStateEnum",
+      "doc" : "Job state",
+      "optional" : true
+    }, {
+      "name" : "launchedTasks",
+      "type" : "int",
+      "doc" : "Number of launched tasks",
+      "optional" : true
+    }, {
+      "name" : "completedTasks",
+      "type" : "int",
+      "doc" : "Number of completed tasks",
+      "optional" : true
+    }, {
+      "name" : "launcherType",
+      "type" : "LauncherTypeEnum",
+      "doc" : "Job launcher type",
+      "optional" : true
+    }, {
+      "name" : "trackingUrl",
+      "type" : "string",
+      "doc" : "Job execution tracking URL",
+      "optional" : true
+    }, {
+      "name" : "taskExecutions",
+      "type" : {
+        "type" : "array",
+        "items" : "TaskExecutionInfo"
+      },
+      "doc" : "An array of task execution information records"
+    }, {
+      "name" : "jobProperties",
+      "type" : {
+        "type" : "map",
+        "values" : "string"
+      },
+      "doc" : "Job properties",
+      "optional" : true
+    }, {
+      "name" : "metrics",
+      "type" : {
+        "type" : "array",
+        "items" : "Metric"
+      },
+      "doc" : "Job metrics"
+    } ]
+  }, {
+    "type" : "record",
+    "name" : "JobExecutionQueryResult",
+    "namespace" : "gobblin.rest",
+    "doc" : "Gobblin job execution query result",
+    "fields" : [ {
+      "name" : "jobExecutions",
+      "type" : {
+        "type" : "array",
+        "items" : "JobExecutionInfo"
+      },
+      "doc" : "An array of job execution information records"
+    } ]
+  }, {
+    "type" : "enum",
+    "name" : "QueryIdTypeEnum",
+    "namespace" : "gobblin.rest",
+    "symbols" : [ "JOB_NAME", "JOB_ID", "TABLE" ]
+  }, {
+    "type" : "record",
+    "name" : "TimeRange",
+    "namespace" : "gobblin.rest",
+    "doc" : "Query time range",
+    "fields" : [ {
+      "name" : "startTime",
+      "type" : "string",
+      "doc" : "Start time of the query range",
+      "optional" : true
+    }, {
+      "name" : "endTime",
+      "type" : "string",
+      "doc" : "End time of the query range",
+      "optional" : true
+    }, {
+      "name" : "timeFormat",
+      "type" : "string",
+      "doc" : "Date/time format used to parse the start time and end time"
+    } ]
+  }, {
+    "type" : "record",
+    "name" : "JobExecutionQuery",
+    "namespace" : "gobblin.rest",
+    "doc" : "Gobblin job execution query",
+    "fields" : [ {
+      "name" : "id",
+      "type" : [ "string", "Table" ],
+      "doc" : "Query ID (a job ID, job name, or table definition)"
+    }, {
+      "name" : "idType",
+      "type" : "QueryIdTypeEnum",
+      "doc" : "Query ID type"
+    }, {
+      "name" : "timeRange",
+      "type" : "TimeRange",
+      "doc" : "Query time range",
+      "optional" : true
+    }, {
+      "name" : "limit",
+      "type" : "int",
+      "doc" : "Query limit",
+      "default" : 1,
+      "optional" : true
+    }, {
+      "name" : "jobProperties",
+      "type" : "string",
+      "doc" : "Comma-separated list of job properties to include in the query result",
+      "optional" : true
+    }, {
+      "name" : "taskProperties",
+      "type" : "string",
+      "doc" : "Comma-separated list of task properties to include in the query result",
+      "optional" : true
+    } ]
+  }, {
+    "type" : "record",
+    "name" : "EmptyRecord",
+    "namespace" : "com.linkedin.restli.common",
+    "doc" : "An literally empty record.  Intended as a marker to indicate the absence of content where a record type is required.  If used the underlying DataMap *must* be empty, EmptyRecordValidator is provided to help enforce this.  For example,  CreateRequest extends Request<EmptyRecord> to indicate it has no response body.   Also, a ComplexKeyResource implementation that has no ParamKey should have a signature like XyzResource implements ComplexKeyResource<XyzKey, EmptyRecord, Xyz>.",
+    "fields" : [ ],
+    "validate" : {
+      "com.linkedin.restli.common.EmptyRecordValidator" : { }
+    }
+  } ],
+  "schema" : {
+    "schema" : "gobblin.rest.JobExecutionQueryResult",
+    "path" : "/jobExecutions",
+    "name" : "jobExecutions",
+    "namespace" : "gobblin.rest",
+    "doc" : "A Rest.li resource for serving queries of Gobblin job executions.\n\ngenerated from: gobblin.rest.JobExecutionInfoResource",
+    "collection" : {
+      "identifier" : {
+        "name" : "jobExecutionsId",
+        "type" : "gobblin.rest.JobExecutionQuery",
+        "params" : "com.linkedin.restli.common.EmptyRecord"
+      },
+      "methods" : [ {
+        "method" : "get"
+      }, {
+        "method" : "batch_get"
+      } ],
+      "supports" : [ "batch_get", "get" ],
+      "entity" : {
+        "path" : "/jobExecutions/{jobExecutionsId}"
+      }
+    }
+  }
+}

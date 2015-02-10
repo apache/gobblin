@@ -1,0 +1,16 @@
+{
+    "type": "record",
+    "name": "JobExecutionQueryResult",
+    "namespace": "gobblin.rest",
+    "doc": "Gobblin job execution query result",
+    "fields": [
+        {
+            "name": "jobExecutions",
+            "type": {
+                "type": "array",
+                "items": "JobExecutionInfo"
+            },
+            "doc": "An array of job execution information records"
+        }
+    ]
+}

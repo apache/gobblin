@@ -1,0 +1,25 @@
+{
+    "type": "record",
+    "name": "TimeRange",
+    "namespace": "gobblin.rest",
+    "doc": "Query time range",
+    "fields": [
+      {
+          "name": "startTime",
+          "type": "string",
+          "optional": true,
+          "doc": "Start time of the query range"
+      },
+      {
+          "name": "endTime",
+          "type": "string",
+          "optional": true,
+          "doc": "End time of the query range"
+      },
+      {
+          "name": "timeFormat",
+          "type": "string",
+          "doc": "Date/time format used to parse the start time and end time"
+      }
+    ]
+}
