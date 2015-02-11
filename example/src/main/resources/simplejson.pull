@@ -6,9 +6,9 @@ job.name=GobblinDemo
 job.group=demo
 job.description=A Gobblin job for demo purpose
 
-source.class=com.linkedin.uif.demo.source.DemoSource
-converter.classes=com.linkedin.uif.demo.converter.DemoConverter
-extract.namespace=gobblin.demo
+source.class=gobblin.example.simplejson.SimpleJsonSource
+converter.classes=gobblin.example.simplejson.SimpleJsonConverter
+extract.namespace=gobblin.example.simplejson
 
 # source configuration properties
 # comma-separated list of file URIs (supporting different schemes, e.g., file://, ftp://, sftp://, http://, etc)
@@ -23,14 +23,14 @@ source.conn.password=
 source.schema={"namespace":"example.avro", "type":"record", "name":"User", "fields":[{"name":"name", "type":"string"}, {"name":"favorite_number",  "type":"int"}, {"name":"favorite_color", "type":"string"}]}
 
 # quality checker configuration properties
-qualitychecker.task.policies=com.linkedin.uif.policies.count.RowCountPolicy,com.linkedin.uif.policies.schema.SchemaCompatibilityPolicy
+qualitychecker.task.policies=gobblin.policies.count.RowCountPolicy,gobblin.policies.schema.SchemaCompatibilityPolicy
 qualitychecker.task.policy.types=OPTIONAL,OPTIONAL
-qualitychecker.row.policies=com.linkedin.uif.policies.schema.SchemaRowCheckPolicy
+qualitychecker.row.policies=gobblin.policies.schema.SchemaRowCheckPolicy
 qualitychecker.row.policy.types=OPTIONAL
 qualitychecker.row.err.file=test/jobOutput
 
 # data publisher class to be used
-data.publisher.type=com.linkedin.uif.publisher.BaseDataPublisher
+data.publisher.type=gobblin.publisher.BaseDataPublisher
 
 # writer configuration properties
 writer.destination.type=HDFS

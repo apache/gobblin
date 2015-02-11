@@ -1,0 +1,87 @@
+{
+  "type": "record",
+  "name": "TaskExecutionInfo",
+  "namespace": "gobblin.rest",
+  "doc": "Gobblin task execution information",
+  "fields": [
+    {
+        "name": "jobId",
+        "type": "string",
+        "doc": "Job ID"
+    },
+    {
+        "name": "taskId",
+        "type": "string",
+        "doc": "Task ID"
+    },
+    {
+        "name": "startTime",
+        "type": "long",
+        "optional": true,
+        "doc": "Task start time (epoch time)"
+    },
+    {
+        "name": "endTime",
+        "type": "long",
+        "optional": true,
+        "doc": "Task end time (epoch time)"
+    },
+    {
+        "name": "duration",
+        "type": "long",
+        "optional": true,
+        "doc": "Task duration in milliseconds"
+    },
+    {
+        "name": "state",
+        "type": {
+            "name": "TaskStateEnum",
+            "type": "enum",
+            "symbols" : [ "PENDING", "RUNNING", "SUCCESSFUL", "COMMITTED", "FAILED", "CANCELLED" ]
+         },
+         "optional": true,
+         "doc": "Task state"
+    },
+    {
+        "name": "failureException",
+        "type": "string",
+        "optional": true,
+        "doc": "Task failure exception message"
+    },
+    {
+        "name": "lowWatermark",
+        "type": "long",
+        "optional": true,
+        "doc": "Low watermark"
+    },
+    {
+        "name": "highWatermark",
+        "type": "long",
+        "optional": true,
+        "doc": "High watermark"
+    },
+    {
+        "name": "table",
+        "type": "Table",
+        "optional": true,
+        "doc": "Table definition"
+    },
+    {
+        "name": "taskProperties",
+        "type": {
+            "type": "map",
+            "values": "string"
+        },
+        "optional": true,
+        "doc": "Task properties"
+    },
+    {
+        "name": "metrics",
+        "type": {
+            "type": "array",
+            "items": "Metric"
+        },
+        "doc": "Job metrics"
+    }
+  ]
+}

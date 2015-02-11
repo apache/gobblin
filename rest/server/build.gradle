@@ -13,7 +13,7 @@ apply plugin: 'pegasus'
 
 ext.apiProject = project(':rest:api')
 
-pegasus.main.idlOptions.addIdlItem(['com.linkedin.gobblin.rest'])
+pegasus.main.idlOptions.addIdlItem(['gobblin.rest'])
 
 dependencies {
     compile project(path: ':rest:api', configuration: 'dataTemplate')

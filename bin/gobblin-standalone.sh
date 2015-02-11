@@ -62,7 +62,7 @@ start() {
   COMMAND+="-Dlog4j.configuration=file://$FWDIR/conf/log4j-standalone.xml "
   COMMAND+="-cp $CLASSPATH "
   COMMAND+="-Dorg.quartz.properties=$FWDIR/conf/quartz.properties "
-  COMMAND+="com.linkedin.uif.scheduler.SchedulerDaemon $CONFIG_FILE"
+  COMMAND+="gobblin.scheduler.SchedulerDaemon $CONFIG_FILE"
   echo "Running command:"
   echo "$COMMAND"
   nohup $COMMAND & echo $! > $PID

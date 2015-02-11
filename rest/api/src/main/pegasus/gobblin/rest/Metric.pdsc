@@ -1,0 +1,32 @@
+{
+    "type": "record",
+    "name": "Metric",
+    "namespace": "gobblin.rest",
+    "doc": "Gobblin metric",
+    "fields": [
+      {
+          "name": "group",
+          "type": "string",
+          "doc": "Metric group"
+      },
+      {
+          "name": "name",
+          "type": "string",
+          "doc": "Metric name"
+      },
+      {
+          "name": "type",
+          "type": {
+              "name": "MetricTypeEnum",
+              "type": "enum",
+              "symbols" : [ "COUNTER", "METER", "GAUGE" ]
+          },
+          "doc": "Metric type"
+      },
+      {
+          "name": "value",
+          "type": "string",
+          "doc": "Metric value"
+      }
+    ]
+}

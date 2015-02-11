@@ -3,21 +3,21 @@ job.group=Test
 job.description=Test Gobblin job on Hadoop MR
 job.schedule=0 0/2 * * * ?
 
-source.class=com.linkedin.uif.test.TestSource
-converter.classes=com.linkedin.uif.test.TestConverter
-extract.namespace=com.linkedin.uif.MRTest
+source.class=gobblin.test.TestSource
+converter.classes=gobblin.test.TestConverter
+extract.namespace=gobblin.MRTest
 
 writer.destination.type=HDFS
 writer.output.format=AVRO
 writer.fs.uri=file:///
 
-source.files=/Users/ynli/uif/source/test.avro.0,/Users/ynli/uif/source/test.avro.1
+source.files=test/source/test.avro.0,test/source/test.avro.1
 
-qualitychecker.task.policies=com.linkedin.uif.policies.count.RowCountPolicy,com.linkedin.uif.policies.schema.SchemaCompatibilityPolicy
+qualitychecker.task.policies=gobblin.policies.count.RowCountPolicy,gobblin.policies.schema.SchemaCompatibilityPolicy
 qualitychecker.task.policy.types=OPTIONAL,OPTIONAL
-qualitychecker.row.policies=com.linkedin.uif.policies.schema.SchemaRowCheckPolicy
+qualitychecker.row.policies=gobblin.policies.schema.SchemaRowCheckPolicy
 qualitychecker.row.policy.types=OPTIONAL
 qualitychecker.row.err.file=test/err
 
-data.publisher.type=com.linkedin.uif.publisher.BaseDataPublisher
+data.publisher.type=gobblin.publisher.BaseDataPublisher
 
