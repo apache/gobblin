@@ -75,7 +75,7 @@ public class WorkUnitState extends State {
    * @return an {@link ImmutableWorkUnit} that wraps the internal {@link WorkUnit}
    */
   public WorkUnit getWorkunit() {
-    return new ImmutableWorkUnit(workunit);
+    return this.workunit;
   }
 
   /**
