@@ -11,6 +11,7 @@
 
 package gobblin.runtime;
 
+import com.google.common.collect.Lists;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -247,7 +248,7 @@ public class JobState extends SourceState {
    * @return {@link TaskState}s of {@link Task}s of this job
    */
   public List<TaskState> getTaskStates() {
-    return ImmutableList.<TaskState>builder().addAll(this.taskStates.values()).build();
+    return Lists.newArrayList(this.taskStates.values());
   }
 
   /**

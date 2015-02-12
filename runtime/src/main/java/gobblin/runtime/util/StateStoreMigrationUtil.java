@@ -17,6 +17,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -28,9 +29,13 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.util.ReflectionUtils;
 
+import com.google.common.base.Joiner;
+import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.configuration.WorkUnitState;
 import gobblin.runtime.JobState;
 import gobblin.runtime.TaskState;
 
@@ -113,7 +118,7 @@ public class StateStoreMigrationUtil {
             newValue.readFields(dataInputStream);
 
             // Write out the new state object
-            writer.append(key, newValue);
+            writer.append(key, changeClassPackageNames(newValue));
 
             // We are not reusing the value object since it has a Properties instance inside
             // that may not have a clean state before the deserialization
@@ -126,6 +131,63 @@ public class StateStoreMigrationUtil {
         }
       }
     }
+  }
+
+  private static State changeClassPackageNames(State state) {
+    if (state instanceof WorkUnitState) {
+      changeClassPackageNames(((WorkUnitState) state).getWorkunit());
+      changeClassPackageNames(((WorkUnitState) state).getWorkunit().getExtract());
+      changeClassPackageNames(((WorkUnitState) state).getExtract());
+      changeClassPackageNames(((WorkUnitState) state).getPreviousTableState());
+    }
+
+    if (state instanceof JobState) {
+      for (TaskState taskState : ((JobState) state).getTaskStates()) {
+        changeClassPackageNames(taskState);
+      }
+      for (WorkUnitState workUnitState : ((JobState) state).getPreviousWorkUnitStates()) {
+        changeClassPackageNames(workUnitState);
+      }
+    }
+
+    if (state.contains(ConfigurationKeys.SOURCE_CLASS_KEY)) {
+      String sourceClass = state.getProp(ConfigurationKeys.SOURCE_CLASS_KEY);
+      state.setProp(ConfigurationKeys.SOURCE_CLASS_KEY, sourceClass.replace("com.linkedin.uif", "gobblin"));
+    }
+
+    if (state.contains(ConfigurationKeys.CONVERTER_CLASSES_KEY)) {
+      List<String> converterClasses = state.getPropAsList(ConfigurationKeys.CONVERTER_CLASSES_KEY);
+      List<String> newConverterClasses = Lists.newArrayList();
+      for (String converterClass : converterClasses) {
+        newConverterClasses.add(converterClass.replace("com.linkedin.uif", "gobblin"));
+      }
+      state.setProp(ConfigurationKeys.CONVERTER_CLASSES_KEY, Joiner.on(',').join(newConverterClasses));
+    }
+
+    if (state.contains(ConfigurationKeys.DATA_PUBLISHER_TYPE)) {
+      String dataPublisherClass = state.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE);
+      state.setProp(ConfigurationKeys.DATA_PUBLISHER_TYPE, dataPublisherClass.replace("com.linkedin.uif", "gobblin"));
+    }
+
+    if (state.contains(ConfigurationKeys.ROW_LEVEL_POLICY_LIST)) {
+      List<String> rowQualityCheckerClasses = state.getPropAsList(ConfigurationKeys.ROW_LEVEL_POLICY_LIST);
+      List<String> newRowQualityCheckerClasses = Lists.newArrayList();
+      for (String qualityCheckerClass : rowQualityCheckerClasses) {
+        newRowQualityCheckerClasses.add(qualityCheckerClass.replace("com.linkedin.uif", "gobblin"));
+      }
+      state.setProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST, Joiner.on(',').join(newRowQualityCheckerClasses));
+    }
+
+    if (state.contains(ConfigurationKeys.TASK_LEVEL_POLICY_LIST)) {
+      List<String> taskQualityCheckerClasses = state.getPropAsList(ConfigurationKeys.TASK_LEVEL_POLICY_LIST);
+      List<String> newTaskQualityCheckerClasses = Lists.newArrayList();
+      for (String qualityCheckerClass : taskQualityCheckerClasses) {
+        newTaskQualityCheckerClasses.add(qualityCheckerClass.replace("com.linkedin.uif", "gobblin"));
+      }
+      state.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST, Joiner.on(',').join(newTaskQualityCheckerClasses));
+    }
+
+    return state;
   }
 
   /**

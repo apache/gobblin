@@ -72,7 +72,7 @@ public class SourceState extends State {
    * @return (possibly empty) list of {@link WorkUnitState}s from the previous job run
    */
   public List<WorkUnitState> getPreviousWorkUnitStates() {
-    return ImmutableList.<WorkUnitState>builder().addAll(this.previousTaskStates).build();
+    return this.previousTaskStates;
   }
 
   /**
