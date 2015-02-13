@@ -321,9 +321,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
   /**
    * Prepare the job input.
+   * @throws IOException
    */
-  private Path prepareJobInput(String jobId, Path jobInputPath, List<WorkUnit> workUnits)
-      throws IOException {
+  private Path prepareJobInput(String jobId, Path jobInputPath, List<WorkUnit> workUnits) throws IOException {
 
     Closer closer = Closer.create();
     try {
@@ -336,16 +336,23 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
       // Serialize each work unit into a file named after the task ID
       for (WorkUnit workUnit : workUnits) {
-        Path workUnitFile = new Path(jobInputPath,
-            workUnit.getProp(ConfigurationKeys.TASK_ID_KEY) + ((workUnit instanceof MultiWorkUnit)
-                ? MULTI_WORK_UNIT_FILE_EXTENSION : WORK_UNIT_FILE_EXTENSION));
-        os = closer.register(this.fs.create(workUnitFile));
-        DataOutputStream dos = closer.register(new DataOutputStream(os));
-        workUnit.write(dos);
-        // Append the work unit file path to the job input file
-        bw.write(workUnitFile.toUri().getPath() + "\n");
-      }
 
+        Closer workUnitFileCloser = Closer.create();
+        try {
+          Path workUnitFile =
+              new Path(jobInputPath, workUnit.getProp(ConfigurationKeys.TASK_ID_KEY)
+                  + ((workUnit instanceof MultiWorkUnit) ? MULTI_WORK_UNIT_FILE_EXTENSION : WORK_UNIT_FILE_EXTENSION));
+          os = workUnitFileCloser.register(this.fs.create(workUnitFile));
+          DataOutputStream dos = workUnitFileCloser.register(new DataOutputStream(os));
+          workUnit.write(dos);
+          // Append the work unit file path to the job input file
+          bw.write(workUnitFile.toUri().getPath() + "\n");
+        } catch (Throwable t) {
+          throw workUnitFileCloser.rethrow(t);
+        } finally {
+          workUnitFileCloser.close();
+        }
+      }
       return jobInputFile;
     } catch (Throwable t) {
       throw closer.rethrow(t);
