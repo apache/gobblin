@@ -11,7 +11,6 @@
 
 package gobblin.runtime;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
@@ -70,8 +69,12 @@ public class TaskContext {
   public Source getSource() {
     try {
       return (Source) Class.forName(this.workUnit.getProp(ConfigurationKeys.SOURCE_CLASS_KEY)).newInstance();
-    } catch (Exception e) {
-      throw new RuntimeException(e);
+    } catch (ClassNotFoundException cnfe) {
+      throw new RuntimeException(cnfe);
+    } catch (InstantiationException ie) {
+      throw new RuntimeException(ie);
+    } catch (IllegalAccessException iae) {
+      throw new RuntimeException(iae);
     }
   }
 
@@ -140,8 +143,12 @@ public class TaskContext {
         Converter<?, ?, ?, ?> converter = (Converter<?, ?, ?, ?>) Class.forName(converterClass).newInstance();
         converter.init(this.workUnitState);
         converters.add(converter);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
+      } catch (ClassNotFoundException cnfe) {
+        throw new RuntimeException(cnfe);
+      } catch (InstantiationException ie) {
+        throw new RuntimeException(ie);
+      } catch (IllegalAccessException iae) {
+        throw new RuntimeException(iae);
       }
     }
 
@@ -158,8 +165,12 @@ public class TaskContext {
       return (ForkOperator) Class.forName(this.workUnit
           .getProp(ConfigurationKeys.FORK_OPERATOR_CLASS_KEY, ConfigurationKeys.DEFAULT_FORK_OPERATOR_CLASS))
           .newInstance();
-    } catch (Exception e) {
-      return null;
+    } catch (ClassNotFoundException cnfe) {
+      throw new RuntimeException(cnfe);
+    } catch (InstantiationException ie) {
+      throw new RuntimeException(ie);
+    } catch (IllegalAccessException iae) {
+      throw new RuntimeException(iae);
     }
   }
 
@@ -221,16 +232,18 @@ public class TaskContext {
    * @param branches number of forked branches
    * @param index branch index
    * @return a {@link DataWriterBuilder}
-   * @throws IOException
    */
-  public DataWriterBuilder getDataWriterBuilder(int branches, int index)
-      throws IOException {
+  public DataWriterBuilder getDataWriterBuilder(int branches, int index) {
     try {
       return (DataWriterBuilder) Class.forName(this.workUnit
           .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUILDER_CLASS, branches, index),
               ConfigurationKeys.DEFAULT_WRITER_BUILDER_CLASS)).newInstance();
-    } catch (Exception e) {
-      throw new IOException("Failed to instantiate a DataWriterBuilder", e);
+    } catch (ClassNotFoundException cnfe) {
+      throw new RuntimeException(cnfe);
+    } catch (InstantiationException ie) {
+      throw new RuntimeException(ie);
+    } catch (IllegalAccessException iae) {
+      throw new RuntimeException(iae);
     }
   }
 }
