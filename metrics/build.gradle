@@ -12,11 +12,13 @@
 apply plugin: 'java'
 
 dependencies {
-  compile project(":common-api")
+  compile project(":api")
+
   compile externalDependency.guava
   compile externalDependency.metricsCore
   compile externalDependency.slf4j
   compile externalDependency.influxdb
+
   testCompile externalDependency.testng
 }
 
