@@ -12,10 +12,11 @@
 apply plugin: 'java'
 
 dependencies {
-  compile project(":common-api")
+  compile project(":api")
   compile project(":runtime")
   compile project(":utility")
-  compile project(":rest:server")
+  compile project(":rest-service:rest-server")
+
   compile externalDependency.commonsConfiguration
   compile externalDependency.quartz
   compile externalDependency.guava
@@ -36,9 +37,10 @@ configurations {
 }
 
 test {
-    useTestNG ()
+    useTestNG () {
+        excludeGroups 'ignore'
+    }
     workingDir rootProject.rootDir
-    include '**/*Test*'
 }
 
 classification="library"

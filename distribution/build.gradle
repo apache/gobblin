@@ -13,20 +13,17 @@ apply plugin: 'java'
 
 dependencies {
   compile project(':azkaban')
-  compile project(':converter')
-  compile project(':common-api')
-  compile project(':qualitychecker')
+  compile project(':api')
+  compile project(':core')
   compile project(':runtime')
   compile project(':scheduler')
   compile project(':utility')
-  compile project(':writer')
   compile project(':metastore')
-  compile project(':source')
   compile project(':metrics')
   compile project(':example')
-  compile project(":rest:api")
-  compile project(":rest:client")
-  compile project(":rest:server")
+  compile project(":rest-service:rest-api")
+  compile project(":rest-service:rest-client")
+  compile project(":rest-service:rest-server")
 }
 
 task build(type: Tar, overwrite: true) {

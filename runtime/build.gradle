@@ -12,14 +12,13 @@
 apply plugin: 'java'
 
 dependencies {
-  compile project(":common-api")
-  compile project(":metastore")
+  compile project(":api")
+  compile project(":core")
   compile project(":metrics")
-  compile project(":qualitychecker")
-  compile project(":writer")
+  compile project(":metastore")
   compile project(":utility")
-  compile project(":source")
-  compile project(path: ':rest:api', configuration: 'restClient')
+  compile project(path: ':rest-service:rest-api', configuration: 'restClient')
+
   compile externalDependency.avro
   compile externalDependency.avroMapred
   compile externalDependency.commonsConfiguration

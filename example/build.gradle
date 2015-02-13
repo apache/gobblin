@@ -12,7 +12,9 @@
 apply plugin: 'java'
 
 dependencies {
-    compile project(":common-api")
+    compile project(":api")
+    compile project(":core")
+
     compile externalDependency.avro
     compile externalDependency.avroMapred
     compile externalDependency.guava

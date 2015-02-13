@@ -12,14 +12,25 @@
 apply plugin: 'java'
 
 dependencies {
-  compile project(":api")
+    compile project(":api")
+    compile project(":utility")
 
-  compile externalDependency.commonsEmail
-  compile externalDependency.guava
-  compile externalDependency.slf4j
-  compile externalDependency.avro
+    compile externalDependency.commonsDbcp
+    compile externalDependency.avro
+    compile externalDependency.avroMapred
+    compile externalDependency.guava
+    compile externalDependency.gson
+    compile externalDependency.slf4j
+    compile externalDependency.jodaTime
+    compile externalDependency.jacksonCore
+    compile externalDependency.jacksonMapper
+    compile externalDependency.jsch
+    compile externalDependency.commonsLang
+    compile externalDependency.commonsIo
+    compile externalDependency.httpclient
+    compile externalDependency.httpcore
 
-  testCompile externalDependency.testng
+    testCompile externalDependency.testng
 }
 
 configurations {
@@ -32,7 +43,6 @@ test {
     useTestNG () {
         excludeGroups 'ignore'
     }
-    workingDir rootProject.rootDir
 }
 
 classification="library"

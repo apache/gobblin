@@ -12,8 +12,8 @@
 apply plugin: 'java'
 
 dependencies {
-  compile project(":common-api")
-  compile project(":qualitychecker")
+  compile project(":api")
+
   compile externalDependency.commonsCli
   compile externalDependency.avro
   compile externalDependency.avroMapred
@@ -23,10 +23,6 @@ dependencies {
   compile externalDependency.jacksonMapper
   compile externalDependency.slf4j
 
-  testCompile project(':runtime')
-  testCompile project(path: ':runtime', configuration: 'tests')
-  testCompile project(':writer')
-  testCompile project(path: ':writer', configuration: 'tests')
   testCompile externalDependency.testng
 }
 
@@ -37,9 +33,10 @@ configurations {
 }
 
 test {
-    useTestNG ()
+    useTestNG () {
+        excludeGroups 'ignore'
+    }
     workingDir rootProject.rootDir
-    include '**/*Test*'
 }
 
 classification="library"

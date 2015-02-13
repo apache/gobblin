@@ -12,8 +12,9 @@
 apply plugin: 'java'
 
 dependencies {
-  compile project(":common-api")
+  compile project(":api")
   compile project(":runtime")
+
   compile externalDependency.azkaban
   compile externalDependency.log4j
   compile externalDependency.guava
