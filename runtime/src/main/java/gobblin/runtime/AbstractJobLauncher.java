@@ -224,15 +224,19 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     jobState.setStartTime(startTime);
     jobState.setState(JobState.RunningState.RUNNING);
 
-    // Populate job/task IDs
-    int sequence = 0;
+    // Add work units and assign task IDs to them
+    int taskIdSequence = 0;
+    int multiTaskIdSequence = 0;
     for (WorkUnit workUnit : workUnits.get()) {
       if (workUnit instanceof MultiWorkUnit) {
+        String multiTaskId = JobLauncherUtils.newMultiTaskId(jobId, multiTaskIdSequence++);
+        workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, multiTaskId);
+        workUnit.setId(multiTaskId);
         for (WorkUnit innerWorkUnit : ((MultiWorkUnit) workUnit).getWorkUnits()) {
-          addWorkUnit(innerWorkUnit, jobState, sequence++);
+          addWorkUnit(innerWorkUnit, jobState, taskIdSequence++);
         }
       } else {
-        addWorkUnit(workUnit, jobState, sequence++);
+        addWorkUnit(workUnit, jobState, taskIdSequence++);
       }
     }
 

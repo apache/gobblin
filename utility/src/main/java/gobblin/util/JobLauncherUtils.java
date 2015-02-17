@@ -21,7 +21,7 @@ public class JobLauncherUtils {
   /**
    * Create a new job ID.
    *
-   * @param jobName Job name
+   * @param jobName job name
    * @return new job ID
    */
   public static String newJobId(String jobName) {
@@ -34,10 +34,23 @@ public class JobLauncherUtils {
   /**
    * Create a new task ID for the job with the given job ID.
    *
-   * @param jobId Job ID
-   * @param sequence Task sequence number
+   * @param jobId job ID
+   * @param sequence task sequence number
+   * @return new task ID
    */
   public static String newTaskId(String jobId, int sequence) {
     return String.format("task_%s_%d", jobId.substring(jobId.indexOf('_') + 1), sequence);
+  }
+
+  /**
+   * Create an ID for a new multi-task (corresponding to a {@link gobblin.source.workunit.MultiWorkUnit})
+   * for the job with the given job ID.
+   *
+   * @param jobId job ID
+   * @param sequence multi-task sequence number
+   * @return new multi-task ID
+   */
+  public static String newMultiTaskId(String jobId, int sequence) {
+    return String.format("multitask_%s_%d", jobId.substring(jobId.indexOf('_') + 1), sequence);
   }
 }
