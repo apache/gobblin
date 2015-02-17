@@ -22,10 +22,12 @@ import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.JobMetrics;
+import gobblin.util.ExecutorsUtils;
 
 
 /**
@@ -54,7 +56,8 @@ public class TaskExecutor extends AbstractIdleService {
 
     // Currently a fixed-size thread pool is used to execute tasks.
     // We probably need to revisit this later.
-    this.executor = Executors.newFixedThreadPool(taskExecutorThreadPoolSize);
+    this.executor =
+        Executors.newFixedThreadPool(taskExecutorThreadPoolSize, ExecutorsUtils.newThreadFactory(Optional.of(LOG)));
 
     // Using a separate thread pool for task retries to achieve isolation
     // between normal task execution and task retries

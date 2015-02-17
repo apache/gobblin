@@ -27,6 +27,7 @@ import com.google.common.util.concurrent.AbstractIdleService;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.ExecutorsUtils;
 
 
 /**
@@ -41,6 +42,7 @@ import gobblin.source.workunit.WorkUnit;
  *
  * @author ynli
  */
+@Deprecated
 public class WorkUnitManager extends AbstractIdleService {
 
   private static final Logger LOG = LoggerFactory.getLogger(WorkUnitManager.class);
@@ -60,7 +62,7 @@ public class WorkUnitManager extends AbstractIdleService {
     // need a priority queue to support priority-based execution of
     // work units.
     this.workUnitQueue = Queues.newLinkedBlockingQueue();
-    this.executorService = Executors.newSingleThreadExecutor();
+    this.executorService = Executors.newSingleThreadExecutor(ExecutorsUtils.newThreadFactory(Optional.of(LOG)));
     this.workUnitHandler = new WorkUnitHandler(this.workUnitQueue, taskExecutor, taskStateTracker);
   }
 
