@@ -23,6 +23,7 @@ import org.apache.commons.configuration.PropertiesConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
@@ -32,6 +33,7 @@ import gobblin.runtime.TaskStateTracker;
 import gobblin.runtime.WorkUnitManager;
 import gobblin.runtime.local.LocalJobManager;
 import gobblin.runtime.local.LocalTaskStateTracker;
+import gobblin.util.ExecutorsUtils;
 
 
 /**
@@ -89,7 +91,7 @@ public class Worker {
             service.failureCause().toString()));
         System.exit(1);
       }
-    }, Executors.newSingleThreadExecutor());
+    }, Executors.newSingleThreadExecutor(ExecutorsUtils.newThreadFactory(Optional.of(LOG))));
 
     // Add a shutdown hook so the task scheduler gets properly shutdown
     Runtime.getRuntime().addShutdownHook(new Thread() {

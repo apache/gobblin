@@ -11,6 +11,8 @@
 
 package gobblin.util;
 
+import com.google.common.base.Preconditions;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 
@@ -26,11 +28,12 @@ public class ForkOperatorUtils {
    * Get a branch name for the given branch.
    *
    * @param state       a {@link State} object carrying configuration properties
-   * @param index       branch index
+   * @param index       branch index (non-negative)
    * @param defaultName default branch name
    * @return a branch name
    */
   public static String getBranchName(State state, int index, String defaultName) {
+    Preconditions.checkArgument(index >= 0, "index is expected to be non-negative");
     return state.getProp(ConfigurationKeys.FORK_BRANCH_NAME_KEY + "." + index, defaultName);
   }
 
@@ -38,11 +41,13 @@ public class ForkOperatorUtils {
    * Get a new property key from an original one with branch index (if applicable).
    *
    * @param key      property key
-   * @param branches number of branches
-   * @param index    branch index
+   * @param branches number of branches (non-negative)
+   * @param index    branch index (non-negative)
    * @return a new property key
    */
   public static String getPropertyNameForBranch(String key, int branches, int index) {
+    Preconditions.checkArgument(index >= 0, "index is expected to be non-negative");
+    Preconditions.checkArgument(branches >= 0, "branches is expected to be non-negative");
     return branches > 1 ? key + "." + index : key;
   }
 
@@ -62,10 +67,11 @@ public class ForkOperatorUtils {
    * Get a new path with the given branch name as a sub directory.
    *
    * @param branchName branch name
-   * @param branches   number of branches
+   * @param branches   number of branches (non-negative)
    * @return a new path
    */
   public static String getPathForBranch(String path, String branchName, int branches) {
+    Preconditions.checkArgument(branches >= 0, "branches is expected to be non-negative");
     return branches > 1 ? path + "/" + branchName : path;
   }
 }

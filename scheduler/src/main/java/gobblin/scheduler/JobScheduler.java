@@ -42,6 +42,7 @@ import org.quartz.impl.StdSchedulerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
@@ -56,6 +57,7 @@ import gobblin.runtime.JobLauncher;
 import gobblin.runtime.JobLauncherFactory;
 import gobblin.runtime.JobListener;
 import gobblin.runtime.RunOnceJobListener;
+import gobblin.util.ExecutorsUtils;
 import gobblin.util.JobLauncherUtils;
 import gobblin.util.SchedulerUtils;
 
@@ -112,12 +114,13 @@ public class JobScheduler extends AbstractIdleService {
     this.scheduler = new StdSchedulerFactory().getScheduler();
 
     this.jobExecutor = Executors.newFixedThreadPool(Integer.parseInt(properties
-            .getProperty(ConfigurationKeys.JOB_EXECUTOR_THREAD_POOL_SIZE_KEY,
-                ConfigurationKeys.DEFAULT_JOB_EXECUTOR_THREAD_POOL_SIZE)));
+        .getProperty(ConfigurationKeys.JOB_EXECUTOR_THREAD_POOL_SIZE_KEY,
+            ConfigurationKeys.DEFAULT_JOB_EXECUTOR_THREAD_POOL_SIZE)),
+        ExecutorsUtils.newThreadFactory(Optional.of(LOG)));
 
     this.jobConfigFileExtensions = Sets.newHashSet(Splitter.on(",").omitEmptyStrings().split(this.properties
-                .getProperty(ConfigurationKeys.JOB_CONFIG_FILE_EXTENSIONS_KEY,
-                    ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_EXTENSIONS)));
+        .getProperty(ConfigurationKeys.JOB_CONFIG_FILE_EXTENSIONS_KEY,
+            ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_EXTENSIONS)));
 
     long pollingInterval = Long.parseLong(this.properties
         .getProperty(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
