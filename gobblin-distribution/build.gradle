@@ -1,0 +1,48 @@
+// (c) 2014 LinkedIn Corp. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+// this file except in compliance with the License. You may obtain a copy of the
+// License at  http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied.
+//
+
+apply plugin: 'java'
+
+dependencies {
+  compile project(':gobblin-azkaban')
+  compile project(':gobblin-api')
+  compile project(':gobblin-core')
+  compile project(':gobblin-runtime')
+  compile project(':gobblin-scheduler')
+  compile project(':gobblin-utility')
+  compile project(':gobblin-metastore')
+  compile project(':gobblin-metrics')
+  compile project(':gobblin-example')
+  compile project(":gobblin-rest-service:gobblin-rest-api")
+  compile project(":gobblin-rest-service:gobblin-rest-client")
+  compile project(":gobblin-rest-service:gobblin-rest-server")
+}
+
+task build(type: Tar, overwrite: true) {
+  extension = 'tar.gz'
+  baseName = project.name
+  compression = Compression.GZIP
+
+  into("conf") { from "../conf/" }
+  into("bin") { from "../bin/" }
+  into("lib") {
+    from configurations.runtime
+  }
+  into("gobblin-dist")
+  
+  doLast {
+    copy {
+      from buildDir.path + '/distributions/distribution.tar.gz'
+      into project.rootDir.path
+      rename ('distribution.tar.gz', 'gobblin-dist.tar.gz')
+    }
+  }
+}

@@ -1,0 +1,24 @@
+job.name=GobblinTest3
+job.group=Test
+job.description=Test Gobblin job 3
+job.schedule=0 0/2 * * * ?
+
+source.class=gobblin.test.TestSource
+converter.classes=gobblin.test.TestConverter
+
+extract.namespace=gobblin.test3
+
+writer.destination.type=HDFS
+writer.output.format=AVRO
+writer.fs.uri=file://localhost/
+
+source.files=gobblin-test/resource/source/test.avro.0,gobblin-test/resource/source/test.avro.1
+
+qualitychecker.task.policies=gobblin.policies.count.RowCountPolicy,gobblin.policies.schema.SchemaCompatibilityPolicy
+qualitychecker.task.policy.types=OPTIONAL,OPTIONAL
+
+qualitychecker.row.policies=gobblin.policies.schema.SchemaRowCheckPolicy
+qualitychecker.row.policy.types=OPTIONAL
+qualitychecker.row.err.file=gobblin-test/jobOutput
+
+data.publisher.type=gobblin.publisher.BaseDataPublisher

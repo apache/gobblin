@@ -1,0 +1,73 @@
+// (c) 2014 LinkedIn Corp. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+// this file except in compliance with the License. You may obtain a copy of the
+// License at  http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied.
+//
+
+apply plugin: 'java'
+
+dependencies {
+  compile project(":gobblin-api")
+  compile project(":gobblin-core")
+  compile project(":gobblin-metrics")
+  compile project(":gobblin-metastore")
+  compile project(":gobblin-utility")
+  compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'restClient')
+
+  compile externalDependency.avro
+  compile externalDependency.avroMapred
+  compile externalDependency.commonsConfiguration
+  compile externalDependency.quartz
+  compile externalDependency.guava
+  compile externalDependency.jacksonCore
+  compile externalDependency.jacksonMapper
+  compile externalDependency.jodaTime
+  compile externalDependency.httpclient
+  compile externalDependency.httpcore
+  compile externalDependency.commonsLang
+  compile externalDependency.slf4j
+  compile externalDependency.commonsCli
+  compile externalDependency.gson
+  compile externalDependency.metricsCore
+  compile externalDependency.commonsIO
+  compile externalDependency.commonsEmail
+  compile externalDependency.pegasus.data
+  compile externalDependency.guice
+  compile externalDependency.javaxInject
+
+  testCompile externalDependency.testng
+  testRuntime externalDependency.derby
+}
+
+task testJar(type: Jar, dependsOn: testClasses) {
+    baseName = "test-${project.archivesBaseName}"
+    from sourceSets.test.output
+}
+
+configurations {
+    tests
+}
+
+configurations {
+    compile {
+        transitive = false
+    }
+}
+
+artifacts {
+    tests testJar
+}
+
+test {
+    useTestNG () {
+      excludeGroups 'ignore'
+    }
+    workingDir rootProject.rootDir
+}
+
+classification="library"

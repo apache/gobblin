@@ -9,13 +9,13 @@
 // CONDITIONS OF ANY KIND, either express or implied.
 //
 
-def modules = ['gobblin-api','gobblin-azkaban','gobblin-core','gobblin-distribution','gobblin-example','gobblin-metrics','gobblin-metastore','gobblin-rest-service','gobblin-runtime','gobblin-scheduler','gobblin-test','gobblin-utility']
+apply plugin: 'java'
 
-modules.each { module ->
-  include "${module}"
-  file(module).eachDir { submodule ->
-    if (!submodule.name.startsWith('.') && !submodule.name.equals('src')) {
-      include "${module}:${submodule.name}"
-    }
-  }
+dependencies {
+    compile project(path: ":gobblin-rest-service:gobblin-rest-api", configuration: "restClient")
+
+    compile externalDependency.pegasus.restliClient
+    compile externalDependency.pegasus.r2
+    compile externalDependency.pegasus.d2
+    compile externalDependency.guava
 }
