@@ -19,11 +19,13 @@ import java.util.concurrent.TimeUnit;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.JobMetrics;
+import gobblin.util.ExecutorsUtils;
 
 
 /**
@@ -43,7 +45,8 @@ public abstract class AbstractTaskStateTracker extends AbstractIdleService imple
     Preconditions.checkArgument(maxThreadPoolSize >= coreThreadPoolSize,
         "Maximum thread pool size must not be smaller than the core thread pool size for the "
             + "task metrics updater executor");
-    this.taskMetricsUpdaterExecutor = new ScheduledThreadPoolExecutor(coreThreadPoolSize);
+    this.taskMetricsUpdaterExecutor =
+        new ScheduledThreadPoolExecutor(coreThreadPoolSize, ExecutorsUtils.newThreadFactory(Optional.of(logger)));
     this.taskMetricsUpdaterExecutor.setMaximumPoolSize(maxThreadPoolSize);
     this.logger = logger;
   }
