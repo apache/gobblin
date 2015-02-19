@@ -1,0 +1,18 @@
+# Job properties
+job.name=<SampleJobName>
+job.group=<SampleJobGroup>
+job.description=<Sample config file for job>
+job.schedule=<cron schedule>
+
+# Extract properties
+extract.namespace=<namespace of dataset>
+extract.table.type=snapshot_only
+
+# Property to consider the extract as full dump
+extract.is.full=true
+
+# Source properties
+source.querybased.schema=<database name>
+source.entity=<table name>
+source.querybased.extract.type=snapshot
+source.timezone=<America/Los_Angeles>
