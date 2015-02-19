@@ -13,8 +13,6 @@ package gobblin.qualitychecker.row;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
-import gobblin.util.ForkOperatorUtils;
-
 
 /**
  * A policy that operates on each row
@@ -55,11 +53,6 @@ public abstract class RowLevelPolicy {
 
   public String getErrFileLocation() {
     return this.state.getProp(ConfigurationKeys.ROW_LEVEL_ERR_FILE);
-  }
-
-  public String getFileSystemURI(int branches, int index) {
-    return this.state
-        .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, branches, index));
   }
 
   public abstract Result executePolicy(Object record);

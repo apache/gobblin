@@ -27,7 +27,6 @@ import gobblin.configuration.WorkUnitState;
  *
  * @author ynli
  */
-@SuppressWarnings("unused")
 public class IdentityForkOperator<S, D> implements ForkOperator<S, D> {
 
   // Reuse both lists to save the cost of allocating new lists
