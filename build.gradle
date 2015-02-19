@@ -117,7 +117,7 @@ subprojects {
       if (project.hasProperty('useHadoop2')) {
         compile externalDependency.hadoopCommon
         compile externalDependency.hadoopClientCore
-        if (project.name.equals('runtime') || project.name.equals('test')) {
+        if (project.name.equals('gobblin-runtime') || project.name.equals('gobblin-test')) {
           compile externalDependency.hadoopClientCommon
         }
       } else {

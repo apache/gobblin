@@ -90,7 +90,7 @@ public class LocalJobManagerTest {
     Properties jobProps = new Properties();
     jobProps.load(new FileReader("gobblin-test/resource/job-conf/GobblinTest2.pull"));
     jobProps.putAll(this.properties);
-    jobProps.setProperty(SOURCE_FILE_LIST_KEY, "gobblin-test/resource/source/test.avro.2,test/resource/source/test.avro.3");
+    jobProps.setProperty(SOURCE_FILE_LIST_KEY, "gobblin-test/resource/source/test.avro.2,gobblin-test/resource/source/test.avro.3");
     jobProps.setProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "true");
 
     CountDownLatch latch = new CountDownLatch(1);

@@ -31,7 +31,6 @@ import gobblin.runtime.JobLauncherFactory;
  *
  * @author ynli
  */
-@SuppressWarnings("unused")
 public class AzkabanJobLauncher extends AbstractJob {
 
   private static final Logger LOG = Logger.getLogger(AzkabanJobLauncher.class);
