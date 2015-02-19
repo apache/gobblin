@@ -1,0 +1,17 @@
+# Job properties
+job.name=<SampleJobName>
+job.group=<SampleJobGroup>
+job.description=<Sample config file for job>
+job.schedule=<cron schedule>
+
+# Extract properties
+extract.namespace=<namespace of dataset>
+extract.table.type=append_only
+extract.delta.fields=<delta fields>
+
+# Source properties
+source.querybased.schema=<database name>
+source.entity=<table name>
+source.querybased.extract.type=append_hourly
+source.querybased.append.max.watermark.limit=<CURRENTDATE-1>
+source.timezone=<America/Los_Angeles>

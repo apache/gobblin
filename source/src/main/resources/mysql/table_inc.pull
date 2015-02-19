@@ -1,0 +1,18 @@
+# Job properties
+job.name=<SampleJobName>
+job.group=<SampleJobGroup>
+job.description=<Sample config file for mysql job>
+job.schedule=<cron schedule>
+
+# Extract properties
+extract.namespace=<namespace of dataset>
+extract.table.type=snapshot_append
+extract.delta.fields=<delta fields>
+extract.primary.key.fields=<primary key columns>
+
+# Source properties
+source.querybased.schema=<database name>
+source.entity=<table name>
+source.querybased.extract.type=snapshot
+source.querybased.low.watermark.backup.secs=<offset for previous watermark>
+source.timezone=<America/Los_Angeles>
