@@ -11,7 +11,6 @@
 
 package gobblin.runtime.mapreduce;
 
-import gobblin.runtime.JobState;
 import java.io.BufferedWriter;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -65,6 +64,7 @@ import gobblin.runtime.FileBasedJobLock;
 import gobblin.runtime.JobException;
 import gobblin.runtime.JobLauncher;
 import gobblin.runtime.JobLock;
+import gobblin.runtime.JobState;
 import gobblin.runtime.Task;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskState;
@@ -336,7 +336,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
       // Serialize each work unit into a file named after the task ID
       for (WorkUnit workUnit : workUnits) {
-
         Closer workUnitFileCloser = Closer.create();
         try {
           Path workUnitFile =
@@ -353,6 +352,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
           workUnitFileCloser.close();
         }
       }
+
       return jobInputFile;
     } catch (Throwable t) {
       throw closer.rethrow(t);

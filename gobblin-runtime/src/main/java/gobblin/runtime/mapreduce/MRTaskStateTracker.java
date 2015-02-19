@@ -11,8 +11,7 @@
 
 package gobblin.runtime.mapreduce;
 
-import gobblin.runtime.AbstractTaskStateTracker;
-import gobblin.runtime.Task;
+import java.util.Map;
 import java.util.concurrent.RejectedExecutionException;
 
 import org.apache.hadoop.io.LongWritable;
@@ -22,8 +21,13 @@ import org.apache.hadoop.mapreduce.Mapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.Metric;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.JobMetrics;
+import gobblin.runtime.AbstractTaskStateTracker;
+import gobblin.runtime.Task;
 
 
 /**
@@ -54,8 +58,6 @@ public class MRTaskStateTracker extends AbstractTaskStateTracker {
 
   @Override
   public void onTaskCompletion(Task task) {
-    JobMetrics metrics = JobMetrics.get(task.getTaskState().getProp(ConfigurationKeys.JOB_NAME_KEY), task.getJobId());
-
     /*
      * Update record-level and byte-level metrics and Hadoop MR counters
      * if enabled at both the task level and job level (aggregated).
@@ -64,25 +66,23 @@ public class MRTaskStateTracker extends AbstractTaskStateTracker {
       task.updateRecordMetrics();
       task.updateByteMetrics();
 
-      // Task-level record counter
-      String taskRecordMetric = JobMetrics.metricName(JobMetrics.MetricGroup.TASK, task.getTaskId(), "records");
-      this.context.getCounter(JobMetrics.MetricGroup.TASK.name(), taskRecordMetric)
-          .setValue(metrics.getCounter(taskRecordMetric).getCount());
+      JobMetrics metrics = JobMetrics.get(task.getTaskState().getProp(ConfigurationKeys.JOB_NAME_KEY), task.getJobId());
 
-      // Job-level record counter
-      String jobRecordMetric = JobMetrics.metricName(JobMetrics.MetricGroup.JOB, task.getJobId(), "records");
-      this.context.getCounter(JobMetrics.MetricGroup.JOB.name(), jobRecordMetric)
-          .increment(metrics.getCounter(taskRecordMetric).getCount());
+      // Task-level counters
+      Map<String, ? extends Metric> taskLevelCounters =
+          metrics.getMetricsOfType(JobMetrics.MetricType.COUNTER, JobMetrics.MetricGroup.TASK, task.getTaskId());
+      for (Map.Entry<String, ? extends Metric> entry : taskLevelCounters.entrySet()) {
+        this.context.getCounter(JobMetrics.MetricGroup.TASK.name(), entry.getKey())
+            .setValue(((Counter) entry.getValue()).getCount());
+      }
 
-      // Task-level byte counter
-      String taskByteMetric = JobMetrics.metricName(JobMetrics.MetricGroup.TASK, task.getTaskId(), "bytes");
-      this.context.getCounter(JobMetrics.MetricGroup.TASK.name(), taskByteMetric)
-          .setValue(metrics.getCounter(taskByteMetric).getCount());
-
-      // Job-level byte counter
-      String jobByteMetric = JobMetrics.metricName(JobMetrics.MetricGroup.JOB, task.getJobId(), "bytes");
-      this.context.getCounter(JobMetrics.MetricGroup.JOB.name(), jobByteMetric)
-          .increment(metrics.getCounter(taskByteMetric).getCount());
+      // Job-level counters
+      Map<String, ? extends Metric> jobLevelCounters =
+          metrics.getMetricsOfType(JobMetrics.MetricType.COUNTER, JobMetrics.MetricGroup.JOB, task.getJobId());
+      for (Map.Entry<String, ? extends Metric> entry : jobLevelCounters.entrySet()) {
+        this.context.getCounter(JobMetrics.MetricGroup.JOB.name(), entry.getKey())
+            .increment(((Counter) entry.getValue()).getCount());
+      }
     }
 
     // Mark the completion of this task
@@ -111,16 +111,19 @@ public class MRTaskStateTracker extends AbstractTaskStateTracker {
       super.updateTaskMetrics();
 
       /*
-       * Update record-level metrics and Hadoop MR counters if enabled at the
-       * task level ONLY. Job-level metrics are updated only after the job
-       * completes so metrics can be properly aggregated at the job level.
+       * Update metrics and Hadoop MR counters if enabled at the task level ONLY. Job-level metrics are
+       * updated only after the job completes so metrics can be properly aggregated at the job level.
        */
       if (JobMetrics.isEnabled(this.task.getTaskState().getWorkunit())) {
-        // Task-level record counter
-        String taskRecordMetric = JobMetrics.metricName(JobMetrics.MetricGroup.TASK, task.getTaskId(), "records");
-        this.context.getCounter(JobMetrics.MetricGroup.TASK.name(), taskRecordMetric).setValue(
-            JobMetrics.get(this.task.getTaskState().getProp(ConfigurationKeys.JOB_NAME_KEY), this.task.getJobId())
-                .getCounter(taskRecordMetric).getCount());
+        JobMetrics metrics =
+            JobMetrics.get(this.task.getTaskState().getProp(ConfigurationKeys.JOB_NAME_KEY), this.task.getJobId());
+        // Task-level counters
+        Map<String, ? extends Metric> taskLevelCounters =
+            metrics.getMetricsOfType(JobMetrics.MetricType.COUNTER, JobMetrics.MetricGroup.TASK, this.task.getTaskId());
+        for (Map.Entry<String, ? extends Metric> entry : taskLevelCounters.entrySet()) {
+          this.context.getCounter(JobMetrics.MetricGroup.TASK.name(), entry.getKey())
+              .setValue(((Counter) entry.getValue()).getCount());
+        }
       }
 
       // Tell the TaskTracker it's making progress
