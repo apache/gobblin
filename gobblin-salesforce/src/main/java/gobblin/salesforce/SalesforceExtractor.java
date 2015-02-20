@@ -80,9 +80,6 @@ import com.sforce.ws.ConnectorConfig;
 
 /**
  * An implementation of salesforce extractor for to extract data from SFDC
- *
- * @param <D> type of data record
- * @param <S> type of schema
  */
 public class SalesforceExtractor extends RestApiExtractor {
   private static final String DEFAULT_SERVICES_DATA_PATH = "/services/data";
