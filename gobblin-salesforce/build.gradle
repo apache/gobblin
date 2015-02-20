@@ -39,8 +39,10 @@ configurations {
 }
 
 test {
-    useTestNG ()
-    include '**/*Test*'
+    useTestNG () {
+      excludeGroups 'ignore'
+    }
+    workingDir rootProject.rootDir
 }
 
 classification="library"
