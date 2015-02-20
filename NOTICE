@@ -55,3 +55,11 @@ License: Apache 2.0
 This product includes/uses Mockito (http://mockito.org/)
 Copyright (c) 2007 Mockito contributors
 License: MIT
+
+This product includes/uses Force.com Web Service Connector (https://github.com/forcedotcom/wsc/blob/master/LICENSE.md)
+Force.com Web Service Connector (WSC) is Copyright (c) 2005-2013, salesforce.com, inc. All rights reserved.
+
+This product includes/uses Xml Pull Parser (http://www.extreme.indiana.edu/license.txt)
+Indiana University Extreme! Lab Software License, Version 1.2
+Copyright (C) 2004 The Trustees of Indiana University.
+All rights reserved.
