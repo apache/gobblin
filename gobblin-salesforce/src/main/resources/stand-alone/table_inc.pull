@@ -1,0 +1,13 @@
+# Job properties
+job.name=<SampleJobName>
+job.group=<SampleJobGroup>
+job.description=<Sample config file for mysql job>
+
+# Extract properties
+extract.namespace=<namespace of dataset>
+extract.table.type=snapshot_append
+
+# Source properties
+source.entity=<table name>
+source.querybased.extract.type=snapshot
+source.querybased.low.watermark.backup.secs=<offset for previous watermark ex:7200>

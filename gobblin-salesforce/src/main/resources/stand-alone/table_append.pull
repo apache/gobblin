@@ -1,0 +1,13 @@
+# Job properties
+job.name=<SampleJobName>
+job.group=<SampleJobGroup>
+job.description=<Sample config file for job>
+
+# Extract properties
+extract.namespace=<namespace of dataset>
+extract.table.type=append_only
+
+# Source properties
+source.entity=<table name>
+source.querybased.extract.type=append_hourly
+source.querybased.append.max.watermark.limit=<CURRENTDATE-1>
