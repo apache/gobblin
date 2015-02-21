@@ -134,7 +134,7 @@ public class State implements Writable {
    * @return long integer value associated with the key
    */
   public long getPropAsLong(String key) {
-    return Long.valueOf(getProperty(key));
+    return Long.parseLong(getProperty(key));
   }
 
   /**
@@ -145,7 +145,7 @@ public class State implements Writable {
    * @return long integer value associated with the key or the default value if the property is not set
    */
   public long getPropAsLong(String key, long def) {
-    return Long.valueOf(getProperty(key, String.valueOf(def)));
+    return Long.parseLong(getProperty(key, String.valueOf(def)));
   }
 
   /**
@@ -155,7 +155,7 @@ public class State implements Writable {
    * @return integer value associated with the key
    */
   public int getPropAsInt(String key) {
-    return Integer.valueOf(getProperty(key));
+    return Integer.parseInt(getProperty(key));
   }
 
   /**
@@ -166,7 +166,7 @@ public class State implements Writable {
    * @return integer value associated with the key or the default value if the property is not set
    */
   public int getPropAsInt(String key, int def) {
-    return Integer.valueOf(getProperty(key, String.valueOf(def)));
+    return Integer.parseInt(getProperty(key, String.valueOf(def)));
   }
 
   /**
@@ -176,7 +176,7 @@ public class State implements Writable {
    * @return double value associated with the key
    */
   public double getPropAsDouble(String key) {
-    return Double.valueOf(getProperty(key));
+    return Double.parseDouble(getProperty(key));
   }
 
   /**
@@ -187,7 +187,7 @@ public class State implements Writable {
    * @return double value associated with the key or the default value if the property is not set
    */
   public double getPropAsDouble(String key, double def) {
-    return Double.valueOf(getProperty(key, String.valueOf(def)));
+    return Double.parseDouble(getProperty(key, String.valueOf(def)));
   }
 
   /**
@@ -197,7 +197,7 @@ public class State implements Writable {
    * @return boolean value associated with the key
    */
   public boolean getPropAsBoolean(String key) {
-    return Boolean.valueOf(getProperty(key));
+    return Boolean.parseBoolean(getProperty(key));
   }
 
   /**
@@ -208,7 +208,7 @@ public class State implements Writable {
    * @return boolean value associated with the key or the default value if the property is not set
    */
   public boolean getPropAsBoolean(String key, boolean def) {
-    return Boolean.valueOf(getProperty(key, String.valueOf(def)));
+    return Boolean.parseBoolean(getProperty(key, String.valueOf(def)));
   }
 
   protected String getProperty(String key) {
