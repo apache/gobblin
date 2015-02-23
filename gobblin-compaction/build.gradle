@@ -1,0 +1,29 @@
+apply plugin: 'java'
+apply plugin: 'eclipse'
+
+dependencies {
+  if (project.hasProperty('useHadoop2')) {
+    compile externalDependency.hadoopCommon
+    compile externalDependency.hadoopClientCore
+    compile externalDependency.hadoopHdfs
+    compile externalDependency.hadoopAuth
+  } else {
+    compile externalDependency.hadoop
+  }
+  compile externalDependency.commonsLang
+  compile externalDependency.hiveService
+  compile externalDependency.hiveJdbc
+  compile externalDependency.hiveMetastore
+  compile externalDependency.hiveExec
+  compile externalDependency.antlrRuntime
+  compile externalDependency.derby
+  compile externalDependency.jdo2
+  compile files('lib/jpox-core-1.2.2.jar')
+  compile files('lib/jpox-rdbms-1.2.2.jar')
+}
+
+configurations {
+  compile { transitive = true }
+}
+
+classification="library"

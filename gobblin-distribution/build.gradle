@@ -35,6 +35,7 @@ task build(type: Tar, overwrite: true) {
   into("bin") { from "../bin/" }
   into("lib") {
     from configurations.runtime
+    from "../gobblin-compaction/lib/"
   }
   into("gobblin-dist")
 

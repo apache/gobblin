@@ -38,6 +38,7 @@ if (!project.hasProperty('pegasusVersion')) {
 }
 
 ext.externalDependency = [
+    "antlrRuntime": "org.antlr:antlr-runtime:3.0.1",
     "avro": "org.apache.avro:avro:1.7.1",
     "avroMapred": "org.apache.avro:avro-mapred:1.7.6",
     "commonsCli": "commons-cli:commons-cli:1.2",
@@ -53,6 +54,12 @@ ext.externalDependency = [
     "hadoopCommon": "org.apache.hadoop:hadoop-common:"+hadoopVersion,
     "hadoopClientCore": "org.apache.hadoop:hadoop-mapreduce-client-core:"+hadoopVersion,
     "hadoopClientCommon": "org.apache.hadoop:hadoop-mapreduce-client-common:"+hadoopVersion,
+    "hadoopHdfs": "org.apache.hadoop:hadoop-hdfs:"+hadoopVersion,
+    "hadoopAuth": "org.apache.hadoop:hadoop-auth:"+hadoopVersion,
+    "hiveService": "org.apache.hive:hive-service:0.13.0",
+    "hiveJdbc": "org.apache.hive:hive-jdbc:0.13.0",
+    "hiveMetastore": "org.apache.hive:hive-metastore:0.13.0",
+    "hiveExec": "org.apache.hive:hive-exec:0.13.0",
     "httpclient": "org.apache.httpcomponents:httpclient:4.2.3",
     "httpcore": "org.apache.httpcomponents:httpcore:4.2.1",
     "quartz": "org.quartz-scheduler:quartz:2.2.1",
@@ -69,6 +76,7 @@ ext.externalDependency = [
     "commonsIO": "commons-io:commons-io:2.4",
     "influxdb": "org.influxdb:influxdb-java:1.2",
     "jsch": "com.jcraft:jsch:0.1.46",
+    "jdo2": "javax.jdo:jdo2-api:2.1",
     "azkaban": "com.linkedin.azkaban:azkaban:2.5.0",
     "commonsVfs": "org.apache.commons:commons-vfs2:2.0",
     "mysqlConnector": "mysql:mysql-connector-java:5.1.34",
