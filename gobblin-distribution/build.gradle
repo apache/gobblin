@@ -24,6 +24,7 @@ dependencies {
   compile project(":gobblin-rest-service:gobblin-rest-api")
   compile project(":gobblin-rest-service:gobblin-rest-client")
   compile project(":gobblin-rest-service:gobblin-rest-server")
+  runtime externalDependency.log4jextras
 }
 
 task build(type: Tar, overwrite: true) {
