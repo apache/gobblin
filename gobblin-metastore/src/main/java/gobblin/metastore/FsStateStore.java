@@ -79,11 +79,7 @@ public class FsStateStore implements StateStore {
   public boolean create(String storeName)
       throws IOException {
     Path storePath = new Path(this.storeRootDir, storeName);
-    if (this.fs.exists(storePath)) {
-      throw new IOException(String.format("Store directory %s already exists for store %s", storePath, storeName));
-    }
-
-    return this.fs.mkdirs(storePath);
+    return this.fs.exists(storePath) || this.fs.mkdirs(storePath);
   }
 
   @Override
