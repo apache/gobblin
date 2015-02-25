@@ -39,6 +39,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metrics.JobMetrics;
 import gobblin.source.workunit.Extract;
+import gobblin.util.ForkOperatorUtils;
 
 
 /**
@@ -47,6 +48,12 @@ import gobblin.source.workunit.Extract;
  * @author ynli
  */
 public class TaskState extends WorkUnitState {
+
+  // Built-in metric names
+  private static final String RECORDS = "records";
+  private static final String RECORDS_PER_SECOND = "recordsPerSec";
+  private static final String BYTES = "bytes";
+  private static final String BYTES_PER_SECOND = "bytesPerSec";
 
   private String jobId;
   private String taskId;
@@ -161,18 +168,19 @@ public class TaskState extends WorkUnitState {
    * Update record-level metrics.
    *
    * @param recordsWritten number of records written by the writer
+   * @param branchIndex fork branch index
    */
-  public void updateRecordMetrics(long recordsWritten) {
+  public void updateRecordMetrics(long recordsWritten, int branchIndex) {
     JobMetrics metrics = JobMetrics.get(this.getProp(ConfigurationKeys.JOB_NAME_KEY), this.jobId);
+    String forkBranchId = ForkOperatorUtils.getForkId(this.taskId, branchIndex);
 
     Counter taskRecordCounter =
-        metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, this.taskId, "records"));
+        metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, forkBranchId, RECORDS));
     long inc = recordsWritten - taskRecordCounter.getCount();
-
     taskRecordCounter.inc(inc);
-    metrics.getMeter(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, this.taskId, "recordsPerSec")).mark(inc);
-    metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, "records")).inc(inc);
-    metrics.getMeter(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, "recordsPerSec")).mark(inc);
+    metrics.getMeter(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, forkBranchId, RECORDS_PER_SECOND)).mark(inc);
+    metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, RECORDS)).inc(inc);
+    metrics.getMeter(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, RECORDS_PER_SECOND)).mark(inc);
   }
 
   /**
@@ -183,26 +191,37 @@ public class TaskState extends WorkUnitState {
    * </p>
    *
    * @param bytesWritten number of bytes written by the writer
+   * @param branchIndex fork branch index
    */
-  public void updateByteMetrics(long bytesWritten) {
+  public void updateByteMetrics(long bytesWritten, int branchIndex) {
     JobMetrics metrics = JobMetrics.get(this.getProp(ConfigurationKeys.JOB_NAME_KEY), this.jobId);
-    metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, this.taskId, "bytes")).inc(bytesWritten);
-    metrics.getMeter(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, this.taskId, "bytesPerSec")).mark(bytesWritten);
-    metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, "bytes")).inc(bytesWritten);
-    metrics.getMeter(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, "bytesPerSec")).mark(bytesWritten);
+    String forkBranchId = ForkOperatorUtils.getForkId(this.taskId, branchIndex);
+
+    metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, forkBranchId, BYTES)).inc(bytesWritten);
+    metrics.getMeter(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, forkBranchId, BYTES_PER_SECOND))
+        .mark(bytesWritten);
+    metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, BYTES)).inc(bytesWritten);
+    metrics.getMeter(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, BYTES_PER_SECOND))
+        .mark(bytesWritten);
   }
 
   /**
    * Adjust job-level metrics when the task gets retried.
+   *
+   * @param branches number of forked branches
    */
-  public void adjustJobMetricsOnRetry() {
+  public void adjustJobMetricsOnRetry(int branches) {
     JobMetrics metrics = JobMetrics.get(this.getProp(ConfigurationKeys.JOB_NAME_KEY), this.jobId);
-    long recordsWritten =
-        metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, this.taskId, "records")).getCount();
-    long bytesWritten =
-        metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, this.taskId, "bytes")).getCount();
-    metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, "records")).dec(recordsWritten);
-    metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, "bytes")).dec(bytesWritten);
+
+    for (int i = 0; i < branches; i++) {
+      String forkBranchId = ForkOperatorUtils.getForkId(this.taskId, i);
+      long recordsWritten =
+          metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, forkBranchId, RECORDS)).getCount();
+      long bytesWritten =
+          metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, forkBranchId, BYTES)).getCount();
+      metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, RECORDS)).dec(recordsWritten);
+      metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, BYTES)).dec(bytesWritten);
+    }
   }
 
   /**
