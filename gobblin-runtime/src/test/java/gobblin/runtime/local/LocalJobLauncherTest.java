@@ -41,6 +41,7 @@ public class LocalJobLauncherTest extends JobLauncherTestBase {
     this.properties = new Properties();
     this.properties.load(new FileReader("gobblin-test/resource/gobblin.test.properties"));
     this.properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, "true");
+    this.properties.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "true");
     this.properties
         .setProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY, "org.apache.derby.jdbc.EmbeddedDriver");
     this.properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY, "jdbc:derby:memory:gobblin1;create=true");

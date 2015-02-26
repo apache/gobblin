@@ -74,4 +74,15 @@ public class ForkOperatorUtils {
     Preconditions.checkArgument(branches >= 0, "branches is expected to be non-negative");
     return branches > 1 ? path + "/" + branchName : path;
   }
+
+  /**
+   * Get the fork branch ID of a branch of a given task.
+   *
+   * @param taskId task ID
+   * @param index  branch index
+   * @return a fork branch ID
+   */
+  public static String getForkId(String taskId, int index) {
+    return taskId + "." + index;
+  }
 }
