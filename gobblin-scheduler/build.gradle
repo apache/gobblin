@@ -27,6 +27,8 @@ dependencies {
   compile externalDependency.metricsCore
   compile externalDependency.metricsJvm
 
+  runtime externalDependency.log4jextras
+
   testCompile externalDependency.testng
 }
 
