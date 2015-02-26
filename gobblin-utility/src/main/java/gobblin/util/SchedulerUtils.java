@@ -19,6 +19,9 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.commons.configuration.ConfigurationConverter;
+import org.apache.commons.configuration.PropertiesConfiguration;
+
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -78,8 +81,7 @@ public class SchedulerUtils {
           throw new RuntimeException("Found more than one .properties file in directory: " + jobConfigDir);
         }
 
-        // Load the properties, which may overwrite the same properties defined
-        // in the parent or ancestor directories.
+        // Load the properties, which may overwrite the same properties defined in the parent or ancestor directories.
         rootProps.load(closer.register(new FileReader(new File(jobConfigDir, propertiesFiles[0]))));
       }
 
@@ -113,8 +115,8 @@ public class SchedulerUtils {
           Properties jobProps = new Properties();
           // Put all parent/ancestor properties first
           jobProps.putAll(rootProps);
-          // Then load the job configuration properties defined in the pull file
-          jobProps.load(closer.register(new FileReader(file)));
+          // Then load the job configuration properties defined in the job configuration file
+          jobProps.putAll(ConfigurationConverter.getProperties(new PropertiesConfiguration(file)));
           jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, file.getAbsolutePath());
           jobConfigs.add(jobProps);
         }
