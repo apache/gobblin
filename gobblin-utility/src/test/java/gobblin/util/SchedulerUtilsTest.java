@@ -78,7 +78,8 @@ public class SchedulerUtilsTest {
     jobProps3.setProperty("k8", "a8");
     jobProps3.setProperty("k9", "${k8}");
     // test-job-conf-dir/test1/test11/test111.pull
-    jobProps3.store(new FileWriter(new File(subDir11, "test111.pull")), "");
+    final File jobsProps3File = new File(subDir11, "test111.pull");
+    jobProps3.store(new FileWriter(jobsProps3File), "");
 
     Properties props2 = new Properties();
     props2.setProperty("k2", "b2");
@@ -90,6 +91,13 @@ public class SchedulerUtilsTest {
     jobProps4.setProperty("k5", "b5");
     // test-job-conf-dir/test2/test21.pull
     jobProps4.store(new FileWriter(new File(subDir2, "test21.pull")), "");
+
+    Properties jobPropsWithInclude = new Properties();
+    jobPropsWithInclude.setProperty("include", jobsProps3File.getPath());
+    jobPropsWithInclude.setProperty("k8", "newValue8");
+    // test-job-conf-dir/test2/test22.pull
+    jobProps3.store(new FileWriter(new File(subDir2, "test22.pull")), "");
+
   }
 
   @Test
@@ -98,7 +106,7 @@ public class SchedulerUtilsTest {
     Properties properties = new Properties();
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, JOB_CONF_ROOT_DIR);
     List<Properties> jobConfigs = SchedulerUtils.loadJobConfigs(properties);
-    Assert.assertEquals(jobConfigs.size(), 4);
+    Assert.assertEquals(jobConfigs.size(), 5);
 
     // test-job-conf-dir/test1/test11/test111.pull
     Properties jobProps1 = jobConfigs.get(0);
@@ -139,6 +147,12 @@ public class SchedulerUtilsTest {
     Assert.assertEquals(jobProps4.getProperty("k1"), "a1");
     Assert.assertEquals(jobProps4.getProperty("k2"), "b2");
     Assert.assertEquals(jobProps4.getProperty("k5"), "b5");
+
+    // test-job-conf-dir/test2/test22.pull
+    Properties jobPropsWithInclude = jobConfigs.get(4);
+    Assert.assertEquals(jobPropsWithInclude.getProperty("k1"), "d1");
+    Assert.assertEquals(jobPropsWithInclude.getProperty("k8"), "newValue8");
+    Assert.assertEquals(jobPropsWithInclude.getProperty("k9"), "newValue8");
   }
 
   @Test(dependsOnMethods = {"testLoadJobConfigs"})
