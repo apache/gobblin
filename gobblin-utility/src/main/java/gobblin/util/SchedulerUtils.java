@@ -22,7 +22,9 @@ import java.util.Set;
 import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.commons.configuration.PropertiesConfiguration;
 
+import com.google.common.base.Function;
 import com.google.common.base.Splitter;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
@@ -49,9 +51,16 @@ public class SchedulerUtils {
    */
   public static List<Properties> loadJobConfigs(Properties properties)
       throws IOException {
-    Set<String> jobConfigFileExtensions = Sets.newHashSet(Splitter.on(",").omitEmptyStrings().split(properties
-                .getProperty(ConfigurationKeys.JOB_CONFIG_FILE_EXTENSIONS_KEY,
-                    ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_EXTENSIONS)));
+    Iterable<String> jobConfigFileExtensionsIterable = Splitter.on(",").omitEmptyStrings().split(
+        properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_EXTENSIONS_KEY,
+            ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_EXTENSIONS));
+    Set<String> jobConfigFileExtensions = Sets.newHashSet(
+        Iterables.transform(jobConfigFileExtensionsIterable, new Function<String, String>() {
+          @Override
+          public String apply(String input) {
+            return input.toLowerCase();
+          }
+        }));
     List<Properties> jobConfigs = Lists.newArrayList();
     loadJobConfigsRecursive(jobConfigs, properties, jobConfigFileExtensions,
         new File(properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)));
@@ -98,7 +107,7 @@ public class SchedulerUtils {
           loadJobConfigsRecursive(jobConfigs, rootPropsCopy, jobConfigFileExtensions, file);
         } else {
           int pos = file.getName().lastIndexOf(".");
-          String fileExtension = pos >= 0 ? file.getName().substring(pos + 1) : "";
+          String fileExtension = pos >= 0 ? file.getName().substring(pos + 1).toLowerCase() : "";
           if (!jobConfigFileExtensions.contains(fileExtension)) {
             // Not a job configuration file, ignore.
             continue;
