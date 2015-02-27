@@ -34,7 +34,7 @@ import gobblin.configuration.ConfigurationKeys;
 @Test(groups = {"gobblin.util"})
 public class SchedulerUtilsTest {
 
-  private static final String JOB_CONF_ROOT_DIR = "test/test-job-conf-dir";
+  private static final String JOB_CONF_ROOT_DIR = "gobblin-test/test-job-conf-dir";
 
   @BeforeClass
   public void setUp()

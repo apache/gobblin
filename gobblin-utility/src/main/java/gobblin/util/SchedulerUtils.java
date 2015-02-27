@@ -28,6 +28,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
+import com.google.common.io.Files;
 
 import gobblin.configuration.ConfigurationKeys;
 
@@ -51,7 +52,7 @@ public class SchedulerUtils {
    */
   public static List<Properties> loadJobConfigs(Properties properties)
       throws IOException {
-    Iterable<String> jobConfigFileExtensionsIterable = Splitter.on(",").omitEmptyStrings().split(
+    Iterable<String> jobConfigFileExtensionsIterable = Splitter.on(",").omitEmptyStrings().trimResults().split(
         properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_EXTENSIONS_KEY,
             ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_EXTENSIONS));
     Set<String> jobConfigFileExtensions = Sets.newHashSet(
@@ -106,9 +107,7 @@ public class SchedulerUtils {
           rootPropsCopy.putAll(rootProps);
           loadJobConfigsRecursive(jobConfigs, rootPropsCopy, jobConfigFileExtensions, file);
         } else {
-          int pos = file.getName().lastIndexOf(".");
-          String fileExtension = pos >= 0 ? file.getName().substring(pos + 1).toLowerCase() : "";
-          if (!jobConfigFileExtensions.contains(fileExtension)) {
+          if (!jobConfigFileExtensions.contains(Files.getFileExtension(file.getName()).toLowerCase())) {
             // Not a job configuration file, ignore.
             continue;
           }
