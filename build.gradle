@@ -50,6 +50,8 @@ ext.externalDependency = [
     "commonsConfiguration": "commons-configuration:commons-configuration:1.10",
     "commonsIo": "commons-io:commons-io:2.4",
     "commonsHttpClient": "commons-httpclient:commons-httpclient:3.1",
+    "datanucleusCore": "org.datanucleus:datanucleus-core:4.0.5",
+    "datanucleusRdbms": "org.datanucleus:datanucleus-rdbms:4.0.5",
     "guava": "com.google.guava:guava:15.0",
     "gson": "com.google.code.gson:gson:2.2.4",
     "hadoop": "org.apache.hadoop:hadoop-core:"+hadoopVersion,
