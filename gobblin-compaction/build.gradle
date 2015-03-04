@@ -22,8 +22,29 @@ dependencies {
   compile files('lib/jpox-rdbms-1.2.2.jar')
 }
 
+
 configurations {
   compile { transitive = true }
 }
 
 classification="library"
+
+
+build << {
+  copy {
+    from configurations.runtime
+    into ("../build/gobblin-compaction/jar/gobblin-compaction_lib")
+  }
+}
+
+jar {
+  destinationDir file("../build/gobblin-compaction/jar")
+  def manifestClasspath = configurations.runtime.collect { "gobblin-compaction_lib/" + it.getName() }.join(' ')
+  manifestClasspath = ". " + manifestClasspath
+  manifest {
+    attributes("Manifest-Version"       : "1.0",
+    "Main-Class"             : "gobblin.compaction.CompactionRunner",
+    "Class-Path"             : manifestClasspath
+    )
+  }
+}

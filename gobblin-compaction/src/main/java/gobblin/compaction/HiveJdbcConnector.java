@@ -78,7 +78,7 @@ public class HiveJdbcConnector implements Closeable {
   private int getHiveServerVersion() {
     int hiveServerVersion =
         Integer.parseInt(CompactionRunner.properties.getProperty(HIVESERVER_VERSION, HIVESERVER_VERSION_DEFAULT));
-    if (!Arrays.asList(VALID_HIVESERVER_VERSIONS).contains(hiveServerVersion)) {
+    if (!VALID_HIVESERVER_VERSIONS.contains(hiveServerVersion)) {
       String message = hiveServerVersion + " is not a valid HiveServer version.";
       LOG.error(message);
       throw new RuntimeException(message);
@@ -149,7 +149,7 @@ public class HiveJdbcConnector implements Closeable {
 
   public void executeStatements(String... statements) throws SQLException {
     for (String statement : statements) {
-      System.out.println("RUNNING STATEMENT: " + choppedStatement(statement));
+      LOG.info("RUNNING STATEMENT: " + choppedStatement(statement));
       stmt.execute(statement);
     }
   }
