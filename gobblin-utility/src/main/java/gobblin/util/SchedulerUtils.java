@@ -21,6 +21,8 @@ import java.util.Set;
 
 import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.commons.configuration.PropertiesConfiguration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
 import com.google.common.base.Splitter;
@@ -39,6 +41,8 @@ import gobblin.configuration.ConfigurationKeys;
  * @author ynli
  */
 public class SchedulerUtils {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(SchedulerUtils.class);
 
   // Extension of properties files
   private static final String JOB_PROPS_FILE_EXTENSION = ".properties";
@@ -108,7 +112,7 @@ public class SchedulerUtils {
           loadJobConfigsRecursive(jobConfigs, rootPropsCopy, jobConfigFileExtensions, file);
         } else {
           if (!jobConfigFileExtensions.contains(Files.getFileExtension(file.getName()).toLowerCase())) {
-            // Not a job configuration file, ignore.
+            LOGGER.warn("Skipped file " + file + " that has an unsupported extension");
             continue;
           }
 
@@ -117,6 +121,7 @@ public class SchedulerUtils {
             // Skip the job configuration file when a .done file with the same name exists,
             // which means the job configuration file is for a one-time job and the job has
             // already run and finished.
+            LOGGER.info("Skipped job configuration file " + file + " for which a .done file exists");
             continue;
           }
 
