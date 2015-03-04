@@ -56,6 +56,10 @@ This product includes/uses Mockito (http://mockito.org/)
 Copyright (c) 2007 Mockito contributors
 License: MIT
 
+This product includes/uses DataNucleus (http://datanucleus.org/)
+Copyright (c) 2004 DataNucleus
+License: Apache 2.0
+
 This product includes/uses Force.com Web Service Connector (https://github.com/forcedotcom/wsc/blob/master/LICENSE.md)
 Force.com Web Service Connector (WSC) is Copyright (c) 2005-2013, salesforce.com, inc. All rights reserved.
 
