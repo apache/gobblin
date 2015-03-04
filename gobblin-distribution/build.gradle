@@ -15,6 +15,7 @@ dependencies {
   compile project(':gobblin-azkaban')
   compile project(':gobblin-api')
   compile project(':gobblin-core')
+  compile project(':gobblin-compaction')
   compile project(':gobblin-runtime')
   compile project(':gobblin-scheduler')
   compile project(':gobblin-utility')
@@ -35,7 +36,6 @@ task build(type: Tar, overwrite: true) {
   into("bin") { from "../bin/" }
   into("lib") {
     from configurations.runtime
-    from "../gobblin-compaction/lib/"
   }
   into("gobblin-dist")
 

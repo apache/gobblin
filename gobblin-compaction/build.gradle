@@ -18,8 +18,8 @@ dependencies {
   compile externalDependency.antlrRuntime
   compile externalDependency.derby
   compile externalDependency.jdo2
-  compile files('lib/jpox-core-1.2.2.jar')
-  compile files('lib/jpox-rdbms-1.2.2.jar')
+  compile externalDependency.datanucleusCore
+  compile externalDependency.datanucleusRdbms
 }
 
 
