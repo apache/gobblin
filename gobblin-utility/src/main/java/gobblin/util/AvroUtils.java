@@ -98,6 +98,10 @@ public class AvroUtils {
    * @return the value of the field
    */
   private static Optional<Object> getFieldHelper(Object data, List<String> pathList, int field) {
+    if (data == null) {
+      return Optional.absent(); 
+    }
+
     if ((field + 1) == pathList.size()) {
       return Optional.fromNullable(((Record) data).get(pathList.get(field)));
     } else {
