@@ -35,6 +35,11 @@ build << {
     from configurations.runtime
     into ("../build/gobblin-compaction/jar/gobblin-compaction_lib")
   }
+  copy {
+    from "../conf/log4j-compaction.xml"
+    into ("../build/gobblin-compaction/jar")
+    rename ('log4j-compaction.xml', 'log4j.xml')
+  }
 }
 
 jar {

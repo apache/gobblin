@@ -33,6 +33,8 @@ if (!project.hasProperty('hadoopVersion')) {
   }
 }
 
+hiveVersion = '0.13.0'
+
 if (!project.hasProperty('pegasusVersion')) {
   pegasusVersion = '1.15.9'
 }
@@ -56,10 +58,10 @@ ext.externalDependency = [
     "hadoopClientCommon": "org.apache.hadoop:hadoop-mapreduce-client-common:"+hadoopVersion,
     "hadoopHdfs": "org.apache.hadoop:hadoop-hdfs:"+hadoopVersion,
     "hadoopAuth": "org.apache.hadoop:hadoop-auth:"+hadoopVersion,
-    "hiveService": "org.apache.hive:hive-service:0.13.0",
-    "hiveJdbc": "org.apache.hive:hive-jdbc:0.13.0",
-    "hiveMetastore": "org.apache.hive:hive-metastore:0.13.0",
-    "hiveExec": "org.apache.hive:hive-exec:0.13.0",
+    "hiveService": "org.apache.hive:hive-service:"+hiveVersion,
+    "hiveJdbc": "org.apache.hive:hive-jdbc:"+hiveVersion,
+    "hiveMetastore": "org.apache.hive:hive-metastore:"+hiveVersion,
+    "hiveExec": "org.apache.hive:hive-exec:"+hiveVersion,
     "httpclient": "org.apache.httpcomponents:httpclient:4.2.3",
     "httpcore": "org.apache.httpcomponents:httpcore:4.2.1",
     "quartz": "org.quartz-scheduler:quartz:2.2.1",

@@ -38,7 +38,7 @@ import com.google.common.collect.ImmutableSet;
  */
 public class HiveJdbcConnector implements Closeable {
 
-  private static final Logger LOG = LoggerFactory.getLogger(SerialCompactor.class);
+  private static final Logger LOG = LoggerFactory.getLogger(HiveJdbcConnector.class);
 
   private static final String HIVESERVER_VERSION = "hiveserver.version";
   private static final Set<Integer> VALID_HIVESERVER_VERSIONS = ImmutableSet.<Integer>builder().add(1).add(2).build();
