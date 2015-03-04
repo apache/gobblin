@@ -29,19 +29,6 @@ configurations {
 
 classification="library"
 
-
-build << {
-  copy {
-    from configurations.runtime
-    into ("../build/gobblin-compaction/jar/gobblin-compaction_lib")
-  }
-  copy {
-    from "../conf/log4j-compaction.xml"
-    into ("../build/gobblin-compaction/jar")
-    rename ('log4j-compaction.xml', 'log4j.xml')
-  }
-}
-
 jar {
   destinationDir file("../build/gobblin-compaction/jar")
   def manifestClasspath = configurations.runtime.collect { "gobblin-compaction_lib/" + it.getName() }.join(' ')
@@ -52,4 +39,20 @@ jar {
     "Class-Path"             : manifestClasspath
     )
   }
+}
+
+task createCompactionTar(type: Tar) {
+  extension = 'tar.gz'
+      baseName = project.name
+      compression = Compression.GZIP
+
+      into("gobblin-compaction_lib") { from configurations.runtime }
+      into(".") { from "../build/gobblin-compaction/jar" }
+      into(".") { from "../conf/log4j-compaction.xml" rename ('log4j-compaction.xml', 'log4j.xml')}
+  }
+
+createCompactionTar.dependsOn ':gobblin-compaction:jar'
+
+artifacts {
+    archives createCompactionTar
 }
