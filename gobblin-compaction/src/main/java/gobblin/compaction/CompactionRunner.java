@@ -68,11 +68,17 @@ public class CompactionRunner {
 
     File compactionConfigDir = new File(properties.getProperty(COMPACTION_CONFIG_DIR));
     File[] listOfFiles = compactionConfigDir.listFiles();
-    LOG.info("Found " + listOfFiles.length + " compaction tasks.");
+    int numOfJobs = 0;
+    for (File file : listOfFiles) {
+      if (file.isFile() && !file.getName().startsWith(".")) {
+        numOfJobs++;
+      }
+    }
+    LOG.info("Found " + numOfJobs + " compaction tasks.");
     PrintWriter pw = new PrintWriter(properties.getProperty(TIMING_FILE, TIMING_FILE_DEFAULT));
 
     for (File file : listOfFiles) {
-      if (file.isFile()) {
+      if (file.isFile() && !file.getName().startsWith(".")) {
         Configuration jobConfig = new PropertiesConfiguration(file.getAbsolutePath());
         jobProperties = ConfigurationConverter.getProperties(jobConfig);
         long startTime = System.nanoTime();
