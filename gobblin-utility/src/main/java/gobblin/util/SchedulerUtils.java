@@ -21,11 +21,16 @@ import java.util.Set;
 
 import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.commons.configuration.PropertiesConfiguration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Function;
 import com.google.common.base.Splitter;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
+import com.google.common.io.Files;
 
 import gobblin.configuration.ConfigurationKeys;
 
@@ -36,6 +41,8 @@ import gobblin.configuration.ConfigurationKeys;
  * @author ynli
  */
 public class SchedulerUtils {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(SchedulerUtils.class);
 
   // Extension of properties files
   private static final String JOB_PROPS_FILE_EXTENSION = ".properties";
@@ -49,9 +56,16 @@ public class SchedulerUtils {
    */
   public static List<Properties> loadJobConfigs(Properties properties)
       throws IOException {
-    Set<String> jobConfigFileExtensions = Sets.newHashSet(Splitter.on(",").omitEmptyStrings().split(properties
-                .getProperty(ConfigurationKeys.JOB_CONFIG_FILE_EXTENSIONS_KEY,
-                    ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_EXTENSIONS)));
+    Iterable<String> jobConfigFileExtensionsIterable = Splitter.on(",").omitEmptyStrings().trimResults().split(
+        properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_EXTENSIONS_KEY,
+            ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_EXTENSIONS));
+    Set<String> jobConfigFileExtensions = Sets.newHashSet(
+        Iterables.transform(jobConfigFileExtensionsIterable, new Function<String, String>() {
+          @Override
+          public String apply(String input) {
+            return input.toLowerCase();
+          }
+        }));
     List<Properties> jobConfigs = Lists.newArrayList();
     loadJobConfigsRecursive(jobConfigs, properties, jobConfigFileExtensions,
         new File(properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)));
@@ -97,10 +111,8 @@ public class SchedulerUtils {
           rootPropsCopy.putAll(rootProps);
           loadJobConfigsRecursive(jobConfigs, rootPropsCopy, jobConfigFileExtensions, file);
         } else {
-          int pos = file.getName().lastIndexOf(".");
-          String fileExtension = pos >= 0 ? file.getName().substring(pos + 1) : "";
-          if (!jobConfigFileExtensions.contains(fileExtension)) {
-            // Not a job configuration file, ignore.
+          if (!jobConfigFileExtensions.contains(Files.getFileExtension(file.getName()).toLowerCase())) {
+            LOGGER.warn("Skipped file " + file + " that has an unsupported extension");
             continue;
           }
 
@@ -109,6 +121,7 @@ public class SchedulerUtils {
             // Skip the job configuration file when a .done file with the same name exists,
             // which means the job configuration file is for a one-time job and the job has
             // already run and finished.
+            LOGGER.info("Skipped job configuration file " + file + " for which a .done file exists");
             continue;
           }
 
