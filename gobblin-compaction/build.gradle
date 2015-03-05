@@ -29,7 +29,6 @@ configurations { compile { transitive = true
 classification="library"
 
 jar {
-  destinationDir file(project.rootDir.path + "/build/gobblin-compaction/libs")
   def manifestClasspath = configurations.runtime.collect { "gobblin-compaction_lib/" + it.getName() }.join(' ')
   manifestClasspath = ". " + manifestClasspath
   manifest {
