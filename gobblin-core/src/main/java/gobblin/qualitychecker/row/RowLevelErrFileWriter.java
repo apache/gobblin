@@ -12,8 +12,10 @@
 package gobblin.qualitychecker.row;
 
 import java.io.BufferedWriter;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.nio.charset.Charset;
 
 import org.apache.hadoop.fs.Path;
 
@@ -33,7 +35,8 @@ public class RowLevelErrFileWriter {
    */
   public void open(Path errFilePath)
       throws IOException {
-    this.writer = new BufferedWriter(new FileWriter(errFilePath.toString()));
+    this.writer = new BufferedWriter(
+        new OutputStreamWriter(new FileOutputStream(errFilePath.toString()), Charset.defaultCharset()));
   }
 
   /**

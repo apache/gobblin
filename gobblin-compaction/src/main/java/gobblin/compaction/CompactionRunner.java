@@ -12,8 +12,11 @@
 package gobblin.compaction;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.nio.charset.Charset;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -68,6 +71,11 @@ public class CompactionRunner {
 
     File compactionConfigDir = new File(properties.getProperty(COMPACTION_CONFIG_DIR));
     File[] listOfFiles = compactionConfigDir.listFiles();
+    if (listOfFiles == null || listOfFiles.length == 0) {
+      System.err.println("No compaction configuration files found under " + compactionConfigDir);
+      System.exit(1);
+    }
+
     int numOfJobs = 0;
     for (File file : listOfFiles) {
       if (file.isFile() && !file.getName().startsWith(".")) {
@@ -75,7 +83,9 @@ public class CompactionRunner {
       }
     }
     LOG.info("Found " + numOfJobs + " compaction tasks.");
-    PrintWriter pw = new PrintWriter(properties.getProperty(TIMING_FILE, TIMING_FILE_DEFAULT));
+    PrintWriter pw = new PrintWriter(
+        new OutputStreamWriter(new FileOutputStream(properties.getProperty(TIMING_FILE, TIMING_FILE_DEFAULT)),
+            Charset.defaultCharset()));
 
     for (File file : listOfFiles) {
       if (file.isFile() && !file.getName().startsWith(".")) {

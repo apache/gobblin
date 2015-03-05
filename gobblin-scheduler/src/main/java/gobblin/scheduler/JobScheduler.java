@@ -12,8 +12,10 @@
 package gobblin.scheduler;
 
 import java.io.File;
-import java.io.FileReader;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -369,7 +371,7 @@ public class JobScheduler extends AbstractIdleService {
 
       private void loadJobConfig(Properties jobProps, File file) {
         try {
-          jobProps.load(new FileReader(file));
+          jobProps.load(new InputStreamReader(new FileInputStream(file), Charset.defaultCharset()));
           jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, file.getAbsolutePath());
         } catch (Exception e) {
           LOG.error("Failed to load job configuration from file " + file.getAbsolutePath(), e);
