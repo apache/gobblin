@@ -2,24 +2,24 @@ apply plugin: 'java'
 apply plugin: 'eclipse'
 
 dependencies {
+	compile externalDependency.hiveExec
   if (project.hasProperty('useHadoop2')) {
-    compile externalDependency.hadoopCommon
-    compile externalDependency.hadoopClientCore
-    compile externalDependency.hadoopHdfs
-    compile externalDependency.hadoopAuth
+    runtime externalDependency.hadoopCommon
+    runtime externalDependency.hadoopClientCore
+    runtime externalDependency.hadoopHdfs
+    runtime externalDependency.hadoopAuth
   } else {
-    compile externalDependency.hadoop
+    runtime externalDependency.hadoop
   }
-  compile externalDependency.commonsLang
-  compile externalDependency.hiveService
-  compile externalDependency.hiveJdbc
-  compile externalDependency.hiveMetastore
-  compile externalDependency.hiveExec
-  compile externalDependency.antlrRuntime
-  compile externalDependency.derby
-  compile externalDependency.jdo2
-  compile externalDependency.datanucleusCore
-  compile externalDependency.datanucleusRdbms
+  runtime externalDependency.commonsLang
+  runtime externalDependency.hiveService
+  runtime externalDependency.hiveJdbc
+  runtime externalDependency.hiveMetastore
+  runtime externalDependency.antlrRuntime
+  runtime externalDependency.derby
+  runtime externalDependency.jdo2
+  runtime externalDependency.datanucleusCore
+  runtime externalDependency.datanucleusRdbms
 }
 
 
