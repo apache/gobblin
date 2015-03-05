@@ -107,7 +107,7 @@ public class Fork implements Closeable {
    * Update record-level metrics.
    */
   public void updateRecordMetrics() {
-    this.taskState.updateRecordMetrics(this.writer.recordsWritten());
+    this.taskState.updateRecordMetrics(this.writer.recordsWritten(), this.index);
   }
 
   /**
@@ -119,7 +119,7 @@ public class Fork implements Closeable {
    */
   public void updateByteMetrics()
       throws IOException {
-    this.taskState.updateByteMetrics(this.writer.bytesWritten());
+    this.taskState.updateByteMetrics(this.writer.bytesWritten(), this.index);
   }
 
   /**

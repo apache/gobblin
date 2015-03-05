@@ -88,7 +88,6 @@ public class Task implements Runnable {
   public void run() {
     long startTime = System.currentTimeMillis();
     this.taskState.setStartTime(startTime);
-    this.taskStateTracker.registerNewTask(this);
     this.taskState.setWorkingState(WorkUnitState.WorkingState.RUNNING);
 
     // Clear the list so it starts with a fresh list of forks for each run/retry

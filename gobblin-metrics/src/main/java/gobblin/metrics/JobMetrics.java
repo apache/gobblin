@@ -388,11 +388,11 @@ public class JobMetrics implements MetricSet {
   }
 
   /**
-   * Get metrics of the given type in the given group with the given ID (either a job ID or a task ID).
+   * Get metrics of a given type in a given group that contain a given ID in the metric names.
    *
    * @param type metric type
    * @param group metric group
-   * @param id metric ID (either a job ID or a task ID)
+   * @param id metric ID
    * @return a {@link java.util.Map} with keys being metric names and values being the
    *         {@link com.codahale.metrics.Metric}s
    */

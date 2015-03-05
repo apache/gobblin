@@ -76,6 +76,7 @@ public class SchedulerUtilsTest {
     Properties jobProps3 = new Properties();
     jobProps3.setProperty("k1", "d1");
     jobProps3.setProperty("k8", "a8");
+    jobProps3.setProperty("k9", "${k8}");
     // test-job-conf-dir/test1/test11/test111.pull
     jobProps3.store(new FileWriter(new File(subDir11, "test111.pull")), "");
 
@@ -101,13 +102,14 @@ public class SchedulerUtilsTest {
 
     // test-job-conf-dir/test1/test11/test111.pull
     Properties jobProps1 = jobConfigs.get(0);
-    Assert.assertEquals(jobProps1.stringPropertyNames().size(), 6);
+    Assert.assertEquals(jobProps1.stringPropertyNames().size(), 7);
     Assert.assertTrue(jobProps1.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY));
     Assert.assertTrue(jobProps1.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY));
     Assert.assertEquals(jobProps1.getProperty("k1"), "d1");
     Assert.assertEquals(jobProps1.getProperty("k2"), "a2");
     Assert.assertEquals(jobProps1.getProperty("k3"), "a3");
     Assert.assertEquals(jobProps1.getProperty("k8"), "a8");
+    Assert.assertEquals(jobProps1.getProperty("k9"), "a8");
 
     // test-job-conf-dir/test1/test11.pull
     Properties jobProps2 = jobConfigs.get(1);
@@ -153,11 +155,12 @@ public class SchedulerUtilsTest {
 
     // test-job-conf-dir/test1/test11/test111.pull
     Properties jobProps1 = jobConfigs.get(0);
-    Assert.assertEquals(jobProps1.stringPropertyNames().size(), 6);
+    Assert.assertEquals(jobProps1.stringPropertyNames().size(), 7);
     Assert.assertEquals(jobProps1.getProperty("k1"), "d1");
     Assert.assertEquals(jobProps1.getProperty("k2"), "a2");
     Assert.assertEquals(jobProps1.getProperty("k3"), "a3");
     Assert.assertEquals(jobProps1.getProperty("k8"), "a8");
+    Assert.assertEquals(jobProps1.getProperty("k9"), "a8");
 
     // test-job-conf-dir/test1/test11.pull
     Properties jobProps2 = jobConfigs.get(1);

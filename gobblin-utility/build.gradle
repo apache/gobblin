@@ -14,7 +14,9 @@ apply plugin: 'java'
 dependencies {
   compile project(":gobblin-api")
 
+  compile externalDependency.commonsConfiguration
   compile externalDependency.commonsEmail
+  compile externalDependency.commonsLang
   compile externalDependency.guava
   compile externalDependency.slf4j
   compile externalDependency.avro
