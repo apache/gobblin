@@ -2,7 +2,7 @@ apply plugin: 'java'
 apply plugin: 'eclipse'
 
 dependencies {
-	compile externalDependency.hiveExec
+  compile externalDependency.hiveExec
   if (project.hasProperty('useHadoop2')) {
     runtime externalDependency.hadoopCommon
     runtime externalDependency.hadoopClientCore
@@ -23,9 +23,7 @@ dependencies {
 }
 
 
-configurations {
-  compile { transitive = true }
-}
+configurations { compile { transitive = true } }
 
 classification="library"
 
@@ -43,16 +41,14 @@ jar {
 
 task createCompactionTar(type: Tar) {
   extension = 'tar.gz'
-      baseName = project.name
-      compression = Compression.GZIP
+  baseName = project.name
+  compression = Compression.GZIP
 
-      into("gobblin-compaction_lib") { from configurations.runtime }
-      into(".") { from "../build/gobblin-compaction/jar" }
-      into(".") { from "../conf/log4j-compaction.xml" rename ('log4j-compaction.xml', 'log4j.xml')}
-  }
+  into("gobblin-compaction_lib") { from configurations.runtime }
+  into(".") { from "../build/gobblin-compaction/jar" }
+  into(".") { from "../conf/log4j-compaction.xml" rename ('log4j-compaction.xml', 'log4j.xml')}
+}
 
 createCompactionTar.dependsOn ':gobblin-compaction:jar'
 
-artifacts {
-    archives createCompactionTar
-}
+artifacts { archives createCompactionTar }
