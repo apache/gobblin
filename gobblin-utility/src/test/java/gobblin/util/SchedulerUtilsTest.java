@@ -70,7 +70,7 @@ public class SchedulerUtilsTest {
 
     Properties jobProps2 = new Properties();
     jobProps2.setProperty("k7", "a7");
-    // test-job-conf-dir/test1/test12.pull
+    // test-job-conf-dir/test1/test12.PULL
     jobProps2.store(new FileWriter(new File(subDir1, "test12.PULL")), "");
 
     Properties jobProps3 = new Properties();
@@ -88,7 +88,7 @@ public class SchedulerUtilsTest {
 
     Properties jobProps4 = new Properties();
     jobProps4.setProperty("k5", "b5");
-    // test-job-conf-dir/test2/test21.pull
+    // test-job-conf-dir/test2/test21.PULL
     jobProps4.store(new FileWriter(new File(subDir2, "test21.PULL")), "");
   }
 
@@ -101,7 +101,7 @@ public class SchedulerUtilsTest {
     Assert.assertEquals(jobConfigs.size(), 4);
 
     // test-job-conf-dir/test1/test11/test111.pull
-    Properties jobProps1 = jobConfigs.get(0);
+    Properties jobProps1 = getJobConfigForFile(jobConfigs, "test111.pull");
     Assert.assertEquals(jobProps1.stringPropertyNames().size(), 7);
     Assert.assertTrue(jobProps1.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY));
     Assert.assertTrue(jobProps1.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY));
@@ -112,7 +112,7 @@ public class SchedulerUtilsTest {
     Assert.assertEquals(jobProps1.getProperty("k9"), "a8");
 
     // test-job-conf-dir/test1/test11.pull
-    Properties jobProps2 = jobConfigs.get(1);
+    Properties jobProps2 = getJobConfigForFile(jobConfigs, "test11.pull");
     Assert.assertEquals(jobProps2.stringPropertyNames().size(), 6);
     Assert.assertTrue(jobProps2.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY));
     Assert.assertTrue(jobProps2.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY));
@@ -121,8 +121,8 @@ public class SchedulerUtilsTest {
     Assert.assertEquals(jobProps2.getProperty("k3"), "b3");
     Assert.assertEquals(jobProps2.getProperty("k6"), "a6");
 
-    // test-job-conf-dir/test1/test12.pull
-    Properties jobProps3 = jobConfigs.get(2);
+    // test-job-conf-dir/test1/test12.PULL
+    Properties jobProps3 = getJobConfigForFile(jobConfigs, "test12.PULL");
     Assert.assertEquals(jobProps3.stringPropertyNames().size(), 6);
     Assert.assertTrue(jobProps3.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY));
     Assert.assertTrue(jobProps3.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY));
@@ -131,8 +131,8 @@ public class SchedulerUtilsTest {
     Assert.assertEquals(jobProps3.getProperty("k3"), "a3");
     Assert.assertEquals(jobProps3.getProperty("k7"), "a7");
 
-    // test-job-conf-dir/test2/test21.pull
-    Properties jobProps4 = jobConfigs.get(3);
+    // test-job-conf-dir/test2/test21.PULL
+    Properties jobProps4 = getJobConfigForFile(jobConfigs, "test21.PULL");
     Assert.assertEquals(jobProps4.stringPropertyNames().size(), 5);
     Assert.assertTrue(jobProps4.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY));
     Assert.assertTrue(jobProps4.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY));
@@ -146,7 +146,7 @@ public class SchedulerUtilsTest {
       throws IOException {
     File subDir2 = new File(JOB_CONF_ROOT_DIR, "test2");
     // Create a .done file for test21.pull so it should not be loaded
-    Files.copy(new File(subDir2, "test21.pull"), new File(subDir2, "test21.pull.done"));
+    Files.copy(new File(subDir2, "test21.PULL"), new File(subDir2, "test21.PULL.done"));
 
     Properties properties = new Properties();
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, JOB_CONF_ROOT_DIR);
@@ -154,7 +154,7 @@ public class SchedulerUtilsTest {
     Assert.assertEquals(jobConfigs.size(), 3);
 
     // test-job-conf-dir/test1/test11/test111.pull
-    Properties jobProps1 = jobConfigs.get(0);
+    Properties jobProps1 = getJobConfigForFile(jobConfigs, "test111.pull");
     Assert.assertEquals(jobProps1.stringPropertyNames().size(), 7);
     Assert.assertEquals(jobProps1.getProperty("k1"), "d1");
     Assert.assertEquals(jobProps1.getProperty("k2"), "a2");
@@ -163,25 +163,36 @@ public class SchedulerUtilsTest {
     Assert.assertEquals(jobProps1.getProperty("k9"), "a8");
 
     // test-job-conf-dir/test1/test11.pull
-    Properties jobProps2 = jobConfigs.get(1);
+    Properties jobProps2 = getJobConfigForFile(jobConfigs, "test11.pull");
     Assert.assertEquals(jobProps2.stringPropertyNames().size(), 6);
     Assert.assertEquals(jobProps2.getProperty("k1"), "c1");
     Assert.assertEquals(jobProps2.getProperty("k2"), "a2");
     Assert.assertEquals(jobProps2.getProperty("k3"), "b3");
     Assert.assertEquals(jobProps2.getProperty("k6"), "a6");
 
-    // test-job-conf-dir/test1/test12.pull
-    Properties jobProps3 = jobConfigs.get(2);
+    // test-job-conf-dir/test1/test12.PULL
+    Properties jobProps3 = getJobConfigForFile(jobConfigs, "test12.PULL");
     Assert.assertEquals(jobProps3.stringPropertyNames().size(), 6);
     Assert.assertEquals(jobProps3.getProperty("k1"), "b1");
     Assert.assertEquals(jobProps3.getProperty("k2"), "a2");
     Assert.assertEquals(jobProps3.getProperty("k3"), "a3");
     Assert.assertEquals(jobProps3.getProperty("k7"), "a7");
+
+    Assert.assertNull(getJobConfigForFile(jobConfigs, "test21.PULL"));
   }
 
   @AfterClass
   public void tearDown()
       throws IOException {
     FileUtil.fullyDelete(new File(JOB_CONF_ROOT_DIR));
+  }
+
+  private Properties getJobConfigForFile(List<Properties> jobConfigs, String fileName) {
+    for (Properties jobConfig : jobConfigs) {
+      if (jobConfig.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY).endsWith(fileName)) {
+        return jobConfig;
+      }
+    }
+    return null;
   }
 }
