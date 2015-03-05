@@ -1,0 +1,54 @@
+apply plugin: 'java'
+apply plugin: 'eclipse'
+
+dependencies {
+  compile externalDependency.hiveExec
+  if (project.hasProperty('useHadoop2')) {
+    runtime externalDependency.hadoopCommon
+    runtime externalDependency.hadoopClientCore
+    runtime externalDependency.hadoopHdfs
+    runtime externalDependency.hadoopAuth
+  } else {
+    runtime externalDependency.hadoop
+  }
+  runtime externalDependency.commonsLang
+  runtime externalDependency.hiveService
+  runtime externalDependency.hiveJdbc
+  runtime externalDependency.hiveMetastore
+  runtime externalDependency.antlrRuntime
+  runtime externalDependency.derby
+  runtime externalDependency.jdo2
+  runtime externalDependency.datanucleusCore
+  runtime externalDependency.datanucleusRdbms
+}
+
+
+configurations { compile { transitive = true
+  } }
+
+classification="library"
+
+jar {
+  def manifestClasspath = configurations.runtime.collect { "gobblin-compaction_lib/" + it.getName() }.join(' ')
+  manifestClasspath = ". " + manifestClasspath
+  manifest {
+    attributes("Manifest-Version"       : "1.0",
+    "Main-Class"             : "gobblin.compaction.CompactionRunner",
+    "Class-Path"             : manifestClasspath
+    )
+  }
+}
+
+task createCompactionTar(type: Tar) {
+  extension = 'tar.gz'
+  baseName = project.name
+  compression = Compression.GZIP
+
+  into("gobblin-compaction_lib") { from configurations.runtime }
+  into(".") { from project.rootDir.path + "/build/gobblin-compaction/libs/gobblin-compaction.jar" }
+  into(".") { from project.rootDir.path + "/conf/log4j-compaction.xml" rename ('log4j-compaction.xml', 'log4j.xml')}
+}
+
+createCompactionTar.dependsOn ':gobblin-compaction:jar'
+
+artifacts { archives createCompactionTar }

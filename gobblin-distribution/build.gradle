@@ -15,6 +15,7 @@ dependencies {
   compile project(':gobblin-azkaban')
   compile project(':gobblin-api')
   compile project(':gobblin-core')
+  compile project(':gobblin-compaction')
   compile project(':gobblin-runtime')
   compile project(':gobblin-scheduler')
   compile project(':gobblin-utility')
