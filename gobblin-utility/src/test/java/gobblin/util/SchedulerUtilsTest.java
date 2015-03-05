@@ -31,10 +31,10 @@ import gobblin.configuration.ConfigurationKeys;
 /**
  * Unit tests for {@link SchedulerUtils}.
  */
-@Test(groups = {"ignore", "gobblin.util"})
+@Test(groups = {"gobblin.util"})
 public class SchedulerUtilsTest {
 
-  private static final String JOB_CONF_ROOT_DIR = "test/test-job-conf-dir";
+  private static final String JOB_CONF_ROOT_DIR = "gobblin-test/test-job-conf-dir";
 
   @BeforeClass
   public void setUp()
@@ -71,7 +71,7 @@ public class SchedulerUtilsTest {
     Properties jobProps2 = new Properties();
     jobProps2.setProperty("k7", "a7");
     // test-job-conf-dir/test1/test12.pull
-    jobProps2.store(new FileWriter(new File(subDir1, "test12.pull")), "");
+    jobProps2.store(new FileWriter(new File(subDir1, "test12.PULL")), "");
 
     Properties jobProps3 = new Properties();
     jobProps3.setProperty("k1", "d1");
@@ -89,7 +89,7 @@ public class SchedulerUtilsTest {
     Properties jobProps4 = new Properties();
     jobProps4.setProperty("k5", "b5");
     // test-job-conf-dir/test2/test21.pull
-    jobProps4.store(new FileWriter(new File(subDir2, "test21.pull")), "");
+    jobProps4.store(new FileWriter(new File(subDir2, "test21.PULL")), "");
   }
 
   @Test
