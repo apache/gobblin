@@ -12,10 +12,13 @@
 package gobblin.runtime.local;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.reflect.Constructor;
 import java.net.URI;
+import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -582,7 +585,7 @@ public class LocalJobManager extends AbstractIdleService {
 
       private void loadJobConfig(Properties jobProps, File file) {
         try {
-          jobProps.load(new FileReader(file));
+          jobProps.load(new InputStreamReader(new FileInputStream(file), Charset.defaultCharset()));
           jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, file.getAbsolutePath());
         } catch (Exception e) {
           LOG.error("Failed to load job configuration from file " + file.getAbsolutePath(), e);
