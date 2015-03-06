@@ -11,10 +11,12 @@
 
 package gobblin.runtime.util;
 
-import java.io.FileReader;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Properties;
 
@@ -203,7 +205,7 @@ public class JobStateToJsonConverter {
     }
 
     Properties properties = new Properties();
-    properties.load(new FileReader(cmd.getOptionValue('p')));
+    properties.load(new InputStreamReader(new FileInputStream(cmd.getOptionValue('p')), Charset.defaultCharset()));
     JobStateToJsonConverter converter =
         new JobStateToJsonConverter(properties, Boolean.valueOf(cmd.getOptionValue("kc")));
     StringWriter stringWriter = new StringWriter();

@@ -14,6 +14,7 @@ package gobblin.metrics;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.URI;
+import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -487,8 +488,9 @@ public class JobMetrics implements MetricSet {
         append = true;
       }
 
-      PrintStream ps = append ? this.closer.register(new PrintStream(fs.append(metricLogFile)))
-          : this.closer.register(new PrintStream(fs.create(metricLogFile)));
+      PrintStream ps = append ? this.closer
+          .register(new PrintStream(fs.append(metricLogFile), true, Charset.defaultCharset().name()))
+          : this.closer.register(new PrintStream(fs.create(metricLogFile), true, Charset.defaultCharset().name()));
       this.fileReporter = Optional
           .of(ConsoleReporter.forRegistry(this.metricRegistry).outputTo(ps).convertRatesTo(TimeUnit.SECONDS)
               .convertDurationsTo(TimeUnit.MILLISECONDS).build());
