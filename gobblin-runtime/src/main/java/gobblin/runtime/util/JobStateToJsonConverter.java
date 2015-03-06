@@ -11,14 +11,10 @@
 
 package gobblin.runtime.util;
 
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.StringWriter;
 import java.io.Writer;
-import java.nio.charset.Charset;
 import java.util.List;
-import java.util.Properties;
 
 import org.apache.commons.cli.BasicParser;
 import org.apache.commons.cli.CommandLine;
@@ -33,7 +29,6 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.stream.JsonWriter;
 
-import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
 import gobblin.runtime.JobState;
@@ -54,11 +49,9 @@ public class JobStateToJsonConverter {
   private final StateStore jobStateStore;
   private final boolean keepConfig;
 
-  public JobStateToJsonConverter(Properties properties, boolean keepConfig)
+  public JobStateToJsonConverter(String storeUrl, boolean keepConfig)
       throws IOException {
-    this.jobStateStore = new FsStateStore(
-        properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI),
-        properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY), JobState.class);
+    this.jobStateStore = new FsStateStore(storeUrl, JobState.class);
     this.keepConfig = keepConfig;
   }
 
@@ -158,13 +151,13 @@ public class JobStateToJsonConverter {
   @SuppressWarnings("all")
   public static void main(String[] args)
       throws Exception {
-    Option propertiesOption = OptionBuilder
-        .withArgName("gobblin properties file")
-        .withDescription("gobblin framework configuration properties file")
-        .withLongOpt("properties")
+    Option storeUrlOption = OptionBuilder
+        .withArgName("gobblin state store URL")
+        .withDescription("Gobblin state store root path URL")
+        .withLongOpt("storeurl")
         .hasArgs()
         .isRequired()
-        .create('p');
+        .create('u');
     Option jobNameOption = OptionBuilder
         .withArgName("gobblin job name")
         .withDescription("Gobblin job name")
@@ -188,7 +181,7 @@ public class JobStateToJsonConverter {
         .create("kc");
 
     Options options = new Options();
-    options.addOption(propertiesOption);
+    options.addOption(storeUrlOption);
     options.addOption(jobNameOption);
     options.addOption(jobIdOption);
     options.addOption(convertAllOption);
@@ -204,10 +197,7 @@ public class JobStateToJsonConverter {
       System.exit(1);
     }
 
-    Properties properties = new Properties();
-    properties.load(new InputStreamReader(new FileInputStream(cmd.getOptionValue('p')), Charset.defaultCharset()));
-    JobStateToJsonConverter converter =
-        new JobStateToJsonConverter(properties, Boolean.valueOf(cmd.getOptionValue("kc")));
+    JobStateToJsonConverter converter = new JobStateToJsonConverter(cmd.getOptionValue('u'), cmd.hasOption("kc"));
     StringWriter stringWriter = new StringWriter();
     if (cmd.hasOption('i')) {
       converter.convert(cmd.getOptionValue('n'), cmd.getOptionValue('i'), stringWriter);
