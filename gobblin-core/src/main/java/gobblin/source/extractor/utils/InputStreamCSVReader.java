@@ -11,6 +11,7 @@
 
 package gobblin.source.extractor.utils;
 
+import gobblin.configuration.ConfigurationKeys;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -39,7 +40,7 @@ public class InputStreamCSVReader {
   }
 
   public InputStreamCSVReader(InputStream input) {
-    this(new InputStreamReader(input, Charset.defaultCharset()));
+    this(new InputStreamReader(input, Charset.forName(ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
   }
 
   public InputStreamCSVReader(BufferedReader input) {
@@ -47,7 +48,8 @@ public class InputStreamCSVReader {
   }
 
   public InputStreamCSVReader(String input) {
-    this(new InputStreamReader(new ByteArrayInputStream(input.getBytes()), Charset.defaultCharset()));
+    this(new InputStreamReader(new ByteArrayInputStream(input.getBytes()),
+        Charset.forName(ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
   }
 
   public InputStreamCSVReader(Reader input, char customizedSeparator) {
@@ -55,7 +57,8 @@ public class InputStreamCSVReader {
   }
 
   public InputStreamCSVReader(InputStream input, char customizedSeparator) {
-    this(new InputStreamReader(input, Charset.defaultCharset()), customizedSeparator, '\"');
+    this(new InputStreamReader(input, Charset.forName(ConfigurationKeys.DEFAULT_CHARSET_ENCODING)), customizedSeparator,
+        '\"');
   }
 
   public InputStreamCSVReader(BufferedReader input, char customizedSeparator) {
@@ -63,8 +66,8 @@ public class InputStreamCSVReader {
   }
 
   public InputStreamCSVReader(String input, char customizedSeparator) {
-    this(new InputStreamReader(new ByteArrayInputStream(input.getBytes()), Charset.defaultCharset()),
-        customizedSeparator, '\"');
+    this(new InputStreamReader(new ByteArrayInputStream(input.getBytes()),
+        Charset.forName(ConfigurationKeys.DEFAULT_CHARSET_ENCODING)), customizedSeparator, '\"');
   }
 
   public InputStreamCSVReader(Reader input, char customizedSeparator, char enclosedChar) {
@@ -72,12 +75,13 @@ public class InputStreamCSVReader {
   }
 
   public InputStreamCSVReader(InputStream input, char customizedSeparator, char enclosedChar) {
-    this(new InputStreamReader(input, Charset.defaultCharset()), customizedSeparator, enclosedChar);
+    this(new InputStreamReader(input, Charset.forName(ConfigurationKeys.DEFAULT_CHARSET_ENCODING)), customizedSeparator,
+        enclosedChar);
   }
 
   public InputStreamCSVReader(String input, char customizedSeparator, char enclosedChar) {
-    this(new InputStreamReader(new ByteArrayInputStream(input.getBytes()), Charset.defaultCharset()),
-        customizedSeparator, enclosedChar);
+    this(new InputStreamReader(new ByteArrayInputStream(input.getBytes()),
+        Charset.forName(ConfigurationKeys.DEFAULT_CHARSET_ENCODING)), customizedSeparator, enclosedChar);
   }
 
   public InputStreamCSVReader(BufferedReader input, char separator, char enclosedChar) {

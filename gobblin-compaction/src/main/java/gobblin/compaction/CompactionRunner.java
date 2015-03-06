@@ -85,7 +85,7 @@ public class CompactionRunner {
     LOG.info("Found " + numOfJobs + " compaction tasks.");
     PrintWriter pw = new PrintWriter(
         new OutputStreamWriter(new FileOutputStream(properties.getProperty(TIMING_FILE, TIMING_FILE_DEFAULT)),
-            Charset.defaultCharset()));
+            Charset.forName("UTF-8")));
 
     for (File file : listOfFiles) {
       if (file.isFile() && !file.getName().startsWith(".")) {

@@ -365,4 +365,9 @@ public class ConfigurationKeys {
   public static final String DEFAULT_JOB_HISTORY_STORE_USER = "gobblin";
   public static final String JOB_HISTORY_STORE_PASSWORD_KEY = "job.history.store.password";
   public static final String DEFAULT_JOB_HISTORY_STORE_PASSWORD = "gobblin";
+
+  /**
+   * Other configuration properties.
+   */
+  public static final String DEFAULT_CHARSET_ENCODING = "UTF-8";
 }

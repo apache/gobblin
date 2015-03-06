@@ -205,7 +205,8 @@ public class JobStateToJsonConverter {
     }
 
     Properties properties = new Properties();
-    properties.load(new InputStreamReader(new FileInputStream(cmd.getOptionValue('p')), Charset.defaultCharset()));
+    properties.load(new InputStreamReader(new FileInputStream(cmd.getOptionValue('p')), Charset.forName(
+        ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
     JobStateToJsonConverter converter =
         new JobStateToJsonConverter(properties, Boolean.valueOf(cmd.getOptionValue("kc")));
     StringWriter stringWriter = new StringWriter();

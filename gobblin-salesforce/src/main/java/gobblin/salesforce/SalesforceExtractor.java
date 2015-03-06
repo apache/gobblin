@@ -723,7 +723,8 @@ public class SalesforceExtractor extends RestApiExtractor {
       }
 
       this.log.info("QUERY:" + query);
-      ByteArrayInputStream bout = new ByteArrayInputStream(query.getBytes(Charset.defaultCharset()));
+      ByteArrayInputStream bout = new ByteArrayInputStream(query.getBytes(Charset.forName(
+          ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
 
       this.bulkBatchInfo = bulkConnection.createBatchFromStream(this.bulkJob, bout);
 
@@ -772,9 +773,9 @@ public class SalesforceExtractor extends RestApiExtractor {
         if (this.bulkResultIdCount < this.bulkResultIdList.size()) {
           this.log.info("Stream resultset for resultId:" + bulkResultIdList.get(bulkResultIdCount));
           this.setNewBulkResultSet(true);
-          this.bulkBufferedReader =
-              new BufferedReader(new InputStreamReader(this.bulkConnection.getQueryResultStream(bulkJob.getId(),
-                  bulkBatchInfo.getId(), bulkResultIdList.get(bulkResultIdCount)), Charset.defaultCharset()));
+          this.bulkBufferedReader = new BufferedReader(new InputStreamReader(this.bulkConnection
+              .getQueryResultStream(bulkJob.getId(), bulkBatchInfo.getId(), bulkResultIdList.get(bulkResultIdCount)),
+              Charset.forName(ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
 
           this.bulkResultIdCount++;
         } else {

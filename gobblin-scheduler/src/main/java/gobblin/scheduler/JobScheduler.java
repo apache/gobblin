@@ -371,7 +371,8 @@ public class JobScheduler extends AbstractIdleService {
 
       private void loadJobConfig(Properties jobProps, File file) {
         try {
-          jobProps.load(new InputStreamReader(new FileInputStream(file), Charset.defaultCharset()));
+          jobProps.load(new InputStreamReader(new FileInputStream(file), Charset.forName(
+              ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
           jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, file.getAbsolutePath());
         } catch (Exception e) {
           LOG.error("Failed to load job configuration from file " + file.getAbsolutePath(), e);
