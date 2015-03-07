@@ -54,8 +54,8 @@ public class CompactionRunner {
   private static final String DATAFORMAT_EXTENSION_NAME = ".dataformat.extension.name";
   private static final String OUTPUT = "output";
 
-  public static Properties properties = new Properties();
-  public static Properties jobProperties = new Properties();
+  static Properties properties = new Properties();
+  static Properties jobProperties = new Properties();
 
   public static void main(String[] args) throws ConfigurationException, IOException, SQLException {
 
@@ -96,7 +96,7 @@ public class CompactionRunner {
         long endTime = System.nanoTime();
         long elapsedTime = endTime - startTime;
         double seconds = TimeUnit.NANOSECONDS.toSeconds(elapsedTime);
-        pw.printf("%s: %f\n", file.getAbsolutePath(), seconds);
+        pw.printf("%s: %f%n", file.getAbsolutePath(), seconds);
       }
     }
 
