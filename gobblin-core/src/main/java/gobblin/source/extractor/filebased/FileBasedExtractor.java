@@ -184,7 +184,7 @@ public class FileBasedExtractor<S, D> implements Extractor<S, D> {
 
     try {
       InputStream inputStream = this.fsHelper.getFileStream(file);
-      Iterator<D> fileItr = (Iterator<D>) IOUtils.lineIterator(inputStream, "UTF-8");
+      Iterator<D> fileItr = (Iterator<D>) IOUtils.lineIterator(inputStream, ConfigurationKeys.DEFAULT_CHARSET_ENCODING);
       fileHandles.put(file, inputStream);
       if (workUnitState.getPropAsBoolean(ConfigurationKeys.SOURCE_SKIP_FIRST_RECORD, false) && fileItr.hasNext()) {
         fileItr.next();
