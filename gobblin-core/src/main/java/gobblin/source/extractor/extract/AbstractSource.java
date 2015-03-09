@@ -11,6 +11,9 @@
 
 package gobblin.source.extractor.extract;
 
+import java.util.Collections;
+import java.util.List;
+
 import com.google.common.collect.Lists;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -20,9 +23,6 @@ import gobblin.source.Source;
 import gobblin.source.extractor.JobCommitPolicy;
 import gobblin.source.extractor.WorkUnitRetryPolicy;
 import gobblin.source.workunit.WorkUnit;
-
-import java.util.Collections;
-import java.util.List;
 
 
 /**

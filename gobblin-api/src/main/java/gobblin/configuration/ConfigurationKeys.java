@@ -102,7 +102,7 @@ public class ConfigurationKeys {
   public static final String TASK_RETRY_INTERVAL_IN_SEC_KEY = "task.retry.intervalinsec";
   public static final String DEFAULT_TASK_RETRY_INTERVAL_IN_SEC = "300";
   public static final String OVERWRITE_CONFIGS_IN_STATESTORE = "overwrite.configs.in.statestore";
-  public static boolean DEFAULT_OVERWRITE_CONFIGS_IN_STATESTORE = false;
+  public static final boolean DEFAULT_OVERWRITE_CONFIGS_IN_STATESTORE = Boolean.FALSE;
 
   /**
    * Configuration properties used internally.
