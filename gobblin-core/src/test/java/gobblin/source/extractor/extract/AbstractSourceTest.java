@@ -115,7 +115,7 @@ public class AbstractSourceTest {
 
   /**
    * Test when work unit retry policy is on partial, and the job commit policy is "partial".
-  */
+   */
   @Test
   public void testGetPreviousWorkUnitStatesOnPartialRetryPartialCommit() {
     TestSource testSource = new TestSource();
@@ -135,10 +135,10 @@ public class AbstractSourceTest {
   }
 
   /**
-   * Test the always-retry policy, (WORK_UNIT_RETRY_ENABLED_KEY enabled).
+   * Test the always-retry policy, with WORK_UNIT_RETRY_ENABLED_KEY enabled.
    */
   @Test
-  public void testGetPreviousWorkUnitStatesAlwaysRetry() {
+  public void testGetPreviousWorkUnitStatesEabledRetry() {
     TestSource testSource = new TestSource();
 
     SourceState sourceState = new SourceState(new State(), previousWorkUnitStates);
@@ -155,21 +155,21 @@ public class AbstractSourceTest {
   }
 
   /**
-   * Test the always-retry policy, and the overrite_configs_in_statestore enabled.
+   * Test under always-retry policy, the overrite_configs_in_statestore enabled.
    * The previous workUnitState should be reset with the config in the current source.
-  */ 
+   */
   @Test
-  public void testGetPreviousWorkUnitStatesWithConfigOverWritten() {
+  public void testGetPreviousWorkUnitStatesWithConfigOverWrittenEnabled() {
     TestSource testSource = new TestSource();
-    
+
     SourceState sourceState = new SourceState(new State(), previousWorkUnitStates);
     sourceState.setProp(ConfigurationKeys.WORK_UNIT_RETRY_POLICY_KEY, "always");
     sourceState.setProp(ConfigurationKeys.OVERWRITE_CONFIGS_IN_STATESTORE, Boolean.TRUE);
-    
+
     // random properties for test
     sourceState.setProp("a", "1");
     sourceState.setProp("b", "2");
-  
+
     List<WorkUnitState> returnedWorkUnitStates = testSource.getPreviousWorkUnitStatesForRetry(sourceState);
     Assert.assertEquals(returnedWorkUnitStates.size(), 2);
     Assert.assertEquals(
@@ -177,10 +177,39 @@ public class AbstractSourceTest {
             .get(1).getWorkingState().equals(WorkingState.FAILED))
             || (returnedWorkUnitStates.get(0).getWorkingState().equals(WorkingState.FAILED) && returnedWorkUnitStates
                 .get(1).getWorkingState().equals(WorkingState.SUCCESSFUL)), true);
-   
+
     for (WorkUnitState workUnitState : returnedWorkUnitStates) {
       Assert.assertEquals(workUnitState.getProp("a"), "1");
       Assert.assertEquals(workUnitState.getProp("b"), "2");
+    }
+  }
+
+  /**
+   * Test under always-retry policy, the overrite_configs_in_statestore disabled (default).
+   * The previous workUnitState would not be reset with the config in the current source.
+   */
+  @Test
+  public void testGetPreviousWorkUnitStatesWithConfigOverWrittenDisabled() {
+    TestSource testSource = new TestSource();
+
+    SourceState sourceState = new SourceState(new State(), previousWorkUnitStates);
+    sourceState.setProp(ConfigurationKeys.WORK_UNIT_RETRY_POLICY_KEY, "always");
+
+    // random properties for test
+    sourceState.setProp("a", "1");
+    sourceState.setProp("b", "2");
+
+    List<WorkUnitState> returnedWorkUnitStates = testSource.getPreviousWorkUnitStatesForRetry(sourceState);
+    Assert.assertEquals(returnedWorkUnitStates.size(), 2);
+    Assert.assertEquals(
+        (returnedWorkUnitStates.get(0).getWorkingState().equals(WorkingState.SUCCESSFUL) && returnedWorkUnitStates
+            .get(1).getWorkingState().equals(WorkingState.FAILED))
+            || (returnedWorkUnitStates.get(0).getWorkingState().equals(WorkingState.FAILED) && returnedWorkUnitStates
+                .get(1).getWorkingState().equals(WorkingState.SUCCESSFUL)), true);
+
+    for (WorkUnitState workUnitState : returnedWorkUnitStates) {
+      Assert.assertEquals(workUnitState.contains("a"), false);
+      Assert.assertEquals(workUnitState.contains("b"), false);
     }
   }
 
