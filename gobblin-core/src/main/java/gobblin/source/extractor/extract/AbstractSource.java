@@ -11,8 +11,6 @@
 
 package gobblin.source.extractor.extract;
 
-import gobblin.source.extractor.JobCommitPolicy;
-import gobblin.source.extractor.WorkUnitRetryPolicy;
 import java.util.Collections;
 import java.util.List;
 
@@ -22,6 +20,8 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.Source;
+import gobblin.source.extractor.JobCommitPolicy;
+import gobblin.source.extractor.WorkUnitRetryPolicy;
 import gobblin.source.workunit.WorkUnit;
 
 
@@ -75,6 +75,11 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
     // Get previous work units that were not successfully committed (subject for retries)
     for (WorkUnitState workUnitState : state.getPreviousWorkUnitStates()) {
       if (workUnitState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED) {
+        if (state.getPropAsBoolean(ConfigurationKeys.OVERWRITE_CONFIGS_IN_STATESTORE,
+            ConfigurationKeys.DEFAULT_OVERWRITE_CONFIGS_IN_STATESTORE)) {
+          workUnitState.addAll(state);
+        }
+
         previousWorkUnitStates.add(workUnitState);
       }
     }
