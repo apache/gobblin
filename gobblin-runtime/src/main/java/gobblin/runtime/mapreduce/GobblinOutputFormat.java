@@ -1,3 +1,14 @@
+/* (c) 2014 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.runtime.mapreduce;
 
 import java.io.DataInputStream;
@@ -61,29 +72,46 @@ public class GobblinOutputFormat extends NullOutputFormat<NullWritable, NullWrit
       Path mrJobDir =
           new Path(conf.get(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY), conf.get(ConfigurationKeys.JOB_NAME_KEY));
       Path jobInputDir = new Path(mrJobDir, "input");
-      System.out.println("Checking: " + jobInputDir);
+
+      if (!fs.exists(jobInputDir) || !fs.getFileStatus(jobInputDir).isDir()) {
+        return;
+      }
+
       // Iterate through all files in the jobInputDir, each file should correspond to a serialized wu or mwu
-      for (FileStatus status : fs.listStatus(jobInputDir, new WorkUnitFilter())) {
+      try {
+        for (FileStatus status : fs.listStatus(jobInputDir, new WorkUnitFilter())) {
 
-        Closer workUnitFileCloser = Closer.create();
-        if (status.getPath().getName().endsWith(".wu")) {
-          WorkUnit wu = new WorkUnit();
-          wu.readFields(workUnitFileCloser.register(new DataInputStream(fs.open(status.getPath()))));
-          workUnitFileCloser.close();
+          Closer workUnitFileCloser = Closer.create();
 
-          JobLauncherUtils.cleanStagingData(wu, LOG);
-        }
-        if (status.getPath().getName().endsWith(".mwu")) {
-          MultiWorkUnit mwu = new MultiWorkUnit();
-          mwu.readFields(workUnitFileCloser.register(new DataInputStream(fs.open(status.getPath()))));
-          workUnitFileCloser.close();
-
-          for (WorkUnit wu : mwu.getWorkUnits()) {
+          // If the file ends with ".wu" de-serialize it into a WorkUnit
+          if (status.getPath().getName().endsWith(".wu")) {
+            WorkUnit wu = new WorkUnit();
+            try {
+              wu.readFields(workUnitFileCloser.register(new DataInputStream(fs.open(status.getPath()))));
+            } finally {
+              workUnitFileCloser.close();
+            }
             JobLauncherUtils.cleanStagingData(wu, LOG);
           }
+
+          // If the file ends with ".mwu" de-serialize it into a MultiWorkUnit
+          if (status.getPath().getName().endsWith(".mwu")) {
+            MultiWorkUnit mwu = new MultiWorkUnit();
+            try {
+              mwu.readFields(workUnitFileCloser.register(new DataInputStream(fs.open(status.getPath()))));
+            } finally {
+              workUnitFileCloser.close();
+            }
+            for (WorkUnit wu : mwu.getWorkUnits()) {
+              JobLauncherUtils.cleanStagingData(wu, LOG);
+            }
+          }
+        }
+      } finally {
+        if (fs.exists(mrJobDir)) {
+          fs.delete(mrJobDir, true);
         }
       }
-      fs.delete(mrJobDir, true);
     }
 
     @Override
@@ -124,7 +152,7 @@ public class GobblinOutputFormat extends NullOutputFormat<NullWritable, NullWrit
     private class WorkUnitFilter implements PathFilter {
       @Override
       public boolean accept(Path path) {
-        return path.toString().endsWith(".wu") || path.toString().endsWith(".mwu");
+        return path.getName().endsWith(".wu") || path.toString().endsWith(".mwu");
       }
     }
   }
