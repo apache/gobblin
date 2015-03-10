@@ -58,10 +58,10 @@ public class AbstractSourceTest {
    */
   @Test
   public void testGetPreviousWorkUnitStatesNeverRetry() {
-    SourceState sourceState = new SourceState(new State(), previousWorkUnitStates);
+    SourceState sourceState = new SourceState(new State(), this.previousWorkUnitStates);
     sourceState.setProp(ConfigurationKeys.WORK_UNIT_RETRY_POLICY_KEY, "never");
 
-    Assert.assertEquals(testSource.getPreviousWorkUnitStatesForRetry(sourceState), Collections.EMPTY_LIST);
+    Assert.assertEquals(this.testSource.getPreviousWorkUnitStatesForRetry(sourceState), Collections.EMPTY_LIST);
   }
 
   /**
@@ -69,10 +69,10 @@ public class AbstractSourceTest {
    */
   @Test
   public void testGetPreviousWorkUnitStatesDisabledRetry() {
-    SourceState sourceState = new SourceState(new State(), previousWorkUnitStates);
+    SourceState sourceState = new SourceState(new State(), this.previousWorkUnitStates);
     sourceState.setProp(ConfigurationKeys.WORK_UNIT_RETRY_ENABLED_KEY, Boolean.FALSE);
 
-    Assert.assertEquals(testSource.getPreviousWorkUnitStatesForRetry(sourceState), Collections.EMPTY_LIST);
+    Assert.assertEquals(this.testSource.getPreviousWorkUnitStatesForRetry(sourceState), Collections.EMPTY_LIST);
   }
 
   /**
@@ -80,11 +80,11 @@ public class AbstractSourceTest {
    */
   @Test
   public void testGetPreviousWorkUnitStatesOnPartialRetryFullCommit() {
-    SourceState sourceState = new SourceState(new State(), previousWorkUnitStates);
+    SourceState sourceState = new SourceState(new State(), this.previousWorkUnitStates);
     sourceState.setProp(ConfigurationKeys.WORK_UNIT_RETRY_POLICY_KEY, "onpartial");
     sourceState.setProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "full");
 
-    Assert.assertEquals(testSource.getPreviousWorkUnitStatesForRetry(sourceState), Collections.EMPTY_LIST);
+    Assert.assertEquals(this.testSource.getPreviousWorkUnitStatesForRetry(sourceState), Collections.EMPTY_LIST);
   }
 
   /**
@@ -92,11 +92,11 @@ public class AbstractSourceTest {
    */
   @Test
   public void testGetPreviousWorkUnitStatesOnFullRetryPartialCommit() {
-    SourceState sourceState = new SourceState(new State(), previousWorkUnitStates);
+    SourceState sourceState = new SourceState(new State(), this.previousWorkUnitStates);
     sourceState.setProp(ConfigurationKeys.WORK_UNIT_RETRY_POLICY_KEY, "onfull");
     sourceState.setProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "partial");
 
-    Assert.assertEquals(testSource.getPreviousWorkUnitStatesForRetry(sourceState), Collections.EMPTY_LIST);
+    Assert.assertEquals(this.testSource.getPreviousWorkUnitStatesForRetry(sourceState), Collections.EMPTY_LIST);
   }
 
   /**
@@ -104,11 +104,11 @@ public class AbstractSourceTest {
    */
   @Test
   public void testGetPreviousWorkUnitStatesOnFullRetryFullCommit() {
-    SourceState sourceState = new SourceState(new State(), previousWorkUnitStates);
+    SourceState sourceState = new SourceState(new State(), this.previousWorkUnitStates);
     sourceState.setProp(ConfigurationKeys.WORK_UNIT_RETRY_POLICY_KEY, "onfull");
     sourceState.setProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "full");
 
-    List<WorkUnitState> returnedWorkUnitStates = testSource.getPreviousWorkUnitStatesForRetry(sourceState);
+    List<WorkUnitState> returnedWorkUnitStates = this.testSource.getPreviousWorkUnitStatesForRetry(sourceState);
 
     Assert.assertEquals(returnedWorkUnitStates, this.expectedPreviousWorkUnitStates);
   }
@@ -118,11 +118,11 @@ public class AbstractSourceTest {
    */
   @Test
   public void testGetPreviousWorkUnitStatesOnPartialRetryPartialCommit() {
-    SourceState sourceState = new SourceState(new State(), previousWorkUnitStates);
+    SourceState sourceState = new SourceState(new State(), this.previousWorkUnitStates);
     sourceState.setProp(ConfigurationKeys.WORK_UNIT_RETRY_POLICY_KEY, "onpartial");
     sourceState.setProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "partial");
 
-    List<WorkUnitState> returnedWorkUnitStates = testSource.getPreviousWorkUnitStatesForRetry(sourceState);
+    List<WorkUnitState> returnedWorkUnitStates = this.testSource.getPreviousWorkUnitStatesForRetry(sourceState);
 
     Assert.assertEquals(returnedWorkUnitStates, this.expectedPreviousWorkUnitStates);
   }
@@ -132,10 +132,10 @@ public class AbstractSourceTest {
    */
   @Test
   public void testGetPreviousWorkUnitStatesEabledRetry() {
-    SourceState sourceState = new SourceState(new State(), previousWorkUnitStates);
+    SourceState sourceState = new SourceState(new State(), this.previousWorkUnitStates);
     sourceState.setProp(ConfigurationKeys.WORK_UNIT_RETRY_ENABLED_KEY, Boolean.TRUE);
 
-    List<WorkUnitState> returnedWorkUnitStates = testSource.getPreviousWorkUnitStatesForRetry(sourceState);
+    List<WorkUnitState> returnedWorkUnitStates = this.testSource.getPreviousWorkUnitStatesForRetry(sourceState);
 
     Assert.assertEquals(returnedWorkUnitStates, this.expectedPreviousWorkUnitStates);
   }
@@ -146,7 +146,7 @@ public class AbstractSourceTest {
    */
   @Test
   public void testGetPreviousWorkUnitStatesWithConfigOverWrittenEnabled() {
-    SourceState sourceState = new SourceState(new State(), previousWorkUnitStates);
+    SourceState sourceState = new SourceState(new State(), this.previousWorkUnitStates);
     sourceState.setProp(ConfigurationKeys.WORK_UNIT_RETRY_POLICY_KEY, "always");
     sourceState.setProp(ConfigurationKeys.OVERWRITE_CONFIGS_IN_STATESTORE, Boolean.TRUE);
 
@@ -154,7 +154,7 @@ public class AbstractSourceTest {
     sourceState.setProp("a", "1");
     sourceState.setProp("b", "2");
 
-    List<WorkUnitState> returnedWorkUnitStates = testSource.getPreviousWorkUnitStatesForRetry(sourceState);
+    List<WorkUnitState> returnedWorkUnitStates = this.testSource.getPreviousWorkUnitStatesForRetry(sourceState);
 
     Assert.assertEquals(returnedWorkUnitStates, this.expectedPreviousWorkUnitStates);
 
@@ -170,14 +170,14 @@ public class AbstractSourceTest {
    */
   @Test
   public void testGetPreviousWorkUnitStatesWithConfigOverWrittenDisabled() {
-    SourceState sourceState = new SourceState(new State(), previousWorkUnitStates);
+    SourceState sourceState = new SourceState(new State(), this.previousWorkUnitStates);
     sourceState.setProp(ConfigurationKeys.WORK_UNIT_RETRY_POLICY_KEY, "always");
 
     // random properties for test
     sourceState.setProp("a", "1");
     sourceState.setProp("b", "2");
 
-    List<WorkUnitState> returnedWorkUnitStates = testSource.getPreviousWorkUnitStatesForRetry(sourceState);
+    List<WorkUnitState> returnedWorkUnitStates = this.testSource.getPreviousWorkUnitStatesForRetry(sourceState);
 
     Assert.assertEquals(returnedWorkUnitStates, this.expectedPreviousWorkUnitStates);
 
