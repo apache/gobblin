@@ -100,7 +100,7 @@ public class SchedulerUtils {
         // Load the properties, which may overwrite the same properties defined in the parent or ancestor directories.
         rootProps.load(closer.register(
             new InputStreamReader(new FileInputStream(new File(jobConfigDir, propertiesFiles[0])),
-                Charset.defaultCharset())));
+                Charset.forName(ConfigurationKeys.DEFAULT_CHARSET_ENCODING))));
       }
 
       String[] names = jobConfigDir.list();

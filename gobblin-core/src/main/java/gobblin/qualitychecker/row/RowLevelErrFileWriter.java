@@ -19,6 +19,8 @@ import java.nio.charset.Charset;
 
 import org.apache.hadoop.fs.Path;
 
+import gobblin.configuration.ConfigurationKeys;
+
 
 /**
  * A writer to store records that don't pass
@@ -36,7 +38,8 @@ public class RowLevelErrFileWriter {
   public void open(Path errFilePath)
       throws IOException {
     this.writer = new BufferedWriter(
-        new OutputStreamWriter(new FileOutputStream(errFilePath.toString()), Charset.defaultCharset()));
+        new OutputStreamWriter(new FileOutputStream(errFilePath.toString()), Charset.forName(
+            ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
   }
 
   /**

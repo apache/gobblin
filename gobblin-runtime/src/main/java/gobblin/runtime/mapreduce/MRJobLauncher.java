@@ -331,7 +331,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
       Path jobInputFile = new Path(jobInputPath, jobId + ".wulist");
       // Open the job input file
       OutputStream os = closer.register(this.fs.create(jobInputFile));
-      Writer osw = closer.register(new OutputStreamWriter(os, Charset.defaultCharset()));
+      Writer osw = closer.register(new OutputStreamWriter(os, Charset.forName(
+          ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
       Writer bw = closer.register(new BufferedWriter(osw));
 
       // Serialize each work unit into a file named after the task ID

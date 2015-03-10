@@ -159,8 +159,8 @@ public abstract class JobLauncherTestBase {
       throws Exception {
     // Read the DDL statements
     List<String> statementLines = Lists.newArrayList();
-    List<String> lines = Files
-        .readLines(new File("gobblin-metastore/src/test/resources/gobblin_job_history_store.sql"), Charset.defaultCharset());
+    List<String> lines = Files.readLines(new File("gobblin-metastore/src/test/resources/gobblin_job_history_store.sql"),
+        Charset.forName(ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
     for (String line : lines) {
       // Skip a comment line
       if (line.startsWith("--")) {

@@ -59,7 +59,6 @@ public class FsStateStore implements StateStore {
 
   public FsStateStore(String fsUri, String storeRootDir, Class<? extends State> stateClass)
       throws IOException {
-
     this.conf = new Configuration();
     this.fs = FileSystem.get(URI.create(fsUri), this.conf);
     this.storeRootDir = storeRootDir;
@@ -68,10 +67,18 @@ public class FsStateStore implements StateStore {
 
   public FsStateStore(FileSystem fs, String storeRootDir, Class<? extends State> stateClass)
       throws IOException {
-
     this.fs = fs;
     this.conf = this.fs.getConf();
     this.storeRootDir = storeRootDir;
+    this.stateClass = stateClass;
+  }
+
+  public FsStateStore(String storeUrl, Class<? extends State> stateClass)
+      throws IOException {
+    this.conf = new Configuration();
+    Path storePath = new Path(storeUrl);
+    this.fs = storePath.getFileSystem(this.conf);
+    this.storeRootDir = storePath.toUri().getPath();
     this.stateClass = stateClass;
   }
 
@@ -131,7 +138,6 @@ public class FsStateStore implements StateStore {
   @Override
   public void putAll(String storeName, String tableName, Collection<? extends State> states)
       throws IOException {
-
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
     if (!this.fs.exists(tablePath) && !create(storeName, tableName)) {
       throw new IOException("Failed to create a state file for table " + tableName);
@@ -157,7 +163,6 @@ public class FsStateStore implements StateStore {
   @Override
   public State get(String storeName, String tableName, String stateId)
       throws IOException {
-
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
     if (!this.fs.exists(tablePath)) {
       return null;
@@ -189,7 +194,6 @@ public class FsStateStore implements StateStore {
   @Override
   public List<? extends State> getAll(String storeName, String tableName)
       throws IOException {
-
     List<State> states = Lists.newArrayList();
 
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
@@ -240,7 +244,6 @@ public class FsStateStore implements StateStore {
   @Override
   public void createAlias(String storeName, String original, String alias)
       throws IOException {
-
     Path originalTablePath = new Path(new Path(this.storeRootDir, storeName), original);
     if (!this.fs.exists(originalTablePath)) {
       throw new IOException(String.format("State file %s does not exist for table %s", originalTablePath, original));
