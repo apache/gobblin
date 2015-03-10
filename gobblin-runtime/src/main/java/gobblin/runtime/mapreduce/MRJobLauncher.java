@@ -199,6 +199,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     // Job input path is where input work unit files are stored
     Path jobInputPath = new Path(mrJobDir, "input");
+
     // Prepare job input
     Path jobInputFile = prepareJobInput(jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY), jobInputPath, workUnits);
     NLineInputFormat.addInputPath(this.job, jobInputFile);
