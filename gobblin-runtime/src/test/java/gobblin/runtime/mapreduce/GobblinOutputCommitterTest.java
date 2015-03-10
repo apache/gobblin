@@ -20,9 +20,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.JobStatus;
-import org.apache.hadoop.mapreduce.OutputCommitter;
-import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.hadoop.mapreduce.TaskAttemptID;
 
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -42,7 +39,7 @@ import gobblin.util.ForkOperatorUtils;
  * Unit tests for {@link GobblinOutputFormat}
  */
 @Test(groups = { "gobblin.runtime.mapreduce" })
-public class GobblinOutputFormatTest {
+public class GobblinOutputCommitterTest {
 
   private Configuration conf;
   private FileSystem fs;
@@ -100,10 +97,7 @@ public class GobblinOutputFormatTest {
     conf.set(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY, OUTPUT_PATH.toString());
     conf.set(ConfigurationKeys.JOB_NAME_KEY, JOB_NAME);
 
-    TaskAttemptID taskAttemptId = new TaskAttemptID();
-    TaskAttemptContext context = new TaskAttemptContext(conf, taskAttemptId);
-    OutputCommitter ouputCommitter = new GobblinOutputFormat().getOutputCommitter(context);
-    ouputCommitter.abortJob(Job.getInstance(conf), JobStatus.State.RUNNING);
+    new GobblinOutputCommitter().abortJob(Job.getInstance(conf), JobStatus.State.RUNNING);
 
     // Make sure all the staging dirs have been deleted
     for (Path stagingDir : this.stagingDirs) {
