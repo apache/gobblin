@@ -100,10 +100,7 @@ public class GobblinOutputFormatTest {
     conf.set(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY, OUTPUT_PATH.toString());
     conf.set(ConfigurationKeys.JOB_NAME_KEY, JOB_NAME);
 
-    TaskAttemptID taskAttemptId = new TaskAttemptID();
-    TaskAttemptContext context = new TaskAttemptContext(conf, taskAttemptId);
-    OutputCommitter ouputCommitter = new GobblinOutputFormat().getOutputCommitter(context);
-    ouputCommitter.abortJob(Job.getInstance(conf), JobStatus.State.RUNNING);
+    new GobblinOutputCommitter().abortJob(Job.getInstance(conf), JobStatus.State.RUNNING);
 
     // Make sure all the staging dirs have been deleted
     for (Path stagingDir : this.stagingDirs) {
