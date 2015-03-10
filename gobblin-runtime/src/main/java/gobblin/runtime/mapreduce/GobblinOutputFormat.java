@@ -74,7 +74,7 @@ public class GobblinOutputFormat extends NullOutputFormat<NullWritable, NullWrit
       Path jobInputDir = new Path(mrJobDir, "input");
 
       if (!fs.exists(jobInputDir) || !fs.getFileStatus(jobInputDir).isDir()) {
-        LOG.warn("Folder " + jobInputDir + " containg serialized WorkUnits doesn't exist. No data will cleaned up.");
+        LOG.warn("Folder " + jobInputDir + " containing serialized WorkUnits doesn't exist. No data will cleaned up.");
         return;
       }
 

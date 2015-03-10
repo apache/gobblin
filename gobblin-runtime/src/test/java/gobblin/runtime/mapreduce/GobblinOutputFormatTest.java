@@ -71,7 +71,7 @@ public class GobblinOutputFormatTest {
     mwu1.setProp(ConfigurationKeys.TASK_ID_KEY, System.nanoTime());
     mwu1.addWorkUnits(Arrays.asList(wu3, wu4));
 
-    Path inputDir = new Path(OUTPUT_PATH, "input");
+    Path inputDir = new Path(new Path(OUTPUT_PATH, JOB_NAME), "input");
 
     // Writer each WorkUnit to a separate file under inputDir
     Closer closer = Closer.create();
