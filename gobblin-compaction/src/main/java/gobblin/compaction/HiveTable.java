@@ -20,6 +20,8 @@ import java.util.UUID;
 
 import org.apache.commons.lang.StringUtils;
 
+import gobblin.hive.util.HiveJdbcConnector;
+
 
 /**
  * A class for managing general Hive tables.
