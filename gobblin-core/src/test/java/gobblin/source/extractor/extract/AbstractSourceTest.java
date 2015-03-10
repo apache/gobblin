@@ -1,10 +1,25 @@
-package gobblin.source.extractor.extract;
+/* (c) 2014 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
 
-import com.google.common.collect.Lists;
+package gobblin.source.extractor.extract;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+
+import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
+import com.google.common.collect.Lists;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
@@ -12,30 +27,30 @@ import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.WorkUnitState.WorkingState;
 import gobblin.source.extractor.Extractor;
-import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
 
+@Test(groups = { "gobblin.source.extractor.extract" })
 public class AbstractSourceTest {
 
-  WorkUnitState committedWorkUnitState;
-  WorkUnitState successfulWorkUnitState;
-  WorkUnitState failedWorkUnitState;
-  List<WorkUnitState> previousWorkUnitStates;
+  private TestSource testSource;
+  private List<WorkUnitState> previousWorkUnitStates;
+  private List<WorkUnitState> expectedPreviousWorkUnitStates;
 
   @BeforeClass
   public void setUpBeforeClass() {
+    this.testSource = new TestSource();
+    
     WorkUnitState committedWorkUnitState = new WorkUnitState();
     committedWorkUnitState.setWorkingState(WorkingState.COMMITTED);
     WorkUnitState successfulWorkUnitState = new WorkUnitState();
     successfulWorkUnitState.setWorkingState(WorkingState.SUCCESSFUL);
     WorkUnitState failedWorkUnitState = new WorkUnitState();
     failedWorkUnitState.setWorkingState(WorkingState.FAILED);
-    previousWorkUnitStates = Lists.newArrayList();
-    previousWorkUnitStates.add(committedWorkUnitState);
-    previousWorkUnitStates.add(successfulWorkUnitState);
-    previousWorkUnitStates.add(failedWorkUnitState);
+    
+    this.previousWorkUnitStates =
+        Lists.newArrayList(committedWorkUnitState, successfulWorkUnitState, failedWorkUnitState);
+    this.expectedPreviousWorkUnitStates = Lists.newArrayList(successfulWorkUnitState, failedWorkUnitState);
+
   }
 
   /**
@@ -43,8 +58,6 @@ public class AbstractSourceTest {
    */
   @Test
   public void testGetPreviousWorkUnitStatesNeverRetry() {
-    TestSource testSource = new TestSource();
-
     SourceState sourceState = new SourceState(new State(), previousWorkUnitStates);
     sourceState.setProp(ConfigurationKeys.WORK_UNIT_RETRY_POLICY_KEY, "never");
 
@@ -56,8 +69,6 @@ public class AbstractSourceTest {
    */
   @Test
   public void testGetPreviousWorkUnitStatesDisabledRetry() {
-    TestSource testSource = new TestSource();
-
     SourceState sourceState = new SourceState(new State(), previousWorkUnitStates);
     sourceState.setProp(ConfigurationKeys.WORK_UNIT_RETRY_ENABLED_KEY, Boolean.FALSE);
 
@@ -69,8 +80,6 @@ public class AbstractSourceTest {
    */
   @Test
   public void testGetPreviousWorkUnitStatesOnPartialRetryFullCommit() {
-    TestSource testSource = new TestSource();
-
     SourceState sourceState = new SourceState(new State(), previousWorkUnitStates);
     sourceState.setProp(ConfigurationKeys.WORK_UNIT_RETRY_POLICY_KEY, "onpartial");
     sourceState.setProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "full");
@@ -83,8 +92,6 @@ public class AbstractSourceTest {
    */
   @Test
   public void testGetPreviousWorkUnitStatesOnFullRetryPartialCommit() {
-    TestSource testSource = new TestSource();
-
     SourceState sourceState = new SourceState(new State(), previousWorkUnitStates);
     sourceState.setProp(ConfigurationKeys.WORK_UNIT_RETRY_POLICY_KEY, "onfull");
     sourceState.setProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "partial");
@@ -97,20 +104,13 @@ public class AbstractSourceTest {
    */
   @Test
   public void testGetPreviousWorkUnitStatesOnFullRetryFullCommit() {
-    TestSource testSource = new TestSource();
-
     SourceState sourceState = new SourceState(new State(), previousWorkUnitStates);
     sourceState.setProp(ConfigurationKeys.WORK_UNIT_RETRY_POLICY_KEY, "onfull");
     sourceState.setProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "full");
 
     List<WorkUnitState> returnedWorkUnitStates = testSource.getPreviousWorkUnitStatesForRetry(sourceState);
 
-    Assert.assertEquals(returnedWorkUnitStates.size(), 2);
-    Assert.assertEquals(
-        (returnedWorkUnitStates.get(0).getWorkingState().equals(WorkingState.SUCCESSFUL) && returnedWorkUnitStates
-            .get(1).getWorkingState().equals(WorkingState.FAILED))
-            || (returnedWorkUnitStates.get(0).getWorkingState().equals(WorkingState.FAILED) && returnedWorkUnitStates
-                .get(1).getWorkingState().equals(WorkingState.SUCCESSFUL)), true);
+    Assert.assertEquals(returnedWorkUnitStates, this.expectedPreviousWorkUnitStates);
   }
 
   /**
@@ -118,20 +118,13 @@ public class AbstractSourceTest {
    */
   @Test
   public void testGetPreviousWorkUnitStatesOnPartialRetryPartialCommit() {
-    TestSource testSource = new TestSource();
-
     SourceState sourceState = new SourceState(new State(), previousWorkUnitStates);
     sourceState.setProp(ConfigurationKeys.WORK_UNIT_RETRY_POLICY_KEY, "onpartial");
     sourceState.setProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "partial");
 
     List<WorkUnitState> returnedWorkUnitStates = testSource.getPreviousWorkUnitStatesForRetry(sourceState);
 
-    Assert.assertEquals(returnedWorkUnitStates.size(), 2);
-    Assert.assertEquals(
-        (returnedWorkUnitStates.get(0).getWorkingState().equals(WorkingState.SUCCESSFUL) && returnedWorkUnitStates
-            .get(1).getWorkingState().equals(WorkingState.FAILED))
-            || (returnedWorkUnitStates.get(0).getWorkingState().equals(WorkingState.FAILED) && returnedWorkUnitStates
-                .get(1).getWorkingState().equals(WorkingState.SUCCESSFUL)), true);
+    Assert.assertEquals(returnedWorkUnitStates, this.expectedPreviousWorkUnitStates);
   }
 
   /**
@@ -139,19 +132,12 @@ public class AbstractSourceTest {
    */
   @Test
   public void testGetPreviousWorkUnitStatesEabledRetry() {
-    TestSource testSource = new TestSource();
-
     SourceState sourceState = new SourceState(new State(), previousWorkUnitStates);
     sourceState.setProp(ConfigurationKeys.WORK_UNIT_RETRY_ENABLED_KEY, Boolean.TRUE);
 
     List<WorkUnitState> returnedWorkUnitStates = testSource.getPreviousWorkUnitStatesForRetry(sourceState);
 
-    Assert.assertEquals(returnedWorkUnitStates.size(), 2);
-    Assert.assertEquals(
-        (returnedWorkUnitStates.get(0).getWorkingState().equals(WorkingState.SUCCESSFUL) && returnedWorkUnitStates
-            .get(1).getWorkingState().equals(WorkingState.FAILED))
-            || (returnedWorkUnitStates.get(0).getWorkingState().equals(WorkingState.FAILED) && returnedWorkUnitStates
-                .get(1).getWorkingState().equals(WorkingState.SUCCESSFUL)), true);
+    Assert.assertEquals(returnedWorkUnitStates, this.expectedPreviousWorkUnitStates);
   }
 
   /**
@@ -160,8 +146,6 @@ public class AbstractSourceTest {
    */
   @Test
   public void testGetPreviousWorkUnitStatesWithConfigOverWrittenEnabled() {
-    TestSource testSource = new TestSource();
-
     SourceState sourceState = new SourceState(new State(), previousWorkUnitStates);
     sourceState.setProp(ConfigurationKeys.WORK_UNIT_RETRY_POLICY_KEY, "always");
     sourceState.setProp(ConfigurationKeys.OVERWRITE_CONFIGS_IN_STATESTORE, Boolean.TRUE);
@@ -171,12 +155,8 @@ public class AbstractSourceTest {
     sourceState.setProp("b", "2");
 
     List<WorkUnitState> returnedWorkUnitStates = testSource.getPreviousWorkUnitStatesForRetry(sourceState);
-    Assert.assertEquals(returnedWorkUnitStates.size(), 2);
-    Assert.assertEquals(
-        (returnedWorkUnitStates.get(0).getWorkingState().equals(WorkingState.SUCCESSFUL) && returnedWorkUnitStates
-            .get(1).getWorkingState().equals(WorkingState.FAILED))
-            || (returnedWorkUnitStates.get(0).getWorkingState().equals(WorkingState.FAILED) && returnedWorkUnitStates
-                .get(1).getWorkingState().equals(WorkingState.SUCCESSFUL)), true);
+
+    Assert.assertEquals(returnedWorkUnitStates, this.expectedPreviousWorkUnitStates);
 
     for (WorkUnitState workUnitState : returnedWorkUnitStates) {
       Assert.assertEquals(workUnitState.getProp("a"), "1");
@@ -190,8 +170,6 @@ public class AbstractSourceTest {
    */
   @Test
   public void testGetPreviousWorkUnitStatesWithConfigOverWrittenDisabled() {
-    TestSource testSource = new TestSource();
-
     SourceState sourceState = new SourceState(new State(), previousWorkUnitStates);
     sourceState.setProp(ConfigurationKeys.WORK_UNIT_RETRY_POLICY_KEY, "always");
 
@@ -200,12 +178,8 @@ public class AbstractSourceTest {
     sourceState.setProp("b", "2");
 
     List<WorkUnitState> returnedWorkUnitStates = testSource.getPreviousWorkUnitStatesForRetry(sourceState);
-    Assert.assertEquals(returnedWorkUnitStates.size(), 2);
-    Assert.assertEquals(
-        (returnedWorkUnitStates.get(0).getWorkingState().equals(WorkingState.SUCCESSFUL) && returnedWorkUnitStates
-            .get(1).getWorkingState().equals(WorkingState.FAILED))
-            || (returnedWorkUnitStates.get(0).getWorkingState().equals(WorkingState.FAILED) && returnedWorkUnitStates
-                .get(1).getWorkingState().equals(WorkingState.SUCCESSFUL)), true);
+
+    Assert.assertEquals(returnedWorkUnitStates, this.expectedPreviousWorkUnitStates);
 
     for (WorkUnitState workUnitState : returnedWorkUnitStates) {
       Assert.assertEquals(workUnitState.contains("a"), false);
