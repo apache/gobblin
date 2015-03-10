@@ -74,6 +74,7 @@ public class GobblinOutputFormat extends NullOutputFormat<NullWritable, NullWrit
       Path jobInputDir = new Path(mrJobDir, "input");
 
       if (!fs.exists(jobInputDir) || !fs.getFileStatus(jobInputDir).isDir()) {
+        LOG.warn("Folder " + jobInputDir + " containg serialized WorkUnits doesn't exist. No data will cleaned up.");
         return;
       }
 
@@ -152,7 +153,7 @@ public class GobblinOutputFormat extends NullOutputFormat<NullWritable, NullWrit
     private class WorkUnitFilter implements PathFilter {
       @Override
       public boolean accept(Path path) {
-        return path.getName().endsWith(".wu") || path.toString().endsWith(".mwu");
+        return path.getName().endsWith(".wu") || path.getName().endsWith(".mwu");
       }
     }
   }
