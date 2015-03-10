@@ -489,8 +489,9 @@ public class JobMetrics implements MetricSet {
       }
 
       PrintStream ps = append ? this.closer
-          .register(new PrintStream(fs.append(metricLogFile), true, Charset.defaultCharset().name()))
-          : this.closer.register(new PrintStream(fs.create(metricLogFile), true, Charset.defaultCharset().name()));
+          .register(new PrintStream(fs.append(metricLogFile), true, ConfigurationKeys.DEFAULT_CHARSET_ENCODING))
+          : this.closer
+              .register(new PrintStream(fs.create(metricLogFile), true, ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
       this.fileReporter = Optional
           .of(ConsoleReporter.forRegistry(this.metricRegistry).outputTo(ps).convertRatesTo(TimeUnit.SECONDS)
               .convertDurationsTo(TimeUnit.MILLISECONDS).build());
