@@ -132,6 +132,38 @@ public class HiveJdbcConnector implements Closeable {
     this.stmt = this.conn.createStatement();
   }
 
+  /**
+   * Helper method to parse the a {@link Properties} object and setup the HiveJdbcConnector based on the values
+   * in the config.
+   * @throws SQLException if there is a problem setting up the JDBC connection
+   */
+  public void configureHiveJdbcConnector(Properties compactRunProps) throws SQLException {
+    // Set the Hive Server type
+    if (compactRunProps.containsKey(HIVESERVER_VERSION)) {
+      this.withHiveServerVersion(Integer.valueOf(compactRunProps.getProperty(HIVESERVER_VERSION)));
+    }
+
+    // Add the Hive Site Dir to the classpath
+    if (compactRunProps.containsKey(HIVESITE_DIR)) {
+      this.addHiveSiteDirToClasspath(compactRunProps.getProperty(HIVESITE_DIR));
+    }
+
+    // Set and create the Hive JDBC connection
+    if (compactRunProps.containsKey(HIVESERVER_CONNECTION_STRING)) {
+      this.setHiveConnectionFromUrl(compactRunProps
+          .getProperty(HIVESERVER_CONNECTION_STRING));
+    } else if (compactRunProps.containsKey(HIVESERVER_URL)) {
+      this.setHiveConnectionFromUrlUserPassword(compactRunProps.getProperty(HIVESERVER_URL),
+          compactRunProps.getProperty(HIVESERVER_USER),
+          compactRunProps.getProperty(HIVESERVER_PASSWORD));
+    } else {
+      this.setHiveEmbeddedConnection();
+    }
+
+    // Set Hive properties
+    this.setHiveProperties(compactRunProps);
+  }
+
   public void addHiveSiteDirToClasspath(String hiveSiteDir) {
     LOG.info("Adding " + hiveSiteDir + " to CLASSPATH");
     File f = new File(hiveSiteDir);

@@ -107,8 +107,8 @@ public class SerialCompactor implements Compactor {
     try {
       this.conn =
           closer.register(new HiveJdbcConnector());
+      this.conn.configureHiveJdbcConnector(CompactionRunner.properties);
 
-      configureHiveJdbcConnector();
       setHiveParameters();
       createTables();
       HiveTable mergedDelta = mergeDeltas();
@@ -130,38 +130,6 @@ public class SerialCompactor implements Compactor {
         closer.close();
       }
     }
-  }
-
-  /**
-   * Helper method to parse the CompactionRunner.properties object and setup the HiveJdbcConnector based on the values
-   * in the config.
-   * @throws SQLException if there is a problem setting up the JDBC connection
-   */
-  private void configureHiveJdbcConnector() throws SQLException {
-    Properties compactRunProps = CompactionRunner.properties;
-
-    // Set the Hive Server type
-    this.conn.withHiveServerVersion(Integer.valueOf(compactRunProps.getProperty(HiveJdbcConnector.HIVESERVER_VERSION)));
-
-    // Add the Hive Site Dir to the classpath
-    if (compactRunProps.containsKey(HiveJdbcConnector.HIVESITE_DIR)) {
-      this.conn.addHiveSiteDirToClasspath(compactRunProps.getProperty(HiveJdbcConnector.HIVESITE_DIR));
-    }
-
-    // Set and create the Hive JDBC connection
-    if (compactRunProps.containsKey(HiveJdbcConnector.HIVESERVER_CONNECTION_STRING)) {
-      this.conn.setHiveConnectionFromUrl(compactRunProps
-          .getProperty(HiveJdbcConnector.HIVESERVER_CONNECTION_STRING));
-    } else if (compactRunProps.containsKey(HiveJdbcConnector.HIVESERVER_URL)) {
-      this.conn.setHiveConnectionFromUrlUserPassword(compactRunProps.getProperty(HiveJdbcConnector.HIVESERVER_URL),
-          compactRunProps.getProperty(HiveJdbcConnector.HIVESERVER_USER),
-          compactRunProps.getProperty(HiveJdbcConnector.HIVESERVER_PASSWORD));
-    } else {
-      this.conn.setHiveEmbeddedConnection();
-    }
-
-    // Set Hive properties
-    this.conn.setHiveProperties(compactRunProps);
   }
 
   private void checkSchemaCompatibility() {
