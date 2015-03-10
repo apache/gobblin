@@ -20,9 +20,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.JobStatus;
-import org.apache.hadoop.mapreduce.OutputCommitter;
-import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.hadoop.mapreduce.TaskAttemptID;
 
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -42,7 +39,7 @@ import gobblin.util.ForkOperatorUtils;
  * Unit tests for {@link GobblinOutputFormat}
  */
 @Test(groups = { "gobblin.runtime.mapreduce" })
-public class GobblinOutputFormatTest {
+public class GobblinOutputCommitterTest {
 
   private Configuration conf;
   private FileSystem fs;
