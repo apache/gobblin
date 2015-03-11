@@ -13,15 +13,11 @@ package gobblin.runtime;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
-import java.net.URI;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +43,6 @@ import gobblin.source.extractor.JobCommitPolicy;
 import gobblin.source.Source;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
-import gobblin.util.ForkOperatorUtils;
 import gobblin.util.JobLauncherUtils;
 
 
@@ -554,45 +549,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    */
   private void cleanupStagingData(JobState jobState) {
     for (TaskState taskState : jobState.getTaskStates()) {
-      int branches = taskState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
-      for (int i = 0; i < branches; i++) {
-        try {
-          String writerFsUri = taskState.getProp(
-              ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, branches, i),
-              ConfigurationKeys.LOCAL_FS_URI);
-          FileSystem fs = FileSystem.get(URI.create(writerFsUri), new Configuration());
-
-          String writerFilePath = taskState
-              .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, branches, i));
-          if (Strings.isNullOrEmpty(writerFilePath)) {
-            // The job may be cancelled before the task starts, so this may not be set.
-            continue;
-          }
-
-          String stagingDirKey =
-              ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_DIR, branches > 1 ? i : -1);
-          if (taskState.contains(stagingDirKey)) {
-            Path stagingPath = new Path(taskState.getProp(stagingDirKey), writerFilePath);
-            if (fs.exists(stagingPath)) {
-              LOG.info("Cleaning up staging directory " + stagingPath.toUri().getPath());
-              fs.delete(stagingPath, true);
-            }
-          }
-
-          String outputDirKey =
-              ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR, branches > 1 ? i : -1);
-          if (taskState.contains(outputDirKey)) {
-            Path outputPath = new Path(taskState.getProp(outputDirKey), writerFilePath);
-            if (fs.exists(outputPath)) {
-              LOG.info("Cleaning up output directory " + outputPath.toUri().getPath());
-              fs.delete(outputPath, true);
-            }
-          }
-        } catch (IOException ioe) {
-          LOG.error(
-              String.format("Failed to clean staging data for branch %d of task %s: %s", i, taskState.getTaskId(), ioe),
-              ioe);
-        }
+      try {
+        JobLauncherUtils.cleanStagingData(taskState, LOG);
+      } catch (IOException ioe) {
+        LOG.error(String.format("Failed to clean staging data for task %s: %s", taskState.getTaskId(), ioe), ioe);
       }
     }
   }

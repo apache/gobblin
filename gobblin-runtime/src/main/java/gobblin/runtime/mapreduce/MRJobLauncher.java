@@ -44,7 +44,6 @@ import org.apache.hadoop.mapreduce.Counters;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
-import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -191,7 +190,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     this.job.setNumReduceTasks(0);
 
     this.job.setInputFormatClass(NLineInputFormat.class);
-    this.job.setOutputFormatClass(NullOutputFormat.class);
+    this.job.setOutputFormatClass(GobblinOutputFormat.class);
     this.job.setMapOutputKeyClass(NullWritable.class);
     this.job.setMapOutputValueClass(NullWritable.class);
 
@@ -200,6 +199,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     // Job input path is where input work unit files are stored
     Path jobInputPath = new Path(mrJobDir, "input");
+
     // Prepare job input
     Path jobInputFile = prepareJobInput(jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY), jobInputPath, workUnits);
     NLineInputFormat.addInputPath(this.job, jobInputFile);

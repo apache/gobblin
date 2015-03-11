@@ -11,6 +11,20 @@
 
 package gobblin.util;
 
+import java.io.IOException;
+import java.net.URI;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+
+import com.google.common.base.Strings;
+
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+
+
 /**
  * Utility class for the job scheduler and job launchers.
  *
@@ -52,5 +66,47 @@ public class JobLauncherUtils {
    */
   public static String newMultiTaskId(String jobId, int sequence) {
     return String.format("multitask_%s_%d", jobId.substring(jobId.indexOf('_') + 1), sequence);
+  }
+
+  /**
+   * Cleanup staging data of a Gobblin task.
+   *
+   * @param taskState task state
+   */
+  public static void cleanStagingData(State taskState, Logger logger) throws IOException {
+    int branches = taskState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
+    for (int i = 0; i < branches; i++) {
+      String writerFsUri = taskState
+          .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, branches, i),
+              ConfigurationKeys.LOCAL_FS_URI);
+      FileSystem fs = FileSystem.get(URI.create(writerFsUri), new Configuration());
+
+      String writerFilePath = taskState
+          .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, branches, i));
+      if (Strings.isNullOrEmpty(writerFilePath)) {
+        // The job may be cancelled before the task starts, so this may not be set.
+        continue;
+      }
+
+      String stagingDirKey =
+          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_DIR, branches, i);
+      if (taskState.contains(stagingDirKey)) {
+        Path stagingPath = new Path(taskState.getProp(stagingDirKey), writerFilePath);
+        if (fs.exists(stagingPath)) {
+          logger.info("Cleaning up staging directory " + stagingPath.toUri().getPath());
+          fs.delete(stagingPath, true);
+        }
+      }
+
+      String outputDirKey =
+          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR, branches, i);
+      if (taskState.contains(outputDirKey)) {
+        Path outputPath = new Path(taskState.getProp(outputDirKey), writerFilePath);
+        if (fs.exists(outputPath)) {
+          logger.info("Cleaning up output directory " + outputPath.toUri().getPath());
+          fs.delete(outputPath, true);
+        }
+      }
+    }
   }
 }
