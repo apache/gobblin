@@ -106,8 +106,7 @@ public class SerialCompactor implements Compactor {
 
     try {
       this.conn =
-          closer.register(new HiveJdbcConnector());
-      this.conn.configureHiveJdbcConnector(CompactionRunner.properties);
+          closer.register(HiveJdbcConnector.newConnectorWithProps(CompactionRunner.properties));
 
       setHiveParameters();
       createTables();

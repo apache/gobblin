@@ -17,15 +17,18 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Connection;
-import java.sql.Statement;
 import java.sql.DriverManager;
+import java.sql.Statement;
 import java.util.Enumeration;
 import java.util.Properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Preconditions;
 
 
 /**
@@ -36,7 +39,7 @@ import org.slf4j.LoggerFactory;
 public class HiveJdbcConnector implements Closeable {
 
   public static final String HIVESERVER_VERSION = "hiveserver.version";
-  public static final int DEFAULT_HIVESERVER_VERSION = 2;
+  public static final String DEFAULT_HIVESERVER_VERSION = "2";
   public static final String HIVESERVER_CONNECTION_STRING = "hiveserver.connection.string";
   public static final String HIVESERVER_URL = "hiveserver.connection.string";
   public static final String HIVESERVER_USER = "hiveserver.connection.string";
@@ -52,58 +55,94 @@ public class HiveJdbcConnector implements Closeable {
 
   private static final Logger LOG = LoggerFactory.getLogger(HiveJdbcConnector.class);
 
+  // Connection to the Hive DB
   private Connection conn;
+
+  // Re-usable Statement
   private Statement stmt;
 
-  private int hiveServerVersion = DEFAULT_HIVESERVER_VERSION;
+  private int hiveServerVersion;
 
-  public HiveJdbcConnector() {
+  private HiveJdbcConnector() {
   }
 
   /**
-   * Set the Hive server version. Before it sets the internal version to use, it checks if the version number is valid,
-   * and if the driver class corresponding to the driver version is present on the classpath.
+   * Create a new {@link HiveJdbcConnector} using the specified Hive server version.
    * @param hiveServerVersion is the Hive server version to use
    * @return a HiveJdbcConnector with the specified hiveServerVersion
+   * @throws SQLException
    */
-  public HiveJdbcConnector withHiveServerVersion(int hiveServerVersion) {
-    if (hiveServerVersion == 1) {
-      if (!checkIfClassOnClasspath(HIVE_JDBC_DRIVER_NAME)) {
-        throw new RuntimeException("Cannot find a suitable driver for HiveServer " + hiveServerVersion);
-      }
-    } else if (hiveServerVersion == 2) {
-      if (!checkIfClassOnClasspath(HIVE2_JDBC_DRIVER_NAME)) {
-        throw new RuntimeException("Cannot find a suitable driver for HiveServer " + hiveServerVersion);
-      }
+  @SuppressWarnings("resource")
+  public static HiveJdbcConnector newEmbeddedConnector(int hiveServerVersion) throws SQLException {
+    return new HiveJdbcConnector().withHiveServerVersion(hiveServerVersion).withHiveEmbeddedConnection();
+  }
+
+  /**
+   * Create a new {@link HiveJdbcConnector} based on the configs in a {@link Properties} object
+   * @param compactRunProps contains the configuration keys to construct the {@link HiveJdbcConnector}
+   * @throws SQLException if there is a problem setting up the JDBC connection
+   * @return
+   */
+  public static HiveJdbcConnector newConnectorWithProps(Properties compactRunProps) throws SQLException {
+    HiveJdbcConnector hiveJdbcConnector = new HiveJdbcConnector();
+
+    // Set the Hive Server type
+    if (compactRunProps.containsKey(HIVESERVER_VERSION)) {
+      hiveJdbcConnector.withHiveServerVersion(Integer.valueOf(compactRunProps.getProperty(HIVESERVER_VERSION, DEFAULT_HIVESERVER_VERSION)));
+    }
+
+    // Add the Hive Site Dir to the classpath
+    if (compactRunProps.containsKey(HIVESITE_DIR)) {
+      hiveJdbcConnector.addHiveSiteDirToClasspath(compactRunProps.getProperty(HIVESITE_DIR));
+    }
+
+    // Set and create the Hive JDBC connection
+    if (compactRunProps.containsKey(HIVESERVER_CONNECTION_STRING)) {
+      hiveJdbcConnector.withHiveConnectionFromUrl(compactRunProps.getProperty(HIVESERVER_CONNECTION_STRING));
+    } else if (compactRunProps.containsKey(HIVESERVER_URL)) {
+      hiveJdbcConnector.withHiveConnectionFromUrlUserPassword(compactRunProps.getProperty(HIVESERVER_URL),
+          compactRunProps.getProperty(HIVESERVER_USER), compactRunProps.getProperty(HIVESERVER_PASSWORD));
     } else {
-      throw new RuntimeException(hiveServerVersion + " is not a valid HiveServer version.");
+      hiveJdbcConnector.withHiveEmbeddedConnection();
+    }
+
+    // Set Hive properties
+    hiveJdbcConnector.setHiveProperties(compactRunProps);
+
+    return hiveJdbcConnector;
+  }
+
+  /**
+   * Set the {@link HiveJdbcConnector#hiveServerVersion}. The hiveServerVersion must be either 1 or 2.
+   * @param hiveServerVersion
+   * @return
+   */
+  private HiveJdbcConnector withHiveServerVersion(int hiveServerVersion) {
+    try {
+      if (hiveServerVersion == 1) {
+        Class.forName(HIVE_JDBC_DRIVER_NAME);
+      } else if (hiveServerVersion == 2) {
+        Class.forName(HIVE2_JDBC_DRIVER_NAME);
+      } else {
+        throw new RuntimeException(hiveServerVersion + " is not a valid HiveServer version.");
+      }
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException("Cannot find a suitable driver of HiveServer version " + hiveServerVersion + ".", e);
     }
     this.hiveServerVersion = hiveServerVersion;
     return this;
   }
 
   /**
-   * Helper method to check if a class is on the current classpath
-   * @param className the name of the class to check
-   * @return true if the specified class specified by className is on the classpath, false otherwise
-   */
-  private boolean checkIfClassOnClasspath(String className) {
-    try {
-      Class.forName(className);
-    } catch (ClassNotFoundException e) {
-      return false;
-    }
-    return true;
-  }
-
-  /**
    * Set the {@link HiveJdbcConnector#conn} based on the URL given to the method
    * @param hiveServerUrl is the URL to connect to
    * @throws SQLException if there is a problem connectiong to the URL
+   * @return
    */
-  public void setHiveConnectionFromUrl(String hiveServerUrl) throws SQLException {
+  private HiveJdbcConnector withHiveConnectionFromUrl(String hiveServerUrl) throws SQLException {
     this.conn = DriverManager.getConnection(hiveServerUrl);
     this.stmt = this.conn.createStatement();
+    return this;
   }
 
   /**
@@ -112,59 +151,35 @@ public class HiveJdbcConnector implements Closeable {
    * @param hiveServerUser is the username to connect with
    * @param hiveServerPassword is the password to authenticate with when connecting to the URL
    * @throws SQLException if there is a problem connecting to the URL
+   * @return
    */
-  public void setHiveConnectionFromUrlUserPassword(String hiveServerUrl, String hiveServerUser,
+  private HiveJdbcConnector withHiveConnectionFromUrlUserPassword(String hiveServerUrl, String hiveServerUser,
       String hiveServerPassword) throws SQLException {
     this.conn = DriverManager.getConnection(hiveServerUrl, hiveServerUser, hiveServerPassword);
     this.stmt = this.conn.createStatement();
+    return this;
   }
 
   /**
    * Set the {@link HiveJdbcConnector#conn} based on {@link HiveJdbcConnector#hiveServerVersion}
    * @throws SQLException if there is a problem connection to the URL
+   * @return
    */
-  public void setHiveEmbeddedConnection() throws SQLException {
+  private HiveJdbcConnector withHiveEmbeddedConnection() throws SQLException {
     if (this.hiveServerVersion == 1) {
       this.conn = DriverManager.getConnection(HIVE_EMBEDDED_CONNECTION_STRING);
     } else {
       this.conn = DriverManager.getConnection(HIVE2_EMBEDDED_CONNECTION_STRING);
     }
     this.stmt = this.conn.createStatement();
+    return this;
   }
 
   /**
-   * Helper method to parse the a {@link Properties} object and setup the HiveJdbcConnector based on the values
-   * in the config.
-   * @throws SQLException if there is a problem setting up the JDBC connection
+   * Helper method to add the directory containing the hive-site.xml file to the classpath
+   * @param hiveSiteDir is the path to to the folder containing the hive-site.xml file
    */
-  public void configureHiveJdbcConnector(Properties compactRunProps) throws SQLException {
-    // Set the Hive Server type
-    if (compactRunProps.containsKey(HIVESERVER_VERSION)) {
-      this.withHiveServerVersion(Integer.valueOf(compactRunProps.getProperty(HIVESERVER_VERSION)));
-    }
-
-    // Add the Hive Site Dir to the classpath
-    if (compactRunProps.containsKey(HIVESITE_DIR)) {
-      this.addHiveSiteDirToClasspath(compactRunProps.getProperty(HIVESITE_DIR));
-    }
-
-    // Set and create the Hive JDBC connection
-    if (compactRunProps.containsKey(HIVESERVER_CONNECTION_STRING)) {
-      this.setHiveConnectionFromUrl(compactRunProps
-          .getProperty(HIVESERVER_CONNECTION_STRING));
-    } else if (compactRunProps.containsKey(HIVESERVER_URL)) {
-      this.setHiveConnectionFromUrlUserPassword(compactRunProps.getProperty(HIVESERVER_URL),
-          compactRunProps.getProperty(HIVESERVER_USER),
-          compactRunProps.getProperty(HIVESERVER_PASSWORD));
-    } else {
-      this.setHiveEmbeddedConnection();
-    }
-
-    // Set Hive properties
-    this.setHiveProperties(compactRunProps);
-  }
-
-  public void addHiveSiteDirToClasspath(String hiveSiteDir) {
+  private void addHiveSiteDirToClasspath(String hiveSiteDir) {
     LOG.info("Adding " + hiveSiteDir + " to CLASSPATH");
     File f = new File(hiveSiteDir);
     try {
@@ -179,22 +194,43 @@ public class HiveJdbcConnector implements Closeable {
     }
   }
 
-  public void setHiveProperties(Properties props) throws SQLException {
-    Enumeration<?> enumeration = props.propertyNames();
-    while (enumeration.hasMoreElements()) {
-      String propertyName = (String) enumeration.nextElement();
-      if (propertyName.startsWith(HIVE_CONFIG_KEY_PREFIX)) {
-        String str = "set " + propertyName + "=" + props.getProperty(propertyName);
-        LOG.info(str);
-        stmt.execute(str);
+  /**
+   * Helper method that executes a series of "set ?=?" queries for the Hive connection in {@link HiveJdbcConnector#conn}.
+   * @param props specifies which set methods to run. For example, if the config contains "hive.mapred.min.split.size=100"
+   * then "set mapred.min.split.size=100" will be executed.
+   * @throws SQLException is thrown if there is a problem executing the "set" queries
+   */
+  private void setHiveProperties(Properties props) throws SQLException {
+    Preconditions.checkNotNull(this.conn, "The Hive connection must be set before any queries can be run");
+
+    PreparedStatement preparedStatement = null;
+
+    try {
+      preparedStatement = this.conn.prepareStatement("set ?=?");
+
+      Enumeration<?> enumeration = props.propertyNames();
+      while (enumeration.hasMoreElements()) {
+        String propertyName = (String) enumeration.nextElement();
+
+        if (propertyName.startsWith(HIVE_CONFIG_KEY_PREFIX)) {
+          preparedStatement.setString(1, propertyName);
+          preparedStatement.setString(2, props.getProperty(propertyName));
+          preparedStatement.execute();
+        }
+      }
+    } finally {
+      if (preparedStatement != null) {
+        preparedStatement.close();
       }
     }
   }
 
   public void executeStatements(String... statements) throws SQLException {
+    Preconditions.checkNotNull(this.conn, "The Hive connection must be set before any queries can be run");
+
     for (String statement : statements) {
       LOG.info("RUNNING STATEMENT: " + choppedStatement(statement));
-      stmt.execute(statement);
+      this.stmt.execute(statement);
     }
   }
 
@@ -207,21 +243,25 @@ public class HiveJdbcConnector implements Closeable {
     }
   }
 
+  public Connection getConnection() {
+    return this.conn;
+  }
+
   @Override
   public void close() throws IOException {
-    if (stmt != null) {
+    if (this.stmt != null) {
       try {
-        stmt.close();
+        this.stmt.close();
       } catch (SQLException e) {
-        throw new IOException(e);
+        LOG.error("Failed to close JDBC statement object", e);
       }
     }
 
-    if (conn != null) {
+    if (this.conn != null) {
       try {
         conn.close();
       } catch (SQLException e) {
-        throw new IOException(e);
+        LOG.error("Failed to close JDBC connection", e);
       }
     }
   }
