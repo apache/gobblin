@@ -49,7 +49,7 @@ do
 done
 
 if [ -z "$JAVA_HOME" ]; then
-  echo "Environment variable JAVA_HOME not set"
+  die "Environment variable JAVA_HOME not set!"
 fi
 
 check=false
@@ -63,7 +63,7 @@ if [ -n "$JOB_CONFIG_DIR" ]; then
 fi
 
 if [ -z "$GOBBLIN_JOB_CONFIG_DIR" ] && [ "$check" == true ]; then
-  die "Environment variable GOBBLIN_JOB_CONFIG_DIR not set"
+  die "Environment variable GOBBLIN_JOB_CONFIG_DIR not set!"
 fi
 
 # User defined work directory overrides $GOBBLIN_WORK_DIR

@@ -59,7 +59,7 @@ do
 done
 
 if [ -z "$JOB_CONFIG_FILE" ]; then 
-  die "No job configuration set!"
+  die "No job configuration file set!"
 fi
 
 # User defined work directory overrides $GOBBLIN_WORK_DIR
