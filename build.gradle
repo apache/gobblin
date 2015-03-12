@@ -41,7 +41,7 @@ if (!project.hasProperty('pegasusVersion')) {
 
 ext.externalDependency = [
   "antlrRuntime": "org.antlr:antlr-runtime:3.0.1",
-  "avro": "org.apache.avro:avro:1.7.1",
+  "avro": "org.apache.avro:avro:1.7.6",
   "avroMapred": "org.apache.avro:avro-mapred:1.7.6",
   "commonsCli": "commons-cli:commons-cli:1.2",
   "commonsDbcp": "commons-dbcp:commons-dbcp:1.4",
@@ -134,6 +134,9 @@ subprojects {
         }
       } else {
         compile externalDependency.hadoop
+      }
+      compile(externalDependency.guava) {
+        force = true
       }
     }
   }

@@ -23,6 +23,7 @@ import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
@@ -76,6 +77,11 @@ public class CliMRJobLauncher extends Configured implements Tool {
 
   public static void main(String[] args)
       throws Exception {
+    
+    Configuration conf = new Configuration();
+    // Parse generic options
+    String[] genericCmdLineOpts = new GenericOptionsParser(conf, args).getCommandLine().getArgs();
+    
     // Build command-line options
     Option sysConfigOption = OptionBuilder
         .withArgName("system configuration file")
@@ -100,7 +106,7 @@ public class CliMRJobLauncher extends Configured implements Tool {
     options.addOption(helpOption);
 
     // Parse command-line options
-    CommandLine cmd = new BasicParser().parse(options, args);
+    CommandLine cmd = new BasicParser().parse(options, genericCmdLineOpts);
 
     if (cmd.hasOption('h')) {
       printUsage(options);
@@ -119,6 +125,6 @@ public class CliMRJobLauncher extends Configured implements Tool {
         ConfigurationConverter.getProperties(new PropertiesConfiguration(cmd.getOptionValue("jobconfig")));
 
     // Launch and run the job
-    System.exit(ToolRunner.run(new Configuration(), new CliMRJobLauncher(sysConfig, jobConfig), args));
+    System.exit(ToolRunner.run(conf, new CliMRJobLauncher(sysConfig, jobConfig), args));
   }
 }
