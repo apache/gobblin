@@ -6,7 +6,7 @@ FWDIR_CONF=$FWDIR/conf
 
 function print_usage(){
   echo "gobblin-standalone.sh <start | status | restart | stop> [OPTION]"
-  echo "Where:"
+  echo "Where OPTION can be:"
   echo "  --workdir <job work dir>                       Gobblin's base work directory: if not set, taken from \${GOBBLIN_WORK_DIR}"
   echo "  --jars <comma-separated list of job jars>      Job jar(s): if not set, "$FWDIR_LIB" is examined"
   echo "  --conf <directory of job configuration files>  Directory of job configuration files: if not set, taken from ${GOBBLIN_JOB_CONFIG_DIR}"
@@ -53,12 +53,12 @@ if [ -z "$JAVA_HOME" ]; then
 fi
 
 check=false
-if [ $ACTION == "start" ] || [ $ACTION == "restart" ]; then 
+if [ $ACTION == "start" ] || [ $ACTION == "restart" ]; then
   check=true
 fi
 
 # User defined job configuration directory overrides $GOBBLIN_JOB_CONFIG_DIR
-if [ -n "$JOB_CONFIG_DIR" ]; then 
+if [ -n "$JOB_CONFIG_DIR" ]; then
   export GOBBLIN_JOB_CONFIG_DIR="$JOB_CONFIG_DIR"
 fi
 
@@ -67,11 +67,11 @@ if [ -z "$GOBBLIN_JOB_CONFIG_DIR" ] && [ "$check" == true ]; then
 fi
 
 # User defined work directory overrides $GOBBLIN_WORK_DIR
-if [ -n "$WORK_DIR" ]; then 
+if [ -n "$WORK_DIR" ]; then
   export GOBBLIN_WORK_DIR="$WORK_DIR"
 fi
 
-if [ -z "$GOBBLIN_WORK_DIR" ] && [ "$check" == true ]; then 
+if [ -z "$GOBBLIN_WORK_DIR" ] && [ "$check" == true ]; then
   die "GOBBLIN_WORK_DIR is not set!"
 fi
 
@@ -93,7 +93,7 @@ fi
 
 set_user_jars(){
   local separator=''
-  if [ -n "$1" ]; then 
+  if [ -n "$1" ]; then
     IFS=','
     read -ra userjars <<< "$1"
     for userjar in ${userjars[@]}; do
@@ -122,7 +122,7 @@ start() {
       GOBBLIN_JARS=$jar
     fi
   done
-  
+
   CLASSPATH="$GOBBLIN_JARS:$FWDIR_CONF"
 
   echo "Starting Gobblin standalone daemon"

@@ -9,7 +9,7 @@
 // CONDITIONS OF ANY KIND, either express or implied.
 //
 
-def modules = ['gobblin-api','gobblin-azkaban','gobblin-compaction','gobblin-core','gobblin-distribution','gobblin-example','gobblin-metrics','gobblin-metastore','gobblin-rest-service','gobblin-runtime','gobblin-scheduler','gobblin-test','gobblin-utility','gobblin-salesforce']
+def modules = ['gobblin-api','gobblin-azkaban','gobblin-compaction','gobblin-core','gobblin-distribution','gobblin-example','gobblin-metrics','gobblin-metastore','gobblin-rest-service','gobblin-runtime','gobblin-scheduler','gobblin-utility','gobblin-salesforce']
 
 modules.each { module ->
   include "${module}"
