@@ -44,23 +44,26 @@ public class HeapDumpForTaskUtils {
    * To use it, simply put the path of dumpScript to the gobblin config: job.hdfs.files.
    * @param fs File system
    * @param heapFileName the name of the .prof file.
+   * @param chmod chmod for the dump script. For hdfs file, e.g, "hadoop fs -chmod 755"
    * @throws IOException
    */
-  public static void generateDumpScript(Path dumpScript, FileSystem fs, String heapFileName) throws IOException {
+  public static void generateDumpScript(Path dumpScript, FileSystem fs, String heapFileName, String chmod)
+      throws IOException {
     BufferedWriter scriptWriter = null;
     Closer closer = Closer.create();
     try {
       if (fs.exists(dumpScript)) {
         LOG.info("Heap dump script already exists: " + dumpScript);
       } else {
-        Path dumpDir = new Path(dumpScript.getParent() + DUMP_FOLDER);
-        if (fs.exists(new Path(dumpScript.getParent() + DUMP_FOLDER))) {
-          fs.create(dumpDir);
-        }
+        String dumpDir = dumpScript.getParent() + DUMP_FOLDER;
         scriptWriter = closer.register(new BufferedWriter(new OutputStreamWriter(fs.create(dumpScript))));
         scriptWriter.write("#!/bin/sh\n" + "hadoop dfs -put " + heapFileName + " " + dumpDir + "${PWD//\\//_}.hprof");
         scriptWriter.flush();
-        Runtime.getRuntime().exec("hadoop fs -chmod 755 " + dumpScript);
+        Runtime.getRuntime().exec(chmod + " " + dumpScript);
+
+        if (!fs.exists(new Path(dumpScript.getParent() + DUMP_FOLDER))) {
+          fs.mkdirs(new Path(dumpDir));
+        }
       }
     } catch (IOException e) {
       LOG.error("Heap dump script is not generated successfully.");
