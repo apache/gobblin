@@ -47,11 +47,11 @@ public class HeapDumpForTaskUtilsTest {
   @Test
   public void testGenerateDumpScript() throws IOException {
     Path dumpScript = new Path(TEST_DIR + SCRIPT_NAME);
-    HeapDumpForTaskUtils.generateDumpScript(dumpScript, fs, "test.hprof", "chmod 777 ");
-    Assert.assertEquals(true, fs.exists(dumpScript));
-    Assert.assertEquals(true, fs.exists(new Path(dumpScript.getParent() + "/dumps/")));
+    HeapDumpForTaskUtils.generateDumpScript(dumpScript, this.fs, "test.hprof", "chmod 777 ");
+    Assert.assertEquals(true, this.fs.exists(dumpScript));
+    Assert.assertEquals(true, this.fs.exists(new Path(dumpScript.getParent() + "/dumps/")));
     Closer closer = Closer.create();
-    BufferedReader scriptReader = closer.register(new BufferedReader(new InputStreamReader(fs.open(dumpScript))));
+    BufferedReader scriptReader = closer.register(new BufferedReader(new InputStreamReader(this.fs.open(dumpScript))));
     Assert.assertEquals("#!/bin/sh", scriptReader.readLine());
     Assert.assertEquals("hadoop dfs -put test.hprof dumpScript/dumps/${PWD//\\//_}.hprof", scriptReader.readLine());
   }
