@@ -30,30 +30,33 @@ import com.google.common.io.Closer;
 public class HeapDumpForTaskUtilsTest {
 
   private FileSystem fs;
-  private Configuration conf;
 
-  private static final String TEST_DIR = "./dumpScript/";
+  private static final String TEST_DIR = "dumpScript";
   private static final String SCRIPT_NAME = "dump.sh";
 
   @BeforeClass
   public void setUp() throws IOException {
-    this.conf = new Configuration();
-    this.conf.set("fs.default.name", "file:///");
-    this.conf.set("mapred.job.tracker", "local");
-    this.fs = FileSystem.getLocal(this.conf);
+    this.fs = FileSystem.getLocal(new Configuration());
     this.fs.mkdirs(new Path(TEST_DIR));
   }
 
   @Test
   public void testGenerateDumpScript() throws IOException {
-    Path dumpScript = new Path(TEST_DIR + SCRIPT_NAME);
+    Path dumpScript = new Path(TEST_DIR, SCRIPT_NAME);
     HeapDumpForTaskUtils.generateDumpScript(dumpScript, this.fs, "test.hprof", "chmod 777 ");
     Assert.assertEquals(true, this.fs.exists(dumpScript));
-    Assert.assertEquals(true, this.fs.exists(new Path(dumpScript.getParent() + "/dumps/")));
+    Assert.assertEquals(true, this.fs.exists(new Path(dumpScript.getParent(), "dumps")));
     Closer closer = Closer.create();
-    BufferedReader scriptReader = closer.register(new BufferedReader(new InputStreamReader(this.fs.open(dumpScript))));
-    Assert.assertEquals("#!/bin/sh", scriptReader.readLine());
-    Assert.assertEquals("hadoop dfs -put test.hprof dumpScript/dumps/${PWD//\\//_}.hprof", scriptReader.readLine());
+    try {
+      BufferedReader scriptReader =
+          closer.register(new BufferedReader(new InputStreamReader(this.fs.open(dumpScript))));
+      Assert.assertEquals("#!/bin/sh", scriptReader.readLine());
+      Assert.assertEquals("hadoop dfs -put test.hprof dumpScript/dumps/${PWD//\\//_}.hprof", scriptReader.readLine());
+    } catch (Throwable t) {
+      closer.rethrow(t);
+    } finally {
+      closer.close();
+    }
   }
 
   @AfterClass

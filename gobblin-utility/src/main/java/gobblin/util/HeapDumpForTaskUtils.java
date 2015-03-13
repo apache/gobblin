@@ -14,6 +14,7 @@ package gobblin.util;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.nio.charset.Charset;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -22,15 +23,16 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.io.Closer;
 
+import gobblin.configuration.ConfigurationKeys;
+
 
 /**
  * A utility class for generating script to move the heap dump .prof files to HDFS for hadoop tasks, when Java heap out of memory error is thrown.
- *
  */
 public class HeapDumpForTaskUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(HeapDumpForTaskUtils.class);
-  private static final String DUMP_FOLDER = "/dumps/";
+  private static final String DUMP_FOLDER = "dumps";
 
   /**
    * Generate the dumpScript, which is used when OOM error is thrown during task execution.
@@ -49,27 +51,30 @@ public class HeapDumpForTaskUtils {
    */
   public static void generateDumpScript(Path dumpScript, FileSystem fs, String heapFileName, String chmod)
       throws IOException {
-    BufferedWriter scriptWriter = null;
+    if (fs.exists(dumpScript)) {
+      LOG.info("Heap dump script already exists: " + dumpScript);
+      return;
+    }
+
     Closer closer = Closer.create();
     try {
-      if (fs.exists(dumpScript)) {
-        LOG.info("Heap dump script already exists: " + dumpScript);
-      } else {
-        String dumpDir = dumpScript.getParent() + DUMP_FOLDER;
-        scriptWriter = closer.register(new BufferedWriter(new OutputStreamWriter(fs.create(dumpScript))));
-        scriptWriter.write("#!/bin/sh\n" + "hadoop dfs -put " + heapFileName + " " + dumpDir + "${PWD//\\//_}.hprof");
-        scriptWriter.flush();
-        Runtime.getRuntime().exec(chmod + " " + dumpScript);
-
-        if (!fs.exists(new Path(dumpScript.getParent() + DUMP_FOLDER))) {
-          fs.mkdirs(new Path(dumpDir));
-        }
+      Path dumpDir = new Path(dumpScript.getParent(), DUMP_FOLDER);
+      if (!fs.exists(dumpDir)) {
+        fs.mkdirs(dumpDir);
       }
+      BufferedWriter scriptWriter =
+          closer.register(new BufferedWriter(new OutputStreamWriter(fs.create(dumpScript), Charset
+              .forName(ConfigurationKeys.DEFAULT_CHARSET_ENCODING))));
+      scriptWriter.write("#!/bin/sh\n" + "hadoop dfs -put " + heapFileName + " " + dumpDir + "/${PWD//\\//_}.hprof");
+      scriptWriter.flush();
+      Runtime.getRuntime().exec(chmod + " " + dumpScript);
     } catch (IOException e) {
       LOG.error("Heap dump script is not generated successfully.");
       if (fs.exists(dumpScript)) {
         fs.delete(dumpScript, true);
       }
+    } catch (Throwable t) {
+      closer.rethrow(t);
     } finally {
       closer.close();
     }
