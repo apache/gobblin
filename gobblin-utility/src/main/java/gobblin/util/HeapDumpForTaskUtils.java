@@ -66,17 +66,17 @@ public class HeapDumpForTaskUtils {
           closer.register(new BufferedWriter(new OutputStreamWriter(fs.create(dumpScript), Charset
               .forName(ConfigurationKeys.DEFAULT_CHARSET_ENCODING))));
       scriptWriter.write("#!/bin/sh\n" + "hadoop dfs -put " + heapFileName + " " + dumpDir + "/${PWD//\\//_}.hprof");
-      scriptWriter.flush();
-      Runtime.getRuntime().exec(chmod + " " + dumpScript);
-    } catch (IOException e) {
+    } catch (IOException ioe) {
       LOG.error("Heap dump script is not generated successfully.");
       if (fs.exists(dumpScript)) {
         fs.delete(dumpScript, true);
       }
+      throw ioe;
     } catch (Throwable t) {
       closer.rethrow(t);
     } finally {
       closer.close();
     }
+    Runtime.getRuntime().exec(chmod + " " + dumpScript);
   }
 }
