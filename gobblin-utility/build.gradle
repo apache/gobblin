@@ -16,6 +16,7 @@ dependencies {
 
   compile externalDependency.commonsConfiguration
   compile externalDependency.commonsEmail
+  compile externalDependency.commonsIO
   compile externalDependency.commonsLang
   compile externalDependency.guava
   compile externalDependency.slf4j
