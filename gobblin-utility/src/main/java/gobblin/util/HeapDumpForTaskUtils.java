@@ -65,8 +65,16 @@ public class HeapDumpForTaskUtils {
       BufferedWriter scriptWriter =
           closer.register(new BufferedWriter(new OutputStreamWriter(fs.create(dumpScript), Charset
               .forName(ConfigurationKeys.DEFAULT_CHARSET_ENCODING))));
-      scriptWriter.write("#!/bin/sh\n" + "${HADOOP_HOME}/bin/hadoop dfs -put " + heapFileName + " " + dumpDir
-          + "/${PWD//\\//_}.hprof");
+
+      scriptWriter.write("#!/bin/sh\n");
+      scriptWriter.write("if [ -n \"$HADOOP_PREFIX\" ]; then\n");
+      scriptWriter.write("  ${HADOOP_PREFIX}/bin/hadoop dfs -put " + heapFileName + " " + dumpDir
+          + "/${PWD//\\//_}.hprof\n");
+      scriptWriter.write("else\n");
+      scriptWriter.write("  ${HADOOP_HOME}/bin/hadoop dfs -put " + heapFileName + " " + dumpDir
+          + "/${PWD//\\//_}.hprof\n");
+      scriptWriter.write("fi\n");
+
     } catch (IOException ioe) {
       LOG.error("Heap dump script is not generated successfully.");
       if (fs.exists(dumpScript)) {

@@ -51,7 +51,13 @@ public class HeapDumpForTaskUtilsTest {
       BufferedReader scriptReader =
           closer.register(new BufferedReader(new InputStreamReader(this.fs.open(dumpScript))));
       Assert.assertEquals("#!/bin/sh", scriptReader.readLine());
-      Assert.assertEquals("hadoop dfs -put test.hprof dumpScript/dumps/${PWD//\\//_}.hprof", scriptReader.readLine());
+      Assert.assertEquals("if [ -n \"$HADOOP_PREFIX\" ]; then", scriptReader.readLine());
+      Assert.assertEquals("  ${HADOOP_PREFIX}/bin/hadoop dfs -put test.hprof dumpScript/dumps/${PWD//\\//_}.hprof",
+          scriptReader.readLine());
+      Assert.assertEquals("else", scriptReader.readLine());
+      Assert.assertEquals("  ${HADOOP_HOME}/bin/hadoop dfs -put test.hprof dumpScript/dumps/${PWD//\\//_}.hprof",
+          scriptReader.readLine());
+      Assert.assertEquals("fi", scriptReader.readLine());
     } catch (Throwable t) {
       closer.rethrow(t);
     } finally {
