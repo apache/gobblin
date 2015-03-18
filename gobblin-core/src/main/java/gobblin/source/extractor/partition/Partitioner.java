@@ -119,8 +119,9 @@ public class Partitioner {
       int deltaForNextWatermark) {
     long lowWatermark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
     if (this.isFullDump() || this.isWatermarkOverride()) {
-      lowWatermark = Utils.getLongWithCurrentDate(this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_START_VALUE),
-          this.state.getProp(ConfigurationKeys.SOURCE_TIMEZONE));
+      String timeZone = this.state.getProp(ConfigurationKeys.SOURCE_TIMEZONE, ConfigurationKeys.DEFAULT_SOURCE_TIMEZONE);
+      lowWatermark = Utils.getLongWithCurrentDate(
+          this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_START_VALUE), timeZone);
       LOG.info("Overriding low water mark with the given start value: " + lowWatermark);
     } else {
       if (this.isSnapshot(extractType)) {
@@ -142,7 +143,7 @@ public class Partitioner {
    */
   private long getSnapshotLowWatermark(WatermarkType watermarkType, long previousWatermark, int deltaForNextWatermark) {
     LOG.debug("Getting snapshot low water mark");
-    String timeZone = this.state.getProp(ConfigurationKeys.SOURCE_TIMEZONE);
+    String timeZone = this.state.getProp(ConfigurationKeys.SOURCE_TIMEZONE, ConfigurationKeys.DEFAULT_SOURCE_TIMEZONE);
     if (this.isPreviousWatermarkExists(previousWatermark)) {
       if (this.isSimpleWatermark(watermarkType)) {
         return previousWatermark + deltaForNextWatermark
