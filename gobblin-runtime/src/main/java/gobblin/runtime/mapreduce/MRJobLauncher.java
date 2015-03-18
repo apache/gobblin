@@ -422,7 +422,16 @@ public class MRJobLauncher extends AbstractJobLauncher {
   }
 
   /**
-   * The mapper class that runs a given {@link Task}.
+   * The mapper class that runs assigned {@link WorkUnit}s.
+   *
+   * <p>
+   *   The {@link #map} method de-serializes a {@link WorkUnit} (maybe a {@link MultiWorkUnit})
+   *   from each input file and add the {@link WorkUnit} (or a list of {@link WorkUnit}s if it
+   *   is a {@link MultiWorkUnit} to the list of {@link WorkUnit}s to run. The {@link #run} method
+   *   actually runs the list of {@link WorkUnit}s in the {@link TaskExecutor}. This allows the
+   *   {@link WorkUnit}s to be run in parallel if the {@link TaskExecutor} is configured to have
+   *   more than one thread in its thread pool.
+   * </p>
    */
   public static class TaskRunner extends Mapper<LongWritable, Text, NullWritable, NullWritable> {
 
@@ -431,6 +440,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
     private TaskExecutor taskExecutor;
     private TaskStateTracker taskStateTracker;
     private ServiceManager serviceManager;
+
+    // A list of WorkUnits (flattened for MultiWorkUnits) to be run by this mapper
+    private final List<WorkUnit> workUnits = Lists.newArrayList();
 
     @Override
     protected void setup(Context context) {
@@ -451,6 +463,23 @@ public class MRJobLauncher extends AbstractJobLauncher {
         this.serviceManager.startAsync().awaitHealthy(5, TimeUnit.SECONDS);
       } catch (TimeoutException te) {
         // Ignored
+      }
+    }
+
+    @Override
+    public void run(Context context)
+        throws IOException, InterruptedException {
+      this.setup(context);
+
+      try {
+        // De-serialize and collect the list of WorkUnits to run
+        while (context.nextKeyValue()) {
+          this.map(context.getCurrentKey(), context.getCurrentValue(), context);
+        }
+        // Actually run the list of WorkUnits
+        runWorkUnits(this.workUnits);
+      } finally {
+        this.cleanup(context);
       }
     }
 
@@ -477,8 +506,11 @@ public class MRJobLauncher extends AbstractJobLauncher {
         closer.close();
       }
 
-      runWorkUnits(
-          workUnit instanceof MultiWorkUnit ? ((MultiWorkUnit) workUnit).getWorkUnits() : Lists.newArrayList(workUnit));
+      if (workUnit instanceof MultiWorkUnit) {
+        this.workUnits.addAll(((MultiWorkUnit) workUnit).getWorkUnits());
+      } else {
+        this.workUnits.add(workUnit);
+      }
     }
 
     @Override
