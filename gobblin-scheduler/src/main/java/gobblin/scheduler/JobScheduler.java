@@ -308,13 +308,20 @@ public class JobScheduler extends AbstractIdleService {
    * Start the job configuration file monitor.
    *
    * <p>
-   *     The job configuration file monitor currently only supports monitoring the following types of changes:
+   *   The job configuration file monitor currently only supports monitoring the following types of changes:
    *
-   *     <ul>
-   *       <li>New job configuration files.</li>
-   *       <li>Changes to existing job configuration files.</li>
-   *       <li>Changes to existing common properties file with a .properties extension.</li>
-   *     </ul>
+   *   <ul>
+   *     <li>New job configuration files.</li>
+   *     <li>Changes to existing job configuration files.</li>
+   *     <li>Changes to existing common properties file with a .properties extension.</li>
+   *   </ul>
+   * </p>
+   *
+   * <p>
+   *   This monitor has one limitation: in case more than one file including at least one common properties
+   *   file are changed between two adjacent checks, the reloading of affected job configuration files may
+   *   be intermixed and applied in an order that is not desirable. This is because the order the listener
+   *   is called on the changes is not controlled by Gobblin, but instead by the monitor itself.
    * </p>
    */
   private void startJobConfigFileMonitor()
@@ -352,6 +359,7 @@ public class JobScheduler extends AbstractIdleService {
       public void onFileChange(File file) {
         String fileExtension = Files.getFileExtension(file.getName());
         if (fileExtension.equalsIgnoreCase(SchedulerUtils.JOB_PROPS_FILE_EXTENSION)) {
+          LOG.info("Detected change to common properties file " + file.getAbsolutePath());
           try {
             for (Properties jobProps : SchedulerUtils.loadJobConfigs(properties, file, jobConfigFileDir)) {
               try {
