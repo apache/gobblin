@@ -44,8 +44,7 @@ public class Utils {
   private static final String CURRENT_DAY = "CURRENTDAY";
   private static final String CURRENT_HOUR = "CURRENTHOUR";
 
-  private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormat.forPattern("yyyyMMddHHmmss").withZone(
-      DateTimeZone.forID(ConfigurationKeys.DEFAULT_SOURCE_TIMEZONE));
+  private static final String CURRENT_DATE_FORMAT = "yyyyMMddHHmmss"; 
 
   public static String getClause(String clause, String datePredicate) {
     String retStr = "";
@@ -227,21 +226,23 @@ public class Utils {
   /**
    * Helper method for getting a value containing CURRENTDAY-1 or CURRENTHOUR-1 in the form yyyyMMddHHmmss
    * @param value
+   * @param timezone
    * @return
    */
-  public static long getLongWithCurrentDate(String value) {
+  public static long getLongWithCurrentDate(String value, String timezone) {
     if (Strings.isNullOrEmpty(value)) {
       return 0;
     }
 
-    DateTime time = new DateTime(DateTimeZone.forID(ConfigurationKeys.DEFAULT_SOURCE_TIMEZONE));
+    DateTime time = getCurrentTime(timezone);
+    DateTimeFormatter dtFormatter = DateTimeFormat.forPattern(CURRENT_DATE_FORMAT).withZone(time.getZone());
     if (value.toUpperCase().startsWith(CURRENT_DAY)) {
       return Long
-          .valueOf(DATE_FORMATTER.print(time.minusDays(Integer.parseInt(value.substring(CURRENT_DAY.length() + 1)))));
+          .valueOf(dtFormatter.print(time.minusDays(Integer.parseInt(value.substring(CURRENT_DAY.length() + 1)))));
     }
     if (value.toUpperCase().startsWith(CURRENT_HOUR)) {
       return Long
-          .valueOf(DATE_FORMATTER.print(time.minusHours(Integer.parseInt(value.substring(CURRENT_HOUR.length() + 1)))));
+          .valueOf(dtFormatter.print(time.minusHours(Integer.parseInt(value.substring(CURRENT_HOUR.length() + 1)))));
     }
     return Long.parseLong(value);
   }
