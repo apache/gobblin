@@ -115,18 +115,18 @@ public class JobScheduler extends AbstractIdleService {
     this.properties = properties;
     this.scheduler = new StdSchedulerFactory().getScheduler();
 
-    this.jobExecutor = Executors.newFixedThreadPool(Integer.parseInt(properties
-        .getProperty(ConfigurationKeys.JOB_EXECUTOR_THREAD_POOL_SIZE_KEY,
-            ConfigurationKeys.DEFAULT_JOB_EXECUTOR_THREAD_POOL_SIZE)),
+    this.jobExecutor = Executors.newFixedThreadPool(
+        Integer.parseInt(properties.getProperty(ConfigurationKeys.JOB_EXECUTOR_THREAD_POOL_SIZE_KEY,
+            Integer.toString(ConfigurationKeys.DEFAULT_JOB_EXECUTOR_THREAD_POOL_SIZE))),
         ExecutorsUtils.newThreadFactory(Optional.of(LOG)));
 
     this.jobConfigFileExtensions = Sets.newHashSet(Splitter.on(",").omitEmptyStrings().split(this.properties
         .getProperty(ConfigurationKeys.JOB_CONFIG_FILE_EXTENSIONS_KEY,
             ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_EXTENSIONS)));
 
-    long pollingInterval = Long.parseLong(this.properties
-        .getProperty(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
-            ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL));
+    long pollingInterval = Long.parseLong(this.properties.getProperty(
+        ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
+        Long.toString(ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL)));
     this.fileAlterationMonitor = new FileAlterationMonitor(pollingInterval);
   }
 

@@ -11,6 +11,9 @@
 
 package gobblin.configuration;
 
+import java.util.concurrent.TimeUnit;
+
+
 /**
  * A central place for all Gobblin configuration property keys.
  */
@@ -51,11 +54,11 @@ public class ConfigurationKeys {
 
   // Job executor thread pool size
   public static final String JOB_EXECUTOR_THREAD_POOL_SIZE_KEY = "jobexecutor.threadpool.size";
-  public static final String DEFAULT_JOB_EXECUTOR_THREAD_POOL_SIZE = "5";
+  public static final int DEFAULT_JOB_EXECUTOR_THREAD_POOL_SIZE = 5;
 
   // Job configuration file monitor polling interval in milliseconds
   public static final String JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY = "jobconf.monitor.interval";
-  public static final String DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL = "300000";
+  public static final long DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL = 300000;
 
   // Comma-separated list of framework jars to include
   public static final String FRAMEWORK_JAR_FILES_KEY = "framework.jars";
@@ -68,11 +71,11 @@ public class ConfigurationKeys {
   public static final String TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE_KEY = "tasktracker.threadpool.maxsize";
   public static final String TASK_RETRY_THREAD_POOL_CORE_SIZE_KEY = "taskretry.threadpool.coresize";
   public static final String TASK_RETRY_THREAD_POOL_MAX_SIZE_KEY = "taskretry.threadpool.maxsize";
-  public static final String DEFAULT_TASK_EXECUTOR_THREADPOOL_SIZE = "2";
-  public static final String DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE = "1";
-  public static final String DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE = "2";
-  public static final String DEFAULT_TASK_RETRY_THREAD_POOL_CORE_SIZE = "1";
-  public static final String DEFAULT_TASK_RETRY_THREAD_POOL_MAX_SIZE = "2";
+  public static final int DEFAULT_TASK_EXECUTOR_THREADPOOL_SIZE = 2;
+  public static final int DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE = 1;
+  public static final int DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE = 2;
+  public static final int DEFAULT_TASK_RETRY_THREAD_POOL_CORE_SIZE = 1;
+  public static final int DEFAULT_TASK_RETRY_THREAD_POOL_MAX_SIZE = 2;
 
   /**
    * Common job configuration properties.
@@ -98,9 +101,9 @@ public class ConfigurationKeys {
   public static final String JOB_MAX_FAILURES_KEY = "job.max.failures";
   public static final int DEFAULT_JOB_MAX_FAILURES = 1;
   public static final String MAX_TASK_RETRIES_KEY = "task.maxretries";
-  public static final String DEFAULT_MAX_TASK_RETRIES = "5";
+  public static final int DEFAULT_MAX_TASK_RETRIES = 5;
   public static final String TASK_RETRY_INTERVAL_IN_SEC_KEY = "task.retry.intervalinsec";
-  public static final String DEFAULT_TASK_RETRY_INTERVAL_IN_SEC = "300";
+  public static final long DEFAULT_TASK_RETRY_INTERVAL_IN_SEC = 300;
   public static final String OVERWRITE_CONFIGS_IN_STATESTORE = "overwrite.configs.in.statestore";
   public static final boolean DEFAULT_OVERWRITE_CONFIGS_IN_STATESTORE = Boolean.FALSE;
 
@@ -163,6 +166,12 @@ public class ConfigurationKeys {
   public static final String FORK_BRANCHES_KEY = "fork.branches";
   public static final String FORK_BRANCH_NAME_KEY = "fork.branch.name";
   public static final String DEFAULT_FORK_BRANCH_NAME = "fork_";
+  public static final String FORK_BRANCH_RECORD_QUEUE_CAPACITY_KEY = "fork.record.queue.capacity";
+  public static final int DEFAULT_FORK_BRANCH_RECORD_QUEUE_CAPACITY = 1000;
+  public static final String FORK_BRANCH_RECORD_QUEUE_TIMEOUT_KEY = "fork.record.queue.timeout";
+  public static final long DEFAULT_FORK_BRANCH_RECORD_QUEUE_TIMEOUT = 1000;
+  public static final String FORK_BRANCH_RECORD_QUEUE_TIMEOUT_UNIT_KEY = "fork.record.queue.timeout.unit";
+  public static final String DEFAULT_FORK_BRANCH_RECORD_QUEUE_TIMEOUT_UNIT = TimeUnit.MILLISECONDS.name();
 
   /**
    * Writer configuration properties.

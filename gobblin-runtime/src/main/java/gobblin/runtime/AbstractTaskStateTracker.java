@@ -53,21 +53,19 @@ public abstract class AbstractTaskStateTracker extends AbstractIdleService imple
 
   public AbstractTaskStateTracker(Properties properties, Logger logger) {
     this(
-        Integer.parseInt(properties.getProperty(
-            ConfigurationKeys.TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE_KEY,
-            ConfigurationKeys.DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE)),
+        Integer.parseInt(properties.getProperty(ConfigurationKeys.TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE_KEY,
+            Integer.toString(ConfigurationKeys.DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE))),
         Integer.parseInt(properties.getProperty(ConfigurationKeys.TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE_KEY,
-            ConfigurationKeys.DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE)),
+            Integer.toString(ConfigurationKeys.DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE))),
         logger);
   }
 
   public AbstractTaskStateTracker(Configuration configuration, Logger logger) {
     this(
-        Integer.parseInt(configuration.get(
-            ConfigurationKeys.TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE_KEY,
-            ConfigurationKeys.DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE)),
+        Integer.parseInt(configuration.get(ConfigurationKeys.TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE_KEY,
+            Integer.toString(ConfigurationKeys.DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE))),
         Integer.parseInt(configuration.get(ConfigurationKeys.TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE_KEY,
-            ConfigurationKeys.DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE)),
+            Integer.toString(ConfigurationKeys.DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE))),
         logger);
   }
 
@@ -100,7 +98,7 @@ public abstract class AbstractTaskStateTracker extends AbstractIdleService imple
   /**
    * A base class providing a default implementation for updating task metrics.
    */
-  protected static class TaskMetricsUpdater implements Runnable {
+  protected class TaskMetricsUpdater implements Runnable {
 
     protected final Task task;
 
@@ -111,6 +109,14 @@ public abstract class AbstractTaskStateTracker extends AbstractIdleService imple
     @Override
     public void run() {
       updateTaskMetrics();
+      // Log record queue stats/metrics of each fork
+      for (Optional<Fork> fork : task.getForks()) {
+        if (fork.isPresent()) {
+          logger.info(String.format(
+              "Queue stats of fork %d of task %s: %s", fork.get().getIndex(), this.task.getTaskId(),
+              fork.get().queueStats().toString()));
+        }
+      }
     }
 
     protected void updateTaskMetrics() {

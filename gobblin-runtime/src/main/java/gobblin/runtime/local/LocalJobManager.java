@@ -171,9 +171,9 @@ public class LocalJobManager extends AbstractIdleService {
     this.taskStateStore = new FsStateStore(properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
         properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY), TaskState.class);
 
-    long pollingInterval = Long.parseLong(this.properties
-        .getProperty(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
-            ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL));
+    long pollingInterval = Long.parseLong(this.properties.getProperty(
+        ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
+        Long.toString(ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL)));
     this.fileAlterationMonitor = new FileAlterationMonitor(pollingInterval);
 
     restoreLastJobIdMap();
