@@ -45,8 +45,8 @@ public abstract class AbstractTaskStateTracker extends AbstractIdleService imple
     Preconditions.checkArgument(maxThreadPoolSize >= coreThreadPoolSize,
         "Maximum thread pool size must not be smaller than the core thread pool size for the "
             + "task metrics updater executor");
-    this.taskMetricsUpdaterExecutor =
-        new ScheduledThreadPoolExecutor(coreThreadPoolSize, ExecutorsUtils.newThreadFactory(Optional.of(logger)));
+    this.taskMetricsUpdaterExecutor = new ScheduledThreadPoolExecutor(
+        coreThreadPoolSize, ExecutorsUtils.newThreadFactory(Optional.of(logger), Optional.of("TaskStateTracker-%d")));
     this.taskMetricsUpdaterExecutor.setMaximumPoolSize(maxThreadPoolSize);
     this.logger = logger;
   }

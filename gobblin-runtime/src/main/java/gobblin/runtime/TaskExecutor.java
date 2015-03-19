@@ -62,7 +62,7 @@ public class TaskExecutor extends AbstractIdleService {
     // Currently a fixed-size thread pool is used to execute tasks. We probably need to revisit this later.
     this.taskExecutor = Executors.newFixedThreadPool(
         taskExecutorThreadPoolSize,
-        ExecutorsUtils.newThreadFactory(Optional.of(LOG)));
+        ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of("TaskExecutor-%d")));
 
     // Using a separate thread pool for task retries to achieve isolation
     // between normal task execution and task retries
@@ -83,7 +83,7 @@ public class TaskExecutor extends AbstractIdleService {
         TimeUnit.MILLISECONDS,
         // The work queue is a SynchronousQueue. This essentially forces a new thread to be created for each fork.
         new SynchronousQueue<Runnable>(),
-        ExecutorsUtils.newThreadFactory(Optional.of(LOG)));
+        ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of("ForkExecutor-%d")));
 
   }
 
