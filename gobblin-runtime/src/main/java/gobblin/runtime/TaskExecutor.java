@@ -17,6 +17,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -80,9 +81,8 @@ public class TaskExecutor extends AbstractIdleService {
         Integer.MAX_VALUE,
         0L,
         TimeUnit.MILLISECONDS,
-        // The work queue is bounded and the size is the same as the core thread pool size. This essentially
-        // forces new threads to be created if there are more forks to run than the core thread pool size.
-        new LinkedBlockingQueue<Runnable>(taskExecutorThreadPoolSize),
+        // The work queue is a SynchronousQueue. This essentially forces a new thread to be created for each fork.
+        new SynchronousQueue<Runnable>(),
         ExecutorsUtils.newThreadFactory(Optional.of(LOG)));
 
   }
