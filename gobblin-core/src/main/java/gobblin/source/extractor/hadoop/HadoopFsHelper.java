@@ -39,10 +39,16 @@ import gobblin.configuration.State;
 public class HadoopFsHelper implements FileBasedHelper {
   private static Logger log = LoggerFactory.getLogger(HadoopFsHelper.class);
   private State state;
+  private Configuration configuration;
   private FileSystem fs;
 
   public HadoopFsHelper(State state) {
+    this(state, new Configuration());
+  }
+
+  public HadoopFsHelper(State state, Configuration configuration) {
     this.state = state;
+    this.configuration = configuration;
   }
 
   public FileSystem getFileSystem() {
@@ -55,7 +61,7 @@ public class HadoopFsHelper implements FileBasedHelper {
     URI uri = null;
     try {
       uri = new URI(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI));
-      this.fs = FileSystem.get(uri, new Configuration());
+      this.fs = FileSystem.get(uri, configuration);
     } catch (IOException e) {
       throw new FileBasedHelperException("Cannot connect to given URI " + uri + " due to " + e.getMessage(), e);
     } catch (URISyntaxException e) {
