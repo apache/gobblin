@@ -141,7 +141,7 @@ subprojects {
     }
   }
 
-  if (isDefaultEnvironment && !project.name.equals('gobblin-compaction')) {
+  if (isDefaultEnvironment) {
     task sourcesJar(type: Jar, dependsOn: classes) {
       from sourceSets.main.allSource
       classifier = 'sources'
