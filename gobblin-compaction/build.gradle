@@ -51,4 +51,6 @@ task createCompactionTar(type: Tar) {
 
 createCompactionTar.dependsOn ':gobblin-compaction:jar'
 
-artifacts { archives createCompactionTar }
+artifacts {
+  archives createCompactionTar
+}

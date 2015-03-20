@@ -14,7 +14,9 @@ package gobblin.hive.util;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.sql.PreparedStatement;
@@ -88,7 +90,7 @@ public class HiveJdbcConnector implements Closeable {
 
     // Set the Hive Server type
     if (compactRunProps.containsKey(HIVESERVER_VERSION)) {
-      hiveJdbcConnector.withHiveServerVersion(Integer.valueOf(compactRunProps.getProperty(HIVESERVER_VERSION, DEFAULT_HIVESERVER_VERSION)));
+      hiveJdbcConnector.withHiveServerVersion(Integer.parseInt(compactRunProps.getProperty(HIVESERVER_VERSION, DEFAULT_HIVESERVER_VERSION)));
     }
 
     // Add the Hive Site Dir to the classpath
@@ -189,8 +191,16 @@ public class HiveJdbcConnector implements Closeable {
       Method method = urlClass.getDeclaredMethod("addURL", new Class[] { URL.class });
       method.setAccessible(true);
       method.invoke(urlClassLoader, new Object[] { u });
-    } catch (Exception e) {
-      throw new RuntimeException("Unable to add hive.site.dir to CLASSPATH");
+    } catch (NoSuchMethodException e) {
+      throw new RuntimeException("Unable to add hive.site.dir to CLASSPATH", e);
+    } catch (IllegalArgumentException e) {
+      throw new RuntimeException("Unable to add hive.site.dir to CLASSPATH", e);
+    } catch (IllegalAccessException e) {
+      throw new RuntimeException("Unable to add hive.site.dir to CLASSPATH", e);
+    } catch (InvocationTargetException e) {
+      throw new RuntimeException("Unable to add hive.site.dir to CLASSPATH", e);
+    } catch (MalformedURLException e) {
+      throw new RuntimeException("Unable to add hive.site.dir to CLASSPATH", e);
     }
   }
 

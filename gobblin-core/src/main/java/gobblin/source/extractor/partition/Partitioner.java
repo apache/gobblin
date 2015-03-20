@@ -119,7 +119,9 @@ public class Partitioner {
       int deltaForNextWatermark) {
     long lowWatermark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
     if (this.isFullDump() || this.isWatermarkOverride()) {
-      lowWatermark = Utils.getLongWithCurrentDate(this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_START_VALUE));
+      String timeZone = this.state.getProp(ConfigurationKeys.SOURCE_TIMEZONE, ConfigurationKeys.DEFAULT_SOURCE_TIMEZONE);
+      lowWatermark = Utils.getLongWithCurrentDate(
+          this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_START_VALUE), timeZone);
       LOG.info("Overriding low water mark with the given start value: " + lowWatermark);
     } else {
       if (this.isSnapshot(extractType)) {
@@ -141,7 +143,7 @@ public class Partitioner {
    */
   private long getSnapshotLowWatermark(WatermarkType watermarkType, long previousWatermark, int deltaForNextWatermark) {
     LOG.debug("Getting snapshot low water mark");
-    String timeZone = this.state.getProp(ConfigurationKeys.SOURCE_TIMEZONE);
+    String timeZone = this.state.getProp(ConfigurationKeys.SOURCE_TIMEZONE, ConfigurationKeys.DEFAULT_SOURCE_TIMEZONE);
     if (this.isPreviousWatermarkExists(previousWatermark)) {
       if (this.isSimpleWatermark(watermarkType)) {
         return previousWatermark + deltaForNextWatermark
@@ -157,7 +159,7 @@ public class Partitioner {
     } else {
       // if previous watermark is not found, override with the start value(irrespective of source.is.watermark.override flag)
       long startValue =
-          Utils.getLongWithCurrentDate(this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_START_VALUE));
+          Utils.getLongWithCurrentDate(this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_START_VALUE), timeZone);
       LOG.info("Overriding low water mark with the given start value: " + startValue);
       return startValue;
     }
@@ -184,7 +186,7 @@ public class Partitioner {
       }
     } else {
       LOG.info("Overriding low water mark with start value: " + ConfigurationKeys.SOURCE_QUERYBASED_START_VALUE);
-      return Utils.getLongWithCurrentDate(this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_START_VALUE));
+      return Utils.getLongWithCurrentDate(this.state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_START_VALUE), timeZone);
     }
   }
 
