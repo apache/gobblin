@@ -13,6 +13,7 @@ package gobblin.source.extractor.hadoop;
 
 import gobblin.source.extractor.filebased.FileBasedHelper;
 import gobblin.source.extractor.filebased.FileBasedHelperException;
+import gobblin.util.HadoopUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,7 +47,7 @@ public class HadoopFsHelper implements FileBasedHelper {
   private FileSystem fs;
 
   public HadoopFsHelper(State state) {
-    this(state, new Configuration());
+    this(state, HadoopUtils.newConfiguration());
   }
 
   public HadoopFsHelper(State state, Configuration configuration) {
