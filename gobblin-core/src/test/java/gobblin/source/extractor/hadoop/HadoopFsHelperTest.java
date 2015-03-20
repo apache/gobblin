@@ -1,10 +1,16 @@
 package gobblin.source.extractor.hadoop;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.source.extractor.filebased.FileBasedHelperException;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class HadoopFsHelperTest {
@@ -16,5 +22,37 @@ public class HadoopFsHelperTest {
     sourceState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, "s3://support.elasticmapreduce/spark/install-spark/");
     HadoopFsHelper fsHelper = new HadoopFsHelper(sourceState, conf);
     fsHelper.connect();
+  }
+
+  @Test
+  public void testGetFileStreamSucceedsWithUncompressedFile() throws FileBasedHelperException, IOException {
+    SourceState sourceState = new SourceState();
+    URL rootUrl = getClass().getResource("/source/");
+    String rootPath = rootUrl.toString();
+    sourceState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, rootPath);
+    HadoopFsHelper fsHelper = new HadoopFsHelper(sourceState);
+
+    fsHelper.connect();
+    URL url = getClass().getResource("/source/simple.tsv");
+    String path = url.toString();
+    InputStream in = fsHelper.getFileStream(path);
+    String contents = IOUtils.toString(in, "UTF-8");
+    Assert.assertEquals(contents, "A\t1\nB\t2\n");
+  }
+
+  @Test
+  public void testGetFileStreamSucceedsWithGZIPFile() throws FileBasedHelperException, IOException {
+    SourceState sourceState = new SourceState();
+    URL rootUrl = getClass().getResource("/source/");
+    String rootPath = rootUrl.toString();
+    sourceState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, rootPath);
+    HadoopFsHelper fsHelper = new HadoopFsHelper(sourceState);
+
+    fsHelper.connect();
+    URL url = getClass().getResource("/source/simple.tsv.gz");
+    String path = url.toString();
+    InputStream in = fsHelper.getFileStream(path);
+    String contents = IOUtils.toString(in, "UTF-8");
+    Assert.assertEquals(contents, "A\t1\nB\t2\n");
   }
 }
