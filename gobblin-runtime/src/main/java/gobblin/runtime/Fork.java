@@ -403,10 +403,16 @@ public class Fork implements Closeable, Runnable {
     }
   }
 
+  /**
+   * Set the state of this {@link Fork} to a new state if and only if the current state is the expected state.
+   */
   private void setForkState(ForkState expectedState, ForkState newState) {
     if (this.forkState.compareAndSet(expectedState, newState)) {
       this.taskState.setProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.FORK_STATE_KEY, this.index),
           newState.name());
+    } else {
+      throw new IllegalStateException(String
+          .format("Expected fork state %s; actual fork state %s", expectedState.name(), this.forkState.get().name()));
     }
   }
 }

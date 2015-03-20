@@ -368,7 +368,10 @@ public class Task implements Runnable {
     // until all puts succeed, at which point the task moves to the next record.
     while (!allPutsSucceeded) {
       allPutsSucceeded = true;
-      for (int i = 0; i < branches && !succeededPuts[i]; i++) {
+      for (int i = 0; i < branches; i++) {
+        if (succeededPuts[i]) {
+          continue;
+        }
         if (this.forks.get(i).isPresent() && forkedRecords.get(i)) {
           boolean succeeded =
               this.forks.get(i).get().putRecord(makesCopy ? ((Copyable) convertedRecord).copy() : convertedRecord);
