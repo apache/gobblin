@@ -10,11 +10,11 @@ import org.testng.annotations.Test;
 public class HadoopFsHelperTest {
 
   @Test(expectedExceptions = IllegalArgumentException.class)
-  public void testConnectFailsOnS3URLWithoutAWSCredentials() throws FileBasedHelperException {
+  public void testConnectFailsWithS3URLWithoutAWSCredentials() throws FileBasedHelperException {
     Configuration conf = new Configuration(); // plain conf, no S3 credentials
     SourceState sourceState = new SourceState();
-    HadoopFsHelper fsHelper = new HadoopFsHelper(sourceState, conf);
     sourceState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, "s3://support.elasticmapreduce/spark/install-spark/");
+    HadoopFsHelper fsHelper = new HadoopFsHelper(sourceState, conf);
     fsHelper.connect();
   }
 }
