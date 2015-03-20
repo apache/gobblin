@@ -42,7 +42,7 @@ import gobblin.configuration.State;
 public class HadoopFsHelper implements FileBasedHelper {
   private static Logger log = LoggerFactory.getLogger(HadoopFsHelper.class);
   private State state;
-  private Configuration configuration;
+  private final Configuration configuration;
   private FileSystem fs;
 
   public HadoopFsHelper(State state) {
