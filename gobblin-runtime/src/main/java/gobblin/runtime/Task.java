@@ -172,6 +172,14 @@ public class Task implements Runnable {
       LOG.info("Extracted " + recordsPulled + " data records");
       LOG.info("Row quality checker finished with results: " + rowResults.getResults());
 
+      if (pullLimit > 0) {
+        // If pull limit is set, use the actual number of records pulled.
+        this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, recordsPulled);
+      } else {
+        // Otherwise use the expected record count
+        this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, extractor.getExpectedRecordCount());
+      }
+
       for (Optional<Fork> fork : this.forks) {
         if (fork.isPresent()) {
           // Tell the fork that the main branch is done and no new incoming data records should be expected
@@ -189,15 +197,20 @@ public class Task implements Runnable {
       for (Optional<Fork> fork : this.forks) {
         if (fork.isPresent()) {
           if (fork.get().isSucceeded()) {
-            fork.get().commit(recordsPulled, extractor.getExpectedRecordCount(), pullLimit);
+            fork.get().commit();
           } else {
             allForksSucceeded = false;
           }
         }
       }
 
-      if (!allForksSucceeded) {
-        throw new RuntimeException(String.format("Not all forks of task %s succeeded", this.taskId));
+      if (allForksSucceeded) {
+        // Set the task state to SUCCESSFUL. The state is not set to COMMITTED
+        // as the data publisher will do that upon successful data publishing.
+        this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
+      } else {
+        LOG.error(String.format("Not all forks of task %s succeeded", this.taskId));
+        this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
       }
     } catch (Throwable t) {
       LOG.error(String.format("Task %s failed", this.taskId), t);

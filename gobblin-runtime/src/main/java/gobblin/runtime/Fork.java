@@ -15,6 +15,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,7 +24,6 @@ import com.google.common.base.Throwables;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
@@ -57,6 +57,11 @@ import gobblin.writer.Destination;
 @SuppressWarnings("unchecked")
 public class Fork implements Closeable, Runnable {
 
+  // Possible state of a fork
+  enum ForkState {
+    PENDING, RUNNING, SUCCEEDED, FAILED, COMMITTED
+  }
+
   private final Logger logger;
 
   private final TaskContext taskContext;
@@ -81,14 +86,15 @@ public class Fork implements Closeable, Runnable {
   private final Closer closer = Closer.create();
 
   // This is used by the parent task to signal that it has done pulling records and this fork
-  // should not expect any new incoming data records
+  // should not expect any new incoming data records. This is written by the parent task and
+  // read by this fork. Since this flag will be updated by only a single thread and updates to
+  // a boolean are atomic, volatile is sufficient here.
   private volatile boolean parentTaskDone = false;
 
-  // This tells if this fork is done
-  private volatile boolean done = false;
-
-  // This tells if this fork has successfully completed
-  private volatile boolean succeeded = true;
+  // This may be updated and read by both this fork and the parent task although the update by
+  // the parent task will only come after the updates by this fork. But to be absolutely safe,
+  // an AtomicReference is still used here to guarantee atomicity.
+  private final AtomicReference<ForkState> forkState;
 
   public Fork(TaskContext taskContext, TaskState taskState, Object schema, int branches, int index,
       CountDownLatch countDownLatch)
@@ -126,29 +132,31 @@ public class Fork implements Closeable, Runnable {
 
     this.closer.register(this.rowLevelPolicyChecker);
     this.closer.register(this.writer);
+
+    this.forkState = new AtomicReference<ForkState>(ForkState.PENDING);
   }
 
   @Override
   public void run() {
+    setForkState(ForkState.PENDING, ForkState.RUNNING);
     try {
       processRecords();
+      setForkState(ForkState.RUNNING, ForkState.SUCCEEDED);
     } catch (IOException ioe) {
-      this.succeeded = false;
+      setForkState(ForkState.RUNNING, ForkState.FAILED);
       this.logger.error(
           String.format("Fork %d of task %s failed to process data records", this.index, this.taskId), ioe);
       Throwables.propagate(ioe);
     } catch (DataConversionException dce) {
-      this.succeeded = false;
+      setForkState(ForkState.RUNNING, ForkState.FAILED);
       this.logger.error(
           String.format("Fork %d of task %s failed to convert data records", this.index, this.taskId), dce);
       Throwables.propagate(dce);
     } catch (Throwable t) {
-      this.succeeded = false;
+      setForkState(ForkState.RUNNING, ForkState.FAILED);
       this.logger.error(String.format("Fork %d of task %s failed to process data records", this.index, this.taskId), t);
       Throwables.propagate(t);
     } finally {
-      // This prevents the parent task from putting new records into the queue in case this fork failed
-      this.done = true;
       // Clear the queue and count down so the parent task knows this fork is done (succeeded or failed)
       this.recordQueue.clear();
       this.countDownLatch.countDown();
@@ -167,9 +175,9 @@ public class Fork implements Closeable, Runnable {
    * @throws InterruptedException
    */
   public boolean putRecord(Object record) throws InterruptedException {
-    if (this.done) {
+    if (this.forkState.compareAndSet(ForkState.FAILED, ForkState.FAILED)) {
       throw new IllegalStateException(
-          String.format("Fork %d of task %s is no longer running", this.index, this.taskId));
+          String.format("Fork %d of task %s has failed and is no longer running", this.index, this.taskId));
     }
     return this.recordQueue.put(record);
   }
@@ -208,17 +216,25 @@ public class Fork implements Closeable, Runnable {
   /**
    * Commit data of this {@link Fork}.
    *
-   * @param recordsPulled number of records pulled
-   * @param expectedCount expected record count
-   * @param pullLimit pull limit
-   * @throws Exception
+   * @throws Exception if there is anything wrong committing the data
    */
-  public void commit(long recordsPulled, long expectedCount, long pullLimit)
+  public void commit()
       throws Exception {
-    if (checkDataQuality(recordsPulled, expectedCount, pullLimit, this.convertedSchema)) {
-      // Commit data if all quality checkers pass. Again, not to catch the exception
-      // it may throw so the exception gets propagated to the caller of this method.
-      commitData();
+    try {
+      if (checkDataQuality(this.convertedSchema)) {
+        // Commit data if all quality checkers pass. Again, not to catch the exception
+        // it may throw so the exception gets propagated to the caller of this method.
+        this.logger.info(String.format("Committing data for fork %d of task %s", this.index, this.taskId));
+        commitData();
+        setForkState(ForkState.SUCCEEDED, ForkState.COMMITTED);
+      } else {
+        this.logger.error(String.format("Fork %d of task %s failed to pass quality checking", this.index, this.taskId));
+        setForkState(ForkState.SUCCEEDED, ForkState.FAILED);
+      }
+    } catch (Throwable t) {
+      this.logger.error(String.format("Fork %d of task %s failed to commit data", this.index, this.taskId), t);
+      setForkState(ForkState.SUCCEEDED, ForkState.FAILED);
+      Throwables.propagate(t);
     }
   }
 
@@ -255,7 +271,7 @@ public class Fork implements Closeable, Runnable {
    * @return if this {@link Fork} has succeeded processing all records
    */
   public boolean isSucceeded() {
-    return this.succeeded;
+    return this.forkState.compareAndSet(ForkState.SUCCEEDED, ForkState.SUCCEEDED);
   }
 
   @Override
@@ -325,26 +341,25 @@ public class Fork implements Closeable, Runnable {
    *
    * @return whether data publishing is successful and data should be committed
    */
-  private boolean checkDataQuality(long recordsPulled, long expectedCount, long pullLimit, Object schema)
+  private boolean checkDataQuality(Object schema)
       throws Exception {
-
-    if (pullLimit > 0) {
-      // If pull limit is set, use the actual number of records pulled.
-      this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, recordsPulled);
-    } else {
-      // Otherwise use the expected record count
-      this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, expectedCount);
+    TaskState taskStateForFork = this.taskState;
+    if (this.branches > 1) {
+      // Make a copy if there are more than one fork
+      taskStateForFork = new TaskState(this.taskState);
+      taskStateForFork.addAll(this.taskState);
     }
-    this.taskState.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, this.writer.recordsWritten());
-    this.taskState.setProp(ConfigurationKeys.EXTRACT_SCHEMA, schema.toString());
+
+    taskStateForFork.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, this.writer.recordsWritten());
+    taskStateForFork.setProp(ConfigurationKeys.EXTRACT_SCHEMA, schema.toString());
 
     try {
       // Do task-level quality checking
       TaskLevelPolicyCheckResults taskResults =
-          this.taskContext.getTaskLevelPolicyChecker(this.taskState, this.branches > 1 ? this.index : -1)
+          this.taskContext.getTaskLevelPolicyChecker(taskStateForFork, this.branches > 1 ? this.index : -1)
               .executePolicies();
       TaskPublisher publisher =
-          this.taskContext.getTaskPublisher(this.taskState, taskResults, this.branches > 1 ? this.index : -1);
+          this.taskContext.getTaskPublisher(taskStateForFork, taskResults, this.branches > 1 ? this.index : -1);
       switch (publisher.canPublish()) {
         case SUCCESS:
           return true;
@@ -361,7 +376,6 @@ public class Fork implements Closeable, Runnable {
           break;
       }
 
-      this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
       return false;
     } catch (Throwable t) {
       this.logger.error("Failed to check task-level data quality", t);
@@ -377,9 +391,6 @@ public class Fork implements Closeable, Runnable {
     this.logger.info(String.format("Committing data of fork %d of task %s", this.index, this.taskId));
     // Not to catch the exception this may throw so it gets propagated
     this.writer.commit();
-    // Change the state to SUCCESSFUL upon successful commit. The state is not changed
-    // to COMMITTED as the data publisher will do that upon successful data publishing.
-    this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
 
     try {
       if (JobMetrics.isEnabled(this.taskState.getWorkunit())) {
@@ -389,6 +400,13 @@ public class Fork implements Closeable, Runnable {
     } catch (IOException ioe) {
       // Trap the exception as failing to update metrics should not cause the task to fail
       this.logger.error("Failed to update byte-level metrics of task " + this.taskId);
+    }
+  }
+
+  private void setForkState(ForkState expectedState, ForkState newState) {
+    if (this.forkState.compareAndSet(expectedState, newState)) {
+      this.taskState.setProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.FORK_STATE_KEY, this.index),
+          newState.name());
     }
   }
 }

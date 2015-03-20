@@ -117,6 +117,7 @@ public class ConfigurationKeys {
   public static final String TASK_RETRIES_KEY = "task.retries";
   public static final String JOB_FAILURES_KEY = "job.failures";
   public static final String JOB_TRACKING_URL_KEY = "job.tracking.url";
+  public static final String FORK_STATE_KEY = "fork.state";
 
   /**
    * Work unit related configuration properties.
