@@ -53,7 +53,28 @@ public class Utils {
     }
     return retStr;
   }
-
+  
+  /**
+   * Get coalesce of columns if there are multiple comma-separated columns
+   *
+   * @param column
+   * @return column
+   */
+  public static String getCoalesceColumnNames(String column) {
+    int columnCount = 0;
+    if (column != null) {
+      columnCount = Arrays.asList(column.split(",")).size();
+    }
+    switch (columnCount) {
+      case 0:
+        return null;
+      case 1:
+        return column;
+      default:
+        return "COALESCE(" + column + ")";
+    }
+  }
+  
   public static JsonArray removeElementFromJsonArray(JsonArray inputJsonArray, String key) {
     JsonArray outputJsonArray = new JsonArray();
     for (int i = 0; i < inputJsonArray.size(); i += 1) {
