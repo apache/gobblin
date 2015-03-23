@@ -304,7 +304,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
       String outputColProjection = Joiner.on(",").useForNull("null").join(this.columnList);
       outputColProjection =
-          outputColProjection.replace(derivedWatermarkColumnName, getWatermarkColumnName(watermarkColumn) + " AS "
+          outputColProjection.replace(derivedWatermarkColumnName, Utils.getCoalesceColumnNames(watermarkColumn) + " AS "
               + derivedWatermarkColumnName);
       this.setOutputColumnProjection(outputColProjection);
       String extractQuery = this.getExtractQuery(schema, entity, inputQuery);
@@ -773,29 +773,6 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     }
     query = query + Utils.getClause(predicate, predicateCond);
     return query;
-  }
-
-  /**
-   * Get coalesce of water mark columns if there are multiple water mark columns
-   *
-   * @param water mark column
-   * @return water mark column
-   */
-  protected String getWatermarkColumnName(String waterMarkColumn) {
-    int waterMarkColumnCount = 0;
-
-    if (waterMarkColumn != null) {
-      waterMarkColumnCount = Arrays.asList(waterMarkColumn.split(",")).size();
-    }
-
-    switch (waterMarkColumnCount) {
-      case 0:
-        return null;
-      case 1:
-        return waterMarkColumn;
-      default:
-        return "COALESCE(" + waterMarkColumn + ")";
-    }
   }
 
   @Override
