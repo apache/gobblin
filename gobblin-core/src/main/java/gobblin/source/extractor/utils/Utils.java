@@ -56,23 +56,15 @@ public class Utils {
   
   /**
    * Get coalesce of columns if there are multiple comma-separated columns
-   *
-   * @param column
-   * @return column
    */
-  public static String getCoalesceColumnNames(String column) {
-    int columnCount = 0;
-    if (column != null) {
-      columnCount = Arrays.asList(column.split(",")).size();
+  public static String getCoalesceColumnNames(String columnOrColumnList) {
+    if (columnOrColumnList == null) {
+      return null;
     }
-    switch (columnCount) {
-      case 0:
-        return null;
-      case 1:
-        return column;
-      default:
-        return "COALESCE(" + column + ")";
+    if (columnOrColumnList.contains(",")) {
+      return "COALESCE(" + columnOrColumnList + ")";
     }
+    return columnOrColumnList;
   }
   
   public static JsonArray removeElementFromJsonArray(JsonArray inputJsonArray, String key) {
