@@ -74,6 +74,8 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
           return new MultiConverterIterator(inputRecord, workUnit);
         } catch (DataConversionException dce) {
           throw new RuntimeException(dce);
+        } catch (IOException ioe) {
+          throw new RuntimeException(ioe);
         }
       }
     };
@@ -88,7 +90,8 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
     private final Deque<Iterator<Object>> converterIteratorStack = Lists.newLinkedList();
     private Iterator<Object> outputIterator;
 
-    public MultiConverterIterator(Object inputRecord, WorkUnitState workUnitState) throws DataConversionException {
+    public MultiConverterIterator(Object inputRecord, WorkUnitState workUnitState) throws DataConversionException,
+        IOException {
       this.workUnitState = workUnitState;
 
       // Construct the initial stack of converter iterators
@@ -143,6 +146,8 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
           }
         } catch (DataConversionException dce) {
           throw new RuntimeException(dce);
+        } catch (IOException ioe) {
+          throw new RuntimeException(ioe);
         }
       }
 
