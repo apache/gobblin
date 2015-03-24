@@ -38,8 +38,7 @@ public class CsvToJsonConverter extends Converter<String, JsonArray, String, Jso
    * @return a JsonArray representation of the schema
    */
   @Override
-  public JsonArray convertSchema(String inputSchema, WorkUnitState workUnit)
-      throws SchemaConversionException {
+  public JsonArray convertSchema(String inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
     JsonParser jsonParser = new JsonParser();
     JsonElement jsonSchema = jsonParser.parse(inputSchema);
     return jsonSchema.getAsJsonArray();
@@ -53,12 +52,16 @@ public class CsvToJsonConverter extends Converter<String, JsonArray, String, Jso
    */
   @Override
   public Iterable<JsonObject> convertRecord(JsonArray outputSchema, String inputRecord, WorkUnitState workUnit)
-      throws DataConversionException, IOException {
+      throws DataConversionException {
     InputStreamCSVReader reader =
         new InputStreamCSVReader(inputRecord, workUnit.getProp(ConfigurationKeys.CONVERTER_CSV_TO_JSON_DELIMITER)
             .trim().charAt(0));
-    List<String> recordSplit = Lists.newArrayList(reader.splitRecord());
-
+    List<String> recordSplit;
+    try {
+      recordSplit = Lists.newArrayList(reader.splitRecord());
+    } catch (IOException e) {
+      throw new DataConversionException(e);
+    }
     JsonObject outputRecord = new JsonObject();
 
     for (int i = 0; i < outputSchema.size(); i++) {

@@ -72,8 +72,7 @@ public abstract class Converter<SI, SO, DI, DO> {
    * @param workUnit a {@link WorkUnitState} object carrying configuration properties
    * @return converted data record
    * @throws DataConversionException if it fails to convert the input data record
-   * @throws IOException 
    */
   public abstract Iterable<DO> convertRecord(SO outputSchema, DI inputRecord, WorkUnitState workUnit)
-      throws DataConversionException, IOException;
+      throws DataConversionException;
 }
