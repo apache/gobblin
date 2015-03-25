@@ -49,7 +49,7 @@ public class InputStreamCSVReader {
 
   public InputStreamCSVReader(String input) {
     this(new InputStreamReader(new ByteArrayInputStream(input.getBytes()),
-        Charset.forName(ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
+        Charset.forName(ConfigurationKeys.DEFAULT_CHARSET_ENCODING)), ',', '\"');
   }
 
   public InputStreamCSVReader(Reader input, char customizedSeparator) {
@@ -98,8 +98,12 @@ public class InputStreamCSVReader {
     atEOF = false;
   }
 
-  public ArrayList<String> nextRecord()
-      throws IOException {
+  public ArrayList<String> splitRecord() throws IOException {
+    ArrayList<String> record = this.getNextRecordFromStream();
+    return record;
+  }
+
+  public ArrayList<String> nextRecord() throws IOException {
     ArrayList<String> record = this.getNextRecordFromStream();
 
     // skip record if it is empty

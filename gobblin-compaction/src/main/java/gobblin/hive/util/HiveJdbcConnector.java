@@ -43,9 +43,9 @@ public class HiveJdbcConnector implements Closeable {
   public static final String HIVESERVER_VERSION = "hiveserver.version";
   public static final String DEFAULT_HIVESERVER_VERSION = "2";
   public static final String HIVESERVER_CONNECTION_STRING = "hiveserver.connection.string";
-  public static final String HIVESERVER_URL = "hiveserver.connection.string";
-  public static final String HIVESERVER_USER = "hiveserver.connection.string";
-  public static final String HIVESERVER_PASSWORD = "hiveserver.connection.string";
+  public static final String HIVESERVER_URL = "hiveserver.url";
+  public static final String HIVESERVER_USER = "hiveserver.user";
+  public static final String HIVESERVER_PASSWORD = "hiveserver.password";
   public static final String HIVESITE_DIR = "hivesite.dir";
 
   private static final String HIVE_JDBC_DRIVER_NAME = "org.apache.hadoop.hive.jdbc.HiveDriver";
