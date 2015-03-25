@@ -11,12 +11,12 @@
 
 package gobblin.runtime;
 
-import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 
+import com.google.common.base.Throwables;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -24,7 +24,6 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
-import gobblin.converter.SingleRecordIterable;
 
 
 /**
@@ -46,8 +45,7 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
   }
 
   @Override
-  public Object convertSchema(Object inputSchema, WorkUnitState workUnit)
-      throws SchemaConversionException {
+  public Object convertSchema(Object inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
 
     Object schema = inputSchema;
     for (Converter converter : this.converters) {
@@ -67,11 +65,13 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
       throw new RuntimeException("convertRecord should be called only after convertSchema is called");
     }
 
+    final List<Converter<?, ?, ?, ?>> converters = this.converters;
+
     return new Iterable<Object>() {
       @Override
       public Iterator<Object> iterator() {
         try {
-          return new MultiConverterIterator(inputRecord, workUnit);
+          return new MultiConverterIterator(inputRecord, workUnit, converters);
         } catch (DataConversionException dce) {
           throw new RuntimeException(dce);
         }
@@ -80,82 +80,129 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
   }
 
   /**
-   * A type of {@link java.util.Iterator} to be used with {@link MultiConverter}.
+   * A type of {@link java.util.Iterator} to be used with {@link MultiConverter}. This method works by maintaining a
+   * list of {@link ConverterIteratorPair} elements. There is an entry in the list for each converter present. The code
+   * iterates up and down the list by maintaining an index variable. It is necessary to move up and down the list
+   * because at any moment a call to {@link Converter#convertRecord(Object, Object, WorkUnitState)} can return an
+   * {@link EmptyIterable()}, meaning the iteration needs to fall back to a previous element.
    */
   private class MultiConverterIterator implements Iterator<Object> {
 
     private final WorkUnitState workUnitState;
-    private final Deque<Iterator<Object>> converterIteratorStack = Lists.newLinkedList();
-    private Iterator<Object> outputIterator;
 
-    public MultiConverterIterator(Object inputRecord, WorkUnitState workUnitState) throws DataConversionException {
+    // A list of ConverterIteratorPair where each ConverterIteratorPair contains a converter, and the iterator that the
+    // converter produced
+    private final List<ConverterIteratorPair> converterIteratorList = Lists.newArrayList();
+
+    // currentRecord contains either the next element to be returned, or the element highest on converterIteratorList
+    private Object currentRecord;
+
+    // The index variable tracks the current index of converterIteratorList that produced the latest value of currentRecord
+    private Integer currentRecordIndex;
+
+    public MultiConverterIterator(Object inputRecord, WorkUnitState workUnitState,
+        List<Converter<?, ?, ?, ?>> converters) throws DataConversionException {
       this.workUnitState = workUnitState;
+      this.currentRecord = inputRecord;
+      this.currentRecordIndex = 0;
 
-      // Construct the initial stack of converter iterators
-      if (converters.isEmpty()) {
-        this.converterIteratorStack.push(new SingleRecordIterable<Object>(inputRecord).iterator());
-      } else {
-        Object record = inputRecord;
-        for (Converter converter : converters) {
-          if (!this.converterIteratorStack.isEmpty()) {
-            record = this.converterIteratorStack.peek().next();
-          }
-          Iterator<Object> iterator =
-              converter.convertRecord(convertedSchemaMap.get(converter), record, workUnitState).iterator();
-          this.converterIteratorStack.push(iterator);
-          // Do not continue when encountering an empty iterator
-          if (!iterator.hasNext()) {
-            break;
-          }
-        }
+      // Initialize converterIteratorList with each converter and a blank iterator
+      for (Converter converter : converters) {
+        this.converterIteratorList.add(ConverterIteratorPair.newConverterIterator().withConverter(converter));
       }
 
-      this.outputIterator = this.converterIteratorStack.peek();
+      // Set the new value of currentRecord
+      setNextRecord();
+    }
+
+    /**
+     * Helper method to set the newest value of currentRecord, after this method is called then it is safe to return the
+     * value of currentRecord. THe method works by propagating the value currentRecord up the list until all converters
+     * have been reset based on the value of currentRecord. If the propagation ever finds an EmptyIterable, then it
+     * moves to the next available element in the list.
+     * @throws DataConversionException
+     */
+    public void setNextRecord() throws DataConversionException {
+      while (this.currentRecord != null && this.currentRecordIndex < this.converterIteratorList.size()) {
+        Converter converter = this.converterIteratorList.get(this.currentRecordIndex).getConverter();
+        Iterator<Object> iterator =
+            converter.convertRecord(convertedSchemaMap.get(converter), this.currentRecord, this.workUnitState)
+                .iterator();
+
+        if (iterator.hasNext()) {
+          this.converterIteratorList.get(this.currentRecordIndex).setIterator(iterator);
+          this.currentRecord = iterator.next();
+          this.currentRecordIndex++;
+
+        } else {
+          this.currentRecord = getNextElementFromList();
+        }
+      }
+    }
+
+    /**
+     * Helper method to get the next element on the list. This does a search down the list from index to element 0,
+     * searching each ConverterIteratorPair to see if any iterator contains an element. Once it finds that element, it
+     * returns it.
+     * @return
+     */
+    public Object getNextElementFromList() {
+      Iterator<Object> itr;
+
+      while (this.currentRecordIndex > 0) {
+        itr = this.converterIteratorList.get(this.currentRecordIndex).getIterator();
+        if (itr.hasNext()) {
+          this.currentRecordIndex++;
+          return itr.next();
+        } else {
+          this.currentRecordIndex--;
+        }
+      }
+      return null;
     }
 
     @Override
     public boolean hasNext() {
-      if (this.outputIterator.hasNext()) {
-        return true;
-      }
-
-      // Pop out all empty converter iterators from the stack
-      while (!this.converterIteratorStack.isEmpty() && !this.converterIteratorStack.peek().hasNext()) {
-        this.converterIteratorStack.pop();
-      }
-
-      if (this.converterIteratorStack.isEmpty()) {
-        return false;
-      }
-
-      // Get the next record from the iterator (that still has more records) at the top of the stack
-      // and reconstruct the stack of converter iterators from that record
-      for (int i = this.converterIteratorStack.size(); i < converters.size(); i++) {
-        Object record = this.converterIteratorStack.peek().next();
-        Converter converter = converters.get(i);
-        try {
-          Iterator<Object> iterator =
-              converter.convertRecord(convertedSchemaMap.get(converter), record, this.workUnitState).iterator();
-          this.converterIteratorStack.push(iterator);
-          // Do not continue when encountering an empty iterator
-          if (!iterator.hasNext()) {
-            break;
-          }
-        } catch (DataConversionException dce) {
-          throw new RuntimeException(dce);
-        }
-      }
-
-      this.outputIterator = this.converterIteratorStack.peek();
-      return this.outputIterator.hasNext();
+      return this.currentRecord != null;
     }
 
     @Override
     public Object next() {
-      if (!this.hasNext()) {
-        throw new NoSuchElementException();
+
+      // The returnRecord will be the record that is returned by this method
+      Object returnRecord = this.currentRecord;
+
+      // Move the currentRecord point to the next record, or null if there are no more records left
+      if (this.converterIteratorList.isEmpty()) {
+        this.currentRecord = null;
+        return returnRecord;
       }
-      return this.outputIterator.next();
+
+      // If the top of the list has data, then the next currentRecord will come from that iterator
+      Iterator<Object> lastItr = Iterables.getLast(this.converterIteratorList).getIterator();
+      if (lastItr.hasNext()) {
+        this.currentRecord = lastItr.next();
+
+      } else {
+
+        // Reset the index and get the next element from the list
+        this.currentRecordIndex = this.converterIteratorList.size() - 1;
+        this.currentRecord = getNextElementFromList();
+
+        // If there are no more elements in the list, then return returnRecord
+        if (this.currentRecord == null) {
+          return returnRecord;
+        }
+
+        // Set the new value of currentRecord
+        try {
+          setNextRecord();
+        } catch (DataConversionException e) {
+          Throwables.propagate(e);
+        }
+      }
+
+      return returnRecord;
     }
 
     @Override
