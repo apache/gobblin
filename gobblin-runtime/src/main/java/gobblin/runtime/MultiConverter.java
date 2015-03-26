@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.base.Throwables;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -72,7 +71,7 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
       @Override
       public Iterator<Object> iterator() {
         try {
-          return new MultiConverterIterator(inputRecord, workUnit, converters);
+          return new MultiConverterIterator(inputRecord, workUnit);
         } catch (DataConversionException dce) {
           throw new RuntimeException(dce);
         }
@@ -97,14 +96,9 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
     // currentRecord contains either the next element to be returned, or the element highest on converterIteratorStack
     private Object currentRecord;
 
-    // List of converters
-    private List<Converter<?, ?, ?, ?>> converters;
-
-    public MultiConverterIterator(Object inputRecord, WorkUnitState workUnitState,
-        List<Converter<?, ?, ?, ?>> converters) throws DataConversionException {
+    public MultiConverterIterator(Object inputRecord, WorkUnitState workUnitState) throws DataConversionException {
       this.workUnitState = workUnitState;
       this.currentRecord = inputRecord;
-      this.converters = converters;
 
       // Set the new value of currentRecord
       setNextRecord();
@@ -118,8 +112,8 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
      * @throws DataConversionException
      */
     public void setNextRecord() throws DataConversionException {
-      while (this.currentRecord != null && this.converterIteratorStack.size() != this.converters.size()) {
-        Converter converter = this.converters.get(converterIteratorStack.size());
+      while (this.currentRecord != null && this.converterIteratorStack.size() != converters.size()) {
+        Converter converter = converters.get(converterIteratorStack.size());
         Iterator<Object> iterator =
             converter.convertRecord(convertedSchemaMap.get(converter), this.currentRecord, this.workUnitState)
                 .iterator();
