@@ -81,10 +81,7 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
 
   /**
    * A type of {@link java.util.Iterator} to be used with {@link MultiConverter}. This method works by maintaining a
-   * list of {@link ConverterIteratorPair} elements. There is an entry in the list for each converter present. The code
-   * iterates up and down the list by maintaining an index variable. It is necessary to move up and down the list
-   * because at any moment a call to {@link Converter#convertRecord(Object, Object, WorkUnitState)} can return an
-   * {@link EmptyIterable()}, meaning the iteration needs to fall back to a previous element.
+   * stack of iterators. Each iterator on the stack is produced by a Converter.
    */
   private class MultiConverterIterator implements Iterator<Object> {
 
@@ -106,7 +103,7 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
 
     /**
      * Helper method to set the newest value of currentRecord, after this method is called then it is safe to return the
-     * value of currentRecord. THe method works by propagating the value currentRecord up the list until all converters
+     * value of currentRecord. The method works by propagating the value currentRecord up the list until all converters
      * have been reset based on the value of currentRecord. If the propagation ever finds an EmptyIterable, then it
      * moves to the next available element in the list.
      * @throws DataConversionException
@@ -123,18 +120,17 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
           this.currentRecord = iterator.next();
 
         } else {
-          this.currentRecord = getNextElementFromList();
+          this.currentRecord = getNextElementFromStack();
         }
       }
     }
 
     /**
-     * Helper method to get the next element on the list. This does a search down the list from index to element 0,
-     * searching each ConverterIteratorPair to see if any iterator contains an element. Once it finds that element, it
-     * returns it.
-     * @return
+     * Helper method to get the next element on the list. This does a search down the stack checking each iterator to
+     * see if any iterator has an element. Once it finds that element, it returns it.
+     * @returns the next element from the stack
      */
-    public Object getNextElementFromList() {
+    public Object getNextElementFromStack() {
       Iterator<Object> itr;
 
       while (!this.converterIteratorStack.isEmpty()) {
@@ -173,7 +169,7 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
       } else {
 
         // Get the next element from the stack
-        this.currentRecord = getNextElementFromList();
+        this.currentRecord = getNextElementFromStack();
 
         // If there are no more elements in the stack, then return returnRecord
         if (this.currentRecord == null) {
