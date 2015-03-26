@@ -11,15 +11,15 @@
 
 package gobblin.converter.avro;
 
-import gobblin.converter.Converter;
-import gobblin.converter.SchemaConversionException;
-import gobblin.converter.SingleRecordIterable;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
+import gobblin.converter.Converter;
+import gobblin.converter.SchemaConversionException;
+import gobblin.converter.SingleRecordIterable;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.DataConversionException;
@@ -40,20 +40,25 @@ public class AvroFieldRetrieverConverter extends Converter<Schema, Schema, Gener
   @Override
   public Converter<Schema, Schema, GenericRecord, Object> init(WorkUnitState workUnit) {
     Preconditions.checkArgument(workUnit.contains(ConfigurationKeys.CONVERTER_AVRO_EXTRACTOR_FIELD_PATH),
-        "Missing required property converter.avro.extractor.field.path for the AvroFieldRetrieverConverter class.");
+        "The converter " + this.getClass().getName() + " cannot be used without setting the property "
+            + ConfigurationKeys.CONVERTER_AVRO_EXTRACTOR_FIELD_PATH);
+
     this.fieldLocation = workUnit.getProp(ConfigurationKeys.CONVERTER_AVRO_EXTRACTOR_FIELD_PATH);
     return this;
   }
 
   @Override
   public Schema convertSchema(Schema inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
-    return AvroUtils.getFieldSchema(inputSchema, this.fieldLocation).orNull();
+    Optional<Schema> schema = AvroUtils.getFieldSchema(inputSchema, this.fieldLocation);
+
+    return schema.orNull();
   }
 
   @Override
   public Iterable<Object> convertRecord(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
-    Optional<Object> record = AvroUtils.getFieldValue(inputRecord, this.fieldLocation);
-    return record.isPresent() ? new SingleRecordIterable<Object>(record.get()) : new EmptyIterable<Object>();
+    Optional<Object> field = AvroUtils.getFieldValue(inputRecord, this.fieldLocation);
+
+    return field.isPresent() ? new SingleRecordIterable<Object>(field.get()) : new EmptyIterable<Object>();
   }
 }
