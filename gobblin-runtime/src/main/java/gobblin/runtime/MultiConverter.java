@@ -65,8 +65,6 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
       throw new RuntimeException("convertRecord should be called only after convertSchema is called");
     }
 
-    final List<Converter<?, ?, ?, ?>> converters = this.converters;
-
     return new Iterable<Object>() {
       @Override
       public Iterator<Object> iterator() {
