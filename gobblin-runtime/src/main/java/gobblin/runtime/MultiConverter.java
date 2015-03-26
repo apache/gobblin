@@ -171,17 +171,17 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
         return returnRecord;
       }
 
-      // If the top of the list has data, then the next currentRecord will come from that iterator
+      // If the top of the stack has data, then the next currentRecord will come from that iterator
       Iterator<Object> lastItr = this.converterIteratorStack.peek();
       if (lastItr.hasNext()) {
         this.currentRecord = lastItr.next();
 
       } else {
 
-        // Reset the index and get the next element from the list
+        // Get the next element from the stack
         this.currentRecord = getNextElementFromList();
 
-        // If there are no more elements in the list, then return returnRecord
+        // If there are no more elements in the stack, then return returnRecord
         if (this.currentRecord == null) {
           return returnRecord;
         }
