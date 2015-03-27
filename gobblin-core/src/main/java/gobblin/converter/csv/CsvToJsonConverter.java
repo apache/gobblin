@@ -13,9 +13,9 @@ package gobblin.converter.csv;
 
 import gobblin.converter.Converter;
 import gobblin.converter.SingleRecordIterable;
+import java.io.IOException;
 import java.util.List;
 
-import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -27,6 +27,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
+import gobblin.source.extractor.utils.InputStreamCSVReader;
 
 
 public class CsvToJsonConverter extends Converter<String, JsonArray, String, JsonObject> {
@@ -37,8 +38,7 @@ public class CsvToJsonConverter extends Converter<String, JsonArray, String, Jso
    * @return a JsonArray representation of the schema
    */
   @Override
-  public JsonArray convertSchema(String inputSchema, WorkUnitState workUnit)
-      throws SchemaConversionException {
+  public JsonArray convertSchema(String inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
     JsonParser jsonParser = new JsonParser();
     JsonElement jsonSchema = jsonParser.parse(inputSchema);
     return jsonSchema.getAsJsonArray();
@@ -48,18 +48,27 @@ public class CsvToJsonConverter extends Converter<String, JsonArray, String, Jso
    * Takes in a record with format String and splits the data based on SOURCE_SCHEMA_DELIMITER
    * Uses the inputSchema and the split record to convert the record to a JsonObject
    * @return a JsonObject representing the record
+   * @throws IOException 
    */
   @Override
   public Iterable<JsonObject> convertRecord(JsonArray outputSchema, String inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
-    List<String> recordSplit = Lists.newArrayList(
-        Splitter.onPattern(workUnit.getProp(ConfigurationKeys.CONVERTER_CSV_TO_JSON_DELIMITER)).trimResults()
-            .split(inputRecord));
+    InputStreamCSVReader reader =
+        new InputStreamCSVReader(inputRecord, workUnit.getProp(ConfigurationKeys.CONVERTER_CSV_TO_JSON_DELIMITER)
+            .trim().charAt(0));
+    List<String> recordSplit;
+    try {
+      recordSplit = Lists.newArrayList(reader.splitRecord());
+    } catch (IOException e) {
+      throw new DataConversionException(e);
+    }
     JsonObject outputRecord = new JsonObject();
 
     for (int i = 0; i < outputSchema.size(); i++) {
       if (i < recordSplit.size()) {
-        if (recordSplit.get(i).isEmpty() || recordSplit.get(i).toLowerCase().equals(NULL)) {
+        if (recordSplit.get(i) == null) {
+          outputRecord.add(outputSchema.get(i).getAsJsonObject().get("columnName").getAsString(), JsonNull.INSTANCE);
+        } else if (recordSplit.get(i).isEmpty() || recordSplit.get(i).toLowerCase().equals(NULL)) {
           outputRecord.add(outputSchema.get(i).getAsJsonObject().get("columnName").getAsString(), JsonNull.INSTANCE);
         } else {
           outputRecord
