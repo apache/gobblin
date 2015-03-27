@@ -138,6 +138,18 @@ public class MultiConverterTest {
     for (Object record : convertedRecordIterable) {
       checkConvertedAvroData(schema, (GenericRecord) record);
     }
+
+    multiConverter =
+        new MultiConverter(Lists.newArrayList(new SchemaSimplificationConverter(), new MultiIdentityConverter(20),
+            new OneOrEmptyConverter(10), new MultiIdentityConverter(10), new TestConverter()));
+    workUnitState = new WorkUnitState();
+
+    schema = (Schema) multiConverter.convertSchema(TEST_SCHEMA, workUnitState);
+    convertedRecordIterable = multiConverter.convertRecord(schema, TEST_RECORD, workUnitState);
+    Assert.assertEquals(Iterables.size(convertedRecordIterable), 20);
+    for (Object record : convertedRecordIterable) {
+      checkConvertedAvroData(schema, (GenericRecord) record);
+    }
   }
 
   @Test
