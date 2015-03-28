@@ -128,7 +128,8 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
    * blank constructor, so any custom initialization of the object needs to be done here.
    */
   private void init(SourceState state) {
-    DateTimeZone.setDefault(DateTimeZone.forID(state.getProp(ConfigurationKeys.SOURCE_TIMEZONE, ConfigurationKeys.DEFAULT_SOURCE_TIMEZONE)));
+    DateTimeZone.setDefault(DateTimeZone.forID(state.getProp(ConfigurationKeys.SOURCE_TIMEZONE,
+        ConfigurationKeys.DEFAULT_SOURCE_TIMEZONE)));
 
     try {
       initFileSystemHelper(state);
@@ -141,7 +142,9 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
 
     this.sourceState = state;
 
-    this.lowWaterMark = getLowWaterMark(state.getPreviousWorkUnitStates(), state.getPropAsLong(DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE, DEFAULT_DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE));
+    this.lowWaterMark =
+        getLowWaterMark(state.getPreviousWorkUnitStates(), state.getPropAsLong(
+            DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE, DEFAULT_DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE));
 
     this.maxFilesPerJob =
         state
@@ -175,7 +178,8 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
     // Initialize all instance variables for this object
     init(state);
 
-    LOG.info("Will pull data from " + this.lowWaterMark + " until " + this.maxFilesPerJob + " files have been processed, or until there is no more data to consume");
+    LOG.info("Will pull data from " + this.lowWaterMark + " until " + this.maxFilesPerJob
+        + " files have been processed, or until there is no more data to consume");
     LOG.info("Creating workunits");
 
     // Weighted MultiWorkUnitWeightedQueue, the job will add new WorkUnits to the queue along with a weight for each
@@ -200,7 +204,8 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
    * Helper method to process the failed {@link WorkUnit}s from the previous run and add them to the a
    * {@link MultiWorkUnitWeightedQueue}
    */
-  private void addFailedWorkUnits(List<WorkUnit> previousWorkUnitsForRetry, MultiWorkUnitWeightedQueue multiWorkUnitWeightedQueue) {
+  private void addFailedWorkUnits(List<WorkUnit> previousWorkUnitsForRetry,
+      MultiWorkUnitWeightedQueue multiWorkUnitWeightedQueue) {
     for (WorkUnit wu : previousWorkUnitsForRetry) {
 
       try {
@@ -229,12 +234,11 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
     String topicName = this.sourceDir.getName();
 
     // Process all data from the lowWaterMark date until the maxFilesPerJob has been hit
-    for (DateTime date = lowWaterMarkDate; !date.isAfter(currentDay) && this.fileCount < this.maxFilesPerJob; date = date.plusDays(1)) {
+    for (DateTime date = lowWaterMarkDate; !date.isAfter(currentDay) && this.fileCount < this.maxFilesPerJob; date =
+        date.plusDays(1)) {
 
       // Construct a daily path folder - e.g. /my/data/daily/2015/01/01/
-      Path dayPath =
-          new Path(this.sourceDir, DAILY_FOLDER_NAME + Path.SEPARATOR
-              + DAILY_FOLDER_FORMATTER.print(date));
+      Path dayPath = new Path(this.sourceDir, DAILY_FOLDER_NAME + Path.SEPARATOR + DAILY_FOLDER_FORMATTER.print(date));
 
       try {
         if (this.fs.exists(dayPath)) {

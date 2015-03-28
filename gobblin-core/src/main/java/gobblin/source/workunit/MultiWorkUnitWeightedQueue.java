@@ -17,6 +17,7 @@ import java.util.PriorityQueue;
 
 import com.google.common.primitives.Longs;
 
+
 /**
  * Helper class that distributes {@link WorkUnit}s amongst a series of {@link MultiWorkUnit}s. When a WorkUnit is added
  * to this queue, it is added along with a weight which indicates how much effort it will take to process this WorkUnit.
@@ -39,13 +40,11 @@ public class MultiWorkUnitWeightedQueue {
   private int numMultiWorkUnits = 0;
 
   public MultiWorkUnitWeightedQueue() {
-    this.weightedWorkUnitQueue =
-        new PriorityQueue<WeightedMultiWorkUnit>();
+    this.weightedWorkUnitQueue = new PriorityQueue<WeightedMultiWorkUnit>();
   }
 
   public MultiWorkUnitWeightedQueue(int maxMultiWorkUnits) {
-    this.weightedWorkUnitQueue =
-        new PriorityQueue<WeightedMultiWorkUnit>(maxMultiWorkUnits);
+    this.weightedWorkUnitQueue = new PriorityQueue<WeightedMultiWorkUnit>(maxMultiWorkUnits);
     this.maxMultiWorkUnits = maxMultiWorkUnits;
   }
 
