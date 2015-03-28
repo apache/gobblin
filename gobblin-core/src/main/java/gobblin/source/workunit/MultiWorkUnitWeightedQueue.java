@@ -17,6 +17,20 @@ import java.util.PriorityQueue;
 
 import com.google.common.primitives.Longs;
 
+/**
+ * Helper class that distributes {@link WorkUnit}s amongst a series of {@link MultiWorkUnit}s. When a WorkUnit is added
+ * to this queue, it is added along with a weight which indicates how much effort it will take to process this WorkUnit.
+ * For example, a larger weight means that this WorkUnit will take longer to process. For files this can simply be the
+ * file size.
+ *
+ * <p>
+ *
+ * The constructor {@link MultiWorkUnitWeightedQueue(int maxMultiWorkUnits)} sets a maximum size for the queue. This
+ * means that when more than maxMultiWorkUnits are added to the queue, WorkUnits will start to be paired together into
+ * MultiWorkUnits.
+ *
+ * @see {@link MultiWorkUnit}
+ */
 public class MultiWorkUnitWeightedQueue {
 
   private PriorityQueue<WeightedMultiWorkUnit> weightedWorkUnitQueue;
@@ -58,9 +72,8 @@ public class MultiWorkUnitWeightedQueue {
   }
 
   /**
-   * This class defines the weighted multiWorkUnit. It extends {@link gobblin.source.workunit.MultiWorkUnit}.
-   * Each weightedMultiworkUnit has a weight, which is the sum of the file sizes assigned to it.
-   * It also implements Comparable, based on the weight value.
+   * This class defines the weighted multiWorkUnit. It extends {@link MultiWorkUnit}. Each weightedMultiworkUnit has a
+   * weight, which is the sum of the file sizes assigned to it. It also implements Comparable, based on the weight value.
    * @author ydai
    */
   private class WeightedMultiWorkUnit extends MultiWorkUnit implements Comparable<WeightedMultiWorkUnit> {
