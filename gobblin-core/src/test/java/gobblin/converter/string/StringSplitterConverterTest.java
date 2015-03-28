@@ -20,7 +20,7 @@ public class StringSplitterConverterTest {
    * parameter {@link ConfigurationKeys#CONVERTER_STRING_SPLITTER_DELIMITER} is not specified in the config.
    */
   @Test(expectedExceptions = IllegalArgumentException.class)
-  public void testStringSplitterConverterInit() {
+  public void testInit() {
     WorkUnitState workUnitState = new WorkUnitState();
     StringSplitterConverter converter = new StringSplitterConverter();
     converter.init(workUnitState);
@@ -31,7 +31,7 @@ public class StringSplitterConverterTest {
    * a specified delimiter.
    */
   @Test
-  public void testStringSplitterConverterConvertRecord() throws DataConversionException {
+  public void testConvertRecord() throws DataConversionException {
     String delimiter = "\t";
     WorkUnitState workUnitState = new WorkUnitState();
     workUnitState.setProp(ConfigurationKeys.CONVERTER_STRING_SPLITTER_DELIMITER, delimiter);

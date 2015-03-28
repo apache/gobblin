@@ -39,6 +39,10 @@ public class MultiWorkUnitWeightedQueue {
   private int maxMultiWorkUnits = Integer.MAX_VALUE;
   private int numMultiWorkUnits = 0;
 
+  /**
+   * The default constructor sets the limit on the queue to size to be {@link Integer#MAX_VALUE}. This means that until
+   * Integer.MAX_VALUE + 1 WorkUnits are added to the queue, no WorkUnits will be paired together.
+   */
   public MultiWorkUnitWeightedQueue() {
     this.weightedWorkUnitQueue = new PriorityQueue<WeightedMultiWorkUnit>();
   }
@@ -48,6 +52,9 @@ public class MultiWorkUnitWeightedQueue {
     this.maxMultiWorkUnits = maxMultiWorkUnits;
   }
 
+  /**
+   * Adds a {@link WorkUnit} to this queue, along with an associated weight for that WorkUnit.
+   */
   public void addWorkUnit(WorkUnit workUnit, long weight) {
 
     WeightedMultiWorkUnit weightMultiWorkUnit;
@@ -66,6 +73,10 @@ public class MultiWorkUnitWeightedQueue {
 
   }
 
+  /**
+   * Returns the a list of WorkUnits that have been added to this queue via the {@link #addWorkUnit(WorkUnit, long)}
+   * method.
+   */
   public List<WorkUnit> getList() {
     return new ArrayList<WorkUnit>(this.weightedWorkUnitQueue);
   }
@@ -80,10 +91,9 @@ public class MultiWorkUnitWeightedQueue {
     private long weight = 0l;
 
     /**
-     * Add a new single workUnit to the current workUnits list.
-     * Update the weight by adding the weight of the new workUnit.
+     * Add a new single workUnit to the current workUnits list. Update the weight by adding the weight of the new workUnit.
      *
-     * @param weight the weight of the newWorkUnit
+     * @param weight the weight of the newWorkUnit.
      * @param newWorkUnit the new work unit.
      */
     private void addWorkUnit(long weight, WorkUnit newWorkUnit) {

@@ -20,7 +20,7 @@ public class ObjectToStringConverterTest {
    * always returns {@link String}.class
    */
   @Test
-  public void testObjectToStringConverterConvertSchema() throws SchemaConversionException {
+  public void testConvertSchema() throws SchemaConversionException {
     WorkUnitState workUnitState = new WorkUnitState();
     ObjectToStringConverter converter = new ObjectToStringConverter();
 
@@ -34,7 +34,7 @@ public class ObjectToStringConverterTest {
    * method properly converts an {@link Object} to its String equivalent.
    */
   @Test
-  public void testObjectToStringConverterConvertRecord() throws DataConversionException {
+  public void testConvertRecord() throws DataConversionException {
     WorkUnitState workUnitState = new WorkUnitState();
     ObjectToStringConverter converter = new ObjectToStringConverter();
 

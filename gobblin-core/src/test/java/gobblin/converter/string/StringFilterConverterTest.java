@@ -19,7 +19,7 @@ public class StringFilterConverterTest {
    * Test for {@link StringFilterConverter#convertRecord(Class, String, WorkUnitState)} with a blank regex.
    */
   @Test
-  public void testStringFilterConverterConvertRecordWithNoRegex() throws DataConversionException {
+  public void testConvertRecordWithNoRegex() throws DataConversionException {
     WorkUnitState workUnitState = new WorkUnitState();
     StringFilterConverter converter = new StringFilterConverter();
 
@@ -36,7 +36,7 @@ public class StringFilterConverterTest {
    * sequence of letters.
    */
   @Test
-  public void testStringFilterConverterConvertRecordWithSimpleRegex() throws DataConversionException {
+  public void testConvertRecordWithSimpleRegex() throws DataConversionException {
     WorkUnitState workUnitState = new WorkUnitState();
     workUnitState.setProp(ConfigurationKeys.CONVERTER_FILTER_STRINGS_BY, "HelloWorld");
 
@@ -64,7 +64,7 @@ public class StringFilterConverterTest {
    * regex features, such as wildcards.
    */
   @Test
-  public void testStringFilterConverterConvertRecordWithComplexRegex() throws DataConversionException {
+  public void testConvertRecordWithComplexRegex() throws DataConversionException {
     WorkUnitState workUnitState = new WorkUnitState();
     workUnitState.setProp(ConfigurationKeys.CONVERTER_FILTER_STRINGS_BY, ".*");
 
