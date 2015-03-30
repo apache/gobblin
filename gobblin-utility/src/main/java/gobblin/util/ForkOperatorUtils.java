@@ -15,6 +15,8 @@ import com.google.common.base.Preconditions;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.configuration.WorkUnitState;
+import gobblin.source.workunit.WorkUnit;
 
 
 /**
@@ -61,6 +63,26 @@ public class ForkOperatorUtils {
   public static String getPropertyNameForBranch(String key, int branch) {
     // A branch index of -1 means there is no fork and branching
     return branch >= 0 ? key + "." + branch : key;
+  }
+
+  /**
+   * Get a new property key from an original one with branch index (if applicable).
+   *
+   * @param key      property key
+   * @param branches number of branches (non-negative)
+   * @param index    branch index (non-negative)
+   * @return a new property key
+   */
+  public static String getConverterPropertyNameForBranch(WorkUnitState workUnitState, String key) {
+    Preconditions.checkNotNull(workUnitState, "Cannot get a property from a null WorkUnit");
+    Preconditions.checkNotNull(key, "Cannot get a the value for a null key");
+
+    if (!workUnitState.contains(ConfigurationKeys.FORK_BRANCH_ID_KEY)) {
+      return key;
+    } else {
+      return workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCH_ID_KEY) == -1 ? key : key + "."
+          + workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCH_ID_KEY);
+    }
   }
 
   /**
