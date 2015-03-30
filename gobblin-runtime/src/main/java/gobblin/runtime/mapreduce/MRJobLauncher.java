@@ -71,6 +71,7 @@ import gobblin.runtime.TaskState;
 import gobblin.runtime.TaskStateTracker;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.JobLauncherUtils;
 
 
 /**
@@ -197,6 +198,17 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     // Turn off speculative execution
     this.job.setSpeculativeExecution(false);
+
+    // Delete any staging directories that already exist
+    for (WorkUnit workUnit : workUnits) {
+      if (workUnit instanceof MultiWorkUnit) {
+        for (WorkUnit mulitWorkUnitChild : ((MultiWorkUnit) workUnit).getWorkUnits()) {
+          JobLauncherUtils.cleanStagingData(mulitWorkUnitChild, LOG);
+        }
+      } else {
+        JobLauncherUtils.cleanStagingData(workUnit, LOG);
+      }
+    }
 
     // Job input path is where input work unit files are stored
     Path jobInputPath = new Path(mrJobDir, "input");

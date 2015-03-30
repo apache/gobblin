@@ -11,6 +11,8 @@
 
 package gobblin.util;
 
+import org.apache.hadoop.fs.Path;
+
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
@@ -92,12 +94,12 @@ public class ForkOperatorUtils {
    * Get a new path with the given branch name as a sub directory.
    *
    * @param branchName branch name
-   * @param branches   number of branches (non-negative)
+   * @param branch   branch index
    * @return a new path
    */
-  public static String getPathForBranch(String path, String branchName, int branches) {
-    Preconditions.checkArgument(branches >= 0, "branches is expected to be non-negative");
-    return branches > 1 ? path + "/" + branchName : path;
+  public static String getPathForBranch(State state, String path, int branch) {
+    return branch >= 0 ? path + Path.SEPARATOR
+        + ForkOperatorUtils.getBranchName(state, branch, ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME + branch) : path;
   }
 
   /**

@@ -11,6 +11,8 @@ extract.namespace=gobblin.test2
 writer.destination.type=HDFS
 writer.output.format=AVRO
 writer.fs.uri=file://localhost/
+writer.staging.dir=gobblin-test/writer-staging
+writer.output.dir=gobblin-test/writer-output
 
 source.files=gobblin-test/resource/source/test.avro.0,gobblin-test/resource/source/test.avro.1
 

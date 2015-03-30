@@ -22,6 +22,7 @@ import com.google.common.base.Strings;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.util.ForkOperatorUtils;
+import gobblin.util.WriterUtils;
 
 
 /**
@@ -44,15 +45,10 @@ public class AvroDataWriterBuilder extends DataWriterBuilder<Schema, GenericReco
       case HDFS:
         State properties = this.destination.getProperties();
 
-        String filePath = properties
-            .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, this.branch));
-        // Add the writer ID to the file name so each writer writes to a different
-        // file of the same file group defined by the given file name
-        String fileName = String.format("%s.%s.%s", properties
-                .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_NAME, this.branch),
-                    "part"), this.writerId, this.format.getExtension());
+        String fileName =
+            WriterUtils.getWriterFileName(properties, this.branch, this.writerId, this.format.getExtension());
 
-        return new AvroHdfsDataWriter(properties, filePath, fileName, this.schema, this.branch);
+        return new AvroHdfsDataWriter(properties, fileName, this.schema, this.branch);
       case KAFKA:
         return new AvroKafkaDataWriter();
       default:
