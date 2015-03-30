@@ -59,12 +59,36 @@ public class ForkOperatorUtilsTest {
 
   @Test
   public void testGetPathForBranch() {
-    Assert.assertEquals(ForkOperatorUtils.getPathForBranch(PATH_FOO, FORK_BRANCH_NAME_0, 0), PATH_FOO);
-    Assert.assertEquals(ForkOperatorUtils.getPathForBranch(PATH_FOO, FORK_BRANCH_NAME_0, 1), PATH_FOO);
-    Assert.assertEquals(ForkOperatorUtils.getPathForBranch(PATH_FOO, FORK_BRANCH_NAME_0, 2),
-        PATH_FOO + "/" + FORK_BRANCH_NAME_0);
-    Assert.assertEquals(ForkOperatorUtils.getPathForBranch(PATH_FOO, FORK_BRANCH_NAME_1, 2),
-        PATH_FOO + "/" + FORK_BRANCH_NAME_1);
+    State state = new State();
+    state.setProp(ConfigurationKeys.FORK_BRANCH_NAME_KEY + ".0", FORK_BRANCH_NAME_0);
+    state.setProp(ConfigurationKeys.FORK_BRANCH_NAME_KEY + ".1", FORK_BRANCH_NAME_1);
+
+    Assert.assertEquals(ForkOperatorUtils.getPathForBranch(state, PATH_FOO, -1), PATH_FOO);
+    Assert.assertEquals(ForkOperatorUtils.getPathForBranch(state, PATH_FOO, 0), PATH_FOO + "/"
+        + FORK_BRANCH_NAME_0);
+    Assert.assertEquals(ForkOperatorUtils.getPathForBranch(state, PATH_FOO, 1), PATH_FOO + "/"
+        + FORK_BRANCH_NAME_1);
+  }
+
+  /**
+   * Test for {@link ForkOperatorUtils#getPropertyNameForBranch(WorkUnitState, String)}.
+   */
+  @Test
+  public void testGetPropertyNameForBranchWithWorkUnitState() {
+    WorkUnitState workUnitState = new WorkUnitState();
+    workUnitState.setProp(PROPERTY_FOO, PATH_FOO);
+
+    // Test that if the fork id key is not specified that the original property is preserved
+    Assert.assertEquals(ForkOperatorUtils.getPropertyNameForBranch(workUnitState, PROPERTY_FOO), PROPERTY_FOO);
+
+    // Test that if the fork id key is set to -1 that the original property is preserved
+    workUnitState.setProp(ConfigurationKeys.FORK_BRANCH_ID_KEY, -1);
+    Assert.assertEquals(ForkOperatorUtils.getPropertyNameForBranch(workUnitState, PROPERTY_FOO), PROPERTY_FOO);
+
+    // Test that if the fork id key is set to 0 that the new property is properly created
+    workUnitState.setProp(ConfigurationKeys.FORK_BRANCH_ID_KEY, 0);
+    Assert.assertEquals(ForkOperatorUtils.getPropertyNameForBranch(workUnitState, PROPERTY_FOO), PROPERTY_FOO
+        + ".0");
   }
 
   /**

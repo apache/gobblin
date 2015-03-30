@@ -12,6 +12,7 @@
 package gobblin.publisher;
 
 import gobblin.configuration.ConfigurationKeys;
+
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -31,6 +32,7 @@ import com.google.common.collect.Sets;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.util.ForkOperatorUtils;
+import gobblin.util.WriterUtils;
 
 
 /**
@@ -75,27 +77,19 @@ public class BaseDataPublisher extends DataPublisher {
   @Override
   public void publishData(Collection<? extends WorkUnitState> states)
       throws IOException {
+
     // We need this to collect unique writer output paths as multiple tasks may
     // belong to the same extract and write to the same output directory
     Set<Path> writerOutputPathMoved = Sets.newHashSet();
 
     for (WorkUnitState workUnitState : states) {
       int branches = workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
+
       for (int i = 0; i < branches; i++) {
-        String writerFilePathKey =
-            ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, branches, i);
-        if (!workUnitState.contains(writerFilePathKey)) {
-          // Skip this branch as it does not have data output
-          continue;
-        }
 
-        Path writerOutput = new Path(workUnitState
-            .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR, branches, i)),
-            workUnitState.getProp(writerFilePathKey));
+        Path writerOutput = WriterUtils.getWriterOutputDir(workUnitState, branches > 1 ? i : -1);
 
-        Path publisherOutput = new Path(workUnitState.getProp(
-            ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, branches, i)),
-            workUnitState.getProp(writerFilePathKey));
+        Path publisherOutput = WriterUtils.getDataPublisherFinalOutputDir(workUnitState, branches > 1 ? i : -1);
 
         if (writerOutputPathMoved.contains(writerOutput)) {
           // This writer output path has already been moved for another task of the same extract

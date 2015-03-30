@@ -34,6 +34,7 @@ import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
 import gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
 import gobblin.util.ForkOperatorUtils;
+import gobblin.util.WriterUtils;
 import gobblin.writer.DataWriter;
 import gobblin.writer.Destination;
 
@@ -195,6 +196,37 @@ public class Fork implements Closeable, Runnable {
   }
 
   /**
+   * Put a new record into the record queue for this {@link Fork} to process.
+   *
+   * <p>
+   *   This method is used by the {@link Task} that creates this {@link Fork}.
+   * </p>
+   *
+   * @param record the new record
+   * @return whether the record has been successfully put into the queue
+   * @throws InterruptedException
+   */
+  public boolean putRecord(Object record) throws InterruptedException {
+    if (this.forkState.compareAndSet(ForkState.FAILED, ForkState.FAILED)) {
+      throw new IllegalStateException(
+          String.format("Fork %d of task %s has failed and is no longer running", this.index, this.taskId));
+    }
+    return this.recordQueue.put(record);
+  }
+
+  /**
+   * Tell this {@link Fork} that the parent task is already done pulling records and
+   * it should not expect more incoming data records.
+   *
+   * <p>
+   *   This method is used by the {@link Task} that creates this {@link Fork}.
+   * </p>
+   */
+  public void markParentTaskDone() {
+    this.parentTaskDone = true;
+  }
+
+  /**
    * Update record-level metrics.
    */
   public void updateRecordMetrics() {
@@ -300,15 +332,6 @@ public class Fork implements Closeable, Runnable {
   @SuppressWarnings("unchecked")
   private DataWriter<Object> buildWriter()
       throws IOException, SchemaConversionException {
-    String branchName = ForkOperatorUtils
-        .getBranchName(this.taskState, this.index, ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME + this.index);
-    String writerFilePathKey =
-        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, this.branches, this.index);
-    if (!this.taskState.contains(writerFilePathKey)) {
-      this.taskState.setProp(writerFilePathKey, ForkOperatorUtils
-          .getPathForBranch(this.taskState.getExtract().getOutputFilePath(), branchName, this.branches));
-    }
-
     return this.taskContext.getDataWriterBuilder(this.branches, this.index)
         .writeTo(Destination.of(this.taskContext.getDestinationType(this.branches, this.index), this.taskState))
         .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index)).withWriterId(this.taskId)

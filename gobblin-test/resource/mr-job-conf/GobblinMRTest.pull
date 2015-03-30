@@ -10,6 +10,8 @@ extract.namespace=gobblin.MRTest
 writer.destination.type=HDFS
 writer.output.format=AVRO
 writer.fs.uri=file:///
+writer.staging.dir=gobblin-test/writer-staging
+writer.output.dir=gobblin-test/writer-output
 
 source.files=gobblin-test/source/test.avro.0,gobblin-test/source/test.avro.1
 
