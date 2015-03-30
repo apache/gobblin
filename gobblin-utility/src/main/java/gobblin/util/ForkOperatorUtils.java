@@ -16,7 +16,6 @@ import com.google.common.base.Preconditions;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
-import gobblin.source.workunit.WorkUnit;
 
 
 /**
@@ -66,11 +65,12 @@ public class ForkOperatorUtils {
   }
 
   /**
-   * Get a new property key from an original one with branch index (if applicable).
+   * Get a new property key from an original one based on the branch id. The method assumes the branch id specified by
+   * the {@link ConfigurationKeys#FORK_BRANCH_ID_KEY} parameter in the given WorkUnitState. The fork id key specifies
+   * which fork this parameter belongs to.
    *
-   * @param key      property key
-   * @param branches number of branches (non-negative)
-   * @param index    branch index (non-negative)
+   * @param workUnitState contains the fork id key
+   * @param key           property key
    * @return a new property key
    */
   public static String getConverterPropertyNameForBranch(WorkUnitState workUnitState, String key) {
