@@ -11,7 +11,6 @@
 
 package gobblin.configuration;
 
-import gobblin.source.workunit.Extract;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -19,6 +18,7 @@ import java.util.Set;
 
 import com.google.common.collect.Sets;
 
+import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.ImmutableWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 
@@ -76,16 +76,6 @@ public class WorkUnitState extends State {
    */
   public WorkUnit getWorkunit() {
     return new ImmutableWorkUnit(workunit);
-  }
-
-  /**
-   * @see State#addAll(State).
-   *
-   * @param otherState another {@link WorkUnitState} instance
-   */
-  public void addAll(WorkUnitState otherState) {
-    super.addAll(otherState);
-    this.workunit = otherState.workunit;
   }
 
   /**

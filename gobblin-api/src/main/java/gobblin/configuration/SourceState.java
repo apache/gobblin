@@ -68,16 +68,6 @@ public class SourceState extends State {
   }
 
   /**
-   * Constructor.
-   *
-   * @param properties job configuration properties
-   * @param previousJobState previous job state
-   */
-  public SourceState(State properties, SourceState previousJobState) {
-    this(properties, previousJobState.getPreviousWorkUnitStates());
-  }
-
-  /**
    * Get a (possibly empty) list of {@link WorkUnitState}s from the previous job run.
    *
    * @return (possibly empty) list of {@link WorkUnitState}s from the previous job run

@@ -11,10 +11,14 @@
 
 package gobblin.util;
 
+import org.apache.hadoop.fs.Path;
+
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.configuration.WorkUnitState;
 
 
 /**
@@ -64,15 +68,38 @@ public class ForkOperatorUtils {
   }
 
   /**
+   * Get a new property key from an original one based on the branch id. The method assumes the branch id specified by
+   * the {@link ConfigurationKeys#FORK_BRANCH_ID_KEY} parameter in the given WorkUnitState. The fork id key specifies
+   * which fork this parameter belongs to. Note this method will only provide the aforementioned functionality for
+   * {@link gobblin.converter.Converter}s. To get the same functionality in {@link gobblin.writer.DataWriter}s use
+   * the {@link gobblin.writer.DataWriterBuilder#forBranch(int)} to construct a writer with a specific branch id.
+   *
+   * @param workUnitState contains the fork id key
+   * @param key           property key
+   * @return a new property key
+   */
+  public static String getPropertyNameForBranch(WorkUnitState workUnitState, String key) {
+    Preconditions.checkNotNull(workUnitState, "Cannot get a property from a null WorkUnit");
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(key), "Cannot get a the value for a null or empty key");
+
+    if (!workUnitState.contains(ConfigurationKeys.FORK_BRANCH_ID_KEY)) {
+      return key;
+    } else {
+      return workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCH_ID_KEY) == -1 ? key : key + "."
+          + workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCH_ID_KEY);
+    }
+  }
+
+  /**
    * Get a new path with the given branch name as a sub directory.
    *
    * @param branchName branch name
-   * @param branches   number of branches (non-negative)
+   * @param branch   branch index
    * @return a new path
    */
-  public static String getPathForBranch(String path, String branchName, int branches) {
-    Preconditions.checkArgument(branches >= 0, "branches is expected to be non-negative");
-    return branches > 1 ? path + "/" + branchName : path;
+  public static String getPathForBranch(State state, String path, int branch) {
+    return branch >= 0 ? path + Path.SEPARATOR
+        + ForkOperatorUtils.getBranchName(state, branch, ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME + branch) : path;
   }
 
   /**

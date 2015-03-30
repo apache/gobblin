@@ -12,6 +12,7 @@
 package gobblin.scheduler;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -113,18 +114,18 @@ public class JobScheduler extends AbstractIdleService {
     this.properties = properties;
     this.scheduler = new StdSchedulerFactory().getScheduler();
 
-    this.jobExecutor = Executors.newFixedThreadPool(Integer.parseInt(properties
-        .getProperty(ConfigurationKeys.JOB_EXECUTOR_THREAD_POOL_SIZE_KEY,
-            ConfigurationKeys.DEFAULT_JOB_EXECUTOR_THREAD_POOL_SIZE)),
-        ExecutorsUtils.newThreadFactory(Optional.of(LOG)));
+    this.jobExecutor = Executors.newFixedThreadPool(
+        Integer.parseInt(properties.getProperty(ConfigurationKeys.JOB_EXECUTOR_THREAD_POOL_SIZE_KEY,
+            Integer.toString(ConfigurationKeys.DEFAULT_JOB_EXECUTOR_THREAD_POOL_SIZE))),
+        ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of("JobScheduler-%d")));
 
     this.jobConfigFileExtensions = Sets.newHashSet(Splitter.on(",").omitEmptyStrings().split(this.properties
         .getProperty(ConfigurationKeys.JOB_CONFIG_FILE_EXTENSIONS_KEY,
             ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_EXTENSIONS)));
 
-    long pollingInterval = Long.parseLong(this.properties
-        .getProperty(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
-            ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL));
+    long pollingInterval = Long.parseLong(this.properties.getProperty(
+        ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
+        Long.toString(ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL)));
     this.fileAlterationMonitor = new FileAlterationMonitor(pollingInterval);
   }
 
@@ -347,6 +348,8 @@ public class JobScheduler extends AbstractIdleService {
           scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : new EmailNotificationJobListener());
         } catch (ConfigurationException ce) {
           LOG.error("Failed to load from job configuration file " + file.getAbsolutePath(), ce);
+        } catch (IOException ioe) {
+          LOG.error("Failed to load from job configuration file " + file.getAbsolutePath(), ioe);
         } catch (JobException je) {
           LOG.error("Failed to schedule new job loaded from job configuration file " + file.getAbsolutePath(), je);
         }
@@ -371,6 +374,8 @@ public class JobScheduler extends AbstractIdleService {
             }
           } catch (ConfigurationException ce) {
             LOG.error("Failed to reload job configuration files affected by changes to " + file.getAbsolutePath(), ce);
+          } catch (IOException ioe) {
+            LOG.error("Failed to reload job configuration files affected by changes to " + file.getAbsolutePath(), ioe);
           }
           return;
         }
@@ -386,6 +391,8 @@ public class JobScheduler extends AbstractIdleService {
           rescheduleJob(jobProps);
         } catch (ConfigurationException ce) {
           LOG.error("Failed to reload from job configuration file " + file.getAbsolutePath(), ce);
+        } catch (IOException ioe) {
+          LOG.error("Failed to reload from job configuration file " + file.getAbsolutePath(), ioe);
         } catch (JobException je) {
           LOG.error("Failed to reschedule job reloaded from job configuration file " + file.getAbsolutePath(), je);
         }

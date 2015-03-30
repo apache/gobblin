@@ -71,6 +71,7 @@ import gobblin.runtime.TaskState;
 import gobblin.runtime.TaskStateTracker;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.JobLauncherUtils;
 
 
 /**
@@ -182,12 +183,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
     // Do not cancel delegation tokens after job has completed (HADOOP-7002)
     this.conf.setBoolean("mapreduce.job.complete.cancel.delegation.tokens", false);
 
-    // Necessary for compatibility with Azkaban's hadoopJava job type
-    // http://azkaban.github.io/azkaban/docs/2.5/#hadoopjava-type
-    if (System.getenv("HADOOP_TOKEN_FILE_LOCATION") != null) {
-      conf.set("mapreduce.job.credentials.binary", System.getenv("HADOOP_TOKEN_FILE_LOCATION"));
-    }
-
     // Preparing a Hadoop MR job
     this.job = Job.getInstance(this.conf, JOB_NAME_PREFIX + jobName);
     this.job.setJarByClass(MRJobLauncher.class);
@@ -203,6 +198,17 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     // Turn off speculative execution
     this.job.setSpeculativeExecution(false);
+
+    // Delete any staging directories that already exist
+    for (WorkUnit workUnit : workUnits) {
+      if (workUnit instanceof MultiWorkUnit) {
+        for (WorkUnit mulitWorkUnitChild : ((MultiWorkUnit) workUnit).getWorkUnits()) {
+          JobLauncherUtils.cleanStagingData(mulitWorkUnitChild, LOG);
+        }
+      } else {
+        JobLauncherUtils.cleanStagingData(workUnit, LOG);
+      }
+    }
 
     // Job input path is where input work unit files are stored
     Path jobInputPath = new Path(mrJobDir, "input");

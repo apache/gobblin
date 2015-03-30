@@ -32,7 +32,7 @@ public class RowLevelPolicyChecker implements Closeable {
   }
 
   public boolean executePolicies(Object record, RowLevelPolicyCheckResults results)
-      throws IOException, URISyntaxException {
+      throws IOException {
     for (RowLevelPolicy p : this.list) {
       RowLevelPolicy.Result result = p.executePolicy(record);
       results.put(p, result);

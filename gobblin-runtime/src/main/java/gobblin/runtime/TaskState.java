@@ -69,6 +69,7 @@ public class TaskState extends WorkUnitState {
     // Since getWorkunit() returns an immutable WorkUnit object,
     // the WorkUnit object in this object is also immutable.
     super(workUnitState.getWorkunit());
+    addAll(workUnitState);
     this.jobId = workUnitState.getProp(ConfigurationKeys.JOB_ID_KEY);
     this.taskId = workUnitState.getProp(ConfigurationKeys.TASK_ID_KEY);
     this.setId(this.taskId);
@@ -271,7 +272,7 @@ public class TaskState extends WorkUnitState {
    * @param jsonWriter a {@link com.google.gson.stream.JsonWriter} used to write the json document
    * @throws IOException
    */
-  public void toJson(JsonWriter jsonWriter)
+  public void toJson(JsonWriter jsonWriter, boolean keepConfig)
       throws IOException {
     jsonWriter.beginObject();
 
@@ -287,6 +288,15 @@ public class TaskState extends WorkUnitState {
     // case that the task finally succeeds so we know what happened in the course of task execution.
     if (this.contains(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)) {
       jsonWriter.name("exception").value(this.getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY));
+    }
+
+    if (keepConfig) {
+      jsonWriter.name("properties");
+      jsonWriter.beginObject();
+      for (String key : this.getPropertyNames()) {
+        jsonWriter.name(key).value(this.getProp(key));
+      }
+      jsonWriter.endObject();
     }
 
     jsonWriter.endObject();
