@@ -55,7 +55,7 @@ import gobblin.source.workunit.WorkUnit;
  * folders following the pattern /my/data/daily/[year]/[month]/[day] are present. It will iterate through all the data
  * under these folders starting from the date specified by {@link #DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE} until
  * either {@link #DATE_PARTITIONED_SOURCE_MAX_FILES_PER_JOB} files have been processed, or until there is no more data
- * to process. For example, if {@link #DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE} is set to 20150101, then the job
+ * to process. For example, if {@link #DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE} is set to 2015/01/01, then the job
  * will read from the folder /my/data/daily/2015/01/01/, /my/data/daily/2015/01/02/, /my/data/2015/01/03/ etc.
  *
  * <p>
@@ -68,8 +68,9 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
   private static final String DATE_PARTITIONED_SOURCE_PREFIX = "date.partitioned.source.";
 
   /**
-   * A String of the format [year][month][day], for example 20150101 corresponds to January 1st, 2015. The job will
-   * start reading data from this point in time.
+   * A String of the format [year]/[month]/[day], for example 2015/01/01 corresponds to January 1st, 2015. The job will
+   * start reading data from this point in time. If this parameter is not specified the job will start reading data from
+   * the beginning of Unix time.
    */
   private static final String DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE = DATE_PARTITIONED_SOURCE_PREFIX
       + "min.watermark.value";
@@ -100,9 +101,10 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
   private static final int DEFAULT_DATE_PARTITIONED_SOURCE_MAX_WORKUNITS_PER_JOB = 500;
 
   /**
-   * Default value for {@link #DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE}
+   * Controls the default value for {@link #DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE}. The default value will be set
+   * to the 1970/01/01.
    */
-  private static final long DEFAULT_DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE = 0;
+  private static final int DEFAULT_DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE = 0;
 
   // String constants
   private static final String DAILY_FOLDER_NAME = "daily";
@@ -143,8 +145,10 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
     this.sourceState = state;
 
     this.lowWaterMark =
-        getLowWaterMark(state.getPreviousWorkUnitStates(), state.getPropAsLong(
-            DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE, DEFAULT_DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE));
+        getLowWaterMark(
+            state.getPreviousWorkUnitStates(),
+            state.getProp(DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE,
+                DAILY_FOLDER_FORMATTER.print(DEFAULT_DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE)));
 
     this.maxFilesPerJob =
         state
@@ -178,7 +182,7 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
     // Initialize all instance variables for this object
     init(state);
 
-    LOG.info("Will pull data from " + this.lowWaterMark + " until " + this.maxFilesPerJob
+    LOG.info("Will pull data from " + DAILY_FOLDER_FORMATTER.print(this.lowWaterMark) + " until " + this.maxFilesPerJob
         + " files have been processed, or until there is no more data to consume");
     LOG.info("Creating workunits");
 
@@ -282,21 +286,24 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
   }
 
   /**
-   * Gets the LWM for this job runs; calculates it by looking at the work unit states from the previous execution of the
-   * job.
+   * Gets the LWM for this job runs. The new LWM is the HWM of the previous run + 1 day. If there was no previous
+   * execution then it is set to the given lowWaterMark + 1 day.
    */
-  private long getLowWaterMark(List<WorkUnitState> previousStates, long lowWaterMark) {
+  private long getLowWaterMark(List<WorkUnitState> previousStates, String lowWaterMark) {
+
+    long lowWaterMarkValue = DAILY_FOLDER_FORMATTER.parseMillis(lowWaterMark);
+
     // Find the max HWM from the previous states, this is the new current LWM
     for (WorkUnitState previousState : previousStates) {
       if (previousState.getWorkingState().equals(WorkUnitState.WorkingState.COMMITTED)) {
         long previousHighWaterMark = previousState.getWorkunit().getHighWaterMark();
-        if (previousHighWaterMark > lowWaterMark) {
-          lowWaterMark = previousHighWaterMark;
+        if (previousHighWaterMark > lowWaterMarkValue) {
+          lowWaterMarkValue = previousHighWaterMark;
         }
       }
     }
 
-    return new DateTime(lowWaterMark).plusDays(1).getMillis();
+    return new DateTime(lowWaterMarkValue).plusDays(1).getMillis();
   }
 
   /**
