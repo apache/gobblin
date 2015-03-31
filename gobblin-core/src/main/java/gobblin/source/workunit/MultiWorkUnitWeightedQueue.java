@@ -88,7 +88,7 @@ public class MultiWorkUnitWeightedQueue {
    * weight, which is the sum of the file sizes assigned to it. It also implements Comparable, based on the weight value.
    * @author ydai
    */
-  private class WeightedMultiWorkUnit extends MultiWorkUnit implements Comparable<WeightedMultiWorkUnit> {
+  private static class WeightedMultiWorkUnit extends MultiWorkUnit implements Comparable<WeightedMultiWorkUnit> {
 
     private long weight = 0l;
 
@@ -109,6 +109,12 @@ public class MultiWorkUnitWeightedQueue {
     @Override
     public int compareTo(WeightedMultiWorkUnit weightedMultiWorkUnit) {
       return Longs.compare(this.weight, weightedMultiWorkUnit.getWeight());
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      WeightedMultiWorkUnit weightedMultiWorkUnit = (WeightedMultiWorkUnit) obj;
+      return this.weight == weightedMultiWorkUnit.getWeight();
     }
 
     public long getWeight() {
