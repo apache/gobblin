@@ -80,11 +80,7 @@ public class MultiWorkUnitWeightedQueue {
    * method.
    */
   public List<WorkUnit> getQueueAsList() {
-    ImmutableList.Builder<WorkUnit> immutableListBuilder = ImmutableList.builder();
-    for (WorkUnit wu : this.weightedWorkUnitQueue) {
-      immutableListBuilder.add(wu);
-    }
-    return immutableListBuilder.build();
+    return ImmutableList.<WorkUnit>builder().addAll(this.weightedWorkUnitQueue).build();
   }
 
   /**
