@@ -14,7 +14,9 @@ package gobblin.source.workunit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.PriorityQueue;
+import java.util.Queue;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Longs;
 
 
@@ -34,7 +36,7 @@ import com.google.common.primitives.Longs;
  */
 public class MultiWorkUnitWeightedQueue {
 
-  private PriorityQueue<WeightedMultiWorkUnit> weightedWorkUnitQueue;
+  private final Queue<WeightedMultiWorkUnit> weightedWorkUnitQueue;
 
   private int maxMultiWorkUnits = Integer.MAX_VALUE;
   private int numMultiWorkUnits = 0;
@@ -77,8 +79,12 @@ public class MultiWorkUnitWeightedQueue {
    * Returns the a list of WorkUnits that have been added to this queue via the {@link #addWorkUnit(WorkUnit, long)}
    * method.
    */
-  public List<WorkUnit> getList() {
-    return new ArrayList<WorkUnit>(this.weightedWorkUnitQueue);
+  public List<WorkUnit> getQueueAsList() {
+    ImmutableList.Builder<WorkUnit> immutableListBuilder = ImmutableList.builder();
+    for (WorkUnit wu : this.weightedWorkUnitQueue) {
+      immutableListBuilder.add(wu);
+    }
+    return immutableListBuilder.build();
   }
 
   /**

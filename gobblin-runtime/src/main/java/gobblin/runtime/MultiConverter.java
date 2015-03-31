@@ -14,6 +14,7 @@ package gobblin.runtime;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
@@ -23,6 +24,7 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.EmptyIterable;
+import gobblin.converter.IdentityConverter;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
 
@@ -80,11 +82,11 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
 
   /**
    * A type of {@link java.util.Iterator} to be used with {@link MultiConverter}. The Converter uses the
-   * {@link ChainedConverterIterator} to chain iterators together. The first ChainedConverterIterator created contains
-   * an iterator with only the inputRecord and the first converter in the converters list. Each subsequent
-   * ChainedConverterIterator is created using the previous ChainedConverterIterator along with the next converter in
-   * the converters list. By chaining the converters and iterators in this fashion, a reference to the last
-   * ChainedConverterIterator will be sufficient to iterate through all the data.
+   * {@link ChainedConverterIterator} to chain iterators together. The first {@link ChainedConverterIterator} created
+   * contains an iterator with only the inputRecord and the first converter in the converters list. Each subsequent
+   * {@link ChainedConverterIterator} is created using the previous {@link ChainedConverterIterator} along with the next
+   * converter in the converters list. By chaining the converters and iterators in this fashion, a reference to the last
+   * {@link ChainedConverterIterator} will be sufficient to iterate through all the data.
    */
   private class MultiConverterIterator implements Iterator<Object> {
 
@@ -94,16 +96,13 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
 
     public MultiConverterIterator(Object inputRecord, WorkUnitState workUnitState) throws DataConversionException {
       this.workUnitState = workUnitState;
-      this.chainedConverterIterator = new SingleRecordIterable<Object>(inputRecord).iterator();
+      this.chainedConverterIterator =
+          new ChainedConverterIterator(new SingleRecordIterable<Object>(inputRecord).iterator(), converters.isEmpty()
+              ? new IdentityConverter() : converters.get(0));
 
-      for (int i = 0; i < converters.size(); i++) {
-        if (i == 0) {
-          this.chainedConverterIterator =
-              new ChainedConverterIterator(new SingleRecordIterable<Object>(inputRecord).iterator(), converters.get(i));
-        } else {
-          this.chainedConverterIterator =
+      for (int i = 1; i < converters.size(); i++) {
+        this.chainedConverterIterator =
               new ChainedConverterIterator(this.chainedConverterIterator, converters.get(i));
-        }
       }
     }
 
@@ -173,22 +172,10 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
 
       @Override
       public Object next() {
-        if (this.currentIterator.hasNext()) {
+        if (this.hasNext()) {
           return this.currentIterator.next();
         }
-        while (this.prevIterator.hasNext()) {
-          try {
-            this.currentIterator =
-                converter.convertRecord(convertedSchemaMap.get(converter), this.prevIterator.next(), workUnitState)
-                    .iterator();
-          } catch (DataConversionException e) {
-            Throwables.propagate(e);
-          }
-          if (this.currentIterator.hasNext()) {
-            return this.currentIterator.next();
-          }
-        }
-        return null;
+        throw new NoSuchElementException();
       }
 
       @Override

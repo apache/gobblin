@@ -26,4 +26,8 @@ public class DataConversionException extends Exception {
   public DataConversionException(String message, Throwable cause) {
     super(message, cause);
   }
+
+  public DataConversionException(String message) {
+   super(message);
+  }
 }

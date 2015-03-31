@@ -196,12 +196,12 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
     // If the file count has not exceeded maxFilesPerJob then start adding new WorkUnits to for this job
     if (this.fileCount >= this.maxFilesPerJob) {
       LOG.info("The number of work units from previous job has already reached the upper limit, no more workunits will be made");
-      return multiWorkUnitWeightedQueue.getList();
+      return multiWorkUnitWeightedQueue.getQueueAsList();
     }
 
     addNewWorkUnits(multiWorkUnitWeightedQueue);
 
-    return multiWorkUnitWeightedQueue.getList();
+    return multiWorkUnitWeightedQueue.getQueueAsList();
   }
 
   /**

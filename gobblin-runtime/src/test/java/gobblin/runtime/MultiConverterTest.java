@@ -326,21 +326,25 @@ public class MultiConverterTest {
     public Iterable<Object> convertRecord(Object outputSchema, Object inputRecord, WorkUnitState workUnit)
         throws DataConversionException {
 
-      if (this.executionCount % 3 == 0) {
-        this.executionCount++;
+      this.executionCount++;
+      if (this.executionCount > 3) {
+        this.executionCount = 1;
+      }
+
+      if (this.executionCount == 1) {
         return new EmptyIterable<Object>();
 
-      } else if (this.executionCount % 2 == 0) {
-        this.executionCount++;
+      } else if (this.executionCount == 2) {
         return new SingleRecordIterable<Object>(inputRecord);
 
-      } else {
-        this.executionCount++;
+      } else if (this.executionCount == 3) {
         List<Object> records = Lists.newArrayList();
         for (int i = 0; i < this.multiplicity; i++) {
           records.add(inputRecord);
         }
         return records;
+      } else {
+        throw new DataConversionException("Execution count must always be 1, 2, or 3");
       }
     }
   }
