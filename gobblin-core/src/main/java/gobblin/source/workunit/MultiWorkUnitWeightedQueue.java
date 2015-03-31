@@ -113,6 +113,9 @@ public class MultiWorkUnitWeightedQueue {
 
     @Override
     public boolean equals(Object obj) {
+      if (!(obj instanceof WeightedMultiWorkUnit)) {
+        return false;
+      }
       WeightedMultiWorkUnit weightedMultiWorkUnit = (WeightedMultiWorkUnit) obj;
       return this.weight == weightedMultiWorkUnit.getWeight();
     }
