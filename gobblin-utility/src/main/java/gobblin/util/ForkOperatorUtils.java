@@ -73,7 +73,7 @@ public class ForkOperatorUtils {
    * @param key           property key
    * @return a new property key
    */
-  public static String getConverterPropertyNameForBranch(WorkUnitState workUnitState, String key) {
+  public static String getPropertyNameForBranch(WorkUnitState workUnitState, String key) {
     Preconditions.checkNotNull(workUnitState, "Cannot get a property from a null WorkUnit");
     Preconditions.checkNotNull(key, "Cannot get a the value for a null key");
 

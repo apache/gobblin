@@ -19,6 +19,7 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
+import gobblin.util.ForkOperatorUtils;
 
 /**
  * Implementation of {@link Converter} that splits a string based on a delimiter specified by
@@ -30,11 +31,14 @@ public class StringSplitterConverter extends Converter<Class<String>, Class<Stri
 
   @Override
   public Converter<Class<String>, Class<String>, String, String> init(WorkUnitState workUnit) {
-    Preconditions.checkArgument(workUnit.contains(ConfigurationKeys.CONVERTER_STRING_SPLITTER_DELIMITER), "Cannot use "
+    String stringSplitterDelimiterKey = ForkOperatorUtils.getPropertyNameForBranch(
+        workUnit, ConfigurationKeys.CONVERTER_STRING_SPLITTER_DELIMITER);
+
+    Preconditions.checkArgument(workUnit.contains(stringSplitterDelimiterKey), "Cannot use "
         + this.getClass().getName() + " with out specifying " + ConfigurationKeys.CONVERTER_STRING_SPLITTER_DELIMITER);
 
     this.splitter =
-        Splitter.on(workUnit.getProp(ConfigurationKeys.CONVERTER_STRING_SPLITTER_DELIMITER)).omitEmptyStrings();
+        Splitter.on(workUnit.getProp(stringSplitterDelimiterKey)).omitEmptyStrings();
 
     return this;
   }
