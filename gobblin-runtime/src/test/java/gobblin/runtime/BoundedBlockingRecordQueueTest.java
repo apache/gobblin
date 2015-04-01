@@ -91,7 +91,7 @@ public class BoundedBlockingRecordQueueTest {
 
   @Test(dependsOnMethods = "testPutAndGet")
   public void testQueueStats() throws InterruptedException {
-    BoundedBlockingRecordQueue.QueueStats stats = this.boundedBlockingRecordQueue.stats();
+    BoundedBlockingRecordQueue.QueueStats stats = this.boundedBlockingRecordQueue.stats().get();
     Assert.assertEquals(stats.queueSize(), 0);
     Assert.assertEquals(stats.fillRatio(), 0d);
     Assert.assertEquals(stats.getAttemptCount(), 7);
@@ -109,7 +109,7 @@ public class BoundedBlockingRecordQueueTest {
   @Test(dependsOnMethods = "testQueueStats")
   public void testRegisterAll() {
     MetricRegistry metricRegistry = new MetricRegistry();
-    this.boundedBlockingRecordQueue.stats().registerAll(metricRegistry, METRIC_NAME_PREFIX);
+    this.boundedBlockingRecordQueue.stats().get().registerAll(metricRegistry, METRIC_NAME_PREFIX);
     Map<String, Gauge> gauges = metricRegistry.getGauges();
     Assert.assertEquals(gauges.size(), 2);
     Assert.assertEquals(

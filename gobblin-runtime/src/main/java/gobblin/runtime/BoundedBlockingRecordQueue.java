@@ -50,8 +50,7 @@ public class BoundedBlockingRecordQueue<T> {
   private final TimeUnit timeoutTimeUnit;
   private final BlockingDeque<T> blockingDeque;
 
-  private final boolean ifCollectStats;
-  private final QueueStats queueStats;
+  private final Optional<QueueStats> queueStats;
 
   private BoundedBlockingRecordQueue(Builder<T> builder) {
     Preconditions.checkArgument(builder.capacity > 0, "Invalid queue capacity");
@@ -62,8 +61,7 @@ public class BoundedBlockingRecordQueue<T> {
     this.timeoutTimeUnit = builder.timeoutTimeUnit;
     this.blockingDeque = Queues.newLinkedBlockingDeque(builder.capacity);
 
-    this.ifCollectStats = builder.ifCollectStats;
-    this.queueStats = new QueueStats(builder.ifCollectStats);
+    this.queueStats = builder.ifCollectStats ? Optional.of(new QueueStats()) : Optional.<QueueStats>absent();
   }
 
   /**
@@ -77,8 +75,8 @@ public class BoundedBlockingRecordQueue<T> {
   public boolean put(T record)
       throws InterruptedException {
     boolean offered = this.blockingDeque.offer(record, this.timeout, this.timeoutTimeUnit);
-    if (this.ifCollectStats) {
-      this.queueStats.putsRateMeter.get().mark();
+    if (this.queueStats.isPresent()) {
+      this.queueStats.get().putsRateMeter.mark();
     }
     return offered;
   }
@@ -93,8 +91,8 @@ public class BoundedBlockingRecordQueue<T> {
   public T get()
       throws InterruptedException {
     T record = this.blockingDeque.poll(this.timeout, this.timeoutTimeUnit);
-    if (this.ifCollectStats) {
-      this.queueStats.getsRateMeter.get().mark();
+    if (this.queueStats.isPresent()) {
+      this.queueStats.get().getsRateMeter.mark();
     }
     return record;
   }
@@ -102,9 +100,10 @@ public class BoundedBlockingRecordQueue<T> {
   /**
    * Get a current snapshot of this queue's statistics encapsulated in a {@link QueueStats} object.
    *
-   * @return a current snapshot of this queue's statistics
+   * @return a current snapshot of this queue's statistics wrapped in an {@link com.google.common.base.Optional},
+   *         which means it may be absent if queue statistics collection is not enabled.
    */
-  public QueueStats stats() {
+  public Optional<QueueStats> stats() {
     return this.queueStats;
   }
 
@@ -206,93 +205,82 @@ public class BoundedBlockingRecordQueue<T> {
     public static final String PUT_ATTEMPT_COUNT = "putAttemptCount";
     public static final String GET_ATTEMPT_COUNT = "getAttemptCount";
 
-    private final boolean ifCollectStats;
-    private final Optional<Gauge<Integer>> queueSizeGauge;
-    private final Optional<Gauge<Double>> fillRatioGauge;
-    private final Optional<Meter> putsRateMeter;
-    private final Optional<Meter> getsRateMeter;
+    private final Gauge<Integer> queueSizeGauge;
+    private final Gauge<Double> fillRatioGauge;
+    private final Meter putsRateMeter;
+    private final Meter getsRateMeter;
 
-    public QueueStats(boolean ifCollectStats) {
-      this.ifCollectStats = ifCollectStats;
-      if (ifCollectStats) {
-        Gauge<Integer> integerGauge = new Gauge<Integer>() {
-          @Override
-          public Integer getValue() {
-            return blockingDeque.size();
-          }
-        };
-        this.queueSizeGauge = Optional.of(integerGauge);
+    public QueueStats() {
+      this.queueSizeGauge = new Gauge<Integer>() {
+        @Override
+        public Integer getValue() {
+          return blockingDeque.size();
+        }
+      };
 
-        Gauge<Double> doubleGauge = new Gauge<Double>() {
-          @Override
-          public Double getValue() {
-            return (double) blockingDeque.size() / capacity;
-          }
-        };
-        this.fillRatioGauge = Optional.of(doubleGauge);
+      this.fillRatioGauge = new Gauge<Double>() {
+        @Override
+        public Double getValue() {
+          return (double) blockingDeque.size() / capacity;
+        }
+      };
 
-        this.putsRateMeter = Optional.of(new Meter());
-        this.getsRateMeter = Optional.of(new Meter());
-      } else {
-        this.queueSizeGauge = Optional.absent();
-        this.fillRatioGauge = Optional.absent();
-        this.putsRateMeter = Optional.absent();
-        this.getsRateMeter = Optional.absent();
-      }
+      this.putsRateMeter = new Meter();
+      this.getsRateMeter = new Meter();
     }
 
     /**
      * Return the queue size.
      *
-     * @return the queue size if collecting of statistics is enabled or zero otherwise
+     * @return the queue size
      */
     public int queueSize() {
-        return this.queueSizeGauge.isPresent() ? this.queueSizeGauge.get().getValue() : 0;
+        return this.queueSizeGauge.getValue();
     }
 
     /**
      * Return the queue fill ratio.
      *
-     * @return the queue fill ratio if collecting of statistics is enabled or zero otherwise
+     * @return the queue fill ratio
      */
     public double fillRatio() {
-      return this.fillRatioGauge.isPresent() ? this.fillRatioGauge.get().getValue() : 0d;
+      return this.fillRatioGauge.getValue();
     }
 
     /**
      * Return the rate of put attempts.
      *
-     * @return the rate of put attempts if collecting of statistics is enabled or zero otherwise
+     * @return the rate of put attempts
      */
     public double putAttemptRate() {
-      return this.putsRateMeter.isPresent() ? this.putsRateMeter.get().getMeanRate() : 0d;
+      return this.putsRateMeter.getMeanRate();
     }
 
     /**
      * Return the total count of put attempts.
      *
-     * @return the total count of put attempts if collecting of statistics is enabled or zero otherwise
+     * @return the total count of put attempts
      */
     public long putAttemptCount() {
-      return this.putsRateMeter.isPresent() ? this.putsRateMeter.get().getCount() : 0l;
+      return this.putsRateMeter.getCount();
     }
 
     /**
      * Return the rate of get attempts.
      *
-     * @return the rate of get attempts if collecting of statistics is enabled or zero otherwise
+     * @return the rate of get attempts
      */
     public double getAttemptRate() {
-      return this.getsRateMeter.isPresent() ? this.getsRateMeter.get().getMeanRate() : 0d;
+      return this.getsRateMeter.getMeanRate();
     }
 
     /**
      * Return the total count of get attempts.
      *
-     * @return the total count of get attempts if collecting of statistics is enabled or zero otherwise
+     * @return the total count of get attempts
      */
     public long getAttemptCount() {
-      return this.getsRateMeter.isPresent() ? this.getsRateMeter.get().getCount() : 0l;
+      return this.getsRateMeter.getCount();
     }
 
     /**
@@ -303,12 +291,10 @@ public class BoundedBlockingRecordQueue<T> {
      * @param prefix metric name prefix
      */
     public void registerAll(MetricRegistry metricRegistry, String prefix) {
-      if (this.ifCollectStats) {
-        metricRegistry.register(MetricRegistry.name(prefix, QUEUE_SIZE), this.queueSizeGauge.get());
-        metricRegistry.register(MetricRegistry.name(prefix, FILL_RATIO), this.fillRatioGauge.get());
-        metricRegistry.register(MetricRegistry.name(prefix, PUT_ATTEMPT_RATE), this.putsRateMeter.get());
-        metricRegistry.register(MetricRegistry.name(prefix, GET_ATTEMPT_RATE), this.getsRateMeter.get());
-      }
+      metricRegistry.register(MetricRegistry.name(prefix, QUEUE_SIZE), this.queueSizeGauge);
+      metricRegistry.register(MetricRegistry.name(prefix, FILL_RATIO), this.fillRatioGauge);
+      metricRegistry.register(MetricRegistry.name(prefix, PUT_ATTEMPT_RATE), this.putsRateMeter);
+      metricRegistry.register(MetricRegistry.name(prefix, GET_ATTEMPT_RATE), this.getsRateMeter);
     }
 
     @Override

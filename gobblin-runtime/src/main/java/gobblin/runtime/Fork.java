@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.io.Closer;
 
@@ -91,9 +92,8 @@ public class Fork implements Closeable, Runnable {
   // a boolean are atomic, volatile is sufficient here.
   private volatile boolean parentTaskDone = false;
 
-  // This may be updated and read by both this fork and the parent task although the update by
-  // the parent task will only come after the updates by this fork. But to be absolutely safe,
-  // an AtomicReference is still used here to guarantee atomicity.
+  // Writes to and reads of references are always atomic according to the Java language specs.
+  // An AtomicReference is still used here for the compareAntSet operation.
   private final AtomicReference<ForkState> forkState;
 
   public Fork(TaskContext taskContext, TaskState taskState, Object schema, int branches, int index,
@@ -143,17 +143,17 @@ public class Fork implements Closeable, Runnable {
       processRecords();
       setForkState(ForkState.RUNNING, ForkState.SUCCEEDED);
     } catch (IOException ioe) {
-      setForkState(ForkState.RUNNING, ForkState.FAILED);
+      this.forkState.set(ForkState.FAILED);
       this.logger.error(
           String.format("Fork %d of task %s failed to process data records", this.index, this.taskId), ioe);
       Throwables.propagate(ioe);
     } catch (DataConversionException dce) {
-      setForkState(ForkState.RUNNING, ForkState.FAILED);
+      this.forkState.set(ForkState.FAILED);
       this.logger.error(
           String.format("Fork %d of task %s failed to convert data records", this.index, this.taskId), dce);
       Throwables.propagate(dce);
     } catch (Throwable t) {
-      setForkState(ForkState.RUNNING, ForkState.FAILED);
+      this.forkState.set(ForkState.FAILED);
       this.logger.error(String.format("Fork %d of task %s failed to process data records", this.index, this.taskId), t);
       Throwables.propagate(t);
     } finally {
@@ -233,7 +233,7 @@ public class Fork implements Closeable, Runnable {
       }
     } catch (Throwable t) {
       this.logger.error(String.format("Fork %d of task %s failed to commit data", this.index, this.taskId), t);
-      setForkState(ForkState.SUCCEEDED, ForkState.FAILED);
+      this.forkState.set(ForkState.FAILED);
       Throwables.propagate(t);
     }
   }
@@ -259,9 +259,11 @@ public class Fork implements Closeable, Runnable {
   /**
    * Get record queue stats as a {@link BoundedBlockingRecordQueue.QueueStats} object.
    *
-   * @return a {@link BoundedBlockingRecordQueue.QueueStats} object representing the record queue stats
+   * @return a {@link BoundedBlockingRecordQueue.QueueStats} object representing the record queue
+   *         statistics wrapped in an {@link com.google.common.base.Optional}, which means it may
+   *         be absent if queue statistics collection is not enabled.
    */
-  public BoundedBlockingRecordQueue.QueueStats queueStats() {
+  public Optional<BoundedBlockingRecordQueue<Object>.QueueStats> queueStats() {
     return this.recordQueue.stats();
   }
 
@@ -313,25 +315,24 @@ public class Fork implements Closeable, Runnable {
    */
   private void processRecords() throws IOException, DataConversionException {
     while (true) {
-      Object record;
       try {
-        record = this.recordQueue.get();
-      } catch (InterruptedException ie) {
-        this.logger.warn("Interrupted while trying to get a record off the queue", ie);
-        continue;
-      }
-      if (record == null) {
-        // The parent task has already done pulling records so no new record means this fork is done
-        if (this.parentTaskDone) {
-          return;
-        }
-      } else {
-        // Convert the record, check its data quality, and finally write it out if quality checking passes.
-        for (Object convertedRecord : this.converter.convertRecord(this.convertedSchema, record, this.taskState)) {
-          if (this.rowLevelPolicyChecker.executePolicies(convertedRecord, this.rowLevelPolicyCheckingResult)) {
-            this.writer.write(convertedRecord);
+        Object record = this.recordQueue.get();
+        if (record == null) {
+          // The parent task has already done pulling records so no new record means this fork is done
+          if (this.parentTaskDone) {
+            return;
+          }
+        } else {
+          // Convert the record, check its data quality, and finally write it out if quality checking passes.
+          for (Object convertedRecord : this.converter.convertRecord(this.convertedSchema, record, this.taskState)) {
+            if (this.rowLevelPolicyChecker.executePolicies(convertedRecord, this.rowLevelPolicyCheckingResult)) {
+              this.writer.write(convertedRecord);
+            }
           }
         }
+      } catch (InterruptedException ie) {
+        this.logger.warn("Interrupted while trying to get a record off the queue", ie);
+        Throwables.propagate(ie);
       }
     }
   }

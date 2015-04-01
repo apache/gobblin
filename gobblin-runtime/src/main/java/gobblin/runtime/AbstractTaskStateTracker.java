@@ -111,10 +111,10 @@ public abstract class AbstractTaskStateTracker extends AbstractIdleService imple
       updateTaskMetrics();
       // Log record queue stats/metrics of each fork
       for (Optional<Fork> fork : task.getForks()) {
-        if (fork.isPresent()) {
+        if (fork.isPresent() && fork.get().queueStats().isPresent()) {
           logger.info(String.format(
               "Queue stats of fork %d of task %s: %s", fork.get().getIndex(), this.task.getTaskId(),
-              fork.get().queueStats().toString()));
+              fork.get().queueStats().get().toString()));
         }
       }
     }
