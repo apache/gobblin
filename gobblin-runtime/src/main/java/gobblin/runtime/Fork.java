@@ -138,10 +138,10 @@ public class Fork implements Closeable, Runnable {
 
   @Override
   public void run() {
-    setForkState(ForkState.PENDING, ForkState.RUNNING);
+    compareAndSetForkState(ForkState.PENDING, ForkState.RUNNING);
     try {
       processRecords();
-      setForkState(ForkState.RUNNING, ForkState.SUCCEEDED);
+      compareAndSetForkState(ForkState.RUNNING, ForkState.SUCCEEDED);
     } catch (IOException ioe) {
       this.forkState.set(ForkState.FAILED);
       this.logger.error(
@@ -226,10 +226,10 @@ public class Fork implements Closeable, Runnable {
         // it may throw so the exception gets propagated to the caller of this method.
         this.logger.info(String.format("Committing data for fork %d of task %s", this.index, this.taskId));
         commitData();
-        setForkState(ForkState.SUCCEEDED, ForkState.COMMITTED);
+        compareAndSetForkState(ForkState.SUCCEEDED, ForkState.COMMITTED);
       } else {
         this.logger.error(String.format("Fork %d of task %s failed to pass quality checking", this.index, this.taskId));
-        setForkState(ForkState.SUCCEEDED, ForkState.FAILED);
+        compareAndSetForkState(ForkState.SUCCEEDED, ForkState.FAILED);
       }
     } catch (Throwable t) {
       this.logger.error(String.format("Fork %d of task %s failed to commit data", this.index, this.taskId), t);
@@ -257,11 +257,12 @@ public class Fork implements Closeable, Runnable {
   }
 
   /**
-   * Get record queue stats as a {@link BoundedBlockingRecordQueue.QueueStats} object.
+   * Get a {@link BoundedBlockingRecordQueue.QueueStats} object representing the record queue
+   * statistics of this {@link Fork}.
    *
    * @return a {@link BoundedBlockingRecordQueue.QueueStats} object representing the record queue
-   *         statistics wrapped in an {@link com.google.common.base.Optional}, which means it may
-   *         be absent if queue statistics collection is not enabled.
+   *         statistics of this {@link Fork} wrapped in an {@link com.google.common.base.Optional},
+   *         which means it may be absent if collecting of queue statistics is not enabled.
    */
   public Optional<BoundedBlockingRecordQueue<Object>.QueueStats> queueStats() {
     return this.recordQueue.stats();
@@ -348,7 +349,6 @@ public class Fork implements Closeable, Runnable {
     if (this.branches > 1) {
       // Make a copy if there are more than one fork
       taskStateForFork = new TaskState(this.taskState);
-      taskStateForFork.addAll(this.taskState);
     }
 
     taskStateForFork.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, this.writer.recordsWritten());
@@ -405,9 +405,10 @@ public class Fork implements Closeable, Runnable {
   }
 
   /**
-   * Set the state of this {@link Fork} to a new state if and only if the current state is the expected state.
+   * Compare and set the state of this {@link Fork} to a new state if and only if the current state
+   * is equal to the expected state.
    */
-  private void setForkState(ForkState expectedState, ForkState newState) {
+  private void compareAndSetForkState(ForkState expectedState, ForkState newState) {
     if (this.forkState.compareAndSet(expectedState, newState)) {
       this.taskState.setProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.FORK_STATE_KEY, this.index),
           newState.name());

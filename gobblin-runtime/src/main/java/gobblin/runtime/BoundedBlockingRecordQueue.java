@@ -98,10 +98,10 @@ public class BoundedBlockingRecordQueue<T> {
   }
 
   /**
-   * Get a current snapshot of this queue's statistics encapsulated in a {@link QueueStats} object.
+   * Get a {@link QueueStats} object representing queue statistics of this {@link BoundedBlockingRecordQueue}.
    *
-   * @return a current snapshot of this queue's statistics wrapped in an {@link com.google.common.base.Optional},
-   *         which means it may be absent if queue statistics collection is not enabled.
+   * @return a {@link QueueStats} object wrapped in an {@link com.google.common.base.Optional},
+   *         which means it may be absent if collecting of queue statistics is not enabled.
    */
   public Optional<QueueStats> stats() {
     return this.queueStats;
