@@ -55,7 +55,9 @@ public class CsvToJsonConverter extends Converter<String, JsonArray, String, Jso
       throws DataConversionException {
     InputStreamCSVReader reader =
         new InputStreamCSVReader(inputRecord, workUnit.getProp(ConfigurationKeys.CONVERTER_CSV_TO_JSON_DELIMITER)
-            .trim().charAt(0));
+            .trim().charAt(0), workUnit
+            .getProp(ConfigurationKeys.CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR,
+                ConfigurationKeys.DEFAULT_CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR).trim().charAt(0));
     List<String> recordSplit;
     try {
       recordSplit = Lists.newArrayList(reader.splitRecord());
