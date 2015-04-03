@@ -12,6 +12,7 @@
 package gobblin.util;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -75,7 +76,7 @@ public class ForkOperatorUtils {
    */
   public static String getPropertyNameForBranch(WorkUnitState workUnitState, String key) {
     Preconditions.checkNotNull(workUnitState, "Cannot get a property from a null WorkUnit");
-    Preconditions.checkNotNull(key, "Cannot get a the value for a null key");
+    Preconditions.checkArgument(Strings.isNullOrEmpty(key), "Cannot get a the value for a null or empty key");
 
     if (!workUnitState.contains(ConfigurationKeys.FORK_BRANCH_ID_KEY)) {
       return key;
