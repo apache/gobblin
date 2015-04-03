@@ -283,6 +283,10 @@ public class Fork implements Closeable, Runnable {
     // Tell this fork that the parent task is done. This is a second chance call if the parent
     // task failed and didn't do so through the normal way of calling markParentTaskDone().
     this.parentTaskDone = true;
+
+    // Record the fork state into the task state that will be persisted into the state store
+    this.taskState.setProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.FORK_STATE_KEY, this.index),
+        this.forkState.get().name());
     try {
       this.closer.close();
     } finally {
@@ -409,10 +413,7 @@ public class Fork implements Closeable, Runnable {
    * is equal to the expected state.
    */
   private void compareAndSetForkState(ForkState expectedState, ForkState newState) {
-    if (this.forkState.compareAndSet(expectedState, newState)) {
-      this.taskState.setProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.FORK_STATE_KEY, this.index),
-          newState.name());
-    } else {
+    if (!this.forkState.compareAndSet(expectedState, newState)) {
       throw new IllegalStateException(String
           .format("Expected fork state %s; actual fork state %s", expectedState.name(), this.forkState.get().name()));
     }
