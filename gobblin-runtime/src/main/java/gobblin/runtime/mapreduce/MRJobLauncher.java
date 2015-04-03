@@ -48,6 +48,8 @@ import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.Timer;
+
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
@@ -478,6 +480,11 @@ public class MRJobLauncher extends AbstractJobLauncher {
         throws IOException, InterruptedException {
       this.setup(context);
 
+      JobMetrics metrics = JobMetrics.get(
+          context.getConfiguration().get(ConfigurationKeys.JOB_NAME_KEY),
+          context.getConfiguration().get(ConfigurationKeys.JOB_ID_KEY));
+      Timer.Context mapperTimerContext =
+          metrics.getTimer(JobMetrics.MetricGroup.MAPPER, context.getTaskAttemptID().toString(), "mapperTimer").time();
       try {
         // De-serialize and collect the list of WorkUnits to run
         while (context.nextKeyValue()) {
@@ -486,6 +493,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
         // Actually run the list of WorkUnits
         runWorkUnits(this.workUnits);
       } finally {
+        LOG.info(String.format("Mapper %s finished in %d milliseconds", context.getTaskAttemptID().toString(),
+            TimeUnit.NANOSECONDS.toMillis(mapperTimerContext.stop())));
         this.cleanup(context);
       }
     }
