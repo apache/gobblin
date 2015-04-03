@@ -156,12 +156,17 @@ public class ConfigurationKeys {
   public static final String CONVERTER_FILTER_FIELD_VALUE = "converter.filter.value";
   public static final String CONVERTER_IS_EPOCH_TIME_IN_SECONDS = "converter.is.epoch.time.in.seconds";
   public static final String CONVERTER_AVRO_EXTRACTOR_FIELD_PATH = "converter.avro.extractor.field.path";
+  public static final String CONVERTER_STRING_FILTER_PATTERN = "converter.string.filter.pattern";
+  public static final String CONVERTER_STRING_SPLITTER_DELIMITER = "converter.string.splitter.delimiter";
+  public static final String CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR = "converter.csv.to.json.enclosedchar";
+  public static final String DEFAULT_CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR = "\0";
 
   /**
    * Fork operator configuration properties.
    */
   public static final String FORK_BRANCHES_KEY = "fork.branches";
   public static final String FORK_BRANCH_NAME_KEY = "fork.branch.name";
+  public static final String FORK_BRANCH_ID_KEY = "fork.branch.id";
   public static final String DEFAULT_FORK_BRANCH_NAME = "fork_";
 
   /**

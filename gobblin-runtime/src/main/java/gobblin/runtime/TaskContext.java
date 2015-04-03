@@ -132,16 +132,22 @@ public class TaskContext {
   public List<Converter<?, ?, ?, ?>> getConverters(int index) {
     String converterClassKey =
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.CONVERTER_CLASSES_KEY, index);
+
     if (!this.workUnit.contains(converterClassKey)) {
       return Collections.emptyList();
     }
+
+    // Create a copy of the WorkUnitState and set the branch id for that WorkUnitState, then feed it to the Converter's init method
+    WorkUnitState converterWorkUnitState = new WorkUnitState(this.workUnitState.getWorkunit());
+    converterWorkUnitState.addAll(this.workUnitState);
+    converterWorkUnitState.setProp(ConfigurationKeys.FORK_BRANCH_ID_KEY, index);
 
     List<Converter<?, ?, ?, ?>> converters = Lists.newArrayList();
     for (String converterClass : Splitter.on(",").omitEmptyStrings().trimResults()
         .split(this.workUnit.getProp(converterClassKey))) {
       try {
         Converter<?, ?, ?, ?> converter = (Converter<?, ?, ?, ?>) Class.forName(converterClass).newInstance();
-        converter.init(this.workUnitState);
+        converter.init(converterWorkUnitState);
         converters.add(converter);
       } catch (ClassNotFoundException cnfe) {
         throw new RuntimeException(cnfe);
