@@ -51,6 +51,10 @@ public class TaskContext {
     this.workUnit = workUnitState.getWorkunit();
   }
 
+  public WorkUnitState getWorkUnitState() {
+    return this.workUnitState;
+  }
+
   /**
    * Get a {@link TaskState}.
    *
