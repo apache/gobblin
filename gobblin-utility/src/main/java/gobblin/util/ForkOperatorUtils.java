@@ -12,6 +12,7 @@
 package gobblin.util;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -67,15 +68,17 @@ public class ForkOperatorUtils {
   /**
    * Get a new property key from an original one based on the branch id. The method assumes the branch id specified by
    * the {@link ConfigurationKeys#FORK_BRANCH_ID_KEY} parameter in the given WorkUnitState. The fork id key specifies
-   * which fork this parameter belongs to.
+   * which fork this parameter belongs to. Note this method will only provide the aforementioned functionality for
+   * {@link gobblin.converter.Converter}s. To get the same functionality in {@link gobblin.writer.DataWriter}s use
+   * the {@link gobblin.writer.DataWriterBuilder#forBranch(int)} to construct a writer with a specific branch id.
    *
    * @param workUnitState contains the fork id key
    * @param key           property key
    * @return a new property key
    */
-  public static String getConverterPropertyNameForBranch(WorkUnitState workUnitState, String key) {
+  public static String getPropertyNameForBranch(WorkUnitState workUnitState, String key) {
     Preconditions.checkNotNull(workUnitState, "Cannot get a property from a null WorkUnit");
-    Preconditions.checkNotNull(key, "Cannot get a the value for a null key");
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(key), "Cannot get a the value for a null or empty key");
 
     if (!workUnitState.contains(ConfigurationKeys.FORK_BRANCH_ID_KEY)) {
       return key;

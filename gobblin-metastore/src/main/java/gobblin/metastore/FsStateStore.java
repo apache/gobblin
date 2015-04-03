@@ -23,6 +23,7 @@ import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.compress.DefaultCodec;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -123,7 +124,8 @@ public class FsStateStore implements StateStore {
     Closer closer = Closer.create();
     try {
       SequenceFile.Writer writer =
-          closer.register(new SequenceFile.Writer(this.fs, this.conf, tablePath, Text.class, this.stateClass));
+          closer.register(SequenceFile.createWriter(this.fs, this.conf, tablePath, Text.class, this.stateClass,
+              SequenceFile.CompressionType.BLOCK, new DefaultCodec()));
       // Append will overwrite existing data, so it's not real append.
       // Real append is to be supported for SequenceFile (HADOOP-7139).
       // TODO: implement a workaround.
@@ -146,7 +148,8 @@ public class FsStateStore implements StateStore {
     Closer closer = Closer.create();
     try {
       SequenceFile.Writer writer =
-          closer.register(new SequenceFile.Writer(this.fs, this.conf, tablePath, Text.class, this.stateClass));
+          closer.register(SequenceFile.createWriter(this.fs, this.conf, tablePath, Text.class, this.stateClass,
+              SequenceFile.CompressionType.BLOCK, new DefaultCodec()));
       for (State state : states) {
         // Append will overwrite existing data, so it's not real append.
         // Real append is to be supported for SequenceFile (HADOOP-7139).
