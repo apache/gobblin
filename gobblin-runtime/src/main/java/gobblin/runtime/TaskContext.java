@@ -133,8 +133,6 @@ public class TaskContext {
     String converterClassKey =
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.CONVERTER_CLASSES_KEY, index);
 
-    this.workUnitState.setProp(ConfigurationKeys.FORK_BRANCH_ID_KEY, index);
-
     if (!this.workUnit.contains(converterClassKey)) {
       return Collections.emptyList();
     }
