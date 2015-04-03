@@ -40,7 +40,7 @@ public class StringFilterConverter extends Converter<Class<String>, Class<String
   public Converter<Class<String>, Class<String>, String, String> init(WorkUnitState workUnit) {
     this.pattern =
         Pattern.compile(Strings.nullToEmpty(workUnit.getProp(ForkOperatorUtils.getPropertyNameForBranch(
-            workUnit, ConfigurationKeys.CONVERTER_STRING_SPLITTER_DELIMITER))));
+            workUnit, ConfigurationKeys.CONVERTER_STRING_FILTER_PATTERN))));
 
     this.matcher = Optional.absent();
     return this;
