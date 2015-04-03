@@ -23,6 +23,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
 import com.google.common.base.Splitter;
+import com.google.common.collect.Sets;
 
 
 /**
@@ -135,7 +136,7 @@ public class State implements Writable {
    * @return value associated with the key as a case insensitive {@link java.util.Set} of strings
    */
   public Set<String> getPropAsCaseInsensitiveSet(String key) {
-    Set<String> set = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+    Set<String> set = Sets.newTreeSet(String.CASE_INSENSITIVE_ORDER);
     set.addAll(Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProperty(key)));
     return set;
   }
@@ -148,7 +149,7 @@ public class State implements Writable {
    * @return value associated with the key as a case insensitive {@link java.util.Set} of strings
    */
   public Set<String> getPropAsCaseInsensitiveSet(String key, String def) {
-    Set<String> set = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+    Set<String> set = Sets.newTreeSet(String.CASE_INSENSITIVE_ORDER);
     set.addAll(Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProperty(key, def)));
     return set;
   }

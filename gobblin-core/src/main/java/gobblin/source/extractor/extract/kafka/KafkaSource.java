@@ -34,6 +34,7 @@ import gobblin.source.workunit.Extract.TableType;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
 
@@ -56,7 +57,7 @@ public class KafkaSource extends MessageBasedSource<Schema, GenericRecord> {
   public static final String TOPIC_NAME = "topic.name";
   public static final String PARTITION_ID = "partition.id";
 
-  private final Set<String> moveToLatestTopics = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+  private final Set<String> moveToLatestTopics = Sets.newTreeSet(String.CASE_INSENSITIVE_ORDER);
   private final Map<KafkaPartition, Long> previousOffsets = Maps.newHashMap();
 
   @Override
