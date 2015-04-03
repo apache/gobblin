@@ -38,7 +38,7 @@ public class StringFilterConverterTest {
   @Test
   public void testConvertRecordWithSimpleRegex() throws DataConversionException {
     WorkUnitState workUnitState = new WorkUnitState();
-    workUnitState.setProp(ConfigurationKeys.CONVERTER_FILTER_STRINGS_BY, "HelloWorld");
+    workUnitState.setProp(ConfigurationKeys.CONVERTER_STRING_FILTER_PATTERN, "HelloWorld");
 
     StringFilterConverter converter = new StringFilterConverter();
 
@@ -66,7 +66,7 @@ public class StringFilterConverterTest {
   @Test
   public void testConvertRecordWithComplexRegex() throws DataConversionException {
     WorkUnitState workUnitState = new WorkUnitState();
-    workUnitState.setProp(ConfigurationKeys.CONVERTER_FILTER_STRINGS_BY, ".*");
+    workUnitState.setProp(ConfigurationKeys.CONVERTER_STRING_FILTER_PATTERN, ".*");
 
     StringFilterConverter converter = new StringFilterConverter();
 

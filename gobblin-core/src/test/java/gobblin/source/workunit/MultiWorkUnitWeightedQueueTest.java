@@ -14,7 +14,7 @@ public class MultiWorkUnitWeightedQueueTest {
   /**
    * Test for {@link MultiWorkUnitWeightedQueue#MultiWorkUnitWeightedQueue()}. It adds a series of WorkUnits to an
    * instance of MultiWorkUnitWeightedQueue of checks the size of all the WorkUnits returned by
-   * {@link MultiWorkUnitWeightedQueue#getList()}.
+   * {@link MultiWorkUnitWeightedQueue#getQueueAsList()}.
    */
   @Test
   public void testDefaultConstructor() {
@@ -28,7 +28,7 @@ public class MultiWorkUnitWeightedQueueTest {
       multiWorkUnitWeightedQueue.addWorkUnit(workUnit, weight);
     }
 
-    List<WorkUnit> multiWorkUnitWeightedQueueList = multiWorkUnitWeightedQueue.getList();
+    List<WorkUnit> multiWorkUnitWeightedQueueList = multiWorkUnitWeightedQueue.getQueueAsList();
     Assert.assertEquals(multiWorkUnitWeightedQueueList.size(), numWorkUnits);
 
     MultiWorkUnit multiWorkUnit;
@@ -41,7 +41,7 @@ public class MultiWorkUnitWeightedQueueTest {
   /**
    * Test for {@link MultiWorkUnitWeightedQueue#MultiWorkUnitWeightedQueue(int)}. It sets a limit on the maximum number
    * of MultiWorkUnits that can be created, adds a series of WorkUnits to the list, and checks the results of
-   * {@link MultiWorkUnitWeightedQueue#getList()} to ensure each MultiWorkUnit created is of proper length.
+   * {@link MultiWorkUnitWeightedQueue#getQueueAsList()} to ensure each MultiWorkUnit created is of proper length.
    */
   @Test
   public void testWithQueueSizeLimit() {
@@ -57,7 +57,7 @@ public class MultiWorkUnitWeightedQueueTest {
     }
 
     MultiWorkUnit multiWorkUnit;
-    for (WorkUnit workUnitElement :  multiWorkUnitWeightedQueue.getList()) {
+    for (WorkUnit workUnitElement :  multiWorkUnitWeightedQueue.getQueueAsList()) {
       multiWorkUnit = (MultiWorkUnit) workUnitElement;
       Assert.assertEquals(multiWorkUnit.getWorkUnits().size(), numWorkUnits / maxMultiWorkUnits);
     }

@@ -29,7 +29,7 @@ import gobblin.util.ForkOperatorUtils;
 
 /**
  * Implementation of {@link Converter} which filters strings based on whether or not they match a regex specified by
- * {@link ConfigurationKeys#CONVERTER_FILTER_STRINGS_BY}
+ * {@link ConfigurationKeys#CONVERTER_STRING_FILTER_PATTERN}
  */
 public class StringFilterConverter extends Converter<Class<String>, Class<String>, String, String> {
 
@@ -41,8 +41,8 @@ public class StringFilterConverter extends Converter<Class<String>, Class<String
     this.pattern =
         Pattern.compile(Strings.nullToEmpty(workUnit.getProp(ForkOperatorUtils.getPropertyNameForBranch(
             workUnit, ConfigurationKeys.CONVERTER_FILTER_STRINGS_BY))));
-    this.matcher = Optional.absent();
 
+    this.matcher = Optional.absent();
     return this;
   }
 

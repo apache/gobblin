@@ -14,7 +14,9 @@ package gobblin.source.workunit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.PriorityQueue;
+import java.util.Queue;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Longs;
 
 
@@ -34,7 +36,7 @@ import com.google.common.primitives.Longs;
  */
 public class MultiWorkUnitWeightedQueue {
 
-  private PriorityQueue<WeightedMultiWorkUnit> weightedWorkUnitQueue;
+  private final Queue<WeightedMultiWorkUnit> weightedWorkUnitQueue;
 
   private int maxMultiWorkUnits = Integer.MAX_VALUE;
   private int numMultiWorkUnits = 0;
@@ -77,8 +79,8 @@ public class MultiWorkUnitWeightedQueue {
    * Returns the a list of WorkUnits that have been added to this queue via the {@link #addWorkUnit(WorkUnit, long)}
    * method.
    */
-  public List<WorkUnit> getList() {
-    return new ArrayList<WorkUnit>(this.weightedWorkUnitQueue);
+  public List<WorkUnit> getQueueAsList() {
+    return ImmutableList.<WorkUnit>builder().addAll(this.weightedWorkUnitQueue).build();
   }
 
   /**
@@ -86,7 +88,7 @@ public class MultiWorkUnitWeightedQueue {
    * weight, which is the sum of the file sizes assigned to it. It also implements Comparable, based on the weight value.
    * @author ydai
    */
-  private class WeightedMultiWorkUnit extends MultiWorkUnit implements Comparable<WeightedMultiWorkUnit> {
+  private static class WeightedMultiWorkUnit extends MultiWorkUnit implements Comparable<WeightedMultiWorkUnit> {
 
     private long weight = 0l;
 
@@ -107,6 +109,15 @@ public class MultiWorkUnitWeightedQueue {
     @Override
     public int compareTo(WeightedMultiWorkUnit weightedMultiWorkUnit) {
       return Longs.compare(this.weight, weightedMultiWorkUnit.getWeight());
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (!(obj instanceof WeightedMultiWorkUnit)) {
+        return false;
+      }
+      WeightedMultiWorkUnit weightedMultiWorkUnit = (WeightedMultiWorkUnit) obj;
+      return this.weight == weightedMultiWorkUnit.getWeight();
     }
 
     public long getWeight() {
