@@ -182,12 +182,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
     // Do not cancel delegation tokens after job has completed (HADOOP-7002)
     this.conf.setBoolean("mapreduce.job.complete.cancel.delegation.tokens", false);
 
-    // Necessary for compatibility with Azkaban's hadoopJava job type
-    // http://azkaban.github.io/azkaban/docs/2.5/#hadoopjava-type
-    if (System.getenv("HADOOP_TOKEN_FILE_LOCATION") != null) {
-      conf.set("mapreduce.job.credentials.binary", System.getenv("HADOOP_TOKEN_FILE_LOCATION"));
-    }
-
     // Preparing a Hadoop MR job
     this.job = Job.getInstance(this.conf, JOB_NAME_PREFIX + jobName);
     this.job.setJarByClass(MRJobLauncher.class);
