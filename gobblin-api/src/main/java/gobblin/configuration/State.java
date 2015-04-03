@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.TreeSet;
 
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
@@ -125,6 +126,31 @@ public class State implements Writable {
    */
   public List<String> getPropAsList(String key, String def) {
     return Splitter.on(",").trimResults().splitToList(getProperty(key, def));
+  }
+
+  /**
+   * Get the value of a property as a case insensitive {@link java.util.Set} of strings.
+   *
+   * @param key property key
+   * @return value associated with the key as a case insensitive {@link java.util.Set} of strings
+   */
+  public Set<String> getPropAsCaseInsensitiveSet(String key) {
+    Set<String> set = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+    set.addAll(Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProperty(key)));
+    return set;
+  }
+
+  /**
+   * Get the value of a property as a case insensitive {@link java.util.Set} of strings, using the given default value if the property is not set.
+   *
+   * @param key property key
+   * @param def default value
+   * @return value associated with the key as a case insensitive {@link java.util.Set} of strings
+   */
+  public Set<String> getPropAsCaseInsensitiveSet(String key, String def) {
+    Set<String> set = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+    set.addAll(Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProperty(key, def)));
+    return set;
   }
 
   /**
@@ -239,8 +265,7 @@ public class State implements Writable {
   }
 
   @Override
-  public void readFields(DataInput in)
-      throws IOException {
+  public void readFields(DataInput in) throws IOException {
     Text txt = new Text();
 
     int numEntries = in.readInt();
@@ -256,8 +281,7 @@ public class State implements Writable {
   }
 
   @Override
-  public void write(DataOutput out)
-      throws IOException {
+  public void write(DataOutput out) throws IOException {
     Text txt = new Text();
     out.writeInt(properties.size());
 
