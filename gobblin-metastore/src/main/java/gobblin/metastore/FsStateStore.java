@@ -23,6 +23,7 @@ import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.compress.DefaultCodec;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -57,24 +58,21 @@ public class FsStateStore implements StateStore {
   // Class of the state objects to be put into the store
   private final Class<? extends State> stateClass;
 
-  public FsStateStore(String fsUri, String storeRootDir, Class<? extends State> stateClass)
-      throws IOException {
+  public FsStateStore(String fsUri, String storeRootDir, Class<? extends State> stateClass) throws IOException {
     this.conf = new Configuration();
     this.fs = FileSystem.get(URI.create(fsUri), this.conf);
     this.storeRootDir = storeRootDir;
     this.stateClass = stateClass;
   }
 
-  public FsStateStore(FileSystem fs, String storeRootDir, Class<? extends State> stateClass)
-      throws IOException {
+  public FsStateStore(FileSystem fs, String storeRootDir, Class<? extends State> stateClass) throws IOException {
     this.fs = fs;
     this.conf = this.fs.getConf();
     this.storeRootDir = storeRootDir;
     this.stateClass = stateClass;
   }
 
-  public FsStateStore(String storeUrl, Class<? extends State> stateClass)
-      throws IOException {
+  public FsStateStore(String storeUrl, Class<? extends State> stateClass) throws IOException {
     this.conf = new Configuration();
     Path storePath = new Path(storeUrl);
     this.fs = storePath.getFileSystem(this.conf);
@@ -83,15 +81,13 @@ public class FsStateStore implements StateStore {
   }
 
   @Override
-  public boolean create(String storeName)
-      throws IOException {
+  public boolean create(String storeName) throws IOException {
     Path storePath = new Path(this.storeRootDir, storeName);
     return this.fs.exists(storePath) || this.fs.mkdirs(storePath);
   }
 
   @Override
-  public boolean create(String storeName, String tableName)
-      throws IOException {
+  public boolean create(String storeName, String tableName) throws IOException {
     Path storePath = new Path(this.storeRootDir, storeName);
     if (!this.fs.exists(storePath) && !create(storeName)) {
       return false;
@@ -106,15 +102,13 @@ public class FsStateStore implements StateStore {
   }
 
   @Override
-  public boolean exists(String storeName, String tableName)
-      throws IOException {
+  public boolean exists(String storeName, String tableName) throws IOException {
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
     return this.fs.exists(tablePath);
   }
 
   @Override
-  public void put(String storeName, String tableName, State state)
-      throws IOException {
+  public void put(String storeName, String tableName, State state) throws IOException {
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
     if (!this.fs.exists(tablePath) && !create(storeName, tableName)) {
       throw new IOException("Failed to create a state file for table " + tableName);
@@ -123,7 +117,8 @@ public class FsStateStore implements StateStore {
     Closer closer = Closer.create();
     try {
       SequenceFile.Writer writer =
-          closer.register(new SequenceFile.Writer(this.fs, this.conf, tablePath, Text.class, this.stateClass));
+          closer.register(SequenceFile.createWriter(this.fs, this.conf, tablePath, Text.class, this.stateClass,
+              SequenceFile.CompressionType.BLOCK, new DefaultCodec()));
       // Append will overwrite existing data, so it's not real append.
       // Real append is to be supported for SequenceFile (HADOOP-7139).
       // TODO: implement a workaround.
@@ -136,8 +131,7 @@ public class FsStateStore implements StateStore {
   }
 
   @Override
-  public void putAll(String storeName, String tableName, Collection<? extends State> states)
-      throws IOException {
+  public void putAll(String storeName, String tableName, Collection<? extends State> states) throws IOException {
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
     if (!this.fs.exists(tablePath) && !create(storeName, tableName)) {
       throw new IOException("Failed to create a state file for table " + tableName);
@@ -146,7 +140,8 @@ public class FsStateStore implements StateStore {
     Closer closer = Closer.create();
     try {
       SequenceFile.Writer writer =
-          closer.register(new SequenceFile.Writer(this.fs, this.conf, tablePath, Text.class, this.stateClass));
+          closer.register(SequenceFile.createWriter(this.fs, this.conf, tablePath, Text.class, this.stateClass,
+              SequenceFile.CompressionType.BLOCK, new DefaultCodec()));
       for (State state : states) {
         // Append will overwrite existing data, so it's not real append.
         // Real append is to be supported for SequenceFile (HADOOP-7139).
@@ -161,8 +156,7 @@ public class FsStateStore implements StateStore {
   }
 
   @Override
-  public State get(String storeName, String tableName, String stateId)
-      throws IOException {
+  public State get(String storeName, String tableName, String stateId) throws IOException {
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
     if (!this.fs.exists(tablePath)) {
       return null;
@@ -192,8 +186,7 @@ public class FsStateStore implements StateStore {
   }
 
   @Override
-  public List<? extends State> getAll(String storeName, String tableName)
-      throws IOException {
+  public List<? extends State> getAll(String storeName, String tableName) throws IOException {
     List<State> states = Lists.newArrayList();
 
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
@@ -225,8 +218,7 @@ public class FsStateStore implements StateStore {
   }
 
   @Override
-  public List<? extends State> getAll(String storeName)
-      throws IOException {
+  public List<? extends State> getAll(String storeName) throws IOException {
     List<State> states = Lists.newArrayList();
 
     Path storePath = new Path(this.storeRootDir, storeName);
@@ -242,8 +234,7 @@ public class FsStateStore implements StateStore {
   }
 
   @Override
-  public void createAlias(String storeName, String original, String alias)
-      throws IOException {
+  public void createAlias(String storeName, String original, String alias) throws IOException {
     Path originalTablePath = new Path(new Path(this.storeRootDir, storeName), original);
     if (!this.fs.exists(originalTablePath)) {
       throw new IOException(String.format("State file %s does not exist for table %s", originalTablePath, original));
@@ -256,8 +247,7 @@ public class FsStateStore implements StateStore {
   }
 
   @Override
-  public void delete(String storeName, String tableName)
-      throws IOException {
+  public void delete(String storeName, String tableName) throws IOException {
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
     if (this.fs.exists(tablePath)) {
       this.fs.delete(tablePath, false);
@@ -265,8 +255,7 @@ public class FsStateStore implements StateStore {
   }
 
   @Override
-  public void delete(String storeName)
-      throws IOException {
+  public void delete(String storeName) throws IOException {
     Path storePath = new Path(this.storeRootDir, storeName);
     if (this.fs.exists(storePath)) {
       this.fs.delete(storePath, true);
