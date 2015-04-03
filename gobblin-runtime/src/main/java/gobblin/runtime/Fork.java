@@ -84,9 +84,6 @@ public class Fork implements Closeable {
     this.branches = branches;
     this.index = index;
 
-    // Get the WorkUnit and set the branch id, now each operator created in this Fork has access to the branch id value
-    this.taskContext.getWorkUnitState().setProp(ConfigurationKeys.FORK_BRANCH_ID_KEY, index);
-
     this.converter = new MultiConverter(this.taskContext.getConverters(this.index));
     this.convertedSchema = this.converter.convertSchema(schema, this.taskState);
     this.rowLevelPolicyChecker = this.taskContext.getRowLevelPolicyChecker(this.taskState, this.index);
