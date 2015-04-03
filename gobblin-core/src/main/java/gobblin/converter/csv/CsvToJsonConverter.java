@@ -53,11 +53,14 @@ public class CsvToJsonConverter extends Converter<String, JsonArray, String, Jso
   @Override
   public Iterable<JsonObject> convertRecord(JsonArray outputSchema, String inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
+    String strDelimiter = workUnit.getProp(ConfigurationKeys.CONVERTER_CSV_TO_JSON_DELIMITER);
+    if (Strings.isNullOrEmpty(strDelimiter)) {
+      throw new IllegalArgumentException("Delimiter cannot be empty");
+    }
     InputStreamCSVReader reader =
-        new InputStreamCSVReader(inputRecord, workUnit.getProp(ConfigurationKeys.CONVERTER_CSV_TO_JSON_DELIMITER)
-            .trim().charAt(0), workUnit
-            .getProp(ConfigurationKeys.CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR,
-                ConfigurationKeys.DEFAULT_CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR).trim().charAt(0));
+        new InputStreamCSVReader(inputRecord, strDelimiter.charAt(0), workUnit.getProp(
+            ConfigurationKeys.CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR,
+            ConfigurationKeys.DEFAULT_CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR).charAt(0));
     List<String> recordSplit;
     try {
       recordSplit = Lists.newArrayList(reader.splitRecord());
