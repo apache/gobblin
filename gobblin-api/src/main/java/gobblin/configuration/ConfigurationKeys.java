@@ -192,6 +192,7 @@ public class ConfigurationKeys {
   public static final String DEFAULT_WRITER_BUILDER_CLASS = "gobblin.writer.AvroDataWriterBuilder";
   public static final String WRITER_FILE_NAME = WRITER_PREFIX + ".file.name";
   public static final String WRITER_FILE_PATH = WRITER_PREFIX + ".file.path";
+  public static final String WRITER_FILE_PATH_TYPE = WRITER_PREFIX + ".file.path.type";
   public static final String WRITER_BUFFER_SIZE = WRITER_PREFIX + ".buffer.size";
   public static final String WRITER_PRESERVE_FILE_NAME = WRITER_PREFIX + ".preserve.file.name";
   public static final String WRITER_DEFLATE_LEVEL = WRITER_PREFIX + ".deflate.level";
@@ -207,6 +208,7 @@ public class ConfigurationKeys {
   public static final String DEFAULT_WRITER_PARTITION_LEVEL = "daily";
   public static final String DEFAULT_WRITER_PARTITION_PATTERN = "yyyy/MM/dd";
   public static final String DEFAULT_WRITER_PARTITION_TIMEZONE = "America/Los_Angeles";
+  public static final String DEFAULT_WRITER_FILE_PATH_TYPE = "default";
   public static final boolean DEFAULT_WRITER_SET_SCHEMA_PER_RECORD = false;
 
   /**

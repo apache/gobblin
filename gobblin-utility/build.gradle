@@ -21,6 +21,15 @@ dependencies {
   compile externalDependency.guava
   compile externalDependency.slf4j
   compile externalDependency.avro
+  compile externalDependency.jodaTime
+  if (project.hasProperty('useHadoop2')) {
+    runtime externalDependency.hadoopCommon
+    runtime externalDependency.hadoopClientCore
+    runtime externalDependency.hadoopHdfs
+    runtime externalDependency.hadoopAuth
+  } else {
+    runtime externalDependency.hadoop
+  }
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
