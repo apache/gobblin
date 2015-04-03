@@ -25,6 +25,7 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.EmptyIterable;
 import gobblin.util.AvroUtils;
+import gobblin.util.ForkOperatorUtils;
 
 
 /**
@@ -39,11 +40,16 @@ public class AvroFieldRetrieverConverter extends Converter<Schema, Schema, Gener
 
   @Override
   public Converter<Schema, Schema, GenericRecord, Object> init(WorkUnitState workUnit) {
-    Preconditions.checkArgument(workUnit.contains(ConfigurationKeys.CONVERTER_AVRO_EXTRACTOR_FIELD_PATH),
+
+    String fieldPathKey =
+        ForkOperatorUtils.getPropertyNameForBranch(workUnit,
+            ConfigurationKeys.CONVERTER_AVRO_EXTRACTOR_FIELD_PATH);
+
+    Preconditions.checkArgument(workUnit.contains(fieldPathKey),
         "The converter " + this.getClass().getName() + " cannot be used without setting the property "
             + ConfigurationKeys.CONVERTER_AVRO_EXTRACTOR_FIELD_PATH);
 
-    this.fieldLocation = workUnit.getProp(ConfigurationKeys.CONVERTER_AVRO_EXTRACTOR_FIELD_PATH);
+    this.fieldLocation = workUnit.getProp(fieldPathKey);
     return this;
   }
 

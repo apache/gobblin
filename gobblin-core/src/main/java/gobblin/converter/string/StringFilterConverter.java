@@ -24,6 +24,7 @@ import gobblin.converter.DataConversionException;
 import gobblin.converter.EmptyIterable;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
+import gobblin.util.ForkOperatorUtils;
 
 
 /**
@@ -38,9 +39,10 @@ public class StringFilterConverter extends Converter<Class<String>, Class<String
   @Override
   public Converter<Class<String>, Class<String>, String, String> init(WorkUnitState workUnit) {
     this.pattern =
-        Pattern.compile(Strings.nullToEmpty(workUnit.getProp(ConfigurationKeys.CONVERTER_STRING_FILTER_PATTERN)));
-    this.matcher = Optional.absent();
+        Pattern.compile(Strings.nullToEmpty(workUnit.getProp(ForkOperatorUtils.getPropertyNameForBranch(
+            workUnit, ConfigurationKeys.CONVERTER_FILTER_STRINGS_BY))));
 
+    this.matcher = Optional.absent();
     return this;
   }
 

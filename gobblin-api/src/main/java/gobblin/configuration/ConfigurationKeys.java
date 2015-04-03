@@ -166,6 +166,7 @@ public class ConfigurationKeys {
    */
   public static final String FORK_BRANCHES_KEY = "fork.branches";
   public static final String FORK_BRANCH_NAME_KEY = "fork.branch.name";
+  public static final String FORK_BRANCH_ID_KEY = "fork.branch.id";
   public static final String DEFAULT_FORK_BRANCH_NAME = "fork_";
 
   /**
