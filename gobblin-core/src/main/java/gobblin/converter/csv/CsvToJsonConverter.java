@@ -16,6 +16,7 @@ import gobblin.converter.SingleRecordIterable;
 import java.io.IOException;
 import java.util.List;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -48,7 +49,7 @@ public class CsvToJsonConverter extends Converter<String, JsonArray, String, Jso
    * Takes in a record with format String and splits the data based on SOURCE_SCHEMA_DELIMITER
    * Uses the inputSchema and the split record to convert the record to a JsonObject
    * @return a JsonObject representing the record
-   * @throws IOException 
+   * @throws IOException
    */
   @Override
   public Iterable<JsonObject> convertRecord(JsonArray outputSchema, String inputRecord, WorkUnitState workUnit)
