@@ -52,8 +52,8 @@ public class LocalTaskStateTracker2 extends AbstractTaskStateTracker {
   public LocalTaskStateTracker2(Properties properties, TaskExecutor taskExecutor) {
     super(properties, LOG);
     this.taskExecutor = taskExecutor;
-    this.maxTaskRetries = Integer.parseInt(
-        properties.getProperty(ConfigurationKeys.MAX_TASK_RETRIES_KEY, ConfigurationKeys.DEFAULT_MAX_TASK_RETRIES));
+    this.maxTaskRetries = Integer.parseInt(properties.getProperty(
+        ConfigurationKeys.MAX_TASK_RETRIES_KEY, Integer.toString(ConfigurationKeys.DEFAULT_MAX_TASK_RETRIES)));
   }
 
   @Override

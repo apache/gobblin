@@ -69,6 +69,7 @@ public class TaskState extends WorkUnitState {
     // Since getWorkunit() returns an immutable WorkUnit object,
     // the WorkUnit object in this object is also immutable.
     super(workUnitState.getWorkunit());
+    addAll(workUnitState);
     this.jobId = workUnitState.getProp(ConfigurationKeys.JOB_ID_KEY);
     this.taskId = workUnitState.getProp(ConfigurationKeys.TASK_ID_KEY);
     this.setId(this.taskId);

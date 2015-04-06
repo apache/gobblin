@@ -102,7 +102,7 @@ public class MRTaskStateTracker extends AbstractTaskStateTracker {
    * An extension to {@link AbstractTaskStateTracker.TaskMetricsUpdater} for updating task metrics
    * in the Hadoop MapReduce setting.
    */
-  private static class MRTaskMetricsUpdater extends AbstractTaskStateTracker.TaskMetricsUpdater {
+  private class MRTaskMetricsUpdater extends AbstractTaskStateTracker.TaskMetricsUpdater {
 
     private final Mapper<LongWritable, Text, NullWritable, NullWritable>.Context context;
 

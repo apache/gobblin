@@ -109,7 +109,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
 
       // Create a new task from the work unit and submit the task to run
-      Task task = new Task(new TaskContext(workUnitState), stateTracker, Optional.of(countDownLatch));
+      Task task = new Task(new TaskContext(workUnitState), stateTracker, taskExecutor, Optional.of(countDownLatch));
       stateTracker.registerNewTask(task);
       tasks.add(task);
       LOG.info(String.format("Submitting task %s to run", taskId));
