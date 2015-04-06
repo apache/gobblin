@@ -19,24 +19,29 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import kafka.api.PartitionFetchInfo;
 import kafka.api.PartitionOffsetRequestInfo;
 import kafka.common.TopicAndPartition;
+import kafka.javaapi.FetchRequest;
+import kafka.javaapi.FetchResponse;
 import kafka.javaapi.OffsetRequest;
 import kafka.javaapi.OffsetResponse;
 import kafka.javaapi.PartitionMetadata;
 import kafka.javaapi.TopicMetadata;
 import kafka.javaapi.TopicMetadataRequest;
 import kafka.javaapi.consumer.SimpleConsumer;
+import kafka.javaapi.message.ByteBufferMessageSet;
+import kafka.message.MessageAndOffset;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import parquet.Preconditions;
-
+import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -112,6 +117,10 @@ public class KafkaWrapper implements Closeable {
     return this.kafkaAPI.getLatestOffset(partition);
   }
 
+  public Iterator<MessageAndOffset> fetchNextMessageBuffer(KafkaPartition partition, long nextOffset, long maxOffset) {
+    return this.kafkaAPI.fetchNextMessageBuffer(partition, nextOffset, maxOffset);
+  }
+
   private KafkaAPI getKafkaAPI() {
     switch (this.apiType) {
       case NEW:
@@ -134,6 +143,9 @@ public class KafkaWrapper implements Closeable {
     protected abstract long getEarliestOffset(KafkaPartition partition) throws KafkaOffsetRetrievalFailureException;
 
     protected abstract long getLatestOffset(KafkaPartition partition) throws KafkaOffsetRetrievalFailureException;
+
+    protected abstract Iterator<MessageAndOffset> fetchNextMessageBuffer(KafkaPartition partition, long nextOffset,
+        long maxOffset);
   }
 
   /**
@@ -143,6 +155,8 @@ public class KafkaWrapper implements Closeable {
     private static final int DEFAULT_KAFKA_TIMEOUT_VALUE = 30000;
     private static final int DEFAULT_KAFKA_BUFFER_SIZE = 1024 * 1024;
     private static final String DEFAULT_KAFKA_CLIENT_NAME = "kafka-old-api";
+    private static final int DEFAULT_KAFKA_FETCH_REQUEST_CORRELATION_ID = -1;
+    private static final int DEFAULT_KAFKA_FETCH_REQUEST_MIN_BYTES = 1024;
     private static final int NUM_TRIES_FETCH_TOPIC = 3;
     private static final int NUM_TRIES_FETCH_OFFSET = 3;
 
@@ -299,6 +313,90 @@ public class KafkaWrapper implements Closeable {
     }
 
     @Override
+    protected Iterator<MessageAndOffset> fetchNextMessageBuffer(KafkaPartition partition, long nextOffset,
+        long maxOffset) {
+      if (nextOffset > maxOffset) {
+        return null;
+      }
+      FetchRequest fetchRequest = createFetchRequest(partition, nextOffset);
+      SimpleConsumer consumer = getSimpleConsumer(partition.getLeader().getHost(), partition.getLeader().getPort());
+
+      FetchResponse fetchResponse = null;
+      try {
+        fetchResponse = consumer.fetch(fetchRequest);
+        if (fetchResponse.hasError()) {
+          throw new RuntimeException(String.format("error code %d",
+              fetchResponse.errorCode(partition.getTopicName(), partition.getId())));
+        }
+        return getIteratorFromFetchResponse(fetchResponse, partition);
+
+      } catch (Exception e) {
+        LOG.warn(String.format(
+            "Fetch message buffer for topic %s, partition %d has failed: %s. Will refresh topic metadata and retry",
+            partition.getTopicName(), partition.getId(), e.getMessage()));
+        return refreshTopicMetadataAndRetryFetch(partition, fetchRequest);
+      }
+    }
+
+    private Iterator<MessageAndOffset> getIteratorFromFetchResponse(FetchResponse fetchResponse,
+        KafkaPartition partition) {
+      try {
+        ByteBufferMessageSet messageBuffer = fetchResponse.messageSet(partition.getTopicName(), partition.getId());
+        return messageBuffer.iterator();
+      } catch (Exception e) {
+        LOG.warn(String.format("Failed to retrieve next message buffer for topic %s, partition %d: %s."
+            + "The remainder of this partition will be skipped.", partition.getTopicName(), partition.getId(),
+            e.getMessage()));
+        return null;
+      }
+    }
+
+    private Iterator<MessageAndOffset> refreshTopicMetadataAndRetryFetch(KafkaPartition partition,
+        FetchRequest fetchRequest) {
+      try {
+        refreshTopicMetadata(partition);
+        SimpleConsumer consumer = getSimpleConsumer(partition.getLeader().getHost(), partition.getLeader().getPort());
+        FetchResponse fetchResponse = consumer.fetch(fetchRequest);
+        if (fetchResponse.hasError()) {
+          throw new RuntimeException(String.format("error code %d",
+              fetchResponse.errorCode(partition.getTopicName(), partition.getId())));
+        }
+        return getIteratorFromFetchResponse(fetchResponse, partition);
+      } catch (Exception e) {
+        LOG.warn(String.format(
+            "Fetch message buffer for topic %s, partition %d has failed: %s. This partition will be skipped.",
+            partition.getTopicName(), partition.getId(), e.getMessage()));
+        return null;
+      }
+    }
+
+    private void refreshTopicMetadata(KafkaPartition partition) {
+      for (String broker : KafkaWrapper.this.brokers) {
+        List<TopicMetadata> topicMetadataList = fetchTopicMetadataFromBroker(broker, partition.getTopicName());
+        if (topicMetadataList != null) {
+          TopicMetadata topicMetadata = topicMetadataList.get(0);
+          for (PartitionMetadata partitionMetadata : topicMetadata.partitionsMetadata()) {
+            if (partitionMetadata.partitionId() == partition.getId()) {
+              partition.setLeader(partitionMetadata.leader().id(), partitionMetadata.leader().host(), partitionMetadata
+                  .leader().port());
+            }
+            break;
+          }
+          break;
+        }
+      }
+    }
+
+    private FetchRequest createFetchRequest(KafkaPartition partition, long nextOffset) {
+      TopicAndPartition topicAndPartition = new TopicAndPartition(partition.getTopicName(), partition.getId());
+      PartitionFetchInfo partitionFetchInfo = new PartitionFetchInfo(nextOffset, DEFAULT_KAFKA_BUFFER_SIZE);
+      Map<TopicAndPartition, PartitionFetchInfo> fetchInfo =
+          Collections.singletonMap(topicAndPartition, partitionFetchInfo);
+      return new FetchRequest(DEFAULT_KAFKA_FETCH_REQUEST_CORRELATION_ID, DEFAULT_KAFKA_CLIENT_NAME,
+          DEFAULT_KAFKA_TIMEOUT_VALUE, DEFAULT_KAFKA_FETCH_REQUEST_MIN_BYTES, fetchInfo);
+    }
+
+    @Override
     public void close() throws IOException {
       for (SimpleConsumer consumer : this.activeConsumers.values()) {
         if (consumer != null) {
@@ -307,6 +405,7 @@ public class KafkaWrapper implements Closeable {
       }
       this.activeConsumers.clear();
     }
+
   }
 
   /**
@@ -336,6 +435,13 @@ public class KafkaWrapper implements Closeable {
     public void close() throws IOException {
       // TODO Auto-generated method stub
 
+    }
+
+    @Override
+    protected Iterator<MessageAndOffset> fetchNextMessageBuffer(KafkaPartition partition, long nextOffset,
+        long maxOffset) {
+      // TODO Auto-generated method stub
+      return null;
     }
   }
 

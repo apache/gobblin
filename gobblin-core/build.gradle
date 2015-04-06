@@ -29,6 +29,9 @@ dependencies {
     compile externalDependency.commonsIo
     compile externalDependency.httpclient
     compile externalDependency.httpcore
+    compile externalDependency.kafka
+    compile externalDependency.scala
+    compile files('lib/avro-repo-bundle-1.7.4-SNAPSHOT-withdeps.jar')
 
     testCompile externalDependency.testng
 }
