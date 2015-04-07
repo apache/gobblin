@@ -66,6 +66,7 @@ ext.externalDependency = [
   "hiveExec": "org.apache.hive:hive-exec:"+hiveVersion,
   "httpclient": "org.apache.httpcomponents:httpclient:4.2.3",
   "httpcore": "org.apache.httpcomponents:httpcore:4.2.1",
+  "kafka": "org.apache.kafka:kafka_2.10:0.8.0",
   "quartz": "org.quartz-scheduler:quartz:2.2.1",
   "testng": "org.testng:testng:6.5.1",
   "jacksonCore": "org.codehaus.jackson:jackson-core-asl:1.9.13",
@@ -90,6 +91,8 @@ ext.externalDependency = [
   "mockito": "org.mockito:mockito-core:1.10.19",
   "salesforceWsc": "com.force.api:force-wsc:29.0.0",
   "salesforcePartner": "com.force.api:force-partner-api:29.0.0",
+  "scala": "org.scala-lang:scala-library:2.10.3",
+  "yammerCore": "com.yammer.metrics:metrics-core:2.1.5",
   "pegasus" : [
     "data" : "com.linkedin.pegasus:data:"+pegasusVersion,
     "generator" : "com.linkedin.pegasus:generator:"+pegasusVersion,
