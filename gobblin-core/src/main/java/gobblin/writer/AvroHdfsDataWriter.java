@@ -82,6 +82,8 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
         .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DEFLATE_LEVEL, branch),
             ConfigurationKeys.DEFAULT_DEFLATE_LEVEL));
 
+    System.out.println("Staging dir: " + stagingDir + " looking for " + ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_DIR, branch) + " from branch " + branch);
+
     Configuration conf = new Configuration();
     // Add all job configuration properties so they are picked up by Hadoop
     for (String key : properties.getPropertyNames()) {
@@ -147,7 +149,10 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
       LOG.warn(String.format("Task output file %s already exists", this.outputFile));
       this.fs.delete(this.outputFile, false);
     }
-    this.fs.rename(this.stagingFile, this.outputFile);
+
+    if (!this.fs.rename(this.stagingFile, this.outputFile)) {
+      throw new IOException("Failed to commit data from " + this.stagingFile + " to " + this.outputFile);
+    }
   }
 
   @Override

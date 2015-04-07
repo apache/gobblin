@@ -11,7 +11,6 @@
 
 package gobblin.publisher;
 
-import gobblin.configuration.ConfigurationKeys;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -22,6 +21,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,120 +31,137 @@ import com.google.common.collect.Sets;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.util.ForkOperatorUtils;
+import gobblin.configuration.ConfigurationKeys;
 
 
 /**
- * A basic implementation of {@link DataPublisher} that publishes the data from the writer
- * output directory to the final job output directory, preserving the directory structure.
+ * A basic implementation of {@link DataPublisher} that publishes the data from the writer output directory to the final
  */
 public class BaseDataPublisher extends DataPublisher {
 
   private static final Logger LOG = LoggerFactory.getLogger(BaseDataPublisher.class);
 
   protected final List<FileSystem> fss = Lists.newArrayList();
+  private int branches;
 
   public BaseDataPublisher(State state) {
     super(state);
   }
 
   @Override
-  public void initialize()
-      throws IOException {
+  public void initialize() throws IOException {
     Configuration conf = new Configuration();
+
     // Add all job configuration properties so they are picked up by Hadoop
-    for (String key : this.state.getPropertyNames()) {
-      conf.set(key, this.state.getProp(key));
+    for (String key : this.getState().getPropertyNames()) {
+      conf.set(key, this.getState().getProp(key));
     }
 
-    int branches = this.state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
+    this.branches = this.getState().getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
+
     // Get a FileSystem instance for each branch
-    for (int i = 0; i < branches; i++) {
-      URI uri = URI.create(getState()
-          .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, branches, i),
+    URI uri;
+    for (int i = 0; i < this.branches; i++) {
+      uri =
+          URI.create(this.getState().getProp(
+              ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, this.branches, i),
               ConfigurationKeys.LOCAL_FS_URI));
       this.fss.add(FileSystem.get(uri, conf));
     }
   }
 
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     // Nothing to do
   }
 
   @Override
-  public void publishData(Collection<? extends WorkUnitState> states)
-      throws IOException {
-    // We need this to collect unique writer output paths as multiple tasks may
-    // belong to the same extract and write to the same output directory
-    Set<Path> writerOutputPathMoved = Sets.newHashSet();
+  public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
+
+    // We need a Set to collect unique writer output paths as multiple tasks may belong to the same extract. Tasks that
+    // belong to the same Extract will by default have the same output directory
+    Set<Path> writerOutputPathsMoved = Sets.newHashSet();
 
     for (WorkUnitState workUnitState : states) {
-      int branches = workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
-      for (int i = 0; i < branches; i++) {
+      for (int i = 0; i < this.branches; i++) {
+
         String writerFilePathKey =
-            ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, branches, i);
+            ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, this.branches, i);
+
         if (!workUnitState.contains(writerFilePathKey)) {
           // Skip this branch as it does not have data output
           continue;
         }
 
-        Path writerOutput = new Path(workUnitState
-            .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR, branches, i)),
-            workUnitState.getProp(writerFilePathKey));
+        // The directory where the workUnitState wrote its output data. It is a combination of WRITER_OUTPUT_DIR and
+        // WRITER_FINAL_PATH
+        Path writerOutputDir =
+            new Path(workUnitState.getProp(ForkOperatorUtils.getPropertyNameForBranch(
+                ConfigurationKeys.WRITER_OUTPUT_DIR, this.branches, i)), workUnitState.getProp(writerFilePathKey));
 
-        Path publisherOutput = new Path(workUnitState.getProp(
-            ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, branches, i)),
-            workUnitState.getProp(writerFilePathKey));
+        // The directory where the final output directory for this job will be placed. It is a combination of
+        // DATA_PUBLISHER_FINAL_DIR and WRITER_FILE_PATH
+        Path publisherOutputDir =
+            new Path(workUnitState.getProp(ForkOperatorUtils.getPropertyNameForBranch(
+                ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, this.branches, i)), workUnitState.getProp(writerFilePathKey));
 
-        if (writerOutputPathMoved.contains(writerOutput)) {
-          // This writer output path has already been moved for another task of the same extract
+        if (writerOutputPathsMoved.contains(writerOutputDir)) {
+          // This writer output path has already been moved for another task of the same extract, so skip to the next one
           continue;
         }
 
-        // Create the parent directory of the final output directory if it does not exist
-        if (!this.fss.get(i).exists(publisherOutput.getParent())) {
-          this.fss.get(i).mkdirs(publisherOutput.getParent());
-        }
+        if (this.fss.get(i).exists(publisherOutputDir)) {
 
-        if (this.fss.get(i).exists(publisherOutput)) {
-          // The final output directory already exists, check if configured to replace it.
-          boolean replaceFinalOutputDir = this.getState().getPropAsBoolean(ForkOperatorUtils
-                  .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_REPLACE_FINAL_DIR, branches, i));
+          // The final output directory already exists, check if the job is configured to replace it
+          boolean replaceFinalOutputDir =
+              this.getState().getPropAsBoolean(
+                  ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_REPLACE_FINAL_DIR,
+                      branches, i));
+
+          // If the final output directory is not configured to be replaced, then append the new data to the existing
+          // output folder
           if (!replaceFinalOutputDir) {
-            // The final output directory is not configured to be replaced,
-            // add the output files to the existing final output directory.
-            // TODO: revisit this part when a use case arises
-            boolean preserveFileName = workUnitState.getPropAsBoolean(ForkOperatorUtils
-                    .getPropertyNameForBranch(ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, branches, i),
-                false);
-            for (FileStatus status : this.fss.get(i).listStatus(writerOutput)) {
-              // Preserve the file name if configured, use specified name otherwise.
-              Path outputPath = preserveFileName ? new Path(publisherOutput, workUnitState.getProp(
-                  ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_NAME, branches, i)))
-                  : new Path(publisherOutput, status.getPath().getName());
-              if (this.fss.get(i).rename(status.getPath(), outputPath)) {
-                LOG.info(String.format("Moved %s to %s", status.getPath(), outputPath));
+
+            boolean preserveFileName =
+                workUnitState.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(
+                    ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, branches, i), false);
+
+            // Go through each file in writerOutputDir and move it into publisherOutputDir
+            for (FileStatus status : this.fss.get(i).listStatus(writerOutputDir)) {
+
+              // Preserve the file name if configured, use specified name otherwise
+              Path finalOutputPath =
+                  preserveFileName ? new Path(publisherOutputDir, workUnitState.getProp(ForkOperatorUtils
+                      .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_NAME, branches, i))) : new Path(
+                      publisherOutputDir, status.getPath().getName());
+
+              if (this.fss.get(i).rename(status.getPath(), finalOutputPath)) {
+                LOG.info(String.format("Moved %s to %s", status.getPath(), finalOutputPath));
               } else {
-                throw new IOException("Failed to move from " + status.getPath() + " to " + outputPath);
+                throw new IOException("Failed to move file from " + status.getPath() + " to " + finalOutputPath);
               }
             }
 
-            writerOutputPathMoved.add(writerOutput);
+            writerOutputPathsMoved.add(writerOutputDir);
             continue;
           }
 
-          // Delete the final output directory if configured to be replaced
-          this.fss.get(i).delete(publisherOutput, true);
+          // Delete the final output directory if it is configured to be replaced
+          this.fss.get(i).delete(publisherOutputDir, true);
+        } else {
+          // Create the parent directory of the final output directory if it does not exist
+          this.fss.get(i).mkdirs(publisherOutputDir.getParent());
         }
 
-        if (this.fss.get(i).exists(writerOutput)) {
-          if (this.fss.get(i).rename(writerOutput, publisherOutput)) {
-            LOG.info(String.format("Moved %s to %s", writerOutput, publisherOutput));
-            writerOutputPathMoved.add(writerOutput);
+        if (this.fss.get(i).exists(writerOutputDir)) {
+          if (this.fss.get(i).rename(writerOutputDir, publisherOutputDir)) {
+            LOG.info(String.format("Moved %s to %s", writerOutputDir, publisherOutputDir));
+            writerOutputPathsMoved.add(writerOutputDir);
           } else {
-            throw new IOException("Failed to move from " + writerOutput + " to " + publisherOutput);
+            throw new IOException("Failed to move from " + writerOutputDir + " to " + publisherOutputDir);
           }
+        } else {
+          LOG.warn("WorkUnit " + workUnitState.getId() + " produced no data");
         }
       }
 
@@ -156,8 +173,7 @@ public class BaseDataPublisher extends DataPublisher {
   }
 
   @Override
-  public void publishMetadata(Collection<? extends WorkUnitState> states)
-      throws IOException {
+  public void publishMetadata(Collection<? extends WorkUnitState> states) throws IOException {
     // Nothing to do
   }
 }

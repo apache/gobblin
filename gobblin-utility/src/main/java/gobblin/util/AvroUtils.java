@@ -81,7 +81,7 @@ public class AvroUtils {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(fieldLocation));
 
     Splitter splitter = Splitter.on(FIELD_LOCATION_DELIMITER).omitEmptyStrings().trimResults();
-    List<String> pathList = Lists.newArrayList(splitter.split(fieldLocation));
+    List<String> pathList = splitter.splitToList(fieldLocation);
 
     if (pathList.size() == 0) {
       return Optional.absent();
@@ -99,7 +99,7 @@ public class AvroUtils {
    */
   private static Optional<Object> getFieldHelper(Object data, List<String> pathList, int field) {
     if (data == null) {
-      return Optional.absent(); 
+      return Optional.absent();
     }
 
     if ((field + 1) == pathList.size()) {

@@ -13,6 +13,9 @@ package gobblin.converter.avro;
 
 import gobblin.converter.SingleRecordIterable;
 import gobblin.converter.ToAvroConverterBase;
+
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -20,12 +23,10 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
-
 import org.codehaus.jackson.node.JsonNodeFactory;
 
 import com.google.gson.JsonArray;
@@ -50,6 +51,10 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
       new HashMap<String, JsonElementConversionFactory.JsonElementConverter>();
   private static final Logger LOG = LoggerFactory.getLogger(JsonIntermediateToAvroConverter.class);
   private long numFailedConversion = 0;
+
+  public static void main(String args[]) throws IOException {
+    Schema parser = new Schema.Parser().parse(new File("/Users/stakiar/Documents/workspace_linkedin/gobblin-proxy_trunk/gobblin-github/test.txt"));
+  }
 
   @Override
   public Schema convertSchema(JsonArray schema, WorkUnitState workUnit)

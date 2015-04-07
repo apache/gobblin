@@ -1,9 +1,5 @@
 package gobblin.writer;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.util.ForkOperatorUtils;
-
 import java.io.IOException;
 
 import org.apache.avro.generic.GenericRecord;
@@ -16,6 +12,7 @@ public class AvroDatePartitionedWriterBuilder extends AvroDataWriterBuilder {
   @Override
   public DataWriter<GenericRecord> build()
       throws IOException {
+
     Preconditions.checkNotNull(this.destination);
     Preconditions.checkArgument(!Strings.isNullOrEmpty(this.writerId));
     Preconditions.checkNotNull(this.schema);

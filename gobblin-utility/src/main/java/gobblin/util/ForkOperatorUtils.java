@@ -83,8 +83,8 @@ public class ForkOperatorUtils {
     if (!workUnitState.contains(ConfigurationKeys.FORK_BRANCH_ID_KEY)) {
       return key;
     } else {
-      return workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCH_ID_KEY) == -1 ? key : key + "."
-          + workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCH_ID_KEY);
+      return workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCH_ID_KEY) >= 0 ? key + "."
+          + workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCH_ID_KEY) : key;
     }
   }
 
