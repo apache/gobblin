@@ -315,23 +315,29 @@ public class KafkaWrapper implements Closeable {
         return null;
       }
       FetchRequest fetchRequest = createFetchRequest(partition, nextOffset);
-      SimpleConsumer consumer = getSimpleConsumer(partition.getLeader().getHost(), partition.getLeader().getPort());
-
       FetchResponse fetchResponse = null;
-      try {
-        fetchResponse = consumer.fetch(fetchRequest);
-        if (fetchResponse.hasError()) {
-          throw new RuntimeException(String.format("error code %d",
-              fetchResponse.errorCode(partition.getTopicName(), partition.getId())));
-        }
-        return getIteratorFromFetchResponse(fetchResponse, partition);
 
+      try {
+        fetchResponse = getFetchResponseForFetchRequest(fetchRequest, partition);
+        return getIteratorFromFetchResponse(fetchResponse, partition);
       } catch (Exception e) {
         LOG.warn(String.format(
             "Fetch message buffer for topic %s, partition %d has failed: %s. Will refresh topic metadata and retry",
             partition.getTopicName(), partition.getId(), e.getMessage()));
         return refreshTopicMetadataAndRetryFetch(partition, fetchRequest);
       }
+    }
+
+    private FetchResponse getFetchResponseForFetchRequest(FetchRequest fetchRequest, KafkaPartition partition) {
+      SimpleConsumer consumer = getSimpleConsumer(partition.getLeader().getHost(), partition.getLeader().getPort());
+
+      FetchResponse fetchResponse = null;
+      fetchResponse = consumer.fetch(fetchRequest);
+      if (fetchResponse.hasError()) {
+        throw new RuntimeException(String.format("error code %d",
+            fetchResponse.errorCode(partition.getTopicName(), partition.getId())));
+      }
+      return fetchResponse;
     }
 
     private Iterator<MessageAndOffset> getIteratorFromFetchResponse(FetchResponse fetchResponse,
@@ -349,14 +355,10 @@ public class KafkaWrapper implements Closeable {
 
     private Iterator<MessageAndOffset> refreshTopicMetadataAndRetryFetch(KafkaPartition partition,
         FetchRequest fetchRequest) {
+      FetchResponse fetchResponse = null;
       try {
         refreshTopicMetadata(partition);
-        SimpleConsumer consumer = getSimpleConsumer(partition.getLeader().getHost(), partition.getLeader().getPort());
-        FetchResponse fetchResponse = consumer.fetch(fetchRequest);
-        if (fetchResponse.hasError()) {
-          throw new RuntimeException(String.format("error code %d",
-              fetchResponse.errorCode(partition.getTopicName(), partition.getId())));
-        }
+        fetchResponse = getFetchResponseForFetchRequest(fetchRequest, partition);
         return getIteratorFromFetchResponse(fetchResponse, partition);
       } catch (Exception e) {
         LOG.warn(String.format(
