@@ -17,7 +17,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
-import java.util.TreeSet;
 
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;

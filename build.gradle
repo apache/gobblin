@@ -92,6 +92,7 @@ ext.externalDependency = [
   "salesforceWsc": "com.force.api:force-wsc:29.0.0",
   "salesforcePartner": "com.force.api:force-partner-api:29.0.0",
   "scala": "org.scala-lang:scala-library:2.10.3",
+  "yammerCore": "com.yammer.metrics:metrics-core:2.1.5",
   "pegasus" : [
     "data" : "com.linkedin.pegasus:data:"+pegasusVersion,
     "generator" : "com.linkedin.pegasus:generator:"+pegasusVersion,

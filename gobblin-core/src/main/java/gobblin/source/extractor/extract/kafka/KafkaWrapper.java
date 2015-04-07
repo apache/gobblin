@@ -12,7 +12,7 @@
 package gobblin.source.extractor.extract.kafka;
 
 import gobblin.configuration.State;
-import gobblin.source.extractor.extract.MessageBasedSource;
+import gobblin.source.extractor.extract.EventBasedSource;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -38,6 +38,7 @@ import kafka.javaapi.consumer.SimpleConsumer;
 import kafka.javaapi.message.ByteBufferMessageSet;
 import kafka.message.MessageAndOffset;
 
+import org.apache.commons.lang.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,25 +59,21 @@ public class KafkaWrapper implements Closeable {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaWrapper.class);
 
-  private static final String KAFKA_API_TYPE = "kafka.api.type";
-  private static final APIType DEFAULT_KAFKA_API_TYPE = APIType.OLD;
+  private static final String USE_NEW_KAFKA_API = "use.new.kafka.api";
+  private static final boolean DEFAULT_USE_NEW_KAFKA_API = false;
   private static final String KAFKA_BROKERS = "kafka.brokers";
 
-  private final APIType apiType;
   private final List<String> brokers;
   private final KafkaAPI kafkaAPI;
 
-  private enum APIType {
-    NEW,
-    OLD
-  };
+  private final boolean useNewKafkaAPI;
 
   private static class Builder {
-    private APIType apiType = DEFAULT_KAFKA_API_TYPE;
+    private boolean useNewKafkaAPI = DEFAULT_USE_NEW_KAFKA_API;
     private List<String> brokers = new ArrayList<String>();
 
-    private Builder withAPIType(String consumerType) {
-      this.apiType = APIType.valueOf(consumerType.trim().toUpperCase());
+    private Builder withAPIType(boolean useNewKafkaAPI) {
+      this.useNewKafkaAPI = useNewKafkaAPI;
       return this;
     }
 
@@ -95,13 +92,13 @@ public class KafkaWrapper implements Closeable {
   }
 
   private KafkaWrapper(Builder builder) {
-    this.apiType = builder.apiType;
+    this.useNewKafkaAPI = builder.useNewKafkaAPI;
     this.brokers = builder.brokers;
     this.kafkaAPI = getKafkaAPI();
   }
 
   public static KafkaWrapper create(State state) {
-    return new KafkaWrapper.Builder().withAPIType(state.getProp(KAFKA_API_TYPE))
+    return new KafkaWrapper.Builder().withAPIType(state.getPropAsBoolean(USE_NEW_KAFKA_API, DEFAULT_USE_NEW_KAFKA_API))
         .withBrokers(state.getPropAsList(KAFKA_BROKERS)).build();
   }
 
@@ -122,13 +119,10 @@ public class KafkaWrapper implements Closeable {
   }
 
   private KafkaAPI getKafkaAPI() {
-    switch (this.apiType) {
-      case NEW:
-        return new KafkaNewAPI();
-      case OLD:
-        return new KafkaOldAPI();
-      default:
-        throw new RuntimeException(this.apiType + " is not a valid API type.");
+    if (this.useNewKafkaAPI) {
+      return new KafkaNewAPI();
+    } else {
+      return new KafkaOldAPI();
     }
   }
 
@@ -193,23 +187,24 @@ public class KafkaWrapper implements Closeable {
       for (String broker : KafkaWrapper.this.brokers) {
         filteredTopicMetadataList = fetchTopicMetadataFromBroker(broker, blacklist, whitelist);
         if (filteredTopicMetadataList != null) {
-          break;
+          return filteredTopicMetadataList;
         }
       }
 
-      if (filteredTopicMetadataList == null) {
-        throw new RuntimeException(
-            "Fetching topic metadata from all brokers failed. See log warning for more information.");
-      }
-      return filteredTopicMetadataList;
+      throw new RuntimeException(
+          "Fetching topic metadata from all brokers failed. See log warning for more information.");
     }
 
     private List<TopicMetadata> fetchTopicMetadataFromBroker(String broker, Set<String> blacklist, Set<String> whitelist) {
 
       List<TopicMetadata> topicMetadataList = fetchTopicMetadataFromBroker(broker);
+      if (topicMetadataList == null) {
+        return null;
+      }
+
       List<TopicMetadata> filteredTopicMetadataList = Lists.newArrayList();
       for (TopicMetadata topicMetadata : topicMetadataList) {
-        if (MessageBasedSource.survived(topicMetadata.topic(), blacklist, whitelist)) {
+        if (EventBasedSource.survived(topicMetadata.topic(), blacklist, whitelist)) {
           filteredTopicMetadataList.add(topicMetadata);
         }
       }
@@ -228,7 +223,7 @@ public class KafkaWrapper implements Closeable {
             LOG.warn(String.format("Fetching topic metadata from broker %s has failed %d times. Reason: %s", broker,
                 i + 1, e.getMessage()));
             try {
-              Thread.sleep((long) (Math.random() * (i + 1) * 1000));
+              Thread.sleep((long) ((i + Math.random()) * 1000));
             } catch (InterruptedException e2) {
               LOG.warn("Caught InterruptedException: " + e2);
             }
@@ -293,7 +288,8 @@ public class KafkaWrapper implements Closeable {
               consumer.getOffsetsBefore(new OffsetRequest(offsetRequestInfo, kafka.api.OffsetRequest.CurrentVersion(),
                   DEFAULT_KAFKA_CLIENT_NAME));
           if (offsetResponse.hasError()) {
-            throw new RuntimeException("offsetReponse has error.");
+            throw new RuntimeException("offsetReponse has error: "
+                + offsetResponse.errorCode(partition.getTopicName(), partition.getId()));
           }
           return offsetResponse.offsets(partition.getTopicName(), partition.getId())[0];
         } catch (Exception e) {
@@ -301,7 +297,7 @@ public class KafkaWrapper implements Closeable {
               partition.getTopicName(), partition.getId(), i + 1, e.getMessage()));
           if (i < NUM_TRIES_FETCH_OFFSET - 1) {
             try {
-              Thread.sleep((long) (Math.random() * (i + 1) * 1000));
+              Thread.sleep((long) ((i + Math.random()) * 1000));
             } catch (InterruptedException e2) {
               LOG.error("Caught interrupted exception between retries of getting latest offsets. " + e2.getMessage());
             }
@@ -379,8 +375,8 @@ public class KafkaWrapper implements Closeable {
             if (partitionMetadata.partitionId() == partition.getId()) {
               partition.setLeader(partitionMetadata.leader().id(), partitionMetadata.leader().host(), partitionMetadata
                   .leader().port());
+              break;
             }
-            break;
           }
           break;
         }
@@ -397,15 +393,18 @@ public class KafkaWrapper implements Closeable {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
       for (SimpleConsumer consumer : this.activeConsumers.values()) {
         if (consumer != null) {
-          consumer.close();
+          try {
+            consumer.close();
+          } catch (Exception e) {
+            LOG.warn(String.format("Failed to close Kafka Consumer %s:%d", consumer.host(), consumer.port()));
+          }
         }
       }
       this.activeConsumers.clear();
     }
-
   }
 
   /**
@@ -415,33 +414,28 @@ public class KafkaWrapper implements Closeable {
 
     @Override
     public List<KafkaTopic> getFilteredTopics(Set<String> blacklist, Set<String> whitelist) {
-      // TODO Auto-generated method stub
-      return null;
+      throw new NotImplementedException("kafka new API has not been implemented");
     }
 
     @Override
     protected long getEarliestOffset(KafkaPartition partition) throws KafkaOffsetRetrievalFailureException {
-      // TODO Auto-generated method stub
-      return 0;
+      throw new NotImplementedException("kafka new API has not been implemented");
     }
 
     @Override
     protected long getLatestOffset(KafkaPartition partition) throws KafkaOffsetRetrievalFailureException {
-      // TODO Auto-generated method stub
-      return 0;
+      throw new NotImplementedException("kafka new API has not been implemented");
     }
 
     @Override
     public void close() throws IOException {
-      // TODO Auto-generated method stub
-
+      throw new NotImplementedException("kafka new API has not been implemented");
     }
 
     @Override
     protected Iterator<MessageAndOffset> fetchNextMessageBuffer(KafkaPartition partition, long nextOffset,
         long maxOffset) {
-      // TODO Auto-generated method stub
-      return null;
+      throw new NotImplementedException("kafka new API has not been implemented");
     }
   }
 

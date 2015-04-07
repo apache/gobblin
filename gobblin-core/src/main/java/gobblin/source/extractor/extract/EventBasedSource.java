@@ -24,7 +24,7 @@ import java.util.Set;
  * @author ziliu
  *
  */
-public abstract class MessageBasedSource<S, D> extends AbstractSource<S, D> {
+public abstract class EventBasedSource<S, D> extends AbstractSource<S, D> {
   public static boolean survived(String candidate, Set<String> blacklist, Set<String> whitelist) {
     if (!whitelist.isEmpty()) {
       return whitelist.contains(candidate);

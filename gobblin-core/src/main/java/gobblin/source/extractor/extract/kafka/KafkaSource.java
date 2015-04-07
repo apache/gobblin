@@ -25,7 +25,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.extract.MessageBasedSource;
+import gobblin.source.extractor.extract.EventBasedSource;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.source.workunit.Extract.TableType;
@@ -43,7 +43,7 @@ import com.google.common.io.Closer;
  * @author ziliu
  *
  */
-public class KafkaSource extends MessageBasedSource<Schema, GenericRecord> {
+public class KafkaSource extends EventBasedSource<Schema, GenericRecord> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaSource.class);
 
@@ -165,11 +165,11 @@ public class KafkaSource extends MessageBasedSource<Schema, GenericRecord> {
   }
 
   private KafkaPartition getKafkaPartitionFromWorkUnitState(WorkUnitState workUnitState) {
-    if (workUnitState.getProp(TOPIC_NAME) == null || workUnitState.getProp(PARTITION_ID) == null) {
-      return null;
+    if (workUnitState.contains(TOPIC_NAME) && workUnitState.contains(PARTITION_ID)) {
+      return new KafkaPartition.Builder().withTopicName(workUnitState.getProp(TOPIC_NAME))
+          .withId(workUnitState.getPropAsInt(PARTITION_ID)).build();
     }
-    return new KafkaPartition.Builder().withTopicName(workUnitState.getProp(TOPIC_NAME))
-        .withId(workUnitState.getPropAsInt(PARTITION_ID)).build();
+    return null;
   }
 
   /**
