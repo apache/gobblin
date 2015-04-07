@@ -369,7 +369,7 @@ public class KafkaWrapper implements Closeable {
     private void refreshTopicMetadata(KafkaPartition partition) {
       for (String broker : KafkaWrapper.this.brokers) {
         List<TopicMetadata> topicMetadataList = fetchTopicMetadataFromBroker(broker, partition.getTopicName());
-        if (topicMetadataList != null) {
+        if (topicMetadataList != null && topicMetadataList.size() >= 1) {
           TopicMetadata topicMetadata = topicMetadataList.get(0);
           for (PartitionMetadata partitionMetadata : topicMetadata.partitionsMetadata()) {
             if (partitionMetadata.partitionId() == partition.getId()) {

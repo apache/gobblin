@@ -21,7 +21,7 @@ package gobblin.source.extractor.extract.kafka;
 public final class KafkaPartition {
   private final int id;
   private final String topicName;
-  private final KafkaLeader leader;
+  private KafkaLeader leader;
 
   public static class Builder {
     private int id = 0;
@@ -79,9 +79,7 @@ public final class KafkaPartition {
   }
 
   public void setLeader(int leaderId, String leaderHost, int leaderPort) {
-    this.leader.setId(leaderId);
-    this.leader.setHost(leaderHost);
-    this.leader.setPort(leaderPort);
+    this.leader = new KafkaLeader(leaderId, leaderHost, leaderPort);
   }
 
   @Override
@@ -121,24 +119,12 @@ public final class KafkaPartition {
       return id;
     }
 
-    public void setId(int id) {
-      this.id = id;
-    }
-
     public String getHost() {
       return host;
     }
 
-    public void setHost(String host) {
-      this.host = host;
-    }
-
     public int getPort() {
       return port;
-    }
-
-    public void setPort(int port) {
-      this.port = port;
     }
 
     public KafkaLeader(int id, String host, int port) {

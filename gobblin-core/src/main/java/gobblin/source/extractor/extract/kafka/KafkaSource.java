@@ -224,7 +224,7 @@ public class KafkaSource extends EventBasedSource<Schema, GenericRecord> {
 
   @Override
   public Extractor<Schema, GenericRecord> getExtractor(WorkUnitState state) throws IOException {
-    return new KafkaExtractor(state);
+    return new KafkaAvroExtractor(state);
   }
 
   /**
