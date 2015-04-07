@@ -15,7 +15,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
@@ -26,7 +25,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.extract.MessageBasedSource;
+import gobblin.source.extractor.extract.EventBasedSource;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.source.workunit.Extract.TableType;
@@ -44,18 +43,21 @@ import com.google.common.io.Closer;
  * @author ziliu
  *
  */
-public class KafkaSource extends MessageBasedSource<Schema, GenericRecord> {
+public class KafkaSource extends EventBasedSource<Schema, GenericRecord> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaSource.class);
 
   public static final String TOPIC_BLACKLIST = "topic.blacklist";
   public static final String TOPIC_WHITELIST = "topic.whitelist";
   public static final String TOPICS_MOVE_TO_LATEST_OFFSET = "topics.move.to.latest.offset";
-  public static final String MOVE_TO_EARLIEST_OFFSET_ALLOWED = "topics.move.to.earliest.offset";
+  public static final String MOVE_TO_EARLIEST_OFFSET_ALLOWED = "move.to.earliest.offset.allowed";
   public static final boolean DEFAULT_MOVE_TO_EARLIEST_OFFSET_ALLOWED = false;
 
   public static final String TOPIC_NAME = "topic.name";
   public static final String PARTITION_ID = "partition.id";
+  public static final String LEADER_ID = "leader.id";
+  public static final String LEADER_HOST = "leader.host";
+  public static final String LEADER_PORT = "leader.port";
 
   private final Set<String> moveToLatestTopics = Sets.newTreeSet(String.CASE_INSENSITIVE_ORDER);
   private final Map<KafkaPartition, Long> previousOffsets = Maps.newHashMap();
@@ -163,11 +165,11 @@ public class KafkaSource extends MessageBasedSource<Schema, GenericRecord> {
   }
 
   private KafkaPartition getKafkaPartitionFromWorkUnitState(WorkUnitState workUnitState) {
-    if (workUnitState.getProp(TOPIC_NAME) == null || workUnitState.getProp(PARTITION_ID) == null) {
-      return null;
+    if (workUnitState.contains(TOPIC_NAME) && workUnitState.contains(PARTITION_ID)) {
+      return new KafkaPartition.Builder().withTopicName(workUnitState.getProp(TOPIC_NAME))
+          .withId(workUnitState.getPropAsInt(PARTITION_ID)).build();
     }
-    return new KafkaPartition.Builder().withTopicName(workUnitState.getProp(TOPIC_NAME))
-        .withId(workUnitState.getPropAsInt(PARTITION_ID)).build();
+    return null;
   }
 
   /**
@@ -202,6 +204,9 @@ public class KafkaSource extends MessageBasedSource<Schema, GenericRecord> {
     partitionState.addAll(state);
     partitionState.setProp(TOPIC_NAME, partition.getTopicName());
     partitionState.setProp(PARTITION_ID, partition.getId());
+    partitionState.setProp(LEADER_ID, partition.getLeader().getId());
+    partitionState.setProp(LEADER_HOST, partition.getLeader().getHost());
+    partitionState.setProp(LEADER_PORT, partition.getLeader().getPort());
     partitionState.setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, offsets.getStartOffset());
     partitionState.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, offsets.getLatestOffset());
     return partitionState;

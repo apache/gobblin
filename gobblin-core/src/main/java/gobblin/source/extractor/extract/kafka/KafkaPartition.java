@@ -78,6 +78,12 @@ public final class KafkaPartition {
     return this.id;
   }
 
+  public void setLeader(int leaderId, String leaderHost, int leaderPort) {
+    this.leader.setId(leaderId);
+    this.leader.setHost(leaderHost);
+    this.leader.setPort(leaderPort);
+  }
+
   @Override
   public int hashCode() {
     final int prime = 31;
@@ -89,13 +95,7 @@ public final class KafkaPartition {
 
   @Override
   public boolean equals(Object obj) {
-    if (this == obj) {
-      return true;
-    }
-    if (obj == null) {
-      return false;
-    }
-    if (getClass() != obj.getClass()) {
+    if (!(obj instanceof KafkaPartition)) {
       return false;
     }
     KafkaPartition other = (KafkaPartition) obj;
@@ -113,21 +113,33 @@ public final class KafkaPartition {
   }
 
   public final class KafkaLeader {
+    private int id;
+    private String host;
+    private int port;
+
     public int getId() {
       return id;
+    }
+
+    public void setId(int id) {
+      this.id = id;
     }
 
     public String getHost() {
       return host;
     }
 
+    public void setHost(String host) {
+      this.host = host;
+    }
+
     public int getPort() {
       return port;
     }
 
-    private final int id;
-    private final String host;
-    private final int port;
+    public void setPort(int port) {
+      this.port = port;
+    }
 
     public KafkaLeader(int id, String host, int port) {
       this.id = id;
