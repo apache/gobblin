@@ -18,6 +18,8 @@ dependencies {
   compile externalDependency.metricsCore
   compile externalDependency.slf4j
   compile externalDependency.influxdb
+  compile externalDependency.kafka
+  compile externalDependency.avro
 
   testCompile externalDependency.testng
 }
