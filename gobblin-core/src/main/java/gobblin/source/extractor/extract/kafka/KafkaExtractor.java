@@ -13,28 +13,25 @@ package gobblin.source.extractor.extract.kafka;
 
 import java.io.IOException;
 
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
-
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.extract.MessageBasedExtractor;
+import gobblin.source.extractor.extract.EventBasedExtractor;
 
 
-public class KafkaExtractor extends MessageBasedExtractor<Schema, GenericRecord> {
+public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
   public KafkaExtractor(WorkUnitState state) {
     // TODO Auto-generated constructor stub
   }
 
   @Override
-  public Schema getSchema() {
+  public S getSchema() {
     // TODO Auto-generated method stub
     return null;
   }
 
   @Override
-  public GenericRecord readRecord(GenericRecord reuse) throws DataRecordException, IOException {
+  public D readRecord(D reuse) throws DataRecordException, IOException {
     // TODO Auto-generated method stub
     return null;
   }

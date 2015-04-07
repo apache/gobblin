@@ -14,6 +14,6 @@ package gobblin.source.extractor.extract;
 import gobblin.source.extractor.Extractor;
 
 
-public abstract class MessageBasedExtractor<S, D> implements Extractor<S, D> {
+public abstract class EventBasedExtractor<S, D> implements Extractor<S, D> {
 
 }
