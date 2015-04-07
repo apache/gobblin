@@ -183,7 +183,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       // Remember the number of consecutive failures of this job in the past
       jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY,
           previousJobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY, 0));
-      sourceState = new SourceState(jobState, getPreviousTaskStates(previousJobState));
+      sourceState = new SourceState(jobState, getPreviousWorkUnitStates(previousJobState));
       source = new SourceDecorator(initSource(jobProps), jobId, LOG);
     } catch (Throwable t) {
       String errMsg = "Failed to initialize the source for job " + jobId;
@@ -390,7 +390,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   /**
    * Get the list of {@link WorkUnitState}s in the given previous {@link JobState}.
    */
-  private List<WorkUnitState> getPreviousTaskStates(JobState previousJobState) {
+  private List<WorkUnitState> getPreviousWorkUnitStates(JobState previousJobState) {
     List<WorkUnitState> previousWorkUnitStates = Lists.newArrayList();
     for (TaskState taskState : previousJobState.getTaskStates()) {
       WorkUnitState workUnitState = new WorkUnitState(taskState.getWorkunit());
