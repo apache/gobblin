@@ -44,6 +44,11 @@ public class KafkaReporterTest extends KafkaTestBase {
     this("KafkaReporterTest");
   }
 
+  /**
+   * Get builder for KafkaReporter (override if testing an extension of KafkaReporter)
+   * @param registry metricregistry
+   * @return KafkaReporter builder
+   */
   public KafkaReporter.Builder<?> getBuilder(MetricRegistry registry) {
     return KafkaReporter.forRegistry(registry);
   }
@@ -75,7 +80,7 @@ public class KafkaReporterTest extends KafkaTestBase {
     expected.put("com.linkedin.example.counter", 1.0);
     expected.put("com.linkedin.example.meter.count", 2.0);
     expected.put("com.linkedin.example.histogram.count", 3.0);
-    expectMessagesWithValues(iterator, expected);
+    expectMetricsWithValues(iterator, expected);
 
     kafkaReporter.report();
     try {
@@ -101,7 +106,7 @@ public class KafkaReporterTest extends KafkaTestBase {
     expectedSet.add("com.linkedin.example.histogram.999percentile");
     expectedSet.add("com.linkedin.example.histogram.count");
 
-    expectMessages(iterator, expectedSet, true);
+    expectMetrics(iterator, expectedSet, true);
 
     kafkaReporter.close();
 
@@ -144,7 +149,14 @@ public class KafkaReporterTest extends KafkaTestBase {
 
   }
 
-  private void expectMessagesWithValues (ConsumerIterator<byte[],byte[]> it, Map<String, Double> expected)
+  /**
+   * Expect a list of metrics with specific values.
+   * Fail if not all metrics are received, or some metric has the wrong value.
+   * @param it ConsumerIterator for Kafka topic
+   * @param expected map of expected metric names and their values
+   * @throws IOException
+   */
+  private void expectMetricsWithValues(ConsumerIterator<byte[], byte[]> it, Map<String, Double> expected)
       throws IOException {
     System.out.println("====Checking for expected messages and values. Will list all messages.====");
     try {
@@ -160,7 +172,14 @@ public class KafkaReporterTest extends KafkaTestBase {
     }
   }
 
-  private void expectMessages (ConsumerIterator<byte[],byte[]> it, Set<String> expected, boolean strict)
+  /**
+   * Expect a set of metric names. Will fail if not all of these metrics are received.
+   * @param it ConsumerIterator for Kafka topic
+   * @param expected set of expected metric names
+   * @param strict if set to true, will fail if receiving any metric that is not expected
+   * @throws IOException
+   */
+  private void expectMetrics(ConsumerIterator<byte[], byte[]> it, Set<String> expected, boolean strict)
       throws IOException {
     System.out.println("====Checking for expected messages. Will list all messages.====");
     try {
@@ -178,6 +197,13 @@ public class KafkaReporterTest extends KafkaTestBase {
     }
   }
 
+  /**
+   * Extract the next metric from the Kafka iterator
+   * Assumes existence of the metric has already been checked.
+   * @param it Kafka ConsumerIterator
+   * @return next metric in the stream
+   * @throws IOException
+   */
   protected KafkaReporter.Metric nextMetric(ConsumerIterator<byte[], byte[]> it) throws IOException {
     String nextMessage = new String(it.next().message());
     KafkaReporter.Metric metric = mapper.readValue(nextMessage, KafkaReporter.Metric.class);

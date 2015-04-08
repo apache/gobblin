@@ -26,6 +26,13 @@ import org.apache.avro.io.DecoderFactory;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+
+/**
+ * Test for KafkaAvroReporter
+ * Extends KafkaReporterTest and just redefines the builder and the metrics deserializer
+ *
+ * @author ibuenros
+ */
 @Test(groups = {"gobblin.metrics"})
 public class KafkaAvroReporterTest extends KafkaReporterTest {
 
