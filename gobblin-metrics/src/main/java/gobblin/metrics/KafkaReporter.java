@@ -21,10 +21,15 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 
@@ -32,6 +37,7 @@ import kafka.javaapi.producer.Producer;
 import kafka.message.Message;
 import kafka.producer.KeyedMessage;
 import kafka.producer.ProducerConfig;
+import org.codehaus.jackson.map.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,8 +50,15 @@ import org.slf4j.LoggerFactory;
 public class KafkaReporter extends ScheduledReporter {
 
   private ProducerConfig _config;
-  private Producer<String, Message> _producer;
+  private Producer<String, byte[]> _producer;
   private String _topic;
+  private int exceptionCount;
+
+  public Set<String> _tags;
+  public String _host;
+  public String _env;
+
+  ObjectMapper mapper = new ObjectMapper();
 
   private static final Logger LOGGER = LoggerFactory.getLogger(KafkaReporter.class);
 
@@ -56,19 +69,33 @@ public class KafkaReporter extends ScheduledReporter {
    * @return KafkaReporter builder
    */
   public static Builder forRegistry(MetricRegistry registry) {
-    return new Builder(registry);
+    return new BuilderImpl(registry);
+  }
+
+  private static class BuilderImpl extends Builder<BuilderImpl> {
+    public BuilderImpl(MetricRegistry registry) {
+      super(registry);
+    }
+
+    @Override
+    protected BuilderImpl self() {
+      return this;
+    }
   }
 
   /**
    * Builder for {@link gobblin.metrics.KafkaReporter}
    * Defaults to no filter, reporting rates in seconds and times in milliseconds
    */
-  public static class Builder {
-    private MetricRegistry _registry;
-    private String _name;
-    private MetricFilter _filter;
-    private TimeUnit _rateUnit;
-    private TimeUnit _durationUnit;
+  public static abstract class Builder<T extends Builder<T>> {
+    protected MetricRegistry _registry;
+    protected String _name;
+    protected MetricFilter _filter;
+    protected TimeUnit _rateUnit;
+    protected TimeUnit _durationUnit;
+    protected String _host;
+    protected String _env;
+    protected Set<String> _tags;
 
     protected Builder(MetricRegistry registry) {
       this._registry = registry;
@@ -76,7 +103,16 @@ public class KafkaReporter extends ScheduledReporter {
       this._rateUnit = TimeUnit.SECONDS;
       this._durationUnit = TimeUnit.MILLISECONDS;
       this._filter = MetricFilter.ALL;
+      try {
+        this._host = InetAddress.getLocalHost().getHostName();
+      } catch(UnknownHostException e) {
+        this._host = "";
+      }
+      this._env = "dev";
+      this._tags = new HashSet<String>();
     }
+
+    protected abstract T self();
 
     /**
      * Only report metrics which match the given filter.
@@ -84,9 +120,9 @@ public class KafkaReporter extends ScheduledReporter {
      * @param filter a {@link MetricFilter}
      * @return {@code this}
      */
-    public Builder filter(MetricFilter filter) {
+    public T filter(MetricFilter filter) {
       this._filter = filter;
-      return this;
+      return self();
     }
 
     /**
@@ -95,9 +131,9 @@ public class KafkaReporter extends ScheduledReporter {
      * @param rateUnit a unit of time
      * @return {@code this}
      */
-    public Builder convertRatesTo(TimeUnit rateUnit) {
+    public T convertRatesTo(TimeUnit rateUnit) {
       this._rateUnit = rateUnit;
-      return this;
+      return self();
     }
 
     /**
@@ -106,9 +142,39 @@ public class KafkaReporter extends ScheduledReporter {
      * @param durationUnit a unit of time
      * @return {@code this}
      */
-    public Builder convertDurationsTo(TimeUnit durationUnit) {
+    public T convertDurationsTo(TimeUnit durationUnit) {
       this._durationUnit = durationUnit;
-      return this;
+      return self();
+    }
+
+    /**
+     * Set host
+     * @param host hostname
+     * @return {@code this}
+     */
+    public T withHost(String host) {
+      this._host = host;
+      return self();
+    }
+
+    /**
+     * Set environment
+     * @param env environment
+     * @return {@code this}
+     */
+    public T withEnv(String env) {
+      this._env = env;
+      return self();
+    }
+
+    /**
+     * Add tags
+     * @param tags
+     * @return {@code this}
+     */
+    public T withTags(String... tags) {
+      Collections.addAll(this._tags, tags);
+      return self();
     }
 
     /**
@@ -119,9 +185,22 @@ public class KafkaReporter extends ScheduledReporter {
      * @return KafkaReporter
      */
     public KafkaReporter build(String brokers, String topic) {
-      return new KafkaReporter(_registry, _name, _filter, _rateUnit, _durationUnit, brokers, topic);
+      return new KafkaReporter(_registry, _name, _filter, _rateUnit, _durationUnit,
+          brokers, topic, _host, _env, _tags);
     }
 
+  }
+
+  /**
+   * Class to contain a single metric
+   */
+  public static class Metric {
+    public String name;
+    public Object value;
+    public String host;
+    public String env;
+    public Set<String> tags;
+    public long timestamp;
   }
 
   /**
@@ -139,8 +218,14 @@ public class KafkaReporter extends ScheduledReporter {
   }
 
   protected KafkaReporter(MetricRegistry registry, String name, MetricFilter filter, TimeUnit rateUnit,
-      TimeUnit durationUnit, String brokers, String topic) {
+      TimeUnit durationUnit, String brokers, String topic, String host, String env, Set<String> tags) {
     super(registry, name, filter, rateUnit, durationUnit);
+
+    exceptionCount = 0;
+
+    _host = host;
+    _env = env;
+    _tags = tags;
 
     Properties props = new Properties();
 
@@ -149,7 +234,7 @@ public class KafkaReporter extends ScheduledReporter {
     props.put("request.required.acks", "1");
 
     _config = new ProducerConfig(props);
-    _producer = new Producer<String, Message>(_config);
+    _producer = new Producer<String, byte[]>(_config);
     _topic = topic;
 
   }
@@ -173,7 +258,9 @@ public class KafkaReporter extends ScheduledReporter {
   public void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters,
       SortedMap<String, Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers) {
 
-    List<KeyedMessage<String, Message>> messages = new ArrayList<KeyedMessage<String, Message>>();
+    System.out.println("***************HELLO******************");
+
+    List<KeyedMessage<String, byte[]>> messages = new ArrayList<KeyedMessage<String, byte[]>>();
 
     for( Entry<String, Gauge> gauge : gauges.entrySet()) {
       messages.addAll(toKeyedMessages(serializeGauge(gauge.getKey(), gauge.getValue())));
@@ -198,6 +285,7 @@ public class KafkaReporter extends ScheduledReporter {
       messages.addAll(toKeyedMessages(serializeSingleValue(timer.getKey(), timer.getValue().getCount())));
     }
 
+    System.out.println(messages);
     _producer.send(messages);
 
   }
@@ -286,7 +374,12 @@ public class KafkaReporter extends ScheduledReporter {
    * @return a byte array containing the key-value pair representing the metric
    */
   protected byte[] serializeValue(String name, Object value, String... path) {
-    return stringifyValue(name, value, path).getBytes();
+    String str = stringifyValue(name, value, path);
+    if ( str != null ) {
+      return str.getBytes();
+    } else {
+      return null;
+    }
   }
 
   /**
@@ -296,15 +389,33 @@ public class KafkaReporter extends ScheduledReporter {
    * @param path additional suffixes to further identify the meaning of the reported value
    * @return a string containing the key-value pair representing the metric
    */
-  protected String stringifyValue(String name, Object value, String... path) {
-    return String.format("%s:%s", makeName(name, path), value.toString());
+  protected synchronized  String stringifyValue(String name, Object value, String... path) {
+    Metric metric = new Metric();
+    metric.name = makeName(name, path);
+    metric.value = value;
+    metric.env = _env;
+    metric.tags = _tags;
+    metric.host = _host;
+    metric.timestamp = System.currentTimeMillis();
+
+    try {
+      return mapper.writeValueAsString(metric);
+    } catch(Exception e) {
+      exceptionCount++;
+      LOGGER.trace("Could not serialize Avro record for Kafka Metrics. Exception: %s", e.getMessage());
+      if (exceptionCount % 1000 == 0) {
+        LOGGER.warn("Could not serialize Avro record for Kafka Metrics. Exception: %s", e.getMessage());
+      }
+    }
+
+    return null;
   }
 
-  private List<KeyedMessage<String, Message>> toKeyedMessages(List<byte[]> bytesArray) {
-    List<KeyedMessage<String, Message>> messages = new ArrayList<KeyedMessage<String, Message>>();
+  private List<KeyedMessage<String, byte[]>> toKeyedMessages(List<byte[]> bytesArray) {
+    List<KeyedMessage<String, byte[]>> messages = new ArrayList<KeyedMessage<String, byte[]>>();
     for ( byte[] bytes : bytesArray) {
       if (bytes != null) {
-        messages.add(new KeyedMessage<String, Message>(_topic, new Message(bytes)));
+        messages.add(new KeyedMessage<String, byte[]>(_topic, bytes));
       }
     }
     return messages;

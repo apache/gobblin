@@ -15,6 +15,7 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -63,8 +64,8 @@ public class KafkaAvroReporter extends KafkaReporter {
   private int exceptionCount;
 
   protected KafkaAvroReporter(MetricRegistry registry, String name, MetricFilter filter, TimeUnit rateUnit,
-      TimeUnit durationUnit, String brokers, String topic) {
-    super(registry, name, filter, rateUnit, durationUnit, brokers, topic);
+      TimeUnit durationUnit, String brokers, String topic, String host, String env, Set<String> tags) {
+    super(registry, name, filter, rateUnit, durationUnit, brokers, topic, host, env, tags);
 
     Schema.Parser parser = new Schema.Parser();
     _schema = parser.parse(SchemaString);
@@ -114,66 +115,34 @@ public class KafkaAvroReporter extends KafkaReporter {
   }
 
   /**
-   * Returns a new {@link gobblin.metrics.KafkaAvroReporter.KafkaAvroReporterBuilder} for {@link gobblin.metrics.KafkaAvroReporter}
+   * Returns a new {@link gobblin.metrics.KafkaAvroReporter.Builder} for {@link gobblin.metrics.KafkaAvroReporter}
    *
    * @param registry the registry to report
    * @return KafkaAvroReporter builder
    */
-  public static KafkaAvroReporterBuilder forRegistry(MetricRegistry registry) {
-    return new KafkaAvroReporterBuilder(registry);
+  public static Builder forRegistry(MetricRegistry registry) {
+    return new BuilderImpl(registry);
+  }
+
+  private static class BuilderImpl extends Builder<BuilderImpl> {
+    public BuilderImpl(MetricRegistry registry) {
+      super(registry);
+    }
+
+    @Override
+    protected BuilderImpl self() {
+      return this;
+    }
   }
 
   /**
    * Builder for {@link gobblin.metrics.KafkaAvroReporter}
    * Defaults to no filter, reporting rates in seconds and times in milliseconds
    */
-  public static class KafkaAvroReporterBuilder extends Builder {
-    private MetricRegistry _registry;
-    private String _name;
-    private MetricFilter _filter;
-    private TimeUnit _rateUnit;
-    private TimeUnit _durationUnit;
+  public static abstract class Builder<T extends Builder<T>> extends KafkaReporter.Builder<T> {
 
-    private KafkaAvroReporterBuilder(MetricRegistry registry) {
+    private Builder(MetricRegistry registry) {
       super(registry);
-      this._registry = registry;
-      this._name = "KafkaAvroReporter";
-      this._rateUnit = TimeUnit.SECONDS;
-      this._durationUnit = TimeUnit.MILLISECONDS;
-      this._filter = MetricFilter.ALL;
-    }
-
-    /**
-     * Only report metrics which match the given filter.
-     *
-     * @param filter a {@link MetricFilter}
-     * @return {@code this}
-     */
-    public KafkaAvroReporterBuilder filter(MetricFilter filter) {
-      this._filter = filter;
-      return this;
-    }
-
-    /**
-     * Convert rates to the given time unit.
-     *
-     * @param rateUnit a unit of time
-     * @return {@code this}
-     */
-    public KafkaAvroReporterBuilder convertRatesTo(TimeUnit rateUnit) {
-      this._rateUnit = rateUnit;
-      return this;
-    }
-
-    /**
-     * Convert durations to the given time unit.
-     *
-     * @param durationUnit a unit of time
-     * @return {@code this}
-     */
-    public KafkaAvroReporterBuilder convertDurationsTo(TimeUnit durationUnit) {
-      this._durationUnit = durationUnit;
-      return this;
     }
 
     /**
@@ -184,7 +153,8 @@ public class KafkaAvroReporter extends KafkaReporter {
      * @return KafkaAvroReporter
      */
     public KafkaAvroReporter build(String brokers, String topic) {
-      return new KafkaAvroReporter(_registry, _name, _filter, _rateUnit, _durationUnit, brokers, topic);
+      return new KafkaAvroReporter(_registry, _name, _filter, _rateUnit, _durationUnit,
+          brokers, topic, _host, _env, _tags);
     }
 
   }
