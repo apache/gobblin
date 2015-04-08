@@ -45,14 +45,10 @@ public class KafkaAvroReporter extends KafkaReporter {
       " \"name\": \"Metric\",\n"+
       " \"namespace\":\"<TBD>\",\n"+
       " \"fields\" : [\n"+
-      " {\"name\": \"cluster\", \"type\": [\"null\", \"string\"], \"doc\": \"name of the cluster where the metric is collected\"},\n"+
-      " {\"name\": \"container\", \"type\": [\"null\", \"string\"], \"doc\": \"ID of the container where the metric is collected\"},\n"+
-      " {\"name\": \"jobid\", \"type\": [\"null\", \"string\"], \"doc\": \"ID of the job that collects the metric\"},\n"+
-      " {\"name\": \"taskid\", \"type\": [\"null\", \"string\"], \"doc\": \"ID of the task that collects the metric\"},\n"+
-      " {\"name\": \"timestamp\", \"type\": \"long\", \"doc\": \"timestamp the metric is read\"},\n"+
+      " {\"name\": \"hostname\", \"type\": [\"null\", \"string\"], \"doc\": \"hostname emitting the metric\"},\n"+
+      " {\"name\": \"environment\", \"type\": [\"null\", \"string\"], \"doc\": \"environment where metric was emitted\"},\n"+
+      " {\"name\": \"tags\", \"type\": {\"type\": \"array\", \"items\": \"string\"}, \"doc\": \"tags associated with the metric\"},\n"+
       " {\"name\": \"name\", \"type\": \"string\", \"doc\": \"metric name\"},\n"+
-      " {\"type\": \"enum\", \"name\": \"type\", \"symbols\": [\"COUNTER\", \"GAUGE\"], \"doc\": \"metric type\"}\n"+
-      " {\"name\": \"group\", \"type\": \"string\", \"doc\": \"metric group name\"},\n"+
       " {\"name\": \"value\", \"type\": [\"boolean\", \"int\", \"long\", \"float\", \"double\", \"bytes\", \"string\"], \"doc\": \"metric value\"}\n"+
       " ]\n"+
       "}";
@@ -98,8 +94,12 @@ public class KafkaAvroReporter extends KafkaReporter {
 
     record.put("name", makeName(name, path));
     record.put("value", value);
+    record.put("hostname", _host);
+    record.put("environment", _env);
+    record.put("tags", _tags);
 
     try {
+      out.reset();
       w.write(record, e);
       e.flush();
       return out.toByteArray();

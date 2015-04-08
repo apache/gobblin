@@ -34,7 +34,6 @@ import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 
 import kafka.javaapi.producer.Producer;
-import kafka.message.Message;
 import kafka.producer.KeyedMessage;
 import kafka.producer.ProducerConfig;
 import org.codehaus.jackson.map.ObjectMapper;
@@ -258,8 +257,6 @@ public class KafkaReporter extends ScheduledReporter {
   public void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters,
       SortedMap<String, Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers) {
 
-    System.out.println("***************HELLO******************");
-
     List<KeyedMessage<String, byte[]>> messages = new ArrayList<KeyedMessage<String, byte[]>>();
 
     for( Entry<String, Gauge> gauge : gauges.entrySet()) {
@@ -272,7 +269,8 @@ public class KafkaReporter extends ScheduledReporter {
 
     for( Entry<String, Histogram> histogram : histograms.entrySet()) {
       messages.addAll(toKeyedMessages(serializeSnapshot(histogram.getKey(), histogram.getValue().getSnapshot())));
-      messages.addAll(toKeyedMessages(serializeSingleValue(histogram.getKey(), histogram.getValue().getCount())));
+      messages.addAll(
+          toKeyedMessages(serializeSingleValue(histogram.getKey(), histogram.getValue().getCount(), "count")));
     }
 
     for ( Entry<String, Meter> meter : meters.entrySet()) {
@@ -282,10 +280,9 @@ public class KafkaReporter extends ScheduledReporter {
     for ( Entry<String, Timer> timer : timers.entrySet()) {
       messages.addAll(toKeyedMessages(serializeSnapshot(timer.getKey(), timer.getValue().getSnapshot())));
       messages.addAll(toKeyedMessages(serializeMetered(timer.getKey(), timer.getValue())));
-      messages.addAll(toKeyedMessages(serializeSingleValue(timer.getKey(), timer.getValue().getCount())));
+      messages.addAll(toKeyedMessages(serializeSingleValue(timer.getKey(), timer.getValue().getCount(), "count")));
     }
 
-    System.out.println(messages);
     _producer.send(messages);
 
   }
