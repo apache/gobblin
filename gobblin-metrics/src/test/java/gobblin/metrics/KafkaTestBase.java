@@ -82,16 +82,16 @@ public class KafkaTestBase implements Closeable {
     }
   }
 
-  String _topic;
-  ConsumerConnector consumer;
-  KafkaStream<byte[], byte[]> stream;
-  ConsumerIterator<byte[],byte[]> iterator;
+  protected String topic;
+  protected ConsumerConnector consumer;
+  protected KafkaStream<byte[], byte[]> stream;
+  protected ConsumerIterator<byte[],byte[]> iterator;
 
   public KafkaTestBase(String topic) throws InterruptedException, RuntimeException {
 
     startServer();
 
-    _topic = topic;
+    this.topic = topic;
 
     AdminUtils.createTopic(zkClient, topic, 1, 1, new Properties());
 
@@ -110,9 +110,9 @@ public class KafkaTestBase implements Closeable {
     consumer = Consumer.createJavaConsumerConnector(new ConsumerConfig(consumeProps));
 
     Map<String, Integer> topicCountMap = new HashMap<String, Integer>();
-    topicCountMap.put(_topic, 1);
+    topicCountMap.put(this.topic, 1);
     Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer.createMessageStreams(topicCountMap);
-    List<KafkaStream<byte[],byte[]>> streams = consumerMap.get(_topic);
+    List<KafkaStream<byte[],byte[]>> streams = consumerMap.get(this.topic);
     stream = streams.get(0);
 
     iterator = stream.iterator();

@@ -36,14 +36,14 @@ import org.testng.annotations.Test;
 @Test(groups = {"gobblin.metrics"})
 public class KafkaAvroReporterTest extends KafkaReporterTest {
 
-  Schema _schema;
-  GenericDatumReader<GenericRecord> reader;
+  private Schema schema;
+  private GenericDatumReader<GenericRecord> reader;
 
   public KafkaAvroReporterTest(String topic)
       throws IOException, InterruptedException {
     super(topic);
 
-    _schema = null;
+    schema = null;
     reader = null;
 
   }
@@ -59,10 +59,9 @@ public class KafkaAvroReporterTest extends KafkaReporterTest {
 
   @BeforeClass
   public void setup() {
-    Schema.Parser parser = new Schema.Parser();
-    _schema = parser.parse(KafkaAvroReporter.SchemaString);
+    schema = KafkaAvroReporter.Schema;
 
-    reader = new GenericDatumReader<GenericRecord>(_schema);
+    reader = new GenericDatumReader<GenericRecord>(schema);
   }
 
   @Override
@@ -71,7 +70,7 @@ public class KafkaAvroReporterTest extends KafkaReporterTest {
     byte[] bytes = it.next().message();
 
     Decoder decoder = DecoderFactory.get().binaryDecoder(bytes, null);
-    GenericRecord reuse = new GenericData.Record(_schema);
+    GenericRecord reuse = new GenericData.Record(schema);
     GenericRecord record = reader.read(reuse, decoder);
 
     KafkaReporter.Metric metric = new KafkaReporter.Metric();

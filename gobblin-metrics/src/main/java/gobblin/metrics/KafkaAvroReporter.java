@@ -11,12 +11,9 @@
 
 package gobblin.metrics;
 
-import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -40,7 +37,7 @@ public class KafkaAvroReporter extends KafkaReporter {
    * Avro schema used for encoding metrics
    * TODO: finalize metrics avro schema
    */
-  static String SchemaString = "{\n"+
+  private static final String SchemaString = "{\n"+
       " \"type\": \"record\",\n"+
       " \"name\": \"Metric\",\n"+
       " \"namespace\":\"<TBD>\",\n"+
@@ -53,25 +50,20 @@ public class KafkaAvroReporter extends KafkaReporter {
       " ]\n"+
       "}";
 
-  Schema _schema;
-  private GenericDatumWriter<GenericRecord> w;
-  private Encoder e;
+  public static final Schema Schema = (new Schema.Parser()).parse(SchemaString);
+  private GenericDatumWriter<GenericRecord> writer;
+  private Encoder encoder;
   private ByteArrayOutputStream out;
-  private int exceptionCount;
+  private long lastSerializeExceptionTime;
 
-  protected KafkaAvroReporter(MetricRegistry registry, String name, MetricFilter filter, TimeUnit rateUnit,
-      TimeUnit durationUnit, String brokers, String topic, String host, String env, Set<String> tags) {
-    super(registry, name, filter, rateUnit, durationUnit, brokers, topic, host, env, tags);
+  protected KafkaAvroReporter(Builder<?> builder) {
+    super(builder);
 
-    Schema.Parser parser = new Schema.Parser();
-    _schema = parser.parse(SchemaString);
-
-    exceptionCount = 0;
+    lastSerializeExceptionTime = 0;
 
     out = new ByteArrayOutputStream();
-    e = EncoderFactory.get().binaryEncoder(out, null);
-    w = new GenericDatumWriter<GenericRecord>(_schema);
-
+    encoder = EncoderFactory.get().binaryEncoder(out, null);
+    writer = new GenericDatumWriter<GenericRecord>(Schema);
   }
 
   /**
@@ -84,30 +76,28 @@ public class KafkaAvroReporter extends KafkaReporter {
    * @return
    */
   @Override
-  protected byte[] serializeValue(String name, Object value, String... path) {
-    return _serializeValue(name, value, path);
-  }
-
-  protected synchronized byte[] _serializeValue(String name, Object value, String... path) {
-
-    GenericRecord record = new GenericData.Record(_schema);
+  protected synchronized byte[] serializeValue(String name, Object value, String... path) {
+    GenericRecord record = new GenericData.Record(Schema);
 
     record.put("name", makeName(name, path));
     record.put("value", value);
-    record.put("hostname", _host);
-    record.put("environment", _env);
-    record.put("tags", _tags);
+    record.put("hostname", host);
+    record.put("environment", env);
+    record.put("tags", tags);
 
     try {
       out.reset();
-      w.write(record, e);
-      e.flush();
+      writer.write(record, encoder);
+      encoder.flush();
       return out.toByteArray();
     } catch(IOException e) {
-      exceptionCount++;
+      // If there is actually something wrong with the serializer,
+      // this exception would be thrown for every single metric serialized.
+      // Instead, report at warn level at most every 10 seconds.
       LOGGER.trace("Could not serialize Avro record for Kafka Metrics. Exception: %s", e.getMessage());
-      if (exceptionCount % 1000 == 0) {
+      if(System.currentTimeMillis() - lastSerializeExceptionTime > 10000) {
         LOGGER.warn("Could not serialize Avro record for Kafka Metrics. Exception: %s", e.getMessage());
+        lastSerializeExceptionTime = System.currentTimeMillis();
       }
     }
 
@@ -120,7 +110,7 @@ public class KafkaAvroReporter extends KafkaReporter {
    * @param registry the registry to report
    * @return KafkaAvroReporter builder
    */
-  public static Builder forRegistry(MetricRegistry registry) {
+  public static Builder<?> forRegistry(MetricRegistry registry) {
     return new BuilderImpl(registry);
   }
 
@@ -153,8 +143,7 @@ public class KafkaAvroReporter extends KafkaReporter {
      * @return KafkaAvroReporter
      */
     public KafkaAvroReporter build(String brokers, String topic) {
-      return new KafkaAvroReporter(_registry, _name, _filter, _rateUnit, _durationUnit,
-          brokers, topic, _host, _env, _tags);
+      return new KafkaAvroReporter(this);
     }
 
   }

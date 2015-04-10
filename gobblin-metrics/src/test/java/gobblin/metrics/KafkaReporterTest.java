@@ -32,7 +32,7 @@ import org.testng.annotations.Test;
 @Test(groups = {"gobblin.metrics"})
 public class KafkaReporterTest extends KafkaTestBase {
 
-  ObjectMapper mapper;
+  private ObjectMapper mapper;
 
   public KafkaReporterTest(String topic)
       throws IOException, InterruptedException {
@@ -60,7 +60,7 @@ public class KafkaReporterTest extends KafkaTestBase {
     Meter meter = registry.meter("com.linkedin.example.meter");
     Histogram histogram = registry.histogram("com.linkedin.example.histogram");
 
-    KafkaReporter kafkaReporter = getBuilder(registry).build("localhost:" + kafkaPort, _topic);
+    KafkaReporter kafkaReporter = getBuilder(registry).build("localhost:" + kafkaPort, topic);
 
     counter.inc();
     meter.mark(2);
@@ -126,7 +126,7 @@ public class KafkaReporterTest extends KafkaTestBase {
         withHost(host).
         withEnv(env).
         withTags(tag1, tag2).
-        build("localhost:" + kafkaPort, _topic);
+        build("localhost:" + kafkaPort, topic);
 
     counter.inc();
 
@@ -216,7 +216,6 @@ public class KafkaReporterTest extends KafkaTestBase {
     try {
       close();
     } catch(Exception e) {
-      System.err.println("Failed to close Kafka server.");
     }
   }
 
