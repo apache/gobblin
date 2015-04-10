@@ -14,7 +14,6 @@ package gobblin.metrics;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.URI;
-import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -61,14 +60,14 @@ public class JobMetrics implements MetricSet {
    * Enumeration of metric types.
    */
   public enum MetricType {
-    COUNTER, METER, GAUGE
+    COUNTER, METER, GAUGE, TIMER
   }
 
   /**
    * Enumeration of metric groups used internally.
    */
   public enum MetricGroup {
-    JOB, TASK
+    JOB, MAPPER, TASK, FORK
   }
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JobMetrics.class);
@@ -289,21 +288,21 @@ public class JobMetrics implements MetricSet {
   }
 
   /**
-   * Create a new {@link com.codahale.metrics.Counter}.
+   * Get a {@link com.codahale.metrics.Counter} whose name is a concatenation of the input arguments.
    *
    * @param group metric group
-   * @param id metric ID
-   * @param name metric name
+   * @param id counter ID
+   * @param name counter name
    * @return newly created {@link com.codahale.metrics.Counter}
    */
   public Counter getCounter(Enum<?> group, String id, String name) {
-    return this.metricRegistry.counter(metricName(group, id, name));
+    return getCounter(metricName(group, id, name));
   }
 
   /**
-   * Create a new {@link com.codahale.metrics.Counter} with the given name.
+   * Get a {@link com.codahale.metrics.Counter} with the given name.
    *
-   * @param name concatenated metric name
+   * @param name counter name
    * @return newly created {@link com.codahale.metrics.Counter}
    */
   public Counter getCounter(String name) {
@@ -311,21 +310,21 @@ public class JobMetrics implements MetricSet {
   }
 
   /**
-   * Get a {@link com.codahale.metrics.Meter}.
+   * Get a {@link com.codahale.metrics.Meter} whose name is a concatenation of the input arguments.
    *
    * @param group metric group
-   * @param id metric ID
-   * @param name metric name
+   * @param id meter ID
+   * @param name meter name
    * @return newly created {@link com.codahale.metrics.Meter}
    */
   public Meter getMeter(Enum<?> group, String id, String name) {
-    return this.metricRegistry.meter(metricName(group, id, name));
+    return getMeter(metricName(group, id, name));
   }
 
   /**
    * Get a {@link com.codahale.metrics.Meter} with the given name.
    *
-   * @param name concatenated metric name
+   * @param name meter name
    * @return newly created {@link com.codahale.metrics.Meter}
    */
   public Meter getMeter(String name) {
@@ -333,22 +332,22 @@ public class JobMetrics implements MetricSet {
   }
 
   /**
-   * Register a {@link com.codahale.metrics.Gauge}.
+   * Register a {@link com.codahale.metrics.Gauge} whose name is a concatenation of the input arguments.
    *
    * @param group metric group
-   * @param id metric ID
-   * @param name metric name
+   * @param id gauge ID
+   * @param name gauge name
    * @param gauge the {@link com.codahale.metrics.Gauge} to register
    * @param <T> gauge data type
    */
   public <T> Gauge<T> getGauge(Enum<?> group, String id, String name, Gauge<T> gauge) {
-    return this.metricRegistry.register(metricName(group, id, name), gauge);
+    return getGauge(metricName(group, id, name), gauge);
   }
 
   /**
    * Register a {@link com.codahale.metrics.Gauge} with the given name.
    *
-   * @param name concatenated metric name
+   * @param name gauge name
    * @param gauge the {@link com.codahale.metrics.Gauge} to register
    * @param <T> gauge data type
    */
@@ -357,9 +356,31 @@ public class JobMetrics implements MetricSet {
   }
 
   /**
+   * Get a {@link com.codahale.metrics.Timer} whose name is a concatenation of the input arguments.
+   *
+   * @param group metric group
+   * @param id timer ID
+   * @param name timer name
+   * @return newly created {@link com.codahale.metrics.Timer}
+   */
+  public Timer getTimer(Enum<?> group, String id, String name) {
+    return getTimer(metricName(group, id, name));
+  }
+
+  /**
+   * Get a {@link com.codahale.metrics.Timer} with the given name.
+   *
+   * @param name timer name
+   * @return newly created {@link com.codahale.metrics.Timer}
+   */
+  public Timer getTimer(String name) {
+    return this.metricRegistry.timer(name);
+  }
+
+  /**
    * Remove the metric object associated with the given name.
    *
-   * @param name metric object name
+   * @param name metric name
    */
   public void removeMetric(String name) {
     this.metricRegistry.remove(name);
@@ -412,6 +433,8 @@ public class JobMetrics implements MetricSet {
         return this.metricRegistry.getMeters(filter);
       case GAUGE:
         return this.metricRegistry.getGauges(filter);
+      case TIMER:
+        return this.metricRegistry.getTimers(filter);
       default:
         throw new IllegalArgumentException("Unknown metric type: " + type.name());
     }
