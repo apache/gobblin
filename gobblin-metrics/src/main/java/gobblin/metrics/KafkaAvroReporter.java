@@ -143,6 +143,8 @@ public class KafkaAvroReporter extends KafkaReporter {
      * @return KafkaAvroReporter
      */
     public KafkaAvroReporter build(String brokers, String topic) {
+      this.brokers = brokers;
+      this.topic = topic;
       return new KafkaAvroReporter(this);
     }
 
