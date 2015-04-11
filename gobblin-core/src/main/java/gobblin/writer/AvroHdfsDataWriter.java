@@ -82,8 +82,6 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
         .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DEFLATE_LEVEL, branch),
             ConfigurationKeys.DEFAULT_DEFLATE_LEVEL));
 
-    System.out.println("Staging dir: " + stagingDir + " looking for " + ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_DIR, branch) + " from branch " + branch);
-
     Configuration conf = new Configuration();
     // Add all job configuration properties so they are picked up by Hadoop
     for (String key : properties.getPropertyNames()) {
