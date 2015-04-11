@@ -11,9 +11,6 @@
 
 package gobblin.converter.avro;
 
-import gobblin.converter.SingleRecordIterable;
-import gobblin.converter.ToAvroConverterBase;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -21,10 +18,12 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+
 import org.codehaus.jackson.node.JsonNodeFactory;
 
 import com.google.gson.JsonArray;
@@ -36,6 +35,8 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.EmptyIterable;
 import gobblin.converter.SchemaConversionException;
+import gobblin.converter.SingleRecordIterable;
+import gobblin.converter.ToAvroConverterBase;
 
 
 /**

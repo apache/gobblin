@@ -104,7 +104,7 @@ public class BaseDataPublisher extends DataPublisher {
         }
 
         // The directory where the workUnitState wrote its output data. It is a combination of WRITER_OUTPUT_DIR and
-        // WRITER_FINAL_PATH
+        // WRITER_FILE_PATH
         Path writerOutputDir =
             new Path(workUnitState.getProp(ForkOperatorUtils.getPropertyNameForBranch(
                 ConfigurationKeys.WRITER_OUTPUT_DIR, this.branches, i)), workUnitState.getProp(writerFilePathKey));

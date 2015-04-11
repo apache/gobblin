@@ -129,20 +129,20 @@ public class AvroHdfsDatePartitionedWriter implements DataWriter<GenericRecord> 
     Optional<Object> writerPartitionColumnValue = AvroUtils.getFieldValue(record, this.partitionColumnName);
     assert writerPartitionColumnValue.isPresent();
 
-    Path path = getPathForColumnValue((Long) writerPartitionColumnValue.get());
+    Path writerOutputPath = getPathForColumnValue((Long) writerPartitionColumnValue.get());
 
     // If the path is not in pathToWriterMap, construct a new DataWriter, add it to the map, and write the record
     // If the path is in pathToWriterMap simply retrieve the writer, and write the record
-    if (!this.pathToWriterMap.containsKey(path)) {
+    if (!this.pathToWriterMap.containsKey(writerOutputPath)) {
 
-      LOG.info("Creating a new file writer for path: " + path);
+      LOG.info("Creating a new DataWriter for path: " + new Path(this.baseFilePath, writerOutputPath));
 
-      DataWriter<GenericRecord> avroHdfsDataWriter = createAvroHdfsDataWriterForPath(path);
+      DataWriter<GenericRecord> avroHdfsDataWriter = createAvroHdfsDataWriterForPath(writerOutputPath);
 
-      this.pathToWriterMap.put(path, avroHdfsDataWriter);
+      this.pathToWriterMap.put(writerOutputPath, avroHdfsDataWriter);
       avroHdfsDataWriter.write(record);
     } else {
-      this.pathToWriterMap.get(path).write(record);
+      this.pathToWriterMap.get(writerOutputPath).write(record);
     }
   }
 
