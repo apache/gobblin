@@ -7,7 +7,10 @@ import org.apache.avro.generic.GenericRecord;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
-
+/**
+ * Extends the {@link AvroDataWriterBuilder} class, and is used to writer Avro data in a date-partitioned fashion. There
+ * is currently only support for writing data to HDFS.
+ */
 public class AvroDatePartitionedWriterBuilder extends AvroDataWriterBuilder {
 
   @Override

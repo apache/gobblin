@@ -50,9 +50,9 @@ public abstract class DataPublisher implements Closeable {
    * First publish the metadata via {@link DataPublisher#publishMetadata(Collection)}, and then publish the output data
    * via the {@link DataPublisher#publishData(Collection)} method.
    *
-   * @param states is a {@link Collection} of {@link WorkUnitState}s. Each {@link WorkUnitState} is the result of a
-   * {@link WorkUnit} that has already been run by the framework.
-   * @throws IOException if there is a problem with publishing the metadata or the data
+   * @param states is a {@link Collection} of {@link WorkUnitState}s. Each {@link WorkUnitState} contains a
+   * {@link WorkUnit} that was scheduled to run, along with all the runtime information specific to the {@link WorkUnit}.
+   * @throws IOException if there is a problem with publishing the metadata or the data.
    */
   public void publish(Collection<? extends WorkUnitState> states)
       throws IOException {

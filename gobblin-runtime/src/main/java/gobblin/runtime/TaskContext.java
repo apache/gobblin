@@ -241,11 +241,6 @@ public class TaskContext {
    */
   public DataWriterBuilder getDataWriterBuilder(int branches, int index) {
     try {
-
-      System.out.println("Building writer: " + this.workUnit
-          .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUILDER_CLASS, branches, index),
-              ConfigurationKeys.DEFAULT_WRITER_BUILDER_CLASS));
-
       return (DataWriterBuilder) Class.forName(this.workUnit
           .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUILDER_CLASS, branches, index),
               ConfigurationKeys.DEFAULT_WRITER_BUILDER_CLASS)).newInstance();

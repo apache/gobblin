@@ -36,6 +36,16 @@ import gobblin.configuration.ConfigurationKeys;
 
 /**
  * A basic implementation of {@link DataPublisher} that publishes the data from the writer output directory to the final
+ * output directory.
+ *
+ * <p>
+ *
+ * The final output directory is specified by {@link ConfigurationKeys#DATA_PUBLISHER_FINAL_DIR}. The output of each
+ * writer is written to this directory. Each individual writer can also specify a path in the config key
+ * {@link ConfigurationKeys#WRITER_FILE_PATH}. Then the final output data for a writer will be
+ * {@link ConfigurationKeys#DATA_PUBLISHER_FINAL_DIR}/{@link ConfigurationKeys#WRITER_FILE_PATH}. If the
+ * {@link ConfigurationKeys#WRITER_FILE_PATH} is not specified, a default one is assigned. The default path is
+ * constructed in the {@link gobblin.source.workunit.Extract#getOutputFilePath()} method.
  */
 public class BaseDataPublisher extends DataPublisher {
 
@@ -103,7 +113,8 @@ public class BaseDataPublisher extends DataPublisher {
         // DATA_PUBLISHER_FINAL_DIR and WRITER_FILE_PATH
         Path publisherOutputDir =
             new Path(workUnitState.getProp(ForkOperatorUtils.getPropertyNameForBranch(
-                ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, this.branches, i)), workUnitState.getProp(writerFilePathKey));
+                ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, this.branches, i)),
+                workUnitState.getProp(writerFilePathKey));
 
         if (writerOutputPathsMoved.contains(writerOutputDir)) {
           // This writer output path has already been moved for another task of the same extract, so skip to the next one
