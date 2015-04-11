@@ -66,14 +66,14 @@ public class LocalTaskStateTracker extends AbstractIdleService implements TaskSt
 
   public LocalTaskStateTracker(Properties properties, TaskExecutor taskExecutor) {
     this.taskExecutor = taskExecutor;
-    this.reporterExecutor = new ScheduledThreadPoolExecutor(Integer.parseInt(properties
-        .getProperty(ConfigurationKeys.TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE_KEY,
-            ConfigurationKeys.DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE)));
-    this.reporterExecutor.setMaximumPoolSize(Integer.parseInt(properties
-            .getProperty(ConfigurationKeys.TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE_KEY,
-                ConfigurationKeys.DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE)));
-    this.maxTaskRetries = Integer.parseInt(
-        properties.getProperty(ConfigurationKeys.MAX_TASK_RETRIES_KEY, ConfigurationKeys.DEFAULT_MAX_TASK_RETRIES));
+    this.reporterExecutor = new ScheduledThreadPoolExecutor(Integer.parseInt(properties.getProperty(
+        ConfigurationKeys.TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE_KEY,
+        Integer.toString(ConfigurationKeys.DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE))));
+    this.reporterExecutor.setMaximumPoolSize(Integer.parseInt(properties.getProperty(
+        ConfigurationKeys.TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE_KEY,
+        Integer.toString(ConfigurationKeys.DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE))));
+    this.maxTaskRetries = Integer.parseInt(properties.getProperty(
+        ConfigurationKeys.MAX_TASK_RETRIES_KEY, Integer.toString(ConfigurationKeys.DEFAULT_MAX_TASK_RETRIES)));
   }
 
   @Override

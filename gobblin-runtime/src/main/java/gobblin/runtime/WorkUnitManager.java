@@ -131,8 +131,8 @@ public class WorkUnitManager extends AbstractIdleService {
           }
 
           // Create a task based off the work unit
-          Task task =
-              new Task(new TaskContext(workUnitState), this.taskStateTracker, Optional.<CountDownLatch>absent());
+          Task task = new Task(new TaskContext(workUnitState), this.taskStateTracker, taskExecutor,
+              Optional.<CountDownLatch>absent());
           // And then execute the task
           this.taskExecutor.execute(task);
         } catch (InterruptedException ie) {

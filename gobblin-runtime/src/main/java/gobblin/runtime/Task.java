@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
@@ -37,15 +38,26 @@ import gobblin.source.extractor.Extractor;
  * A physical unit of execution for a Gobblin {@link gobblin.source.workunit.WorkUnit}.
  *
  * <p>
- *     Each task will be executed by a single thread within a thread pool managed by the
- *     {@link TaskExecutor} and it consists of the following steps:
+ *     Each task is executed by a single thread in a thread pool managed by the {@link TaskExecutor}
+ *     and each {@link Fork} of the task is executed in a separate thread pool also managed by the
+ *     {@link TaskExecutor}.
  *
- * <ul>
- *     <li>Extracting, converting, and forking the source schema.</li>
- *     <li>Extracting, converting, doing row-level quality checking, and forking each data record.</li>
- *     <li>Processing the forked record in each forked branch in a {@link Fork} instance.</li>
- *     <li>Cleaning up and exiting.</li>
- * </ul>
+ *     Each {@link Task} consists of the following steps:
+ *     <ul>
+ *       <li>Extracting, converting, and forking the source schema.</li>
+ *       <li>Extracting, converting, doing row-level quality checking, and forking each data record.</li>
+ *       <li>Putting each forked record into the record queue managed by each {@link Fork}.</li>
+ *       <li>Committing output data of each {@link Fork} once all {@link Fork}s finish.</li>
+ *       <li>Cleaning up and exiting.</li>
+ *     </ul>
+ *
+ *     Each {@link Fork} consists of the following steps:
+ *     <ul>
+ *       <li>Getting the next record off the record queue.</li>
+ *       <li>Converting the record and doing row-level quality checking if applicable.</li>
+ *       <li>Writing the record out if it passes the quality checking.</li>
+ *       <li>Cleaning up and exiting once all the records have been processed.</li>
+ *     </ul>
  * </p>
  *
  * @author ynli
@@ -59,6 +71,7 @@ public class Task implements Runnable {
   private final TaskContext taskContext;
   private final TaskState taskState;
   private final TaskStateTracker taskStateTracker;
+  private final TaskExecutor taskExecutor;
   private final Optional<CountDownLatch> countDownLatch;
 
   private final List<Optional<Fork>> forks = Lists.newArrayList();
@@ -69,17 +82,20 @@ public class Task implements Runnable {
   /**
    * Instantiate a new {@link Task}.
    *
-   * @param context a {@link TaskContext} containing all necessary information
-   *                to construct and run a {@link Task}
+   * @param context a {@link TaskContext} containing all necessary information to construct and run a {@link Task}
    * @param taskStateTracker a {@link TaskStateTracker} for tracking task state
+   * @param taskExecutor a {@link TaskExecutor} for executing the {@link Task} and its {@link Fork}s
+   * @param countDownLatch an optional {@link java.util.concurrent.CountDownLatch} used to signal the task completion
    */
   @SuppressWarnings("unchecked")
-  public Task(TaskContext context, TaskStateTracker taskStateTracker, Optional<CountDownLatch> countDownLatch) {
+  public Task(TaskContext context, TaskStateTracker taskStateTracker, TaskExecutor taskExecutor,
+      Optional<CountDownLatch> countDownLatch) {
     this.taskContext = context;
     this.taskState = context.getTaskState();
     this.jobId = this.taskState.getJobId();
     this.taskId = this.taskState.getTaskId();
     this.taskStateTracker = taskStateTracker;
+    this.taskExecutor = taskExecutor;
     this.countDownLatch = countDownLatch;
   }
 
@@ -113,21 +129,25 @@ public class Task implements Runnable {
       Object schema = converter.convertSchema(extractor.getSchema(), this.taskState);
       List<Boolean> forkedSchemas = forkOperator.forkSchema(this.taskState, schema);
       if (forkedSchemas.size() != branches) {
-        throw new ForkBranchMismatchException(String
-            .format("Number of forked schemas [%d] is not equal to number of branches [%d]", forkedSchemas.size(),
-                branches));
+        throw new ForkBranchMismatchException(String.format(
+            "Number of forked schemas [%d] is not equal to number of branches [%d]", forkedSchemas.size(), branches));
       }
 
       if (inMultipleBranches(forkedSchemas) && !(schema instanceof Copyable)) {
         throw new CopyNotSupportedException(schema + " is not copyable");
       }
 
-      // Create one Fork for each forked branch
+      // Used for the main branch to wait for all forks to finish
+      CountDownLatch forkCountDownLatch = new CountDownLatch(branches);
+
+      // Create one fork for each forked branch
       for (int i = 0; i < branches; i++) {
         if (forkedSchemas.get(i)) {
           Fork fork = closer.register(
               new Fork(this.taskContext, this.taskState, branches > 1 ? ((Copyable) schema).copy() : schema,
-                  branches, i));
+                  branches, i, forkCountDownLatch));
+          // Schedule the fork to run
+          this.taskExecutor.submit(fork);
           this.forks.add(Optional.of(fork));
         } else {
           this.forks.add(Optional.<Fork>absent());
@@ -152,11 +172,45 @@ public class Task implements Runnable {
       LOG.info("Extracted " + recordsPulled + " data records");
       LOG.info("Row quality checker finished with results: " + rowResults.getResults());
 
-      // Commit data of each forked branch
+      if (pullLimit > 0) {
+        // If pull limit is set, use the actual number of records pulled.
+        this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, recordsPulled);
+      } else {
+        // Otherwise use the expected record count
+        this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, extractor.getExpectedRecordCount());
+      }
+
       for (Optional<Fork> fork : this.forks) {
         if (fork.isPresent()) {
-          fork.get().commit(recordsPulled, extractor.getExpectedRecordCount(), pullLimit);
+          // Tell the fork that the main branch is done and no new incoming data records should be expected
+          fork.get().markParentTaskDone();
+        } else {
+          forkCountDownLatch.countDown();
         }
+      }
+
+      // Wait for all forks to finish
+      forkCountDownLatch.await();
+
+      // Check if all forks succeeded
+      boolean allForksSucceeded = true;
+      for (Optional<Fork> fork : this.forks) {
+        if (fork.isPresent()) {
+          if (fork.get().isSucceeded()) {
+            fork.get().commit();
+          } else {
+            allForksSucceeded = false;
+          }
+        }
+      }
+
+      if (allForksSucceeded) {
+        // Set the task state to SUCCESSFUL. The state is not set to COMMITTED
+        // as the data publisher will do that upon successful data publishing.
+        this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
+      } else {
+        LOG.error(String.format("Not all forks of task %s succeeded", this.taskId));
+        this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
       }
     } catch (Throwable t) {
       LOG.error(String.format("Task %s failed", this.taskId), t);
@@ -209,6 +263,15 @@ public class Task implements Runnable {
    */
   public TaskState getTaskState() {
     return this.taskState;
+  }
+
+  /**
+   * Get the list of {@link Fork}s created by this {@link Task}.
+   *
+   * @return the list of {@link Fork}s created by this {@link Task}
+   */
+  public List<Optional<Fork>> getForks() {
+    return ImmutableList.copyOf(this.forks);
   }
 
   /**
@@ -296,9 +359,29 @@ public class Task implements Runnable {
       throw new CopyNotSupportedException(convertedRecord + " is not copyable");
     }
 
-    for (int i = 0; i < branches; i++) {
-      if (this.forks.get(i).isPresent() && forkedRecords.get(i)) {
-        this.forks.get(i).get().processRecord(makesCopy ? ((Copyable) convertedRecord).copy() : convertedRecord);
+    // If the record has been successfully put into the queues of every forks
+    boolean allPutsSucceeded = false;
+    // Use an array of primitive boolean type to avoid unnecessary boxing/unboxing
+    boolean[] succeededPuts = new boolean[branches];
+    // Put the record into the record queue of each fork. A put may timeout and return a false, in which
+    // case the put needs to be retried in the next iteration along with other failed puts. This goes on
+    // until all puts succeed, at which point the task moves to the next record.
+    while (!allPutsSucceeded) {
+      allPutsSucceeded = true;
+      for (int i = 0; i < branches; i++) {
+        if (succeededPuts[i]) {
+          continue;
+        }
+        if (this.forks.get(i).isPresent() && forkedRecords.get(i)) {
+          boolean succeeded =
+              this.forks.get(i).get().putRecord(makesCopy ? ((Copyable) convertedRecord).copy() : convertedRecord);
+          succeededPuts[i] = succeeded;
+          if (!succeeded) {
+            allPutsSucceeded = false;
+          }
+        } else {
+          succeededPuts[i] = true;
+        }
       }
     }
   }

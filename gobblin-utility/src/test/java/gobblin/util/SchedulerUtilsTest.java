@@ -187,7 +187,7 @@ public class SchedulerUtilsTest {
 
   @Test
   public void testLoadJobConfigsForCommonPropsFile()
-      throws ConfigurationException {
+      throws ConfigurationException, IOException {
     File commonPropsFile = new File(SUB_DIR1, "test.properties");
 
     Properties properties = new Properties();
@@ -224,7 +224,7 @@ public class SchedulerUtilsTest {
 
   @Test
   public void testLoadJobConfig()
-      throws ConfigurationException {
+      throws ConfigurationException, IOException {
     File jobConfigFile = new File(SUB_DIR11, "test111.pull");
     Properties properties = new Properties();
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, JOB_CONF_ROOT_DIR.getAbsolutePath());

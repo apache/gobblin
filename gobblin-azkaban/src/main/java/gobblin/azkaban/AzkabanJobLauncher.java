@@ -37,6 +37,8 @@ public class AzkabanJobLauncher extends AbstractJob {
 
   private static final String HADOOP_FS_DEFAULT_NAME = "fs.default.name";
   private static final String AZKABAN_LINK_JOBEXEC_URL = "azkaban.link.jobexec.url";
+  private static final String HADOOP_TOKEN_FILE_LOCATION = "HADOOP_TOKEN_FILE_LOCATION";
+  private static final String MAPREDUCE_JOB_CREDENTIALS_BINARY = "mapreduce.job.credentials.binary";
 
   private final Properties properties;
   private final JobLauncher jobLauncher;
@@ -60,8 +62,14 @@ public class AzkabanJobLauncher extends AbstractJob {
     }
 
     // Set the job tracking URL to point to the Azkaban job execution link URL
-    this.properties
-        .setProperty(ConfigurationKeys.JOB_TRACKING_URL_KEY, Strings.nullToEmpty(conf.get(AZKABAN_LINK_JOBEXEC_URL)));
+    this.properties.setProperty(
+        ConfigurationKeys.JOB_TRACKING_URL_KEY, Strings.nullToEmpty(conf.get(AZKABAN_LINK_JOBEXEC_URL)));
+
+    // Necessary for compatibility with Azkaban's hadoopJava job type
+    // http://azkaban.github.io/azkaban/docs/2.5/#hadoopjava-type
+    if (System.getenv(HADOOP_TOKEN_FILE_LOCATION) != null) {
+      this.properties.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, System.getenv(HADOOP_TOKEN_FILE_LOCATION));
+    }
 
     // Create a JobLauncher instance depending on the configuration
     this.jobLauncher = JobLauncherFactory.newJobLauncher(this.properties);
