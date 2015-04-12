@@ -31,10 +31,18 @@ import gobblin.util.ForkOperatorUtils;
  *
  * The writer takes in each Avro record, extracts out a specific field, and based on the the value of the column it
  * writes the data into a specific file. The column is assumed to be of type {@link Long}, and the value is treated as
- * a timestamp. The timestamp is converted into a directory of the form [yyyy]/[MM][dd]/. The complete output path for a
- * directory is "/baseFilePath/daily/[yyyy]/[MM]/[dd]/fileName.avro". The baseFilePath is specified by the configuration
- * key {@link ConfigurationKeys#WRITER_FILE_PATH}. The writer used the configuration key
- * {@link ConfigurationKeys#WRITER_PARTITION_COLUMN_NAME} to determine the name of the column to partition by.
+ * a timestamp. By default, the timestamp is converted into a directory of the form [yyyy]/[MM][dd]/. However, the
+ * actual pattern used to construct the path is specified by {@link ConfigurationKeys#WRITER_PARTITION_PATTERN}. This
+ * class uses Joda's {@link DateTimeFormatter} to parse a timestamp, and convert it to a {@link String}. The
+ * {@link String} is then converted to a Path, which specifies where the record will be written.
+ *
+ * <p>
+ *
+ * By default, The complete output path for a directory is "/baseFilePath/daily/[yyyy]/[MM]/[dd]/fileName.avro". The
+ * baseFilePath is specified by the configuration key {@link ConfigurationKeys#WRITER_FILE_PATH}. The writer uses the
+ * configuration key {@link ConfigurationKeys#WRITER_PARTITION_COLUMN_NAME} to determine the name of the column to
+ * partition by. The "daily" portion of the path is also configurable, and can be changed by setting
+ * {@link ConfigurationKeys#DEFAULT_WRITER_PARTITION_LEVEL}.
  *
  * <p>
  *
@@ -54,7 +62,7 @@ import gobblin.util.ForkOperatorUtils;
 public class AvroHdfsDatePartitionedWriter implements DataWriter<GenericRecord> {
 
   /**
-   * This is the base file path that all data will be written to. For example, data will be written to
+   * This is the base file path that all data will be written to. By default, data will be written to
    * /baseFilePath/daily/[yyyy]/[MM]/[dd]/.
    */
   private final String baseFilePath;
@@ -65,20 +73,22 @@ public class AvroHdfsDatePartitionedWriter implements DataWriter<GenericRecord> 
   private final String partitionColumnName;
 
   /**
+   * The name that separates the {@link #baseFilePath} from the path created by the {@link #timestampToPathFormatter}.
+   * The default value is specified by {@link ConfigurationKeys#DEFAULT_WRITER_PARTITION_LEVEL}.
+   */
+  private final String partitionLevel;
+
+  /**
+   * This {@link DateTimeFormatter} controls how the date-partitioned directories will be created. The default pattern
+   * used is specified by {@link ConfigurationKeys#DEFAULT_WRITER_PARTITION_PATTERN}. The
+   * {@link DateTimeFormatter#print(long)} method is used to convert a timestamp to a {@link String}.
+   */
+  private final DateTimeFormatter timestampToPathFormatter;
+
+  /**
    * Maps a {@link Path} to the the {@link DataWriter} that is writing data to the Path.
    */
   private final Map<Path, DataWriter<GenericRecord>> pathToWriterMap = Maps.newHashMap();
-
-  /**
-   * This {@link DateTimeFormatter} controls how the date-partitioned directories will be created. It creates
-   * directories by converting a timestamp to the to the pattern "yyyy/MM/dd".
-   */
-  private static final DateTimeFormatter DAILY_FOLDER_FORMATTER = DateTimeFormat.forPattern("yyyy/MM/dd");
-
-  /**
-   * The name that separates the {@link #baseFilePath} from the path created by the {@link #DAILY_FOLDER_FORMATTER}.
-   */
-  private static final String DATE_PARTITIONED_NAME = "daily";
 
   // Variables needed to build DataWriters
   private final Destination destination;
@@ -100,10 +110,24 @@ public class AvroHdfsDatePartitionedWriter implements DataWriter<GenericRecord> 
     this.branch = branch;
     this.properties = destination.getProperties();
 
+    // Confirm that all input parameters are not null
+    Preconditions.checkNotNull(this.destination);
+    Preconditions.checkNotNull(this.writerId);
+    Preconditions.checkNotNull(this.schema);
+    Preconditions.checkNotNull(this.writerOutputFormat);
     Preconditions.checkNotNull(this.branch);
     Preconditions.checkNotNull(this.properties);
 
     this.baseFilePath = this.properties.getProp(getWriterFilePath(this.branch));
+
+    // Initialize the partitionLevel
+    this.partitionLevel =
+        this.properties.getProp(getWriterPartitionLevel(this.branch), ConfigurationKeys.DEFAULT_WRITER_PARTITION_LEVEL);
+
+    // Initialize the timestampToPathFormatter
+    this.timestampToPathFormatter =
+        DateTimeFormat.forPattern(this.properties.getProp(getWriterPartitionPattern(this.branch),
+            ConfigurationKeys.DEFAULT_WRITER_PARTITION_PATTERN));
 
     // Check that ConfigurationKeys.WRITER_PARTITION_COLUMN_NAME has been specified and is properly formed
 
@@ -111,7 +135,6 @@ public class AvroHdfsDatePartitionedWriter implements DataWriter<GenericRecord> 
         "Missing required property " + ConfigurationKeys.WRITER_PARTITION_COLUMN_NAME);
 
     this.partitionColumnName = this.properties.getProp(getWriterPartitionColumnName(this.branch));
-
     Optional<Schema> writerPartitionColumnSchema = AvroUtils.getFieldSchema(this.schema, this.partitionColumnName);
 
     Preconditions.checkArgument(writerPartitionColumnSchema.isPresent(), "The column " + this.partitionColumnName
@@ -210,12 +233,12 @@ public class AvroHdfsDatePartitionedWriter implements DataWriter<GenericRecord> 
   }
 
   /**
-   * Given a timestamp of type long, convert the timestamp to a {@link Path} using the {@link #DAILY_FOLDER_FORMATTER}.
+   * Given a timestamp of type long, convert the timestamp to a {@link Path} using the {@link #timestampToPathFormatter}.
    * @param timestamp is the timestamp that needs to be converted to a path.
    * @return a {@link Path} based on the value of the timestamp.
    */
   private Path getPathForColumnValue(long timestamp) {
-    return new Path(this.baseFilePath, DATE_PARTITIONED_NAME + Path.SEPARATOR + DAILY_FOLDER_FORMATTER.print(timestamp));
+    return new Path(this.baseFilePath, partitionLevel + Path.SEPARATOR + timestampToPathFormatter.print(timestamp));
   }
 
   /**
@@ -230,5 +253,19 @@ public class AvroHdfsDatePartitionedWriter implements DataWriter<GenericRecord> 
    */
   private String getWriterFilePath(int branch) {
     return ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, branch);
+  }
+
+  /**
+   * Helper method to get the branched configuration key for {@link ConfigurationKeys#WRITER_PARTITION_LEVEL}.
+   */
+  private String getWriterPartitionLevel(int branch) {
+    return ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_PARTITION_LEVEL, branch);
+  }
+
+  /**
+   * Helper method to get the branched configuration key for {@link ConfigurationKeys#WRITER_PARTITION_PATTERN}.
+   */
+  private String getWriterPartitionPattern(int branch) {
+    return ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_PARTITION_PATTERN, branch);
   }
 }
