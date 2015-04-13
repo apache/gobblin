@@ -6,10 +6,9 @@ import java.util.Map;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.fs.Path;
-
+import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +46,7 @@ import gobblin.util.ForkOperatorUtils;
  * <p>
  *
  * The class works by maintaining a {@link Map} of {@link Path}s to {@link DataWriter}s called {@link #pathToWriterMap}.
- * The {@link AvroHdfsDatePartitionedWriter#write(GenericRecord)} takes each record, extracts out the the value of the
+ * The {@link AvroHdfsTimePartitionedWriter#write(GenericRecord)} takes each record, extracts out the the value of the
  * field specified by {@link ConfigurationKeys#WRITER_PARTITION_COLUMN_NAME}, and constructs a {@link Path} based on the
  * field value. If a {@link DataWriter} already exists for the path, the record is simply written to the existing
  * {@link DataWriter}. If one does not exist, then a new {@link DataWriter} is created, added to the Map, and then the
@@ -59,7 +58,7 @@ import gobblin.util.ForkOperatorUtils;
  * The implementation is to simply iterate over the values of {@link #pathToWriterMap} and call the corresponding method
  * on each {@link DataWriter}.
  */
-public class AvroHdfsDatePartitionedWriter implements DataWriter<GenericRecord> {
+public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> {
 
   /**
    * This is the base file path that all data will be written to. By default, data will be written to
@@ -98,9 +97,9 @@ public class AvroHdfsDatePartitionedWriter implements DataWriter<GenericRecord> 
   private final State properties;
   private final int branch;
 
-  private static final Logger LOG = LoggerFactory.getLogger(AvroHdfsDatePartitionedWriter.class);
+  private static final Logger LOG = LoggerFactory.getLogger(AvroHdfsTimePartitionedWriter.class);
 
-  public AvroHdfsDatePartitionedWriter(Destination destination, String writerId, Schema schema,
+  public AvroHdfsTimePartitionedWriter(Destination destination, String writerId, Schema schema,
       WriterOutputFormat writerOutputFormat, int branch) {
 
     this.destination = destination;
@@ -126,8 +125,11 @@ public class AvroHdfsDatePartitionedWriter implements DataWriter<GenericRecord> 
 
     // Initialize the timestampToPathFormatter
     this.timestampToPathFormatter =
-        DateTimeFormat.forPattern(this.properties.getProp(getWriterPartitionPattern(this.branch),
-            ConfigurationKeys.DEFAULT_WRITER_PARTITION_PATTERN));
+        DateTimeFormat.forPattern(
+            this.properties.getProp(getWriterPartitionPattern(this.branch),
+                ConfigurationKeys.DEFAULT_WRITER_PARTITION_PATTERN)).withZone(
+            DateTimeZone.forID(this.properties.getProp(ConfigurationKeys.WRITER_PARTITION_TIMEZONE,
+                ConfigurationKeys.DEFAULT_WRITER_PARTITION_TIMEZONE)));
 
     // Check that ConfigurationKeys.WRITER_PARTITION_COLUMN_NAME has been specified and is properly formed
 
@@ -210,7 +212,7 @@ public class AvroHdfsDatePartitionedWriter implements DataWriter<GenericRecord> 
 
   /**
    * Helper method to create a new {@link DataWriter} that will write to a specific {@link Path}. The new
-   * {@link DataWriter} will have all the same properties use to construct {@link AvroHdfsDatePartitionedWriter}, except
+   * {@link DataWriter} will have all the same properties use to construct {@link AvroHdfsTimePartitionedWriter}, except
    * the {@link ConfigurationKeys#WRITER_FILE_PATH} will be different.
    * @param path that the new {@link DataWriter} will write to.
    * @return a new {@link DataWriter} configured to write to the specified path.

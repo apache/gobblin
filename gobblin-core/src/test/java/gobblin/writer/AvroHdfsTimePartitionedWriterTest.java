@@ -19,12 +19,12 @@ import gobblin.configuration.State;
 
 
 /**
- * Tests for {@link AvroHdfsDatePartitionedWriterTest}.
+ * Tests for {@link AvroHdfsTimePartitionedWriterTest}.
  */
 @Test(groups = { "gobblin.writer" })
-public class AvroHdfsDatePartitionedWriterTest {
+public class AvroHdfsTimePartitionedWriterTest {
 
-  private static final String SIMPLE_CLASS_NAME = AvroHdfsDatePartitionedWriterTest.class.getSimpleName();
+  private static final String SIMPLE_CLASS_NAME = AvroHdfsTimePartitionedWriterTest.class.getSimpleName();
 
   private static final String TEST_ROOT_DIR = SIMPLE_CLASS_NAME + "-test";
   private static final String STAGING_DIR = TEST_ROOT_DIR + Path.SEPARATOR + "staging";
@@ -78,7 +78,7 @@ public class AvroHdfsDatePartitionedWriterTest {
 
     // Build a writer to write test records
     this.writer =
-        new AvroDatePartitionedWriterBuilder().writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
+        new AvroTimePartitionedWriterBuilder().writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
             .writeInFormat(WriterOutputFormat.AVRO).withWriterId(WRITER_ID).withSchema(this.schema).forBranch(-1)
             .build();
   }

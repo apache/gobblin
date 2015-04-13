@@ -11,7 +11,7 @@ import com.google.common.base.Strings;
  * Extends the {@link AvroDataWriterBuilder} class, and is used to writer Avro data in a date-partitioned fashion. There
  * is currently only support for writing data to HDFS.
  */
-public class AvroDatePartitionedWriterBuilder extends AvroDataWriterBuilder {
+public class AvroTimePartitionedWriterBuilder extends AvroDataWriterBuilder {
 
   @Override
   public DataWriter<GenericRecord> build() throws IOException {
@@ -23,7 +23,7 @@ public class AvroDatePartitionedWriterBuilder extends AvroDataWriterBuilder {
 
     switch (this.destination.getType()) {
       case HDFS:
-        return new AvroHdfsDatePartitionedWriter(this.destination, this.writerId, this.schema, this.format, this.branch);
+        return new AvroHdfsTimePartitionedWriter(this.destination, this.writerId, this.schema, this.format, this.branch);
       case KAFKA:
         throw new UnsupportedOperationException("The builder " + this.getClass().getName() + " cannot write to "
             + this.destination.getType());
