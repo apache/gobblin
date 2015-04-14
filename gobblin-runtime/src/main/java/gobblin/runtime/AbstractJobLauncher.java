@@ -394,7 +394,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     List<WorkUnitState> previousWorkUnitStates = Lists.newArrayList();
     for (TaskState taskState : previousJobState.getTaskStates()) {
       WorkUnitState workUnitState = new WorkUnitState(taskState.getWorkunit());
-      workUnitState.setId(taskState.getId());
       workUnitState.addAll(taskState);
       previousWorkUnitStates.add(workUnitState);
     }
