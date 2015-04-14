@@ -34,6 +34,7 @@ import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
 import gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
 import gobblin.util.ForkOperatorUtils;
+import gobblin.util.WriterUtils;
 import gobblin.writer.DataWriter;
 import gobblin.writer.Destination;
 
@@ -300,15 +301,6 @@ public class Fork implements Closeable, Runnable {
   @SuppressWarnings("unchecked")
   private DataWriter<Object> buildWriter()
       throws IOException, SchemaConversionException {
-    String branchName = ForkOperatorUtils
-        .getBranchName(this.taskState, this.index, ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME + this.index);
-    String writerFilePathKey =
-        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, this.branches, this.index);
-    if (!this.taskState.contains(writerFilePathKey)) {
-      this.taskState.setProp(writerFilePathKey, ForkOperatorUtils
-          .getPathForBranch(this.taskState.getExtract().getOutputFilePath(), branchName, this.branches));
-    }
-
     return this.taskContext.getDataWriterBuilder(this.branches, this.index)
         .writeTo(Destination.of(this.taskContext.getDestinationType(this.branches, this.index), this.taskState))
         .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index)).withWriterId(this.taskId)
