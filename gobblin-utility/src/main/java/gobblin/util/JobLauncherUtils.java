@@ -72,22 +72,22 @@ public class JobLauncherUtils {
    * @param state workunit state
    */
   public static void cleanStagingData(State state, Logger logger) throws IOException {
-    int branches = state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
+    int numBranches = state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
 
-    for (int i = 0; i < branches; i++) {
+    for (int branchId = 0; branchId < numBranches; branchId++) {
       String writerFsUri =
           state.getProp(
-              ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, branches, i),
+              ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
               ConfigurationKeys.LOCAL_FS_URI);
       FileSystem fs = FileSystem.get(URI.create(writerFsUri), new Configuration());
 
-      Path stagingPath = WriterUtils.getWriterStagingDir(state, branches > 1 ? i : -1);
+      Path stagingPath = WriterUtils.getWriterStagingDir(state, numBranches, branchId);
       if (fs.exists(stagingPath)) {
         logger.info("Cleaning up staging directory " + stagingPath.toUri().getPath());
         fs.delete(stagingPath, true);
       }
 
-      Path outputPath = WriterUtils.getWriterOutputDir(state, branches > 1 ? i : -1);
+      Path outputPath = WriterUtils.getWriterOutputDir(state, numBranches, branchId);
       if (fs.exists(outputPath)) {
         logger.info("Cleaning up output directory " + outputPath.toUri().getPath());
         fs.delete(outputPath, true);

@@ -134,8 +134,8 @@ public class JobLauncherUtilsTest {
               tableName)));
 
       state.setProp(ConfigurationKeys.FORK_BRANCHES_KEY, "2");
-      state.setProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.FORK_BRANCH_NAME_KEY, 0), branchName0);
-      state.setProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.FORK_BRANCH_NAME_KEY, 1), branchName1);
+      state.setProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.FORK_BRANCH_NAME_KEY, 2, 0), branchName0);
+      state.setProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.FORK_BRANCH_NAME_KEY, 2, 1), branchName1);
 
       state.setProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, 2, 0),
           ConfigurationKeys.LOCAL_FS_URI);
@@ -152,22 +152,22 @@ public class JobLauncherUtilsTest {
 
       Path writerStagingPath0 =
           new Path(writerStagingDir0, ForkOperatorUtils.getPathForBranch(state, state.getExtract().getOutputFilePath(),
-              0));
+              2, 0));
       fs.mkdirs(writerStagingPath0);
 
       Path writerStagingPath1 =
           new Path(writerStagingDir1, ForkOperatorUtils.getPathForBranch(state, state.getExtract().getOutputFilePath(),
-              1));
+              2, 1));
       fs.mkdirs(writerStagingPath1);
 
       Path writerOutputPath0 =
           new Path(writerOutputDir0, ForkOperatorUtils.getPathForBranch(state, state.getExtract().getOutputFilePath(),
-              0));
+              2, 0));
       fs.mkdirs(writerOutputPath0);
 
       Path writerOutputPath1 =
           new Path(writerOutputDir1, ForkOperatorUtils.getPathForBranch(state, state.getExtract().getOutputFilePath(),
-              1));
+              2, 1));
       fs.mkdirs(writerOutputPath1);
 
       JobLauncherUtils.cleanStagingData(state, LoggerFactory.getLogger(JobLauncherUtilsTest.class));

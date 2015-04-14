@@ -62,27 +62,27 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
     SNAPPY
   }
 
-  public AvroHdfsDataWriter(State properties, String fileName, Schema schema, int branch)
+  public AvroHdfsDataWriter(State properties, String fileName, Schema schema, int numBranches, int branchId)
       throws IOException {
 
     String uri = properties
-        .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, branch),
+        .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
             ConfigurationKeys.LOCAL_FS_URI);
 
-    Path stagingDir = WriterUtils.getWriterStagingDir(properties, branch);
+    Path stagingDir = WriterUtils.getWriterStagingDir(properties, numBranches, branchId);
 
-    Path outputDir = WriterUtils.getWriterOutputDir(properties, branch);
+    Path outputDir = WriterUtils.getWriterOutputDir(properties, numBranches, branchId);
 
     String codecType = properties
-        .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_CODEC_TYPE, branch),
+        .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_CODEC_TYPE, numBranches, branchId),
             AvroHdfsDataWriter.CodecType.DEFLATE.name());
 
     int bufferSize = Integer.parseInt(properties
-        .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUFFER_SIZE, branch),
+        .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUFFER_SIZE, numBranches, branchId),
             ConfigurationKeys.DEFAULT_BUFFER_SIZE));
 
     int deflateLevel = Integer.parseInt(properties
-        .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DEFLATE_LEVEL, branch),
+        .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DEFLATE_LEVEL, numBranches, branchId),
             ConfigurationKeys.DEFAULT_DEFLATE_LEVEL));
 
     Configuration conf = new Configuration();

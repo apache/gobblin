@@ -29,30 +29,17 @@ import gobblin.configuration.WorkUnitState;
 public class ForkOperatorUtils {
 
   /**
-   * Get a branch name for the given branch.
-   *
-   * @param state       a {@link State} object carrying configuration properties
-   * @param index       branch index (non-negative)
-   * @param defaultName default branch name
-   * @return a branch name
-   */
-  public static String getBranchName(State state, int index, String defaultName) {
-    Preconditions.checkArgument(index >= 0, "index is expected to be non-negative");
-    return state.getProp(ConfigurationKeys.FORK_BRANCH_NAME_KEY + "." + index, defaultName);
-  }
-
-  /**
    * Get a new property key from an original one with branch index (if applicable).
    *
    * @param key      property key
-   * @param branches number of branches (non-negative)
-   * @param index    branch index (non-negative)
+   * @param numBranches number of branches (non-negative)
+   * @param branchId    branch index (non-negative)
    * @return a new property key
    */
-  public static String getPropertyNameForBranch(String key, int branches, int index) {
-    Preconditions.checkArgument(index >= 0, "index is expected to be non-negative");
-    Preconditions.checkArgument(branches >= 0, "branches is expected to be non-negative");
-    return branches > 1 ? key + "." + index : key;
+  public static String getPropertyNameForBranch(String key, int numBranches, int branchId) {
+    Preconditions.checkArgument(branchId >= 0, "The number of branches is expected to be non-negative");
+    Preconditions.checkArgument(numBranches >= 0, "The branchId is expected to be non-negative");
+    return numBranches > 1 ? key + "." + branchId : key;
   }
 
   /**
@@ -97,9 +84,16 @@ public class ForkOperatorUtils {
    * @param branch   branch index
    * @return a new path
    */
-  public static String getPathForBranch(State state, String path, int branch) {
-    return branch >= 0 ? path + Path.SEPARATOR
-        + ForkOperatorUtils.getBranchName(state, branch, ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME + branch) : path;
+  public static String getPathForBranch(State state, String path, int numBranches, int branchId) {
+    Preconditions.checkNotNull(state);
+    Preconditions.checkNotNull(path);
+    Preconditions.checkArgument(numBranches >= 0, "The number of branches is expected to be non-negative");
+    Preconditions.checkArgument(branchId >= 0, "The branch id is expected to be non-negative");
+
+    return numBranches > 1 ? path
+        + Path.SEPARATOR
+        + state.getProp(ConfigurationKeys.FORK_BRANCH_NAME_KEY + "." + branchId,
+            ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME + branchId) : path;
   }
 
   /**

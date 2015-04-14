@@ -46,9 +46,9 @@ public class AvroDataWriterBuilder extends DataWriterBuilder<Schema, GenericReco
         State properties = this.destination.getProperties();
 
         String fileName =
-            WriterUtils.getWriterFileName(properties, this.branch, this.writerId, this.format.getExtension());
+            WriterUtils.getWriterFileName(properties, this.branches, this.branch, this.writerId, this.format.getExtension());
 
-        return new AvroHdfsDataWriter(properties, fileName, this.schema, this.branch);
+        return new AvroHdfsDataWriter(properties, fileName, this.schema, this.branches, this.branch);
       case KAFKA:
         return new AvroKafkaDataWriter();
       default:
