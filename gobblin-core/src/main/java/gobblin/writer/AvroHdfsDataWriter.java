@@ -66,21 +66,18 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
     String uri = properties
         .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, branch),
             ConfigurationKeys.LOCAL_FS_URI);
-
-    Path stagingDir = new Path(
-        properties.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_DIR, branch)),  relFilePath);
-
-    Path outputDir = new Path(
-        properties.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR, branch)), relFilePath);
-
+    String stagingDir =
+        properties.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_DIR, branch)) +
+            Path.SEPARATOR + relFilePath;
+    String outputDir =
+        properties.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR, branch)) +
+            Path.SEPARATOR + relFilePath;
     String codecType = properties
         .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_CODEC_TYPE, branch),
             AvroHdfsDataWriter.CodecType.DEFLATE.name());
-
     int bufferSize = Integer.parseInt(properties
         .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUFFER_SIZE, branch),
             ConfigurationKeys.DEFAULT_BUFFER_SIZE));
-
     int deflateLevel = Integer.parseInt(properties
         .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DEFLATE_LEVEL, branch),
             ConfigurationKeys.DEFAULT_DEFLATE_LEVEL));
@@ -93,16 +90,10 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
     this.fs = FileSystem.get(URI.create(uri), conf);
 
     this.stagingFile = new Path(stagingDir, fileName);
-
     // Deleting the staging file if it already exists, which can happen if the
     // task failed and the staging file didn't get cleaned up for some reason.
     // Deleting the staging file prevents the task retry from being blocked.
-
-    if (this.fs.exists(stagingDir)) {
-      LOG.warn(String.format("Task staging dir %s already exists, deleting it ", stagingDir));
-      this.fs.delete(stagingDir, true);
-
-    } else if (this.fs.exists(this.stagingFile)) {
+    if (this.fs.exists(this.stagingFile)) {
       LOG.warn(String.format("Task staging file %s already exists, deleting it", this.stagingFile));
       this.fs.delete(this.stagingFile, false);
     }
