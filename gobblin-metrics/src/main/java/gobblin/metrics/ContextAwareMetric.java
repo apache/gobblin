@@ -21,9 +21,14 @@ public interface ContextAwareMetric extends Metric, Taggable {
   /**
    * Get the fully-qualified name of the metric.
    *
+   * <p>
+   *   See {@link Taggable#metricNamePrefix(boolean)} for the semantic of {@code includeTagKeys}.
+   * </p>
+   *
+   * @param includeTagKeys whether to include tag keys in the metric name prefix
    * @return the fully-qualified name of the metric
    */
-  public String getFullyQualifiedName();
+  public String getFullyQualifiedName(boolean includeTagKeys);
 
   /**
    * Get the {@link MetricContext} the metric is registered in.

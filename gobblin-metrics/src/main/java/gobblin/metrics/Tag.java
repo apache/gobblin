@@ -29,4 +29,9 @@ public class Tag<T> extends AbstractMap.SimpleEntry<String, T> {
   public Tag(Map.Entry<? extends String, ? extends T> entry) {
     super(entry);
   }
+
+  @Override
+  public String toString() {
+    return getKey() + ":" + getValue();
+  }
 }

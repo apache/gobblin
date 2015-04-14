@@ -48,7 +48,7 @@ public class TaggedTest {
 
   @Test(dependsOnMethods = "testAddTags")
   public void testGetTags() {
-    List<Tag> tags = this.tagged.getTags();
+    List<Tag<?>> tags = this.tagged.getTags();
     Assert.assertEquals(tags.size(), 2);
     Assert.assertEquals(tags.get(0).getKey(), JOB_ID_KEY);
     Assert.assertEquals(tags.get(0).getValue(), JOB_ID);
@@ -58,6 +58,10 @@ public class TaggedTest {
 
   @Test(dependsOnMethods = "testAddTags")
   public void testMetricNamePrefix() {
-    Assert.assertEquals(this.tagged.metricNamePrefix(), MetricRegistry.name(JOB_ID, Integer.toString(PROJECT_VERSION)));
+    Assert.assertEquals(
+        this.tagged.metricNamePrefix(false), MetricRegistry.name(JOB_ID, Integer.toString(PROJECT_VERSION)));
+    Assert.assertEquals(
+        this.tagged.metricNamePrefix(true),
+        MetricRegistry.name(this.tagged.getTags().get(0).toString(), this.tagged.getTags().get(1).toString()));
   }
 }

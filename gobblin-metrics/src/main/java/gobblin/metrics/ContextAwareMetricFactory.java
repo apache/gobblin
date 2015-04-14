@@ -11,12 +11,7 @@
 
 package gobblin.metrics;
 
-import com.codahale.metrics.Counter;
-import com.codahale.metrics.ExponentiallyDecayingReservoir;
-import com.codahale.metrics.Histogram;
-import com.codahale.metrics.Meter;
 import com.codahale.metrics.Metric;
-import com.codahale.metrics.Timer;
 
 
 /**
@@ -61,7 +56,7 @@ public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
 
     @Override
     public ContextAwareCounter newMetric(MetricContext context, String name) {
-      return new ContextAwareCounter(context, name, new Counter());
+      return new ContextAwareCounter(context, name);
     }
 
     @Override
@@ -77,7 +72,7 @@ public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
 
     @Override
     public ContextAwareMeter newMetric(MetricContext context, String name) {
-      return new ContextAwareMeter(context, name, new Meter());
+      return new ContextAwareMeter(context, name);
     }
 
     @Override
@@ -93,7 +88,7 @@ public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
 
     @Override
     public ContextAwareHistogram newMetric(MetricContext context, String name) {
-      return new ContextAwareHistogram(context, name, new Histogram(new ExponentiallyDecayingReservoir()));
+      return new ContextAwareHistogram(context, name);
     }
 
     @Override
@@ -109,7 +104,7 @@ public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
 
     @Override
     public ContextAwareTimer newMetric(MetricContext context, String name) {
-      return new ContextAwareTimer(context, name, new Timer());
+      return new ContextAwareTimer(context, name);
     }
 
     @Override

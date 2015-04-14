@@ -40,14 +40,12 @@ class ContextAwareMeter extends Meter implements ContextAwareMetric {
 
   private final String name;
   private final MetricContext context;
-  private final Meter meter;
   private final Tagged tagged;
   private final Optional<ContextAwareMeter> parentMeter;
 
-  ContextAwareMeter(MetricContext context, String name, Meter meter) {
+  ContextAwareMeter(MetricContext context, String name) {
     this.name = name;
     this.context = context;
-    this.meter = meter;
     this.tagged = new Tagged();
 
     Optional<MetricContext> parentContext = context.getParent();
@@ -60,43 +58,15 @@ class ContextAwareMeter extends Meter implements ContextAwareMetric {
 
   @Override
   public void mark() {
-    this.meter.mark();
-    if (this.parentMeter.isPresent()) {
-      this.parentMeter.get().mark();
-    }
+    mark(1);
   }
 
   @Override
   public void mark(long n) {
-    this.meter.mark(n);
+    super.mark(n);
     if (this.parentMeter.isPresent()) {
       this.parentMeter.get().mark(n);
     }
-  }
-
-  @Override
-  public long getCount() {
-    return this.meter.getCount();
-  }
-
-  @Override
-  public double getFifteenMinuteRate() {
-    return this.meter.getFifteenMinuteRate();
-  }
-
-  @Override
-  public double getFiveMinuteRate() {
-    return this.meter.getFiveMinuteRate();
-  }
-
-  @Override
-  public double getMeanRate() {
-    return this.meter.getMeanRate();
-  }
-
-  @Override
-  public double getOneMinuteRate() {
-    return this.meter.getOneMinuteRate();
   }
 
   @Override
@@ -105,8 +75,8 @@ class ContextAwareMeter extends Meter implements ContextAwareMetric {
   }
 
   @Override
-  public String getFullyQualifiedName() {
-    return MetricRegistry.name(metricNamePrefix(), this.name);
+  public String getFullyQualifiedName(boolean includeTagKeys) {
+    return MetricRegistry.name(metricNamePrefix(includeTagKeys), this.name);
   }
 
   @Override
@@ -115,22 +85,22 @@ class ContextAwareMeter extends Meter implements ContextAwareMetric {
   }
 
   @Override
-  public void addTag(Tag tag) {
+  public void addTag(Tag<?> tag) {
     this.tagged.addTag(tag);
   }
 
   @Override
-  public void addTags(Collection<Tag> tags) {
+  public void addTags(Collection<Tag<?>> tags) {
     this.tagged.addTags(tags);
   }
 
   @Override
-  public List<Tag> getTags() {
+  public List<Tag<?>> getTags() {
     return this.tagged.getTags();
   }
 
   @Override
-  public String metricNamePrefix() {
-    return this.tagged.metricNamePrefix();
+  public String metricNamePrefix(boolean includeTagKeys) {
+    return this.tagged.metricNamePrefix(includeTagKeys);
   }
 }

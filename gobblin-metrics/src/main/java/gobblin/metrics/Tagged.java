@@ -13,12 +13,12 @@ package gobblin.metrics;
 
 import java.util.Collection;
 import java.util.List;
-
-import com.codahale.metrics.MetricRegistry;
+import java.util.Map;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 
 /**
@@ -28,43 +28,45 @@ import com.google.common.collect.Lists;
  */
 public class Tagged implements Taggable {
 
-  protected final List<Tag> tags;
+  protected final Map<String, Object> tags;
 
   public Tagged() {
-    this.tags = Lists.newArrayList();
+    this.tags = Maps.newLinkedHashMap();
   }
 
-  public Tagged(List<Tag> tags) {
-    this.tags = Lists.newArrayList(tags);
+  public Tagged(Collection<Tag<?>> tags) {
+    this.tags = Maps.newLinkedHashMap();
+    addTags(tags);
   }
 
   @Override
-  public void addTag(Tag tag) {
+  public void addTag(Tag<?> tag) {
     Preconditions.checkNotNull(tag);
-    this.tags.add(tag);
+    Preconditions.checkNotNull(tag.getValue());
+    this.tags.put(tag.getKey(), tag.getValue());
   }
 
   @Override
-  public void addTags(Collection<Tag> tags) {
-    this.tags.addAll(tags);
+  public void addTags(Collection<Tag<?>> tags) {
+    for (Tag<?> tag : tags) {
+      addTag(tag);
+    }
   }
 
   @Override
-  public List<Tag> getTags() {
-    return ImmutableList.<Tag>builder().addAll(this.tags).build();
+  public List<Tag<?>> getTags() {
+    ImmutableList.Builder<Tag<?>> builder = ImmutableList.builder();
+    for (Map.Entry<String, Object> entry : this.tags.entrySet()) {
+      builder.add(new Tag<Object>(entry.getKey(), entry.getValue()));
+    }
+    return builder.build();
   }
 
   /**
    * Get a metric name constructed from the {@link Tag}s.
    */
-  public String metricNamePrefix() {
-    if (this.tags.isEmpty()) {
-      return "";
-    }
-    String[] tagNames = new String[this.tags.size() - 1];
-    for (int i = 1; i < this.tags.size(); i++) {
-      tagNames[i - 1] = this.tags.get(i).getValue().toString();
-    }
-    return MetricRegistry.name(this.tags.get(0).getValue().toString(), tagNames);
+  @Override
+  public String metricNamePrefix(boolean includeTagKeys) {
+    return Joiner.on('.').join(includeTagKeys ? getTags() : this.tags.values());
   }
 }

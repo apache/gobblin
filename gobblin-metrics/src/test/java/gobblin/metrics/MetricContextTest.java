@@ -72,7 +72,7 @@ public class MetricContextTest {
         .addTag(new Tag<String>(JOB_ID_KEY, JOB_ID_PREFIX + 0))
         .addContextAwareScheduledReporter(TEST_REPORTER_NAME,
             new TestContextAwareScheduledReporter.TestContextAwareScheduledReporterBuilder(TEST_REPORTER_NAME))
-        .reportFullyQualifiedNames()
+        .reportFullyQualifiedNames(false)
         .build();
 
     Assert.assertEquals(this.context.getName(), CONTEXT_NAME);
@@ -80,7 +80,7 @@ public class MetricContextTest {
     Assert.assertEquals(this.context.getTags().size(), 1);
     Assert.assertEquals(this.context.getTags().get(0).getKey(), JOB_ID_KEY);
     Assert.assertEquals(this.context.getTags().get(0).getValue(), JOB_ID_PREFIX + 0);
-    Assert.assertEquals(this.context.metricNamePrefix(), JOB_ID_PREFIX + 0);
+    Assert.assertEquals(this.context.metricNamePrefix(false), JOB_ID_PREFIX + 0);
   }
 
   @Test
@@ -90,7 +90,7 @@ public class MetricContextTest {
         .addContextAwareScheduledReporter(
             TEST_REPORTER_NAME,
             new TestContextAwareScheduledReporter.TestContextAwareScheduledReporterBuilder(TEST_REPORTER_NAME))
-        .reportFullyQualifiedNames()
+        .reportFullyQualifiedNames(false)
         .build();
 
     Assert.assertEquals(this.childContext.getName(), CHILD_CONTEXT_NAME);
@@ -101,15 +101,16 @@ public class MetricContextTest {
     Assert.assertEquals(this.childContext.getTags().get(0).getValue(), JOB_ID_PREFIX + 0);
     Assert.assertEquals(this.childContext.getTags().get(1).getKey(), TASK_ID_KEY);
     Assert.assertEquals(this.childContext.getTags().get(1).getValue(), TASK_ID_PREFIX + 0);
-    Assert.assertEquals(this.childContext.metricNamePrefix(),
+    Assert.assertEquals(this.childContext.metricNamePrefix(false),
         MetricRegistry.name(JOB_ID_PREFIX + 0, TASK_ID_PREFIX + 0));
   }
 
   @Test(dependsOnMethods = "testChildContext")
   public void testContextAwareCounter() {
     ContextAwareCounter jobRecordsProcessed = this.context.contextAwareCounter(RECORDS_PROCESSED);
-    Assert.assertEquals(this.context.getCounters()
-        .get(MetricRegistry.name(this.context.metricNamePrefix(), jobRecordsProcessed.getName())), jobRecordsProcessed);
+    Assert.assertEquals(this.context.getCounters().get(
+            MetricRegistry.name(this.context.metricNamePrefix(false), jobRecordsProcessed.getName())),
+        jobRecordsProcessed);
     Assert.assertEquals(jobRecordsProcessed.getContext(), this.context);
     Assert.assertEquals(jobRecordsProcessed.getName(), RECORDS_PROCESSED);
 
@@ -119,7 +120,7 @@ public class MetricContextTest {
     Assert.assertEquals(jobRecordsProcessed.getTags().get(0).getKey(), METRIC_GROUP_KEY);
     Assert.assertEquals(jobRecordsProcessed.getTags().get(0).getValue(), INPUT_RECORDS_GROUP);
     Assert.assertEquals(
-        jobRecordsProcessed.getFullyQualifiedName(), MetricRegistry.name(INPUT_RECORDS_GROUP, RECORDS_PROCESSED));
+        jobRecordsProcessed.getFullyQualifiedName(false), MetricRegistry.name(INPUT_RECORDS_GROUP, RECORDS_PROCESSED));
 
     jobRecordsProcessed.inc();
     Assert.assertEquals(jobRecordsProcessed.getCount(), 1l);
@@ -132,7 +133,7 @@ public class MetricContextTest {
 
     ContextAwareCounter taskRecordsProcessed = this.childContext.contextAwareCounter(RECORDS_PROCESSED);
     Assert.assertEquals(this.childContext.getCounters()
-            .get(MetricRegistry.name(this.childContext.metricNamePrefix(), taskRecordsProcessed.getName())),
+            .get(MetricRegistry.name(this.childContext.metricNamePrefix(false), taskRecordsProcessed.getName())),
         taskRecordsProcessed);
     Assert.assertEquals(taskRecordsProcessed.getContext(), this.childContext);
     Assert.assertEquals(taskRecordsProcessed.getName(), RECORDS_PROCESSED);
@@ -152,7 +153,7 @@ public class MetricContextTest {
   public void testContextAwareMeter() {
     ContextAwareMeter jobRecordsProcessRate = this.context.contextAwareMeter(RECORD_PROCESS_RATE);
     Assert.assertEquals(this.context.getMeters()
-            .get(MetricRegistry.name(this.context.metricNamePrefix(), jobRecordsProcessRate.getName())),
+            .get(MetricRegistry.name(this.context.metricNamePrefix(false), jobRecordsProcessRate.getName())),
         jobRecordsProcessRate);
     Assert.assertEquals(jobRecordsProcessRate.getContext(), this.context);
     Assert.assertEquals(jobRecordsProcessRate.getName(), RECORD_PROCESS_RATE);
@@ -163,7 +164,8 @@ public class MetricContextTest {
     Assert.assertEquals(jobRecordsProcessRate.getTags().get(0).getKey(), METRIC_GROUP_KEY);
     Assert.assertEquals(jobRecordsProcessRate.getTags().get(0).getValue(), INPUT_RECORDS_GROUP);
     Assert.assertEquals(
-        jobRecordsProcessRate.getFullyQualifiedName(), MetricRegistry.name(INPUT_RECORDS_GROUP, RECORD_PROCESS_RATE));
+        jobRecordsProcessRate.getFullyQualifiedName(false),
+        MetricRegistry.name(INPUT_RECORDS_GROUP, RECORD_PROCESS_RATE));
 
     jobRecordsProcessRate.mark();
     jobRecordsProcessRate.mark(3);
@@ -171,7 +173,7 @@ public class MetricContextTest {
 
     ContextAwareMeter taskRecordsProcessRate = this.childContext.contextAwareMeter(RECORD_PROCESS_RATE);
     Assert.assertEquals(this.childContext.getMeters()
-            .get(MetricRegistry.name(this.childContext.metricNamePrefix(), taskRecordsProcessRate.getName())),
+            .get(MetricRegistry.name(this.childContext.metricNamePrefix(false), taskRecordsProcessRate.getName())),
         taskRecordsProcessRate);
     Assert.assertEquals(taskRecordsProcessRate.getContext(), this.childContext);
     Assert.assertEquals(taskRecordsProcessRate.getName(), RECORD_PROCESS_RATE);
@@ -187,8 +189,10 @@ public class MetricContextTest {
   @Test
   public void testContextAwareHistogram() {
     ContextAwareHistogram jobRecordSizeDist = this.context.contextAwareHistogram(RECORD_SIZE_DISTRIBUTION);
-    Assert.assertEquals(this.context.getHistograms()
-        .get(MetricRegistry.name(this.context.metricNamePrefix(), jobRecordSizeDist.getName())), jobRecordSizeDist);
+    Assert.assertEquals(
+        this.context.getHistograms().get(
+            MetricRegistry.name(this.context.metricNamePrefix(false), jobRecordSizeDist.getName())),
+        jobRecordSizeDist);
     Assert.assertEquals(jobRecordSizeDist.getContext(), this.context);
     Assert.assertEquals(jobRecordSizeDist.getName(), RECORD_SIZE_DISTRIBUTION);
 
@@ -198,7 +202,8 @@ public class MetricContextTest {
     Assert.assertEquals(jobRecordSizeDist.getTags().get(0).getKey(), METRIC_GROUP_KEY);
     Assert.assertEquals(jobRecordSizeDist.getTags().get(0).getValue(), INPUT_RECORDS_GROUP);
     Assert.assertEquals(
-        jobRecordSizeDist.getFullyQualifiedName(), MetricRegistry.name(INPUT_RECORDS_GROUP, RECORD_SIZE_DISTRIBUTION));
+        jobRecordSizeDist.getFullyQualifiedName(false),
+        MetricRegistry.name(INPUT_RECORDS_GROUP, RECORD_SIZE_DISTRIBUTION));
 
     jobRecordSizeDist.update(2);
     jobRecordSizeDist.update(4);
@@ -210,7 +215,7 @@ public class MetricContextTest {
 
     ContextAwareHistogram taskRecordSizeDist = this.childContext.contextAwareHistogram(RECORD_SIZE_DISTRIBUTION);
     Assert.assertEquals(this.childContext.getHistograms()
-            .get(MetricRegistry.name(this.childContext.metricNamePrefix(), taskRecordSizeDist.getName())),
+            .get(MetricRegistry.name(this.childContext.metricNamePrefix(false), taskRecordSizeDist.getName())),
         taskRecordSizeDist);
     Assert.assertEquals(taskRecordSizeDist.getContext(), this.childContext);
     Assert.assertEquals(taskRecordSizeDist.getName(), RECORD_SIZE_DISTRIBUTION);
@@ -232,7 +237,7 @@ public class MetricContextTest {
   public void testContextAwareTimer() {
     ContextAwareTimer jobTotalDuration = this.context.contextAwareTimer(TOTAL_DURATION);
     Assert.assertEquals(this.context.getTimers().get(
-        MetricRegistry.name(this.context.metricNamePrefix(), jobTotalDuration.getName())), jobTotalDuration);
+        MetricRegistry.name(this.context.metricNamePrefix(false), jobTotalDuration.getName())), jobTotalDuration);
     Assert.assertEquals(jobTotalDuration.getContext(), this.context);
     Assert.assertEquals(jobTotalDuration.getName(), TOTAL_DURATION);
 
@@ -242,7 +247,7 @@ public class MetricContextTest {
     Assert.assertEquals(jobTotalDuration.getTags().get(0).getKey(), METRIC_GROUP_KEY);
     Assert.assertEquals(jobTotalDuration.getTags().get(0).getValue(), INPUT_RECORDS_GROUP);
     Assert.assertEquals(
-        jobTotalDuration.getFullyQualifiedName(), MetricRegistry.name(INPUT_RECORDS_GROUP, TOTAL_DURATION));
+        jobTotalDuration.getFullyQualifiedName(false), MetricRegistry.name(INPUT_RECORDS_GROUP, TOTAL_DURATION));
 
     jobTotalDuration.update(50, TimeUnit.SECONDS);
     jobTotalDuration.update(100, TimeUnit.SECONDS);
@@ -270,7 +275,7 @@ public class MetricContextTest {
     Assert.assertEquals(queueSize.getValue().longValue(), 1000l);
 
     Assert.assertEquals(
-        this.context.getGauges().get(MetricRegistry.name(this.context.metricNamePrefix(), queueSize.getName())),
+        this.context.getGauges().get(MetricRegistry.name(this.context.metricNamePrefix(false), queueSize.getName())),
         queueSize);
     Assert.assertEquals(queueSize.getContext(), this.context);
     Assert.assertEquals(queueSize.getName(), QUEUE_SIZE);
@@ -281,7 +286,7 @@ public class MetricContextTest {
     Assert.assertEquals(queueSize.getTags().get(0).getKey(), METRIC_GROUP_KEY);
     Assert.assertEquals(queueSize.getTags().get(0).getValue(), INPUT_RECORDS_GROUP);
     Assert.assertEquals(
-        queueSize.getFullyQualifiedName(), MetricRegistry.name(INPUT_RECORDS_GROUP, QUEUE_SIZE));
+        queueSize.getFullyQualifiedName(false), MetricRegistry.name(INPUT_RECORDS_GROUP, QUEUE_SIZE));
   }
 
   @Test(dependsOnMethods = {
@@ -305,49 +310,55 @@ public class MetricContextTest {
   public void testGetMetrics() {
     SortedSet<String> names = this.context.getNames();
     Assert.assertEquals(names.size(), 5);
-    Assert.assertTrue(names.contains(MetricRegistry.name(this.context.metricNamePrefix(), RECORDS_PROCESSED)));
-    Assert.assertTrue(names.contains(MetricRegistry.name(this.context.metricNamePrefix(), RECORD_PROCESS_RATE)));
-    Assert.assertTrue(names.contains(MetricRegistry.name(this.context.metricNamePrefix(), RECORD_SIZE_DISTRIBUTION)));
-    Assert.assertTrue(names.contains(MetricRegistry.name(this.context.metricNamePrefix(), TOTAL_DURATION)));
-    Assert.assertTrue(names.contains(MetricRegistry.name(this.context.metricNamePrefix(), QUEUE_SIZE)));
+    Assert.assertTrue(names.contains(MetricRegistry.name(this.context.metricNamePrefix(false), RECORDS_PROCESSED)));
+    Assert.assertTrue(names.contains(MetricRegistry.name(this.context.metricNamePrefix(false), RECORD_PROCESS_RATE)));
+    Assert.assertTrue(
+        names.contains(MetricRegistry.name(this.context.metricNamePrefix(false), RECORD_SIZE_DISTRIBUTION)));
+    Assert.assertTrue(names.contains(MetricRegistry.name(this.context.metricNamePrefix(false), TOTAL_DURATION)));
+    Assert.assertTrue(names.contains(MetricRegistry.name(this.context.metricNamePrefix(false), QUEUE_SIZE)));
 
     SortedSet<String> childNames = this.childContext.getNames();
     Assert.assertEquals(childNames.size(), 3);
-    Assert.assertTrue(childNames.contains(MetricRegistry.name(this.childContext.metricNamePrefix(), RECORDS_PROCESSED)));
     Assert.assertTrue(
-        childNames.contains(MetricRegistry.name(this.childContext.metricNamePrefix(), RECORD_PROCESS_RATE)));
+        childNames.contains(MetricRegistry.name(this.childContext.metricNamePrefix(false), RECORDS_PROCESSED)));
     Assert.assertTrue(
-        childNames.contains(MetricRegistry.name(this.childContext.metricNamePrefix(), RECORD_SIZE_DISTRIBUTION)));
+        childNames.contains(MetricRegistry.name(this.childContext.metricNamePrefix(false), RECORD_PROCESS_RATE)));
+    Assert.assertTrue(
+        childNames.contains(MetricRegistry.name(this.childContext.metricNamePrefix(false), RECORD_SIZE_DISTRIBUTION)));
 
     Map<String, Metric> metrics = this.context.getMetrics();
     Assert.assertEquals(metrics.size(), 5);
-    Assert.assertTrue(metrics.containsKey(MetricRegistry.name(this.context.metricNamePrefix(), RECORDS_PROCESSED)));
-    Assert.assertTrue(metrics.containsKey(MetricRegistry.name(this.context.metricNamePrefix(), RECORD_PROCESS_RATE)));
     Assert.assertTrue(
-        metrics.containsKey(MetricRegistry.name(this.context.metricNamePrefix(), RECORD_SIZE_DISTRIBUTION)));
-    Assert.assertTrue(metrics.containsKey(MetricRegistry.name(this.context.metricNamePrefix(), TOTAL_DURATION)));
-    Assert.assertTrue(metrics.containsKey(MetricRegistry.name(this.context.metricNamePrefix(), QUEUE_SIZE)));
+        metrics.containsKey(MetricRegistry.name(this.context.metricNamePrefix(false), RECORDS_PROCESSED)));
+    Assert.assertTrue(
+        metrics.containsKey(MetricRegistry.name(this.context.metricNamePrefix(false), RECORD_PROCESS_RATE)));
+    Assert.assertTrue(
+        metrics.containsKey(MetricRegistry.name(this.context.metricNamePrefix(false), RECORD_SIZE_DISTRIBUTION)));
+    Assert.assertTrue(metrics.containsKey(MetricRegistry.name(this.context.metricNamePrefix(false), TOTAL_DURATION)));
+    Assert.assertTrue(metrics.containsKey(MetricRegistry.name(this.context.metricNamePrefix(false), QUEUE_SIZE)));
 
     Map<String, Counter> counters = this.context.getCounters();
     Assert.assertEquals(counters.size(), 1);
-    Assert.assertTrue(counters.containsKey(MetricRegistry.name(this.context.metricNamePrefix(), RECORDS_PROCESSED)));
+    Assert.assertTrue(
+        counters.containsKey(MetricRegistry.name(this.context.metricNamePrefix(false), RECORDS_PROCESSED)));
 
     Map<String, Meter> meters = this.context.getMeters();
     Assert.assertEquals(meters.size(), 1);
-    Assert.assertTrue(meters.containsKey(MetricRegistry.name(this.context.metricNamePrefix(), RECORD_PROCESS_RATE)));
+    Assert.assertTrue(
+        meters.containsKey(MetricRegistry.name(this.context.metricNamePrefix(false), RECORD_PROCESS_RATE)));
 
     Map<String, Histogram> histograms = this.context.getHistograms();
     Assert.assertEquals(histograms.size(), 1);
     Assert.assertTrue(
-        histograms.containsKey(MetricRegistry.name(this.context.metricNamePrefix(), RECORD_SIZE_DISTRIBUTION)));
+        histograms.containsKey(MetricRegistry.name(this.context.metricNamePrefix(false), RECORD_SIZE_DISTRIBUTION)));
 
     Map<String, Timer> timers = this.context.getTimers();
     Assert.assertEquals(timers.size(), 1);
-    Assert.assertTrue(timers.containsKey(MetricRegistry.name(this.context.metricNamePrefix(), TOTAL_DURATION)));
+    Assert.assertTrue(timers.containsKey(MetricRegistry.name(this.context.metricNamePrefix(false), TOTAL_DURATION)));
 
     Map<String, Gauge> gauges = this.context.getGauges();
     Assert.assertEquals(gauges.size(), 1);
-    Assert.assertTrue(gauges.containsKey(MetricRegistry.name(this.context.metricNamePrefix(), QUEUE_SIZE)));
+    Assert.assertTrue(gauges.containsKey(MetricRegistry.name(this.context.metricNamePrefix(false), QUEUE_SIZE)));
   }
 
   @Test(dependsOnMethods = "testGetMetrics")
@@ -357,24 +368,26 @@ public class MetricContextTest {
 
     Map<String, Counter> counters = this.context.getCounters(filter);
     Assert.assertEquals(counters.size(), 1);
-    Assert.assertTrue(counters.containsKey(MetricRegistry.name(this.context.metricNamePrefix(), RECORDS_PROCESSED)));
+    Assert.assertTrue(
+        counters.containsKey(MetricRegistry.name(this.context.metricNamePrefix(false), RECORDS_PROCESSED)));
 
     Map<String, Meter> meters = this.context.getMeters(filter);
     Assert.assertEquals(meters.size(), 1);
-    Assert.assertTrue(meters.containsKey(MetricRegistry.name(this.context.metricNamePrefix(), RECORD_PROCESS_RATE)));
+    Assert.assertTrue(
+        meters.containsKey(MetricRegistry.name(this.context.metricNamePrefix(false), RECORD_PROCESS_RATE)));
 
     Map<String, Histogram> histograms = this.context.getHistograms(filter);
     Assert.assertEquals(histograms.size(), 1);
     Assert.assertTrue(
-        histograms.containsKey(MetricRegistry.name(this.context.metricNamePrefix(), RECORD_SIZE_DISTRIBUTION)));
+        histograms.containsKey(MetricRegistry.name(this.context.metricNamePrefix(false), RECORD_SIZE_DISTRIBUTION)));
 
     Map<String, Timer> timers = this.context.getTimers(filter);
     Assert.assertEquals(timers.size(), 1);
-    Assert.assertTrue(timers.containsKey(MetricRegistry.name(this.context.metricNamePrefix(), TOTAL_DURATION)));
+    Assert.assertTrue(timers.containsKey(MetricRegistry.name(this.context.metricNamePrefix(false), TOTAL_DURATION)));
 
     Map<String, Gauge> gauges = this.context.getGauges(filter);
     Assert.assertEquals(gauges.size(), 1);
-    Assert.assertTrue(gauges.containsKey(MetricRegistry.name(this.context.metricNamePrefix(), QUEUE_SIZE)));
+    Assert.assertTrue(gauges.containsKey(MetricRegistry.name(this.context.metricNamePrefix(false), QUEUE_SIZE)));
   }
 
   @Test(dependsOnMethods = {
@@ -419,20 +432,20 @@ public class MetricContextTest {
       Assert.assertEquals(context.getName(), CONTEXT_NAME);
 
       Assert.assertEquals(gauges.size(), 1);
-      Assert.assertTrue(gauges.containsKey(MetricRegistry.name(context.metricNamePrefix(), QUEUE_SIZE)));
+      Assert.assertTrue(gauges.containsKey(MetricRegistry.name(context.metricNamePrefix(false), QUEUE_SIZE)));
 
       Assert.assertEquals(counters.size(), 1);
-      Assert.assertTrue(counters.containsKey(MetricRegistry.name(context.metricNamePrefix(), RECORDS_PROCESSED)));
+      Assert.assertTrue(counters.containsKey(MetricRegistry.name(context.metricNamePrefix(false), RECORDS_PROCESSED)));
 
       Assert.assertEquals(histograms.size(), 1);
       Assert.assertTrue(
-          histograms.containsKey(MetricRegistry.name(context.metricNamePrefix(), RECORD_SIZE_DISTRIBUTION)));
+          histograms.containsKey(MetricRegistry.name(context.metricNamePrefix(false), RECORD_SIZE_DISTRIBUTION)));
 
       Assert.assertEquals(meters.size(), 1);
-      Assert.assertTrue(meters.containsKey(MetricRegistry.name(context.metricNamePrefix(), RECORD_PROCESS_RATE)));
+      Assert.assertTrue(meters.containsKey(MetricRegistry.name(context.metricNamePrefix(false), RECORD_PROCESS_RATE)));
 
       Assert.assertEquals(timers.size(), 1);
-      Assert.assertTrue(timers.containsKey(MetricRegistry.name(context.metricNamePrefix(), TOTAL_DURATION)));
+      Assert.assertTrue(timers.containsKey(MetricRegistry.name(context.metricNamePrefix(false), TOTAL_DURATION)));
     }
 
     private static class TestContextAwareScheduledReporterBuilder extends Builder {

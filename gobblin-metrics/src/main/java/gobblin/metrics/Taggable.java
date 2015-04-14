@@ -21,14 +21,14 @@ public interface Taggable {
    *
    * @param tag the {@link Tag} to add
    */
-  public void addTag(Tag tag);
+  public void addTag(Tag<?> tag);
 
   /**
    * Add a collection of {@link Tag}s.
    *
    * @param tags the collection of {@link Tag}s to add
    */
-  public void addTags(Collection<Tag> tags);
+  public void addTags(Collection<Tag<?>> tags);
 
   /**
    * Get all {@link Tag}s in a list.
@@ -40,12 +40,18 @@ public interface Taggable {
    *
    * @return all {@link Tag}s in a list
    */
-  public List<Tag> getTags();
+  public List<Tag<?>> getTags();
 
   /**
    * Construct a metric name prefix from the {@link Tag}s.
    *
+   * <p>
+   *   The prefix will include both the key and value of every {@link Tag} in the form of {@code key:value}
+   *   if {@code includeTagKeys} is {@code true}, otherwise it only includes the value of every {@link Tag}.
+   * </p>
+   *
+   * @param includeTagKeys whether to include tag keys in the metric name prefix
    * @return a metric name prefix constructed from the {@link Tag}s
    */
-  public String metricNamePrefix();
+  public String metricNamePrefix(boolean includeTagKeys);
 }

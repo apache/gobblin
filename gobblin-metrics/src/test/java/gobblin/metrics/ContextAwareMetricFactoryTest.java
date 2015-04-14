@@ -67,7 +67,7 @@ public class ContextAwareMetricFactoryTest {
     Assert.assertFalse(ContextAwareMetricFactory.DEFAULT_CONTEXT_AWARE_COUNTER_FACTORY.isInstance(this.meter));
     Assert.assertEquals(this.counter.getContext(), this.context);
     Assert.assertEquals(this.counter.getName(), RECORDS_PROCESSED);
-    Assert.assertEquals(this.counter.getFullyQualifiedName(), MetricRegistry.name(JOB_ID, RECORDS_PROCESSED));
+    Assert.assertEquals(this.counter.getFullyQualifiedName(false), MetricRegistry.name(JOB_ID, RECORDS_PROCESSED));
   }
 
   @Test
@@ -76,7 +76,7 @@ public class ContextAwareMetricFactoryTest {
     Assert.assertFalse(ContextAwareMetricFactory.DEFAULT_CONTEXT_AWARE_METER_FACTORY.isInstance(this.histogram));
     Assert.assertEquals(this.meter.getContext(), this.context);
     Assert.assertEquals(this.meter.getName(), RECORD_PROCESS_RATE);
-    Assert.assertEquals(this.meter.getFullyQualifiedName(), MetricRegistry.name(JOB_ID, RECORD_PROCESS_RATE));
+    Assert.assertEquals(this.meter.getFullyQualifiedName(false), MetricRegistry.name(JOB_ID, RECORD_PROCESS_RATE));
   }
 
   @Test
@@ -86,7 +86,7 @@ public class ContextAwareMetricFactoryTest {
     Assert.assertEquals(this.histogram.getContext(), this.context);
     Assert.assertEquals(this.histogram.getName(), RECORD_SIZE_DISTRIBUTION);
     Assert.assertEquals(
-        this.histogram.getFullyQualifiedName(), MetricRegistry.name(JOB_ID, RECORD_SIZE_DISTRIBUTION));
+        this.histogram.getFullyQualifiedName(false), MetricRegistry.name(JOB_ID, RECORD_SIZE_DISTRIBUTION));
   }
 
   @Test
@@ -95,7 +95,7 @@ public class ContextAwareMetricFactoryTest {
     Assert.assertFalse(ContextAwareMetricFactory.DEFAULT_CONTEXT_AWARE_TIMER_FACTORY.isInstance(this.counter));
     Assert.assertEquals(this.timer.getContext(), this.context);
     Assert.assertEquals(this.timer.getName(), TOTAL_DURATION);
-    Assert.assertEquals(this.timer.getFullyQualifiedName(), MetricRegistry.name(JOB_ID, TOTAL_DURATION));
+    Assert.assertEquals(this.timer.getFullyQualifiedName(false), MetricRegistry.name(JOB_ID, TOTAL_DURATION));
   }
 
   @AfterClass

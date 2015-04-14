@@ -40,14 +40,12 @@ class ContextAwareCounter extends Counter implements ContextAwareMetric {
 
   private final String name;
   private final MetricContext context;
-  private final Counter counter;
   private final Tagged tagged;
   private final Optional<ContextAwareCounter> parentCounter;
 
-  ContextAwareCounter(MetricContext context, String name, Counter counter) {
+  ContextAwareCounter(MetricContext context, String name) {
     this.name = name;
     this.context = context;
-    this.counter = counter;
     this.tagged = new Tagged();
 
     Optional<MetricContext> parentContext = context.getParent();
@@ -60,15 +58,12 @@ class ContextAwareCounter extends Counter implements ContextAwareMetric {
 
   @Override
   public void inc() {
-    this.counter.inc();
-    if (this.parentCounter.isPresent()) {
-      this.parentCounter.get().inc();
-    }
+    inc(1);
   }
 
   @Override
   public void inc(long n) {
-    this.counter.inc(n);
+    super.inc(n);
     if (this.parentCounter.isPresent()) {
       this.parentCounter.get().inc(n);
     }
@@ -76,23 +71,15 @@ class ContextAwareCounter extends Counter implements ContextAwareMetric {
 
   @Override
   public void dec() {
-    this.counter.dec();
-    if (this.parentCounter.isPresent()) {
-      this.parentCounter.get().dec();
-    }
+    dec(1);
   }
 
   @Override
   public void dec(long n) {
-    this.counter.dec(n);
+    super.dec(n);
     if (this.parentCounter.isPresent()) {
       this.parentCounter.get().dec(n);
     }
-  }
-
-  @Override
-  public long getCount() {
-    return this.counter.getCount();
   }
 
   @Override
@@ -101,8 +88,8 @@ class ContextAwareCounter extends Counter implements ContextAwareMetric {
   }
 
   @Override
-  public String getFullyQualifiedName() {
-    return MetricRegistry.name(metricNamePrefix(), this.name);
+  public String getFullyQualifiedName(boolean includeTagKeys) {
+    return MetricRegistry.name(metricNamePrefix(includeTagKeys), this.name);
   }
 
   @Override
@@ -111,22 +98,22 @@ class ContextAwareCounter extends Counter implements ContextAwareMetric {
   }
 
   @Override
-  public void addTag(Tag tag) {
+  public void addTag(Tag<?> tag) {
     this.tagged.addTag(tag);
   }
 
   @Override
-  public void addTags(Collection<Tag> tags) {
+  public void addTags(Collection<Tag<?>> tags) {
     this.tagged.addTags(tags);
   }
 
   @Override
-  public List<Tag> getTags() {
+  public List<Tag<?>> getTags() {
     return this.tagged.getTags();
   }
 
   @Override
-  public String metricNamePrefix() {
-    return this.tagged.metricNamePrefix();
+  public String metricNamePrefix(boolean includeTagKeys) {
+    return this.tagged.metricNamePrefix(includeTagKeys);
   }
 }

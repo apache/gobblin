@@ -17,7 +17,6 @@ import java.util.List;
 import com.codahale.metrics.ExponentiallyDecayingReservoir;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.Snapshot;
 
 import com.google.common.base.Optional;
 
@@ -42,16 +41,14 @@ class ContextAwareHistogram extends Histogram implements ContextAwareMetric {
 
   private final String name;
   private final MetricContext context;
-  private final Histogram histogram;
   private final Tagged tagged;
   private final Optional<ContextAwareHistogram> parentHistogram;
 
-  ContextAwareHistogram(MetricContext context, String name, Histogram histogram) {
+  ContextAwareHistogram(MetricContext context, String name) {
     super(new ExponentiallyDecayingReservoir());
 
     this.name = name;
     this.context = context;
-    this.histogram = histogram;
     this.tagged = new Tagged();
 
     Optional<MetricContext> parentContext = context.getParent();
@@ -64,28 +61,15 @@ class ContextAwareHistogram extends Histogram implements ContextAwareMetric {
 
   @Override
   public void update(int value) {
-    this.histogram.update(value);
-    if (this.parentHistogram.isPresent()) {
-      this.parentHistogram.get().update(value);
-    }
+    update((long) value);
   }
 
   @Override
   public void update(long value) {
-    this.histogram.update(value);
+    super.update(value);
     if (this.parentHistogram.isPresent()) {
       this.parentHistogram.get().update(value);
     }
-  }
-
-  @Override
-  public long getCount() {
-    return this.histogram.getCount();
-  }
-
-  @Override
-  public Snapshot getSnapshot() {
-    return this.histogram.getSnapshot();
   }
 
   @Override
@@ -94,8 +78,8 @@ class ContextAwareHistogram extends Histogram implements ContextAwareMetric {
   }
 
   @Override
-  public String getFullyQualifiedName() {
-    return MetricRegistry.name(metricNamePrefix(), this.name);
+  public String getFullyQualifiedName(boolean includeTagKeys) {
+    return MetricRegistry.name(metricNamePrefix(includeTagKeys), this.name);
   }
 
   @Override
@@ -104,22 +88,22 @@ class ContextAwareHistogram extends Histogram implements ContextAwareMetric {
   }
 
   @Override
-  public void addTag(Tag tag) {
+  public void addTag(Tag<?> tag) {
     this.tagged.addTag(tag);
   }
 
   @Override
-  public void addTags(Collection<Tag> tags) {
+  public void addTags(Collection<Tag<?>> tags) {
     this.tagged.addTags(tags);
   }
 
   @Override
-  public List<Tag> getTags() {
+  public List<Tag<?>> getTags() {
     return this.tagged.getTags();
   }
 
   @Override
-  public String metricNamePrefix() {
-    return this.tagged.metricNamePrefix();
+  public String metricNamePrefix(boolean includeTagKeys) {
+    return this.tagged.metricNamePrefix(includeTagKeys);
   }
 }

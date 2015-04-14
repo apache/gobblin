@@ -56,8 +56,8 @@ public class ContextAwareGauge<T> implements Gauge<T>, ContextAwareMetric {
   }
 
   @Override
-  public String getFullyQualifiedName() {
-    return MetricRegistry.name(metricNamePrefix(), this.name);
+  public String getFullyQualifiedName(boolean includeTagKeys) {
+    return MetricRegistry.name(metricNamePrefix(includeTagKeys), this.name);
   }
 
   @Override
@@ -66,22 +66,22 @@ public class ContextAwareGauge<T> implements Gauge<T>, ContextAwareMetric {
   }
 
   @Override
-  public void addTag(Tag tag) {
+  public void addTag(Tag<?> tag) {
     this.tagged.addTag(tag);
   }
 
   @Override
-  public void addTags(Collection<Tag> tags) {
+  public void addTags(Collection<Tag<?>> tags) {
     this.tagged.addTags(tags);
   }
 
   @Override
-  public List<Tag> getTags() {
+  public List<Tag<?>> getTags() {
     return this.tagged.getTags();
   }
 
   @Override
-  public String metricNamePrefix() {
-    return this.tagged.metricNamePrefix();
+  public String metricNamePrefix(boolean includeTagKeys) {
+    return this.tagged.metricNamePrefix(includeTagKeys);
   }
 }

@@ -82,20 +82,20 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
   // This flag tells if the context should report fully-qualified metric names (including the tags)
   private final boolean reportFullyQualifiedNames;
 
+  // This flag tells if the fully-qualified metric names should include tag keys
+  private final boolean includeTagKeys;
+
   // This is used to close all children context when this context is to be closed
   private final Closer closer = Closer.create();
 
-  private MetricContext(String name, MetricContext parent, List<Tag> tags,
-      Map<String, ContextAwareScheduledReporter.Builder> builders, boolean reportFullyQualifiedNames) {
+  private MetricContext(String name, MetricContext parent, List<Tag<?>> tags,
+      Map<String, ContextAwareScheduledReporter.Builder> builders, boolean reportFullyQualifiedNames,
+      boolean includeTagKeys) {
     this.name = name;
     this.parent = Optional.fromNullable(parent);
-
-    // Add parent context's tags first if a parent exists
-    this.tagged = this.parent.isPresent() ? new Tagged(parent.tagged.getTags()) : new Tagged();
-    // Then add tags of this context
-    this.tagged.addTags(tags);
-
+    this.tagged = new Tagged(tags);
     this.reportFullyQualifiedNames = reportFullyQualifiedNames;
+    this.includeTagKeys = includeTagKeys;
 
     // Add as a child to the parent context if a parent exists
     if (this.parent.isPresent()) {
@@ -305,34 +305,61 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
         super.getTimers(filter) : getSimplyNamedMetrics(Timer.class, Optional.of(filter));
   }
 
+  /**
+   * This is equivalent to {@link #contextAwareCounter(String)}.
+   */
   @Override
   public Counter counter(String name) {
-    throw new UnsupportedOperationException();
+    return contextAwareCounter(name);
   }
 
+  /**
+   * This is equivalent to {@link #contextAwareMeter(String)}.
+   */
   @Override
   public Meter meter(String name) {
-    throw new UnsupportedOperationException();
+    return contextAwareMeter(name);
   }
 
+  /**
+   * This is equivalent to {@link #contextAwareHistogram(String)}.
+   */
   @Override
   public Histogram histogram(String name) {
-    throw new UnsupportedOperationException();
+    return contextAwareHistogram(name);
   }
 
+  /**
+   * This is equivalent to {@link #contextAwareTimer(String)}.
+   */
   @Override
   public Timer timer(String name) {
-    throw new UnsupportedOperationException();
+    return contextAwareTimer(name);
   }
 
+  /**
+   * Register a given metric under a given name.
+   *
+   * <p>
+   *   This method does not support registering {@link com.codahale.metrics.MetricSet}s.
+   *   See{@link #registerAll(com.codahale.metrics.MetricSet}.
+   * </p>
+   *
+   * <p>
+   *   This method will not register a metric with the same name in the parent context (if it exists).
+   * </p>
+   */
   @Override
   public <T extends Metric> T register(String name, T metric)
       throws IllegalArgumentException {
+    if (metric instanceof MetricSet) {
+      registerAll((MetricSet) metric);
+    }
     if (this.contextAwareMetrics.putIfAbsent(name, metric) != null) {
       throw new IllegalArgumentException("A metric named " + name + " already exists");
     }
     // Also register the metric with the MetricRegistry using its fully-qualified name
-    return super.register(MetricRegistry.name(metricNamePrefix(), name), metric);
+    return super.register(MetricRegistry.name(metricNamePrefix(this.includeTagKeys), name), metric);
   }
 
   @Override
@@ -438,9 +465,22 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
     return new ContextAwareGauge<T>(this, name, gauge);
   }
 
+  /**
+   * Remove a metric with a given name.
+   *
+   * <p>
+   *   This method will remove the metric with the given name from this {@link MetricContext}
+   *   as well as metrics with the same name from every child {@link MetricContext}s.
+   * </p>
+   *
+   * @param name name of the metric to be removed
+   * @return whether or not the metric has been removed
+   */
   @Override
   public boolean remove(String name) {
-    return this.contextAwareMetrics.remove(name) != null && super.remove(MetricRegistry.name(metricNamePrefix(), name));
+    return this.contextAwareMetrics.remove(name) != null &&
+           super.remove(MetricRegistry.name(metricNamePrefix(this.includeTagKeys), name)) &&
+           removeChildrenMetrics(name);
   }
 
   @Override
@@ -451,7 +491,6 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
       }
     }
   }
-
 
   /**
    * Start all the {@link com.codahale.metrics.ScheduledReporter}s associated with this {@link MetricContext}.
@@ -490,18 +529,18 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
   }
 
   @Override
-  public void addTags(Collection<Tag> tags) {
+  public void addTags(Collection<Tag<?>> tags) {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public List<Tag> getTags() {
+  public List<Tag<?>> getTags() {
     return this.tagged.getTags();
   }
 
   @Override
-  public String metricNamePrefix() {
-    return this.tagged.metricNamePrefix();
+  public String metricNamePrefix(boolean includeTagKeys) {
+    return this.tagged.metricNamePrefix(includeTagKeys);
   }
 
   @Override
@@ -569,6 +608,16 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
     return (T) newMetric;
   }
 
+  private boolean removeChildrenMetrics(String name) {
+    boolean removed = true;
+    for (MetricContext child : this.children.values()) {
+      if (!child.remove(name)) {
+        removed = false;
+      }
+    }
+    return removed;
+  }
+
   /**
    * A builder class for {@link MetricContext}.
    */
@@ -576,9 +625,10 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
 
     private final String name;
     private MetricContext parent = null;
-    private final List<Tag> tags = Lists.newArrayList();
+    private final List<Tag<?>> tags = Lists.newArrayList();
     private final Map<String, ContextAwareScheduledReporter.Builder> contextAwareReporterBuilders = Maps.newHashMap();
     private boolean reportFullyQualifiedNames = false;
+    private boolean includeTagKeys = false;
 
     public Builder(String name) {
       this.name = name;
@@ -592,6 +642,8 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
      */
     public Builder hasParent(MetricContext parent) {
       this.parent = parent;
+      // Inherit parent context's tags
+      this.tags.addAll(parent.getTags());
       return this;
     }
 
@@ -601,7 +653,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
      * @param tag the {@link Tag} to add
      * @return {@code this}
      */
-    public Builder addTag(Tag tag) {
+    public Builder addTag(Tag<?> tag) {
       this.tags.add(tag);
       return this;
     }
@@ -612,7 +664,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
      * @param tags the collection of {@link Tag}s to add
      * @return {@code this}
      */
-    public Builder addTags(Collection<Tag> tags) {
+    public Builder addTags(Collection<Tag<?>> tags) {
       this.tags.addAll(tags);
       return this;
     }
@@ -645,21 +697,27 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
     /**
      * Configure the {@link MetricContext} to report fully-qualified metric names (including the tags).
      *
+     * @param includeTagKeys whether to include tag keys in the metric name prefix
      * @return {@code this}
      */
-    public Builder reportFullyQualifiedNames() {
+    public Builder reportFullyQualifiedNames(boolean includeTagKeys) {
       this.reportFullyQualifiedNames = true;
+      this.includeTagKeys = includeTagKeys;
       return this;
     }
 
     /**
      * Builder a new {@link MetricContext}.
      *
+     * <p>
+     *   See {@link Taggable#metricNamePrefix(boolean)} for the semantic of {@code includeTagKeys}.
+     * </p>
+     *
      * @return the newly built {@link MetricContext}
      */
     public MetricContext build() {
-      return new MetricContext(
-          this.name, this.parent, this.tags, this.contextAwareReporterBuilders, this.reportFullyQualifiedNames);
+      return new MetricContext(this.name, this.parent, this.tags, this.contextAwareReporterBuilders,
+          this.reportFullyQualifiedNames, this.includeTagKeys);
     }
   }
 }
