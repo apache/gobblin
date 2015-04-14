@@ -136,6 +136,10 @@ public class Task implements Runnable {
       if (inMultipleBranches(forkedSchemas) && !(schema instanceof Copyable)) {
         throw new CopyNotSupportedException(schema + " is not copyable");
       }
+      // The schema could still be Copyable even if it is not going to multiple branches
+      if (schema instanceof Copyable) {
+        schema = ((Copyable) schema).copy();
+      }
 
       // Used for the main branch to wait for all forks to finish
       CountDownLatch forkCountDownLatch = new CountDownLatch(branches);
@@ -144,8 +148,7 @@ public class Task implements Runnable {
       for (int i = 0; i < branches; i++) {
         if (forkedSchemas.get(i)) {
           Fork fork = closer.register(
-              new Fork(this.taskContext, this.taskState, branches > 1 ? ((Copyable) schema).copy() : schema,
-                  branches, i, forkCountDownLatch));
+              new Fork(this.taskContext, this.taskState, schema, branches, i, forkCountDownLatch));
           // Schedule the fork to run
           this.taskExecutor.submit(fork);
           this.forks.add(Optional.of(fork));
@@ -354,9 +357,12 @@ public class Task implements Runnable {
               branches));
     }
 
-    boolean makesCopy = inMultipleBranches(forkedRecords);
-    if (makesCopy && !(convertedRecord instanceof Copyable)) {
+    if (inMultipleBranches(forkedRecords) && !(convertedRecord instanceof Copyable)) {
       throw new CopyNotSupportedException(convertedRecord + " is not copyable");
+    }
+    // The record could still be Copyable even if it is not going to multiple branches
+    if (convertedRecord instanceof Copyable) {
+      convertedRecord = ((Copyable) convertedRecord).copy();
     }
 
     // If the record has been successfully put into the queues of every forks
@@ -373,8 +379,7 @@ public class Task implements Runnable {
           continue;
         }
         if (this.forks.get(i).isPresent() && forkedRecords.get(i)) {
-          boolean succeeded =
-              this.forks.get(i).get().putRecord(makesCopy ? ((Copyable) convertedRecord).copy() : convertedRecord);
+          boolean succeeded = this.forks.get(i).get().putRecord(convertedRecord);
           succeededPuts[i] = succeeded;
           if (!succeeded) {
             allPutsSucceeded = false;
