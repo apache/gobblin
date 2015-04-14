@@ -637,10 +637,14 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
     /**
      * Set the parent {@link MetricContext} of this {@link MetricContext} instance.
      *
+     * <p>
+     *   This method is intentionally made private and is only called in {@link MetricContext#childBuilder(String)}
+     *   so users will not mistakenly call this method twice if they use {@link MetricContext#childBuilder(String)}.
+     * </p>
      * @param parent the parent {@link MetricContext}
      * @return {@code this}
      */
-    public Builder hasParent(MetricContext parent) {
+    private Builder hasParent(MetricContext parent) {
       this.parent = parent;
       // Inherit parent context's tags
       this.tags.addAll(parent.getTags());

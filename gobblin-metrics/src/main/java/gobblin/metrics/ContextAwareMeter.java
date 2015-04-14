@@ -57,11 +57,6 @@ class ContextAwareMeter extends Meter implements ContextAwareMetric {
   }
 
   @Override
-  public void mark() {
-    mark(1);
-  }
-
-  @Override
   public void mark(long n) {
     super.mark(n);
     if (this.parentMeter.isPresent()) {

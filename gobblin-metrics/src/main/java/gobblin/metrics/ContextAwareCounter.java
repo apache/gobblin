@@ -57,21 +57,11 @@ class ContextAwareCounter extends Counter implements ContextAwareMetric {
   }
 
   @Override
-  public void inc() {
-    inc(1);
-  }
-
-  @Override
   public void inc(long n) {
     super.inc(n);
     if (this.parentCounter.isPresent()) {
       this.parentCounter.get().inc(n);
     }
-  }
-
-  @Override
-  public void dec() {
-    dec(1);
   }
 
   @Override
