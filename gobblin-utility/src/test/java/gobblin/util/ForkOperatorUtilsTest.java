@@ -59,12 +59,15 @@ public class ForkOperatorUtilsTest {
 
   @Test
   public void testGetPathForBranch() {
-    Assert.assertEquals(ForkOperatorUtils.getPathForBranch(PATH_FOO, FORK_BRANCH_NAME_0, 0), PATH_FOO);
-    Assert.assertEquals(ForkOperatorUtils.getPathForBranch(PATH_FOO, FORK_BRANCH_NAME_0, 1), PATH_FOO);
-    Assert.assertEquals(ForkOperatorUtils.getPathForBranch(PATH_FOO, FORK_BRANCH_NAME_0, 2),
-        PATH_FOO + "/" + FORK_BRANCH_NAME_0);
-    Assert.assertEquals(ForkOperatorUtils.getPathForBranch(PATH_FOO, FORK_BRANCH_NAME_1, 2),
-        PATH_FOO + "/" + FORK_BRANCH_NAME_1);
+    State state = new State();
+    state.setProp(ConfigurationKeys.FORK_BRANCH_NAME_KEY + ".0", FORK_BRANCH_NAME_0);
+    state.setProp(ConfigurationKeys.FORK_BRANCH_NAME_KEY + ".1", FORK_BRANCH_NAME_1);
+
+    Assert.assertEquals(ForkOperatorUtils.getPathForBranch(state, PATH_FOO, -1), PATH_FOO);
+    Assert.assertEquals(ForkOperatorUtils.getPathForBranch(state, PATH_FOO, 0), PATH_FOO + "/"
+        + FORK_BRANCH_NAME_0);
+    Assert.assertEquals(ForkOperatorUtils.getPathForBranch(state, PATH_FOO, 1), PATH_FOO + "/"
+        + FORK_BRANCH_NAME_1);
   }
 
   /**

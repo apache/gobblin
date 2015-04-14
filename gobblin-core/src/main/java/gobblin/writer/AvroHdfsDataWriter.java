@@ -24,6 +24,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +33,7 @@ import com.google.common.base.Preconditions;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.util.ForkOperatorUtils;
+import gobblin.util.WriterUtils;
 
 
 /**
@@ -60,24 +62,25 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
     SNAPPY
   }
 
-  public AvroHdfsDataWriter(State properties, String relFilePath, String fileName, Schema schema, int branch)
+  public AvroHdfsDataWriter(State properties, String fileName, Schema schema, int branch)
       throws IOException {
 
     String uri = properties
         .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, branch),
             ConfigurationKeys.LOCAL_FS_URI);
-    String stagingDir =
-        properties.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_DIR, branch)) +
-            Path.SEPARATOR + relFilePath;
-    String outputDir =
-        properties.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR, branch)) +
-            Path.SEPARATOR + relFilePath;
+
+    Path stagingDir = WriterUtils.getWriterStagingDir(properties, branch);
+
+    Path outputDir = WriterUtils.getWriterOutputDir(properties, branch);
+
     String codecType = properties
         .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_CODEC_TYPE, branch),
             AvroHdfsDataWriter.CodecType.DEFLATE.name());
+
     int bufferSize = Integer.parseInt(properties
         .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUFFER_SIZE, branch),
             ConfigurationKeys.DEFAULT_BUFFER_SIZE));
+
     int deflateLevel = Integer.parseInt(properties
         .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DEFLATE_LEVEL, branch),
             ConfigurationKeys.DEFAULT_DEFLATE_LEVEL));
@@ -90,6 +93,7 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
     this.fs = FileSystem.get(URI.create(uri), conf);
 
     this.stagingFile = new Path(stagingDir, fileName);
+
     // Deleting the staging file if it already exists, which can happen if the
     // task failed and the staging file didn't get cleaned up for some reason.
     // Deleting the staging file prevents the task retry from being blocked.
@@ -99,6 +103,7 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
     }
 
     this.outputFile = new Path(outputDir, fileName);
+
     // Create the parent directory of the output file if it does not exist
     if (!this.fs.exists(this.outputFile.getParent())) {
       this.fs.mkdirs(this.outputFile.getParent());
