@@ -24,13 +24,14 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobStatus;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.WorkUnitState;
+import gobblin.runtime.TaskState;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.JobLauncherUtils;
@@ -79,7 +80,7 @@ public class GobblinOutputCommitter extends OutputCommitter {
           } finally {
             workUnitFileCloser.close();
           }
-          JobLauncherUtils.cleanStagingData(wu, LOG);
+          JobLauncherUtils.cleanStagingData(new WorkUnitState(wu), LOG);
         }
 
         // If the file ends with ".mwu" de-serialize it into a MultiWorkUnit
@@ -91,7 +92,7 @@ public class GobblinOutputCommitter extends OutputCommitter {
             workUnitFileCloser.close();
           }
           for (WorkUnit wu : mwu.getWorkUnits()) {
-            JobLauncherUtils.cleanStagingData(wu, LOG);
+            JobLauncherUtils.cleanStagingData(new WorkUnitState(wu), LOG);
           }
         }
       }
