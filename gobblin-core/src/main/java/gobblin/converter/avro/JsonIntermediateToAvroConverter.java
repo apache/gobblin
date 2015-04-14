@@ -11,6 +11,8 @@
 
 package gobblin.converter.avro;
 
+import gobblin.converter.SingleRecordIterable;
+import gobblin.converter.ToAvroConverterBase;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -35,8 +37,6 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.EmptyIterable;
 import gobblin.converter.SchemaConversionException;
-import gobblin.converter.SingleRecordIterable;
-import gobblin.converter.ToAvroConverterBase;
 
 
 /**

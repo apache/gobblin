@@ -147,10 +147,7 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
       LOG.warn(String.format("Task output file %s already exists", this.outputFile));
       this.fs.delete(this.outputFile, false);
     }
-
-    if (!this.fs.rename(this.stagingFile, this.outputFile)) {
-      throw new IOException("Failed to commit data from " + this.stagingFile + " to " + this.outputFile);
-    }
+    this.fs.rename(this.stagingFile, this.outputFile);
   }
 
   @Override
