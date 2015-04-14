@@ -42,9 +42,7 @@ public class KafkaAvroReporter extends KafkaReporter {
       " \"name\": \"Metric\",\n"+
       " \"namespace\":\"<TBD>\",\n"+
       " \"fields\" : [\n"+
-      " {\"name\": \"hostname\", \"type\": [\"null\", \"string\"], \"doc\": \"hostname emitting the metric\"},\n"+
-      " {\"name\": \"environment\", \"type\": [\"null\", \"string\"], \"doc\": \"environment where metric was emitted\"},\n"+
-      " {\"name\": \"tags\", \"type\": {\"type\": \"array\", \"items\": \"string\"}, \"doc\": \"tags associated with the metric\"},\n"+
+      " {\"name\": \"tags\", \"type\": {\"type\": \"map\", \"values\": \"string\"}, \"doc\": \"tags associated with the metric\"},\n"+
       " {\"name\": \"name\", \"type\": \"string\", \"doc\": \"metric name\"},\n"+
       " {\"name\": \"value\", \"type\": [\"boolean\", \"int\", \"long\", \"float\", \"double\", \"bytes\", \"string\"], \"doc\": \"metric value\"}\n"+
       " ]\n"+
@@ -81,8 +79,6 @@ public class KafkaAvroReporter extends KafkaReporter {
 
     record.put("name", makeName(name, path));
     record.put("value", value);
-    record.put("hostname", host);
-    record.put("environment", env);
     record.put("tags", tags);
 
     try {
@@ -106,12 +102,27 @@ public class KafkaAvroReporter extends KafkaReporter {
 
   /**
    * Returns a new {@link gobblin.metrics.KafkaAvroReporter.Builder} for {@link gobblin.metrics.KafkaAvroReporter}
+   * If the registry is of type {@link gobblin.metrics.MetricContext} tags will NOT be inherited.
+   * To inherit tags, use forContext method.
    *
    * @param registry the registry to report
    * @return KafkaAvroReporter builder
    */
   public static Builder<?> forRegistry(MetricRegistry registry) {
+    if(MetricContext.class.isInstance(registry)) {
+      LOGGER.warn("Creating Kafka Avro Reporter from MetricContext using forRegistry method. Will not inherit tags.");
+    }
     return new BuilderImpl(registry);
+  }
+
+  /**
+   * Returns a new {@link gobblin.metrics.KafkaAvroReporter.Builder} for {@link gobblin.metrics.KafkaAvroReporter}
+   *
+   * @param context the {@link gobblin.metrics.MetricContext} to report
+   * @return KafkaAvroReporter builder
+   */
+  public static Builder<?> forContext(MetricContext context) {
+    return new BuilderImpl(context).withTags(context.getTags());
   }
 
   private static class BuilderImpl extends Builder<BuilderImpl> {

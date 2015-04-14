@@ -14,15 +14,16 @@ package gobblin.metrics;
 
 import com.codahale.metrics.MetricRegistry;
 import java.io.IOException;
-import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Map;
 import kafka.consumer.ConsumerIterator;
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericArray;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
+import org.apache.avro.util.Utf8;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -57,6 +58,11 @@ public class KafkaAvroReporterTest extends KafkaReporterTest {
     return KafkaAvroReporter.forRegistry(registry);
   }
 
+  @Override
+  public KafkaReporter.Builder<?> getBuilderFromContext(MetricContext context) {
+    return KafkaAvroReporter.forContext(context);
+  }
+
   @BeforeClass
   public void setup() {
     schema = KafkaAvroReporter.Schema;
@@ -65,6 +71,7 @@ public class KafkaAvroReporterTest extends KafkaReporterTest {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   protected KafkaReporter.Metric nextMetric(ConsumerIterator<byte[], byte[]> it)
       throws IOException {
     byte[] bytes = it.next().message();
@@ -76,16 +83,10 @@ public class KafkaAvroReporterTest extends KafkaReporterTest {
     KafkaReporter.Metric metric = new KafkaReporter.Metric();
     metric.name = record.get("name").toString();
     metric.value = record.get("value");
-    if (record.get("hostname") != null) {
-      metric.host = record.get("hostname").toString();
-    }
-    if (record.get("environment") != null) {
-      metric.env = record.get("environment").toString();
-    }
-    metric.tags = new HashSet<String>();
+    metric.tags = new HashMap<String, String>();
     if (record.get("tags") != null) {
-      for (Object tag : (GenericArray) record.get("tags")) {
-        metric.tags.add(tag.toString());
+      for (Map.Entry<Utf8, Utf8> tag : ((HashMap<Utf8, Utf8>)record.get("tags")).entrySet()) {
+        metric.tags.put(tag.getKey().toString(), tag.getValue().toString());
       }
     }
 

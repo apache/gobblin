@@ -21,15 +21,12 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
-import java.util.Set;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 
@@ -56,18 +53,32 @@ public class KafkaReporter extends ScheduledReporter {
   private final String topic;
   private final ObjectMapper mapper = new ObjectMapper();
 
-  public final Set<String> tags;
-  public final String host;
-  public final String env;
+  public final Map<String, String> tags;
 
   /**
    * Returns a new {@link gobblin.metrics.KafkaReporter.Builder} for {@link gobblin.metrics.KafkaReporter}
+   * If the registry is of type {@link gobblin.metrics.MetricContext} tags will NOT be inherited.
+   * To inherit tags, use forContext method.
    *
    * @param registry the registry to report
    * @return KafkaReporter builder
    */
   public static Builder<?> forRegistry(MetricRegistry registry) {
+    if(MetricContext.class.isInstance(registry)) {
+      LOGGER.warn("Creating Kafka Reporter from MetricContext using forRegistry method. Will not inherit tags.");
+    }
     return new BuilderImpl(registry);
+  }
+
+  /**
+   * Returns a new {@link gobblin.metrics.KafkaReporter.Builder} for {@link gobblin.metrics.KafkaReporter}
+   * Will automatically add all Context tags to the reporter.
+   *
+   * @param context the {@link gobblin.metrics.MetricContext} to report
+   * @return KafkaReporter builder
+   */
+  public static Builder<?> forContext(MetricContext context) {
+    return new BuilderImpl(context).withTags(context.getTags());
   }
 
   private static class BuilderImpl extends Builder<BuilderImpl> {
@@ -91,9 +102,7 @@ public class KafkaReporter extends ScheduledReporter {
     protected MetricFilter filter;
     protected TimeUnit rateUnit;
     protected TimeUnit durationUnit;
-    protected String host;
-    protected String env;
-    protected Set<String> tags;
+    protected Map<String, String> tags;
     protected String brokers;
     protected String topic;
 
@@ -103,13 +112,7 @@ public class KafkaReporter extends ScheduledReporter {
       this.rateUnit = TimeUnit.SECONDS;
       this.durationUnit = TimeUnit.MILLISECONDS;
       this.filter = MetricFilter.ALL;
-      try {
-        this.host = InetAddress.getLocalHost().getHostName();
-      } catch(UnknownHostException e) {
-        this.host = "";
-      }
-      this.env = "dev";
-      this.tags = new HashSet<String>();
+      this.tags = new HashMap<String, String>();
     }
 
     protected abstract T self();
@@ -148,32 +151,35 @@ public class KafkaReporter extends ScheduledReporter {
     }
 
     /**
-     * Set host
-     * @param host hostname
+     * Add tags
+     * @param tags
      * @return {@code this}
      */
-    public T withHost(String host) {
-      this.host = host;
-      return self();
-    }
-
-    /**
-     * Set environment
-     * @param env environment
-     * @return {@code this}
-     */
-    public T withEnv(String env) {
-      this.env = env;
+    public T withTags(Map<String, String> tags) {
+      this.tags.putAll(tags);
       return self();
     }
 
     /**
      * Add tags
-     * @param tags
+     * @param tags List of {@link gobblin.metrics.Tag}
      * @return {@code this}
      */
-    public T withTags(String... tags) {
-      Collections.addAll(this.tags, tags);
+    public T withTags(List<Tag<?>> tags) {
+      for(Tag<?> tag : tags) {
+        this.tags.put(tag.getKey(), tag.getValue().toString());
+      }
+      return self();
+    }
+
+    /**
+     * Add tag
+     * @param key tag key
+     * @param value tag value
+     * @return {@code this}
+     */
+    public T withTag(String key, String value) {
+      this.tags.put(key, value);
       return self();
     }
 
@@ -198,9 +204,7 @@ public class KafkaReporter extends ScheduledReporter {
   public static class Metric {
     public String name;
     public Object value;
-    public String host;
-    public String env;
-    public Set<String> tags;
+    public Map<String, String> tags;
     public long timestamp;
   }
 
@@ -224,8 +228,6 @@ public class KafkaReporter extends ScheduledReporter {
 
     lastSerializeExceptionTime = 0;
 
-    this.host = builder.host;
-    this.env = builder.env;
     this.tags = builder.tags;
 
     Properties props = new Properties();
@@ -392,9 +394,7 @@ public class KafkaReporter extends ScheduledReporter {
     Metric metric = new Metric();
     metric.name = makeName(name, path);
     metric.value = value;
-    metric.env = env;
     metric.tags = tags;
-    metric.host = host;
     metric.timestamp = System.currentTimeMillis();
 
     try {

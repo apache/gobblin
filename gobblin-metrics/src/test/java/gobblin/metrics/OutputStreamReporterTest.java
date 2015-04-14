@@ -116,12 +116,40 @@ public class OutputStreamReporterTest {
 
   }
 
+  @Test
+  public void testTagsFromContext() {
+    Tag<?> tag1 = new Tag<String>("tag1", "value1");
+    MetricContext context = MetricContext.builder("context").addTag(tag1).build();
+    Counter counter = context.counter("com.linkedin.example.counter");
+
+    OutputStreamReporter reporter = OutputStreamReporter.
+        forContext(context).
+        outputTo(stream).
+        build();
+
+    counter.inc();
+
+    reporter.report();
+    Assert.assertTrue(stream.toString().contains("tag1=value1"));
+    String[] lines = stream.toString().split("\n");
+
+    Map<String, Set<String>> expected = new HashMap<String, Set<String>>();
+
+    expectMetrics(expected, lines);
+    Set<String> counterSubMetrics = new HashSet<String>();
+    counterSubMetrics.add("count");
+    expected.put("com.linkedin.example.counter", counterSubMetrics);
+
+    reporter.close();
+
+  }
+
   @BeforeMethod
   public void before() {
     stream.reset();
   }
 
-  public void expectMetrics(Map<String, Set<String>> metrics, String[] lines) {
+  private void expectMetrics(Map<String, Set<String>> metrics, String[] lines) {
 
     Set<String> activeSet = new HashSet<String>();
     String activeTopLevel = "";

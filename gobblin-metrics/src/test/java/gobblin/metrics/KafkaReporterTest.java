@@ -15,6 +15,7 @@ import com.codahale.metrics.Counter;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -52,6 +53,11 @@ public class KafkaReporterTest extends KafkaTestBase {
   public KafkaReporter.Builder<?> getBuilder(MetricRegistry registry) {
     return KafkaReporter.forRegistry(registry);
   }
+
+  public KafkaReporter.Builder<?> getBuilderFromContext(MetricContext context) {
+    return KafkaReporter.forContext(context);
+  }
+
 
   @Test
   public void testKafkaReporter() throws IOException {
@@ -117,15 +123,11 @@ public class KafkaReporterTest extends KafkaTestBase {
     MetricRegistry registry = new MetricRegistry();
     Counter counter = registry.counter("com.linkedin.example.counter");
 
-    String host = "host.linkedin.com";
-    String env = "testing";
-    String tag1 = "tag1";
-    String tag2 = "tag2";
+    Tag<?> tag1 = new Tag<String>("tag1", "value1");
+    Tag<?> tag2 = new Tag<Integer>("tag2", 2);
 
     KafkaReporter kafkaReporter = getBuilder(registry).
-        withHost(host).
-        withEnv(env).
-        withTags(tag1, tag2).
+        withTags(Lists.newArrayList(tag1, tag2)).
         build("localhost:" + kafkaPort, topic);
 
     counter.inc();
@@ -141,11 +143,40 @@ public class KafkaReporterTest extends KafkaTestBase {
     KafkaReporter.Metric metric = nextMetric(iterator);
 
     Assert.assertEquals(1, Integer.parseInt(metric.value.toString()));
-    Assert.assertEquals(host, metric.host);
-    Assert.assertEquals(env, metric.env);
     Assert.assertEquals(2, metric.tags.size());
-    Assert.assertTrue(metric.tags.contains(tag1));
-    Assert.assertTrue(metric.tags.contains(tag2));
+    Assert.assertTrue(metric.tags.containsKey(tag1.getKey()));
+    Assert.assertEquals(metric.tags.get(tag1.getKey()),
+        tag1.getValue().toString());
+    Assert.assertTrue(metric.tags.containsKey(tag2.getKey()));
+    Assert.assertEquals(metric.tags.get(tag2.getKey()),
+        tag2.getValue().toString());
+  }
+
+  @Test
+  public void kafkaReporterContextTest() throws IOException {
+    Tag<?> tag1 = new Tag<String>("tag1", "value1");
+    MetricContext context = MetricContext.builder("context").addTag(tag1).build();
+    Counter counter = context.counter("com.linkedin.example.counter");
+
+    KafkaReporter kafkaReporter = getBuilderFromContext(context).build("localhost:" + kafkaPort, topic);
+
+    counter.inc();
+
+    kafkaReporter.report();
+
+    try {
+      Thread.sleep(100);
+    } catch(InterruptedException ex) {
+      Thread.currentThread().interrupt();
+    }
+
+    KafkaReporter.Metric metric = nextMetric(iterator);
+
+    Assert.assertEquals(1, Integer.parseInt(metric.value.toString()));
+    Assert.assertEquals(1, metric.tags.size());
+    Assert.assertTrue(metric.tags.containsKey(tag1.getKey()));
+    Assert.assertEquals(metric.tags.get(tag1.getKey()),
+        tag1.getValue().toString());
 
   }
 

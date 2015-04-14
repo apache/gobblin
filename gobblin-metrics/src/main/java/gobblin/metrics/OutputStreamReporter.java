@@ -30,23 +30,44 @@ import java.io.PrintStream;
 import java.text.DateFormat;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class OutputStreamReporter extends ScheduledReporter implements Closeable {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(OutputStreamReporter.class);
+
   /**
    * Returns a new {@link Builder} for {@link gobblin.metrics.OutputStreamReporter}.
+   * If the registry is of type {@link gobblin.metrics.MetricContext} tags will NOT be inherited.
+   * To inherit tags, use forContext method.
    *
    * @param registry the registry to report
    * @return a {@link Builder} instance for a {@link gobblin.metrics.OutputStreamReporter}
    */
   public static Builder<?> forRegistry(MetricRegistry registry) {
+    if(MetricContext.class.isInstance(registry)) {
+      LOGGER.warn("Creating Kafka Reporter from MetricContext using forRegistry method. Will not inherit tags.");
+    }
     return new BuilderImpl(registry);
+  }
+
+  /**
+   * Returns a new {@link gobblin.metrics.OutputStreamReporter.Builder} for {@link gobblin.metrics.OutputStreamReporter}
+   * Will automatically add all Context tags to the reporter.
+   *
+   * @param context the {@link gobblin.metrics.MetricContext} to report
+   * @return {@link gobblin.metrics.OutputStreamReporter.Builder}
+   */
+  public static Builder<?> forContext(MetricContext context) {
+    return new BuilderImpl(context).withTags(context.getTags());
   }
 
   private static class BuilderImpl extends Builder<BuilderImpl> {
@@ -174,6 +195,18 @@ public class OutputStreamReporter extends ScheduledReporter implements Closeable
     public T withTags(Map<String, String> tags) {
       this.tags.putAll(tags);
       return  self();
+    }
+
+    /**
+     * Add tags
+     * @param tags List of {@link gobblin.metrics.Tag}
+     * @return {@code this}
+     */
+    public T withTags(List<Tag<?>> tags) {
+      for(Tag<?> tag : tags) {
+        this.tags.put(tag.getKey(), tag.getValue().toString());
+      }
+      return self();
     }
 
     /**
