@@ -327,7 +327,7 @@ public class JobState extends SourceState {
     jsonWriter.name("task states");
     jsonWriter.beginArray();
     for (TaskState taskState : taskStates.values()) {
-      taskState.toJson(jsonWriter);
+      taskState.toJson(jsonWriter, keepConfig);
     }
     jsonWriter.endArray();
 

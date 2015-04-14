@@ -14,6 +14,7 @@ package gobblin.util;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FilenameFilter;
+import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
@@ -28,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -65,6 +67,9 @@ public class SchedulerUtils {
    */
   public static List<Properties> loadJobConfigs(Properties properties)
       throws ConfigurationException {
+    Preconditions.checkArgument(properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY),
+        "Missing configuration property: " + ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY);
+
     List<Properties> jobConfigs = Lists.newArrayList();
     loadJobConfigsRecursive(jobConfigs, properties, getJobConfigurationFileExtensions(properties),
         new File(properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)));
@@ -80,7 +85,7 @@ public class SchedulerUtils {
    * @return a list of job configurations in the form of {@link java.util.Properties}
    */
   public static List<Properties> loadJobConfigs(Properties properties, File commonPropsFile, File jobConfigFileDir)
-      throws ConfigurationException {
+      throws ConfigurationException, IOException {
     List<Properties> commonPropsList = Lists.newArrayList();
     // Start from the parent of parent of the changed common properties file to avoid
     // loading the common properties file here since it will be loaded below anyway
@@ -110,7 +115,7 @@ public class SchedulerUtils {
    * @return a job configuration in the form of {@link java.util.Properties}
    */
   public static Properties loadJobConfig(Properties properties, File jobConfigFile, File jobConfigFileDir)
-      throws ConfigurationException {
+      throws ConfigurationException, IOException {
     List<Properties> commonPropsList = Lists.newArrayList();
     getCommonProperties(commonPropsList, jobConfigFileDir, jobConfigFile.getParentFile());
     // Add the framework configuration properties to the end
@@ -232,7 +237,11 @@ public class SchedulerUtils {
   }
 
   private static void getCommonProperties(List<Properties> commonPropsList, File jobConfigFileDir, File dir)
-      throws ConfigurationException {
+      throws ConfigurationException, IOException {
+    // Make sure the given starting directory is under the job configuration file directory
+    Preconditions.checkArgument(dir.getCanonicalPath().startsWith(jobConfigFileDir.getCanonicalPath()),
+        String.format("%s is not an ancestor directory of %s", jobConfigFileDir, dir));
+
     // Traversal backward until the parent of the root job configuration file directory is reached
     while (!dir.equals(jobConfigFileDir.getParentFile())) {
       // Get the properties file that ends with .properties if any

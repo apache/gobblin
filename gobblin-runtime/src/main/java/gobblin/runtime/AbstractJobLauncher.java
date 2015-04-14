@@ -109,7 +109,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
 
       // Create a new task from the work unit and submit the task to run
-      Task task = new Task(new TaskContext(workUnitState), stateTracker, Optional.of(countDownLatch));
+      Task task = new Task(new TaskContext(workUnitState), stateTracker, taskExecutor, Optional.of(countDownLatch));
       stateTracker.registerNewTask(task);
       tasks.add(task);
       LOG.info(String.format("Submitting task %s to run", taskId));
@@ -179,11 +179,11 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     SourceState sourceState;
     Source<?, ?> source;
     try {
-      SourceState previousJobState = getPreviousJobState(jobName);
+      JobState previousJobState = getPreviousJobState(jobName);
       // Remember the number of consecutive failures of this job in the past
       jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY,
           previousJobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY, 0));
-      sourceState = new SourceState(jobState, previousJobState);
+      sourceState = new SourceState(jobState, getPreviousWorkUnitStates(previousJobState));
       source = new SourceDecorator(initSource(jobProps), jobId, LOG);
     } catch (Throwable t) {
       String errMsg = "Failed to initialize the source for job " + jobId;
@@ -371,19 +371,35 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * Get the job state of the most recent run of the job.
    */
   @SuppressWarnings("unchecked")
-  private SourceState getPreviousJobState(String jobName)
+  private JobState getPreviousJobState(String jobName)
       throws IOException {
     if (this.jobStateStore.exists(jobName, "current" + JOB_STATE_STORE_TABLE_SUFFIX)) {
       // Read the job state of the most recent run of the job
-      List<SourceState> previousJobStateList =
-          (List<SourceState>) this.jobStateStore.getAll(jobName, "current" + JOB_STATE_STORE_TABLE_SUFFIX);
+      List<JobState> previousJobStateList =
+          (List<JobState>) this.jobStateStore.getAll(jobName, "current" + JOB_STATE_STORE_TABLE_SUFFIX);
       if (!previousJobStateList.isEmpty()) {
         // There should be a single job state on the list if the list is not empty
         return previousJobStateList.get(0);
       }
     }
 
-    return new SourceState();
+    LOG.warn("No previous job state found for job " + jobName);
+    return new JobState();
+  }
+
+  /**
+   * Get the list of {@link WorkUnitState}s in the given previous {@link JobState}.
+   */
+  private List<WorkUnitState> getPreviousWorkUnitStates(JobState previousJobState) {
+    List<WorkUnitState> previousWorkUnitStates = Lists.newArrayList();
+    for (TaskState taskState : previousJobState.getTaskStates()) {
+      WorkUnitState workUnitState = new WorkUnitState(taskState.getWorkunit());
+      workUnitState.setId(taskState.getId());
+      workUnitState.addAll(taskState);
+      previousWorkUnitStates.add(workUnitState);
+    }
+
+    return previousWorkUnitStates;
   }
 
   /**
