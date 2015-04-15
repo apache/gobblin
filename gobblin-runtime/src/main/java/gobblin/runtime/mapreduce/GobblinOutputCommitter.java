@@ -138,7 +138,7 @@ public class GobblinOutputCommitter extends OutputCommitter {
   public void recoverTask(TaskAttemptContext taskContext) throws IOException {
   }
 
-  private class WorkUnitFilter implements PathFilter {
+  private static class WorkUnitFilter implements PathFilter {
     @Override
     public boolean accept(Path path) {
       return path.getName().endsWith(".wu") || path.getName().endsWith(".mwu");
