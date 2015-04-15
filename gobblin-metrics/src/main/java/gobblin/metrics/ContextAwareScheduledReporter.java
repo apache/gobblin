@@ -84,16 +84,20 @@ public abstract class ContextAwareScheduledReporter extends ScheduledReporter {
    * @param timers     all of the timers in the {@link MetricContext}
    */
   protected abstract void reportInContext(MetricContext context,
-                                       SortedMap<String, Gauge> gauges,
-                                       SortedMap<String, Counter> counters,
-                                       SortedMap<String, Histogram> histograms,
-                                       SortedMap<String, Meter> meters,
-                                       SortedMap<String, Timer> timers);
+                                          SortedMap<String, Gauge> gauges,
+                                          SortedMap<String, Counter> counters,
+                                          SortedMap<String, Histogram> histograms,
+                                          SortedMap<String, Meter> meters,
+                                          SortedMap<String, Timer> timers);
 
   /**
    * A builder class for {@link ContextAwareScheduledReporter}.
+   *
+   * @param <R> type of a subclass of {@link ContextAwareScheduledReporter}
+   * @param <B> type of a subclass of {@link Builder}
    */
-  public abstract static class Builder {
+  @SuppressWarnings("unchecked")
+  public abstract static class Builder<R extends ContextAwareScheduledReporter, B extends Builder> {
 
     protected final String name;
     protected MetricFilter filter = MetricFilter.ALL;
@@ -110,7 +114,7 @@ public abstract class ContextAwareScheduledReporter extends ScheduledReporter {
      * @param context the {@link MetricContext} of this {@link ContextAwareScheduledReporter}
      * @return the newly built {@link ContextAwareScheduledReporter}
      */
-    public abstract ContextAwareScheduledReporter build(MetricContext context);
+    public abstract R build(MetricContext context);
 
     /**
      * Only report metrics which match the given filter.
@@ -118,9 +122,9 @@ public abstract class ContextAwareScheduledReporter extends ScheduledReporter {
      * @param filter a {@link MetricFilter}
      * @return {@code this}
      */
-    public Builder filter(MetricFilter filter) {
+    public B filter(MetricFilter filter) {
       this.filter = filter;
-      return this;
+      return (B) this;
     }
 
     /**
@@ -129,9 +133,9 @@ public abstract class ContextAwareScheduledReporter extends ScheduledReporter {
      * @param rateUnit a unit of time
      * @return {@code this}
      */
-    public Builder convertRatesTo(TimeUnit rateUnit) {
+    public B convertRatesTo(TimeUnit rateUnit) {
       this.rateUnit = rateUnit;
-      return this;
+      return (B) this;
     }
 
     /**
@@ -140,9 +144,9 @@ public abstract class ContextAwareScheduledReporter extends ScheduledReporter {
      * @param durationUnit a unit of time
      * @return {@code this}
      */
-    public Builder convertDurationsTo(TimeUnit durationUnit) {
+    public B convertDurationsTo(TimeUnit durationUnit) {
       this.durationUnit = durationUnit;
-      return this;
+      return (B) this;
     }
   }
 }

@@ -61,7 +61,7 @@ public class MetricContextTest {
   private static final String RECORD_SIZE_DISTRIBUTION = "recordSizeDistribution";
   private static final String TOTAL_DURATION = "totalDuration";
   private static final String QUEUE_SIZE = "queueSize";
-  private static final String TEST_REPORTER_NAME = "TestReporter";
+  private static final String TEST_REPORTER_NAME = TestContextAwareScheduledReporter.class.getName();
 
   private MetricContext context;
   private MetricContext childContext;
@@ -70,7 +70,8 @@ public class MetricContextTest {
   public void setUp() {
     this.context = MetricContext.builder(CONTEXT_NAME)
         .addTag(new Tag<String>(JOB_ID_KEY, JOB_ID_PREFIX + 0))
-        .addContextAwareScheduledReporter(TEST_REPORTER_NAME,
+        .addContextAwareScheduledReporter(
+            TEST_REPORTER_NAME,
             new TestContextAwareScheduledReporter.TestContextAwareScheduledReporterBuilder(TEST_REPORTER_NAME))
         .reportFullyQualifiedNames(false)
         .build();
@@ -364,7 +365,8 @@ public class MetricContextTest {
   @Test(dependsOnMethods = "testGetMetrics")
   @SuppressWarnings("unchecked")
   public void testGetMetricsWithFilter() {
-    MetricFilter filter = new TagBasedMetricFilter(Lists.newArrayList(new Tag(METRIC_GROUP_KEY, INPUT_RECORDS_GROUP)));
+    MetricFilter filter = new TagBasedMetricFilter(
+        Lists.<Tag<?>>newArrayList(new Tag<String>(METRIC_GROUP_KEY, INPUT_RECORDS_GROUP)));
 
     Map<String, Counter> counters = this.context.getCounters(filter);
     Assert.assertEquals(counters.size(), 1);

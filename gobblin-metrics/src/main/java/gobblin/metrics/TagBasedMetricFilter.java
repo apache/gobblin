@@ -27,9 +27,9 @@ import com.google.common.collect.ImmutableSet;
  */
 public class TagBasedMetricFilter implements MetricFilter {
 
-  private final Collection<Tag> tags;
+  private final Collection<Tag<?>> tags;
 
-  public TagBasedMetricFilter(Collection<Tag> tags) {
+  public TagBasedMetricFilter(Collection<Tag<?>> tags) {
     this.tags = ImmutableSet.copyOf(tags);
   }
 
