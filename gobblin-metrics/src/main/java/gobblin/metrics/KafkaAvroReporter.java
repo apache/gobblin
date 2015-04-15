@@ -38,11 +38,12 @@ public class KafkaAvroReporter extends KafkaReporter {
   /**
    * Avro schema used for encoding metrics.
    * TODO: finalize metrics avro schema
+   * TODO: make SCHEMA_STRING and SCHEMA not hard coded
    */
-  private static final String SCHEM_STRING = "{\n"+
+  private static final String SCHEMA_STRING = "{\n"+
       " \"type\": \"record\",\n"+
       " \"name\": \"Metric\",\n"+
-      " \"namespace\":\"<TBD>\",\n"+
+      " \"namespace\":\"gobblin.metrics\",\n"+
       " \"fields\" : [\n"+
       " {\"name\": \"tags\", \"type\": {\"type\": \"map\", \"values\": \"string\"}, \"doc\": \"tags associated with the metric\"},\n"+
       " {\"name\": \"name\", \"type\": \"string\", \"doc\": \"metric name\"},\n"+
@@ -50,7 +51,7 @@ public class KafkaAvroReporter extends KafkaReporter {
       " ]\n"+
       "}";
 
-  public static final Schema SCHEMA = (new Schema.Parser()).parse(SCHEM_STRING);
+  public static final Schema SCHEMA = (new Schema.Parser()).parse(SCHEMA_STRING);
   private final GenericDatumWriter<GenericRecord> writer;
   private final Encoder encoder;
   private final ByteArrayOutputStream out;
@@ -60,8 +61,8 @@ public class KafkaAvroReporter extends KafkaReporter {
 
     this.lastSerializeExceptionTime = 0;
 
-    this.out = closer.register(new ByteArrayOutputStream());
-    this.encoder = EncoderFactory.get().binaryEncoder(out, null);
+    this.out = this.closer.register(new ByteArrayOutputStream());
+    this.encoder = EncoderFactory.get().binaryEncoder(this.out, null);
     this.writer = new GenericDatumWriter<GenericRecord>(SCHEMA);
   }
 
@@ -80,11 +81,11 @@ public class KafkaAvroReporter extends KafkaReporter {
 
     record.put("name", MetricRegistry.name(name, path));
     record.put("value", value);
-    record.put("tags", tags);
+    record.put("tags", this.tags);
 
     try {
       this.out.reset();
-      this.writer.write(record, encoder);
+      this.writer.write(record, this.encoder);
       this.encoder.flush();
       return out.toByteArray();
     } catch(IOException e) {

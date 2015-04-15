@@ -52,7 +52,7 @@ public class KafkaReporter extends ScheduledReporter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(KafkaReporter.class);
 
-  private Producer<String, byte[]> producer;
+  private final Producer<String, byte[]> producer;
   private final ProducerConfig config;
   private final String topic;
   private final ObjectMapper mapper = new ObjectMapper();
