@@ -12,6 +12,8 @@
 package gobblin.util;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.regex.Pattern;
 
 import org.apache.hadoop.conf.Configuration;
@@ -23,9 +25,11 @@ import org.testng.annotations.Test;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.Extract.TableType;
+import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 
 
@@ -57,6 +61,24 @@ public class JobLauncherUtilsTest {
   public void testNewMultiTaskId() {
     Assert.assertEquals(JobLauncherUtils.newMultiTaskId(this.jobId, 0), this.jobId.replace("job", "multitask") + "_0");
     Assert.assertEquals(JobLauncherUtils.newMultiTaskId(this.jobId, 1), this.jobId.replace("job", "multitask") + "_1");
+  }
+
+  @Test
+  public void testFlattenWorkUnits() {
+    List<WorkUnit> workUnitsOnly = Arrays.asList(new WorkUnit(), new WorkUnit(), new WorkUnit());
+
+    Assert.assertEquals(JobLauncherUtils.flattenWorkUnits(workUnitsOnly).size(), 3);
+
+    MultiWorkUnit multiWorkUnit1 = new MultiWorkUnit();
+    multiWorkUnit1.addWorkUnits(Arrays.asList(new WorkUnit(), new WorkUnit(), new WorkUnit()));
+
+    MultiWorkUnit multiWorkUnit2 = new MultiWorkUnit();
+    multiWorkUnit1.addWorkUnits(Arrays.asList(new WorkUnit(), new WorkUnit(), new WorkUnit()));
+
+    List<WorkUnit> workUnitsAndMultiWorkUnits =
+        Arrays.asList(new WorkUnit(), new WorkUnit(), new WorkUnit(), multiWorkUnit1, multiWorkUnit2);
+
+    Assert.assertEquals(JobLauncherUtils.flattenWorkUnits(workUnitsAndMultiWorkUnits).size(), 9);
   }
 
   @Test

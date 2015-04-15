@@ -200,15 +200,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     this.job.setSpeculativeExecution(false);
 
     // Delete any staging directories that already exist
-    for (WorkUnit workUnit : workUnits) {
-      if (workUnit instanceof MultiWorkUnit) {
-        for (WorkUnit mulitWorkUnitChild : ((MultiWorkUnit) workUnit).getWorkUnits()) {
-          JobLauncherUtils.cleanStagingData(mulitWorkUnitChild, LOG);
-        }
-      } else {
-        JobLauncherUtils.cleanStagingData(workUnit, LOG);
-      }
-    }
+    JobLauncherUtils.cleanStagingData(JobLauncherUtils.flattenWorkUnits(workUnits), LOG);
 
     // Job input path is where input work unit files are stored
     Path jobInputPath = new Path(mrJobDir, "input");
