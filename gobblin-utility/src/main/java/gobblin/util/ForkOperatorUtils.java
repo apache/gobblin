@@ -33,12 +33,12 @@ public class ForkOperatorUtils {
    *
    * @param key      property key
    * @param numBranches number of branches (non-negative)
-   * @param branchId    branch index (non-negative)
+   * @param branchId    branch id (non-negative)
    * @return a new property key
    */
   public static String getPropertyNameForBranch(String key, int numBranches, int branchId) {
-    Preconditions.checkArgument(branchId >= 0, "The number of branches is expected to be non-negative");
-    Preconditions.checkArgument(numBranches >= 0, "The branchId is expected to be non-negative");
+    Preconditions.checkArgument(numBranches >= 0, "The number of branches is expected to be non-negative");
+    Preconditions.checkArgument(branchId >= 0, "The branchId is expected to be non-negative");
     return numBranches > 1 ? key + "." + branchId : key;
   }
 
@@ -80,8 +80,8 @@ public class ForkOperatorUtils {
   /**
    * Get a new path with the given branch name as a sub directory.
    *
-   * @param branchName branch name
-   * @param branch   branch index
+   * @param numBranches number of branches (non-negative)
+   * @param branchId    branch id (non-negative)
    * @return a new path
    */
   public static String getPathForBranch(State state, String path, int numBranches, int branchId) {

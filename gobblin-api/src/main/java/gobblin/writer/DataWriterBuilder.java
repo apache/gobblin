@@ -78,7 +78,7 @@ public abstract class DataWriterBuilder<S, D> {
   /**
    * Tell the writer how many branches are being used in it's {@link gobblin.runtime.TaskState}.
    *
-   * @param branch branch index
+   * @param branches is the number of branches
    * @return this {@link DataWriterBuilder} instance
    */
   public DataWriterBuilder<S, D> withBranches(int branches) {

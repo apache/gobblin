@@ -84,7 +84,6 @@ public class BaseDataPublisher extends DataPublisher {
 
     for (WorkUnitState workUnitState : states) {
       int numBranches = workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
-
       for (int branchId = 0; branchId < numBranches; branchId++) {
 
         Path writerOutput = WriterUtils.getWriterOutputDir(workUnitState, numBranches, branchId);
