@@ -11,6 +11,20 @@
 
 package gobblin.metrics;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Properties;
+import java.util.SortedMap;
+import java.util.concurrent.TimeUnit;
+
+import org.codehaus.jackson.map.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
@@ -21,21 +35,12 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Properties;
-import java.util.SortedMap;
-import java.util.concurrent.TimeUnit;
+import com.google.common.base.Strings;
+import com.google.common.io.Closer;
 
 import kafka.javaapi.producer.Producer;
 import kafka.producer.KeyedMessage;
 import kafka.producer.ProducerConfig;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 /**
@@ -48,15 +53,38 @@ public class KafkaReporter extends ScheduledReporter {
   private static final Logger LOGGER = LoggerFactory.getLogger(KafkaReporter.class);
 
   private Producer<String, byte[]> producer;
-  private long lastSerializeExceptionTime;
   private final ProducerConfig config;
   private final String topic;
   private final ObjectMapper mapper = new ObjectMapper();
 
+  protected long lastSerializeExceptionTime;
+  protected final Closer closer;
+
   public final Map<String, String> tags;
 
+  protected KafkaReporter(Builder<?> builder) {
+    super(builder.registry, builder.name, builder.filter,
+        builder.rateUnit, builder.durationUnit);
+
+    this.closer = Closer.create();
+
+    this.lastSerializeExceptionTime = 0;
+
+    this.tags = builder.tags;
+
+    Properties props = new Properties();
+
+    props.put("metadata.broker.list", builder.brokers);
+    props.put("serializer.class", "kafka.serializer.DefaultEncoder");
+    props.put("request.required.acks", "1");
+
+    this.config = new ProducerConfig(props);
+    this.producer = closer.register(new ProducerCloseable<String, byte[]>(config));
+    this.topic = builder.topic;
+  }
+
   /**
-   * Returns a new {@link gobblin.metrics.KafkaReporter.Builder} for {@link gobblin.metrics.KafkaReporter}
+   * Returns a new {@link gobblin.metrics.KafkaReporter.Builder} for {@link gobblin.metrics.KafkaReporter}.
    * If the registry is of type {@link gobblin.metrics.MetricContext} tags will NOT be inherited.
    * To inherit tags, use forContext method.
    *
@@ -71,7 +99,7 @@ public class KafkaReporter extends ScheduledReporter {
   }
 
   /**
-   * Returns a new {@link gobblin.metrics.KafkaReporter.Builder} for {@link gobblin.metrics.KafkaReporter}
+   * Returns a new {@link gobblin.metrics.KafkaReporter.Builder} for {@link gobblin.metrics.KafkaReporter}.
    * Will automatically add all Context tags to the reporter.
    *
    * @param context the {@link gobblin.metrics.MetricContext} to report
@@ -93,8 +121,8 @@ public class KafkaReporter extends ScheduledReporter {
   }
 
   /**
-   * Builder for {@link gobblin.metrics.KafkaReporter}
-   * Defaults to no filter, reporting rates in seconds and times in milliseconds
+   * Builder for {@link gobblin.metrics.KafkaReporter}.
+   * Defaults to no filter, reporting rates in seconds and times in milliseconds.
    */
   public static abstract class Builder<T extends Builder<T>> {
     protected MetricRegistry registry;
@@ -112,7 +140,7 @@ public class KafkaReporter extends ScheduledReporter {
       this.rateUnit = TimeUnit.SECONDS;
       this.durationUnit = TimeUnit.MILLISECONDS;
       this.filter = MetricFilter.ALL;
-      this.tags = new HashMap<String, String>();
+      this.tags = new LinkedHashMap<String, String>();
     }
 
     protected abstract T self();
@@ -161,7 +189,7 @@ public class KafkaReporter extends ScheduledReporter {
     }
 
     /**
-     * Add tags
+     * Add tags.
      * @param tags List of {@link gobblin.metrics.Tag}
      * @return {@code this}
      */
@@ -173,7 +201,7 @@ public class KafkaReporter extends ScheduledReporter {
     }
 
     /**
-     * Add tag
+     * Add tag.
      * @param key tag key
      * @param value tag value
      * @return {@code this}
@@ -184,7 +212,7 @@ public class KafkaReporter extends ScheduledReporter {
     }
 
     /**
-     * Builds and returns {@link gobblin.metrics.KafkaReporter}
+     * Builds and returns {@link gobblin.metrics.KafkaReporter}.
      *
      * @param brokers string of Kafka brokers
      * @param topic topic to send metrics to
@@ -199,7 +227,7 @@ public class KafkaReporter extends ScheduledReporter {
   }
 
   /**
-   * Class to contain a single metric
+   * Class to contain a single metric.
    */
   public static class Metric {
     public String name;
@@ -208,49 +236,19 @@ public class KafkaReporter extends ScheduledReporter {
     public long timestamp;
   }
 
-  /**
-   * Builds a metric name by appending elements of the path to the base name
-   * @param name base name of metric
-   * @param path elements to append to the base name
-   * @return generated name
-   */
-  public static String makeName(String name, String... path) {
-    final StringBuilder sb = new StringBuilder(name);
-    for (String part: path) {
-      sb.append('.').append(part);
-    }
-    return sb.toString();
-  }
-
-  protected KafkaReporter(Builder<?> builder) {
-    super(builder.registry, builder.name, builder.filter,
-        builder.rateUnit, builder.durationUnit);
-
-    lastSerializeExceptionTime = 0;
-
-    this.tags = builder.tags;
-
-    Properties props = new Properties();
-
-    props.put("metadata.broker.list", builder.brokers);
-    props.put("serializer.class", "kafka.serializer.DefaultEncoder");
-    props.put("request.required.acks", "1");
-
-    config = new ProducerConfig(props);
-    producer = new Producer<String, byte[]>(config);
-    this.topic = builder.topic;
-
-  }
-
   @Override
   public void close() {
-    super.close();
-    producer.close();
+    try {
+      super.close();
+      this.closer.close();
+    } catch(Exception e) {
+      LOGGER.warn("Exception when closing KafkaReporter", e);
+    }
   }
 
   /**
    * Serializes metrics and pushes the byte arrays to Kafka.
-   * Uses the serialize* methods in {@link gobblin.metrics.KafkaReporter}
+   * Uses the serialize* methods in {@link gobblin.metrics.KafkaReporter}.
    * @param gauges
    * @param counters
    * @param histograms
@@ -287,12 +285,12 @@ public class KafkaReporter extends ScheduledReporter {
       messages.addAll(toKeyedMessages(serializeSingleValue(timer.getKey(), timer.getValue().getCount(), "count")));
     }
 
-    producer.send(messages);
+    this.producer.send(messages);
 
   }
 
   /**
-   * Serialize a {@link com.codahale.metrics.Gauge}
+   * Serialize a {@link com.codahale.metrics.Gauge}.
    * @param name
    * @param gauge
    * @return List of byte arrays for each metric derived from the gauge
@@ -304,7 +302,7 @@ public class KafkaReporter extends ScheduledReporter {
   }
 
   /**
-   * Serialize a {@link com.codahale.metrics.Counter}
+   * Serialize a {@link com.codahale.metrics.Counter}.
    * @param name
    * @param counter
    * @return List of byte arrays for each metric derived from the counter
@@ -316,7 +314,7 @@ public class KafkaReporter extends ScheduledReporter {
   }
 
   /**
-   * Serialize a {@link com.codahale.metrics.Metered}
+   * Serialize a {@link com.codahale.metrics.Metered}.
    * @param name
    * @param meter
    * @return List of byte arrays for each metric derived from the metered object
@@ -334,7 +332,7 @@ public class KafkaReporter extends ScheduledReporter {
   }
 
   /**
-   * Serialize a {@link com.codahale.metrics.Snapshot}
+   * Serialize a {@link com.codahale.metrics.Snapshot}.
    * @param name
    * @param snapshot
    * @return List of byte arrays for each metric derived from the snapshot object
@@ -355,7 +353,7 @@ public class KafkaReporter extends ScheduledReporter {
   }
 
   /**
-   * Serialize a single value
+   * Serialize a single value.
    * @param name
    * @param value
    * @param path suffixes to more precisely identify the meaning of the reported value
@@ -368,7 +366,7 @@ public class KafkaReporter extends ScheduledReporter {
   }
 
   /**
-   * Serializes a single metric key-value pair to send to Kafka
+   * Serializes a single metric key-value pair to send to Kafka.
    * @param name name of the metric
    * @param value value of the metric to report
    * @param path additional suffixes to further identify the meaning of the reported value
@@ -376,7 +374,7 @@ public class KafkaReporter extends ScheduledReporter {
    */
   protected byte[] serializeValue(String name, Object value, String... path) {
     String str = stringifyValue(name, value, path);
-    if(str != null) {
+    if(Strings.isNullOrEmpty(str)) {
       return str.getBytes();
     } else {
       return null;
@@ -384,7 +382,7 @@ public class KafkaReporter extends ScheduledReporter {
   }
 
   /**
-   * Converts a single metric key-value pair to a string
+   * Converts a single metric key-value pair to a string.
    * @param name name of the metric
    * @param value value of the metric to report
    * @param path additional suffixes to further identify the meaning of the reported value
@@ -392,7 +390,7 @@ public class KafkaReporter extends ScheduledReporter {
    */
   protected synchronized  String stringifyValue(String name, Object value, String... path) {
     Metric metric = new Metric();
-    metric.name = makeName(name, path);
+    metric.name = MetricRegistry.name(name, path);
     metric.value = value;
     metric.tags = tags;
     metric.timestamp = System.currentTimeMillis();

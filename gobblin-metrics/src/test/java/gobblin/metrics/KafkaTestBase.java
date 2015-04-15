@@ -18,6 +18,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+
+import org.I0Itec.zkclient.ZkClient;
+
 import kafka.admin.AdminUtils;
 import kafka.consumer.Consumer;
 import kafka.consumer.ConsumerConfig;
@@ -32,7 +35,6 @@ import kafka.utils.TestZKUtils;
 import kafka.utils.Time;
 import kafka.utils.ZKStringSerializer$;
 import kafka.zk.EmbeddedZookeeper;
-import org.I0Itec.zkclient.ZkClient;
 
 
 /**

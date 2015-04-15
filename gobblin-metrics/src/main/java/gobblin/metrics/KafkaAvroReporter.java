@@ -11,9 +11,9 @@
 
 package gobblin.metrics;
 
-import com.codahale.metrics.MetricRegistry;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -23,9 +23,11 @@ import org.apache.avro.io.EncoderFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.MetricRegistry;
+
 
 /**
- * Kafka reporter for codahale metrics writing metrics in Avro format
+ * Kafka reporter for codahale metrics writing metrics in Avro format.
  *
  * @author ibuenros
  */
@@ -34,10 +36,10 @@ public class KafkaAvroReporter extends KafkaReporter {
   private static final Logger LOGGER = LoggerFactory.getLogger(KafkaAvroReporter.class);
 
   /**
-   * Avro schema used for encoding metrics
+   * Avro schema used for encoding metrics.
    * TODO: finalize metrics avro schema
    */
-  private static final String SchemaString = "{\n"+
+  private static final String SCHEM_STRING = "{\n"+
       " \"type\": \"record\",\n"+
       " \"name\": \"Metric\",\n"+
       " \"namespace\":\"<TBD>\",\n"+
@@ -48,25 +50,24 @@ public class KafkaAvroReporter extends KafkaReporter {
       " ]\n"+
       "}";
 
-  public static final Schema Schema = (new Schema.Parser()).parse(SchemaString);
-  private GenericDatumWriter<GenericRecord> writer;
-  private Encoder encoder;
-  private ByteArrayOutputStream out;
-  private long lastSerializeExceptionTime;
+  public static final Schema SCHEMA = (new Schema.Parser()).parse(SCHEM_STRING);
+  private final GenericDatumWriter<GenericRecord> writer;
+  private final Encoder encoder;
+  private final ByteArrayOutputStream out;
 
   protected KafkaAvroReporter(Builder<?> builder) {
     super(builder);
 
-    lastSerializeExceptionTime = 0;
+    this.lastSerializeExceptionTime = 0;
 
-    out = new ByteArrayOutputStream();
-    encoder = EncoderFactory.get().binaryEncoder(out, null);
-    writer = new GenericDatumWriter<GenericRecord>(Schema);
+    this.out = closer.register(new ByteArrayOutputStream());
+    this.encoder = EncoderFactory.get().binaryEncoder(out, null);
+    this.writer = new GenericDatumWriter<GenericRecord>(SCHEMA);
   }
 
   /**
-   * Serializes a metric key-value pair into an avro object
-   * Calls _serializeValue, which is synchronized because avro serializer is not thread-safe
+   * Serializes a metric key-value pair into an avro object.
+   * Calls _serializeValue, which is synchronized because avro serializer is not thread-safe.
    *
    * @param name name of the metric
    * @param value value of the metric to report
@@ -75,25 +76,25 @@ public class KafkaAvroReporter extends KafkaReporter {
    */
   @Override
   protected synchronized byte[] serializeValue(String name, Object value, String... path) {
-    GenericRecord record = new GenericData.Record(Schema);
+    GenericRecord record = new GenericData.Record(SCHEMA);
 
-    record.put("name", makeName(name, path));
+    record.put("name", MetricRegistry.name(name, path));
     record.put("value", value);
     record.put("tags", tags);
 
     try {
-      out.reset();
-      writer.write(record, encoder);
-      encoder.flush();
+      this.out.reset();
+      this.writer.write(record, encoder);
+      this.encoder.flush();
       return out.toByteArray();
     } catch(IOException e) {
       // If there is actually something wrong with the serializer,
       // this exception would be thrown for every single metric serialized.
       // Instead, report at warn level at most every 10 seconds.
       LOGGER.trace("Could not serialize Avro record for Kafka Metrics. Exception: %s", e.getMessage());
-      if(System.currentTimeMillis() - lastSerializeExceptionTime > 10000) {
+      if(System.currentTimeMillis() - this.lastSerializeExceptionTime > 10000) {
         LOGGER.warn("Could not serialize Avro record for Kafka Metrics. Exception: %s", e.getMessage());
-        lastSerializeExceptionTime = System.currentTimeMillis();
+        this.lastSerializeExceptionTime = System.currentTimeMillis();
       }
     }
 
@@ -101,7 +102,7 @@ public class KafkaAvroReporter extends KafkaReporter {
   }
 
   /**
-   * Returns a new {@link gobblin.metrics.KafkaAvroReporter.Builder} for {@link gobblin.metrics.KafkaAvroReporter}
+   * Returns a new {@link gobblin.metrics.KafkaAvroReporter.Builder} for {@link gobblin.metrics.KafkaAvroReporter}.
    * If the registry is of type {@link gobblin.metrics.MetricContext} tags will NOT be inherited.
    * To inherit tags, use forContext method.
    *
@@ -116,7 +117,7 @@ public class KafkaAvroReporter extends KafkaReporter {
   }
 
   /**
-   * Returns a new {@link gobblin.metrics.KafkaAvroReporter.Builder} for {@link gobblin.metrics.KafkaAvroReporter}
+   * Returns a new {@link gobblin.metrics.KafkaAvroReporter.Builder} for {@link gobblin.metrics.KafkaAvroReporter}.
    *
    * @param context the {@link gobblin.metrics.MetricContext} to report
    * @return KafkaAvroReporter builder
@@ -137,8 +138,8 @@ public class KafkaAvroReporter extends KafkaReporter {
   }
 
   /**
-   * Builder for {@link gobblin.metrics.KafkaAvroReporter}
-   * Defaults to no filter, reporting rates in seconds and times in milliseconds
+   * Builder for {@link gobblin.metrics.KafkaAvroReporter}.
+   * Defaults to no filter, reporting rates in seconds and times in milliseconds.
    */
   public static abstract class Builder<T extends Builder<T>> extends KafkaReporter.Builder<T> {
 
@@ -147,7 +148,7 @@ public class KafkaAvroReporter extends KafkaReporter {
     }
 
     /**
-     * Builds and returns {@link gobblin.metrics.KafkaAvroReporter}
+     * Builds and returns {@link gobblin.metrics.KafkaAvroReporter}.
      *
      * @param brokers string of Kafka brokers
      * @param topic topic to send metrics to

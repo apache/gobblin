@@ -11,16 +11,16 @@
 
 package gobblin.metrics;
 
-import java.util.Iterator;
 import java.util.Properties;
-import kafka.consumer.ConsumerIterator;
-import kafka.javaapi.producer.Producer;
-import kafka.producer.KeyedMessage;
-import kafka.producer.ProducerConfig;
+
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.Test;
+
+import kafka.javaapi.producer.Producer;
+import kafka.producer.KeyedMessage;
+import kafka.producer.ProducerConfig;
 
 @Test(groups = {"gobblin.metrics"})
 public class KafkaTestBaseTest extends KafkaTestBase {

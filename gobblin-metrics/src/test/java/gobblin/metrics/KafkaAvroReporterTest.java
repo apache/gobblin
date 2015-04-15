@@ -12,11 +12,10 @@
 
 package gobblin.metrics;
 
-import com.codahale.metrics.MetricRegistry;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import kafka.consumer.ConsumerIterator;
+
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
@@ -26,6 +25,10 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.util.Utf8;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+
+import com.codahale.metrics.MetricRegistry;
+
+import kafka.consumer.ConsumerIterator;
 
 
 /**
@@ -65,7 +68,7 @@ public class KafkaAvroReporterTest extends KafkaReporterTest {
 
   @BeforeClass
   public void setup() {
-    schema = KafkaAvroReporter.Schema;
+    schema = KafkaAvroReporter.SCHEMA;
 
     reader = new GenericDatumReader<GenericRecord>(schema);
   }
