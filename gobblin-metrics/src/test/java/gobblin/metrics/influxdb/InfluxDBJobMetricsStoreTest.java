@@ -9,7 +9,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics;
+package gobblin.metrics.influxdb;
 
 import java.io.IOException;
 import java.util.Map;
@@ -27,10 +27,14 @@ import com.codahale.metrics.Counter;
 import com.google.common.collect.Lists;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.metrics.AggregationFunction;
+import gobblin.metrics.JobMetrics;
+import gobblin.metrics.JobMetricsStore;
+import gobblin.metrics.MetricNameSuffix;
 
 
 /**
- * Unit tests for {@link InfluxDBJobMetricsStore}.
+ * Unit tests for {@link gobblin.metrics.influxdb.InfluxDBJobMetricsStore}.
  *
  * @author ynli
  */

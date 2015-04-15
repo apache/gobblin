@@ -9,7 +9,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics;
+package gobblin.metrics.influxdb;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -32,13 +32,17 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.metrics.AggregationFunction;
+import gobblin.metrics.JobMetrics;
+import gobblin.metrics.JobMetricsStore;
+import gobblin.metrics.MetricNameSuffix;
 
 
 /**
- * An implementation of {@link JobMetricsStore} backed by InfluxDB.
+ * An implementation of {@link gobblin.metrics.JobMetricsStore} backed by InfluxDB.
  *
  * <p>
- *     In this implementation, {@link JobMetrics} of a job form a time series.
+ *     In this implementation, {@link gobblin.metrics.JobMetrics} of a job form a time series.
  *     This makes it straightforward to do metric aggregation at the job level.
  *     Job-level metrics and task-level metrics, which belong to two separate
  *     metric groups, namely JOB and TASK, are mixed together but can still be

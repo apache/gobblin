@@ -9,7 +9,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics;
+package gobblin.metrics.kafka;
 
 import java.io.Closeable;
 import java.io.IOException;

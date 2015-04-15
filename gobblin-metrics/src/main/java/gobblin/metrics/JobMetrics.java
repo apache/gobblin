@@ -14,7 +14,6 @@ package gobblin.metrics;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.URI;
-import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;

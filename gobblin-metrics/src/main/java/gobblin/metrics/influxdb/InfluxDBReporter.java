@@ -9,7 +9,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics;
+package gobblin.metrics.influxdb;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -26,6 +26,9 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Timer;
+
+import gobblin.metrics.JobMetrics;
+import gobblin.metrics.JobMetricsStore;
 
 
 /**
