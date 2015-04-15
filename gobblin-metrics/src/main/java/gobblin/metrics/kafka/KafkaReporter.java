@@ -376,7 +376,7 @@ public class KafkaReporter extends ScheduledReporter {
    */
   protected byte[] serializeValue(String name, Object value, String... path) {
     String str = stringifyValue(name, value, path);
-    if(Strings.isNullOrEmpty(str)) {
+    if(!Strings.isNullOrEmpty(str)) {
       return str.getBytes();
     } else {
       return null;

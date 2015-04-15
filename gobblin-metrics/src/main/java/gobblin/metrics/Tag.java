@@ -18,6 +18,8 @@ import java.util.Map;
 /**
  * A class representing a dimension or property associated with a {@link Taggable}.
  *
+ * @param <T> type of the tag value
+ *
  * @author ynli
  */
 public class Tag<T> extends AbstractMap.SimpleEntry<String, T> {

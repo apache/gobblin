@@ -58,7 +58,6 @@ public abstract class ContextAwareScheduledReporter extends ScheduledReporter {
              this.context.getMeters(),
              this.context.getTimers());
     }
-
   }
 
   @Override

@@ -29,7 +29,7 @@ import gobblin.metrics.MetricContext;
 
 
 /**
- * An implementation of {@link gobblin.metrics.ContextAwareScheduledReporter} that report
+ * An implementation of {@link gobblin.metrics.ContextAwareScheduledReporter} that reports
  * applicable metrics as Hadoop counters using a {@link org.apache.hadoop.mapred.Reporter}.
  *
  * @author ynli
