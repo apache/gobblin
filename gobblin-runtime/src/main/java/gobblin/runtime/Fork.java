@@ -285,7 +285,8 @@ public class Fork implements Closeable, Runnable {
     this.parentTaskDone = true;
 
     // Record the fork state into the task state that will be persisted into the state store
-    this.taskState.setProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.FORK_STATE_KEY, this.index),
+    this.taskState.setProp(
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.FORK_STATE_KEY, this.branches, this.index),
         this.forkState.get().name());
     try {
       this.closer.close();
@@ -300,19 +301,10 @@ public class Fork implements Closeable, Runnable {
   @SuppressWarnings("unchecked")
   private DataWriter<Object> buildWriter()
       throws IOException, SchemaConversionException {
-    String branchName = ForkOperatorUtils
-        .getBranchName(this.taskState, this.index, ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME + this.index);
-    String writerFilePathKey =
-        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, this.branches, this.index);
-    if (!this.taskState.contains(writerFilePathKey)) {
-      this.taskState.setProp(writerFilePathKey, ForkOperatorUtils
-          .getPathForBranch(this.taskState.getExtract().getOutputFilePath(), branchName, this.branches));
-    }
-
     return this.taskContext.getDataWriterBuilder(this.branches, this.index)
         .writeTo(Destination.of(this.taskContext.getDestinationType(this.branches, this.index), this.taskState))
         .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index)).withWriterId(this.taskId)
-        .withSchema(this.convertedSchema).forBranch(this.branches > 1 ? this.index : -1).build();
+        .withSchema(this.convertedSchema).withBranches(this.branches).forBranch(this.index).build();
   }
 
   /**
