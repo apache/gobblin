@@ -196,7 +196,7 @@ public class ConfigurationKeys {
   public static final String WRITER_PRESERVE_FILE_NAME = WRITER_PREFIX + ".preserve.file.name";
   public static final String WRITER_DEFLATE_LEVEL = WRITER_PREFIX + ".deflate.level";
   public static final String WRITER_CODEC_TYPE = WRITER_PREFIX + ".codec.type";
-  public static final String DEFAULT_WRITER_FILE_NAME = "avro";
+  public static final String DEFAULT_WRITER_FILE_NAME = "part";
   public static final String DEFAULT_DEFLATE_LEVEL = "9";
   public static final String DEFAULT_BUFFER_SIZE = "4096";
 
