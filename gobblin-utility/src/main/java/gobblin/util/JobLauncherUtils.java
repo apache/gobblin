@@ -93,6 +93,12 @@ public class JobLauncherUtils {
     return flattenedWorkUnits;
   }
 
+  /**
+   * Cleanup the staging data for a list of Gobblin tasks. This method calls the {@link #cleanStagingData(State, Logger)}
+   * method.
+   *
+   * @param states a {@list List} of {@link State}s that need their staging data cleaned.
+   */
   public static void cleanStagingData(List<State> states, Logger logger) throws IOException {
     for (State state : states) {
       JobLauncherUtils.cleanStagingData(state, logger);
