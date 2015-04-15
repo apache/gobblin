@@ -22,7 +22,7 @@ import org.slf4j.Logger;
 import com.google.common.base.Strings;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
+import gobblin.configuration.State;
 
 
 /**
@@ -71,30 +71,27 @@ public class JobLauncherUtils {
   /**
    * Cleanup staging data of a Gobblin task.
    *
-   * @param state workunit state
+   * @param taskState task state
    */
-  public static void cleanStagingData(WorkUnitState state, Logger logger) throws IOException {
-    int branches = state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
+  public static void cleanStagingData(State taskState, Logger logger) throws IOException {
+    int branches = taskState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
     for (int i = 0; i < branches; i++) {
-      String writerFsUri = state
+      String writerFsUri = taskState
           .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, branches, i),
               ConfigurationKeys.LOCAL_FS_URI);
       FileSystem fs = FileSystem.get(URI.create(writerFsUri), new Configuration());
 
-      String writerFilePath = state
+      String writerFilePath = taskState
           .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, branches, i));
-
-      // If the WRITER_FILE_PATH has not been set, use the default value
       if (Strings.isNullOrEmpty(writerFilePath)) {
-        writerFilePath =
-            state.getExtract().getOutputFilePath() + Path.SEPARATOR
-                + ForkOperatorUtils.getBranchName(state, i, ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME + i);
+        // The job may be cancelled before the task starts, so this may not be set.
+        continue;
       }
 
       String stagingDirKey =
           ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_DIR, branches, i);
-      if (state.contains(stagingDirKey)) {
-        Path stagingPath = new Path(state.getProp(stagingDirKey), writerFilePath);
+      if (taskState.contains(stagingDirKey)) {
+        Path stagingPath = new Path(taskState.getProp(stagingDirKey), writerFilePath);
         if (fs.exists(stagingPath)) {
           logger.info("Cleaning up staging directory " + stagingPath.toUri().getPath());
           fs.delete(stagingPath, true);
@@ -103,8 +100,8 @@ public class JobLauncherUtils {
 
       String outputDirKey =
           ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR, branches, i);
-      if (state.contains(outputDirKey)) {
-        Path outputPath = new Path(state.getProp(outputDirKey), writerFilePath);
+      if (taskState.contains(outputDirKey)) {
+        Path outputPath = new Path(taskState.getProp(outputDirKey), writerFilePath);
         if (fs.exists(outputPath)) {
           logger.info("Cleaning up output directory " + outputPath.toUri().getPath());
           fs.delete(outputPath, true);

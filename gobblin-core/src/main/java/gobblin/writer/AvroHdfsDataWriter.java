@@ -20,6 +20,7 @@ import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.DatumWriter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -43,10 +44,15 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
 
   private static final Logger LOG = LoggerFactory.getLogger(AvroHdfsDataWriter.class);
 
+  private final State properties;
   private final FileSystem fs;
   private final Path stagingFile;
   private final Path outputFile;
+  private final DatumWriter<GenericRecord> datumWriter;
   private final DataFileWriter<GenericRecord> writer;
+
+  // It is possible that the schema may change based on incoming records
+  private Schema schema;
 
   // Number of records successfully written
   private final AtomicLong count = new AtomicLong(0);
@@ -82,6 +88,9 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
         .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DEFLATE_LEVEL, branch),
             ConfigurationKeys.DEFAULT_DEFLATE_LEVEL));
 
+    this.properties = properties;
+    this.schema = schema;
+
     Configuration conf = new Configuration();
     // Add all job configuration properties so they are picked up by Hadoop
     for (String key : properties.getPropertyNames()) {
@@ -104,13 +113,22 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
       this.fs.mkdirs(this.outputFile.getParent());
     }
 
-    this.writer = createDatumWriter(schema, this.stagingFile, bufferSize, CodecType.valueOf(codecType), deflateLevel);
+    this.datumWriter = new GenericDatumWriter<GenericRecord>();
+    this.writer = createDatumWriter(this.stagingFile, bufferSize, CodecType.valueOf(codecType), deflateLevel);
   }
 
   @Override
   public void write(GenericRecord record)
       throws IOException {
     Preconditions.checkNotNull(record);
+
+    // It is possible that each record has a different schema
+    if (this.properties.getPropAsBoolean(ConfigurationKeys.WRITER_SET_SCHEMA_PER_RECORD,
+        ConfigurationKeys.DEFAULT_WRITER_SET_SCHEMA_PER_RECORD) && !this.schema.equals(record.getSchema())) {
+      this.schema = record.getSchema();
+      this.datumWriter.setSchema(record.getSchema());
+    }
+
     this.writer.append(record);
     // Only increment when write is successful
     this.count.incrementAndGet();
@@ -187,7 +205,7 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
    * @param deflateLevel Deflate level
    * @throws IOException
    */
-  private DataFileWriter<GenericRecord> createDatumWriter(Schema schema, Path avroFile, int bufferSize,
+  private DataFileWriter<GenericRecord> createDatumWriter(Path avroFile, int bufferSize,
       CodecType codecType, int deflateLevel)
       throws IOException {
 
@@ -196,7 +214,7 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
     }
 
     FSDataOutputStream outputStream = this.fs.create(avroFile, true, bufferSize);
-    DataFileWriter<GenericRecord> writer = new DataFileWriter<GenericRecord>(new GenericDatumWriter<GenericRecord>());
+    DataFileWriter<GenericRecord> writer = new DataFileWriter<GenericRecord>(this.datumWriter);
 
     // Set compression type
     switch (codecType) {
@@ -214,6 +232,6 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
     }
 
     // Open the file and return the DataFileWriter
-    return writer.create(schema, outputStream);
+    return writer.create(this.schema, outputStream);
   }
 }

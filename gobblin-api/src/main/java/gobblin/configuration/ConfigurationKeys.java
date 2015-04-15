@@ -200,11 +200,13 @@ public class ConfigurationKeys {
   public static final String WRITER_PARTITION_LEVEL = WRITER_PREFIX + ".partition.level";
   public static final String WRITER_PARTITION_PATTERN = WRITER_PREFIX + ".partition.pattern";
   public static final String WRITER_PARTITION_TIMEZONE = WRITER_PREFIX + ".partition.timezone";
+  public static final String WRITER_SET_SCHEMA_PER_RECORD = WRITER_PREFIX + ".set.schema.per.record";
   public static final String DEFAULT_DEFLATE_LEVEL = "9";
   public static final String DEFAULT_BUFFER_SIZE = "4096";
   public static final String DEFAULT_WRITER_PARTITION_LEVEL = "daily";
   public static final String DEFAULT_WRITER_PARTITION_PATTERN = "yyyy/MM/dd";
   public static final String DEFAULT_WRITER_PARTITION_TIMEZONE = "America/Los_Angeles";
+  public static final boolean DEFAULT_WRITER_SET_SCHEMA_PER_RECORD = false;
 
   /**
    * Configuration properties used by the quality checker.
