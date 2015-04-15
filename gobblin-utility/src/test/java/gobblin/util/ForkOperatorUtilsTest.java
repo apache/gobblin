@@ -33,19 +33,6 @@ public class ForkOperatorUtilsTest {
   private static final String PATH_FOO = "foo";
 
   @Test
-  public void testGetBranchName() {
-    State state = new State();
-    state.setProp(ConfigurationKeys.FORK_BRANCH_NAME_KEY + ".0", FORK_BRANCH_NAME_0);
-    state.setProp(ConfigurationKeys.FORK_BRANCH_NAME_KEY + ".1", FORK_BRANCH_NAME_1);
-    Assert.assertEquals(ForkOperatorUtils.getBranchName(state, 0, ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME + 0),
-        FORK_BRANCH_NAME_0);
-    Assert.assertEquals(ForkOperatorUtils.getBranchName(state, 1, ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME + 1),
-        FORK_BRANCH_NAME_1);
-    Assert.assertEquals(ForkOperatorUtils.getBranchName(state, 2, ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME + 2),
-        ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME + 2);
-  }
-
-  @Test
   public void testGetPropertyNameForBranch() {
     Assert.assertEquals(ForkOperatorUtils.getPropertyNameForBranch(PROPERTY_FOO, -1), PROPERTY_FOO);
     Assert.assertEquals(ForkOperatorUtils.getPropertyNameForBranch(PROPERTY_FOO, 0), PROPERTY_FOO + ".0");
@@ -59,12 +46,14 @@ public class ForkOperatorUtilsTest {
 
   @Test
   public void testGetPathForBranch() {
-    Assert.assertEquals(ForkOperatorUtils.getPathForBranch(PATH_FOO, FORK_BRANCH_NAME_0, 0), PATH_FOO);
-    Assert.assertEquals(ForkOperatorUtils.getPathForBranch(PATH_FOO, FORK_BRANCH_NAME_0, 1), PATH_FOO);
-    Assert.assertEquals(ForkOperatorUtils.getPathForBranch(PATH_FOO, FORK_BRANCH_NAME_0, 2),
-        PATH_FOO + "/" + FORK_BRANCH_NAME_0);
-    Assert.assertEquals(ForkOperatorUtils.getPathForBranch(PATH_FOO, FORK_BRANCH_NAME_1, 2),
-        PATH_FOO + "/" + FORK_BRANCH_NAME_1);
+    State state = new State();
+    state.setProp(ConfigurationKeys.FORK_BRANCH_NAME_KEY + ".0", FORK_BRANCH_NAME_0);
+    state.setProp(ConfigurationKeys.FORK_BRANCH_NAME_KEY + ".1", FORK_BRANCH_NAME_1);
+
+    Assert.assertEquals(ForkOperatorUtils.getPathForBranch(state, PATH_FOO, 2, 0), PATH_FOO + "/"
+        + FORK_BRANCH_NAME_0);
+    Assert.assertEquals(ForkOperatorUtils.getPathForBranch(state, PATH_FOO, 2, 1), PATH_FOO + "/"
+        + FORK_BRANCH_NAME_1);
   }
 
   /**

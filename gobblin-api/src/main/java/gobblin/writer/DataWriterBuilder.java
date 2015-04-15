@@ -28,6 +28,7 @@ public abstract class DataWriterBuilder<S, D> {
   protected String writerId;
   protected WriterOutputFormat format;
   protected S schema;
+  protected int branches;
   protected int branch;
 
   /**
@@ -71,6 +72,17 @@ public abstract class DataWriterBuilder<S, D> {
    */
   public DataWriterBuilder<S, D> withSchema(S schema) {
     this.schema = schema;
+    return this;
+  }
+
+  /**
+   * Tell the writer how many branches are being used in it's {@link gobblin.runtime.TaskState}.
+   *
+   * @param branches is the number of branches
+   * @return this {@link DataWriterBuilder} instance
+   */
+  public DataWriterBuilder<S, D> withBranches(int branches) {
+    this.branches = branches;
     return this;
   }
 
