@@ -60,7 +60,7 @@ public class WriterUtils {
    * @param branchId is the id for the specific branch that the {@link gobblin.publisher.BaseDataPublisher} will publish.
    * @return a {@link Path} specifying the directory where the {@link gobblin.publisher.BaseDataPublisher} will publish.
    */
-  public static Path getDataPublisherFinalOutputDir(State state, int numBranches, int branchId) {
+  public static Path getDataPublisherFinalDir(State state, int numBranches, int branchId) {
     Preconditions.checkArgument(state.contains(ForkOperatorUtils.getPropertyNameForBranch(
         ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, numBranches, branchId)), "Missing required property "
         + ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR);

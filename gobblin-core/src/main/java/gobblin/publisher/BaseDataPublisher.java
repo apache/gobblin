@@ -88,7 +88,7 @@ public class BaseDataPublisher extends DataPublisher {
 
         Path writerOutput = WriterUtils.getWriterOutputDir(workUnitState, numBranches, branchId);
 
-        Path publisherOutput = WriterUtils.getDataPublisherFinalOutputDir(workUnitState, numBranches, branchId);
+        Path publisherOutput = WriterUtils.getDataPublisherFinalDir(workUnitState, numBranches, branchId);
 
         if (writerOutputPathMoved.contains(writerOutput)) {
           // This writer output path has already been moved for another task of the same extract
