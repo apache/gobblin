@@ -34,6 +34,10 @@ public class ForkOperatorUtilsTest {
 
   @Test
   public void testGetPropertyNameForBranch() {
+    Assert.assertEquals(ForkOperatorUtils.getPropertyNameForBranch(PROPERTY_FOO, -1), PROPERTY_FOO);
+    Assert.assertEquals(ForkOperatorUtils.getPropertyNameForBranch(PROPERTY_FOO, 0), PROPERTY_FOO + ".0");
+    Assert.assertEquals(ForkOperatorUtils.getPropertyNameForBranch(PROPERTY_FOO, 1), PROPERTY_FOO + ".1");
+
     Assert.assertEquals(ForkOperatorUtils.getPropertyNameForBranch(PROPERTY_FOO, 0, 0), PROPERTY_FOO);
     Assert.assertEquals(ForkOperatorUtils.getPropertyNameForBranch(PROPERTY_FOO, 1, 0), PROPERTY_FOO);
     Assert.assertEquals(ForkOperatorUtils.getPropertyNameForBranch(PROPERTY_FOO, 2, 0), PROPERTY_FOO + ".0");

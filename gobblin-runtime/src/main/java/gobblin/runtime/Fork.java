@@ -353,10 +353,10 @@ public class Fork implements Closeable, Runnable {
     try {
       // Do task-level quality checking
       TaskLevelPolicyCheckResults taskResults =
-          this.taskContext.getTaskLevelPolicyChecker(taskStateForFork, this.index)
+          this.taskContext.getTaskLevelPolicyChecker(taskStateForFork, this.branches > 1 ? this.index : -1)
               .executePolicies();
       TaskPublisher publisher =
-          this.taskContext.getTaskPublisher(taskStateForFork, taskResults, this.index);
+          this.taskContext.getTaskPublisher(taskStateForFork, taskResults, this.branches > 1 ? this.index : -1);
       switch (publisher.canPublish()) {
         case SUCCESS:
           return true;
