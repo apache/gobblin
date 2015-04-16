@@ -74,9 +74,10 @@ public class BaseDataPublisher extends DataPublisher {
     URI uri;
     for (int i = 0; i < this.numBranches; i++) {
       uri =
-          URI.create(this.getState().getProp(
-              ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, this.numBranches, i),
-              ConfigurationKeys.LOCAL_FS_URI));
+          URI.create(this.getState()
+              .getProp(
+                  ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI,
+                      this.numBranches, i), ConfigurationKeys.LOCAL_FS_URI));
       this.fss.add(FileSystem.get(uri, conf));
     }
   }
@@ -94,37 +95,28 @@ public class BaseDataPublisher extends DataPublisher {
     Set<Path> writerOutputPathsMoved = Sets.newHashSet();
 
     for (WorkUnitState workUnitState : states) {
-      for (int i = 0; i < this.numBranches; i++) {
-
-        String writerFilePathKey =
-            ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, this.numBranches, i);
-
-        if (!workUnitState.contains(writerFilePathKey)) {
-          // Skip this branch as it does not have data output
-          continue;
-        }
+      for (int branchId = 0; branchId < this.numBranches; branchId++) {
 
         // The directory where the workUnitState wrote its output data. It is a combination of WRITER_OUTPUT_DIR and
         // WRITER_FILE_PATH
-        Path writerOutputDir = WriterUtils.getWriterOutputDir(workUnitState, this.numBranches, i);
-
+        Path writerOutputDir = WriterUtils.getWriterOutputDir(workUnitState, this.numBranches, branchId);
 
         // The directory where the final output directory for this job will be placed. It is a combination of
         // DATA_PUBLISHER_FINAL_DIR and WRITER_FILE_PATH
-        Path publisherOutputDir = WriterUtils.getDataPublisherFinalDir(workUnitState, this.numBranches, i);
+        Path publisherOutputDir = WriterUtils.getDataPublisherFinalDir(workUnitState, this.numBranches, branchId);
 
         if (writerOutputPathsMoved.contains(writerOutputDir)) {
           // This writer output path has already been moved for another task of the same extract, so skip to the next one
           continue;
         }
 
-        if (this.fss.get(i).exists(publisherOutputDir)) {
+        if (this.fss.get(branchId).exists(publisherOutputDir)) {
 
           // The final output directory already exists, check if the job is configured to replace it
           boolean replaceFinalOutputDir =
               this.getState().getPropAsBoolean(
                   ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_REPLACE_FINAL_DIR,
-                      this.numBranches, i));
+                      this.numBranches, branchId));
 
           // If the final output directory is not configured to be replaced, then append the new data to the existing
           // output folder
@@ -132,18 +124,18 @@ public class BaseDataPublisher extends DataPublisher {
 
             boolean preserveFileName =
                 workUnitState.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(
-                    ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, this.numBranches, i), false);
+                    ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, this.numBranches, branchId), false);
 
             // Go through each file in writerOutputDir and move it into publisherOutputDir
-            for (FileStatus status : this.fss.get(i).listStatus(writerOutputDir)) {
+            for (FileStatus status : this.fss.get(branchId).listStatus(writerOutputDir)) {
 
               // Preserve the file name if configured, use specified name otherwise
               Path finalOutputPath =
                   preserveFileName ? new Path(publisherOutputDir, workUnitState.getProp(ForkOperatorUtils
-                      .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_NAME, this.numBranches, i))) : new Path(
-                      publisherOutputDir, status.getPath().getName());
+                      .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_NAME, this.numBranches, branchId)))
+                      : new Path(publisherOutputDir, status.getPath().getName());
 
-              if (this.fss.get(i).rename(status.getPath(), finalOutputPath)) {
+              if (this.fss.get(branchId).rename(status.getPath(), finalOutputPath)) {
                 LOG.info(String.format("Moved %s to %s", status.getPath(), finalOutputPath));
               } else {
                 throw new IOException("Failed to move file from " + status.getPath() + " to " + finalOutputPath);
@@ -154,14 +146,14 @@ public class BaseDataPublisher extends DataPublisher {
             continue;
           }
           // Delete the final output directory if it is configured to be replaced
-          this.fss.get(i).delete(publisherOutputDir, true);
+          this.fss.get(branchId).delete(publisherOutputDir, true);
         } else {
           // Create the parent directory of the final output directory if it does not exist
-          this.fss.get(i).mkdirs(publisherOutputDir.getParent());
+          this.fss.get(branchId).mkdirs(publisherOutputDir.getParent());
         }
 
-        if (this.fss.get(i).exists(writerOutputDir)) {
-          if (this.fss.get(i).rename(writerOutputDir, publisherOutputDir)) {
+        if (this.fss.get(branchId).exists(writerOutputDir)) {
+          if (this.fss.get(branchId).rename(writerOutputDir, publisherOutputDir)) {
             LOG.info(String.format("Moved %s to %s", writerOutputDir, publisherOutputDir));
             writerOutputPathsMoved.add(writerOutputDir);
           } else {

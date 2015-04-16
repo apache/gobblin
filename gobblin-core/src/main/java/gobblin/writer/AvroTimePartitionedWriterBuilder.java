@@ -34,7 +34,8 @@ public class AvroTimePartitionedWriterBuilder extends AvroDataWriterBuilder {
 
     switch (this.destination.getType()) {
       case HDFS:
-        return new AvroHdfsTimePartitionedWriter(this.destination, this.writerId, this.schema, this.format, this.branch);
+        return new AvroHdfsTimePartitionedWriter(this.destination, this.writerId, this.schema, this.format,
+            this.branches, this.branch);
       case KAFKA:
         throw new UnsupportedOperationException("The builder " + this.getClass().getName() + " cannot write to "
             + this.destination.getType());

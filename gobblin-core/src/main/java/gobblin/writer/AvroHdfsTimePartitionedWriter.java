@@ -18,9 +18,11 @@ import java.util.Map.Entry;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.fs.Path;
+
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +34,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.util.AvroUtils;
 import gobblin.util.ForkOperatorUtils;
+import gobblin.util.WriterUtils;
 
 
 /**
@@ -76,7 +79,7 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
    * This is the base file path that all data will be written to. By default, data will be written to
    * /baseFilePath/daily/[yyyy]/[MM]/[dd]/.
    */
-  private final String baseFilePath;
+  private final Path baseFilePath;
 
   /**
    * The name of the column that the writer will use to partition the data.
@@ -107,18 +110,20 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
   private final Schema schema;
   private final WriterOutputFormat writerOutputFormat;
   private final State properties;
+  private final int numBranches;
   private final int branch;
 
   private static final Logger LOG = LoggerFactory.getLogger(AvroHdfsTimePartitionedWriter.class);
 
   public AvroHdfsTimePartitionedWriter(Destination destination, String writerId, Schema schema,
-      WriterOutputFormat writerOutputFormat, int branch) {
+      WriterOutputFormat writerOutputFormat, int numBranches, int branch) {
 
     // Confirm that all input parameters are not null
     Preconditions.checkNotNull(destination);
     Preconditions.checkNotNull(writerId);
     Preconditions.checkNotNull(schema);
     Preconditions.checkNotNull(writerOutputFormat);
+    Preconditions.checkNotNull(numBranches);
     Preconditions.checkNotNull(branch);
     Preconditions.checkNotNull(destination.getProperties());
 
@@ -126,27 +131,28 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
     this.writerId = writerId;
     this.schema = schema;
     this.writerOutputFormat = writerOutputFormat;
+    this.numBranches = numBranches;
     this.branch = branch;
     this.properties = destination.getProperties();
-    this.baseFilePath = this.properties.getProp(getWriterFilePath(this.branch));
+    this.baseFilePath = WriterUtils.getWriterFilePath(this.properties, numBranches, branch);
 
     // Initialize the partitionLevel
     this.partitionLevel =
-        this.properties.getProp(getWriterPartitionLevel(this.branch), ConfigurationKeys.DEFAULT_WRITER_PARTITION_LEVEL);
+        this.properties.getProp(getWriterPartitionLevel(), ConfigurationKeys.DEFAULT_WRITER_PARTITION_LEVEL);
 
     // Initialize the timestampToPathFormatter
     this.timestampToPathFormatter =
         DateTimeFormat.forPattern(
-            this.properties.getProp(getWriterPartitionPattern(this.branch),
-                ConfigurationKeys.DEFAULT_WRITER_PARTITION_PATTERN)).withZone(
-            DateTimeZone.forID(this.properties.getProp(ConfigurationKeys.WRITER_PARTITION_TIMEZONE,
-                ConfigurationKeys.DEFAULT_WRITER_PARTITION_TIMEZONE)));
+            this.properties.getProp(getWriterPartitionPattern(), ConfigurationKeys.DEFAULT_WRITER_PARTITION_PATTERN))
+            .withZone(
+                DateTimeZone.forID(this.properties.getProp(ConfigurationKeys.WRITER_PARTITION_TIMEZONE,
+                    ConfigurationKeys.DEFAULT_WRITER_PARTITION_TIMEZONE)));
 
     // Check that ConfigurationKeys.WRITER_PARTITION_COLUMN_NAME has been specified and is properly formed
-    Preconditions.checkArgument(this.properties.contains(getWriterPartitionColumnName(this.branch)),
-        "Missing required property " + ConfigurationKeys.WRITER_PARTITION_COLUMN_NAME);
+    Preconditions.checkArgument(this.properties.contains(getWriterPartitionColumnName()), "Missing required property "
+        + ConfigurationKeys.WRITER_PARTITION_COLUMN_NAME);
 
-    this.partitionColumnName = this.properties.getProp(getWriterPartitionColumnName(this.branch));
+    this.partitionColumnName = this.properties.getProp(getWriterPartitionColumnName());
     Optional<Schema> writerPartitionColumnSchema = AvroUtils.getFieldSchema(this.schema, this.partitionColumnName);
 
     Preconditions.checkArgument(writerPartitionColumnSchema.isPresent(), "The column " + this.partitionColumnName
@@ -277,7 +283,7 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
     }
 
     // Set the output path that the DataWriter will write to
-    state.setProp(getWriterFilePath(this.branch), path.toString());
+    state.setProp(getWriterFilePath(), path.toString());
 
     return new AvroDataWriterBuilder().writeTo(Destination.of(this.destination.getType(), state))
         .writeInFormat(this.writerOutputFormat).withWriterId(this.writerId).withSchema(this.schema)
@@ -296,28 +302,32 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
   /**
    * Helper method to get the branched configuration key for {@link ConfigurationKeys#WRITER_PARTITION_COLUMN_NAME}.
    */
-  private String getWriterPartitionColumnName(int branch) {
-    return ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_PARTITION_COLUMN_NAME, branch);
+  private String getWriterPartitionColumnName() {
+    return ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_PARTITION_COLUMN_NAME, this.numBranches,
+        this.branch);
   }
 
   /**
    * Helper method to get the branched configuration key for {@link ConfigurationKeys#WRITER_FILE_PATH}.
    */
-  private String getWriterFilePath(int branch) {
-    return ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, branch);
+  private String getWriterFilePath() {
+    return ForkOperatorUtils
+        .getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, this.numBranches, this.branch);
   }
 
   /**
    * Helper method to get the branched configuration key for {@link ConfigurationKeys#WRITER_PARTITION_LEVEL}.
    */
-  private String getWriterPartitionLevel(int branch) {
-    return ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_PARTITION_LEVEL, branch);
+  private String getWriterPartitionLevel() {
+    return ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_PARTITION_LEVEL, this.numBranches,
+        this.branch);
   }
 
   /**
    * Helper method to get the branched configuration key for {@link ConfigurationKeys#WRITER_PARTITION_PATTERN}.
    */
-  private String getWriterPartitionPattern(int branch) {
-    return ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_PARTITION_PATTERN, branch);
+  private String getWriterPartitionPattern() {
+    return ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_PARTITION_PATTERN, this.numBranches,
+        this.branch);
   }
 }

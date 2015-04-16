@@ -90,8 +90,8 @@ public class AvroHdfsTimePartitionedWriterTest {
     // Build a writer to write test records
     this.writer =
         new AvroTimePartitionedWriterBuilder().writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
-            .writeInFormat(WriterOutputFormat.AVRO).withWriterId(WRITER_ID).withSchema(this.schema).forBranch(-1)
-            .build();
+            .writeInFormat(WriterOutputFormat.AVRO).withWriterId(WRITER_ID).withSchema(this.schema).withBranches(1)
+            .forBranch(0).build();
   }
 
   @Test
