@@ -11,19 +11,25 @@
 
 package gobblin.runtime.mapreduce;
 
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
 
+import org.apache.commons.io.FileUtils;
+import org.jboss.byteman.contrib.bmunit.BMNGRunner;
+import org.jboss.byteman.contrib.bmunit.BMRule;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.FsStateStore;
-import gobblin.runtime.JobLauncherTestBase;
+import gobblin.metastore.StateStore;
+import gobblin.runtime.JobLauncherTestHelper;
 import gobblin.runtime.JobState;
 import gobblin.writer.Destination;
 import gobblin.writer.WriterOutputFormat;
@@ -32,74 +38,76 @@ import gobblin.writer.WriterOutputFormat;
 /**
  * Unit test for {@link MRJobLauncher}.
  */
-@Test(groups = {"gobblin.runtime.mapreduce"})
-public class MRJobLauncherTest extends JobLauncherTestBase {
+@Test(groups = { "gobblin.runtime.mapreduce" })
+public class MRJobLauncherTest extends BMNGRunner {
+
+  private Properties launcherProps;
+  private StateStore jobStateStore;
+  private JobLauncherTestHelper jobLauncherTestHelper;
 
   @BeforeClass
-  public void startUp()
-      throws Exception {
-    this.properties = new Properties();
-    this.properties.load(new FileReader("gobblin-test/resource/gobblin.mr-test.properties"));
-    this.properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, "true");
-    this.properties.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "true");
-    this.properties
-        .setProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY, "org.apache.derby.jdbc.EmbeddedDriver");
-    this.properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY, "jdbc:derby:memory:gobblin2;create=true");
-    prepareJobHistoryStoreDatabase(this.properties);
-    this.jobStateStore = new FsStateStore(this.properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
-        this.properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY), JobState.class);
+  public void startUp() throws Exception {
+    this.launcherProps = new Properties();
+    this.launcherProps.load(new FileReader("gobblin-test/resource/gobblin.mr-test.properties"));
+    this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, "true");
+    this.launcherProps.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "true");
+    this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY,
+        "org.apache.derby.jdbc.EmbeddedDriver");
+    this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY,
+        "jdbc:derby:memory:gobblin2;create=true");
+
+    this.jobStateStore =
+        new FsStateStore(this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
+            this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY), JobState.class);
+
+    this.jobLauncherTestHelper = new JobLauncherTestHelper(this.launcherProps, this.jobStateStore);
+    this.jobLauncherTestHelper.prepareJobHistoryStoreDatabase(this.launcherProps);
   }
 
   @Test
-  public void testLaunchJob()
-      throws Exception {
-    runTest(loadJobProps());
+  public void testLaunchJob() throws Exception {
+    this.jobLauncherTestHelper.runTest(loadJobProps());
   }
 
   @Test
-  public void testLaunchJobWithConcurrencyLimit()
-      throws Exception {
+  public void testLaunchJobWithConcurrencyLimit() throws Exception {
     Properties jobProps = loadJobProps();
     jobProps.setProperty(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, "2");
-    runTest(jobProps);
+    this.jobLauncherTestHelper.runTest(jobProps);
     jobProps.setProperty(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, "3");
-    runTest(jobProps);
+    this.jobLauncherTestHelper.runTest(jobProps);
     jobProps.setProperty(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, "5");
-    runTest(jobProps);
+    this.jobLauncherTestHelper.runTest(jobProps);
   }
 
   @Test
-  public void testLaunchJobWithPullLimit()
-      throws Exception {
+  public void testLaunchJobWithPullLimit() throws Exception {
     Properties jobProps = loadJobProps();
     jobProps.setProperty(ConfigurationKeys.EXTRACT_PULL_LIMIT, "10");
-    runTestWithPullLimit(jobProps);
+    this.jobLauncherTestHelper.runTestWithPullLimit(jobProps);
   }
 
   @Test
-  public void testLaunchJobWithMultiWorkUnit()
-      throws Exception {
+  public void testLaunchJobWithMultiWorkUnit() throws Exception {
     Properties jobProps = loadJobProps();
     jobProps.setProperty("use.multiworkunit", Boolean.toString(true));
-    runTest(jobProps);
+    this.jobLauncherTestHelper.runTest(jobProps);
   }
 
-  @Test(groups = {"ignore"})
-  public void testCancelJob()
-      throws Exception {
-    runTestWithCancellation(loadJobProps());
+  @Test(groups = { "ignore" })
+  public void testCancelJob() throws Exception {
+    this.jobLauncherTestHelper.runTestWithCancellation(loadJobProps());
   }
 
   @Test
-  public void testLaunchJobWithFork()
-      throws Exception {
+  public void testLaunchJobWithFork() throws Exception {
     Properties jobProps = loadJobProps();
     jobProps.setProperty(ConfigurationKeys.CONVERTER_CLASSES_KEY, "gobblin.test.TestConverter2");
     jobProps.setProperty(ConfigurationKeys.FORK_BRANCHES_KEY, "2");
-    jobProps.setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST + ".0",
-        "gobblin.policies.schema.SchemaRowCheckPolicy");
-    jobProps.setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST + ".1",
-        "gobblin.policies.schema.SchemaRowCheckPolicy");
+    jobProps
+        .setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST + ".0", "gobblin.policies.schema.SchemaRowCheckPolicy");
+    jobProps
+        .setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST + ".1", "gobblin.policies.schema.SchemaRowCheckPolicy");
     jobProps.setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE + ".0", "OPTIONAL");
     jobProps.setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE + ".1", "OPTIONAL");
     jobProps.setProperty(ConfigurationKeys.TASK_LEVEL_POLICY_LIST + ".0",
@@ -118,7 +126,34 @@ public class MRJobLauncherTest extends JobLauncherTestBase {
     jobProps.setProperty(ConfigurationKeys.WRITER_OUTPUT_DIR + ".1", "gobblin-test/basicTest/tmp/taskOutput");
     jobProps.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR + ".0", "gobblin-test/jobOutput");
     jobProps.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR + ".1", "gobblin-test/jobOutput");
-    runTestWithFork(jobProps);
+    this.jobLauncherTestHelper.runTestWithFork(jobProps);
+  }
+
+  /**
+   * Byteman test that ensures the {@link MRJobLauncher} successfully cleans up all staging data even when an exception
+   * is thrown in the {@link MRJobLauncher} collectOutput method.
+   */
+  @Test()
+  @BMRule(name = "testJobCleanupOnError", targetClass = "gobblin.runtime.mapreduce.MRJobLauncher",
+      targetMethod = "collectOutput(Path)", targetLocation = "AT ENTRY", condition = "true",
+      action = "throw new IOException(\"Exception for testJobCleanupOnError\")")
+  public void testJobCleanupOnError() throws IOException {
+    Properties props = loadJobProps();
+    try {
+      this.jobLauncherTestHelper.runTest(props);
+      Assert.fail("Byteman is not configured properly, the testLaunchJob method should have throw an exception");
+    } catch (Exception e) {
+      // The job should throw an exception, ignore it
+    }
+
+    Assert.assertTrue(props.containsKey(ConfigurationKeys.WRITER_STAGING_DIR));
+    Assert.assertTrue(props.containsKey(ConfigurationKeys.WRITER_OUTPUT_DIR));
+
+    File stagingDir = new File(props.getProperty(ConfigurationKeys.WRITER_STAGING_DIR));
+    File outputDir = new File(props.getProperty(ConfigurationKeys.WRITER_OUTPUT_DIR));
+
+    Assert.assertEquals(FileUtils.listFiles(stagingDir, null, true).size(), 0);
+    Assert.assertEquals(FileUtils.listFiles(outputDir, null, true).size(), 0);
   }
 
   @AfterClass
@@ -130,15 +165,13 @@ public class MRJobLauncherTest extends JobLauncherTestBase {
     }
   }
 
-  private Properties loadJobProps()
-      throws IOException {
+  public Properties loadJobProps() throws IOException {
     Properties jobProps = new Properties();
     jobProps.load(new FileReader("gobblin-test/resource/mr-job-conf/GobblinMRTest.pull"));
-    jobProps.putAll(this.properties);
-    jobProps.setProperty(SOURCE_FILE_LIST_KEY, "gobblin-test/resource/source/test.avro.0," +
-            "gobblin-test/resource/source/test.avro.1," +
-            "gobblin-test/resource/source/test.avro.2," +
-            "gobblin-test/resource/source/test.avro.3");
+    jobProps.putAll(this.launcherProps);
+    jobProps.setProperty(JobLauncherTestHelper.SOURCE_FILE_LIST_KEY, "gobblin-test/resource/source/test.avro.0,"
+        + "gobblin-test/resource/source/test.avro.1," + "gobblin-test/resource/source/test.avro.2,"
+        + "gobblin-test/resource/source/test.avro.3");
 
     return jobProps;
   }
