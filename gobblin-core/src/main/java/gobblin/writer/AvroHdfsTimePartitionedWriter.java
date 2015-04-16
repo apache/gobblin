@@ -13,6 +13,7 @@ package gobblin.writer;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
@@ -113,21 +114,20 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
   public AvroHdfsTimePartitionedWriter(Destination destination, String writerId, Schema schema,
       WriterOutputFormat writerOutputFormat, int branch) {
 
+    // Confirm that all input parameters are not null
+    Preconditions.checkNotNull(destination);
+    Preconditions.checkNotNull(writerId);
+    Preconditions.checkNotNull(schema);
+    Preconditions.checkNotNull(writerOutputFormat);
+    Preconditions.checkNotNull(branch);
+    Preconditions.checkNotNull(destination.getProperties());
+
     this.destination = destination;
     this.writerId = writerId;
     this.schema = schema;
     this.writerOutputFormat = writerOutputFormat;
     this.branch = branch;
     this.properties = destination.getProperties();
-
-    // Confirm that all input parameters are not null
-    Preconditions.checkNotNull(this.destination);
-    Preconditions.checkNotNull(this.writerId);
-    Preconditions.checkNotNull(this.schema);
-    Preconditions.checkNotNull(this.writerOutputFormat);
-    Preconditions.checkNotNull(this.branch);
-    Preconditions.checkNotNull(this.properties);
-
     this.baseFilePath = this.properties.getProp(getWriterFilePath(this.branch));
 
     // Initialize the partitionLevel
@@ -143,7 +143,6 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
                 ConfigurationKeys.DEFAULT_WRITER_PARTITION_TIMEZONE)));
 
     // Check that ConfigurationKeys.WRITER_PARTITION_COLUMN_NAME has been specified and is properly formed
-
     Preconditions.checkArgument(this.properties.contains(getWriterPartitionColumnName(this.branch)),
         "Missing required property " + ConfigurationKeys.WRITER_PARTITION_COLUMN_NAME);
 
@@ -176,23 +175,42 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
       DataWriter<GenericRecord> avroHdfsDataWriter = createAvroHdfsDataWriterForPath(writerOutputPath);
 
       this.pathToWriterMap.put(writerOutputPath, avroHdfsDataWriter);
-      avroHdfsDataWriter.write(record);
-    } else {
-      this.pathToWriterMap.get(writerOutputPath).write(record);
     }
+
+    this.pathToWriterMap.get(writerOutputPath).write(record);
   }
 
   @Override
   public void commit() throws IOException {
-    for (DataWriter<GenericRecord> dataWriter : this.pathToWriterMap.values()) {
-      dataWriter.commit();
+    boolean commitFailed = false;
+    for (Entry<Path, DataWriter<GenericRecord>> entry : this.pathToWriterMap.entrySet()) {
+      try {
+        entry.getValue().commit();
+      } catch (IOException e) {
+        commitFailed = true;
+        LOG.error("Failed to close writer for path: " + entry.getKey(), e);
+      }
+    }
+
+    if (commitFailed) {
+      throw new IOException("Failed to commit all data for all writers");
     }
   }
 
   @Override
   public void cleanup() throws IOException {
-    for (DataWriter<GenericRecord> dataWriter : this.pathToWriterMap.values()) {
-      dataWriter.cleanup();
+    boolean cleanupFailed = false;
+    for (Entry<Path, DataWriter<GenericRecord>> entry : this.pathToWriterMap.entrySet()) {
+      try {
+        entry.getValue().cleanup();
+      } catch (IOException e) {
+        cleanupFailed = true;
+        LOG.error("Failed to cleanup writer for path: " + entry.getKey(), e);
+      }
+    }
+
+    if (cleanupFailed) {
+      throw new IOException("Failed to cleanup all writers");
     }
   }
 
@@ -208,16 +226,37 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
   @Override
   public long bytesWritten() throws IOException {
     long bytesWritten = 0;
-    for (DataWriter<GenericRecord> dataWriter : this.pathToWriterMap.values()) {
-      bytesWritten += dataWriter.bytesWritten();
+    boolean getBytesWritten = false;
+
+    for (Entry<Path, DataWriter<GenericRecord>> entry : this.pathToWriterMap.entrySet()) {
+      try {
+        bytesWritten += entry.getValue().bytesWritten();
+      } catch (IOException e) {
+        getBytesWritten = true;
+        LOG.error("Failed to get bytes written for path: " + entry.getKey(), e);
+      }
+    }
+
+    if (getBytesWritten) {
+      throw new IOException("Failed to get bytes written for all writers");
     }
     return bytesWritten;
   }
 
   @Override
   public void close() throws IOException {
-    for (DataWriter<GenericRecord> dataWriter : this.pathToWriterMap.values()) {
-      dataWriter.close();
+    boolean closeFailed = false;
+    for (Entry<Path, DataWriter<GenericRecord>> entry : this.pathToWriterMap.entrySet()) {
+      try {
+        entry.getValue().close();
+      } catch (IOException e) {
+        closeFailed = true;
+        LOG.error("Failed to close writer for path: " + entry.getKey(), e);
+      }
+    }
+
+    if (closeFailed) {
+      throw new IOException("Failed to close all writers");
     }
   }
 

@@ -143,6 +143,7 @@ public class AvroHdfsTimePartitionedWriterTest {
 
   @AfterClass
   public void tearDown() throws IOException {
+    this.writer.close();
     FileUtils.deleteDirectory(new File(TEST_ROOT_DIR));
   }
 }
