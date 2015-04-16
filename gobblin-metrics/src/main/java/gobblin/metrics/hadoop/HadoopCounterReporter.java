@@ -59,6 +59,7 @@ public class HadoopCounterReporter extends ContextAwareScheduledReporter {
    * Create a new {@link gobblin.metrics.hadoop.HadoopCounterReporter.Builder} that
    * uses the simple name of {@link HadoopCounterReporter} as the reporter name.
    *
+   * @param reporter a {@link org.apache.hadoop.mapred.Reporter} used to access Hadoop counters
    * @return a new {@link gobblin.metrics.hadoop.HadoopCounterReporter.Builder}
    */
   public static Builder builder(Reporter reporter) {
@@ -70,6 +71,7 @@ public class HadoopCounterReporter extends ContextAwareScheduledReporter {
    * uses a given reporter name.
    *
    * @param name the given reporter name
+   * @param reporter a {@link org.apache.hadoop.mapred.Reporter} used to access Hadoop counters
    * @return a new {@link gobblin.metrics.hadoop.HadoopCounterReporter.Builder}
    */
   public static Builder builder(String name, Reporter reporter) {

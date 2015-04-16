@@ -212,7 +212,6 @@ public class MetricContextTest {
     Assert.assertEquals(jobRecordSizeDist.getCount(), 3l);
     Assert.assertEquals(jobRecordSizeDist.getSnapshot().getMin(), 2l);
     Assert.assertEquals(jobRecordSizeDist.getSnapshot().getMax(), 7l);
-    Assert.assertEquals(jobRecordSizeDist.getSnapshot().getMedian(), 4d);
 
     ContextAwareHistogram taskRecordSizeDist = this.childContext.contextAwareHistogram(RECORD_SIZE_DISTRIBUTION);
     Assert.assertEquals(this.childContext.getHistograms()
@@ -227,11 +226,9 @@ public class MetricContextTest {
     Assert.assertEquals(taskRecordSizeDist.getCount(), 3l);
     Assert.assertEquals(taskRecordSizeDist.getSnapshot().getMin(), 3l);
     Assert.assertEquals(taskRecordSizeDist.getSnapshot().getMax(), 14l);
-    Assert.assertEquals(taskRecordSizeDist.getSnapshot().getMedian(),11d);
     Assert.assertEquals(jobRecordSizeDist.getCount(), 6l);
     Assert.assertEquals(jobRecordSizeDist.getSnapshot().getMin(), 2l);
     Assert.assertEquals(jobRecordSizeDist.getSnapshot().getMax(), 14l);
-    Assert.assertEquals(jobRecordSizeDist.getSnapshot().getMedian(), (4d + 7d) / 2);
   }
 
   @Test
@@ -256,7 +253,6 @@ public class MetricContextTest {
     Assert.assertEquals(jobTotalDuration.getCount(), 3l);
     Assert.assertEquals(jobTotalDuration.getSnapshot().getMin(), TimeUnit.SECONDS.toNanos(50l));
     Assert.assertEquals(jobTotalDuration.getSnapshot().getMax(), TimeUnit.SECONDS.toNanos(150l));
-    Assert.assertEquals(jobTotalDuration.getSnapshot().getMedian(), TimeUnit.SECONDS.toNanos(100l) * 1d);
 
     Assert.assertTrue(jobTotalDuration.time().stop() >= 0l);
   }

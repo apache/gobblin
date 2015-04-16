@@ -1,0 +1,296 @@
+/* (c) 2014 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
+package gobblin.metrics.graphite;
+
+import java.io.IOException;
+import java.util.SortedMap;
+import java.util.concurrent.TimeUnit;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Histogram;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.Metered;
+import com.codahale.metrics.MetricFilter;
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.Snapshot;
+import com.codahale.metrics.Timer;
+import com.codahale.metrics.graphite.GraphiteSender;
+
+import gobblin.metrics.ContextAwareScheduledReporter;
+import gobblin.metrics.Measurements;
+import gobblin.metrics.MetricContext;
+
+
+/**
+ * An implementation of {@link gobblin.metrics.ContextAwareScheduledReporter} that reports
+ * metrics to Graphite.
+ *
+ * @see <a href="http://graphite.wikidot.com/">Graphite - Scalable Realtime Graphing</a>.
+ *
+ * @author ynli
+ */
+public class GraphiteReporter extends ContextAwareScheduledReporter {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(GraphiteReporter.class);
+
+  private final GraphiteSender graphiteSender;
+
+  protected GraphiteReporter(MetricContext context, String name, MetricFilter filter,
+      TimeUnit rateUnit, TimeUnit durationUnit, GraphiteSender graphiteSender) {
+    super(context, name, filter, rateUnit, durationUnit);
+    this.graphiteSender = graphiteSender;
+  }
+
+  @Override
+  protected void reportInContext(MetricContext context,
+                                 SortedMap<String, Gauge> gauges,
+                                 SortedMap<String, Counter> counters,
+                                 SortedMap<String, Histogram> histograms,
+                                 SortedMap<String, Meter> meters,
+                                 SortedMap<String, Timer> timers) {
+    try {
+      if (!this.graphiteSender.isConnected()) {
+        this.graphiteSender.connect();
+      }
+
+      // UNIX epoch time
+      long timeStamp = System.currentTimeMillis() / 1000l;
+
+      for (SortedMap.Entry<String, Gauge> entry : gauges.entrySet()) {
+        reportGauge(context, entry.getKey(), entry.getValue(), timeStamp);
+      }
+
+      for (SortedMap.Entry<String, Counter> entry : counters.entrySet()) {
+        reportCounter(context, entry.getKey(), entry.getValue(), timeStamp);
+      }
+
+      for (SortedMap.Entry<String, Histogram> entry : histograms.entrySet()) {
+        reportHistogram(context, entry.getKey(), entry.getValue(), timeStamp);
+      }
+
+      for (SortedMap.Entry<String, Meter> entry : meters.entrySet()) {
+        reportedMetered(context, entry.getKey(), entry.getValue(), timeStamp);
+      }
+
+      for (SortedMap.Entry<String, Timer> entry : timers.entrySet()) {
+        reportTimer(context, entry.getKey(), entry.getValue(), timeStamp);
+      }
+
+      this.graphiteSender.flush();
+    } catch (IOException ioe) {
+      LOGGER.error("Error sending metrics to Graphite", ioe);
+      try {
+        this.graphiteSender.close();
+      } catch (IOException innerIoe) {
+        LOGGER.error("Error closing the Graphite sender", innerIoe);
+      }
+    }
+  }
+
+  @Override
+  public void stop() {
+    try {
+      super.stop();
+    } finally {
+      // Stop the Graphite sender and disconnect from Graphite
+      try {
+        this.graphiteSender.close();
+      } catch (IOException ioe) {
+        LOGGER.error("Error closing the Graphite sender", ioe);
+      }
+    }
+  }
+
+  /**
+   * Create a new {@link gobblin.metrics.graphite.GraphiteReporter.Builder} that uses
+   * the simple name of {@link GraphiteReporter} as the reporter name.
+   *
+   * @param graphiteSender a {@link com.codahale.metrics.graphite.GraphiteSender} to
+   *                       send metrics to Graphite
+   * @return a new {@link gobblin.metrics.graphite.GraphiteReporter.Builder}
+   */
+  public static Builder builder(GraphiteSender graphiteSender) {
+    return builder(GraphiteReporter.class.getName(), graphiteSender);
+  }
+
+  /**
+   * Create a new {@link gobblin.metrics.graphite.GraphiteReporter.Builder} that uses
+   * a given reporter name.
+   *
+   * @param name the given reporter name
+   * @param graphiteSender a {@link com.codahale.metrics.graphite.GraphiteSender}
+   *                       to send metrics to Graphite
+   * @return a new {@link gobblin.metrics.graphite.GraphiteReporter.Builder}
+   */
+  public static Builder builder(String name, GraphiteSender graphiteSender) {
+    return new Builder(name, graphiteSender);
+  }
+
+  private void reportGauge(MetricContext context, String name, Gauge gauge, long timeStamp)
+      throws IOException {
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name),
+        gauge.getValue().toString(),
+        timeStamp);
+  }
+
+  private void reportCounter(MetricContext context, String name, Counter counter, long timeStamp)
+      throws IOException {
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name),
+        Long.toString(counter.getCount()),
+        timeStamp);
+  }
+
+  private void reportHistogram(MetricContext context, String name, Histogram histogram, long timeStamp)
+      throws IOException {
+    Snapshot snapshot = histogram.getSnapshot();
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.COUNT.getName()),
+        Long.toString(histogram.getCount()),
+        timeStamp);
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.MIN.getName()),
+        Long.toString(snapshot.getMin()),
+        timeStamp);
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.MAX.getName()),
+        Long.toString(snapshot.getMax()),
+        timeStamp);
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.MEAN.getName()),
+        Double.toString(snapshot.getMean()),
+        timeStamp);
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.STDDEV.getName()),
+        Double.toString(snapshot.getStdDev()),
+        timeStamp);
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.MEDIAN.getName()),
+        Double.toString(snapshot.getMedian()),
+        timeStamp);
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_75TH.getName()),
+        Double.toString(snapshot.get75thPercentile()),
+        timeStamp);
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_95TH.getName()),
+        Double.toString(snapshot.get95thPercentile()),
+        timeStamp);
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_98TH.getName()),
+        Double.toString(snapshot.get98thPercentile()),
+        timeStamp);
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_99TH.getName()),
+        Double.toString(snapshot.get99thPercentile()),
+        timeStamp);
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_999TH.getName()),
+        Double.toString(snapshot.get999thPercentile()),
+        timeStamp);
+  }
+
+  private void reportedMetered(MetricContext context, String name, Metered metered, long timeStamp)
+      throws IOException {
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.COUNT.getName()),
+        Long.toString(metered.getCount()),
+        timeStamp);
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.RATE_1MIN.getName()),
+        Double.toHexString(convertRate(metered.getOneMinuteRate())),
+        timeStamp);
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.RATE_5MIN.getName()),
+        Double.toString(convertRate(metered.getFiveMinuteRate())),
+        timeStamp);
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.RATE_15MIN.getName()),
+        Double.toString(convertRate(metered.getFifteenMinuteRate())),
+        timeStamp);
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.MEAN_RATE.getName()),
+        Double.toString(convertRate(metered.getMeanRate())),
+        timeStamp);
+  }
+
+  private void reportTimer(MetricContext context, String name, Timer timer, long timeStamp) throws IOException {
+    Snapshot snapshot = timer.getSnapshot();
+
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.MIN.getName()),
+        Double.toString(convertDuration(snapshot.getMin())),
+        timeStamp);
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.MAX.getName()),
+        Double.toString(convertDuration(snapshot.getMax())),
+        timeStamp);
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.MEAN.getName()),
+        Double.toString(convertDuration(snapshot.getMean())),
+        timeStamp);
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.STDDEV.getName()),
+        Double.toString(convertDuration(snapshot.getStdDev())),
+        timeStamp);
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.MEDIAN.getName()),
+        Double.toString(convertDuration(snapshot.getMedian())),
+        timeStamp);
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_75TH.getName()),
+        Double.toString(convertDuration(snapshot.get75thPercentile())),
+        timeStamp);
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_95TH.getName()),
+        Double.toString(convertDuration(snapshot.get95thPercentile())),
+        timeStamp);
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_98TH.getName()),
+        Double.toString(convertDuration(snapshot.get98thPercentile())),
+        timeStamp);
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_99TH.getName()),
+        Double.toString(convertDuration(snapshot.get99thPercentile())),
+        timeStamp);
+    this.graphiteSender.send(
+        MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_999TH.getName()),
+        Double.toString(convertDuration(snapshot.get999thPercentile())),
+        timeStamp);
+
+    reportedMetered(context, name, timer, timeStamp);
+  }
+
+  /**
+   * A builder class for {@link GraphiteReporter}.
+   */
+  public static class Builder extends ContextAwareScheduledReporter.Builder<GraphiteReporter, Builder> {
+
+    private final GraphiteSender graphiteSender;
+
+    public Builder(String name, GraphiteSender graphiteSender) {
+      super(name);
+      this.graphiteSender = graphiteSender;
+    }
+
+    @Override
+    public GraphiteReporter build(MetricContext context) {
+      return new GraphiteReporter(
+          context, this.name, this.filter, this.rateUnit, this.durationUnit, this.graphiteSender);
+    }
+  }
+}
