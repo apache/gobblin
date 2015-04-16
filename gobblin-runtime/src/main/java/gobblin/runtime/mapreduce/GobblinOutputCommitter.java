@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.WorkUnitState;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.JobLauncherUtils;
@@ -79,7 +80,7 @@ public class GobblinOutputCommitter extends OutputCommitter {
           } finally {
             workUnitFileCloser.close();
           }
-          JobLauncherUtils.cleanStagingData(wu, LOG);
+          JobLauncherUtils.cleanStagingData(new WorkUnitState(wu), LOG);
         }
 
         // If the file ends with ".mwu" de-serialize it into a MultiWorkUnit
@@ -91,7 +92,7 @@ public class GobblinOutputCommitter extends OutputCommitter {
             workUnitFileCloser.close();
           }
           for (WorkUnit wu : mwu.getWorkUnits()) {
-            JobLauncherUtils.cleanStagingData(wu, LOG);
+            JobLauncherUtils.cleanStagingData(new WorkUnitState(wu), LOG);
           }
         }
       }
@@ -137,7 +138,7 @@ public class GobblinOutputCommitter extends OutputCommitter {
   public void recoverTask(TaskAttemptContext taskContext) throws IOException {
   }
 
-  private class WorkUnitFilter implements PathFilter {
+  private static class WorkUnitFilter implements PathFilter {
     @Override
     public boolean accept(Path path) {
       return path.getName().endsWith(".wu") || path.getName().endsWith(".mwu");

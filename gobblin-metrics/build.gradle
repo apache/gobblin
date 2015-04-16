@@ -18,8 +18,22 @@ dependencies {
   compile externalDependency.metricsCore
   compile externalDependency.slf4j
   compile externalDependency.influxdb
+  compile(externalDependency.kafka){
+    exclude group: "com.sun.jmx", module: "jmxri"
+    exclude group: "com.sun.jdmk", module: "jmxtools"
+    exclude group: "javax.jms", module: "jms"
+
+  }
+  compile externalDependency.avro
+  compile externalDependency.jacksonCore
+  compile externalDependency.jacksonMapper
 
   testCompile externalDependency.testng
+  testCompile(externalDependency.kafkaTest){
+    exclude group: "com.sun.jmx", module: "jmxri"
+    exclude group: "com.sun.jdmk", module: "jmxtools"
+    exclude group: "javax.jms", module: "jms"
+  }
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {
@@ -46,6 +60,8 @@ test {
       excludeGroups 'ignore'
     }
     workingDir rootProject.rootDir
+    testLogging.showStandardStreams = true
+    maxParallelForks = 1
 }
 
 classification="library"

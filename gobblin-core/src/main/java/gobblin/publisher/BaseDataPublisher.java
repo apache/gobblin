@@ -30,8 +30,9 @@ import com.google.common.collect.Sets;
 
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
-import gobblin.util.ForkOperatorUtils;
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.util.ForkOperatorUtils;
+import gobblin.util.WriterUtils;
 
 
 /**
@@ -52,7 +53,7 @@ public class BaseDataPublisher extends DataPublisher {
   private static final Logger LOG = LoggerFactory.getLogger(BaseDataPublisher.class);
 
   protected final List<FileSystem> fss = Lists.newArrayList();
-  private int branches;
+  private int numBranches;
 
   public BaseDataPublisher(State state) {
     super(state);
@@ -67,14 +68,14 @@ public class BaseDataPublisher extends DataPublisher {
       conf.set(key, this.getState().getProp(key));
     }
 
-    this.branches = this.getState().getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
+    this.numBranches = this.getState().getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
 
     // Get a FileSystem instance for each branch
     URI uri;
-    for (int i = 0; i < this.branches; i++) {
+    for (int i = 0; i < this.numBranches; i++) {
       uri =
           URI.create(this.getState().getProp(
-              ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, this.branches, i),
+              ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, this.numBranches, i),
               ConfigurationKeys.LOCAL_FS_URI));
       this.fss.add(FileSystem.get(uri, conf));
     }
@@ -93,10 +94,10 @@ public class BaseDataPublisher extends DataPublisher {
     Set<Path> writerOutputPathsMoved = Sets.newHashSet();
 
     for (WorkUnitState workUnitState : states) {
-      for (int i = 0; i < this.branches; i++) {
+      for (int i = 0; i < this.numBranches; i++) {
 
         String writerFilePathKey =
-            ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, this.branches, i);
+            ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, this.numBranches, i);
 
         if (!workUnitState.contains(writerFilePathKey)) {
           // Skip this branch as it does not have data output
@@ -105,16 +106,12 @@ public class BaseDataPublisher extends DataPublisher {
 
         // The directory where the workUnitState wrote its output data. It is a combination of WRITER_OUTPUT_DIR and
         // WRITER_FILE_PATH
-        Path writerOutputDir =
-            new Path(workUnitState.getProp(ForkOperatorUtils.getPropertyNameForBranch(
-                ConfigurationKeys.WRITER_OUTPUT_DIR, this.branches, i)), workUnitState.getProp(writerFilePathKey));
+        Path writerOutputDir = WriterUtils.getWriterOutputDir(workUnitState, this.numBranches, i);
+
 
         // The directory where the final output directory for this job will be placed. It is a combination of
         // DATA_PUBLISHER_FINAL_DIR and WRITER_FILE_PATH
-        Path publisherOutputDir =
-            new Path(workUnitState.getProp(ForkOperatorUtils.getPropertyNameForBranch(
-                ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, this.branches, i)),
-                workUnitState.getProp(writerFilePathKey));
+        Path publisherOutputDir = WriterUtils.getDataPublisherFinalDir(workUnitState, this.numBranches, i);
 
         if (writerOutputPathsMoved.contains(writerOutputDir)) {
           // This writer output path has already been moved for another task of the same extract, so skip to the next one
@@ -127,7 +124,7 @@ public class BaseDataPublisher extends DataPublisher {
           boolean replaceFinalOutputDir =
               this.getState().getPropAsBoolean(
                   ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_REPLACE_FINAL_DIR,
-                      branches, i));
+                      this.numBranches, i));
 
           // If the final output directory is not configured to be replaced, then append the new data to the existing
           // output folder
@@ -135,7 +132,7 @@ public class BaseDataPublisher extends DataPublisher {
 
             boolean preserveFileName =
                 workUnitState.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(
-                    ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, branches, i), false);
+                    ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, this.numBranches, i), false);
 
             // Go through each file in writerOutputDir and move it into publisherOutputDir
             for (FileStatus status : this.fss.get(i).listStatus(writerOutputDir)) {
@@ -143,7 +140,7 @@ public class BaseDataPublisher extends DataPublisher {
               // Preserve the file name if configured, use specified name otherwise
               Path finalOutputPath =
                   preserveFileName ? new Path(publisherOutputDir, workUnitState.getProp(ForkOperatorUtils
-                      .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_NAME, branches, i))) : new Path(
+                      .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_NAME, this.numBranches, i))) : new Path(
                       publisherOutputDir, status.getPath().getName());
 
               if (this.fss.get(i).rename(status.getPath(), finalOutputPath)) {
@@ -156,7 +153,6 @@ public class BaseDataPublisher extends DataPublisher {
             writerOutputPathsMoved.add(writerOutputDir);
             continue;
           }
-
           // Delete the final output directory if it is configured to be replaced
           this.fss.get(i).delete(publisherOutputDir, true);
         } else {

@@ -80,9 +80,10 @@ public class AvroHdfsDataWriterTest {
     properties.setProp(ConfigurationKeys.WRITER_FILE_NAME, TestConstants.TEST_FILE_NAME);
 
     // Build a writer to write test records
-    this.writer = new AvroDataWriterBuilder().writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
-        .writeInFormat(WriterOutputFormat.AVRO).withWriterId(TestConstants.TEST_WRITER_ID).withSchema(this.schema)
-        .forBranch(-1).build();
+    this.writer =
+        new AvroDataWriterBuilder().writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
+            .writeInFormat(WriterOutputFormat.AVRO).withWriterId(TestConstants.TEST_WRITER_ID).withSchema(this.schema)
+            .withBranches(1).forBranch(0).build();
   }
 
   @Test

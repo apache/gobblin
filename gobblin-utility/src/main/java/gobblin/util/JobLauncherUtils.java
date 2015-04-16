@@ -13,16 +13,19 @@ package gobblin.util;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 
-import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.source.workunit.MultiWorkUnit;
+import gobblin.source.workunit.WorkUnit;
 
 
 /**
@@ -69,42 +72,67 @@ public class JobLauncherUtils {
   }
 
   /**
+   * Utility method that takes in a {@link List} of {@link State}s, and flattens them. It builds up the flattened
+   * list by checking each element of the given list, and seeing if it is an instance of {@link MultiWorkUnit}. If it is
+   * then it iterates through all the {@link WorkUnit}s returned by {@link MultiWorkUnit#getWorkUnits()} and adds them
+   * to the flattened list. If not, then it simply adds the {@link WorkUnit} to the flattened list.
+   * @param workUnits is a {@link List} containing either {@link State}s or {@link MultiWorkUnit}s.
+   * @return a {@link List} of {@link State}s.
+   */
+  public static List<State> flattenWorkUnits(List<? extends State> states) {
+    List<State> flattenedWorkUnits = Lists.newArrayList();
+    for (State state : states) {
+      if (state instanceof MultiWorkUnit) {
+        for (State mulitWorkUnitChild : ((MultiWorkUnit) state).getWorkUnits()) {
+          flattenedWorkUnits.add(mulitWorkUnitChild);
+        }
+      } else {
+        flattenedWorkUnits.add(state);
+      }
+    }
+    return flattenedWorkUnits;
+  }
+
+  /**
+   * Cleanup the staging data for a list of Gobblin tasks. This method calls the {@link #cleanStagingData(State, Logger)}
+   * method.
+   *
+   * @param states a {@list List} of {@link State}s that need their staging data cleaned.
+   */
+  public static void cleanStagingData(List<State> states, Logger logger) throws IOException {
+    for (State state : states) {
+      JobLauncherUtils.cleanStagingData(state, logger);
+    }
+  }
+
+  /**
    * Cleanup staging data of a Gobblin task.
    *
-   * @param taskState task state
+   * @param state workunit state
    */
-  public static void cleanStagingData(State taskState, Logger logger) throws IOException {
-    int branches = taskState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
-    for (int i = 0; i < branches; i++) {
-      String writerFsUri = taskState
-          .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, branches, i),
+  public static void cleanStagingData(State state, Logger logger) throws IOException {
+    int numBranches = state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
+
+    for (int branchId = 0; branchId < numBranches; branchId++) {
+      String writerFsUri =
+          state.getProp(
+              ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
               ConfigurationKeys.LOCAL_FS_URI);
       FileSystem fs = FileSystem.get(URI.create(writerFsUri), new Configuration());
 
-      String writerFilePath = taskState
-          .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, branches, i));
-      if (Strings.isNullOrEmpty(writerFilePath)) {
-        // The job may be cancelled before the task starts, so this may not be set.
-        continue;
-      }
-
-      String stagingDirKey =
-          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_DIR, branches, i);
-      if (taskState.contains(stagingDirKey)) {
-        Path stagingPath = new Path(taskState.getProp(stagingDirKey), writerFilePath);
-        if (fs.exists(stagingPath)) {
-          logger.info("Cleaning up staging directory " + stagingPath.toUri().getPath());
-          fs.delete(stagingPath, true);
+      Path stagingPath = WriterUtils.getWriterStagingDir(state, numBranches, branchId);
+      if (fs.exists(stagingPath)) {
+        logger.info("Cleaning up staging directory " + stagingPath.toUri().getPath());
+        if (!fs.delete(stagingPath, true)) {
+          throw new IOException("Clean up staging directory " + stagingPath.toUri().getPath() + " failed");
         }
       }
 
-      String outputDirKey =
-          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR, branches, i);
-      if (taskState.contains(outputDirKey)) {
-        Path outputPath = new Path(taskState.getProp(outputDirKey), writerFilePath);
-        if (fs.exists(outputPath)) {
-          logger.info("Cleaning up output directory " + outputPath.toUri().getPath());
-          fs.delete(outputPath, true);
+      Path outputPath = WriterUtils.getWriterOutputDir(state, numBranches, branchId);
+      if (fs.exists(outputPath)) {
+        logger.info("Cleaning up output directory " + outputPath.toUri().getPath());
+        if (!fs.delete(outputPath, true)) {
+          throw new IOException("Clean up output directory " + outputPath.toUri().getPath() + " failed");
         }
       }
     }
