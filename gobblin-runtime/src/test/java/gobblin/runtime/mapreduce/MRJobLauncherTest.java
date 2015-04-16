@@ -19,8 +19,10 @@ import java.sql.SQLException;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
+
 import org.jboss.byteman.contrib.bmunit.BMNGRunner;
 import org.jboss.byteman.contrib.bmunit.BMRule;
+
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -141,7 +143,7 @@ public class MRJobLauncherTest extends BMNGRunner {
     Properties props = loadJobProps();
     try {
       this.jobLauncherTestHelper.runTest(props);
-      Assert.fail("Byteman is not configured properly, the testLaunchJob method should have throw an exception");
+      Assert.fail("Byteman is not configured properly, the runTest method should have throw an exception");
     } catch (Exception e) {
       // The job should throw an exception, ignore it
     }
