@@ -30,7 +30,6 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metastore.FsStateStore;
@@ -47,8 +46,7 @@ import gobblin.util.JobLauncherUtils;
 
 
 /**
- * An abstract implementation of {@link JobLauncher} for execution-framework-specific
- * implementations.
+ * An abstract implementation of {@link JobLauncher} that handles common tasks for launching and running a job.
  *
  * @author ynli
  */
@@ -63,7 +61,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   protected final Properties properties;
 
   // Store for persisting job state
-  private final StateStore jobStateStore;
+  private final StateStore<JobState> jobStateStore;
 
   // Job history store that stores job execution information
   private final Optional<JobHistoryStore> jobHistoryStore;
@@ -72,12 +70,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       throws Exception {
     this.properties = properties;
 
-    this.jobStateStore = new FsStateStore(
+    this.jobStateStore = new FsStateStore<JobState>(
         properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI),
-        properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY), JobState.class);
+        properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
+        JobState.class);
 
-    if (Boolean
-        .valueOf(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, Boolean.FALSE.toString()))) {
+    if (Boolean.valueOf(
+        properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, Boolean.FALSE.toString()))) {
       Injector injector = Guice.createInjector(new MetaStoreModule(properties));
       this.jobHistoryStore = Optional.of(injector.getInstance(JobHistoryStore.class));
     } else {
@@ -132,19 +131,17 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   public void launchJob(Properties jobProps, JobListener jobListener)
       throws JobException {
     Preconditions.checkNotNull(jobProps);
+    Preconditions.checkArgument(
+        jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY), "A job must have a job name specified by job.name");
 
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    if (Strings.isNullOrEmpty(jobName)) {
-      throw new JobException("A job must have a job name specified by job.name");
-    }
 
-    String jobDisabled = jobProps.getProperty(ConfigurationKeys.JOB_DISABLED_KEY, "false");
-    if (Boolean.valueOf(jobDisabled)) {
+    if (Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_DISABLED_KEY, "false"))) {
       LOG.info(String.format("Not launching job %s as it is disabled", jobName));
       return;
     }
 
-    // Get the job lock
+    // Get the job lock if job locking is enabled
     Optional<JobLock> jobLockOptional = Optional.absent();
     boolean jobLockEnabled =
         Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, Boolean.TRUE.toString()));
@@ -163,27 +160,25 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
 
     String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
-    // If no job ID is assigned (e.g., if the job is assigned through Azkaban),
-    // assign a new job ID here.
+    // If no job ID is assigned (e.g., if the job is assigned through Azkaban), assign a new job ID here.
     if (Strings.isNullOrEmpty(jobId)) {
       jobId = JobLauncherUtils.newJobId(jobName);
       jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
     }
 
-    JobState jobState = new JobState(jobName, jobId);
+    State jobPropsState = new State();
     // Add all job configuration properties of this job
-    jobState.addAll(jobProps);
-    jobState.setState(JobState.RunningState.PENDING);
+    jobPropsState.addAll(jobProps);
 
     // Initialize the source for the job
-    SourceState sourceState;
+    JobState jobState;
     Source<?, ?> source;
     try {
       JobState previousJobState = getPreviousJobState(jobName);
+      jobState = new JobState(jobPropsState, previousJobState.getTaskStatesAsWorkUnitStates(), jobName, jobId);
       // Remember the number of consecutive failures of this job in the past
       jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY,
           previousJobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY, 0));
-      sourceState = new SourceState(jobState, getPreviousWorkUnitStates(previousJobState));
       source = new SourceDecorator(initSource(jobProps), jobId, LOG);
     } catch (Throwable t) {
       String errMsg = "Failed to initialize the source for job " + jobId;
@@ -192,11 +187,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       throw new JobException(errMsg, t);
     }
 
+    jobState.setState(JobState.RunningState.PENDING);
+
     // Generate work units of the job from the source
-    Optional<List<WorkUnit>> workUnits = Optional.fromNullable(source.getWorkunits(sourceState));
+    Optional<List<WorkUnit>> workUnits = Optional.fromNullable(source.getWorkunits(jobState));
     if (!workUnits.isPresent()) {
       // The absence means there is something wrong getting the work units
-      source.shutdown(sourceState);
+      source.shutdown(jobState);
       unlockJob(jobName, jobLockOptional);
       throw new JobException("Failed to get work units for job " + jobId);
     }
@@ -204,7 +201,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     if (workUnits.get().isEmpty()) {
       // No real work to do
       LOG.warn("No work units have been created for job " + jobId);
-      source.shutdown(sourceState);
+      source.shutdown(jobState);
       unlockJob(jobName, jobLockOptional);
       return;
     }
@@ -253,29 +250,32 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       // Start the job and wait for it to finish
       runJob(jobName, jobProps, jobState, workUnits.get());
 
-      // Check and set final job state upon job completion
+      // Check and set final job jobPropsState upon job completion
       if (jobState.getState() == JobState.RunningState.CANCELLED) {
         LOG.info(String.format("Job %s has been cancelled", jobId));
         return;
       }
-      setFinalJobState(jobState);
 
+      JobCommitPolicy commitPolicy = JobCommitPolicy.forName(
+          jobState.getProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
+
+      setFinalJobState(commitPolicy, jobState);
       // Commit and publish job data
-      commitJob(jobId, jobState);
+      commitJob(jobId, commitPolicy, jobState);
     } catch (Throwable t) {
       String errMsg = "Failed to launch and run job " + jobId;
       LOG.error(errMsg + ": " + t, t);
       throw new JobException(errMsg, t);
     } finally {
       // Make sure the source connection is shutdown
-      source.shutdown(sourceState);
+      source.shutdown(jobState);
 
-      // Persist job/task state
+      // Persist job/task jobPropsState
       try {
         persistJobState(jobState);
       } catch (Throwable t) {
         LOG.error(String.format("Failed to persist job/task states of job %s: %s", jobId, t), t);
-        // Fail the job if there is anything wrong with state persistence
+        // Fail the job if there is anything wrong with jobPropsState persistence
         jobState.setState(JobState.RunningState.FAILED);
       }
 
@@ -370,13 +370,12 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   /**
    * Get the job state of the most recent run of the job.
    */
-  @SuppressWarnings("unchecked")
   private JobState getPreviousJobState(String jobName)
       throws IOException {
     if (this.jobStateStore.exists(jobName, "current" + JOB_STATE_STORE_TABLE_SUFFIX)) {
       // Read the job state of the most recent run of the job
       List<JobState> previousJobStateList =
-          (List<JobState>) this.jobStateStore.getAll(jobName, "current" + JOB_STATE_STORE_TABLE_SUFFIX);
+          this.jobStateStore.getAll(jobName, "current" + JOB_STATE_STORE_TABLE_SUFFIX);
       if (!previousJobStateList.isEmpty()) {
         // There should be a single job state on the list if the list is not empty
         return previousJobStateList.get(0);
@@ -385,21 +384,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
     LOG.warn("No previous job state found for job " + jobName);
     return new JobState();
-  }
-
-  /**
-   * Get the list of {@link WorkUnitState}s in the given previous {@link JobState}.
-   */
-  private List<WorkUnitState> getPreviousWorkUnitStates(JobState previousJobState) {
-    List<WorkUnitState> previousWorkUnitStates = Lists.newArrayList();
-    for (TaskState taskState : previousJobState.getTaskStates()) {
-      WorkUnitState workUnitState = new WorkUnitState(taskState.getWorkunit());
-      workUnitState.setId(taskState.getId());
-      workUnitState.addAll(taskState);
-      previousWorkUnitStates.add(workUnitState);
-    }
-
-    return previousWorkUnitStates;
   }
 
   /**
@@ -437,17 +421,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   /**
    * Set final {@link JobState} of the given job.
    */
-  private void setFinalJobState(JobState jobState) {
+  private void setFinalJobState(JobCommitPolicy commitPolicy, JobState jobState) {
     jobState.setEndTime(System.currentTimeMillis());
     jobState.setDuration(jobState.getEndTime() - jobState.getStartTime());
 
-    JobCommitPolicy commitPolicy = JobCommitPolicy.forName(
-        jobState.getProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
-
     for (TaskState taskState : jobState.getTaskStates()) {
       // Set fork.branches explicitly here so the rest job flow can pick it up
-      jobState
-          .setProp(ConfigurationKeys.FORK_BRANCHES_KEY, taskState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1));
+      jobState.setProp(ConfigurationKeys.FORK_BRANCHES_KEY,
+          taskState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1));
 
       // Determine the final job state based on the task states and the job commit policy.
       // If COMMIT_ON_FULL_SUCCESS is used, the job is considered failed if any task failed.
@@ -473,48 +454,50 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   }
 
   /**
-   * Commit a finished job.
+   * Check if it is OK to commit the output data of the job.
+   */
+  private boolean canCommit(JobCommitPolicy commitPolicy, JobState jobState) {
+    // Only commit job data if 1) COMMIT_ON_PARTIAL_SUCCESS is used,
+    // or 2) COMMIT_ON_FULL_SUCCESS is used and the job has succeeded.
+    return commitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS ||
+        (commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS &&
+            jobState.getState() == JobState.RunningState.SUCCESSFUL);
+  }
+
+  /**
+   * Commit the job's output data.
    */
   @SuppressWarnings("unchecked")
-  private void commitJob(String jobId, JobState jobState)
-      throws Exception {
-    JobCommitPolicy commitPolicy = JobCommitPolicy.forName(
-        jobState.getProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
-
-    // Only commit job data if 1) COMMIT_ON_PARTIAL_SUCCESS is used,
-    // or 2) COMMIT_ON_FULL_SUCCESS is used and the job is successful.
-    if (commitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS || (
-        commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS
-            && jobState.getState() == JobState.RunningState.SUCCESSFUL)) {
-
-      Class<? extends DataPublisher> dataPublisherClass =
-          (Class<? extends DataPublisher>) Class.forName(jobState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE,
-              ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
-      Constructor<? extends DataPublisher> dataPublisherConstructor = dataPublisherClass.getConstructor(State.class);
-
-      LOG.info(String.format("Publishing job data of job %s with commit policy %s", jobId, commitPolicy.name()));
-
-      Closer closer = Closer.create();
-      try {
-        DataPublisher publisher = closer.register(dataPublisherConstructor.newInstance(jobState));
-        publisher.initialize();
-        publisher.publish(jobState.getTaskStates());
-        jobState.setState(JobState.RunningState.COMMITTED);
-      } catch (Throwable t) {
-        throw closer.rethrow(t);
-      } finally {
-        closer.close();
-      }
-    } else {
+  private void commitJob(String jobId, JobCommitPolicy commitPolicy, JobState jobState) throws Exception {
+    if (!canCommit(commitPolicy, jobState)) {
       LOG.info("Job data will not be committed due to commit policy: " + commitPolicy);
+      return;
     }
+
+    LOG.info(String.format("Publishing job data of job %s with commit policy %s", jobId, commitPolicy.name()));
+
+    Closer closer = Closer.create();
+    try {
+      Class<? extends DataPublisher> dataPublisherClass = (Class<? extends DataPublisher>) Class.forName(
+          jobState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE, ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
+      Constructor<? extends DataPublisher> dataPublisherConstructor = dataPublisherClass.getConstructor(State.class);
+      DataPublisher publisher = closer.register(dataPublisherConstructor.newInstance(jobState));
+      publisher.initialize();
+      publisher.publish(jobState.getTaskStates());
+    } catch (Throwable t) {
+      throw closer.rethrow(t);
+    } finally {
+      closer.close();
+    }
+
+    // Set the job state to COMMITTED upon successful commit
+    jobState.setState(JobState.RunningState.COMMITTED);
   }
 
   /**
    * Persist job/task states of a completed job.
    */
-  private void persistJobState(JobState jobState)
-      throws IOException {
+  private void persistJobState(JobState jobState) throws IOException {
     JobState.RunningState runningState = jobState.getState();
     if (runningState == JobState.RunningState.PENDING ||
         runningState == JobState.RunningState.RUNNING ||
@@ -528,8 +511,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
     LOG.info("Persisting job states of job " + jobId);
     this.jobStateStore.put(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX, jobState);
-    this.jobStateStore
-        .createAlias(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX, "current" + JOB_STATE_STORE_TABLE_SUFFIX);
+    this.jobStateStore.createAlias(
+        jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX, "current" + JOB_STATE_STORE_TABLE_SUFFIX);
   }
 
   /**

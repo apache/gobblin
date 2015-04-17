@@ -46,8 +46,10 @@ public class LocalJobLauncherTest extends JobLauncherTestBase {
         .setProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY, "org.apache.derby.jdbc.EmbeddedDriver");
     this.properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY, "jdbc:derby:memory:gobblin1;create=true");
     prepareJobHistoryStoreDatabase(this.properties);
-    this.jobStateStore = new FsStateStore(this.properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
-        this.properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY), JobState.class);
+    this.jobStateStore = new FsStateStore<JobState>(
+        this.properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
+        this.properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
+        JobState.class);
   }
 
   @Test

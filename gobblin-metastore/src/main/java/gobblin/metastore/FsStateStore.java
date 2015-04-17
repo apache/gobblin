@@ -47,7 +47,8 @@ import gobblin.configuration.State;
  *
  * @author ynli
  */
-public class FsStateStore implements StateStore {
+@SuppressWarnings("unchecked")
+public class FsStateStore<T extends State> implements StateStore<T> {
 
   private final Configuration conf;
   private final FileSystem fs;
@@ -56,9 +57,9 @@ public class FsStateStore implements StateStore {
   private final String storeRootDir;
 
   // Class of the state objects to be put into the store
-  private final Class<? extends State> stateClass;
+  private final Class<T> stateClass;
 
-  public FsStateStore(String fsUri, String storeRootDir, Class<? extends State> stateClass)
+  public FsStateStore(String fsUri, String storeRootDir, Class<T> stateClass)
       throws IOException {
     this.conf = new Configuration();
     this.fs = FileSystem.get(URI.create(fsUri), this.conf);
@@ -66,7 +67,7 @@ public class FsStateStore implements StateStore {
     this.stateClass = stateClass;
   }
 
-  public FsStateStore(FileSystem fs, String storeRootDir, Class<? extends State> stateClass)
+  public FsStateStore(FileSystem fs, String storeRootDir, Class<T> stateClass)
       throws IOException {
     this.fs = fs;
     this.conf = this.fs.getConf();
@@ -74,7 +75,7 @@ public class FsStateStore implements StateStore {
     this.stateClass = stateClass;
   }
 
-  public FsStateStore(String storeUrl, Class<? extends State> stateClass)
+  public FsStateStore(String storeUrl, Class<T> stateClass)
       throws IOException {
     this.conf = new Configuration();
     Path storePath = new Path(storeUrl);
@@ -113,8 +114,16 @@ public class FsStateStore implements StateStore {
     return this.fs.exists(tablePath);
   }
 
+  /**
+   * See {@link StateStore#put(String, String, T)}.
+   *
+   * <p>
+   *   This implementation does not support putting the state object into an existing store as
+   *   append is to be supported by the Hadoop SequenceFile (HADOOP-7139).
+   * </p>
+   */
   @Override
-  public void put(String storeName, String tableName, State state)
+  public void put(String storeName, String tableName, T state)
       throws IOException {
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
     if (!this.fs.exists(tablePath) && !create(storeName, tableName)) {
@@ -126,9 +135,6 @@ public class FsStateStore implements StateStore {
       SequenceFile.Writer writer =
           closer.register(SequenceFile.createWriter(this.fs, this.conf, tablePath, Text.class, this.stateClass,
               SequenceFile.CompressionType.BLOCK, new DefaultCodec()));
-      // Append will overwrite existing data, so it's not real append.
-      // Real append is to be supported for SequenceFile (HADOOP-7139).
-      // TODO: implement a workaround.
       writer.append(new Text(Strings.nullToEmpty(state.getId())), state);
     } catch (Throwable t) {
       throw closer.rethrow(t);
@@ -137,8 +143,16 @@ public class FsStateStore implements StateStore {
     }
   }
 
+  /**
+   * See {@link StateStore#putAll(String, String, Collection)}.
+   *
+   * <p>
+   *   This implementation does not support putting the state objects into an existing store as
+   *   append is to be supported by the Hadoop SequenceFile (HADOOP-7139).
+   * </p>
+   */
   @Override
-  public void putAll(String storeName, String tableName, Collection<? extends State> states)
+  public void putAll(String storeName, String tableName, Collection<T> states)
       throws IOException {
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
     if (!this.fs.exists(tablePath) && !create(storeName, tableName)) {
@@ -150,10 +164,7 @@ public class FsStateStore implements StateStore {
       SequenceFile.Writer writer =
           closer.register(SequenceFile.createWriter(this.fs, this.conf, tablePath, Text.class, this.stateClass,
               SequenceFile.CompressionType.BLOCK, new DefaultCodec()));
-      for (State state : states) {
-        // Append will overwrite existing data, so it's not real append.
-        // Real append is to be supported for SequenceFile (HADOOP-7139).
-        // TODO: implement a workaround.
+      for (T state : states) {
         writer.append(new Text(Strings.nullToEmpty(state.getId())), state);
       }
     } catch (Throwable t) {
@@ -164,7 +175,7 @@ public class FsStateStore implements StateStore {
   }
 
   @Override
-  public State get(String storeName, String tableName, String stateId)
+  public T get(String storeName, String tableName, String stateId)
       throws IOException {
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
     if (!this.fs.exists(tablePath)) {
@@ -179,7 +190,7 @@ public class FsStateStore implements StateStore {
         State state = this.stateClass.newInstance();
         while (reader.next(key, state)) {
           if (key.toString().equals(stateId)) {
-            return state;
+            return (T) state;
           }
         }
       } catch (Exception e) {
@@ -195,9 +206,9 @@ public class FsStateStore implements StateStore {
   }
 
   @Override
-  public List<? extends State> getAll(String storeName, String tableName)
+  public List<T> getAll(String storeName, String tableName)
       throws IOException {
-    List<State> states = Lists.newArrayList();
+    List<T> states = Lists.newArrayList();
 
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
     if (!this.fs.exists(tablePath)) {
@@ -209,7 +220,7 @@ public class FsStateStore implements StateStore {
       SequenceFile.Reader reader = closer.register(new SequenceFile.Reader(this.fs, tablePath, this.conf));
       try {
         Text key = new Text();
-        State state = this.stateClass.newInstance();
+        T state = this.stateClass.newInstance();
         while (reader.next(key, state)) {
           states.add(state);
           // We need a new object for each read state
@@ -228,9 +239,9 @@ public class FsStateStore implements StateStore {
   }
 
   @Override
-  public List<? extends State> getAll(String storeName)
+  public List<T> getAll(String storeName)
       throws IOException {
-    List<State> states = Lists.newArrayList();
+    List<T> states = Lists.newArrayList();
 
     Path storePath = new Path(this.storeRootDir, storeName);
     if (!this.fs.exists(storePath)) {
