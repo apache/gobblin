@@ -41,6 +41,8 @@ dependencies {
   compile externalDependency.javaxInject
 
   testCompile externalDependency.testng
+  testCompile externalDependency.byteman
+  testCompile externalDependency.bytemanBmunit
   testRuntime externalDependency.derby
 }
 
