@@ -132,8 +132,15 @@ subprojects {
   apply plugin: 'java'
   apply plugin: 'idea'
   apply plugin: 'eclipse'
+  apply plugin: 'findbugs'
 
   sourceCompatibility = JavaVersion.VERSION_1_6
+
+  findbugs {
+    ignoreFailures = true
+    effort = "max"
+    excludeFilter = file(rootProject.projectDir.path + "/ligradle/findbugs/findbugsExclude.xml")
+  }
 
   configurations {
     compile
