@@ -58,13 +58,14 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
-import gobblin.metrics.JobMetrics;
 import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.FileBasedJobLock;
 import gobblin.runtime.JobException;
 import gobblin.runtime.JobLauncher;
 import gobblin.runtime.JobLock;
+import gobblin.runtime.JobMetrics;
 import gobblin.runtime.JobState;
+import gobblin.runtime.MetricGroup;
 import gobblin.runtime.Task;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskState;
@@ -414,13 +415,13 @@ public class MRJobLauncher extends AbstractJobLauncher {
    */
   private void countersToMetrics(Counters counters, JobMetrics metrics) {
     // Write job-level counters
-    CounterGroup jobCounterGroup = counters.getGroup(JobMetrics.MetricGroup.JOB.name());
+    CounterGroup jobCounterGroup = counters.getGroup(MetricGroup.JOB.name());
     for (Counter jobCounter : jobCounterGroup) {
       metrics.getCounter(jobCounter.getName()).inc(jobCounter.getValue());
     }
 
     // Write task-level counters
-    CounterGroup taskCounterGroup = counters.getGroup(JobMetrics.MetricGroup.TASK.name());
+    CounterGroup taskCounterGroup = counters.getGroup(MetricGroup.TASK.name());
     for (Counter taskCounter : taskCounterGroup) {
       metrics.getCounter(taskCounter.getName()).inc(taskCounter.getValue());
     }

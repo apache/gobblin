@@ -12,13 +12,10 @@
 apply plugin: 'java'
 
 dependencies {
-  compile project(":gobblin-api")
-
   compile externalDependency.guava
   compile externalDependency.metricsCore
   compile externalDependency.metricsGraphite
   compile externalDependency.slf4j
-  compile externalDependency.influxdb
   compile(externalDependency.kafka){
     exclude group: "com.sun.jmx", module: "jmxri"
     exclude group: "com.sun.jdmk", module: "jmxtools"
