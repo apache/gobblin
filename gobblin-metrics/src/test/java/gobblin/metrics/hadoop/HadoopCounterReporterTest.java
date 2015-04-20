@@ -11,6 +11,7 @@
 
 package gobblin.metrics.hadoop;
 
+import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.mapred.Counters;
@@ -22,14 +23,17 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.codahale.metrics.Counter;
+import com.codahale.metrics.ExponentiallyDecayingReservoir;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricFilter;
+import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 
 import com.google.common.collect.ImmutableSortedMap;
 
+import gobblin.metrics.Measurements;
 import gobblin.metrics.MetricContext;
 
 
@@ -43,14 +47,44 @@ public class HadoopCounterReporterTest {
 
   private static final String CONTEXT_NAME = "TestContext";
   private static final String RECORDS_PROCESSED = "recordsProcessed";
+  private static final String RECORD_PROCESS_RATE = "recordProcessRate";
+  private static final String RECORD_SIZE_DISTRIBUTION = "recordSizeDistribution";
+  private static final String TOTAL_DURATION = "totalDuration";
+  private static final String QUEUE_SIZE = "queueSize";
+
   private HadoopCounterReporter hadoopCounterReporter;
-  private Counters.Counter recordsProcessed;
+  private Counters.Counter recordsProcessedCount;
+  private Counters.Counter recordProcessRateCount;
+  private Counters.Counter recordSizeDistributionCount;
+  private Counters.Counter totalDurationCount;
+  private Counters.Counter queueSize;
 
   @BeforeClass
   public void setUp() {
     Reporter mockedReporter = Mockito.mock(Reporter.class);
-    this.recordsProcessed = Mockito.mock(Counters.Counter.class);
-    Mockito.when(mockedReporter.getCounter(CONTEXT_NAME, RECORDS_PROCESSED)).thenReturn(this.recordsProcessed);
+
+    this.recordsProcessedCount = Mockito.mock(Counters.Counter.class);
+    Mockito.when(mockedReporter.getCounter(
+        CONTEXT_NAME, MetricRegistry.name(RECORDS_PROCESSED, Measurements.COUNT.getName())))
+        .thenReturn(this.recordsProcessedCount);
+
+    this.recordProcessRateCount = Mockito.mock(Counters.Counter.class);
+    Mockito.when(mockedReporter.getCounter(
+        CONTEXT_NAME, MetricRegistry.name(RECORD_PROCESS_RATE, Measurements.COUNT.getName())))
+        .thenReturn(this.recordProcessRateCount);
+
+    this.recordSizeDistributionCount = Mockito.mock(Counters.Counter.class);
+    Mockito.when(mockedReporter.getCounter(
+        CONTEXT_NAME, MetricRegistry.name(RECORD_SIZE_DISTRIBUTION, Measurements.COUNT.getName())))
+        .thenReturn(this.recordSizeDistributionCount);
+
+    this.totalDurationCount = Mockito.mock(Counters.Counter.class);
+    Mockito.when(mockedReporter.getCounter(
+        CONTEXT_NAME, MetricRegistry.name(TOTAL_DURATION, Measurements.COUNT.getName())))
+        .thenReturn(this.totalDurationCount);
+
+    this.queueSize = Mockito.mock(Counters.Counter.class);
+    Mockito.when(mockedReporter.getCounter(CONTEXT_NAME, QUEUE_SIZE)).thenReturn(this.queueSize);
 
     this.hadoopCounterReporter = HadoopCounterReporter.builder(mockedReporter)
         .convertRatesTo(TimeUnit.SECONDS)
@@ -61,19 +95,61 @@ public class HadoopCounterReporterTest {
 
   @Test
   public void testReportMetrics() {
+    Gauge<Integer> queueSizeGauge = new Gauge<Integer>() {
+      @Override
+      public Integer getValue() {
+        return 1000;
+      }
+    };
+
     Counter recordsProcessedCounter = new Counter();
     recordsProcessedCounter.inc(10l);
 
-    this.hadoopCounterReporter.report(
-        ImmutableSortedMap.<String, Gauge>naturalOrder().build(),
-        ImmutableSortedMap.<String, Counter>naturalOrder().put(RECORDS_PROCESSED, recordsProcessedCounter).build(),
-        ImmutableSortedMap.<String, Histogram>naturalOrder().build(),
-        ImmutableSortedMap.<String, Meter>naturalOrder().build(),
-        ImmutableSortedMap.<String, Timer>naturalOrder().build()
-    );
+    Histogram recordSizeDistributionHistogram = new Histogram(new ExponentiallyDecayingReservoir());
+    recordSizeDistributionHistogram.update(1);
+    recordSizeDistributionHistogram.update(2);
+    recordSizeDistributionHistogram.update(3);
 
-    // Verify the reporter has been attempting to set the counter value
-    Mockito.verify(this.recordsProcessed).setValue(10l);
+    Meter recordProcessRateMeter = new Meter();
+    recordProcessRateMeter.mark(1l);
+    recordProcessRateMeter.mark(2l);
+    recordProcessRateMeter.mark(3l);
+
+    Timer totalDurationTimer = new Timer();
+    totalDurationTimer.update(1, TimeUnit.SECONDS);
+    totalDurationTimer.update(2, TimeUnit.SECONDS);
+    totalDurationTimer.update(3, TimeUnit.SECONDS);
+
+    SortedMap<String, Counter> counters = ImmutableSortedMap.<String, Counter>naturalOrder()
+        .put(RECORDS_PROCESSED, recordsProcessedCounter).build();
+    SortedMap<String, Gauge> gauges = ImmutableSortedMap.<String, Gauge>naturalOrder()
+        .put(QUEUE_SIZE, queueSizeGauge).build();
+    SortedMap<String, Histogram> histograms = ImmutableSortedMap.<String, Histogram>naturalOrder()
+        .put(RECORD_SIZE_DISTRIBUTION, recordSizeDistributionHistogram).build();
+    SortedMap<String, Meter> meters = ImmutableSortedMap.<String, Meter>naturalOrder()
+        .put(RECORD_PROCESS_RATE, recordProcessRateMeter).build();
+    SortedMap<String, Timer> timers = ImmutableSortedMap.<String, Timer>naturalOrder()
+        .put(TOTAL_DURATION, totalDurationTimer).build();
+
+    this.hadoopCounterReporter.report(gauges, counters, histograms, meters, timers);
+
+    Mockito.verify(this.recordsProcessedCount).increment(10l);
+    Mockito.verify(this.recordProcessRateCount).increment(6l);
+    Mockito.verify(this.recordSizeDistributionCount).increment(3l);
+    Mockito.verify(this.totalDurationCount).increment(3l);
+    Mockito.verify(this.queueSize).setValue(1000);
+
+    recordsProcessedCounter.inc(5l);
+    recordSizeDistributionHistogram.update(4);
+    recordProcessRateMeter.mark(4l);
+    totalDurationTimer.update(4, TimeUnit.SECONDS);
+
+    this.hadoopCounterReporter.report(gauges, counters, histograms, meters, timers);
+
+    Mockito.verify(this.recordsProcessedCount).increment(5l);
+    Mockito.verify(this.recordProcessRateCount).increment(4l);
+    Mockito.verify(this.recordSizeDistributionCount).increment(1l);
+    Mockito.verify(this.totalDurationCount).increment(1l);
   }
 
   @AfterClass

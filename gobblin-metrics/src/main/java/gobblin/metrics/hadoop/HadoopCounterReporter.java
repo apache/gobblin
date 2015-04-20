@@ -11,18 +11,11 @@
 
 package gobblin.metrics.hadoop;
 
-import java.util.Map;
-import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.mapred.Reporter;
 
-import com.codahale.metrics.Counter;
-import com.codahale.metrics.Gauge;
-import com.codahale.metrics.Histogram;
-import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricFilter;
-import com.codahale.metrics.Timer;
 
 import gobblin.metrics.ContextAwareScheduledReporter;
 import gobblin.metrics.MetricContext;
@@ -34,7 +27,7 @@ import gobblin.metrics.MetricContext;
  *
  * @author ynli
  */
-public class HadoopCounterReporter extends ContextAwareScheduledReporter {
+public class HadoopCounterReporter extends AbstractHadoopCounterReporter {
 
   private final Reporter reporter;
 
@@ -45,14 +38,13 @@ public class HadoopCounterReporter extends ContextAwareScheduledReporter {
   }
 
   @Override
-  protected void reportInContext(MetricContext context,
-                                 SortedMap<String, Gauge> gauges,
-                                 SortedMap<String, Counter> counters,
-                                 SortedMap<String, Histogram> histograms,
-                                 SortedMap<String, Meter> meters,
-                                 SortedMap<String, Timer> timers) {
-    // Only counters are appropriate to be reported as Hadoop counters
-    reportCounters(context, counters);
+  protected void reportIncremental(MetricContext context, String name, long incremental) {
+    this.reporter.getCounter(context.getName(), name).increment(incremental);
+  }
+
+  @Override
+  protected void reportValue(MetricContext context, String name, long value) {
+    this.reporter.getCounter(context.getName(), name).setValue(value);
   }
 
   /**
@@ -76,12 +68,6 @@ public class HadoopCounterReporter extends ContextAwareScheduledReporter {
    */
   public static Builder builder(String name, Reporter reporter) {
     return new Builder(name, reporter);
-  }
-
-  private void reportCounters(MetricContext context, SortedMap<String, Counter> counters) {
-    for (Map.Entry<String, Counter> entry : counters.entrySet()) {
-      this.reporter.getCounter(context.getName(), entry.getKey()).setValue(entry.getValue().getCount());
-    }
   }
 
   /**

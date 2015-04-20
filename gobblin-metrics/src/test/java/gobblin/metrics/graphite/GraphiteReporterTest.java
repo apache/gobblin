@@ -66,15 +66,15 @@ public class GraphiteReporterTest {
     Counter recordsProcessed = this.context.contextAwareCounter(RECORDS_PROCESSED);
     recordsProcessed.inc(10l);
 
-    Meter recordsProcessRate = this.context.contextAwareMeter(RECORD_PROCESS_RATE);
-    recordsProcessRate.mark(1l);
-    recordsProcessRate.mark(2l);
-    recordsProcessRate.mark(3l);
+    Meter recordProcessRate = this.context.contextAwareMeter(RECORD_PROCESS_RATE);
+    recordProcessRate.mark(1l);
+    recordProcessRate.mark(2l);
+    recordProcessRate.mark(3l);
 
-    Histogram recordsSizeDistribution = this.context.contextAwareHistogram(RECORD_SIZE_DISTRIBUTION);
-    recordsSizeDistribution.update(1);
-    recordsSizeDistribution.update(2);
-    recordsSizeDistribution.update(3);
+    Histogram recordSizeDistribution = this.context.contextAwareHistogram(RECORD_SIZE_DISTRIBUTION);
+    recordSizeDistribution.update(1);
+    recordSizeDistribution.update(2);
+    recordSizeDistribution.update(3);
 
     Timer totalDuration = this.context.contextAwareTimer(TOTAL_DURATION);
     totalDuration.update(1, TimeUnit.SECONDS);
@@ -95,7 +95,7 @@ public class GraphiteReporterTest {
   @Test(dependsOnMethods = "testReportMetrics")
   public void verifyMetrics() {
     TestGraphiteSender.TimestampedValue recordsProcessed = this.testGraphiteSender.getMetric(
-        MetricRegistry.name(CONTEXT_NAME, RECORDS_PROCESSED));
+        MetricRegistry.name(CONTEXT_NAME, RECORDS_PROCESSED, Measurements.COUNT.getName()));
     Assert.assertEquals(recordsProcessed.getValue(), Long.toString(10l));
 
     TestGraphiteSender.TimestampedValue recordsProcessRateCount = this.testGraphiteSender.getMetric(

@@ -82,7 +82,7 @@ public class GraphiteReporter extends ContextAwareScheduledReporter {
       }
 
       for (SortedMap.Entry<String, Meter> entry : meters.entrySet()) {
-        reportedMetered(context, entry.getKey(), entry.getValue(), timeStamp);
+        reportMetered(context, entry.getKey(), entry.getValue(), timeStamp);
       }
 
       for (SortedMap.Entry<String, Timer> entry : timers.entrySet()) {
@@ -150,61 +150,73 @@ public class GraphiteReporter extends ContextAwareScheduledReporter {
   private void reportCounter(MetricContext context, String name, Counter counter, long timeStamp)
       throws IOException {
     this.graphiteSender.send(
-        MetricRegistry.name(context.getName(), name),
+        MetricRegistry.name(context.getName(), name, Measurements.COUNT.getName()),
         Long.toString(counter.getCount()),
         timeStamp);
   }
 
   private void reportHistogram(MetricContext context, String name, Histogram histogram, long timeStamp)
       throws IOException {
-    Snapshot snapshot = histogram.getSnapshot();
     this.graphiteSender.send(
         MetricRegistry.name(context.getName(), name, Measurements.COUNT.getName()),
         Long.toString(histogram.getCount()),
         timeStamp);
+    reportSnapshot(context, name, histogram.getSnapshot(), timeStamp, false);
+  }
+
+  private void reportTimer(MetricContext context, String name, Timer timer, long timeStamp) throws IOException {
+    reportSnapshot(context, name, timer.getSnapshot(), timeStamp, true);
+    reportMetered(context, name, timer, timeStamp);
+  }
+
+  private void reportSnapshot(MetricContext context, String name, Snapshot snapshot, long timeStamp,
+      boolean convertDuration) throws IOException {
     this.graphiteSender.send(
         MetricRegistry.name(context.getName(), name, Measurements.MIN.getName()),
-        Long.toString(snapshot.getMin()),
+        convertDuration ?
+            Double.toString(convertDuration(snapshot.getMin())) : Long.toString(snapshot.getMin()),
         timeStamp);
     this.graphiteSender.send(
         MetricRegistry.name(context.getName(), name, Measurements.MAX.getName()),
-        Long.toString(snapshot.getMax()),
+        convertDuration ?
+            Double.toString(convertDuration(snapshot.getMax())) : Long.toString(snapshot.getMax()),
         timeStamp);
     this.graphiteSender.send(
         MetricRegistry.name(context.getName(), name, Measurements.MEAN.getName()),
-        Double.toString(snapshot.getMean()),
+        Double.toString(convertDuration ? convertDuration(snapshot.getMean()) : snapshot.getMean()),
         timeStamp);
     this.graphiteSender.send(
         MetricRegistry.name(context.getName(), name, Measurements.STDDEV.getName()),
-        Double.toString(snapshot.getStdDev()),
+        Double.toString(convertDuration ? convertDuration(snapshot.getStdDev()) : snapshot.getStdDev()),
         timeStamp);
     this.graphiteSender.send(
         MetricRegistry.name(context.getName(), name, Measurements.MEDIAN.getName()),
-        Double.toString(snapshot.getMedian()),
+        Double.toString(convertDuration ? convertDuration(snapshot.getMedian()) : snapshot.getMedian()),
         timeStamp);
     this.graphiteSender.send(
         MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_75TH.getName()),
-        Double.toString(snapshot.get75thPercentile()),
+        Double.toString(convertDuration ? convertDuration(snapshot.get75thPercentile()) : snapshot.get75thPercentile()),
         timeStamp);
     this.graphiteSender.send(
         MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_95TH.getName()),
-        Double.toString(snapshot.get95thPercentile()),
+        Double.toString(convertDuration ? convertDuration(snapshot.get95thPercentile()) : snapshot.get95thPercentile()),
         timeStamp);
     this.graphiteSender.send(
         MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_98TH.getName()),
-        Double.toString(snapshot.get98thPercentile()),
+        Double.toString(convertDuration ? convertDuration(snapshot.get98thPercentile()) : snapshot.get98thPercentile()),
         timeStamp);
     this.graphiteSender.send(
         MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_99TH.getName()),
-        Double.toString(snapshot.get99thPercentile()),
+        Double.toString(convertDuration ? convertDuration(snapshot.get99thPercentile()) : snapshot.get99thPercentile()),
         timeStamp);
     this.graphiteSender.send(
         MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_999TH.getName()),
-        Double.toString(snapshot.get999thPercentile()),
+        Double.toString(convertDuration ?
+            convertDuration(snapshot.get999thPercentile()) : snapshot.get999thPercentile()),
         timeStamp);
   }
 
-  private void reportedMetered(MetricContext context, String name, Metered metered, long timeStamp)
+  private void reportMetered(MetricContext context, String name, Metered metered, long timeStamp)
       throws IOException {
     this.graphiteSender.send(
         MetricRegistry.name(context.getName(), name, Measurements.COUNT.getName()),
@@ -226,53 +238,6 @@ public class GraphiteReporter extends ContextAwareScheduledReporter {
         MetricRegistry.name(context.getName(), name, Measurements.MEAN_RATE.getName()),
         Double.toString(convertRate(metered.getMeanRate())),
         timeStamp);
-  }
-
-  private void reportTimer(MetricContext context, String name, Timer timer, long timeStamp) throws IOException {
-    Snapshot snapshot = timer.getSnapshot();
-
-    this.graphiteSender.send(
-        MetricRegistry.name(context.getName(), name, Measurements.MIN.getName()),
-        Double.toString(convertDuration(snapshot.getMin())),
-        timeStamp);
-    this.graphiteSender.send(
-        MetricRegistry.name(context.getName(), name, Measurements.MAX.getName()),
-        Double.toString(convertDuration(snapshot.getMax())),
-        timeStamp);
-    this.graphiteSender.send(
-        MetricRegistry.name(context.getName(), name, Measurements.MEAN.getName()),
-        Double.toString(convertDuration(snapshot.getMean())),
-        timeStamp);
-    this.graphiteSender.send(
-        MetricRegistry.name(context.getName(), name, Measurements.STDDEV.getName()),
-        Double.toString(convertDuration(snapshot.getStdDev())),
-        timeStamp);
-    this.graphiteSender.send(
-        MetricRegistry.name(context.getName(), name, Measurements.MEDIAN.getName()),
-        Double.toString(convertDuration(snapshot.getMedian())),
-        timeStamp);
-    this.graphiteSender.send(
-        MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_75TH.getName()),
-        Double.toString(convertDuration(snapshot.get75thPercentile())),
-        timeStamp);
-    this.graphiteSender.send(
-        MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_95TH.getName()),
-        Double.toString(convertDuration(snapshot.get95thPercentile())),
-        timeStamp);
-    this.graphiteSender.send(
-        MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_98TH.getName()),
-        Double.toString(convertDuration(snapshot.get98thPercentile())),
-        timeStamp);
-    this.graphiteSender.send(
-        MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_99TH.getName()),
-        Double.toString(convertDuration(snapshot.get99thPercentile())),
-        timeStamp);
-    this.graphiteSender.send(
-        MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_999TH.getName()),
-        Double.toString(convertDuration(snapshot.get999thPercentile())),
-        timeStamp);
-
-    reportedMetered(context, name, timer, timeStamp);
   }
 
   /**

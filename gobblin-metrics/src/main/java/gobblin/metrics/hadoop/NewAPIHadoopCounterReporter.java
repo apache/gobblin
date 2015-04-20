@@ -11,18 +11,11 @@
 
 package gobblin.metrics.hadoop;
 
-import java.util.Map;
-import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.mapreduce.TaskInputOutputContext;
 
-import com.codahale.metrics.Counter;
-import com.codahale.metrics.Gauge;
-import com.codahale.metrics.Histogram;
-import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricFilter;
-import com.codahale.metrics.Timer;
 
 import gobblin.metrics.ContextAwareScheduledReporter;
 import gobblin.metrics.MetricContext;
@@ -39,7 +32,7 @@ import gobblin.metrics.MetricContext;
  *
  * @author ynli
  */
-public class NewAPIHadoopCounterReporter<KI, VI, KO, VO> extends ContextAwareScheduledReporter {
+public class NewAPIHadoopCounterReporter<KI, VI, KO, VO> extends AbstractHadoopCounterReporter {
 
   private final TaskInputOutputContext<KI, VI, KO, VO> hadoopContext;
 
@@ -50,14 +43,13 @@ public class NewAPIHadoopCounterReporter<KI, VI, KO, VO> extends ContextAwareSch
   }
 
   @Override
-  protected void reportInContext(MetricContext context,
-                                 SortedMap<String, Gauge> gauges,
-                                 SortedMap<String, Counter> counters,
-                                 SortedMap<String, Histogram> histograms,
-                                 SortedMap<String, Meter> meters,
-                                 SortedMap<String, Timer> timers) {
-    // Only counters are appropriate to be reported as Hadoop counters
-    reportCounters(context, counters);
+  protected void reportIncremental(MetricContext context, String name, long incremental) {
+    this.hadoopContext.getCounter(context.getName(), name).increment(incremental);
+  }
+
+  @Override
+  protected void reportValue(MetricContext context, String name, long value) {
+    this.hadoopContext.getCounter(context.getName(), name).setValue(value);
   }
 
   /**
@@ -93,13 +85,6 @@ public class NewAPIHadoopCounterReporter<KI, VI, KO, VO> extends ContextAwareSch
   public static <KI, VI, KO, VO> Builder<KI, VI, KO, VO> builder(String name,
       TaskInputOutputContext<KI, VI, KO, VO> hadoopContext) {
     return new Builder<KI, VI, KO, VO>(name, hadoopContext);
-  }
-
-
-  private void reportCounters(MetricContext context, SortedMap<String, Counter> counters) {
-    for (Map.Entry<String, Counter> entry : counters.entrySet()) {
-      this.hadoopContext.getCounter(context.getName(), entry.getKey()).setValue(entry.getValue().getCount());
-    }
   }
 
   /**
