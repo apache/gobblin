@@ -42,7 +42,7 @@ import gobblin.util.WriterUtils;
  *
  * @author ynli
  */
-class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
+class AvroHdfsDataWriter extends InstrumentedDataWriter<GenericRecord> {
 
   private static final Logger LOG = LoggerFactory.getLogger(AvroHdfsDataWriter.class);
 
@@ -70,6 +70,8 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
 
   public AvroHdfsDataWriter(State properties, String fileName, Schema schema, int numBranches, int branchId)
       throws IOException {
+
+    super(properties);
 
     String uri = properties
         .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
@@ -123,7 +125,7 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
   }
 
   @Override
-  public void write(GenericRecord record)
+  public void writeImpl(GenericRecord record)
       throws IOException {
     Preconditions.checkNotNull(record);
 
@@ -149,6 +151,8 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
     this.writer.flush();
     this.writer.close();
     this.closed = true;
+
+    super.close();
   }
 
   @Override

@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Throwables;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.source.extractor.InstrumentedExtractor;
 import gobblin.source.workunit.WorkUnit;
 
 
@@ -46,7 +47,7 @@ import gobblin.source.workunit.WorkUnit;
  * @param <V>
  *            value type of the command output
  */
-public class FileBasedExtractor<S, D> implements Extractor<S, D> {
+public class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
   private Logger log = LoggerFactory.getLogger(FileBasedExtractor.class);
   private Iterator<D> currentFileItr;
   private String currentFile;
@@ -62,6 +63,7 @@ public class FileBasedExtractor<S, D> implements Extractor<S, D> {
   private long totalRecordCount = 0;
 
   public FileBasedExtractor(WorkUnitState workUnitState, FileBasedHelper fsHelper) {
+    super(workUnitState);
     this.workUnitState = workUnitState;
     this.workUnit = workUnitState.getWorkunit();
     this.filesToPull =
@@ -82,7 +84,7 @@ public class FileBasedExtractor<S, D> implements Extractor<S, D> {
    * file
    */
   @Override
-  public D readRecord(D reuse)
+  public D readRecordImpl(D reuse)
       throws DataRecordException, IOException {
     this.totalRecordCount++;
     int statusCount = this.workUnit.getPropAsInt(ConfigurationKeys.FILEBASED_REPORT_STATUS_ON_COUNT,
@@ -211,11 +213,13 @@ public class FileBasedExtractor<S, D> implements Extractor<S, D> {
   }
 
   @Override
-  public void close() {
+  public void close() throws IOException {
     try {
       this.fsHelper.close();
     } catch (FileBasedHelperException e) {
       log.error("Could not successfully close file system helper due to error: " + e.getMessage(), e);
     }
+
+    super.close();
   }
 }
