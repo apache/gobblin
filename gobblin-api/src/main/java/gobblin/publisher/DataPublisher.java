@@ -20,12 +20,11 @@ import gobblin.configuration.WorkUnitState;
 
 
 /**
- * Defines how to publish data and its corresponding metadata.
- * Can be used for either task level or job level publishing.
+ * Defines how to publish data and its corresponding metadata. Can be used for either task level or job level publishing.
  */
 public abstract class DataPublisher implements Closeable {
 
-  protected final State state;
+  private final State state;
 
   public DataPublisher(State state) {
     this.state = state;
@@ -35,24 +34,25 @@ public abstract class DataPublisher implements Closeable {
       throws IOException;
 
   /**
-   * Returns true if it successfully publishes the data,
-   * false otherwise
+   * Returns true if it successfully publishes the data, false otherwise.
    */
   public abstract void publishData(Collection<? extends WorkUnitState> tasks)
       throws IOException;
 
   /**
-   * Returns true if it successfully publishes the metadata,
-   * false otherwise. Examples are checkpoint files, offsets, etc.
+   * Returns true if it successfully publishes the metadata, false otherwise. Examples of publishing metadata include
+   * writing offset files, checkpoint files, etc.
    */
   public abstract void publishMetadata(Collection<? extends WorkUnitState> tasks)
       throws IOException;
 
   /**
-   * Publish the data.
+   * First publish the metadata via {@link DataPublisher#publishMetadata(Collection)}, and then publish the output data
+   * via the {@link DataPublisher#publishData(Collection)} method.
    *
-   * @param states task states
-   * @throws IOException
+   * @param states is a {@link Collection} of {@link WorkUnitState}s. Each {@link WorkUnitState} contains a
+   * {@link WorkUnit} that was scheduled to run, along with all the runtime information specific to the {@link WorkUnit}.
+   * @throws IOException if there is a problem with publishing the metadata or the data.
    */
   public void publish(Collection<? extends WorkUnitState> states)
       throws IOException {
@@ -61,6 +61,6 @@ public abstract class DataPublisher implements Closeable {
   }
 
   public State getState() {
-    return state;
+    return this.state;
   }
 }

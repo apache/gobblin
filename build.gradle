@@ -33,10 +33,16 @@ if (!project.hasProperty('hadoopVersion')) {
   }
 }
 
-hiveVersion = '0.13.0'
+if (!project.hasProperty('hiveVersion')) {
+  hiveVersion = '0.13.0'
+}
 
 if (!project.hasProperty('pegasusVersion')) {
   pegasusVersion = '1.15.9'
+}
+
+if (!project.hasProperty('bytemanVersion')) {
+  bytemanVersion = '2.2.1'
 }
 
 ext.externalDependency = [
@@ -92,6 +98,8 @@ ext.externalDependency = [
   "mockito": "org.mockito:mockito-core:1.10.19",
   "salesforceWsc": "com.force.api:force-wsc:29.0.0",
   "salesforcePartner": "com.force.api:force-partner-api:29.0.0",
+  "byteman": "org.jboss.byteman:byteman:"+bytemanVersion,
+  "bytemanBmunit": "org.jboss.byteman:byteman-bmunit:"+bytemanVersion,
   "pegasus" : [
     "data" : "com.linkedin.pegasus:data:"+pegasusVersion,
     "generator" : "com.linkedin.pegasus:generator:"+pegasusVersion,
@@ -118,13 +126,23 @@ if (!isDefaultEnvironment)
 
 task wrapper(type: Wrapper) { gradleVersion = '1.12' }
 
+import javax.tools.ToolProvider
+
 subprojects {
   apply plugin: 'java'
   apply plugin: 'idea'
   apply plugin: 'eclipse'
+// Disabling the FindBugs plugin for now because FindBugs 2.x is not compatible with Java8
+//  apply plugin: 'findbugs'
 
   sourceCompatibility = JavaVersion.VERSION_1_6
 
+/*  findbugs {
+    ignoreFailures = true
+    effort = "max"
+    excludeFilter = file(rootProject.projectDir.path + "/ligradle/findbugs/findbugsExclude.xml")
+  }
+*/
   configurations {
     compile
     dependencies {
@@ -140,6 +158,9 @@ subprojects {
       compile(externalDependency.guava) {
         force = true
       }
+
+      // Required to add JDK's tool jar, which is required to run byteman tests.
+      compile (files(((URLClassLoader) ToolProvider.getSystemToolClassLoader()).getURLs()))
     }
   }
 
