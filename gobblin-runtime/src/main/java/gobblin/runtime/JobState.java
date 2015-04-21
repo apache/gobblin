@@ -41,7 +41,8 @@ import gobblin.rest.MetricTypeEnum;
 import gobblin.rest.TaskExecutionInfoArray;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
-import gobblin.metrics.JobMetrics;
+import gobblin.runtime.util.GobblinMetrics;
+import gobblin.runtime.util.JobMetrics;
 
 
 /**
@@ -250,18 +251,6 @@ public class JobState extends SourceState {
     return ImmutableList.<TaskState>builder().addAll(this.taskStates.values()).build();
   }
 
-  /**
-   * Remove all job-level metrics objects associated with this job.
-   */
-  public void removeMetrics() {
-    JobMetrics metrics = JobMetrics.get(this.jobName, this.jobId);
-    for (String name : metrics.getMetricsOfGroup(JobMetrics.MetricGroup.JOB).keySet()) {
-      if (name.contains(this.jobId)) {
-        metrics.removeMetric(name);
-      }
-    }
-  }
-
   @Override
   public void readFields(DataInput in)
       throws IOException {
@@ -386,35 +375,35 @@ public class JobState extends SourceState {
     jobExecutionInfo.setTaskExecutions(taskExecutionInfos);
 
     // Add job metrics
-    JobMetrics jobMetrics = JobMetrics.get(this.jobName, this.jobId);
+    JobMetrics jobMetrics = JobMetrics.get(this);
     MetricArray metricArray = new MetricArray();
 
-    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics
-        .getMetricsOfType(JobMetrics.MetricType.COUNTER, JobMetrics.MetricGroup.JOB, this.jobId).entrySet()) {
+    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics.getMetricContext()
+        .getCounters().entrySet()) {
       Metric counter = new Metric();
-      counter.setGroup(JobMetrics.MetricGroup.JOB.name());
+      counter.setGroup(GobblinMetrics.MetricGroup.JOB.name());
       counter.setName(entry.getKey());
-      counter.setType(MetricTypeEnum.valueOf(JobMetrics.MetricType.COUNTER.name()));
+      counter.setType(MetricTypeEnum.valueOf(GobblinMetrics.MetricType.COUNTER.name()));
       counter.setValue(Long.toString(((Counter) entry.getValue()).getCount()));
       metricArray.add(counter);
     }
 
-    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics
-        .getMetricsOfType(JobMetrics.MetricType.METER, JobMetrics.MetricGroup.JOB, this.jobId).entrySet()) {
+    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics.getMetricContext()
+        .getMeters().entrySet()) {
       Metric meter = new Metric();
-      meter.setGroup(JobMetrics.MetricGroup.JOB.name());
+      meter.setGroup(GobblinMetrics.MetricGroup.JOB.name());
       meter.setName(entry.getKey());
-      meter.setType(MetricTypeEnum.valueOf(JobMetrics.MetricType.METER.name()));
+      meter.setType(MetricTypeEnum.valueOf(GobblinMetrics.MetricType.METER.name()));
       meter.setValue(Double.toString(((Meter) entry.getValue()).getMeanRate()));
       metricArray.add(meter);
     }
 
-    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics
-        .getMetricsOfType(JobMetrics.MetricType.GAUGE, JobMetrics.MetricGroup.JOB, this.jobId).entrySet()) {
+    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics.getMetricContext()
+        .getGauges().entrySet()) {
       Metric gauge = new Metric();
-      gauge.setGroup(JobMetrics.MetricGroup.JOB.name());
+      gauge.setGroup(GobblinMetrics.MetricGroup.JOB.name());
       gauge.setName(entry.getKey());
-      gauge.setType(MetricTypeEnum.valueOf(JobMetrics.MetricType.GAUGE.name()));
+      gauge.setType(MetricTypeEnum.valueOf(GobblinMetrics.MetricType.GAUGE.name()));
       gauge.setValue(((Gauge) entry.getValue()).getValue().toString());
       metricArray.add(gauge);
     }

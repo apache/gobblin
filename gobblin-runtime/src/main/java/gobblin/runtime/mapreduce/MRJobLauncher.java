@@ -58,7 +58,8 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
-import gobblin.metrics.JobMetrics;
+import gobblin.metrics.MetricContext;
+import gobblin.runtime.util.GobblinMetrics;
 import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.FileBasedJobLock;
 import gobblin.runtime.JobException;
@@ -69,6 +70,7 @@ import gobblin.runtime.Task;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskState;
 import gobblin.runtime.TaskStateTracker;
+import gobblin.runtime.util.JobMetrics;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.JobLauncherUtils;
@@ -410,17 +412,17 @@ public class MRJobLauncher extends AbstractJobLauncher {
   }
 
   /**
-   * Create a {@link JobMetrics} instance for this job run from the Hadoop counters.
+   * Create a {@link gobblin.runtime.util.GobblinMetrics} instance for this job run from the Hadoop counters.
    */
-  private void countersToMetrics(Counters counters, JobMetrics metrics) {
+  private void countersToMetrics(Counters counters, GobblinMetrics metrics) {
     // Write job-level counters
-    CounterGroup jobCounterGroup = counters.getGroup(JobMetrics.MetricGroup.JOB.name());
+    CounterGroup jobCounterGroup = counters.getGroup(GobblinMetrics.MetricGroup.JOB.name());
     for (Counter jobCounter : jobCounterGroup) {
       metrics.getCounter(jobCounter.getName()).inc(jobCounter.getValue());
     }
 
     // Write task-level counters
-    CounterGroup taskCounterGroup = counters.getGroup(JobMetrics.MetricGroup.TASK.name());
+    CounterGroup taskCounterGroup = counters.getGroup(GobblinMetrics.MetricGroup.TASK.name());
     for (Counter taskCounter : taskCounterGroup) {
       metrics.getCounter(taskCounter.getName()).inc(taskCounter.getValue());
     }
@@ -548,6 +550,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
           this.taskStateStore.delete(jobId, taskId + TASK_STATE_STORE_TABLE_SUFFIX);
         }
       }
+
+      JobMetrics jobMetrics = JobMetrics.get(null, jobId);
+      MetricContext.registerContext(jobMetrics.getMetricContext());
 
       List<Task> tasks = AbstractJobLauncher.runWorkUnits(jobId, workUnits, this.taskStateTracker, this.taskExecutor,
           new CountDownLatch(workUnits.size()));

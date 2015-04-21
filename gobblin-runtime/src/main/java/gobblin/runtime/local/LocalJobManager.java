@@ -68,7 +68,7 @@ import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
-import gobblin.metrics.JobMetrics;
+import gobblin.runtime.util.GobblinMetrics;
 import gobblin.publisher.DataPublisher;
 import gobblin.runtime.EmailNotificationJobListener;
 import gobblin.runtime.JobException;
@@ -406,9 +406,9 @@ public class LocalJobManager extends AbstractIdleService {
       return;
     }
 
-    if (JobMetrics.isEnabled(this.properties)) {
+    if (GobblinMetrics.isEnabled(this.properties)) {
       // Remove all task-level metrics after the task is done
-      taskState.removeMetrics();
+      //taskState.removeMetrics();
     }
 
     JobState jobState = this.jobStateMap.get(jobId);
@@ -677,10 +677,6 @@ public class LocalJobManager extends AbstractIdleService {
       LOG.error("Failed to publish job data of job " + jobId, e);
       throw e;
     } finally {
-      if (JobMetrics.isEnabled(this.properties)) {
-        // Remove all job-level metrics after the job is done
-        jobState.removeMetrics();
-      }
       boolean runOnce = Boolean.valueOf(jobState.getProp(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
       persistJobState(jobState);
       cleanupJobOnCompletion(jobState, runOnce);

@@ -15,7 +15,6 @@ import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -29,7 +28,7 @@ import com.google.common.base.Optional;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.JobMetrics;
+import gobblin.runtime.util.GobblinMetrics;
 import gobblin.util.ExecutorsUtils;
 
 
@@ -187,13 +186,13 @@ public class TaskExecutor extends AbstractIdleService {
    * @param task failed {@link Task} to be retried
    */
   public void retry(Task task) {
-    if (JobMetrics.isEnabled(task.getTaskState().getWorkunit())) {
+    if (GobblinMetrics.isEnabled(task.getTaskState().getWorkunit())) {
       // Adjust metrics to clean up numbers from the failed task
       task.getTaskState()
           .adjustJobMetricsOnRetry(task.getTaskState().getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY));
       // Remove task-level metrics associated with this task so
       // the retry will use fresh metrics
-      task.getTaskState().removeMetrics();
+      //task.getTaskState().removeMetrics();
     }
 
     // Task retry interval increases linearly with number of retries

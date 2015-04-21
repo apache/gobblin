@@ -29,6 +29,7 @@ import com.google.common.io.Closer;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 
+import gobblin.instrumented.Instrumented;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
@@ -37,8 +38,10 @@ import gobblin.metastore.FsStateStore;
 import gobblin.metastore.JobHistoryStore;
 import gobblin.metastore.MetaStoreModule;
 import gobblin.metastore.StateStore;
-import gobblin.metrics.JobMetrics;
+import gobblin.runtime.util.GobblinMetrics;
+import gobblin.metrics.MetricContext;
 import gobblin.publisher.DataPublisher;
+import gobblin.runtime.util.JobMetrics;
 import gobblin.source.extractor.JobCommitPolicy;
 import gobblin.source.Source;
 import gobblin.source.workunit.MultiWorkUnit;
@@ -59,6 +62,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   protected static final String TASK_STATE_STORE_TABLE_SUFFIX = ".tst";
   protected static final String JOB_STATE_STORE_TABLE_SUFFIX = ".jst";
 
+  public static final String METRIC_CONTEXT_NAME = "gobblin.job.launcher.metrics";
+
   // Framework configuration properties
   protected final Properties properties;
 
@@ -68,6 +73,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   // Job history store that stores job execution information
   private final Optional<JobHistoryStore> jobHistoryStore;
 
+  private final MetricContext metricContext;
+
   public AbstractJobLauncher(Properties properties)
       throws Exception {
     this.properties = properties;
@@ -75,6 +82,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     this.jobStateStore = new FsStateStore(
         properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI),
         properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY), JobState.class);
+
+    this.metricContext = new MetricContext.Builder(METRIC_CONTEXT_NAME).build();
+    MetricContext.registerContext(metricContext);
 
     if (Boolean
         .valueOf(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, Boolean.FALSE.toString()))) {
@@ -173,6 +183,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     JobState jobState = new JobState(jobName, jobId);
     // Add all job configuration properties of this job
     jobState.addAll(jobProps);
+    jobState.setProp(ConfigurationKeys.METRIC_CONTEXT_NAME_KEY, metricContext.getName());
     jobState.setState(JobState.RunningState.PENDING);
 
     // Initialize the source for the job
@@ -233,11 +244,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
     Optional<JobMetrics> jobMetrics = Optional.absent();
     try {
-      if (JobMetrics.isEnabled(jobProps)) {
+      if (GobblinMetrics.isEnabled(jobProps)) {
         // Start metric reporting
         jobMetrics = Optional.fromNullable(JobMetrics.get(jobName, jobId));
         if (jobMetrics.isPresent()) {
           jobMetrics.get().startMetricReporting(jobProps);
+          MetricContext.registerContext(jobMetrics.get().getMetricContext());
+          jobState.setProp(Instrumented.METRIC_CONTEXT_NAME_KEY, jobMetrics.get().getMetricContext().getName());
         }
       }
 
@@ -298,12 +311,12 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
       }
 
-      if (JobMetrics.isEnabled(jobProps)) {
+      if (GobblinMetrics.isEnabled(jobProps)) {
         // Stop metric reporting
         if (jobMetrics.isPresent()) {
           jobMetrics.get().stopMetricReporting();
         }
-        JobMetrics.remove(jobId);
+        GobblinMetrics.remove(jobId);
       }
     }
 

@@ -44,7 +44,7 @@ public class TestConverter extends ToAvroConverterBase<String, String> {
   }
 
   @Override
-  public Iterable<GenericRecord> convertRecord(Schema schema, String inputRecord, WorkUnitState workUnit) {
+  public Iterable<GenericRecord> convertRecordImpl(Schema schema, String inputRecord, WorkUnitState workUnit) {
 
     JsonElement element = GSON.fromJson(inputRecord, JsonElement.class);
     Map<String, Object> fields = GSON.fromJson(element, FIELD_ENTRY_TYPE);

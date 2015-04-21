@@ -28,7 +28,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
-import gobblin.metrics.JobMetrics;
+import gobblin.runtime.util.GobblinMetrics;
 import gobblin.publisher.TaskPublisher;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
@@ -390,7 +390,7 @@ public class Fork implements Closeable, Runnable {
     this.writer.commit();
 
     try {
-      if (JobMetrics.isEnabled(this.taskState.getWorkunit())) {
+      if (GobblinMetrics.isEnabled(this.taskState.getWorkunit())) {
         // Update byte-level metrics after the writer commits
         updateByteMetrics();
       }

@@ -26,7 +26,7 @@ import com.google.common.util.concurrent.AbstractIdleService;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.JobMetrics;
+import gobblin.runtime.util.GobblinMetrics;
 import gobblin.runtime.Task;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskStateTracker;
@@ -102,7 +102,7 @@ public class LocalTaskStateTracker extends AbstractIdleService implements TaskSt
 
   @Override
   public void onTaskCompletion(Task task) {
-    if (JobMetrics.isEnabled(task.getTaskState().getWorkunit())) {
+    if (GobblinMetrics.isEnabled(task.getTaskState().getWorkunit())) {
       // Update record-level metrics after the task is done
       task.updateRecordMetrics();
       task.updateByteMetrics();
@@ -154,7 +154,7 @@ public class LocalTaskStateTracker extends AbstractIdleService implements TaskSt
 
     @Override
     public void run() {
-      if (JobMetrics.isEnabled(this.task.getTaskState().getWorkunit())) {
+      if (GobblinMetrics.isEnabled(this.task.getTaskState().getWorkunit())) {
         // Update record-level metrics
         this.task.updateRecordMetrics();
       }

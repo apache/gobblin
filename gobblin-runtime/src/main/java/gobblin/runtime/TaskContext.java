@@ -17,6 +17,7 @@ import java.util.List;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 
+import gobblin.instrumented.Instrumented;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
@@ -49,6 +50,10 @@ public class TaskContext {
   public TaskContext(WorkUnitState workUnitState) {
     this.workUnitState = workUnitState;
     this.workUnit = workUnitState.getWorkunit();
+  }
+
+  public void setMetricsContextName(String name) {
+    this.workUnitState.setProp(Instrumented.METRIC_CONTEXT_NAME_KEY, name);
   }
 
   /**
