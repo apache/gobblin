@@ -14,19 +14,13 @@ package gobblin.source.extractor;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-
-import org.apache.avro.Schema;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
-import com.google.common.base.Optional;
-import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
-import gobblin.Instrumented;
+import gobblin.instrumented.Instrumented;
 import gobblin.configuration.WorkUnitState;
 
 public abstract class InstrumentedExtractor<S, D> implements Extractor<S, D>, Closeable {

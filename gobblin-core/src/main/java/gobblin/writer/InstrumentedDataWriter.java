@@ -20,7 +20,7 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.google.common.io.Closer;
 
-import gobblin.Instrumented;
+import gobblin.instrumented.Instrumented;
 import gobblin.configuration.State;
 
 

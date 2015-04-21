@@ -34,8 +34,8 @@ public class IdentityForkOperator<S, D> extends InstrumentedForkOperator<S, D> {
   private final List<Boolean> records = Lists.newArrayList();
 
   @Override
-  public void init(WorkUnitState workUnitState) {
-    // Do nothing
+  public void init(WorkUnitState workUnitState) throws Exception {
+    super.init(workUnitState);
   }
 
   @Override

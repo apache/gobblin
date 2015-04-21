@@ -50,7 +50,7 @@ public class WikipediaConverter extends ToAvroConverterBase<String, JsonElement>
     return new Schema.Parser().parse(schema);
   }
 
-  public Iterable<GenericRecord> convertRecord(Schema outputSchema, JsonElement inputRecord, WorkUnitState workUnit) {
+  public Iterable<GenericRecord> convertRecordImpl(Schema outputSchema, JsonElement inputRecord, WorkUnitState workUnit) {
     JsonElement element = GSON.fromJson(inputRecord, JsonElement.class);
     Map<String, Object> fields = GSON.fromJson(element, FIELD_ENTRY_TYPE);
     GenericRecord record = new GenericData.Record(outputSchema);

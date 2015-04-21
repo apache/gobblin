@@ -20,13 +20,13 @@ import gobblin.configuration.WorkUnitState;
 /**
  * A base abstract {@link Converter} class for data transformation from Avro to Avro.
  */
-public abstract class AvroToAvroConverterBase extends Converter<Schema, Schema, GenericRecord, GenericRecord> {
+public abstract class AvroToAvroConverterBase extends InstrumentedConverter<Schema, Schema, GenericRecord, GenericRecord> {
 
   @Override
   public abstract Schema convertSchema(Schema inputSchema, WorkUnitState workUnit)
       throws SchemaConversionException;
 
   @Override
-  public abstract Iterable<GenericRecord> convertRecord(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
+  public abstract Iterable<GenericRecord> convertRecordImpl(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
       throws DataConversionException;
 }

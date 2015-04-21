@@ -1,6 +1,8 @@
 package gobblin.fork;
 
 import gobblin.configuration.ConfigurationKeys;
+
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
@@ -19,9 +21,10 @@ import gobblin.configuration.WorkUnitState;
 public class IdentityForkOperatorTest {
 
   @Test
-  public void testForkMethods() {
+  public void testForkMethods() throws Exception {
     ForkOperator<String, String> dummyForkOperator = new IdentityForkOperator<String, String>();
     WorkUnitState workUnitState = new WorkUnitState();
+    dummyForkOperator.init(workUnitState);
 
     workUnitState.setProp(ConfigurationKeys.FORK_BRANCHES_KEY, 2);
     List<Boolean> schemas = dummyForkOperator.forkSchema(workUnitState, "");

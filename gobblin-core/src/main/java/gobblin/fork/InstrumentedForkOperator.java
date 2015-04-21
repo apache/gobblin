@@ -19,22 +19,22 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.google.common.io.Closer;
 
-import gobblin.Instrumented;
+import gobblin.instrumented.Instrumented;
 import gobblin.configuration.WorkUnitState;
 
 
 public abstract class InstrumentedForkOperator<S, D> implements ForkOperator<S, D> {
 
   protected Instrumented instrumented;
-  protected Closer closer;
-  protected Meter inputMeter;
-  protected Meter outputForks;
-  protected Timer forkOperatorTimer;
+  protected Closer closer = Closer.create();
+  // Initialize as dummy metrics to avoid null pointer exception if init was skipped
+  protected Meter inputMeter = new Meter();
+  protected Meter outputForks = new Meter();
+  protected Timer forkOperatorTimer = new Timer();
 
   @Override
   public void init(WorkUnitState workUnitState)
       throws Exception {
-    this.closer = Closer.create();
     this.instrumented = closer.register(new Instrumented(workUnitState, this.getClass()));
 
     this.inputMeter = this.instrumented.getContext().meter("gobblin.fork.operator.records.in");

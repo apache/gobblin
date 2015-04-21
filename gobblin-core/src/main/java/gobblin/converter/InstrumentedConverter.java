@@ -22,22 +22,21 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.io.Closer;
 
-import gobblin.Instrumented;
+import gobblin.instrumented.Instrumented;
 import gobblin.configuration.WorkUnitState;
 
 public abstract class InstrumentedConverter<SI, SO, DI, DO> extends Converter<SI, SO, DI, DO> implements Closeable {
   protected Instrumented instrumented;
-  protected Meter recordsIn;
-  protected Meter recordsOut;
-  protected Meter recordsException;
-  protected Timer converterTimer;
-  protected Closer closer;
+  protected Meter recordsIn = new Meter();
+  protected Meter recordsOut = new Meter();
+  protected Meter recordsException = new Meter();
+  protected Timer converterTimer = new Timer();
+  protected Closer closer = Closer.create();
 
   @Override
   public Converter<SI, SO, DI, DO> init(WorkUnitState workUnit) {
     Converter<SI, SO, DI, DO> converter = super.init(workUnit);
 
-    this.closer = Closer.create();
     this.instrumented = closer.register(new Instrumented(workUnit, this.getClass()));
 
     this.recordsIn = this.instrumented.getContext().contextAwareMeter("gobblin.converter.records.in");

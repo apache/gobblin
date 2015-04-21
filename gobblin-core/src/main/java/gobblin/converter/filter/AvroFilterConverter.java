@@ -72,10 +72,10 @@ public class AvroFilterConverter extends AvroToAvroConverterBase {
    * {@link #fieldValue}. If it is then it returns a {@link gobblin.converter.SingleRecordIterable} for the input record.
    * Otherwise it returns a {@link EmptyIterable}.
    * {@inheritDoc}
-   * @see gobblin.converter.AvroToAvroConverterBase#convertRecord(org.apache.avro.Schema, org.apache.avro.generic.GenericRecord, gobblin.configuration.WorkUnitState)
+   * @see gobblin.converter.AvroToAvroConverterBase#convertRecordImpl(org.apache.avro.Schema, org.apache.avro.generic.GenericRecord, gobblin.configuration.WorkUnitState)
    */
   @Override
-  public Iterable<GenericRecord> convertRecord(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
+  public Iterable<GenericRecord> convertRecordImpl(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
     Optional<Object> fieldValue = AvroUtils.getFieldValue(inputRecord, this.fieldName);
     if (fieldValue.isPresent() && fieldValue.get().toString().equals(this.fieldValue)) {

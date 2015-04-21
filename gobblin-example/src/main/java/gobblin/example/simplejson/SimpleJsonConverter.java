@@ -55,7 +55,7 @@ public class SimpleJsonConverter extends ToAvroConverterBase<String, String> {
   }
 
   @Override
-  public Iterable<GenericRecord> convertRecord(Schema schema, String inputRecord, WorkUnitState workUnit)
+  public Iterable<GenericRecord> convertRecordImpl(Schema schema, String inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
 
     JsonElement element = GSON.fromJson(inputRecord, JsonElement.class);

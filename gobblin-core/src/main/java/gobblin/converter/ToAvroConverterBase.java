@@ -23,13 +23,13 @@ import gobblin.configuration.WorkUnitState;
  * @param <SI> input schema type
  * @param <DI> input data type
  */
-public abstract class ToAvroConverterBase<SI, DI> extends Converter<SI, Schema, DI, GenericRecord> {
+public abstract class ToAvroConverterBase<SI, DI> extends InstrumentedConverter<SI, Schema, DI, GenericRecord> {
 
   @Override
   public abstract Schema convertSchema(SI schema, WorkUnitState workUnit)
       throws SchemaConversionException;
 
   @Override
-  public abstract Iterable<GenericRecord> convertRecord(Schema outputSchema, DI inputRecord, WorkUnitState workUnit)
+  public abstract Iterable<GenericRecord> convertRecordImpl(Schema outputSchema, DI inputRecord, WorkUnitState workUnit)
       throws DataConversionException;
 }
