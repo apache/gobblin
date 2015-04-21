@@ -381,7 +381,7 @@ public class JobState extends SourceState {
     for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics.getMetricContext()
         .getCounters().entrySet()) {
       Metric counter = new Metric();
-      counter.setGroup(GobblinMetrics.MetricGroup.JOB.name());
+      counter.setGroup(MetricGroup.JOB.name());
       counter.setName(entry.getKey());
       counter.setType(MetricTypeEnum.valueOf(GobblinMetrics.MetricType.COUNTER.name()));
       counter.setValue(Long.toString(((Counter) entry.getValue()).getCount()));
@@ -391,7 +391,7 @@ public class JobState extends SourceState {
     for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics.getMetricContext()
         .getMeters().entrySet()) {
       Metric meter = new Metric();
-      meter.setGroup(GobblinMetrics.MetricGroup.JOB.name());
+      meter.setGroup(MetricGroup.JOB.name());
       meter.setName(entry.getKey());
       meter.setType(MetricTypeEnum.valueOf(GobblinMetrics.MetricType.METER.name()));
       meter.setValue(Double.toString(((Meter) entry.getValue()).getMeanRate()));
@@ -401,7 +401,7 @@ public class JobState extends SourceState {
     for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics.getMetricContext()
         .getGauges().entrySet()) {
       Metric gauge = new Metric();
-      gauge.setGroup(GobblinMetrics.MetricGroup.JOB.name());
+      gauge.setGroup(MetricGroup.JOB.name());
       gauge.setName(entry.getKey());
       gauge.setType(MetricTypeEnum.valueOf(GobblinMetrics.MetricType.GAUGE.name()));
       gauge.setValue(((Gauge) entry.getValue()).getValue().toString());

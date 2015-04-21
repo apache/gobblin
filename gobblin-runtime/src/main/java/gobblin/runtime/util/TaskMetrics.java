@@ -24,7 +24,7 @@ public class TaskMetrics extends GobblinMetrics {
   protected String jobId;
 
   protected TaskMetrics(TaskState task) {
-    super(task.getTaskId());
+    super(name(task));
     this.jobId = task.getJobId();
     JobMetrics parentJobContext = JobMetrics.get(null, task.getJobId());
     List<Tag<?>> tags = new ArrayList<Tag<?>>();

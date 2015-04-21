@@ -45,13 +45,6 @@ public class GobblinMetrics {
     COUNTER, METER, GAUGE
   }
 
-  /**
-   * Enumeration of metric groups used internally.
-   */
-  public enum MetricGroup {
-    JOB, TASK
-  }
-
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinMetrics.class);
 
   // Mapping from job ID to metrics set. This map is needed so an instance of

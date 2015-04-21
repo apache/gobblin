@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * (c) 2014 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -11,11 +12,8 @@
 
 package gobblin.runtime.util;
 
-
 /**
- * An enumeration of metric groups used internally.
- *
- * @author ynli
+ * Enumeration of metric groups used internally.
  */
 public enum MetricGroup {
   JOB, TASK

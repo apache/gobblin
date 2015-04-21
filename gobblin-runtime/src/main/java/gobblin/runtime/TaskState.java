@@ -37,8 +37,8 @@ import gobblin.rest.TaskExecutionInfo;
 import gobblin.rest.TaskStateEnum;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
-import gobblin.runtime.util.GobblinMetrics;
-import gobblin.runtime.util.TaskMetrics;
+import gobblin.runtime.util.*;
+import gobblin.runtime.util.MetricGroup;
 import gobblin.source.workunit.Extract;
 import gobblin.util.ForkOperatorUtils;
 
@@ -177,12 +177,12 @@ public class TaskState extends WorkUnitState {
     String forkBranchId = ForkOperatorUtils.getForkId(this.taskId, branchIndex);
 
     Counter taskRecordCounter =
-        metrics.getCounter(GobblinMetrics.MetricGroup.TASK.name(), forkBranchId, RECORDS);
+        metrics.getCounter(gobblin.runtime.util.MetricGroup.TASK.name(), forkBranchId, RECORDS);
     long inc = recordsWritten - taskRecordCounter.getCount();
     taskRecordCounter.inc(inc);
-    metrics.getMeter(GobblinMetrics.MetricGroup.TASK.name(), forkBranchId, RECORDS_PER_SECOND).mark(inc);
-    metrics.getCounter(GobblinMetrics.MetricGroup.JOB.name(), this.jobId, RECORDS).inc(inc);
-    metrics.getMeter(GobblinMetrics.MetricGroup.JOB.name(), this.jobId, RECORDS_PER_SECOND).mark(inc);
+    metrics.getMeter(MetricGroup.TASK.name(), forkBranchId, RECORDS_PER_SECOND).mark(inc);
+    metrics.getCounter(MetricGroup.JOB.name(), this.jobId, RECORDS).inc(inc);
+    metrics.getMeter(MetricGroup.JOB.name(), this.jobId, RECORDS_PER_SECOND).mark(inc);
   }
 
   /**
@@ -199,10 +199,10 @@ public class TaskState extends WorkUnitState {
     TaskMetrics metrics = TaskMetrics.get(this);
     String forkBranchId = ForkOperatorUtils.getForkId(this.taskId, branchIndex);
 
-    metrics.getCounter(GobblinMetrics.MetricGroup.TASK.name(), forkBranchId, BYTES).inc(bytesWritten);
-    metrics.getMeter(GobblinMetrics.MetricGroup.TASK.name(), forkBranchId, BYTES_PER_SECOND).mark(bytesWritten);
-    metrics.getCounter(GobblinMetrics.MetricGroup.JOB.name(), this.jobId, BYTES).inc(bytesWritten);
-    metrics.getMeter(GobblinMetrics.MetricGroup.JOB.name(), this.jobId, BYTES_PER_SECOND).mark(bytesWritten);
+    metrics.getCounter(MetricGroup.TASK.name(), forkBranchId, BYTES).inc(bytesWritten);
+    metrics.getMeter(MetricGroup.TASK.name(), forkBranchId, BYTES_PER_SECOND).mark(bytesWritten);
+    metrics.getCounter(MetricGroup.JOB.name(), this.jobId, BYTES).inc(bytesWritten);
+    metrics.getMeter(MetricGroup.JOB.name(), this.jobId, BYTES_PER_SECOND).mark(bytesWritten);
   }
 
   /**
@@ -216,11 +216,11 @@ public class TaskState extends WorkUnitState {
     for (int i = 0; i < branches; i++) {
       String forkBranchId = ForkOperatorUtils.getForkId(this.taskId, i);
       long recordsWritten =
-          metrics.getCounter(GobblinMetrics.MetricGroup.TASK.name(), forkBranchId, RECORDS).getCount();
+          metrics.getCounter(MetricGroup.TASK.name(), forkBranchId, RECORDS).getCount();
       long bytesWritten =
-          metrics.getCounter(GobblinMetrics.MetricGroup.TASK.name(), forkBranchId, BYTES).getCount();
-      metrics.getCounter(GobblinMetrics.MetricGroup.JOB.name(), this.jobId, RECORDS).dec(recordsWritten);
-      metrics.getCounter(GobblinMetrics.MetricGroup.JOB.name(), this.jobId, BYTES).dec(bytesWritten);
+          metrics.getCounter(MetricGroup.TASK.name(), forkBranchId, BYTES).getCount();
+      metrics.getCounter(MetricGroup.JOB.name(), this.jobId, RECORDS).dec(recordsWritten);
+      metrics.getCounter(MetricGroup.JOB.name(), this.jobId, BYTES).dec(bytesWritten);
     }
   }
 
@@ -325,7 +325,7 @@ public class TaskState extends WorkUnitState {
     for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics
         .getMetricContext().getCounters().entrySet()) {
       Metric counter = new Metric();
-      counter.setGroup(GobblinMetrics.MetricGroup.TASK.name());
+      counter.setGroup(MetricGroup.TASK.name());
       counter.setName(entry.getKey());
       counter.setType(MetricTypeEnum.valueOf(GobblinMetrics.MetricType.COUNTER.name()));
       counter.setValue(Long.toString(((Counter) entry.getValue()).getCount()));
@@ -335,7 +335,7 @@ public class TaskState extends WorkUnitState {
     for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics
         .getMetricContext().getMeters().entrySet()) {
       Metric meter = new Metric();
-      meter.setGroup(GobblinMetrics.MetricGroup.TASK.name());
+      meter.setGroup(MetricGroup.TASK.name());
       meter.setName(entry.getKey());
       meter.setType(MetricTypeEnum.valueOf(GobblinMetrics.MetricType.METER.name()));
       meter.setValue(Double.toString(((Meter) entry.getValue()).getMeanRate()));
@@ -345,7 +345,7 @@ public class TaskState extends WorkUnitState {
     for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics
         .getMetricContext().getGauges().entrySet()) {
       Metric gauge = new Metric();
-      gauge.setGroup(GobblinMetrics.MetricGroup.TASK.name());
+      gauge.setGroup(MetricGroup.TASK.name());
       gauge.setName(entry.getKey());
       gauge.setType(MetricTypeEnum.valueOf(GobblinMetrics.MetricType.GAUGE.name()));
       gauge.setValue(((Gauge) entry.getValue()).getValue().toString());

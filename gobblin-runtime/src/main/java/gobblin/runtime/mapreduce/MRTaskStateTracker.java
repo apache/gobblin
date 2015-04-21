@@ -29,6 +29,7 @@ import gobblin.runtime.util.GobblinMetrics;
 import gobblin.runtime.AbstractTaskStateTracker;
 import gobblin.runtime.Task;
 import gobblin.runtime.util.JobMetrics;
+import gobblin.runtime.util.MetricGroup;
 import gobblin.runtime.util.TaskMetrics;
 import gobblin.source.workunit.WorkUnit;
 
@@ -78,7 +79,7 @@ public class MRTaskStateTracker extends AbstractTaskStateTracker {
         Map<String, ? extends Metric> taskLevelCounters =
             metrics.getMetricContext().getCounters();
         for (Map.Entry<String, ? extends Metric> entry : taskLevelCounters.entrySet()) {
-          this.context.getCounter(GobblinMetrics.MetricGroup.TASK.name(), entry.getKey())
+          this.context.getCounter(MetricGroup.TASK.name(), entry.getKey())
               .setValue(((Counter) entry.getValue()).getCount());
         }
       }
@@ -87,7 +88,7 @@ public class MRTaskStateTracker extends AbstractTaskStateTracker {
       Map<String, ? extends Metric> jobLevelCounters =
           JobMetrics.get(null, task.getJobId()).getMetricContext().getCounters();
       for (Map.Entry<String, ? extends Metric> entry : jobLevelCounters.entrySet()) {
-        this.context.getCounter(GobblinMetrics.MetricGroup.JOB.name(), entry.getKey())
+        this.context.getCounter(MetricGroup.JOB.name(), entry.getKey())
             .increment(((Counter) entry.getValue()).getCount());
       }
     }
@@ -132,7 +133,7 @@ public class MRTaskStateTracker extends AbstractTaskStateTracker {
           Map<String, ? extends Metric> taskLevelCounters = metrics
               .getMetricContext().getCounters();
           for (Map.Entry<String, ? extends Metric> entry : taskLevelCounters.entrySet()) {
-            this.context.getCounter(GobblinMetrics.MetricGroup.TASK.name(), entry.getKey())
+            this.context.getCounter(MetricGroup.TASK.name(), entry.getKey())
                 .setValue(((Counter) entry.getValue()).getCount());
           }
         }
