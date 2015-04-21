@@ -23,8 +23,8 @@ import com.google.common.collect.Maps;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.JobMetrics;
 import gobblin.runtime.AbstractTaskStateTracker;
+import gobblin.runtime.JobMetrics;
 import gobblin.runtime.Task;
 import gobblin.runtime.TaskExecutor;
 

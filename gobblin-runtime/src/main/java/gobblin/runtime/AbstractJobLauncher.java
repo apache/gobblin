@@ -36,7 +36,6 @@ import gobblin.metastore.FsStateStore;
 import gobblin.metastore.JobHistoryStore;
 import gobblin.metastore.MetaStoreModule;
 import gobblin.metastore.StateStore;
-import gobblin.metrics.JobMetrics;
 import gobblin.publisher.DataPublisher;
 import gobblin.source.extractor.JobCommitPolicy;
 import gobblin.source.Source;

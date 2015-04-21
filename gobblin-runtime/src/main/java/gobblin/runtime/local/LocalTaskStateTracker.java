@@ -26,7 +26,7 @@ import com.google.common.util.concurrent.AbstractIdleService;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.JobMetrics;
+import gobblin.runtime.JobMetrics;
 import gobblin.runtime.Task;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskStateTracker;

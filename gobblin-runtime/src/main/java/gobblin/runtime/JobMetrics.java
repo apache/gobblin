@@ -9,12 +9,11 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics;
+package gobblin.runtime;
 
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.URI;
-import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -48,6 +47,7 @@ import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.metrics.Measurements;
 
 
 /**
@@ -62,13 +62,6 @@ public class JobMetrics implements MetricSet {
    */
   public enum MetricType {
     COUNTER, METER, GAUGE
-  }
-
-  /**
-   * Enumeration of metric groups used internally.
-   */
-  public enum MetricGroup {
-    JOB, TASK
   }
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JobMetrics.class);
@@ -174,20 +167,20 @@ public class JobMetrics implements MetricSet {
     List<String> names = Lists.newArrayList();
 
     if (metric instanceof Counter || metric instanceof Meter || metric instanceof Gauge) {
-      names.add(rootName + MetricNameSuffix.NONE.getSuffix());
+      names.add(rootName);
     } else if (metric instanceof Histogram) {
-      names.add(rootName + MetricNameSuffix.MIN_VALUE.getSuffix());
-      names.add(rootName + MetricNameSuffix.MAX_VALUE.getSuffix());
-      names.add(rootName + MetricNameSuffix.MEDIAN_VALUE.getSuffix());
-      names.add(rootName + MetricNameSuffix.MEAN_VALUE.getSuffix());
-      names.add(rootName + MetricNameSuffix.STDDEV_VALUE.getSuffix());
+      names.add(rootName + Measurements.MIN.getName());
+      names.add(rootName + Measurements.MAX.getName());
+      names.add(rootName + Measurements.MEDIAN.getName());
+      names.add(rootName + Measurements.MEAN.getName());
+      names.add(rootName + Measurements.STDDEV.getName());
     } else if (metric instanceof Timer) {
-      names.add(rootName + MetricNameSuffix.MEAN_EVENT_RATE.getSuffix());
-      names.add(rootName + MetricNameSuffix.MIN_DURATION.getSuffix());
-      names.add(rootName + MetricNameSuffix.MAX_DURATION.getSuffix());
-      names.add(rootName + MetricNameSuffix.MEDIAN_DURATION.getSuffix());
-      names.add(rootName + MetricNameSuffix.MEAN_DURATION.getSuffix());
-      names.add(rootName + MetricNameSuffix.STDDEV_DURATION.getSuffix());
+      names.add(rootName + Measurements.MEAN_RATE.getName());
+      names.add(rootName + Measurements.MIN.getName());
+      names.add(rootName + Measurements.MAX.getName());
+      names.add(rootName + Measurements.MEDIAN.getName());
+      names.add(rootName + Measurements.MEAN.getName());
+      names.add(rootName + Measurements.STDDEV.getName());
     }
 
     return names;

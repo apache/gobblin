@@ -9,7 +9,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics;
+package gobblin.metrics.kafka;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -31,6 +31,9 @@ import com.google.common.collect.Lists;
 
 import kafka.consumer.ConsumerIterator;
 import kafka.consumer.ConsumerTimeoutException;
+
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.Tag;
 
 
 @Test(groups = {"gobblin.metrics"})

@@ -25,8 +25,9 @@ import com.codahale.metrics.Counter;
 import com.codahale.metrics.Metric;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.JobMetrics;
 import gobblin.runtime.AbstractTaskStateTracker;
+import gobblin.runtime.JobMetrics;
+import gobblin.runtime.MetricGroup;
 import gobblin.runtime.Task;
 import gobblin.source.workunit.WorkUnit;
 
@@ -74,18 +75,18 @@ public class MRTaskStateTracker extends AbstractTaskStateTracker {
           ConfigurationKeys.DEFAULT_MR_INCLUDE_TASK_COUNTERS)) {
         // Task-level counters
         Map<String, ? extends Metric> taskLevelCounters =
-            metrics.getMetricsOfType(JobMetrics.MetricType.COUNTER, JobMetrics.MetricGroup.TASK, task.getTaskId());
+            metrics.getMetricsOfType(JobMetrics.MetricType.COUNTER, MetricGroup.TASK, task.getTaskId());
         for (Map.Entry<String, ? extends Metric> entry : taskLevelCounters.entrySet()) {
-          this.context.getCounter(JobMetrics.MetricGroup.TASK.name(), entry.getKey())
+          this.context.getCounter(MetricGroup.TASK.name(), entry.getKey())
               .setValue(((Counter) entry.getValue()).getCount());
         }
       }
 
       // Job-level counters
       Map<String, ? extends Metric> jobLevelCounters =
-          metrics.getMetricsOfType(JobMetrics.MetricType.COUNTER, JobMetrics.MetricGroup.JOB, task.getJobId());
+          metrics.getMetricsOfType(JobMetrics.MetricType.COUNTER, MetricGroup.JOB, task.getJobId());
       for (Map.Entry<String, ? extends Metric> entry : jobLevelCounters.entrySet()) {
-        this.context.getCounter(JobMetrics.MetricGroup.JOB.name(), entry.getKey())
+        this.context.getCounter(MetricGroup.JOB.name(), entry.getKey())
             .increment(((Counter) entry.getValue()).getCount());
       }
     }
@@ -127,10 +128,10 @@ public class MRTaskStateTracker extends AbstractTaskStateTracker {
         if (workUnit.getPropAsBoolean(ConfigurationKeys.MR_INCLUDE_TASK_COUNTERS_KEY,
             ConfigurationKeys.DEFAULT_MR_INCLUDE_TASK_COUNTERS)) {
           // Task-level counters
-          Map<String, ? extends Metric> taskLevelCounters = metrics
-              .getMetricsOfType(JobMetrics.MetricType.COUNTER, JobMetrics.MetricGroup.TASK, this.task.getTaskId());
+          Map<String, ? extends Metric> taskLevelCounters =
+              metrics.getMetricsOfType(JobMetrics.MetricType.COUNTER, MetricGroup.TASK, this.task.getTaskId());
           for (Map.Entry<String, ? extends Metric> entry : taskLevelCounters.entrySet()) {
-            this.context.getCounter(JobMetrics.MetricGroup.TASK.name(), entry.getKey())
+            this.context.getCounter(MetricGroup.TASK.name(), entry.getKey())
                 .setValue(((Counter) entry.getValue()).getCount());
           }
         }
