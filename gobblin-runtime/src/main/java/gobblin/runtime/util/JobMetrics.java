@@ -50,7 +50,7 @@ public class JobMetrics extends GobblinMetrics {
     super(jobId);
     this.jobName = jobName;
     List<Tag<?>> tags = new ArrayList<Tag<?>>();
-    tags.add(new Tag<String>("jobName", jobName));
+    tags.add(new Tag<String>("jobName", jobName == null ? "" : jobName));
     tags.add(new Tag<String>("jobId", jobId));
     this.metricContext = new MetricContext.Builder("gobblin.metrics.job." + jobId).
         addTags(tags).
@@ -65,8 +65,10 @@ public class JobMetrics extends GobblinMetrics {
    * @return a new {@link GobblinMetrics} instance for the given job
    */
   public static JobMetrics get(String jobName, String jobId) {
-    return (JobMetrics)METRICS_MAP.putIfAbsent(jobId,
-        new JobMetrics(jobName, jobId));
+    if(!METRICS_MAP.containsKey(jobId)) {
+      METRICS_MAP.putIfAbsent(jobId, new JobMetrics(jobName, jobId));
+    }
+    return (JobMetrics)METRICS_MAP.get(jobId);
   }
 
   public static JobMetrics get(JobState job) {

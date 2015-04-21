@@ -14,6 +14,7 @@ package gobblin.instrumented;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Random;
 
 import gobblin.configuration.State;
 import gobblin.metrics.MetricContext;
@@ -24,17 +25,20 @@ public class Instrumented implements Closeable {
 
   public static final String METRIC_CONTEXT_NAME_KEY = "metrics.context.name";
   protected MetricContext metricContext;
+  private int randomId;
 
   @SuppressWarnings("unchecked")
   public Instrumented(State state, Class klazz) {
+    this.randomId = (new Random()).nextInt();
+
     Tag<String> componentTag = new Tag("component", "converter");
     Tag<String> classTag = new Tag("class", this.getClass().getCanonicalName());
 
     MetricContext parentContext;
     MetricContext.Builder builder = state.contains(METRIC_CONTEXT_NAME_KEY) &&
         (parentContext = MetricContext.getContext(state.getProp(METRIC_CONTEXT_NAME_KEY))) != null ?
-        parentContext.childBuilder(klazz.getCanonicalName()) :
-        MetricContext.builder(klazz.getClass().getCanonicalName());
+        parentContext.childBuilder(klazz.getCanonicalName() + "." + this.randomId) :
+        MetricContext.builder(klazz.getCanonicalName() + "." + this.randomId);
     this.metricContext = builder.
         addTag(componentTag).
         addTag(classTag).

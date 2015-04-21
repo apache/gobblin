@@ -41,6 +41,8 @@ dependencies {
   compile externalDependency.javaxInject
 
   testCompile externalDependency.testng
+  testCompile externalDependency.byteman
+  testCompile externalDependency.bytemanBmunit
   testRuntime externalDependency.derby
 }
 
@@ -68,6 +70,13 @@ test {
       excludeGroups 'ignore'
     }
     workingDir rootProject.rootDir
+    testLogging.showStandardStreams = false
+    maxParallelForks = 1
+}
+
+clean {
+  delete "../gobblin-test/locks"
+  delete "../gobblin-test/basicTest"
 }
 
 classification="library"

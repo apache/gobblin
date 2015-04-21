@@ -9,7 +9,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics;
+package gobblin.metrics.kafka;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -24,6 +24,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.MetricRegistry;
+
+import gobblin.metrics.MetricContext;
 
 
 /**
@@ -103,7 +105,7 @@ public class KafkaAvroReporter extends KafkaReporter {
   }
 
   /**
-   * Returns a new {@link gobblin.metrics.KafkaAvroReporter.Builder} for {@link gobblin.metrics.KafkaAvroReporter}.
+   * Returns a new {@link KafkaAvroReporter.Builder} for {@link KafkaAvroReporter}.
    * If the registry is of type {@link gobblin.metrics.MetricContext} tags will NOT be inherited.
    * To inherit tags, use forContext method.
    *
@@ -118,7 +120,7 @@ public class KafkaAvroReporter extends KafkaReporter {
   }
 
   /**
-   * Returns a new {@link gobblin.metrics.KafkaAvroReporter.Builder} for {@link gobblin.metrics.KafkaAvroReporter}.
+   * Returns a new {@link KafkaAvroReporter.Builder} for {@link KafkaAvroReporter}.
    *
    * @param context the {@link gobblin.metrics.MetricContext} to report
    * @return KafkaAvroReporter builder
@@ -139,7 +141,7 @@ public class KafkaAvroReporter extends KafkaReporter {
   }
 
   /**
-   * Builder for {@link gobblin.metrics.KafkaAvroReporter}.
+   * Builder for {@link KafkaAvroReporter}.
    * Defaults to no filter, reporting rates in seconds and times in milliseconds.
    */
   public static abstract class Builder<T extends Builder<T>> extends KafkaReporter.Builder<T> {
@@ -149,7 +151,7 @@ public class KafkaAvroReporter extends KafkaReporter {
     }
 
     /**
-     * Builds and returns {@link gobblin.metrics.KafkaAvroReporter}.
+     * Builds and returns {@link KafkaAvroReporter}.
      *
      * @param brokers string of Kafka brokers
      * @param topic topic to send metrics to

@@ -604,7 +604,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
   }
 
   @SuppressWarnings("unchecked")
-  private <T extends ContextAwareMetric> T getOrCreate(String name, ContextAwareMetricFactory<T> factory) {
+  private synchronized <T extends ContextAwareMetric> T getOrCreate(String name, ContextAwareMetricFactory<T> factory) {
     Metric metric = this.contextAwareMetrics.get(name);
     if (metric != null) {
       if (factory.isInstance(metric)) {

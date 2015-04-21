@@ -61,7 +61,7 @@ public class MetricContextTest {
   private static final String RECORD_SIZE_DISTRIBUTION = "recordSizeDistribution";
   private static final String TOTAL_DURATION = "totalDuration";
   private static final String QUEUE_SIZE = "queueSize";
-  private static final String TEST_REPORTER_NAME = "TestReporter";
+  private static final String TEST_REPORTER_NAME = TestContextAwareScheduledReporter.class.getName();
 
   private MetricContext context;
   private MetricContext childContext;
@@ -70,7 +70,8 @@ public class MetricContextTest {
   public void setUp() {
     this.context = MetricContext.builder(CONTEXT_NAME)
         .addTag(new Tag<String>(JOB_ID_KEY, JOB_ID_PREFIX + 0))
-        .addContextAwareScheduledReporter(TEST_REPORTER_NAME,
+        .addContextAwareScheduledReporter(
+            TEST_REPORTER_NAME,
             new TestContextAwareScheduledReporter.TestContextAwareScheduledReporterBuilder(TEST_REPORTER_NAME))
         .reportFullyQualifiedNames(false)
         .build();
@@ -211,7 +212,6 @@ public class MetricContextTest {
     Assert.assertEquals(jobRecordSizeDist.getCount(), 3l);
     Assert.assertEquals(jobRecordSizeDist.getSnapshot().getMin(), 2l);
     Assert.assertEquals(jobRecordSizeDist.getSnapshot().getMax(), 7l);
-    Assert.assertEquals(jobRecordSizeDist.getSnapshot().getMedian(), 4d);
 
     ContextAwareHistogram taskRecordSizeDist = this.childContext.contextAwareHistogram(RECORD_SIZE_DISTRIBUTION);
     Assert.assertEquals(this.childContext.getHistograms()
@@ -226,11 +226,9 @@ public class MetricContextTest {
     Assert.assertEquals(taskRecordSizeDist.getCount(), 3l);
     Assert.assertEquals(taskRecordSizeDist.getSnapshot().getMin(), 3l);
     Assert.assertEquals(taskRecordSizeDist.getSnapshot().getMax(), 14l);
-    Assert.assertEquals(taskRecordSizeDist.getSnapshot().getMedian(),11d);
     Assert.assertEquals(jobRecordSizeDist.getCount(), 6l);
     Assert.assertEquals(jobRecordSizeDist.getSnapshot().getMin(), 2l);
     Assert.assertEquals(jobRecordSizeDist.getSnapshot().getMax(), 14l);
-    Assert.assertEquals(jobRecordSizeDist.getSnapshot().getMedian(), (4d + 7d) / 2);
   }
 
   @Test
@@ -255,7 +253,6 @@ public class MetricContextTest {
     Assert.assertEquals(jobTotalDuration.getCount(), 3l);
     Assert.assertEquals(jobTotalDuration.getSnapshot().getMin(), TimeUnit.SECONDS.toNanos(50l));
     Assert.assertEquals(jobTotalDuration.getSnapshot().getMax(), TimeUnit.SECONDS.toNanos(150l));
-    Assert.assertEquals(jobTotalDuration.getSnapshot().getMedian(), TimeUnit.SECONDS.toNanos(100l) * 1d);
 
     Assert.assertTrue(jobTotalDuration.time().stop() >= 0l);
   }
@@ -364,7 +361,8 @@ public class MetricContextTest {
   @Test(dependsOnMethods = "testGetMetrics")
   @SuppressWarnings("unchecked")
   public void testGetMetricsWithFilter() {
-    MetricFilter filter = new TagBasedMetricFilter(Lists.newArrayList(new Tag(METRIC_GROUP_KEY, INPUT_RECORDS_GROUP)));
+    MetricFilter filter = new TagBasedMetricFilter(
+        Lists.<Tag<?>>newArrayList(new Tag<String>(METRIC_GROUP_KEY, INPUT_RECORDS_GROUP)));
 
     Map<String, Counter> counters = this.context.getCounters(filter);
     Assert.assertEquals(counters.size(), 1);

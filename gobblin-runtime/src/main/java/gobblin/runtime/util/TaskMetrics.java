@@ -30,13 +30,19 @@ public class TaskMetrics extends GobblinMetrics {
     List<Tag<?>> tags = new ArrayList<Tag<?>>();
     tags.add(new Tag<String>("taskId", task.getTaskId()));
     this.metricContext = parentJobContext.getMetricContext().
-        childBuilder("gobblin.metrics.job." + task.getJobId() + ".task." + task.getTaskId()).
+        childBuilder("gobblin.metrics." + task.getJobId() + "." + task.getTaskId()).
         addTags(tags).build();
   }
 
-  public static TaskMetrics get(TaskState task) {
-    return (TaskMetrics)METRICS_MAP.putIfAbsent(task.getJobId() + ":" + task.getTaskId(),
-        new TaskMetrics(task));
+  public synchronized static TaskMetrics get(TaskState task) {
+    if(!METRICS_MAP.containsKey(name(task))) {
+      METRICS_MAP.putIfAbsent(name(task), new TaskMetrics(task));
+    }
+    return (TaskMetrics)METRICS_MAP.get(name(task));
+  }
+
+  public static String name(TaskState task) {
+    return task.getJobId() + ":" + task.getTaskId();
   }
 
 }

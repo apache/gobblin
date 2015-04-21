@@ -43,17 +43,21 @@ import gobblin.metastore.StateStore;
 /**
  * Base class for {@link JobLauncher} unit tests.
  */
-public abstract class JobLauncherTestBase {
+public class JobLauncherTestHelper {
 
-  protected static final String SOURCE_FILE_LIST_KEY = "source.files";
+  public static final String SOURCE_FILE_LIST_KEY = "source.files";
 
-  protected Properties properties;
-  protected StateStore jobStateStore;
+  private final StateStore jobStateStore;
+  private final Properties launcherProps;
+
+  public JobLauncherTestHelper(Properties launcherProps, StateStore jobStateStore) {
+    this.launcherProps = launcherProps;
+    this.jobStateStore = jobStateStore;
+  }
 
   @SuppressWarnings("unchecked")
-  protected void runTest(Properties jobProps)
-      throws Exception {
-    JobLauncher jobLauncher = JobLauncherFactory.newJobLauncher(this.properties);
+  public void runTest(Properties jobProps) throws Exception {
+    JobLauncher jobLauncher = JobLauncherFactory.newJobLauncher(this.launcherProps);
     jobLauncher.launchJob(jobProps, null);
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
@@ -69,9 +73,9 @@ public abstract class JobLauncherTestBase {
   }
 
   @SuppressWarnings("unchecked")
-  protected void runTestWithPullLimit(Properties jobProps)
+  public void runTestWithPullLimit(Properties jobProps)
       throws Exception {
-    JobLauncher jobLauncher = JobLauncherFactory.newJobLauncher(this.properties);
+    JobLauncher jobLauncher = JobLauncherFactory.newJobLauncher(this.launcherProps);
     jobLauncher.launchJob(jobProps, null);
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
@@ -92,9 +96,8 @@ public abstract class JobLauncherTestBase {
   }
 
   @SuppressWarnings("unchecked")
-  protected void runTestWithCancellation(final Properties jobProps)
-      throws Exception {
-    final JobLauncher jobLauncher = JobLauncherFactory.newJobLauncher(this.properties);
+  public void runTestWithCancellation(final Properties jobProps) throws Exception {
+    final JobLauncher jobLauncher = JobLauncherFactory.newJobLauncher(this.launcherProps);
 
     final AtomicBoolean isCancelled = new AtomicBoolean(false);
     // This thread will cancel the job after some time
@@ -122,15 +125,16 @@ public abstract class JobLauncherTestBase {
     Assert.assertTrue(jobStateList.isEmpty());
 
     FileSystem lfs = FileSystem.getLocal(new Configuration());
-    Path jobLockFile = new Path(jobProps.getProperty(ConfigurationKeys.JOB_LOCK_DIR_KEY),
-        jobName + FileBasedJobLock.LOCK_FILE_EXTENSION);
+    Path jobLockFile =
+        new Path(jobProps.getProperty(ConfigurationKeys.JOB_LOCK_DIR_KEY), jobName
+            + FileBasedJobLock.LOCK_FILE_EXTENSION);
     Assert.assertFalse(lfs.exists(jobLockFile));
   }
 
   @SuppressWarnings("unchecked")
-  protected void runTestWithFork(Properties jobProps)
+  public void runTestWithFork(Properties jobProps)
       throws Exception {
-    JobLauncher jobLauncher = JobLauncherFactory.newJobLauncher(this.properties);
+    JobLauncher jobLauncher = JobLauncherFactory.newJobLauncher(this.launcherProps);
     jobLauncher.launchJob(jobProps, null);
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
@@ -144,23 +148,25 @@ public abstract class JobLauncherTestBase {
     FileSystem lfs = FileSystem.getLocal(new Configuration());
     for (TaskState taskState : jobState.getTaskStates()) {
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
-      Path path = new Path(taskState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
-          new Path(taskState.getExtract().getOutputFilePath(), "fork_0"));
+      Path path =
+          new Path(taskState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR), new Path(taskState.getExtract()
+              .getOutputFilePath(), "fork_0"));
       Assert.assertTrue(lfs.exists(path));
       Assert.assertEquals(lfs.listStatus(path).length, 2);
-      path = new Path(taskState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
-          new Path(taskState.getExtract().getOutputFilePath(), "fork_1"));
+      path =
+          new Path(taskState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR), new Path(taskState.getExtract()
+              .getOutputFilePath(), "fork_1"));
       Assert.assertTrue(lfs.exists(path));
       Assert.assertEquals(lfs.listStatus(path).length, 2);
     }
   }
 
-  protected void prepareJobHistoryStoreDatabase(Properties properties)
-      throws Exception {
+  public void prepareJobHistoryStoreDatabase(Properties properties) throws Exception {
     // Read the DDL statements
     List<String> statementLines = Lists.newArrayList();
-    List<String> lines = Files.readLines(new File("gobblin-metastore/src/test/resources/gobblin_job_history_store.sql"),
-        Charset.forName(ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
+    List<String> lines =
+        Files.readLines(new File("gobblin-metastore/src/test/resources/gobblin_job_history_store.sql"),
+            Charset.forName(ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
     for (String line : lines) {
       // Skip a comment line
       if (line.startsWith("--")) {
