@@ -58,7 +58,7 @@ public class Utils {
    * Get coalesce of columns if there are multiple comma-separated columns
    */
   public static String getCoalesceColumnNames(String columnOrColumnList) {
-    if (columnOrColumnList == null) {
+    if (Strings.isNullOrEmpty(columnOrColumnList)) {
       return null;
     }
     if (columnOrColumnList.contains(",")) {
