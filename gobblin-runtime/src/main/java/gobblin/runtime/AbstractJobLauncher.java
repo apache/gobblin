@@ -263,6 +263,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       // Commit and publish job data
       commitJob(jobId, commitPolicy, jobState);
     } catch (Throwable t) {
+      jobState.setState(JobState.RunningState.FAILED);
       String errMsg = "Failed to launch and run job " + jobId;
       LOG.error(errMsg + ": " + t, t);
       throw new JobException(errMsg, t);
@@ -270,7 +271,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       // Make sure the source connection is shutdown
       source.shutdown(jobState);
 
-      // Persist job/task jobPropsState
       try {
         persistJobState(jobState);
       } catch (Throwable t) {
@@ -279,14 +279,12 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         jobState.setState(JobState.RunningState.FAILED);
       }
 
-      // Cleanup staging/temporary data
       cleanupStagingData(jobState);
 
       long endTime = System.currentTimeMillis();
       jobState.setEndTime(endTime);
       jobState.setDuration(endTime - startTime);
 
-      // Release the job lock
       unlockJob(jobName, jobLockOptional);
 
       // Write job execution info to the job history store upon job completion/termination
@@ -299,7 +297,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       }
 
       if (JobMetrics.isEnabled(jobProps)) {
-        // Stop metric reporting
         if (jobMetrics.isPresent()) {
           jobMetrics.get().stopMetricReporting();
         }

@@ -45,6 +45,8 @@ import gobblin.configuration.State;
  *     {@link FsStateStore#get(String, String, String)} method may not work.
  * </p>
  *
+ * @param <T> state object type
+ *
  * @author ynli
  */
 @SuppressWarnings("unchecked")
