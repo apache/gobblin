@@ -17,9 +17,11 @@ import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 
 
@@ -84,10 +86,13 @@ public abstract class HdfsIO {
   }
 
   private static void addResourceToConf(Configuration conf) {
-    conf.setStrings(getHdfsUriHadoopPropertyName(), HDFS_URI_DEFAULT);
     addHadoopConfigPropertiesToConf(conf);
+    String hdfsUriProp = getHdfsUriHadoopPropertyName();
     if (CompactionRunner.properties.containsKey(HDFS_URI)) {
-      conf.setStrings(getHdfsUriHadoopPropertyName(), CompactionRunner.properties.getProperty(HDFS_URI));
+      conf.setStrings(hdfsUriProp, CompactionRunner.properties.getProperty(HDFS_URI));
+    }
+    if (Strings.isNullOrEmpty(conf.get(hdfsUriProp))) {
+      conf.set(hdfsUriProp, HDFS_URI_DEFAULT);
     }
   }
 
@@ -96,7 +101,7 @@ public abstract class HdfsIO {
     for (String propertyName : propertyNames) {
       if (propertyName.startsWith(HADOOP_CONFIGFILE_)) {
         String hadoopConfigFile = CompactionRunner.properties.getProperty(propertyName);
-        conf.addResource(hadoopConfigFile);
+        conf.addResource(new Path(hadoopConfigFile));
         LOG.info("Added Hadoop Config File: " + hadoopConfigFile);
       }
     }
