@@ -37,7 +37,6 @@ import gobblin.rest.TaskExecutionInfo;
 import gobblin.rest.TaskStateEnum;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
-import gobblin.metrics.JobMetrics;
 import gobblin.source.workunit.Extract;
 import gobblin.util.ForkOperatorUtils;
 
@@ -176,12 +175,12 @@ public class TaskState extends WorkUnitState {
     String forkBranchId = ForkOperatorUtils.getForkId(this.taskId, branchIndex);
 
     Counter taskRecordCounter =
-        metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, forkBranchId, RECORDS));
+        metrics.getCounter(JobMetrics.metricName(MetricGroup.TASK, forkBranchId, RECORDS));
     long inc = recordsWritten - taskRecordCounter.getCount();
     taskRecordCounter.inc(inc);
-    metrics.getMeter(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, forkBranchId, RECORDS_PER_SECOND)).mark(inc);
-    metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, RECORDS)).inc(inc);
-    metrics.getMeter(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, RECORDS_PER_SECOND)).mark(inc);
+    metrics.getMeter(JobMetrics.metricName(MetricGroup.TASK, forkBranchId, RECORDS_PER_SECOND)).mark(inc);
+    metrics.getCounter(JobMetrics.metricName(MetricGroup.JOB, this.jobId, RECORDS)).inc(inc);
+    metrics.getMeter(JobMetrics.metricName(MetricGroup.JOB, this.jobId, RECORDS_PER_SECOND)).mark(inc);
   }
 
   /**
@@ -198,11 +197,11 @@ public class TaskState extends WorkUnitState {
     JobMetrics metrics = JobMetrics.get(this.getProp(ConfigurationKeys.JOB_NAME_KEY), this.jobId);
     String forkBranchId = ForkOperatorUtils.getForkId(this.taskId, branchIndex);
 
-    metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, forkBranchId, BYTES)).inc(bytesWritten);
-    metrics.getMeter(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, forkBranchId, BYTES_PER_SECOND))
+    metrics.getCounter(JobMetrics.metricName(MetricGroup.TASK, forkBranchId, BYTES)).inc(bytesWritten);
+    metrics.getMeter(JobMetrics.metricName(MetricGroup.TASK, forkBranchId, BYTES_PER_SECOND))
         .mark(bytesWritten);
-    metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, BYTES)).inc(bytesWritten);
-    metrics.getMeter(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, BYTES_PER_SECOND))
+    metrics.getCounter(JobMetrics.metricName(MetricGroup.JOB, this.jobId, BYTES)).inc(bytesWritten);
+    metrics.getMeter(JobMetrics.metricName(MetricGroup.JOB, this.jobId, BYTES_PER_SECOND))
         .mark(bytesWritten);
   }
 
@@ -217,11 +216,11 @@ public class TaskState extends WorkUnitState {
     for (int i = 0; i < branches; i++) {
       String forkBranchId = ForkOperatorUtils.getForkId(this.taskId, i);
       long recordsWritten =
-          metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, forkBranchId, RECORDS)).getCount();
+          metrics.getCounter(JobMetrics.metricName(MetricGroup.TASK, forkBranchId, RECORDS)).getCount();
       long bytesWritten =
-          metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.TASK, forkBranchId, BYTES)).getCount();
-      metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, RECORDS)).dec(recordsWritten);
-      metrics.getCounter(JobMetrics.metricName(JobMetrics.MetricGroup.JOB, this.jobId, BYTES)).dec(bytesWritten);
+          metrics.getCounter(JobMetrics.metricName(MetricGroup.TASK, forkBranchId, BYTES)).getCount();
+      metrics.getCounter(JobMetrics.metricName(MetricGroup.JOB, this.jobId, RECORDS)).dec(recordsWritten);
+      metrics.getCounter(JobMetrics.metricName(MetricGroup.JOB, this.jobId, BYTES)).dec(bytesWritten);
     }
   }
 
@@ -230,7 +229,7 @@ public class TaskState extends WorkUnitState {
    */
   public void removeMetrics() {
     JobMetrics metrics = JobMetrics.get(this.getProp(ConfigurationKeys.JOB_NAME_KEY), this.jobId);
-    for (String name : metrics.getMetricsOfGroup(JobMetrics.MetricGroup.TASK).keySet()) {
+    for (String name : metrics.getMetricsOfGroup(MetricGroup.TASK).keySet()) {
       if (name.contains(this.taskId)) {
         metrics.removeMetric(name);
       }
@@ -336,9 +335,9 @@ public class TaskState extends WorkUnitState {
     MetricArray metricArray = new MetricArray();
 
     for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics
-        .getMetricsOfType(JobMetrics.MetricType.COUNTER, JobMetrics.MetricGroup.TASK, this.taskId).entrySet()) {
+        .getMetricsOfType(JobMetrics.MetricType.COUNTER, MetricGroup.TASK, this.taskId).entrySet()) {
       Metric counter = new Metric();
-      counter.setGroup(JobMetrics.MetricGroup.TASK.name());
+      counter.setGroup(MetricGroup.TASK.name());
       counter.setName(entry.getKey());
       counter.setType(MetricTypeEnum.valueOf(JobMetrics.MetricType.COUNTER.name()));
       counter.setValue(Long.toString(((Counter) entry.getValue()).getCount()));
@@ -346,9 +345,9 @@ public class TaskState extends WorkUnitState {
     }
 
     for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics
-        .getMetricsOfType(JobMetrics.MetricType.METER, JobMetrics.MetricGroup.TASK, this.taskId).entrySet()) {
+        .getMetricsOfType(JobMetrics.MetricType.METER, MetricGroup.TASK, this.taskId).entrySet()) {
       Metric meter = new Metric();
-      meter.setGroup(JobMetrics.MetricGroup.TASK.name());
+      meter.setGroup(MetricGroup.TASK.name());
       meter.setName(entry.getKey());
       meter.setType(MetricTypeEnum.valueOf(JobMetrics.MetricType.METER.name()));
       meter.setValue(Double.toString(((Meter) entry.getValue()).getMeanRate()));
@@ -356,9 +355,9 @@ public class TaskState extends WorkUnitState {
     }
 
     for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics
-        .getMetricsOfType(JobMetrics.MetricType.GAUGE, JobMetrics.MetricGroup.TASK, this.taskId).entrySet()) {
+        .getMetricsOfType(JobMetrics.MetricType.GAUGE, MetricGroup.TASK, this.taskId).entrySet()) {
       Metric gauge = new Metric();
-      gauge.setGroup(JobMetrics.MetricGroup.TASK.name());
+      gauge.setGroup(MetricGroup.TASK.name());
       gauge.setName(entry.getKey());
       gauge.setType(MetricTypeEnum.valueOf(JobMetrics.MetricType.GAUGE.name()));
       gauge.setValue(((Gauge) entry.getValue()).getValue().toString());

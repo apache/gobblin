@@ -41,7 +41,6 @@ import gobblin.rest.MetricTypeEnum;
 import gobblin.rest.TaskExecutionInfoArray;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
-import gobblin.metrics.JobMetrics;
 
 
 /**
@@ -255,7 +254,7 @@ public class JobState extends SourceState {
    */
   public void removeMetrics() {
     JobMetrics metrics = JobMetrics.get(this.jobName, this.jobId);
-    for (String name : metrics.getMetricsOfGroup(JobMetrics.MetricGroup.JOB).keySet()) {
+    for (String name : metrics.getMetricsOfGroup(MetricGroup.JOB).keySet()) {
       if (name.contains(this.jobId)) {
         metrics.removeMetric(name);
       }
@@ -390,9 +389,9 @@ public class JobState extends SourceState {
     MetricArray metricArray = new MetricArray();
 
     for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics
-        .getMetricsOfType(JobMetrics.MetricType.COUNTER, JobMetrics.MetricGroup.JOB, this.jobId).entrySet()) {
+        .getMetricsOfType(JobMetrics.MetricType.COUNTER, MetricGroup.JOB, this.jobId).entrySet()) {
       Metric counter = new Metric();
-      counter.setGroup(JobMetrics.MetricGroup.JOB.name());
+      counter.setGroup(MetricGroup.JOB.name());
       counter.setName(entry.getKey());
       counter.setType(MetricTypeEnum.valueOf(JobMetrics.MetricType.COUNTER.name()));
       counter.setValue(Long.toString(((Counter) entry.getValue()).getCount()));
@@ -400,9 +399,9 @@ public class JobState extends SourceState {
     }
 
     for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics
-        .getMetricsOfType(JobMetrics.MetricType.METER, JobMetrics.MetricGroup.JOB, this.jobId).entrySet()) {
+        .getMetricsOfType(JobMetrics.MetricType.METER, MetricGroup.JOB, this.jobId).entrySet()) {
       Metric meter = new Metric();
-      meter.setGroup(JobMetrics.MetricGroup.JOB.name());
+      meter.setGroup(MetricGroup.JOB.name());
       meter.setName(entry.getKey());
       meter.setType(MetricTypeEnum.valueOf(JobMetrics.MetricType.METER.name()));
       meter.setValue(Double.toString(((Meter) entry.getValue()).getMeanRate()));
@@ -410,9 +409,9 @@ public class JobState extends SourceState {
     }
 
     for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics
-        .getMetricsOfType(JobMetrics.MetricType.GAUGE, JobMetrics.MetricGroup.JOB, this.jobId).entrySet()) {
+        .getMetricsOfType(JobMetrics.MetricType.GAUGE, MetricGroup.JOB, this.jobId).entrySet()) {
       Metric gauge = new Metric();
-      gauge.setGroup(JobMetrics.MetricGroup.JOB.name());
+      gauge.setGroup(MetricGroup.JOB.name());
       gauge.setName(entry.getKey());
       gauge.setType(MetricTypeEnum.valueOf(JobMetrics.MetricType.GAUGE.name()));
       gauge.setValue(((Gauge) entry.getValue()).getValue().toString());

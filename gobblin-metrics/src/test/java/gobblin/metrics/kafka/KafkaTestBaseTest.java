@@ -9,7 +9,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics;
+package gobblin.metrics.kafka;
 
 import java.util.Properties;
 
@@ -21,6 +21,7 @@ import org.testng.annotations.Test;
 import kafka.javaapi.producer.Producer;
 import kafka.producer.KeyedMessage;
 import kafka.producer.ProducerConfig;
+
 
 @Test(groups = {"gobblin.metrics"})
 public class KafkaTestBaseTest extends KafkaTestBase {

@@ -10,7 +10,7 @@
  */
 
 
-package gobblin.metrics;
+package gobblin.metrics.kafka;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -29,6 +29,8 @@ import org.testng.annotations.Test;
 import com.codahale.metrics.MetricRegistry;
 
 import kafka.consumer.ConsumerIterator;
+
+import gobblin.metrics.MetricContext;
 
 
 /**

@@ -9,10 +9,9 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics;
+package gobblin.metrics.kafka;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +40,9 @@ import com.google.common.io.Closer;
 import kafka.javaapi.producer.Producer;
 import kafka.producer.KeyedMessage;
 import kafka.producer.ProducerConfig;
+
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.Tag;
 
 
 /**
@@ -84,7 +86,7 @@ public class KafkaReporter extends ScheduledReporter {
   }
 
   /**
-   * Returns a new {@link gobblin.metrics.KafkaReporter.Builder} for {@link gobblin.metrics.KafkaReporter}.
+   * Returns a new {@link KafkaReporter.Builder} for {@link KafkaReporter}.
    * If the registry is of type {@link gobblin.metrics.MetricContext} tags will NOT be inherited.
    * To inherit tags, use forContext method.
    *
@@ -99,7 +101,7 @@ public class KafkaReporter extends ScheduledReporter {
   }
 
   /**
-   * Returns a new {@link gobblin.metrics.KafkaReporter.Builder} for {@link gobblin.metrics.KafkaReporter}.
+   * Returns a new {@link KafkaReporter.Builder} for {@link KafkaReporter}.
    * Will automatically add all Context tags to the reporter.
    *
    * @param context the {@link gobblin.metrics.MetricContext} to report
@@ -121,7 +123,7 @@ public class KafkaReporter extends ScheduledReporter {
   }
 
   /**
-   * Builder for {@link gobblin.metrics.KafkaReporter}.
+   * Builder for {@link KafkaReporter}.
    * Defaults to no filter, reporting rates in seconds and times in milliseconds.
    */
   public static abstract class Builder<T extends Builder<T>> {
@@ -212,7 +214,7 @@ public class KafkaReporter extends ScheduledReporter {
     }
 
     /**
-     * Builds and returns {@link gobblin.metrics.KafkaReporter}.
+     * Builds and returns {@link KafkaReporter}.
      *
      * @param brokers string of Kafka brokers
      * @param topic topic to send metrics to
@@ -248,7 +250,7 @@ public class KafkaReporter extends ScheduledReporter {
 
   /**
    * Serializes metrics and pushes the byte arrays to Kafka.
-   * Uses the serialize* methods in {@link gobblin.metrics.KafkaReporter}.
+   * Uses the serialize* methods in {@link KafkaReporter}.
    * @param gauges
    * @param counters
    * @param histograms

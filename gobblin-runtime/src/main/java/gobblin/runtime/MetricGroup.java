@@ -1,5 +1,4 @@
-/*
- * (c) 2014 LinkedIn Corp. All rights reserved.
+/* (c) 2014 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -10,19 +9,14 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics;
-
-import java.io.Closeable;
-
-import kafka.javaapi.producer.Producer;
-import kafka.producer.ProducerConfig;
+package gobblin.runtime;
 
 
 /**
- * Closeable extension of producer
+ * An enumeration of metric groups used internally.
+ *
+ * @author ynli
  */
-public class ProducerCloseable<K,V> extends Producer<K,V> implements Closeable {
-  public ProducerCloseable(ProducerConfig config) {
-    super(config);
-  }
+public enum MetricGroup {
+  JOB, TASK
 }
