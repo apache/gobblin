@@ -24,6 +24,10 @@ import gobblin.instrumented.Instrumented;
 import gobblin.configuration.State;
 
 
+/**
+ * Instrumented version of {@link gobblin.writer.DataWriter} automatically capturing certain metrics.
+ * Subclasses should implement writeImpl instead of write.
+ */
 public abstract class InstrumentedDataWriter<D> implements DataWriter<D>, Closeable {
 
   protected Closer closer;
@@ -57,19 +61,33 @@ public abstract class InstrumentedDataWriter<D> implements DataWriter<D>, Closea
     }
   }
 
+  /**
+   * Called beforeWriting a record.
+   * @param record record to write.
+   */
   public void beforeWrite(D record) {
     this.recordsInMeter.mark();
   }
 
+  /**
+   * Called after a successful write of a record.
+   * @param startTimeNanos time at which writing started.
+   */
   public void onSuccessfulWrite(long startTimeNanos) {
     this.dataWriterTimer.update(System.nanoTime() - startTimeNanos, TimeUnit.NANOSECONDS);
     this.successfulWriteMeter.mark();
   }
 
+  /** Called after a failed writing of a record.
+   * @param exception exception thrown.
+   */
   public void onException(Exception exception) {
     this.exceptionWriteMeter.mark();
   }
 
+  /**
+   * Subclasses should implement this instead of {@link gobblin.writer.DataWriter#write}
+   */
   public abstract void writeImpl(D record) throws IOException;
 
   @Override

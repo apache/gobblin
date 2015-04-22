@@ -23,6 +23,12 @@ import gobblin.instrumented.Instrumented;
 import gobblin.configuration.WorkUnitState;
 
 
+/**
+ * Instrumented {@link gobblin.fork.ForkOperator} automatically capturing certain metrics.
+ * Subclasses should implement forkDataRecordImpl instead of forkDataRecord.
+ *
+ * @author ibuenros
+ */
 public abstract class InstrumentedForkOperator<S, D> implements ForkOperator<S, D> {
 
   protected Instrumented instrumented;
@@ -53,10 +59,19 @@ public abstract class InstrumentedForkOperator<S, D> implements ForkOperator<S, 
     return result;
   }
 
+  /**
+   * Called before forkDataRecord.
+   * @param input
+   */
   protected void beforeFork(D input) {
     this.inputMeter.mark();
   }
 
+  /**
+   * Called after forkDataRecord.
+   * @param forks result from forkDataRecord.
+   * @param startTimeNanos start time of forkDataRecord.
+   */
   protected void afterFork(List<Boolean> forks, long startTimeNanos) {
     int forksGenerated = 0;
     for (Boolean fork : forks) {
@@ -66,5 +81,8 @@ public abstract class InstrumentedForkOperator<S, D> implements ForkOperator<S, 
     this.forkOperatorTimer.update(System.nanoTime() - startTimeNanos, TimeUnit.NANOSECONDS);
   }
 
+  /**
+   * Subclasses should implement this instead of {@link gobblin.fork.ForkOperator#forkDataRecord}.
+   */
   public abstract List<Boolean> forkDataRecordImpl(WorkUnitState workUnitState, D input);
 }

@@ -25,6 +25,15 @@ import com.google.common.io.Closer;
 import gobblin.instrumented.Instrumented;
 import gobblin.configuration.WorkUnitState;
 
+
+/**
+ * Instrumented converter that automatically captures certain metrics.
+ * Subclasses should implement convertRecordImpl instead of convertRecord.
+ *
+ * See {@link gobblin.converter.Converter}.
+ *
+ * @author ibuenros
+ */
 public abstract class InstrumentedConverter<SI, SO, DI, DO> extends Converter<SI, SO, DI, DO> implements Closeable {
   protected Instrumented instrumented;
   protected Meter recordsIn = new Meter();
@@ -71,24 +80,48 @@ public abstract class InstrumentedConverter<SI, SO, DI, DO> extends Converter<SI
     }
   }
 
+  /**
+   * Called before conversion.
+   * @param outputSchema
+   * @param inputRecord
+   * @param workUnit
+   */
   public void beforeConvert(SO outputSchema, DI inputRecord, WorkUnitState workUnit) {
     recordsIn.mark();
   }
 
+  /**
+   * Called after conversion.
+   * @param iterable conversion result.
+   * @param startTimeNanos start time of conversion.
+   */
   public void afterConvert(Iterable<DO> iterable, long startTimeNanos) {
     converterTimer.update(System.nanoTime() - startTimeNanos, TimeUnit.NANOSECONDS);
   }
 
+  /**
+   * Called every time next() method in iterable is called.
+   * @param next next value in iterable.
+   */
   public void onIterableNext(DO next) {
     recordsOut.mark();
   }
 
+  /**
+   * Called when converter throws an exception.
+   * @param exception exception thrown.
+   */
   public void onException(Exception exception) {
     if(DataConversionException.class.isInstance(exception)) {
       recordsException.mark();
     }
   }
 
+  /**
+   * Subclasses should implement this method instead of convertRecord.
+   *
+   * See {@link gobblin.converter.Converter#convertRecord}.
+   */
   public abstract Iterable<DO> convertRecordImpl(SO outputSchema, DI inputRecord, WorkUnitState workUnit)
       throws DataConversionException;
 

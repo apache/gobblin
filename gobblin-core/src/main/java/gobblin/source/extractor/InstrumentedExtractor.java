@@ -23,6 +23,11 @@ import com.google.common.io.Closer;
 import gobblin.instrumented.Instrumented;
 import gobblin.configuration.WorkUnitState;
 
+
+/**
+ * Instrumented version of {@link gobblin.source.extractor.Extractor} automatically captures certain metrics.
+ * Subclasses should implement readRecordImpl instead of readRecord.
+ */
 public abstract class InstrumentedExtractor<S, D> implements Extractor<S, D>, Closeable {
   protected Instrumented instrumented;
   protected Meter readRecordsMeter;
@@ -61,8 +66,16 @@ public abstract class InstrumentedExtractor<S, D> implements Extractor<S, D>, Cl
 
   }
 
+  /**
+   * Called before each record is read.
+   */
   public void beforeRead() {}
 
+  /**
+   * Called after each record is read.
+   * @param record record read.
+   * @param startTime reading start time.
+   */
   public void afterRead(D record, long startTime) {
     extractorTimer.update(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
     if(record != null){
@@ -70,12 +83,19 @@ public abstract class InstrumentedExtractor<S, D> implements Extractor<S, D>, Cl
     }
   }
 
+  /**
+   * Called on exception when trying to read.
+   * @param exception exception thrown.
+   */
   public void onException(Exception exception) {
     if (DataRecordException.class.isInstance(exception)) {
       dataRecordExceptionsMeter.mark();
     }
   }
 
+  /**
+   * Subclasses should implement this instead of {@link gobblin.source.extractor.Extractor#readRecord}
+   */
   public abstract D readRecordImpl(D reuse) throws DataRecordException, IOException;
 
   @Override

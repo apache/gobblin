@@ -23,6 +23,13 @@ import com.google.common.io.Closer;
 import gobblin.instrumented.Instrumented;
 import gobblin.configuration.State;
 
+
+/**
+ * Instrumented {@link gobblin.qualitychecker.row.RowLevelPolicy} automatically capturing certain metrics.
+ * Subclasses should implement executePolicyImpl instead of executePolicy.
+ *
+ * @author ibuenros
+ */
 public abstract class InstrumentedRowLevelPolicy extends RowLevelPolicy implements Closeable {
   protected final Instrumented instrumented;
   protected final Meter recordsMeter;
@@ -53,10 +60,19 @@ public abstract class InstrumentedRowLevelPolicy extends RowLevelPolicy implemen
     return result;
   }
 
+  /**
+   * Called before check is run.
+   * @param record
+   */
   public void beforeCheck(Object record) {
     this.recordsMeter.mark();
   }
 
+  /**
+   * Called after check is run.
+   * @param result result from check.
+   * @param startTimeNanos start time of check.
+   */
   public void afterCheck(Result result, long startTimeNanos) {
     switch (result) {
       case FAILED:
@@ -71,6 +87,9 @@ public abstract class InstrumentedRowLevelPolicy extends RowLevelPolicy implemen
     this.policyTimer.update(System.nanoTime() - startTimeNanos, TimeUnit.NANOSECONDS);
   }
 
+  /**
+   * Subclasses should implement this instead of {@link gobblin.qualitychecker.row.RowLevelPolicy#executePolicy}.
+   */
   public abstract Result executePolicyImpl(Object record);
 
   @Override
