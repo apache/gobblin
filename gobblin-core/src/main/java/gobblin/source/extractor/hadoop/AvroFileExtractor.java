@@ -31,14 +31,14 @@ import gobblin.source.extractor.filebased.FileBasedHelperException;
 public class AvroFileExtractor extends FileBasedExtractor<Schema, GenericRecord> {
 
   public AvroFileExtractor(WorkUnitState workUnitState) {
-    super(workUnitState, new HadoopFsHelper(workUnitState));
+    super(workUnitState, new AvroFsFsHelper(workUnitState));
   }
 
   @Override
   public Iterator<GenericRecord> downloadFile(String file)
       throws IOException {
     try {
-      return this.closer.register(((HadoopFsHelper) this.fsHelper).getAvroFile(file));
+      return this.closer.register(((AvroFsFsHelper) this.fsHelper).getAvroFile(file));
     } catch (FileBasedHelperException e) {
       Throwables.propagate(e);
     }
@@ -54,7 +54,7 @@ public class AvroFileExtractor extends FileBasedExtractor<Schema, GenericRecord>
       return new Schema.Parser().parse(this.workUnit.getProp(ConfigurationKeys.SOURCE_SCHEMA));
     }
 
-    HadoopFsHelper hfsHelper = (HadoopFsHelper) this.fsHelper;
+    AvroFsFsHelper hfsHelper = (AvroFsFsHelper) this.fsHelper;
     if (this.filesToPull.isEmpty()) {
       return null;
     } else {

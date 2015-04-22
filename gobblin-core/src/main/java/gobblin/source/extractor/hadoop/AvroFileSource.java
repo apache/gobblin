@@ -29,7 +29,7 @@ import gobblin.source.extractor.filebased.FileBasedSource;
 
 
 public class AvroFileSource extends FileBasedSource<Schema, GenericRecord> {
-  private Logger log = LoggerFactory.getLogger(AvroFileSource.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(AvroFileSource.class);
 
   @Override
   public Extractor<Schema, GenericRecord> getExtractor(WorkUnitState state)
@@ -40,7 +40,7 @@ public class AvroFileSource extends FileBasedSource<Schema, GenericRecord> {
   @Override
   public void initFileSystemHelper(State state)
       throws FileBasedHelperException {
-    this.fsHelper = new HadoopFsHelper(state);
+    this.fsHelper = new AvroFsFsHelper(state);
     this.fsHelper.connect();
   }
 
@@ -50,10 +50,10 @@ public class AvroFileSource extends FileBasedSource<Schema, GenericRecord> {
     String path = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY);
 
     try {
-      log.info("Running ls command with input " + path);
+      LOGGER.info("Running ls command with input " + path);
       results = this.fsHelper.ls(path);
     } catch (FileBasedHelperException e) {
-      log.error("Not able to run ls command due to " + e.getMessage() + " will not pull any files", e);
+      LOGGER.error("Not able to run ls command due to " + e.getMessage() + " will not pull any files", e);
     }
     return results;
   }
