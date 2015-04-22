@@ -35,5 +35,3 @@ data.publisher.type=gobblin.publisher.BaseDataPublisher
 # writer configuration properties
 writer.destination.type=HDFS
 writer.output.format=AVRO
-writer.fs.uri=file:///
-

@@ -58,16 +58,16 @@ do
   shift
 done
 
-if [ -z "$JOB_CONFIG_FILE" ]; then 
+if [ -z "$JOB_CONFIG_FILE" ]; then
   die "No job configuration file set!"
 fi
 
 # User defined work directory overrides $GOBBLIN_WORK_DIR
-if [ -n "$WORK_DIR" ]; then 
+if [ -n "$WORK_DIR" ]; then
   export GOBBLIN_WORK_DIR="$WORK_DIR"
 fi
 
-if [ -z "$GOBBLIN_WORK_DIR" ]; then 
+if [ -z "$GOBBLIN_WORK_DIR" ]; then
   die "GOBBLIN_WORK_DIR is not set!"
 fi
 
@@ -76,7 +76,7 @@ fi
 USER_JARS=""
 separator=''
 set_user_jars(){
-  if [ -n "$1" ]; then 
+  if [ -n "$1" ]; then
     IFS=','
     read -ra userjars <<< "$1"
     for userjar in ${userjars[@]}; do
@@ -101,7 +101,7 @@ set_user_jars "$JARS"
 LIBJARS=$USER_JARS$separator$FWDIR_LIB/gobblin-metastore.jar,$FWDIR_LIB/gobblin-metrics.jar,\
 $FWDIR_LIB/gobblin-core.jar,$FWDIR_LIB/gobblin-api.jar,$FWDIR_LIB/gobblin-utility.jar,\
 $FWDIR_LIB/guava-15.0.jar,$FWDIR_LIB/avro-1.7.6.jar,$FWDIR_LIB/avro-mapred-1.7.6.jar,\
-$FWDIR_LIB/metrics-core-3.0.2.jar,$FWDIR_LIB/gson-2.2.4.jar,$FWDIR_LIB/joda-time-1.6.jar,$FWDIR_LIB/data-1.15.9.jar
+$FWDIR_LIB/metrics-core-3.1.0.jar,$FWDIR_LIB/gson-2.2.4.jar,$FWDIR_LIB/joda-time-1.6.jar,$FWDIR_LIB/data-1.15.9.jar
 
 # Add libraries to the Hadoop classpath
 GOBBLIN_DEP_JARS=`echo "$USER_JARS" | tr ',' ':' `

@@ -15,6 +15,5 @@ extract.namespace=gobblin.example.wikipedia
 
 writer.destination.type=HDFS
 writer.output.format=AVRO
-writer.fs.uri=file://localhost/
 
 data.publisher.type=gobblin.publisher.BaseDataPublisher
