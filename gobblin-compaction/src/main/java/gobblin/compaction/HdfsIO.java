@@ -87,13 +87,14 @@ public abstract class HdfsIO {
 
   private static void addResourceToConf(Configuration conf) {
     addHadoopConfigPropertiesToConf(conf);
-    String hdfsUriProp = getHdfsUriHadoopPropertyName();
+    String hdfsUriKey = getHdfsUriHadoopPropertyName();
     if (CompactionRunner.properties.containsKey(HDFS_URI)) {
-      conf.setStrings(hdfsUriProp, CompactionRunner.properties.getProperty(HDFS_URI));
+      conf.set(hdfsUriKey, CompactionRunner.properties.getProperty(HDFS_URI));
     }
-    if (Strings.isNullOrEmpty(conf.get(hdfsUriProp))) {
-      conf.set(hdfsUriProp, HDFS_URI_DEFAULT);
+    if (Strings.isNullOrEmpty(conf.get(hdfsUriKey))) {
+      conf.set(hdfsUriKey, HDFS_URI_DEFAULT);
     }
+    CompactionRunner.properties.setProperty(HDFS_URI, conf.get(hdfsUriKey));
   }
 
   private static void addHadoopConfigPropertiesToConf(Configuration conf) {

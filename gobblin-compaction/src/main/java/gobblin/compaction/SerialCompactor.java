@@ -14,7 +14,6 @@ package gobblin.compaction;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
-import java.util.Properties;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -310,6 +309,7 @@ public class SerialCompactor implements Compactor {
         sb.append(" AND ");
       }
       sb.append(table.getNameWithJobId(this.jobId) + "." + keyAttribute + " IS NULL");
+      addAnd = true;
     }
 
     return sb.toString();
