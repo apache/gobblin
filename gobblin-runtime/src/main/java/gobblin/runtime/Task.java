@@ -165,7 +165,7 @@ public class Task implements Runnable {
       long recordsPulled = 0;
       Object record = null;
       // Extract, convert, and fork one source record at a time.
-      while ((pullLimit <= 0 || recordsPulled < pullLimit) && (record = extractor.readRecord(record)) != null) {
+      while ((pullLimit <= 0 || recordsPulled < pullLimit) && (record = extractor.readRecord()) != null) {
         recordsPulled++;
         for (Object convertedRecord : converter.convertRecord(schema, record, this.taskState)) {
           processRecord(convertedRecord, forkOperator, rowChecker, rowResults, branches);

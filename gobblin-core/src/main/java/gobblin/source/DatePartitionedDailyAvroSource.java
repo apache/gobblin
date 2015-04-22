@@ -35,7 +35,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.DatePartitionedExtractor;
+import gobblin.source.extractor.DatePartitionedAvroFileExtractor;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.filebased.FileBasedHelperException;
 import gobblin.source.extractor.filebased.FileBasedSource;
@@ -173,7 +173,7 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
 
   @Override
   public Extractor<Schema, GenericRecord> getExtractor(WorkUnitState state) throws IOException {
-    return new DatePartitionedExtractor(state);
+    return new DatePartitionedAvroFileExtractor(state);
   }
 
   @Override

@@ -40,7 +40,7 @@ public class ExtractorDecorator<S, D> implements Extractor<S, D> {
   }
 
   @Override
-  public S getSchema() {
+  public S getSchema() throws IOException {
     try {
       return this.extractor.getSchema();
     } catch (Throwable t) {
@@ -52,10 +52,9 @@ public class ExtractorDecorator<S, D> implements Extractor<S, D> {
   }
 
   @Override
-  public D readRecord(D reuse)
-      throws DataRecordException, IOException {
+  public D readRecord() throws DataRecordException, IOException {
     try {
-      return this.extractor.readRecord(reuse);
+      return this.extractor.readRecord();
     } catch (Throwable t) {
       this.logger.error("Failed to get data record for task " + this.taskId, t);
       Throwables.propagate(t);
@@ -65,8 +64,7 @@ public class ExtractorDecorator<S, D> implements Extractor<S, D> {
   }
 
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     this.extractor.close();
   }
 

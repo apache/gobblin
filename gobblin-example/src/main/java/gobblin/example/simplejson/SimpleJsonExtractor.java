@@ -86,8 +86,7 @@ public class SimpleJsonExtractor implements Extractor<String, String> {
   }
 
   @Override
-  public String readRecord(String reuse)
-      throws DataRecordException, IOException {
+  public String readRecord() throws DataRecordException, IOException {
     // Read the next line
     return this.bufferedReader.readLine();
   }

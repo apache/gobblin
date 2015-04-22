@@ -11,33 +11,34 @@
 
 package gobblin.source.extractor.hadoop;
 
-import gobblin.source.extractor.filebased.FileBasedExtractor;
-import gobblin.source.extractor.filebased.FileBasedHelperException;
 import java.io.IOException;
 import java.util.Iterator;
 
-import org.apache.avro.file.DataFileReader;
+import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
 import com.google.common.base.Throwables;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.source.extractor.filebased.FileBasedExtractor;
+import gobblin.source.extractor.filebased.FileBasedHelperException;
 
 
-public class HadoopExtractor<S, D> extends FileBasedExtractor<S, D> {
+/**
+ * A custom type of {@link FileBasedExtractor}s for extracting data from Avro files.
+ */
+public class AvroFileExtractor extends FileBasedExtractor<Schema, GenericRecord> {
 
-  public HadoopExtractor(WorkUnitState workUnitState) {
+  public AvroFileExtractor(WorkUnitState workUnitState) {
     super(workUnitState, new HadoopFsHelper(workUnitState));
   }
 
   @Override
-  public Iterator<D> downloadFile(String file)
+  public Iterator<GenericRecord> downloadFile(String file)
       throws IOException {
-    DataFileReader<GenericRecord> dfr = null;
     try {
-      dfr = ((HadoopFsHelper) this.fsHelper).getAvroFile(file);
-      fileHandles.put(file, dfr);
-      return (Iterator<D>) dfr;
+      return this.closer.register(((HadoopFsHelper) this.fsHelper).getAvroFile(file));
     } catch (FileBasedHelperException e) {
       Throwables.propagate(e);
     }
@@ -48,9 +49,9 @@ public class HadoopExtractor<S, D> extends FileBasedExtractor<S, D> {
    * Assumption is that all files in the input directory have the same schema
    */
   @Override
-  public S getSchema() {
+  public Schema getSchema() {
     if (this.workUnit.contains(ConfigurationKeys.SOURCE_SCHEMA)) {
-      return (S) this.workUnit.getProp(ConfigurationKeys.SOURCE_SCHEMA);
+      return new Schema.Parser().parse(this.workUnit.getProp(ConfigurationKeys.SOURCE_SCHEMA));
     }
 
     HadoopFsHelper hfsHelper = (HadoopFsHelper) this.fsHelper;
@@ -58,7 +59,7 @@ public class HadoopExtractor<S, D> extends FileBasedExtractor<S, D> {
       return null;
     } else {
       try {
-        return (S) hfsHelper.getAvroSchema(this.filesToPull.get(0));
+        return hfsHelper.getAvroSchema(this.filesToPull.get(0));
       } catch (FileBasedHelperException e) {
         Throwables.propagate(e);
         return null;

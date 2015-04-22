@@ -28,13 +28,13 @@ import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.filebased.FileBasedSource;
 
 
-public class HadoopSource extends FileBasedSource<Schema, GenericRecord> {
-  private Logger log = LoggerFactory.getLogger(HadoopSource.class);
+public class AvroFileSource extends FileBasedSource<Schema, GenericRecord> {
+  private Logger log = LoggerFactory.getLogger(AvroFileSource.class);
 
   @Override
   public Extractor<Schema, GenericRecord> getExtractor(WorkUnitState state)
       throws IOException {
-    return new HadoopExtractor(state);
+    return new AvroFileExtractor(state);
   }
 
   @Override

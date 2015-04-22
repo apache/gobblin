@@ -11,20 +11,17 @@
 
 package gobblin.source.extractor;
 
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
-
 import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.hadoop.HadoopExtractor;
+import gobblin.source.extractor.hadoop.AvroFileExtractor;
 
 
 /**
- * Extension of {@link HadoopExtractor} where the {@link #getHighWatermark()} method returns the result of the
+ * Extension of {@link AvroFileExtractor} where the {@link #getHighWatermark()} method returns the result of the
  * specified WorkUnit's {@link gobblin.source.workunit.WorkUnit#getHighWaterMark()} method.
  */
-public class DatePartitionedExtractor extends HadoopExtractor<Schema, GenericRecord> {
+public class DatePartitionedAvroFileExtractor extends AvroFileExtractor {
 
-  public DatePartitionedExtractor(WorkUnitState workUnitState) {
+  public DatePartitionedAvroFileExtractor(WorkUnitState workUnitState) {
     super(workUnitState);
   }
 
