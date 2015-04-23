@@ -11,17 +11,33 @@
 
 package gobblin.util;
 
+import gobblin.converter.DataConversionException;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.List;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData.Record;
+import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.BinaryDecoder;
+import org.apache.avro.io.DatumReader;
+import org.apache.avro.io.DatumWriter;
+import org.apache.avro.io.DecoderFactory;
+import org.apache.avro.io.Encoder;
+import org.apache.avro.io.EncoderFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.io.Closer;
+
+import static org.apache.avro.SchemaCompatibility.*;
+import static org.apache.avro.SchemaCompatibility.SchemaCompatibilityType.*;
 
 
 /**
@@ -106,6 +122,34 @@ public class AvroUtils {
       return Optional.fromNullable(((Record) data).get(pathList.get(field)));
     } else {
       return AvroUtils.getFieldHelper(((Record) data).get(pathList.get(field)), pathList, ++field);
+    }
+  }
+
+  /**
+   * Change the schema of an Avro record.
+   * @param record The Avro record whose schema is to be changed.
+   * @param newSchema The target schema. It must be compatible as reader schema with record.getSchema() as writer schema.
+   * @return a new Avro record with the new schema.
+   * @throws IOException if conversion failed.
+   */
+  public static GenericRecord convertRecordSchema(GenericRecord record, Schema newSchema) throws IOException {
+    Preconditions.checkArgument(checkReaderWriterCompatibility(newSchema, record.getSchema()).getType() == COMPATIBLE);
+
+    Closer closer = Closer.create();
+    try {
+      ByteArrayOutputStream out = closer.register(new ByteArrayOutputStream());
+      Encoder encoder = new EncoderFactory().directBinaryEncoder(out, null);
+      DatumWriter<GenericRecord> writer = new GenericDatumWriter<GenericRecord>(record.getSchema());
+      writer.write(record, encoder);
+      BinaryDecoder decoder = new DecoderFactory().binaryDecoder(out.toByteArray(), null);
+      DatumReader<GenericRecord> reader = new GenericDatumReader<GenericRecord>(record.getSchema(), newSchema);
+      return reader.read(null, decoder);
+    } catch (IOException e) {
+      throw new IOException(String.format(
+          "Cannot convert avro record to new schema. Origianl schema = %s, new schema = %s", record.getSchema(),
+          newSchema), e);
+    } finally {
+      closer.close();
     }
   }
 }

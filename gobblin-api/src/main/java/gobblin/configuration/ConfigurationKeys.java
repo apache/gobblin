@@ -204,7 +204,6 @@ public class ConfigurationKeys {
   public static final String WRITER_PARTITION_LEVEL = WRITER_PREFIX + ".partition.level";
   public static final String WRITER_PARTITION_PATTERN = WRITER_PREFIX + ".partition.pattern";
   public static final String WRITER_PARTITION_TIMEZONE = WRITER_PREFIX + ".partition.timezone";
-  public static final String WRITER_SET_SCHEMA_PER_RECORD = WRITER_PREFIX + ".set.schema.per.record";
   public static final String DEFAULT_WRITER_FILE_NAME = "part";
   public static final String DEFAULT_DEFLATE_LEVEL = "9";
   public static final String DEFAULT_BUFFER_SIZE = "4096";
@@ -212,7 +211,6 @@ public class ConfigurationKeys {
   public static final String DEFAULT_WRITER_PARTITION_PATTERN = "yyyy/MM/dd";
   public static final String DEFAULT_WRITER_PARTITION_TIMEZONE = "America/Los_Angeles";
   public static final String DEFAULT_WRITER_FILE_PATH_TYPE = "default";
-  public static final boolean DEFAULT_WRITER_SET_SCHEMA_PER_RECORD = false;
 
   /**
    * Configuration properties used by the quality checker.
@@ -342,6 +340,7 @@ public class ConfigurationKeys {
   public static final String MR_JOB_MAX_MAPPERS_KEY = "mr.job.max.mappers";
   public static final String MR_INCLUDE_TASK_COUNTERS_KEY = "mr.include.task.counters";
   public static final boolean DEFAULT_MR_INCLUDE_TASK_COUNTERS = Boolean.FALSE;
+  public static final int DEFAULT_MR_JOB_MAX_MAPPERS = 100;
 
   /**
    * Configuration properties for email settings.
