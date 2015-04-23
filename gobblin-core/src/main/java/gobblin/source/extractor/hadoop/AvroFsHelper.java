@@ -40,19 +40,19 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 
 
-public class AvroFsFsHelper implements FileBasedHelper {
+public class AvroFsHelper implements FileBasedHelper {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(AvroFsFsHelper.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(AvroFsHelper.class);
 
   private State state;
   private final Configuration configuration;
   private FileSystem fs;
 
-  public AvroFsFsHelper(State state) {
+  public AvroFsHelper(State state) {
     this(state, HadoopUtils.newConfiguration());
   }
 
-  public AvroFsFsHelper(State state, Configuration configuration) {
+  public AvroFsHelper(State state, Configuration configuration) {
     this.state = state;
     this.configuration = configuration;
   }

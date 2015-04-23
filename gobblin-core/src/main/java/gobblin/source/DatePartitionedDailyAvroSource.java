@@ -39,7 +39,7 @@ import gobblin.source.extractor.DatePartitionedAvroFileExtractor;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.filebased.FileBasedHelperException;
 import gobblin.source.extractor.filebased.FileBasedSource;
-import gobblin.source.extractor.hadoop.AvroFsFsHelper;
+import gobblin.source.extractor.hadoop.AvroFsHelper;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.Extract.TableType;
 import gobblin.source.workunit.MultiWorkUnitWeightedQueue;
@@ -139,7 +139,7 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
       Throwables.propagate(e);
     }
 
-    AvroFsFsHelper fsHelper = (AvroFsFsHelper) this.fsHelper;
+    AvroFsHelper fsHelper = (AvroFsHelper) this.fsHelper;
     this.fs = fsHelper.getFileSystem();
 
     this.sourceState = state;
@@ -167,7 +167,7 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
 
   @Override
   public void initFileSystemHelper(State state) throws FileBasedHelperException {
-    this.fsHelper = new AvroFsFsHelper(state);
+    this.fsHelper = new AvroFsHelper(state);
     this.fsHelper.connect();
   }
 

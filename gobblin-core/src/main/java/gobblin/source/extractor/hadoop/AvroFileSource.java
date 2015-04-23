@@ -40,7 +40,7 @@ public class AvroFileSource extends FileBasedSource<Schema, GenericRecord> {
   @Override
   public void initFileSystemHelper(State state)
       throws FileBasedHelperException {
-    this.fsHelper = new AvroFsFsHelper(state);
+    this.fsHelper = new AvroFsHelper(state);
     this.fsHelper.connect();
   }
 
