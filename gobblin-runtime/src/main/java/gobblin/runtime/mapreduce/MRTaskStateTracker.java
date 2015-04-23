@@ -25,7 +25,7 @@ import com.codahale.metrics.Counter;
 import com.codahale.metrics.Metric;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.util.GobblinMetrics;
+import gobblin.GobblinMetrics;
 import gobblin.runtime.AbstractTaskStateTracker;
 import gobblin.runtime.Task;
 import gobblin.runtime.util.JobMetrics;

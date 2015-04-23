@@ -96,8 +96,7 @@ public class Task implements Runnable {
     this.taskContext = context;
 
     this.taskMetrics = TaskMetrics.get(this.taskContext.getTaskState());
-    MetricContext.registerContext(this.taskMetrics.getMetricContext());
-    this.taskContext.setMetricsContextName(this.taskMetrics.getMetricContext().getName());
+    this.taskContext.setMetricsContextName(this.taskMetrics.getName());
 
     this.taskState = context.getTaskState();
     this.jobId = this.taskState.getJobId();

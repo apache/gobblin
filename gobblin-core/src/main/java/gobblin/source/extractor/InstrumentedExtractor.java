@@ -20,16 +20,18 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.google.common.io.Closer;
 
+import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
 import gobblin.configuration.WorkUnitState;
+import gobblin.metrics.MetricContext;
 
 
 /**
  * Instrumented version of {@link gobblin.source.extractor.Extractor} automatically captures certain metrics.
  * Subclasses should implement readRecordImpl instead of readRecord.
  */
-public abstract class InstrumentedExtractor<S, D> implements Extractor<S, D>, Closeable {
-  protected Instrumented instrumented;
+public abstract class InstrumentedExtractor<S, D> implements Extractor<S, D>, Instrumentable, Closeable {
+  protected MetricContext metricContext;
   protected Meter readRecordsMeter;
   protected Meter dataRecordExceptionsMeter;
   protected Timer extractorTimer;
@@ -40,11 +42,11 @@ public abstract class InstrumentedExtractor<S, D> implements Extractor<S, D>, Cl
     super();
     closer = Closer.create();
 
-    this.instrumented = closer.register(new Instrumented(workUnitState, this.getClass()));
+    this.metricContext = closer.register(Instrumented.getMetricContext(workUnitState, this.getClass()));
 
-    this.readRecordsMeter = this.instrumented.getContext().contextAwareMeter("gobblin.extractor.records.read");
-    this.dataRecordExceptionsMeter = this.instrumented.getContext().contextAwareMeter("gobblin.extractor.records.failed");
-    this.extractorTimer = this.instrumented.getContext().contextAwareTimer("gobblin.extractor.extract.time");
+    this.readRecordsMeter = this.metricContext.contextAwareMeter("gobblin.extractor.records.read");
+    this.dataRecordExceptionsMeter = this.metricContext.contextAwareMeter("gobblin.extractor.records.failed");
+    this.extractorTimer = this.metricContext.contextAwareTimer("gobblin.extractor.extract.time");
   }
 
   @Override
@@ -102,5 +104,10 @@ public abstract class InstrumentedExtractor<S, D> implements Extractor<S, D>, Cl
   public void close()
       throws IOException {
     closer.close();
+  }
+
+  @Override
+  public MetricContext getMetricContext() {
+    return this.metricContext;
   }
 }

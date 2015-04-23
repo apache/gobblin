@@ -20,8 +20,10 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.google.common.io.Closer;
 
+import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
 import gobblin.configuration.State;
+import gobblin.metrics.MetricContext;
 
 
 /**
@@ -30,8 +32,8 @@ import gobblin.configuration.State;
  *
  * @author ibuenros
  */
-public abstract class InstrumentedRowLevelPolicy extends RowLevelPolicy implements Closeable {
-  protected final Instrumented instrumented;
+public abstract class InstrumentedRowLevelPolicy extends RowLevelPolicy implements Instrumentable, Closeable {
+  protected final MetricContext metricContext;
   protected final Meter recordsMeter;
   protected final Meter passedRecordsMeter;
   protected final Meter failedRecordsMeter;
@@ -41,11 +43,11 @@ public abstract class InstrumentedRowLevelPolicy extends RowLevelPolicy implemen
   public InstrumentedRowLevelPolicy(State state, Type type) {
     super(state, type);
     this.closer = Closer.create();
-    this.instrumented = closer.register(new Instrumented(state, this.getClass()));
-    this.recordsMeter = this.instrumented.getContext().contextAwareMeter("gobblin.qualitychecker.records.in");
-    this.passedRecordsMeter = this.instrumented.getContext().contextAwareMeter("gobblin.qualitychecker.records.passed");
-    this.failedRecordsMeter = this.instrumented.getContext().contextAwareMeter("gobblin.qualitychecker.records.failed");
-    this.policyTimer = this.instrumented.getContext().contextAwareTimer("gobblin.qualitychecker.policy.timer");
+    this.metricContext = closer.register(Instrumented.getMetricContext(state, this.getClass()));
+    this.recordsMeter = this.metricContext.contextAwareMeter("gobblin.qualitychecker.records.in");
+    this.passedRecordsMeter = this.metricContext.contextAwareMeter("gobblin.qualitychecker.records.passed");
+    this.failedRecordsMeter = this.metricContext.contextAwareMeter("gobblin.qualitychecker.records.failed");
+    this.policyTimer = this.metricContext.contextAwareTimer("gobblin.qualitychecker.policy.timer");
   }
 
   @Override
@@ -96,5 +98,10 @@ public abstract class InstrumentedRowLevelPolicy extends RowLevelPolicy implemen
   public void close()
       throws IOException {
     closer.close();
+  }
+
+  @Override
+  public MetricContext getMetricContext() {
+    return this.metricContext;
   }
 }

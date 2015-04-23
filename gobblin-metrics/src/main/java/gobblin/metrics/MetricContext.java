@@ -60,16 +60,6 @@ import com.google.common.io.Closer;
  */
 public class MetricContext extends MetricRegistry implements Taggable, Closeable {
 
-  private static final ConcurrentMap<String, MetricContext> GLOBAL_CONTEXTS = new MapMaker().weakValues().makeMap();
-
-  public static MetricContext getContext(String name) {
-    return GLOBAL_CONTEXTS.getOrDefault(name, null);
-  }
-
-  public synchronized static void registerContext(MetricContext context) {
-    GLOBAL_CONTEXTS.putIfAbsent(context.getName(), context);
-  }
-
   // Name of this context
   private final String name;
 

@@ -41,7 +41,7 @@ import gobblin.rest.MetricTypeEnum;
 import gobblin.rest.TaskExecutionInfoArray;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
-import gobblin.runtime.util.GobblinMetrics;
+import gobblin.GobblinMetrics;
 import gobblin.runtime.util.JobMetrics;
 
 

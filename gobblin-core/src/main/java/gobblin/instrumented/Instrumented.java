@@ -14,8 +14,12 @@ package gobblin.instrumented;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
+import gobblin.GobblinMetrics;
+import gobblin.GobblinMetricsRegistry;
 import gobblin.configuration.State;
 import gobblin.converter.Converter;
 import gobblin.fork.ForkOperator;
@@ -38,15 +42,17 @@ import gobblin.writer.DataWriter;
  * - class: the specific class of the object that generated this instace of Instrumented
  *
  */
-public class Instrumented implements Closeable {
+public class Instrumented implements Instrumentable, Closeable {
 
   public static final String METRIC_CONTEXT_NAME_KEY = "metrics.context.name";
   protected MetricContext metricContext;
-  private int randomId;
 
-  @SuppressWarnings("unchecked")
-  public Instrumented(State state, Class klazz) {
-    this.randomId = (new Random()).nextInt();
+  public static MetricContext getMetricContext(State state, Class klazz) {
+    return getMetricContext(state, klazz, new ArrayList<Tag<?>>());
+  }
+
+  public static MetricContext getMetricContext(State state, Class klazz, List<Tag<?>> tags) {
+    int randomId = (new Random()).nextInt();
 
     String component = "unknown";
     if(Converter.class.isAssignableFrom(klazz)) {
@@ -61,27 +67,40 @@ public class Instrumented implements Closeable {
       component = "writer";
     }
 
-    Tag<String> componentTag = new Tag("component", component);
-    Tag<String> classTag = new Tag("class", klazz.getCanonicalName());
+    Tag<String> componentTag = new Tag<String>("component", component);
+    Tag<String> classTag = new Tag<String>("class", klazz.getCanonicalName());
 
-    MetricContext parentContext;
+    GobblinMetrics gobblinMetrics;
     MetricContext.Builder builder = state.contains(METRIC_CONTEXT_NAME_KEY) &&
-        (parentContext = MetricContext.getContext(state.getProp(METRIC_CONTEXT_NAME_KEY))) != null ?
-        parentContext.childBuilder(klazz.getCanonicalName() + "." + this.randomId) :
-        MetricContext.builder(klazz.getCanonicalName() + "." + this.randomId);
-    this.metricContext = builder.
+        (gobblinMetrics = GobblinMetricsRegistry.getInstance().get(state.getProp(METRIC_CONTEXT_NAME_KEY))) != null ?
+        gobblinMetrics.getMetricContext().childBuilder(klazz.getCanonicalName() + "." + randomId) :
+        MetricContext.builder(klazz.getCanonicalName() + "." + randomId);
+    return builder.
         addTag(componentTag).
         addTag(classTag).
+        addTags(tags).
         build();
   }
 
-  public MetricContext getContext() {
-    return metricContext;
+  @SuppressWarnings("unchecked")
+  public Instrumented(State state, Class klazz) {
+    this.metricContext = getMetricContext(state, klazz);
+  }
+
+  @SuppressWarnings("unchecked")
+  public Instrumented(State state, Class klazz, List<Tag<?>> tags) {
+    this.metricContext = getMetricContext(state, klazz, tags);
+  }
+
+  @Override
+  public MetricContext getMetricContext() {
+    return this.metricContext;
   }
 
   @Override
   public void close()
       throws IOException {
-    metricContext.close();
+    this.metricContext.close();
   }
+
 }

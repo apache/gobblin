@@ -19,25 +19,26 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 
 import gobblin.instrumented.Instrumented;
+import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
 
 
 public class MetricsHelper {
 
-  public static Map<String, Long> dumpMetrics(Instrumented instrumented) {
+  public static Map<String, Long> dumpMetrics(MetricContext context) {
     Map<String, Long> output = new HashMap<String, Long>();
-    for (Map.Entry<String, Meter> entry : instrumented.getContext().getMeters().entrySet()) {
+    for (Map.Entry<String, Meter> entry : context.getMeters().entrySet()) {
       output.put(entry.getKey(),entry.getValue().getCount());
     }
-    for (Map.Entry<String, Timer> entry : instrumented.getContext().getTimers().entrySet()) {
+    for (Map.Entry<String, Timer> entry : context.getTimers().entrySet()) {
       output.put(entry.getKey(),entry.getValue().getCount());
     }
     return output;
   }
 
-  public static Map<String, String> dumpTags(Instrumented instrumented) {
+  public static Map<String, String> dumpTags(MetricContext context) {
     Map<String, String> output = new HashMap<String, String>();
-    for (Tag<?> tag : instrumented.getContext().getTags()) {
+    for (Tag<?> tag : context.getTags()) {
       output.put(tag.getKey(),tag.getValue().toString());
     }
     return output;

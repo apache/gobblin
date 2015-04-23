@@ -22,8 +22,10 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.io.Closer;
 
+import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
 import gobblin.configuration.WorkUnitState;
+import gobblin.metrics.MetricContext;
 
 
 /**
@@ -34,8 +36,9 @@ import gobblin.configuration.WorkUnitState;
  *
  * @author ibuenros
  */
-public abstract class InstrumentedConverter<SI, SO, DI, DO> extends Converter<SI, SO, DI, DO> implements Closeable {
-  protected Instrumented instrumented;
+public abstract class InstrumentedConverter<SI, SO, DI, DO> extends Converter<SI, SO, DI, DO>
+    implements Instrumentable, Closeable {
+  protected MetricContext metricContext;
   protected Meter recordsIn = new Meter();
   protected Meter recordsOut = new Meter();
   protected Meter recordsException = new Meter();
@@ -46,12 +49,12 @@ public abstract class InstrumentedConverter<SI, SO, DI, DO> extends Converter<SI
   public Converter<SI, SO, DI, DO> init(WorkUnitState workUnit) {
     Converter<SI, SO, DI, DO> converter = super.init(workUnit);
 
-    this.instrumented = closer.register(new Instrumented(workUnit, this.getClass()));
+    this.metricContext = closer.register(Instrumented.getMetricContext(workUnit, this.getClass()));
 
-    this.recordsIn = this.instrumented.getContext().contextAwareMeter("gobblin.converter.records.in");
-    this.recordsOut = this.instrumented.getContext().contextAwareMeter("gobblin.converter.records.out");
-    this.recordsException = this.instrumented.getContext().contextAwareMeter("gobblin.converter.records.failed");
-    this.converterTimer = this.instrumented.getContext().contextAwareTimer("gobblin.converter.conversion.time");
+    this.recordsIn = this.metricContext.contextAwareMeter("gobblin.converter.records.in");
+    this.recordsOut = this.metricContext.contextAwareMeter("gobblin.converter.records.out");
+    this.recordsException = this.metricContext.contextAwareMeter("gobblin.converter.records.failed");
+    this.converterTimer = this.metricContext.contextAwareTimer("gobblin.converter.conversion.time");
 
     return converter;
   }
@@ -129,5 +132,10 @@ public abstract class InstrumentedConverter<SI, SO, DI, DO> extends Converter<SI
   public void close()
       throws IOException {
     closer.close();
+  }
+
+  @Override
+  public MetricContext getMetricContext() {
+    return this.metricContext;
   }
 }

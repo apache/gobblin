@@ -65,12 +65,12 @@ public class InstrumentedForkOperatorTest {
 
     fork.forkDataRecord(new WorkUnitState(), "in");
 
-    Map<String, Long> metrics = MetricsHelper.dumpMetrics(fork.instrumented);
+    Map<String, Long> metrics = MetricsHelper.dumpMetrics(fork.metricContext);
     Assert.assertEquals(metrics.get("gobblin.fork.operator.records.in"), Long.valueOf(1));
     Assert.assertEquals(metrics.get("gobblin.fork.operator.forks.out"), Long.valueOf(2));
     Assert.assertEquals(metrics.get("gobblin.fork.operator.timer"), Long.valueOf(1));
 
-    Assert.assertEquals(MetricsHelper.dumpTags(fork.instrumented).get("component"), "forkOperator");
+    Assert.assertEquals(MetricsHelper.dumpTags(fork.metricContext).get("component"), "forkOperator");
 
   }
 

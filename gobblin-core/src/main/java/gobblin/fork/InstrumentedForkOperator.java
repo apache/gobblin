@@ -12,6 +12,7 @@
 
 package gobblin.fork;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -19,8 +20,10 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.google.common.io.Closer;
 
+import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
 import gobblin.configuration.WorkUnitState;
+import gobblin.metrics.MetricContext;
 
 
 /**
@@ -29,9 +32,9 @@ import gobblin.configuration.WorkUnitState;
  *
  * @author ibuenros
  */
-public abstract class InstrumentedForkOperator<S, D> implements ForkOperator<S, D> {
+public abstract class InstrumentedForkOperator<S, D> implements Instrumentable, ForkOperator<S, D> {
 
-  protected Instrumented instrumented;
+  protected MetricContext metricContext;
   protected Closer closer = Closer.create();
   // Initialize as dummy metrics to avoid null pointer exception if init was skipped
   protected Meter inputMeter = new Meter();
@@ -41,11 +44,11 @@ public abstract class InstrumentedForkOperator<S, D> implements ForkOperator<S, 
   @Override
   public void init(WorkUnitState workUnitState)
       throws Exception {
-    this.instrumented = closer.register(new Instrumented(workUnitState, this.getClass()));
+    this.metricContext = closer.register(Instrumented.getMetricContext(workUnitState, this.getClass()));
 
-    this.inputMeter = this.instrumented.getContext().meter("gobblin.fork.operator.records.in");
-    this.outputForks = this.instrumented.getContext().meter("gobblin.fork.operator.forks.out");
-    this.forkOperatorTimer = this.instrumented.getContext().timer("gobblin.fork.operator.timer");
+    this.inputMeter = this.metricContext.meter("gobblin.fork.operator.records.in");
+    this.outputForks = this.metricContext.meter("gobblin.fork.operator.forks.out");
+    this.forkOperatorTimer = this.metricContext.timer("gobblin.fork.operator.timer");
   }
 
   @Override
@@ -85,4 +88,15 @@ public abstract class InstrumentedForkOperator<S, D> implements ForkOperator<S, 
    * Subclasses should implement this instead of {@link gobblin.fork.ForkOperator#forkDataRecord}.
    */
   public abstract List<Boolean> forkDataRecordImpl(WorkUnitState workUnitState, D input);
+
+  @Override
+  public MetricContext getMetricContext() {
+    return this.metricContext;
+  }
+
+  @Override
+  public void close()
+      throws IOException {
+    closer.close();
+  }
 }

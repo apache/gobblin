@@ -28,6 +28,8 @@ import org.slf4j.LoggerFactory;
 import com.codahale.metrics.JmxReporter;
 import com.google.common.base.Optional;
 
+import gobblin.GobblinMetrics;
+import gobblin.GobblinMetricsRegistry;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.OutputStreamReporter;
@@ -46,15 +48,9 @@ public class JobMetrics extends GobblinMetrics {
   // JMX metric reporter
   private Optional<JmxReporter> jmxReporter = Optional.absent();
 
-  protected JobMetrics(String jobName, String jobId) {
-    super(jobId);
-    this.jobName = jobName;
-    List<Tag<?>> tags = new ArrayList<Tag<?>>();
-    tags.add(new Tag<String>("jobName", jobName == null ? "" : jobName));
-    tags.add(new Tag<String>("jobId", jobId));
-    this.metricContext = new MetricContext.Builder("gobblin.metrics.job." + jobId).
-        addTags(tags).
-        build();
+  protected JobMetrics(JobState job) {
+    super(name(job), null, tagsForJob(job));
+    this.jobName = job.getJobName();
   }
 
   /**
@@ -65,14 +61,19 @@ public class JobMetrics extends GobblinMetrics {
    * @return a new {@link GobblinMetrics} instance for the given job
    */
   public static JobMetrics get(String jobName, String jobId) {
-    if(!METRICS_MAP.containsKey(jobId)) {
-      METRICS_MAP.putIfAbsent(jobId, new JobMetrics(jobName, jobId));
-    }
-    return (JobMetrics)METRICS_MAP.get(jobId);
+    return get(new JobState(jobName, jobId));
   }
 
   public static JobMetrics get(JobState job) {
-    return get(job.getJobName(), job.getJobId());
+    GobblinMetricsRegistry registry = GobblinMetricsRegistry.getInstance();
+    if (!registry.containsKey(name(job))) {
+      registry.putIfAbsent(name(job), new JobMetrics(job));
+    }
+    return (JobMetrics)registry.get(name(job));
+  }
+
+  public static String name(JobState job) {
+    return "gobblin.metrics." + job.getJobId();
   }
 
   /**
@@ -165,5 +166,12 @@ public class JobMetrics extends GobblinMetrics {
 
     this.jmxReporter = Optional.of(closer.register(JmxReporter.forRegistry(this.metricContext).convertRatesTo(TimeUnit.SECONDS)
         .convertDurationsTo(TimeUnit.MILLISECONDS).build()));
+  }
+
+  private static List<Tag<?>> tagsForJob(JobState job) {
+    List<Tag<?>> tags = new ArrayList<Tag<?>>();
+    tags.add(new Tag<String>("jobName", job.getJobName() == null ? "" : job.getJobName()));
+    tags.add(new Tag<String>("jobId", job.getJobId()));
+    return tags;
   }
 }

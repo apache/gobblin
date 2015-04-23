@@ -15,6 +15,9 @@ package gobblin.runtime.util;
 import java.util.ArrayList;
 import java.util.List;
 
+import gobblin.GobblinMetrics;
+import gobblin.GobblinMetricsRegistry;
+import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
 import gobblin.runtime.TaskState;
 
@@ -24,25 +27,30 @@ public class TaskMetrics extends GobblinMetrics {
   protected String jobId;
 
   protected TaskMetrics(TaskState task) {
-    super(name(task));
+    super(name(task), parentContextForTask(task), tagsForTask(task));
     this.jobId = task.getJobId();
-    JobMetrics parentJobContext = JobMetrics.get(null, task.getJobId());
-    List<Tag<?>> tags = new ArrayList<Tag<?>>();
-    tags.add(new Tag<String>("taskId", task.getTaskId()));
-    this.metricContext = parentJobContext.getMetricContext().
-        childBuilder("gobblin.metrics." + task.getJobId() + "." + task.getTaskId()).
-        addTags(tags).build();
   }
 
   public synchronized static TaskMetrics get(TaskState task) {
-    if(!METRICS_MAP.containsKey(name(task))) {
-      METRICS_MAP.putIfAbsent(name(task), new TaskMetrics(task));
+    GobblinMetricsRegistry registry = GobblinMetricsRegistry.getInstance();
+    if (!registry.containsKey(name(task))) {
+      registry.putIfAbsent(name(task), new TaskMetrics(task));
     }
-    return (TaskMetrics)METRICS_MAP.get(name(task));
+    return (TaskMetrics)registry.get(name(task));
   }
 
   public static String name(TaskState task) {
-    return task.getJobId() + ":" + task.getTaskId();
+    return "gobblin.metrics." + task.getJobId() + "." + task.getTaskId();
+  }
+
+  private static List<Tag<?>> tagsForTask(TaskState task) {
+    List<Tag<?>> tags = new ArrayList<Tag<?>>();
+    tags.add(new Tag<String>("taskId", task.getTaskId()));
+    return tags;
+  }
+
+  private static MetricContext parentContextForTask(TaskState task) {
+    return JobMetrics.get(null, task.getJobId()).getMetricContext();
   }
 
 }

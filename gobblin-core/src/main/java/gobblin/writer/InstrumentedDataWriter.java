@@ -20,18 +20,20 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.google.common.io.Closer;
 
+import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
 import gobblin.configuration.State;
+import gobblin.metrics.MetricContext;
 
 
 /**
  * Instrumented version of {@link gobblin.writer.DataWriter} automatically capturing certain metrics.
  * Subclasses should implement writeImpl instead of write.
  */
-public abstract class InstrumentedDataWriter<D> implements DataWriter<D>, Closeable {
+public abstract class InstrumentedDataWriter<D> implements DataWriter<D>, Instrumentable, Closeable {
 
   protected Closer closer;
-  protected Instrumented instrumented;
+  protected MetricContext metricContext;
   protected Meter recordsInMeter;
   protected Meter successfulWriteMeter;
   protected Meter exceptionWriteMeter;
@@ -40,11 +42,11 @@ public abstract class InstrumentedDataWriter<D> implements DataWriter<D>, Closea
   public InstrumentedDataWriter(State state) {
     this.closer = Closer.create();
 
-    this.instrumented = this.closer.register(new Instrumented(state, this.getClass()));
-    this.recordsInMeter = this.instrumented.getContext().meter("gobblin.writer.records.in");
-    this.successfulWriteMeter = this.instrumented.getContext().meter("gobblin.writer.records.written");
-    this.exceptionWriteMeter = this.instrumented.getContext().meter("gobblin.writer.records.failed");
-    this.dataWriterTimer = this.instrumented.getContext().timer("gobblin.writer.timer");
+    this.metricContext = this.closer.register(Instrumented.getMetricContext(state, this.getClass()));
+    this.recordsInMeter = this.metricContext.meter("gobblin.writer.records.in");
+    this.successfulWriteMeter = this.metricContext.meter("gobblin.writer.records.written");
+    this.exceptionWriteMeter = this.metricContext.meter("gobblin.writer.records.failed");
+    this.dataWriterTimer = this.metricContext.timer("gobblin.writer.timer");
   }
 
   @Override
@@ -94,5 +96,10 @@ public abstract class InstrumentedDataWriter<D> implements DataWriter<D>, Closea
   public void close()
       throws IOException {
     closer.close();
+  }
+
+  @Override
+  public MetricContext getMetricContext() {
+    return this.metricContext;
   }
 }

@@ -19,6 +19,8 @@ import java.util.Map;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import gobblin.GobblinMetrics;
+import gobblin.GobblinMetricsRegistry;
 import gobblin.metrics.Tag;
 import gobblin.runtime.JobState;
 
@@ -59,7 +61,7 @@ public class JobMetricsTest {
     Assert.assertEquals(tags.get(1).getValue(), expectedTags.get(tags.get(1).getKey()));
 
     // remove original jobMetrics, should create a new one
-    GobblinMetrics.remove(jobMetrics.getId());
+    GobblinMetricsRegistry.getInstance().remove(jobMetrics.getId());
     JobMetrics jobMetrics2 = JobMetrics.get(jobName + "_", jobId);
     Assert.assertNotNull(jobMetrics2.getMetricContext());
 

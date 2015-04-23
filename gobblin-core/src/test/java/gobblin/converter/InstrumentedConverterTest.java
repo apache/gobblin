@@ -49,17 +49,17 @@ public class InstrumentedConverterTest {
 
     Iterable<String> iterable = converter.convertRecord("schema", "record", new WorkUnitState());
 
-    Map<String, Long> metrics = MetricsHelper.dumpMetrics(converter.instrumented);
+    Map<String, Long> metrics = MetricsHelper.dumpMetrics(converter.getMetricContext());
     Assert.assertEquals(metrics.get("gobblin.converter.records.in"), Long.valueOf(1));
     Assert.assertEquals(metrics.get("gobblin.converter.records.out"), Long.valueOf(0));
     Assert.assertEquals(metrics.get("gobblin.converter.conversion.time"), Long.valueOf(1));
 
     iterable.iterator().next();
-    metrics = MetricsHelper.dumpMetrics(converter.instrumented);
+    metrics = MetricsHelper.dumpMetrics(converter.getMetricContext());
     Assert.assertEquals(metrics.get("gobblin.converter.records.in"), Long.valueOf(1));
     Assert.assertEquals(metrics.get("gobblin.converter.records.out"), Long.valueOf(1));
 
-    Assert.assertEquals(MetricsHelper.dumpTags(converter.instrumented).get("component"), "converter");
+    Assert.assertEquals(MetricsHelper.dumpTags(converter.getMetricContext()).get("component"), "converter");
 
   }
 

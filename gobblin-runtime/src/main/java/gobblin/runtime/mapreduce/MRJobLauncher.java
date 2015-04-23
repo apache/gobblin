@@ -56,10 +56,11 @@ import com.google.common.util.concurrent.ServiceManager;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.instrumented.Instrumented;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
 import gobblin.metrics.MetricContext;
-import gobblin.runtime.util.GobblinMetrics;
+import gobblin.GobblinMetrics;
 import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.FileBasedJobLock;
 import gobblin.runtime.JobException;
@@ -413,7 +414,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
   }
 
   /**
-   * Create a {@link gobblin.runtime.util.GobblinMetrics} instance for this job run from the Hadoop counters.
+   * Create a {@link gobblin.GobblinMetrics} instance for this job run from the Hadoop counters.
    */
   private void countersToMetrics(Counters counters, GobblinMetrics metrics) {
     // Write job-level counters
@@ -543,7 +544,10 @@ public class MRJobLauncher extends AbstractJobLauncher {
       }
 
       String jobId = workUnits.get(0).getProp(ConfigurationKeys.JOB_ID_KEY);
+      JobMetrics jobMetrics = JobMetrics.get(null, jobId);
+
       for (WorkUnit workUnit : workUnits) {
+        workUnit.setProp(Instrumented.METRIC_CONTEXT_NAME_KEY, jobMetrics.getName());
         String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
         // Delete the task state file for the task if it already exists.
         // This usually happens if the task is retried upon failure.
@@ -551,9 +555,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
           this.taskStateStore.delete(jobId, taskId + TASK_STATE_STORE_TABLE_SUFFIX);
         }
       }
-
-      JobMetrics jobMetrics = JobMetrics.get(null, jobId);
-      MetricContext.registerContext(jobMetrics.getMetricContext());
 
       List<Task> tasks = AbstractJobLauncher.runWorkUnits(jobId, workUnits, this.taskStateTracker, this.taskExecutor,
           new CountDownLatch(workUnits.size()));

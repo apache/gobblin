@@ -59,12 +59,12 @@ public class InstrumentedExtractorTest {
 
     extractor.readRecord("");
 
-    Map<String, Long> metrics = MetricsHelper.dumpMetrics(extractor.instrumented);
+    Map<String, Long> metrics = MetricsHelper.dumpMetrics(extractor.metricContext);
     Assert.assertEquals(metrics.get("gobblin.extractor.records.read"), Long.valueOf(1));
     Assert.assertEquals(metrics.get("gobblin.extractor.records.failed"), Long.valueOf(0));
     Assert.assertEquals(metrics.get("gobblin.extractor.extract.time"), Long.valueOf(1));
 
-    Assert.assertEquals(MetricsHelper.dumpTags(extractor.instrumented).get("component"), "extractor");
+    Assert.assertEquals(MetricsHelper.dumpTags(extractor.metricContext).get("component"), "extractor");
 
   }
 

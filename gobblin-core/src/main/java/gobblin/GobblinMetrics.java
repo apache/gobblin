@@ -9,10 +9,11 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.runtime.util;
+package gobblin;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.ConcurrentMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,12 +24,12 @@ import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
-import com.google.common.collect.MapMaker;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.metrics.MetricContext;
+import gobblin.metrics.Tag;
 
 
 /**
@@ -46,34 +47,6 @@ public class GobblinMetrics {
   }
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinMetrics.class);
-
-  // Mapping from job ID to metrics set. This map is needed so an instance of
-  // this class for a job run can be accessed from anywhere in the same JVM.
-  // This map uses weak references for values (instances of this class) so
-  // they can be garbage-collected if they are no longer in regular use.
-  protected static final ConcurrentMap<String, GobblinMetrics> METRICS_MAP = new MapMaker().weakValues().makeMap();
-
-  protected final String id;
-  protected MetricContext metricContext;
-
-  // Closer for closing the metric output stream
-  protected final Closer closer = Closer.create();
-
-  protected GobblinMetrics(String id) {
-    this.id = id;
-    this.metricContext = null;
-  }
-
-  /**
-   * Remove the {@link GobblinMetrics} instance for the given job.
-   *
-   * @param id job ID
-   * @return removed {@link GobblinMetrics} instance or <code>null</code> if no {@link GobblinMetrics}
-   *         instance for the given job is not found
-   */
-  public static GobblinMetrics remove(String id) {
-    return METRICS_MAP.remove(id);
-  }
 
   /**
    * Check whether metrics collection and reporting are enabled or not.
@@ -97,6 +70,34 @@ public class GobblinMetrics {
         .valueOf(state.getProp(ConfigurationKeys.METRICS_ENABLED_KEY, ConfigurationKeys.DEFAULT_METRICS_ENABLED));
   }
 
+  public static GobblinMetrics get(String id) {
+    return get(id, null);
+  }
+
+  public static GobblinMetrics get(String id, MetricContext parentContext) {
+    return get(id, parentContext, new ArrayList<Tag<?>>());
+  }
+
+  public static GobblinMetrics get(String id, MetricContext parentContext, List<Tag<?>> tags) {
+    GobblinMetricsRegistry registry = GobblinMetricsRegistry.getInstance();
+    if (!registry.containsKey(id)) {
+      registry.putIfAbsent(id, new GobblinMetrics(id, parentContext, tags));
+    }
+    return registry.get(id);
+  }
+
+  protected final String id;
+  protected MetricContext metricContext;
+  // Closer for closing the metric output stream
+  protected final Closer closer = Closer.create();
+
+  protected GobblinMetrics(String id, MetricContext parentContext, List<Tag<?>> tags) {
+    this.id = id;
+    this.metricContext = parentContext == null ?
+        new MetricContext.Builder(id).addTags(tags).build() :
+        parentContext.childBuilder(id).addTags(tags).build();
+  }
+
   /**
    * Get the wrapped {@link com.codahale.metrics.MetricRegistry} instance.
    *
@@ -112,6 +113,10 @@ public class GobblinMetrics {
    * @return job ID of this metrics set
    */
   public String getId() {
+    return this.id;
+  }
+
+  public String getName() {
     return this.id;
   }
 

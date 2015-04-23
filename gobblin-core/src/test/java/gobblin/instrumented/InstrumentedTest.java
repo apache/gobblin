@@ -20,6 +20,7 @@ import org.testng.annotations.Test;
 
 import junit.framework.Assert;
 
+import gobblin.GobblinMetrics;
 import gobblin.configuration.State;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
@@ -31,18 +32,17 @@ public class InstrumentedTest {
 
   @Test
   public void testInstrumented() {
-    MetricContext parentContext = MetricContext.builder("parent.context").build();
-    MetricContext.registerContext(parentContext);
+    GobblinMetrics gobblinMetrics = GobblinMetrics.get("parent.context");
 
     State state = new State();
-    state.setProp(Instrumented.METRIC_CONTEXT_NAME_KEY, parentContext.getName());
+    state.setProp(Instrumented.METRIC_CONTEXT_NAME_KEY, gobblinMetrics.getName());
     Instrumented instrumented = new Instrumented(state, InstrumentedExtractor.class);
 
-    Assert.assertNotNull(instrumented.getContext());
-    Assert.assertTrue(instrumented.getContext().getParent().isPresent());
-    Assert.assertEquals(instrumented.getContext().getParent().get(), parentContext);
+    Assert.assertNotNull(instrumented.getMetricContext());
+    Assert.assertTrue(instrumented.getMetricContext().getParent().isPresent());
+    Assert.assertEquals(instrumented.getMetricContext().getParent().get(), gobblinMetrics.getMetricContext());
 
-    List<Tag<?>> tags = instrumented.getContext().getTags();
+    List<Tag<?>> tags = instrumented.getMetricContext().getTags();
     Map<String, String> expectedTags = new HashMap<String, String>();
     expectedTags.put("component", "extractor");
     expectedTags.put("class", InstrumentedExtractor.class.getCanonicalName());

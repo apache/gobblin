@@ -68,13 +68,13 @@ public class InstrumentedDataWriterTest {
 
     writer.write("test");
 
-    Map<String, Long> metrics = MetricsHelper.dumpMetrics(writer.instrumented);
+    Map<String, Long> metrics = MetricsHelper.dumpMetrics(writer.metricContext);
     Assert.assertEquals(metrics.get("gobblin.writer.records.in"), Long.valueOf(1));
     Assert.assertEquals(metrics.get("gobblin.writer.records.written"), Long.valueOf(1));
     Assert.assertEquals(metrics.get("gobblin.writer.records.failed"), Long.valueOf(0));
     Assert.assertEquals(metrics.get("gobblin.writer.timer"), Long.valueOf(1));
 
-    Assert.assertEquals(MetricsHelper.dumpTags(writer.instrumented).get("component"), "writer");
+    Assert.assertEquals(MetricsHelper.dumpTags(writer.metricContext).get("component"), "writer");
 
   }
 

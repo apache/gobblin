@@ -41,6 +41,7 @@ import gobblin.runtime.util.*;
 import gobblin.runtime.util.MetricGroup;
 import gobblin.source.workunit.Extract;
 import gobblin.util.ForkOperatorUtils;
+import gobblin.GobblinMetrics;
 
 
 /**

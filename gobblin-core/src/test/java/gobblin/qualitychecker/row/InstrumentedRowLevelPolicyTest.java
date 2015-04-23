@@ -43,14 +43,14 @@ public class InstrumentedRowLevelPolicyTest {
 
     policy.executePolicy("test");
 
-    Map<String, Long> metrics = MetricsHelper.dumpMetrics(policy.instrumented);
+    Map<String, Long> metrics = MetricsHelper.dumpMetrics(policy.metricContext);
 
     Assert.assertEquals(metrics.get("gobblin.qualitychecker.records.in"), Long.valueOf(1));
     Assert.assertEquals(metrics.get("gobblin.qualitychecker.records.passed"), Long.valueOf(1));
     Assert.assertEquals(metrics.get("gobblin.qualitychecker.records.failed"), Long.valueOf(0));
     Assert.assertEquals(metrics.get("gobblin.qualitychecker.policy.timer"), Long.valueOf(1));
 
-    Assert.assertEquals(MetricsHelper.dumpTags(policy.instrumented).get("component"), "rowLevelPolicy");
+    Assert.assertEquals(MetricsHelper.dumpTags(policy.metricContext).get("component"), "rowLevelPolicy");
 
   }
 
