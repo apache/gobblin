@@ -11,7 +11,10 @@
 
 package gobblin.configuration;
 
+import java.nio.charset.Charset;
 import java.util.concurrent.TimeUnit;
+
+import com.google.common.base.Charsets;
 
 
 /**
@@ -398,5 +401,5 @@ public class ConfigurationKeys {
   /**
    * Other configuration properties.
    */
-  public static final String DEFAULT_CHARSET_ENCODING = "UTF-8";
+  public static final Charset DEFAULT_CHARSET_ENCODING = Charsets.UTF_8;
 }

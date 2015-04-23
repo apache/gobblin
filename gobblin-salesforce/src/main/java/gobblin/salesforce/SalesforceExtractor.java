@@ -38,7 +38,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
-import java.nio.charset.Charset;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -723,8 +722,7 @@ public class SalesforceExtractor extends RestApiExtractor {
       }
 
       this.log.info("QUERY:" + query);
-      ByteArrayInputStream bout = new ByteArrayInputStream(query.getBytes(Charset.forName(
-          ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
+      ByteArrayInputStream bout = new ByteArrayInputStream(query.getBytes(ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
 
       this.bulkBatchInfo = bulkConnection.createBatchFromStream(this.bulkJob, bout);
 
@@ -775,7 +773,7 @@ public class SalesforceExtractor extends RestApiExtractor {
           this.setNewBulkResultSet(true);
           this.bulkBufferedReader = new BufferedReader(new InputStreamReader(this.bulkConnection
               .getQueryResultStream(bulkJob.getId(), bulkBatchInfo.getId(), bulkResultIdList.get(bulkResultIdCount)),
-              Charset.forName(ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
+              ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
 
           this.bulkResultIdCount++;
         } else {

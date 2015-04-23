@@ -13,7 +13,6 @@ package gobblin.metastore;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -186,8 +185,9 @@ public class DatabaseJobHistoryStoreTest {
       throws Exception {
     // Read the DDL statements
     List<String> statementLines = Lists.newArrayList();
-    List<String> lines = Files.readLines(new File("gobblin-metastore/src/test/resources/gobblin_job_history_store.sql"),
-        Charset.forName(ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
+    List<String> lines = Files.readLines(
+        new File("gobblin-metastore/src/test/resources/gobblin_job_history_store.sql"),
+        ConfigurationKeys.DEFAULT_CHARSET_ENCODING);
     for (String line : lines) {
       // Skip a comment line
       if (line.startsWith("--")) {

@@ -14,7 +14,6 @@ package gobblin.example.simplejson;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.charset.Charset;
 
 import org.apache.commons.vfs2.FileObject;
 import org.apache.commons.vfs2.FileSystemException;
@@ -75,9 +74,8 @@ public class SimpleJsonExtractor implements Extractor<String, String> {
 
     // Open the file for reading
     LOGGER.info("Opening file " + this.fileObject.getURL().toString());
-    this.bufferedReader = this.closer.register(new BufferedReader(
-        new InputStreamReader(this.fileObject.getContent().getInputStream(),
-            Charset.forName(ConfigurationKeys.DEFAULT_CHARSET_ENCODING))));
+    this.bufferedReader = this.closer.register(new BufferedReader(new InputStreamReader(
+        this.fileObject.getContent().getInputStream(), ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
   }
 
   @Override
