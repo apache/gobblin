@@ -267,7 +267,7 @@ public class KafkaWrapper implements Closeable {
 
     private SimpleConsumer createSimpleConsumer(String broker) {
       List<String> hostPort = Splitter.on(':').trimResults().omitEmptyStrings().splitToList(broker);
-      return createSimpleConsumer(hostPort.get(0), Integer.valueOf(hostPort.get(1)));
+      return createSimpleConsumer(hostPort.get(0), Integer.parseInt(hostPort.get(1)));
     }
 
     private SimpleConsumer createSimpleConsumer(String host, int port) {

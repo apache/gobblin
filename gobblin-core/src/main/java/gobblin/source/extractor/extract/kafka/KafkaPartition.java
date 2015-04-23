@@ -116,7 +116,7 @@ public final class KafkaPartition {
     return true;
   }
 
-  public final class KafkaLeader {
+  public final static class KafkaLeader {
     private final int id;
     private final String host;
     private final int port;
