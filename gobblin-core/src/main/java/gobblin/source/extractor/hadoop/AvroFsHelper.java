@@ -40,17 +40,19 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 
 
-public class HadoopFsHelper implements FileBasedHelper {
-  private static Logger log = LoggerFactory.getLogger(HadoopFsHelper.class);
+public class AvroFsHelper implements FileBasedHelper {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(AvroFsHelper.class);
+
   private State state;
   private final Configuration configuration;
   private FileSystem fs;
 
-  public HadoopFsHelper(State state) {
+  public AvroFsHelper(State state) {
     this(state, HadoopUtils.newConfiguration());
   }
 
-  public HadoopFsHelper(State state, Configuration configuration) {
+  public AvroFsHelper(State state, Configuration configuration) {
     this.state = state;
     this.configuration = configuration;
   }
@@ -147,7 +149,7 @@ public class HadoopFsHelper implements FileBasedHelper {
         try {
           dfr.close();
         } catch (IOException e) {
-          log.error("Failed to close avro file " + file, e);
+          LOGGER.error("Failed to close avro file " + file, e);
         }
       }
     }

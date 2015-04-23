@@ -40,7 +40,7 @@ public class ExtractorDecorator<S, D> implements Extractor<S, D> {
   }
 
   @Override
-  public S getSchema() {
+  public S getSchema() throws IOException {
     try {
       return this.extractor.getSchema();
     } catch (Throwable t) {
@@ -52,8 +52,7 @@ public class ExtractorDecorator<S, D> implements Extractor<S, D> {
   }
 
   @Override
-  public D readRecord(D reuse)
-      throws DataRecordException, IOException {
+  public D readRecord(@Deprecated D reuse) throws DataRecordException, IOException {
     try {
       return this.extractor.readRecord(reuse);
     } catch (Throwable t) {
@@ -65,8 +64,7 @@ public class ExtractorDecorator<S, D> implements Extractor<S, D> {
   }
 
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     this.extractor.close();
   }
 
