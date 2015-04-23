@@ -127,13 +127,6 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
       throws IOException {
     Preconditions.checkNotNull(record);
 
-    // It is possible that each record has a different schema
-    if (this.properties.getPropAsBoolean(ConfigurationKeys.WRITER_SET_SCHEMA_PER_RECORD,
-        ConfigurationKeys.DEFAULT_WRITER_SET_SCHEMA_PER_RECORD) && !this.schema.equals(record.getSchema())) {
-      this.schema = record.getSchema();
-      this.datumWriter.setSchema(record.getSchema());
-    }
-
     this.writer.append(record);
     // Only increment when write is successful
     this.count.incrementAndGet();
