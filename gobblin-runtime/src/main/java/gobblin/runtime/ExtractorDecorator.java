@@ -52,9 +52,9 @@ public class ExtractorDecorator<S, D> implements Extractor<S, D> {
   }
 
   @Override
-  public D readRecord() throws DataRecordException, IOException {
+  public D readRecord(@Deprecated D reuse) throws DataRecordException, IOException {
     try {
-      return this.extractor.readRecord();
+      return this.extractor.readRecord(reuse);
     } catch (Throwable t) {
       this.logger.error("Failed to get data record for task " + this.taskId, t);
       Throwables.propagate(t);

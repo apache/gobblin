@@ -81,7 +81,7 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
    * file
    */
   @Override
-  public D readRecord() throws DataRecordException, IOException {
+  public D readRecord(@Deprecated D reuse) throws DataRecordException, IOException {
     this.totalRecordCount++;
 
     if (this.statusCount > 0 && this.totalRecordCount % this.statusCount == 0) {

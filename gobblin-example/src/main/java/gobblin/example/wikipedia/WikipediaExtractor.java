@@ -227,7 +227,7 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
   }
 
   @Override
-  public JsonElement readRecord() throws DataRecordException, IOException {
+  public JsonElement readRecord(@Deprecated JsonElement reuse) throws DataRecordException, IOException {
     if (this.reader == null) {
       return null;
     }

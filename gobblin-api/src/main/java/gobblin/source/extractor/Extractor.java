@@ -41,11 +41,16 @@ public interface Extractor<S, D> extends Closeable {
   /**
    * Read the next data record from the data source.
    *
+   * <p>
+   *   Reuse of data records has been deprecated and is not executed internally.
+   * </p>
+   *
+   * @param reuse the data record object to be reused
    * @return the next data record extracted from the data source
    * @throws DataRecordException if there is problem with the extracted data record
    * @throws java.io.IOException if there is problem extracting the next data record from the source
    */
-  public D readRecord() throws DataRecordException, IOException;
+  public D readRecord(@Deprecated D reuse) throws DataRecordException, IOException;
 
   /**
    * Get the expected source record count.
