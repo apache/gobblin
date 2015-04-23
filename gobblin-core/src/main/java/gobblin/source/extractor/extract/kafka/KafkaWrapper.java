@@ -12,7 +12,6 @@
 package gobblin.source.extractor.extract.kafka;
 
 import gobblin.configuration.State;
-import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.EventBasedSource;
 
 import java.io.Closeable;
@@ -23,6 +22,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentMap;
 
 import kafka.api.PartitionFetchInfo;
 import kafka.api.PartitionOffsetRequestInfo;
@@ -169,7 +169,7 @@ public class KafkaWrapper implements Closeable {
     private static final int NUM_TRIES_FETCH_TOPIC = 3;
     private static final int NUM_TRIES_FETCH_OFFSET = 3;
 
-    private final Map<String, SimpleConsumer> activeConsumers = Maps.newConcurrentMap();
+    private final ConcurrentMap<String, SimpleConsumer> activeConsumers = Maps.newConcurrentMap();
 
     @Override
     public List<KafkaTopic> getFilteredTopics(Set<String> blacklist, Set<String> whitelist) {
