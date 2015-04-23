@@ -11,6 +11,7 @@
 
 package gobblin.publisher;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -21,7 +22,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +53,7 @@ public class BaseDataPublisher extends DataPublisher {
   private static final Logger LOG = LoggerFactory.getLogger(BaseDataPublisher.class);
 
   protected final List<FileSystem> fss = Lists.newArrayList();
-  private int numBranches;
+  protected int numBranches;
 
   public BaseDataPublisher(State state) {
     super(state);
@@ -121,27 +121,7 @@ public class BaseDataPublisher extends DataPublisher {
           // If the final output directory is not configured to be replaced, then append the new data to the existing
           // output folder
           if (!replaceFinalOutputDir) {
-
-            boolean preserveFileName =
-                workUnitState.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(
-                    ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, this.numBranches, branchId), false);
-
-            // Go through each file in writerOutputDir and move it into publisherOutputDir
-            for (FileStatus status : this.fss.get(branchId).listStatus(writerOutputDir)) {
-
-              // Preserve the file name if configured, use specified name otherwise
-              Path finalOutputPath =
-                  preserveFileName ? new Path(publisherOutputDir, workUnitState.getProp(ForkOperatorUtils
-                      .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_NAME, this.numBranches, branchId)))
-                      : new Path(publisherOutputDir, status.getPath().getName());
-
-              if (this.fss.get(branchId).rename(status.getPath(), finalOutputPath)) {
-                LOG.info(String.format("Moved %s to %s", status.getPath(), finalOutputPath));
-              } else {
-                throw new IOException("Failed to move file from " + status.getPath() + " to " + finalOutputPath);
-              }
-            }
-
+            addWriterOutputToExistingDir(writerOutputDir, publisherOutputDir, workUnitState, branchId);
             writerOutputPathsMoved.add(writerOutputDir);
             continue;
           }
@@ -168,6 +148,29 @@ public class BaseDataPublisher extends DataPublisher {
       // of successful tasks to COMMITTED. leaving states of unsuccessful ones unchanged.
       // This makes sense to the COMMIT_ON_PARTIAL_SUCCESS policy.
       workUnitState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+    }
+  }
+
+  protected void addWriterOutputToExistingDir(Path writerOutputDir, Path publisherOutputDir,
+      WorkUnitState workUnitState, int branchId) throws FileNotFoundException, IOException {
+    boolean preserveFileName =
+        workUnitState.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(
+            ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, this.numBranches, branchId), false);
+
+    // Go through each file in writerOutputDir and move it into publisherOutputDir
+    for (FileStatus status : this.fss.get(branchId).listStatus(writerOutputDir)) {
+
+      // Preserve the file name if configured, use specified name otherwise
+      Path finalOutputPath =
+          preserveFileName ? new Path(publisherOutputDir, workUnitState.getProp(ForkOperatorUtils
+              .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_NAME, this.numBranches, branchId)))
+              : new Path(publisherOutputDir, status.getPath().getName());
+
+      if (this.fss.get(branchId).rename(status.getPath(), finalOutputPath)) {
+        LOG.info(String.format("Moved %s to %s", status.getPath(), finalOutputPath));
+      } else {
+        throw new IOException("Failed to move file from " + status.getPath() + " to " + finalOutputPath);
+      }
     }
   }
 
