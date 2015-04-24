@@ -17,6 +17,8 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Queue;
 import java.util.Set;
 
 import org.apache.avro.Schema;
@@ -64,14 +66,27 @@ public abstract class KafkaSource extends EventBasedSource<Schema, GenericRecord
   public static final Extract.TableType DEFAULT_TABLE_TYPE = Extract.TableType.APPEND_ONLY;
   public static final String DEFAULT_NAMESPACE_NAME = "KAFKA";
   public static final String ALL_TOPICS = "all";
-  public static final String NUM_OF_MAPPERS = "num.of.mappers";
-  public static final int DEFAULT_NUM_OF_MAPPERS = 100;
   public static final String AVG_EVENT_SIZE = "avg.event.size";
   public static final long DEFAULT_AVG_EVENT_SIZE = 1024;
+  public static final String ESTIMATED_DATA_SIZE = "estimated.data.size";
 
   private final Set<String> moveToLatestTopics = Sets.newTreeSet(String.CASE_INSENSITIVE_ORDER);
   private final Map<KafkaPartition, Long> previousOffsets = Maps.newHashMap();
   private final Map<KafkaPartition, Long> previousAvgSizes = Maps.newHashMap();
+
+  private final Comparator<WorkUnit> sortBySizeAscComparator = new Comparator<WorkUnit>() {
+    @Override
+    public int compare(WorkUnit w1, WorkUnit w2) {
+      return ((Long) getWorkUnitEstSize(w1)).compareTo(getWorkUnitEstSize(w2));
+    }
+  };
+
+  private final Comparator<WorkUnit> sortBySizeDescComparator = new Comparator<WorkUnit>() {
+    @Override
+    public int compare(WorkUnit w1, WorkUnit w2) {
+      return ((Long) getWorkUnitEstSize(w2)).compareTo(getWorkUnitEstSize(w1));
+    }
+  };
 
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
@@ -83,7 +98,8 @@ public abstract class KafkaSource extends EventBasedSource<Schema, GenericRecord
       for (KafkaTopic topic : topics) {
         workUnits.add(getWorkUnitsForTopic(kafkaWrapper, topic, state));
       }
-      int numOfMultiWorkunits = state.getPropAsInt(NUM_OF_MAPPERS, DEFAULT_NUM_OF_MAPPERS);
+      int numOfMultiWorkunits =
+          state.getPropAsInt(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, ConfigurationKeys.DEFAULT_MR_JOB_MAX_MAPPERS);
       this.getAllPreviousAvgSizes(state);
       return ImmutableList.copyOf(getMultiWorkunits(workUnits, numOfMultiWorkunits));
     } finally {
@@ -98,8 +114,7 @@ public abstract class KafkaSource extends EventBasedSource<Schema, GenericRecord
   /**
    * Group workUnits into multiWorkUnits. Each workUnit corresponds to a (topic, partition).
    * The goal is to group the workUnits as evenly as possible into numOfMultiWorkunits multiWorkunits,
-   * while preferring to put partitions of the same topic into the same multiWorkUnits (in order to
-   * avoid generating many small mapper output files).
+   * while preferring to put partitions of the same topic into the same multiWorkUnits.
    *
    * The algorithm is to first group workUnits into approximately 3 * numOfMultiWorkunits groups using
    * best-fit-decreasing, such that partitions of the same topic are in the same group. Then, 
@@ -113,98 +128,118 @@ public abstract class KafkaSource extends EventBasedSource<Schema, GenericRecord
   private List<WorkUnit> getMultiWorkunits(List<List<WorkUnit>> workUnits, int numOfMultiWorkunits) {
     Preconditions.checkArgument(numOfMultiWorkunits >= 1);
 
-    List<List<WorkUnitWithEstSize>> workUnitsWithEstSize = getWorkUnitsWithEstSize(workUnits);
-    long totalEstimatedDataSize = calcTotalEstSize(workUnitsWithEstSize);
-    long avgGroupSize = (long) ((double) totalEstimatedDataSize / (double) numOfMultiWorkunits / 3.0);
+    long totalEstDataSize = 0;
+    for (List<WorkUnit> workUnitsForTopic : workUnits) {
+      for (WorkUnit workUnit : workUnitsForTopic) {
+        setWorkUnitEstSize(workUnit);
+        totalEstDataSize = getWorkUnitEstSize(workUnit);
+      }
+    }
+    long avgGroupSize = (long) ((double) totalEstDataSize / (double) numOfMultiWorkunits / 3.0);
 
-    List<WorkUnitGroup> groups = Lists.newArrayList();
-    for (List<WorkUnitWithEstSize> workUnitsWithEstSizeForTopic : workUnitsWithEstSize) {
-      long estimatedDataSizeForTopic = calcTotalEstSizeForTopic(workUnitsWithEstSizeForTopic);
+    List<MultiWorkUnit> groups = Lists.newArrayList();
+    for (List<WorkUnit> workUnitsForTopic : workUnits) {
+      long estimatedDataSizeForTopic = calcTotalEstSizeForTopic(workUnitsForTopic);
       if (estimatedDataSizeForTopic < avgGroupSize) {
 
         // If the total estimated size of a topic is smaller than group size, put all partitions of this
         // topic in a single group.
-        groups.add(new WorkUnitGroup(workUnitsWithEstSizeForTopic));
+        MultiWorkUnit group = new MultiWorkUnit();
+        this.addWorkUnitsToMultiWorkUnit(workUnitsForTopic, group);
+        groups.add(group);
       } else {
 
         // Use best-fit-decreasing to group workunits for a topic into multiple groups.
-        groups.addAll(bestFitDecreasingBinPacking(workUnitsWithEstSizeForTopic, avgGroupSize));
+        groups.addAll(bestFitDecreasingBinPacking(workUnitsForTopic, avgGroupSize));
       }
     }
 
     return worstFitDecreasingBinPacking(groups, numOfMultiWorkunits);
   }
 
-  /**
-   * Pack a list of WorkUnitGroups into multiWorkUnits, using the worst-fit-decreasing algorithm,
-   * i.e., for each group, assign it to the multiWorkUnit with the lightest load.
-   */
-  private static List<WorkUnit> worstFitDecreasingBinPacking(List<WorkUnitGroup> groups, int numOfMultiWorkUnits) {
-    List<MultiWorkUnit> multiWorkunits = Lists.newArrayListWithCapacity(numOfMultiWorkUnits);
-    List<Long> loads = Lists.newArrayListWithCapacity(numOfMultiWorkUnits);
-    for (int i = 0; i < numOfMultiWorkUnits; i++) {
-      multiWorkunits.add(new MultiWorkUnit());
-      loads.add(0L);
-    }
+  private void setWorkUnitEstSize(WorkUnit workUnit) {
+    long avgSize = this.getPreviousAvgSizeForPartition(this.getKafkaPartitionFromState(workUnit));
+    long numOfEvents =
+        workUnit.getPropAsLong(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY)
+            - workUnit.getPropAsLong(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY);
+    workUnit.setProp(ESTIMATED_DATA_SIZE, avgSize * numOfEvents);
+  }
 
-    // Sort workunit groups by data size desc
-    Collections.sort(groups, sortBySizeDescComparator());
+  private void setWorkUnitEstSize(WorkUnit workUnit, long estSize) {
+    workUnit.setProp(ESTIMATED_DATA_SIZE, estSize);
+  }
 
-    for (WorkUnitGroup group : groups) {
-      int worstMultiWorkUnitId = findWorstFitMultiWorkUnitId(multiWorkunits, loads);
-      multiWorkunits.get(worstMultiWorkUnitId).addWorkUnits(group.getWorkUnits());
-      loads.set(worstMultiWorkUnitId, loads.get(worstMultiWorkUnitId) + group.getEstDataSize());
-    }
-
-    long minLoad = Collections.min(loads);
-    long maxLoad = Collections.max(loads);
-    LOG.info(String.format("Min data size of multiWorkUnit = %d; Max data size of multiWorkUnit = %d; Diff = %f%%",
-        minLoad, maxLoad, (double) (maxLoad - minLoad) / (double) maxLoad * 100.0));
-
-    return Lists.newArrayList(multiWorkunits);
+  private long getWorkUnitEstSize(WorkUnit workUnit) {
+    Preconditions.checkArgument(workUnit.contains(ESTIMATED_DATA_SIZE));
+    return workUnit.getPropAsLong(ESTIMATED_DATA_SIZE);
   }
 
   /**
-   * Find the worst-fit multiWorkUnit, i.e., the multiWorkUnit that currently has the lowest load.
-   * @param loads 
+   * Pack a list of multiWorkUnits into a smaller number of multiWorkUnits, using the worst-fit-decreasing algorithm.
    */
-  private static int findWorstFitMultiWorkUnitId(List<MultiWorkUnit> multiWorkunits, List<Long> loads) {
-    Preconditions.checkArgument(multiWorkunits.size() == loads.size());
+  private List<WorkUnit> worstFitDecreasingBinPacking(List<MultiWorkUnit> groups, int numOfMultiWorkUnits) {
 
-    long smallestLoad = Long.MAX_VALUE;
-    int smallestId = -1;
-    for (int i = 0; i < loads.size(); i++) {
-      if (smallestLoad > loads.get(i)) {
-        smallestLoad = loads.get(i);
-        smallestId = i;
-      }
+    // Sort workunit groups by data size desc
+    Collections.sort(groups, this.sortBySizeDescComparator);
+
+    Queue<MultiWorkUnit> pQueue = new PriorityQueue<MultiWorkUnit>(numOfMultiWorkUnits, this.sortBySizeAscComparator);
+
+    for (int i = 0; i < numOfMultiWorkUnits; i++) {
+      MultiWorkUnit multiWorkUnit = new MultiWorkUnit();
+      this.setWorkUnitEstSize(multiWorkUnit, 0);
+      pQueue.add(multiWorkUnit);
     }
 
-    return smallestId;
+    for (MultiWorkUnit group : groups) {
+      MultiWorkUnit lightestMultiWorkUnit = pQueue.poll();
+      this.addWorkUnitsToMultiWorkUnit(group.getWorkUnits(), lightestMultiWorkUnit);
+      pQueue.add(lightestMultiWorkUnit);
+    }
+
+    List<WorkUnit> multiWorkUnits = Lists.newArrayList(pQueue);
+    Collections.sort(multiWorkUnits, this.sortBySizeAscComparator);
+    long minLoad = this.getWorkUnitEstSize(multiWorkUnits.get(0));
+    long maxLoad = this.getWorkUnitEstSize(multiWorkUnits.get(multiWorkUnits.size() - 1));
+    LOG.info(String.format("Min data size of multiWorkUnit = %d; Max data size of multiWorkUnit = %d; Diff = %f%%",
+        minLoad, maxLoad, (double) (maxLoad - minLoad) / (double) maxLoad * 100.0));
+
+    return multiWorkUnits;
   }
 
   /**
    * Group workUnits into groups. Each group has a capacity of avgGroupSize. If there's a single
    * workUnit whose size is larger than avgGroupSize, it forms a group itself.
    */
-  private static List<WorkUnitGroup> bestFitDecreasingBinPacking(List<WorkUnitWithEstSize> workUnitsWithEstSize,
-      long avgGroupSize) {
+  private List<MultiWorkUnit> bestFitDecreasingBinPacking(List<WorkUnit> workUnits, long avgGroupSize) {
 
     // Sort workunits by data size desc
-    Collections.sort(workUnitsWithEstSize, sortBySizeDescComparator());
+    Collections.sort(workUnits, this.sortBySizeDescComparator);
 
-    List<WorkUnitGroup> groups = Lists.newArrayList();
-    for (WorkUnitWithEstSize workUnitWithEstSize : workUnitsWithEstSize) {
-      WorkUnitGroup bestGroup = findBestFitGroup(workUnitWithEstSize, groups, avgGroupSize);
+    Queue<MultiWorkUnit> pQueue = new PriorityQueue<MultiWorkUnit>(workUnits.size(), this.sortBySizeDescComparator);
+    for (WorkUnit workUnit : workUnits) {
+      MultiWorkUnit bestGroup = findAndPopBestFitGroup(workUnit, pQueue, avgGroupSize);
       if (bestGroup != null) {
-        bestGroup.addWorkUnit(workUnitWithEstSize);
+        addWorkUnitToMultiWorkUnit(workUnit, bestGroup);
       } else {
-        bestGroup = new WorkUnitGroup();
-        bestGroup.addWorkUnit(workUnitWithEstSize);
-        groups.add(bestGroup);
+        bestGroup = new MultiWorkUnit();
+        addWorkUnitToMultiWorkUnit(workUnit, bestGroup);
       }
+      pQueue.add(bestGroup);
     }
-    return groups;
+    return Lists.newArrayList(pQueue);
+  }
+
+  private void addWorkUnitToMultiWorkUnit(WorkUnit workUnit, MultiWorkUnit multiWorkUnit) {
+    multiWorkUnit.addWorkUnit(workUnit);
+    long size = multiWorkUnit.getPropAsLong(ESTIMATED_DATA_SIZE, 0);
+    multiWorkUnit.setProp(ESTIMATED_DATA_SIZE, size + getWorkUnitEstSize(workUnit));
+  }
+
+  private void addWorkUnitsToMultiWorkUnit(List<WorkUnit> workUnits, MultiWorkUnit multiWorkUnit) {
+    for (WorkUnit workUnit : workUnits) {
+      this.addWorkUnitToMultiWorkUnit(workUnit, multiWorkUnit);
+    }
+
   }
 
   /**
@@ -212,63 +247,26 @@ public abstract class KafkaSource extends EventBasedSource<Schema, GenericRecord
    * If no existing group has enough capacity for the new workUnit, return null.
    * @param avgGroupSize 
    */
-  private static WorkUnitGroup findBestFitGroup(WorkUnitWithEstSize workUnitWithEstSize, List<WorkUnitGroup> groups,
-      long avgGroupSize) {
-    WorkUnitGroup bestGroup = null;
-    long highestLoad = Long.MIN_VALUE;
-
-    for (WorkUnitGroup candidateGroup : groups) {
-      if (candidateGroup.hasEnoughCapacity(avgGroupSize, workUnitWithEstSize.getEstDataSize())
-          && highestLoad < candidateGroup.getEstDataSize()) {
-        highestLoad = candidateGroup.getEstDataSize();
-        bestGroup = candidateGroup;
-      }
+  private MultiWorkUnit findAndPopBestFitGroup(WorkUnit workUnit, Queue<MultiWorkUnit> pQueue, long avgGroupSize) {
+    if (pQueue.isEmpty()) {
+      return null;
     }
-    return bestGroup;
+
+    long currGroupSize = getWorkUnitEstSize(pQueue.peek());
+
+    if (currGroupSize + getWorkUnitEstSize(workUnit) <= avgGroupSize) {
+      return pQueue.poll();
+    } else {
+      return null;
+    }
   }
 
-  /**
-   * A comparator for sorting workunits or workunit groups in descending order of estimated data size.
-   */
-  private static Comparator<WorkUnitWithEstSize> sortBySizeDescComparator() {
-    return new Comparator<WorkUnitWithEstSize>() {
-      @Override
-      public int compare(WorkUnitWithEstSize w1, WorkUnitWithEstSize w2) {
-        return ((Long) w2.getEstDataSize()).compareTo(w1.getEstDataSize());
-      }
-    };
-  }
-
-  private static long calcTotalEstSizeForTopic(List<WorkUnitWithEstSize> workUnitsWithEstSizeForTopic) {
+  private long calcTotalEstSizeForTopic(List<WorkUnit> workUnitsForTopic) {
     long totalSize = 0;
-    for (WorkUnitWithEstSize w : workUnitsWithEstSizeForTopic) {
-      totalSize += w.getEstDataSize();
+    for (WorkUnit w : workUnitsForTopic) {
+      totalSize += this.getWorkUnitEstSize(w);
     }
     return totalSize;
-  }
-
-  private static long calcTotalEstSize(List<List<WorkUnitWithEstSize>> workUnitsWithEstSize) {
-    long totalSize = 0;
-    for (List<WorkUnitWithEstSize> list : workUnitsWithEstSize) {
-      totalSize += calcTotalEstSizeForTopic(list);
-    }
-    return totalSize;
-  }
-
-  private List<List<WorkUnitWithEstSize>> getWorkUnitsWithEstSize(List<List<WorkUnit>> workUnits) {
-    List<List<WorkUnitWithEstSize>> workUnitsWithEstSize = Lists.newArrayListWithCapacity(workUnits.size());
-    for (List<WorkUnit> workUnitsForTopic : workUnits) {
-      List<WorkUnitWithEstSize> workUnitsWithEstSizeForTopic = Lists.newArrayListWithCapacity(workUnitsForTopic.size());
-      for (WorkUnit workUnit : workUnitsForTopic) {
-        long avgSize = this.getPreviousAvgSizeForPartition(this.getKafkaPartitionFromState(workUnit));
-        long numOfEvents =
-            workUnit.getPropAsLong(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY)
-                - workUnit.getPropAsLong(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY);
-        workUnitsWithEstSizeForTopic.add(new WorkUnitWithEstSize(workUnit, avgSize * numOfEvents));
-      }
-      workUnitsWithEstSize.add(workUnitsWithEstSizeForTopic);
-    }
-    return workUnitsWithEstSize;
   }
 
   private long getPreviousAvgSizeForPartition(KafkaPartition partition) {
@@ -438,58 +436,6 @@ public abstract class KafkaSource extends EventBasedSource<Schema, GenericRecord
     Set<String> whitelist =
         state.contains(TOPIC_WHITELIST) ? state.getPropAsCaseInsensitiveSet(TOPIC_WHITELIST) : new HashSet<String>();
     return kafkaWrapper.getFilteredTopics(blacklist, whitelist);
-  }
-
-  private static class WorkUnitGroup extends WorkUnitWithEstSize {
-    private final List<WorkUnit> workUnits;
-
-    private WorkUnitGroup() {
-      this.workUnits = Lists.newArrayList();
-      this.estDataSize = 0;
-    }
-
-    private WorkUnitGroup(List<WorkUnitWithEstSize> workUnitsWithEstSizeForTopic) {
-      this();
-      for (WorkUnitWithEstSize workUnitWithEstSize : workUnitsWithEstSizeForTopic) {
-        this.addWorkUnit(workUnitWithEstSize);
-      }
-    }
-
-    private boolean hasEnoughCapacity(long totalCapacity, long request) {
-      return this.estDataSize + request <= totalCapacity;
-    }
-
-    private List<WorkUnit> getWorkUnits() {
-      return workUnits;
-    }
-
-    private void addWorkUnit(WorkUnitWithEstSize workUnitWithEstSize) {
-      this.workUnits.add(workUnitWithEstSize.getWorkUnit());
-      this.estDataSize += workUnitWithEstSize.getEstDataSize();
-    }
-  }
-
-  private static class WorkUnitWithEstSize {
-    private WorkUnit workUnit;
-    protected long estDataSize;
-
-    private WorkUnitWithEstSize() {
-      this.workUnit = null;
-      this.estDataSize = 0;
-    }
-
-    private WorkUnitWithEstSize(WorkUnit workUnit, long estDataSize) {
-      this.workUnit = workUnit;
-      this.estDataSize = estDataSize;
-    }
-
-    private WorkUnit getWorkUnit() {
-      return workUnit;
-    }
-
-    protected long getEstDataSize() {
-      return estDataSize;
-    }
   }
 
   /**

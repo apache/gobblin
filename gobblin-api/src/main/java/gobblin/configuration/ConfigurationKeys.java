@@ -340,6 +340,7 @@ public class ConfigurationKeys {
   public static final String MR_JOB_MAX_MAPPERS_KEY = "mr.job.max.mappers";
   public static final String MR_INCLUDE_TASK_COUNTERS_KEY = "mr.include.task.counters";
   public static final boolean DEFAULT_MR_INCLUDE_TASK_COUNTERS = Boolean.FALSE;
+  public static final int DEFAULT_MR_JOB_MAX_MAPPERS = 100;
 
   /**
    * Configuration properties for email settings.
