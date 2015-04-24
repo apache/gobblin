@@ -197,7 +197,8 @@ public abstract class KafkaSource extends EventBasedSource<Schema, GenericRecord
       pQueue.add(lightestMultiWorkUnit);
     }
 
-    List<WorkUnit> multiWorkUnits = Lists.newArrayList(pQueue);
+    List<WorkUnit> multiWorkUnits = Lists.newArrayList();
+    multiWorkUnits.addAll(pQueue);
     Collections.sort(multiWorkUnits, this.sortBySizeAscComparator);
     long minLoad = this.getWorkUnitEstSize(multiWorkUnits.get(0));
     long maxLoad = this.getWorkUnitEstSize(multiWorkUnits.get(multiWorkUnits.size() - 1));
