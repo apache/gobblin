@@ -10,19 +10,21 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.converter;
+package gobblin.instrumented.converter;
 
-import java.util.HashMap;
 import java.util.Map;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.Timer;
-
 import gobblin.MetricsHelper;
 import gobblin.configuration.WorkUnitState;
+import gobblin.converter.Converter;
+import gobblin.converter.DataConversionException;
+import gobblin.converter.IdentityConverter;
+import gobblin.converter.SchemaConversionException;
+import gobblin.converter.SingleRecordIterable;
+import gobblin.instrumented.converter.InstrumentedConverter;
 
 
 public class InstrumentedConverterTest {
@@ -43,8 +45,25 @@ public class InstrumentedConverterTest {
   }
 
   @Test
-  public void test() throws DataConversionException {
+  public void testInstrumented() throws DataConversionException{
     TestInstrumentedConverter converter = new TestInstrumentedConverter();
+    testBase(converter);
+  }
+
+  @Test
+  public void testDecorator() throws DataConversionException{
+    InstrumentedConverterBase instrumentedConverter = new InstrumentedConverterDecorator(
+        new TestInstrumentedConverter()
+    );
+    testBase(instrumentedConverter);
+
+    InstrumentedConverterBase nonInstrumentedConverter = new InstrumentedConverterDecorator(
+        new IdentityConverter()
+    );
+    testBase(nonInstrumentedConverter);
+  }
+
+  public void testBase(InstrumentedConverterBase converter) throws DataConversionException {
     converter.init(new WorkUnitState());
 
     Iterable<String> iterable = converter.convertRecord("schema", "record", new WorkUnitState());
@@ -62,5 +81,6 @@ public class InstrumentedConverterTest {
     Assert.assertEquals(MetricsHelper.dumpTags(converter.getMetricContext()).get("component"), "converter");
 
   }
+
 
 }

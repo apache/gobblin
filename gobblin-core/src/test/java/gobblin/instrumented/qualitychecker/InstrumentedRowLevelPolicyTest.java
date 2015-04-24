@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.qualitychecker.row;
+package gobblin.instrumented.qualitychecker;
 
 import java.util.Map;
 
@@ -19,6 +19,8 @@ import org.testng.annotations.Test;
 
 import gobblin.MetricsHelper;
 import gobblin.configuration.State;
+import gobblin.instrumented.qualitychecker.InstrumentedRowLevelPolicy;
+import gobblin.qualitychecker.row.RowLevelPolicy;
 
 
 public class InstrumentedRowLevelPolicyTest {
@@ -37,20 +39,40 @@ public class InstrumentedRowLevelPolicyTest {
 
   @Test
   public void test() {
-
     State state = new State();
     TestInstrumentedRowLevelPolicy policy = new TestInstrumentedRowLevelPolicy(state, null);
+    testBase(policy);
+  }
 
+  @Test
+  public void testDecorated() {
+    State state = new State();
+    InstrumentedRowLevelPolicyBase instrumentedPolicy = new InstrumentedRowLevelPolicyDecorator(
+        new TestInstrumentedRowLevelPolicy(state, null)
+    );
+    testBase(instrumentedPolicy);
+
+    InstrumentedRowLevelPolicyBase notInstrumentedPolicy = new InstrumentedRowLevelPolicyDecorator(
+        new RowLevelPolicy(state, null) {
+          @Override
+          public Result executePolicy(Object record) {
+            return Result.PASSED;
+          }
+        });
+    testBase(notInstrumentedPolicy);
+  }
+
+  public void testBase(InstrumentedRowLevelPolicyBase policy) {
     policy.executePolicy("test");
 
-    Map<String, Long> metrics = MetricsHelper.dumpMetrics(policy.metricContext);
+    Map<String, Long> metrics = MetricsHelper.dumpMetrics(policy.getMetricContext());
 
     Assert.assertEquals(metrics.get("gobblin.qualitychecker.records.in"), Long.valueOf(1));
     Assert.assertEquals(metrics.get("gobblin.qualitychecker.records.passed"), Long.valueOf(1));
     Assert.assertEquals(metrics.get("gobblin.qualitychecker.records.failed"), Long.valueOf(0));
     Assert.assertEquals(metrics.get("gobblin.qualitychecker.policy.timer"), Long.valueOf(1));
 
-    Assert.assertEquals(MetricsHelper.dumpTags(policy.metricContext).get("component"), "rowLevelPolicy");
+    Assert.assertEquals(MetricsHelper.dumpTags(policy.getMetricContext()).get("component"), "rowLevelPolicy");
 
   }
 

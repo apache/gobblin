@@ -13,7 +13,6 @@ package gobblin.source.extractor.extract;
 
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.InstrumentedExtractor;
 import gobblin.source.extractor.exception.ExtractPrepareException;
 import gobblin.source.extractor.exception.HighWatermarkException;
 import gobblin.source.extractor.schema.ArrayDataType;
@@ -52,7 +51,7 @@ import gobblin.source.workunit.WorkUnit;
  * @param <D> type of data record
  * @param <S> type of schema
  */
-public abstract class QueryBasedExtractor<S, D> extends InstrumentedExtractor<S, D> implements ProtocolSpecificLayer<S, D> {
+public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, ProtocolSpecificLayer<S, D> {
   private static final Gson gson = new Gson();
   protected WorkUnitState workUnitState;
   protected WorkUnit workUnit;
@@ -126,7 +125,6 @@ public abstract class QueryBasedExtractor<S, D> extends InstrumentedExtractor<S,
   }
 
   public QueryBasedExtractor(WorkUnitState workUnitState) {
-    super(workUnitState);
     this.workUnitState = workUnitState;
     this.workUnit = this.workUnitState.getWorkunit();
     this.schema = this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
@@ -143,8 +141,7 @@ public abstract class QueryBasedExtractor<S, D> extends InstrumentedExtractor<S,
    * @return record of type D
    */
   @Override
-  public D readRecordImpl(@Deprecated D reuse)
-      throws DataRecordException, IOException {
+  public D readRecord(@Deprecated D reuse) throws DataRecordException, IOException {
     if (!this.isPullRequired()) {
       this.log.info("No more records to read");
       return null;

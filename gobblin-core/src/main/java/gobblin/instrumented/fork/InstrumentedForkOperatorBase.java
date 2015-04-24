@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.fork;
+package gobblin.instrumented.fork;
 
 import java.io.IOException;
 import java.util.List;
@@ -20,21 +20,20 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.google.common.io.Closer;
 
+import gobblin.configuration.WorkUnitState;
+import gobblin.fork.ForkOperator;
 import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
-import gobblin.configuration.WorkUnitState;
 import gobblin.metrics.MetricContext;
 
 
 /**
- * Instrumented {@link gobblin.fork.ForkOperator} automatically capturing certain metrics.
- * Subclasses should implement forkDataRecordImpl instead of forkDataRecord.
- *
- * @author ibuenros
+ * package-private implementation of instrumentation for {@link gobblin.fork.ForkOperator}.
+ * See {@link gobblin.instrumented.fork.InstrumentedForkOperator} for extensible class.
  */
-public abstract class InstrumentedForkOperator<S, D> implements Instrumentable, ForkOperator<S, D> {
+abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, ForkOperator<S, D> {
 
-  protected MetricContext metricContext;
+  protected MetricContext metricContext = new MetricContext.Builder("TMP").build();
   protected Closer closer = Closer.create();
   // Initialize as dummy metrics to avoid null pointer exception if init was skipped
   protected Meter inputMeter = new Meter();
@@ -52,7 +51,7 @@ public abstract class InstrumentedForkOperator<S, D> implements Instrumentable, 
   }
 
   @Override
-  public final List<Boolean> forkDataRecord(WorkUnitState workUnitState, D input) {
+  public List<Boolean> forkDataRecord(WorkUnitState workUnitState, D input) {
     long startTimeNanos = System.nanoTime();
 
     beforeFork(input);

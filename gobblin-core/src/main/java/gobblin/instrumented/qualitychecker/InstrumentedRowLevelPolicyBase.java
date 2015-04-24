@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.qualitychecker.row;
+package gobblin.instrumented.qualitychecker;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -20,19 +20,18 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.google.common.io.Closer;
 
+import gobblin.configuration.State;
 import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
-import gobblin.configuration.State;
 import gobblin.metrics.MetricContext;
+import gobblin.qualitychecker.row.RowLevelPolicy;
 
 
 /**
- * Instrumented {@link gobblin.qualitychecker.row.RowLevelPolicy} automatically capturing certain metrics.
- * Subclasses should implement executePolicyImpl instead of executePolicy.
- *
- * @author ibuenros
+ * package-private implementation of instrumentation for {@link gobblin.qualitychecker.row.RowLevelPolicy}.
+ * See {@link gobblin.instrumented.qualitychecker.InstrumentedRowLevelPolicy} for extensible class.
  */
-public abstract class InstrumentedRowLevelPolicy extends RowLevelPolicy implements Instrumentable, Closeable {
+abstract class InstrumentedRowLevelPolicyBase extends RowLevelPolicy implements Instrumentable, Closeable {
   protected final MetricContext metricContext;
   protected final Meter recordsMeter;
   protected final Meter passedRecordsMeter;
@@ -40,7 +39,7 @@ public abstract class InstrumentedRowLevelPolicy extends RowLevelPolicy implemen
   protected final Timer policyTimer;
   protected final Closer closer;
 
-  public InstrumentedRowLevelPolicy(State state, Type type) {
+  public InstrumentedRowLevelPolicyBase(State state, Type type) {
     super(state, type);
     this.closer = Closer.create();
     this.metricContext = closer.register(Instrumented.getMetricContext(state, this.getClass()));

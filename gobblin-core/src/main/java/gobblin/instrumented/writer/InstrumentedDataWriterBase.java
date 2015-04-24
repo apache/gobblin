@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.writer;
+package gobblin.instrumented.writer;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -20,17 +20,18 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.google.common.io.Closer;
 
+import gobblin.configuration.State;
 import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
-import gobblin.configuration.State;
 import gobblin.metrics.MetricContext;
+import gobblin.writer.DataWriter;
 
 
 /**
- * Instrumented version of {@link gobblin.writer.DataWriter} automatically capturing certain metrics.
- * Subclasses should implement writeImpl instead of write.
+ * package-private implementation of instrumentation for {@link gobblin.writer.DataWriter}.
+ * See {@link gobblin.instrumented.writer.InstrumentedDataWriter} for extensible class.
  */
-public abstract class InstrumentedDataWriter<D> implements DataWriter<D>, Instrumentable, Closeable {
+abstract class InstrumentedDataWriterBase <D> implements DataWriter<D>, Instrumentable, Closeable {
 
   protected Closer closer;
   protected MetricContext metricContext;
@@ -39,7 +40,7 @@ public abstract class InstrumentedDataWriter<D> implements DataWriter<D>, Instru
   protected Meter exceptionWriteMeter;
   protected Timer dataWriterTimer;
 
-  public InstrumentedDataWriter(State state) {
+  public InstrumentedDataWriterBase(State state) {
     this.closer = Closer.create();
 
     this.metricContext = this.closer.register(Instrumented.getMetricContext(state, this.getClass()));

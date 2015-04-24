@@ -22,9 +22,8 @@ import junit.framework.Assert;
 
 import gobblin.GobblinMetrics;
 import gobblin.configuration.State;
-import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
-import gobblin.source.extractor.InstrumentedExtractor;
+import gobblin.instrumented.extractor.InstrumentedExtractor;
 
 
 @Test(groups = {"gobblin.core"})

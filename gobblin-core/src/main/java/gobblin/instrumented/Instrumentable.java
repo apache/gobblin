@@ -15,6 +15,9 @@ package gobblin.instrumented;
 import gobblin.metrics.MetricContext;
 
 
+/**
+ * Interface for classes instrumenting their execution into a {@link gobblin.metrics.MetricContext}.
+ */
 public interface Instrumentable {
   public MetricContext getMetricContext();
 }

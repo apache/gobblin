@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.source.extractor;
+package gobblin.instrumented.extractor;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -20,17 +20,19 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.google.common.io.Closer;
 
+import gobblin.configuration.WorkUnitState;
 import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
-import gobblin.configuration.WorkUnitState;
 import gobblin.metrics.MetricContext;
+import gobblin.source.extractor.DataRecordException;
+import gobblin.source.extractor.Extractor;
 
 
 /**
- * Instrumented version of {@link gobblin.source.extractor.Extractor} automatically captures certain metrics.
- * Subclasses should implement readRecordImpl instead of readRecord.
+ * package-private implementation of instrumentation for {@link gobblin.source.extractor.Extractor}.
+ * See {@link gobblin.instrumented.extractor.InstrumentedExtractor} for extensible class.
  */
-public abstract class InstrumentedExtractor<S, D> implements Extractor<S, D>, Instrumentable, Closeable {
+abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instrumentable, Closeable {
   protected MetricContext metricContext;
   protected Meter readRecordsMeter;
   protected Meter dataRecordExceptionsMeter;
@@ -38,7 +40,7 @@ public abstract class InstrumentedExtractor<S, D> implements Extractor<S, D>, In
   protected Closer closer;
 
   @SuppressWarnings("unchecked")
-  public InstrumentedExtractor(WorkUnitState workUnitState) {
+  public InstrumentedExtractorBase(WorkUnitState workUnitState) {
     super();
     closer = Closer.create();
 
@@ -50,7 +52,7 @@ public abstract class InstrumentedExtractor<S, D> implements Extractor<S, D>, In
   }
 
   @Override
-  public final D readRecord(D reuse)
+  public D readRecord(D reuse)
       throws DataRecordException, IOException {
     try {
       long startTimeNanos = System.nanoTime();

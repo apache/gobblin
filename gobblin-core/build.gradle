@@ -12,28 +12,30 @@
 apply plugin: 'java'
 
 dependencies {
-    compile project(":gobblin-api")
-    compile project(":gobblin-utility")
-    compile project(":gobblin-metrics")
+  compile project(":gobblin-api")
+  compile project(":gobblin-utility")
+  compile project(":gobblin-metrics")
 
-    compile externalDependency.commonsDbcp
-    compile externalDependency.avro
-    compile externalDependency.avroMapred
-    compile externalDependency.guava
-    compile externalDependency.gson
-    compile externalDependency.slf4j
-    compile externalDependency.jodaTime
-    compile externalDependency.jacksonCore
-    compile externalDependency.jacksonMapper
-    compile externalDependency.jsch
-    compile externalDependency.commonsLang
-    compile externalDependency.commonsIo
-    compile externalDependency.httpclient
-    compile externalDependency.httpcore
-    compile externalDependency.metricsCore
-    compile externalDependency.kafka
-    compile externalDependency.kafkaClient
-    compile externalDependency.scala
+  compile externalDependency.commonsCodec
+  compile externalDependency.commonsDbcp
+  compile externalDependency.commonsHttpClient
+  compile externalDependency.avro
+  compile externalDependency.avroMapred
+  compile externalDependency.guava
+  compile externalDependency.gson
+  compile externalDependency.slf4j
+  compile externalDependency.jodaTime
+  compile externalDependency.jacksonCore
+  compile externalDependency.jacksonMapper
+  compile externalDependency.jsch
+  compile externalDependency.commonsLang
+  compile externalDependency.commonsIo
+  compile externalDependency.httpclient
+  compile externalDependency.httpcore
+  compile externalDependency.metricsCore
+  compile externalDependency.kafka
+  compile externalDependency.kafkaClient
+  compile externalDependency.scala
 
   testCompile externalDependency.testng
 }

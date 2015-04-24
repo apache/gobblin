@@ -59,7 +59,6 @@ test {
       excludeGroups 'ignore'
     }
     workingDir rootProject.rootDir
-    testLogging.showStandardStreams = true
     maxParallelForks = 1
 }
 

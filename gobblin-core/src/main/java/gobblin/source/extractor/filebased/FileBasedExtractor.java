@@ -26,7 +26,6 @@ import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.InstrumentedExtractor;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.WorkUnit;
@@ -42,7 +41,7 @@ import gobblin.source.workunit.WorkUnit;
  * @param <D>
  *            type of data record
  */
-public abstract class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
+public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FileBasedExtractor.class);
 
@@ -61,7 +60,6 @@ public abstract class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, 
   private boolean readRecordStart;
 
   public FileBasedExtractor(WorkUnitState workUnitState, FileBasedHelper fsHelper) {
-    super(workUnitState);
     this.workUnitState = workUnitState;
     this.workUnit = workUnitState.getWorkunit();
     this.filesToPull =
@@ -83,8 +81,7 @@ public abstract class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, 
    * file
    */
   @Override
-  public D readRecordImpl(@Deprecated D reuse)
-      throws DataRecordException, IOException {
+  public D readRecord(@Deprecated D reuse) throws DataRecordException, IOException {
     this.totalRecordCount++;
 
     if (this.statusCount > 0 && this.totalRecordCount % this.statusCount == 0) {
@@ -187,13 +184,11 @@ public abstract class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, 
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     try {
       this.fsHelper.close();
     } catch (FileBasedHelperException e) {
       LOGGER.error("Could not successfully close file system helper due to error: " + e.getMessage(), e);
     }
-
-    super.close();
   }
 }

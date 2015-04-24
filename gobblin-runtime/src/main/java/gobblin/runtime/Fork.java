@@ -29,6 +29,7 @@ import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
 import gobblin.GobblinMetrics;
+import gobblin.instrumented.writer.InstrumentedDataWriterDecorator;
 import gobblin.publisher.TaskPublisher;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
@@ -301,10 +302,11 @@ public class Fork implements Closeable, Runnable {
   @SuppressWarnings("unchecked")
   private DataWriter<Object> buildWriter()
       throws IOException, SchemaConversionException {
-    return this.taskContext.getDataWriterBuilder(this.branches, this.index)
+    DataWriter<Object> writer = this.taskContext.getDataWriterBuilder(this.branches, this.index)
         .writeTo(Destination.of(this.taskContext.getDestinationType(this.branches, this.index), this.taskState))
         .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index)).withWriterId(this.taskId)
         .withSchema(this.convertedSchema).withBranches(this.branches).forBranch(this.index).build();
+    return new InstrumentedDataWriterDecorator<Object>(writer, this.taskState);
   }
 
   /**
