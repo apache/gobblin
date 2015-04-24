@@ -14,7 +14,6 @@ package gobblin.util;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.nio.charset.Charset;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -63,8 +62,8 @@ public class HeapDumpForTaskUtils {
         fs.mkdirs(dumpDir);
       }
       BufferedWriter scriptWriter =
-          closer.register(new BufferedWriter(new OutputStreamWriter(fs.create(dumpScript), Charset
-              .forName(ConfigurationKeys.DEFAULT_CHARSET_ENCODING))));
+          closer.register(new BufferedWriter(new OutputStreamWriter(fs.create(dumpScript),
+              ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
 
       scriptWriter.write("#!/bin/sh\n");
       scriptWriter.write("if [ -n \"$HADOOP_PREFIX\" ]; then\n");
