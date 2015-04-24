@@ -70,7 +70,6 @@ test {
       excludeGroups 'ignore'
     }
     workingDir rootProject.rootDir
-    testLogging.showStandardStreams = false
     maxParallelForks = 1
 }
 

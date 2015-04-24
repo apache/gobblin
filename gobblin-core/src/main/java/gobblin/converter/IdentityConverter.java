@@ -5,7 +5,7 @@ import gobblin.configuration.WorkUnitState;
 /**
  * Implementation of {@link Converter} that returns the inputSchema unmodified and each inputRecord unmodified
  */
-public class IdentityConverter extends InstrumentedConverter<Object, Object, Object, Object> {
+public class IdentityConverter extends Converter<Object, Object, Object, Object> {
 
   @Override
   public Object convertSchema(Object inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
@@ -13,7 +13,7 @@ public class IdentityConverter extends InstrumentedConverter<Object, Object, Obj
   }
 
   @Override
-  public Iterable<Object> convertRecordImpl(Object outputSchema, Object inputRecord, WorkUnitState workUnit)
+  public Iterable<Object> convertRecord(Object outputSchema, Object inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
     return new SingleRecordIterable<Object>(inputRecord);
   }

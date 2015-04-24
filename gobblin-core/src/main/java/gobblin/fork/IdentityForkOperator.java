@@ -27,15 +27,15 @@ import gobblin.configuration.WorkUnitState;
  *
  * @author ynli
  */
-public class IdentityForkOperator<S, D> extends InstrumentedForkOperator<S, D> {
+public class IdentityForkOperator<S, D> implements ForkOperator<S, D> {
 
   // Reuse both lists to save the cost of allocating new lists
   private final List<Boolean> schemas = Lists.newArrayList();
   private final List<Boolean> records = Lists.newArrayList();
 
   @Override
-  public void init(WorkUnitState workUnitState) throws Exception {
-    super.init(workUnitState);
+  public void init(WorkUnitState workUnitState) {
+    // Do nothing
   }
 
   @Override
@@ -55,7 +55,7 @@ public class IdentityForkOperator<S, D> extends InstrumentedForkOperator<S, D> {
   }
 
   @Override
-  public List<Boolean> forkDataRecordImpl(WorkUnitState workUnitState, D input) {
+  public List<Boolean> forkDataRecord(WorkUnitState workUnitState, D input) {
 
     records.clear();
     for (int i = 0; i < getBranches(workUnitState); i++) {

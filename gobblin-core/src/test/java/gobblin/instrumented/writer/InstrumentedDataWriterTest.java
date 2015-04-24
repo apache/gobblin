@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.writer;
+package gobblin.instrumented.writer;
 
 import java.io.IOException;
 import java.util.Map;
@@ -20,6 +20,8 @@ import org.testng.annotations.Test;
 
 import gobblin.MetricsHelper;
 import gobblin.configuration.State;
+import gobblin.instrumented.writer.InstrumentedDataWriter;
+import gobblin.writer.DataWriter;
 
 
 public class InstrumentedDataWriterTest {
@@ -60,21 +62,75 @@ public class InstrumentedDataWriterTest {
     }
   }
 
+  public class TestDataWriter implements DataWriter<String> {
+
+    @Override
+    public void close()
+        throws IOException {
+
+    }
+
+    @Override
+    public void write(String record)
+        throws IOException {
+
+    }
+
+    @Override
+    public void commit()
+        throws IOException {
+
+    }
+
+    @Override
+    public void cleanup()
+        throws IOException {
+
+    }
+
+    @Override
+    public long recordsWritten() {
+      return 0;
+    }
+
+    @Override
+    public long bytesWritten()
+        throws IOException {
+      return 0;
+    }
+  }
+
   @Test
   public void test() throws IOException {
-
     State state = new State();
     TestInstrumentedDataWriter writer = new TestInstrumentedDataWriter(state);
+    testBase(writer);
+  }
+
+  @Test
+  public void testDecorated() throws IOException {
+    State state = new State();
+    InstrumentedDataWriterBase instrumentedWriter = new InstrumentedDataWriterDecorator(
+        new TestInstrumentedDataWriter(state), state
+    );
+    testBase(instrumentedWriter);
+
+    InstrumentedDataWriterBase notInstrumentedWriter = new InstrumentedDataWriterDecorator(
+        new TestDataWriter(), state);
+    testBase(notInstrumentedWriter);
+  }
+
+  public void testBase(InstrumentedDataWriterBase writer) throws IOException {
 
     writer.write("test");
 
-    Map<String, Long> metrics = MetricsHelper.dumpMetrics(writer.metricContext);
+    Map<String, Long> metrics = MetricsHelper.dumpMetrics(writer.getMetricContext());
     Assert.assertEquals(metrics.get("gobblin.writer.records.in"), Long.valueOf(1));
     Assert.assertEquals(metrics.get("gobblin.writer.records.written"), Long.valueOf(1));
     Assert.assertEquals(metrics.get("gobblin.writer.records.failed"), Long.valueOf(0));
     Assert.assertEquals(metrics.get("gobblin.writer.timer"), Long.valueOf(1));
 
-    Assert.assertEquals(MetricsHelper.dumpTags(writer.metricContext).get("component"), "writer");
+    Assert.assertEquals(MetricsHelper.dumpTags(writer.getMetricContext()).get("component"), "writer");
 
   }
 

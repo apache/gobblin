@@ -87,7 +87,7 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
   }
 
   @Override
-  public Iterable<GenericRecord> convertRecordImpl(Schema outputSchema, JsonObject inputRecord, WorkUnitState workUnit)
+  public Iterable<GenericRecord> convertRecord(Schema outputSchema, JsonObject inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
 
     GenericRecord avroRecord = new GenericData.Record(outputSchema);

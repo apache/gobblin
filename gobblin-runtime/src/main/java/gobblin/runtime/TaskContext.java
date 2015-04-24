@@ -22,6 +22,8 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.fork.ForkOperator;
+import gobblin.instrumented.converter.InstrumentedConverterDecorator;
+import gobblin.instrumented.fork.InstrumentedForkOperatorDecorator;
 import gobblin.publisher.TaskPublisher;
 import gobblin.publisher.TaskPublisherBuilderFactory;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
@@ -152,8 +154,9 @@ public class TaskContext {
         .split(this.workUnit.getProp(converterClassKey))) {
       try {
         Converter<?, ?, ?, ?> converter = (Converter<?, ?, ?, ?>) Class.forName(converterClass).newInstance();
-        converter.init(converterWorkUnitState);
-        converters.add(converter);
+        InstrumentedConverterDecorator instrumentedConverter = new InstrumentedConverterDecorator(converter);
+        instrumentedConverter.init(converterWorkUnitState);
+        converters.add(instrumentedConverter);
       } catch (ClassNotFoundException cnfe) {
         throw new RuntimeException(cnfe);
       } catch (InstantiationException ie) {
@@ -171,11 +174,13 @@ public class TaskContext {
    *
    * @return {@link ForkOperator} to be used or <code>null</code> if none is specified
    */
+  @SuppressWarnings("unchecked")
   public ForkOperator getForkOperator() {
     try {
-      return (ForkOperator) Class.forName(this.workUnit
+      ForkOperator fork = (ForkOperator) Class.forName(this.workUnit
           .getProp(ConfigurationKeys.FORK_OPERATOR_CLASS_KEY, ConfigurationKeys.DEFAULT_FORK_OPERATOR_CLASS))
           .newInstance();
+      return new InstrumentedForkOperatorDecorator(fork);
     } catch (ClassNotFoundException cnfe) {
       throw new RuntimeException(cnfe);
     } catch (InstantiationException ie) {

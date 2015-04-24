@@ -72,7 +72,6 @@ public class TestJsonIntermediateToAvroConverter {
   public void testConverter()
       throws Exception {
     JsonIntermediateToAvroConverter converter = new JsonIntermediateToAvroConverter();
-    converter.init(new WorkUnitState());
 
     Schema avroSchema = converter.convertSchema(jsonSchema, state);
     GenericRecord record = converter.convertRecord(avroSchema, jsonRecord, state).iterator().next();

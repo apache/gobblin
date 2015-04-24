@@ -10,22 +10,20 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.fork;
+package gobblin.instrumented.fork;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.Timer;
-
 import gobblin.MetricsHelper;
 import gobblin.configuration.WorkUnitState;
+import gobblin.fork.ForkOperator;
+import gobblin.instrumented.fork.InstrumentedForkOperator;
 
 
 public class InstrumentedForkOperatorTest {
@@ -58,9 +56,58 @@ public class InstrumentedForkOperatorTest {
     }
   }
 
+  public class TestForkOperator implements ForkOperator<String, String> {
+
+    @Override
+    public List<Boolean> forkDataRecord(WorkUnitState workUnitState, String input) {
+      List<Boolean> output = new ArrayList<Boolean>();
+      output.add(true);
+      output.add(false);
+      output.add(true);
+      return output;
+    }
+
+    @Override
+    public void init(WorkUnitState workUnitState)
+        throws Exception { }
+
+    @Override
+    public int getBranches(WorkUnitState workUnitState) {
+      return 0;
+    }
+
+    @Override
+    public List<Boolean> forkSchema(WorkUnitState workUnitState, String input) {
+      return null;
+    }
+
+    @Override
+    public void close()
+        throws IOException {
+
+    }
+  }
+
   @Test
   public void test() throws Exception {
     TestInstrumentedForkOperator fork = new TestInstrumentedForkOperator();
+    testBase(fork);
+  }
+
+  @Test
+  public void testDecorated() throws Exception {
+    InstrumentedForkOperatorBase instrumentedFork = new InstrumentedForkOperatorDecorator(
+        new TestInstrumentedForkOperator()
+    );
+    testBase(instrumentedFork);
+
+    InstrumentedForkOperatorBase notInstrumentedFork = new InstrumentedForkOperatorDecorator(
+        new TestForkOperator()
+    );
+    testBase(notInstrumentedFork);
+  }
+
+  public void testBase(InstrumentedForkOperatorBase fork) throws Exception {
     fork.init(new WorkUnitState());
 
     fork.forkDataRecord(new WorkUnitState(), "in");

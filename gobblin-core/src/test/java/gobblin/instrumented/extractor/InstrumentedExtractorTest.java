@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.source.extractor;
+package gobblin.instrumented.extractor;
 
 import java.io.IOException;
 import java.util.Map;
@@ -20,6 +20,9 @@ import org.testng.annotations.Test;
 
 import gobblin.MetricsHelper;
 import gobblin.configuration.WorkUnitState;
+import gobblin.instrumented.extractor.InstrumentedExtractor;
+import gobblin.source.extractor.DataRecordException;
+import gobblin.source.extractor.Extractor;
 
 
 public class InstrumentedExtractorTest {
@@ -52,20 +55,65 @@ public class InstrumentedExtractorTest {
     }
   }
 
+  public class TestExtractor implements Extractor<String, String> {
+
+    @Override
+    public String readRecord(String reuse)
+        throws DataRecordException, IOException {
+      return "test";
+    }
+
+    @Override
+    public String getSchema() {
+      return null;
+    }
+
+    @Override
+    public long getExpectedRecordCount() {
+      return 0;
+    }
+
+    @Override
+    public long getHighWatermark() {
+      return 0;
+    }
+
+    @Override
+    public void close()
+        throws IOException {
+
+    }
+  }
+
   @Test
   public void test() throws DataRecordException, IOException {
     WorkUnitState state = new WorkUnitState();
     TestInstrumentedExtractor extractor = new TestInstrumentedExtractor(state);
+    testBase(extractor);
+  }
 
+  @Test
+  public void testDecorated() throws DataRecordException, IOException {
+    WorkUnitState state = new WorkUnitState();
+    InstrumentedExtractorBase instrumentedExtractor = new InstrumentedExtractorDecorator(state,
+        new TestInstrumentedExtractor(state)
+    );
+    testBase(instrumentedExtractor);
+
+    InstrumentedExtractorBase nonInstrumentedExtractor = new InstrumentedExtractorDecorator(state,
+        new TestExtractor());
+    testBase(nonInstrumentedExtractor);
+  }
+
+  public void testBase(InstrumentedExtractorBase extractor) throws DataRecordException, IOException {
     extractor.readRecord("");
 
-    Map<String, Long> metrics = MetricsHelper.dumpMetrics(extractor.metricContext);
+    Map<String, Long> metrics = MetricsHelper.dumpMetrics(extractor.getMetricContext());
     Assert.assertEquals(metrics.get("gobblin.extractor.records.read"), Long.valueOf(1));
     Assert.assertEquals(metrics.get("gobblin.extractor.records.failed"), Long.valueOf(0));
     Assert.assertEquals(metrics.get("gobblin.extractor.extract.time"), Long.valueOf(1));
 
-    Assert.assertEquals(MetricsHelper.dumpTags(extractor.metricContext).get("component"), "extractor");
-
+    Assert.assertEquals(MetricsHelper.dumpTags(extractor.getMetricContext()).get("component"), "extractor");
   }
 
 }

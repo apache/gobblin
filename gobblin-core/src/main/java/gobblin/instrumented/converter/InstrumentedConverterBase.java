@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.converter;
+package gobblin.instrumented.converter;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -22,23 +22,22 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.io.Closer;
 
+import gobblin.configuration.WorkUnitState;
+import gobblin.converter.Converter;
+import gobblin.converter.DataConversionException;
 import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
-import gobblin.configuration.WorkUnitState;
 import gobblin.metrics.MetricContext;
 
 
 /**
- * Instrumented converter that automatically captures certain metrics.
- * Subclasses should implement convertRecordImpl instead of convertRecord.
- *
- * See {@link gobblin.converter.Converter}.
- *
- * @author ibuenros
+ * package-private implementation of instrumentation for {@link gobblin.converter.Converter}.
+ * See {@link gobblin.instrumented.converter.InstrumentedConverter} for extensible class.
  */
-public abstract class InstrumentedConverter<SI, SO, DI, DO> extends Converter<SI, SO, DI, DO>
+abstract class InstrumentedConverterBase<SI, SO, DI, DO> extends Converter<SI, SO, DI, DO>
     implements Instrumentable, Closeable {
-  protected MetricContext metricContext;
+
+  protected MetricContext metricContext = MetricContext.builder("TMP").build();
   protected Meter recordsIn = new Meter();
   protected Meter recordsOut = new Meter();
   protected Meter recordsException = new Meter();
@@ -60,7 +59,7 @@ public abstract class InstrumentedConverter<SI, SO, DI, DO> extends Converter<SI
   }
 
   @Override
-  public final Iterable<DO> convertRecord(SO outputSchema, DI inputRecord, WorkUnitState workUnit)
+  public Iterable<DO> convertRecord(SO outputSchema, DI inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
 
     try {
@@ -138,4 +137,5 @@ public abstract class InstrumentedConverter<SI, SO, DI, DO> extends Converter<SI
   public MetricContext getMetricContext() {
     return this.metricContext;
   }
+
 }
