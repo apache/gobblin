@@ -16,6 +16,15 @@ import gobblin.source.workunit.WorkUnit;
 public class WriterUtils {
 
   /**
+   * TABLENAME should be used for jobs that pull from multiple tables/topics and intend to write the records
+   * in each table/topic to a separate folder. Otherwise, DEFAULT can be used.
+   */
+  public static enum WriterFilePathType {
+    TABLENAME,
+    DEFAULT;
+  }
+
+  /**
    * Get the {@link Path} corresponding the to the directory a given {@link gobblin.writer.DataWriter} should be writing
    * its staging data. The staging data directory is determined by combining the
    * {@link ConfigurationKeys#WRITER_STAGING_DIR} and the {@link ConfigurationKeys#WRITER_FILE_PATH}.
@@ -86,7 +95,30 @@ public class WriterUtils {
       return new Path(state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH,
           numBranches, branchId)));
     }
-    return WriterUtils.getDefaultWriterFilePath(state, numBranches, branchId);
+
+    switch (getWriterFilePathType(state)) {
+      case TABLENAME:
+        return WriterUtils.getTableNameWriterFilePath(state);
+      default:
+        return WriterUtils.getDefaultWriterFilePath(state, numBranches, branchId);
+    }
+  }
+
+  private static WriterFilePathType getWriterFilePathType(State state) {
+    String pathTypeStr =
+        state.getProp(ConfigurationKeys.WRITER_FILE_PATH_TYPE, ConfigurationKeys.DEFAULT_WRITER_FILE_PATH_TYPE);
+    return WriterFilePathType.valueOf(pathTypeStr.toUpperCase());
+  }
+
+  /**
+   * Creates {@link Path} for the {@link ConfigurationKeys#WRITER_FILE_PATH} key according to
+   * {@link ConfigurationKeys#EXTRACT_TABLE_NAME_KEY}.
+   * @param state
+   * @return
+   */
+  public static Path getTableNameWriterFilePath(State state) {
+    Preconditions.checkArgument(state.contains(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY));
+    return new Path(state.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY));
   }
 
   /**

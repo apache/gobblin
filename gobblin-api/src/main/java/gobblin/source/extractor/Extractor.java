@@ -31,38 +31,37 @@ import java.io.IOException;
 public interface Extractor<S, D> extends Closeable {
 
   /**
-   * Get the schema (Metadata) of the extracted data records.
+   * Get the schema (metadata) of the extracted data records.
    *
    * @return schema of the extracted data records
+   * @throws java.io.IOException if there is problem getting the schema
    */
-  public S getSchema();
+  public S getSchema() throws IOException;
 
   /**
-   * Read a data record from the data source.
+   * Read the next data record from the data source.
    *
    * <p>
-   *   This method allows data record object reuse through the one passed in if the
-   *   implementation class decides to do so.
+   *   Reuse of data records has been deprecated and is not executed internally.
    * </p>
    *
-   * @param reuse the data record object to be used
-   * @return a data record
+   * @param reuse the data record object to be reused
+   * @return the next data record extracted from the data source
    * @throws DataRecordException if there is problem with the extracted data record
-   * @throws java.io.IOException if there is problem extract a data record from the source
+   * @throws java.io.IOException if there is problem extracting the next data record from the source
    */
-  public D readRecord(D reuse)
-      throws DataRecordException, IOException;
+  public D readRecord(@Deprecated D reuse) throws DataRecordException, IOException;
 
   /**
    * Get the expected source record count.
    *
-   * @return expected source record count
+   * @return the expected source record count
    */
   public long getExpectedRecordCount();
 
   /**
    * Get the calculated high watermark up to which data records are to be extracted.
-   * @return high watermark
+   * @return the calculated high watermark
    */
   public long getHighWatermark();
 }

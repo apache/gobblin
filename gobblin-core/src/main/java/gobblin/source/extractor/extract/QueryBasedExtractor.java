@@ -143,7 +143,7 @@ public abstract class QueryBasedExtractor<S, D> extends InstrumentedExtractor<S,
    * @return record of type D
    */
   @Override
-  public D readRecordImpl(D reuse)
+  public D readRecordImpl(@Deprecated D reuse)
       throws DataRecordException, IOException {
     if (!this.isPullRequired()) {
       this.log.info("No more records to read");

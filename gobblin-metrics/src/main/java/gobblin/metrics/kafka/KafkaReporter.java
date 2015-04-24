@@ -34,6 +34,8 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
+
+import com.google.common.base.Charsets;
 import com.google.common.base.Strings;
 import com.google.common.io.Closer;
 
@@ -377,7 +379,7 @@ public class KafkaReporter extends ScheduledReporter {
   protected byte[] serializeValue(String name, Object value, String... path) {
     String str = stringifyValue(name, value, path);
     if(!Strings.isNullOrEmpty(str)) {
-      return str.getBytes();
+      return str.getBytes(Charsets.UTF_8);
     } else {
       return null;
     }

@@ -35,11 +35,11 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.DatePartitionedExtractor;
+import gobblin.source.extractor.DatePartitionedAvroFileExtractor;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.filebased.FileBasedHelperException;
 import gobblin.source.extractor.filebased.FileBasedSource;
-import gobblin.source.extractor.hadoop.HadoopFsHelper;
+import gobblin.source.extractor.hadoop.AvroFsHelper;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.Extract.TableType;
 import gobblin.source.workunit.MultiWorkUnitWeightedQueue;
@@ -139,7 +139,7 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
       Throwables.propagate(e);
     }
 
-    HadoopFsHelper fsHelper = (HadoopFsHelper) this.fsHelper;
+    AvroFsHelper fsHelper = (AvroFsHelper) this.fsHelper;
     this.fs = fsHelper.getFileSystem();
 
     this.sourceState = state;
@@ -167,13 +167,13 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
 
   @Override
   public void initFileSystemHelper(State state) throws FileBasedHelperException {
-    this.fsHelper = new HadoopFsHelper(state);
+    this.fsHelper = new AvroFsHelper(state);
     this.fsHelper.connect();
   }
 
   @Override
   public Extractor<Schema, GenericRecord> getExtractor(WorkUnitState state) throws IOException {
-    return new DatePartitionedExtractor(state);
+    return new DatePartitionedAvroFileExtractor(state);
   }
 
   @Override

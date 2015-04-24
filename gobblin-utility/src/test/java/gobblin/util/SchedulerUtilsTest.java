@@ -14,7 +14,6 @@ package gobblin.util;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
@@ -277,7 +276,7 @@ public class SchedulerUtilsTest {
       Files.touch(commonPropsFile);
 
       File newJobConfigFile = new File(SUB_DIR11, "test112.pull");
-      Files.append("k1=v1", newJobConfigFile, Charset.forName(ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
+      Files.append("k1=v1", newJobConfigFile, ConfigurationKeys.DEFAULT_CHARSET_ENCODING);
 
       semaphore.acquire(3);
       Assert.assertEquals(fileAltered.size(), 3);

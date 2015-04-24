@@ -22,6 +22,8 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableSortedSet;
+import com.google.common.collect.Sets;
 
 
 /**
@@ -125,6 +127,29 @@ public class State implements Writable {
    */
   public List<String> getPropAsList(String key, String def) {
     return Splitter.on(",").trimResults().splitToList(getProperty(key, def));
+  }
+
+  /**
+   * Get the value of a property as a case insensitive {@link java.util.Set} of strings.
+   *
+   * @param key property key
+   * @return value associated with the key as a case insensitive {@link java.util.Set} of strings
+   */
+  public Set<String> getPropAsCaseInsensitiveSet(String key) {
+    return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER, Splitter.on(",").trimResults().omitEmptyStrings()
+        .split(getProperty(key)));
+  }
+
+  /**
+   * Get the value of a property as a case insensitive {@link java.util.Set} of strings, using the given default value if the property is not set.
+   *
+   * @param key property key
+   * @param def default value
+   * @return value associated with the key as a case insensitive {@link java.util.Set} of strings
+   */
+  public Set<String> getPropAsCaseInsensitiveSet(String key, String def) {
+    return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER, Splitter.on(",").trimResults().omitEmptyStrings()
+        .split(getProperty(key, def)));
   }
 
   /**
@@ -239,8 +264,7 @@ public class State implements Writable {
   }
 
   @Override
-  public void readFields(DataInput in)
-      throws IOException {
+  public void readFields(DataInput in) throws IOException {
     Text txt = new Text();
 
     int numEntries = in.readInt();
@@ -256,8 +280,7 @@ public class State implements Writable {
   }
 
   @Override
-  public void write(DataOutput out)
-      throws IOException {
+  public void write(DataOutput out) throws IOException {
     Text txt = new Text();
     out.writeInt(properties.size());
 

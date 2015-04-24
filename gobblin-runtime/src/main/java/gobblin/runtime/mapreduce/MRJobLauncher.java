@@ -20,7 +20,6 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.net.URI;
-import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
@@ -341,8 +340,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
       Path jobInputFile = new Path(jobInputPath, jobId + ".wulist");
       // Open the job input file
       OutputStream os = closer.register(this.fs.create(jobInputFile));
-      Writer osw = closer.register(new OutputStreamWriter(os, Charset.forName(
-          ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
+      Writer osw = closer.register(new OutputStreamWriter(os, ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
       Writer bw = closer.register(new BufferedWriter(osw));
 
       // Serialize each work unit into a file named after the task ID

@@ -17,7 +17,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Constructor;
 import java.net.URI;
-import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -585,8 +584,7 @@ public class LocalJobManager extends AbstractIdleService {
 
       private void loadJobConfig(Properties jobProps, File file) {
         try {
-          jobProps.load(new InputStreamReader(new FileInputStream(file), Charset.forName(
-              ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
+          jobProps.load(new InputStreamReader(new FileInputStream(file), ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
           jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, file.getAbsolutePath());
         } catch (Exception e) {
           LOG.error("Failed to load job configuration from file " + file.getAbsolutePath(), e);

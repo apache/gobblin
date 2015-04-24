@@ -31,20 +31,17 @@ dependencies {
     compile externalDependency.httpclient
     compile externalDependency.httpcore
     compile externalDependency.metricsCore
+    compile externalDependency.kafka
+    compile externalDependency.kafkaClient
+    compile externalDependency.scala
 
   testCompile externalDependency.testng
 }
 
-configurations {
-    compile {
-        transitive = false
-    }
-}
+configurations { compile { transitive = false } }
 
 test {
-    useTestNG () {
-        excludeGroups 'ignore'
-    }
+  useTestNG () { excludeGroups 'ignore' }
 }
 
 classification="library"

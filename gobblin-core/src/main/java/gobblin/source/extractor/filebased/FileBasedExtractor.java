@@ -11,25 +11,24 @@
 
 package gobblin.source.extractor.filebased;
 
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
+import com.google.common.io.Closer;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.InstrumentedExtractor;
+import gobblin.source.extractor.DataRecordException;
+import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.WorkUnit;
 
 
@@ -42,33 +41,33 @@ import gobblin.source.workunit.WorkUnit;
  *            type of schema
  * @param <D>
  *            type of data record
- * @param <K>
- *            key type of the command output
- * @param <V>
- *            value type of the command output
  */
-public class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
-  private Logger log = LoggerFactory.getLogger(FileBasedExtractor.class);
+public abstract class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(FileBasedExtractor.class);
+
+  protected final WorkUnit workUnit;
+  protected final WorkUnitState workUnitState;
+  protected final FileBasedHelper fsHelper;
+  protected final List<String> filesToPull;
+
+  protected final Closer closer = Closer.create();
+
+  private final int statusCount;
+  private long totalRecordCount = 0;
+
   private Iterator<D> currentFileItr;
   private String currentFile;
   private boolean readRecordStart;
-  private boolean supportsReuse = true;
-  private boolean seenFirstRecord = false;
-
-  protected WorkUnit workUnit;
-  protected WorkUnitState workUnitState;
-  protected FileBasedHelper fsHelper;
-  protected List<String> filesToPull;
-  protected Map<String, Closeable> fileHandles;
-  private long totalRecordCount = 0;
 
   public FileBasedExtractor(WorkUnitState workUnitState, FileBasedHelper fsHelper) {
     super(workUnitState);
     this.workUnitState = workUnitState;
     this.workUnit = workUnitState.getWorkunit();
     this.filesToPull =
-        new ArrayList<String>(workUnitState.getPropAsList(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, ""));
-    this.fileHandles = new HashMap<String, Closeable>();
+        Lists.newArrayList(workUnitState.getPropAsList(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, ""));
+    this.statusCount = this.workUnit.getPropAsInt(ConfigurationKeys.FILEBASED_REPORT_STATUS_ON_COUNT,
+        ConfigurationKeys.DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT);
     this.fsHelper = fsHelper;
     try {
       this.fsHelper.connect();
@@ -84,63 +83,43 @@ public class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
    * file
    */
   @Override
-  public D readRecordImpl(D reuse)
+  public D readRecordImpl(@Deprecated D reuse)
       throws DataRecordException, IOException {
     this.totalRecordCount++;
-    int statusCount = this.workUnit.getPropAsInt(ConfigurationKeys.FILEBASED_REPORT_STATUS_ON_COUNT,
-        ConfigurationKeys.DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT);
 
-    if (statusCount > 0 && this.totalRecordCount % statusCount == 0) {
-      this.log.info("Total number of records processed so far: " + this.totalRecordCount);
+    if (this.statusCount > 0 && this.totalRecordCount % this.statusCount == 0) {
+      LOGGER.info("Total number of records processed so far: " + this.totalRecordCount);
     }
 
     if (!readRecordStart) {
-      log.info("Starting to read records");
+      LOGGER.info("Starting to read records");
       if (!filesToPull.isEmpty()) {
         currentFile = filesToPull.remove(0);
         currentFileItr = downloadFile(currentFile);
-        seenFirstRecord = false;
-        log.info("Will start downloading file: " + currentFile);
+        LOGGER.info("Will start downloading file: " + currentFile);
       } else {
-        log.info("Finished reading records from all files");
+        LOGGER.info("Finished reading records from all files");
         return null;
       }
       readRecordStart = true;
     }
 
     while (!currentFileItr.hasNext() && !filesToPull.isEmpty()) {
-      log.info("Finished downloading file: " + currentFile);
-      closeFile(currentFile);
+      LOGGER.info("Finished downloading file: " + currentFile);
+      closeCurrentFile();
       currentFile = filesToPull.remove(0);
       currentFileItr = downloadFile(currentFile);
-      seenFirstRecord = false;
-      log.info("Will start downloading file: " + currentFile);
+      LOGGER.info("Will start downloading file: " + currentFile);
     }
 
     if (currentFileItr.hasNext()) {
-      if (supportsReuse && seenFirstRecord) {
-        try {
-          return (D) currentFileItr.getClass().getMethod("next", reuse.getClass()).invoke(currentFileItr, reuse);
-        } catch (Exception e) {
-          e.printStackTrace();
-          log.info("Object reuse unsupported, continuing without reuse");
-          supportsReuse = false;
-        }
-      }
-      seenFirstRecord = true;
-      return (D) currentFileItr.next();
+      return currentFileItr.next();
     } else {
-      log.info("Finished reading records from all files");
+      LOGGER.info("Finished reading records from all files");
       return null;
     }
   }
 
-  /**
-   * Get a list of commands to execute on the source file system, executes the
-   * commands, and parses the output for the schema
-   *
-   * @return the schema
-   */
   @SuppressWarnings("unchecked")
   @Override
   public S getSchema() {
@@ -166,28 +145,25 @@ public class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
    */
   @Override
   public long getHighWatermark() {
-    log.info("High Watermark is -1 for file based extractors");
+    LOGGER.info("High Watermark is -1 for file based extractors");
     return -1;
   }
 
   /**
    * Downloads a file from the source
    *
-   * @param f
+   * @param file
    *            is the file to download
    * @return an iterator over the file
-   * @TODO Add support for different file formats besides text e.g. avro
-   *       iterator, byte iterator, json iterator
+   * TODO Add support for different file formats besides text e.g. avro iterator, byte iterator, json iterator.
    */
   @SuppressWarnings("unchecked")
-  public Iterator<D> downloadFile(String file)
-      throws IOException {
-    log.info("Beginning to download file: " + file);
+  public Iterator<D> downloadFile(String file) throws IOException {
+    LOGGER.info("Beginning to download file: " + file);
 
     try {
-      InputStream inputStream = this.fsHelper.getFileStream(file);
+      InputStream inputStream = this.closer.register(this.fsHelper.getFileStream(file));
       Iterator<D> fileItr = (Iterator<D>) IOUtils.lineIterator(inputStream, ConfigurationKeys.DEFAULT_CHARSET_ENCODING);
-      fileHandles.put(file, inputStream);
       if (workUnitState.getPropAsBoolean(ConfigurationKeys.SOURCE_SKIP_FIRST_RECORD, false) && fileItr.hasNext()) {
         fileItr.next();
       }
@@ -198,17 +174,15 @@ public class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
   }
 
   /**
-   * Closes a file from the source
-   *
-   * @param f
-   *            is the file to download
-   * @return an iterator over the file
+   * Closes the current file being read.
    */
-  public void closeFile(String file) {
+  public void closeCurrentFile() {
     try {
-      this.fileHandles.get(file).close();
+      this.closer.close();
     } catch (IOException e) {
-      log.error("Could not successfully close file: " + file + " due to error: " + e.getMessage(), e);
+      if (this.currentFile != null) {
+        LOGGER.error("Failed to close file: " + this.currentFile, e);
+      }
     }
   }
 
@@ -217,7 +191,7 @@ public class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
     try {
       this.fsHelper.close();
     } catch (FileBasedHelperException e) {
-      log.error("Could not successfully close file system helper due to error: " + e.getMessage(), e);
+      LOGGER.error("Could not successfully close file system helper due to error: " + e.getMessage(), e);
     }
 
     super.close();

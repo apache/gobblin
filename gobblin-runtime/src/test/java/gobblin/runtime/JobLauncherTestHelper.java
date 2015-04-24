@@ -12,7 +12,6 @@
 package gobblin.runtime;
 
 import java.io.File;
-import java.nio.charset.Charset;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.util.List;
@@ -166,7 +165,7 @@ public class JobLauncherTestHelper {
     List<String> statementLines = Lists.newArrayList();
     List<String> lines =
         Files.readLines(new File("gobblin-metastore/src/test/resources/gobblin_job_history_store.sql"),
-            Charset.forName(ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
+            ConfigurationKeys.DEFAULT_CHARSET_ENCODING);
     for (String line : lines) {
       // Skip a comment line
       if (line.startsWith("--")) {
