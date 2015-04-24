@@ -73,7 +73,6 @@ ext.externalDependency = [
   "hiveExec": "org.apache.hive:hive-exec:"+hiveVersion,
   "httpclient": "org.apache.httpcomponents:httpclient:4.2.3",
   "httpcore": "org.apache.httpcomponents:httpcore:4.2.1",
-  "commonsHttpClient": "commons-httpclient:commons-httpclient:3.1",
   "kafka": "org.apache.kafka:kafka_2.10:0.8.2.1",
   "kafkaTest": "org.apache.kafka:kafka_2.10:0.8.2.1:test",
   "kafkaClient": "org.apache.kafka:kafka-clients:0.8.2.1",
@@ -102,6 +101,7 @@ ext.externalDependency = [
   "salesforceWsc": "com.force.api:force-wsc:29.0.0",
   "salesforcePartner": "com.force.api:force-partner-api:29.0.0",
   "scala": "org.scala-lang:scala-library:2.10.3",
+  "influxdbJava": "org.influxdb:influxdb-java:1.5",
   "byteman": "org.jboss.byteman:byteman:"+bytemanVersion,
   "bytemanBmunit": "org.jboss.byteman:byteman-bmunit:"+bytemanVersion,
   "pegasus" : [
