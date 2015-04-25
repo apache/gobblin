@@ -17,6 +17,7 @@ import java.util.Map;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -28,6 +29,9 @@ import com.google.common.collect.Maps;
  * @author ziliu
  */
 public class AvroSchemaFieldRemover {
+
+  private static final Splitter SPLITTER_ON_COMMA = Splitter.on(',').trimResults().omitEmptyStrings();
+  private static final Splitter SPLITTER_ON_DOT = Splitter.on('.').trimResults().omitEmptyStrings();
 
   private final Map<String, AvroSchemaFieldRemover> children;
   private final Map<String, Schema> schemaMap;
@@ -47,8 +51,8 @@ public class AvroSchemaFieldRemover {
   }
 
   private void addChildren(String fieldNames) {
-    for (String fieldName : Splitter.on(',').trimResults().omitEmptyStrings().splitToList(fieldNames)) {
-      List<String> fieldNameComponents = Splitter.on('.').trimResults().omitEmptyStrings().splitToList(fieldName);
+    for (String fieldName : SPLITTER_ON_COMMA.splitToList(fieldNames)) {
+      List<String> fieldNameComponents = SPLITTER_ON_DOT.splitToList(fieldName);
       if (!fieldNameComponents.isEmpty()) {
         this.addChildren(fieldNameComponents, 0);
       }
@@ -56,6 +60,8 @@ public class AvroSchemaFieldRemover {
   }
 
   private void addChildren(List<String> fieldNameComponents, int level) {
+    Preconditions.checkArgument(fieldNameComponents.size() > level);
+
     if (!this.children.containsKey(fieldNameComponents.get(level))) {
       this.children.put(fieldNameComponents.get(level), new AvroSchemaFieldRemover());
     }
@@ -91,7 +97,7 @@ public class AvroSchemaFieldRemover {
   private Schema removeFieldsFromRecords(Schema schema) {
     List<Field> newFields = Lists.newArrayList();
     for (Field field : schema.getFields()) {
-      if (this.shouldRemove(field) == false) {
+      if (!this.shouldRemove(field)) {
         Field newField;
         if (this.children.containsKey(field.name())) {
           newField =
@@ -111,6 +117,9 @@ public class AvroSchemaFieldRemover {
   }
 
   private boolean shouldRemove(Field field) {
+
+    // A field should be removed if it is the last component in a specified field name,
+    // e.g., "memberId" in "header.memberId".
     return this.children.containsKey(field.name()) && this.children.get(field.name()).children.isEmpty();
   }
 

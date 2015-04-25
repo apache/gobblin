@@ -11,6 +11,8 @@
 
 package gobblin.util;
 
+import gobblin.converter.DataConversionException;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
@@ -32,6 +34,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.io.Closer;
 
 import static org.apache.avro.SchemaCompatibility.*;
 import static org.apache.avro.SchemaCompatibility.SchemaCompatibilityType.*;
@@ -132,10 +135,11 @@ public class AvroUtils {
   public static GenericRecord convertRecordSchema(GenericRecord record, Schema newSchema) throws IOException {
     Preconditions.checkArgument(checkReaderWriterCompatibility(newSchema, record.getSchema()).getType() == COMPATIBLE);
 
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
-    Encoder encoder = new EncoderFactory().directBinaryEncoder(out, null);
-    DatumWriter<GenericRecord> writer = new GenericDatumWriter<GenericRecord>(record.getSchema());
+    Closer closer = Closer.create();
     try {
+      ByteArrayOutputStream out = closer.register(new ByteArrayOutputStream());
+      Encoder encoder = new EncoderFactory().directBinaryEncoder(out, null);
+      DatumWriter<GenericRecord> writer = new GenericDatumWriter<GenericRecord>(record.getSchema());
       writer.write(record, encoder);
       BinaryDecoder decoder = new DecoderFactory().binaryDecoder(out.toByteArray(), null);
       DatumReader<GenericRecord> reader = new GenericDatumReader<GenericRecord>(record.getSchema(), newSchema);
@@ -144,6 +148,8 @@ public class AvroUtils {
       throw new IOException(String.format(
           "Cannot convert avro record to new schema. Origianl schema = %s, new schema = %s", record.getSchema(),
           newSchema), e);
+    } finally {
+      closer.close();
     }
   }
 }

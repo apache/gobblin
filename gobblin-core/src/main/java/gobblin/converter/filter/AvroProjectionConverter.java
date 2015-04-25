@@ -16,6 +16,8 @@ import java.io.IOException;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
+import com.google.common.base.Optional;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.AvroToAvroConverterBase;
@@ -35,7 +37,7 @@ public class AvroProjectionConverter extends AvroToAvroConverterBase {
 
   public static final String REMOVE_FIELDS = ".remove.fields";
 
-  private AvroSchemaFieldRemover fieldRemover;
+  private Optional<AvroSchemaFieldRemover> fieldRemover;
 
   /**
    * To remove certain fields from the Avro schema or records of a topic/table, set property
@@ -48,9 +50,9 @@ public class AvroProjectionConverter extends AvroToAvroConverterBase {
     if (workUnit.contains(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY)) {
       String removeFieldsPropName = workUnit.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY) + REMOVE_FIELDS;
       if (workUnit.contains(removeFieldsPropName)) {
-        this.fieldRemover = new AvroSchemaFieldRemover(workUnit.getProp(removeFieldsPropName));
+        this.fieldRemover = Optional.of(new AvroSchemaFieldRemover(workUnit.getProp(removeFieldsPropName)));
       } else {
-        this.fieldRemover = null;
+        this.fieldRemover = Optional.absent();
       }
     }
     return this;
@@ -61,8 +63,8 @@ public class AvroProjectionConverter extends AvroToAvroConverterBase {
    */
   @Override
   public Schema convertSchema(Schema inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
-    if (this.fieldRemover != null) {
-      return this.fieldRemover.removeFields(inputSchema);
+    if (this.fieldRemover.isPresent()) {
+      return this.fieldRemover.get().removeFields(inputSchema);
     } else {
       return inputSchema;
     }
