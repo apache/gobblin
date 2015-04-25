@@ -42,6 +42,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
+import com.google.common.primitives.Longs;
 
 
 /**
@@ -77,14 +78,14 @@ public abstract class KafkaSource extends EventBasedSource<Schema, GenericRecord
   private final Comparator<WorkUnit> sortBySizeAscComparator = new Comparator<WorkUnit>() {
     @Override
     public int compare(WorkUnit w1, WorkUnit w2) {
-      return ((Long) getWorkUnitEstSize(w1)).compareTo(getWorkUnitEstSize(w2));
+      return Longs.compare(getWorkUnitEstSize(w1), getWorkUnitEstSize(w2));
     }
   };
 
   private final Comparator<WorkUnit> sortBySizeDescComparator = new Comparator<WorkUnit>() {
     @Override
     public int compare(WorkUnit w1, WorkUnit w2) {
-      return ((Long) getWorkUnitEstSize(w2)).compareTo(getWorkUnitEstSize(w1));
+      return Longs.compare(getWorkUnitEstSize(w2), getWorkUnitEstSize(w1));
     }
   };
 
@@ -132,7 +133,7 @@ public abstract class KafkaSource extends EventBasedSource<Schema, GenericRecord
     for (List<WorkUnit> workUnitsForTopic : workUnits) {
       for (WorkUnit workUnit : workUnitsForTopic) {
         setWorkUnitEstSize(workUnit);
-        totalEstDataSize = getWorkUnitEstSize(workUnit);
+        totalEstDataSize += getWorkUnitEstSize(workUnit);
       }
     }
     long avgGroupSize = (long) ((double) totalEstDataSize / (double) numOfMultiWorkunits / 3.0);
