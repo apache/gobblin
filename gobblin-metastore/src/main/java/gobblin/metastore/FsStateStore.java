@@ -49,7 +49,6 @@ import gobblin.configuration.State;
  *
  * @author ynli
  */
-@SuppressWarnings("unchecked")
 public class FsStateStore<T extends State> implements StateStore<T> {
 
   private final Configuration conf;
@@ -189,10 +188,10 @@ public class FsStateStore<T extends State> implements StateStore<T> {
       SequenceFile.Reader reader = closer.register(new SequenceFile.Reader(this.fs, tablePath, this.conf));
       try {
         Text key = new Text();
-        State state = this.stateClass.newInstance();
+        T state = this.stateClass.newInstance();
         while (reader.next(key, state)) {
           if (key.toString().equals(stateId)) {
-            return (T) state;
+            return state;
           }
         }
       } catch (Exception e) {

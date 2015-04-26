@@ -135,7 +135,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
 
-    if (Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_DISABLED_KEY, "false"))) {
+    if (Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_DISABLED_KEY, Boolean.FALSE.toString()))) {
       LOG.info(String.format("Not launching job %s as it is disabled", jobName));
       return;
     }
@@ -507,8 +507,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
     LOG.info("Persisting job states of job " + jobId);
     this.jobStateStore.put(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX, jobState);
-    this.jobStateStore.createAlias(
-        jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX, "current" + JOB_STATE_STORE_TABLE_SUFFIX);
+    this.jobStateStore.createAlias(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX,
+        "current" + JOB_STATE_STORE_TABLE_SUFFIX);
   }
 
   /**
