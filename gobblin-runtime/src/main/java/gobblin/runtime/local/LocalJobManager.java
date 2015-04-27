@@ -57,7 +57,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.AbstractIdleService;
@@ -147,10 +147,10 @@ public class LocalJobManager extends AbstractIdleService {
   private final Set<String> jobConfigFileExtensions;
 
   // Store for persisting job state
-  private final StateStore jobStateStore;
+  private final StateStore<JobState> jobStateStore;
 
   // Store for persisting task states
-  private final StateStore taskStateStore;
+  private final StateStore<TaskState> taskStateStore;
 
   // A monitor for changes to job configuration files
   private final FileAlterationMonitor fileAlterationMonitor;
@@ -165,10 +165,14 @@ public class LocalJobManager extends AbstractIdleService {
                 .getProperty(ConfigurationKeys.JOB_CONFIG_FILE_EXTENSIONS_KEY,
                     ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_EXTENSIONS)));
 
-    this.jobStateStore = new FsStateStore(properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
-        properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY), JobState.class);
-    this.taskStateStore = new FsStateStore(properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
-        properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY), TaskState.class);
+    this.jobStateStore = new FsStateStore<JobState>(
+        properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
+        properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
+        JobState.class);
+    this.taskStateStore = new FsStateStore<TaskState>(
+        properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
+        properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
+        TaskState.class);
 
     long pollingInterval = Long.parseLong(this.properties.getProperty(
         ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
@@ -770,19 +774,28 @@ public class LocalJobManager extends AbstractIdleService {
   /**
    * Get work unit states of the most recent run of the job.
    */
-  @SuppressWarnings("unchecked")
   private List<WorkUnitState> getPreviousWorkUnitStates(String jobName)
       throws IOException {
 
     // This is the first run of the job
     if (!this.lastJobIdMap.containsKey(jobName)) {
-      return Lists.newArrayList();
+      return ImmutableList.of();
     }
 
     LOG.info("Loading task states of the most recent run of job " + jobName);
     // Read the task states of the most recent run of the job
-    return (List<WorkUnitState>) this.taskStateStore
-        .getAll(jobName, this.lastJobIdMap.get(jobName) + TASK_STATE_STORE_TABLE_SUFFIX);
+    List<TaskState> taskStates = this.taskStateStore.getAll(jobName,
+        this.lastJobIdMap.get(jobName) + TASK_STATE_STORE_TABLE_SUFFIX);
+
+    ImmutableList.Builder<WorkUnitState> workUnitStates = ImmutableList.builder();
+    for (TaskState taskState : taskStates) {
+      WorkUnitState workUnitState = new WorkUnitState(taskState.getWorkunit());
+      workUnitState.setId(taskState.getId());
+      workUnitState.addAll(taskState);
+      workUnitStates.add(workUnitState);
+    }
+
+    return workUnitStates.build();
   }
 
   /**

@@ -33,12 +33,12 @@ import gobblin.configuration.State;
 @Test(groups = {"gobblin.metastore"})
 public class FsStateStoreTest {
 
-  private StateStore stateStore;
+  private StateStore<State> stateStore;
 
   @BeforeClass
   public void setUp()
       throws IOException {
-    this.stateStore = new FsStateStore("file:///", "metastore-test", State.class);
+    this.stateStore = new FsStateStore<State>("file:///", "metastore-test", State.class);
   }
 
   @Test
@@ -69,7 +69,7 @@ public class FsStateStoreTest {
   @Test(dependsOnMethods = {"testPut"})
   public void testGet()
       throws IOException {
-    List<? extends State> states = this.stateStore.getAll("testStore", "testTable");
+    List<State> states = this.stateStore.getAll("testStore", "testTable");
     Assert.assertEquals(states.size(), 3);
 
     Assert.assertEquals(states.get(0).getProp("k1"), "v1");
@@ -87,7 +87,7 @@ public class FsStateStoreTest {
   @Test(dependsOnMethods = {"testCreateAlias"})
   public void testGetAlias()
       throws IOException {
-    List<? extends State> states = this.stateStore.getAll("testStore", "testTable1");
+    List<State> states = this.stateStore.getAll("testStore", "testTable1");
     Assert.assertEquals(states.size(), 3);
 
     Assert.assertEquals(states.get(0).getProp("k1"), "v1");

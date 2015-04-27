@@ -440,7 +440,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
   public static class TaskRunner extends Mapper<LongWritable, Text, NullWritable, NullWritable> {
 
     private FileSystem fs;
-    private StateStore taskStateStore;
+    private StateStore<TaskState> taskStateStore;
     private TaskExecutor taskExecutor;
     private TaskStateTracker taskStateTracker;
     private ServiceManager serviceManager;
@@ -452,9 +452,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
     protected void setup(Context context) {
       try {
         this.fs = FileSystem.get(context.getConfiguration());
-        this.taskStateStore =
-            new FsStateStore(this.fs, SequenceFileOutputFormat.getOutputPath(context).toUri().getPath(),
-                TaskState.class);
+        this.taskStateStore = new FsStateStore<TaskState>(
+            this.fs, SequenceFileOutputFormat.getOutputPath(context).toUri().getPath(), TaskState.class);
       } catch (IOException ioe) {
         LOG.error("Failed to setup the mapper task", ioe);
         return;

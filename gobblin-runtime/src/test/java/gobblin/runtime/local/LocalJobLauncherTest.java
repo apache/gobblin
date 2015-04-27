@@ -32,12 +32,13 @@ import gobblin.writer.WriterOutputFormat;
 
 /**
  * Unit test for {@link LocalJobLauncher}.
+ *
+ * @author ynli
  */
 @Test(groups = { "gobblin.runtime.local" })
 public class LocalJobLauncherTest {
 
   private Properties launcherProps;
-  private StateStore jobStateStore;
   private JobLauncherTestHelper jobLauncherTestHelper;
 
   @BeforeClass
@@ -52,9 +53,10 @@ public class LocalJobLauncherTest {
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY,
         "jdbc:derby:memory:gobblin1;create=true");
 
-    this.jobStateStore =
-        new FsStateStore(this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
-            this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY), JobState.class);
+    StateStore<JobState> jobStateStore = new FsStateStore<JobState>(
+        this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
+        this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
+        JobState.class);
 
     this.jobLauncherTestHelper = new JobLauncherTestHelper(launcherProps, jobStateStore);
     this.jobLauncherTestHelper.prepareJobHistoryStoreDatabase(this.launcherProps);

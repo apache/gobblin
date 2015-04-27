@@ -11,6 +11,10 @@
 
 package gobblin.source.extractor;
 
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+
+
 /**
  * A enumeration of policies on how to commit a completed job.
  *
@@ -24,7 +28,8 @@ public enum JobCommitPolicy {
   COMMIT_ON_FULL_SUCCESS("full"),
 
   /**
-   * Commit a job even if some of its tasks fail.
+   * Commit a job even if some of its tasks fail. It's up to the {@link gobblin.publisher.DataPublisher}
+   * to decide whether data of failed tasks of the job should be committed or not.
    */
   COMMIT_ON_PARTIAL_SUCCESS("partial");
 
@@ -50,5 +55,16 @@ public enum JobCommitPolicy {
     }
 
     throw new IllegalArgumentException(String.format("Job commit policy with name %s is not supported", name));
+  }
+
+  /**
+   * Get a {@link JobCommitPolicy} through its name specified in configuration property
+   * {@link ConfigurationKeys#JOB_COMMIT_POLICY_KEY}.
+   *
+   * @param state a {@link State} object carrying configuration properties
+   * @return a {@link JobCommitPolicy} with the given name specified in {@link ConfigurationKeys#JOB_COMMIT_POLICY_KEY}
+   */
+  public static JobCommitPolicy getCommitPolicy(State state) {
+    return forName(state.getProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
   }
 }

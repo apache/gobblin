@@ -32,6 +32,10 @@ import com.google.gson.stream.JsonWriter;
 
 import com.linkedin.data.template.StringMap;
 
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.SourceState;
+import gobblin.configuration.State;
+import gobblin.configuration.WorkUnitState;
 import gobblin.rest.JobExecutionInfo;
 import gobblin.rest.JobStateEnum;
 import gobblin.rest.LauncherTypeEnum;
@@ -39,8 +43,6 @@ import gobblin.rest.Metric;
 import gobblin.rest.MetricArray;
 import gobblin.rest.MetricTypeEnum;
 import gobblin.rest.TaskExecutionInfoArray;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
 
 
 /**
@@ -66,13 +68,20 @@ public class JobState extends SourceState {
   private long duration;
   private RunningState state = RunningState.PENDING;
   private int tasks;
-  private Map<String, TaskState> taskStates = Maps.newHashMap();
+  private final Map<String, TaskState> taskStates = Maps.newHashMap();
 
   // Necessary for serialization/deserialization
   public JobState() {
   }
 
   public JobState(String jobName, String jobId) {
+    this.jobName = jobName;
+    this.jobId = jobId;
+    this.setId(jobId);
+  }
+
+  public JobState(State properties, List<WorkUnitState> previousTaskStates, String jobName, String jobId) {
+    super(properties, previousTaskStates);
     this.jobName = jobName;
     this.jobId = jobId;
     this.setId(jobId);
@@ -243,10 +252,27 @@ public class JobState extends SourceState {
   /**
    * Get {@link TaskState}s of {@link Task}s of this job.
    *
-   * @return {@link TaskState}s of {@link Task}s of this job
+   * @return a list of {@link TaskState}s
    */
   public List<TaskState> getTaskStates() {
     return ImmutableList.<TaskState>builder().addAll(this.taskStates.values()).build();
+  }
+
+  /**
+   * Get task states of {@link Task}s of this job as {@link WorkUnitState}s.
+   *
+   * @return a list of {@link WorkUnitState}s
+   */
+  public List<WorkUnitState> getTaskStatesAsWorkUnitStates() {
+    ImmutableList.Builder<WorkUnitState> builder = ImmutableList.builder();
+    for (TaskState taskState : this.taskStates.values()) {
+      WorkUnitState workUnitState = new WorkUnitState(taskState.getWorkunit());
+      workUnitState.setId(taskState.getId());
+      workUnitState.addAll(taskState);
+      builder.add(workUnitState);
+    }
+
+    return builder.build();
   }
 
   /**

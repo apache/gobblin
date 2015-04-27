@@ -27,9 +27,11 @@ import gobblin.configuration.State;
  *     {@link State#getId()).
  * </p>
  *
+ * @param <T> state object type
+ *
  * @author ynli
  */
-public interface StateStore {
+public interface StateStore<T extends State> {
 
   /**
    * Create a new store.
@@ -56,7 +58,7 @@ public interface StateStore {
    *
    * @param storeName store name
    * @param tableName table name
-   * @return if the table is succcessfully created
+   * @return if the table is successfully created
    * @throws IOException
    */
   public boolean create(String storeName, String tableName)
@@ -86,7 +88,7 @@ public interface StateStore {
    * @param state {@link State} to be put into the table
    * @throws IOException
    */
-  public void put(String storeName, String tableName, State state)
+  public void put(String storeName, String tableName, T state)
       throws IOException;
 
   /**
@@ -102,7 +104,7 @@ public interface StateStore {
    * @param states collection of {@link State}s to be put into the table
    * @throws IOException
    */
-  public void putAll(String storeName, String tableName, Collection<? extends State> states)
+  public void putAll(String storeName, String tableName, Collection<T> states)
       throws IOException;
 
   /**
@@ -115,7 +117,7 @@ public interface StateStore {
    *         if the state with the given state ID does not exist
    * @throws IOException
    */
-  public State get(String storeName, String tableName, String stateId)
+  public T get(String storeName, String tableName, String stateId)
       throws IOException;
 
   /**
@@ -126,7 +128,7 @@ public interface StateStore {
    * @return (possibly empty) list of {@link State}s from the given table
    * @throws IOException
    */
-  public List<? extends State> getAll(String storeName, String tableName)
+  public List<T> getAll(String storeName, String tableName)
       throws IOException;
 
   /**
@@ -136,7 +138,7 @@ public interface StateStore {
    * @return (possibly empty) list of {@link State}s from the given store
    * @throws IOException
    */
-  public List<? extends State> getAll(String storeName)
+  public List<T> getAll(String storeName)
       throws IOException;
 
   /**

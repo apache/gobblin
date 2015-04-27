@@ -73,19 +73,18 @@ public class JobLauncherUtils {
 
   /**
    * Utility method that takes in a {@link List} of {@link State}s, and flattens them. It builds up the flattened
-   * list by checking each element of the given list, and seeing if it is an instance of {@link MultiWorkUnit}. If it is
-   * then it iterates through all the {@link WorkUnit}s returned by {@link MultiWorkUnit#getWorkUnits()} and adds them
-   * to the flattened list. If not, then it simply adds the {@link WorkUnit} to the flattened list.
-   * @param workUnits is a {@link List} containing either {@link State}s or {@link MultiWorkUnit}s.
-   * @return a {@link List} of {@link State}s.
+   * list by checking each element of the given list, and seeing if it is an instance of {@link MultiWorkUnit}.
+   * If it is then it calls itself on the {@link WorkUnit}s returned by {@link MultiWorkUnit#getWorkUnits()}.
+   * If not, then it simply adds the {@link WorkUnit} to the flattened list.
+   *
+   * @param states is a {@link List} containing either {@link State}s or {@link MultiWorkUnit}s
+   * @return a {@link List} of {@link State}s
    */
   public static List<State> flattenWorkUnits(List<? extends State> states) {
     List<State> flattenedWorkUnits = Lists.newArrayList();
     for (State state : states) {
       if (state instanceof MultiWorkUnit) {
-        for (State mulitWorkUnitChild : ((MultiWorkUnit) state).getWorkUnits()) {
-          flattenedWorkUnits.add(mulitWorkUnitChild);
-        }
+        flattenedWorkUnits.addAll(flattenWorkUnits(((MultiWorkUnit) state).getWorkUnits()));
       } else {
         flattenedWorkUnits.add(state);
       }
@@ -94,10 +93,10 @@ public class JobLauncherUtils {
   }
 
   /**
-   * Cleanup the staging data for a list of Gobblin tasks. This method calls the {@link #cleanStagingData(State, Logger)}
-   * method.
+   * Cleanup the staging data for a list of Gobblin tasks. This method calls the
+   * {@link #cleanStagingData(State, Logger)} method.
    *
-   * @param states a {@list List} of {@link State}s that need their staging data cleaned.
+   * @param states a {@link List} of {@link State}s that need their staging data cleaned
    */
   public static void cleanStagingData(List<State> states, Logger logger) throws IOException {
     for (State state : states) {
