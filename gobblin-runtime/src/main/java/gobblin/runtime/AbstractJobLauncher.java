@@ -255,8 +255,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         return;
       }
 
-      JobCommitPolicy commitPolicy = JobCommitPolicy.forName(
-          jobState.getProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
+      JobCommitPolicy commitPolicy = JobCommitPolicy.getCommitPolicy(jobState);
 
       setFinalJobState(commitPolicy, jobState);
       // Commit and publish job data
