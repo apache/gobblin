@@ -40,11 +40,18 @@ import gobblin.metrics.MetricContext;
  *
  * @see <a href="http://influxdb.com/">InfluxDB</a>.
  *
+ * <p>
+ *   The name of the {@link MetricContext} a {@link InfluxDBReporter} is associated to will
+ *   be included as the prefix in the metric names, which may or may not include the tags
+ *   of the {@link MetricContext} depending on if the {@link MetricContext} is configured to
+ *   report fully-qualified metric names or not using the method
+ *   {@link MetricContext.Builder#reportFullyQualifiedNames(boolean)}.
+ * </p>
+ *
  * @author ynli
  */
 public class InfluxDBReporter extends ContextAwareScheduledReporter {
 
-  protected static final String NAME = "name";
   protected static final String VALUE = "value";
   protected static final String TIMESTAMP = "timestamp";
 
@@ -75,29 +82,26 @@ public class InfluxDBReporter extends ContextAwareScheduledReporter {
                                  SortedMap<String, Timer> timers) {
 
     long timeStamp = System.currentTimeMillis();
-    Serie.Builder builder = new Serie.Builder(context.getName()).columns(TIMESTAMP, NAME, VALUE);
 
     for (Map.Entry<String, Gauge> entry : gauges.entrySet()) {
-      builder = addGauge(entry.getKey(), entry.getValue(), timeStamp, builder);
+      reportGauge(context, entry.getKey(), entry.getValue(), timeStamp);
     }
 
     for (Map.Entry<String, Counter> entry : counters.entrySet()) {
-      builder = addCounter(entry.getKey(), entry.getValue(), timeStamp, builder);
+      reportCounter(context, entry.getKey(), entry.getValue(), timeStamp);
     }
 
     for (Map.Entry<String, Histogram> entry : histograms.entrySet()) {
-      builder = addHistogram(entry.getKey(), entry.getValue(), timeStamp, builder);
+      reportHistogram(context, entry.getKey(), entry.getValue(), timeStamp);
     }
 
     for (Map.Entry<String, Meter> entry : meters.entrySet()) {
-      builder = addMetered(entry.getKey(), entry.getValue(), timeStamp, builder);
+      reportMetered(context, entry.getKey(), entry.getValue(), timeStamp);
     }
 
     for (Map.Entry<String, Timer> entry : timers.entrySet()) {
-      builder = addTimer(entry.getKey(), entry.getValue(), timeStamp, builder);
+      reportTimer(context, entry.getKey(), entry.getValue(), timeStamp);
     }
-
-    this.influxDB.write(this.database, this.timeUnit, builder.build());
   }
 
   /**
@@ -121,50 +125,133 @@ public class InfluxDBReporter extends ContextAwareScheduledReporter {
     return new Builder(name);
   }
 
-  private Serie.Builder addGauge(String name, Gauge gauge, long timeStamp, Serie.Builder builder) {
-    return builder.values(timeStamp, name, gauge.getValue());
+  private void reportGauge(MetricContext context, String name, Gauge gauge, long timeStamp) {
+    this.influxDB.write(
+        this.database,
+        this.timeUnit,
+        getSerieBuilder(MetricRegistry.name(context.getName(), name)).values(timeStamp, gauge.getValue())
+            .build());
   }
 
-  private Serie.Builder addCounter(String name, Counter counter, long timeStamp, Serie.Builder builder) {
-    return builder.values(timeStamp, MetricRegistry.name(name, Measurements.COUNT.getName()), counter.getCount());
+  private void reportCounter(MetricContext context, String name, Counter counter, long timeStamp) {
+    this.influxDB.write(
+        this.database,
+        this.timeUnit,
+        getSerieBuilder(MetricRegistry.name(context.getName(), name, Measurements.COUNT.getName()))
+            .values(timeStamp, counter.getCount()).build());
   }
 
-  private Serie.Builder addHistogram(String name, Histogram histogram, long timeStamp, Serie.Builder builder) {
-    builder = builder.values(timeStamp, MetricRegistry.name(name, Measurements.COUNT.getName()), histogram.getCount());
-    return addSnapshot(name, histogram.getSnapshot(), timeStamp, builder);
+  private void reportHistogram(MetricContext context, String name, Histogram histogram, long timeStamp) {
+    this.influxDB.write(
+        this.database,
+        this.timeUnit,
+        getSerieBuilder(MetricRegistry.name(context.getName(), name, Measurements.COUNT.getName()))
+            .values(timeStamp, histogram.getCount()).build());
+    reportSnapshot(context, name, histogram.getSnapshot(), timeStamp, false);
   }
 
-  private Serie.Builder addTimer(String name, Timer timer, long timeStamp, Serie.Builder builder) {
-    builder = addMetered(name, timer, timeStamp, builder);
-    return addSnapshot(name, timer.getSnapshot(), timeStamp, builder);
+  private void reportTimer(MetricContext context, String name, Timer timer, long timeStamp) {
+    reportMetered(context, name, timer, timeStamp);
+    reportSnapshot(context, name, timer.getSnapshot(), timeStamp, true);
   }
 
-  private Serie.Builder addMetered(String name, Metered metered, long timeStamp, Serie.Builder builder) {
-    return builder
-        .values(timeStamp, MetricRegistry.name(name, Measurements.COUNT.getName()), metered.getCount())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.RATE_1MIN.getName()), metered.getOneMinuteRate())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.RATE_5MIN.getName()), metered.getFiveMinuteRate())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.RATE_15MIN.getName()), metered.getFifteenMinuteRate())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.MEAN_RATE.getName()), metered.getMeanRate());
+  private void reportMetered(MetricContext context, String name, Metered metered, long timeStamp) {
+    this.influxDB.write(
+        this.database,
+        this.timeUnit,
+        getSerieBuilder(MetricRegistry.name(context.getName(), name, Measurements.COUNT.getName()))
+            .values(timeStamp, metered.getCount()).build());
+    this.influxDB.write(
+        this.database,
+        this.timeUnit,
+        getSerieBuilder(MetricRegistry.name(context.getName(), name, Measurements.MEAN_RATE.getName()))
+            .values(timeStamp, convertRate(metered.getMeanRate())).build());
+    this.influxDB.write(
+        this.database,
+        this.timeUnit,
+        getSerieBuilder(MetricRegistry.name(context.getName(), name, Measurements.RATE_1MIN.getName()))
+            .values(timeStamp, convertRate(metered.getOneMinuteRate())).build());
+    this.influxDB.write(
+        this.database,
+        this.timeUnit,
+        getSerieBuilder(MetricRegistry.name(context.getName(), name, Measurements.RATE_5MIN.getName()))
+            .values(timeStamp, convertRate(metered.getFiveMinuteRate())).build());
+    this.influxDB.write(
+        this.database,
+        this.timeUnit,
+        getSerieBuilder(MetricRegistry.name(context.getName(), name, Measurements.RATE_15MIN.getName()))
+            .values(timeStamp, convertRate(metered.getFifteenMinuteRate())).build());
   }
 
-  private Serie.Builder addSnapshot(String name, Snapshot snapshot, long timeStamp, Serie.Builder builder) {
-    return builder
-        .values(timeStamp, MetricRegistry.name(name, Measurements.MIN.getName()), snapshot.getMin())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.MAX.getName()), snapshot.getMax())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.MEAN.getName()), snapshot.getMean())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.STDDEV.getName()), snapshot.getStdDev())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.MEDIAN.getName()), snapshot.getMedian())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.PERCENTILE_75TH.getName()),
-            snapshot.get75thPercentile())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.PERCENTILE_95TH.getName()),
-            snapshot.get95thPercentile())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.PERCENTILE_98TH.getName()),
-            snapshot.get98thPercentile())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.PERCENTILE_99TH.getName()),
-            snapshot.get99thPercentile())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.PERCENTILE_999TH.getName()),
-            snapshot.get999thPercentile());
+  private void reportSnapshot(MetricContext context, String name, Snapshot snapshot, long timeStamp,
+      boolean convertDuration) {
+    this.influxDB.write(
+        this.database,
+        this.timeUnit,
+        getSerieBuilder(MetricRegistry.name(context.getName(), name, Measurements.MIN.getName()))
+            .values(timeStamp, convertDuration ? convertDuration(snapshot.getMin()) : snapshot.getMin())
+            .build());
+    this.influxDB.write(
+        this.database,
+        this.timeUnit,
+        getSerieBuilder(MetricRegistry.name(context.getName(), name, Measurements.MAX.getName()))
+            .values(timeStamp, convertDuration ? convertDuration(snapshot.getMax()) : snapshot.getMax())
+            .build());
+    this.influxDB.write(
+        this.database,
+        this.timeUnit,
+        getSerieBuilder(MetricRegistry.name(context.getName(), name, Measurements.MEAN.getName()))
+            .values(timeStamp, convertDuration ? convertDuration(snapshot.getMean()) : snapshot.getMean())
+            .build());
+    this.influxDB.write(
+        this.database,
+        this.timeUnit,
+        getSerieBuilder(MetricRegistry.name(context.getName(), name, Measurements.STDDEV.getName()))
+            .values(timeStamp, convertDuration ? convertDuration(snapshot.getStdDev()) : snapshot.getStdDev())
+            .build());
+    this.influxDB.write(
+        this.database,
+        this.timeUnit,
+        getSerieBuilder(MetricRegistry.name(context.getName(), name, Measurements.MEDIAN.getName()))
+            .values(timeStamp, convertDuration ? convertDuration(snapshot.getMedian()) : snapshot.getMedian())
+            .build());
+    this.influxDB.write(this.database, this.timeUnit,
+        getSerieBuilder(MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_75TH.getName()))
+            .values(timeStamp,
+                convertDuration ? convertDuration(snapshot.get75thPercentile()) : snapshot.get75thPercentile())
+            .build());
+    this.influxDB.write(
+        this.database,
+        this.timeUnit,
+        getSerieBuilder(MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_95TH.getName()))
+            .values(timeStamp,
+                convertDuration ? convertDuration(snapshot.get95thPercentile()) : snapshot.get95thPercentile())
+            .build());
+    this.influxDB.write(
+        this.database,
+        this.timeUnit,
+        getSerieBuilder(MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_98TH.getName()))
+            .values(timeStamp,
+                convertDuration ? convertDuration(snapshot.get98thPercentile()) : snapshot.get98thPercentile())
+            .build());
+    this.influxDB.write(
+        this.database,
+        this.timeUnit,
+        getSerieBuilder(MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_99TH.getName()))
+            .values(timeStamp,
+                convertDuration ? convertDuration(snapshot.get99thPercentile()) : snapshot.get99thPercentile())
+            .build());
+    this.influxDB.write(
+        this.database,
+        this.timeUnit,
+        getSerieBuilder(MetricRegistry.name(context.getName(), name, Measurements.PERCENTILE_999TH.getName()))
+            .values(timeStamp,
+                convertDuration ? convertDuration(snapshot.get999thPercentile()) : snapshot.get999thPercentile())
+            .build());
+  }
+
+  private Serie.Builder getSerieBuilder(String serieName) {
+    return new Serie.Builder(serieName).columns(TIMESTAMP, VALUE);
   }
 
   /**

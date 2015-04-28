@@ -11,8 +11,6 @@
 
 package gobblin.metrics.influxdb;
 
-import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
@@ -35,9 +33,7 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedMap;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import gobblin.metrics.Measurements;
@@ -109,33 +105,26 @@ public class InfluxDBReporterTest {
 
     this.influxDBReporter.report(gauges, counters, histograms, meters, timers);
 
-    Serie serie = this.influxDB.getSerie(0);
-
-    Assert.assertEquals(serie.getName(), CONTEXT_NAME);
-    Assert.assertEquals(Arrays.asList(serie.getColumns()),
-        ImmutableList.of(InfluxDBReporter.TIMESTAMP, InfluxDBReporter.NAME, InfluxDBReporter.VALUE));
-
-    List<Map<String, Object>> rows = serie.getRows();
-    Assert.assertEquals(rows.size(), 33);
-
-    Map<String, Object> namesToValues = Maps.newHashMap();
-    for (Map<String, Object> row : rows) {
-      namesToValues.put((String) row.get(InfluxDBReporter.NAME), row.get(InfluxDBReporter.VALUE));
-    }
-
-    Assert.assertEquals(((Integer) namesToValues.get(QUEUE_SIZE)).intValue(), 1000);
     Assert.assertEquals(
-        ((Long) namesToValues.get(MetricRegistry.name(RECORDS_PROCESSED, Measurements.COUNT.getName()))).longValue(),
+        ((Integer) this.influxDB.getSerie(MetricRegistry.name(CONTEXT_NAME, QUEUE_SIZE)).getRows().get(0)
+            .get(InfluxDBReporter.VALUE)).intValue(),
+        1000);
+    Assert.assertEquals(
+        ((Long) this.influxDB.getSerie(MetricRegistry.name(CONTEXT_NAME, RECORDS_PROCESSED,
+            Measurements.COUNT.getName())).getRows().get(0).get(InfluxDBReporter.VALUE)).longValue(),
         10l);
     Assert.assertEquals(
-        ((Long) namesToValues.get(MetricRegistry.name(RECORD_PROCESS_RATE, Measurements.COUNT.getName()))).longValue(),
+        ((Long) this.influxDB.getSerie(MetricRegistry.name(CONTEXT_NAME, RECORD_PROCESS_RATE,
+            Measurements.COUNT.getName())).getRows().get(0).get(InfluxDBReporter.VALUE)).longValue(),
         6l);
     Assert.assertEquals(
-        ((Long) namesToValues.get(MetricRegistry.name(RECORD_SIZE_DISTRIBUTION, Measurements.COUNT.getName())))
-            .longValue(),
+        ((Long) this.influxDB.getSerie(MetricRegistry.name(CONTEXT_NAME, RECORD_SIZE_DISTRIBUTION,
+            Measurements.COUNT.getName())).getRows().get(0).get(InfluxDBReporter.VALUE)).longValue(),
         3l);
     Assert.assertEquals(
-        ((Long) namesToValues.get(MetricRegistry.name(TOTAL_DURATION, Measurements.COUNT.getName()))).longValue(), 3l);
+        ((Long) this.influxDB.getSerie(MetricRegistry.name(CONTEXT_NAME, TOTAL_DURATION,
+            Measurements.COUNT.getName())).getRows().get(0).get(InfluxDBReporter.VALUE)).longValue(),
+        3l);
 
     recordsProcessedCounter.inc(5l);
     recordSizeDistributionHistogram.update(4);
@@ -144,25 +133,26 @@ public class InfluxDBReporterTest {
 
     this.influxDBReporter.report(gauges, counters, histograms, meters, timers);
 
-    rows = this.influxDB.getSerie(1).getRows();
-    namesToValues.clear();
-    for (Map<String, Object> row : rows) {
-      namesToValues.put((String) row.get(InfluxDBReporter.NAME), row.get(InfluxDBReporter.VALUE));
-    }
-
-    Assert.assertEquals(((Integer) namesToValues.get(QUEUE_SIZE)).intValue(), 1000);
     Assert.assertEquals(
-        ((Long) namesToValues.get(MetricRegistry.name(RECORDS_PROCESSED, Measurements.COUNT.getName()))).longValue(),
+        ((Integer) this.influxDB.getSerie(MetricRegistry.name(CONTEXT_NAME, QUEUE_SIZE)).getRows().get(0)
+            .get(InfluxDBReporter.VALUE)).intValue(),
+        1000);
+    Assert.assertEquals(
+        ((Long) this.influxDB.getSerie(MetricRegistry.name(CONTEXT_NAME, RECORDS_PROCESSED,
+            Measurements.COUNT.getName())).getRows().get(0).get(InfluxDBReporter.VALUE)).longValue(),
         15l);
     Assert.assertEquals(
-        ((Long) namesToValues.get(MetricRegistry.name(RECORD_PROCESS_RATE, Measurements.COUNT.getName()))).longValue(),
+        ((Long) this.influxDB.getSerie(MetricRegistry.name(CONTEXT_NAME, RECORD_PROCESS_RATE,
+            Measurements.COUNT.getName())).getRows().get(0).get(InfluxDBReporter.VALUE)).longValue(),
         10l);
     Assert.assertEquals(
-        ((Long) namesToValues.get(MetricRegistry.name(RECORD_SIZE_DISTRIBUTION, Measurements.COUNT.getName())))
-            .longValue(),
+        ((Long) this.influxDB.getSerie(MetricRegistry.name(CONTEXT_NAME, RECORD_SIZE_DISTRIBUTION,
+            Measurements.COUNT.getName())).getRows().get(0).get(InfluxDBReporter.VALUE)).longValue(),
         4l);
     Assert.assertEquals(
-        ((Long) namesToValues.get(MetricRegistry.name(TOTAL_DURATION, Measurements.COUNT.getName()))).longValue(), 4l);
+        ((Long) this.influxDB.getSerie(MetricRegistry.name(CONTEXT_NAME, TOTAL_DURATION,
+            Measurements.COUNT.getName())).getRows().get(0).get(InfluxDBReporter.VALUE)).longValue(),
+        4l);
   }
 
   @AfterClass
@@ -177,7 +167,7 @@ public class InfluxDBReporterTest {
    */
   private static class TestInfluxDB extends InfluxDBImpl {
 
-    private final List<Serie> series = Lists.newArrayList();
+    private final Map<String, Serie> series = Maps.newHashMap();
 
     public TestInfluxDB(String url, String username, String password) {
       super(url, username, password);
@@ -185,11 +175,13 @@ public class InfluxDBReporterTest {
 
     @Override
     public void write(String database, TimeUnit precision, Serie... series) {
-      this.series.addAll(Arrays.asList(series));
+      // There should be a single serie
+      Serie serie = series[0];
+      this.series.put(serie.getName(), serie);
     }
 
-    public Serie getSerie(int index) {
-      return this.series.get(index);
+    public Serie getSerie(String name) {
+      return this.series.get(name);
     }
   }
 }
