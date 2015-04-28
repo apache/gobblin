@@ -50,7 +50,7 @@ import static gobblin.metrics.TestConstants.*;
  *
  * @author ynli
  */
-@Test(groups = {"gobblin.metrics.influxdb"})
+@Test(groups = {"gobblin.metrics.influxdb", "ignore"})
 public class InfluxDBReporterTest {
 
   private static final String URL = "http://localhost:8086";
