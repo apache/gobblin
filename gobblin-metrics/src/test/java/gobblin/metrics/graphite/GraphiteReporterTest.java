@@ -30,6 +30,7 @@ import com.codahale.metrics.MetricFilter;
 
 import gobblin.metrics.Measurements;
 import gobblin.metrics.MetricContext;
+import static gobblin.metrics.TestConstants.*;
 
 
 /**
@@ -39,13 +40,6 @@ import gobblin.metrics.MetricContext;
  */
 @Test(groups = {"gobblin.metrics.graphite"})
 public class GraphiteReporterTest {
-
-  private static final String CONTEXT_NAME = "TestContext";
-  private static final String RECORDS_PROCESSED = "recordsProcessed";
-  private static final String RECORD_PROCESS_RATE = "recordProcessRate";
-  private static final String RECORD_SIZE_DISTRIBUTION = "recordSizeDistribution";
-  private static final String TOTAL_DURATION = "totalDuration";
-  private static final String QUEUE_SIZE = "queueSize";
 
   private MetricContext context;
   private TestGraphiteSender testGraphiteSender = new TestGraphiteSender();
@@ -57,7 +51,7 @@ public class GraphiteReporterTest {
         .convertDurationsTo(TimeUnit.MILLISECONDS)
         .filter(MetricFilter.ALL);
     this.context = MetricContext.builder(CONTEXT_NAME)
-        .addContextAwareScheduledReporter(GraphiteReporter.class.getName(), graphiteReporterBuilder)
+        .addContextAwareScheduledReporter(graphiteReporterBuilder)
         .build();
   }
 
@@ -146,6 +140,8 @@ public class GraphiteReporterTest {
 
   @AfterClass
   public void tearDown() throws IOException {
-    this.context.close();
+    if (this.context != null) {
+      this.context.close();
+    }
   }
 }

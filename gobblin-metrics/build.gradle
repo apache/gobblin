@@ -25,6 +25,7 @@ dependencies {
   compile externalDependency.avro
   compile externalDependency.jacksonCore
   compile externalDependency.jacksonMapper
+  compile externalDependency.influxdbJava
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
