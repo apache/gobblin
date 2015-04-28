@@ -28,6 +28,7 @@ import gobblin.converter.DataConversionException;
 import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
+import gobblin.metrics.MetricNames;
 
 
 /**
@@ -42,7 +43,7 @@ abstract class InstrumentedConverterBase<SI, SO, DI, DO> extends Converter<SI, S
   protected Meter recordsOut = new Meter();
   protected Meter recordsException = new Meter();
   protected Timer converterTimer = new Timer();
-  protected Closer closer = Closer.create();
+  protected final Closer closer = Closer.create();
 
   @Override
   public Converter<SI, SO, DI, DO> init(WorkUnitState workUnit) {
@@ -50,10 +51,10 @@ abstract class InstrumentedConverterBase<SI, SO, DI, DO> extends Converter<SI, S
 
     this.metricContext = closer.register(Instrumented.getMetricContext(workUnit, this.getClass()));
 
-    this.recordsIn = this.metricContext.contextAwareMeter("gobblin.converter.records.in");
-    this.recordsOut = this.metricContext.contextAwareMeter("gobblin.converter.records.out");
-    this.recordsException = this.metricContext.contextAwareMeter("gobblin.converter.records.failed");
-    this.converterTimer = this.metricContext.contextAwareTimer("gobblin.converter.conversion.time");
+    this.recordsIn = this.metricContext.meter(MetricNames.Converter.RECORDS_IN);
+    this.recordsOut = this.metricContext.meter(MetricNames.Converter.RECORDS_OUT);
+    this.recordsException = this.metricContext.meter(MetricNames.Converter.RECORDS_FAILED);
+    this.converterTimer = this.metricContext.timer(MetricNames.Converter.CONVERT_TIME);
 
     return converter;
   }

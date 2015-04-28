@@ -10,19 +10,12 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.instrumented;
-
-import gobblin.metrics.MetricContext;
-
+package gobblin.constructs;
 
 /**
- * Interface for classes instrumenting their execution into a {@link gobblin.metrics.MetricContext}.
+ * Enumeration of available gobblin constructs.
  */
-public interface Instrumentable {
-
-  /**
-   * Get {@link gobblin.metrics.MetricContext} containing metrics related to this Instrumentable.
-   * @return an instance of {@link gobblin.metrics.MetricContext}.
-   */
-  public MetricContext getMetricContext();
+public enum Constructs {
+  SOURCE, EXTRACTOR, CONVERTER, ROW_QUALITY_CHECKER,
+  TASK_QUALITY_CHECKER, FORK_OPERATOR, WRITER
 }

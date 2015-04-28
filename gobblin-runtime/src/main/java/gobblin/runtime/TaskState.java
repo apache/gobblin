@@ -37,11 +37,11 @@ import gobblin.rest.TaskExecutionInfo;
 import gobblin.rest.TaskStateEnum;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
-import gobblin.runtime.util.*;
 import gobblin.runtime.util.MetricGroup;
+import gobblin.runtime.util.TaskMetrics;
 import gobblin.source.workunit.Extract;
 import gobblin.util.ForkOperatorUtils;
-import gobblin.GobblinMetrics;
+import gobblin.metrics.GobblinMetrics;
 
 
 /**

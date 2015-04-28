@@ -15,8 +15,8 @@ package gobblin.runtime.util;
 import java.util.ArrayList;
 import java.util.List;
 
-import gobblin.GobblinMetrics;
-import gobblin.GobblinMetricsRegistry;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
 import gobblin.runtime.TaskState;

@@ -25,6 +25,7 @@ import gobblin.fork.ForkOperator;
 import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
+import gobblin.metrics.MetricNames;
 
 
 /**
@@ -34,7 +35,7 @@ import gobblin.metrics.MetricContext;
 abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, ForkOperator<S, D> {
 
   protected MetricContext metricContext = new MetricContext.Builder("TMP").build();
-  protected Closer closer = Closer.create();
+  protected final Closer closer = Closer.create();
   // Initialize as dummy metrics to avoid null pointer exception if init was skipped
   protected Meter inputMeter = new Meter();
   protected Meter outputForks = new Meter();
@@ -45,9 +46,9 @@ abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, For
       throws Exception {
     this.metricContext = closer.register(Instrumented.getMetricContext(workUnitState, this.getClass()));
 
-    this.inputMeter = this.metricContext.meter("gobblin.fork.operator.records.in");
-    this.outputForks = this.metricContext.meter("gobblin.fork.operator.forks.out");
-    this.forkOperatorTimer = this.metricContext.timer("gobblin.fork.operator.timer");
+    this.inputMeter = this.metricContext.meter(MetricNames.ForkOperator.RECORDS_IN);
+    this.outputForks = this.metricContext.meter(MetricNames.ForkOperator.FORKS_OUT);
+    this.forkOperatorTimer = this.metricContext.timer(MetricNames.ForkOperator.FORK_TIME);
   }
 
   @Override

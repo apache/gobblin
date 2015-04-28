@@ -19,8 +19,7 @@ import java.util.Map;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.GobblinMetrics;
-import gobblin.GobblinMetricsRegistry;
+import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.metrics.Tag;
 import gobblin.runtime.JobState;
 

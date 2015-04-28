@@ -20,7 +20,8 @@ import org.testng.annotations.Test;
 
 import junit.framework.Assert;
 
-import gobblin.GobblinMetrics;
+import gobblin.constructs.Constructs;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.configuration.State;
 import gobblin.metrics.Tag;
 import gobblin.instrumented.extractor.InstrumentedExtractor;
@@ -43,7 +44,7 @@ public class InstrumentedTest {
 
     List<Tag<?>> tags = instrumented.getMetricContext().getTags();
     Map<String, String> expectedTags = new HashMap<String, String>();
-    expectedTags.put("component", "extractor");
+    expectedTags.put("construct", Constructs.EXTRACTOR.toString());
     expectedTags.put("class", InstrumentedExtractor.class.getCanonicalName());
 
     Assert.assertEquals(tags.size(), expectedTags.size());

@@ -22,8 +22,10 @@ import org.testng.annotations.Test;
 
 import gobblin.MetricsHelper;
 import gobblin.configuration.WorkUnitState;
+import gobblin.constructs.Constructs;
 import gobblin.fork.ForkOperator;
 import gobblin.instrumented.fork.InstrumentedForkOperator;
+import gobblin.metrics.MetricNames;
 
 
 public class InstrumentedForkOperatorTest {
@@ -113,11 +115,12 @@ public class InstrumentedForkOperatorTest {
     fork.forkDataRecord(new WorkUnitState(), "in");
 
     Map<String, Long> metrics = MetricsHelper.dumpMetrics(fork.metricContext);
-    Assert.assertEquals(metrics.get("gobblin.fork.operator.records.in"), Long.valueOf(1));
-    Assert.assertEquals(metrics.get("gobblin.fork.operator.forks.out"), Long.valueOf(2));
-    Assert.assertEquals(metrics.get("gobblin.fork.operator.timer"), Long.valueOf(1));
+    Assert.assertEquals(metrics.get(MetricNames.ForkOperator.RECORDS_IN), Long.valueOf(1));
+    Assert.assertEquals(metrics.get(MetricNames.ForkOperator.FORKS_OUT), Long.valueOf(2));
+    Assert.assertEquals(metrics.get(MetricNames.ForkOperator.FORK_TIME), Long.valueOf(1));
 
-    Assert.assertEquals(MetricsHelper.dumpTags(fork.metricContext).get("component"), "forkOperator");
+    Assert.assertEquals(MetricsHelper.dumpTags(fork.metricContext).get("construct"),
+        Constructs.FORK_OPERATOR.toString());
 
   }
 

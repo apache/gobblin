@@ -28,7 +28,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
-import gobblin.GobblinMetrics;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.instrumented.writer.InstrumentedDataWriterDecorator;
 import gobblin.publisher.TaskPublisher;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;

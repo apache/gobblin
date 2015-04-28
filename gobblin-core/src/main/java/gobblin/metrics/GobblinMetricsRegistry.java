@@ -10,16 +10,23 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin;
+package gobblin.metrics;
 
 import java.util.concurrent.ConcurrentMap;
 
 import com.google.common.collect.MapMaker;
 
 
+/**
+ * Registry that stores instances of {@link GobblinMetrics} identified by an arbitrary string id.
+ * The static method getInstance() provides a static instance of this this class that should be considered
+ * the global registry of metrics.
+ * An application could also instantiate one or more registries to for example separate instances of
+ * {@link GobblinMetrics} into different scopes.
+ */
 public class GobblinMetricsRegistry {
 
-  private static GobblinMetricsRegistry GLOBAL_INSTANCE = new GobblinMetricsRegistry();
+  private static final GobblinMetricsRegistry GLOBAL_INSTANCE = new GobblinMetricsRegistry();
 
   public static GobblinMetricsRegistry getInstance() {
     return GLOBAL_INSTANCE;
@@ -28,7 +35,7 @@ public class GobblinMetricsRegistry {
   private final ConcurrentMap<String, GobblinMetrics> metricsMap = new MapMaker().weakValues().makeMap();
 
   public GobblinMetrics putIfAbsent(String id, GobblinMetrics gobblinMetrics) {
-    return metricsMap.putIfAbsent(id, gobblinMetrics);
+    return this.metricsMap.putIfAbsent(id, gobblinMetrics);
   }
 
   public boolean containsKey(String id) {

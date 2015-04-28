@@ -350,7 +350,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    * </p>
    */
   @Override
-  public <T extends Metric> T register(String name, T metric)
+  public synchronized <T extends Metric> T register(String name, T metric)
       throws IllegalArgumentException {
     if (metric instanceof MetricSet) {
       registerAll((MetricSet) metric);
@@ -477,7 +477,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    * @return whether or not the metric has been removed
    */
   @Override
-  public boolean remove(String name) {
+  public synchronized boolean remove(String name) {
     return this.contextAwareMetrics.remove(name) != null &&
            super.remove(MetricRegistry.name(metricNamePrefix(this.includeTagKeys), name)) &&
            removeChildrenMetrics(name);

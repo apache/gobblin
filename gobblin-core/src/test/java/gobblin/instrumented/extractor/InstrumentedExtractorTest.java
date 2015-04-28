@@ -20,7 +20,9 @@ import org.testng.annotations.Test;
 
 import gobblin.MetricsHelper;
 import gobblin.configuration.WorkUnitState;
+import gobblin.constructs.Constructs;
 import gobblin.instrumented.extractor.InstrumentedExtractor;
+import gobblin.metrics.MetricNames;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 
@@ -109,11 +111,12 @@ public class InstrumentedExtractorTest {
     extractor.readRecord("");
 
     Map<String, Long> metrics = MetricsHelper.dumpMetrics(extractor.getMetricContext());
-    Assert.assertEquals(metrics.get("gobblin.extractor.records.read"), Long.valueOf(1));
-    Assert.assertEquals(metrics.get("gobblin.extractor.records.failed"), Long.valueOf(0));
-    Assert.assertEquals(metrics.get("gobblin.extractor.extract.time"), Long.valueOf(1));
+    Assert.assertEquals(metrics.get(MetricNames.Extractor.RECORDS_READ), Long.valueOf(1));
+    Assert.assertEquals(metrics.get(MetricNames.Extractor.RECORDS_FAILED), Long.valueOf(0));
+    Assert.assertEquals(metrics.get(MetricNames.Extractor.EXTRACT_TIME), Long.valueOf(1));
 
-    Assert.assertEquals(MetricsHelper.dumpTags(extractor.getMetricContext()).get("component"), "extractor");
+    Assert.assertEquals(MetricsHelper.dumpTags(extractor.getMetricContext()).get("construct"),
+        Constructs.EXTRACTOR.toString());
   }
 
 }

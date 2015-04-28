@@ -24,6 +24,7 @@ import gobblin.configuration.State;
 import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
+import gobblin.metrics.MetricNames;
 import gobblin.qualitychecker.row.RowLevelPolicy;
 
 
@@ -43,10 +44,10 @@ abstract class InstrumentedRowLevelPolicyBase extends RowLevelPolicy implements 
     super(state, type);
     this.closer = Closer.create();
     this.metricContext = closer.register(Instrumented.getMetricContext(state, this.getClass()));
-    this.recordsMeter = this.metricContext.contextAwareMeter("gobblin.qualitychecker.records.in");
-    this.passedRecordsMeter = this.metricContext.contextAwareMeter("gobblin.qualitychecker.records.passed");
-    this.failedRecordsMeter = this.metricContext.contextAwareMeter("gobblin.qualitychecker.records.failed");
-    this.policyTimer = this.metricContext.contextAwareTimer("gobblin.qualitychecker.policy.timer");
+    this.recordsMeter = this.metricContext.contextAwareMeter(MetricNames.RowLevelPolicy.RECORDS_IN);
+    this.passedRecordsMeter = this.metricContext.contextAwareMeter(MetricNames.RowLevelPolicy.RECORDS_PASSED);
+    this.failedRecordsMeter = this.metricContext.contextAwareMeter(MetricNames.RowLevelPolicy.RECORDS_FAILED);
+    this.policyTimer = this.metricContext.contextAwareTimer(MetricNames.RowLevelPolicy.CHECK_TIME);
   }
 
   @Override

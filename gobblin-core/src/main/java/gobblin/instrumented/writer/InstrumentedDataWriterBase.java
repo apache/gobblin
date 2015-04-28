@@ -24,6 +24,7 @@ import gobblin.configuration.State;
 import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
+import gobblin.metrics.MetricNames;
 import gobblin.writer.DataWriter;
 
 
@@ -33,7 +34,7 @@ import gobblin.writer.DataWriter;
  */
 abstract class InstrumentedDataWriterBase <D> implements DataWriter<D>, Instrumentable, Closeable {
 
-  protected Closer closer;
+  protected final Closer closer;
   protected MetricContext metricContext;
   protected Meter recordsInMeter;
   protected Meter successfulWriteMeter;
@@ -44,10 +45,10 @@ abstract class InstrumentedDataWriterBase <D> implements DataWriter<D>, Instrume
     this.closer = Closer.create();
 
     this.metricContext = this.closer.register(Instrumented.getMetricContext(state, this.getClass()));
-    this.recordsInMeter = this.metricContext.meter("gobblin.writer.records.in");
-    this.successfulWriteMeter = this.metricContext.meter("gobblin.writer.records.written");
-    this.exceptionWriteMeter = this.metricContext.meter("gobblin.writer.records.failed");
-    this.dataWriterTimer = this.metricContext.timer("gobblin.writer.timer");
+    this.recordsInMeter = this.metricContext.meter(MetricNames.DataWriter.RECORDS_IN);
+    this.successfulWriteMeter = this.metricContext.meter(MetricNames.DataWriter.RECORDS_WRITTEN);
+    this.exceptionWriteMeter = this.metricContext.meter(MetricNames.DataWriter.RECORDS_FAILED);
+    this.dataWriterTimer = this.metricContext.timer(MetricNames.DataWriter.WRITE_TIME);
   }
 
   @Override

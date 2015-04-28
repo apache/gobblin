@@ -20,7 +20,9 @@ import org.testng.annotations.Test;
 
 import gobblin.MetricsHelper;
 import gobblin.configuration.State;
+import gobblin.constructs.Constructs;
 import gobblin.instrumented.writer.InstrumentedDataWriter;
+import gobblin.metrics.MetricNames;
 import gobblin.writer.DataWriter;
 
 
@@ -125,12 +127,13 @@ public class InstrumentedDataWriterTest {
     writer.write("test");
 
     Map<String, Long> metrics = MetricsHelper.dumpMetrics(writer.getMetricContext());
-    Assert.assertEquals(metrics.get("gobblin.writer.records.in"), Long.valueOf(1));
-    Assert.assertEquals(metrics.get("gobblin.writer.records.written"), Long.valueOf(1));
-    Assert.assertEquals(metrics.get("gobblin.writer.records.failed"), Long.valueOf(0));
-    Assert.assertEquals(metrics.get("gobblin.writer.timer"), Long.valueOf(1));
+    Assert.assertEquals(metrics.get(MetricNames.DataWriter.RECORDS_IN), Long.valueOf(1));
+    Assert.assertEquals(metrics.get(MetricNames.DataWriter.RECORDS_WRITTEN), Long.valueOf(1));
+    Assert.assertEquals(metrics.get(MetricNames.DataWriter.RECORDS_FAILED), Long.valueOf(0));
+    Assert.assertEquals(metrics.get(MetricNames.DataWriter.WRITE_TIME), Long.valueOf(1));
 
-    Assert.assertEquals(MetricsHelper.dumpTags(writer.getMetricContext()).get("component"), "writer");
+    Assert.assertEquals(MetricsHelper.dumpTags(writer.getMetricContext()).get("construct"),
+        Constructs.WRITER.toString());
 
   }
 

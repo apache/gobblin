@@ -24,6 +24,7 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
+import gobblin.metrics.MetricNames;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 
@@ -37,7 +38,7 @@ abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instr
   protected Meter readRecordsMeter;
   protected Meter dataRecordExceptionsMeter;
   protected Timer extractorTimer;
-  protected Closer closer;
+  protected final Closer closer;
 
   @SuppressWarnings("unchecked")
   public InstrumentedExtractorBase(WorkUnitState workUnitState) {
@@ -46,9 +47,9 @@ abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instr
 
     this.metricContext = closer.register(Instrumented.getMetricContext(workUnitState, this.getClass()));
 
-    this.readRecordsMeter = this.metricContext.contextAwareMeter("gobblin.extractor.records.read");
-    this.dataRecordExceptionsMeter = this.metricContext.contextAwareMeter("gobblin.extractor.records.failed");
-    this.extractorTimer = this.metricContext.contextAwareTimer("gobblin.extractor.extract.time");
+    this.readRecordsMeter = this.metricContext.contextAwareMeter(MetricNames.Extractor.RECORDS_READ);
+    this.dataRecordExceptionsMeter = this.metricContext.contextAwareMeter(MetricNames.Extractor.RECORDS_FAILED);
+    this.extractorTimer = this.metricContext.contextAwareTimer(MetricNames.Extractor.EXTRACT_TIME);
   }
 
   @Override

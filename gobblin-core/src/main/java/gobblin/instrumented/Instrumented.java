@@ -18,8 +18,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import gobblin.GobblinMetrics;
-import gobblin.GobblinMetricsRegistry;
+import gobblin.constructs.Constructs;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.configuration.State;
 import gobblin.converter.Converter;
 import gobblin.fork.ForkOperator;
@@ -45,30 +46,52 @@ import gobblin.writer.DataWriter;
 public class Instrumented implements Instrumentable, Closeable {
 
   public static final String METRIC_CONTEXT_NAME_KEY = "metrics.context.name";
-  protected MetricContext metricContext;
+  protected final MetricContext metricContext;
 
-  public static MetricContext getMetricContext(State state, Class klazz) {
+  /**
+   * Gets metric context with no additional tags.
+   * See {@link #getMetricContext(State, Class, List)}
+   */
+  public static MetricContext getMetricContext(State state, Class<?> klazz) {
     return getMetricContext(state, klazz, new ArrayList<Tag<?>>());
   }
 
-  public static MetricContext getMetricContext(State state, Class klazz, List<Tag<?>> tags) {
+  /**
+   * Generate a {@link gobblin.metrics.MetricContext} to be used by an object needing instrumentation.
+   * This method will read the property "metrics.context.name" from the input State, and will attempt
+   * to find a MetricContext with that name in the global instance of {@link gobblin.metrics.GobblinMetricsRegistry}.
+   * If it succeeds, the generated MetricContext will be a child of the retrieved Context, otherwise it will
+   * be a parent-less context.
+   * The method will automatically add two tags to the context:
+   *  - construct will contain the name of the {@link gobblin.constructs.Constructs} that klazz represents.
+   *  - class will contain the canonical name of the input class.
+   *
+   * @param state {@link gobblin.configuration.State} used to find the parent MetricContext.
+   * @param klazz Class of the object needing instrumentation.
+   * @param tags Additional tags to add to the returned context.
+   * @return A {@link gobblin.metrics.MetricContext} with the appropriate tags and parent.
+   */
+  public static MetricContext getMetricContext(State state, Class<?> klazz, List<Tag<?>> tags) {
     int randomId = (new Random()).nextInt();
 
-    String component = "unknown";
+    Constructs construct = null;
     if(Converter.class.isAssignableFrom(klazz)) {
-      component = "converter";
+      construct = Constructs.CONVERTER;
     } else if(ForkOperator.class.isAssignableFrom(klazz)) {
-      component = "forkOperator";
+      construct = Constructs.FORK_OPERATOR;
     } else if(RowLevelPolicy.class.isAssignableFrom(klazz)) {
-      component = "rowLevelPolicy";
+      construct = Constructs.ROW_QUALITY_CHECKER;
     } else if(Extractor.class.isAssignableFrom(klazz)) {
-      component = "extractor";
+      construct = Constructs.EXTRACTOR;
     } else if(DataWriter.class.isAssignableFrom(klazz)) {
-      component = "writer";
+      construct = Constructs.WRITER;
     }
 
-    Tag<String> componentTag = new Tag<String>("component", component);
-    Tag<String> classTag = new Tag<String>("class", klazz.getCanonicalName());
+    List<Tag<?>> generatedTags = new ArrayList<Tag<?>>();
+    if (construct != null) {
+      generatedTags.add(new Tag<String>("construct", construct.toString()));
+    }
+    generatedTags.add(new Tag<String>("class", klazz.getCanonicalName()));
 
     GobblinMetrics gobblinMetrics;
     MetricContext.Builder builder = state.contains(METRIC_CONTEXT_NAME_KEY) &&
@@ -76,19 +99,18 @@ public class Instrumented implements Instrumentable, Closeable {
         gobblinMetrics.getMetricContext().childBuilder(klazz.getCanonicalName() + "." + randomId) :
         MetricContext.builder(klazz.getCanonicalName() + "." + randomId);
     return builder.
-        addTag(componentTag).
-        addTag(classTag).
+        addTags(generatedTags).
         addTags(tags).
         build();
   }
 
   @SuppressWarnings("unchecked")
-  public Instrumented(State state, Class klazz) {
+  public Instrumented(State state, Class<?> klazz) {
     this.metricContext = getMetricContext(state, klazz);
   }
 
   @SuppressWarnings("unchecked")
-  public Instrumented(State state, Class klazz, List<Tag<?>> tags) {
+  public Instrumented(State state, Class<?> klazz, List<Tag<?>> tags) {
     this.metricContext = getMetricContext(state, klazz, tags);
   }
 

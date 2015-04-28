@@ -58,8 +58,7 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.instrumented.Instrumented;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
-import gobblin.metrics.MetricContext;
-import gobblin.GobblinMetrics;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.FileBasedJobLock;
 import gobblin.runtime.JobException;
@@ -412,7 +411,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
   }
 
   /**
-   * Create a {@link gobblin.GobblinMetrics} instance for this job run from the Hadoop counters.
+   * Create a {@link gobblin.metrics.GobblinMetrics} instance for this job run from the Hadoop counters.
    */
   private void countersToMetrics(Counters counters, GobblinMetrics metrics) {
     // Write job-level counters

@@ -38,7 +38,7 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   @Override
   public MetricContext getMetricContext() {
     return this.isEmbeddedInstrumented ?
-        ((InstrumentedDataWriterBase)embeddedWriter).getMetricContext() :
+        ((InstrumentedDataWriterBase)this.embeddedWriter).getMetricContext() :
         super.getMetricContext();
   }
 
@@ -46,7 +46,7 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   public void write(D record)
       throws IOException {
     if(this.isEmbeddedInstrumented) {
-      embeddedWriter.write(record);
+      this.embeddedWriter.write(record);
     } else {
       super.write(record);
     }
@@ -55,29 +55,29 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   @Override
   public void writeImpl(D record)
       throws IOException {
-    embeddedWriter.write(record);
+    this.embeddedWriter.write(record);
   }
 
   @Override
   public void commit()
       throws IOException {
-    embeddedWriter.commit();
+    this.embeddedWriter.commit();
   }
 
   @Override
   public void cleanup()
       throws IOException {
-    embeddedWriter.cleanup();
+    this.embeddedWriter.cleanup();
   }
 
   @Override
   public long recordsWritten() {
-    return embeddedWriter.recordsWritten();
+    return this.embeddedWriter.recordsWritten();
   }
 
   @Override
   public long bytesWritten()
       throws IOException {
-    return embeddedWriter.bytesWritten();
+    return this.embeddedWriter.bytesWritten();
   }
 }

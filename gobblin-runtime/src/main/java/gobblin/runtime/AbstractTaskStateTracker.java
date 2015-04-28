@@ -24,7 +24,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.GobblinMetrics;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.util.ExecutorsUtils;
 
 
