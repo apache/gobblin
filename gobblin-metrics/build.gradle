@@ -25,6 +25,7 @@ dependencies {
   compile externalDependency.avro
   compile externalDependency.jacksonCore
   compile externalDependency.jacksonMapper
+  compile externalDependency.jodaTime
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
@@ -61,6 +62,14 @@ test {
     workingDir rootProject.rootDir
     testLogging.showStandardStreams = true
     maxParallelForks = 1
+}
+
+sourceSets {
+  main {
+    java {
+      srcDir 'src/main/gen-java'
+    }
+  }
 }
 
 classification="library"

@@ -11,6 +11,9 @@
 
 package gobblin.metrics.kafka;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -20,7 +23,11 @@ import java.util.Properties;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.avro.io.Encoder;
+import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.specific.SpecificDatumWriter;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,16 +41,15 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
-
-import com.google.common.base.Charsets;
-import com.google.common.base.Strings;
 import com.google.common.io.Closer;
 
 import kafka.javaapi.producer.Producer;
 import kafka.producer.KeyedMessage;
 import kafka.producer.ProducerConfig;
 
+import gobblin.metrics.Metric;
 import gobblin.metrics.MetricContext;
+import gobblin.metrics.MetricReport;
 import gobblin.metrics.Tag;
 
 
@@ -61,10 +67,15 @@ public class KafkaReporter extends ScheduledReporter {
   private final String topic;
   private final ObjectMapper mapper = new ObjectMapper();
 
+  private final SpecificDatumWriter<MetricReport> writer;
+  private final Encoder encoder;
+  private final ByteArrayOutputStream out;
+
   protected long lastSerializeExceptionTime;
   protected final Closer closer;
 
   public final Map<String, String> tags;
+  private boolean reportMetrics = true;
 
   protected KafkaReporter(Builder<?> builder) {
     super(builder.registry, builder.name, builder.filter,
@@ -85,6 +96,11 @@ public class KafkaReporter extends ScheduledReporter {
     this.config = new ProducerConfig(props);
     this.producer = closer.register(new ProducerCloseable<String, byte[]>(config));
     this.topic = builder.topic;
+
+    this.out = this.closer.register(new ByteArrayOutputStream());
+    this.encoder = getEncoder(out);
+    this.writer = new SpecificDatumWriter<MetricReport>(MetricReport.class);
+
   }
 
   /**
@@ -231,13 +247,18 @@ public class KafkaReporter extends ScheduledReporter {
   }
 
   /**
-   * Class to contain a single metric.
+   * Get {@link org.apache.avro.io.Encoder} for serializing Avro records.
+   * @param out {@link java.io.OutputStream} where records should be written.
+   * @return Encoder.
    */
-  public static class Metric {
-    public String name;
-    public Object value;
-    public Map<String, String> tags;
-    public long timestamp;
+  protected Encoder getEncoder(OutputStream out) {
+    try {
+      return EncoderFactory.get().jsonEncoder(MetricReport.SCHEMA$, out);
+    } catch(IOException exception) {
+      LOGGER.warn("KafkaReporter serializer failed to initialize. Will not report Metrics to Kafka.");
+      this.reportMetrics = false;
+      return null;
+    }
   }
 
   @Override
@@ -263,68 +284,83 @@ public class KafkaReporter extends ScheduledReporter {
   public void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters,
       SortedMap<String, Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers) {
 
-    List<KeyedMessage<String, byte[]>> messages = new ArrayList<KeyedMessage<String, byte[]>>();
+    if(!this.reportMetrics) {
+      return;
+    }
+
+    List<Metric> metrics = new ArrayList<Metric>();
 
     for( Entry<String, Gauge> gauge : gauges.entrySet()) {
-      messages.addAll(toKeyedMessages(serializeGauge(gauge.getKey(), gauge.getValue())));
+      metrics.addAll(serializeGauge(gauge.getKey(), gauge.getValue()));
     }
 
     for ( Entry<String, Counter> counter : counters.entrySet()) {
-      messages.addAll(toKeyedMessages(serializeCounter(counter.getKey(), counter.getValue())));
+      metrics.addAll(serializeCounter(counter.getKey(), counter.getValue()));
     }
 
     for( Entry<String, Histogram> histogram : histograms.entrySet()) {
-      messages.addAll(toKeyedMessages(serializeSnapshot(histogram.getKey(), histogram.getValue().getSnapshot())));
-      messages.addAll(
-          toKeyedMessages(serializeSingleValue(histogram.getKey(), histogram.getValue().getCount(), "count")));
+      metrics.addAll(serializeSnapshot(histogram.getKey(), histogram.getValue().getSnapshot()));
+      metrics.addAll(serializeSingleValue(histogram.getKey(), histogram.getValue().getCount(), "count"));
     }
 
     for ( Entry<String, Meter> meter : meters.entrySet()) {
-      messages.addAll(toKeyedMessages(serializeMetered(meter.getKey(), meter.getValue())));
+      metrics.addAll(serializeMetered(meter.getKey(), meter.getValue()));
     }
 
     for ( Entry<String, Timer> timer : timers.entrySet()) {
-      messages.addAll(toKeyedMessages(serializeSnapshot(timer.getKey(), timer.getValue().getSnapshot())));
-      messages.addAll(toKeyedMessages(serializeMetered(timer.getKey(), timer.getValue())));
-      messages.addAll(toKeyedMessages(serializeSingleValue(timer.getKey(), timer.getValue().getCount(), "count")));
+      metrics.addAll(serializeSnapshot(timer.getKey(), timer.getValue().getSnapshot()));
+      metrics.addAll(serializeMetered(timer.getKey(), timer.getValue()));
+      metrics.addAll(serializeSingleValue(timer.getKey(), timer.getValue().getCount(), "count"));
     }
 
-    this.producer.send(messages);
+    MetricReport report = new MetricReport(this.tags, new DateTime().getMillis(), metrics);
+
+    byte[] serializedReport = serializeReport(report);
+
+    if(serializedReport != null) {
+      List<KeyedMessage<String, byte[]>> messages = new ArrayList<KeyedMessage<String, byte[]>>();
+      messages.add(new KeyedMessage<String, byte[]>(this.topic, serializeReport(report)));
+      this.producer.send(messages);
+    }
 
   }
 
   /**
-   * Serialize a {@link com.codahale.metrics.Gauge}.
+   * Extracts metrics from {@link com.codahale.metrics.Gauge}.
    * @param name
    * @param gauge
-   * @return List of byte arrays for each metric derived from the gauge
+   * @return a list of {@link gobblin.metrics.Metric}.
    */
-  protected List<byte[]> serializeGauge(String name, Gauge gauge) {
-    List<byte[]> metrics = new ArrayList<byte[]>();
-    metrics.add(serializeValue(name, gauge.getValue()));
+  protected List<Metric> serializeGauge(String name, Gauge gauge) {
+    List<Metric> metrics = new ArrayList<Metric>();
+    try {
+      metrics.add(new Metric(name, Double.parseDouble(gauge.getValue().toString())));
+    } catch(NumberFormatException exception) {
+      LOGGER.info("Failed to serialize gauge metric. Not compatible with double value.");
+    }
     return metrics;
   }
 
   /**
-   * Serialize a {@link com.codahale.metrics.Counter}.
+   * Extracts metrics from {@link com.codahale.metrics.Counter}.
    * @param name
    * @param counter
-   * @return List of byte arrays for each metric derived from the counter
+   * @return a list of {@link gobblin.metrics.Metric}.
    */
-  protected List<byte[]> serializeCounter(String name, Counter counter) {
-    List<byte[]> metrics = new ArrayList<byte[]>();
+  protected List<Metric> serializeCounter(String name, Counter counter) {
+    List<Metric> metrics = new ArrayList<Metric>();
     metrics.add(serializeValue(name, counter.getCount()));
     return metrics;
   }
 
   /**
-   * Serialize a {@link com.codahale.metrics.Metered}.
+   * Extracts metrics from {@link com.codahale.metrics.Metered}.
    * @param name
    * @param meter
-   * @return List of byte arrays for each metric derived from the metered object
+   * @return a list of {@link gobblin.metrics.Metric}.
    */
-  protected List<byte[]> serializeMetered(String name, Metered meter) {
-    List<byte[]> metrics = new ArrayList<byte[]>();
+  protected List<Metric> serializeMetered(String name, Metered meter) {
+    List<Metric> metrics = new ArrayList<Metric>();
 
     metrics.add(serializeValue(name, meter.getCount(), "count"));
     metrics.add(serializeValue(name, meter.getMeanRate(), "rate", "mean"));
@@ -336,13 +372,13 @@ public class KafkaReporter extends ScheduledReporter {
   }
 
   /**
-   * Serialize a {@link com.codahale.metrics.Snapshot}.
+   * Extracts metrics from {@link com.codahale.metrics.Snapshot}.
    * @param name
    * @param snapshot
-   * @return List of byte arrays for each metric derived from the snapshot object
+   * @return a list of {@link gobblin.metrics.Metric}.
    */
-  protected List<byte[]> serializeSnapshot(String name, Snapshot snapshot) {
-    List<byte[]> metrics = new ArrayList<byte[]>();
+  protected List<Metric> serializeSnapshot(String name, Snapshot snapshot) {
+    List<Metric> metrics = new ArrayList<Metric>();
 
     metrics.add(serializeValue(name, snapshot.getMean(), "mean"));
     metrics.add(serializeValue(name, snapshot.getMin(), "min"));
@@ -357,72 +393,44 @@ public class KafkaReporter extends ScheduledReporter {
   }
 
   /**
-   * Serialize a single value.
+   * Convert single value into list of Metrics.
    * @param name
    * @param value
    * @param path suffixes to more precisely identify the meaning of the reported value
-   * @return Singleton list of byte arrays representing the value
+   * @return a Singleton list of {@link gobblin.metrics.Metric}.
    */
-  protected List<byte[]> serializeSingleValue(String name, Object value, String... path) {
-    List<byte[]> metrics = new ArrayList<byte[]>();
+  protected List<Metric> serializeSingleValue(String name, Number value, String... path) {
+    List<Metric> metrics = new ArrayList<Metric>();
     metrics.add(serializeValue(name, value, path));
     return metrics;
   }
 
   /**
-   * Serializes a single metric key-value pair to send to Kafka.
+   * Converts a single key-value pair into a metric.
    * @param name name of the metric
    * @param value value of the metric to report
    * @param path additional suffixes to further identify the meaning of the reported value
-   * @return a byte array containing the key-value pair representing the metric
+   * @return a {@link gobblin.metrics.Metric}.
    */
-  protected byte[] serializeValue(String name, Object value, String... path) {
-    String str = stringifyValue(name, value, path);
-    if(!Strings.isNullOrEmpty(str)) {
-      return str.getBytes(Charsets.UTF_8);
-    } else {
-      return null;
-    }
+  protected Metric serializeValue(String name, Number value, String... path) {
+    return new Metric(MetricRegistry.name(name, path), value.doubleValue());
   }
 
   /**
-   * Converts a single metric key-value pair to a string.
-   * @param name name of the metric
-   * @param value value of the metric to report
-   * @param path additional suffixes to further identify the meaning of the reported value
-   * @return a string containing the key-value pair representing the metric
+   * Converts a {@link gobblin.metrics.MetricReport} to bytes to send through Kafka.
+   * @param report MetricReport to serialize.
+   * @return Serialized bytes.
    */
-  protected synchronized  String stringifyValue(String name, Object value, String... path) {
-    Metric metric = new Metric();
-    metric.name = MetricRegistry.name(name, path);
-    metric.value = value;
-    metric.tags = tags;
-    metric.timestamp = System.currentTimeMillis();
-
+  protected synchronized byte[] serializeReport(MetricReport report) {
     try {
-      return mapper.writeValueAsString(metric);
-    } catch(Exception e) {
-      // If there is actually something wrong with the serializer,
-      // this exception would be thrown for every single metric serialized.
-      // Instead, report at warn level at most every 10 seconds.
-      LOGGER.trace("Could not serialize Avro record for Kafka Metrics. Exception: %s", e.getMessage());
-      if(System.currentTimeMillis() - lastSerializeExceptionTime > 10000) {
-        LOGGER.warn("Could not serialize Avro record for Kafka Metrics. Exception: %s", e.getMessage());
-        lastSerializeExceptionTime = System.currentTimeMillis();
-      }
+      this.out.reset();
+      this.writer.write(report, this.encoder);
+      this.encoder.flush();
+      return out.toByteArray();
+    } catch(IOException exception) {
+      LOGGER.warn("Could not serialize Avro record for Kafka Metrics. Exception: %s", exception.getMessage());
+      return null;
     }
-
-    return null;
-  }
-
-  private List<KeyedMessage<String, byte[]>> toKeyedMessages(List<byte[]> bytesArray) {
-    List<KeyedMessage<String, byte[]>> messages = new ArrayList<KeyedMessage<String, byte[]>>();
-    for ( byte[] bytes : bytesArray) {
-      if (bytes != null) {
-        messages.add(new KeyedMessage<String, byte[]>(topic, bytes));
-      }
-    }
-    return messages;
   }
 
 }
