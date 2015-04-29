@@ -52,7 +52,7 @@ import gobblin.metrics.Tag;
  */
 public class ReporterExampleBase {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger("ReporterExample");
+  private static final Logger LOGGER = LoggerFactory.getLogger(ReporterExampleBase.class);
 
   private static final String JOB_NAME_KEY = "jobName";
   private static final String JOB_NAME = "ExampleJob";
