@@ -45,10 +45,10 @@ abstract class InstrumentedDataWriterBase <D> implements DataWriter<D>, Instrume
     this.closer = Closer.create();
 
     this.metricContext = this.closer.register(Instrumented.getMetricContext(state, this.getClass()));
-    this.recordsInMeter = this.metricContext.meter(MetricNames.DataWriter.RECORDS_IN);
-    this.successfulWriteMeter = this.metricContext.meter(MetricNames.DataWriter.RECORDS_WRITTEN);
-    this.exceptionWriteMeter = this.metricContext.meter(MetricNames.DataWriter.RECORDS_FAILED);
-    this.dataWriterTimer = this.metricContext.timer(MetricNames.DataWriter.WRITE_TIME);
+    this.recordsInMeter = this.metricContext.meter(MetricNames.DataWriterMetrics.RECORDS_IN_METER);
+    this.successfulWriteMeter = this.metricContext.meter(MetricNames.DataWriterMetrics.RECORDS_WRITTEN_METER);
+    this.exceptionWriteMeter = this.metricContext.meter(MetricNames.DataWriterMetrics.RECORDS_FAILED_METER);
+    this.dataWriterTimer = this.metricContext.timer(MetricNames.DataWriterMetrics.WRITE_TIMER);
   }
 
   @Override

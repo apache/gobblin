@@ -18,7 +18,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import gobblin.constructs.Constructs;
+import com.google.common.collect.Lists;
+
+import gobblin.Constructs;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.configuration.State;
@@ -34,13 +36,19 @@ import gobblin.writer.DataWriter;
 /**
  * Provides simple instrumentation for gobblin-core components.
  *
+ * <p>
  * Creates {@link gobblin.metrics.MetricContext}. Tries to read the name of the parent context
  * from key "metrics.context.name" at state, and tries to get the parent context by name from
  * the {@link gobblin.metrics.MetricContext} registry (the parent context must be registered).
+ * </p>
  *
+ * <p>
  * Automatically adds two tags to the inner context:
- * - component: attempts to determine which component type within gobblin-api generated this instace.
- * - class: the specific class of the object that generated this instace of Instrumented
+ * <ul>
+ * <li> component: attempts to determine which component type within gobblin-api generated this instance. </li>
+ * <li> class: the specific class of the object that generated this instance of Instrumented </li>
+ * </ul>
+ * </p>
  *
  */
 public class Instrumented implements Instrumentable, Closeable {
@@ -57,14 +65,21 @@ public class Instrumented implements Instrumentable, Closeable {
   }
 
   /**
-   * Generate a {@link gobblin.metrics.MetricContext} to be used by an object needing instrumentation.
+   * Get a {@link gobblin.metrics.MetricContext} to be used by an object needing instrumentation.
+   *
+   * <p>
    * This method will read the property "metrics.context.name" from the input State, and will attempt
    * to find a MetricContext with that name in the global instance of {@link gobblin.metrics.GobblinMetricsRegistry}.
    * If it succeeds, the generated MetricContext will be a child of the retrieved Context, otherwise it will
    * be a parent-less context.
+   * </p>
+   * <p>
    * The method will automatically add two tags to the context:
-   *  - construct will contain the name of the {@link gobblin.constructs.Constructs} that klazz represents.
-   *  - class will contain the canonical name of the input class.
+   * <ul>
+   *  <li> construct will contain the name of the {@link gobblin.Constructs} that klazz represents. </li>
+   *  <li> class will contain the canonical name of the input class. </li>
+   * </ul>
+   * </p>
    *
    * @param state {@link gobblin.configuration.State} used to find the parent MetricContext.
    * @param klazz Class of the object needing instrumentation.
@@ -87,7 +102,7 @@ public class Instrumented implements Instrumentable, Closeable {
       construct = Constructs.WRITER;
     }
 
-    List<Tag<?>> generatedTags = new ArrayList<Tag<?>>();
+    List<Tag<?>> generatedTags = Lists.newArrayList();
     if (construct != null) {
       generatedTags.add(new Tag<String>("construct", construct.toString()));
     }

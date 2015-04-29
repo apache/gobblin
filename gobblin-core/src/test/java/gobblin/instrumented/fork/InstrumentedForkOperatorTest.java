@@ -22,9 +22,8 @@ import org.testng.annotations.Test;
 
 import gobblin.MetricsHelper;
 import gobblin.configuration.WorkUnitState;
-import gobblin.constructs.Constructs;
+import gobblin.Constructs;
 import gobblin.fork.ForkOperator;
-import gobblin.instrumented.fork.InstrumentedForkOperator;
 import gobblin.metrics.MetricNames;
 
 
@@ -114,12 +113,12 @@ public class InstrumentedForkOperatorTest {
 
     fork.forkDataRecord(new WorkUnitState(), "in");
 
-    Map<String, Long> metrics = MetricsHelper.dumpMetrics(fork.metricContext);
-    Assert.assertEquals(metrics.get(MetricNames.ForkOperator.RECORDS_IN), Long.valueOf(1));
-    Assert.assertEquals(metrics.get(MetricNames.ForkOperator.FORKS_OUT), Long.valueOf(2));
-    Assert.assertEquals(metrics.get(MetricNames.ForkOperator.FORK_TIME), Long.valueOf(1));
+    Map<String, Long> metrics = MetricsHelper.dumpMetrics(fork.getMetricContext());
+    Assert.assertEquals(metrics.get(MetricNames.ForkOperatorMetrics.RECORDS_IN_METER), Long.valueOf(1));
+    Assert.assertEquals(metrics.get(MetricNames.ForkOperatorMetrics.FORKS_OUT_METER), Long.valueOf(2));
+    Assert.assertEquals(metrics.get(MetricNames.ForkOperatorMetrics.FORK_TIMER), Long.valueOf(1));
 
-    Assert.assertEquals(MetricsHelper.dumpTags(fork.metricContext).get("construct"),
+    Assert.assertEquals(MetricsHelper.dumpTags(fork.getMetricContext()).get("construct"),
         Constructs.FORK_OPERATOR.toString());
 
   }

@@ -51,10 +51,10 @@ abstract class InstrumentedConverterBase<SI, SO, DI, DO> extends Converter<SI, S
 
     this.metricContext = closer.register(Instrumented.getMetricContext(workUnit, this.getClass()));
 
-    this.recordsIn = this.metricContext.meter(MetricNames.Converter.RECORDS_IN);
-    this.recordsOut = this.metricContext.meter(MetricNames.Converter.RECORDS_OUT);
-    this.recordsException = this.metricContext.meter(MetricNames.Converter.RECORDS_FAILED);
-    this.converterTimer = this.metricContext.timer(MetricNames.Converter.CONVERT_TIME);
+    this.recordsIn = this.metricContext.meter(MetricNames.ConverterMetrics.RECORDS_IN_METER);
+    this.recordsOut = this.metricContext.meter(MetricNames.ConverterMetrics.RECORDS_OUT_METER);
+    this.recordsException = this.metricContext.meter(MetricNames.ConverterMetrics.RECORDS_FAILED_METER);
+    this.converterTimer = this.metricContext.timer(MetricNames.ConverterMetrics.CONVERT_TIMER);
 
     return converter;
   }

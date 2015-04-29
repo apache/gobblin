@@ -20,7 +20,7 @@ import org.testng.annotations.Test;
 
 import junit.framework.Assert;
 
-import gobblin.constructs.Constructs;
+import gobblin.Constructs;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.configuration.State;
 import gobblin.metrics.Tag;

@@ -405,17 +405,12 @@ public class LocalJobManager extends AbstractIdleService {
       return;
     }
 
-    if (GobblinMetrics.isEnabled(this.properties)) {
-      // Remove all task-level metrics after the task is done
-      //taskState.removeMetrics();
-    }
-
     JobState jobState = this.jobStateMap.get(jobId);
     jobState.addTaskState(taskState);
     // If all the tasks of the job have completed (regardless of
     // success or failure), then trigger job committing.
     if (jobState.getCompletedTasks() == jobState.getTasks()) {
-      LOG.info(String.format("All tasks of job %s have completed, committing it", jobId));
+      LOG.info(String.format("All tasks of job the metrics will be generated regardless of activation, but they will not be reported unless %s have completed, committing it", jobId));
       String jobName = taskState.getWorkunit().getProp(ConfigurationKeys.JOB_NAME_KEY);
       try {
         commitJob(jobId, jobName, getFinalJobState(jobState));

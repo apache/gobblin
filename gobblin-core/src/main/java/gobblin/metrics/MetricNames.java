@@ -20,55 +20,55 @@ public class MetricNames {
   /**
    * Extractor metrics.
    */
-  public static class Extractor {
-    public static final String RECORDS_READ = "gobblin.extractor.records.read";
-    public static final String RECORDS_FAILED = "gobblin.extractor.records.failed";
+  public static class ExtractorMetrics {
+    public static final String RECORDS_READ_METER = "gobblin.extractor.records.read";
+    public static final String RECORDS_FAILED_METER = "gobblin.extractor.records.failed";
     // Times extraction of records.
-    public static final String EXTRACT_TIME = "gobblin.extractor.extract.time";
+    public static final String EXTRACT_TIMER = "gobblin.extractor.extract.time";
   }
 
   /**
    * Converter metrics.
    */
-  public static class Converter {
-    public static final String RECORDS_IN = "gobblin.converter.records.in";
-    public static final String RECORDS_OUT = "gobblin.converter.records.out";
+  public static class ConverterMetrics {
+    public static final String RECORDS_IN_METER = "gobblin.converter.records.in";
+    public static final String RECORDS_OUT_METER = "gobblin.converter.records.out";
     // Records in which failed conversion.
-    public static final String RECORDS_FAILED = "gobblin.converter.records.failed";
+    public static final String RECORDS_FAILED_METER = "gobblin.converter.records.failed";
     // Times the generation of the Iterable.
-    public static final String CONVERT_TIME = "gobblin.converter.convert.time";
+    public static final String CONVERT_TIMER = "gobblin.converter.convert.time";
   }
 
   /**
    * Fork Operator metrics
    */
-  public static class ForkOperator {
-    public static final String RECORDS_IN = "gobblin.fork.operator.records.in";
+  public static class ForkOperatorMetrics {
+    public static final String RECORDS_IN_METER = "gobblin.fork.operator.records.in";
     // Counts total number of forks generated (e.g. (true, true, false) adds 2).
-    public static final String FORKS_OUT = "gobblin.fork.operator.forks.out";
+    public static final String FORKS_OUT_METER = "gobblin.fork.operator.forks.out";
     // Times the computation of the fork list.
-    public static final String FORK_TIME = "gobblin.fork.operator.fork.time";
+    public static final String FORK_TIMER = "gobblin.fork.operator.fork.time";
   }
 
   /**
    * Row level policy metrics.
    */
-  public static class RowLevelPolicy {
-    public static final String RECORDS_IN = "gobblin.qualitychecker.records.in";
-    public static final String RECORDS_PASSED = "gobblin.qualitychecker.records.passed";
-    public static final String RECORDS_FAILED = "gobblin.qualitychecker.records.failed";
+  public static class RowLevelPolicyMetrics {
+    public static final String RECORDS_IN_METER = "gobblin.qualitychecker.records.in";
+    public static final String RECORDS_PASSED_METER = "gobblin.qualitychecker.records.passed";
+    public static final String RECORDS_FAILED_METER = "gobblin.qualitychecker.records.failed";
     // Times the policy decision.
-    public static final String CHECK_TIME = "gobblin.qualitychecker.check.time";
+    public static final String CHECK_TIMER = "gobblin.qualitychecker.check.time";
   }
 
   /**
    * Data writer metrics.
    */
-  public static class DataWriter {
-    public static final String RECORDS_IN = "gobblin.writer.records.in";
-    public static final String RECORDS_WRITTEN = "gobblin.writer.records.written";
-    public static final String RECORDS_FAILED = "gobblin.writer.records.failed";
+  public static class DataWriterMetrics {
+    public static final String RECORDS_IN_METER = "gobblin.writer.records.in";
+    public static final String RECORDS_WRITTEN_METER = "gobblin.writer.records.written";
+    public static final String RECORDS_FAILED_METER = "gobblin.writer.records.failed";
     // Times writing of records.
-    public static final String WRITE_TIME = "gobblin.writer.write.time";
+    public static final String WRITE_TIMER = "gobblin.writer.write.time";
   }
 }

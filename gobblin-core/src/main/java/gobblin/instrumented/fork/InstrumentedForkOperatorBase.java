@@ -46,9 +46,9 @@ abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, For
       throws Exception {
     this.metricContext = closer.register(Instrumented.getMetricContext(workUnitState, this.getClass()));
 
-    this.inputMeter = this.metricContext.meter(MetricNames.ForkOperator.RECORDS_IN);
-    this.outputForks = this.metricContext.meter(MetricNames.ForkOperator.FORKS_OUT);
-    this.forkOperatorTimer = this.metricContext.timer(MetricNames.ForkOperator.FORK_TIME);
+    this.inputMeter = this.metricContext.meter(MetricNames.ForkOperatorMetrics.RECORDS_IN_METER);
+    this.outputForks = this.metricContext.meter(MetricNames.ForkOperatorMetrics.FORKS_OUT_METER);
+    this.forkOperatorTimer = this.metricContext.timer(MetricNames.ForkOperatorMetrics.FORK_TIMER);
   }
 
   @Override

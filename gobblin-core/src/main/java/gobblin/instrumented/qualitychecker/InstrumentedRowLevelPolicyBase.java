@@ -44,10 +44,10 @@ abstract class InstrumentedRowLevelPolicyBase extends RowLevelPolicy implements 
     super(state, type);
     this.closer = Closer.create();
     this.metricContext = closer.register(Instrumented.getMetricContext(state, this.getClass()));
-    this.recordsMeter = this.metricContext.contextAwareMeter(MetricNames.RowLevelPolicy.RECORDS_IN);
-    this.passedRecordsMeter = this.metricContext.contextAwareMeter(MetricNames.RowLevelPolicy.RECORDS_PASSED);
-    this.failedRecordsMeter = this.metricContext.contextAwareMeter(MetricNames.RowLevelPolicy.RECORDS_FAILED);
-    this.policyTimer = this.metricContext.contextAwareTimer(MetricNames.RowLevelPolicy.CHECK_TIME);
+    this.recordsMeter = this.metricContext.contextAwareMeter(MetricNames.RowLevelPolicyMetrics.RECORDS_IN_METER);
+    this.passedRecordsMeter = this.metricContext.contextAwareMeter(MetricNames.RowLevelPolicyMetrics.RECORDS_PASSED_METER);
+    this.failedRecordsMeter = this.metricContext.contextAwareMeter(MetricNames.RowLevelPolicyMetrics.RECORDS_FAILED_METER);
+    this.policyTimer = this.metricContext.contextAwareTimer(MetricNames.RowLevelPolicyMetrics.CHECK_TIMER);
   }
 
   @Override

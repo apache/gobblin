@@ -19,8 +19,7 @@ import org.testng.annotations.Test;
 
 import gobblin.MetricsHelper;
 import gobblin.configuration.State;
-import gobblin.constructs.Constructs;
-import gobblin.instrumented.qualitychecker.InstrumentedRowLevelPolicy;
+import gobblin.Constructs;
 import gobblin.metrics.MetricNames;
 import gobblin.qualitychecker.row.RowLevelPolicy;
 
@@ -69,10 +68,10 @@ public class InstrumentedRowLevelPolicyTest {
 
     Map<String, Long> metrics = MetricsHelper.dumpMetrics(policy.getMetricContext());
 
-    Assert.assertEquals(metrics.get(MetricNames.RowLevelPolicy.RECORDS_IN), Long.valueOf(1));
-    Assert.assertEquals(metrics.get(MetricNames.RowLevelPolicy.RECORDS_PASSED), Long.valueOf(1));
-    Assert.assertEquals(metrics.get(MetricNames.RowLevelPolicy.RECORDS_FAILED), Long.valueOf(0));
-    Assert.assertEquals(metrics.get(MetricNames.RowLevelPolicy.CHECK_TIME), Long.valueOf(1));
+    Assert.assertEquals(metrics.get(MetricNames.RowLevelPolicyMetrics.RECORDS_IN_METER), Long.valueOf(1));
+    Assert.assertEquals(metrics.get(MetricNames.RowLevelPolicyMetrics.RECORDS_PASSED_METER), Long.valueOf(1));
+    Assert.assertEquals(metrics.get(MetricNames.RowLevelPolicyMetrics.RECORDS_FAILED_METER), Long.valueOf(0));
+    Assert.assertEquals(metrics.get(MetricNames.RowLevelPolicyMetrics.CHECK_TIMER), Long.valueOf(1));
 
     Assert.assertEquals(MetricsHelper.dumpTags(policy.getMetricContext()).get("construct"),
         Constructs.ROW_QUALITY_CHECKER.toString());

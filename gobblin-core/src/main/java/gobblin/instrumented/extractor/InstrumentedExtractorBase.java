@@ -47,9 +47,9 @@ abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instr
 
     this.metricContext = closer.register(Instrumented.getMetricContext(workUnitState, this.getClass()));
 
-    this.readRecordsMeter = this.metricContext.contextAwareMeter(MetricNames.Extractor.RECORDS_READ);
-    this.dataRecordExceptionsMeter = this.metricContext.contextAwareMeter(MetricNames.Extractor.RECORDS_FAILED);
-    this.extractorTimer = this.metricContext.contextAwareTimer(MetricNames.Extractor.EXTRACT_TIME);
+    this.readRecordsMeter = this.metricContext.contextAwareMeter(MetricNames.ExtractorMetrics.RECORDS_READ_METER);
+    this.dataRecordExceptionsMeter = this.metricContext.contextAwareMeter(MetricNames.ExtractorMetrics.RECORDS_FAILED_METER);
+    this.extractorTimer = this.metricContext.contextAwareTimer(MetricNames.ExtractorMetrics.EXTRACT_TIMER);
   }
 
   @Override

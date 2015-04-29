@@ -42,12 +42,12 @@ public class InstrumentedRowLevelPolicyDecorator extends InstrumentedRowLevelPol
   @Override
   public Result executePolicy(Object record) {
     return this.isEmbeddedInstrumented ?
-        this.embeddedPolicy.executePolicy(record) :
+        executePolicyImpl(record) :
         super.executePolicy(record);
   }
 
   @Override
   public Result executePolicyImpl(Object record) {
-    return embeddedPolicy.executePolicy(record);
+    return this.embeddedPolicy.executePolicy(record);
   }
 }

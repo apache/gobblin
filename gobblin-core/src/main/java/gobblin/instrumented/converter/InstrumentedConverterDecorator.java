@@ -50,7 +50,7 @@ public class InstrumentedConverterDecorator<SI, SO, DI, DO> extends Instrumented
   public Iterable<DO> convertRecord(SO outputSchema, DI inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
     return this.isEmbeddedInstrumented ?
-        this.embeddedConverter.convertRecord(outputSchema, inputRecord, workUnit) :
+        convertRecordImpl(outputSchema, inputRecord, workUnit) :
         super.convertRecord(outputSchema, inputRecord, workUnit);
   }
 

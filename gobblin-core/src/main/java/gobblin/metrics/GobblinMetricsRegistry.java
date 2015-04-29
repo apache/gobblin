@@ -39,11 +39,11 @@ public class GobblinMetricsRegistry {
   }
 
   public boolean containsKey(String id) {
-    return metricsMap.containsKey(id);
+    return this.metricsMap.containsKey(id);
   }
 
   public GobblinMetrics get(String id) {
-    return metricsMap.get(id);
+    return this.metricsMap.get(id);
   }
 
   /**
@@ -54,7 +54,7 @@ public class GobblinMetricsRegistry {
    *         instance for the given job is not found
    */
   public GobblinMetrics remove(String id) {
-    return metricsMap.remove(id);
+    return this.metricsMap.remove(id);
   }
 
 }

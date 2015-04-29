@@ -19,13 +19,11 @@ import org.testng.annotations.Test;
 
 import gobblin.MetricsHelper;
 import gobblin.configuration.WorkUnitState;
-import gobblin.constructs.Constructs;
-import gobblin.converter.Converter;
+import gobblin.Constructs;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.IdentityConverter;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
-import gobblin.instrumented.converter.InstrumentedConverter;
 import gobblin.metrics.MetricNames;
 
 
@@ -71,14 +69,14 @@ public class InstrumentedConverterTest {
     Iterable<String> iterable = converter.convertRecord("schema", "record", new WorkUnitState());
 
     Map<String, Long> metrics = MetricsHelper.dumpMetrics(converter.getMetricContext());
-    Assert.assertEquals(metrics.get(MetricNames.Converter.RECORDS_IN), Long.valueOf(1));
-    Assert.assertEquals(metrics.get(MetricNames.Converter.RECORDS_OUT), Long.valueOf(0));
-    Assert.assertEquals(metrics.get(MetricNames.Converter.CONVERT_TIME), Long.valueOf(1));
+    Assert.assertEquals(metrics.get(MetricNames.ConverterMetrics.RECORDS_IN_METER), Long.valueOf(1));
+    Assert.assertEquals(metrics.get(MetricNames.ConverterMetrics.RECORDS_OUT_METER), Long.valueOf(0));
+    Assert.assertEquals(metrics.get(MetricNames.ConverterMetrics.CONVERT_TIMER), Long.valueOf(1));
 
     iterable.iterator().next();
     metrics = MetricsHelper.dumpMetrics(converter.getMetricContext());
-    Assert.assertEquals(metrics.get(MetricNames.Converter.RECORDS_IN), Long.valueOf(1));
-    Assert.assertEquals(metrics.get(MetricNames.Converter.RECORDS_OUT), Long.valueOf(1));
+    Assert.assertEquals(metrics.get(MetricNames.ConverterMetrics.RECORDS_IN_METER), Long.valueOf(1));
+    Assert.assertEquals(metrics.get(MetricNames.ConverterMetrics.RECORDS_OUT_METER), Long.valueOf(1));
 
     Assert.assertEquals(MetricsHelper.dumpTags(converter.getMetricContext()).get("construct"),
         Constructs.CONVERTER.toString());

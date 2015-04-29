@@ -49,6 +49,13 @@ public class InstrumentedForkOperatorDecorator<S, D> extends InstrumentedForkOpe
   }
 
   @Override
+  public List<Boolean> forkDataRecord(WorkUnitState workUnitState, D input) {
+    return this.isEmbeddedInstrumented ?
+        forkDataRecordImpl(workUnitState, input) :
+        super.forkDataRecord(workUnitState, input);
+  }
+
+  @Override
   public List<Boolean> forkDataRecordImpl(WorkUnitState workUnitState, D input) {
     return embeddedFork.forkDataRecord(workUnitState, input);
   }

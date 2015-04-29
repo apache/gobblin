@@ -46,7 +46,7 @@ public class InstrumentedExtractorDecorator<S, D> extends InstrumentedExtractorB
   public D readRecord(D reuse)
       throws DataRecordException, IOException {
     return this.isEmbeddedInstrumented ?
-        this.embeddedExtractor.readRecord(reuse) :
+        readRecordImpl(reuse) :
         super.readRecord(reuse);
   }
 

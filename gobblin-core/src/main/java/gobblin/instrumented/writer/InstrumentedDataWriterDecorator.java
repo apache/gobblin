@@ -46,7 +46,7 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   public void write(D record)
       throws IOException {
     if(this.isEmbeddedInstrumented) {
-      this.embeddedWriter.write(record);
+      writeImpl(record);
     } else {
       super.write(record);
     }
