@@ -7,11 +7,11 @@ package gobblin.metrics;
 @SuppressWarnings("all")
 @org.apache.avro.specific.AvroGenerated
 public class MetricReport extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
-  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"MetricReport\",\"namespace\":\"gobblin.metrics\",\"fields\":[{\"name\":\"tags\",\"type\":{\"type\":\"map\",\"values\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"avro.java.string\":\"String\"},\"doc\":\"Tags associated with the metrics.\"},{\"name\":\"timestamp\",\"type\":\"long\",\"doc\":\"Tags associated with the metrics.\"},{\"name\":\"metrics\",\"type\":{\"type\":\"array\",\"items\":{\"type\":\"record\",\"name\":\"Metric\",\"fields\":[{\"name\":\"name\",\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"doc\":\"Metric name.\"},{\"name\":\"value\",\"type\":\"double\",\"doc\":\"Metric value.\"}]}},\"doc\":\"Array of metrics in this report.\"}]}");
+  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"MetricReport\",\"namespace\":\"gobblin.metrics\",\"fields\":[{\"name\":\"tags\",\"type\":{\"type\":\"map\",\"values\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"avro.java.string\":\"String\"},\"doc\":\"Tags associated with the metrics.\"},{\"name\":\"timestamp\",\"type\":\"long\",\"doc\":\"Time at which metrics were reported.\"},{\"name\":\"metrics\",\"type\":{\"type\":\"array\",\"items\":{\"type\":\"record\",\"name\":\"Metric\",\"fields\":[{\"name\":\"name\",\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"doc\":\"Metric name.\"},{\"name\":\"value\",\"type\":\"double\",\"doc\":\"Metric value.\"}]}},\"doc\":\"Array of metrics in this report.\"}]}");
   public static org.apache.avro.Schema getClassSchema() { return SCHEMA$; }
   /** Tags associated with the metrics. */
   @Deprecated public java.util.Map<java.lang.String,java.lang.String> tags;
-  /** Tags associated with the metrics. */
+  /** Time at which metrics were reported. */
   @Deprecated public long timestamp;
   /** Array of metrics in this report. */
   @Deprecated public java.util.List<gobblin.metrics.Metric> metrics;
@@ -70,14 +70,14 @@ public class MetricReport extends org.apache.avro.specific.SpecificRecordBase im
 
   /**
    * Gets the value of the 'timestamp' field.
-   * Tags associated with the metrics.   */
+   * Time at which metrics were reported.   */
   public java.lang.Long getTimestamp() {
     return timestamp;
   }
 
   /**
    * Sets the value of the 'timestamp' field.
-   * Tags associated with the metrics.   * @param value the value to set.
+   * Time at which metrics were reported.   * @param value the value to set.
    */
   public void setTimestamp(java.lang.Long value) {
     this.timestamp = value;

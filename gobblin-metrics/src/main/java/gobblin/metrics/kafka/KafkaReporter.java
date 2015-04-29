@@ -26,7 +26,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificDatumWriter;
-import org.codehaus.jackson.map.ObjectMapper;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,9 +40,9 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
+import com.google.common.base.Optional;
 import com.google.common.io.Closer;
 
-import kafka.javaapi.producer.Producer;
 import kafka.producer.KeyedMessage;
 import kafka.producer.ProducerConfig;
 
@@ -62,44 +61,43 @@ public class KafkaReporter extends ScheduledReporter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(KafkaReporter.class);
 
-  private final Producer<String, byte[]> producer;
-  private final ProducerConfig config;
   private final String topic;
-  private final ObjectMapper mapper = new ObjectMapper();
-
-  private final SpecificDatumWriter<MetricReport> writer;
   private final Encoder encoder;
   private final ByteArrayOutputStream out;
-
-  protected long lastSerializeExceptionTime;
   protected final Closer closer;
 
+  private final Optional<ProducerCloseable<String, byte[]>> producerOpt;
+  private final Optional<SpecificDatumWriter<MetricReport>> writerOpt;
+
   public final Map<String, String> tags;
-  private boolean reportMetrics = true;
+  private final boolean reportMetrics;
 
   protected KafkaReporter(Builder<?> builder) {
     super(builder.registry, builder.name, builder.filter,
         builder.rateUnit, builder.durationUnit);
 
     this.closer = Closer.create();
-
-    this.lastSerializeExceptionTime = 0;
-
-    this.tags = builder.tags;
-
-    Properties props = new Properties();
-
-    props.put("metadata.broker.list", builder.brokers);
-    props.put("serializer.class", "kafka.serializer.DefaultEncoder");
-    props.put("request.required.acks", "1");
-
-    this.config = new ProducerConfig(props);
-    this.producer = closer.register(new ProducerCloseable<String, byte[]>(config));
     this.topic = builder.topic;
+    this.tags = builder.tags;
 
     this.out = this.closer.register(new ByteArrayOutputStream());
     this.encoder = getEncoder(out);
-    this.writer = new SpecificDatumWriter<MetricReport>(MetricReport.class);
+    this.reportMetrics = this.encoder != null;
+
+    if (this.reportMetrics) {
+      Properties props = new Properties();
+      props.put("metadata.broker.list", builder.brokers);
+      props.put("serializer.class", "kafka.serializer.DefaultEncoder");
+      props.put("request.required.acks", "1");
+
+      ProducerConfig config = new ProducerConfig(props);
+
+      this.writerOpt = Optional.of(new SpecificDatumWriter<MetricReport>(MetricReport.class));
+      this.producerOpt = Optional.of(closer.register(new ProducerCloseable<String, byte[]>(config)));
+    } else {
+      this.writerOpt = Optional.absent();
+      this.producerOpt = Optional.absent();
+    }
 
   }
 
@@ -255,8 +253,7 @@ public class KafkaReporter extends ScheduledReporter {
     try {
       return EncoderFactory.get().jsonEncoder(MetricReport.SCHEMA$, out);
     } catch(IOException exception) {
-      LOGGER.warn("KafkaReporter serializer failed to initialize. Will not report Metrics to Kafka.");
-      this.reportMetrics = false;
+      LOGGER.warn("KafkaReporter serializer failed to initialize. Will not report Metrics to Kafka.", exception);
       return null;
     }
   }
@@ -284,7 +281,7 @@ public class KafkaReporter extends ScheduledReporter {
   public void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters,
       SortedMap<String, Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers) {
 
-    if(!this.reportMetrics) {
+    if(!this.reportMetrics || !this.producerOpt.isPresent()) {
       return;
     }
 
@@ -320,7 +317,7 @@ public class KafkaReporter extends ScheduledReporter {
     if(serializedReport != null) {
       List<KeyedMessage<String, byte[]>> messages = new ArrayList<KeyedMessage<String, byte[]>>();
       messages.add(new KeyedMessage<String, byte[]>(this.topic, serializeReport(report)));
-      this.producer.send(messages);
+      this.producerOpt.get().send(messages);
     }
 
   }
@@ -422,9 +419,13 @@ public class KafkaReporter extends ScheduledReporter {
    * @return Serialized bytes.
    */
   protected synchronized byte[] serializeReport(MetricReport report) {
+    if (!this.writerOpt.isPresent()) {
+      return null;
+    }
+
     try {
       this.out.reset();
-      this.writer.write(report, this.encoder);
+      this.writerOpt.get().write(report, this.encoder);
       this.encoder.flush();
       return out.toByteArray();
     } catch(IOException exception) {
