@@ -175,9 +175,9 @@ public class InfluxDBReporterTest {
 
     @Override
     public void write(String database, TimeUnit precision, Serie... series) {
-      // There should be a single serie
-      Serie serie = series[0];
-      this.series.put(serie.getName(), serie);
+      for (Serie serie : series) {
+        this.series.put(serie.getName(), serie);
+      }
     }
 
     public Serie getSerie(String name) {
