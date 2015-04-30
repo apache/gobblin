@@ -24,7 +24,7 @@ import org.apache.avro.generic.GenericRecord;
  *
  * @author ziliu
  */
-public class KafkaAvroSource extends KafkaSource {
+public class KafkaAvroSource extends KafkaSource<Schema, GenericRecord> {
   @Override
   public Extractor<Schema, GenericRecord> getExtractor(WorkUnitState state) throws IOException {
     try {
