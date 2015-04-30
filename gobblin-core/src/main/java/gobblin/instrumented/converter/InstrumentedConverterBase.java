@@ -152,8 +152,8 @@ abstract class InstrumentedConverterBase<SI, SO, DI, DO> extends Converter<SI, S
   }
 
   @Override
-  public MetricContext getMetricContext() {
-    return this.metricContext.or(new MetricContext.Builder("NULL").build());
+  public Optional<MetricContext> getMetricContext() {
+    return this.metricContext;
   }
 
 }

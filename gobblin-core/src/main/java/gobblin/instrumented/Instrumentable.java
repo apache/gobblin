@@ -12,6 +12,8 @@
 
 package gobblin.instrumented;
 
+import com.google.common.base.Optional;
+
 import gobblin.metrics.MetricContext;
 
 
@@ -24,7 +26,7 @@ public interface Instrumentable {
    * Get {@link gobblin.metrics.MetricContext} containing metrics related to this Instrumentable.
    * @return an instance of {@link gobblin.metrics.MetricContext}.
    */
-  public MetricContext getMetricContext();
+  public Optional<MetricContext> getMetricContext();
 
   /**
    * Returns true if instrumentation is activated.

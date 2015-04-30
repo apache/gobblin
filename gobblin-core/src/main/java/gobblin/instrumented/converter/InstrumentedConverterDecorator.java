@@ -12,6 +12,8 @@
 
 package gobblin.instrumented.converter;
 
+import com.google.common.base.Optional;
+
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
@@ -40,7 +42,7 @@ public class InstrumentedConverterDecorator<SI, SO, DI, DO> extends Instrumented
   }
 
   @Override
-  public MetricContext getMetricContext() {
+  public Optional<MetricContext> getMetricContext() {
     return this.isEmbeddedInstrumented ?
         ((InstrumentedConverterBase)embeddedConverter).getMetricContext() :
         super.getMetricContext();

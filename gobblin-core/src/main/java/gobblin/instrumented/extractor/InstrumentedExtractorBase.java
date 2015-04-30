@@ -129,7 +129,7 @@ abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instr
   }
 
   @Override
-  public MetricContext getMetricContext() {
-    return this.metricContext.or(new MetricContext.Builder("NULL").build());
+  public Optional<MetricContext> getMetricContext() {
+    return this.metricContext;
   }
 }

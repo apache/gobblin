@@ -125,17 +125,17 @@ public class InstrumentedDataWriterTest {
     testBase(notInstrumentedWriter);
   }
 
-  public void testBase(InstrumentedDataWriterBase writer) throws IOException {
+  public void testBase(InstrumentedDataWriterBase<String> writer) throws IOException {
 
     writer.write("test");
 
-    Map<String, Long> metrics = MetricsHelper.dumpMetrics(writer.getMetricContext());
+    Map<String, Long> metrics = MetricsHelper.dumpMetrics(writer.getMetricContext().get());
     Assert.assertEquals(metrics.get(MetricNames.DataWriterMetrics.RECORDS_IN_METER), Long.valueOf(1));
     Assert.assertEquals(metrics.get(MetricNames.DataWriterMetrics.RECORDS_WRITTEN_METER), Long.valueOf(1));
     Assert.assertEquals(metrics.get(MetricNames.DataWriterMetrics.RECORDS_FAILED_METER), Long.valueOf(0));
     Assert.assertEquals(metrics.get(MetricNames.DataWriterMetrics.WRITE_TIMER), Long.valueOf(1));
 
-    Assert.assertEquals(MetricsHelper.dumpTags(writer.getMetricContext()).get("construct"),
+    Assert.assertEquals(MetricsHelper.dumpTags(writer.getMetricContext().get()).get("construct"),
         Constructs.WRITER.toString());
 
   }

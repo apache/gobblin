@@ -107,8 +107,8 @@ abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, For
   public abstract List<Boolean> forkDataRecordImpl(WorkUnitState workUnitState, D input);
 
   @Override
-  public MetricContext getMetricContext() {
-    return this.metricContext.or(new MetricContext.Builder("NULL").build());
+  public Optional<MetricContext> getMetricContext() {
+    return this.metricContext;
   }
 
   @Override

@@ -14,6 +14,8 @@ package gobblin.instrumented.writer;
 
 import java.io.IOException;
 
+import com.google.common.base.Optional;
+
 import gobblin.configuration.State;
 import gobblin.metrics.MetricContext;
 import gobblin.writer.DataWriter;
@@ -36,7 +38,7 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   }
 
   @Override
-  public MetricContext getMetricContext() {
+  public Optional<MetricContext> getMetricContext() {
     return this.isEmbeddedInstrumented ?
         ((InstrumentedDataWriterBase)this.embeddedWriter).getMetricContext() :
         super.getMetricContext();

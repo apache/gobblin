@@ -109,19 +109,19 @@ public class InstrumentedForkOperatorTest {
     testBase(notInstrumentedFork);
   }
 
-  public void testBase(InstrumentedForkOperatorBase fork) throws Exception {
+  public void testBase(InstrumentedForkOperatorBase<String, String> fork) throws Exception {
     WorkUnitState state = new WorkUnitState();
     state.setProp(ConfigurationKeys.METRICS_ENABLED_KEY, Boolean.toString(true));
     fork.init(state);
 
     fork.forkDataRecord(new WorkUnitState(), "in");
 
-    Map<String, Long> metrics = MetricsHelper.dumpMetrics(fork.getMetricContext());
+    Map<String, Long> metrics = MetricsHelper.dumpMetrics(fork.getMetricContext().get());
     Assert.assertEquals(metrics.get(MetricNames.ForkOperatorMetrics.RECORDS_IN_METER), Long.valueOf(1));
     Assert.assertEquals(metrics.get(MetricNames.ForkOperatorMetrics.FORKS_OUT_METER), Long.valueOf(2));
     Assert.assertEquals(metrics.get(MetricNames.ForkOperatorMetrics.FORK_TIMER), Long.valueOf(1));
 
-    Assert.assertEquals(MetricsHelper.dumpTags(fork.getMetricContext()).get("construct"),
+    Assert.assertEquals(MetricsHelper.dumpTags(fork.getMetricContext().get()).get("construct"),
         Constructs.FORK_OPERATOR.toString());
 
   }

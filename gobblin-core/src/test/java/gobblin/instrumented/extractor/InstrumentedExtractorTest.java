@@ -109,15 +109,16 @@ public class InstrumentedExtractorTest {
     testBase(nonInstrumentedExtractor);
   }
 
-  public void testBase(InstrumentedExtractorBase extractor) throws DataRecordException, IOException {
+  public void testBase(InstrumentedExtractorBase<String, String> extractor)
+      throws DataRecordException, IOException {
     extractor.readRecord("");
 
-    Map<String, Long> metrics = MetricsHelper.dumpMetrics(extractor.getMetricContext());
+    Map<String, Long> metrics = MetricsHelper.dumpMetrics(extractor.getMetricContext().get());
     Assert.assertEquals(metrics.get(MetricNames.ExtractorMetrics.RECORDS_READ_METER), Long.valueOf(1));
     Assert.assertEquals(metrics.get(MetricNames.ExtractorMetrics.RECORDS_FAILED_METER), Long.valueOf(0));
     Assert.assertEquals(metrics.get(MetricNames.ExtractorMetrics.EXTRACT_TIMER), Long.valueOf(1));
 
-    Assert.assertEquals(MetricsHelper.dumpTags(extractor.getMetricContext()).get("construct"),
+    Assert.assertEquals(MetricsHelper.dumpTags(extractor.getMetricContext().get()).get("construct"),
         Constructs.EXTRACTOR.toString());
   }
 

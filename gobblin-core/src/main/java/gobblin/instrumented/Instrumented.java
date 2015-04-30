@@ -23,7 +23,9 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.io.Closer;
 
 import gobblin.Constructs;
 import gobblin.metrics.GobblinMetrics;
@@ -59,8 +61,10 @@ import gobblin.writer.DataWriter;
 public class Instrumented implements Instrumentable, Closeable {
 
   public static final String METRIC_CONTEXT_NAME_KEY = "metrics.context.name";
-  protected final MetricContext metricContext;
+
   private final boolean instrumentationEnabled;
+  protected final Optional<MetricContext> metricContext;
+  protected final Closer closer;
 
   /**
    * Gets metric context with no additional tags.
@@ -196,17 +200,18 @@ public class Instrumented implements Instrumentable, Closeable {
 
   @SuppressWarnings("unchecked")
   public Instrumented(State state, Class<?> klazz) {
-    this(state, klazz, new ArrayList<Tag<?>>());
+    this(state, klazz, ImmutableList.<Tag<?>>of());
   }
 
   @SuppressWarnings("unchecked")
   public Instrumented(State state, Class<?> klazz, List<Tag<?>> tags) {
+    this.closer = Closer.create();
     this.instrumentationEnabled = GobblinMetrics.isEnabled(state);
 
     if(isInstrumentationEnabled()) {
-      this.metricContext = getMetricContext(state, klazz, tags);
+      this.metricContext = Optional.fromNullable(closer.register(getMetricContext(state, klazz, tags)));
     } else {
-      this.metricContext = new MetricContext.Builder("NULL").build();
+      this.metricContext = Optional.absent();
     }
   }
 
@@ -216,14 +221,14 @@ public class Instrumented implements Instrumentable, Closeable {
   }
 
   @Override
-  public MetricContext getMetricContext() {
+  public Optional<MetricContext> getMetricContext() {
     return this.metricContext;
   }
 
   @Override
   public void close()
       throws IOException {
-    this.metricContext.close();
+    this.closer.close();
   }
 
 }

@@ -12,6 +12,8 @@
 
 package gobblin.instrumented.qualitychecker;
 
+import com.google.common.base.Optional;
+
 import gobblin.metrics.MetricContext;
 import gobblin.qualitychecker.row.RowLevelPolicy;
 
@@ -33,7 +35,7 @@ public class InstrumentedRowLevelPolicyDecorator extends InstrumentedRowLevelPol
   }
 
   @Override
-  public MetricContext getMetricContext() {
+  public Optional<MetricContext> getMetricContext() {
     return this.isEmbeddedInstrumented ?
         ((InstrumentedRowLevelPolicyBase)embeddedPolicy).getMetricContext() :
         super.getMetricContext();

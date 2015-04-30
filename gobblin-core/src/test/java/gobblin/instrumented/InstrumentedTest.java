@@ -41,10 +41,10 @@ public class InstrumentedTest {
     Instrumented instrumented = new Instrumented(state, InstrumentedExtractor.class);
 
     Assert.assertNotNull(instrumented.getMetricContext());
-    Assert.assertTrue(instrumented.getMetricContext().getParent().isPresent());
-    Assert.assertEquals(instrumented.getMetricContext().getParent().get(), gobblinMetrics.getMetricContext());
+    Assert.assertTrue(instrumented.getMetricContext().get().getParent().isPresent());
+    Assert.assertEquals(instrumented.getMetricContext().get().getParent().get(), gobblinMetrics.getMetricContext());
 
-    List<Tag<?>> tags = instrumented.getMetricContext().getTags();
+    List<Tag<?>> tags = instrumented.getMetricContext().get().getTags();
     Map<String, String> expectedTags = new HashMap<String, String>();
     expectedTags.put("construct", Constructs.EXTRACTOR.toString());
     expectedTags.put("class", InstrumentedExtractor.class.getCanonicalName());

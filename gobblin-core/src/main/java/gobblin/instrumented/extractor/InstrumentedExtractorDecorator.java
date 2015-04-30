@@ -14,6 +14,8 @@ package gobblin.instrumented.extractor;
 
 import java.io.IOException;
 
+import com.google.common.base.Optional;
+
 import gobblin.configuration.WorkUnitState;
 import gobblin.metrics.MetricContext;
 import gobblin.source.extractor.DataRecordException;
@@ -36,7 +38,7 @@ public class InstrumentedExtractorDecorator<S, D> extends InstrumentedExtractorB
   }
 
   @Override
-  public MetricContext getMetricContext() {
+  public Optional<MetricContext> getMetricContext() {
     return this.isEmbeddedInstrumented ?
         ((InstrumentedExtractorBase)embeddedExtractor).getMetricContext() :
         super.getMetricContext();
