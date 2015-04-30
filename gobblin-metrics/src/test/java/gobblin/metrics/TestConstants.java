@@ -12,11 +12,16 @@
 package gobblin.metrics;
 
 /**
- * An enumeration of aggregation functions on metrics.
+ * A central place for constants used in tests for gobblin-metrics.
  *
  * @author ynli
  */
-public enum AggregationFunction {
-  COUNT, MIN, MAX, MEAN, MODE, MEDIAN, DISTINCT, DERIVATIVE,
-  SUM, STDDEV, FIRST, LAST, DIFFERENCE, TOP, BOTTOM
+public class TestConstants {
+
+  public static final String CONTEXT_NAME = "TestContext";
+  public static final String RECORDS_PROCESSED = "recordsProcessed";
+  public static final String RECORD_PROCESS_RATE = "recordProcessRate";
+  public static final String RECORD_SIZE_DISTRIBUTION = "recordSizeDistribution";
+  public static final String TOTAL_DURATION = "totalDuration";
+  public static final String QUEUE_SIZE = "queueSize";
 }

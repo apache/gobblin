@@ -108,6 +108,16 @@ public abstract class ContextAwareScheduledReporter extends ScheduledReporter {
     }
 
     /**
+     * Get the name of the {@link ContextAwareScheduledReporter} that is going to be built by this
+     * {@link ContextAwareScheduledReporter.Builder}.
+     *
+     * @return name of the {@link ContextAwareScheduledReporter} that is going to be built
+     */
+    public String getName() {
+      return this.name;
+    }
+
+    /**
      * Build a new {@link ContextAwareScheduledReporter}.
      *
      * @param context the {@link MetricContext} of this {@link ContextAwareScheduledReporter}

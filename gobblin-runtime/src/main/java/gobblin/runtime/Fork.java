@@ -116,14 +116,14 @@ public class Fork implements Closeable, Runnable {
 
     this.recordQueue = BoundedBlockingRecordQueue.newBuilder()
         .hasCapacity(taskState.getPropAsInt(
-            ConfigurationKeys.FORK_BRANCH_RECORD_QUEUE_CAPACITY_KEY,
-            ConfigurationKeys.DEFAULT_FORK_BRANCH_RECORD_QUEUE_CAPACITY))
+            ConfigurationKeys.FORK_RECORD_QUEUE_CAPACITY_KEY,
+            ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_CAPACITY))
         .useTimeout(taskState.getPropAsLong(
-            ConfigurationKeys.FORK_BRANCH_RECORD_QUEUE_TIMEOUT_KEY,
-            ConfigurationKeys.DEFAULT_FORK_BRANCH_RECORD_QUEUE_TIMEOUT))
+            ConfigurationKeys.FORK_RECORD_QUEUE_TIMEOUT_KEY,
+            ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_TIMEOUT))
         .useTimeoutTimeUnit(TimeUnit.valueOf(taskState.getProp(
-            ConfigurationKeys.FORK_BRANCH_RECORD_QUEUE_TIMEOUT_UNIT_KEY,
-            ConfigurationKeys.DEFAULT_FORK_BRANCH_RECORD_QUEUE_TIMEOUT_UNIT)))
+            ConfigurationKeys.FORK_RECORD_QUEUE_TIMEOUT_UNIT_KEY,
+            ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_TIMEOUT_UNIT)))
         .collectStats()
         .build();
 

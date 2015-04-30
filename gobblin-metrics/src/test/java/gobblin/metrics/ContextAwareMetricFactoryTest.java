@@ -20,6 +20,8 @@ import org.testng.annotations.Test;
 
 import com.codahale.metrics.MetricRegistry;
 
+import static gobblin.metrics.TestConstants.*;
+
 
 /**
  * Unit tests for {@link ContextAwareMetricFactory}.
@@ -29,13 +31,8 @@ import com.codahale.metrics.MetricRegistry;
 @Test(groups = {"gobblin.metrics"})
 public class ContextAwareMetricFactoryTest {
 
-  private static final String CONTEXT_NAME = "TestContext";
   private static final String JOB_ID_KEY = "job.id";
   private static final String JOB_ID = "TestJob-0";
-  private static final String RECORDS_PROCESSED = "recordsProcessed";
-  private static final String RECORD_PROCESS_RATE = "recordProcessRate";
-  private static final String RECORD_SIZE_DISTRIBUTION = "recordSizeDistribution";
-  private static final String TOTAL_DURATION = "totalDuration";
 
   private MetricContext context;
   private ContextAwareCounter counter;
