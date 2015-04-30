@@ -603,9 +603,9 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
       throw new IllegalArgumentException(name + " is already used for a different type of metric");
     }
 
-    Metric newMetric = factory.newMetric(this, name);
+    T newMetric = factory.newMetric(this, name);
     register(name, newMetric);
-    return (T) newMetric;
+    return newMetric;
   }
 
   private boolean removeChildrenMetrics(String name) {
@@ -676,25 +676,26 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
     /**
      * Add a {@link ContextAwareScheduledReporter}.
      *
-     * @param name name of the {@link ContextAwareScheduledReporter}
      * @param builder a {@link ContextAwareScheduledReporter.Builder} used to build the
      *                {@link ContextAwareScheduledReporter}
      * @return {@code this}
      */
-    public Builder addContextAwareScheduledReporter(String name, ContextAwareScheduledReporter.Builder builder) {
-      this.contextAwareReporterBuilders.put(name, builder);
+    public Builder addContextAwareScheduledReporter(ContextAwareScheduledReporter.Builder builder) {
+      this.contextAwareReporterBuilders.put(builder.getName(), builder);
       return this;
     }
 
     /**
-     * Add {@link ContextAwareScheduledReporter}s.
+     * Add a collection of {@link ContextAwareScheduledReporter}s.
      *
-     * @param builders a map from reporter names to {@link ContextAwareScheduledReporter.Builder}s
-     *                 used to build the {@link ContextAwareScheduledReporter}s
+     * @param builders a collection of {@link ContextAwareScheduledReporter.Builder}s used to
+     *                 build the collection of {@link ContextAwareScheduledReporter}s
      * @return {@code this}
      */
-    public Builder addContextAwareScheduledReporters(Map<String, ContextAwareScheduledReporter.Builder> builders) {
-      this.contextAwareReporterBuilders.putAll(builders);
+    public Builder addContextAwareScheduledReporters(Collection<ContextAwareScheduledReporter.Builder> builders) {
+      for (ContextAwareScheduledReporter.Builder builder : builders) {
+        addContextAwareScheduledReporter(builder);
+      }
       return this;
     }
 

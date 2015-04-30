@@ -19,6 +19,7 @@ import java.sql.SQLException;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.hadoop.fs.Path;
 
 import org.jboss.byteman.contrib.bmunit.BMNGRunner;
 import org.jboss.byteman.contrib.bmunit.BMRule;
@@ -44,7 +45,6 @@ import gobblin.writer.WriterOutputFormat;
 public class MRJobLauncherTest extends BMNGRunner {
 
   private Properties launcherProps;
-  private StateStore jobStateStore;
   private JobLauncherTestHelper jobLauncherTestHelper;
 
   @BeforeClass
@@ -59,11 +59,12 @@ public class MRJobLauncherTest extends BMNGRunner {
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY,
         "jdbc:derby:memory:gobblin2;create=true");
 
-    this.jobStateStore =
-        new FsStateStore(this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
-            this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY), JobState.class);
+    StateStore<JobState> jobStateStore = new FsStateStore<JobState>(
+        this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
+        this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
+        JobState.class);
 
-    this.jobLauncherTestHelper = new JobLauncherTestHelper(this.launcherProps, this.jobStateStore);
+    this.jobLauncherTestHelper = new JobLauncherTestHelper(this.launcherProps, jobStateStore);
     this.jobLauncherTestHelper.prepareJobHistoryStoreDatabase(this.launcherProps);
   }
 
@@ -133,9 +134,9 @@ public class MRJobLauncherTest extends BMNGRunner {
   }
 
   /**
-   * Byteman test that ensures the {@link MRJobLauncher} successfully cleans up all staging data even when an exception
-   * is thrown in the {@link MRJobLauncher} collectOutput method. The {@link BMRule} is to inject an {@link IOException}
-   * when {@link MRJobLauncher}'s collectOutput method is called.
+   * Byteman test that ensures the {@link MRJobLauncher} successfully cleans up all staging data even when
+   * an exception is thrown in the {@link MRJobLauncher#collectOutput(Path)} method. The {@link BMRule} is
+   * to inject an {@link IOException} when the {@link MRJobLauncher#collectOutput(Path)} method is called.
    */
   @Test()
   @BMRule(name = "testJobCleanupOnError",

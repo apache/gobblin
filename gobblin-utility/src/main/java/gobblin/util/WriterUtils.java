@@ -34,9 +34,10 @@ public class WriterUtils {
    * @return a {@link Path} specifying the directory where the {@link gobblin.writer.DataWriter} will write to.
    */
   public static Path getWriterStagingDir(State state, int numBranches, int branchId) {
-    Preconditions.checkArgument(state.contains(ForkOperatorUtils.getPropertyNameForBranch(
-        ConfigurationKeys.WRITER_STAGING_DIR, numBranches, branchId)), "Missing required property "
-        + ConfigurationKeys.WRITER_STAGING_DIR);
+    String writerStagingDirKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_DIR,
+        numBranches, branchId);
+    Preconditions.checkArgument(state.contains(writerStagingDirKey), "Missing required property " +
+        writerStagingDirKey);
 
     return new Path(state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_DIR,
         numBranches, branchId)), WriterUtils.getWriterFilePath(state, numBranches, branchId));
@@ -52,9 +53,10 @@ public class WriterUtils {
    * @return a {@link Path} specifying the directory where the {@link gobblin.writer.DataWriter} will write to.
    */
   public static Path getWriterOutputDir(State state, int numBranches, int branchId) {
-    Preconditions.checkArgument(state.contains(ForkOperatorUtils.getPropertyNameForBranch(
-        ConfigurationKeys.WRITER_OUTPUT_DIR, numBranches, branchId)), "Missing required property "
-        + ConfigurationKeys.WRITER_OUTPUT_DIR);
+    String writerOutputDirKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR,
+        numBranches, branchId);
+    Preconditions.checkArgument(state.contains(writerOutputDirKey), "Missing required property " +
+        writerOutputDirKey);
 
     return new Path(state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR,
         numBranches, branchId)), WriterUtils.getWriterFilePath(state, numBranches, branchId));
@@ -70,9 +72,10 @@ public class WriterUtils {
    * @return a {@link Path} specifying the directory where the {@link gobblin.publisher.BaseDataPublisher} will publish.
    */
   public static Path getDataPublisherFinalDir(State state, int numBranches, int branchId) {
-    Preconditions.checkArgument(state.contains(ForkOperatorUtils.getPropertyNameForBranch(
-        ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, numBranches, branchId)), "Missing required property "
-        + ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR);
+    String dataPublisherFinalDirKey = ForkOperatorUtils.getPropertyNameForBranch(
+        ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, numBranches, branchId);
+    Preconditions.checkArgument(state.contains(dataPublisherFinalDirKey), "Missing required property " +
+        dataPublisherFinalDirKey);
 
     return new Path(state.getProp(ForkOperatorUtils.getPropertyNameForBranch(
         ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, numBranches, branchId)), WriterUtils.getWriterFilePath(state,

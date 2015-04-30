@@ -41,15 +41,17 @@ import gobblin.metastore.StateStore;
 
 /**
  * Base class for {@link JobLauncher} unit tests.
+ *
+ * @author ynli
  */
 public class JobLauncherTestHelper {
 
   public static final String SOURCE_FILE_LIST_KEY = "source.files";
 
-  private final StateStore jobStateStore;
+  private final StateStore<JobState> jobStateStore;
   private final Properties launcherProps;
 
-  public JobLauncherTestHelper(Properties launcherProps, StateStore jobStateStore) {
+  public JobLauncherTestHelper(Properties launcherProps, StateStore<JobState> jobStateStore) {
     this.launcherProps = launcherProps;
     this.jobStateStore = jobStateStore;
   }
@@ -60,7 +62,7 @@ public class JobLauncherTestHelper {
     jobLauncher.launchJob(jobProps, null);
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
-    List<JobState> jobStateList = (List<JobState>) this.jobStateStore.getAll(jobName, jobId + ".jst");
+    List<JobState> jobStateList = this.jobStateStore.getAll(jobName, jobId + ".jst");
     JobState jobState = jobStateList.get(0);
 
     Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
@@ -78,7 +80,7 @@ public class JobLauncherTestHelper {
     jobLauncher.launchJob(jobProps, null);
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
-    List<JobState> jobStateList = (List<JobState>) this.jobStateStore.getAll(jobName, jobId + ".jst");
+    List<JobState> jobStateList = this.jobStateStore.getAll(jobName, jobId + ".jst");
     JobState jobState = jobStateList.get(0);
 
     Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
@@ -120,7 +122,7 @@ public class JobLauncherTestHelper {
 
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
-    List<JobState> jobStateList = (List<JobState>) this.jobStateStore.getAll(jobName, jobId + ".jst");
+    List<JobState> jobStateList = this.jobStateStore.getAll(jobName, jobId + ".jst");
     Assert.assertTrue(jobStateList.isEmpty());
 
     FileSystem lfs = FileSystem.getLocal(new Configuration());
@@ -137,7 +139,7 @@ public class JobLauncherTestHelper {
     jobLauncher.launchJob(jobProps, null);
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
-    List<JobState> jobStateList = (List<JobState>) this.jobStateStore.getAll(jobName, jobId + ".jst");
+    List<JobState> jobStateList = this.jobStateStore.getAll(jobName, jobId + ".jst");
     JobState jobState = jobStateList.get(0);
 
     Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);

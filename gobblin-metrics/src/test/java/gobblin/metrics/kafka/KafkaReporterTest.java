@@ -11,12 +11,17 @@
 
 package gobblin.metrics.kafka;
 
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.io.IOUtils;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -30,9 +35,10 @@ import com.codahale.metrics.MetricRegistry;
 import com.google.common.collect.Lists;
 
 import kafka.consumer.ConsumerIterator;
-import kafka.consumer.ConsumerTimeoutException;
 
+import gobblin.metrics.Metric;
 import gobblin.metrics.MetricContext;
+import gobblin.metrics.MetricReport;
 import gobblin.metrics.Tag;
 
 
@@ -92,7 +98,10 @@ public class KafkaReporterTest extends KafkaTestBase {
     expected.put("com.linkedin.example.counter", 1.0);
     expected.put("com.linkedin.example.meter.count", 2.0);
     expected.put("com.linkedin.example.histogram.count", 3.0);
-    expectMetricsWithValues(iterator, expected);
+
+    MetricReport nextReport = nextReport(iterator);
+
+    expectMetricsWithValues(nextReport, expected);
 
     kafkaReporter.report();
     try {
@@ -118,14 +127,15 @@ public class KafkaReporterTest extends KafkaTestBase {
     expectedSet.add("com.linkedin.example.histogram.999percentile");
     expectedSet.add("com.linkedin.example.histogram.count");
 
-    expectMetrics(iterator, expectedSet, true);
+    nextReport = nextReport(iterator);
+    expectMetrics(nextReport, expectedSet, true);
 
     kafkaReporter.close();
 
   }
 
   @Test
-  public void kafkaReporterTagsEnvHostTest() throws IOException {
+  public void kafkaReporterTagsTest() throws IOException {
     MetricRegistry registry = new MetricRegistry();
     Counter counter = registry.counter("com.linkedin.example.counter");
 
@@ -146,15 +156,14 @@ public class KafkaReporterTest extends KafkaTestBase {
       Thread.currentThread().interrupt();
     }
 
-    KafkaReporter.Metric metric = nextMetric(iterator);
+    MetricReport metricReport = nextReport(iterator);
 
-    Assert.assertEquals(1, Integer.parseInt(metric.value.toString()));
-    Assert.assertEquals(2, metric.tags.size());
-    Assert.assertTrue(metric.tags.containsKey(tag1.getKey()));
-    Assert.assertEquals(metric.tags.get(tag1.getKey()),
+    Assert.assertEquals(2, metricReport.getTags().size());
+    Assert.assertTrue(metricReport.getTags().containsKey(tag1.getKey()));
+    Assert.assertEquals(metricReport.getTags().get(tag1.getKey()),
         tag1.getValue().toString());
-    Assert.assertTrue(metric.tags.containsKey(tag2.getKey()));
-    Assert.assertEquals(metric.tags.get(tag2.getKey()),
+    Assert.assertTrue(metricReport.getTags().containsKey(tag2.getKey()));
+    Assert.assertEquals(metricReport.getTags().get(tag2.getKey()),
         tag2.getValue().toString());
   }
 
@@ -176,12 +185,11 @@ public class KafkaReporterTest extends KafkaTestBase {
       Thread.currentThread().interrupt();
     }
 
-    KafkaReporter.Metric metric = nextMetric(iterator);
+    MetricReport metricReport = nextReport(iterator);
 
-    Assert.assertEquals(1, Integer.parseInt(metric.value.toString()));
-    Assert.assertEquals(1, metric.tags.size());
-    Assert.assertTrue(metric.tags.containsKey(tag1.getKey()));
-    Assert.assertEquals(metric.tags.get(tag1.getKey()),
+    Assert.assertEquals(1, metricReport.getTags().size());
+    Assert.assertTrue(metricReport.getTags().containsKey(tag1.getKey()));
+    Assert.assertEquals(metricReport.getTags().get(tag1.getKey()),
         tag1.getValue().toString());
 
   }
@@ -189,49 +197,44 @@ public class KafkaReporterTest extends KafkaTestBase {
   /**
    * Expect a list of metrics with specific values.
    * Fail if not all metrics are received, or some metric has the wrong value.
-   * @param it ConsumerIterator for Kafka topic
+   * @param report MetricReport.
    * @param expected map of expected metric names and their values
    * @throws IOException
    */
-  private void expectMetricsWithValues(ConsumerIterator<byte[], byte[]> it, Map<String, Double> expected)
+  private void expectMetricsWithValues(MetricReport report, Map<String, Double> expected)
       throws IOException {
-    System.out.println("====Checking for expected messages and values. Will list all messages.====");
-    try {
-      while(it.hasNext()) {
-        KafkaReporter.Metric metric = nextMetric(it);
-        if (expected.containsKey(metric.name)) {
-          Assert.assertEquals(expected.get(metric.name), Double.parseDouble(metric.value.toString()));
-          expected.remove(metric.name);
-        }
+    List<Metric> metricIterator = report.getMetrics();
+
+    for(Metric metric : metricIterator) {
+      if (expected.containsKey(metric.getName())) {
+        Assert.assertEquals(expected.get(metric.getName()), metric.getValue());
+        expected.remove(metric.getName());
       }
-    } catch (ConsumerTimeoutException e) {
-      Assert.assertTrue(expected.isEmpty());
     }
+
+    Assert.assertTrue(expected.isEmpty());
+
   }
 
   /**
    * Expect a set of metric names. Will fail if not all of these metrics are received.
-   * @param it ConsumerIterator for Kafka topic
+   * @param report MetricReport
    * @param expected set of expected metric names
    * @param strict if set to true, will fail if receiving any metric that is not expected
    * @throws IOException
    */
-  private void expectMetrics(ConsumerIterator<byte[], byte[]> it, Set<String> expected, boolean strict)
+  private void expectMetrics(MetricReport report, Set<String> expected, boolean strict)
       throws IOException {
-    System.out.println("====Checking for expected messages. Will list all messages.====");
-    try {
-      while(it.hasNext()) {
-        KafkaReporter.Metric metric = nextMetric(it);
-        //System.out.println(String.format("expectedSet.add(\"%s\")", metric.name));
-        if (expected.contains(metric.name)) {
-          expected.remove(metric.name);
-        } else if (strict) {
-          Assert.assertTrue(false, "Message present in kafka not expected: " + metric.toString());
-        }
+    List<Metric> metricIterator = report.getMetrics();
+    for(Metric metric : metricIterator) {
+      //System.out.println(String.format("expectedSet.add(\"%s\")", metric.name));
+      if (expected.contains(metric.getName())) {
+        expected.remove(metric.getName());
+      } else if (strict) {
+        Assert.assertTrue(false, "Metric present in report not expected: " + metric.toString());
       }
-    } catch(ConsumerTimeoutException e) {
-      Assert.assertTrue(expected.isEmpty());
     }
+    Assert.assertTrue(expected.isEmpty());
   }
 
   /**
@@ -241,11 +244,9 @@ public class KafkaReporterTest extends KafkaTestBase {
    * @return next metric in the stream
    * @throws IOException
    */
-  protected KafkaReporter.Metric nextMetric(ConsumerIterator<byte[], byte[]> it) throws IOException {
-    String nextMessage = new String(it.next().message());
-    KafkaReporter.Metric metric = mapper.readValue(nextMessage, KafkaReporter.Metric.class);
-    System.out.println(nextMessage);
-    return metric;
+  protected MetricReport nextReport(ConsumerIterator<byte[], byte[]> it) throws IOException {
+    Assert.assertTrue(it.hasNext());
+    return KafkaReporter.deserializeReport(new MetricReport(), it.next().message());
   }
 
   @AfterClass

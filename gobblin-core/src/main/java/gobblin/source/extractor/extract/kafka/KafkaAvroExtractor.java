@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.Extractor;
+import gobblin.util.AvroUtils;
 
 
 /**
@@ -90,7 +91,11 @@ public class KafkaAvroExtractor extends KafkaExtractor<Schema, GenericRecord> {
         DecoderFactory.get().binaryDecoder(payload, 1 + SCHEMA_ID_LENGTH_BYTE,
             payload.length - 1 - SCHEMA_ID_LENGTH_BYTE, null);
     try {
-      return reader.read((GenericData.Record) reuse, binaryDecoder);
+      GenericRecord record = reader.read((GenericData.Record) reuse, binaryDecoder);
+      if (!record.getSchema().equals(this.schema)) {
+        record = AvroUtils.convertRecordSchema(record, this.schema);
+      }
+      return record;
     } catch (IOException e) {
       LOG.error(String.format("Error during decoding record for topic %s, partition %d: ",
           this.partition.getTopicName(), this.partition.getId()));

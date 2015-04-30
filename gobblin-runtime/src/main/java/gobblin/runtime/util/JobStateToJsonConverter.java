@@ -46,12 +46,12 @@ public class JobStateToJsonConverter {
 
   private static final String JOB_STATE_STORE_TABLE_SUFFIX = ".jst";
 
-  private final StateStore jobStateStore;
+  private final StateStore<JobState> jobStateStore;
   private final boolean keepConfig;
 
   public JobStateToJsonConverter(String storeUrl, boolean keepConfig)
       throws IOException {
-    this.jobStateStore = new FsStateStore(storeUrl, JobState.class);
+    this.jobStateStore = new FsStateStore<JobState>(storeUrl, JobState.class);
     this.keepConfig = keepConfig;
   }
 

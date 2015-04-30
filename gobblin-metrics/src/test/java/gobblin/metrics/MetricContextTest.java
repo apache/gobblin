@@ -33,6 +33,7 @@ import com.codahale.metrics.Timer;
 
 import com.google.common.collect.Lists;
 
+import static gobblin.metrics.TestConstants.*;
 
 /**
  * Unit tests for {@link MetricContext}.
@@ -48,7 +49,6 @@ import com.google.common.collect.Lists;
 @Test(groups = {"gobblin.metrics"})
 public class MetricContextTest {
 
-  private static final String CONTEXT_NAME = "TestContext";
   private static final String CHILD_CONTEXT_NAME = "TestChildContext";
   private static final String JOB_ID_KEY = "job.id";
   private static final String JOB_ID_PREFIX = "TestJob-";
@@ -56,11 +56,6 @@ public class MetricContextTest {
   private static final String TASK_ID_PREFIX = "TestTask-";
   private static final String METRIC_GROUP_KEY = "metric.group";
   private static final String INPUT_RECORDS_GROUP = "INPUT_RECORDS";
-  private static final String RECORDS_PROCESSED = "recordsProcessed";
-  private static final String RECORD_PROCESS_RATE = "recordProcessRate";
-  private static final String RECORD_SIZE_DISTRIBUTION = "recordSizeDistribution";
-  private static final String TOTAL_DURATION = "totalDuration";
-  private static final String QUEUE_SIZE = "queueSize";
   private static final String TEST_REPORTER_NAME = TestContextAwareScheduledReporter.class.getName();
 
   private MetricContext context;
@@ -71,7 +66,6 @@ public class MetricContextTest {
     this.context = MetricContext.builder(CONTEXT_NAME)
         .addTag(new Tag<String>(JOB_ID_KEY, JOB_ID_PREFIX + 0))
         .addContextAwareScheduledReporter(
-            TEST_REPORTER_NAME,
             new TestContextAwareScheduledReporter.TestContextAwareScheduledReporterBuilder(TEST_REPORTER_NAME))
         .reportFullyQualifiedNames(false)
         .build();
@@ -89,7 +83,6 @@ public class MetricContextTest {
     this.childContext = this.context.childBuilder(CHILD_CONTEXT_NAME)
         .addTag(new Tag<String>(TASK_ID_KEY, TASK_ID_PREFIX + 0))
         .addContextAwareScheduledReporter(
-            TEST_REPORTER_NAME,
             new TestContextAwareScheduledReporter.TestContextAwareScheduledReporterBuilder(TEST_REPORTER_NAME))
         .reportFullyQualifiedNames(false)
         .build();
