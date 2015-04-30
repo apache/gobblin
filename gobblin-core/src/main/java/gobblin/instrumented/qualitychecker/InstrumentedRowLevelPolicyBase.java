@@ -18,11 +18,13 @@ import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
+import com.google.common.base.Optional;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.State;
 import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricNames;
 import gobblin.qualitychecker.row.RowLevelPolicy;
@@ -33,25 +35,46 @@ import gobblin.qualitychecker.row.RowLevelPolicy;
  * See {@link gobblin.instrumented.qualitychecker.InstrumentedRowLevelPolicy} for extensible class.
  */
 abstract class InstrumentedRowLevelPolicyBase extends RowLevelPolicy implements Instrumentable, Closeable {
-  protected final MetricContext metricContext;
-  protected final Meter recordsMeter;
-  protected final Meter passedRecordsMeter;
-  protected final Meter failedRecordsMeter;
-  protected final Timer policyTimer;
+
+  private final boolean instrumentationEnabled;
+
+  protected final Optional<MetricContext> metricContext;
+  protected final Optional<Meter> recordsMeter;
+  protected final Optional<Meter> passedRecordsMeter;
+  protected final Optional<Meter> failedRecordsMeter;
+  protected final Optional<Timer> policyTimer;
   protected final Closer closer;
 
   public InstrumentedRowLevelPolicyBase(State state, Type type) {
     super(state, type);
+    this.instrumentationEnabled = GobblinMetrics.isEnabled(state);
     this.closer = Closer.create();
-    this.metricContext = closer.register(Instrumented.getMetricContext(state, this.getClass()));
-    this.recordsMeter = this.metricContext.contextAwareMeter(MetricNames.RowLevelPolicyMetrics.RECORDS_IN_METER);
-    this.passedRecordsMeter = this.metricContext.contextAwareMeter(MetricNames.RowLevelPolicyMetrics.RECORDS_PASSED_METER);
-    this.failedRecordsMeter = this.metricContext.contextAwareMeter(MetricNames.RowLevelPolicyMetrics.RECORDS_FAILED_METER);
-    this.policyTimer = this.metricContext.contextAwareTimer(MetricNames.RowLevelPolicyMetrics.CHECK_TIMER);
+
+    if(isInstrumentationEnabled()) {
+      this.metricContext = Optional.fromNullable(
+          closer.register(Instrumented.getMetricContext(state, this.getClass())));
+    } else {
+      this.metricContext = Optional.absent();
+    }
+
+    this.recordsMeter = Instrumented.meter(this.metricContext, MetricNames.RowLevelPolicyMetrics.RECORDS_IN_METER);
+    this.passedRecordsMeter = Instrumented.meter(this.metricContext,
+        MetricNames.RowLevelPolicyMetrics.RECORDS_PASSED_METER);
+    this.failedRecordsMeter = Instrumented.meter(this.metricContext,
+        MetricNames.RowLevelPolicyMetrics.RECORDS_FAILED_METER);
+    this.policyTimer = Instrumented.timer(this.metricContext, MetricNames.RowLevelPolicyMetrics.CHECK_TIMER);
+  }
+
+  @Override
+  public boolean isInstrumentationEnabled() {
+    return this.instrumentationEnabled;
   }
 
   @Override
   public Result executePolicy(Object record) {
+    if(!isInstrumentationEnabled()) {
+      return executePolicyImpl(record);
+    }
 
     long startTime = System.nanoTime();
 
@@ -67,7 +90,7 @@ abstract class InstrumentedRowLevelPolicyBase extends RowLevelPolicy implements 
    * @param record
    */
   public void beforeCheck(Object record) {
-    this.recordsMeter.mark();
+    Instrumented.markMeter(this.recordsMeter);
   }
 
   /**
@@ -78,15 +101,15 @@ abstract class InstrumentedRowLevelPolicyBase extends RowLevelPolicy implements 
   public void afterCheck(Result result, long startTimeNanos) {
     switch (result) {
       case FAILED:
-        this.failedRecordsMeter.mark();
+        Instrumented.markMeter(this.failedRecordsMeter);
         break;
       case PASSED:
-        this.passedRecordsMeter.mark();
+        Instrumented.markMeter(this.passedRecordsMeter);
         break;
       default:
     }
 
-    this.policyTimer.update(System.nanoTime() - startTimeNanos, TimeUnit.NANOSECONDS);
+    Instrumented.updateTimer(this.policyTimer, System.nanoTime() - startTimeNanos, TimeUnit.NANOSECONDS);
   }
 
   /**
@@ -102,6 +125,6 @@ abstract class InstrumentedRowLevelPolicyBase extends RowLevelPolicy implements 
 
   @Override
   public MetricContext getMetricContext() {
-    return this.metricContext;
+    return this.metricContext.or(new MetricContext.Builder("NULL").build());
   }
 }

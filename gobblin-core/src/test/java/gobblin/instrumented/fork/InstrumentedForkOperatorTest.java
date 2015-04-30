@@ -21,6 +21,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import gobblin.MetricsHelper;
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.Constructs;
 import gobblin.fork.ForkOperator;
@@ -109,7 +110,9 @@ public class InstrumentedForkOperatorTest {
   }
 
   public void testBase(InstrumentedForkOperatorBase fork) throws Exception {
-    fork.init(new WorkUnitState());
+    WorkUnitState state = new WorkUnitState();
+    state.setProp(ConfigurationKeys.METRICS_ENABLED_KEY, Boolean.toString(true));
+    fork.init(state);
 
     fork.forkDataRecord(new WorkUnitState(), "in");
 

@@ -19,6 +19,7 @@ import java.util.concurrent.TimeUnit;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
 import com.google.common.io.Closer;
 
@@ -27,6 +28,7 @@ import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricNames;
 
@@ -38,30 +40,45 @@ import gobblin.metrics.MetricNames;
 abstract class InstrumentedConverterBase<SI, SO, DI, DO> extends Converter<SI, SO, DI, DO>
     implements Instrumentable, Closeable {
 
-  protected MetricContext metricContext = MetricContext.builder("TMP").build();
-  protected Meter recordsIn = new Meter();
-  protected Meter recordsOut = new Meter();
-  protected Meter recordsException = new Meter();
-  protected Timer converterTimer = new Timer();
+  private boolean instrumentationEnabled = false;
+  protected Optional<MetricContext> metricContext = Optional.absent();
+  protected Optional<Meter> recordsInMeter = Optional.absent();
+  protected Optional<Meter> recordsOutMeter = Optional.absent();
+  protected Optional<Meter> recordsExceptionMeter = Optional.absent();
+  protected Optional<Timer> converterTimer = Optional.absent();
   protected final Closer closer = Closer.create();
 
   @Override
   public Converter<SI, SO, DI, DO> init(WorkUnitState workUnit) {
     Converter<SI, SO, DI, DO> converter = super.init(workUnit);
 
-    this.metricContext = closer.register(Instrumented.getMetricContext(workUnit, this.getClass()));
+    this.instrumentationEnabled = GobblinMetrics.isEnabled(workUnit);
 
-    this.recordsIn = this.metricContext.meter(MetricNames.ConverterMetrics.RECORDS_IN_METER);
-    this.recordsOut = this.metricContext.meter(MetricNames.ConverterMetrics.RECORDS_OUT_METER);
-    this.recordsException = this.metricContext.meter(MetricNames.ConverterMetrics.RECORDS_FAILED_METER);
-    this.converterTimer = this.metricContext.timer(MetricNames.ConverterMetrics.CONVERT_TIMER);
+    if (isInstrumentationEnabled()) {
+      this.metricContext = Optional.fromNullable(
+          closer.register(Instrumented.getMetricContext(workUnit, this.getClass())));
+
+      this.recordsInMeter = Instrumented.meter(this.metricContext,MetricNames.ConverterMetrics.RECORDS_IN_METER);
+      this.recordsOutMeter = Instrumented.meter(this.metricContext,MetricNames.ConverterMetrics.RECORDS_OUT_METER);
+      this.recordsExceptionMeter = Instrumented.meter(this.metricContext,MetricNames.ConverterMetrics.RECORDS_FAILED_METER);
+      this.converterTimer = Instrumented.timer(this.metricContext, MetricNames.ConverterMetrics.CONVERT_TIMER);
+    }
 
     return converter;
   }
 
   @Override
+  public boolean isInstrumentationEnabled() {
+    return this.instrumentationEnabled;
+  }
+
+  @Override
   public Iterable<DO> convertRecord(SO outputSchema, DI inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
+
+    if(!isInstrumentationEnabled()) {
+      return convertRecordImpl(outputSchema, inputRecord, workUnit);
+    }
 
     try {
       long startTime = System.nanoTime();
@@ -90,7 +107,7 @@ abstract class InstrumentedConverterBase<SI, SO, DI, DO> extends Converter<SI, S
    * @param workUnit
    */
   public void beforeConvert(SO outputSchema, DI inputRecord, WorkUnitState workUnit) {
-    recordsIn.mark();
+    Instrumented.markMeter(this.recordsInMeter);
   }
 
   /**
@@ -99,7 +116,7 @@ abstract class InstrumentedConverterBase<SI, SO, DI, DO> extends Converter<SI, S
    * @param startTimeNanos start time of conversion.
    */
   public void afterConvert(Iterable<DO> iterable, long startTimeNanos) {
-    converterTimer.update(System.nanoTime() - startTimeNanos, TimeUnit.NANOSECONDS);
+    Instrumented.updateTimer(this.converterTimer, System.nanoTime() - startTimeNanos, TimeUnit.NANOSECONDS);
   }
 
   /**
@@ -107,7 +124,7 @@ abstract class InstrumentedConverterBase<SI, SO, DI, DO> extends Converter<SI, S
    * @param next next value in iterable.
    */
   public void onIterableNext(DO next) {
-    recordsOut.mark();
+    Instrumented.markMeter(this.recordsOutMeter);
   }
 
   /**
@@ -116,7 +133,7 @@ abstract class InstrumentedConverterBase<SI, SO, DI, DO> extends Converter<SI, S
    */
   public void onException(Exception exception) {
     if(DataConversionException.class.isInstance(exception)) {
-      recordsException.mark();
+      Instrumented.markMeter(this.recordsExceptionMeter);
     }
   }
 
@@ -131,12 +148,12 @@ abstract class InstrumentedConverterBase<SI, SO, DI, DO> extends Converter<SI, S
   @Override
   public void close()
       throws IOException {
-    closer.close();
+    this.closer.close();
   }
 
   @Override
   public MetricContext getMetricContext() {
-    return this.metricContext;
+    return this.metricContext.or(new MetricContext.Builder("NULL").build());
   }
 
 }

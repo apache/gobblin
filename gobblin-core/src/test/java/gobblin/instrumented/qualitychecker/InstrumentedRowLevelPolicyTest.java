@@ -18,8 +18,10 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import gobblin.MetricsHelper;
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.Constructs;
+import gobblin.configuration.WorkUnitState;
 import gobblin.metrics.MetricNames;
 import gobblin.qualitychecker.row.RowLevelPolicy;
 
@@ -40,14 +42,16 @@ public class InstrumentedRowLevelPolicyTest {
 
   @Test
   public void test() {
-    State state = new State();
+    WorkUnitState state = new WorkUnitState();
+    state.setProp(ConfigurationKeys.METRICS_ENABLED_KEY, Boolean.toString(true));
     TestInstrumentedRowLevelPolicy policy = new TestInstrumentedRowLevelPolicy(state, null);
     testBase(policy);
   }
 
   @Test
   public void testDecorated() {
-    State state = new State();
+    WorkUnitState state = new WorkUnitState();
+    state.setProp(ConfigurationKeys.METRICS_ENABLED_KEY, Boolean.toString(true));
     InstrumentedRowLevelPolicyBase instrumentedPolicy = new InstrumentedRowLevelPolicyDecorator(
         new TestInstrumentedRowLevelPolicy(state, null)
     );

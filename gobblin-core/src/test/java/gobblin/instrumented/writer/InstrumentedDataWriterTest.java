@@ -19,8 +19,10 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import gobblin.MetricsHelper;
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.Constructs;
+import gobblin.configuration.WorkUnitState;
 import gobblin.metrics.MetricNames;
 import gobblin.writer.DataWriter;
 
@@ -103,14 +105,16 @@ public class InstrumentedDataWriterTest {
 
   @Test
   public void test() throws IOException {
-    State state = new State();
+    WorkUnitState state = new WorkUnitState();
+    state.setProp(ConfigurationKeys.METRICS_ENABLED_KEY, Boolean.toString(true));
     TestInstrumentedDataWriter writer = new TestInstrumentedDataWriter(state);
     testBase(writer);
   }
 
   @Test
   public void testDecorated() throws IOException {
-    State state = new State();
+    WorkUnitState state = new WorkUnitState();
+    state.setProp(ConfigurationKeys.METRICS_ENABLED_KEY, Boolean.toString(true));
     InstrumentedDataWriterBase instrumentedWriter = new InstrumentedDataWriterDecorator(
         new TestInstrumentedDataWriter(state), state
     );

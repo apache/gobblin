@@ -19,6 +19,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import gobblin.MetricsHelper;
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.Constructs;
 import gobblin.metrics.MetricNames;
@@ -89,6 +90,7 @@ public class InstrumentedExtractorTest {
   @Test
   public void test() throws DataRecordException, IOException {
     WorkUnitState state = new WorkUnitState();
+    state.setProp(ConfigurationKeys.METRICS_ENABLED_KEY, Boolean.toString(true));
     TestInstrumentedExtractor extractor = new TestInstrumentedExtractor(state);
     testBase(extractor);
   }
@@ -96,6 +98,7 @@ public class InstrumentedExtractorTest {
   @Test
   public void testDecorated() throws DataRecordException, IOException {
     WorkUnitState state = new WorkUnitState();
+    state.setProp(ConfigurationKeys.METRICS_ENABLED_KEY, Boolean.toString(true));
     InstrumentedExtractorBase instrumentedExtractor = new InstrumentedExtractorDecorator(state,
         new TestInstrumentedExtractor(state)
     );

@@ -25,4 +25,10 @@ public interface Instrumentable {
    * @return an instance of {@link gobblin.metrics.MetricContext}.
    */
   public MetricContext getMetricContext();
+
+  /**
+   * Returns true if instrumentation is activated.
+   * @return
+   */
+  public boolean isInstrumentationEnabled();
 }

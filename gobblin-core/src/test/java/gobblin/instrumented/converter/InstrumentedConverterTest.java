@@ -18,6 +18,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import gobblin.MetricsHelper;
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.Constructs;
 import gobblin.converter.DataConversionException;
@@ -64,7 +65,9 @@ public class InstrumentedConverterTest {
   }
 
   public void testBase(InstrumentedConverterBase converter) throws DataConversionException {
-    converter.init(new WorkUnitState());
+    WorkUnitState state = new WorkUnitState();
+    state.setProp(ConfigurationKeys.METRICS_ENABLED_KEY, Boolean.toString(true));
+    converter.init(state);
 
     Iterable<String> iterable = converter.convertRecord("schema", "record", new WorkUnitState());
 

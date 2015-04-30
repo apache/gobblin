@@ -18,12 +18,14 @@ import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
+import com.google.common.base.Optional;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.fork.ForkOperator;
 import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricNames;
 
@@ -34,25 +36,40 @@ import gobblin.metrics.MetricNames;
  */
 abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, ForkOperator<S, D> {
 
-  protected MetricContext metricContext = new MetricContext.Builder("TMP").build();
+  private boolean instrumentationEnabled = false;
   protected final Closer closer = Closer.create();
-  // Initialize as dummy metrics to avoid null pointer exception if init was skipped
-  protected Meter inputMeter = new Meter();
-  protected Meter outputForks = new Meter();
-  protected Timer forkOperatorTimer = new Timer();
+
+  protected Optional<MetricContext> metricContext = Optional.absent();
+  protected Optional<Meter> inputMeter = Optional.absent();
+  protected Optional<Meter> outputForks = Optional.absent();
+  protected Optional<Timer> forkOperatorTimer = Optional.absent();
 
   @Override
   public void init(WorkUnitState workUnitState)
       throws Exception {
-    this.metricContext = closer.register(Instrumented.getMetricContext(workUnitState, this.getClass()));
+    this.instrumentationEnabled = GobblinMetrics.isEnabled(workUnitState);
 
-    this.inputMeter = this.metricContext.meter(MetricNames.ForkOperatorMetrics.RECORDS_IN_METER);
-    this.outputForks = this.metricContext.meter(MetricNames.ForkOperatorMetrics.FORKS_OUT_METER);
-    this.forkOperatorTimer = this.metricContext.timer(MetricNames.ForkOperatorMetrics.FORK_TIMER);
+    if(isInstrumentationEnabled()) {
+      this.metricContext = Optional.fromNullable(
+          closer.register(Instrumented.getMetricContext(workUnitState, this.getClass())));
+
+      this.inputMeter = Instrumented.meter(this.metricContext, MetricNames.ForkOperatorMetrics.RECORDS_IN_METER);
+      this.outputForks = Instrumented.meter(this.metricContext, MetricNames.ForkOperatorMetrics.FORKS_OUT_METER);
+      this.forkOperatorTimer = Instrumented.timer(this.metricContext, MetricNames.ForkOperatorMetrics.FORK_TIMER);
+    }
+  }
+
+  @Override
+  public boolean isInstrumentationEnabled() {
+    return this.instrumentationEnabled;
   }
 
   @Override
   public List<Boolean> forkDataRecord(WorkUnitState workUnitState, D input) {
+    if (!isInstrumentationEnabled()) {
+      return forkDataRecordImpl(workUnitState, input);
+    }
+
     long startTimeNanos = System.nanoTime();
 
     beforeFork(input);
@@ -67,7 +84,7 @@ abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, For
    * @param input
    */
   protected void beforeFork(D input) {
-    this.inputMeter.mark();
+    Instrumented.markMeter(this.inputMeter);
   }
 
   /**
@@ -80,8 +97,8 @@ abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, For
     for (Boolean fork : forks) {
       forksGenerated += fork ? 1 : 0;
     }
-    this.outputForks.mark(forksGenerated);
-    this.forkOperatorTimer.update(System.nanoTime() - startTimeNanos, TimeUnit.NANOSECONDS);
+    Instrumented.markMeter(this.outputForks, forksGenerated);
+    Instrumented.updateTimer(this.forkOperatorTimer, System.nanoTime() - startTimeNanos, TimeUnit.NANOSECONDS);
   }
 
   /**
@@ -91,7 +108,7 @@ abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, For
 
   @Override
   public MetricContext getMetricContext() {
-    return this.metricContext;
+    return this.metricContext.or(new MetricContext.Builder("NULL").build());
   }
 
   @Override

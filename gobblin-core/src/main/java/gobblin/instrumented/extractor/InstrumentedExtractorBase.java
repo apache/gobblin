@@ -18,11 +18,13 @@ import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
+import com.google.common.base.Optional;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricNames;
 import gobblin.source.extractor.DataRecordException;
@@ -34,27 +36,44 @@ import gobblin.source.extractor.Extractor;
  * See {@link gobblin.instrumented.extractor.InstrumentedExtractor} for extensible class.
  */
 abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instrumentable, Closeable {
-  protected MetricContext metricContext;
-  protected Meter readRecordsMeter;
-  protected Meter dataRecordExceptionsMeter;
-  protected Timer extractorTimer;
+  private final boolean instrumentationEnabled;
+  protected final Optional<MetricContext> metricContext;
+  protected final Optional<Meter> readRecordsMeter;
+  protected final Optional<Meter> dataRecordExceptionsMeter;
+  protected final Optional<Timer> extractorTimer;
   protected final Closer closer;
 
   @SuppressWarnings("unchecked")
   public InstrumentedExtractorBase(WorkUnitState workUnitState) {
     super();
-    closer = Closer.create();
+    this.closer = Closer.create();
 
-    this.metricContext = closer.register(Instrumented.getMetricContext(workUnitState, this.getClass()));
+    this.instrumentationEnabled = GobblinMetrics.isEnabled(workUnitState);
 
-    this.readRecordsMeter = this.metricContext.contextAwareMeter(MetricNames.ExtractorMetrics.RECORDS_READ_METER);
-    this.dataRecordExceptionsMeter = this.metricContext.contextAwareMeter(MetricNames.ExtractorMetrics.RECORDS_FAILED_METER);
-    this.extractorTimer = this.metricContext.contextAwareTimer(MetricNames.ExtractorMetrics.EXTRACT_TIMER);
+    if(isInstrumentationEnabled()) {
+      this.metricContext = Optional.fromNullable(
+          closer.register(Instrumented.getMetricContext(workUnitState, this.getClass())));
+    } else {
+      this.metricContext = Optional.absent();
+    }
+    this.readRecordsMeter = Instrumented.meter(this.metricContext, MetricNames.ExtractorMetrics.RECORDS_READ_METER);
+    this.dataRecordExceptionsMeter = Instrumented.meter(this.metricContext,
+        MetricNames.ExtractorMetrics.RECORDS_FAILED_METER);
+    this.extractorTimer = Instrumented.timer(this.metricContext, MetricNames.ExtractorMetrics.EXTRACT_TIMER);
+  }
+
+  @Override
+  public boolean isInstrumentationEnabled() {
+    return this.instrumentationEnabled;
   }
 
   @Override
   public D readRecord(D reuse)
       throws DataRecordException, IOException {
+    if (!isInstrumentationEnabled()) {
+      return readRecordImpl(reuse);
+    }
+
     try {
       long startTimeNanos = System.nanoTime();
       beforeRead();
@@ -82,9 +101,9 @@ abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instr
    * @param startTime reading start time.
    */
   public void afterRead(D record, long startTime) {
-    extractorTimer.update(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+    Instrumented.updateTimer(this.extractorTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
     if(record != null){
-      readRecordsMeter.mark();
+      Instrumented.markMeter(readRecordsMeter);
     }
   }
 
@@ -94,7 +113,7 @@ abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instr
    */
   public void onException(Exception exception) {
     if (DataRecordException.class.isInstance(exception)) {
-      dataRecordExceptionsMeter.mark();
+      Instrumented.markMeter(dataRecordExceptionsMeter);
     }
   }
 
@@ -111,6 +130,6 @@ abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instr
 
   @Override
   public MetricContext getMetricContext() {
-    return this.metricContext;
+    return this.metricContext.or(new MetricContext.Builder("NULL").build());
   }
 }

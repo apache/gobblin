@@ -44,8 +44,8 @@ public enum Constructs {
   /** {@link gobblin.publisher.DataPublisher} */
   DATA_PUBLISHER("DataPublisher",DataPublisher.class);
 
-  private String name;
-  private Class<?> klazz;
+  private final String name;
+  private final Class<?> klazz;
 
   Constructs(String name, Class<?> klazz) {
     this.name = name;

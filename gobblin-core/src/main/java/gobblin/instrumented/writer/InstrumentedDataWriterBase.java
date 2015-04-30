@@ -18,11 +18,13 @@ import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
+import com.google.common.base.Optional;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.State;
 import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricNames;
 import gobblin.writer.DataWriter;
@@ -33,27 +35,47 @@ import gobblin.writer.DataWriter;
  * See {@link gobblin.instrumented.writer.InstrumentedDataWriter} for extensible class.
  */
 abstract class InstrumentedDataWriterBase <D> implements DataWriter<D>, Instrumentable, Closeable {
+  private final boolean instrumentationEnabled;
 
   protected final Closer closer;
-  protected MetricContext metricContext;
-  protected Meter recordsInMeter;
-  protected Meter successfulWriteMeter;
-  protected Meter exceptionWriteMeter;
-  protected Timer dataWriterTimer;
+  protected final Optional<MetricContext> metricContext;
+  protected final Optional<Meter> recordsInMeter;
+  protected final Optional<Meter> successfulWriteMeter;
+  protected final Optional<Meter> exceptionWriteMeter;
+  protected final Optional<Timer> dataWriterTimer;
 
   public InstrumentedDataWriterBase(State state) {
     this.closer = Closer.create();
+    this.instrumentationEnabled = GobblinMetrics.isEnabled(state);
 
-    this.metricContext = this.closer.register(Instrumented.getMetricContext(state, this.getClass()));
-    this.recordsInMeter = this.metricContext.meter(MetricNames.DataWriterMetrics.RECORDS_IN_METER);
-    this.successfulWriteMeter = this.metricContext.meter(MetricNames.DataWriterMetrics.RECORDS_WRITTEN_METER);
-    this.exceptionWriteMeter = this.metricContext.meter(MetricNames.DataWriterMetrics.RECORDS_FAILED_METER);
-    this.dataWriterTimer = this.metricContext.timer(MetricNames.DataWriterMetrics.WRITE_TIMER);
+    if(isInstrumentationEnabled()) {
+      this.metricContext = Optional.fromNullable(
+          this.closer.register(Instrumented.getMetricContext(state, this.getClass())));
+    } else {
+      this.metricContext = Optional.absent();
+    }
+
+    this.recordsInMeter =Instrumented.meter(this.metricContext, MetricNames.DataWriterMetrics.RECORDS_IN_METER);
+    this.successfulWriteMeter = Instrumented.meter(this.metricContext,
+        MetricNames.DataWriterMetrics.RECORDS_WRITTEN_METER);
+    this.exceptionWriteMeter = Instrumented.meter(this.metricContext,
+        MetricNames.DataWriterMetrics.RECORDS_FAILED_METER);
+    this.dataWriterTimer = Instrumented.timer(this.metricContext, MetricNames.DataWriterMetrics.WRITE_TIMER);
+  }
+
+  @Override
+  public boolean isInstrumentationEnabled() {
+    return this.instrumentationEnabled;
   }
 
   @Override
   public void write(D record)
       throws IOException {
+    if(!isInstrumentationEnabled()) {
+      writeImpl(record);
+      return;
+    }
+
     try {
       long startTimeNanos = System.nanoTime();
       beforeWrite(record);
@@ -70,7 +92,7 @@ abstract class InstrumentedDataWriterBase <D> implements DataWriter<D>, Instrume
    * @param record record to write.
    */
   public void beforeWrite(D record) {
-    this.recordsInMeter.mark();
+    Instrumented.markMeter(this.recordsInMeter);
   }
 
   /**
@@ -78,15 +100,15 @@ abstract class InstrumentedDataWriterBase <D> implements DataWriter<D>, Instrume
    * @param startTimeNanos time at which writing started.
    */
   public void onSuccessfulWrite(long startTimeNanos) {
-    this.dataWriterTimer.update(System.nanoTime() - startTimeNanos, TimeUnit.NANOSECONDS);
-    this.successfulWriteMeter.mark();
+    Instrumented.updateTimer(this.dataWriterTimer, System.nanoTime() - startTimeNanos, TimeUnit.NANOSECONDS);
+    Instrumented.markMeter(this.successfulWriteMeter);
   }
 
   /** Called after a failed writing of a record.
    * @param exception exception thrown.
    */
   public void onException(Exception exception) {
-    this.exceptionWriteMeter.mark();
+    Instrumented.markMeter(this.exceptionWriteMeter);
   }
 
   /**
@@ -102,6 +124,6 @@ abstract class InstrumentedDataWriterBase <D> implements DataWriter<D>, Instrume
 
   @Override
   public MetricContext getMetricContext() {
-    return this.metricContext;
+    return this.metricContext.or(new MetricContext.Builder("NULL").build());
   }
 }

@@ -17,7 +17,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.Timer;
+import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
 import gobblin.Constructs;
@@ -55,6 +60,7 @@ public class Instrumented implements Instrumentable, Closeable {
 
   public static final String METRIC_CONTEXT_NAME_KEY = "metrics.context.name";
   protected final MetricContext metricContext;
+  private final boolean instrumentationEnabled;
 
   /**
    * Gets metric context with no additional tags.
@@ -119,14 +125,94 @@ public class Instrumented implements Instrumentable, Closeable {
         build();
   }
 
+  /**
+   * Create an {@link com.codahale.metrics.Meter} only if Context exists.
+   * @param context An Optional&lt;{@link gobblin.metrics.MetricContext}&gt;
+   * @param name Name for Meter
+   * @return an Optional&lt;{@link com.codahale.metrics.Meter}&gt;
+   */
+  public static Optional<Meter> meter(Optional<MetricContext> context, final String name) {
+    return context.transform(new Function<MetricContext, Meter>() {
+      @Override
+      public Meter apply(MetricContext context1) {
+        return context1.meter(name);
+      }
+    });
+  }
+
+  /**
+   * Create an {@link com.codahale.metrics.Timer} only if Context exists.
+   * @param context An Optional&lt;{@link gobblin.metrics.MetricContext}&gt;
+   * @param name Name for Timer
+   * @return an Optional&lt;{@link com.codahale.metrics.Timer}&gt;
+   */
+  public static Optional<Timer> timer(Optional<MetricContext> context, final String name) {
+    return context.transform(new Function<MetricContext, Timer>() {
+      @Override
+      public Timer apply(MetricContext context1) {
+        return context1.timer(name);
+      }
+    });
+  }
+
+  /**
+   * Updates a timer only if it is defined.
+   * @param timer an Optional&lt;{@link com.codahale.metrics.Timer}&gt;
+   * @param duration
+   * @param unit
+   */
+  public static void updateTimer(Optional<Timer> timer, final long duration, final TimeUnit unit) {
+    timer.transform(new Function<Timer, Timer>() {
+      @Override
+      public Timer apply(Timer input) {
+        input.update(duration, unit);
+        return input;
+      }
+    });
+  }
+
+  /**
+   * Marks a meter only if it is defined.
+   * @param meter an Optional&lt;{@link com.codahale.metrics.Meter}&gt;
+   */
+  public static void markMeter(Optional<Meter> meter) {
+    markMeter(meter, 1);
+  }
+
+  /**
+   * Marks a meter only if it is defined.
+   * @param meter an Optional&lt;{@link com.codahale.metrics.Meter}&gt;
+   * @param value value to mark
+   */
+  public static void markMeter(Optional<Meter> meter, final int value) {
+    meter.transform(new Function<Meter, Meter>() {
+      @Override
+      public Meter apply(Meter input) {
+        input.mark(value);
+        return input;
+      }
+    });
+  }
+
   @SuppressWarnings("unchecked")
   public Instrumented(State state, Class<?> klazz) {
-    this.metricContext = getMetricContext(state, klazz);
+    this(state, klazz, new ArrayList<Tag<?>>());
   }
 
   @SuppressWarnings("unchecked")
   public Instrumented(State state, Class<?> klazz, List<Tag<?>> tags) {
-    this.metricContext = getMetricContext(state, klazz, tags);
+    this.instrumentationEnabled = GobblinMetrics.isEnabled(state);
+
+    if(isInstrumentationEnabled()) {
+      this.metricContext = getMetricContext(state, klazz, tags);
+    } else {
+      this.metricContext = new MetricContext.Builder("NULL").build();
+    }
+  }
+
+  @Override
+  public boolean isInstrumentationEnabled() {
+    return this.instrumentationEnabled;
   }
 
   @Override

@@ -21,6 +21,7 @@ import org.testng.annotations.Test;
 import junit.framework.Assert;
 
 import gobblin.Constructs;
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.configuration.State;
 import gobblin.metrics.Tag;
@@ -35,6 +36,7 @@ public class InstrumentedTest {
     GobblinMetrics gobblinMetrics = GobblinMetrics.get("parent.context");
 
     State state = new State();
+    state.setProp(ConfigurationKeys.METRICS_ENABLED_KEY, Boolean.toString(true));
     state.setProp(Instrumented.METRIC_CONTEXT_NAME_KEY, gobblinMetrics.getName());
     Instrumented instrumented = new Instrumented(state, InstrumentedExtractor.class);
 
