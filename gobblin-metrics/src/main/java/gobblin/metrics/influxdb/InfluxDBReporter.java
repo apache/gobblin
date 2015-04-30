@@ -11,6 +11,7 @@
 
 package gobblin.metrics.influxdb;
 
+import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
@@ -29,6 +30,9 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
 
+import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
+
 import gobblin.metrics.ContextAwareScheduledReporter;
 import gobblin.metrics.Measurements;
 import gobblin.metrics.MetricContext;
@@ -40,11 +44,18 @@ import gobblin.metrics.MetricContext;
  *
  * @see <a href="http://influxdb.com/">InfluxDB</a>.
  *
+ * <p>
+ *   The name of the {@link MetricContext} a {@link InfluxDBReporter} is associated to will
+ *   be included as the prefix in the metric names, which may or may not include the tags
+ *   of the {@link MetricContext} depending on if the {@link MetricContext} is configured to
+ *   report fully-qualified metric names or not using the method
+ *   {@link MetricContext.Builder#reportFullyQualifiedNames(boolean)}.
+ * </p>
+ *
  * @author ynli
  */
 public class InfluxDBReporter extends ContextAwareScheduledReporter {
 
-  protected static final String NAME = "name";
   protected static final String VALUE = "value";
   protected static final String TIMESTAMP = "timestamp";
 
@@ -75,29 +86,30 @@ public class InfluxDBReporter extends ContextAwareScheduledReporter {
                                  SortedMap<String, Timer> timers) {
 
     long timeStamp = System.currentTimeMillis();
-    Serie.Builder builder = new Serie.Builder(context.getName()).columns(TIMESTAMP, NAME, VALUE);
+
+    List<Serie> series = Lists.newArrayList();
 
     for (Map.Entry<String, Gauge> entry : gauges.entrySet()) {
-      builder = addGauge(entry.getKey(), entry.getValue(), timeStamp, builder);
+      reportGauge(series, context, entry.getKey(), entry.getValue(), timeStamp);
     }
 
     for (Map.Entry<String, Counter> entry : counters.entrySet()) {
-      builder = addCounter(entry.getKey(), entry.getValue(), timeStamp, builder);
+      reportCounter(series, context, entry.getKey(), entry.getValue(), timeStamp);
     }
 
     for (Map.Entry<String, Histogram> entry : histograms.entrySet()) {
-      builder = addHistogram(entry.getKey(), entry.getValue(), timeStamp, builder);
+      reportHistogram(series, context, entry.getKey(), entry.getValue(), timeStamp);
     }
 
     for (Map.Entry<String, Meter> entry : meters.entrySet()) {
-      builder = addMetered(entry.getKey(), entry.getValue(), timeStamp, builder);
+      reportMetered(series, context, entry.getKey(), entry.getValue(), timeStamp);
     }
 
     for (Map.Entry<String, Timer> entry : timers.entrySet()) {
-      builder = addTimer(entry.getKey(), entry.getValue(), timeStamp, builder);
+      reportTimer(series, context, entry.getKey(), entry.getValue(), timeStamp);
     }
 
-    this.influxDB.write(this.database, this.timeUnit, builder.build());
+    this.influxDB.write(this.database, this.timeUnit, series.toArray(new Serie[series.size()]));
   }
 
   /**
@@ -121,50 +133,68 @@ public class InfluxDBReporter extends ContextAwareScheduledReporter {
     return new Builder(name);
   }
 
-  private Serie.Builder addGauge(String name, Gauge gauge, long timeStamp, Serie.Builder builder) {
-    return builder.values(timeStamp, name, gauge.getValue());
+  private void reportGauge(List<Serie> series, MetricContext context, String name, Gauge gauge, long timeStamp) {
+    series.add(buildSerie(context, name, Optional.<Measurements>absent(), timeStamp, gauge.getValue()));
   }
 
-  private Serie.Builder addCounter(String name, Counter counter, long timeStamp, Serie.Builder builder) {
-    return builder.values(timeStamp, MetricRegistry.name(name, Measurements.COUNT.getName()), counter.getCount());
+  private void reportCounter(List<Serie> series, MetricContext context, String name, Counter counter, long timeStamp) {
+    series.add(buildSerie(context, name, Optional.of(Measurements.COUNT), timeStamp, counter.getCount()));
   }
 
-  private Serie.Builder addHistogram(String name, Histogram histogram, long timeStamp, Serie.Builder builder) {
-    builder = builder.values(timeStamp, MetricRegistry.name(name, Measurements.COUNT.getName()), histogram.getCount());
-    return addSnapshot(name, histogram.getSnapshot(), timeStamp, builder);
+  private void reportHistogram(List<Serie> series, MetricContext context, String name, Histogram histogram,
+      long timeStamp) {
+    series.add(buildSerie(context, name, Optional.of(Measurements.COUNT), timeStamp, histogram.getCount()));
+    reportSnapshot(series, context, name, histogram.getSnapshot(), timeStamp, false);
   }
 
-  private Serie.Builder addTimer(String name, Timer timer, long timeStamp, Serie.Builder builder) {
-    builder = addMetered(name, timer, timeStamp, builder);
-    return addSnapshot(name, timer.getSnapshot(), timeStamp, builder);
+  private void reportTimer(List<Serie> series, MetricContext context, String name, Timer timer, long timeStamp) {
+    reportMetered(series, context, name, timer, timeStamp);
+    reportSnapshot(series, context, name, timer.getSnapshot(), timeStamp, true);
   }
 
-  private Serie.Builder addMetered(String name, Metered metered, long timeStamp, Serie.Builder builder) {
-    return builder
-        .values(timeStamp, MetricRegistry.name(name, Measurements.COUNT.getName()), metered.getCount())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.RATE_1MIN.getName()), metered.getOneMinuteRate())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.RATE_5MIN.getName()), metered.getFiveMinuteRate())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.RATE_15MIN.getName()), metered.getFifteenMinuteRate())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.MEAN_RATE.getName()), metered.getMeanRate());
+  private void reportMetered(List<Serie> series, MetricContext context, String name, Metered metered, long timeStamp) {
+    series.add(buildSerie(context, name, Optional.of(Measurements.COUNT), timeStamp,
+        metered.getCount()));
+    series.add(buildSerie(context, name, Optional.of(Measurements.MEAN_RATE), timeStamp,
+        convertRate(metered.getMeanRate())));
+    series.add(buildSerie(context, name, Optional.of(Measurements.RATE_1MIN), timeStamp,
+        convertRate(metered.getOneMinuteRate())));
+    series.add(buildSerie(context, name, Optional.of(Measurements.RATE_5MIN), timeStamp,
+        convertRate(metered.getFiveMinuteRate())));
+    series.add(buildSerie(context, name, Optional.of(Measurements.RATE_15MIN), timeStamp,
+        convertRate(metered.getFifteenMinuteRate())));
   }
 
-  private Serie.Builder addSnapshot(String name, Snapshot snapshot, long timeStamp, Serie.Builder builder) {
-    return builder
-        .values(timeStamp, MetricRegistry.name(name, Measurements.MIN.getName()), snapshot.getMin())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.MAX.getName()), snapshot.getMax())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.MEAN.getName()), snapshot.getMean())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.STDDEV.getName()), snapshot.getStdDev())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.MEDIAN.getName()), snapshot.getMedian())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.PERCENTILE_75TH.getName()),
-            snapshot.get75thPercentile())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.PERCENTILE_95TH.getName()),
-            snapshot.get95thPercentile())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.PERCENTILE_98TH.getName()),
-            snapshot.get98thPercentile())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.PERCENTILE_99TH.getName()),
-            snapshot.get99thPercentile())
-        .values(timeStamp, MetricRegistry.name(name, Measurements.PERCENTILE_999TH.getName()),
-            snapshot.get999thPercentile());
+  private void reportSnapshot(List<Serie> series, MetricContext context, String name, Snapshot snapshot,
+      long timeStamp, boolean convertDuration) {
+    series.add(buildSerie(context, name, Optional.of(Measurements.MIN), timeStamp,
+        convertDuration ? convertDuration(snapshot.getMin()) : snapshot.getMin()));
+    series.add(buildSerie(context, name, Optional.of(Measurements.MAX), timeStamp,
+        convertDuration ? convertDuration(snapshot.getMax()) : snapshot.getMax()));
+    series.add(buildSerie(context, name, Optional.of(Measurements.MEAN), timeStamp,
+        convertDuration ? convertDuration(snapshot.getMean()) : snapshot.getMean()));
+    series.add(buildSerie(context, name, Optional.of(Measurements.STDDEV), timeStamp,
+        convertDuration ? convertDuration(snapshot.getStdDev()) : snapshot.getStdDev()));
+    series.add(buildSerie(context, name, Optional.of(Measurements.MEDIAN), timeStamp,
+        convertDuration ? convertDuration(snapshot.getMedian()) : snapshot.getMedian()));
+    series.add(buildSerie(context, name, Optional.of(Measurements.PERCENTILE_75TH), timeStamp,
+        convertDuration ? convertDuration(snapshot.get75thPercentile()) : snapshot.get75thPercentile()));
+    series.add(buildSerie(context, name, Optional.of(Measurements.PERCENTILE_95TH), timeStamp,
+        convertDuration ? convertDuration(snapshot.get95thPercentile()) : snapshot.get95thPercentile()));
+    series.add(buildSerie(context, name, Optional.of(Measurements.PERCENTILE_98TH), timeStamp,
+        convertDuration ? convertDuration(snapshot.get98thPercentile()) : snapshot.get98thPercentile()));
+    series.add(buildSerie(context, name, Optional.of(Measurements.PERCENTILE_99TH), timeStamp,
+        convertDuration ? convertDuration(snapshot.get99thPercentile()) : snapshot.get99thPercentile()));
+    series.add(buildSerie(context, name, Optional.of(Measurements.PERCENTILE_999TH), timeStamp,
+        convertDuration ? convertDuration(snapshot.get999thPercentile()) : snapshot.get999thPercentile()));
+  }
+
+  private Serie buildSerie(MetricContext context, String metricName, Optional<Measurements> measurements,
+      long timeStamp, Object value) {
+    String serieName = measurements.isPresent() ?
+        MetricRegistry.name(context.getName(), metricName, measurements.get().getName()) :
+        MetricRegistry.name(context.getName(), metricName);
+    return new Serie.Builder(serieName).columns(TIMESTAMP, VALUE).values(timeStamp, value).build();
   }
 
   /**
