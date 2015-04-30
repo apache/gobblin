@@ -11,13 +11,17 @@
 
 package gobblin.metrics.kafka;
 
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.io.IOUtils;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -242,9 +246,7 @@ public class KafkaReporterTest extends KafkaTestBase {
    */
   protected MetricReport nextReport(ConsumerIterator<byte[], byte[]> it) throws IOException {
     Assert.assertTrue(it.hasNext());
-    String nextMessage = new String(it.next().message());
-    MetricReport metricReport = mapper.readValue(nextMessage, MetricReport.class);
-    return metricReport;
+    return KafkaReporter.deserializeReport(new MetricReport(), it.next().message());
   }
 
   @AfterClass

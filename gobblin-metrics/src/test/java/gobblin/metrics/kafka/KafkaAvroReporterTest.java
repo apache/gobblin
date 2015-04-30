@@ -12,11 +12,14 @@
 
 package gobblin.metrics.kafka;
 
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
 
 import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
+import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -70,12 +73,7 @@ public class KafkaAvroReporterTest extends KafkaReporterTest {
   @SuppressWarnings("unchecked")
   protected MetricReport nextReport(ConsumerIterator<byte[], byte[]> it)
       throws IOException {
-    byte[] bytes = it.next().message();
-
-    Decoder decoder = DecoderFactory.get().binaryDecoder(bytes, null);
-    MetricReport reuse = new MetricReport();
-    MetricReport report = reader.read(reuse, decoder);
-
-    return report;
+    Assert.assertTrue(it.hasNext());
+    return KafkaAvroReporter.deserializeReport(new MetricReport(), it.next().message());
   }
 }

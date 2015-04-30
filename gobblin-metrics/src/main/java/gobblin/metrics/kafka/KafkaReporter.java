@@ -11,7 +11,10 @@
 
 package gobblin.metrics.kafka;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -23,8 +26,11 @@ import java.util.Properties;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.avro.io.Decoder;
+import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
@@ -60,14 +66,18 @@ import gobblin.metrics.Tag;
 public class KafkaReporter extends ScheduledReporter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(KafkaReporter.class);
+  public static final int SCHEMA_VERSION = 1;
 
   private final String topic;
   private final Encoder encoder;
-  private final ByteArrayOutputStream out;
+  private final ByteArrayOutputStream byteArrayOutputStream;
+  private final DataOutputStream out;
   protected final Closer closer;
 
   private final Optional<ProducerCloseable<String, byte[]>> producerOpt;
   private final Optional<SpecificDatumWriter<MetricReport>> writerOpt;
+
+  private static Optional<SpecificDatumReader<MetricReport>> READER = Optional.absent();
 
   public final Map<String, String> tags;
   private final boolean reportMetrics;
@@ -80,7 +90,8 @@ public class KafkaReporter extends ScheduledReporter {
     this.topic = builder.topic;
     this.tags = builder.tags;
 
-    this.out = this.closer.register(new ByteArrayOutputStream());
+    this.byteArrayOutputStream = new ByteArrayOutputStream();
+    this.out = this.closer.register(new DataOutputStream(byteArrayOutputStream));
     this.encoder = getEncoder(out);
     this.reportMetrics = this.encoder != null;
 
@@ -269,6 +280,29 @@ public class KafkaReporter extends ScheduledReporter {
   }
 
   /**
+   * Parses a {@link gobblin.metrics.MetricReport} from a byte array.
+   * @param reuse MetricReport to reuse.
+   * @param bytes Input bytes.
+   * @return MetricReport.
+   * @throws IOException
+   */
+  public static MetricReport deserializeReport(MetricReport reuse, byte[] bytes) throws IOException {
+    if (!READER.isPresent()) {
+      READER = Optional.of(new SpecificDatumReader<MetricReport>(MetricReport.class));
+    }
+
+    DataInputStream inputStream = new DataInputStream(new ByteArrayInputStream(bytes));
+
+    // Check version byte
+    if (inputStream.readInt() != SCHEMA_VERSION) {
+      throw new IOException("MetricReport schema version not recognized.");
+    }
+    // Decode the rest
+    Decoder decoder = DecoderFactory.get().jsonDecoder(MetricReport.SCHEMA$, inputStream);
+    return READER.get().read(reuse, decoder);
+  }
+
+  /**
    * Serializes metrics and pushes the byte arrays to Kafka.
    * Uses the serialize* methods in {@link KafkaReporter}.
    * @param gauges
@@ -424,10 +458,13 @@ public class KafkaReporter extends ScheduledReporter {
     }
 
     try {
-      this.out.reset();
+      this.byteArrayOutputStream.reset();
+      // Write version number at the beginning of the message.
+      this.out.writeInt(SCHEMA_VERSION);
+      // Now write the report itself.
       this.writerOpt.get().write(report, this.encoder);
       this.encoder.flush();
-      return out.toByteArray();
+      return this.byteArrayOutputStream.toByteArray();
     } catch(IOException exception) {
       LOGGER.warn("Could not serialize Avro record for Kafka Metrics. Exception: %s", exception.getMessage());
       return null;
