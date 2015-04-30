@@ -103,14 +103,4 @@ public class KafkaAvroExtractor extends KafkaExtractor<Schema, GenericRecord> {
     }
   }
 
-  private static byte[] getBytes(ByteBuffer buf) {
-    byte[] bytes = null;
-    if (buf != null) {
-      int size = buf.remaining();
-      bytes = new byte[size];
-      buf.get(bytes, buf.position(), size);
-    }
-    return bytes;
-  }
-
 }
