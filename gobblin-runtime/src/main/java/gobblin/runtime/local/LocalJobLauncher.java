@@ -13,6 +13,7 @@ package gobblin.runtime.local;
 
 import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.FileBasedJobLock;
+import gobblin.runtime.JobListener;
 import gobblin.runtime.JobState;
 import gobblin.runtime.Task;
 import gobblin.runtime.TaskExecutor;
@@ -23,13 +24,13 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
 
@@ -59,9 +60,9 @@ public class LocalJobLauncher extends AbstractJobLauncher {
   private volatile CountDownLatch countDownLatch;
   private volatile boolean isCancelled = false;
 
-  public LocalJobLauncher(Properties properties)
+  public LocalJobLauncher(Properties properties, Properties jobProps)
       throws Exception {
-    super(properties);
+    super(properties, jobProps);
 
     this.taskExecutor = new TaskExecutor(properties);
     this.taskStateTracker = new LocalTaskStateTracker2(properties, this.taskExecutor);
@@ -71,24 +72,37 @@ public class LocalJobLauncher extends AbstractJobLauncher {
   }
 
   @Override
-  public void cancelJob(Properties jobProps)
+  public void cancelJob(JobListener jobListener)
       throws JobException {
-    if (isCancelled || !Optional.fromNullable(this.countDownLatch).isPresent()) {
-      LOG.info(String.format("Job %s has already been cancelled or has not started yet",
-          jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY)));
-      return;
+    if (!this.isCancelled && this.countDownLatch != null) {
+      while (this.countDownLatch.getCount() > 0) {
+        this.countDownLatch.countDown();
+      }
+      this.isCancelled = true;
+      LOG.info("Cancelled job " + this.jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY));
+      if (jobListener != null) {
+        jobListener.onJobCancellation(this.jobState);
+      }
     }
-
-    // Unblock the thread that calls runJob below
-    while (this.countDownLatch.getCount() > 0) {
-      this.countDownLatch.countDown();
-    }
-
-    isCancelled = true;
   }
 
   @Override
-  protected void runJob(String jobName, Properties jobProps, JobState jobState, List<WorkUnit> workUnits)
+  public void close()
+      throws IOException {
+    try {
+      super.close();
+    } finally {
+      try {
+        // Stop all dependent services
+        this.serviceManager.stopAsync().awaitStopped(5, TimeUnit.SECONDS);
+      } catch (TimeoutException te) {
+        LOG.warn("Timed out while waiting for the service manager to be stopped", te);
+      }
+    }
+  }
+
+  @Override
+  protected void runWorkUnits(List<WorkUnit> workUnits)
       throws Exception {
 
     // Start all dependent services
@@ -109,35 +123,31 @@ public class LocalJobLauncher extends AbstractJobLauncher {
       return;
     }
 
-    String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
     this.countDownLatch = new CountDownLatch(workUnitsToRun.size());
     List<Task> tasks = AbstractJobLauncher
-        .runWorkUnits(jobId, workUnitsToRun, this.taskStateTracker, this.taskExecutor, this.countDownLatch);
+        .runWorkUnits(this.jobId, workUnitsToRun, this.taskStateTracker, this.taskExecutor, this.countDownLatch);
 
     // Set job state appropriately
-    if (isCancelled) {
-      jobState.setState(JobState.RunningState.CANCELLED);
-    } else if (jobState.getState() == JobState.RunningState.RUNNING) {
-      jobState.setState(JobState.RunningState.SUCCESSFUL);
+    if (this.isCancelled) {
+      this.jobState.setState(JobState.RunningState.CANCELLED);
+    } else if (this.jobState.getState() == JobState.RunningState.RUNNING) {
+      this.jobState.setState(JobState.RunningState.SUCCESSFUL);
     }
 
     // Collect task states and set job state to FAILED if any task failed
     for (Task task : tasks) {
-      jobState.addTaskState(task.getTaskState());
+      this.jobState.addTaskState(task.getTaskState());
       if (task.getTaskState().getWorkingState() == WorkUnitState.WorkingState.FAILED) {
-        jobState.setState(JobState.RunningState.FAILED);
+        this.jobState.setState(JobState.RunningState.FAILED);
       }
     }
-
-    // Stop all dependent services
-    this.serviceManager.stopAsync().awaitStopped(5, TimeUnit.SECONDS);
   }
 
   @Override
-  protected JobLock getJobLock(String jobName, Properties jobProps)
+  protected JobLock getJobLock()
       throws IOException {
-    URI fsUri = URI.create(jobProps.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
+    URI fsUri = URI.create(this.jobProps.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
     return new FileBasedJobLock(FileSystem.get(fsUri, new Configuration()),
-        jobProps.getProperty(ConfigurationKeys.JOB_LOCK_DIR_KEY), jobName);
+        this.jobProps.getProperty(ConfigurationKeys.JOB_LOCK_DIR_KEY), this.jobName);
   }
 }

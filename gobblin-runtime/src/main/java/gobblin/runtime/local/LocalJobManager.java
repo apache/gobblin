@@ -804,7 +804,7 @@ public class LocalJobManager extends AbstractIdleService {
   private void callJobListener(String jobName, JobState jobState, boolean runOnce) {
     JobListener jobListener = runOnce ? this.jobListenerMap.remove(jobName) : this.jobListenerMap.get(jobName);
     if (jobListener != null) {
-      jobListener.jobCompleted(jobState);
+      jobListener.onJobCompletion(jobState);
     }
   }
 

@@ -11,33 +11,37 @@
 
 package gobblin.runtime;
 
+import java.io.Closeable;
 import java.util.Properties;
 
 
 /**
  * An interface for classes that launch a Gobblin job.
  *
+ * <p>
+ *   A {@link JobLauncher} is not supposed to be reused, i.e., each {@link JobLauncher}
+ *   should only be used to launch a single job.
+ * </p>
+ *
  * @author ynli
  */
-public interface JobLauncher {
+public interface JobLauncher extends Closeable {
 
   /**
    * Launch a Gobblin job.
    *
-   * @param jobProps Job configuration properties
-   * @param jobListener {@link JobListener} used for callback,
-   *                    can be <em>null</em> if no callback is needed.
-   * @throws JobException
+   * @param jobListener {@link JobListener} used for callback, can be <em>null</em> if no callback is needed.
+   * @throws JobException if there is anything wrong launching and running the job
    */
-  public void launchJob(Properties jobProps, JobListener jobListener)
+  public void launchJob(JobListener jobListener)
       throws JobException;
 
   /**
    * Cancel a Gobblin job.
    *
-   * @param jobProps Job configuration properties
-   * @throws JobException
+   * @param jobListener {@link JobListener} used for callback, can be <em>null</em> if no callback is needed.
+   * @throws JobException if there is anything wrong cancelling the job
    */
-  public void cancelJob(Properties jobProps)
+  public void cancelJob(JobListener jobListener)
       throws JobException;
 }

@@ -48,6 +48,7 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.io.Closer;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.AbstractIdleService;
 
@@ -257,10 +258,11 @@ public class JobScheduler extends AbstractIdleService {
     // Populate the assigned job ID
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, JobLauncherUtils.newJobId(jobName));
 
+    Closer closer = Closer.create();
     // Launch the job
     try {
-      JobLauncher jobLauncher = JobLauncherFactory.newJobLauncher(this.properties);
-      jobLauncher.launchJob(jobProps, jobListener);
+      JobLauncher jobLauncher = closer.register(JobLauncherFactory.newJobLauncher(this.properties, jobProps));
+      jobLauncher.launchJob(jobListener);
       boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
       if (runOnce && this.scheduledJobs.containsKey(jobName)) {
         this.scheduler.deleteJob(this.scheduledJobs.remove(jobName));
@@ -269,6 +271,12 @@ public class JobScheduler extends AbstractIdleService {
       String errMsg = "Failed to launch and run job " + jobName;
       LOG.error(errMsg, t);
       throw new JobException(errMsg, t);
+    } finally {
+      try {
+        closer.close();
+      } catch (IOException ioe) {
+        LOG.error("Failed to close the JobLauncher for job " + jobName, ioe);
+      }
     }
   }
 
