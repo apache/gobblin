@@ -39,7 +39,7 @@ abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, For
   private boolean instrumentationEnabled = false;
   protected final Closer closer = Closer.create();
 
-  protected Optional<MetricContext> metricContext = Optional.absent();
+  protected MetricContext metricContext = new MetricContext.Builder(InstrumentedForkOperatorBase.class.getName()).build();
   protected Optional<Meter> inputMeter = Optional.absent();
   protected Optional<Meter> outputForks = Optional.absent();
   protected Optional<Timer> forkOperatorTimer = Optional.absent();
@@ -50,12 +50,12 @@ abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, For
     this.instrumentationEnabled = GobblinMetrics.isEnabled(workUnitState);
 
     if(isInstrumentationEnabled()) {
-      this.metricContext = Optional.fromNullable(
-          closer.register(Instrumented.getMetricContext(workUnitState, this.getClass())));
+      this.metricContext =
+          closer.register(Instrumented.getMetricContext(workUnitState, this.getClass()));
 
-      this.inputMeter = Instrumented.meter(this.metricContext, MetricNames.ForkOperatorMetrics.RECORDS_IN_METER);
-      this.outputForks = Instrumented.meter(this.metricContext, MetricNames.ForkOperatorMetrics.FORKS_OUT_METER);
-      this.forkOperatorTimer = Instrumented.timer(this.metricContext, MetricNames.ForkOperatorMetrics.FORK_TIMER);
+      this.inputMeter = Optional.of(this.metricContext.meter(MetricNames.ForkOperatorMetrics.RECORDS_IN_METER));
+      this.outputForks = Optional.of(this.metricContext.meter(MetricNames.ForkOperatorMetrics.FORKS_OUT_METER));
+      this.forkOperatorTimer = Optional.of(this.metricContext.timer(MetricNames.ForkOperatorMetrics.FORK_TIMER));
     }
   }
 
@@ -107,7 +107,7 @@ abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, For
   public abstract List<Boolean> forkDataRecordImpl(WorkUnitState workUnitState, D input);
 
   @Override
-  public Optional<MetricContext> getMetricContext() {
+  public MetricContext getMetricContext() {
     return this.metricContext;
   }
 

@@ -12,10 +12,9 @@
 
 package gobblin.instrumented;
 
-import com.google.common.base.Optional;
+import javax.annotation.Nonnull;
 
 import gobblin.metrics.MetricContext;
-
 
 /**
  * Interface for classes instrumenting their execution into a {@link gobblin.metrics.MetricContext}.
@@ -26,11 +25,12 @@ public interface Instrumentable {
    * Get {@link gobblin.metrics.MetricContext} containing metrics related to this Instrumentable.
    * @return an instance of {@link gobblin.metrics.MetricContext}.
    */
-  public Optional<MetricContext> getMetricContext();
+  @Nonnull
+  public MetricContext getMetricContext();
 
   /**
    * Returns true if instrumentation is activated.
-   * @return
+   * @return true if instrumentation is enabled, false otherwise.
    */
   public boolean isInstrumentationEnabled();
 }

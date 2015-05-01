@@ -35,7 +35,7 @@ dependencies {
   compile externalDependency.metricsCore
   compile externalDependency.kafka
   compile externalDependency.kafkaClient
-  compile externalDependency.scala
+  compile externalDependency.findBugs
 
   testCompile externalDependency.testng
 }

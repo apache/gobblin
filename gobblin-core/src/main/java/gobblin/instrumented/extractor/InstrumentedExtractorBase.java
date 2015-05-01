@@ -37,7 +37,7 @@ import gobblin.source.extractor.Extractor;
  */
 abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instrumentable, Closeable {
   private final boolean instrumentationEnabled;
-  protected final Optional<MetricContext> metricContext;
+  protected final MetricContext metricContext;
   protected final Optional<Meter> readRecordsMeter;
   protected final Optional<Meter> dataRecordExceptionsMeter;
   protected final Optional<Timer> extractorTimer;
@@ -50,16 +50,19 @@ abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instr
 
     this.instrumentationEnabled = GobblinMetrics.isEnabled(workUnitState);
 
+    this.metricContext =
+        closer.register(Instrumented.getMetricContext(workUnitState, this.getClass()));
+
     if(isInstrumentationEnabled()) {
-      this.metricContext = Optional.fromNullable(
-          closer.register(Instrumented.getMetricContext(workUnitState, this.getClass())));
+      this.readRecordsMeter = Optional.of(this.metricContext.meter(MetricNames.ExtractorMetrics.RECORDS_READ_METER));
+      this.dataRecordExceptionsMeter = Optional.of(
+          this.metricContext.meter(MetricNames.ExtractorMetrics.RECORDS_FAILED_METER));
+      this.extractorTimer = Optional.of(this.metricContext.timer(MetricNames.ExtractorMetrics.EXTRACT_TIMER));
     } else {
-      this.metricContext = Optional.absent();
+      this.readRecordsMeter = Optional.absent();
+      this.dataRecordExceptionsMeter = Optional.absent();
+      this.extractorTimer = Optional.absent();
     }
-    this.readRecordsMeter = Instrumented.meter(this.metricContext, MetricNames.ExtractorMetrics.RECORDS_READ_METER);
-    this.dataRecordExceptionsMeter = Instrumented.meter(this.metricContext,
-        MetricNames.ExtractorMetrics.RECORDS_FAILED_METER);
-    this.extractorTimer = Instrumented.timer(this.metricContext, MetricNames.ExtractorMetrics.EXTRACT_TIMER);
   }
 
   @Override
@@ -129,7 +132,7 @@ abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instr
   }
 
   @Override
-  public Optional<MetricContext> getMetricContext() {
+  public MetricContext getMetricContext() {
     return this.metricContext;
   }
 }

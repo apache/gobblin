@@ -14,8 +14,6 @@ package gobblin.instrumented.fork;
 
 import java.util.List;
 
-import com.google.common.base.Optional;
-
 import gobblin.configuration.WorkUnitState;
 import gobblin.fork.ForkOperator;
 import gobblin.metrics.MetricContext;
@@ -44,7 +42,7 @@ public class InstrumentedForkOperatorDecorator<S, D> extends InstrumentedForkOpe
   }
 
   @Override
-  public Optional<MetricContext> getMetricContext() {
+  public MetricContext getMetricContext() {
     return this.isEmbeddedInstrumented ?
         ((InstrumentedForkOperatorBase)embeddedFork).getMetricContext() :
         super.getMetricContext();

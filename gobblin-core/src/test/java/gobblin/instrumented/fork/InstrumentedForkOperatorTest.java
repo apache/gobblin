@@ -116,12 +116,12 @@ public class InstrumentedForkOperatorTest {
 
     fork.forkDataRecord(new WorkUnitState(), "in");
 
-    Map<String, Long> metrics = MetricsHelper.dumpMetrics(fork.getMetricContext().get());
+    Map<String, Long> metrics = MetricsHelper.dumpMetrics(fork.getMetricContext());
     Assert.assertEquals(metrics.get(MetricNames.ForkOperatorMetrics.RECORDS_IN_METER), Long.valueOf(1));
     Assert.assertEquals(metrics.get(MetricNames.ForkOperatorMetrics.FORKS_OUT_METER), Long.valueOf(2));
     Assert.assertEquals(metrics.get(MetricNames.ForkOperatorMetrics.FORK_TIMER), Long.valueOf(1));
 
-    Assert.assertEquals(MetricsHelper.dumpTags(fork.getMetricContext().get()).get("construct"),
+    Assert.assertEquals(MetricsHelper.dumpTags(fork.getMetricContext()).get("construct"),
         Constructs.FORK_OPERATOR.toString());
 
   }

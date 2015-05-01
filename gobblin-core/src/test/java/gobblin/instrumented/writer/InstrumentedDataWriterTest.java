@@ -129,13 +129,13 @@ public class InstrumentedDataWriterTest {
 
     writer.write("test");
 
-    Map<String, Long> metrics = MetricsHelper.dumpMetrics(writer.getMetricContext().get());
+    Map<String, Long> metrics = MetricsHelper.dumpMetrics(writer.getMetricContext());
     Assert.assertEquals(metrics.get(MetricNames.DataWriterMetrics.RECORDS_IN_METER), Long.valueOf(1));
     Assert.assertEquals(metrics.get(MetricNames.DataWriterMetrics.RECORDS_WRITTEN_METER), Long.valueOf(1));
     Assert.assertEquals(metrics.get(MetricNames.DataWriterMetrics.RECORDS_FAILED_METER), Long.valueOf(0));
     Assert.assertEquals(metrics.get(MetricNames.DataWriterMetrics.WRITE_TIMER), Long.valueOf(1));
 
-    Assert.assertEquals(MetricsHelper.dumpTags(writer.getMetricContext().get()).get("construct"),
+    Assert.assertEquals(MetricsHelper.dumpTags(writer.getMetricContext()).get("construct"),
         Constructs.WRITER.toString());
 
   }

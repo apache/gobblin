@@ -63,7 +63,7 @@ public class Instrumented implements Instrumentable, Closeable {
   public static final String METRIC_CONTEXT_NAME_KEY = "metrics.context.name";
 
   private final boolean instrumentationEnabled;
-  protected final Optional<MetricContext> metricContext;
+  protected final MetricContext metricContext;
   protected final Closer closer;
 
   /**
@@ -130,36 +130,6 @@ public class Instrumented implements Instrumentable, Closeable {
   }
 
   /**
-   * Create an {@link com.codahale.metrics.Meter} only if Context exists.
-   * @param context An Optional&lt;{@link gobblin.metrics.MetricContext}&gt;
-   * @param name Name for Meter
-   * @return an Optional&lt;{@link com.codahale.metrics.Meter}&gt;
-   */
-  public static Optional<Meter> meter(Optional<MetricContext> context, final String name) {
-    return context.transform(new Function<MetricContext, Meter>() {
-      @Override
-      public Meter apply(MetricContext context1) {
-        return context1.meter(name);
-      }
-    });
-  }
-
-  /**
-   * Create an {@link com.codahale.metrics.Timer} only if Context exists.
-   * @param context An Optional&lt;{@link gobblin.metrics.MetricContext}&gt;
-   * @param name Name for Timer
-   * @return an Optional&lt;{@link com.codahale.metrics.Timer}&gt;
-   */
-  public static Optional<Timer> timer(Optional<MetricContext> context, final String name) {
-    return context.transform(new Function<MetricContext, Timer>() {
-      @Override
-      public Timer apply(MetricContext context1) {
-        return context1.timer(name);
-      }
-    });
-  }
-
-  /**
    * Updates a timer only if it is defined.
    * @param timer an Optional&lt;{@link com.codahale.metrics.Timer}&gt;
    * @param duration
@@ -207,12 +177,7 @@ public class Instrumented implements Instrumentable, Closeable {
   public Instrumented(State state, Class<?> klazz, List<Tag<?>> tags) {
     this.closer = Closer.create();
     this.instrumentationEnabled = GobblinMetrics.isEnabled(state);
-
-    if(isInstrumentationEnabled()) {
-      this.metricContext = Optional.fromNullable(closer.register(getMetricContext(state, klazz, tags)));
-    } else {
-      this.metricContext = Optional.absent();
-    }
+    this.metricContext = closer.register(getMetricContext(state, klazz, tags));
   }
 
   @Override
@@ -221,7 +186,7 @@ public class Instrumented implements Instrumentable, Closeable {
   }
 
   @Override
-  public Optional<MetricContext> getMetricContext() {
+  public MetricContext getMetricContext() {
     return this.metricContext;
   }
 

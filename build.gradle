@@ -61,6 +61,7 @@ ext.externalDependency = [
   "datanucleusRdbms": "org.datanucleus:datanucleus-rdbms:4.0.5",
   "guava": "com.google.guava:guava:15.0",
   "gson": "com.google.code.gson:gson:2.2.4",
+  "findBugs": "com.google.code.findbugs:jsr305:1.3.9",
   "hadoop": "org.apache.hadoop:hadoop-core:"+hadoopVersion,
   "hadoopCommon": "org.apache.hadoop:hadoop-common:"+hadoopVersion,
   "hadoopClientCore": "org.apache.hadoop:hadoop-mapreduce-client-core:"+hadoopVersion,

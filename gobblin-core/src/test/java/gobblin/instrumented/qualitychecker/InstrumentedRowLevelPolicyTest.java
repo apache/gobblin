@@ -70,14 +70,14 @@ public class InstrumentedRowLevelPolicyTest {
   public void testBase(InstrumentedRowLevelPolicyBase policy) {
     policy.executePolicy("test");
 
-    Map<String, Long> metrics = MetricsHelper.dumpMetrics(policy.getMetricContext().get());
+    Map<String, Long> metrics = MetricsHelper.dumpMetrics(policy.getMetricContext());
 
     Assert.assertEquals(metrics.get(MetricNames.RowLevelPolicyMetrics.RECORDS_IN_METER), Long.valueOf(1));
     Assert.assertEquals(metrics.get(MetricNames.RowLevelPolicyMetrics.RECORDS_PASSED_METER), Long.valueOf(1));
     Assert.assertEquals(metrics.get(MetricNames.RowLevelPolicyMetrics.RECORDS_FAILED_METER), Long.valueOf(0));
     Assert.assertEquals(metrics.get(MetricNames.RowLevelPolicyMetrics.CHECK_TIMER), Long.valueOf(1));
 
-    Assert.assertEquals(MetricsHelper.dumpTags(policy.getMetricContext().get()).get("construct"),
+    Assert.assertEquals(MetricsHelper.dumpTags(policy.getMetricContext()).get("construct"),
         Constructs.ROW_QUALITY_CHECKER.toString());
 
   }

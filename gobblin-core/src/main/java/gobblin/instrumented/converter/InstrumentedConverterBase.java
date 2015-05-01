@@ -41,7 +41,7 @@ abstract class InstrumentedConverterBase<SI, SO, DI, DO> extends Converter<SI, S
     implements Instrumentable, Closeable {
 
   private boolean instrumentationEnabled = false;
-  protected Optional<MetricContext> metricContext = Optional.absent();
+  protected MetricContext metricContext = new MetricContext.Builder(InstrumentedConverterBase.class.getName()).build();
   protected Optional<Meter> recordsInMeter = Optional.absent();
   protected Optional<Meter> recordsOutMeter = Optional.absent();
   protected Optional<Meter> recordsExceptionMeter = Optional.absent();
@@ -55,13 +55,13 @@ abstract class InstrumentedConverterBase<SI, SO, DI, DO> extends Converter<SI, S
     this.instrumentationEnabled = GobblinMetrics.isEnabled(workUnit);
 
     if (isInstrumentationEnabled()) {
-      this.metricContext = Optional.fromNullable(
-          closer.register(Instrumented.getMetricContext(workUnit, this.getClass())));
+      this.metricContext = closer.register(Instrumented.getMetricContext(workUnit, this.getClass()));
 
-      this.recordsInMeter = Instrumented.meter(this.metricContext,MetricNames.ConverterMetrics.RECORDS_IN_METER);
-      this.recordsOutMeter = Instrumented.meter(this.metricContext,MetricNames.ConverterMetrics.RECORDS_OUT_METER);
-      this.recordsExceptionMeter = Instrumented.meter(this.metricContext,MetricNames.ConverterMetrics.RECORDS_FAILED_METER);
-      this.converterTimer = Instrumented.timer(this.metricContext, MetricNames.ConverterMetrics.CONVERT_TIMER);
+      this.recordsInMeter = Optional.of(this.metricContext.meter(MetricNames.ConverterMetrics.RECORDS_IN_METER));
+      this.recordsOutMeter = Optional.of(this.metricContext.meter(MetricNames.ConverterMetrics.RECORDS_OUT_METER));
+      this.recordsExceptionMeter = Optional.of(
+          this.metricContext.meter(MetricNames.ConverterMetrics.RECORDS_FAILED_METER));
+      this.converterTimer = Optional.of(this.metricContext.timer(MetricNames.ConverterMetrics.CONVERT_TIMER));
     }
 
     return converter;
@@ -152,7 +152,7 @@ abstract class InstrumentedConverterBase<SI, SO, DI, DO> extends Converter<SI, S
   }
 
   @Override
-  public Optional<MetricContext> getMetricContext() {
+  public MetricContext getMetricContext() {
     return this.metricContext;
   }
 

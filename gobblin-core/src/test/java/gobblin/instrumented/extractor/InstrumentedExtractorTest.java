@@ -113,12 +113,12 @@ public class InstrumentedExtractorTest {
       throws DataRecordException, IOException {
     extractor.readRecord("");
 
-    Map<String, Long> metrics = MetricsHelper.dumpMetrics(extractor.getMetricContext().get());
+    Map<String, Long> metrics = MetricsHelper.dumpMetrics(extractor.getMetricContext());
     Assert.assertEquals(metrics.get(MetricNames.ExtractorMetrics.RECORDS_READ_METER), Long.valueOf(1));
     Assert.assertEquals(metrics.get(MetricNames.ExtractorMetrics.RECORDS_FAILED_METER), Long.valueOf(0));
     Assert.assertEquals(metrics.get(MetricNames.ExtractorMetrics.EXTRACT_TIMER), Long.valueOf(1));
 
-    Assert.assertEquals(MetricsHelper.dumpTags(extractor.getMetricContext().get()).get("construct"),
+    Assert.assertEquals(MetricsHelper.dumpTags(extractor.getMetricContext()).get("construct"),
         Constructs.EXTRACTOR.toString());
   }
 

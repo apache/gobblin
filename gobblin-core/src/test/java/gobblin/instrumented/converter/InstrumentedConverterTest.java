@@ -74,17 +74,17 @@ public class InstrumentedConverterTest {
 
     Iterable<String> iterable = converter.convertRecord("schema", "record", new WorkUnitState());
 
-    Map<String, Long> metrics = MetricsHelper.dumpMetrics(converter.getMetricContext().get());
+    Map<String, Long> metrics = MetricsHelper.dumpMetrics(converter.getMetricContext());
     Assert.assertEquals(metrics.get(MetricNames.ConverterMetrics.RECORDS_IN_METER), Long.valueOf(1));
     Assert.assertEquals(metrics.get(MetricNames.ConverterMetrics.RECORDS_OUT_METER), Long.valueOf(0));
     Assert.assertEquals(metrics.get(MetricNames.ConverterMetrics.CONVERT_TIMER), Long.valueOf(1));
 
     iterable.iterator().next();
-    metrics = MetricsHelper.dumpMetrics(converter.getMetricContext().get());
+    metrics = MetricsHelper.dumpMetrics(converter.getMetricContext());
     Assert.assertEquals(metrics.get(MetricNames.ConverterMetrics.RECORDS_IN_METER), Long.valueOf(1));
     Assert.assertEquals(metrics.get(MetricNames.ConverterMetrics.RECORDS_OUT_METER), Long.valueOf(1));
 
-    Assert.assertEquals(MetricsHelper.dumpTags(converter.getMetricContext().get()).get("construct"),
+    Assert.assertEquals(MetricsHelper.dumpTags(converter.getMetricContext()).get("construct"),
         Constructs.CONVERTER.toString());
 
   }

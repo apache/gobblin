@@ -38,7 +38,7 @@ abstract class InstrumentedRowLevelPolicyBase extends RowLevelPolicy implements 
 
   private final boolean instrumentationEnabled;
 
-  protected final Optional<MetricContext> metricContext;
+  protected final MetricContext metricContext;
   protected final Optional<Meter> recordsMeter;
   protected final Optional<Meter> passedRecordsMeter;
   protected final Optional<Meter> failedRecordsMeter;
@@ -49,20 +49,23 @@ abstract class InstrumentedRowLevelPolicyBase extends RowLevelPolicy implements 
     super(state, type);
     this.instrumentationEnabled = GobblinMetrics.isEnabled(state);
     this.closer = Closer.create();
+    this.metricContext =
+        closer.register(Instrumented.getMetricContext(state, this.getClass()));
 
     if(isInstrumentationEnabled()) {
-      this.metricContext = Optional.fromNullable(
-          closer.register(Instrumented.getMetricContext(state, this.getClass())));
+      this.recordsMeter = Optional.of(this.metricContext.meter(MetricNames.RowLevelPolicyMetrics.RECORDS_IN_METER));
+      this.passedRecordsMeter = Optional.of(
+          this.metricContext.meter(MetricNames.RowLevelPolicyMetrics.RECORDS_PASSED_METER));
+      this.failedRecordsMeter = Optional.of(
+          this.metricContext.meter(MetricNames.RowLevelPolicyMetrics.RECORDS_FAILED_METER));
+      this.policyTimer = Optional.of(
+          this.metricContext.timer(MetricNames.RowLevelPolicyMetrics.CHECK_TIMER));
     } else {
-      this.metricContext = Optional.absent();
+      this.recordsMeter = Optional.absent();
+      this.passedRecordsMeter = Optional.absent();
+      this.failedRecordsMeter = Optional.absent();
+      this.policyTimer = Optional.absent();
     }
-
-    this.recordsMeter = Instrumented.meter(this.metricContext, MetricNames.RowLevelPolicyMetrics.RECORDS_IN_METER);
-    this.passedRecordsMeter = Instrumented.meter(this.metricContext,
-        MetricNames.RowLevelPolicyMetrics.RECORDS_PASSED_METER);
-    this.failedRecordsMeter = Instrumented.meter(this.metricContext,
-        MetricNames.RowLevelPolicyMetrics.RECORDS_FAILED_METER);
-    this.policyTimer = Instrumented.timer(this.metricContext, MetricNames.RowLevelPolicyMetrics.CHECK_TIMER);
   }
 
   @Override
@@ -124,7 +127,7 @@ abstract class InstrumentedRowLevelPolicyBase extends RowLevelPolicy implements 
   }
 
   @Override
-  public Optional<MetricContext> getMetricContext() {
+  public MetricContext getMetricContext() {
     return this.metricContext;
   }
 }
