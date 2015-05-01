@@ -50,6 +50,24 @@ public class HadoopUtils {
     return results;
   }
 
+  /**
+   * A wrapper around this.fs.delete which throws IOException if this.fs.delete returns False.
+   * @param f Path to be deleted
+   * @param recursive
+   * @throws IOException if the deletion fails
+   */
+  public static void deletePath(FileSystem fs, Path f, boolean recursive) throws IOException {
+    if (!fs.delete(f, recursive)) {
+      throw new IOException("Failed to delete: " + f);
+    }
+  }
+
+  public static void renamePath(FileSystem fs, Path oldName, Path newName) throws IOException {
+    if (!fs.rename(oldName, newName)) {
+      throw new IOException(String.format("Failed to rename %s to %s", oldName.toString(), newName.toString()));
+    }
+  }
+
   private static void walk(List<FileStatus> results, FileSystem fileSystem, Path path) throws FileNotFoundException,
       IOException {
     for (FileStatus status : fileSystem.listStatus(path)) {

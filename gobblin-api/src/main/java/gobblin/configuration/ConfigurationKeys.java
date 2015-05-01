@@ -197,6 +197,8 @@ public class ConfigurationKeys {
   public static final String WRITER_FILE_SYSTEM_URI = WRITER_PREFIX + ".fs.uri";
   public static final String WRITER_STAGING_DIR = WRITER_PREFIX + ".staging.dir";
   public static final String WRITER_OUTPUT_DIR = WRITER_PREFIX + ".output.dir";
+  // WRITER_FINAL_OUTPUT_PATH is used for internal purposes only to pass the absolute writer path to the publisher
+  public static final String WRITER_FINAL_OUTPUT_PATH = WRITER_PREFIX + ".final.output.path";
   public static final String WRITER_BUILDER_CLASS = WRITER_PREFIX + ".builder.class";
   public static final String DEFAULT_WRITER_BUILDER_CLASS = "gobblin.writer.AvroDataWriterBuilder";
   public static final String WRITER_FILE_NAME = WRITER_PREFIX + ".file.name";
@@ -221,6 +223,9 @@ public class ConfigurationKeys {
   public static final String DEFAULT_WRITER_PARTITION_PATTERN = "yyyy/MM/dd";
   public static final String DEFAULT_WRITER_PARTITION_TIMEZONE = "America/Los_Angeles";
   public static final String DEFAULT_WRITER_FILE_PATH_TYPE = "default";
+
+  public static final String SIMPLE_WRITER_DELIMITER = "simple.writer.delimiter";
+  public static final String SIMPLE_WRITER_PREPEND_SIZE = "simple.writer.prepend.size";
 
   /**
    * Configuration properties used by the quality checker.
