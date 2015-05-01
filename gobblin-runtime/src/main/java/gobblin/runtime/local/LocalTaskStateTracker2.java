@@ -23,8 +23,8 @@ import com.google.common.collect.Maps;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.runtime.AbstractTaskStateTracker;
-import gobblin.runtime.JobMetrics;
 import gobblin.runtime.Task;
 import gobblin.runtime.TaskExecutor;
 
@@ -67,7 +67,7 @@ public class LocalTaskStateTracker2 extends AbstractTaskStateTracker {
 
   @Override
   public void onTaskCompletion(Task task) {
-    if (JobMetrics.isEnabled(task.getTaskState().getWorkunit())) {
+    if (GobblinMetrics.isEnabled(task.getTaskState().getWorkunit())) {
       // Update record-level metrics after the task is done
       task.updateRecordMetrics();
       task.updateByteMetrics();

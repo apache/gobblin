@@ -70,6 +70,12 @@ test {
       excludeGroups 'ignore'
     }
     workingDir rootProject.rootDir
+    maxParallelForks = 1
+}
+
+clean {
+  delete "../gobblin-test/locks"
+  delete "../gobblin-test/basicTest"
 }
 
 classification="library"

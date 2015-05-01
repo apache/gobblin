@@ -14,6 +14,7 @@ apply plugin: 'java'
 dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-utility")
+  compile project(":gobblin-metrics")
 
   compile externalDependency.commonsCodec
   compile externalDependency.commonsDbcp
@@ -31,9 +32,10 @@ dependencies {
   compile externalDependency.commonsIo
   compile externalDependency.httpclient
   compile externalDependency.httpcore
+  compile externalDependency.metricsCore
   compile externalDependency.kafka
   compile externalDependency.kafkaClient
-  compile externalDependency.scala
+  compile externalDependency.findBugs
 
   testCompile externalDependency.testng
 }

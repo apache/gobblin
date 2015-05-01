@@ -29,6 +29,7 @@ import com.google.common.io.Closer;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 
+import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
@@ -36,7 +37,10 @@ import gobblin.metastore.FsStateStore;
 import gobblin.metastore.JobHistoryStore;
 import gobblin.metastore.MetaStoreModule;
 import gobblin.metastore.StateStore;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.publisher.DataPublisher;
+import gobblin.runtime.util.JobMetrics;
+import gobblin.runtime.util.JobMetrics;
 import gobblin.source.extractor.JobCommitPolicy;
 import gobblin.source.Source;
 import gobblin.source.workunit.MultiWorkUnit;
@@ -169,6 +173,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     // Add all job configuration properties of this job
     jobPropsState.addAll(jobProps);
 
+
     // Initialize the source for the job
     JobState jobState;
     Source<?, ?> source;
@@ -186,6 +191,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       throw new JobException(errMsg, t);
     }
 
+    JobMetrics jobMetrics = JobMetrics.get(jobState);
+    jobState.setProp(ConfigurationKeys.METRIC_CONTEXT_NAME_KEY, jobMetrics.getName());
     jobState.setState(JobState.RunningState.PENDING);
 
     // Generate work units of the job from the source
@@ -227,14 +234,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       }
     }
 
-    Optional<JobMetrics> jobMetrics = Optional.absent();
     try {
-      if (JobMetrics.isEnabled(jobProps)) {
+      if (GobblinMetrics.isEnabled(jobProps)) {
         // Start metric reporting
-        jobMetrics = Optional.fromNullable(JobMetrics.get(jobName, jobId));
-        if (jobMetrics.isPresent()) {
-          jobMetrics.get().startMetricReporting(jobProps);
-        }
+        jobMetrics.startMetricReporting(jobProps);
       }
 
       // Write job execution info to the job history store before the job starts to run
@@ -294,11 +297,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
       }
 
-      if (JobMetrics.isEnabled(jobProps)) {
-        if (jobMetrics.isPresent()) {
-          jobMetrics.get().stopMetricReporting();
-        }
-        JobMetrics.remove(jobId);
+      if (GobblinMetrics.isEnabled(jobProps)) {
+        // Stop metric reporting
+        jobMetrics.stopMetricReporting();
+        GobblinMetricsRegistry.getInstance().remove(jobId);
       }
     }
 
