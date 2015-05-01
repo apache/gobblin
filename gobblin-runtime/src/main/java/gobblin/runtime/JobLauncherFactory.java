@@ -12,6 +12,7 @@
 package gobblin.runtime;
 
 import java.util.Properties;
+import javax.annotation.Nonnull;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.local.LocalJobLauncher;
@@ -37,10 +38,14 @@ public class JobLauncherFactory {
   /**
    * Create a new {@link JobLauncher}.
    *
-   * @param properties Framework configuration properties
-   * @return Newly created {@link JobLauncher}
+   * <p>
+   *   This method will never return a {@code null}.
+   * </p>
+   *
+   * @param properties framework configuration properties
+   * @return newly created {@link JobLauncher}
    */
-  public static JobLauncher newJobLauncher(Properties properties)
+  public static @Nonnull JobLauncher newJobLauncher(Properties properties)
       throws Exception {
     JobLauncherType launcherType = JobLauncherType
         .valueOf(properties.getProperty(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherType.LOCAL.name()));

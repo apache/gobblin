@@ -17,6 +17,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.log4j.Logger;
 
 import com.google.common.base.Strings;
+import com.google.common.io.Closer;
 
 import azkaban.jobExecutor.AbstractJob;
 
@@ -78,7 +79,14 @@ public class AzkabanJobLauncher extends AbstractJob {
   @Override
   public void run()
       throws Exception {
-    this.jobLauncher.launchJob(this.properties, new EmailNotificationJobListener());
+    Closer closer = Closer.create();
+    try {
+      closer.register(this.jobLauncher).launchJob(this.properties, new EmailNotificationJobListener());
+    } catch (Throwable t) {
+      throw closer.rethrow(t);
+    } finally {
+      closer.close();
+    }
   }
 
   @Override

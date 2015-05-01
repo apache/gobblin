@@ -23,13 +23,13 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
 
@@ -73,18 +73,25 @@ public class LocalJobLauncher extends AbstractJobLauncher {
   @Override
   public void cancelJob(Properties jobProps)
       throws JobException {
-    if (isCancelled || !Optional.fromNullable(this.countDownLatch).isPresent()) {
-      LOG.info(String.format("Job %s has already been cancelled or has not started yet",
-          jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY)));
-      return;
+    if (!this.isCancelled && this.countDownLatch != null) {
+      // Unblock the thread that calls runJob below
+      while (this.countDownLatch.getCount() > 0) {
+        this.countDownLatch.countDown();
+      }
+      this.isCancelled = true;
+      LOG.info("Cancelled job " + jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY));
     }
+  }
 
-    // Unblock the thread that calls runJob below
-    while (this.countDownLatch.getCount() > 0) {
-      this.countDownLatch.countDown();
+  @Override
+  public void close()
+      throws IOException {
+    try {
+      // Stop all dependent services
+      this.serviceManager.stopAsync().awaitStopped(5, TimeUnit.SECONDS);
+    } catch (TimeoutException te) {
+      LOG.warn("Timed out while waiting for the service manager to be stopped", te);
     }
-
-    isCancelled = true;
   }
 
   @Override
@@ -128,9 +135,6 @@ public class LocalJobLauncher extends AbstractJobLauncher {
         jobState.setState(JobState.RunningState.FAILED);
       }
     }
-
-    // Stop all dependent services
-    this.serviceManager.stopAsync().awaitStopped(5, TimeUnit.SECONDS);
   }
 
   @Override

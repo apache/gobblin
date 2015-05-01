@@ -11,6 +11,7 @@
 
 package gobblin.runtime;
 
+import java.io.Closeable;
 import java.util.Properties;
 
 
@@ -19,7 +20,7 @@ import java.util.Properties;
  *
  * @author ynli
  */
-public interface JobLauncher {
+public interface JobLauncher extends Closeable {
 
   /**
    * Launch a Gobblin job.
