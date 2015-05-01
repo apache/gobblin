@@ -212,6 +212,9 @@ public class ConfigurationKeys {
   public static final String DEFAULT_WRITER_PARTITION_TIMEZONE = "America/Los_Angeles";
   public static final String DEFAULT_WRITER_FILE_PATH_TYPE = "default";
 
+  public static final String SIMPLE_WRITER_DELIMITER = "simple.writer.delimiter";
+  public static final String SIMPLE_WRITER_PREPEND_SIZE = "simple.writer.prepend.size";
+
   /**
    * Configuration properties used by the quality checker.
    */
