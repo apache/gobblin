@@ -39,6 +39,7 @@ dependencies {
   compile externalDependency.pegasus.data
   compile externalDependency.guice
   compile externalDependency.javaxInject
+  compile externalDependency.jsr305
 
   testCompile externalDependency.testng
   testCompile externalDependency.byteman

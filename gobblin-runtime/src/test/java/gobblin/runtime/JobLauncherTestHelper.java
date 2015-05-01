@@ -29,6 +29,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
+import com.google.common.io.Closer;
 import com.google.common.io.Files;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -58,8 +59,13 @@ public class JobLauncherTestHelper {
 
   @SuppressWarnings("unchecked")
   public void runTest(Properties jobProps) throws Exception {
-    JobLauncher jobLauncher = JobLauncherFactory.newJobLauncher(this.launcherProps);
-    jobLauncher.launchJob(jobProps, null);
+    Closer closer = Closer.create();
+    try {
+      JobLauncher jobLauncher = closer.register(JobLauncherFactory.newJobLauncher(this.launcherProps));
+      jobLauncher.launchJob(jobProps, null);
+    } finally {
+      closer.close();
+    }
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
     List<JobState> jobStateList = this.jobStateStore.getAll(jobName, jobId + ".jst");
@@ -76,8 +82,13 @@ public class JobLauncherTestHelper {
   @SuppressWarnings("unchecked")
   public void runTestWithPullLimit(Properties jobProps)
       throws Exception {
-    JobLauncher jobLauncher = JobLauncherFactory.newJobLauncher(this.launcherProps);
-    jobLauncher.launchJob(jobProps, null);
+    Closer closer = Closer.create();
+    try {
+      JobLauncher jobLauncher = closer.register(JobLauncherFactory.newJobLauncher(this.launcherProps));
+      jobLauncher.launchJob(jobProps, null);
+    } finally {
+      closer.close();
+    }
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
     List<JobState> jobStateList = this.jobStateStore.getAll(jobName, jobId + ".jst");
@@ -98,27 +109,31 @@ public class JobLauncherTestHelper {
 
   @SuppressWarnings("unchecked")
   public void runTestWithCancellation(final Properties jobProps) throws Exception {
-    final JobLauncher jobLauncher = JobLauncherFactory.newJobLauncher(this.launcherProps);
+    Closer closer = Closer.create();
+    try {
+      final JobLauncher jobLauncher = closer.register(JobLauncherFactory.newJobLauncher(this.launcherProps));
 
-    final AtomicBoolean isCancelled = new AtomicBoolean(false);
-    // This thread will cancel the job after some time
-    Thread thread = new Thread(new Runnable() {
-      @Override
-      public void run() {
-        try {
-          Thread.sleep(500);
-          jobLauncher.cancelJob(jobProps);
-          isCancelled.set(true);
-        } catch (Exception je) {
-          // Ignored
+      final AtomicBoolean isCancelled = new AtomicBoolean(false);
+      // This thread will cancel the job after some time
+      Thread thread = new Thread(new Runnable() {
+        @Override
+        public void run() {
+          try {
+            Thread.sleep(500);
+            jobLauncher.cancelJob(jobProps);
+            isCancelled.set(true);
+          } catch (Exception je) {
+            // Ignored
+          }
         }
-      }
-    });
-    thread.start();
+      });
+      thread.start();
 
-    jobLauncher.launchJob(jobProps, null);
-
-    Assert.assertTrue(isCancelled.get());
+      jobLauncher.launchJob(jobProps, null);
+      Assert.assertTrue(isCancelled.get());
+    } finally {
+      closer.close();
+    }
 
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
@@ -135,8 +150,13 @@ public class JobLauncherTestHelper {
   @SuppressWarnings("unchecked")
   public void runTestWithFork(Properties jobProps)
       throws Exception {
-    JobLauncher jobLauncher = JobLauncherFactory.newJobLauncher(this.launcherProps);
-    jobLauncher.launchJob(jobProps, null);
+    Closer closer = Closer.create();
+    try {
+      JobLauncher jobLauncher = closer.register(JobLauncherFactory.newJobLauncher(this.launcherProps));
+      jobLauncher.launchJob(jobProps, null);
+    } finally {
+      closer.close();
+    }
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
     List<JobState> jobStateList = this.jobStateStore.getAll(jobName, jobId + ".jst");
