@@ -175,12 +175,12 @@ public class ConfigurationKeys {
   public static final String FORK_BRANCH_NAME_KEY = "fork.branch.name";
   public static final String FORK_BRANCH_ID_KEY = "fork.branch.id";
   public static final String DEFAULT_FORK_BRANCH_NAME = "fork_";
-  public static final String FORK_BRANCH_RECORD_QUEUE_CAPACITY_KEY = "fork.record.queue.capacity";
-  public static final int DEFAULT_FORK_BRANCH_RECORD_QUEUE_CAPACITY = 1000;
-  public static final String FORK_BRANCH_RECORD_QUEUE_TIMEOUT_KEY = "fork.record.queue.timeout";
-  public static final long DEFAULT_FORK_BRANCH_RECORD_QUEUE_TIMEOUT = 1000;
-  public static final String FORK_BRANCH_RECORD_QUEUE_TIMEOUT_UNIT_KEY = "fork.record.queue.timeout.unit";
-  public static final String DEFAULT_FORK_BRANCH_RECORD_QUEUE_TIMEOUT_UNIT = TimeUnit.MILLISECONDS.name();
+  public static final String FORK_RECORD_QUEUE_CAPACITY_KEY = "fork.record.queue.capacity";
+  public static final int DEFAULT_FORK_RECORD_QUEUE_CAPACITY = 100;
+  public static final String FORK_RECORD_QUEUE_TIMEOUT_KEY = "fork.record.queue.timeout";
+  public static final long DEFAULT_FORK_RECORD_QUEUE_TIMEOUT = 1000;
+  public static final String FORK_RECORD_QUEUE_TIMEOUT_UNIT_KEY = "fork.record.queue.timeout.unit";
+  public static final String DEFAULT_FORK_RECORD_QUEUE_TIMEOUT_UNIT = TimeUnit.MILLISECONDS.name();
 
   /**
    * Writer configuration properties.

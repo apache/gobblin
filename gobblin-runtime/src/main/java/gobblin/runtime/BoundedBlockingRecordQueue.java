@@ -131,8 +131,8 @@ public class BoundedBlockingRecordQueue<T> {
    */
   public static class Builder<T> {
 
-    private int capacity = ConfigurationKeys.DEFAULT_FORK_BRANCH_RECORD_QUEUE_CAPACITY;
-    private long timeout = ConfigurationKeys.DEFAULT_FORK_BRANCH_RECORD_QUEUE_TIMEOUT;
+    private int capacity = ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_CAPACITY;
+    private long timeout = ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_TIMEOUT;
     private TimeUnit timeoutTimeUnit = TimeUnit.MILLISECONDS;
     private boolean ifCollectStats = false;
 

@@ -40,6 +40,14 @@ import gobblin.metrics.MetricContext;
  *
  * @see <a href="http://graphite.wikidot.com/">Graphite - Scalable Realtime Graphing</a>.
  *
+ * <p>
+ *   The name of the {@link MetricContext} a {@link GraphiteReporter} is associated to will
+ *   be included as the prefix in the metric names, which may or may not include the tags
+ *   of the {@link MetricContext} depending on if the {@link MetricContext} is configured to
+ *   report fully-qualified metric names or not using the method
+ *   {@link MetricContext.Builder#reportFullyQualifiedNames(boolean)}.
+ * </p>
+ *
  * @author ynli
  */
 public class GraphiteReporter extends ContextAwareScheduledReporter {

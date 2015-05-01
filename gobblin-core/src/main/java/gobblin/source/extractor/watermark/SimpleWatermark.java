@@ -12,6 +12,8 @@
 package gobblin.source.extractor.watermark;
 
 import gobblin.source.extractor.extract.QueryBasedExtractor;
+import gobblin.source.extractor.utils.Utils;
+
 import java.math.RoundingMode;
 import java.util.HashMap;
 
@@ -33,7 +35,7 @@ public class SimpleWatermark implements Watermark {
 
   @Override
   public String getWatermarkCondition(QueryBasedExtractor extractor, long watermarkValue, String operator) {
-    return this.watermarkColumn + " " + operator + " " + watermarkValue;
+    return Utils.getCoalesceColumnNames(this.watermarkColumn) + " " + operator + " " + watermarkValue;
   }
 
   @Override

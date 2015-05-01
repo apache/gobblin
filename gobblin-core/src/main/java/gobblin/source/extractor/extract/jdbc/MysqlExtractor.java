@@ -53,21 +53,21 @@ public class MysqlExtractor extends JdbcExtractor {
   public String getHourPredicateCondition(String column, long value, String valueFormat, String operator) {
     this.log.debug("Getting hour predicate for Mysql");
     String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, MYSQL_HOUR_FORMAT);
-    return this.getWatermarkColumnName(column) + " " + operator + " '" + formattedvalue + "'";
+    return Utils.getCoalesceColumnNames(column) + " " + operator + " '" + formattedvalue + "'";
   }
 
   @Override
   public String getDatePredicateCondition(String column, long value, String valueFormat, String operator) {
     this.log.debug("Getting date predicate for Mysql");
     String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, MYSQL_DATE_FORMAT);
-    return this.getWatermarkColumnName(column) + " " + operator + " '" + formattedvalue + "'";
+    return Utils.getCoalesceColumnNames(column) + " " + operator + " '" + formattedvalue + "'";
   }
 
   @Override
   public String getTimestampPredicateCondition(String column, long value, String valueFormat, String operator) {
     this.log.debug("Getting timestamp predicate for Mysql");
     String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, MYSQL_TIMESTAMP_FORMAT);
-    return this.getWatermarkColumnName(column) + " " + operator + " '" + formattedvalue + "'";
+    return Utils.getCoalesceColumnNames(column) + " " + operator + " '" + formattedvalue + "'";
   }
 
   @Override
@@ -99,7 +99,7 @@ public class MysqlExtractor extends JdbcExtractor {
     this.log.debug("Build query to get high watermark");
     List<Command> commands = new ArrayList<Command>();
 
-    String columnProjection = "max(" + this.getWatermarkColumnName(watermarkColumn) + ")";
+    String columnProjection = "max(" + Utils.getCoalesceColumnNames(watermarkColumn) + ")";
     String watermarkFilter = this.concatPredicates(predicateList);
     String query = this.getExtractSql();
 

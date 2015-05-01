@@ -11,21 +11,24 @@
 
 package gobblin.metrics.kafka;
 
-import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericDatumWriter;
-import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.Decoder;
+import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.specific.SpecificDatumReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.MetricRegistry;
+import com.google.common.base.Optional;
 
 import gobblin.metrics.MetricContext;
+import gobblin.metrics.MetricReport;
 
 
 /**
@@ -37,71 +40,10 @@ public class KafkaAvroReporter extends KafkaReporter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(KafkaAvroReporter.class);
 
-  /**
-   * Avro schema used for encoding metrics.
-   * TODO: finalize metrics avro schema
-   * TODO: make SCHEMA_STRING and SCHEMA not hard coded
-   */
-  private static final String SCHEMA_STRING = "{\n"+
-      " \"type\": \"record\",\n"+
-      " \"name\": \"Metric\",\n"+
-      " \"namespace\":\"gobblin.metrics\",\n"+
-      " \"fields\" : [\n"+
-      " {\"name\": \"tags\", \"type\": {\"type\": \"map\", \"values\": \"string\"}, \"doc\": \"tags associated with the metric\"},\n"+
-      " {\"name\": \"name\", \"type\": \"string\", \"doc\": \"metric name\"},\n"+
-      " {\"name\": \"value\", \"type\": [\"boolean\", \"int\", \"long\", \"float\", \"double\", \"bytes\", \"string\"], \"doc\": \"metric value\"}\n"+
-      " ]\n"+
-      "}";
-
-  public static final Schema SCHEMA = (new Schema.Parser()).parse(SCHEMA_STRING);
-  private final GenericDatumWriter<GenericRecord> writer;
-  private final Encoder encoder;
-  private final ByteArrayOutputStream out;
+  private static Optional<SpecificDatumReader<MetricReport>> READER = Optional.absent();
 
   protected KafkaAvroReporter(Builder<?> builder) {
     super(builder);
-
-    this.lastSerializeExceptionTime = 0;
-
-    this.out = this.closer.register(new ByteArrayOutputStream());
-    this.encoder = EncoderFactory.get().binaryEncoder(this.out, null);
-    this.writer = new GenericDatumWriter<GenericRecord>(SCHEMA);
-  }
-
-  /**
-   * Serializes a metric key-value pair into an avro object.
-   * Calls _serializeValue, which is synchronized because avro serializer is not thread-safe.
-   *
-   * @param name name of the metric
-   * @param value value of the metric to report
-   * @param path additional suffixes to further identify the meaning of the reported value
-   * @return
-   */
-  @Override
-  protected synchronized byte[] serializeValue(String name, Object value, String... path) {
-    GenericRecord record = new GenericData.Record(SCHEMA);
-
-    record.put("name", MetricRegistry.name(name, path));
-    record.put("value", value);
-    record.put("tags", this.tags);
-
-    try {
-      this.out.reset();
-      this.writer.write(record, this.encoder);
-      this.encoder.flush();
-      return out.toByteArray();
-    } catch(IOException e) {
-      // If there is actually something wrong with the serializer,
-      // this exception would be thrown for every single metric serialized.
-      // Instead, report at warn level at most every 10 seconds.
-      LOGGER.trace("Could not serialize Avro record for Kafka Metrics. Exception: %s", e.getMessage());
-      if(System.currentTimeMillis() - this.lastSerializeExceptionTime > 10000) {
-        LOGGER.warn("Could not serialize Avro record for Kafka Metrics. Exception: %s", e.getMessage());
-        this.lastSerializeExceptionTime = System.currentTimeMillis();
-      }
-    }
-
-    return null;
   }
 
   /**
@@ -163,5 +105,33 @@ public class KafkaAvroReporter extends KafkaReporter {
       return new KafkaAvroReporter(this);
     }
 
+  }
+
+  /**
+   * Parses a {@link gobblin.metrics.MetricReport} from a byte array.
+   * @param reuse MetricReport to reuse.
+   * @param bytes Input bytes.
+   * @return MetricReport.
+   * @throws IOException
+   */
+  public static MetricReport deserializeReport(MetricReport reuse, byte[] bytes) throws IOException {
+    if (!READER.isPresent()) {
+      READER = Optional.of(new SpecificDatumReader<MetricReport>(MetricReport.class));
+    }
+
+    DataInputStream inputStream = new DataInputStream(new ByteArrayInputStream(bytes));
+
+    // Check version byte
+    if (inputStream.readInt() != KafkaReporter.SCHEMA_VERSION) {
+      throw new IOException("MetricReport schema version not recognized.");
+    }
+    // Decode the rest
+    Decoder decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
+    return READER.get().read(reuse, decoder);
+  }
+
+  @Override
+  protected Encoder getEncoder(OutputStream out) {
+    return EncoderFactory.get().binaryEncoder(out, null);
   }
 }
