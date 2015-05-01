@@ -17,8 +17,6 @@ import java.util.Iterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import kafka.message.MessageAndOffset;
-
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -31,9 +29,12 @@ import gobblin.source.extractor.extract.EventBasedExtractor;
 /**
  * An implementation of {@link Extractor} from Apache Kafka.
  *
+ * @param <K> Type of Kafka event key. When using the Kafka Old API, K should be ByteBuffer.
+ * @param <V> Type of Kafka event value. When using the Kafka Old API, V should be ByteBuffer.
+ *
  * @author ziliu
  */
-public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
+public abstract class KafkaExtractor<S, K, V, D> extends EventBasedExtractor<S, D> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaExtractor.class);
 
@@ -42,10 +43,11 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   protected final long lowWatermark;
   protected final long highWatermark;
   protected final Closer closer;
-  protected final KafkaWrapper kafkaWrapper;
+  protected final KafkaWrapper<K, V> kafkaWrapper;
 
-  protected Iterator<MessageAndOffset> messageIterator;
+  protected Iterator<KafkaEvent<K, V>> messageIterator;
   protected long nextWatermark;
+
   private long totalRecordSize;
   private int recordCount;
   private long avgRecordSize;
@@ -61,7 +63,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     this.lowWatermark = state.getPropAsLong(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY);
     this.highWatermark = state.getPropAsLong(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY);
     this.closer = Closer.create();
-    this.kafkaWrapper = closer.register(KafkaWrapper.create(state));
+    this.kafkaWrapper = closer.register(new KafkaWrapper<K, V>(state));
     this.messageIterator = null;
     this.nextWatermark = this.lowWatermark;
     this.totalRecordSize = 0;
@@ -82,7 +84,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
       }
     }
 
-    MessageAndOffset nextValidMessage = null;
+    KafkaEvent<K, V> nextValidMessage = null;
     do {
       if (!this.messageIterator.hasNext()) {
         return null;
@@ -92,7 +94,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
     this.nextWatermark = nextValidMessage.offset() + 1;
     try {
-      D record = decodeRecord(nextValidMessage, null);
+      D record = decodeRecord(nextValidMessage);
       this.maintainStats(nextValidMessage);
       return record;
     } catch (SchemaNotFoundException e) {
@@ -100,14 +102,21 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     }
   }
 
-  private void maintainStats(MessageAndOffset nextValidMessage) {
-    this.totalRecordSize += nextValidMessage.message().payloadSize();
+  private void maintainStats(KafkaEvent<K, V> nextValidMessage) {
+    this.totalRecordSize += getEventSize(nextValidMessage);
     this.recordCount++;
     this.avgRecordSize = this.totalRecordSize / this.recordCount;
   }
 
-  protected abstract D decodeRecord(MessageAndOffset messageAndOffset, D reuse) throws SchemaNotFoundException,
-      IOException;
+  /**
+   * Get the size of the value of the event in bytes.
+   */
+  protected abstract long getEventSize(KafkaEvent<K, V> event);
+
+  /**
+   * Decode the value of the event from a V object into a D object.
+   */
+  protected abstract D decodeRecord(KafkaEvent<K, V> event) throws SchemaNotFoundException, IOException;
 
   @Override
   public long getExpectedRecordCount() {
@@ -139,6 +148,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
               KafkaSource.DEFAULT_AVG_EVENT_SIZE);
       this.workUnitState.setProp(KafkaSource.getWorkUnitSizePropName(this.workUnitState), previousAvgRecordSize);
     }
+
     this.closer.close();
   }
 }

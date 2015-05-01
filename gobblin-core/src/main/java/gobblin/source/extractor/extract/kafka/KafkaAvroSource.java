@@ -19,6 +19,7 @@ import java.io.IOException;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
+
 /**
  * A {@link gobblin.source.Source} class for Kafka where events are in Avro format.
  *

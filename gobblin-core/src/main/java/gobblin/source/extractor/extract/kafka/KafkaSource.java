@@ -92,7 +92,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     List<List<WorkUnit>> workUnits = Lists.newArrayList();
     Closer closer = Closer.create();
     try {
-      KafkaWrapper kafkaWrapper = closer.register(KafkaWrapper.create(state));
+      KafkaWrapper<?, ?> kafkaWrapper = closer.register(new KafkaWrapper<Object, Object>(state));
       List<KafkaTopic> topics = getFilteredTopics(kafkaWrapper, state);
       for (KafkaTopic topic : topics) {
         workUnits.add(getWorkUnitsForTopic(kafkaWrapper, topic, state));
@@ -298,7 +298,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     return state.getProp(TOPIC_NAME) + "." + state.getPropAsInt(PARTITION_ID) + "." + AVG_EVENT_SIZE;
   }
 
-  private List<WorkUnit> getWorkUnitsForTopic(KafkaWrapper kafkaWrapper, KafkaTopic topic, SourceState state) {
+  private List<WorkUnit> getWorkUnitsForTopic(KafkaWrapper<?, ?> kafkaWrapper, KafkaTopic topic, SourceState state) {
     List<WorkUnit> workUnits = Lists.newArrayList();
     for (KafkaPartition partition : topic.getPartitions()) {
       WorkUnit workUnit = getWorkUnitForTopicPartition(kafkaWrapper, partition, state);
@@ -309,7 +309,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     return workUnits;
   }
 
-  private WorkUnit getWorkUnitForTopicPartition(KafkaWrapper kafkaWrapper, KafkaPartition partition, SourceState state) {
+  private WorkUnit getWorkUnitForTopicPartition(KafkaWrapper<?, ?> kafkaWrapper, KafkaPartition partition,
+      SourceState state) {
     Offsets offsets = new Offsets();
 
     try {
@@ -430,7 +431,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     return state.getPropAsBoolean(MOVE_TO_EARLIEST_OFFSET_ALLOWED, DEFAULT_MOVE_TO_EARLIEST_OFFSET_ALLOWED);
   }
 
-  private List<KafkaTopic> getFilteredTopics(KafkaWrapper kafkaWrapper, SourceState state) {
+  private List<KafkaTopic> getFilteredTopics(KafkaWrapper<?, ?> kafkaWrapper, SourceState state) {
     Set<String> blacklist =
         state.contains(TOPIC_BLACKLIST) ? state.getPropAsCaseInsensitiveSet(TOPIC_BLACKLIST) : new HashSet<String>();
     Set<String> whitelist =
