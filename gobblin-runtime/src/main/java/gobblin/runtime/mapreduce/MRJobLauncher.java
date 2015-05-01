@@ -11,7 +11,6 @@
 
 package gobblin.runtime.mapreduce;
 
-import gobblin.runtime.JobListener;
 import java.io.BufferedWriter;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -55,20 +54,23 @@ import com.google.common.util.concurrent.ServiceManager;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.instrumented.Instrumented;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.FileBasedJobLock;
 import gobblin.runtime.JobException;
 import gobblin.runtime.JobLauncher;
+import gobblin.runtime.JobListener;
 import gobblin.runtime.JobLock;
-import gobblin.runtime.JobMetrics;
 import gobblin.runtime.JobState;
-import gobblin.runtime.MetricGroup;
 import gobblin.runtime.Task;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskState;
 import gobblin.runtime.TaskStateTracker;
+import gobblin.runtime.util.JobMetrics;
+import gobblin.runtime.util.MetricGroup;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.JobLauncherUtils;
@@ -104,7 +106,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
   private volatile Job job;
   private volatile Path mrJobDir;
-  private volatile boolean isCancelled = false;
 
   public MRJobLauncher(Properties properties, Properties jobProps)
       throws Exception {
@@ -438,9 +439,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
   }
 
   /**
-   * Create a {@link JobMetrics} instance for this job run from the Hadoop counters.
+   * Create a {@link gobblin.metrics.GobblinMetrics} instance for this job run from the Hadoop counters.
    */
-  private void countersToMetrics(Counters counters, JobMetrics metrics) {
+  private void countersToMetrics(Counters counters, GobblinMetrics metrics) {
     // Write job-level counters
     CounterGroup jobCounterGroup = counters.getGroup(MetricGroup.JOB.name());
     for (Counter jobCounter : jobCounterGroup) {
@@ -485,7 +486,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
             this.fs, SequenceFileOutputFormat.getOutputPath(context).toUri().getPath(), TaskState.class);
       } catch (IOException ioe) {
         LOG.error("Failed to setup the mapper task", ioe);
-        return;
+        throw new RuntimeException(ioe);
       }
 
       this.taskExecutor = new TaskExecutor(context.getConfiguration());
@@ -494,7 +495,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
       try {
         this.serviceManager.startAsync().awaitHealthy(5, TimeUnit.SECONDS);
       } catch (TimeoutException te) {
-        // Ignored
+        LOG.error("Timed out while waiting for the service manager to start up", te);
+        throw new RuntimeException(te);
       }
     }
 
@@ -518,12 +520,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
     @Override
     public void map(LongWritable key, Text value, Context context)
         throws IOException, InterruptedException {
-
-      if (this.fs == null || !this.serviceManager.isHealthy()) {
-        LOG.error("Not running the task because the mapper was not setup properly");
-        return;
-      }
-
       WorkUnit workUnit =
           (value.toString().endsWith(MULTI_WORK_UNIT_FILE_EXTENSION) ? new MultiWorkUnit() : new WorkUnit());
       Closer closer = Closer.create();
@@ -567,7 +563,10 @@ public class MRJobLauncher extends AbstractJobLauncher {
       }
 
       String jobId = workUnits.get(0).getProp(ConfigurationKeys.JOB_ID_KEY);
+      JobMetrics jobMetrics = JobMetrics.get(null, jobId);
+
       for (WorkUnit workUnit : workUnits) {
+        workUnit.setProp(Instrumented.METRIC_CONTEXT_NAME_KEY, jobMetrics.getName());
         String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
         // Delete the task state file for the task if it already exists.
         // This usually happens if the task is retried upon failure.

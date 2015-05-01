@@ -21,8 +21,6 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +48,7 @@ import com.google.common.primitives.Longs;
  *
  * @author ziliu
  */
-public abstract class KafkaSource extends EventBasedSource<Schema, GenericRecord> {
+public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaSource.class);
 

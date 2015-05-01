@@ -24,6 +24,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.util.ExecutorsUtils;
 
 
@@ -119,7 +120,7 @@ public abstract class AbstractTaskStateTracker extends AbstractIdleService imple
     }
 
     protected void updateTaskMetrics() {
-      if (JobMetrics.isEnabled(this.task.getTaskState().getWorkunit())) {
+      if (GobblinMetrics.isEnabled(this.task.getTaskState().getWorkunit())) {
         this.task.updateRecordMetrics();
         this.task.updateByteMetrics();
       }

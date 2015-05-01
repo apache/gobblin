@@ -35,7 +35,10 @@ import gobblin.metastore.FsStateStore;
 import gobblin.metastore.JobHistoryStore;
 import gobblin.metastore.MetaStoreModule;
 import gobblin.metastore.StateStore;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.publisher.DataPublisher;
+import gobblin.runtime.util.JobMetrics;
 import gobblin.source.extractor.JobCommitPolicy;
 import gobblin.source.Source;
 import gobblin.source.workunit.MultiWorkUnit;
@@ -58,10 +61,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   // System configuration properties
   protected final Properties properties;
 
-  // Store for persisting job state
+  // State store for persisting job states
   private final StateStore<JobState> jobStateStore;
 
-  // Job history store that stores job execution information
+  // Store for runtime job execution information
   private final Optional<JobHistoryStore> jobHistoryStore;
 
   // Job configuration properties
@@ -69,8 +72,16 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   protected final String jobName;
   protected final String jobId;
   protected final JobState jobState;
-  private final Source<?, ?> source;
   private final JobCommitPolicy jobCommitPolicy;
+  private final boolean jobLockEnabled;
+  private final Optional<JobMetrics> jobMetricsOptional;
+  private final Source<?, ?> source;
+
+  // A JobLock is optional depending on if it is enabled
+  protected Optional<JobLock> jobLockOptional = Optional.absent();
+
+  // A flag set to true if the job is successfully cancelled
+  protected volatile boolean isCancelled = false;
 
   @SuppressWarnings("unchecked")
   public AbstractJobLauncher(Properties properties, Properties jobProps)
@@ -78,16 +89,20 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     Preconditions.checkArgument(
         jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY), "A job must have a job name specified by job.name");
 
-    this.properties = properties;
-    this.jobProps = jobProps;
+    // Make a copy for both the system and job configuration properties
+    this.properties = new Properties();
+    this.properties.putAll(properties);
+    this.jobProps = new Properties();
+    this.jobProps.putAll(jobProps);
 
     this.jobStateStore = new FsStateStore<JobState>(
         properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI),
         properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
         JobState.class);
 
-    if (Boolean.valueOf(
-        properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, Boolean.FALSE.toString()))) {
+    boolean jobHistoryStoreEnabled = Boolean.valueOf(
+        properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, Boolean.FALSE.toString()));
+    if (jobHistoryStoreEnabled) {
       Injector injector = Guice.createInjector(new MetaStoreModule(properties));
       this.jobHistoryStore = Optional.of(injector.getInstance(JobHistoryStore.class));
     } else {
@@ -99,10 +114,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         this.jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY) : JobLauncherUtils.newJobId(this.jobName);
     this.jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, this.jobId);
 
-    State jobPropsState = new State();
-    // Add all job configuration properties of this job
-    jobPropsState.addAll(this.jobProps);
+    this.jobCommitPolicy = JobCommitPolicy.getCommitPolicy(this.jobProps);
 
+    this.jobLockEnabled = Boolean.valueOf(
+        this.jobProps.getProperty(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, Boolean.TRUE.toString()));
+
+    State jobPropsState = new State();
+    jobPropsState.addAll(this.jobProps);
     JobState previousJobState = getPreviousJobState(this.jobName);
     this.jobState = new JobState(jobPropsState,
         previousJobState.getTaskStatesAsWorkUnitStates(), this.jobName, this.jobId);
@@ -110,13 +128,23 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     this.jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY,
         previousJobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY, 0));
 
-    this.jobCommitPolicy = JobCommitPolicy.getCommitPolicy(this.jobState);
+    if (GobblinMetrics.isEnabled(this.jobProps)) {
+      this.jobMetricsOptional = Optional.of(JobMetrics.get(this.jobState));
+      this.jobState.setProp(ConfigurationKeys.METRIC_CONTEXT_NAME_KEY, this.jobMetricsOptional.get().getName());
+    } else {
+      this.jobMetricsOptional = Optional.absent();
+    }
 
-    this.source = new SourceDecorator(initSource(this.jobProps), this.jobId, LOG);
+    this.source = new SourceDecorator(initSource(), this.jobId, LOG);
   }
 
   /**
    * Run the given list of {@link WorkUnit}s of the given job.
+   *
+   * <p>
+   *   This method assumes that the given list of {@link WorkUnit}s have already been flattened and
+   *   each {@link WorkUnit} contains the task ID in the property {@link ConfigurationKeys#TASK_ID_KEY}.
+   * </p>
    *
    * @param jobId job ID
    * @param workUnits given list of {@link WorkUnit}s to run
@@ -161,43 +189,23 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   @SuppressWarnings("unchecked")
   public void launchJob(JobListener jobListener)
       throws JobException {
-    if (Boolean.valueOf(this.jobProps.getProperty(ConfigurationKeys.JOB_DISABLED_KEY, Boolean.FALSE.toString()))) {
-      LOG.info(String.format("Not launching job %s as it is disabled", this.jobName));
-      return;
-    }
-
-    // Get the job lock if job locking is enabled
-    Optional<JobLock> jobLockOptional = Optional.absent();
-    boolean jobLockEnabled =
-        Boolean.valueOf(this.jobProps.getProperty(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, Boolean.TRUE.toString()));
-    if (jobLockEnabled) {
-      try {
-        jobLockOptional = Optional.of(getJobLock());
-      } catch (IOException ioe) {
-        throw new JobException("Failed to get job lock for job " + this.jobName, ioe);
-      }
-    }
-
-    // Try acquiring the job lock before proceeding
-    if (!tryLockJob(jobLockOptional)) {
+    if (!tryLockJob()) {
       throw new JobException(
           String.format("Previous instance of job %s is still running, skipping this scheduled run", this.jobName));
     }
 
-    this.jobState.setState(JobState.RunningState.PENDING);
-
     // Generate work units of the job from the source
     Optional<List<WorkUnit>> workUnits = Optional.fromNullable(this.source.getWorkunits(this.jobState));
+    // The absence means there is something wrong getting the work units
     if (!workUnits.isPresent()) {
-      // The absence means there is something wrong getting the work units
-      unlockJob(jobLockOptional);
+      unlockJob();
       throw new JobException("Failed to get work units for job " + this.jobId);
     }
 
+    // No work unit to run
     if (workUnits.get().isEmpty()) {
-      // No real work to do
       LOG.warn("No work units have been created for job " + this.jobId);
-      unlockJob(jobLockOptional);
+      unlockJob();
       return;
     }
 
@@ -223,24 +231,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       }
     }
 
-    Optional<JobMetrics> jobMetrics = Optional.absent();
-    if (JobMetrics.isEnabled(this.jobProps)) {
-      jobMetrics = Optional.fromNullable(JobMetrics.get(this.jobName, this.jobId));
-      if (jobMetrics.isPresent()) {
-        jobMetrics.get().startMetricReporting(this.jobProps);
-      }
-    }
-
-    // Write job execution info to the job history store before the job starts to run
-    if (this.jobHistoryStore.isPresent()) {
-      try {
-        this.jobHistoryStore.get().put(this.jobState.toJobExecutionInfo());
-      } catch (Throwable t) {
-        LOG.error("Failed to write job execution information to the job history store: " + t, t);
-      }
-    }
-
     try {
+      if (this.jobMetricsOptional.isPresent()) {
+        this.jobMetricsOptional.get().startMetricReporting(this.jobProps);
+      }
+
+      // Write job execution info to the job history store before the job starts to run
+      storeJobExecutionInfo();
+
       // Start the job and wait for it to finish
       runWorkUnits(workUnits.get());
 
@@ -267,31 +265,23 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       try {
         persistJobState();
       } catch (Throwable t) {
-        LOG.error(String.format("Failed to persist job/task states of job %s: %s", this.jobId, t), t);
+        LOG.error(String.format("Failed to persist job state of job %s: %s", this.jobId, t), t);
         this.jobState.setState(JobState.RunningState.FAILED);
       }
 
       cleanupStagingData();
-      unlockJob(jobLockOptional);
-    }
 
-    // Write job execution info to the job history store upon job completion/termination
-    if (this.jobHistoryStore.isPresent()) {
-      try {
-        this.jobHistoryStore.get().put(this.jobState.toJobExecutionInfo());
-      } catch (Throwable t) {
-        LOG.error("Failed to write job execution information to the job history store: " + t, t);
+      // Write job execution info to the job history store upon job termination
+      storeJobExecutionInfo();
+
+      if (this.jobMetricsOptional.isPresent()) {
+        this.jobMetricsOptional.get().stopMetricReporting();
       }
+
+      unlockJob();
     }
 
-    if (JobMetrics.isEnabled(this.jobProps)) {
-      if (jobMetrics.isPresent()) {
-        jobMetrics.get().stopMetricReporting();
-      }
-      JobMetrics.remove(this.jobId);
-    }
-
-    if (Optional.fromNullable(jobListener).isPresent()) {
+    if (jobListener != null) {
       jobListener.onJobCompletion(this.jobState);
     }
 
@@ -304,7 +294,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   @Override
   public void close()
       throws IOException {
-    this.source.shutdown(this.jobState);
+    try {
+      this.source.shutdown(this.jobState);
+    } finally {
+      if (GobblinMetrics.isEnabled(this.jobProps)) {
+        GobblinMetricsRegistry.getInstance().remove(this.jobId);
+      }
+    }
   }
 
   /**
@@ -333,9 +329,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   /**
    * Initialize the source for the given job.
    */
-  private Source<?, ?> initSource(Properties jobProps)
+  private Source<?, ?> initSource()
       throws Exception {
-    return (Source<?, ?>) Class.forName(jobProps.getProperty(ConfigurationKeys.SOURCE_CLASS_KEY)).newInstance();
+    return (Source<?, ?>) Class.forName(this.jobProps.getProperty(ConfigurationKeys.SOURCE_CLASS_KEY)).newInstance();
   }
 
   /**
@@ -374,13 +370,12 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   /**
    * Try acquiring the job lock and return whether the lock is successfully locked.
    */
-  private boolean tryLockJob(Optional<JobLock> jobLockOptional) {
-    if (!jobLockOptional.isPresent()) {
-      return true;
-    }
-
+  private boolean tryLockJob() {
     try {
-      return jobLockOptional.get().tryLock();
+      if (this.jobLockEnabled) {
+        this.jobLockOptional = Optional.of(getJobLock());
+      }
+      return !this.jobLockOptional.isPresent() || this.jobLockOptional.get().tryLock();
     } catch (IOException ioe) {
       LOG.error(String.format("Failed to acquire job lock for job %s: %s", this.jobName, ioe), ioe);
       return false;
@@ -390,16 +385,27 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   /**
    * Unlock a completed or failed job.
    */
-  private void unlockJob(Optional<JobLock> jobLockOptional) {
-    if (!jobLockOptional.isPresent()) {
-      return;
+  private void unlockJob() {
+    if (this.jobLockOptional.isPresent()) {
+      try {
+        // Unlock so the next run of the same job can proceed
+        this.jobLockOptional.get().unlock();
+      } catch (IOException ioe) {
+        LOG.error(String.format("Failed to unlock for job %s: %s", this.jobName, ioe), ioe);
+      }
     }
+  }
 
-    try {
-      // Unlock so the next run of the same job can proceed
-      jobLockOptional.get().unlock();
-    } catch (IOException ioe) {
-      LOG.error(String.format("Failed to unlock for job %s: %s", this.jobName, ioe), ioe);
+  /**
+   * Store job execution information into the job history store.
+   */
+  private void storeJobExecutionInfo() {
+    if (this.jobHistoryStore.isPresent()) {
+      try {
+        this.jobHistoryStore.get().put(this.jobState.toJobExecutionInfo());
+      } catch (IOException ioe) {
+        LOG.error("Failed to write job execution information to the job history store: " + ioe, ioe);
+      }
     }
   }
 
@@ -481,7 +487,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   }
 
   /**
-   * Persist job/task states of a completed job.
+   * Persist job state of a completed job.
    */
   private void persistJobState() throws IOException {
     JobState.RunningState runningState = this.jobState.getState();
@@ -495,7 +501,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     String jobName = this.jobState.getJobName();
     String jobId = this.jobState.getJobId();
 
-    LOG.info("Persisting job states of job " + jobId);
+    LOG.info("Persisting job state of job " + jobId);
     this.jobStateStore.put(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX, this.jobState);
     this.jobStateStore.createAlias(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX,
         "current" + JOB_STATE_STORE_TABLE_SUFFIX);

@@ -58,7 +58,6 @@ public class LocalJobLauncher extends AbstractJobLauncher {
   private final ServiceManager serviceManager;
 
   private volatile CountDownLatch countDownLatch;
-  private volatile boolean isCancelled = false;
 
   public LocalJobLauncher(Properties properties, Properties jobProps)
       throws Exception {

@@ -38,6 +38,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metastore.MetaStoreModule;
 import gobblin.metastore.StateStore;
+import gobblin.util.JobLauncherUtils;
 
 
 /**
@@ -59,6 +60,10 @@ public class JobLauncherTestHelper {
 
   @SuppressWarnings("unchecked")
   public void runTest(Properties jobProps) throws Exception {
+    String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+    String jobId = JobLauncherUtils.newJobId(jobName);
+    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
+
     Closer closer = Closer.create();
     try {
       JobLauncher jobLauncher = closer.register(JobLauncherFactory.newJobLauncher(this.launcherProps, jobProps));
@@ -66,8 +71,7 @@ public class JobLauncherTestHelper {
     } finally {
       closer.close();
     }
-    String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
+
     List<JobState> jobStateList = this.jobStateStore.getAll(jobName, jobId + ".jst");
     JobState jobState = jobStateList.get(0);
 
@@ -82,6 +86,10 @@ public class JobLauncherTestHelper {
   @SuppressWarnings("unchecked")
   public void runTestWithPullLimit(Properties jobProps)
       throws Exception {
+    String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+    String jobId = JobLauncherUtils.newJobId(jobName);
+    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
+
     Closer closer = Closer.create();
     try {
       JobLauncher jobLauncher = closer.register(JobLauncherFactory.newJobLauncher(this.launcherProps, jobProps));
@@ -89,8 +97,7 @@ public class JobLauncherTestHelper {
     } finally {
       closer.close();
     }
-    String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
+
     List<JobState> jobStateList = this.jobStateStore.getAll(jobName, jobId + ".jst");
     JobState jobState = jobStateList.get(0);
 
@@ -109,6 +116,10 @@ public class JobLauncherTestHelper {
 
   @SuppressWarnings("unchecked")
   public void runTestWithCancellation(final Properties jobProps) throws Exception {
+    String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+    String jobId = JobLauncherUtils.newJobId(jobName);
+    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
+
     Closer closer = Closer.create();
     try {
       final JobLauncher jobLauncher = closer.register(JobLauncherFactory.newJobLauncher(this.launcherProps, jobProps));
@@ -135,8 +146,6 @@ public class JobLauncherTestHelper {
       closer.close();
     }
 
-    String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
     List<JobState> jobStateList = this.jobStateStore.getAll(jobName, jobId + ".jst");
     Assert.assertTrue(jobStateList.isEmpty());
 
@@ -150,6 +159,10 @@ public class JobLauncherTestHelper {
   @SuppressWarnings("unchecked")
   public void runTestWithFork(Properties jobProps)
       throws Exception {
+    String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+    String jobId = JobLauncherUtils.newJobId(jobName);
+    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
+
     Closer closer = Closer.create();
     try {
       JobLauncher jobLauncher = closer.register(JobLauncherFactory.newJobLauncher(this.launcherProps, jobProps));
@@ -157,8 +170,7 @@ public class JobLauncherTestHelper {
     } finally {
       closer.close();
     }
-    String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
+
     List<JobState> jobStateList = this.jobStateStore.getAll(jobName, jobId + ".jst");
     JobState jobState = jobStateList.get(0);
 
