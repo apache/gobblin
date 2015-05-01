@@ -15,6 +15,7 @@ package gobblin.metrics;
 import java.io.Closeable;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
 import java.text.DateFormat;
 import java.util.Date;
 import java.util.LinkedHashMap;
@@ -127,7 +128,11 @@ public class OutputStreamReporter extends ScheduledReporter implements Closeable
      * @return {@code this}
      */
     public T outputTo(OutputStream stream) {
-      this.output = new PrintStream(stream);
+      try {
+        this.output = new PrintStream(stream, false, "UTF-8");
+      } catch(UnsupportedEncodingException exception) {
+        LOGGER.error("Unsupported encoding in OutputStreamReporter. This is an error with the code itself.", exception);
+      }
       return self();
     }
 
