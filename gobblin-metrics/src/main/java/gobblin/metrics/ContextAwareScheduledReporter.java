@@ -76,6 +76,16 @@ public abstract class ContextAwareScheduledReporter extends ScheduledReporter {
    *   Called periodically by the polling thread. Subclasses should report all the given metrics.
    * </p>
    *
+   * <p>
+   *   The metric names (the keys in the given {@link SortedMap}s) may or may not include the
+   *   {@link Tag}s of the {@link MetricContext} depending on if the {@link MetricContext} is
+   *   configured to report fully-qualified metric names or not using the method
+   *   {@link MetricContext.Builder#reportFullyQualifiedNames(boolean)}. It is up to the
+   *   implementation of this method to decide on whether to include the name of the
+   *   {@link MetricContext} (given by {@link MetricContext#getName()}) and the {@link Tag}s
+   *   of individual {@link ContextAwareMetric}s when reporting them.
+   * </p>
+   *
    * @param gauges     all of the gauges in the {@link MetricContext}
    * @param counters   all of the counters in the {@link MetricContext}
    * @param histograms all of the histograms in the {@link MetricContext}
