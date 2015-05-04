@@ -90,10 +90,6 @@ public class WorkUnit extends State {
     return this.extract;
   }
 
-  public WatermarkInterval getWatermarkInterval() {
-    return this.watermarkInterval;
-  }
-
   public Watermark getExpectedHighWatermark() {
     return this.watermarkInterval.getExpectedHighWatermark();
   }
