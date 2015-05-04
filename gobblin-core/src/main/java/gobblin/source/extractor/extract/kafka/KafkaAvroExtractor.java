@@ -15,10 +15,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-import kafka.message.MessageAndOffset;
-
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericData.Record;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
@@ -39,7 +36,7 @@ import gobblin.util.AvroUtils;
  *
  * @author ziliu
  */
-public class KafkaAvroExtractor extends KafkaExtractor<Schema, GenericRecord> {
+public class KafkaAvroExtractor extends KafkaExtractor<Schema, ByteBuffer, ByteBuffer, GenericRecord> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaAvroExtractor.class);
 
@@ -54,6 +51,7 @@ public class KafkaAvroExtractor extends KafkaExtractor<Schema, GenericRecord> {
    * @param state state should contain property "kafka.schema.registry.url", and optionally
    * "kafka.schema.registry.max.cache.size" (default = 1000) and
    * "kafka.schema.registry.cache.expire.after.write.min" (default = 10).
+   *
    * @throws SchemaNotFoundException if the latest schema of the topic cannot be retrieved
    * from the schema registry.
    */
@@ -74,9 +72,9 @@ public class KafkaAvroExtractor extends KafkaExtractor<Schema, GenericRecord> {
   }
 
   @Override
-  protected GenericRecord decodeRecord(MessageAndOffset messageAndOffset, GenericRecord reuse)
+  protected GenericRecord decodeRecord(KafkaEvent<ByteBuffer, ByteBuffer> event)
       throws SchemaNotFoundException, IOException {
-    byte[] payload = getBytes(messageAndOffset.message().payload());
+    byte[] payload = getBytes(event.value());
     if (payload[0] != MAGIC_BYTE) {
       throw new RuntimeException(String.format("Unknown magic byte for topic %s, partition %d",
           this.partition.getTopicName(), this.partition.getId()));
@@ -91,7 +89,7 @@ public class KafkaAvroExtractor extends KafkaExtractor<Schema, GenericRecord> {
         DecoderFactory.get().binaryDecoder(payload, 1 + SCHEMA_ID_LENGTH_BYTE,
             payload.length - 1 - SCHEMA_ID_LENGTH_BYTE, null);
     try {
-      GenericRecord record = reader.read((GenericData.Record) reuse, binaryDecoder);
+      GenericRecord record = reader.read(null, binaryDecoder);
       if (!record.getSchema().equals(this.schema)) {
         record = AvroUtils.convertRecordSchema(record, this.schema);
       }
@@ -105,12 +103,21 @@ public class KafkaAvroExtractor extends KafkaExtractor<Schema, GenericRecord> {
 
   private static byte[] getBytes(ByteBuffer buf) {
     byte[] bytes = null;
+    buf.mark();
+
     if (buf != null) {
       int size = buf.remaining();
       bytes = new byte[size];
       buf.get(bytes, buf.position(), size);
     }
+
+    buf.reset();
     return bytes;
+  }
+
+  @Override
+  protected long getEventSize(KafkaEvent<ByteBuffer, ByteBuffer> event) {
+    return event.value().remaining();
   }
 
 }

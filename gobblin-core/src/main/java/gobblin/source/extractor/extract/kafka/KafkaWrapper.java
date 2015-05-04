@@ -16,6 +16,7 @@ import gobblin.source.extractor.extract.EventBasedSource;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
@@ -52,9 +53,12 @@ import com.google.common.collect.Maps;
  * Wrapper class that contains two alternative Kakfa APIs: an old low-level Scala-based API, and a new API.
  * The new API has not been implemented since it's not ready to be open sourced.
  *
+ * @param <K> Type of Kafka event key. When using the Kafka Old API, K should be ByteBuffer.
+ * @param <V> Type of Kafka event value. When using the Kafka Old API, V should be ByteBuffer.
+ *
  * @author ziliu
  */
-public class KafkaWrapper implements Closeable {
+public class KafkaWrapper<K, V> implements Closeable {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaWrapper.class);
 
@@ -63,39 +67,8 @@ public class KafkaWrapper implements Closeable {
   private static final String KAFKA_BROKERS = "kafka.brokers";
 
   private final List<String> brokers;
-  private final KafkaAPI kafkaAPI;
-
-  private final boolean useNewKafkaAPI;
-
-  private static class Builder {
-    private boolean useNewKafkaAPI = DEFAULT_USE_NEW_KAFKA_API;
-    private List<String> brokers = Lists.newArrayList();
-
-    private Builder withNewKafkaAPI() {
-      this.useNewKafkaAPI = true;
-      return this;
-    }
-
-    private Builder withBrokers(List<String> brokers) {
-      for (String broker : brokers) {
-        Preconditions.checkArgument(broker.matches(".+:\\d+"),
-            String.format("Invalid broker: %s. Must be in the format of address:port.", broker));
-      }
-      this.brokers = Lists.newArrayList(brokers);
-      return this;
-    }
-
-    private KafkaWrapper build() {
-      Preconditions.checkArgument(!brokers.isEmpty(), "Need to specify at least one Kafka broker.");
-      return new KafkaWrapper(this);
-    }
-  }
-
-  private KafkaWrapper(Builder builder) {
-    this.useNewKafkaAPI = builder.useNewKafkaAPI;
-    this.brokers = builder.brokers;
-    this.kafkaAPI = getKafkaAPI();
-  }
+  private final KafkaAPI<K, V> kafkaAPI;
+  private final State props;
 
   /**
    * Create a KafkaWrapper based on the given type of Kafka API and list of Kafka brokers.
@@ -104,13 +77,22 @@ public class KafkaWrapper implements Closeable {
    * in property "kafka.brokers". It may optionally specify whether to use the new Kafka API by setting
    * use.new.kafka.api=true.
    */
-  public static KafkaWrapper create(State state) {
+  @SuppressWarnings("unchecked")
+  public KafkaWrapper(State state) {
     Preconditions.checkNotNull(state.getProp(KAFKA_BROKERS), "Need to specify at least one Kafka broker.");
-    KafkaWrapper.Builder builder = new KafkaWrapper.Builder();
-    if (state.getPropAsBoolean(USE_NEW_KAFKA_API, DEFAULT_USE_NEW_KAFKA_API)) {
-      builder = builder.withNewKafkaAPI();
+    List<String> brokers = state.getPropAsList(KAFKA_BROKERS);
+    for (String broker : brokers) {
+      Preconditions.checkArgument(broker.matches(".+:\\d+"),
+          String.format("Invalid broker: %s. Must be in the format of address:port.", broker));
     }
-    return builder.withBrokers(state.getPropAsList(KAFKA_BROKERS)).build();
+    this.brokers = Lists.newArrayList(brokers);
+    this.props = new State();
+    props.addAll(state);
+    if (state.getPropAsBoolean(USE_NEW_KAFKA_API, DEFAULT_USE_NEW_KAFKA_API)) {
+      this.kafkaAPI = new KafkaNewAPI();
+    } else {
+      this.kafkaAPI = (KafkaWrapper<K, V>.KafkaAPI<K, V>) new KafkaOldAPI();
+    }
   }
 
   public List<String> getBrokers() {
@@ -129,16 +111,8 @@ public class KafkaWrapper implements Closeable {
     return this.kafkaAPI.getLatestOffset(partition);
   }
 
-  public Iterator<MessageAndOffset> fetchNextMessageBuffer(KafkaPartition partition, long nextOffset, long maxOffset) {
+  public Iterator<KafkaEvent<K, V>> fetchNextMessageBuffer(KafkaPartition partition, long nextOffset, long maxOffset) {
     return this.kafkaAPI.fetchNextMessageBuffer(partition, nextOffset, maxOffset);
-  }
-
-  private KafkaAPI getKafkaAPI() {
-    if (this.useNewKafkaAPI) {
-      return new KafkaNewAPI();
-    } else {
-      return new KafkaOldAPI();
-    }
   }
 
   @Override
@@ -146,21 +120,21 @@ public class KafkaWrapper implements Closeable {
     this.kafkaAPI.close();
   }
 
-  private abstract class KafkaAPI implements Closeable {
+  private abstract class KafkaAPI<K2, V2> implements Closeable {
     protected abstract List<KafkaTopic> getFilteredTopics(Set<String> blacklist, Set<String> whitelist);
 
     protected abstract long getEarliestOffset(KafkaPartition partition) throws KafkaOffsetRetrievalFailureException;
 
     protected abstract long getLatestOffset(KafkaPartition partition) throws KafkaOffsetRetrievalFailureException;
 
-    protected abstract Iterator<MessageAndOffset> fetchNextMessageBuffer(KafkaPartition partition, long nextOffset,
+    protected abstract Iterator<KafkaEvent<K2, V2>> fetchNextMessageBuffer(KafkaPartition partition, long nextOffset,
         long maxOffset);
   }
 
   /**
    * Wrapper for the old low-level Scala-based Kafka API.
    */
-  private class KafkaOldAPI extends KafkaAPI {
+  private class KafkaOldAPI extends KafkaAPI<ByteBuffer, ByteBuffer> {
     private static final int DEFAULT_KAFKA_TIMEOUT_VALUE = 30000;
     private static final int DEFAULT_KAFKA_BUFFER_SIZE = 1024 * 1024;
     private static final String DEFAULT_KAFKA_CLIENT_NAME = "kafka-old-api";
@@ -323,8 +297,8 @@ public class KafkaWrapper implements Closeable {
     }
 
     @Override
-    protected Iterator<MessageAndOffset> fetchNextMessageBuffer(KafkaPartition partition, long nextOffset,
-        long maxOffset) {
+    protected Iterator<KafkaEvent<ByteBuffer, ByteBuffer>> fetchNextMessageBuffer(KafkaPartition partition,
+        long nextOffset, long maxOffset) {
       if (nextOffset > maxOffset) {
         return null;
       }
@@ -354,11 +328,16 @@ public class KafkaWrapper implements Closeable {
       return fetchResponse;
     }
 
-    private Iterator<MessageAndOffset> getIteratorFromFetchResponse(FetchResponse fetchResponse,
+    private Iterator<KafkaEvent<ByteBuffer, ByteBuffer>> getIteratorFromFetchResponse(FetchResponse fetchResponse,
         KafkaPartition partition) {
       try {
         ByteBufferMessageSet messageBuffer = fetchResponse.messageSet(partition.getTopicName(), partition.getId());
-        return messageBuffer.iterator();
+        List<KafkaEvent<ByteBuffer, ByteBuffer>> events = Lists.newArrayList();
+        Iterator<MessageAndOffset> iterator = messageBuffer.iterator();
+        while (iterator.hasNext()) {
+          events.add(new KafkaOldEvent(iterator.next()));
+        }
+        return events.iterator();
       } catch (Exception e) {
         LOG.warn(String.format("Failed to retrieve next message buffer for topic %s, partition %d: %s."
             + "The remainder of this partition will be skipped.", partition.getTopicName(), partition.getId(),
@@ -367,7 +346,7 @@ public class KafkaWrapper implements Closeable {
       }
     }
 
-    private Iterator<MessageAndOffset> refreshTopicMetadataAndRetryFetch(KafkaPartition partition,
+    private Iterator<KafkaEvent<ByteBuffer, ByteBuffer>> refreshTopicMetadataAndRetryFetch(KafkaPartition partition,
         FetchRequest fetchRequest) {
       try {
         refreshTopicMetadata(partition);
@@ -431,7 +410,7 @@ public class KafkaWrapper implements Closeable {
   /**
    * Wrapper for the new Kafka API.
    */
-  private class KafkaNewAPI extends KafkaAPI {
+  private class KafkaNewAPI extends KafkaAPI<K, V> {
 
     @Override
     public List<KafkaTopic> getFilteredTopics(Set<String> blacklist, Set<String> whitelist) {
@@ -454,7 +433,7 @@ public class KafkaWrapper implements Closeable {
     }
 
     @Override
-    protected Iterator<MessageAndOffset> fetchNextMessageBuffer(KafkaPartition partition, long nextOffset,
+    protected Iterator<KafkaEvent<K, V>> fetchNextMessageBuffer(KafkaPartition partition, long nextOffset,
         long maxOffset) {
       throw new NotImplementedException("kafka new API has not been implemented");
     }
