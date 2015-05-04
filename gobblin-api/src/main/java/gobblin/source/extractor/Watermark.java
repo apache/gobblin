@@ -1,9 +1,11 @@
 package gobblin.source.extractor;
 
-import java.io.Serializable;
-import java.util.List;
+import gobblin.fork.Copyable;
 
-public interface Watermark extends Serializable {
+import org.codehaus.jackson.annotate.JsonTypeInfo;
 
-  public Watermark getNewWatermark(List<Watermark> oldWatermark);
+@JsonTypeInfo(use=JsonTypeInfo.Id.CLASS, include=JsonTypeInfo.As.PROPERTY, property="@class")
+public interface Watermark extends Comparable<Watermark>, Copyable<Watermark> {
+
+  public void increment(Object record);
 }

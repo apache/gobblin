@@ -14,11 +14,14 @@ package gobblin.source.workunit;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
 import gobblin.source.extractor.Extractor;
+import gobblin.source.extractor.Watermark;
+import gobblin.source.extractor.WatermarkInterval;
 
 
 /**
@@ -34,6 +37,7 @@ import gobblin.source.extractor.Extractor;
 public class WorkUnit extends State {
 
   private Extract extract;
+  private WatermarkInterval watermarkInterval;
 
   /**
    * Default constructor.
@@ -48,6 +52,7 @@ public class WorkUnit extends State {
    * @param state a {@link gobblin.configuration.SourceState} the properties of which will be copied into this {@link WorkUnit} instance
    * @param extract an {@link Extract}
    */
+  @Deprecated
   public WorkUnit(SourceState state, Extract extract) {
     // Values should only be null for deserialization
     if (state != null) {
@@ -59,6 +64,11 @@ public class WorkUnit extends State {
     } else {
       this.extract = new Extract(null, null, null, null);
     }
+  }
+
+  private WorkUnit(SourceState state, Extract extract, WatermarkInterval watermarkInterval) {
+    this(state, extract);
+    this.watermarkInterval = watermarkInterval;
   }
 
   /**
@@ -80,11 +90,32 @@ public class WorkUnit extends State {
     return this.extract;
   }
 
+  public WatermarkInterval getWatermarkInterval() {
+    return this.watermarkInterval;
+  }
+
+  public Watermark getExpectedHighWatermark() {
+    return this.watermarkInterval.getExpectedHighWatermark();
+  }
+
+  public void setExpectedHighWatermark(Watermark highWatermark) {
+    this.watermarkInterval.setExpectedHighWatermark(highWatermark);
+  }
+
+  public Watermark getLowWatermark() {
+    return this.watermarkInterval.getLowWatermark();
+  }
+
+  public void setLowWatermark(Watermark lowWatermark) {
+    this.watermarkInterval.setLowWatermark(lowWatermark);
+  }
+
   /**
    * Get the high watermark of this {@link WorkUnit}.
    *
    * @return high watermark
    */
+  @Deprecated
   public long getHighWaterMark() {
     return getPropAsLong(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY);
   }
@@ -94,6 +125,7 @@ public class WorkUnit extends State {
    *
    * @param highWaterMark high watermark
    */
+  @Deprecated
   public void setHighWaterMark(long highWaterMark) {
     setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, highWaterMark);
   }
@@ -103,6 +135,7 @@ public class WorkUnit extends State {
    *
    * @return low watermark
    */
+  @Deprecated
   public long getLowWaterMark() {
     return getPropAsLong(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY);
   }
@@ -112,6 +145,7 @@ public class WorkUnit extends State {
    *
    * @param lowWaterMark low watermark
    */
+  @Deprecated
   public void setLowWaterMark(long lowWaterMark) {
     setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, lowWaterMark);
   }
@@ -121,6 +155,7 @@ public class WorkUnit extends State {
       throws IOException {
     super.readFields(in);
     this.extract.readFields(in);
+    this.watermarkInterval.readFields(in);
   }
 
   @Override
@@ -128,5 +163,21 @@ public class WorkUnit extends State {
       throws IOException {
     super.write(out);
     this.extract.write(out);
+    this.watermarkInterval.write(out);
+  }
+
+  public static class Factory {
+
+    private Extract extract;
+    private SourceState sourceState;
+
+    public Factory(Extract extract, SourceState sourceState) {
+      this.extract = extract;
+      this.sourceState = sourceState;
+    }
+
+    public WorkUnit newInstance(WatermarkInterval watermarkInterval) {
+      return new WorkUnit(this.sourceState, this.extract, watermarkInterval);
+    }
   }
 }

@@ -54,6 +54,7 @@ public class TaskState extends WorkUnitState {
   private static final String BYTES = "bytes";
   private static final String BYTES_PER_SECOND = "bytesPerSec";
 
+  private WorkUnitState workUnitState;
   private String jobId;
   private String taskId;
   private long startTime;
@@ -69,6 +70,7 @@ public class TaskState extends WorkUnitState {
     // the WorkUnit object in this object is also immutable.
     super(workUnitState.getWorkunit());
     addAll(workUnitState);
+    this.workUnitState = workUnitState;
     this.jobId = workUnitState.getProp(ConfigurationKeys.JOB_ID_KEY);
     this.taskId = workUnitState.getProp(ConfigurationKeys.TASK_ID_KEY);
     this.setId(this.taskId);
@@ -162,6 +164,10 @@ public class TaskState extends WorkUnitState {
    */
   public void setTaskDuration(long duration) {
     this.duration = duration;
+  }
+
+  public void incrementWatermark(Object record) {
+    this.workUnitState.getWatermarkInterval().increment(record);
   }
 
   /**

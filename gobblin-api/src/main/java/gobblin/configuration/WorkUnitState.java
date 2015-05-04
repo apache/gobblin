@@ -18,6 +18,8 @@ import java.util.Set;
 
 import com.google.common.collect.Sets;
 
+import gobblin.source.extractor.Watermark;
+import gobblin.source.extractor.WatermarkInterval;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.ImmutableWorkUnit;
 import gobblin.source.workunit.WorkUnit;
@@ -52,12 +54,14 @@ public class WorkUnitState extends State {
   }
 
   private WorkUnit workunit;
+  private WatermarkInterval watermarkInterval;
 
   /**
    * Default constructor used for deserialization.
    */
   public WorkUnitState() {
     this.workunit = new WorkUnit(null, null);
+    this.watermarkInterval = new WatermarkInterval();
   }
 
   /**
@@ -67,6 +71,7 @@ public class WorkUnitState extends State {
    */
   public WorkUnitState(WorkUnit workUnit) {
     this.workunit = workUnit;
+    this.watermarkInterval = workUnit.getWatermarkInterval();
   }
 
   /**
@@ -97,11 +102,20 @@ public class WorkUnitState extends State {
     setProp(ConfigurationKeys.WORK_UNIT_WORKING_STATE_KEY, state.toString());
   }
 
+  public WatermarkInterval getWatermarkInterval() {
+    return this.watermarkInterval;
+  }
+
+  public Watermark getActualHighWatermark() {
+    return this.workunit.getWatermarkInterval().getActualHighWatermark();
+  }
+
   /**
    * Get the high watermark as set in {@link gobblin.source.extractor.Extractor}.
    *
    * @return high watermark
    */
+  @Deprecated
   public long getHighWaterMark() {
     return getPropAsLong(ConfigurationKeys.WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK,
         ConfigurationKeys.DEFAULT_WATERMARK_VALUE);
@@ -112,6 +126,7 @@ public class WorkUnitState extends State {
    *
    * @param value high watermark
    */
+  @Deprecated
   public void setHighWaterMark(long value) {
     setProp(ConfigurationKeys.WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK, value);
   }
@@ -171,14 +186,16 @@ public class WorkUnitState extends State {
   @Override
   public void readFields(DataInput in)
       throws IOException {
-    workunit.readFields(in);
+    this.workunit.readFields(in);
+    this.watermarkInterval.readFields(in);
     super.readFields(in);
   }
 
   @Override
   public void write(DataOutput out)
       throws IOException {
-    workunit.write(out);
+    this.workunit.write(out);
+    this.watermarkInterval.write(out);
     super.write(out);
   }
 

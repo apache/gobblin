@@ -167,6 +167,7 @@ public class Task implements Runnable {
         recordsPulled++;
         for (Object convertedRecord : converter.convertRecord(schema, record, this.taskState)) {
           processRecord(convertedRecord, forkOperator, rowChecker, rowResults, branches);
+          this.taskState.incrementWatermark(convertedRecord);
         }
       }
 

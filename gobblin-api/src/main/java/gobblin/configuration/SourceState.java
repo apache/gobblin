@@ -11,7 +11,10 @@
 
 package gobblin.configuration;
 
+import gobblin.source.extractor.Watermark;
+import gobblin.source.extractor.WatermarkInterval;
 import gobblin.source.workunit.Extract;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -24,6 +27,7 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -67,6 +71,14 @@ public class SourceState extends State {
     this.previousTaskStates.addAll(previousTaskStates);
   }
 
+  public List<WatermarkInterval> getPreviousWatermarkIntervals() {
+    List<WatermarkInterval> previousWatermarks = Lists.newArrayList();
+    for (WorkUnitState workUnitState : this.previousTaskStates) {
+      previousWatermarks.add(workUnitState.getWatermarkInterval());
+    }
+    return previousWatermarks;
+  }
+
   /**
    * Get a (possibly empty) list of {@link WorkUnitState}s from the previous job run.
    *
@@ -104,6 +116,7 @@ public class SourceState extends State {
    * @param extract given {@link Extract}
    * @return a new {@link WorkUnit} instance
    */
+  @Deprecated
   public WorkUnit createWorkUnit(Extract extract) {
     return new WorkUnit(this, extract);
   }

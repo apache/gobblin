@@ -63,5 +63,6 @@ public interface Extractor<S, D> extends Closeable {
    * Get the calculated high watermark up to which data records are to be extracted.
    * @return the calculated high watermark
    */
+  @Deprecated
   public long getHighWatermark();
 }
