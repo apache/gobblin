@@ -34,6 +34,8 @@ dependencies {
   compile externalDependency.kafka
   compile externalDependency.kafkaClient
   compile externalDependency.scala
+  compile externalDependency.aws
+  compile externalDependency.s3
 
   testCompile externalDependency.testng
 }
