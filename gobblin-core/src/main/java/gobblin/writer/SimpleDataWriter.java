@@ -25,13 +25,10 @@ import java.util.Arrays;
  *
  * @author akshay@nerdwallet.com
  */
-public class SimpleDataWriter implements DataWriter<byte[]> {
+public class SimpleDataWriter extends BaseDataWriter<byte[]> {
 
   private static final Logger LOG = LoggerFactory.getLogger(SimpleDataWriter.class);
 
-  private final FileSystem fs; // the hadoop file system instance
-  private final Path stagingFile; // the file we write to
-  private final Path outputFile; // the file with the data after its been committed
   private final FSDataOutputStream outputStream; // the output stream to the staging file
   private final Byte recordDelimiter; // optional byte to place between each record write
   private final boolean prependSize;
@@ -40,53 +37,17 @@ public class SimpleDataWriter implements DataWriter<byte[]> {
   private int bytesWritten;
   private boolean closed;
 
-  public SimpleDataWriter(State properties, String writerId, int branch) throws IOException {
+  public SimpleDataWriter(State properties, String fileName, int numBranches, int branchId) throws IOException {
+    super(properties, fileName, numBranches, branchId);
     String delim;
     if ((delim = properties.getProp(ConfigurationKeys.SIMPLE_WRITER_DELIMITER, null)) == null || delim.length() == 0) {
       recordDelimiter = null;
     } else {
       recordDelimiter = delim.getBytes()[0];
     }
-    prependSize = properties.getPropAsBoolean(ConfigurationKeys.SIMPLE_WRITER_PREPEND_SIZE, true);
-    String filePath = properties
-            .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, branch));
-    // Add the writer ID to the file name so each writer writes to a different
-    // file of the same file group defined by the given file name
-    String fileName = String.format("%s.%s.%s", properties
-            .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_NAME, branch),
-                    "part"), writerId, "tmp");
-    String uri = properties
-            .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, branch),
-                    ConfigurationKeys.LOCAL_FS_URI);
-    String stagingDir =
-            properties.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_DIR, branch)) +
-                    Path.SEPARATOR + filePath;
-    String outputDir =
-            properties.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR, branch)) +
-                    Path.SEPARATOR + filePath;
-    Configuration conf = new Configuration();
-    // Add all job configuration properties so they are picked up by Hadoop
-    for (String key : properties.getPropertyNames()) {
-      conf.set(key, properties.getProp(key));
-    }
-    this.fs = FileSystem.get(URI.create(uri), conf);
 
-    this.stagingFile = new Path(stagingDir, fileName);
-    // Deleting the staging file if it already exists, which can happen if the
-    // task failed and the staging file didn't get cleaned up for some reason.
-    // Deleting the staging file prevents the task retry from being blocked.
-    if (this.fs.exists(this.stagingFile)) {
-      LOG.warn(String.format("Task staging file %s already exists, deleting it", this.stagingFile));
-      this.fs.delete(this.stagingFile, false);
-    }
-
-    outputStream = this.fs.create(stagingFile, true);
-
-    this.outputFile = new Path(outputDir, fileName);
-    // Create the parent directory of the output file if it does not exist
-    if (!this.fs.exists(this.outputFile.getParent())) {
-      this.fs.mkdirs(this.outputFile.getParent());
-    }
+    this.outputStream = this.fs.create(this.stagingFile, true);
+    this.prependSize = properties.getPropAsBoolean(ConfigurationKeys.SIMPLE_WRITER_PREPEND_SIZE, true);
     this.recordsWritten = 0;
     this.bytesWritten = 0;
     this.closed = false;

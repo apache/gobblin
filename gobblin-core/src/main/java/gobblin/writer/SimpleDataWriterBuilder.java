@@ -1,5 +1,8 @@
 package gobblin.writer;
 
+import gobblin.configuration.State;
+import gobblin.util.WriterUtils;
+
 import java.io.IOException;
 
 /**
@@ -16,6 +19,9 @@ public class SimpleDataWriterBuilder extends DataWriterBuilder<String, byte[]> {
    */
   @Override
   public DataWriter<byte[]> build() throws IOException {
-    return new SimpleDataWriter(this.destination.getProperties(), this.writerId, this.branch);
+    State properties = this.destination.getProperties();
+    String fileName =
+            WriterUtils.getWriterFileName(properties, this.branches, this.branch, this.writerId, this.format.getExtension());
+    return new SimpleDataWriter(properties, fileName, this.branches, this.branch);
   }
 }
