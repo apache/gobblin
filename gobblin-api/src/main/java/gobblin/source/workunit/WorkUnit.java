@@ -52,7 +52,6 @@ public class WorkUnit extends State {
    * @param state a {@link gobblin.configuration.SourceState} the properties of which will be copied into this {@link WorkUnit} instance
    * @param extract an {@link Extract}
    */
-  @Deprecated
   public WorkUnit(SourceState state, Extract extract) {
     // Values should only be null for deserialization
     if (state != null) {
