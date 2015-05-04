@@ -167,7 +167,7 @@ public class TaskState extends WorkUnitState {
   }
 
   public void incrementWatermark(Object record) {
-    this.workUnitState.getWatermarkInterval().increment(record);
+    this.workUnitState.incrementWatermarkInterval(record);
   }
 
   /**

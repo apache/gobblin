@@ -102,8 +102,8 @@ public class WorkUnitState extends State {
     setProp(ConfigurationKeys.WORK_UNIT_WORKING_STATE_KEY, state.toString());
   }
 
-  public WatermarkInterval getWatermarkInterval() {
-    return this.watermarkInterval;
+  public void incrementWatermarkInterval(Object record) {
+    this.watermarkInterval.increment(record);
   }
 
   public Watermark getActualHighWatermark() {

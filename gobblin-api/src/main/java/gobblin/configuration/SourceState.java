@@ -11,7 +11,6 @@
 
 package gobblin.configuration;
 
-import gobblin.source.extractor.Watermark;
 import gobblin.source.extractor.WatermarkInterval;
 import gobblin.source.workunit.Extract;
 
@@ -27,7 +26,6 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;

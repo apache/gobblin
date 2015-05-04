@@ -20,7 +20,7 @@ public class WatermarkInterval implements Writable {
 
   private ObjectMapper objectMapper;
 
-  // Need for the Writable interface
+  // Needed for the Writable interface
   public WatermarkInterval() {
   }
 
@@ -67,16 +67,8 @@ public class WatermarkInterval implements Writable {
     return this.lowWatermark;
   }
 
-  public void setLowWatermark(Watermark lowWatermark) {
-    this.lowWatermark = lowWatermark;
-  }
-
   public Watermark getExpectedHighWatermark() {
     return this.expectedHighWatermark;
-  }
-
-  public void setExpectedHighWatermark(Watermark expectedHighWatermark) {
-    this.expectedHighWatermark = expectedHighWatermark;
   }
 
   public Watermark getActualHighWatermark() {

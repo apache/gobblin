@@ -98,16 +98,8 @@ public class WorkUnit extends State {
     return this.watermarkInterval.getExpectedHighWatermark();
   }
 
-  public void setExpectedHighWatermark(Watermark highWatermark) {
-    this.watermarkInterval.setExpectedHighWatermark(highWatermark);
-  }
-
   public Watermark getLowWatermark() {
     return this.watermarkInterval.getLowWatermark();
-  }
-
-  public void setLowWatermark(Watermark lowWatermark) {
-    this.watermarkInterval.setLowWatermark(lowWatermark);
   }
 
   /**
