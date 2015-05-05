@@ -16,9 +16,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.SequenceInputStream;
-import java.text.SimpleDateFormat;
 import java.util.Collection;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -28,6 +26,7 @@ import java.util.Map;
 public abstract class BaseS3Publisher extends BaseDataPublisher {
   private static final Logger LOG = LoggerFactory.getLogger(BaseS3Publisher.class);
 
+  // Cap the S3 file size to 4 GB
   private static final long MAX_S3_FILE_SIZE = 4L * 1000000000L;
   // Maps keys to content length
   private final Map<BucketAndKey, Long> contentLengths = new HashMap<BucketAndKey, Long>();
