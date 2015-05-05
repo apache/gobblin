@@ -24,6 +24,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 
 import com.google.common.base.Charsets;
+import com.google.common.io.Closer;
 
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.Watermark;
@@ -71,7 +72,7 @@ public class WorkUnit extends State {
     }
   }
 
-  private WorkUnit(SourceState state, Extract extract, WatermarkInterval watermarkInterval) {
+  public WorkUnit(SourceState state, Extract extract, WatermarkInterval watermarkInterval) {
     this(state, extract);
     this.watermarkInterval = watermarkInterval;
   }
@@ -154,36 +155,32 @@ public class WorkUnit extends State {
     this.extract.readFields(in);
 
     // Hack that creates a WatermarkInterval from the value of ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY, until a state-store migration can be done
-    ByteArrayInputStream watermarkIntervalIn = new ByteArrayInputStream(getProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY).getBytes());
-    this.watermarkInterval = new WatermarkInterval();
-    this.watermarkInterval.readFields(new DataInputStream(watermarkIntervalIn));
+    Closer closer = Closer.create();
+    try {
+      ByteArrayInputStream watermarkIntervalIn =
+          closer.register(new ByteArrayInputStream(getProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY).getBytes()));
+      this.watermarkInterval = new WatermarkInterval();
+      this.watermarkInterval.readFields(closer.register(new DataInputStream(watermarkIntervalIn)));
+    } finally {
+      closer.close();
+    }
   }
 
   @Override
   public void write(DataOutput out)
       throws IOException {
     // Hack that serializes a WatermarkInterval using its write(DataOuput out) method, until a state-store migration can be done
-    ByteArrayOutputStream watermarkIntervalOut = new ByteArrayOutputStream();
-    this.watermarkInterval.write(new DataOutputStream(watermarkIntervalOut));
-    watermarkIntervalOut.flush();
-    setProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY, watermarkIntervalOut.toString(Charsets.UTF_8.toString()));
+    Closer closer = Closer.create();
+    try {
+      ByteArrayOutputStream watermarkIntervalOut = closer.register(new ByteArrayOutputStream());
+      this.watermarkInterval.write(closer.register(new DataOutputStream(watermarkIntervalOut)));
+      watermarkIntervalOut.flush();
+      setProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY, watermarkIntervalOut.toString(Charsets.UTF_8.toString()));
+    } finally {
+      closer.close();
+    }
 
     super.write(out);
     this.extract.write(out);
-  }
-
-  public static class Factory {
-
-    private Extract extract;
-    private SourceState sourceState;
-
-    public Factory(Extract extract, SourceState sourceState) {
-      this.extract = extract;
-      this.sourceState = sourceState;
-    }
-
-    public WorkUnit newInstance(WatermarkInterval watermarkInterval) {
-      return new WorkUnit(this.sourceState, this.extract, watermarkInterval);
-    }
   }
 }

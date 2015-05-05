@@ -11,7 +11,6 @@
 
 package gobblin.configuration;
 
-import gobblin.source.extractor.WatermarkInterval;
 import gobblin.source.workunit.Extract;
 
 import java.io.DataInput;
@@ -106,7 +105,6 @@ public class SourceState extends State {
    * @param extract given {@link Extract}
    * @return a new {@link WorkUnit} instance
    */
-  @Deprecated
   public WorkUnit createWorkUnit(Extract extract) {
     return new WorkUnit(this, extract);
   }

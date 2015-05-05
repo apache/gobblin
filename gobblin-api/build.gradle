@@ -14,8 +14,6 @@ apply plugin: 'java'
 dependencies {
     compile externalDependency.guava
     compile externalDependency.jodaTime
-    compile externalDependency.jacksonCore
-    compile externalDependency.jacksonMapper
 
     testCompile externalDependency.testng
 }
