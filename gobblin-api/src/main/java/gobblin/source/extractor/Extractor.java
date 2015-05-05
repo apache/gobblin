@@ -66,20 +66,4 @@ public interface Extractor<S, D> extends Closeable {
    */
   @Deprecated
   public long getHighWatermark();
-
-  /**
-   * This method should return the current high {@link Watermark} for this {@link Extractor}. The {@link Watermark}
-   * indicates that all data for this {@link Watermark} has been pulled up to a specific point. The {@link Watermark}
-   * returned by this method should cover all records up to and including the most recent record returned by
-   * {@link #readRecord(Object)}.
-   *
-   * <p>
-   *  This method may be called by the framework multiple times, in order to track the progress of how the
-   *  {@link Watermark} changes. This is important for reporting percent completion of a
-   *  {@link gobblin.source.workunit.WorkUnit}.
-   * </p>
-   *
-   * @return the current high {@link Watermark} that this {@link Extractor} has pulled data up to.
-   */
-  public Watermark getCurrentHighWatermark();
 }

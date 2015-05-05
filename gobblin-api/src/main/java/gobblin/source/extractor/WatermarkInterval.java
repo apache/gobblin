@@ -1,15 +1,11 @@
 package gobblin.source.extractor;
 
-import gobblin.fork.CopyNotSupportedException;
-
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.Writable;
+import java.util.Iterator;
 
 import com.google.common.base.Preconditions;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 /**
  * Each {@link gobblin.source.workunit.WorkUnit} has a corresponding {@link WatermarkInterval}. The
@@ -17,20 +13,22 @@ import com.google.common.base.Preconditions;
  * {@link gobblin.source.workunit.WorkUnit} should pull data from the {@link #lowWatermark} to the
  * {@link #expectedHighWatermark}.
  */
-public class WatermarkInterval implements Writable {
+public class WatermarkInterval {
 
   private Watermark lowWatermark;
   private Watermark expectedHighWatermark;
-  private Watermark actualHighWatermark;
+
+  private static final String WATERMARK_TO_JSON_CLASS_NAME = "watermark.to.json.class.name";
+  private static final String WATERMARK_TO_JSON_VALUE = "watermark.to.json.value";
+  private static final Integer WATERMARK_TO_JSON_ARRAY_SIZE = 2;
 
   // Needed for the Writable interface
   public WatermarkInterval() {
   }
 
-  private WatermarkInterval(Watermark lowWatermark, Watermark expectedHighWatermark) throws CopyNotSupportedException {
+  private WatermarkInterval(Watermark lowWatermark, Watermark expectedHighWatermark) {
     this.lowWatermark = lowWatermark;
     this.expectedHighWatermark = expectedHighWatermark;
-    this.actualHighWatermark = lowWatermark.copy();
   }
 
   public static class Builder {
@@ -48,16 +46,12 @@ public class WatermarkInterval implements Writable {
       return this;
     }
 
-    public WatermarkInterval build() throws CopyNotSupportedException {
+    public WatermarkInterval build() {
       Preconditions.checkNotNull(this.lowWatermark, "Must specify a low watermark");
       Preconditions.checkNotNull(this.expectedHighWatermark, "Must specify an expected high watermark");
 
       return new WatermarkInterval(this.lowWatermark, this.expectedHighWatermark);
     }
-  }
-
-  public boolean isTargetReached() {
-    return this.actualHighWatermark.equals(this.expectedHighWatermark);
   }
 
   public Watermark getLowWatermark() {
@@ -68,55 +62,63 @@ public class WatermarkInterval implements Writable {
     return this.expectedHighWatermark;
   }
 
-  public Watermark getActualHighWatermark() {
-    return this.actualHighWatermark;
+  public JsonElement toJson() {
+    JsonArray jsonArray = new JsonArray();
+
+    JsonObject lowWatermarkJson = watermarkToJsonObject(this.lowWatermark);
+    JsonObject expectedHighWatermarkJson = watermarkToJsonObject(this.expectedHighWatermark);
+
+    jsonArray.add(lowWatermarkJson);
+    jsonArray.add(expectedHighWatermarkJson);
+
+    return jsonArray;
   }
 
-  @Override
-  public void readFields(DataInput in) throws IOException {
+  public void fromJson(JsonElement json) {
+    Preconditions.checkArgument(json.isJsonArray(), "The given " + json.getClass().getName() + " must a " + JsonArray.class.getName());
+
+    JsonArray jsonArray = json.getAsJsonArray();
+    Preconditions.checkArgument(jsonArray.size() == WATERMARK_TO_JSON_ARRAY_SIZE, "The given " + JsonArray.class.getName() + " must be of size " + WATERMARK_TO_JSON_ARRAY_SIZE);
+
+    Iterator<JsonElement> jsonElements = jsonArray.iterator();
+    JsonElement lowWatermarkJsonElement = jsonElements.next();
+    JsonElement expectedHighWatermarkJsonElement = jsonElements.next();
+
+    Preconditions.checkArgument(
+        lowWatermarkJsonElement.isJsonObject() && expectedHighWatermarkJsonElement.isJsonObject(),
+        "All elements of in the given " + JsonArray.class.getName() + " must of type " + JsonObject.class.getName());
+
     try {
-      this.lowWatermark = (Watermark) Class.forName(Text.readString(in)).newInstance();
-      this.lowWatermark.initFromJson(Text.readString(in));
+      this.lowWatermark = jsonObjectToWatermark(lowWatermarkJsonElement.getAsJsonObject());
     } catch (InstantiationException e) {
-      throw new IOException("Could not properly initialize the low watermark", e);
+      throw new RuntimeException("Could not create the low watermark", e);
     } catch (IllegalAccessException e) {
-      throw new IOException("Could not properly initialize the low watermark", e);
+      throw new RuntimeException("Could not create the low watermark", e);
     } catch (ClassNotFoundException e) {
-      throw new IOException("Could not properly initialize the low watermark", e);
+      throw new RuntimeException("Could not create the low watermark", e);
     }
 
     try {
-      this.expectedHighWatermark = (Watermark) Class.forName(Text.readString(in)).newInstance();
-      this.expectedHighWatermark.initFromJson(Text.readString(in));
+      this.expectedHighWatermark = jsonObjectToWatermark(expectedHighWatermarkJsonElement.getAsJsonObject());
     } catch (InstantiationException e) {
-      throw new IOException("Could not properly initialize the expected high watermark", e);
+      throw new RuntimeException("Could not create the expected high watermark", e);
     } catch (IllegalAccessException e) {
-      throw new IOException("Could not properly initialize the expected high watermark", e);
+      throw new RuntimeException("Could not create the expected high watermark", e);
     } catch (ClassNotFoundException e) {
-      throw new IOException("Could not properly initialize the expected high watermark", e);
-    }
-
-    try {
-      this.actualHighWatermark = (Watermark) Class.forName(Text.readString(in)).newInstance();
-      this.actualHighWatermark.initFromJson(Text.readString(in));
-    } catch (InstantiationException e) {
-      throw new IOException("Could not properly initialize the actual high watermark", e);
-    } catch (IllegalAccessException e) {
-      throw new IOException("Could not properly initialize the actual high watermark", e);
-    } catch (ClassNotFoundException e) {
-      throw new IOException("Could not properly initialize the actual high watermark", e);
+      throw new RuntimeException("Could not create the expected high watermark", e);
     }
   }
 
-  @Override
-  public void write(DataOutput out) throws IOException {
-    Text.writeString(out, this.lowWatermark.getClass().getName());
-    Text.writeString(out, this.lowWatermark.toJson());
+  private JsonObject watermarkToJsonObject(Watermark watermark) {
+    JsonObject jsonObject = new JsonObject();
+    jsonObject.addProperty(WATERMARK_TO_JSON_CLASS_NAME, watermark.getClass().getName());
+    jsonObject.add(WATERMARK_TO_JSON_VALUE, watermark.toJson());
+    return jsonObject;
+  }
 
-    Text.writeString(out, this.expectedHighWatermark.getClass().getName());
-    Text.writeString(out, this.expectedHighWatermark.toJson());
-
-    Text.writeString(out, this.actualHighWatermark.getClass().getName());
-    Text.writeString(out, this.actualHighWatermark.toJson());
+  private Watermark jsonObjectToWatermark(JsonObject jsonObject) throws InstantiationException, IllegalAccessException, ClassNotFoundException {
+   Watermark watermark = (Watermark) Class.forName(jsonObject.get(WATERMARK_TO_JSON_CLASS_NAME).getAsString()).newInstance();
+   watermark.fromJson(jsonObject.get(WATERMARK_TO_JSON_VALUE));
+   return watermark;
   }
 }

@@ -17,9 +17,10 @@ import java.io.IOException;
 import java.util.Set;
 
 import com.google.common.collect.Sets;
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 
 import gobblin.source.extractor.Watermark;
-import gobblin.source.extractor.WatermarkInterval;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.ImmutableWorkUnit;
 import gobblin.source.workunit.WorkUnit;
@@ -54,14 +55,15 @@ public class WorkUnitState extends State {
   }
 
   private WorkUnit workunit;
-  private WatermarkInterval watermarkInterval;
+  private Watermark actualHighWatermark;
+
+  private static final Gson GSON = new Gson();
 
   /**
    * Default constructor used for deserialization.
    */
   public WorkUnitState() {
     this.workunit = new WorkUnit(null, null);
-    this.watermarkInterval = new WatermarkInterval();
   }
 
   /**
@@ -71,7 +73,6 @@ public class WorkUnitState extends State {
    */
   public WorkUnitState(WorkUnit workUnit) {
     this.workunit = workUnit;
-    this.watermarkInterval = workUnit.getWatermarkInterval();
   }
 
   /**
@@ -102,12 +103,34 @@ public class WorkUnitState extends State {
     setProp(ConfigurationKeys.WORK_UNIT_WORKING_STATE_KEY, state.toString());
   }
 
-  public WatermarkInterval getWatermarkInterval() {
-    return this.watermarkInterval;
+  public Watermark getActualHighWatermark() {
+    return this.actualHighWatermark;
   }
 
-  public Watermark getActualHighWatermark() {
-    return this.watermarkInterval.getActualHighWatermark();
+  /**
+   * This method should set the actual, runtime high {@link Watermark} for this {@link WorkUnitState}. A high
+   * {@link Watermark} indicates that all data for the source has been pulled up to a specific point.
+   *
+   * <p>
+   *  This method should be called inside the {@link gobblin.source.extractor.Extractor} class, during the initialization
+   *  of the class, before any calls to {@link gobblin.source.extractor.Extractor#readRecord(Object)} are executed. This
+   *  method keeps a local point to the given {@link Watermark} and expects the following invariant to always be upheld.
+   *  The invariant for this {@link Watermark} is that it should cover all records up to and including the most recent
+   *  record returned by {@link gobblin.source.extractor.Extractor#readRecord(Object)}.
+   * </p>
+
+   * <p>
+   *  The {@link Watermark} set in this method may be polled by the framework multiple times, in order to track the
+   *  progress of how the {@link Watermark} changes. This is important for reporting percent completion of a
+   *  {@link gobblin.source.workunit.WorkUnit}.
+   * </p>
+   *
+   * TODO - Once we are ready to make a backwards incompatible change to the {@link gobblin.source.extractor.Extractor}
+   * interface, this method should become part of the {@link gobblin.source.extractor.Extractor} interface. For example,
+   * a method such as getCurrentHighWatermark() should be added.
+   */
+  public void setActualHighWatermark(Watermark watermark) {
+    this.actualHighWatermark = watermark;
   }
 
   /**
@@ -188,11 +211,46 @@ public class WorkUnitState extends State {
       throws IOException {
     this.workunit.readFields(in);
     super.readFields(in);
+
+    /**
+     * TODO
+     *
+     * The below code is a hack that is serializes a {@link Watermark} by writing it to a key, value pair using the
+     * {@link State} object. In the future, when state-store files have a schema, the {@link Watermark} should be stored
+     * as its own field, and the {@link Gson#toJson(JsonElemet, JsonWriter)} method can be used used to write and
+     * serialize the {@link JsonElement}.
+     */
+    if (contains(ConfigurationKeys.WORK_UNIT_STATE_COMPLEX_ACTUAL_HIGH_WATER_MARK_CLASS)
+        && contains(ConfigurationKeys.WORK_UNIT_STATE_COMPLEX_ACTUAL_HIGH_WATER_MARK_VALUE)) {
+
+      try {
+        this.actualHighWatermark =
+            (Watermark) Class.forName(getProp(ConfigurationKeys.WORK_UNIT_STATE_COMPLEX_ACTUAL_HIGH_WATER_MARK_CLASS))
+                .newInstance();
+        this.actualHighWatermark.fromJson(GSON.fromJson(
+            getProp(ConfigurationKeys.WORK_UNIT_STATE_COMPLEX_ACTUAL_HIGH_WATER_MARK_VALUE), JsonElement.class));
+      } catch (InstantiationException e) {
+        throw new IOException("Could not intiailize actualHighWatermark", e);
+      } catch (IllegalAccessException e) {
+        throw new IOException("Could not intiailize actualHighWatermark", e);
+      } catch (ClassNotFoundException e) {
+        throw new IOException("Could not intiailize actualHighWatermark", e);
+      }
+    }
   }
 
   @Override
   public void write(DataOutput out)
       throws IOException {
+
+    /**
+     * TODO
+     *
+     * See comments inside {@link #readFields(DataInput)}.
+     */
+    setProp(ConfigurationKeys.WORK_UNIT_STATE_COMPLEX_ACTUAL_HIGH_WATER_MARK_CLASS, this.actualHighWatermark.getClass());
+    setProp(ConfigurationKeys.WORK_UNIT_STATE_COMPLEX_ACTUAL_HIGH_WATER_MARK_VALUE, this.actualHighWatermark.toJson());
+
     this.workunit.write(out);
     super.write(out);
   }

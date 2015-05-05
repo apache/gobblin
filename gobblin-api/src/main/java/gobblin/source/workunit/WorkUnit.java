@@ -25,6 +25,8 @@ import java.io.IOException;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Closer;
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.Watermark;
@@ -45,6 +47,8 @@ public class WorkUnit extends State {
 
   private Extract extract;
   private WatermarkInterval watermarkInterval;
+
+  private static final Gson GSON = new Gson();
 
   /**
    * Default constructor.
@@ -94,10 +98,6 @@ public class WorkUnit extends State {
    */
   public Extract getExtract() {
     return this.extract;
-  }
-
-  public WatermarkInterval getWatermarkInterval() {
-    return this.watermarkInterval;
   }
 
   public Watermark getExpectedHighWatermark() {
@@ -154,31 +154,30 @@ public class WorkUnit extends State {
     super.readFields(in);
     this.extract.readFields(in);
 
-    // Hack that creates a WatermarkInterval from the value of ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY, until a state-store migration can be done
-    Closer closer = Closer.create();
-    try {
-      ByteArrayInputStream watermarkIntervalIn =
-          closer.register(new ByteArrayInputStream(getProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY).getBytes()));
+    /**
+     * TODO
+     *
+     * Hack that constructs a {@link WatermarkInterval} by using its {@link WatermarkInterval#fromJson(JsonElement)}
+     * method. Until a state-store migration, or a new state-store format is chosen, this hack will be the way that
+     * the {@link WatermarkInterval} is serialized / de-serialized. Also, see comments in
+     * {@link WorkUnitState#readFields(DataInput)}.
+     */
+    if (contains(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY)) {
       this.watermarkInterval = new WatermarkInterval();
-      this.watermarkInterval.readFields(closer.register(new DataInputStream(watermarkIntervalIn)));
-    } finally {
-      closer.close();
+      this.watermarkInterval.fromJson(GSON.fromJson(getProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY), JsonElement.class));
     }
   }
 
   @Override
   public void write(DataOutput out)
       throws IOException {
-    // Hack that serializes a WatermarkInterval using its write(DataOuput out) method, until a state-store migration can be done
-    Closer closer = Closer.create();
-    try {
-      ByteArrayOutputStream watermarkIntervalOut = closer.register(new ByteArrayOutputStream());
-      this.watermarkInterval.write(closer.register(new DataOutputStream(watermarkIntervalOut)));
-      watermarkIntervalOut.flush();
-      setProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY, watermarkIntervalOut.toString(Charsets.UTF_8.toString()));
-    } finally {
-      closer.close();
-    }
+
+    /**
+     * TODO
+     *
+     * See comments inside {@link #readFields(DataInput)}.
+     */
+    setProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY, this.watermarkInterval.toJson());
 
     super.write(out);
     this.extract.write(out);
