@@ -11,6 +11,12 @@ import org.apache.hadoop.io.Writable;
 
 import com.google.common.base.Preconditions;
 
+/**
+ * Each {@link gobblin.source.workunit.WorkUnit} has a corresponding {@link WatermarkInterval}. The
+ * {@link WatermarkInterval} represents the range of the data that needs to be pulled for the {@link WorkUnit}. So, the
+ * {@link gobblin.source.workunit.WorkUnit} should pull data from the {@link #lowWatermark} to the
+ * {@link #expectedHighWatermark}.
+ */
 public class WatermarkInterval implements Writable {
 
   private Watermark lowWatermark;
