@@ -135,6 +135,11 @@ public class ConfigurationKeys {
   public static final String WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK = "workunit.state.runtime.high.water.mark";
 
   /**
+   * Watermark interval related configuration properties.
+   */
+  public static final String WATERMARK_INTERVAL_VALUE_KEY = "watermark.interval.value";
+
+  /**
    * Extract related configuration properties.
    */
   public static final String EXTRACT_TABLE_TYPE_KEY = "extract.table.type";

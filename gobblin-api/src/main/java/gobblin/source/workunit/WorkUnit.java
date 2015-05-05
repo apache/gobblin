@@ -15,9 +15,15 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
+import java.io.DataInputStream;
 import java.io.DataOutput;
+import java.io.DataOutputStream;
 import java.io.IOException;
+
+import com.google.common.base.Charsets;
 
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.Watermark;
@@ -89,6 +95,10 @@ public class WorkUnit extends State {
     return this.extract;
   }
 
+  public WatermarkInterval getWatermarkInterval() {
+    return this.watermarkInterval;
+  }
+
   public Watermark getExpectedHighWatermark() {
     return this.watermarkInterval.getExpectedHighWatermark();
   }
@@ -142,15 +152,24 @@ public class WorkUnit extends State {
       throws IOException {
     super.readFields(in);
     this.extract.readFields(in);
-    this.watermarkInterval.readFields(in);
+
+    // Hack that creates a WatermarkInterval from the value of ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY, until a state-store migration can be done
+    ByteArrayInputStream watermarkIntervalIn = new ByteArrayInputStream(getProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY).getBytes());
+    this.watermarkInterval = new WatermarkInterval();
+    this.watermarkInterval.readFields(new DataInputStream(watermarkIntervalIn));
   }
 
   @Override
   public void write(DataOutput out)
       throws IOException {
+    // Hack that serializes a WatermarkInterval using its write(DataOuput out) method, until a state-store migration can be done
+    ByteArrayOutputStream watermarkIntervalOut = new ByteArrayOutputStream();
+    this.watermarkInterval.write(new DataOutputStream(watermarkIntervalOut));
+    watermarkIntervalOut.flush();
+    setProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY, watermarkIntervalOut.toString(Charsets.UTF_8.toString()));
+
     super.write(out);
     this.extract.write(out);
-    this.watermarkInterval.write(out);
   }
 
   public static class Factory {

@@ -102,12 +102,12 @@ public class WorkUnitState extends State {
     setProp(ConfigurationKeys.WORK_UNIT_WORKING_STATE_KEY, state.toString());
   }
 
-  public void incrementWatermarkInterval(Object record) {
-    this.watermarkInterval.increment(record);
+  public WatermarkInterval getWatermarkInterval() {
+    return this.watermarkInterval;
   }
 
   public Watermark getActualHighWatermark() {
-    return this.workunit.getWatermarkInterval().getActualHighWatermark();
+    return this.watermarkInterval.getActualHighWatermark();
   }
 
   /**
@@ -187,7 +187,6 @@ public class WorkUnitState extends State {
   public void readFields(DataInput in)
       throws IOException {
     this.workunit.readFields(in);
-    this.watermarkInterval.readFields(in);
     super.readFields(in);
   }
 
@@ -195,7 +194,6 @@ public class WorkUnitState extends State {
   public void write(DataOutput out)
       throws IOException {
     this.workunit.write(out);
-    this.watermarkInterval.write(out);
     super.write(out);
   }
 

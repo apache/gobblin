@@ -69,14 +69,6 @@ public class SourceState extends State {
     this.previousTaskStates.addAll(previousTaskStates);
   }
 
-  public List<WatermarkInterval> getPreviousWatermarkIntervals() {
-    List<WatermarkInterval> previousWatermarks = Lists.newArrayList();
-    for (WorkUnitState workUnitState : this.previousTaskStates) {
-      previousWatermarks.add(workUnitState.getWatermarkInterval());
-    }
-    return previousWatermarks;
-  }
-
   /**
    * Get a (possibly empty) list of {@link WorkUnitState}s from the previous job run.
    *
