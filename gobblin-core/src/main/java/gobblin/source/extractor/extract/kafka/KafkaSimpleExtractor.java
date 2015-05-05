@@ -1,7 +1,6 @@
 package gobblin.source.extractor.extract.kafka;
 
 import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.Extractor;
 import kafka.message.MessageAndOffset;
 
 import java.io.IOException;
