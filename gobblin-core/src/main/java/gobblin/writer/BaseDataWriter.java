@@ -14,7 +14,10 @@ import java.io.IOException;
 import java.net.URI;
 
 /**
- * Created by akshaynanavati on 5/4/15.
+ * An implementation of {@link DataWriter} does the work of setting the output/staging dir
+ * and creating the FileSystem instance.
+ *
+ * @author akshay@nerdwallet.com
  */
 public abstract class BaseDataWriter<D> implements DataWriter<D> {
   private static final Logger LOG = LoggerFactory.getLogger(AvroHdfsDataWriter.class);
