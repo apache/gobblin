@@ -401,4 +401,10 @@ public class ConfigurationKeys {
    * Other configuration properties.
    */
   public static final Charset DEFAULT_CHARSET_ENCODING = Charsets.UTF_8;
+
+  /**
+   * Amazon AWS credentials.
+   */
+  public static final String AWS_ACCESS_KEY = "aws.access.key";
+  public static final String AWS_SECRET_KEY = "aws.secret.key";
 }

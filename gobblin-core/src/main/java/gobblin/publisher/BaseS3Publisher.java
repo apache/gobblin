@@ -10,6 +10,8 @@ import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.util.ForkOperatorUtils;
 import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,8 +26,16 @@ import java.util.Map;
  * Created by akshaynanavati on 5/3/15.
  */
 public abstract class BaseS3Publisher extends BaseDataPublisher {
+  private static final Logger LOG = LoggerFactory.getLogger(BaseS3Publisher.class);
 
   private static final long MAX_S3_FILE_SIZE = 4L * 1000000000L;
+  // Maps keys to content length
+  private final Map<BucketAndKey, Long> contentLengths = new HashMap<BucketAndKey, Long>();
+  // Maps keys to respective input streams
+  private final Map<BucketAndKey, InputStream> data = new HashMap<BucketAndKey, InputStream>();
+  // If the data corresponding to a given key is too big and needs to be split into
+  // two keys, this will append a unique number at the end of the key
+  private final Map<BucketAndKey, Integer> fragments = new HashMap<BucketAndKey, Integer>();
 
   public BaseS3Publisher(State state) {
     super(state);
@@ -38,17 +48,17 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
    */
   @Override
   public void publishData(Collection<? extends WorkUnitState> tasks) throws IOException {
-    Map<BucketAndKey, Long> contentLengths = new HashMap<BucketAndKey, Long>();
-    Map<BucketAndKey, InputStream> data = new HashMap<BucketAndKey, InputStream>();
-
     for (WorkUnitState task : tasks) {
       for (int i = 0; i < numBranches; i++) {
         BucketAndKey bk = getBucketAndKey(task, i);
-        long contentLength = contentLengths.get(bk);
+        Long contentLength = contentLengths.get(bk);
+        if (contentLength == null) {
+          contentLength = 0L;
+        }
         if (contentLength >= MAX_S3_FILE_SIZE) {
           LOG.info(String.format("Content length <" + contentLength + "> exceeds max size <" + MAX_S3_FILE_SIZE + ">"));
           InputStream is = data.get(bk);
-          sendS3Data(bk, is, contentLength);
+          sendS3Data(bk);
           contentLengths.put(bk, 0L);
           data.put(bk, null);
         }
@@ -58,22 +68,20 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
           // Skip this branch as it does not have data output
           continue;
         }
-        Path writerOutputDir = new Path(task
-                .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR, numBranches, i)),
-                task.getProp(writerFilePathKey));
-        Path writerFile = new Path(writerOutputDir, fileName);
+        Path writerFile = new Path(task.getProp(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
         contentLength += this.fss.get(i).getFileStatus(writerFile).getLen();
-
+        contentLengths.put(bk, contentLength);
+        InputStream is = data.get(bk);
         if (is == null) {
-          is = this.fss.get(i).open(writerFile);
+          data.put(bk, this.fss.get(i).open(writerFile));
         } else {
-          is = new SequenceInputStream(this.fss.get(i).open(writerFile), is);
+          data.put(bk, new SequenceInputStream(this.fss.get(i).open(writerFile), is));
         }
         LOG.info("<" + writerFile + "> has been appended to s3 stream");
       }
     }
-    if (is != null) {
-      sendS3Data(task, is, contentLength);
+    for (BucketAndKey k : data.keySet()) {
+      sendS3Data(k);
     }
   }
 
@@ -90,15 +98,21 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
 
   protected abstract BucketAndKey getBucketAndKey(WorkUnitState task, int branch);
 
-  private void sendS3Data(BucketAndKey bk, InputStream is, long contentLength) throws IOException {
+  private void sendS3Data(BucketAndKey bk) throws IOException {
     // get config parameters
     String awsAccessKey = this.getState().getProp(ConfigurationKeys.AWS_ACCESS_KEY);
     String awsSecretKey = this.getState().getProp(ConfigurationKeys.AWS_SECRET_KEY);
-    String bucket = this.getBucket(task);
-    String key = this.getKey(task);
-    String dateKey = new SimpleDateFormat("dd/MM/yyyy").format(new Date());
-    String key = dateKey + "/" + this.state.getProp(ConfigurationKeys.S3_BUCKET_KEY) + "_" +
-            new Date().getTime() + "_" + fileIndex;
+    String bucket = bk.getBucket();
+    Integer fragment = fragments.get(bk);
+    if (fragment == null) {
+      fragment = 0;
+      fragments.put(bk, 1);
+    } else {
+      fragments.put(bk, fragment + 1);
+    }
+    String key = bk.getKey() + "-" + fragment;
+    long contentLength = contentLengths.get(bk);
+    InputStream is = data.get(bk);
 
     AmazonS3Client s3Client;
     LOG.info("Attempting to connect to amazon");
@@ -118,7 +132,6 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
     s3Client.putObject(bucket, key, is, metadata);
     s3Client.shutdown();
     LOG.info("Put <" + key + "> to s3 bucket <" + bucket + ">");
-    fileIndex++;
   }
 
   protected static class BucketAndKey {
