@@ -6,7 +6,9 @@ import gobblin.source.extractor.Extractor;
 import java.io.IOException;
 
 /**
- * Created by akshaynanavati on 4/30/15.
+ * A {@link KafkaSource} implementation for SimpleKafkaExtractor.
+ *
+ * @author akshay@nerdwallet.com
  */
 public class KafkaSimpleSource extends KafkaSource<String, byte[]> {
   /**

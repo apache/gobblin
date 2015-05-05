@@ -1,12 +1,15 @@
 package gobblin.source.extractor.extract.kafka;
 
 import gobblin.configuration.WorkUnitState;
+import gobblin.source.extractor.Extractor;
 import kafka.message.MessageAndOffset;
 
 import java.io.IOException;
 
 /**
- * Created by akshaynanavati on 4/30/15.
+ * An implementation of {@link KafkaExtractor} from which reads and returns records as an array of bytes.
+ *
+ * @author akshay@nerdwallet.com
  */
 public class KafkaSimpleExtractor extends KafkaExtractor<String, byte[]> {
 
