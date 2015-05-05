@@ -71,7 +71,7 @@ public class SimpleDataWriterTest {
     // Build a writer to write test records
     DataWriter<byte[]> writer = new SimpleDataWriterBuilder().writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
             .writeInFormat(WriterOutputFormat.AVRO).withWriterId(TestConstants.TEST_WRITER_ID).withSchema(this.schema)
-            .forBranch(-1).build();
+            .forBranch(0).build();
     byte[] rec1 = {1, 2, 3, 4, 5, 6, 7, 8, 9, 0};
     byte[] rec2 = {11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25};
     byte[] rec3 = {26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45};
@@ -86,8 +86,8 @@ public class SimpleDataWriterTest {
     Assert.assertEquals(writer.recordsWritten(), 3);
     Assert.assertEquals(writer.bytesWritten(), rec1.length + rec2.length + rec3.length);
 
-    File outputFile = new File(TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + this.filePath,
-            TestConstants.TEST_FILE_NAME + "." + TestConstants.TEST_WRITER_ID + "." + "tmp");
+    Assert.assertTrue(properties.contains(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
+    File outputFile = new File(properties.getProp(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
     InputStream is = new FileInputStream(outputFile);
     int c, resNum = 0, resi = 0;
     byte[][] records = {rec1, rec2, rec3};
@@ -112,7 +112,7 @@ public class SimpleDataWriterTest {
     properties.setProp(ConfigurationKeys.SIMPLE_WRITER_DELIMITER, "");
     DataWriter<byte[]> writer = new SimpleDataWriterBuilder().writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
             .writeInFormat(WriterOutputFormat.AVRO).withWriterId(TestConstants.TEST_WRITER_ID).withSchema(this.schema)
-            .forBranch(-1).build();
+            .forBranch(0).build();
     byte[] rec1 = {1, 2, 3, 4, 5, 6, 7, 8, 9, 0};
     byte[] rec2 = {11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25};
     byte[] rec3 = {26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45};
@@ -127,8 +127,9 @@ public class SimpleDataWriterTest {
 
     Assert.assertEquals(writer.recordsWritten(), 3);
     Assert.assertEquals(writer.bytesWritten(), rec1.length + rec2.length + rec3.length + (Long.SIZE / 8 * 3));
-    File outputFile = new File(TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + this.filePath,
-            TestConstants.TEST_FILE_NAME + "." + TestConstants.TEST_WRITER_ID + "." + "tmp");
+
+    Assert.assertTrue(properties.contains(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
+    File outputFile = new File(properties.getProp(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
     DataInputStream dis = new DataInputStream(new FileInputStream(outputFile));
     for (int i=0; i<3; i++) {
       long size = dis.readLong();
@@ -151,7 +152,7 @@ public class SimpleDataWriterTest {
     // Build a writer to write test records
     DataWriter<byte[]> writer = new SimpleDataWriterBuilder().writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
             .writeInFormat(WriterOutputFormat.AVRO).withWriterId(TestConstants.TEST_WRITER_ID).withSchema(this.schema)
-            .forBranch(-1).build();
+            .forBranch(0).build();
     byte[] rec1 = {1, 2, 3, 4, 5, 6, 7, 8, 9, 0};
     byte[] rec2 = {11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25};
     byte[] rec3 = {26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45};
@@ -166,8 +167,8 @@ public class SimpleDataWriterTest {
     Assert.assertEquals(writer.recordsWritten(), 3);
     Assert.assertEquals(writer.bytesWritten(), rec1.length + rec2.length + rec3.length + 3); // 3 bytes for newline character
 
-    File outputFile = new File(TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + this.filePath,
-            TestConstants.TEST_FILE_NAME + "." + TestConstants.TEST_WRITER_ID + "." + "tmp");
+    Assert.assertTrue(properties.contains(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
+    File outputFile = new File(properties.getProp(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
     InputStream is = new FileInputStream(outputFile);
     int c, resNum = 0, resi = 0;
     byte[][] records = {rec1, rec2, rec3};
@@ -192,7 +193,7 @@ public class SimpleDataWriterTest {
     properties.setProp(ConfigurationKeys.SIMPLE_WRITER_PREPEND_SIZE, true);
     DataWriter<byte[]> writer = new SimpleDataWriterBuilder().writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
             .writeInFormat(WriterOutputFormat.AVRO).withWriterId(TestConstants.TEST_WRITER_ID).withSchema(this.schema)
-            .forBranch(-1).build();
+            .forBranch(0).build();
     byte[] rec1 = {1, 2, 3, 4, 5, 6, 7, 8, 9, 0};
     byte[] rec2 = {11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25};
     byte[] rec3 = {26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45};
@@ -207,8 +208,9 @@ public class SimpleDataWriterTest {
 
     Assert.assertEquals(writer.recordsWritten(), 3);
     Assert.assertEquals(writer.bytesWritten(), rec1.length + rec2.length + rec3.length + (Long.SIZE / 8 * 3) + 3);
-    File outputFile = new File(TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + this.filePath,
-            TestConstants.TEST_FILE_NAME + "." + TestConstants.TEST_WRITER_ID + "." + "tmp");
+
+    Assert.assertTrue(properties.contains(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
+    File outputFile = new File(properties.getProp(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
     DataInputStream dis = new DataInputStream(new FileInputStream(outputFile));
     for (int i=0; i<3; i++) {
       long size = dis.readLong();
@@ -231,7 +233,7 @@ public class SimpleDataWriterTest {
           throws IOException {
     DataWriter<byte[]> writer = new SimpleDataWriterBuilder().writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
             .writeInFormat(WriterOutputFormat.AVRO).withWriterId(TestConstants.TEST_WRITER_ID).withSchema(this.schema)
-            .forBranch(-1).build();
+            .forBranch(0).build();
     int totalBytes = 3; // 3 extra bytes for the newline character
     // Write all test records
     for (String record : TestConstants.JSON_RECORDS) {
@@ -247,9 +249,8 @@ public class SimpleDataWriterTest {
     Assert.assertEquals(writer.recordsWritten(), 3);
     Assert.assertEquals(writer.bytesWritten(), totalBytes);
 
-    File outputFile = new File(TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + this.filePath,
-            TestConstants.TEST_FILE_NAME + "." + TestConstants.TEST_WRITER_ID + "." +
-                    "tmp");
+    Assert.assertTrue(properties.contains(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
+    File outputFile = new File(properties.getProp(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
     BufferedReader br = new BufferedReader(new FileReader(outputFile));
     String line;
     int lineNumber = 0;
@@ -286,7 +287,7 @@ public class SimpleDataWriterTest {
 
     DataWriter<byte[]> writer = new SimpleDataWriterBuilder().writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
             .writeInFormat(WriterOutputFormat.AVRO).withWriterId(TestConstants.TEST_WRITER_ID).withSchema(this.schema)
-            .forBranch(-1).build();
+            .forBranch(0).build();
 
     writer.write(randomBytesWrite);
     writer.close();
@@ -295,9 +296,9 @@ public class SimpleDataWriterTest {
     Assert.assertEquals(writer.recordsWritten(), 1);
     Assert.assertEquals(writer.bytesWritten(), randomBytesWrite.length + 1);
 
+    Assert.assertTrue(properties.contains(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
+    File writeFile = new File(properties.getProp(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
     int c, i = 0;
-    File writeFile = new File(TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + this.filePath,
-            TestConstants.TEST_FILE_NAME + "." + TestConstants.TEST_WRITER_ID + "." + "tmp");
     InputStream is = new FileInputStream(writeFile);
     while ((c = is.read()) != -1) {
       if (i == 5) {

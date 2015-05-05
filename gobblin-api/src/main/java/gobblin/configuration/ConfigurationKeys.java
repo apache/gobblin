@@ -191,6 +191,7 @@ public class ConfigurationKeys {
   public static final String WRITER_FILE_SYSTEM_URI = WRITER_PREFIX + ".fs.uri";
   public static final String WRITER_STAGING_DIR = WRITER_PREFIX + ".staging.dir";
   public static final String WRITER_OUTPUT_DIR = WRITER_PREFIX + ".output.dir";
+  public static final String WRITER_FINAL_OUTPUT_PATH = WRITER_PREFIX + ".final.output.path";
   public static final String WRITER_BUILDER_CLASS = WRITER_PREFIX + ".builder.class";
   public static final String DEFAULT_WRITER_BUILDER_CLASS = "gobblin.writer.AvroDataWriterBuilder";
   public static final String WRITER_FILE_NAME = WRITER_PREFIX + ".file.name";
