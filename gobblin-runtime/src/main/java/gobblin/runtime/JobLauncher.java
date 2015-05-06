@@ -12,7 +12,7 @@
 package gobblin.runtime;
 
 import java.io.Closeable;
-import java.util.Properties;
+import javax.annotation.Nullable;
 
 
 /**
@@ -33,7 +33,7 @@ public interface JobLauncher extends Closeable {
    * @param jobListener {@link JobListener} used for callback, can be <em>null</em> if no callback is needed.
    * @throws JobException if there is anything wrong launching and running the job
    */
-  public void launchJob(JobListener jobListener)
+  public void launchJob(@Nullable JobListener jobListener)
       throws JobException;
 
   /**
@@ -42,6 +42,6 @@ public interface JobLauncher extends Closeable {
    * @param jobListener {@link JobListener} used for callback, can be <em>null</em> if no callback is needed.
    * @throws JobException if there is anything wrong cancelling the job
    */
-  public void cancelJob(JobListener jobListener)
+  public void cancelJob(@Nullable JobListener jobListener)
       throws JobException;
 }

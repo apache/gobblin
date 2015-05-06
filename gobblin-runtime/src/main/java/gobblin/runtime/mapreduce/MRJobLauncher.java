@@ -60,9 +60,7 @@ import gobblin.metastore.StateStore;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.FileBasedJobLock;
-import gobblin.runtime.JobException;
 import gobblin.runtime.JobLauncher;
-import gobblin.runtime.JobListener;
 import gobblin.runtime.JobLock;
 import gobblin.runtime.JobState;
 import gobblin.runtime.Task;
@@ -103,58 +101,34 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
   private final Configuration conf;
   private final FileSystem fs;
+  private final Job job;
 
-  private volatile Job job;
-  private volatile Path mrJobDir;
-
-  public MRJobLauncher(Properties properties, Properties jobProps)
+  public MRJobLauncher(Properties sysProps, Properties jobProps)
       throws Exception {
-    this(properties, jobProps, new Configuration());
+    this(sysProps, jobProps, new Configuration());
   }
 
   public MRJobLauncher(Properties properties, Properties jobProps, Configuration conf)
       throws Exception {
     super(properties, jobProps);
     this.conf = conf;
-    URI fsUri = URI.create(this.properties.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
+    URI fsUri = URI.create(this.sysProps.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
     this.fs = FileSystem.get(fsUri, conf);
-  }
+    this.job = Job.getInstance(this.conf, JOB_NAME_PREFIX + this.jobContext.getJobName());
 
-  @Override
-  public void cancelJob(JobListener jobListener)
-      throws JobException {
-    try {
-      if (!this.isCancelled && this.job != null && !this.job.isComplete()) {
-        LOG.info("Killing Hadoop MR job " + this.job.getJobID());
-        this.job.killJob();
-      }
-      this.isCancelled = true;
-      LOG.info("Cancelled job " + this.jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY));
-      if (jobListener != null) {
-        jobListener.onJobCancellation(this.jobState);
-      }
-    } catch (IOException ioe) {
-      LOG.error("Failed to kill the Hadoop MR job " + this.job.getJobID(), ioe);
-      throw new JobException("Failed to kill the Hadoop MR job " + this.job.getJobID(), ioe);
-    } finally {
-      cleanUpWorkingDirectory();
-    }
+    startCancellationExecutor();
   }
 
   @Override
   public void close()
       throws IOException {
     try {
-      super.close();
-    } finally {
-      if (!this.isCancelled && this.job != null && !this.job.isComplete()) {
-        LOG.info("Killing Hadoop MR job " + this.job.getJobID());
-        try {
-          this.job.killJob();
-        } finally {
-          cleanUpWorkingDirectory();
-        }
+      if (!this.job.isComplete()) {
+        LOG.info("Killing the Hadoop MR job for job " + this.jobContext.getJobId());
+        this.job.killJob();
       }
+    } finally {
+      super.close();
     }
   }
 
@@ -173,40 +147,49 @@ public class MRJobLauncher extends AbstractJobLauncher {
     // Do not cancel delegation tokens after job has completed (HADOOP-7002)
     this.conf.setBoolean("mapreduce.job.complete.cancel.delegation.tokens", false);
 
-    this.mrJobDir = new Path(this.jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY), this.jobName);
-    if (this.fs.exists(this.mrJobDir)) {
-      LOG.warn("Job working directory already exists for job " + this.jobName);
-      this.fs.delete(this.mrJobDir, true);
+    String jobName = this.jobContext.getJobName();
+    JobState jobState = this.jobContext.getJobState();
+
+    Path mrJobDir = new Path(this.jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY), jobName);
+    if (this.fs.exists(mrJobDir)) {
+      LOG.warn("Job working directory already exists for job " + jobName);
+      this.fs.delete(mrJobDir, true);
     }
 
-    // Delete any staging directories that already exist before the Hadoop MR job starts
-    JobLauncherUtils.cleanStagingData(JobLauncherUtils.flattenWorkUnits(workUnits), LOG);
-
     try {
-      Path jobOutputPath = prepareHadoopJob(this.jobName, this.jobProps, workUnits);
+      // Delete any staging directories that already exist before the Hadoop MR job starts
+      JobLauncherUtils.cleanStagingData(JobLauncherUtils.flattenWorkUnits(workUnits), LOG);
+
+      Path jobOutputPath = prepareHadoopJob(this.jobProps, workUnits, mrJobDir);
       LOG.info("Launching Hadoop MR job " + this.job.getJobName());
       this.job.submit();
+
       // Set job tracking URL to the Hadoop job tracking URL if it is not set yet
-      if (!this.jobState.contains(ConfigurationKeys.JOB_TRACKING_URL_KEY)) {
-        this.jobState.setProp(ConfigurationKeys.JOB_TRACKING_URL_KEY, this.job.getTrackingURL());
+      if (!jobState.contains(ConfigurationKeys.JOB_TRACKING_URL_KEY)) {
+        jobState.setProp(ConfigurationKeys.JOB_TRACKING_URL_KEY, this.job.getTrackingURL());
       }
-      // Wait for the job to complete
+
+      LOG.info(String.format("Waiting for Hadoop MR job %s to complete", this.job.getJobID()));
       this.job.waitForCompletion(true);
 
-      if (this.isCancelled) {
-        this.jobState.setState(JobState.RunningState.CANCELLED);
-        return;
+      synchronized (this.cancellationExecutor) {
+        // Check if cancellation has been requested upon the completion of the Hadoop MR job,
+        // which may be the result of the cancellation.
+        if (this.cancellationExecuted) {
+          jobState.setState(JobState.RunningState.CANCELLED);
+          return;
+        }
       }
 
-      this.jobState.setState(this.job.isSuccessful() ? JobState.RunningState.SUCCESSFUL : JobState.RunningState.FAILED);
+      jobState.setState(this.job.isSuccessful() ? JobState.RunningState.SUCCESSFUL : JobState.RunningState.FAILED);
       // Collect the output task states and add them to the job state
-      this.jobState.addTaskStates(
+      jobState.addTaskStates(
           collectOutput(new Path(jobOutputPath, this.jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY))));
 
       // Create a metrics set for this job run from the Hadoop counters.
       // The metrics set is to be persisted to the metrics store later.
       countersToMetrics(this.job.getCounters(),
-          JobMetrics.get(this.jobName, this.jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY)));
+          JobMetrics.get(jobName, this.jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY)));
     } finally {
       cleanUpWorkingDirectory();
     }
@@ -215,15 +198,30 @@ public class MRJobLauncher extends AbstractJobLauncher {
   @Override
   protected JobLock getJobLock()
       throws IOException {
-    return new FileBasedJobLock(this.fs, this.jobProps.getProperty(ConfigurationKeys.JOB_LOCK_DIR_KEY), this.jobName);
+    return new FileBasedJobLock(this.fs, this.jobProps.getProperty(ConfigurationKeys.JOB_LOCK_DIR_KEY),
+        this.jobContext.getJobName());
+  }
+
+  @Override
+  protected void executeCancellation() {
+    try {
+      if (!this.job.isComplete()) {
+        LOG.info("Killing the Hadoop MR job for job " + this.jobContext.getJobId());
+        this.job.killJob();
+      }
+    } catch (IllegalStateException ise) {
+      LOG.error("The Hadoop MR job has not started for job " + this.jobContext.getJobId());
+    } catch (IOException ioe) {
+      LOG.error("Failed to kill the Hadoop MR job for job " + this.jobContext.getJobId());
+    }
   }
 
   /**
    * Prepare the Hadoop MR job, including configuring the job and setting up the input/output paths.
    */
-  private Path prepareHadoopJob(String jobName, Properties jobProps, List<WorkUnit> workUnits)
+  private Path prepareHadoopJob(Properties jobProps, List<WorkUnit> workUnits, Path mrJobDir)
       throws IOException {
-    Path jarFileDir = new Path(this.mrJobDir, "_jars");
+    Path jarFileDir = new Path(mrJobDir, "_jars");
     // Add framework jars to the classpath for the mappers/reducer
     if (jobProps.containsKey(ConfigurationKeys.FRAMEWORK_JAR_FILES_KEY)) {
       addJars(jarFileDir, jobProps.getProperty(ConfigurationKeys.FRAMEWORK_JAR_FILES_KEY));
@@ -235,7 +233,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     // Add other files (if any) the job depends on to DistributedCache
     if (jobProps.containsKey(ConfigurationKeys.JOB_LOCAL_FILES_KEY)) {
-      addLocalFiles(new Path(this.mrJobDir, "_files"), jobProps.getProperty(ConfigurationKeys.JOB_LOCAL_FILES_KEY));
+      addLocalFiles(new Path(mrJobDir, "_files"), jobProps.getProperty(ConfigurationKeys.JOB_LOCAL_FILES_KEY));
     }
 
     // Add files (if any) already on HDFS that the job depends on to DistributedCache
@@ -243,8 +241,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
       addHDFSFiles(jobProps.getProperty(ConfigurationKeys.JOB_HDFS_FILES_KEY));
     }
 
-    // Preparing a Hadoop MR job
-    this.job = Job.getInstance(this.conf, JOB_NAME_PREFIX + jobName);
     this.job.setJarByClass(MRJobLauncher.class);
     this.job.setMapperClass(TaskRunner.class);
 
@@ -260,14 +256,14 @@ public class MRJobLauncher extends AbstractJobLauncher {
     this.job.setSpeculativeExecution(false);
 
     // Job input path is where input work unit files are stored
-    Path jobInputPath = new Path(this.mrJobDir, "input");
+    Path jobInputPath = new Path(mrJobDir, "input");
 
     // Prepare job input
     Path jobInputFile = prepareJobInput(jobInputPath, workUnits);
     NLineInputFormat.addInputPath(this.job, jobInputFile);
 
     // Job output path is where serialized task states are stored
-    Path jobOutputPath = new Path(this.mrJobDir, "output");
+    Path jobOutputPath = new Path(mrJobDir, "output");
     SequenceFileOutputFormat.setOutputPath(this.job, jobOutputPath);
 
     if (jobProps.containsKey(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY)) {
@@ -350,7 +346,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     Closer closer = Closer.create();
     try {
       // The job input is a file named after the job ID listing all work unit file paths
-      Path jobInputFile = new Path(jobInputPath, this.jobId + ".wulist");
+      Path jobInputFile = new Path(jobInputPath, this.jobContext.getJobId() + ".wulist");
       // Open the job input file
       OutputStream os = closer.register(this.fs.create(jobInputFile));
       Writer osw = closer.register(new OutputStreamWriter(os, ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
@@ -428,13 +424,15 @@ public class MRJobLauncher extends AbstractJobLauncher {
    * Cleanup the Hadoop MR working directory.
    */
   private void cleanUpWorkingDirectory() {
+    Path mrJobDir = new Path(this.jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY),
+        this.jobContext.getJobName());
     try {
-      if (this.mrJobDir != null && this.fs.exists(this.mrJobDir)) {
-        this.fs.delete(this.mrJobDir, true);
-        LOG.info("Deleted working directory " + this.mrJobDir);
+      if (this.fs.exists(mrJobDir)) {
+        this.fs.delete(mrJobDir, true);
+        LOG.info("Deleted working directory " + mrJobDir);
       }
     } catch (IOException ioe) {
-      LOG.error("Failed to delete working directory " + this.mrJobDir);
+      LOG.error("Failed to delete working directory " + mrJobDir);
     }
   }
 
@@ -485,8 +483,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
         this.taskStateStore = new FsStateStore<TaskState>(
             this.fs, SequenceFileOutputFormat.getOutputPath(context).toUri().getPath(), TaskState.class);
       } catch (IOException ioe) {
-        LOG.error("Failed to setup the mapper task", ioe);
-        throw new RuntimeException(ioe);
+        throw new RuntimeException("Failed to setup the mapper task", ioe);
       }
 
       this.taskExecutor = new TaskExecutor(context.getConfiguration());
@@ -575,8 +572,17 @@ public class MRJobLauncher extends AbstractJobLauncher {
         }
       }
 
-      List<Task> tasks = AbstractJobLauncher.runWorkUnits(jobId, workUnits, this.taskStateTracker, this.taskExecutor,
-          new CountDownLatch(workUnits.size()));
+      CountDownLatch countDownLatch = new CountDownLatch(workUnits.size());
+      List<Task> tasks = AbstractJobLauncher.submitWorkUnits(
+          jobId, workUnits, this.taskStateTracker, this.taskExecutor, countDownLatch);
+
+      LOG.info(String.format("Waiting for submitted tasks of job %s to complete...", jobId));
+      while (countDownLatch.getCount() > 0) {
+        LOG.info(String
+            .format("%d out of %d tasks of job %s are running", countDownLatch.getCount(), workUnits.size(), jobId));
+        countDownLatch.await(10, TimeUnit.SECONDS);
+      }
+      LOG.info(String.format("All tasks of job %s have completed", jobId));
 
       boolean hasTaskFailure = false;
       for (Task task : tasks) {

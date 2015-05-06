@@ -74,7 +74,9 @@ public class AzkabanJobLauncher extends AbstractJob {
       properties.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, System.getenv(HADOOP_TOKEN_FILE_LOCATION));
     }
 
-    // Create a JobLauncher instance depending on the configuration
+    // Create a JobLauncher instance depending on the configuration. The same properties object is
+    // used for both system and job configuration properties because Azkaban puts configuration
+    // properties in the .job file and in the .properties file into the same Properties object.
     this.jobLauncher = this.closer.register(JobLauncherFactory.newJobLauncher(properties, properties));
   }
 

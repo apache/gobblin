@@ -42,19 +42,19 @@ public class JobLauncherFactory {
    *   This method will never return a {@code null}.
    * </p>
    *
-   * @param properties framework configuration properties
+   * @param sysProps system configuration properties
    * @param jobProps job configuration properties
    * @return newly created {@link JobLauncher}
    */
-  public static @Nonnull JobLauncher newJobLauncher(Properties properties, Properties jobProps)
+  public static @Nonnull JobLauncher newJobLauncher(Properties sysProps, Properties jobProps)
       throws Exception {
     JobLauncherType launcherType = JobLauncherType
-        .valueOf(properties.getProperty(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherType.LOCAL.name()));
+        .valueOf(sysProps.getProperty(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherType.LOCAL.name()));
     switch (launcherType) {
       case LOCAL:
-        return new LocalJobLauncher(properties, jobProps);
+        return new LocalJobLauncher(sysProps, jobProps);
       case MAPREDUCE:
-        return new MRJobLauncher(properties, jobProps);
+        return new MRJobLauncher(sysProps, jobProps);
       default:
         throw new RuntimeException("Unsupported job launcher type: " + launcherType.name());
     }
