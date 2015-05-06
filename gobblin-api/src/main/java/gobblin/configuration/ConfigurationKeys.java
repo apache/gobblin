@@ -387,7 +387,7 @@ public class ConfigurationKeys {
   public static final String REST_SERVER_HOST_KEY = "rest.server.host";
   public static final String DEFAULT_REST_SERVER_HOST = "localhost";
   public static final String REST_SERVER_PORT_KEY = "rest.server.port";
-  public static final String DEFAULT_REST_SERVER_PORT = "8080";
+  public static final String DEFAULT_REST_SERVER_PORT = "8000";
 
   /**
    * MySQL job history store configuration properties.
