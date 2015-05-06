@@ -411,4 +411,6 @@ public class ConfigurationKeys {
    */
   public static final String AWS_ACCESS_KEY = "aws.access.key";
   public static final String AWS_SECRET_KEY = "aws.secret.key";
+  public static final String S3_BUCKET = "aws.s3.bucket";
+  public static final String S3_PARTITIONS = "aws.s3.partitions";
 }
