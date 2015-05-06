@@ -119,7 +119,7 @@ class AvroHdfsDataWriter extends BaseDataWriter<GenericRecord> {
     // the output file if it already exists prevents task retry from being blocked.
     if (this.fs.exists(this.outputFile)) {
       LOG.warn(String.format("Task output file %s already exists", this.outputFile));
-      this.fs.delete(this.outputFile, false);
+      this.deletePath(this.outputFile, false);
     }
 
     if (!this.fs.rename(this.stagingFile, this.outputFile)) {
@@ -132,7 +132,7 @@ class AvroHdfsDataWriter extends BaseDataWriter<GenericRecord> {
       throws IOException {
     // Delete the staging file
     if (this.fs.exists(this.stagingFile)) {
-      this.fs.delete(this.stagingFile, false);
+      this.deletePath(this.stagingFile, false);
     }
   }
 

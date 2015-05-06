@@ -50,12 +50,24 @@ public abstract class BaseDataWriter<D> implements DataWriter<D> {
     // Deleting the staging file prevents the task retry from being blocked.
     if (this.fs.exists(this.stagingFile)) {
       LOG.warn(String.format("Task staging file %s already exists, deleting it", this.stagingFile));
-      this.fs.delete(this.stagingFile, false);
+      this.deletePath(this.stagingFile, false);
     }
 
     // Create the parent directory of the output file if it does not exist
     if (!this.fs.exists(this.outputFile.getParent())) {
       this.fs.mkdirs(this.outputFile.getParent());
+    }
+  }
+
+  /**
+   * A wrapper around this.fs.delete which throws IOException if this.fs.delete returns False.
+   * @param f Path to be deleted
+   * @param recursive
+   * @throws IOException if the deletion fails
+   */
+  protected void deletePath(Path f, boolean recursive) throws IOException {
+    if (!this.fs.delete(f, recursive)) {
+      throw new IOException("Failed to delete: " + f);
     }
   }
 }
