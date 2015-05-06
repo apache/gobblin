@@ -32,7 +32,17 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Created by akshaynanavati on 5/3/15.
+ * An implementation of {@link BaseDataPublisher} that publishes the data from the writer
+ * to S3.
+ *
+ * <p>
+ *
+ * The user must provide a getBucketAndKey method which returns the S3 bucket and key to post the data
+ * to. The publisher iterates through all tasks and appends files with the exact same BucketAndKey.
+ * If the file size exceeds 4GB or after all the data has been appended, the data is published to S3.
+ * The files written by each task are specified by {@link ConfigurationKeys#WRITER_FINAL_OUTPUT_PATH}.
+ *
+ * @author akshay@nerdwallet.com
  */
 public abstract class BaseS3Publisher extends BaseDataPublisher {
   private static final Logger LOG = LoggerFactory.getLogger(BaseS3Publisher.class);

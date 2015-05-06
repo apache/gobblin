@@ -20,7 +20,14 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 /**
- * Created by akshaynanavati on 5/5/15.
+ * An implementation of {@link BaseS3Publisher} that publishes Kafka data to S3
+ *
+ * <p>
+ *
+ * The bucket is specified by the Kafka topic and the key is specified by the date followed by the writer
+ * file name.
+ *
+ * @author akshay@nerdwallet.com
  */
 public class KafkaS3Publisher extends BaseS3Publisher {
   public KafkaS3Publisher(State state) {
