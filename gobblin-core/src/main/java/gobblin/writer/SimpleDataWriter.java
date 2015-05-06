@@ -41,9 +41,9 @@ public class SimpleDataWriter extends BaseDataWriter<byte[]> {
     super(properties, fileName, numBranches, branchId);
     String delim;
     if ((delim = properties.getProp(ConfigurationKeys.SIMPLE_WRITER_DELIMITER, null)) == null || delim.length() == 0) {
-      recordDelimiter = null;
+      this.recordDelimiter = null;
     } else {
-      recordDelimiter = delim.getBytes()[0];
+      this.recordDelimiter = delim.getBytes()[0];
     }
 
     this.outputStream = this.fs.create(this.stagingFile, true);
