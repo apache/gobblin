@@ -35,7 +35,7 @@ public class KafkaS3Publisher extends BaseS3Publisher {
   }
   @Override
   protected BucketAndKey getBucketAndKey(WorkUnitState task, int branch) {
-    String bucket = task.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY));
+    String bucket = task.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY);
     String key = new SimpleDateFormat("dd/MM/yyyy/").format(new Date()) +
             new Path(task.getProp(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH)).getName();
     return new BucketAndKey(bucket, key);
