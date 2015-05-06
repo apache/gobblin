@@ -31,7 +31,7 @@ import java.net.URI;
  * @author akshay@nerdwallet.com
  */
 public abstract class BaseDataWriter<D> implements DataWriter<D> {
-  private static final Logger LOG = LoggerFactory.getLogger(AvroHdfsDataWriter.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BaseDataWriter.class);
 
   protected final FileSystem fs;
   protected final Path stagingFile;
