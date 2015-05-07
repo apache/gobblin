@@ -248,6 +248,7 @@ public class ConfigurationKeys {
   public static final String DATA_PUBLISHER_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".final.dir";
   public static final String DATA_PUBLISHER_REPLACE_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".replace.final.dir";
   public static final String DATA_PUBLISHER_FINAL_NAME = DATA_PUBLISHER_PREFIX + ".final.name";
+  public static final String DATA_PUBLISHER_FILE_EXTENSION = DATA_PUBLISHER_PREFIX + ".file.extension";
 
   /**
    * Configuration properties used by the extractor.

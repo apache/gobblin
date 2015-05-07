@@ -61,7 +61,7 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
     String awsAccessKey = this.getState().getProp(ConfigurationKeys.AWS_ACCESS_KEY);
     String awsSecretKey = this.getState().getProp(ConfigurationKeys.AWS_SECRET_KEY);
     String bucket = bk.getBucket();
-    String key = bk.getKey();
+    String key = bk.getKey() + this.getState().getProp(ConfigurationKeys.DATA_PUBLISHER_FILE_EXTENSION, ".txt");
 
     AmazonS3Client s3Client;
     LOG.info("Attempting to connect to amazon");
