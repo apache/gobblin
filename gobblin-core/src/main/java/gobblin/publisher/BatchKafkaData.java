@@ -28,7 +28,7 @@ class BatchKafkaData {
 
   /**
    * Batches all Kafka for one partition for each branch and returns a mapping from
-   * &lt;topic&gt-&lt;branch&gt; to a list of streams. Each stream in the list is a
+   * &lt;topic&gt;-&lt;branch&gt; to a list of streams. Each stream in the list is a
    * concatenation of tasks with the same topic in that branch. However, if one stream
    * exceeds {@link BatchKafkaData#MAX_KAFKA_FILE_SIZE}, a new such object is appened
    * to the list. Each element of the list corresponds to one file to be published.
@@ -36,7 +36,7 @@ class BatchKafkaData {
    * @param tasks a collection of all tasks completed in this job
    * @param numBranches number of branches in this job
    * @param fss one file system instance per branch
-   * @return a mapping from &lt;topic&gt-&lt;branch&gt; to a list of streams
+   * @return a mapping from &lt;topic&gt;-&lt;branch&gt; to a list of streams
    * @throws IOException
    */
   public static Map<String, LinkedList<LengthAndStream>>
