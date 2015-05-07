@@ -32,14 +32,13 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
-import com.google.common.base.Strings;
+import com.google.common.base.Preconditions;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
-import gobblin.metrics.kafka.KafkaAvroReporter;
 import gobblin.metrics.kafka.KafkaReporter;
-import gobblin.source.extractor.extract.kafka.KafkaAvroExtractor;
+import gobblin.metrics.kafka.KafkaReportingFormats;
 
 
 /**
@@ -260,34 +259,32 @@ public class GobblinMetrics {
       return;
     }
 
+    try {
+      Preconditions.checkArgument(properties.containsKey(ConfigurationKeys.METRICS_KAFKA_BROKERS),
+          "Kafka metrics brokers missing.");
+      Preconditions.checkArgument(properties.containsKey(ConfigurationKeys.METRICS_KAFKA_TOPIC),
+          "Kafka metrics topic missing.");
+    } catch(IllegalArgumentException exception) {
+      LOGGER.error("Wrong arguments for Kafka metrics.", exception);
+      return;
+    }
+
     String brokers = properties.getProperty(ConfigurationKeys.METRICS_KAFKA_BROKERS);
     String topic = properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC);
-
-    if (Strings.isNullOrEmpty(brokers)) {
-      LOGGER.error("Kafka metrics brokers property is empty or not supplied. Will not report metrics to Kafka.");
-      return;
-    }
-
-    if (Strings.isNullOrEmpty(topic)) {
-      LOGGER.error("Kafka metrics topic property is empty or not supplied. Will not report metrics to Kafka.");
-      return;
-    }
 
     String reportingFormat = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_FORMAT,
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_FORMAT);
 
-    if (!reportingFormat.equalsIgnoreCase("avro") && !reportingFormat.equalsIgnoreCase("json")) {
-      LOGGER.warn("Kafka metrics reporting format " + reportingFormat + " not recognized. Will report in json format.");
-      reportingFormat = "json";
+    KafkaReportingFormats formatEnum;
+    try {
+      formatEnum = KafkaReportingFormats.valueOf(reportingFormat.toUpperCase());
+    } catch(IllegalArgumentException exception) {
+      LOGGER.warn("Kafka metrics reporting format " + reportingFormat +
+          " not recognized. Will report in json format.", exception);
+      formatEnum = KafkaReportingFormats.JSON;
     }
 
-    if (reportingFormat.equalsIgnoreCase("json")) {
-      this.kafkaReporter = Optional.of(
-          closer.register(KafkaReporter.forContext(this.metricContext).build(brokers, topic)));
-    } else if (reportingFormat.equalsIgnoreCase("avro")) {
-      this.kafkaReporter = Optional.of(
-          (KafkaReporter)closer.register(KafkaAvroReporter.forContext(this.metricContext).build(brokers, topic)));
-    }
+    this.kafkaReporter = Optional.of(formatEnum.reporterBuilder(this.metricContext).build(brokers, topic));
 
   }
 
