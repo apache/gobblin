@@ -14,6 +14,7 @@ package gobblin.publisher;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 
 import java.io.IOException;
@@ -63,7 +64,7 @@ public class KafkaS3Publisher extends BaseS3Publisher {
   }
 
   /**
-   * The S3 key is &lt;prefix&gt;/&lt;topic&gt;/dd/mm/yyyy, where the prefix is a random number between
+   * The S3 key is &lt;prefix&gt;/&lt;topic&gt;/yyyy/mm/dd, where the prefix is a random number between
    * 0 and {@link BaseS3Publisher#s3Partitions} (non inclusive) for better s3 partitioning.
    *
    * @param batchKey The key used by battching which should be in the format &lt;topic&gt;-&lt;branch&gt;. The
@@ -72,15 +73,14 @@ public class KafkaS3Publisher extends BaseS3Publisher {
    */
   private String getS3Key(String batchKey) {
     String[] arr = batchKey.split("-");
-    arr[arr.length - 1] = ""; // drop the branch from the key
-    String topic = StringUtils.join(arr, "-");
+    Object[] arr1 = ArrayUtils.remove(arr, arr.length - 1);
+    String topic = StringUtils.join(arr1, "-");
     int prefix = new Random(System.nanoTime()).nextInt(s3Partitions);
     return String.format(
             "%d/%s/%s",
             prefix,
             topic,
-            new SimpleDateFormat("dd/MM/yyyy").format(new Date())
+            new SimpleDateFormat("yyyy/MM/dd/HH").format(new Date())
     );
   }
-
 }
