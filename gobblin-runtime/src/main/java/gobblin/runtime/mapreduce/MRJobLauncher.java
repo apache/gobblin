@@ -172,7 +172,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
       LOG.info(String.format("Waiting for Hadoop MR job %s to complete", this.job.getJobID()));
       this.job.waitForCompletion(true);
 
-      synchronized (this.cancellationExecutor) {
+      synchronized (this.cancellationLock) {
         // Check if cancellation has been requested upon the completion of the Hadoop MR job,
         // which may be the result of the cancellation.
         if (this.cancellationExecuted) {

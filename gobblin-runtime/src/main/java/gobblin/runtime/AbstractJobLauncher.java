@@ -156,7 +156,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       // Wait for the cancellation to be executed
       synchronized (this.cancellationLock) {
         try {
-          this.cancellationLock.wait(TimeUnit.SECONDS.toMillis(5));
+          this.cancellationLock.wait(TimeUnit.SECONDS.toMillis(60));
         } catch (InterruptedException ie) {
           Thread.currentThread().interrupt();
           return;
@@ -332,14 +332,12 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     this.cancellationExecutor.scheduleAtFixedRate(new Runnable() {
       @Override
       public void run() {
-        synchronized (cancellationExecutor) {
+        synchronized (cancellationLock) {
           if (!cancellationExecuted && cancellationRequested) {
             executeCancellation();
             cancellationExecuted = true;
             // Notify the caller that requested the cancellation
-            synchronized (cancellationLock) {
-              cancellationLock.notify();
-            }
+            cancellationLock.notify();
           }
         }
       }

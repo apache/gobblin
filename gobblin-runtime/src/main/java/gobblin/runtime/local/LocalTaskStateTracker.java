@@ -30,6 +30,7 @@ import gobblin.metrics.GobblinMetrics;
 import gobblin.runtime.Task;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskStateTracker;
+import gobblin.util.ExecutorsUtils;
 
 
 /**
@@ -84,7 +85,7 @@ public class LocalTaskStateTracker extends AbstractIdleService implements TaskSt
   @Override
   protected void shutDown() {
     LOG.info("Stopping the local task state tracker");
-    this.reporterExecutor.shutdown();
+    ExecutorsUtils.shutdownExecutorService(this.reporterExecutor);
   }
 
   @Override

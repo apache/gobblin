@@ -132,10 +132,10 @@ public class TaskExecutor extends AbstractIdleService {
   @Override
   protected void shutDown()
       throws Exception {
-    LOG.info("Stopping the task executor ");
-    this.taskExecutor.shutdown();
-    this.taskRetryExecutor.shutdown();
-    this.forkExecutor.shutdown();
+    LOG.info("Stopping the task executor");
+    ExecutorsUtils.shutdownExecutorService(this.taskExecutor);
+    ExecutorsUtils.shutdownExecutorService(this.taskRetryExecutor);
+    ExecutorsUtils.shutdownExecutorService(this.forkExecutor);
   }
 
   /**

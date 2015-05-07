@@ -117,7 +117,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
       this.countDownLatch.await(1, TimeUnit.MINUTES);
     }
 
-    synchronized (this.cancellationExecutor) {
+    synchronized (this.cancellationLock) {
       // Check if cancellation has been requested upon the completion of the tasks of the job,
       // which may be the result of the cancellation.
       if (this.cancellationExecuted) {

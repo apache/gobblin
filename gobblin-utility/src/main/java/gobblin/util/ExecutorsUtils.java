@@ -11,7 +11,9 @@
 
 package gobblin.util;
 
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 
@@ -64,5 +66,30 @@ public class ExecutorsUtils {
       builder.setNameFormat(nameFormat.get());
     }
     return builder.setUncaughtExceptionHandler(new LoggingUncaughtExceptionHandler(logger)).build();
+  }
+
+  /**
+   * Shutdown a {@link ExecutorService}.
+   *
+   * See
+   * <a href="http://docs.oracle.com/javase/7/docs/api/java/util/concurrent/ExecutorService.html">
+   *   ExecutorService
+   * </a>.
+   *
+   * @param executorService the {@link ExecutorService} to shutdown
+   */
+  public static void shutdownExecutorService(ExecutorService executorService) {
+    executorService.shutdown();
+    try {
+      // Wait a while for existing tasks to terminate
+      if (!executorService.awaitTermination(60, TimeUnit.SECONDS)) {
+        executorService.shutdownNow();
+        // Wait a while for tasks to respond to being cancelled
+        executorService.awaitTermination(60, TimeUnit.SECONDS);
+      }
+    } catch (InterruptedException ie) {
+      executorService.shutdownNow();
+      Thread.currentThread().interrupt();
+    }
   }
 }
