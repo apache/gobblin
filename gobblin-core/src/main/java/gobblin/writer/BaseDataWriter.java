@@ -54,7 +54,8 @@ public abstract class BaseDataWriter<D> implements DataWriter<D> {
     // initialize staging/output dir
     this.stagingFile = new Path(WriterUtils.getWriterStagingDir(properties, numBranches, branchId), fileName);
     this.outputFile = new Path(WriterUtils.getWriterOutputDir(properties, numBranches, branchId), fileName);
-    properties.setProp(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, this.outputFile.toString());
+    properties.setProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, branchId),
+            this.outputFile.toString());
 
     // Deleting the staging file if it already exists, which can happen if the
     // task failed and the staging file didn't get cleaned up for some reason.
