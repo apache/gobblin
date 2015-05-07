@@ -14,6 +14,7 @@ package gobblin.writer;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 
+import gobblin.util.ForkOperatorUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
@@ -97,8 +98,9 @@ public class SimpleDataWriterTest {
     Assert.assertEquals(writer.recordsWritten(), 3);
     Assert.assertEquals(writer.bytesWritten(), rec1.length + rec2.length + rec3.length);
 
-    Assert.assertTrue(properties.contains(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
-    File outputFile = new File(properties.getProp(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
+    String pathKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, 0);
+    Assert.assertTrue(properties.contains(pathKey));
+    File outputFile = new File(properties.getProp(pathKey));
     InputStream is = new FileInputStream(outputFile);
     int c, resNum = 0, resi = 0;
     byte[][] records = {rec1, rec2, rec3};
@@ -139,8 +141,9 @@ public class SimpleDataWriterTest {
     Assert.assertEquals(writer.recordsWritten(), 3);
     Assert.assertEquals(writer.bytesWritten(), rec1.length + rec2.length + rec3.length + (Long.SIZE / 8 * 3));
 
-    Assert.assertTrue(properties.contains(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
-    File outputFile = new File(properties.getProp(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
+    String pathKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, 0);
+    Assert.assertTrue(properties.contains(pathKey));
+    File outputFile = new File(properties.getProp(pathKey));
     DataInputStream dis = new DataInputStream(new FileInputStream(outputFile));
     for (int i=0; i<3; i++) {
       long size = dis.readLong();
@@ -178,8 +181,9 @@ public class SimpleDataWriterTest {
     Assert.assertEquals(writer.recordsWritten(), 3);
     Assert.assertEquals(writer.bytesWritten(), rec1.length + rec2.length + rec3.length + 3); // 3 bytes for newline character
 
-    Assert.assertTrue(properties.contains(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
-    File outputFile = new File(properties.getProp(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
+    String pathKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, 0);
+    Assert.assertTrue(properties.contains(pathKey));
+    File outputFile = new File(properties.getProp(pathKey));
     InputStream is = new FileInputStream(outputFile);
     int c, resNum = 0, resi = 0;
     byte[][] records = {rec1, rec2, rec3};
@@ -220,8 +224,9 @@ public class SimpleDataWriterTest {
     Assert.assertEquals(writer.recordsWritten(), 3);
     Assert.assertEquals(writer.bytesWritten(), rec1.length + rec2.length + rec3.length + (Long.SIZE / 8 * 3) + 3);
 
-    Assert.assertTrue(properties.contains(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
-    File outputFile = new File(properties.getProp(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
+    String pathKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, 0);
+    Assert.assertTrue(properties.contains(pathKey));
+    File outputFile = new File(properties.getProp(pathKey));
     DataInputStream dis = new DataInputStream(new FileInputStream(outputFile));
     for (int i=0; i<3; i++) {
       long size = dis.readLong();
@@ -260,8 +265,9 @@ public class SimpleDataWriterTest {
     Assert.assertEquals(writer.recordsWritten(), 3);
     Assert.assertEquals(writer.bytesWritten(), totalBytes);
 
-    Assert.assertTrue(properties.contains(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
-    File outputFile = new File(properties.getProp(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
+    String pathKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, 0);
+    Assert.assertTrue(properties.contains(pathKey));
+    File outputFile = new File(properties.getProp(pathKey));
     BufferedReader br = new BufferedReader(new FileReader(outputFile));
     String line;
     int lineNumber = 0;
@@ -307,8 +313,9 @@ public class SimpleDataWriterTest {
     Assert.assertEquals(writer.recordsWritten(), 1);
     Assert.assertEquals(writer.bytesWritten(), randomBytesWrite.length + 1);
 
-    Assert.assertTrue(properties.contains(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
-    File writeFile = new File(properties.getProp(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH));
+    String pathKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, 0);
+    Assert.assertTrue(properties.contains(pathKey));
+    File writeFile = new File(properties.getProp(pathKey));
     int c, i = 0;
     InputStream is = new FileInputStream(writeFile);
     while ((c = is.read()) != -1) {
