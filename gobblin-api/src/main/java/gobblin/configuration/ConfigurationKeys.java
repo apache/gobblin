@@ -248,6 +248,7 @@ public class ConfigurationKeys {
   public static final String DATA_PUBLISHER_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".final.dir";
   public static final String DATA_PUBLISHER_REPLACE_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".replace.final.dir";
   public static final String DATA_PUBLISHER_FINAL_NAME = DATA_PUBLISHER_PREFIX + ".final.name";
+  public static final String DATA_PUBLISHER_FILE_EXTENSION = DATA_PUBLISHER_PREFIX + ".file.extension";
 
   /**
    * Configuration properties used by the extractor.
@@ -405,4 +406,12 @@ public class ConfigurationKeys {
    * Other configuration properties.
    */
   public static final Charset DEFAULT_CHARSET_ENCODING = Charsets.UTF_8;
+
+  /**
+   * Amazon AWS credentials.
+   */
+  public static final String AWS_ACCESS_KEY = "aws.access.key";
+  public static final String AWS_SECRET_KEY = "aws.secret.key";
+  public static final String S3_BUCKET = "aws.s3.bucket";
+  public static final String S3_PARTITIONS = "aws.s3.partitions";
 }

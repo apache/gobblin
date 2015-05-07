@@ -55,6 +55,8 @@ public class BaseDataPublisher extends DataPublisher {
   protected final List<FileSystem> fss = Lists.newArrayList();
   protected int numBranches;
 
+  private boolean closed = false;
+
   public BaseDataPublisher(State state) {
     super(state);
   }
@@ -84,7 +86,13 @@ public class BaseDataPublisher extends DataPublisher {
 
   @Override
   public void close() throws IOException {
-    // Nothing to do
+    if (this.closed) {
+      return;
+    }
+    for (FileSystem fs : fss) {
+      fs.close();
+      this.closed = true;
+    }
   }
 
   @Override
