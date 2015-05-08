@@ -11,6 +11,7 @@
 
 package gobblin.runtime;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
@@ -32,6 +33,7 @@ import gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
 import gobblin.qualitychecker.task.TaskLevelPolicyChecker;
 import gobblin.qualitychecker.task.TaskLevelPolicyCheckerBuilderFactory;
 import gobblin.source.Source;
+import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.writer.DataWriterBuilder;
@@ -68,7 +70,7 @@ public class TaskContext {
   }
 
   /**
-   * Get the {@link Source} used to get the {@link WorkUnit}.
+   * Get a {@link Source} instance used to get a list of {@link WorkUnit}s.
    *
    * @return the {@link Source} used to get the {@link WorkUnit}, <em>null</em>
    *         if it fails to instantiate a {@link Source} object of the given class.
@@ -82,6 +84,19 @@ public class TaskContext {
       throw new RuntimeException(ie);
     } catch (IllegalAccessException iae) {
       throw new RuntimeException(iae);
+    }
+  }
+
+  /**
+   * Get a {@link Extractor} instance.
+   *
+   * @return a {@link Extractor} instance
+   */
+  public Extractor getExtractor() {
+    try {
+      return getSource().getExtractor(this.workUnitState);
+    } catch (IOException ioe) {
+      throw new RuntimeException(ioe);
     }
   }
 
@@ -136,6 +151,7 @@ public class TaskContext {
    * @param index branch index
    * @return list (possibly empty) of {@link Converter}s
    */
+  @SuppressWarnings("unchecked")
   public List<Converter<?, ?, ?, ?>> getConverters(int index) {
     String converterClassKey =
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.CONVERTER_CLASSES_KEY, index);
@@ -144,7 +160,8 @@ public class TaskContext {
       return Collections.emptyList();
     }
 
-    // Create a copy of the WorkUnitState and set the branch id for that WorkUnitState, then feed it to the Converter's init method
+    // Create a copy of the WorkUnitState and set the branch id for that WorkUnitState,
+    // then feed it to the Converter's init method.
     WorkUnitState converterWorkUnitState = new WorkUnitState(this.workUnitState.getWorkunit());
     converterWorkUnitState.addAll(this.workUnitState);
     converterWorkUnitState.setProp(ConfigurationKeys.FORK_BRANCH_ID_KEY, index);
