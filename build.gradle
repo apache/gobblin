@@ -47,9 +47,9 @@ if (!project.hasProperty('bytemanVersion')) {
 
 ext.externalDependency = [
   "antlrRuntime": "org.antlr:antlr-runtime:3.0.1",
-  "avro": "org.apache.avro:avro:1.7.6",
-  "avroMapredH1": "org.apache.avro:avro-mapred:1.7.6:hadoop1",
-  "avroMapredH2": "org.apache.avro:avro-mapred:1.7.6:hadoop2",
+  "avro": "org.apache.avro:avro:1.7.7",
+  "avroMapredH1": "org.apache.avro:avro-mapred:1.7.7:hadoop1",
+  "avroMapredH2": "org.apache.avro:avro-mapred:1.7.7:hadoop2",
   "commonsCli": "commons-cli:commons-cli:1.2",
   "commonsCodec": "commons-codec:commons-codec:1.10",
   "commonsDbcp": "commons-dbcp:commons-dbcp:1.4",

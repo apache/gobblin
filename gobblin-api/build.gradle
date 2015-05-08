@@ -15,6 +15,7 @@ dependencies {
     compile externalDependency.guava
     compile externalDependency.gson
     compile externalDependency.jodaTime
+    compile externalDependency.commonsLang
 
     testCompile externalDependency.testng
 }

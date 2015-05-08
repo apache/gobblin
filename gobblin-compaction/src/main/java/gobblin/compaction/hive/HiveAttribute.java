@@ -9,7 +9,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.compaction;
+package gobblin.compaction.hive;
 
 /**
  * An immutable class for managing Hive attributes.
