@@ -57,6 +57,9 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
   public abstract void publishMetadata(Collection<? extends WorkUnitState> states) throws IOException;
 
   protected void sendS3Data(BucketAndKey bk, InputStream is, long contentLength) throws IOException {
+    if (contentLength == 0) {
+      return;
+    }
     // get config parameters
     String awsAccessKey = this.getState().getProp(ConfigurationKeys.AWS_ACCESS_KEY);
     String awsSecretKey = this.getState().getProp(ConfigurationKeys.AWS_SECRET_KEY);
