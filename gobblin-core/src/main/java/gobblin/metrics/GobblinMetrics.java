@@ -265,7 +265,7 @@ public class GobblinMetrics {
       Preconditions.checkArgument(properties.containsKey(ConfigurationKeys.METRICS_KAFKA_TOPIC),
           "Kafka metrics topic missing.");
     } catch(IllegalArgumentException exception) {
-      LOGGER.error("Wrong arguments for Kafka metrics.", exception);
+      LOGGER.error("Not reporting metrics to Kafka due to missing Kafka configuration(s).", exception);
       return;
     }
 
