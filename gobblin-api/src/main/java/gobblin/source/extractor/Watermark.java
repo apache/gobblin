@@ -10,21 +10,18 @@ import com.google.gson.JsonElement;
  * <p>
  *  A {@link Watermark} will be serialized in {@link gobblin.source.workunit.WorkUnit}s and
  *  {@link gobblin.configuration.WorkUnitState}s. The {@link #toJson()} method will be used to serialize the
- *  {@link Watermark}, and the {@link #initFromJson(String)| method will be responsible for initializing the
- *  {@link Watermark} given the output of {@link #toJson()}.
+ *  {@link Watermark} into a {@link JsonElement}.
  * </p>
  */
 public interface Watermark extends Comparable<Watermark> {
 
   /**
-   * Takes in a {@link JsonElement} and initializes all fields of this {@link Watermark}.
-   * @param json is the {@link JsonElement} that should be used to initialize this {@link Watermark}.
-   */
-  public void fromJson(JsonElement json);
-
-  /**
    * Converter this {@link Watermark} into a {@link JsonElement}.
    * @return a {@link JsonElement} representing this {@link Watermark}.
+   *
+   * do object mapping in gson, in a separate class, eventually make it a default method
+   * 
+   * or just have a WatermarkSerializer class with a default implementation that uses GSON, otherwise will have to change below method to take in JsonElement
    */
   public JsonElement toJson();
 

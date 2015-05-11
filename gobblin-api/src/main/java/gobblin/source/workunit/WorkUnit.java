@@ -15,16 +15,10 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
-import java.io.DataInputStream;
 import java.io.DataOutput;
-import java.io.DataOutputStream;
 import java.io.IOException;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.Closer;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 
@@ -78,7 +72,16 @@ public class WorkUnit extends State {
 
   public WorkUnit(SourceState state, Extract extract, WatermarkInterval watermarkInterval) {
     this(state, extract);
+
+    /**
+     * TODO
+     *
+     * Hack that stores a {@link WatermarkInterval} by using its {@link WatermarkInterval#toJson()} method. Until a
+     * state-store migration, or a new state-store format is chosen, this hack will be the way that the
+     * {@link WatermarkInterval} is serialized / de-serialized. See {@link #getWatermarkInterval}.
+     */
     this.watermarkInterval = watermarkInterval;
+    setProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY, watermarkInterval.toJson());
   }
 
   /**
@@ -100,12 +103,22 @@ public class WorkUnit extends State {
     return this.extract;
   }
 
+  public Watermark getLowWatermark() {
+    return this.watermarkInterval.getLowWatermark();
+  }
+
   public Watermark getExpectedHighWatermark() {
     return this.watermarkInterval.getExpectedHighWatermark();
   }
 
-  public Watermark getLowWatermark() {
-    return this.watermarkInterval.getLowWatermark();
+  public JsonElement getLowWatermarkAsJson() {
+    return GSON.toJsonTree(getProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY)).getAsJsonObject()
+        .get(WatermarkInterval.LOW_WATERMARK_TO_JSON_KEY);
+  }
+
+  public JsonElement getExpectedHighWatermarkAsJson() {
+    return GSON.toJsonTree(getProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY)).getAsJsonObject()
+        .get(WatermarkInterval.EXPECTED_HIGH_WATERMARK_TO_JSON_KEY);
   }
 
   /**
@@ -153,32 +166,11 @@ public class WorkUnit extends State {
       throws IOException {
     super.readFields(in);
     this.extract.readFields(in);
-
-    /**
-     * TODO
-     *
-     * Hack that constructs a {@link WatermarkInterval} by using its {@link WatermarkInterval#fromJson(JsonElement)}
-     * method. Until a state-store migration, or a new state-store format is chosen, this hack will be the way that
-     * the {@link WatermarkInterval} is serialized / de-serialized. Also, see comments in
-     * {@link WorkUnitState#readFields(DataInput)}.
-     */
-    if (contains(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY)) {
-      this.watermarkInterval = new WatermarkInterval();
-      this.watermarkInterval.fromJson(GSON.fromJson(getProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY), JsonElement.class));
-    }
   }
 
   @Override
   public void write(DataOutput out)
       throws IOException {
-
-    /**
-     * TODO
-     *
-     * See comments inside {@link #readFields(DataInput)}.
-     */
-    setProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY, this.watermarkInterval.toJson());
-
     super.write(out);
     this.extract.write(out);
   }

@@ -41,6 +41,10 @@ import gobblin.source.workunit.WorkUnit;
  */
 public class WorkUnitState extends State {
 
+  private Watermark actualHighWatermark;
+
+  private static final Gson GSON = new Gson();
+
   /**
    * Runtime state of the {@link WorkUnit}.
    *
@@ -55,9 +59,6 @@ public class WorkUnitState extends State {
   }
 
   private WorkUnit workunit;
-  private Watermark actualHighWatermark;
-
-  private static final Gson GSON = new Gson();
 
   /**
    * Default constructor used for deserialization.
@@ -101,6 +102,10 @@ public class WorkUnitState extends State {
    */
   public void setWorkingState(WorkingState state) {
     setProp(ConfigurationKeys.WORK_UNIT_WORKING_STATE_KEY, state.toString());
+  }
+
+  public JsonElement getActualHighWatermarkAsJson() {
+    return GSON.toJsonTree(getProp(ConfigurationKeys.WORK_UNIT_STATE_COMPLEX_ACTUAL_HIGH_WATER_MARK_KEY));
   }
 
   public Watermark getActualHighWatermark() {
@@ -211,45 +216,19 @@ public class WorkUnitState extends State {
       throws IOException {
     this.workunit.readFields(in);
     super.readFields(in);
-
-    /**
-     * TODO
-     *
-     * The below code is a hack that is serializes a {@link Watermark} by writing it to a key, value pair using the
-     * {@link State} object. In the future, when state-store files have a schema, the {@link Watermark} should be stored
-     * as its own field, and the {@link Gson#toJson(JsonElemet, JsonWriter)} method can be used used to write and
-     * serialize the {@link JsonElement}.
-     */
-    if (contains(ConfigurationKeys.WORK_UNIT_STATE_COMPLEX_ACTUAL_HIGH_WATER_MARK_CLASS)
-        && contains(ConfigurationKeys.WORK_UNIT_STATE_COMPLEX_ACTUAL_HIGH_WATER_MARK_VALUE)) {
-
-      try {
-        this.actualHighWatermark =
-            (Watermark) Class.forName(getProp(ConfigurationKeys.WORK_UNIT_STATE_COMPLEX_ACTUAL_HIGH_WATER_MARK_CLASS))
-                .newInstance();
-        this.actualHighWatermark.fromJson(GSON.fromJson(
-            getProp(ConfigurationKeys.WORK_UNIT_STATE_COMPLEX_ACTUAL_HIGH_WATER_MARK_VALUE), JsonElement.class));
-      } catch (InstantiationException e) {
-        throw new IOException("Could not intiailize actualHighWatermark", e);
-      } catch (IllegalAccessException e) {
-        throw new IOException("Could not intiailize actualHighWatermark", e);
-      } catch (ClassNotFoundException e) {
-        throw new IOException("Could not intiailize actualHighWatermark", e);
-      }
-    }
   }
 
   @Override
   public void write(DataOutput out)
       throws IOException {
-
     /**
      * TODO
      *
-     * See comments inside {@link #readFields(DataInput)}.
+     * Hack until a state-store migration can be done. The watermark is converted to a {@link String} and then stored
+     * internally in via a configuration key. Once a state-store migration can be done, the {@link Watermark} can be
+     * stored as Binary JSON.
      */
-    setProp(ConfigurationKeys.WORK_UNIT_STATE_COMPLEX_ACTUAL_HIGH_WATER_MARK_CLASS, this.actualHighWatermark.getClass());
-    setProp(ConfigurationKeys.WORK_UNIT_STATE_COMPLEX_ACTUAL_HIGH_WATER_MARK_VALUE, this.actualHighWatermark.toJson());
+    setProp(ConfigurationKeys.WORK_UNIT_STATE_COMPLEX_ACTUAL_HIGH_WATER_MARK_KEY, this.actualHighWatermark.toJson());
 
     this.workunit.write(out);
     super.write(out);
