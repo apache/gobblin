@@ -58,7 +58,7 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
 
   protected void sendS3Data(BucketAndKey bk, InputStream is, long contentLength) throws IOException {
     if (contentLength == 0) {
-      LOG.info(String.format("Skipping publishing to %s since content length  is 0"), bk.toString());
+      LOG.info(String.format("Skipping publishing to %s since content length  is 0", bk.toString()));
       return;
     }
     // get config parameters
