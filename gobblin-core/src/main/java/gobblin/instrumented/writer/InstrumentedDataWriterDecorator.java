@@ -21,8 +21,8 @@ import gobblin.writer.DataWriter;
 
 /**
  * Decorator that automatically instruments {@link gobblin.writer.DataWriter}.
- * Handles already instrumented {@link gobblin.instrumented.writer.InstrumentedDataWriter} appropriately to
- * avoid double metric reporting.
+ * Handles already instrumented {@link gobblin.instrumented.writer.InstrumentedDataWriter}
+ * appropriately to avoid double metric reporting.
  */
 public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBase<D> {
 
@@ -31,7 +31,7 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
 
   public InstrumentedDataWriterDecorator(DataWriter<D> writer, State state) {
     super(state);
-    this.embeddedWriter = writer;
+    this.embeddedWriter = this.closer.register(writer);
     this.isEmbeddedInstrumented = InstrumentedDataWriterBase.class.isInstance(writer);
   }
 

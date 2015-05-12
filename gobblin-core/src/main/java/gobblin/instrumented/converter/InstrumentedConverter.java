@@ -12,8 +12,9 @@
 
 package gobblin.instrumented.converter;
 
-import gobblin.converter.DataConversionException;
 import gobblin.configuration.WorkUnitState;
+import gobblin.converter.DataConversionException;
+
 
 /**
  * Instrumented converter that automatically captures certain metrics.

@@ -47,9 +47,9 @@ public class GobblinMetricsRegistry {
   }
 
   /**
-   * Remove the {@link GobblinMetrics} instance for the given job.
+   * Remove the {@link GobblinMetrics} instance with the given ID.
    *
-   * @param id job ID
+   * @param id the given {@link GobblinMetrics} ID
    * @return removed {@link GobblinMetrics} instance or <code>null</code> if no {@link GobblinMetrics}
    *         instance for the given job is not found
    */

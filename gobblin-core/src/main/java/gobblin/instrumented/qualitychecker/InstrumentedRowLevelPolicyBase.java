@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
+
 import com.google.common.base.Optional;
 import com.google.common.io.Closer;
 
@@ -123,7 +124,7 @@ abstract class InstrumentedRowLevelPolicyBase extends RowLevelPolicy implements 
   @Override
   public void close()
       throws IOException {
-    closer.close();
+    this.closer.close();
   }
 
   @Override
