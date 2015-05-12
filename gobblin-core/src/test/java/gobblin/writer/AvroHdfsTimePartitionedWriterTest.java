@@ -41,7 +41,7 @@ public class AvroHdfsTimePartitionedWriterTest {
   private static final String STAGING_DIR = TEST_ROOT_DIR + Path.SEPARATOR + "staging";
   private static final String OUTPUT_DIR = TEST_ROOT_DIR + Path.SEPARATOR + "output";
   private static final String BASE_FILE_PATH = "base";
-  private static final String FILE_NAME = SIMPLE_CLASS_NAME + "-name";
+  private static final String FILE_NAME = SIMPLE_CLASS_NAME + "-name.avro";
   private static final String PARTITION_COLUMN_NAME = "timestamp";
   private static final String WRITER_ID = "writer-1";
 
@@ -121,23 +121,21 @@ public class AvroHdfsTimePartitionedWriterTest {
     // Check that 3 files were created
     Assert.assertEquals(FileUtils.listFiles(new File(TEST_ROOT_DIR), new String[] { "avro" }, true).size(), 3);
 
-    String fileName = FILE_NAME + "." + WRITER_ID + ".avro";
-
     // Check if each file exists, and in the correct location
     File baseOutputDir =
         new File(OUTPUT_DIR, BASE_FILE_PATH + Path.SEPARATOR + ConfigurationKeys.DEFAULT_WRITER_PARTITION_LEVEL);
     Assert.assertTrue(baseOutputDir.exists());
 
     File outputDir20150101 =
-        new File(baseOutputDir, "2015" + Path.SEPARATOR + "01" + Path.SEPARATOR + "01" + Path.SEPARATOR + fileName);
+        new File(baseOutputDir, "2015" + Path.SEPARATOR + "01" + Path.SEPARATOR + "01" + Path.SEPARATOR + FILE_NAME);
     Assert.assertTrue(outputDir20150101.exists());
 
     File outputDir20150102 =
-        new File(baseOutputDir, "2015" + Path.SEPARATOR + "01" + Path.SEPARATOR + "02" + Path.SEPARATOR + fileName);
+        new File(baseOutputDir, "2015" + Path.SEPARATOR + "01" + Path.SEPARATOR + "02" + Path.SEPARATOR + FILE_NAME);
     Assert.assertTrue(outputDir20150102.exists());
 
     File outputDir20150103 =
-        new File(baseOutputDir, "2015" + Path.SEPARATOR + "01" + Path.SEPARATOR + "03" + Path.SEPARATOR + fileName);
+        new File(baseOutputDir, "2015" + Path.SEPARATOR + "01" + Path.SEPARATOR + "03" + Path.SEPARATOR + FILE_NAME);
     Assert.assertTrue(outputDir20150103.exists());
   }
 
