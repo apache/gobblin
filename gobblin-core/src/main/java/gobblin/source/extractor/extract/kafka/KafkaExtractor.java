@@ -12,6 +12,7 @@
 package gobblin.source.extractor.extract.kafka;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Iterator;
 
 import org.slf4j.Logger;
@@ -140,5 +141,15 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
       this.workUnitState.setProp(KafkaSource.getWorkUnitSizePropName(this.workUnitState), previousAvgRecordSize);
     }
     this.closer.close();
+  }
+
+  protected static byte[] getBytes(ByteBuffer buf) {
+    byte[] bytes = null;
+    if (buf != null) {
+      int size = buf.remaining();
+      bytes = new byte[size];
+      buf.get(bytes, buf.position(), size);
+    }
+    return bytes;
   }
 }

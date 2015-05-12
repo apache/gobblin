@@ -12,7 +12,6 @@
 package gobblin.writer;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.avro.Schema;
@@ -21,9 +20,7 @@ import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import org.slf4j.Logger;
@@ -34,22 +31,16 @@ import com.google.common.base.Preconditions;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.util.ForkOperatorUtils;
-import gobblin.util.WriterUtils;
-
 
 /**
  * An implementation of {@link DataWriter} that writes directly to HDFS in Avro format.
  *
  * @author ynli
  */
-class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
+class AvroHdfsDataWriter extends BaseDataWriter<GenericRecord> {
 
   private static final Logger LOG = LoggerFactory.getLogger(AvroHdfsDataWriter.class);
 
-  private final State properties;
-  private final FileSystem fs;
-  private final Path stagingFile;
-  private final Path outputFile;
   private final DatumWriter<GenericRecord> datumWriter;
   private final DataFileWriter<GenericRecord> writer;
 
@@ -70,15 +61,7 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
 
   public AvroHdfsDataWriter(State properties, String fileName, Schema schema, int numBranches, int branchId)
       throws IOException {
-
-    String uri = properties
-        .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
-            ConfigurationKeys.LOCAL_FS_URI);
-
-    Path stagingDir = WriterUtils.getWriterStagingDir(properties, numBranches, branchId);
-
-    Path outputDir = WriterUtils.getWriterOutputDir(properties, numBranches, branchId);
-
+    super(properties, fileName, numBranches, branchId);
     String codecType = properties
         .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_CODEC_TYPE, numBranches, branchId),
             AvroHdfsDataWriter.CodecType.DEFLATE.name());
@@ -91,32 +74,7 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
         .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DEFLATE_LEVEL, numBranches, branchId),
             ConfigurationKeys.DEFAULT_DEFLATE_LEVEL));
 
-    this.properties = properties;
     this.schema = schema;
-
-    Configuration conf = new Configuration();
-    // Add all job configuration properties so they are picked up by Hadoop
-    for (String key : properties.getPropertyNames()) {
-      conf.set(key, properties.getProp(key));
-    }
-    this.fs = FileSystem.get(URI.create(uri), conf);
-
-    this.stagingFile = new Path(stagingDir, fileName);
-
-    // Deleting the staging file if it already exists, which can happen if the
-    // task failed and the staging file didn't get cleaned up for some reason.
-    // Deleting the staging file prevents the task retry from being blocked.
-    if (this.fs.exists(this.stagingFile)) {
-      LOG.warn(String.format("Task staging file %s already exists, deleting it", this.stagingFile));
-      this.fs.delete(this.stagingFile, false);
-    }
-
-    this.outputFile = new Path(outputDir, fileName);
-
-    // Create the parent directory of the output file if it does not exist
-    if (!this.fs.exists(this.outputFile.getParent())) {
-      this.fs.mkdirs(this.outputFile.getParent());
-    }
 
     this.datumWriter = new GenericDatumWriter<GenericRecord>();
     this.writer = createDatumWriter(this.stagingFile, bufferSize, CodecType.valueOf(codecType), deflateLevel);
@@ -161,7 +119,7 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
     // the output file if it already exists prevents task retry from being blocked.
     if (this.fs.exists(this.outputFile)) {
       LOG.warn(String.format("Task output file %s already exists", this.outputFile));
-      this.fs.delete(this.outputFile, false);
+      this.deletePath(this.outputFile, false);
     }
 
     if (!this.fs.rename(this.stagingFile, this.outputFile)) {
@@ -174,7 +132,7 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
       throws IOException {
     // Delete the staging file
     if (this.fs.exists(this.stagingFile)) {
-      this.fs.delete(this.stagingFile, false);
+      this.deletePath(this.stagingFile, false);
     }
   }
 

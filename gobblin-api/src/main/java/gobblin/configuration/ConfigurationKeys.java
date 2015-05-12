@@ -191,6 +191,7 @@ public class ConfigurationKeys {
   public static final String WRITER_FILE_SYSTEM_URI = WRITER_PREFIX + ".fs.uri";
   public static final String WRITER_STAGING_DIR = WRITER_PREFIX + ".staging.dir";
   public static final String WRITER_OUTPUT_DIR = WRITER_PREFIX + ".output.dir";
+  public static final String WRITER_FINAL_OUTPUT_PATH = WRITER_PREFIX + ".final.output.path";
   public static final String WRITER_BUILDER_CLASS = WRITER_PREFIX + ".builder.class";
   public static final String DEFAULT_WRITER_BUILDER_CLASS = "gobblin.writer.AvroDataWriterBuilder";
   public static final String WRITER_FILE_NAME = WRITER_PREFIX + ".file.name";
@@ -211,6 +212,9 @@ public class ConfigurationKeys {
   public static final String DEFAULT_WRITER_PARTITION_PATTERN = "yyyy/MM/dd";
   public static final String DEFAULT_WRITER_PARTITION_TIMEZONE = "America/Los_Angeles";
   public static final String DEFAULT_WRITER_FILE_PATH_TYPE = "default";
+
+  public static final String SIMPLE_WRITER_DELIMITER = "simple.writer.delimiter";
+  public static final String SIMPLE_WRITER_PREPEND_SIZE = "simple.writer.prepend.size";
 
   /**
    * Configuration properties used by the quality checker.
@@ -244,6 +248,7 @@ public class ConfigurationKeys {
   public static final String DATA_PUBLISHER_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".final.dir";
   public static final String DATA_PUBLISHER_REPLACE_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".replace.final.dir";
   public static final String DATA_PUBLISHER_FINAL_NAME = DATA_PUBLISHER_PREFIX + ".final.name";
+  public static final String DATA_PUBLISHER_FILE_EXTENSION = DATA_PUBLISHER_PREFIX + ".file.extension";
 
   /**
    * Configuration properties used by the extractor.
@@ -401,4 +406,12 @@ public class ConfigurationKeys {
    * Other configuration properties.
    */
   public static final Charset DEFAULT_CHARSET_ENCODING = Charsets.UTF_8;
+
+  /**
+   * Amazon AWS credentials.
+   */
+  public static final String AWS_ACCESS_KEY = "aws.access.key";
+  public static final String AWS_SECRET_KEY = "aws.secret.key";
+  public static final String S3_BUCKET = "aws.s3.bucket";
+  public static final String S3_PARTITIONS = "aws.s3.partitions";
 }
