@@ -30,7 +30,6 @@ import gobblin.fork.CopyNotSupportedException;
 import gobblin.fork.Copyable;
 import gobblin.fork.ForkOperator;
 import gobblin.instrumented.extractor.InstrumentedExtractorDecorator;
-import gobblin.metrics.MetricContext;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
 import gobblin.runtime.util.TaskMetrics;

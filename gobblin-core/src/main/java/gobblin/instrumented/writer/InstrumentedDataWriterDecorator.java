@@ -21,8 +21,8 @@ import gobblin.writer.DataWriter;
 
 /**
  * Decorator that automatically instruments {@link gobblin.writer.DataWriter}.
- * Handles already instrumented {@link gobblin.instrumented.writer.InstrumentedDataWriter} appropriately to
- * avoid double metric reporting.
+ * Handles already instrumented {@link gobblin.instrumented.writer.InstrumentedDataWriter}
+ * appropriately to avoid double metric reporting.
  */
 public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBase<D> {
 
@@ -79,5 +79,15 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   public long bytesWritten()
       throws IOException {
     return this.embeddedWriter.bytesWritten();
+  }
+
+  @Override
+  public void close()
+      throws IOException {
+    try {
+      this.embeddedWriter.close();
+    } finally {
+      super.close();
+    }
   }
 }

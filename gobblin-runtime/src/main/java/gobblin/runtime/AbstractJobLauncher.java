@@ -29,7 +29,6 @@ import com.google.common.io.Closer;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 
-import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
@@ -39,7 +38,6 @@ import gobblin.metastore.MetaStoreModule;
 import gobblin.metastore.StateStore;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.publisher.DataPublisher;
-import gobblin.runtime.util.JobMetrics;
 import gobblin.runtime.util.JobMetrics;
 import gobblin.source.extractor.JobCommitPolicy;
 import gobblin.source.Source;
@@ -300,7 +298,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       if (GobblinMetrics.isEnabled(jobProps)) {
         // Stop metric reporting
         jobMetrics.stopMetricReporting();
-        GobblinMetricsRegistry.getInstance().remove(jobId);
+        JobMetrics.remove(jobState);
       }
     }
 
