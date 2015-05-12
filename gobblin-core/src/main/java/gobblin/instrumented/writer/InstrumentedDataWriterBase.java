@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
+
 import com.google.common.base.Optional;
 import com.google.common.io.Closer;
 
@@ -35,6 +36,7 @@ import gobblin.writer.DataWriter;
  * See {@link gobblin.instrumented.writer.InstrumentedDataWriter} for extensible class.
  */
 abstract class InstrumentedDataWriterBase <D> implements DataWriter<D>, Instrumentable, Closeable {
+
   private final boolean instrumentationEnabled;
 
   protected final Closer closer;
@@ -121,7 +123,7 @@ abstract class InstrumentedDataWriterBase <D> implements DataWriter<D>, Instrume
   @Override
   public void close()
       throws IOException {
-    closer.close();
+    this.closer.close();
   }
 
   @Override

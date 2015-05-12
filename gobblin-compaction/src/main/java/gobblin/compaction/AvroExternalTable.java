@@ -24,7 +24,6 @@ import org.apache.avro.file.SeekableInput;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -194,8 +193,9 @@ public class AvroExternalTable extends HiveTable {
   public void createTable(HiveJdbcConnector conn, String jobID) throws SQLException {
     String tableName = getNameWithJobId(jobID);
     String dropTableStmt = String.format(DROP_TABLE_STMT, tableName);
+    String hdfsUri = HdfsIO.getHdfsUri();
     String createTableStmt =
-        String.format(CREATE_TABLE_STMT, tableName, HdfsIO.getHdfsUri() + this.dataLocationInHdfs, HdfsIO.getHdfsUri()
+        String.format(CREATE_TABLE_STMT, tableName, hdfsUri + this.dataLocationInHdfs, hdfsUri
             + this.schemaLocationInHdfs);
 
     conn.executeStatements(dropTableStmt, createTableStmt);

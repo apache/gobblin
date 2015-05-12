@@ -13,7 +13,6 @@ package gobblin.metrics;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -32,6 +31,7 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -76,20 +76,51 @@ public class GobblinMetrics {
         .valueOf(state.getProp(ConfigurationKeys.METRICS_ENABLED_KEY, ConfigurationKeys.DEFAULT_METRICS_ENABLED));
   }
 
-  public static GobblinMetrics get(String id) {
+  /**
+   * Get a {@link GobblinMetrics} instance with the given ID.
+   *
+   * @param id the given {@link GobblinMetrics} ID
+   * @return a {@link GobblinMetrics} instance
+   */
+  public synchronized static GobblinMetrics get(String id) {
     return get(id, null);
   }
 
-  public static GobblinMetrics get(String id, MetricContext parentContext) {
-    return get(id, parentContext, new ArrayList<Tag<?>>());
+  /**
+   * Get a {@link GobblinMetrics} instance with the given ID and parent {@link MetricContext}.
+   *
+   * @param id the given {@link GobblinMetrics} ID
+   * @param parentContext the given parent {@link MetricContext}
+   * @return a {@link GobblinMetrics} instance
+   */
+  public synchronized static GobblinMetrics get(String id, MetricContext parentContext) {
+    return get(id, parentContext, Lists.<Tag<?>>newArrayList());
   }
 
-  public static GobblinMetrics get(String id, MetricContext parentContext, List<Tag<?>> tags) {
+  /**
+   * Get a {@link GobblinMetrics} instance with the given ID, parent {@link MetricContext},
+   * and list of {@link Tag}s.
+   *
+   * @param id the given {@link GobblinMetrics} ID
+   * @param parentContext the given parent {@link MetricContext}
+   * @param tags the given list of {@link Tag}s
+   * @return a {@link GobblinMetrics} instance
+   */
+  public synchronized static GobblinMetrics get(String id, MetricContext parentContext, List<Tag<?>> tags) {
     GobblinMetricsRegistry registry = GobblinMetricsRegistry.getInstance();
     if (!registry.containsKey(id)) {
       registry.putIfAbsent(id, new GobblinMetrics(id, parentContext, tags));
     }
     return registry.get(id);
+  }
+
+  /**
+   * Remove the {@link GobblinMetrics} instance with the given ID.
+   *
+   * @param id the given {@link GobblinMetrics} ID
+   */
+  public synchronized static void remove(String id) {
+    GobblinMetricsRegistry.getInstance().remove(id);
   }
 
   protected final String id;
@@ -118,30 +149,67 @@ public class GobblinMetrics {
   }
 
   /**
-   * Get the job ID of this metrics set.
+   * Get the ID of this {@link GobblinMetrics}.
    *
-   * @return job ID of this metrics set
+   * @return ID of this {@link GobblinMetrics}
    */
   public String getId() {
     return this.id;
   }
 
+  /**
+   * Get the name of this {@link GobblinMetrics}.
+   *
+   * <p>
+   *   This method is currently equivalent to {@link #getId()}.
+   * </p>
+   *
+   * @return name of this {@link GobblinMetrics}
+   */
   public String getName() {
     return this.id;
   }
 
+  /**
+   * Get a {@link Meter} with the given name prefix and suffixes.
+   *
+   * @param prefix the given name prefix
+   * @param suffixes the given name suffixes
+   * @return a {@link Meter} with the given name prefix and suffixes
+   */
   public Meter getMeter(String prefix, String... suffixes) {
     return this.metricContext.meter(MetricRegistry.name(prefix, suffixes));
   }
 
+  /**
+   * Get a {@link Counter} with the given name prefix and suffixes.
+   *
+   * @param prefix the given name prefix
+   * @param suffixes the given name suffixes
+   * @return a {@link Counter} with the given name prefix and suffixes
+   */
   public Counter getCounter(String prefix, String... suffixes) {
     return this.metricContext.counter(MetricRegistry.name(prefix, suffixes));
   }
 
+  /**
+   * Get a {@link Histogram} with the given name prefix and suffixes.
+   *
+   * @param prefix the given name prefix
+   * @param suffixes the given name suffixes
+   * @return a {@link Histogram} with the given name prefix and suffixes
+   */
   public Histogram getHistogram(String prefix, String... suffixes) {
     return this.metricContext.histogram(MetricRegistry.name(prefix, suffixes));
   }
 
+  /**
+   * Get a {@link Timer} with the given name prefix and suffixes.
+   *
+   * @param prefix the given name prefix
+   * @param suffixes the given name suffixes
+   * @return a {@link Timer} with the given name prefix and suffixes
+   */
   public Timer getTimer(String prefix, String... suffixes) {
     return this.metricContext.timer(MetricRegistry.name(prefix, suffixes));
   }

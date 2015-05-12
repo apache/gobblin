@@ -33,6 +33,7 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.publisher.DataPublisher;
+import gobblin.runtime.util.JobMetrics;
 import gobblin.source.extractor.JobCommitPolicy;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
@@ -264,6 +265,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
       if (this.jobContext.getJobMetricsOptional().isPresent()) {
         this.jobContext.getJobMetricsOptional().get().stopMetricReporting();
+        JobMetrics.remove(jobState);
       }
 
       unlockJob();
