@@ -320,10 +320,10 @@ public class TaskState extends WorkUnitState {
     taskExecutionInfo.setTable(table);
 
     // Add task metrics
-    TaskMetrics jobMetrics = TaskMetrics.get(this);
+    TaskMetrics taskMetrics = TaskMetrics.get(this);
     MetricArray metricArray = new MetricArray();
 
-    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics
+    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : taskMetrics
         .getMetricContext().getCounters().entrySet()) {
       Metric counter = new Metric();
       counter.setGroup(MetricGroup.TASK.name());
@@ -333,7 +333,7 @@ public class TaskState extends WorkUnitState {
       metricArray.add(counter);
     }
 
-    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics
+    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : taskMetrics
         .getMetricContext().getMeters().entrySet()) {
       Metric meter = new Metric();
       meter.setGroup(MetricGroup.TASK.name());
@@ -343,7 +343,7 @@ public class TaskState extends WorkUnitState {
       metricArray.add(meter);
     }
 
-    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics
+    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : taskMetrics
         .getMetricContext().getGauges().entrySet()) {
       Metric gauge = new Metric();
       gauge.setGroup(MetricGroup.TASK.name());

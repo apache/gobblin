@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
+
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
@@ -102,9 +103,9 @@ abstract class InstrumentedConverterBase<SI, SO, DI, DO> extends Converter<SI, S
 
   /**
    * Called before conversion.
-   * @param outputSchema
-   * @param inputRecord
-   * @param workUnit
+   * @param outputSchema output schema of the {@link #convertSchema(Object, WorkUnitState)} method
+   * @param inputRecord an input data record
+   * @param workUnit a {@link WorkUnitState} instance
    */
   public void beforeConvert(SO outputSchema, DI inputRecord, WorkUnitState workUnit) {
     Instrumented.markMeter(this.recordsInMeter);

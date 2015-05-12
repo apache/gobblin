@@ -12,23 +12,25 @@
 
 package gobblin.runtime.util;
 
-import java.util.ArrayList;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.google.common.collect.Lists;
 
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.metrics.Tag;
 import gobblin.runtime.JobState;
+import gobblin.runtime.TaskState;
 
 
+/**
+ * An extension to {@link GobblinMetrics} specifically for job runs.
+ *
+ * @author ynli
+ */
 public class JobMetrics extends GobblinMetrics {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(GobblinMetrics.class);
-
-  protected String jobName;
+  protected final String jobName;
 
   protected JobMetrics(JobState job) {
     super(name(job), null, tagsForJob(job));
@@ -46,22 +48,45 @@ public class JobMetrics extends GobblinMetrics {
     return get(new JobState(jobName, jobId));
   }
 
-  public static synchronized JobMetrics get(JobState job) {
+  /**
+   * Get a {@link JobMetrics} instance for the job with the given {@link JobState} instance.
+   *
+   * @param jobState the given {@link JobState} instance
+   * @return a {@link JobMetrics} instance
+   */
+  public static synchronized JobMetrics get(JobState jobState) {
     GobblinMetricsRegistry registry = GobblinMetricsRegistry.getInstance();
-    if (!registry.containsKey(name(job))) {
-      registry.putIfAbsent(name(job), new JobMetrics(job));
+    String name = name(jobState);
+    if (!registry.containsKey(name)) {
+      registry.putIfAbsent(name, new JobMetrics(jobState));
     }
-    return (JobMetrics)registry.get(name(job));
+    return (JobMetrics) registry.get(name);
   }
 
-  public static String name(JobState job) {
-    return "gobblin.metrics." + job.getJobId();
+  /**
+   * Remove the {@link JobMetrics} instance for the job with the given {@link JobState} instance.
+   *
+   * <p>
+   *   Removing a {@link JobMetrics} instance for a job will also remove the {@link TaskMetrics}s
+   *   of every tasks of the job.
+   * </p>
+   * @param jobState the given {@link JobState} instance
+   */
+  public synchronized static void remove(JobState jobState) {
+    remove(name(jobState));
+    for (TaskState taskState : jobState.getTaskStates()) {
+      TaskMetrics.remove(taskState);
+    }
   }
 
-  private static List<Tag<?>> tagsForJob(JobState job) {
-    List<Tag<?>> tags = new ArrayList<Tag<?>>();
-    tags.add(new Tag<String>("jobName", job.getJobName() == null ? "" : job.getJobName()));
-    tags.add(new Tag<String>("jobId", job.getJobId()));
+  private static String name(JobState jobState) {
+    return "gobblin.metrics." + jobState.getJobId();
+  }
+
+  private static List<Tag<?>> tagsForJob(JobState jobState) {
+    List<Tag<?>> tags = Lists.newArrayList();
+    tags.add(new Tag<String>("jobName", jobState.getJobName() == null ? "" : jobState.getJobName()));
+    tags.add(new Tag<String>("jobId", jobState.getJobId()));
     return tags;
   }
 }

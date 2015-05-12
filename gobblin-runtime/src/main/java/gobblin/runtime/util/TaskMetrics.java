@@ -12,9 +12,11 @@
 
 package gobblin.runtime.util;
 
-import java.util.ArrayList;
 import java.util.List;
 
+import com.google.common.collect.Lists;
+
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.metrics.MetricContext;
@@ -22,35 +24,57 @@ import gobblin.metrics.Tag;
 import gobblin.runtime.TaskState;
 
 
+/**
+ * An extension to {@link GobblinMetrics} specifically for tasks.
+ *
+ * @author ynli
+ */
 public class TaskMetrics extends GobblinMetrics {
 
-  protected String jobId;
+  protected final String jobId;
 
-  protected TaskMetrics(TaskState task) {
-    super(name(task), parentContextForTask(task), tagsForTask(task));
-    this.jobId = task.getJobId();
+  protected TaskMetrics(TaskState taskState) {
+    super(name(taskState), parentContextForTask(taskState), tagsForTask(taskState));
+    this.jobId = taskState.getJobId();
   }
 
-  public synchronized static TaskMetrics get(TaskState task) {
+  /**
+   * Get a {@link TaskMetrics} instance for the task with the given {@link TaskState} instance.
+   *
+   * @param taskState the given {@link TaskState} instance
+   * @return a {@link TaskMetrics} instance
+   */
+  public synchronized static TaskMetrics get(TaskState taskState) {
     GobblinMetricsRegistry registry = GobblinMetricsRegistry.getInstance();
-    if (!registry.containsKey(name(task))) {
-      registry.putIfAbsent(name(task), new TaskMetrics(task));
+    String name = name(taskState);
+    if (!registry.containsKey(name)) {
+      registry.putIfAbsent(name, new TaskMetrics(taskState));
     }
-    return (TaskMetrics)registry.get(name(task));
+    return (TaskMetrics) registry.get(name);
   }
 
-  public static String name(TaskState task) {
-    return "gobblin.metrics." + task.getJobId() + "." + task.getTaskId();
+  /**
+   * Remove the {@link TaskMetrics} instance for the task with the given {@link TaskMetrics} instance.
+   *
+   * @param taskState the given {@link TaskState} instance
+   */
+  public synchronized static void remove(TaskState taskState) {
+    remove(name(taskState));
   }
 
-  private static List<Tag<?>> tagsForTask(TaskState task) {
-    List<Tag<?>> tags = new ArrayList<Tag<?>>();
-    tags.add(new Tag<String>("taskId", task.getTaskId()));
+  private static String name(TaskState taskState) {
+    return "gobblin.metrics." + taskState.getJobId() + "." + taskState.getTaskId();
+  }
+
+  private static List<Tag<?>> tagsForTask(TaskState taskState) {
+    List<Tag<?>> tags = Lists.newArrayList();
+    tags.add(new Tag<String>("taskId", taskState.getTaskId()));
     return tags;
   }
 
-  private static MetricContext parentContextForTask(TaskState task) {
-    return JobMetrics.get(null, task.getJobId()).getMetricContext();
+  private static MetricContext parentContextForTask(TaskState taskState) {
+    return JobMetrics.get(taskState.getProp(ConfigurationKeys.JOB_NAME_KEY), taskState.getJobId())
+        .getMetricContext();
   }
 
 }

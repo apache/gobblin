@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
+
 import com.google.common.base.Optional;
 import com.google.common.io.Closer;
 
@@ -36,6 +37,7 @@ import gobblin.source.extractor.Extractor;
  * See {@link gobblin.instrumented.extractor.InstrumentedExtractor} for extensible class.
  */
 abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instrumentable, Closeable {
+
   private final boolean instrumentationEnabled;
   protected final MetricContext metricContext;
   protected final Optional<Meter> readRecordsMeter;
@@ -128,7 +130,7 @@ abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instr
   @Override
   public void close()
       throws IOException {
-    closer.close();
+    this.closer.close();
   }
 
   @Override

@@ -21,17 +21,17 @@ import gobblin.source.extractor.Extractor;
 
 /**
  * Decorator that automatically instruments {@link gobblin.source.extractor.Extractor}.
- * Handles already instrumented {@link gobblin.instrumented.extractor.InstrumentedExtractor} appropriately to
- * avoid double metric reporting.
+ * Handles already instrumented {@link gobblin.instrumented.extractor.InstrumentedExtractor}
+ * appropriately to avoid double metric reporting.
  */
 public class InstrumentedExtractorDecorator<S, D> extends InstrumentedExtractorBase<S, D> {
 
-  private Extractor<S, D> embeddedExtractor;
-  private boolean isEmbeddedInstrumented;
+  private final Extractor<S, D> embeddedExtractor;
+  private final boolean isEmbeddedInstrumented;
 
   public InstrumentedExtractorDecorator(WorkUnitState workUnitState, Extractor<S, D> extractor) {
     super(workUnitState);
-    this.embeddedExtractor = extractor;
+    this.embeddedExtractor = this.closer.register(extractor);
     this.isEmbeddedInstrumented = InstrumentedExtractorBase.class.isInstance(extractor);
   }
 
