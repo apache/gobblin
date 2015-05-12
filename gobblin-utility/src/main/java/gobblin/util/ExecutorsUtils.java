@@ -78,7 +78,7 @@ public class ExecutorsUtils {
    *
    * @param executorService the {@link ExecutorService} to shutdown
    */
-  public static void shutdownExecutorService(ExecutorService executorService) {
+  public static void shutdownExecutorService(ExecutorService executorService) throws InterruptedException {
     executorService.shutdown();
     try {
       // Wait a while for existing tasks to terminate
@@ -90,6 +90,7 @@ public class ExecutorsUtils {
     } catch (InterruptedException ie) {
       executorService.shutdownNow();
       Thread.currentThread().interrupt();
+      throw ie;
     }
   }
 }

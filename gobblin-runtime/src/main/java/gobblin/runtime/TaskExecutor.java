@@ -91,12 +91,12 @@ public class TaskExecutor extends AbstractIdleService {
    */
   public TaskExecutor(Properties properties) {
     this(Integer.parseInt(properties.getProperty(ConfigurationKeys.TASK_EXECUTOR_THREADPOOL_SIZE_KEY,
-            Integer.toString(ConfigurationKeys.DEFAULT_TASK_EXECUTOR_THREADPOOL_SIZE))),
-        Integer.parseInt(properties.getProperty(ConfigurationKeys.TASK_RETRY_THREAD_POOL_CORE_SIZE_KEY,
-            Integer.toString(ConfigurationKeys.DEFAULT_TASK_RETRY_THREAD_POOL_CORE_SIZE))),
-        Integer.parseInt(properties.getProperty(ConfigurationKeys.TASK_RETRY_THREAD_POOL_MAX_SIZE_KEY,
-            Integer.toString(ConfigurationKeys.DEFAULT_TASK_RETRY_THREAD_POOL_MAX_SIZE))),
-        Long.parseLong(properties.getProperty(ConfigurationKeys.TASK_RETRY_INTERVAL_IN_SEC_KEY,
+        Integer.toString(ConfigurationKeys.DEFAULT_TASK_EXECUTOR_THREADPOOL_SIZE))), Integer.parseInt(properties
+        .getProperty(ConfigurationKeys.TASK_RETRY_THREAD_POOL_CORE_SIZE_KEY,
+            Integer.toString(ConfigurationKeys.DEFAULT_TASK_RETRY_THREAD_POOL_CORE_SIZE))), Integer.parseInt(properties
+            .getProperty(ConfigurationKeys.TASK_RETRY_THREAD_POOL_MAX_SIZE_KEY,
+                Integer.toString(ConfigurationKeys.DEFAULT_TASK_RETRY_THREAD_POOL_MAX_SIZE))), Long.parseLong(properties
+        .getProperty(ConfigurationKeys.TASK_RETRY_INTERVAL_IN_SEC_KEY,
             Long.toString(ConfigurationKeys.DEFAULT_TASK_RETRY_INTERVAL_IN_SEC))));
   }
 
@@ -133,9 +133,15 @@ public class TaskExecutor extends AbstractIdleService {
   protected void shutDown()
       throws Exception {
     LOG.info("Stopping the task executor");
-    ExecutorsUtils.shutdownExecutorService(this.taskExecutor);
-    ExecutorsUtils.shutdownExecutorService(this.taskRetryExecutor);
-    ExecutorsUtils.shutdownExecutorService(this.forkExecutor);
+    try {
+      ExecutorsUtils.shutdownExecutorService(this.taskExecutor);
+    } finally {
+      try {
+        ExecutorsUtils.shutdownExecutorService(this.taskRetryExecutor);
+      } finally {
+        ExecutorsUtils.shutdownExecutorService(this.forkExecutor);
+      }
+    }
   }
 
   /**

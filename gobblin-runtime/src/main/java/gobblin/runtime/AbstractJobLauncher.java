@@ -174,53 +174,52 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   @SuppressWarnings("unchecked")
   public void launchJob(JobListener jobListener)
       throws JobException {
-    if (!tryLockJob()) {
-      throw new JobException(
-          String.format("Previous instance of job %s is still running, skipping this scheduled run",
-              this.jobContext.getJobName()));
-    }
-
     String jobId = this.jobContext.getJobId();
     JobState jobState = this.jobContext.getJobState();
 
-    // Generate work units of the job from the source
-    Optional<List<WorkUnit>> workUnits = Optional.fromNullable(this.jobContext.getSource().getWorkunits(jobState));
-    // The absence means there is something wrong getting the work units
-    if (!workUnits.isPresent()) {
-      unlockJob();
-      throw new JobException("Failed to get work units for job " + jobId);
-    }
-
-    // No work unit to run
-    if (workUnits.get().isEmpty()) {
-      LOG.warn("No work units have been created for job " + jobId);
-      unlockJob();
-      return;
-    }
-
-    long startTime = System.currentTimeMillis();
-    jobState.setStartTime(startTime);
-    jobState.setState(JobState.RunningState.RUNNING);
-
-    LOG.info("Starting job " + jobId);
-
-    // Add work units and assign task IDs to them
-    int taskIdSequence = 0;
-    int multiTaskIdSequence = 0;
-    for (WorkUnit workUnit : workUnits.get()) {
-      if (workUnit instanceof MultiWorkUnit) {
-        String multiTaskId = JobLauncherUtils.newMultiTaskId(jobId, multiTaskIdSequence++);
-        workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, multiTaskId);
-        workUnit.setId(multiTaskId);
-        for (WorkUnit innerWorkUnit : ((MultiWorkUnit) workUnit).getWorkUnits()) {
-          addWorkUnit(innerWorkUnit, taskIdSequence++, jobState);
-        }
-      } else {
-        addWorkUnit(workUnit, taskIdSequence++, jobState);
-      }
-    }
-
     try {
+      if (!tryLockJob()) {
+        throw new JobException(
+            String.format("Previous instance of job %s is still running, skipping this scheduled run",
+                this.jobContext.getJobName()));
+      }
+
+      // Generate work units of the job from the source
+      Optional<List<WorkUnit>> workUnits = Optional.fromNullable(this.jobContext.getSource().getWorkunits(jobState));
+      // The absence means there is something wrong getting the work units
+      if (!workUnits.isPresent()) {
+        jobState.setState(JobState.RunningState.FAILED);
+        throw new JobException("Failed to get work units for job " + jobId);
+      }
+
+      // No work unit to run
+      if (workUnits.get().isEmpty()) {
+        LOG.warn("No work units have been created for job " + jobId);
+        return;
+      }
+
+      long startTime = System.currentTimeMillis();
+      jobState.setStartTime(startTime);
+      jobState.setState(JobState.RunningState.RUNNING);
+
+      LOG.info("Starting job " + jobId);
+
+      // Add work units and assign task IDs to them
+      int taskIdSequence = 0;
+      int multiTaskIdSequence = 0;
+      for (WorkUnit workUnit : workUnits.get()) {
+        if (workUnit instanceof MultiWorkUnit) {
+          String multiTaskId = JobLauncherUtils.newMultiTaskId(jobId, multiTaskIdSequence++);
+          workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, multiTaskId);
+          workUnit.setId(multiTaskId);
+          for (WorkUnit innerWorkUnit : ((MultiWorkUnit) workUnit).getWorkUnits()) {
+            addWorkUnit(innerWorkUnit, taskIdSequence++, jobState);
+          }
+        } else {
+          addWorkUnit(workUnit, taskIdSequence++, jobState);
+        }
+      }
+
       if (this.jobContext.getJobMetricsOptional().isPresent()) {
         this.jobContext.getJobMetricsOptional().get().startMetricReporting(this.jobProps);
       }
@@ -248,7 +247,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     } finally {
       long endTime = System.currentTimeMillis();
       jobState.setEndTime(endTime);
-      jobState.setDuration(endTime - startTime);
+      jobState.setDuration(endTime - jobState.getStartTime());
 
       // Persist job state regardless if the job succeeded or failed
       try {

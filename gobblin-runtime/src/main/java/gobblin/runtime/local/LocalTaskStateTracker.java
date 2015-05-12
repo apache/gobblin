@@ -83,7 +83,7 @@ public class LocalTaskStateTracker extends AbstractIdleService implements TaskSt
   }
 
   @Override
-  protected void shutDown() {
+  protected void shutDown() throws Exception {
     LOG.info("Stopping the local task state tracker");
     ExecutorsUtils.shutdownExecutorService(this.reporterExecutor);
   }

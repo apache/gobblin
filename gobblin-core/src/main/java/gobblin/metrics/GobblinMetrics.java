@@ -131,6 +131,8 @@ public class GobblinMetrics {
   private Optional<OutputStreamReporter> fileReporter = Optional.absent();
   // JMX metric reporter
   private Optional<JmxReporter> jmxReporter = Optional.absent();
+  // A flag telling whether metric reporting has started or not
+  private volatile boolean reportingStarted = false;
 
   protected GobblinMetrics(String id, MetricContext parentContext, List<Tag<?>> tags) {
     this.id = id;
@@ -220,6 +222,11 @@ public class GobblinMetrics {
    * @param properties configuration properties
    */
   public void startMetricReporting(Properties properties) {
+    if (this.reportingStarted) {
+      LOGGER.warn("Metric reporting has already started");
+      return;
+    }
+
     buildFileMetricReporter(properties);
     long reportInterval = Long.parseLong(properties.getProperty(ConfigurationKeys.METRICS_REPORT_INTERVAL_KEY,
         ConfigurationKeys.DEFAULT_METRICS_REPORT_INTERVAL));
@@ -231,12 +238,19 @@ public class GobblinMetrics {
     if (this.jmxReporter.isPresent()) {
       this.jmxReporter.get().start();
     }
+
+    this.reportingStarted = true;
   }
 
   /**
    * Stop the metric reporting.
    */
   public void stopMetricReporting() {
+    if (!this.reportingStarted) {
+      LOGGER.warn("Metric reporting has not started yet");
+      return;
+    }
+
     if (this.fileReporter.isPresent()) {
       this.fileReporter.get().stop();
     }
@@ -250,6 +264,8 @@ public class GobblinMetrics {
     } catch (IOException ioe) {
       LOGGER.error("Failed to close metric output stream for job " + this.id, ioe);
     }
+
+    this.reportingStarted = false;
   }
 
   private void buildFileMetricReporter(Properties properties) {
@@ -299,8 +315,7 @@ public class GobblinMetrics {
       return;
     }
 
-    this.jmxReporter = Optional.of(closer.register(JmxReporter.forRegistry(this.metricContext)
-        .convertRatesTo(TimeUnit.SECONDS).convertDurationsTo(TimeUnit.MILLISECONDS).build()));
+    this.jmxReporter = Optional.of(closer.register(JmxReporter.forRegistry(this.metricContext).convertRatesTo(TimeUnit.SECONDS).convertDurationsTo(TimeUnit.MILLISECONDS).build()));
   }
 
 }
