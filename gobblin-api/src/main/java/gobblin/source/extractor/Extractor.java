@@ -63,6 +63,8 @@ public interface Extractor<S, D> extends Closeable {
    * Get the calculated high watermark up to which data records are to be extracted.
    *
    * @return the calculated high watermark
+   * @deprecated there is no longer support for reporting the high watermark via this method, please see
+   * <a href="https://github.com/linkedin/gobblin/wiki/Watermarks">Watermarks</a> for more information.
    */
   @Deprecated
   public long getHighWatermark();

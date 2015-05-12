@@ -16,12 +16,8 @@ import com.google.gson.JsonElement;
 public interface Watermark extends Comparable<Watermark> {
 
   /**
-   * Converter this {@link Watermark} into a {@link JsonElement}.
+   * Convert this {@link Watermark} into a {@link JsonElement}.
    * @return a {@link JsonElement} representing this {@link Watermark}.
-   *
-   * do object mapping in gson, in a separate class, eventually make it a default method
-   * 
-   * or just have a WatermarkSerializer class with a default implementation that uses GSON, otherwise will have to change below method to take in JsonElement
    */
   public JsonElement toJson();
 

@@ -104,12 +104,13 @@ public class WorkUnitState extends State {
     setProp(ConfigurationKeys.WORK_UNIT_WORKING_STATE_KEY, state.toString());
   }
 
-  public JsonElement getActualHighWatermarkAsJson() {
+  /**
+   * Get the actual high {@link Watermark} as a {@link JsonElement}.
+   *
+   * @return a {@link JsonElement} representing the actual high {@link Watermark}.
+   */
+  public JsonElement getActualHighWatermark() {
     return GSON.toJsonTree(getProp(ConfigurationKeys.WORK_UNIT_STATE_COMPLEX_ACTUAL_HIGH_WATER_MARK_KEY));
-  }
-
-  public Watermark getActualHighWatermark() {
-    return this.actualHighWatermark;
   }
 
   /**
@@ -136,6 +137,15 @@ public class WorkUnitState extends State {
    */
   public void setActualHighWatermark(Watermark watermark) {
     this.actualHighWatermark = watermark;
+
+    /**
+     * TODO
+     *
+     * Hack until a state-store migration can be done. The watermark is converted to a {@link String} and then stored
+     * internally in via a configuration key. Once a state-store migration can be done, the {@link Watermark} can be
+     * stored as Binary JSON.
+     */
+    setProp(ConfigurationKeys.WORK_UNIT_STATE_COMPLEX_ACTUAL_HIGH_WATER_MARK_KEY, this.actualHighWatermark.toJson());
   }
 
   /**
@@ -221,15 +231,6 @@ public class WorkUnitState extends State {
   @Override
   public void write(DataOutput out)
       throws IOException {
-    /**
-     * TODO
-     *
-     * Hack until a state-store migration can be done. The watermark is converted to a {@link String} and then stored
-     * internally in via a configuration key. Once a state-store migration can be done, the {@link Watermark} can be
-     * stored as Binary JSON.
-     */
-    setProp(ConfigurationKeys.WORK_UNIT_STATE_COMPLEX_ACTUAL_HIGH_WATER_MARK_KEY, this.actualHighWatermark.toJson());
-
     this.workunit.write(out);
     super.write(out);
   }

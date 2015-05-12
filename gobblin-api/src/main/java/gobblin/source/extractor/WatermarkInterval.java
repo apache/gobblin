@@ -19,10 +19,6 @@ public class WatermarkInterval {
   public static final String LOW_WATERMARK_TO_JSON_KEY = "low.watermark.to.json";
   public static final String EXPECTED_HIGH_WATERMARK_TO_JSON_KEY = "expected.watermark.to.json";
 
-  // Needed for the Writable interface
-  public WatermarkInterval() {
-  }
-
   private WatermarkInterval(Watermark lowWatermark, Watermark expectedHighWatermark) {
     this.lowWatermark = lowWatermark;
     this.expectedHighWatermark = expectedHighWatermark;
