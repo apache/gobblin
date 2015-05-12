@@ -133,7 +133,7 @@ public class ConfigurationKeys {
    */
   public static final String WORK_UNIT_WORKING_STATE_KEY = "workunit.working.state";
   public static final String WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK = "workunit.state.runtime.high.water.mark";
-  public static final String WORK_UNIT_STATE_COMPLEX_ACTUAL_HIGH_WATER_MARK_KEY = "workunit.state.complex.actual.high.water.mark";
+  public static final String WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY = "workunit.state.actual.high.water.mark";
 
   /**
    * Watermark interval related configuration properties.

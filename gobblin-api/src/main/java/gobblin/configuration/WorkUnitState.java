@@ -110,7 +110,7 @@ public class WorkUnitState extends State {
    * @return a {@link JsonElement} representing the actual high {@link Watermark}.
    */
   public JsonElement getActualHighWatermark() {
-    return GSON.toJsonTree(getProp(ConfigurationKeys.WORK_UNIT_STATE_COMPLEX_ACTUAL_HIGH_WATER_MARK_KEY));
+    return GSON.toJsonTree(getProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY));
   }
 
   /**
@@ -145,7 +145,7 @@ public class WorkUnitState extends State {
      * internally in via a configuration key. Once a state-store migration can be done, the {@link Watermark} can be
      * stored as Binary JSON.
      */
-    setProp(ConfigurationKeys.WORK_UNIT_STATE_COMPLEX_ACTUAL_HIGH_WATER_MARK_KEY, this.actualHighWatermark.toJson());
+    setProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY, this.actualHighWatermark.toJson());
   }
 
   /**

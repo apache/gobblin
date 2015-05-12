@@ -1,6 +1,5 @@
 package gobblin.source.extractor;
 
-import com.google.common.base.Preconditions;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
@@ -13,38 +12,15 @@ import com.google.gson.JsonObject;
  */
 public class WatermarkInterval {
 
-  private Watermark lowWatermark;
-  private Watermark expectedHighWatermark;
-
   public static final String LOW_WATERMARK_TO_JSON_KEY = "low.watermark.to.json";
   public static final String EXPECTED_HIGH_WATERMARK_TO_JSON_KEY = "expected.watermark.to.json";
 
-  private WatermarkInterval(Watermark lowWatermark, Watermark expectedHighWatermark) {
+  private final Watermark lowWatermark;
+  private final Watermark expectedHighWatermark;
+
+  public WatermarkInterval(Watermark lowWatermark, Watermark expectedHighWatermark) {
     this.lowWatermark = lowWatermark;
     this.expectedHighWatermark = expectedHighWatermark;
-  }
-
-  public static class Builder {
-
-    private Watermark lowWatermark;
-    private Watermark expectedHighWatermark;
-
-    public Builder withLowWatermark(Watermark lowWatermark) {
-      this.lowWatermark = lowWatermark;
-      return this;
-    }
-
-    public Builder withExpectedHighWatermark(Watermark expectedHighWatermark) {
-      this.expectedHighWatermark = expectedHighWatermark;
-      return this;
-    }
-
-    public WatermarkInterval build() {
-      Preconditions.checkNotNull(this.lowWatermark, "Must specify a low watermark");
-      Preconditions.checkNotNull(this.expectedHighWatermark, "Must specify an expected high watermark");
-
-      return new WatermarkInterval(this.lowWatermark, this.expectedHighWatermark);
-    }
   }
 
   public Watermark getLowWatermark() {
