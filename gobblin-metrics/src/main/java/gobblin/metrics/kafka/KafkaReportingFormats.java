@@ -30,7 +30,7 @@ public enum KafkaReportingFormats {
         return KafkaReporter.forContext(context);
       default:
         // This should never happen.
-        throw new RuntimeException("KafkaReportingFormat not recognized.");
+        throw new IllegalArgumentException("KafkaReportingFormat not recognized.");
     }
   }
 
