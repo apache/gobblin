@@ -31,7 +31,7 @@ public class InstrumentedExtractorDecorator<S, D> extends InstrumentedExtractorB
 
   public InstrumentedExtractorDecorator(WorkUnitState workUnitState, Extractor<S, D> extractor) {
     super(workUnitState);
-    this.embeddedExtractor = extractor;
+    this.embeddedExtractor = this.closer.register(extractor);
     this.isEmbeddedInstrumented = InstrumentedExtractorBase.class.isInstance(extractor);
   }
 
@@ -70,15 +70,5 @@ public class InstrumentedExtractorDecorator<S, D> extends InstrumentedExtractorB
   @Override
   public long getHighWatermark() {
     return this.embeddedExtractor.getHighWatermark();
-  }
-
-  @Override
-  public void close()
-      throws IOException {
-    try {
-      this.embeddedExtractor.close();
-    } finally {
-      super.close();
-    }
   }
 }

@@ -31,7 +31,7 @@ public class InstrumentedForkOperatorDecorator<S, D> extends InstrumentedForkOpe
   private boolean isEmbeddedInstrumented;
 
   public InstrumentedForkOperatorDecorator(ForkOperator<S, D> forkOperator) {
-    this.embeddedForkOperator = forkOperator;
+    this.embeddedForkOperator = this.closer.register(forkOperator);
     this.isEmbeddedInstrumented = InstrumentedForkOperatorBase.class.isInstance(forkOperator);
   }
 
@@ -69,15 +69,5 @@ public class InstrumentedForkOperatorDecorator<S, D> extends InstrumentedForkOpe
   @Override
   public List<Boolean> forkSchema(WorkUnitState workUnitState, S input) {
     return embeddedForkOperator.forkSchema(workUnitState, input);
-  }
-
-  @Override
-  public void close()
-      throws IOException {
-    try {
-      this.embeddedForkOperator.close();
-    } finally {
-      super.close();
-    }
   }
 }
