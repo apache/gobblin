@@ -152,6 +152,7 @@ public class WorkUnitState extends State {
    * Get the high watermark as set in {@link gobblin.source.extractor.Extractor}.
    *
    * @return high watermark
+   * @deprectated use {@link #getActualHighWatermark}.
    */
   @Deprecated
   public long getHighWaterMark() {
@@ -163,6 +164,7 @@ public class WorkUnitState extends State {
    * Set the high watermark.
    *
    * @param value high watermark
+   * @deprecated use {@link #setActualHighWatermark(Watermark)}.
    */
   @Deprecated
   public void setHighWaterMark(long value) {

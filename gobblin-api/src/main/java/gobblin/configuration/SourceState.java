@@ -11,8 +11,6 @@
 
 package gobblin.configuration;
 
-import gobblin.source.workunit.Extract;
-
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -30,6 +28,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import gobblin.source.workunit.WorkUnit;
+import gobblin.source.workunit.Extract;
 
 
 /**
