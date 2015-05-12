@@ -161,6 +161,6 @@ public class WriterUtils {
       String formatExtension) {
     return state.getProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_NAME, numBranches, branchId),
-        String.format("%s.%s.%s", ConfigurationKeys.DEFAULT_WRITER_FILE_NAME, writerId, formatExtension));
+        String.format("%s.%s.%s", ConfigurationKeys.DEFAULT_WRITER_FILE_BASE_NAME, writerId, formatExtension));
   }
 }
