@@ -54,6 +54,7 @@ public class MRJobLauncherTest extends BMNGRunner {
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, "true");
     this.launcherProps.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "true");
     this.launcherProps.setProperty(ConfigurationKeys.METRICS_REPORTING_FILE_ENABLED_KEY, "false");
+    this.launcherProps.setProperty(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, "false");
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY,
         "org.apache.derby.jdbc.EmbeddedDriver");
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY,
