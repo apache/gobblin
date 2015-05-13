@@ -366,6 +366,12 @@ public class ConfigurationKeys {
   public static final String DEFAULT_METRICS_REPORTING_FILE_ENABLED = Boolean.toString(true);
   public static final String METRICS_REPORTING_JMX_ENABLED_KEY = "metrics.reporting.jmx.enabled";
   public static final String DEFAULT_METRICS_REPORTING_JMX_ENABLED = Boolean.toString(false);
+  public static final String METRICS_REPORTING_KAFKA_ENABLED_KEY = "metrics.reporting.kafka.enabled";
+  public static final String DEFAULT_METRICS_REPORTING_KAFKA_ENABLED = Boolean.toString(false);
+  public static final String METRICS_REPORTING_KAFKA_FORMAT = "metrics.reporting.kafka.format";
+  public static final String DEFAULT_METRICS_REPORTING_KAFKA_FORMAT = "json";
+  public static final String METRICS_KAFKA_BROKERS = "metrics.reporting.kafka.brokers";
+  public static final String METRICS_KAFKA_TOPIC = "metrics.reporting.kafka.topic";
   public static final String METRICS_REPORT_INTERVAL_KEY = "metrics.report.interval";
   public static final String DEFAULT_METRICS_REPORT_INTERVAL = "30000";
 
