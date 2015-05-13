@@ -14,6 +14,7 @@ package gobblin.source.workunit;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -128,5 +129,13 @@ public class WorkUnit extends State {
       throws IOException {
     super.write(out);
     this.extract.write(out);
+  }
+
+  @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = super.hashCode();
+    result = prime * result + ((this.extract == null) ? 0 : this.extract.hashCode());
+    return result;
   }
 }

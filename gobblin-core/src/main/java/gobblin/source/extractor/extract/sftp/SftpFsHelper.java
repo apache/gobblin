@@ -155,7 +155,7 @@ public class SftpFsHelper implements FileBasedHelper {
    * methods
    * @author stakiar
    */
-  private class SftpGetMonitor implements SftpProgressMonitor {
+  private static class SftpGetMonitor implements SftpProgressMonitor {
 
     private int op;
     private String src;
@@ -203,8 +203,9 @@ public class SftpFsHelper implements FileBasedHelper {
           return log.isErrorEnabled();
         case FATAL:
           return log.isErrorEnabled();
+        default:
+          return false;
       }
-      return false;
     }
 
     public void log(int level, String message) {
@@ -223,6 +224,9 @@ public class SftpFsHelper implements FileBasedHelper {
           break;
         case FATAL:
           log.error(message);
+          break;
+        default:
+          log.info(message);
           break;
       }
     }

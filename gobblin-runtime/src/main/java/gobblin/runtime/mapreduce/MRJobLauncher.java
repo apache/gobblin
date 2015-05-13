@@ -175,8 +175,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
       if (this.cancellationRequested) {
         // Wait for the cancellation execution if it has been requested
         synchronized (this.cancellationExecution) {
-          if (jobState.getState() == JobState.RunningState.CANCELLED) {
-            LOG.info(String.format("Job %s has been cancelled, aborting now", this.jobContext.getJobId()));
+          if (this.cancellationExecuted) {
             return;
           }
         }

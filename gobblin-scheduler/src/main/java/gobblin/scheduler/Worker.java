@@ -87,7 +87,7 @@ public class Worker {
 
       @Override
       public void failure(Service service) {
-        LOG.error(String.format("Service %s failed for the following reason:\n\t%s", service.toString(),
+        LOG.error(String.format("Service %s failed for the following reason:%n\t%s", service.toString(),
             service.failureCause().toString()));
         System.exit(1);
       }

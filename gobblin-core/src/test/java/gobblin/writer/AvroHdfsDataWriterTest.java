@@ -99,9 +99,8 @@ public class AvroHdfsDataWriterTest {
     this.writer.close();
     this.writer.commit();
 
-    File outputFile = new File(TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + this.filePath,
-        TestConstants.TEST_FILE_NAME + "." + TestConstants.TEST_WRITER_ID + "." +
-            TestConstants.TEST_FILE_EXTENSION);
+    File outputFile =
+        new File(TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + this.filePath, TestConstants.TEST_FILE_NAME);
     DataFileReader<GenericRecord> reader =
         new DataFileReader<GenericRecord>(outputFile, new GenericDatumReader<GenericRecord>(this.schema));
 

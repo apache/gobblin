@@ -30,10 +30,8 @@ import gobblin.fork.CopyNotSupportedException;
 import gobblin.fork.Copyable;
 import gobblin.fork.ForkOperator;
 import gobblin.instrumented.extractor.InstrumentedExtractorDecorator;
-import gobblin.metrics.GobblinMetrics;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
-import gobblin.runtime.util.TaskMetrics;
 import gobblin.source.extractor.Extractor;
 
 
@@ -76,7 +74,6 @@ public class Task implements Runnable {
   private final TaskStateTracker taskStateTracker;
   private final TaskExecutor taskExecutor;
   private final Optional<CountDownLatch> countDownLatch;
-  private final Optional<TaskMetrics> taskMetricsOptional;
 
   private final List<Optional<Fork>> forks = Lists.newArrayList();
 
@@ -95,20 +92,12 @@ public class Task implements Runnable {
   public Task(TaskContext context, TaskStateTracker taskStateTracker, TaskExecutor taskExecutor,
       Optional<CountDownLatch> countDownLatch) {
     this.taskContext = context;
-
     this.taskState = context.getTaskState();
     this.jobId = this.taskState.getJobId();
     this.taskId = this.taskState.getTaskId();
     this.taskStateTracker = taskStateTracker;
     this.taskExecutor = taskExecutor;
     this.countDownLatch = countDownLatch;
-
-    if (GobblinMetrics.isEnabled(this.taskState)) {
-      this.taskMetricsOptional = Optional.of(TaskMetrics.get(this.taskState));
-      this.taskContext.setMetricsContextName(this.taskMetricsOptional.get().getName());
-    } else {
-      this.taskMetricsOptional = Optional.absent();
-    }
   }
 
   @Override

@@ -146,7 +146,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    *   method notifies the cancellation executor started by {@link #startCancellationExecutor()} on the
    *   first conditional variable to indicate that a cancellation has been requested so the executor is
    *   unblocked. Then it waits on the second conditional variable for the cancellation to be executed.
-   *   Once returning from the wait, it sets the job state to {@link JobState.RunningState#CANCELLED}.
    * </p>
    *
    * <p>
@@ -177,7 +176,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           // Wait for the cancellation to be executed
           this.cancellationExecution.wait();
         }
-        this.jobContext.getJobState().setState(JobState.RunningState.CANCELLED);
+
         if (jobListener != null) {
           jobListener.onJobCancellation(this.jobContext.getJobState());
         }
@@ -249,7 +248,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
       // Check and set final job jobPropsState upon job completion
       if (jobState.getState() == JobState.RunningState.CANCELLED) {
-        LOG.info(String.format("Job %s has been cancelled", jobId));
+        LOG.info(String.format("Job %s has been cancelled, aborting now", jobId));
         return;
       }
 
@@ -347,6 +346,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    *   is unblocked and calls {@link #executeCancellation()} to execute the cancellation. Upon completion
    *   of the cancellation execution, the executor notifies the caller that requested the cancellation on
    *   the conditional variable indicating the cancellation has been executed so the caller is unblocked.
+   *   Upon successful execution of the cancellation, it sets the job state to
+   *   {@link JobState.RunningState#CANCELLED}.
    * </p>
    */
   protected void startCancellationExecutor() {
@@ -369,8 +370,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
         synchronized (cancellationExecution) {
           cancellationExecuted = true;
-          // Notify the requester that the cancellation has been executed
-          cancellationExecution.notify();
+          jobContext.getJobState().setState(JobState.RunningState.CANCELLED);
+          // Notify that the cancellation has been executed
+          cancellationExecution.notifyAll();
         }
       }
     });
