@@ -13,12 +13,13 @@ package gobblin.compaction;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
 import org.apache.commons.lang.StringUtils;
+
+import com.google.common.base.Splitter;
 
 import gobblin.hive.util.HiveJdbcConnector;
 
@@ -56,9 +57,9 @@ public abstract class HiveTable {
     }
 
     @SuppressWarnings("unchecked")
-    public T withPrimaryKeys(String firstKeyAttr, String... remainingKeyAttr) {
-      this.primaryKeys.add(firstKeyAttr);
-      this.primaryKeys.addAll(Arrays.asList(remainingKeyAttr));
+    public T withPrimaryKeys(String keyAttrs) {
+      List<String> keyAttrsList = Splitter.on(",").trimResults().omitEmptyStrings().splitToList(keyAttrs);
+      this.primaryKeys.addAll(keyAttrsList);
       return (T) this;
     }
 

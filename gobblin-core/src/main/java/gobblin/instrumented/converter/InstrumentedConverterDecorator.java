@@ -21,12 +21,13 @@ import gobblin.metrics.MetricContext;
 
 /**
  * Decorator that automatically instruments {@link gobblin.converter.Converter}.
- * Handles already instrumented {@link gobblin.instrumented.converter.InstrumentedConverter} appropriately to
- * avoid double metric reporting.
+ * Handles already instrumented {@link gobblin.instrumented.converter.InstrumentedConverter}
+ * appropriately to avoid double metric reporting.
  */
 public class InstrumentedConverterDecorator<SI, SO, DI, DO> extends InstrumentedConverterBase<SI, SO, DI, DO> {
+
   private Converter<SI, SO, DI, DO> embeddedConverter;
-  private boolean isEmbeddedInstrumented;
+  private final boolean isEmbeddedInstrumented;
 
   public InstrumentedConverterDecorator(Converter<SI, SO, DI, DO> converter) {
     this.embeddedConverter = converter;

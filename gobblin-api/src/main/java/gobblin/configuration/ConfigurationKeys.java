@@ -205,7 +205,7 @@ public class ConfigurationKeys {
   public static final String WRITER_PARTITION_LEVEL = WRITER_PREFIX + ".partition.level";
   public static final String WRITER_PARTITION_PATTERN = WRITER_PREFIX + ".partition.pattern";
   public static final String WRITER_PARTITION_TIMEZONE = WRITER_PREFIX + ".partition.timezone";
-  public static final String DEFAULT_WRITER_FILE_NAME = "part";
+  public static final String DEFAULT_WRITER_FILE_BASE_NAME = "part";
   public static final String DEFAULT_DEFLATE_LEVEL = "9";
   public static final String DEFAULT_BUFFER_SIZE = "4096";
   public static final String DEFAULT_WRITER_PARTITION_LEVEL = "daily";

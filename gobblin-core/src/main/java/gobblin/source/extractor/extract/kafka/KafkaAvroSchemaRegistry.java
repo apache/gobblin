@@ -160,6 +160,27 @@ public class KafkaAvroSchemaRegistry {
       int statusCode = httpClient.executeMethod(post);
       if (statusCode != HttpStatus.SC_CREATED)
         LOG.error("Error occurred while trying to register schema: " + statusCode);
+
+      String response;
+      response = post.getResponseBodyAsString();
+      if (response != null) {
+        LOG.info("Received response " + response);
+      }
+
+      String schemaId;
+      Header[] headers = post.getResponseHeaders(SCHEMA_ID_HEADER_NAME);
+      if (headers.length != 1) {
+        LOG.error("Error reading schemaId returned by registerSchema call");
+        throw new RuntimeException("Error reading schemaId returned by registerSchema call");
+      } else if (!headers[0].getValue().startsWith(SCHEMA_ID_HEADER_PREFIX)) {
+        LOG.error("Error parsing schemaId returned by registerSchema call");
+        throw new RuntimeException("Error parsing schemaId returned by registerSchema call");
+      } else {
+        LOG.info("Registered schema successfully");
+        schemaId = headers[0].getValue().substring(SCHEMA_ID_HEADER_PREFIX.length());
+      }
+
+      return schemaId;
     } catch (URIException e) {
       throw new RuntimeException(e);
     } catch (HttpException e) {
@@ -169,31 +190,6 @@ public class KafkaAvroSchemaRegistry {
     } finally {
       post.releaseConnection();
     }
-
-    LOG.info("Registered schema successfully");
-    String response;
-    try {
-      response = post.getResponseBodyAsString();
-      if (response != null) {
-        LOG.info("Received response " + response);
-      }
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-
-    String schemaId;
-    Header[] headers = post.getResponseHeaders(SCHEMA_ID_HEADER_NAME);
-    if (headers.length != 1) {
-      LOG.error("Error reading schemaId returned by registerSchema call");
-      throw new RuntimeException("Error reading schemaId returned by registerSchema call");
-    } else if (!headers[0].getValue().startsWith(SCHEMA_ID_HEADER_PREFIX)) {
-      LOG.error("Error parsing schemaId returned by registerSchema call");
-      throw new RuntimeException("Error parsing schemaId returned by registerSchema call");
-    } else {
-      schemaId = headers[0].getValue().substring(SCHEMA_ID_HEADER_PREFIX.length());
-    }
-
-    return schemaId;
   }
 
   private class KafkaSchemaCacheLoader extends CacheLoader<String, Schema> {
@@ -268,7 +264,8 @@ public class KafkaAvroSchemaRegistry {
           throw new SchemaNotFoundException(String.format("Schema with ID = %s cannot be parsed", id), e);
         }
       } else {
-        throw new SchemaNotFoundException(String.format("Schema with ID = %s cannot be parsed: schema should start with '{'", id));
+        throw new SchemaNotFoundException(String.format(
+            "Schema with ID = %s cannot be parsed: schema should start with '{'", id));
       }
 
       return schema;

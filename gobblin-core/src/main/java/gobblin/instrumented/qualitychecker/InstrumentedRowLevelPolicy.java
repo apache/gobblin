@@ -12,19 +12,7 @@
 
 package gobblin.instrumented.qualitychecker;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.concurrent.TimeUnit;
-
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.Timer;
-import com.google.common.io.Closer;
-
-import gobblin.instrumented.Instrumentable;
-import gobblin.instrumented.Instrumented;
 import gobblin.configuration.State;
-import gobblin.metrics.MetricContext;
-import gobblin.qualitychecker.row.RowLevelPolicy;
 
 
 /**

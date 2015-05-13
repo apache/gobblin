@@ -66,7 +66,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
   private Iterator<D> iterator;
   protected List<String> columnList = new ArrayList<String>();
   private List<Predicate> predicateList = new ArrayList<Predicate>();
-  protected Logger log = LoggerFactory.getLogger(QueryBasedExtractor.class);
+  private Logger log = LoggerFactory.getLogger(QueryBasedExtractor.class);
 
   private S getOutputSchema() {
     return this.outputSchema;

@@ -30,10 +30,8 @@ import gobblin.fork.CopyNotSupportedException;
 import gobblin.fork.Copyable;
 import gobblin.fork.ForkOperator;
 import gobblin.instrumented.extractor.InstrumentedExtractorDecorator;
-import gobblin.metrics.MetricContext;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
-import gobblin.runtime.util.TaskMetrics;
 import gobblin.source.extractor.Extractor;
 
 
@@ -76,7 +74,6 @@ public class Task implements Runnable {
   private final TaskStateTracker taskStateTracker;
   private final TaskExecutor taskExecutor;
   private final Optional<CountDownLatch> countDownLatch;
-  private final TaskMetrics taskMetrics;
 
   private final List<Optional<Fork>> forks = Lists.newArrayList();
 
@@ -95,10 +92,6 @@ public class Task implements Runnable {
   public Task(TaskContext context, TaskStateTracker taskStateTracker, TaskExecutor taskExecutor,
       Optional<CountDownLatch> countDownLatch) {
     this.taskContext = context;
-
-    this.taskMetrics = TaskMetrics.get(this.taskContext.getTaskState());
-    this.taskContext.setMetricsContextName(this.taskMetrics.getName());
-
     this.taskState = context.getTaskState();
     this.jobId = this.taskState.getJobId();
     this.taskId = this.taskState.getTaskId();

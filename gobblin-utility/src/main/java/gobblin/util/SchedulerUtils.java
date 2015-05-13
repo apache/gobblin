@@ -231,6 +231,9 @@ public class SchedulerUtils {
     return Sets.newHashSet(Iterables.transform(jobConfigFileExtensionsIterable, new Function<String, String>() {
           @Override
           public String apply(String input) {
+            if (input == null) {
+              throw new NullPointerException("Given input is null: " + input);
+            }
             return input.toLowerCase();
           }
         }));

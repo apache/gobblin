@@ -18,8 +18,8 @@ import gobblin.qualitychecker.row.RowLevelPolicy;
 
 /**
  * Decorator that automatically instruments {@link gobblin.qualitychecker.row.RowLevelPolicy}.
- * Handles already instrumented {@link gobblin.instrumented.qualitychecker.InstrumentedRowLevelPolicy} appropriately to
- * avoid double metric reporting.
+ * Handles already instrumented {@link gobblin.instrumented.qualitychecker.InstrumentedRowLevelPolicy}
+ * appropriately to avoid double metric reporting.
  */
 public class InstrumentedRowLevelPolicyDecorator extends InstrumentedRowLevelPolicyBase {
 

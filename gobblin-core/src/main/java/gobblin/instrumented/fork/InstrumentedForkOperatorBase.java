@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
+
 import com.google.common.base.Optional;
 import com.google.common.io.Closer;
 
@@ -39,7 +40,8 @@ abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, For
   private boolean instrumentationEnabled = false;
   protected final Closer closer = Closer.create();
 
-  protected MetricContext metricContext = new MetricContext.Builder(InstrumentedForkOperatorBase.class.getName()).build();
+  protected MetricContext metricContext = new MetricContext.Builder(InstrumentedForkOperatorBase.class.getName())
+      .build();
   protected Optional<Meter> inputMeter = Optional.absent();
   protected Optional<Meter> outputForks = Optional.absent();
   protected Optional<Timer> forkOperatorTimer = Optional.absent();
@@ -50,8 +52,7 @@ abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, For
     this.instrumentationEnabled = GobblinMetrics.isEnabled(workUnitState);
 
     if(isInstrumentationEnabled()) {
-      this.metricContext =
-          closer.register(Instrumented.getMetricContext(workUnitState, this.getClass()));
+      this.metricContext = closer.register(Instrumented.getMetricContext(workUnitState, this.getClass()));
 
       this.inputMeter = Optional.of(this.metricContext.meter(MetricNames.ForkOperatorMetrics.RECORDS_IN_METER));
       this.outputForks = Optional.of(this.metricContext.meter(MetricNames.ForkOperatorMetrics.FORKS_OUT_METER));
@@ -81,7 +82,7 @@ abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, For
 
   /**
    * Called before forkDataRecord.
-   * @param input
+   * @param input an input data record
    */
   protected void beforeFork(D input) {
     Instrumented.markMeter(this.inputMeter);
@@ -114,6 +115,6 @@ abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, For
   @Override
   public void close()
       throws IOException {
-    closer.close();
+    this.closer.close();
   }
 }

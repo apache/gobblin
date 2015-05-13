@@ -56,6 +56,11 @@ public class TimePartitionedDataPublisher extends BaseDataPublisher {
       String pathSuffix =
           filePathStr.substring(filePathStr.indexOf(writerOutput.toString()) + writerOutput.toString().length() + 1);
       Path outputPath = new Path(publisherOutput, pathSuffix);
+
+      if (!this.fss.get(branchId).exists(outputPath.getParent())) {
+        this.fss.get(branchId).mkdirs(outputPath.getParent());
+      }
+
       if (this.fss.get(branchId).rename(status.getPath(), outputPath)) {
         LOG.info(String.format("Moved %s to %s", status.getPath(), outputPath));
       } else {
