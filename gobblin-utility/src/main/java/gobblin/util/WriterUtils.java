@@ -159,8 +159,8 @@ public class WriterUtils {
    */
   public static String getWriterFileName(State state, int numBranches, int branchId, String writerId,
       String formatExtension) {
-    return String.format("%s.%s.%s", state.getProp(
+    return state.getProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_NAME, numBranches, branchId),
-        ConfigurationKeys.DEFAULT_WRITER_FILE_NAME), writerId, formatExtension);
+        String.format("%s.%s.%s", ConfigurationKeys.DEFAULT_WRITER_FILE_BASE_NAME, writerId, formatExtension));
   }
 }
