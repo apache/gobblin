@@ -126,7 +126,7 @@ public class TimestampWatermark implements Watermark {
     try {
       date = inputFormat.parse(dateTime);
     } catch (ParseException e) {
-      LOG.error(e.getMessage(), e);
+      throw new RuntimeException(e.getMessage(), e);
     }
     return date.getTime();
   }

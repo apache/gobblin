@@ -72,7 +72,7 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
   private long createdAt;
   protected String instanceUrl;
   protected String updatedQuery;
-  protected Logger log = LoggerFactory.getLogger(RestApiExtractor.class);
+  private Logger log = LoggerFactory.getLogger(RestApiExtractor.class);
 
   public RestApiExtractor(WorkUnitState state) {
     super(state);
@@ -262,11 +262,6 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
     this.setAuthTokenTimeout(timeOut);
   }
 
-  @Override
-  public Map<String, String> getDataTypeMap() {
-    return this.getDataTypeMap();
-  }
-
   /**
    * Connect to rest api
    * @return true if it is success else false
@@ -418,10 +413,8 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
       jsonObject = json.getAsJsonObject();
     } else {
       JsonArray jsonArray = json.getAsJsonArray();
-      for (int i = 0; i < jsonArray.size(); i++) {
-        JsonElement element = jsonArray.get(i);
-        jsonObject = element.getAsJsonObject();
-        break;
+      if (jsonArray.size() != 0) {
+        jsonObject = jsonArray.get(0).getAsJsonObject();
       }
     }
 

@@ -70,7 +70,7 @@ public class EmailUtils {
     }
 
     email.setSubject(subject);
-    String fromHostLine = String.format("This email was sent from host: %s\n\n", hostName);
+    String fromHostLine = String.format("This email was sent from host: %s%n%n", hostName);
     email.setMsg(fromHostLine + message);
     email.send();
   }
