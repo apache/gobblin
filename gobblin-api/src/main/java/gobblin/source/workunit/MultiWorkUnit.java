@@ -79,10 +79,9 @@ public class MultiWorkUnit extends WorkUnit {
 
   @Override
   public int hashCode() {
-    int hashCode = 0;
-    for (WorkUnit workUnit : this.workUnits) {
-      hashCode += workUnit.hashCode();
-    }
-    return hashCode;
+    final int prime = 31;
+    int result = super.hashCode();
+    result = prime * result + ((this.workUnits == null) ? 0 : this.workUnits.hashCode());
+    return result;
   }
 }

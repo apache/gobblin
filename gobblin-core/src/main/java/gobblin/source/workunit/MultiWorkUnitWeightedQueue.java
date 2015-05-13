@@ -11,7 +11,6 @@
 
 package gobblin.source.workunit;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Queue;
@@ -112,17 +111,20 @@ public class MultiWorkUnitWeightedQueue {
     }
 
     @Override
+    public int hashCode() {
+      final int prime = 31;
+      int result = 1;
+      result = prime * result + (int) (this.weight ^ (this.weight >>> 32));
+      return result;
+    }
+
+    @Override
     public boolean equals(Object obj) {
       if (!(obj instanceof WeightedMultiWorkUnit)) {
         return false;
       }
       WeightedMultiWorkUnit weightedMultiWorkUnit = (WeightedMultiWorkUnit) obj;
       return this.weight == weightedMultiWorkUnit.getWeight();
-    }
-
-    @Override
-    public int hashCode() {
-      return super.hashCode() + Long.valueOf(this.weight).hashCode();
     }
 
     public long getWeight() {
