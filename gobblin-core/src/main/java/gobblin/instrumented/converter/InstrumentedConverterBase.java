@@ -14,6 +14,7 @@ package gobblin.instrumented.converter;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Meter;
@@ -22,8 +23,10 @@ import com.codahale.metrics.Timer;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
@@ -32,6 +35,7 @@ import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricNames;
+import gobblin.metrics.Tag;
 
 
 /**
@@ -66,6 +70,11 @@ abstract class InstrumentedConverterBase<SI, SO, DI, DO> extends Converter<SI, S
     }
 
     return converter;
+  }
+
+  @Override
+  public List<Tag<?>> generateTags(State state) {
+    return Lists.newArrayList();
   }
 
   @Override

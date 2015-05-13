@@ -181,6 +181,11 @@ public class Instrumented implements Instrumentable, Closeable {
   }
 
   @Override
+  public List<Tag<?>> generateTags(State state) {
+    return Lists.newArrayList();
+  }
+
+  @Override
   public boolean isInstrumentationEnabled() {
     return this.instrumentationEnabled;
   }

@@ -13,6 +13,7 @@ package gobblin.source.extractor.extract.kafka;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +23,9 @@ import kafka.message.MessageAndOffset;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.metrics.Tag;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.EventBasedExtractor;
@@ -51,6 +54,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   private long avgRecordSize;
 
   public KafkaExtractor(WorkUnitState state) {
+    super(state);
     this.workUnitState = state;
     this.partition =
         new KafkaPartition.Builder().withId(state.getPropAsInt(KafkaSource.PARTITION_ID))
@@ -70,7 +74,15 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   }
 
   @Override
-  public D readRecord(D reuse) throws DataRecordException, IOException {
+  public List<Tag<?>> generateTags(State state) {
+    List<Tag<?>> tags = super.generateTags(state);
+    tags.add(new Tag<String>("topic", state.getProp(KafkaSource.TOPIC_NAME)));
+    tags.add(new Tag<Integer>("partition", state.getPropAsInt(KafkaSource.PARTITION_ID)));
+    return tags;
+  }
+
+  @Override
+  public D readRecordImpl(D reuse) throws DataRecordException, IOException {
     if (this.nextWatermark >= this.highWatermark) {
       return null;
     }

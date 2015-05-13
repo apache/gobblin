@@ -362,6 +362,13 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
     return super.register(MetricRegistry.name(metricNamePrefix(this.includeTagKeys), name), metric);
   }
 
+  /**
+   * Register a {@link gobblin.metrics.ContextAwareMetric} under its own name.
+   */
+  public <T extends ContextAwareMetric> T register(T metric) throws IllegalArgumentException {
+    return register(metric.getName(), metric);
+  }
+
   @Override
   public void registerAll(MetricSet metrics)
       throws IllegalArgumentException {

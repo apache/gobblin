@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Counter;
+import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.JmxReporter;
 import com.codahale.metrics.Meter;
@@ -214,6 +215,25 @@ public class GobblinMetrics {
     return this.metricContext.timer(MetricRegistry.name(prefix, suffixes));
   }
 
+  public TimingGaugeContext singleUseTimer(String name) {
+    return new TimingGaugeContext(name);
+  }
+
+  public class TimingGaugeContext {
+    private final long startTime;
+    private final String name;
+
+    private TimingGaugeContext(String name) {
+      this.startTime = System.currentTimeMillis();
+      this.name = name;
+    }
+
+    public void stop() {
+      getMetricContext().register(
+          new TimingGauge(this.name, getMetricContext(), System.currentTimeMillis() - this.startTime));
+    }
+  }
+
   /**
    * Start metric reporting.
    *
@@ -230,6 +250,15 @@ public class GobblinMetrics {
     buildJmxMetricReporter(properties);
     if (this.jmxReporter.isPresent()) {
       this.jmxReporter.get().start();
+    }
+  }
+
+  /**
+   * Immediately trigger metric reporting.
+   */
+  public void triggerMetricReporting() {
+    if (this.fileReporter.isPresent()) {
+      this.fileReporter.get().report();
     }
   }
 

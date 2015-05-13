@@ -12,9 +12,14 @@
 
 package gobblin.instrumented;
 
+import java.util.List;
+
 import javax.annotation.Nonnull;
 
+import gobblin.configuration.State;
 import gobblin.metrics.MetricContext;
+import gobblin.metrics.Tag;
+
 
 /**
  * Interface for classes instrumenting their execution into a {@link gobblin.metrics.MetricContext}.
@@ -33,4 +38,10 @@ public interface Instrumentable {
    * @return true if instrumentation is enabled, false otherwise.
    */
   public boolean isInstrumentationEnabled();
+
+  /**
+   * Generate tags that should be added to the {@link gobblin.metrics.MetricContext}.
+   * @return List of tags to add to Metric Context.
+   */
+  public List<Tag<?>> generateTags(State state);
 }

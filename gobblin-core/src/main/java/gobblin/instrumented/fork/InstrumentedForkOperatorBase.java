@@ -20,8 +20,10 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.fork.ForkOperator;
 import gobblin.instrumented.Instrumentable;
@@ -29,6 +31,7 @@ import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricNames;
+import gobblin.metrics.Tag;
 
 
 /**
@@ -58,6 +61,11 @@ abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, For
       this.outputForks = Optional.of(this.metricContext.meter(MetricNames.ForkOperatorMetrics.FORKS_OUT_METER));
       this.forkOperatorTimer = Optional.of(this.metricContext.timer(MetricNames.ForkOperatorMetrics.FORK_TIMER));
     }
+  }
+
+  @Override
+  public List<Tag<?>> generateTags(State state) {
+    return Lists.newArrayList();
   }
 
   @Override

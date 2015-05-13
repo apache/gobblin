@@ -14,12 +14,14 @@ package gobblin.instrumented.qualitychecker;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.State;
@@ -28,6 +30,7 @@ import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricNames;
+import gobblin.metrics.Tag;
 import gobblin.qualitychecker.row.RowLevelPolicy;
 
 
@@ -67,6 +70,11 @@ abstract class InstrumentedRowLevelPolicyBase extends RowLevelPolicy implements 
       this.failedRecordsMeter = Optional.absent();
       this.policyTimer = Optional.absent();
     }
+  }
+
+  @Override
+  public List<Tag<?>> generateTags(State state) {
+    return Lists.newArrayList();
   }
 
   @Override

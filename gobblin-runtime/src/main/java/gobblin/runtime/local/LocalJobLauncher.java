@@ -11,6 +11,7 @@
 
 package gobblin.runtime.local;
 
+import gobblin.metrics.GobblinMetrics;
 import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.FileBasedJobLock;
 import gobblin.runtime.JobState;
@@ -37,6 +38,8 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.runtime.JobException;
 import gobblin.runtime.JobLock;
+import gobblin.runtime.util.JobMetrics;
+import gobblin.runtime.util.MetricNames;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 
@@ -91,8 +94,13 @@ public class LocalJobLauncher extends AbstractJobLauncher {
   protected void runJob(String jobName, Properties jobProps, JobState jobState, List<WorkUnit> workUnits)
       throws Exception {
 
+    JobMetrics jobMetrics = JobMetrics.get(jobState);
+
     // Start all dependent services
+    GobblinMetrics.TimingGaugeContext startDependentServicesTimer =
+        jobMetrics.singleUseTimer(MetricNames.RunJobTimings.START_DEPENDENT_SERVICES);
     this.serviceManager.startAsync().awaitHealthy(5, TimeUnit.SECONDS);
+    startDependentServicesTimer.stop();
 
     // Figure out the actual work units to run by flattening MultiWorkUnits
     List<WorkUnit> workUnitsToRun = Lists.newArrayList();
@@ -111,8 +119,11 @@ public class LocalJobLauncher extends AbstractJobLauncher {
 
     String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
     this.countDownLatch = new CountDownLatch(workUnitsToRun.size());
+    GobblinMetrics.TimingGaugeContext runWorkUnitsTimer =
+        jobMetrics.singleUseTimer(MetricNames.RunJobTimings.RUN_WORK_UNITS);
     List<Task> tasks = AbstractJobLauncher
         .runWorkUnits(jobId, workUnitsToRun, this.taskStateTracker, this.taskExecutor, this.countDownLatch);
+    runWorkUnitsTimer.stop();
 
     // Set job state appropriately
     if (isCancelled) {

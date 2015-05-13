@@ -14,20 +14,24 @@ package gobblin.instrumented.extractor;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricNames;
+import gobblin.metrics.Tag;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 
@@ -53,7 +57,7 @@ abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instr
     this.instrumentationEnabled = GobblinMetrics.isEnabled(workUnitState);
 
     this.metricContext =
-        closer.register(Instrumented.getMetricContext(workUnitState, this.getClass()));
+        closer.register(Instrumented.getMetricContext(workUnitState, this.getClass(), generateTags(workUnitState)));
 
     if(isInstrumentationEnabled()) {
       this.readRecordsMeter = Optional.of(this.metricContext.meter(MetricNames.ExtractorMetrics.RECORDS_READ_METER));
@@ -70,6 +74,11 @@ abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instr
   @Override
   public boolean isInstrumentationEnabled() {
     return this.instrumentationEnabled;
+  }
+
+  @Override
+  public List<Tag<?>> generateTags(State state) {
+    return Lists.newArrayList();
   }
 
   @Override
