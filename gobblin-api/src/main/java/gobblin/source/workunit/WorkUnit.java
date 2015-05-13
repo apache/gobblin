@@ -129,4 +129,8 @@ public class WorkUnit extends State {
     super.write(out);
     this.extract.write(out);
   }
+
+  public int hashCode() {
+    return this.extract.hashCode() + super.hashCode();
+  }
 }

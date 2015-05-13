@@ -120,6 +120,11 @@ public class MultiWorkUnitWeightedQueue {
       return this.weight == weightedMultiWorkUnit.getWeight();
     }
 
+    @Override
+    public int hashCode() {
+      return super.hashCode() + Long.valueOf(this.weight).hashCode();
+    }
+
     public long getWeight() {
       return this.weight;
     }

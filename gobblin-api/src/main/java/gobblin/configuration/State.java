@@ -23,7 +23,6 @@ import org.apache.hadoop.io.Writable;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSortedSet;
-import com.google.common.collect.Sets;
 
 
 /**
@@ -296,5 +295,10 @@ public class State implements Writable {
   @Override
   public String toString() {
     return properties.toString();
+  }
+
+  @Override
+  public int hashCode() {
+    return id == null ? this.properties.hashCode() : this.properties.hashCode() + this.id.hashCode();
   }
 }

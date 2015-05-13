@@ -76,4 +76,13 @@ public class MultiWorkUnit extends WorkUnit {
       workUnit.write(out);
     }
   }
+
+  @Override
+  public int hashCode() {
+    int hashCode = 0;
+    for (WorkUnit workUnit : this.workUnits) {
+      hashCode += workUnit.hashCode();
+    }
+    return hashCode;
+  }
 }

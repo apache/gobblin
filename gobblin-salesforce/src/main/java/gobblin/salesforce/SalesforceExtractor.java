@@ -109,7 +109,7 @@ public class SalesforceExtractor extends RestApiExtractor {
   private boolean newBulkResultSet = true;
   private int bulkRecordCount = 0;
 
-  protected Logger log = LoggerFactory.getLogger(SalesforceExtractor.class);
+  private Logger log = LoggerFactory.getLogger(SalesforceExtractor.class);
 
   public SalesforceExtractor(WorkUnitState state) {
     super(state);
