@@ -16,8 +16,8 @@ import java.lang.reflect.Constructor;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,17 +66,20 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   // of the job from starting if the current run has not finished yet
   protected Optional<JobLock> jobLockOptional = Optional.absent();
 
-  // A flag that tells if cancellation is requested for the job
+  // A conditional variable for which the condition is satisfied if a cancellation is requested
+  protected final Object cancellationRequest = new Object();
+
+  // A flag indicating whether a cancellation has been requested or not
   protected volatile boolean cancellationRequested = false;
 
-  // A flag that tells if the cancellation has been executed for the job
+  // A conditional variable for which the condition is satisfied if the cancellation is executed
+  protected final Object cancellationExecution = new Object();
+
+  // A flag indicating whether a cancellation has been executed or not
   protected volatile boolean cancellationExecuted = false;
 
-  // A lock to be waited on for cancellation execution
-  protected final Object cancellationLock = new Object();
-
   // A single-thread executor for executing job cancellation
-  protected final ScheduledThreadPoolExecutor cancellationExecutor;
+  protected final ExecutorService cancellationExecutor;
 
   public AbstractJobLauncher(Properties sysProps, Properties jobProps)
       throws Exception {
@@ -91,9 +94,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
     this.jobContext = new JobContext(this.sysProps, this.jobProps, LOG);
 
-    this.cancellationExecutor = new ScheduledThreadPoolExecutor(1, ExecutorsUtils.newThreadFactory(
-        Optional.of(LOG), Optional.of("CancellationExecutor")));
-    this.cancellationExecutor.setMaximumPoolSize(1);
+    this.cancellationExecutor = Executors.newSingleThreadExecutor(
+        ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of("CancellationExecutor")));
   }
 
   /**
@@ -136,37 +138,52 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   }
 
   /**
-   * This implementation simply sets a flag that indicate cancellation is requested and waits
-   * for the cancellation to be executed. It does not guarantee successful job cancellation.
+   * A default implementation of {@link JobLauncher#cancelJob(JobListener)}.
+   *
+   * <p>
+   *   This implementation relies on two conditional variables: one for the condition that a cancellation
+   *   is requested, and the other for the condition that the cancellation is executed. Upon entrance, the
+   *   method notifies the cancellation executor started by {@link #startCancellationExecutor()} on the
+   *   first conditional variable to indicate that a cancellation has been requested so the executor is
+   *   unblocked. Then it waits on the second conditional variable for the cancellation to be executed.
+   *   Once returning from the wait, it sets the job state to {@link JobState.RunningState#CANCELLED}.
+   * </p>
+   *
+   * <p>
+   *   The actual execution of the cancellation is handled by the cancellation executor started by the
+   *   method {@link #startCancellationExecutor()} that uses the {@link #executeCancellation()} method
+   *   to execute the cancellation.
+   * </p>
    *
    * {@inheritDoc JobLauncher#cancelJob(JobListener)}
    */
   @Override
   public void cancelJob(JobListener jobListener)
       throws JobException {
-    synchronized (this.cancellationExecutor) {
+    synchronized (this.cancellationRequest) {
       if (this.cancellationRequested) {
-        LOG.info(String.format("Job %s has already been cancelled or cancellation has already been requested",
-            this.jobContext.getJobId()));
+        // Return immediately if a cancellation has already been requested
         return;
       }
 
-      // Request cancellation
       this.cancellationRequested = true;
-
-      // Wait for the cancellation to be executed
-      synchronized (this.cancellationLock) {
-        try {
-          this.cancellationLock.wait(TimeUnit.SECONDS.toMillis(60));
-        } catch (InterruptedException ie) {
-          Thread.currentThread().interrupt();
-          return;
-        }
-      }
+      // Notify the cancellation executor that a cancellation has been requested
+      this.cancellationRequest.notify();
     }
 
-    if (jobListener != null) {
-      jobListener.onJobCancellation(this.jobContext.getJobState());
+    synchronized (this.cancellationExecution) {
+      try {
+        while (!this.cancellationExecuted) {
+          // Wait for the cancellation to be executed
+          this.cancellationExecution.wait();
+        }
+        this.jobContext.getJobState().setState(JobState.RunningState.CANCELLED);
+        if (jobListener != null) {
+          jobListener.onJobCancellation(this.jobContext.getJobState());
+        }
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt();
+      }
     }
   }
 
@@ -325,24 +342,38 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * Start the scheduled executor for executing job cancellation.
    *
    * <p>
-   *   The executor will call {@link #executeCancellation()} periodically to execute the
-   *   cancellation if and only if a cancellation has been requested but not executed yet.
+   *   The executor, upon started, waits on the condition variable indicating a cancellation is requested,
+   *   i.e., it waits for a cancellation request to arrive. If a cancellation is requested, the executor
+   *   is unblocked and calls {@link #executeCancellation()} to execute the cancellation. Upon completion
+   *   of the cancellation execution, the executor notifies the caller that requested the cancellation on
+   *   the conditional variable indicating the cancellation has been executed so the caller is unblocked.
    * </p>
    */
   protected void startCancellationExecutor() {
-    this.cancellationExecutor.scheduleAtFixedRate(new Runnable() {
+    this.cancellationExecutor.execute(new Runnable() {
       @Override
       public void run() {
-        synchronized (cancellationLock) {
-          if (!cancellationExecuted && cancellationRequested) {
+        synchronized (cancellationRequest) {
+          try {
+            while (!cancellationRequested) {
+              // Wait for a cancellation request to arrive
+              cancellationRequest.wait();
+            }
+            LOG.info("Cancellation has been requested for job " + jobContext.getJobId());
             executeCancellation();
-            cancellationExecuted = true;
-            // Notify the caller that requested the cancellation
-            cancellationLock.notify();
+            LOG.info("Cancellation has been executed for job " + jobContext.getJobId());
+          } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
           }
         }
+
+        synchronized (cancellationExecution) {
+          cancellationExecuted = true;
+          // Notify the requester that the cancellation has been executed
+          cancellationExecution.notify();
+        }
       }
-    }, 0, 1, TimeUnit.SECONDS);
+    });
   }
 
   /**

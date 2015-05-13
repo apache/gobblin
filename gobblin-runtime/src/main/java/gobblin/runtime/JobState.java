@@ -186,8 +186,8 @@ public class JobState extends SourceState {
    *
    * @return job running state of type {@link RunningState}
    */
-  public RunningState getState() {
-    return state;
+  public synchronized RunningState getState() {
+    return this.state;
   }
 
   /**
@@ -195,7 +195,7 @@ public class JobState extends SourceState {
    *
    * @param state job running state of type {@link RunningState}
    */
-  public void setState(RunningState state) {
+  public synchronized void setState(RunningState state) {
     this.state = state;
   }
 

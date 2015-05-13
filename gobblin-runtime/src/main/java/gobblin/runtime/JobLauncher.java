@@ -30,7 +30,14 @@ public interface JobLauncher extends Closeable {
   /**
    * Launch a Gobblin job.
    *
-   * @param jobListener {@link JobListener} used for callback, can be <em>null</em> if no callback is needed.
+   * <p>
+   *   This method is synchronous, i.e., the caller will be blocked until the job finishes. The method
+   *   {@link JobListener#onJobCompletion(JobState)} of the given {@link JobListener} will be called at
+   *   the end if no uncaught exceptions are thrown before the method gets called.
+   * </p>
+   *
+   * @param jobListener a {@link JobListener} instance on which {@link JobListener#onJobCompletion(JobState)}
+   *                    is called at the end of this method if it is not {@code null}
    * @throws JobException if there is anything wrong launching and running the job
    */
   public void launchJob(@Nullable JobListener jobListener)
@@ -39,7 +46,15 @@ public interface JobLauncher extends Closeable {
   /**
    * Cancel a Gobblin job.
    *
-   * @param jobListener {@link JobListener} used for callback, can be <em>null</em> if no callback is needed.
+   * <p>
+   *   This method is synchronous, i.e., the caller will be blocked until the cancellation is executed.
+   *   The method {@link JobListener#onJobCancellation(JobState)} of the given {@link JobListener} will
+   *   be called at the end if the caller is not interrupted while being blocked. If a cancellation has
+   *   already been requested, however, this method will return immediately.
+   * </p>
+   *
+   * @param jobListener {@link JobListener} instance on which {@link JobListener#onJobCancellation(JobState)}
+   *                    is called at the end of this method if it is not {@code null}
    * @throws JobException if there is anything wrong cancelling the job
    */
   public void cancelJob(@Nullable JobListener jobListener)
