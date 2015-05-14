@@ -20,7 +20,6 @@ dependencies {
   compile externalDependency.commonsDbcp
   compile externalDependency.commonsHttpClient
   compile externalDependency.avro
-  compile externalDependency.avroMapred
   compile externalDependency.guava
   compile externalDependency.gson
   compile externalDependency.slf4j
@@ -37,6 +36,11 @@ dependencies {
   compile externalDependency.kafkaClient
   compile externalDependency.scala
   compile externalDependency.findBugs
+  if (project.hasProperty('useHadoop2')) {
+    compile externalDependency.avroMapredH2
+  } else {
+    compile externalDependency.avroMapredH1
+  }
 
   testCompile externalDependency.testng
 }

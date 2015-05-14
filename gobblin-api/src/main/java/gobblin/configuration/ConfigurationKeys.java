@@ -205,7 +205,7 @@ public class ConfigurationKeys {
   public static final String WRITER_PARTITION_LEVEL = WRITER_PREFIX + ".partition.level";
   public static final String WRITER_PARTITION_PATTERN = WRITER_PREFIX + ".partition.pattern";
   public static final String WRITER_PARTITION_TIMEZONE = WRITER_PREFIX + ".partition.timezone";
-  public static final String DEFAULT_WRITER_FILE_NAME = "part";
+  public static final String DEFAULT_WRITER_FILE_BASE_NAME = "part";
   public static final String DEFAULT_DEFLATE_LEVEL = "9";
   public static final String DEFAULT_BUFFER_SIZE = "4096";
   public static final String DEFAULT_WRITER_PARTITION_LEVEL = "daily";
@@ -366,6 +366,12 @@ public class ConfigurationKeys {
   public static final String DEFAULT_METRICS_REPORTING_FILE_ENABLED = Boolean.toString(true);
   public static final String METRICS_REPORTING_JMX_ENABLED_KEY = "metrics.reporting.jmx.enabled";
   public static final String DEFAULT_METRICS_REPORTING_JMX_ENABLED = Boolean.toString(false);
+  public static final String METRICS_REPORTING_KAFKA_ENABLED_KEY = "metrics.reporting.kafka.enabled";
+  public static final String DEFAULT_METRICS_REPORTING_KAFKA_ENABLED = Boolean.toString(false);
+  public static final String METRICS_REPORTING_KAFKA_FORMAT = "metrics.reporting.kafka.format";
+  public static final String DEFAULT_METRICS_REPORTING_KAFKA_FORMAT = "json";
+  public static final String METRICS_KAFKA_BROKERS = "metrics.reporting.kafka.brokers";
+  public static final String METRICS_KAFKA_TOPIC = "metrics.reporting.kafka.topic";
   public static final String METRICS_REPORT_INTERVAL_KEY = "metrics.report.interval";
   public static final String DEFAULT_METRICS_REPORT_INTERVAL = "30000";
 

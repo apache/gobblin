@@ -32,7 +32,6 @@ import gobblin.fork.ForkOperator;
 import gobblin.instrumented.extractor.InstrumentedExtractorDecorator;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
-import gobblin.runtime.util.TaskMetrics;
 import gobblin.source.extractor.Extractor;
 
 
@@ -93,8 +92,6 @@ public class Task implements Runnable {
   public Task(TaskContext context, TaskStateTracker taskStateTracker, TaskExecutor taskExecutor,
       Optional<CountDownLatch> countDownLatch) {
     this.taskContext = context;
-    this.taskContext.setMetricsContextName(TaskMetrics.get(this.taskContext.getTaskState()).getName());
-
     this.taskState = context.getTaskState();
     this.jobId = this.taskState.getJobId();
     this.taskId = this.taskState.getTaskId();

@@ -20,7 +20,6 @@ dependencies {
   compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'restClient')
 
   compile externalDependency.avro
-  compile externalDependency.avroMapred
   compile externalDependency.commonsConfiguration
   compile externalDependency.quartz
   compile externalDependency.guava
@@ -39,6 +38,11 @@ dependencies {
   compile externalDependency.pegasus.data
   compile externalDependency.guice
   compile externalDependency.javaxInject
+  if (project.hasProperty('useHadoop2')) {
+    compile externalDependency.avroMapredH2
+  } else {
+    compile externalDependency.avroMapredH1
+  }
 
   testCompile externalDependency.testng
   testCompile externalDependency.byteman
