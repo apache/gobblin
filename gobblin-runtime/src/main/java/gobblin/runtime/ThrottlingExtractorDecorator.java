@@ -21,6 +21,17 @@ import gobblin.source.extractor.Extractor;
  * A decorator class for {@link Extractor} that adds throttling on data record extraction.
  * The actual throttling logic is implemented by a {@link Throttler}.
  *
+ * <p>
+ *   The fact that the {@link Throttler} is passed in as a parameter to the constructor
+ *   {@link ThrottlingExtractorDecorator#ThrottlingExtractorDecorator(Extractor, Throttler)}
+ *   means multiple {@link ThrottlingExtractorDecorator}s can share a single {@link Throttler}
+ *   or each individual {@link ThrottlingExtractorDecorator} has its own {@link Throttler}.
+ *   The first case is useful for throttling at above the task level, e.g., at the job level.
+ * </p>
+ *
+ * @param <S> output schema type
+ * @param <D> output record type
+ *
  * @author ynli
  */
 public class ThrottlingExtractorDecorator<S, D> implements Extractor<S, D> {

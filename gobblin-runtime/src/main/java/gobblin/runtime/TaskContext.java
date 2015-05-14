@@ -100,9 +100,17 @@ public class TaskContext {
    *
    * @return a {@link Extractor} instance
    */
+  @SuppressWarnings("unchecked")
   public Extractor getExtractor() {
     try {
-      return getSource().getExtractor(this.taskState);
+      boolean throttlingEnabled = this.taskState.getPropAsBoolean(
+          ConfigurationKeys.EXTRACT_THROTTLING_ENABLED_KEY, ConfigurationKeys.DEFAULT_EXTRACT_THROTTLING_ENABLED);
+      if (throttlingEnabled) {
+        return new ThrottlingExtractorDecorator(getSource().getExtractor(this.taskState),
+            ThrottlerFactory.newThrottler(this.taskState));
+      } else {
+        return getSource().getExtractor(this.taskState);
+      }
     } catch (IOException ioe) {
       throw new RuntimeException(ioe);
     }

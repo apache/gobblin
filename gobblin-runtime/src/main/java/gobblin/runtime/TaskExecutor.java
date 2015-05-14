@@ -190,9 +190,6 @@ public class TaskExecutor extends AbstractIdleService {
       // Adjust metrics to clean up numbers from the failed task
       task.getTaskState()
           .adjustJobMetricsOnRetry(task.getTaskState().getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY));
-      // Remove task-level metrics associated with this task so
-      // the retry will use fresh metrics
-      //task.getTaskState().removeMetrics();
     }
 
     // Task retry interval increases linearly with number of retries

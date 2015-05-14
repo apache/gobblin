@@ -21,7 +21,59 @@ package gobblin.runtime;
 public interface Throttler {
 
   /**
+   * Supported types of {@link Throttler}s.
+   */
+  public enum Type {
+    /**
+     * For {@link RateBasedThrottler}.
+     */
+    RATE_BASED("rate"),
+
+    /**
+     * For {@link TimeBasedThrottler}.
+     */
+    TIME_BASED("time"),
+
+    /**
+     * For {@link CountBasedThrottler}.
+     */
+    COUNT_BASED("count");
+
+    private final String name;
+
+    Type(String name) {
+      this.name = name;
+    }
+
+    @Override
+    public String toString() {
+      return this.name;
+    }
+
+    /**
+     * Get a {@link Throttler.Type} for the given name.
+     *
+     * @param name the given name
+     * @return a {@link Throttler.Type} for the given name
+     */
+    public static Type forName(String name) {
+      if (name.equalsIgnoreCase(RATE_BASED.name)) {
+        return RATE_BASED;
+      }
+      if (name.equalsIgnoreCase(TIME_BASED.name)) {
+        return TIME_BASED;
+      }
+      if (name.equalsIgnoreCase(COUNT_BASED.name)) {
+        return COUNT_BASED;
+      }
+      throw new IllegalArgumentException("No throttler implementation available for name: " + name);
+    }
+  }
+
+  /**
    * Start the {@link Throttler}.
+   *
+   * See {@link #stop()}
    */
   public void start();
 
@@ -40,6 +92,8 @@ public interface Throttler {
 
   /**
    * Stop the {@link Throttler}.
+   *
+   * See {@link #start()}
    */
   public void stop();
 }

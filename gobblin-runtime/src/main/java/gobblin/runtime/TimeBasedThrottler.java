@@ -38,14 +38,14 @@ public class TimeBasedThrottler implements Throttler {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TimeBasedThrottler.class);
 
-  private final long time;
+  private final long timeLimit;
   private final TimeUnit timeUnit;
   private final ScheduledThreadPoolExecutor flagFlippingExecutor;
   // A flag telling if a permit is allowed to be issued
   private volatile boolean canIssuePermit = true;
 
-  public TimeBasedThrottler(long time, TimeUnit timeUnit) {
-    this.time = time;
+  public TimeBasedThrottler(long timeLimit, TimeUnit timeUnit) {
+    this.timeLimit = timeLimit;
     this.timeUnit = timeUnit;
     this.flagFlippingExecutor = new ScheduledThreadPoolExecutor(
         1, ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("TimeBasedThrottler")));
@@ -59,7 +59,7 @@ public class TimeBasedThrottler implements Throttler {
         // Flip the flag once the scheduled time is reached
         canIssuePermit = false;
       }
-    }, this.time, this.timeUnit);
+    }, this.timeLimit, this.timeUnit);
   }
 
   @Override

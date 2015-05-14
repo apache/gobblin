@@ -26,6 +26,7 @@ import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
 import gobblin.runtime.JobLauncherTestHelper;
 import gobblin.runtime.JobState;
+import gobblin.runtime.Throttler;
 import gobblin.writer.Destination;
 import gobblin.writer.WriterOutputFormat;
 
@@ -71,7 +72,9 @@ public class LocalJobLauncherTest {
   @Test
   public void testLaunchJobWithPullLimit() throws Exception {
     Properties jobProps = loadJobProps();
-    jobProps.setProperty(ConfigurationKeys.EXTRACT_PULL_LIMIT, "10");
+    jobProps.setProperty(ConfigurationKeys.EXTRACT_THROTTLING_ENABLED_KEY, Boolean.TRUE.toString());
+    jobProps.setProperty(ConfigurationKeys.EXTRACT_THROTTLING_TYPE_KEY, Throttler.Type.COUNT_BASED.toString());
+    jobProps.setProperty(ConfigurationKeys.EXTRACT_THROTTLING_COUNT_LIMIT_KEY, "10");
     this.jobLauncherTestHelper.runTestWithPullLimit(jobProps);
   }
 

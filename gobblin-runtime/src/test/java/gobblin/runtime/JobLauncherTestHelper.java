@@ -89,10 +89,10 @@ public class JobLauncherTestHelper {
 
     for (TaskState taskState : jobState.getTaskStates()) {
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
-      Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED),
-          taskState.getPropAsLong(ConfigurationKeys.EXTRACT_PULL_LIMIT));
+      Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_EXTRACTED),
+          taskState.getPropAsLong(ConfigurationKeys.EXTRACT_THROTTLING_COUNT_LIMIT_KEY));
       Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_ROWS_WRITTEN),
-          taskState.getPropAsLong(ConfigurationKeys.EXTRACT_PULL_LIMIT));
+          taskState.getPropAsLong(ConfigurationKeys.EXTRACT_THROTTLING_COUNT_LIMIT_KEY));
     }
   }
 

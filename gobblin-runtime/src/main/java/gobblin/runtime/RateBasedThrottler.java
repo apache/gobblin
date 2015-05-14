@@ -42,15 +42,15 @@ public class RateBasedThrottler implements Throttler {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(RateBasedThrottler.class);
 
-  private final int maximumRate;
+  private final int rateLimit;
   private final TimeUnit timeUnit;
-  private final Semaphore semaphore;
+  private final Semaphore permits;
   private final ScheduledThreadPoolExecutor permitRestockExecutor;
 
-  public RateBasedThrottler(int maximumRate, TimeUnit timeUnit) {
-    this.maximumRate = maximumRate;
+  public RateBasedThrottler(int rateLimit, TimeUnit timeUnit) {
+    this.rateLimit = rateLimit;
     this.timeUnit = timeUnit;
-    this.semaphore = new Semaphore(maximumRate);
+    this.permits = new Semaphore(rateLimit);
     this.permitRestockExecutor = new ScheduledThreadPoolExecutor(
         1, ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("RateBaseThrottler")));
   }
@@ -61,15 +61,15 @@ public class RateBasedThrottler implements Throttler {
       @Override
       public void run() {
         // Drain all the permits left and restock the permits
-        semaphore.drainPermits();
-        semaphore.release(maximumRate);
+        permits.drainPermits();
+        permits.release(rateLimit);
       }
     }, 1, 1, this.timeUnit);
   }
 
   @Override
   public boolean waitForNextPermit() throws InterruptedException {
-    this.semaphore.acquire();
+    this.permits.acquire();
     return true;
   }
 
