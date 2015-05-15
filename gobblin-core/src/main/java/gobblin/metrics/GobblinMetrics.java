@@ -128,14 +128,21 @@ public class GobblinMetrics {
 
   protected final String id;
   protected final MetricContext metricContext;
+
   // Closer for closing the metric output stream
   protected final Closer closer = Closer.create();
+
   // File metric reporter
   private Optional<OutputStreamReporter> fileReporter = Optional.absent();
+
   // JMX metric reporter
   private Optional<JmxReporter> jmxReporter = Optional.absent();
+
   // Kafka metric reporter
   private Optional<KafkaReporter> kafkaReporter = Optional.absent();
+
+  // A flag telling whether metric reporting has started or not
+  private volatile boolean reportingStarted = false;
 
   protected GobblinMetrics(String id, MetricContext parentContext, List<Tag<?>> tags) {
     this.id = id;
@@ -225,6 +232,11 @@ public class GobblinMetrics {
    * @param properties configuration properties
    */
   public void startMetricReporting(Properties properties) {
+    if (this.reportingStarted) {
+      LOGGER.warn("Metric reporting has already started");
+      return;
+    }
+
     buildFileMetricReporter(properties);
     long reportInterval = Long.parseLong(properties.getProperty(ConfigurationKeys.METRICS_REPORT_INTERVAL_KEY,
         ConfigurationKeys.DEFAULT_METRICS_REPORT_INTERVAL));
@@ -241,12 +253,19 @@ public class GobblinMetrics {
     if (this.kafkaReporter.isPresent()) {
       this.kafkaReporter.get().start(reportInterval, TimeUnit.MILLISECONDS);
     }
+
+    this.reportingStarted = true;
   }
 
   /**
    * Stop the metric reporting.
    */
   public void stopMetricReporting() {
+    if (!this.reportingStarted) {
+      LOGGER.warn("Metric reporting has not started yet");
+      return;
+    }
+
     if (this.fileReporter.isPresent()) {
       this.fileReporter.get().stop();
     }
@@ -264,6 +283,8 @@ public class GobblinMetrics {
     } catch (IOException ioe) {
       LOGGER.error("Failed to close metric output stream for job " + this.id, ioe);
     }
+
+    this.reportingStarted = false;
   }
 
   private void buildFileMetricReporter(Properties properties) {
@@ -274,8 +295,7 @@ public class GobblinMetrics {
     }
 
     if (!properties.containsKey(ConfigurationKeys.METRICS_LOG_DIR_KEY)) {
-      LOGGER.error(
-          "Not reporting metrics to log files because " + ConfigurationKeys.METRICS_LOG_DIR_KEY + " is undefined");
+      LOGGER.error("Not reporting metrics to log files because " + ConfigurationKeys.METRICS_LOG_DIR_KEY + " is undefined");
       return;
     }
 
@@ -299,11 +319,8 @@ public class GobblinMetrics {
         append = true;
       }
 
-      this.fileReporter = Optional.
-          of(closer.register(OutputStreamReporter.
-              forContext(this.metricContext).
-              outputTo(append ? fs.append(metricLogFile) : fs.create(metricLogFile, true)).
-              build()));
+      this.fileReporter = Optional.of(closer.register(OutputStreamReporter.forContext(this.metricContext)
+          .outputTo(append ? fs.append(metricLogFile) : fs.create(metricLogFile, true)).build()));
     } catch (IOException ioe) {
       LOGGER.error("Failed to build file metric reporter for job " + this.id, ioe);
     }
@@ -316,8 +333,7 @@ public class GobblinMetrics {
       return;
     }
 
-    this.jmxReporter = Optional.of(closer.register(JmxReporter.forRegistry(this.metricContext).convertRatesTo(TimeUnit.SECONDS)
-        .convertDurationsTo(TimeUnit.MILLISECONDS).build()));
+    this.jmxReporter = Optional.of(closer.register(JmxReporter.forRegistry(this.metricContext).convertRatesTo(TimeUnit.SECONDS).convertDurationsTo(TimeUnit.MILLISECONDS).build()));
   }
 
   private void buildKafkaReporter(Properties properties) {

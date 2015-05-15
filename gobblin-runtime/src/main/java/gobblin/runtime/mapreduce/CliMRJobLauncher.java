@@ -27,6 +27,8 @@ import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
+import com.google.common.io.Closer;
+
 import gobblin.runtime.JobException;
 
 
@@ -55,12 +57,17 @@ public class CliMRJobLauncher extends Configured implements Tool {
     // Then load job configuration properties that might overwrite system configuration properties
     jobProps.putAll(this.jobConfig);
 
+    Closer closer = Closer.create();
     try {
-      new MRJobLauncher(this.sysConfig, getConf()).launchJob(jobProps, null);
+      closer.register(new MRJobLauncher(this.sysConfig, jobProps, getConf())).launchJob(null);
     } catch (JobException je) {
       System.err.println("Failed to launch the job due to the following exception:");
       System.err.println(je.toString());
       return 1;
+    } catch (Throwable t) {
+      throw closer.rethrow(t);
+    } finally {
+      closer.close();
     }
 
     return 0;
@@ -77,11 +84,11 @@ public class CliMRJobLauncher extends Configured implements Tool {
 
   public static void main(String[] args)
       throws Exception {
-    
+
     Configuration conf = new Configuration();
     // Parse generic options
     String[] genericCmdLineOpts = new GenericOptionsParser(conf, args).getCommandLine().getArgs();
-    
+
     // Build command-line options
     Option sysConfigOption = OptionBuilder
         .withArgName("system configuration file")
