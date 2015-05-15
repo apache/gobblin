@@ -26,6 +26,7 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -164,6 +165,24 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
     if (!this.fs.rename(this.stagingFile, this.outputFile)) {
       throw new IOException("Failed to commit data from " + this.stagingFile + " to " + this.outputFile);
     }
+
+    /**
+     * Setting the same HDFS properties as the original file
+     */
+    if (properties.contains(ConfigurationKeys.HDFS_FILE_REPLICATION_FACTOR)) {
+      fs.setReplication(outputFile, (short) properties.getPropAsInt(ConfigurationKeys.HDFS_FILE_REPLICATION_FACTOR));
+    }
+    if (properties.contains(ConfigurationKeys.HDFS_FILE_PERMISSIONS)) {
+      short permissions = (short) properties.getPropAsInt(ConfigurationKeys.HDFS_FILE_PERMISSIONS);
+      fs.setPermission(outputFile, new FsPermission(permissions));
+    }
+    if (properties.contains(ConfigurationKeys.HDFS_FILE_OWNER) &&
+        properties.contains(ConfigurationKeys.HDFS_FILE_GROUP)) {
+          fs.setOwner(outputFile,
+              properties.getProp(ConfigurationKeys.HDFS_FILE_OWNER),
+              properties.getProp(ConfigurationKeys.HDFS_FILE_GROUP));
+    }
+
   }
 
   @Override
