@@ -13,26 +13,33 @@
 package gobblin.instrumented.extractor;
 
 import java.io.IOException;
+import java.util.List;
+
+import com.google.common.base.Optional;
 
 import gobblin.configuration.WorkUnitState;
+import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
+import gobblin.util.Decorator;
+import gobblin.util.DecoratorUtils;
+
 
 /**
  * Decorator that automatically instruments {@link gobblin.source.extractor.Extractor}.
  * Handles already instrumented {@link gobblin.instrumented.extractor.InstrumentedExtractor}
  * appropriately to avoid double metric reporting.
  */
-public class InstrumentedExtractorDecorator<S, D> extends InstrumentedExtractorBase<S, D> {
+public class InstrumentedExtractorDecorator<S, D> extends InstrumentedExtractorBase<S, D> implements Decorator {
 
   private final Extractor<S, D> embeddedExtractor;
   private final boolean isEmbeddedInstrumented;
 
   public InstrumentedExtractorDecorator(WorkUnitState workUnitState, Extractor<S, D> extractor) {
-    super(workUnitState);
+    super(workUnitState, Optional.<Class<?>>of(DecoratorUtils.resolveUnderlyingObject(extractor).getClass()));
     this.embeddedExtractor = this.closer.register(extractor);
-    this.isEmbeddedInstrumented = InstrumentedExtractorBase.class.isInstance(extractor);
+    this.isEmbeddedInstrumented = Instrumented.isLineageInstrumented(extractor);
   }
 
   @Override
@@ -70,5 +77,15 @@ public class InstrumentedExtractorDecorator<S, D> extends InstrumentedExtractorB
   @Override
   public long getHighWatermark() {
     return this.embeddedExtractor.getHighWatermark();
+  }
+
+  @Override
+  public Object getUnderlying() {
+    return DecoratorUtils.resolveUnderlyingObject(this.embeddedExtractor);
+  }
+
+  @Override
+  public List<Object> getDecoratorLineage() {
+    return DecoratorUtils.resolveDecoratorLineage(this, this.embeddedExtractor);
   }
 }

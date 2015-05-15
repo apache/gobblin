@@ -47,6 +47,7 @@ import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
@@ -71,6 +72,7 @@ import gobblin.runtime.TaskState;
 import gobblin.runtime.TaskStateTracker;
 import gobblin.runtime.util.JobMetrics;
 import gobblin.runtime.util.MetricGroup;
+import gobblin.runtime.util.MetricNames;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.JobLauncherUtils;
@@ -147,6 +149,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
   protected void runJob(String jobName, Properties jobProps, JobState jobState, List<WorkUnit> workUnits)
       throws Exception {
 
+    JobMetrics jobMetrics = JobMetrics.get(jobState);
+
     // Add job config properties that also contains all framework config properties
     for (String name : jobProps.stringPropertyNames()) {
       this.conf.set(name, jobProps.getProperty(name));
@@ -157,6 +161,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
       LOG.warn("Job working directory already exists for job " + jobName);
       this.fs.delete(mrJobDir, true);
     }
+
+    Timer.Context populateDistributedCacheTimer =
+        jobMetrics.getTimer(MetricNames.RunJobTimings.DISTRIBUTED_CACHE).time();
 
     Path jarFileDir = new Path(mrJobDir, "_jars");
     // Add framework jars to the classpath for the mappers/reducer
@@ -177,6 +184,11 @@ public class MRJobLauncher extends AbstractJobLauncher {
     if (jobProps.containsKey(ConfigurationKeys.JOB_HDFS_FILES_KEY)) {
       addHDFSFiles(jobProps.getProperty(ConfigurationKeys.JOB_HDFS_FILES_KEY));
     }
+
+    populateDistributedCacheTimer.stop();
+
+    Timer.Context setupMRJobTimer =
+        jobMetrics.getTimer(MetricNames.RunJobTimings.SETUP_MR_JOB).time();
 
     // Let the job and all mappers finish even if some mappers fail
     this.conf.set("mapred.max.map.failures.percent", "100"); // For Hadoop 1.x
@@ -226,7 +238,12 @@ public class MRJobLauncher extends AbstractJobLauncher {
       }
     }
 
+    setupMRJobTimer.stop();
+
     try {
+      Timer.Context runJobTimer =
+          jobMetrics.getTimer(MetricNames.RunJobTimings.RUN_MR_JOB).time();
+
       LOG.info("Launching Hadoop MR job " + this.job.getJobName());
       this.job.submit();
       // Set job tracking URL to the Hadoop job tracking URL if it is not set yet
@@ -235,6 +252,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
       }
       // Wait for the job to complete
       this.job.waitForCompletion(true);
+
+      runJobTimer.stop();
 
       if (this.isCancelled) {
         jobState.setState(JobState.RunningState.CANCELLED);

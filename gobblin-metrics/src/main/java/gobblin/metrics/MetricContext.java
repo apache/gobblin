@@ -14,6 +14,7 @@ package gobblin.metrics;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
@@ -137,6 +138,14 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
     if (this.children.putIfAbsent(childContextName, childContext) != null) {
       throw new IllegalArgumentException("A child context named " + childContextName + " already exists");
     }
+  }
+
+  /**
+   * Get child contexts.
+   * @return Map of child contexts.
+   */
+  public Map<String, MetricContext> getChildContexts() {
+    return Collections.unmodifiableMap(this.children);
   }
 
   /**
@@ -543,6 +552,10 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
   @Override
   public List<Tag<?>> getTags() {
     return this.tagged.getTags();
+  }
+
+  public Map<String, Object> getTagMap() {
+    return this.tagged.getTagMap();
   }
 
   @Override

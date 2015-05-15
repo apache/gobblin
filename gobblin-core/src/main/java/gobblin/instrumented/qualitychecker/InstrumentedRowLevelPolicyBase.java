@@ -50,11 +50,15 @@ abstract class InstrumentedRowLevelPolicyBase extends RowLevelPolicy implements 
   protected final Closer closer;
 
   public InstrumentedRowLevelPolicyBase(State state, Type type) {
-    super(state, type);
+    this(state, type, Optional.<Class<?>>absent());
+  }
+
+  protected InstrumentedRowLevelPolicyBase(State state, Type type, Optional<Class<?>> classTag) {
+  super(state, type);
     this.instrumentationEnabled = GobblinMetrics.isEnabled(state);
     this.closer = Closer.create();
     this.metricContext =
-        closer.register(Instrumented.getMetricContext(state, this.getClass()));
+        closer.register(Instrumented.getMetricContext(state, classTag.or(this.getClass())));
 
     if(isInstrumentationEnabled()) {
       this.recordsMeter = Optional.of(this.metricContext.meter(MetricNames.RowLevelPolicyMetrics.RECORDS_IN_METER));

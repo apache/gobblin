@@ -50,10 +50,14 @@ abstract class InstrumentedDataWriterBase <D> implements DataWriter<D>, Instrume
   protected final Optional<Timer> dataWriterTimer;
 
   public InstrumentedDataWriterBase(State state) {
+    this(state, Optional.<Class<?>>absent());
+  }
+
+  protected InstrumentedDataWriterBase(State state, Optional<Class<?>> classTag) {
     this.closer = Closer.create();
     this.instrumentationEnabled = GobblinMetrics.isEnabled(state);
     this.metricContext =
-        this.closer.register(Instrumented.getMetricContext(state, this.getClass()));
+        this.closer.register(Instrumented.getMetricContext(state, classTag.or(this.getClass())));
 
     if(isInstrumentationEnabled()) {
       this.recordsInMeter = Optional.of(this.metricContext.meter(MetricNames.DataWriterMetrics.RECORDS_IN_METER));

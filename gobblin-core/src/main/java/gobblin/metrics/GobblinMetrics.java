@@ -215,25 +215,6 @@ public class GobblinMetrics {
     return this.metricContext.timer(MetricRegistry.name(prefix, suffixes));
   }
 
-  public TimingGaugeContext singleUseTimer(String name) {
-    return new TimingGaugeContext(name);
-  }
-
-  public class TimingGaugeContext {
-    private final long startTime;
-    private final String name;
-
-    private TimingGaugeContext(String name) {
-      this.startTime = System.currentTimeMillis();
-      this.name = name;
-    }
-
-    public void stop() {
-      getMetricContext().register(
-          new TimingGauge(this.name, getMetricContext(), System.currentTimeMillis() - this.startTime));
-    }
-  }
-
   /**
    * Start metric reporting.
    *

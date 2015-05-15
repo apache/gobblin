@@ -50,12 +50,16 @@ abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, For
   protected Optional<Timer> forkOperatorTimer = Optional.absent();
 
   @Override
-  public void init(WorkUnitState workUnitState)
+  public void init(WorkUnitState workUnitState) throws Exception {
+    init(workUnitState, this.getClass());
+  }
+
+  protected void init(WorkUnitState workUnitState, Class<?> classTag)
       throws Exception {
     this.instrumentationEnabled = GobblinMetrics.isEnabled(workUnitState);
 
     if(isInstrumentationEnabled()) {
-      this.metricContext = closer.register(Instrumented.getMetricContext(workUnitState, this.getClass()));
+      this.metricContext = closer.register(Instrumented.getMetricContext(workUnitState, classTag));
 
       this.inputMeter = Optional.of(this.metricContext.meter(MetricNames.ForkOperatorMetrics.RECORDS_IN_METER));
       this.outputForks = Optional.of(this.metricContext.meter(MetricNames.ForkOperatorMetrics.FORKS_OUT_METER));

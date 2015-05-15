@@ -12,8 +12,15 @@
 
 package gobblin.instrumented.qualitychecker;
 
+import java.util.List;
+
+import com.google.common.base.Optional;
+
+import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
 import gobblin.qualitychecker.row.RowLevelPolicy;
+import gobblin.util.Decorator;
+import gobblin.util.DecoratorUtils;
 
 
 /**
@@ -21,15 +28,16 @@ import gobblin.qualitychecker.row.RowLevelPolicy;
  * Handles already instrumented {@link gobblin.instrumented.qualitychecker.InstrumentedRowLevelPolicy}
  * appropriately to avoid double metric reporting.
  */
-public class InstrumentedRowLevelPolicyDecorator extends InstrumentedRowLevelPolicyBase {
+public class InstrumentedRowLevelPolicyDecorator extends InstrumentedRowLevelPolicyBase implements Decorator {
 
   private RowLevelPolicy embeddedPolicy;
   private boolean isEmbeddedInstrumented;
 
   public InstrumentedRowLevelPolicyDecorator(RowLevelPolicy policy) {
-    super(policy.getTaskState(), policy.getType());
+    super(policy.getTaskState(), policy.getType(),
+        Optional.<Class<?>>of(DecoratorUtils.resolveUnderlyingObject(policy).getClass()));
     this.embeddedPolicy = policy;
-    this.isEmbeddedInstrumented = InstrumentedRowLevelPolicyBase.class.isInstance(policy);
+    this.isEmbeddedInstrumented = Instrumented.isLineageInstrumented(policy);
   }
 
   @Override
@@ -49,5 +57,15 @@ public class InstrumentedRowLevelPolicyDecorator extends InstrumentedRowLevelPol
   @Override
   public Result executePolicyImpl(Object record) {
     return this.embeddedPolicy.executePolicy(record);
+  }
+
+  @Override
+  public Object getUnderlying() {
+    return DecoratorUtils.resolveUnderlyingObject(this.embeddedPolicy);
+  }
+
+  @Override
+  public List<Object> getDecoratorLineage() {
+    return DecoratorUtils.resolveDecoratorLineage(this, this.embeddedPolicy);
   }
 }

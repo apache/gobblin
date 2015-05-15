@@ -51,13 +51,18 @@ abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instr
 
   @SuppressWarnings("unchecked")
   public InstrumentedExtractorBase(WorkUnitState workUnitState) {
+    this(workUnitState, Optional.<Class<?>>absent());
+  }
+
+  protected InstrumentedExtractorBase(WorkUnitState workUnitState, Optional<Class<?>> classTag) {
     super();
     this.closer = Closer.create();
 
     this.instrumentationEnabled = GobblinMetrics.isEnabled(workUnitState);
 
     this.metricContext =
-        closer.register(Instrumented.getMetricContext(workUnitState, this.getClass(), generateTags(workUnitState)));
+        closer.register(Instrumented.getMetricContext(workUnitState, classTag.or(this.getClass()),
+            generateTags(workUnitState)));
 
     if(isInstrumentationEnabled()) {
       this.readRecordsMeter = Optional.of(this.metricContext.meter(MetricNames.ExtractorMetrics.RECORDS_READ_METER));

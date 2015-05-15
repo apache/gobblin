@@ -55,12 +55,16 @@ abstract class InstrumentedConverterBase<SI, SO, DI, DO> extends Converter<SI, S
 
   @Override
   public Converter<SI, SO, DI, DO> init(WorkUnitState workUnit) {
+    return init(workUnit, this.getClass());
+  }
+
+  protected Converter<SI, SO, DI, DO> init(WorkUnitState workUnit, Class<?> classTag) {
     Converter<SI, SO, DI, DO> converter = super.init(workUnit);
 
     this.instrumentationEnabled = GobblinMetrics.isEnabled(workUnit);
 
     if (isInstrumentationEnabled()) {
-      this.metricContext = closer.register(Instrumented.getMetricContext(workUnit, this.getClass()));
+      this.metricContext = closer.register(Instrumented.getMetricContext(workUnit, classTag));
 
       this.recordsInMeter = Optional.of(this.metricContext.meter(MetricNames.ConverterMetrics.RECORDS_IN_METER));
       this.recordsOutMeter = Optional.of(this.metricContext.meter(MetricNames.ConverterMetrics.RECORDS_OUT_METER));

@@ -13,9 +13,15 @@
 package gobblin.instrumented.writer;
 
 import java.io.IOException;
+import java.util.List;
+
+import com.google.common.base.Optional;
 
 import gobblin.configuration.State;
+import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
+import gobblin.util.Decorator;
+import gobblin.util.DecoratorUtils;
 import gobblin.writer.DataWriter;
 
 
@@ -24,15 +30,15 @@ import gobblin.writer.DataWriter;
  * Handles already instrumented {@link gobblin.instrumented.writer.InstrumentedDataWriter}
  * appropriately to avoid double metric reporting.
  */
-public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBase<D> {
+public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBase<D> implements Decorator {
 
   private DataWriter<D> embeddedWriter;
   private boolean isEmbeddedInstrumented;
 
   public InstrumentedDataWriterDecorator(DataWriter<D> writer, State state) {
-    super(state);
+    super(state, Optional.<Class<?>>of(DecoratorUtils.resolveUnderlyingObject(writer).getClass()));
     this.embeddedWriter = this.closer.register(writer);
-    this.isEmbeddedInstrumented = InstrumentedDataWriterBase.class.isInstance(writer);
+    this.isEmbeddedInstrumented = Instrumented.isLineageInstrumented(writer);
   }
 
   @Override
@@ -79,5 +85,15 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   public long bytesWritten()
       throws IOException {
     return this.embeddedWriter.bytesWritten();
+  }
+
+  @Override
+  public Object getUnderlying() {
+    return DecoratorUtils.resolveUnderlyingObject(this.embeddedWriter);
+  }
+
+  @Override
+  public List<Object> getDecoratorLineage() {
+    return DecoratorUtils.resolveDecoratorLineage(this, this.embeddedWriter);
   }
 }

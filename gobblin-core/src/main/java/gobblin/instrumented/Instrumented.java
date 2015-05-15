@@ -37,6 +37,7 @@ import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
 import gobblin.qualitychecker.row.RowLevelPolicy;
 import gobblin.source.extractor.Extractor;
+import gobblin.util.Decorator;
 import gobblin.writer.DataWriter;
 
 
@@ -116,7 +117,7 @@ public class Instrumented implements Instrumentable, Closeable {
     if (construct != null) {
       generatedTags.add(new Tag<String>("construct", construct.toString()));
     }
-    generatedTags.add(new Tag<String>("class", klazz.getCanonicalName()));
+    generatedTags.add(new Tag<String>("class", klazz.isAnonymousClass() ? "anonymous" : klazz.getCanonicalName()));
 
     GobblinMetrics gobblinMetrics;
     MetricContext.Builder builder = state.contains(METRIC_CONTEXT_NAME_KEY) &&
@@ -127,6 +128,26 @@ public class Instrumented implements Instrumentable, Closeable {
         addTags(generatedTags).
         addTags(tags).
         build();
+  }
+
+  /**
+   * Determines whether an object or, if it is a decorator, any object on its lineage, is already instrumented.
+   * @param obj Object to analyze.
+   * @return Whether the object is instrumented.
+   */
+  public static boolean isLineageInstrumented(Object obj) {
+    List<Object> lineage = Lists.newArrayList(obj);
+    if(obj instanceof Decorator) {
+      lineage = ((Decorator) obj).getDecoratorLineage();
+    }
+
+    for(Object node : lineage) {
+      if(node instanceof Instrumentable) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**

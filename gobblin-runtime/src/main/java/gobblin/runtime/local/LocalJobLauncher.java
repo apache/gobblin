@@ -30,6 +30,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
@@ -97,8 +98,8 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     JobMetrics jobMetrics = JobMetrics.get(jobState);
 
     // Start all dependent services
-    GobblinMetrics.TimingGaugeContext startDependentServicesTimer =
-        jobMetrics.singleUseTimer(MetricNames.RunJobTimings.START_DEPENDENT_SERVICES);
+    Timer.Context startDependentServicesTimer =
+        jobMetrics.getTimer(MetricNames.RunJobTimings.START_DEPENDENT_SERVICES).time();
     this.serviceManager.startAsync().awaitHealthy(5, TimeUnit.SECONDS);
     startDependentServicesTimer.stop();
 
@@ -119,8 +120,8 @@ public class LocalJobLauncher extends AbstractJobLauncher {
 
     String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
     this.countDownLatch = new CountDownLatch(workUnitsToRun.size());
-    GobblinMetrics.TimingGaugeContext runWorkUnitsTimer =
-        jobMetrics.singleUseTimer(MetricNames.RunJobTimings.RUN_WORK_UNITS);
+    Timer.Context runWorkUnitsTimer =
+        jobMetrics.getTimer(MetricNames.RunJobTimings.RUN_WORK_UNITS).time();
     List<Task> tasks = AbstractJobLauncher
         .runWorkUnits(jobId, workUnitsToRun, this.taskStateTracker, this.taskExecutor, this.countDownLatch);
     runWorkUnitsTimer.stop();

@@ -12,6 +12,7 @@
 package gobblin.runtime;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.slf4j.Logger;
 
@@ -19,6 +20,8 @@ import com.google.common.base.Throwables;
 
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
+import gobblin.util.Decorator;
+import gobblin.util.DecoratorUtils;
 
 
 /**
@@ -27,7 +30,7 @@ import gobblin.source.extractor.Extractor;
  *
  * @author ynli
  */
-public class ExtractorDecorator<S, D> implements Extractor<S, D> {
+public class ExtractorDecorator<S, D> implements Extractor<S, D>, Decorator {
 
   private final Extractor<S, D> extractor;
   private final String taskId;
@@ -90,5 +93,15 @@ public class ExtractorDecorator<S, D> implements Extractor<S, D> {
       // Dummy return that is not reachable as propagate above throws RuntimeException
       return 0;
     }
+  }
+
+  @Override
+  public Object getUnderlying() {
+    return DecoratorUtils.resolveUnderlyingObject(this.extractor);
+  }
+
+  @Override
+  public List<Object> getDecoratorLineage() {
+    return DecoratorUtils.resolveDecoratorLineage(this, this.extractor);
   }
 }

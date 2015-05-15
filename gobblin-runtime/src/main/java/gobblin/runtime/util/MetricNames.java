@@ -34,5 +34,8 @@ public class MetricNames {
     public final static String START_DEPENDENT_SERVICES = MetricRegistry.name(BASE_NAME, "start.dependent.services");
     public final static String RUN_WORK_UNITS = MetricRegistry.name(BASE_NAME, "run.work.units");
     public final static String SCHEDULE_WORK_UNTIS = MetricRegistry.name(BASE_NAME, "schedule.work.units");
+    public final static String DISTRIBUTED_CACHE = MetricRegistry.name(BASE_NAME, "populate.distributed.cache");
+    public final static String SETUP_MR_JOB = MetricRegistry.name(BASE_NAME, "mr.job.setup");
+    public final static String RUN_MR_JOB = MetricRegistry.name(BASE_NAME, "run.mr.job");
   }
 }

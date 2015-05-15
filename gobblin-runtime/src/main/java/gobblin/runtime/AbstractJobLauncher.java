@@ -201,8 +201,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     jobState.setState(JobState.RunningState.PENDING);
     boolean metricsEnabled = GobblinMetrics.isEnabled(jobState);
 
-    GobblinMetrics.TimingGaugeContext createWorkUnitsTimer =
-        jobMetrics.singleUseTimer(MetricNames.LauncherTimings.CREATE_WORK_UNITS);
+    Timer.Context createWorkUnitsTimer =
+        jobMetrics.getTimer(MetricNames.LauncherTimings.CREATE_WORK_UNITS).time();
 
     // Generate work units of the job from the source
     Optional<List<WorkUnit>> workUnits = Optional.fromNullable(source.getWorkunits(jobState));
@@ -229,8 +229,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
     LOG.info("Starting job " + jobId);
 
-    GobblinMetrics.TimingGaugeContext addWorkUnitsTimer =
-        jobMetrics.singleUseTimer(MetricNames.LauncherTimings.ADD_WORK_UNITS);
+    Timer.Context addWorkUnitsTimer =
+        jobMetrics.getTimer(MetricNames.LauncherTimings.ADD_WORK_UNITS).time();
 
     // Add work units and assign task IDs to them
     int taskIdSequence = 0;
@@ -257,8 +257,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       }
 
       // Write job execution info to the job history store before the job starts to run
-      GobblinMetrics.TimingGaugeContext writeJobHistoryTimer =
-          jobMetrics.singleUseTimer(MetricNames.LauncherTimings.WRITE_JOB_HISTORY);
+      Timer.Context writeJobHistoryTimer =
+          jobMetrics.getTimer(MetricNames.LauncherTimings.WRITE_JOB_HISTORY).time();
       if (this.jobHistoryStore.isPresent()) {
         try {
           this.jobHistoryStore.get().put(jobState.toJobExecutionInfo());
@@ -269,8 +269,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       writeJobHistoryTimer.stop();
 
       // Start the job and wait for it to finish
-      GobblinMetrics.TimingGaugeContext runJobTimer =
-          jobMetrics.singleUseTimer(MetricNames.LauncherTimings.RUN_JOB);
+      Timer.Context runJobTimer =
+          jobMetrics.getTimer(MetricNames.LauncherTimings.RUN_JOB).time();
       runJob(jobName, jobProps, jobState, workUnits.get());
       runJobTimer.stop();
 
@@ -280,8 +280,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         return;
       }
 
-      GobblinMetrics.TimingGaugeContext commitJobTimer =
-          jobMetrics.singleUseTimer(MetricNames.LauncherTimings.COMMIT_JOB);
+      Timer.Context commitJobTimer =
+          jobMetrics.getTimer(MetricNames.LauncherTimings.COMMIT_JOB).time();
       JobCommitPolicy commitPolicy = JobCommitPolicy.getCommitPolicy(jobState);
 
       setFinalJobState(commitPolicy, jobState);
@@ -294,8 +294,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       LOG.error(errMsg + ": " + t, t);
       throw new JobException(errMsg, t);
     } finally {
-      GobblinMetrics.TimingGaugeContext jobCleanupTimer =
-          jobMetrics.singleUseTimer(MetricNames.LauncherTimings.CLEANUP_JOB);
+      Timer.Context jobCleanupTimer =
+          jobMetrics.getTimer(MetricNames.LauncherTimings.CLEANUP_JOB).time();
       // Make sure the source connection is shutdown
       source.shutdown(jobState);
 
