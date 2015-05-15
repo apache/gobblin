@@ -409,6 +409,14 @@ public class ConfigurationKeys {
   public static final String DEFAULT_JOB_HISTORY_STORE_USER = "gobblin";
   public static final String JOB_HISTORY_STORE_PASSWORD_KEY = "job.history.store.password";
   public static final String DEFAULT_JOB_HISTORY_STORE_PASSWORD = "gobblin";
+  /**
+   * HDFS file properties
+   */
+  public static final String HDFS_FILE = "hdfs.file";
+  public static final String HDFS_FILE_OWNER = HDFS_FILE + ".owner";
+  public static final String HDFS_FILE_GROUP = HDFS_FILE + ".group";
+  public static final String HDFS_FILE_REPLICATION_FACTOR = HDFS_FILE + ".replication.factor";
+  public static final String HDFS_FILE_PERMISSIONS = HDFS_FILE + ".permissions";
 
   /**
    * Other configuration properties.
