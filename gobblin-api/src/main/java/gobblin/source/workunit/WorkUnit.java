@@ -14,11 +14,17 @@ package gobblin.source.workunit;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+
 import gobblin.source.extractor.Extractor;
+import gobblin.source.extractor.Watermark;
+import gobblin.source.extractor.WatermarkInterval;
 
 
 /**
@@ -35,6 +41,8 @@ public class WorkUnit extends State {
 
   private Extract extract;
 
+  private static final Gson GSON = new Gson();
+
   /**
    * Default constructor.
    */
@@ -45,7 +53,7 @@ public class WorkUnit extends State {
   /**
    * Constructor.
    *
-   * @param state a {@link gobblin.configuration.SourceState} the properties of which will be copied into this {@link WorkUnit} instance
+   * @param state a {@link SourceState} the properties of which will be copied into this {@link WorkUnit} instance
    * @param extract an {@link Extract}
    */
   public WorkUnit(SourceState state, Extract extract) {
@@ -59,6 +67,27 @@ public class WorkUnit extends State {
     } else {
       this.extract = new Extract(null, null, null, null);
     }
+  }
+
+  /**
+   * Constructor for a {@link WorkUnit} given a {@link SourceState}, {@link Extract}, and a {@link WatermarkInterval}.
+   *
+   * @param state a {@link gobblin.configuration.SourceState} the properties of which will be copied into this {@link WorkUnit} instance.
+   * @param extract an {@link Extract}.
+   * @param watermarkInterval a {@link WatermarkInterval} which defines the range of data this {@link WorkUnit} will process.
+   */
+  public WorkUnit(SourceState state, Extract extract, WatermarkInterval watermarkInterval) {
+    this(state, extract);
+
+    /**
+     * TODO
+     *
+     * Hack that stores a {@link WatermarkInterval} by using its {@link WatermarkInterval#toJson()} method. Until a
+     * state-store migration, or a new state-store format is chosen, this hack will be the way that the
+     * {@link WatermarkInterval} is serialized / de-serialized. Once a state-store migration can be done, the
+     * {@link Watermark} can be stored as Binary JSON.
+     */
+    setProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY, watermarkInterval.toJson());
   }
 
   /**
@@ -81,10 +110,32 @@ public class WorkUnit extends State {
   }
 
   /**
+   * Get the low {@link Watermark} as a {@link JsonElement}.
+   *
+   * @return a {@link JsonElement} representing the low {@link Watermark}.
+   */
+  public JsonElement getLowWatermark() {
+    return GSON.toJsonTree(getProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY)).getAsJsonObject()
+        .get(WatermarkInterval.LOW_WATERMARK_TO_JSON_KEY);
+  }
+
+  /**
+   * Get the expected high {@link Watermark} as a {@link JsonElement}.
+   *
+   * @return a {@link JsonElement} representing the expected high {@link Watermark}.
+   */
+  public JsonElement getExpectedHighWatermark() {
+    return GSON.toJsonTree(getProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY)).getAsJsonObject()
+        .get(WatermarkInterval.EXPECTED_HIGH_WATERMARK_TO_JSON_KEY);
+  }
+
+  /**
    * Get the high watermark of this {@link WorkUnit}.
    *
    * @return high watermark
+   * @deprecated use the {@link #getExpectedHighWatermark()} method.
    */
+  @Deprecated
   public long getHighWaterMark() {
     return getPropAsLong(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY);
   }
@@ -93,7 +144,9 @@ public class WorkUnit extends State {
    * Set the high watermark of this {@link WorkUnit}.
    *
    * @param highWaterMark high watermark
+   * @deprecated watermarks should be set using the {@link #WorkUnit(SourceState, Extract, WatermarkInterval)} constructor.
    */
+  @Deprecated
   public void setHighWaterMark(long highWaterMark) {
     setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, highWaterMark);
   }
@@ -102,7 +155,9 @@ public class WorkUnit extends State {
    * Get the low watermark of this {@link WorkUnit}.
    *
    * @return low watermark
+   * @deprecated use the {@link #getLowWatermark()} method.
    */
+  @Deprecated
   public long getLowWaterMark() {
     return getPropAsLong(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY);
   }
@@ -111,7 +166,9 @@ public class WorkUnit extends State {
    * Set the low watermark of this {@link WorkUnit}.
    *
    * @param lowWaterMark low watermark
+   * @deprecated watermarks should be set using the {@link #WorkUnit(SourceState, Extract, WatermarkInterval)} constructor.
    */
+  @Deprecated
   public void setLowWaterMark(long lowWaterMark) {
     setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, lowWaterMark);
   }
@@ -128,5 +185,13 @@ public class WorkUnit extends State {
       throws IOException {
     super.write(out);
     this.extract.write(out);
+  }
+
+  @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = super.hashCode();
+    result = prime * result + ((this.extract == null) ? 0 : this.extract.hashCode());
+    return result;
   }
 }

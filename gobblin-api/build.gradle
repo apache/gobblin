@@ -13,6 +13,7 @@ apply plugin: 'java'
 
 dependencies {
     compile externalDependency.guava
+    compile externalDependency.gson
     compile externalDependency.jodaTime
 
     testCompile externalDependency.testng

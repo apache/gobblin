@@ -38,7 +38,7 @@ public class RowLevelPolicyCheckResults {
     } else {
       value = 0;
     }
-    results.put(new RowLevelPolicyResultPair(policy, result), new Long(1 + value));
+    results.put(new RowLevelPolicyResultPair(policy, result), Long.valueOf(1 + value));
   }
 
   public String getResults() {
@@ -51,7 +51,7 @@ public class RowLevelPolicyCheckResults {
     return joiner.join(list);
   }
 
-  public class RowLevelPolicyResultPair {
+  public static class RowLevelPolicyResultPair {
     private RowLevelPolicy policy;
     private RowLevelPolicy.Result result;
 

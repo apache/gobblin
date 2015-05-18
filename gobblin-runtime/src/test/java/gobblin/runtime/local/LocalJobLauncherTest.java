@@ -48,6 +48,7 @@ public class LocalJobLauncherTest {
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, "true");
     this.launcherProps.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "true");
     this.launcherProps.setProperty(ConfigurationKeys.METRICS_REPORTING_FILE_ENABLED_KEY, "false");
+    this.launcherProps.setProperty(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, "false");
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY,
         "org.apache.derby.jdbc.EmbeddedDriver");
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY,
@@ -58,7 +59,7 @@ public class LocalJobLauncherTest {
         this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
         JobState.class);
 
-    this.jobLauncherTestHelper = new JobLauncherTestHelper(launcherProps, jobStateStore);
+    this.jobLauncherTestHelper = new JobLauncherTestHelper(this.launcherProps, jobStateStore);
     this.jobLauncherTestHelper.prepareJobHistoryStoreDatabase(this.launcherProps);
   }
 

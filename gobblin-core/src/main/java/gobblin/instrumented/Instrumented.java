@@ -62,6 +62,7 @@ import gobblin.writer.DataWriter;
 public class Instrumented implements Instrumentable, Closeable {
 
   public static final String METRIC_CONTEXT_NAME_KEY = "metrics.context.name";
+  public static final Random RAND = new Random();
 
   private final boolean instrumentationEnabled;
   protected final MetricContext metricContext;
@@ -98,7 +99,7 @@ public class Instrumented implements Instrumentable, Closeable {
    * @return A {@link gobblin.metrics.MetricContext} with the appropriate tags and parent.
    */
   public static MetricContext getMetricContext(State state, Class<?> klazz, List<Tag<?>> tags) {
-    int randomId = (new Random()).nextInt();
+    int randomId = RAND.nextInt();
 
     Constructs construct = null;
     if(Converter.class.isAssignableFrom(klazz)) {

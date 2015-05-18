@@ -17,6 +17,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.log4j.Logger;
 
 import com.google.common.base.Strings;
+import com.google.common.io.Closer;
 
 import azkaban.jobExecutor.AbstractJob;
 
@@ -24,6 +25,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.EmailNotificationJobListener;
 import gobblin.runtime.JobLauncher;
 import gobblin.runtime.JobLauncherFactory;
+import gobblin.runtime.JobListener;
 
 
 /**
@@ -40,50 +42,61 @@ public class AzkabanJobLauncher extends AbstractJob {
   private static final String HADOOP_TOKEN_FILE_LOCATION = "HADOOP_TOKEN_FILE_LOCATION";
   private static final String MAPREDUCE_JOB_CREDENTIALS_BINARY = "mapreduce.job.credentials.binary";
 
-  private final Properties properties;
+  private final Closer closer = Closer.create();
   private final JobLauncher jobLauncher;
+  private final JobListener jobListener = new EmailNotificationJobListener();
 
   public AzkabanJobLauncher(String jobId, Properties props)
       throws Exception {
     super(jobId, LOG);
 
-    this.properties = new Properties();
-    this.properties.putAll(props);
+    Properties properties = new Properties();
+    properties.putAll(props);
     Configuration conf = new Configuration();
 
     String fsUri = conf.get(HADOOP_FS_DEFAULT_NAME);
     if (!Strings.isNullOrEmpty(fsUri)) {
-      if (!this.properties.containsKey(ConfigurationKeys.FS_URI_KEY)) {
-        this.properties.setProperty(ConfigurationKeys.FS_URI_KEY, fsUri);
+      if (!properties.containsKey(ConfigurationKeys.FS_URI_KEY)) {
+        properties.setProperty(ConfigurationKeys.FS_URI_KEY, fsUri);
       }
-      if (!this.properties.containsKey(ConfigurationKeys.STATE_STORE_FS_URI_KEY)) {
-        this.properties.setProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, fsUri);
+      if (!properties.containsKey(ConfigurationKeys.STATE_STORE_FS_URI_KEY)) {
+        properties.setProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, fsUri);
       }
     }
 
     // Set the job tracking URL to point to the Azkaban job execution link URL
-    this.properties.setProperty(
+    properties.setProperty(
         ConfigurationKeys.JOB_TRACKING_URL_KEY, Strings.nullToEmpty(conf.get(AZKABAN_LINK_JOBEXEC_URL)));
 
     // Necessary for compatibility with Azkaban's hadoopJava job type
     // http://azkaban.github.io/azkaban/docs/2.5/#hadoopjava-type
     if (System.getenv(HADOOP_TOKEN_FILE_LOCATION) != null) {
-      this.properties.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, System.getenv(HADOOP_TOKEN_FILE_LOCATION));
+      properties.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, System.getenv(HADOOP_TOKEN_FILE_LOCATION));
     }
 
-    // Create a JobLauncher instance depending on the configuration
-    this.jobLauncher = JobLauncherFactory.newJobLauncher(this.properties);
+    // Create a JobLauncher instance depending on the configuration. The same properties object is
+    // used for both system and job configuration properties because Azkaban puts configuration
+    // properties in the .job file and in the .properties file into the same Properties object.
+    this.jobLauncher = this.closer.register(JobLauncherFactory.newJobLauncher(properties, properties));
   }
 
   @Override
   public void run()
       throws Exception {
-    this.jobLauncher.launchJob(this.properties, new EmailNotificationJobListener());
+    try {
+      this.jobLauncher.launchJob(this.jobListener);
+    } finally {
+      this.closer.close();
+    }
   }
 
   @Override
   public void cancel()
       throws Exception {
-    this.jobLauncher.cancelJob(this.properties);
+    try {
+      this.jobLauncher.cancelJob(this.jobListener);
+    } finally {
+      this.closer.close();
+    }
   }
 }

@@ -24,6 +24,7 @@ import gobblin.source.workunit.WorkUnit;
 import gobblin.test.TestSource;
 import gobblin.writer.Destination;
 import gobblin.writer.WriterOutputFormat;
+import gobblin.util.JobLauncherUtils;
 
 
 /**
@@ -57,6 +58,9 @@ public class TaskContextTest {
     Properties properties = new Properties();
     properties.load(new StringReader(TEST_JOB_CONFIG));
     workUnit.addAll(properties);
+    workUnit.setProp(ConfigurationKeys.JOB_ID_KEY, JobLauncherUtils.newJobId("GobblinTest1"));
+    workUnit.setProp(ConfigurationKeys.TASK_ID_KEY,
+        JobLauncherUtils.newTaskId(workUnit.getProp(ConfigurationKeys.JOB_ID_KEY), 0));
     this.taskContext = new TaskContext(new WorkUnitState(workUnit));
   }
 

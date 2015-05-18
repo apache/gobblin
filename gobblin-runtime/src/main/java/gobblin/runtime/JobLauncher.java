@@ -11,33 +11,52 @@
 
 package gobblin.runtime;
 
-import java.util.Properties;
+import java.io.Closeable;
+import javax.annotation.Nullable;
 
 
 /**
  * An interface for classes that launch a Gobblin job.
  *
+ * <p>
+ *   A {@link JobLauncher} is not supposed to be reused, i.e., each {@link JobLauncher}
+ *   should only be used to launch a single job.
+ * </p>
+ *
  * @author ynli
  */
-public interface JobLauncher {
+public interface JobLauncher extends Closeable {
 
   /**
    * Launch a Gobblin job.
    *
-   * @param jobProps Job configuration properties
-   * @param jobListener {@link JobListener} used for callback,
-   *                    can be <em>null</em> if no callback is needed.
-   * @throws JobException
+   * <p>
+   *   This method is synchronous, i.e., the caller will be blocked until the job finishes. The method
+   *   {@link JobListener#onJobCompletion(JobState)} of the given {@link JobListener} will be called at
+   *   the end if no uncaught exceptions are thrown before the method gets called.
+   * </p>
+   *
+   * @param jobListener a {@link JobListener} instance on which {@link JobListener#onJobCompletion(JobState)}
+   *                    is called at the end of this method if it is not {@code null}
+   * @throws JobException if there is anything wrong launching and running the job
    */
-  public void launchJob(Properties jobProps, JobListener jobListener)
+  public void launchJob(@Nullable JobListener jobListener)
       throws JobException;
 
   /**
    * Cancel a Gobblin job.
    *
-   * @param jobProps Job configuration properties
-   * @throws JobException
+   * <p>
+   *   This method is synchronous, i.e., the caller will be blocked until the cancellation is executed.
+   *   The method {@link JobListener#onJobCancellation(JobState)} of the given {@link JobListener} will
+   *   be called at the end if the caller is not interrupted while being blocked. If a cancellation has
+   *   already been requested, however, this method will return immediately.
+   * </p>
+   *
+   * @param jobListener {@link JobListener} instance on which {@link JobListener#onJobCancellation(JobState)}
+   *                    is called at the end of this method if it is not {@code null}
+   * @throws JobException if there is anything wrong cancelling the job
    */
-  public void cancelJob(Properties jobProps)
+  public void cancelJob(@Nullable JobListener jobListener)
       throws JobException;
 }

@@ -38,13 +38,13 @@ public class EmailUtils {
   /**
    * A general method for sending emails.
    *
-   * @param state A {@link State} object containing configuration properties
-   * @param subject Email subject
-   * @param message Email message
+   * @param state a {@link State} object containing configuration properties
+   * @param subject email subject
+   * @param message email message
+   * @throws EmailException if there is anything wrong sending the email
    */
   public static void sendEmail(State state, String subject, String message)
       throws EmailException {
-
     Email email = new SimpleEmail();
     email.setHostName(state.getProp(ConfigurationKeys.EMAIL_HOST_KEY, ConfigurationKeys.DEFAULT_EMAIL_HOST));
     if (state.contains(ConfigurationKeys.EMAIL_SMTP_PORT_KEY)) {
@@ -70,7 +70,7 @@ public class EmailUtils {
     }
 
     email.setSubject(subject);
-    String fromHostLine = String.format("This email was sent from host: %s\n\n", hostName);
+    String fromHostLine = String.format("This email was sent from host: %s%n%n", hostName);
     email.setMsg(fromHostLine + message);
     email.send();
   }
@@ -78,31 +78,43 @@ public class EmailUtils {
   /**
    * Send a job completion notification email.
    *
-   * @param jobName Job name
-   * @param message Email message
-   * @param state Job state
-   * @param jobState A {@link State} object carrying job configuration properties
-   * @throws EmailException
+   * @param jobId job name
+   * @param message email message
+   * @param state job state
+   * @param jobState a {@link State} object carrying job configuration properties
+   * @throws EmailException if there is anything wrong sending the email
    */
-  public static void sendJobCompletionEmail(String jobName, String message, String state, State jobState)
+  public static void sendJobCompletionEmail(String jobId, String message, String state, State jobState)
       throws EmailException {
-
     sendEmail(jobState,
-        String.format("Gobblin notification: most recent run of job %s has completed with state %s", jobName, state),
+        String.format("Gobblin notification: job %s has completed with state %s", jobId, state),
         message);
+  }
+
+  /**
+   * Send a job cancellation notification email.
+   *
+   * @param jobId job name
+   * @param message email message
+   * @param jobState a {@link State} object carrying job configuration properties
+   * @throws EmailException if there is anything wrong sending the email
+   */
+  public static void sendJobCancellationEmail(String jobId, String message, State jobState)
+      throws EmailException {
+    sendEmail(jobState, String.format("Gobblin notification: job %s has been cancelled", jobId), message);
   }
 
   /**
    * Send a job failure alert email.
    *
-   * @param jobName Job name
-   * @param message Email message
-   * @param failures Number of consecutive job failures
-   * @param jobState A {@link State} object carrying job configuration properties
+   * @param jobName job name
+   * @param message email message
+   * @param failures number of consecutive job failures
+   * @param jobState a {@link State} object carrying job configuration properties
+   * @throws EmailException if there is anything wrong sending the email
    */
   public static void sendJobFailureAlertEmail(String jobName, String message, int failures, State jobState)
       throws EmailException {
-
     sendEmail(jobState, String
             .format("Gobblin alert: job %s has failed %d %s consecutively in the past", jobName, failures,
                 failures > 1 ? "times" : "time"), message);

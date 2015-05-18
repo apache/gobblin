@@ -15,6 +15,7 @@ package gobblin.metrics;
 import java.io.Closeable;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
 import java.text.DateFormat;
 import java.util.Date;
 import java.util.LinkedHashMap;
@@ -39,6 +40,7 @@ import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
 import com.google.common.collect.Maps;
+import com.google.common.base.Charsets;
 
 
 public class OutputStreamReporter extends RecursiveScheduledReporter implements Closeable {
@@ -125,7 +127,12 @@ public class OutputStreamReporter extends RecursiveScheduledReporter implements 
      * @return {@code this}
      */
     public T outputTo(OutputStream stream) {
-      this.output = new PrintStream(stream);
+      try {
+        this.output = new PrintStream(stream, false, Charsets.UTF_8.toString());
+      } catch(UnsupportedEncodingException exception) {
+        LOGGER.error("Unsupported encoding in OutputStreamReporter. This is an error with the code itself.", exception);
+        throw new RuntimeException(exception);
+      }
       return self();
     }
 
