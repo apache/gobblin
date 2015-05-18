@@ -31,9 +31,10 @@ public class MetricNames {
 
   public static class RunJobTimings {
     public static String BASE_NAME = "gobblin.job.run.timings";
-    public final static String START_DEPENDENT_SERVICES = MetricRegistry.name(BASE_NAME, "start.dependent.services");
+    public final static String SETUP_LOCAL_JOB = MetricRegistry.name(BASE_NAME, "local.job.setup");
     public final static String RUN_WORK_UNITS = MetricRegistry.name(BASE_NAME, "run.work.units");
     public final static String SCHEDULE_WORK_UNTIS = MetricRegistry.name(BASE_NAME, "schedule.work.units");
+    public final static String CLEAN_STAGING_DATA = MetricRegistry.name(BASE_NAME, "mr.clean.staging.data");
     public final static String DISTRIBUTED_CACHE = MetricRegistry.name(BASE_NAME, "populate.distributed.cache");
     public final static String SETUP_MR_JOB = MetricRegistry.name(BASE_NAME, "mr.job.setup");
     public final static String RUN_MR_JOB = MetricRegistry.name(BASE_NAME, "run.mr.job");

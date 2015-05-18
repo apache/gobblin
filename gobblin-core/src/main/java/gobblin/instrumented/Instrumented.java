@@ -152,6 +152,35 @@ public class Instrumented implements Instrumentable, Closeable {
   }
 
   /**
+   * Returns a timer context only if metric context is defined.
+   * @param context an Optional&lt;{@link gobblin.metrics.MetricContext}$gt;
+   * @param name name of the timer.
+   * @return an Optional&lt;{@link com.codahale.metrics.Timer.Context}$gt;
+   */
+  public static Optional<Timer.Context> timerContext(Optional<MetricContext> context, final String name) {
+    return context.transform(new Function<MetricContext, Timer.Context>() {
+      @Override
+      public Timer.Context apply(MetricContext input) {
+        return input.timer(name).time();
+      }
+    });
+  }
+
+  /**
+   * Ends a timer context only if it exists.
+   * @param timer an Optional&lt;{@link com.codahale.metrics.Timer.Context}$gt;
+   */
+  public static void endTimer(Optional<Timer.Context> timer) {
+    timer.transform(new Function<Timer.Context, Timer.Context>() {
+      @Override
+      public Timer.Context apply(Timer.Context input) {
+        input.close();
+        return input;
+      }
+    });
+  }
+
+  /**
    * Updates a timer only if it is defined.
    * @param timer an Optional&lt;{@link com.codahale.metrics.Timer}&gt;
    * @param duration
