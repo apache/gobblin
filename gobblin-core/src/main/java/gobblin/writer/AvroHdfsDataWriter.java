@@ -169,23 +169,26 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
       throw new IOException("Failed to commit data from " + this.stagingFile + " to " + this.outputFile);
     }
 
-    /**
-     * Setting the same HDFS properties as the original file
-     */
-    if (properties.contains(ConfigurationKeys.HDFS_FILE_REPLICATION_FACTOR)) {
-      fs.setReplication(outputFile, (short) properties.getPropAsInt(ConfigurationKeys.HDFS_FILE_REPLICATION_FACTOR));
+    setFileAttributes();
+  }
+
+  /**
+   * Setting the same HDFS properties as the original file
+   */
+  private void setFileAttributes() throws IOException {
+    if (properties.contains(ConfigurationKeys.WRITER_FILE_REPLICATION_FACTOR)) {
+      fs.setReplication(outputFile, (short) properties.getPropAsInt(ConfigurationKeys.WRITER_FILE_REPLICATION_FACTOR));
     }
-    if (properties.contains(ConfigurationKeys.HDFS_FILE_PERMISSIONS)) {
-      short permissions = (short) properties.getPropAsInt(ConfigurationKeys.HDFS_FILE_PERMISSIONS);
+    if (properties.contains(ConfigurationKeys.WRITER_FILE_PERMISSIONS)) {
+      short permissions = (short) properties.getPropAsInt(ConfigurationKeys.WRITER_FILE_PERMISSIONS);
       fs.setPermission(outputFile, new FsPermission(permissions));
     }
-    if (properties.contains(ConfigurationKeys.HDFS_FILE_OWNER) &&
-        properties.contains(ConfigurationKeys.HDFS_FILE_GROUP)) {
+    if (properties.contains(ConfigurationKeys.WRITER_FILE_OWNER) &&
+        properties.contains(ConfigurationKeys.WRITER_FILE_GROUP)) {
           fs.setOwner(outputFile,
-              properties.getProp(ConfigurationKeys.HDFS_FILE_OWNER),
-              properties.getProp(ConfigurationKeys.HDFS_FILE_GROUP));
+              properties.getProp(ConfigurationKeys.WRITER_FILE_OWNER),
+              properties.getProp(ConfigurationKeys.WRITER_FILE_GROUP));
     }
-
   }
 
   @Override
