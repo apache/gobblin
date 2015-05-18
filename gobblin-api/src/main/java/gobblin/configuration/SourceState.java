@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+import gobblin.source.extractor.WatermarkInterval;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.source.workunit.Extract;
 
@@ -47,8 +48,8 @@ public class SourceState extends State {
 
   private final List<WorkUnitState> previousTaskStates = Lists.newArrayList();
   private static final Set<Extract> extractSet = Sets.newConcurrentHashSet();
-  private static final DateTimeFormatter DTF =
-      DateTimeFormat.forPattern("yyyyMMddHHmmss").withLocale(Locale.US).withZone(DateTimeZone.UTC);
+  private static final DateTimeFormatter DTF = DateTimeFormat.forPattern("yyyyMMddHHmmss").withLocale(Locale.US)
+      .withZone(DateTimeZone.UTC);
 
   /**
    * Default constructor.
@@ -67,13 +68,17 @@ public class SourceState extends State {
     this.previousTaskStates.addAll(previousTaskStates);
   }
 
+  public void setWatermarkInterval(WatermarkInterval interval) {
+    setProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY, interval.toJson());
+  }
+
   /**
    * Get a (possibly empty) list of {@link WorkUnitState}s from the previous job run.
    *
    * @return (possibly empty) list of {@link WorkUnitState}s from the previous job run
    */
   public List<WorkUnitState> getPreviousWorkUnitStates() {
-    return ImmutableList.<WorkUnitState>builder().addAll(this.previousTaskStates).build();
+    return ImmutableList.<WorkUnitState> builder().addAll(this.previousTaskStates).build();
   }
 
   /**
@@ -109,8 +114,7 @@ public class SourceState extends State {
   }
 
   @Override
-  public void write(DataOutput out)
-      throws IOException {
+  public void write(DataOutput out) throws IOException {
     out.writeInt(this.previousTaskStates.size());
     for (WorkUnitState state : this.previousTaskStates) {
       state.write(out);
@@ -119,8 +123,7 @@ public class SourceState extends State {
   }
 
   @Override
-  public void readFields(DataInput in)
-      throws IOException {
+  public void readFields(DataInput in) throws IOException {
     int size = in.readInt();
     for (int i = 0; i < size; i++) {
       WorkUnitState state = new WorkUnitState();

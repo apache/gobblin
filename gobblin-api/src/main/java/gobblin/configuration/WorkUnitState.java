@@ -17,7 +17,6 @@ import java.io.IOException;
 import java.util.Set;
 
 import com.google.common.collect.Sets;
-import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 
 import gobblin.source.extractor.Watermark;
@@ -43,8 +42,6 @@ public class WorkUnitState extends State {
 
   private Watermark actualHighWatermark;
 
-  private static final Gson GSON = new Gson();
-
   /**
    * Runtime state of the {@link WorkUnit}.
    *
@@ -55,7 +52,12 @@ public class WorkUnitState extends State {
    * </p>
    */
   public enum WorkingState {
-    PENDING, RUNNING, SUCCESSFUL, COMMITTED, FAILED, CANCELLED
+    PENDING,
+    RUNNING,
+    SUCCESSFUL,
+    COMMITTED,
+    FAILED,
+    CANCELLED
   }
 
   private WorkUnit workunit;
@@ -107,10 +109,10 @@ public class WorkUnitState extends State {
   /**
    * Get the actual high {@link Watermark} as a {@link JsonElement}.
    *
-   * @return a {@link JsonElement} representing the actual high {@link Watermark}.
+   * @return a JSON string representing the actual high {@link Watermark}.
    */
-  public JsonElement getActualHighWatermark() {
-    return GSON.toJsonTree(getProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY));
+  public String getActualHighWatermark() {
+    return getProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY);
   }
 
   /**
@@ -224,15 +226,13 @@ public class WorkUnitState extends State {
   }
 
   @Override
-  public void readFields(DataInput in)
-      throws IOException {
+  public void readFields(DataInput in) throws IOException {
     this.workunit.readFields(in);
     super.readFields(in);
   }
 
   @Override
-  public void write(DataOutput out)
-      throws IOException {
+  public void write(DataOutput out) throws IOException {
     this.workunit.write(out);
     super.write(out);
   }

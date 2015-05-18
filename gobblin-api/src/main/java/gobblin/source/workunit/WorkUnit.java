@@ -19,8 +19,9 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.Watermark;
@@ -40,8 +41,6 @@ import gobblin.source.extractor.WatermarkInterval;
 public class WorkUnit extends State {
 
   private Extract extract;
-
-  private static final Gson GSON = new Gson();
 
   /**
    * Default constructor.
@@ -115,7 +114,7 @@ public class WorkUnit extends State {
    * @return a {@link JsonElement} representing the low {@link Watermark}.
    */
   public JsonElement getLowWatermark() {
-    return GSON.toJsonTree(getProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY)).getAsJsonObject()
+    return ((JsonObject) (new JsonParser().parse(getProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY))))
         .get(WatermarkInterval.LOW_WATERMARK_TO_JSON_KEY);
   }
 
@@ -125,7 +124,7 @@ public class WorkUnit extends State {
    * @return a {@link JsonElement} representing the expected high {@link Watermark}.
    */
   public JsonElement getExpectedHighWatermark() {
-    return GSON.toJsonTree(getProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY)).getAsJsonObject()
+    return ((JsonObject) (new JsonParser().parse(getProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY))))
         .get(WatermarkInterval.EXPECTED_HIGH_WATERMARK_TO_JSON_KEY);
   }
 
@@ -174,15 +173,13 @@ public class WorkUnit extends State {
   }
 
   @Override
-  public void readFields(DataInput in)
-      throws IOException {
+  public void readFields(DataInput in) throws IOException {
     super.readFields(in);
     this.extract.readFields(in);
   }
 
   @Override
-  public void write(DataOutput out)
-      throws IOException {
+  public void write(DataOutput out) throws IOException {
     super.write(out);
     this.extract.write(out);
   }
