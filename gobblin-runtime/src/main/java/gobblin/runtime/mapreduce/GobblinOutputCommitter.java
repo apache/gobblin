@@ -107,22 +107,6 @@ public class GobblinOutputCommitter extends OutputCommitter {
   }
 
   @Override
-  public void commitJob(JobContext jobContext)
-      throws IOException {
-    try {
-      Configuration conf = jobContext.getConfiguration();
-      URI fsUri = URI.create(conf.get(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
-      FileSystem fs = FileSystem.get(fsUri, conf);
-      Path mrJobDir = new Path(conf.get(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY),
-          conf.get(ConfigurationKeys.JOB_NAME_KEY));
-      // Cleanup the working directory upon job completion
-      cleanUpWorkingDirectory(mrJobDir, fs);
-    } finally {
-      super.commitJob(jobContext);
-    }
-  }
-
-  @Override
   public void abortTask(TaskAttemptContext arg0) throws IOException {
   }
 
