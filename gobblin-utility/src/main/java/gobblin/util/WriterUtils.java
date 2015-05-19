@@ -1,5 +1,7 @@
 package gobblin.util;
 
+import java.io.IOException;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -10,9 +12,6 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.workunit.WorkUnit;
-
-import java.io.IOException;
-
 
 /**
  * Utility class for use with the {@link gobblin.writer.DataWriter} class.
@@ -186,11 +185,11 @@ public class WriterUtils {
       fs.setReplication(outputFile, (short) properties.getPropAsInt(ConfigurationKeys.WRITER_FILE_REPLICATION_FACTOR));
     }
     if (properties.contains(ConfigurationKeys.WRITER_FILE_PERMISSIONS)) {
-      short permissions = (short) properties.getPropAsInt(ConfigurationKeys.WRITER_FILE_PERMISSIONS);
+      final short permissions = (short) properties.getPropAsInt(ConfigurationKeys.WRITER_FILE_PERMISSIONS);
       fs.setPermission(outputFile, new FsPermission(permissions));
     }
 
-    /* If both owner and group is present. Only then, paste the ownership info on the file */
+    // If both owner and group is present. Only then, paste the ownership info on the file
     if (properties.contains(ConfigurationKeys.WRITER_FILE_OWNER) &&
         properties.contains(ConfigurationKeys.WRITER_FILE_GROUP)) {
       fs.setOwner(outputFile,

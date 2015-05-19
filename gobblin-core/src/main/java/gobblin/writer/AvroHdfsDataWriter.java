@@ -168,7 +168,7 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
       throw new IOException("Failed to commit data from " + this.stagingFile + " to " + this.outputFile);
     }
 
-    /* Setting the same HDFS properties as the original file */
+    // Setting the same HDFS properties as the original file
     WriterUtils.setFileAttributesFromState(properties, fs, outputFile);
   }
 
