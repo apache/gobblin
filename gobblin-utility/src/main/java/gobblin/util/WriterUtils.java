@@ -1,6 +1,8 @@
 package gobblin.util;
 
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
 
 import com.google.common.base.Preconditions;
 
@@ -8,6 +10,8 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.workunit.WorkUnit;
+
+import java.io.IOException;
 
 
 /**
@@ -162,5 +166,36 @@ public class WriterUtils {
     return state.getProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_NAME, numBranches, branchId),
         String.format("%s.%s.%s", ConfigurationKeys.DEFAULT_WRITER_FILE_BASE_NAME, writerId, formatExtension));
+  }
+
+  /**
+   * Set the following file attributes from a given State object
+   * - WRITER_FILE_REPLICATION_FACTOR
+   * - WRITER_FILE_PERMISSIONS
+   * - WRITER_FILE_OWNER
+   * - WRITER_FILE_GROUP
+   *
+   * @param properties The input state object from which the attributes are read from
+   * @param fs The current Hadoop file system object
+   * @param outputFile The output file into which these attributes are set into
+   */
+  public static void setFileAttributesFromState(final State properties,
+                                                final FileSystem fs,
+                                                final Path outputFile) throws IOException {
+    if (properties.contains(ConfigurationKeys.WRITER_FILE_REPLICATION_FACTOR)) {
+      fs.setReplication(outputFile, (short) properties.getPropAsInt(ConfigurationKeys.WRITER_FILE_REPLICATION_FACTOR));
+    }
+    if (properties.contains(ConfigurationKeys.WRITER_FILE_PERMISSIONS)) {
+      short permissions = (short) properties.getPropAsInt(ConfigurationKeys.WRITER_FILE_PERMISSIONS);
+      fs.setPermission(outputFile, new FsPermission(permissions));
+    }
+
+    /* If both owner and group is present. Only then, paste the ownership info on the file */
+    if (properties.contains(ConfigurationKeys.WRITER_FILE_OWNER) &&
+        properties.contains(ConfigurationKeys.WRITER_FILE_GROUP)) {
+      fs.setOwner(outputFile,
+          properties.getProp(ConfigurationKeys.WRITER_FILE_OWNER),
+          properties.getProp(ConfigurationKeys.WRITER_FILE_GROUP));
+    }
   }
 }

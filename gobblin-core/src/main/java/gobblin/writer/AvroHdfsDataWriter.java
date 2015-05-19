@@ -26,7 +26,6 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import org.apache.hadoop.fs.permission.FsPermission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -169,26 +168,8 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
       throw new IOException("Failed to commit data from " + this.stagingFile + " to " + this.outputFile);
     }
 
-    setFileAttributes();
-  }
-
-  /**
-   * Setting the same HDFS properties as the original file
-   */
-  private void setFileAttributes() throws IOException {
-    if (properties.contains(ConfigurationKeys.WRITER_FILE_REPLICATION_FACTOR)) {
-      fs.setReplication(outputFile, (short) properties.getPropAsInt(ConfigurationKeys.WRITER_FILE_REPLICATION_FACTOR));
-    }
-    if (properties.contains(ConfigurationKeys.WRITER_FILE_PERMISSIONS)) {
-      short permissions = (short) properties.getPropAsInt(ConfigurationKeys.WRITER_FILE_PERMISSIONS);
-      fs.setPermission(outputFile, new FsPermission(permissions));
-    }
-    if (properties.contains(ConfigurationKeys.WRITER_FILE_OWNER) &&
-        properties.contains(ConfigurationKeys.WRITER_FILE_GROUP)) {
-          fs.setOwner(outputFile,
-              properties.getProp(ConfigurationKeys.WRITER_FILE_OWNER),
-              properties.getProp(ConfigurationKeys.WRITER_FILE_GROUP));
-    }
+    /* Setting the same HDFS properties as the original file */
+    WriterUtils.setFileAttributesFromState(properties, fs, outputFile);
   }
 
   @Override
