@@ -18,14 +18,13 @@ import gobblin.source.extractor.Extractor;
 
 
 /**
- * A decorator class for {@link Extractor} that adds throttling on data record extraction.
- * The actual throttling logic is implemented by a {@link Throttler}.
+ * A decorator class for {@link Extractor} that uses a {@link Limiter} on data record extraction.
  *
  * <p>
- *   The fact that the {@link Throttler} is passed in as a parameter to the constructor
- *   {@link ThrottlingExtractorDecorator#ThrottlingExtractorDecorator(Extractor, Throttler)}
- *   means multiple {@link ThrottlingExtractorDecorator}s can share a single {@link Throttler}
- *   or each individual {@link ThrottlingExtractorDecorator} has its own {@link Throttler}.
+ *   The fact that the {@link Limiter} is passed in as a parameter to the constructor
+ *   {@link LimitingExtractorDecorator#LimitingExtractorDecorator(Extractor, Limiter)}
+ *   means multiple {@link LimitingExtractorDecorator}s can share a single {@link Limiter}
+ *   or each individual {@link LimitingExtractorDecorator} has its own {@link Limiter}.
  *   The first case is useful for throttling at above the task level, e.g., at the job level.
  * </p>
  *
@@ -34,15 +33,15 @@ import gobblin.source.extractor.Extractor;
  *
  * @author ynli
  */
-public class ThrottlingExtractorDecorator<S, D> implements Extractor<S, D> {
+public class LimitingExtractorDecorator<S, D> implements Extractor<S, D> {
 
   private final Extractor<S, D> extractor;
-  private final Throttler throttler;
+  private final Limiter limiter;
 
-  public ThrottlingExtractorDecorator(Extractor<S, D> extractor, Throttler throttler) {
+  public LimitingExtractorDecorator(Extractor<S, D> extractor, Limiter limiter) {
     this.extractor = extractor;
-    this.throttler = throttler;
-    this.throttler.start();
+    this.limiter = limiter;
+    this.limiter.start();
   }
 
   @Override
@@ -55,13 +54,13 @@ public class ThrottlingExtractorDecorator<S, D> implements Extractor<S, D> {
   public D readRecord(@Deprecated D reuse)
       throws DataRecordException, IOException {
     try {
-      if (this.throttler.waitForNextPermit()) {
+      if (this.limiter.acquirePermits(1)) {
         return this.extractor.readRecord(reuse);
       }
       return null;
     } catch (InterruptedException ie) {
       Thread.currentThread().interrupt();
-      throw new IOException("Interrupted while waiting for the next permit from the throttler", ie);
+      throw new IOException("Interrupted while trying to acquire the next permit", ie);
     }
   }
 
@@ -81,7 +80,7 @@ public class ThrottlingExtractorDecorator<S, D> implements Extractor<S, D> {
     try {
       this.extractor.close();
     } finally {
-      this.throttler.stop();
+      this.limiter.stop();
     }
   }
 }

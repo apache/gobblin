@@ -13,31 +13,36 @@ package gobblin.runtime;
 
 
 /**
- * An interface for classes that implement some throttling logic on the occurrences of some events,
+ * An interface for classes that implement some logic limiting on the occurrences of some events,
  * e.g., data record extraction using an {@link gobblin.source.extractor.Extractor}.
  *
  * @author ynli
  */
-public interface Throttler {
+public interface Limiter {
 
   /**
-   * Supported types of {@link Throttler}s.
+   * Supported types of {@link Limiter}s.
    */
   public enum Type {
     /**
-     * For {@link RateBasedThrottler}.
+     * For {@link RateBasedLimiter}.
      */
     RATE_BASED("rate"),
 
     /**
-     * For {@link TimeBasedThrottler}.
+     * For {@link TimeBasedLimiter}.
      */
     TIME_BASED("time"),
 
     /**
-     * For {@link CountBasedThrottler}.
+     * For {@link CountBasedLimiter}.
      */
-    COUNT_BASED("count");
+    COUNT_BASED("count"),
+
+    /**
+     * For {@link PoolBasedLimiter}.
+     */
+    POOL_BASED("pool");
 
     private final String name;
 
@@ -51,10 +56,10 @@ public interface Throttler {
     }
 
     /**
-     * Get a {@link Throttler.Type} for the given name.
+     * Get a {@link Limiter.Type} for the given name.
      *
      * @param name the given name
-     * @return a {@link Throttler.Type} for the given name
+     * @return a {@link Limiter.Type} for the given name
      */
     public static Type forName(String name) {
       if (name.equalsIgnoreCase(RATE_BASED.name)) {
@@ -66,32 +71,47 @@ public interface Throttler {
       if (name.equalsIgnoreCase(COUNT_BASED.name)) {
         return COUNT_BASED;
       }
-      throw new IllegalArgumentException("No throttler implementation available for name: " + name);
+      if (name.equalsIgnoreCase(POOL_BASED.name)) {
+        return POOL_BASED;
+      }
+      throw new IllegalArgumentException("No Limiter implementation available for name: " + name);
     }
   }
 
   /**
-   * Start the {@link Throttler}.
+   * Start the {@link Limiter}.
    *
    * See {@link #stop()}
    */
   public void start();
 
   /**
-   * Wait for the next permit to proceed.
+   * Acquire a given number of permits.
    *
    * <p>
    *   Depending on the implementation, the caller of this method may be blocked.
+   *   It is also up to the caller to decide how to deal with the return value.
    * </p>
    *
-   * @return {@code true} if a permit has been acquired and the caller is allowed to
-   *         proceed or {@code false} otherwise and the caller should not proceed
+   * @param permits number of permits to get
+   * @return {@code true} if the permits have been acquired successfully or {@code false} otherwise
    * @throws InterruptedException if the caller is interrupted while being blocked
    */
-  public boolean waitForNextPermit() throws InterruptedException;
+  public boolean acquirePermits(int permits) throws InterruptedException;
 
   /**
-   * Stop the {@link Throttler}.
+   * Release a given number of permits.
+   *
+   * <p>
+   *   This operation may or may not be supported, depending on the implementations.
+   * </p>
+   *
+   * @param permits number of permits to release
+   */
+  public void releasePermits(int permits);
+
+  /**
+   * Stop the {@link Limiter}.
    *
    * See {@link #start()}
    */

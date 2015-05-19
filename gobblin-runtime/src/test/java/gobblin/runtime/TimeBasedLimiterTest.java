@@ -20,34 +20,34 @@ import org.testng.annotations.Test;
 
 
 /**
- * Unit tests for {@link TimeBasedThrottler}.
+ * Unit tests for {@link TimeBasedLimiter}.
  *
  * @author ynli
  */
 @Test(groups = {"gobblin.runtime"})
-public class TimeBasedThrottlerTest {
+public class TimeBasedLimiterTest {
 
-  private Throttler throttler;
+  private Limiter limiter;
 
   @BeforeClass
   public void setUp() {
-    this.throttler = new TimeBasedThrottler(3l, TimeUnit.SECONDS);
-    this.throttler.start();
+    this.limiter = new TimeBasedLimiter(3l, TimeUnit.SECONDS);
+    this.limiter.start();
   }
 
   @Test
   public void testThrottling() throws InterruptedException {
-    Assert.assertTrue(this.throttler.waitForNextPermit());
+    Assert.assertTrue(this.limiter.acquirePermits(1));
     Thread.sleep(1000);
-    Assert.assertTrue(this.throttler.waitForNextPermit());
+    Assert.assertTrue(this.limiter.acquirePermits(1));
     Thread.sleep(1000);
-    Assert.assertTrue(this.throttler.waitForNextPermit());
+    Assert.assertTrue(this.limiter.acquirePermits(1));
     Thread.sleep(1100);
-    Assert.assertFalse(this.throttler.waitForNextPermit());
+    Assert.assertFalse(this.limiter.acquirePermits(1));
   }
 
   @AfterClass
   public void tearDown() {
-    this.throttler.stop();
+    this.limiter.stop();
   }
 }

@@ -104,10 +104,10 @@ public class TaskContext {
   public Extractor getExtractor() {
     try {
       boolean throttlingEnabled = this.taskState.getPropAsBoolean(
-          ConfigurationKeys.EXTRACT_THROTTLING_ENABLED_KEY, ConfigurationKeys.DEFAULT_EXTRACT_THROTTLING_ENABLED);
+          ConfigurationKeys.EXTRACT_LIMIT_ENABLED_KEY, ConfigurationKeys.DEFAULT_EXTRACT_LIMIT_ENABLED);
       if (throttlingEnabled) {
-        return new ThrottlingExtractorDecorator(getSource().getExtractor(this.taskState),
-            ThrottlerFactory.newThrottler(this.taskState));
+        return new LimitingExtractorDecorator(getSource().getExtractor(this.taskState),
+            LimiterFactory.newLimiter(this.taskState));
       } else {
         return getSource().getExtractor(this.taskState);
       }

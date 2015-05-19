@@ -153,16 +153,17 @@ public class ConfigurationKeys {
   public static final String EXTRACT_PRIMARY_KEY_FIELDS_KEY = "extract.primary.key.fields";
   public static final String EXTRACT_DELTA_FIELDS_KEY = "extract.delta.fields";
   public static final String EXTRACT_SCHEMA = "extract.schema";
-  public static final String EXTRACT_THROTTLING_ENABLED_KEY = "extract.throttling.enabled";
-  public static final boolean DEFAULT_EXTRACT_THROTTLING_ENABLED = false;
-  public static final String EXTRACT_THROTTLING_TYPE_KEY = "extract.throttling.type";
-  public static final String EXTRACT_THROTTLING_RATE_LIMIT_KEY = "extract.throttling.rate.limit";
-  public static final String EXTRACT_THROTTLING_RATE_LIMIT_TIMEUNIT_KEY = "extract.throttling.rate.limit.timeunit";
-  public static final String DEFAULT_EXTRACT_THROTTLING_RATE_LIMIT_TIMEUNIT = TimeUnit.SECONDS.toString();
-  public static final String EXTRACT_THROTTLING_TIME_LIMIT_KEY = "extract.throttling.time.limit";
-  public static final String EXTRACT_THROTTLING_TIME_LIMIT_TIMEUNIT_KEY = "extract.throttling.time.limit.timeunit";
-  public static final String DEFAULT_EXTRACT_THROTTLING_TIME_LIMIT_TIMEUNIT = TimeUnit.SECONDS.toString();
-  public static final String EXTRACT_THROTTLING_COUNT_LIMIT_KEY = "extract.throttling.count.limit";
+  public static final String EXTRACT_LIMIT_ENABLED_KEY = "extract.limit.enabled";
+  public static final boolean DEFAULT_EXTRACT_LIMIT_ENABLED = false;
+  public static final String EXTRACT_LIMIT_TYPE_KEY = "extract.limit.type";
+  public static final String EXTRACT_LIMIT_RATE_LIMIT_KEY = "extract.limit.rate.limit";
+  public static final String EXTRACT_LIMIT_RATE_LIMIT_TIMEUNIT_KEY = "extract.limit.rate.limit.timeunit";
+  public static final String DEFAULT_EXTRACT_LIMIT_RATE_LIMIT_TIMEUNIT = TimeUnit.SECONDS.toString();
+  public static final String EXTRACT_LIMIT_TIME_LIMIT_KEY = "extract.limit.time.limit";
+  public static final String EXTRACT_LIMIT_TIME_LIMIT_TIMEUNIT_KEY = "extract.limit.time.limit.timeunit";
+  public static final String DEFAULT_EXTRACT_LIMIT_TIME_LIMIT_TIMEUNIT = TimeUnit.SECONDS.toString();
+  public static final String EXTRACT_LIMIT_COUNT_LIMIT_KEY = "extract.limit.count.limit";
+  public static final String EXTRACT_LIMIT_POOL_SIZE_KEY = "extract.limit.pool.size";
 
   /**
    * Converter configuration properties.

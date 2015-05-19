@@ -23,7 +23,7 @@ import gobblin.util.ExecutorsUtils;
 
 
 /**
- * An implementation of {@link Throttler} that throttles based on the time elapsed.
+ * An implementation of {@link Limiter} that limits the time elapsed for some events.
  *
  * <p>
  *   This implementation uses a task scheduled in a {@link ScheduledThreadPoolExecutor} that will
@@ -32,11 +32,16 @@ import gobblin.util.ExecutorsUtils;
  *   no permits are issued once the flag is flipped after the given amount of time has elapsed.
  * </p>
  *
+ * <p>
+ *   {@link #acquirePermits(int)} will return {@code false} once the time limit is reached. Permit
+ *   refills are not supported in this implementation and {@link #releasePermits(int)} is a no-op.
+ * </p>
+ *
  * @author ynli
  */
-public class TimeBasedThrottler implements Throttler {
+public class TimeBasedLimiter implements Limiter {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(TimeBasedThrottler.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(TimeBasedLimiter.class);
 
   private final long timeLimit;
   private final TimeUnit timeUnit;
@@ -44,7 +49,11 @@ public class TimeBasedThrottler implements Throttler {
   // A flag telling if a permit is allowed to be issued
   private volatile boolean canIssuePermit = true;
 
-  public TimeBasedThrottler(long timeLimit, TimeUnit timeUnit) {
+  public TimeBasedLimiter(long timeLimit) {
+    this(timeLimit, TimeUnit.SECONDS);
+  }
+
+  public TimeBasedLimiter(long timeLimit, TimeUnit timeUnit) {
     this.timeLimit = timeLimit;
     this.timeUnit = timeUnit;
     this.flagFlippingExecutor = new ScheduledThreadPoolExecutor(
@@ -63,8 +72,14 @@ public class TimeBasedThrottler implements Throttler {
   }
 
   @Override
-  public boolean waitForNextPermit() throws InterruptedException {
+  public boolean acquirePermits(int permits) throws InterruptedException {
     return this.canIssuePermit;
+  }
+
+  @Override
+  public void releasePermits(int permits) {
+    throw new UnsupportedOperationException("Permit refills are not supported in " +
+        TimeBasedLimiter.class.getSimpleName());
   }
 
   @Override

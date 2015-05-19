@@ -25,28 +25,28 @@ import com.google.common.math.DoubleMath;
 
 
 /**
- * Unit tests for {@link RateBasedThrottler}.
+ * Unit tests for {@link RateBasedLimiter}.
  *
  * @author ynli
  */
 @Test(groups = {"gobblin.runtime"})
-public class RateBasedThrottlerTest {
+public class RateBasedLimiterTest {
 
   private static final Random RANDOM = new Random();
 
-  private Throttler throttler;
+  private Limiter limiter;
 
   @BeforeClass
   public void setUp() {
-    this.throttler = new RateBasedThrottler(20, TimeUnit.SECONDS);
-    this.throttler.start();
+    this.limiter = new RateBasedLimiter(20, TimeUnit.SECONDS);
+    this.limiter.start();
   }
 
   @Test
   public void testThrottling() throws InterruptedException {
     Meter meter = new Meter();
     for (int i = 0; i < 1000; i++) {
-      Assert.assertTrue(this.throttler.waitForNextPermit());
+      Assert.assertTrue(this.limiter.acquirePermits(1));
       meter.mark();
       Thread.sleep((RANDOM.nextInt() & Integer.MAX_VALUE) % 10);
     }
@@ -57,6 +57,6 @@ public class RateBasedThrottlerTest {
 
   @AfterClass
   public void tearDown() {
-    this.throttler.stop();
+    this.limiter.stop();
   }
 }
