@@ -138,7 +138,7 @@ public class MRJobLauncherTest extends BMNGRunner {
    * an exception is thrown in the {@link MRJobLauncher#collectOutput(Path)} method. The {@link BMRule} is
    * to inject an {@link IOException} when the {@link MRJobLauncher#collectOutput(Path)} method is called.
    */
-  @Test(groups = { "ignore" })
+  @Test
   @BMRule(name = "testJobCleanupOnError",
           targetClass = "gobblin.runtime.mapreduce.MRJobLauncher",
           targetMethod = "collectOutput(Path)",
