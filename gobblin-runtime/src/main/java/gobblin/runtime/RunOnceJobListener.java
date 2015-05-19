@@ -32,7 +32,7 @@ public class RunOnceJobListener implements JobListener {
   private static final Logger LOG = LoggerFactory.getLogger(RunOnceJobListener.class);
 
   @Override
-  public void jobCompleted(JobState jobState) {
+  public void onJobCompletion(JobState jobState) {
     if (!jobState.contains(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY)) {
       LOG.error("Job configuration file path not found in job state of job " + jobState.getJobId());
       return;
@@ -45,5 +45,10 @@ public class RunOnceJobListener implements JobListener {
     } catch (IOException ioe) {
       LOG.error("Failed to rename job configuration file for job " + jobState.getJobName(), ioe);
     }
+  }
+
+  @Override
+  public void onJobCancellation(JobState jobState) {
+    // Nothing to do
   }
 }

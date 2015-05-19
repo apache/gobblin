@@ -13,6 +13,7 @@ package gobblin.source.extractor;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import java.util.Properties;
 
 
 /**
@@ -61,10 +62,11 @@ public enum JobCommitPolicy {
    * Get a {@link JobCommitPolicy} through its name specified in configuration property
    * {@link ConfigurationKeys#JOB_COMMIT_POLICY_KEY}.
    *
-   * @param state a {@link State} object carrying configuration properties
+   * @param jobProps job configuration properties
    * @return a {@link JobCommitPolicy} with the given name specified in {@link ConfigurationKeys#JOB_COMMIT_POLICY_KEY}
    */
-  public static JobCommitPolicy getCommitPolicy(State state) {
-    return forName(state.getProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
+  public static JobCommitPolicy getCommitPolicy(Properties jobProps) {
+    return forName(jobProps.getProperty(ConfigurationKeys.JOB_COMMIT_POLICY_KEY,
+        ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
   }
 }

@@ -180,7 +180,7 @@ public class TestWorker {
   /**
    * Job running modes
    */
-  private static enum Mode {
+  private enum Mode {
     SCHEDULE,
     RUN
   }
@@ -197,9 +197,14 @@ public class TestWorker {
     }
 
     @Override
-    public void jobCompleted(JobState jobState) {
+    public void onJobCompletion(JobState jobState) {
       // Count down to indicate this job is done
-      latch.countDown();
+      this.latch.countDown();
+    }
+
+    @Override
+    public void onJobCancellation(JobState jobState) {
+      // Nothing to do
     }
   }
 }

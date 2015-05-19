@@ -85,6 +85,7 @@ public class MultiWorkUnitWeightedQueue {
   /**
    * This class defines the weighted multiWorkUnit. It extends {@link MultiWorkUnit}. Each weightedMultiworkUnit has a
    * weight, which is the sum of the file sizes assigned to it. It also implements Comparable, based on the weight value.
+   *
    * @author ydai
    */
   private static class WeightedMultiWorkUnit extends MultiWorkUnit implements Comparable<WeightedMultiWorkUnit> {

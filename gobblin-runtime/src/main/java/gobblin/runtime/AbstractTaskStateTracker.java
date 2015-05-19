@@ -79,7 +79,7 @@ public abstract class AbstractTaskStateTracker extends AbstractIdleService imple
   protected void shutDown()
       throws Exception {
     this.logger.info("Stopping the task state tracker");
-    this.taskMetricsUpdaterExecutor.shutdown();
+    ExecutorsUtils.shutdownExecutorService(this.taskMetricsUpdaterExecutor);
   }
 
   /**

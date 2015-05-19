@@ -39,11 +39,12 @@ import gobblin.util.JobLauncherUtils;
 
 /**
  * Hadoop {@link OutputCommitter} implementation that overrides the default
- * {@link #abortJob(JobContext, org.apache.hadoop.mapreduce.JobStatus.State)} behavior. This is necessary to add
- * functionality for cleaning up staging data when the
- * {@link com.linkedin.uif.runtime.JobLauncher#cancelJob(Properties)} method is called via Azkaban. Azkaban only
- * allows the cancel method run to for 5 ms until it does a hard kill on the process. In order to make sure the
- * staging data still gets cleaned-up, the cleanup will take place in the AM.
+ * {@link #abortJob(JobContext, org.apache.hadoop.mapreduce.JobStatus.State)} behavior.
+ * This is necessary to add functionality for cleaning up staging data when the
+ * {@link gobblin.runtime.JobLauncher#cancelJob(gobblin.runtime.JobListener)} method is
+ * called via Azkaban. Azkaban only allows the cancel method run to for 5 ms until it
+ * does a hard kill on the process. In order to make sure the staging data still gets
+ * cleaned-up, the cleanup will take place in the AM.
  */
 public class GobblinOutputCommitter extends OutputCommitter {
 
@@ -97,9 +98,27 @@ public class GobblinOutputCommitter extends OutputCommitter {
         }
       }
     } finally {
-      if (fs.exists(mrJobDir)) {
-        fs.delete(mrJobDir, true);
+      try {
+        cleanUpWorkingDirectory(mrJobDir, fs);
+      } finally {
+        super.abortJob(jobContext, state);
       }
+    }
+  }
+
+  @Override
+  public void commitJob(JobContext jobContext)
+      throws IOException {
+    try {
+      Configuration conf = jobContext.getConfiguration();
+      URI fsUri = URI.create(conf.get(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
+      FileSystem fs = FileSystem.get(fsUri, conf);
+      Path mrJobDir = new Path(conf.get(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY),
+          conf.get(ConfigurationKeys.JOB_NAME_KEY));
+      // Cleanup the working directory upon job completion
+      cleanUpWorkingDirectory(mrJobDir, fs);
+    } finally {
+      super.commitJob(jobContext);
     }
   }
 
@@ -125,7 +144,8 @@ public class GobblinOutputCommitter extends OutputCommitter {
   }
 
   /**
-   * Replicates the default behavior of the {@link OutputCommitter} used by {@link NullOutputFormat}.
+   * Replicates the default behavior of the {@link OutputCommitter} used by
+   * {@link org.apache.hadoop.mapreduce.lib.output.NullOutputFormat}.
    * @return true
    */
   public boolean isRecoverySupported() {
@@ -133,9 +153,20 @@ public class GobblinOutputCommitter extends OutputCommitter {
   }
 
   /**
-   * Replicates the default behavior of the {@link OutputCommitter} used by {@link NullOutputFormat}.
+   * Replicates the default behavior of the {@link OutputCommitter} used by
+   * {@link org.apache.hadoop.mapreduce.lib.output.NullOutputFormat}.
    */
   public void recoverTask(TaskAttemptContext taskContext) throws IOException {
+  }
+
+  /**
+   * Cleanup the Hadoop MR working directory.
+   */
+  private void cleanUpWorkingDirectory(Path mrJobDir, FileSystem fs) throws IOException {
+    if (fs.exists(mrJobDir)) {
+      fs.delete(mrJobDir, true);
+      LOG.info("Deleted working directory " + mrJobDir);
+    }
   }
 
   private static class WorkUnitFilter implements PathFilter {
