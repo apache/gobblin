@@ -27,7 +27,6 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,6 +36,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.codec.binary.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -919,32 +919,26 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     try {
       final ResultSetMetaData resultsetMetadata = resultset.getMetaData();
       final int columnCount = resultsetMetadata.getColumnCount();
-      Base64.Encoder encoder = Base64.getEncoder();
       
       int batchSize = this.workUnit.getPropAsInt(ConfigurationKeys.SOURCE_QUERYBASED_FETCH_SIZE, 0);
       batchSize = (batchSize == 0 ? ConfigurationKeys.DEFAULT_SOURCE_FETCH_SIZE : batchSize);
 
       int recordCount = 0;
-      Set<String> blobDataNames = new HashSet<String>();
-      boolean initialed_blobDataNames = false;
+      Set<String> blobDataNames = this.getBlobTypeColumnNames(resultsetMetadata);
       while (resultset.next()) {
-        if (!initialed_blobDataNames){
-          initialBlobTypeHashSet(blobDataNames,resultsetMetadata);
-          initialed_blobDataNames = true;
-        }
+
         List<String> record = new ArrayList<String>();
         for (int i = 1; i <= columnCount; i++) {
           /*
            * For Blob data, need to get the bytes and use base64 encoding to encode the byte[]
            * When reading from the String, need to use base64 decoder
-           *     String tmp = ... ( get the String value )
-           *     Base64.Decoder decoder = Base64.getDecoder();    
-           *     byte[] foo = decoder.decode(tmp);
+           *     String tmp = ... ( get the String value )   
+           *     byte[] foo = Base64.decodeBase64(tmp);
            */
           if (blobDataNames.contains(resultsetMetadata.getColumnName(i))){
             Blob logBlob = resultset.getBlob(i);
             byte[] ba= logBlob.getBytes(1L, (int)(logBlob.length()));
-            String baString = encoder.encodeToString(ba);
+            String baString = Base64.encodeBase64String(ba);
             record.add(baString);
           }
           else{
@@ -971,7 +965,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     }
   }
   
-  private void initialBlobTypeHashSet(Set<String> input, ResultSetMetaData resultsetMetadata) throws SQLException{
+  private Set<String> getBlobTypeColumnNames(ResultSetMetaData resultsetMetadata) throws SQLException{
+    Set<String> result = new HashSet<String>();
     int columnCount = resultsetMetadata.getColumnCount();
     for (int i = 1; i <= columnCount; i++) {
       // for Mysql Longblob and blob type, java type is Types.LONGVARBINARY
@@ -979,9 +974,10 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       if (resultsetMetadata.getColumnType(i) == Types.LONGVARBINARY ||
           resultsetMetadata.getColumnType(i) == Types.BINARY){
         // the actual value will be set later
-        input.add(resultsetMetadata.getColumnName(i));
+        result.add(resultsetMetadata.getColumnName(i));
       }
     }
+    return result;
   }
 
   protected static Command getCommand(String query, JdbcCommandType commandType) {
