@@ -148,12 +148,6 @@ public class JobLauncherTestHelper {
 
     List<JobState> jobStateList = this.jobStateStore.getAll(jobName, jobId + ".jst");
     Assert.assertTrue(jobStateList.isEmpty());
-
-    FileSystem lfs = FileSystem.getLocal(new Configuration());
-    Path jobLockFile =
-        new Path(jobProps.getProperty(ConfigurationKeys.JOB_LOCK_DIR_KEY), jobName
-            + FileBasedJobLock.LOCK_FILE_EXTENSION);
-    Assert.assertFalse(lfs.exists(jobLockFile));
   }
 
   @SuppressWarnings("unchecked")

@@ -304,8 +304,12 @@ public class Fork implements Closeable, Runnable {
       throws IOException, SchemaConversionException {
     DataWriter<Object> writer = this.taskContext.getDataWriterBuilder(this.branches, this.index)
         .writeTo(Destination.of(this.taskContext.getDestinationType(this.branches, this.index), this.taskState))
-        .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index)).withWriterId(this.taskId)
-        .withSchema(this.convertedSchema).withBranches(this.branches).forBranch(this.index).build();
+        .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index))
+        .withWriterId(this.taskId)
+        .withSchema(this.convertedSchema)
+        .withBranches(this.branches)
+        .forBranch(this.index)
+        .build();
     return new InstrumentedDataWriterDecorator<Object>(writer, this.taskState);
   }
 
