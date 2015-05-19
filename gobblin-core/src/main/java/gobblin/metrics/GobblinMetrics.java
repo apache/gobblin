@@ -24,15 +24,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Counter;
-import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.JmxReporter;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Timer;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
@@ -133,14 +135,11 @@ public class GobblinMetrics {
   // Closer for closing the metric output stream
   protected final Closer closer = Closer.create();
 
-  // File metric reporter
-  private Optional<OutputStreamReporter> fileReporter = Optional.absent();
-
   // JMX metric reporter
   private Optional<JmxReporter> jmxReporter = Optional.absent();
 
-  // Kafka metric reporter
-  private Optional<KafkaReporter> kafkaReporter = Optional.absent();
+  // Custom metric reporters instantiated through reflection
+  private List<ScheduledReporter> scheduledReporters = Lists.newArrayList();
 
   // A flag telling whether metric reporting has started or not
   private volatile boolean reportingStarted = false;
@@ -238,21 +237,20 @@ public class GobblinMetrics {
       return;
     }
 
-    buildFileMetricReporter(properties);
     long reportInterval = Long.parseLong(properties.getProperty(ConfigurationKeys.METRICS_REPORT_INTERVAL_KEY,
         ConfigurationKeys.DEFAULT_METRICS_REPORT_INTERVAL));
-    if (this.fileReporter.isPresent()) {
-      this.fileReporter.get().start(reportInterval, TimeUnit.MILLISECONDS);
-    }
 
     buildJmxMetricReporter(properties);
     if (this.jmxReporter.isPresent()) {
       this.jmxReporter.get().start();
     }
 
+    buildFileMetricReporter(properties);
     buildKafkaReporter(properties);
-    if (this.kafkaReporter.isPresent()) {
-      this.kafkaReporter.get().start(reportInterval, TimeUnit.MILLISECONDS);
+    buildCustomMetricReporters(properties);
+
+    for (ScheduledReporter reporter : this.scheduledReporters) {
+      reporter.start(reportInterval, TimeUnit.MILLISECONDS);
     }
 
     this.reportingStarted = true;
@@ -262,8 +260,8 @@ public class GobblinMetrics {
    * Immediately trigger metric reporting.
    */
   public void triggerMetricReporting() {
-    if (this.fileReporter.isPresent()) {
-      this.fileReporter.get().report();
+    for(ScheduledReporter reporter : this.scheduledReporters) {
+      reporter.report();
     }
   }
 
@@ -276,16 +274,12 @@ public class GobblinMetrics {
       return;
     }
 
-    if (this.fileReporter.isPresent()) {
-      this.fileReporter.get().stop();
-    }
-
     if (this.jmxReporter.isPresent()) {
       this.jmxReporter.get().stop();
     }
 
-    if (this.kafkaReporter.isPresent()) {
-      this.kafkaReporter.get().stop();
+    for (ScheduledReporter reporter : this.scheduledReporters) {
+      reporter.stop();
     }
 
     try {
@@ -305,7 +299,8 @@ public class GobblinMetrics {
     }
 
     if (!properties.containsKey(ConfigurationKeys.METRICS_LOG_DIR_KEY)) {
-      LOGGER.error("Not reporting metrics to log files because " + ConfigurationKeys.METRICS_LOG_DIR_KEY + " is undefined");
+      LOGGER.error(
+          "Not reporting metrics to log files because " + ConfigurationKeys.METRICS_LOG_DIR_KEY + " is undefined");
       return;
     }
 
@@ -329,7 +324,7 @@ public class GobblinMetrics {
         append = true;
       }
 
-      this.fileReporter = Optional.of(closer.register(OutputStreamReporter.forContext(this.metricContext)
+      this.scheduledReporters.add(closer.register(OutputStreamReporter.forContext(this.metricContext)
           .outputTo(append ? fs.append(metricLogFile) : fs.create(metricLogFile, true)).build()));
     } catch (IOException ioe) {
       LOGGER.error("Failed to build file metric reporter for job " + this.id, ioe);
@@ -378,7 +373,33 @@ public class GobblinMetrics {
       formatEnum = KafkaReportingFormats.JSON;
     }
 
-    this.kafkaReporter = Optional.of(formatEnum.reporterBuilder(this.metricContext).build(brokers, topic));
+    this.scheduledReporters.add(
+        this.closer.register(formatEnum.reporterBuilder(this.metricContext).build(brokers, topic)));
+
+  }
+
+  /**
+   * Build scheduled metrics reporters by reflection from the property
+   * {@link gobblin.configuration.ConfigurationKeys#METRICS_CUSTOM_BUILDERS}. This allows users to specify custom
+   * reporters for Gobblin runtime without having to modify the code.
+   */
+  private void buildCustomMetricReporters(Properties properties) {
+
+    String reporterClasses = properties.getProperty(ConfigurationKeys.METRICS_CUSTOM_BUILDERS);
+
+    if (Strings.isNullOrEmpty(reporterClasses)) {
+      return;
+    }
+
+    for (String reporterClass : Splitter.on(",").split(reporterClasses)) {
+      try {
+        ScheduledReporter reporter = ((CustomReporterBuilder)Class.forName(reporterClass)
+            .getConstructor().newInstance()).getReporter(this.metricContext, properties);
+        this.scheduledReporters.add(reporter);
+      } catch(Exception exception) {
+        LOGGER.warn("Could not create metric reporter from builder " + reporterClass + ".", exception);
+      }
+    }
 
   }
 

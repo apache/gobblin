@@ -378,6 +378,7 @@ public class ConfigurationKeys {
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_FORMAT = "json";
   public static final String METRICS_KAFKA_BROKERS = "metrics.reporting.kafka.brokers";
   public static final String METRICS_KAFKA_TOPIC = "metrics.reporting.kafka.topic";
+  public static final String METRICS_CUSTOM_BUILDERS = "metrics.reporting.custom.builders";
   public static final String METRICS_REPORT_INTERVAL_KEY = "metrics.report.interval";
   public static final String DEFAULT_METRICS_REPORT_INTERVAL = "30000";
 

@@ -55,7 +55,7 @@ public class KafkaAvroReporterTest extends KafkaReporterTest {
   }
 
   @Override
-  public KafkaReporter.Builder<?> getBuilder(MetricRegistry registry) {
+  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilder(MetricRegistry registry) {
     return KafkaAvroReporter.forRegistry(registry);
   }
 
