@@ -91,12 +91,12 @@ public class TaskExecutor extends AbstractIdleService {
    */
   public TaskExecutor(Properties properties) {
     this(Integer.parseInt(properties.getProperty(ConfigurationKeys.TASK_EXECUTOR_THREADPOOL_SIZE_KEY,
-        Integer.toString(ConfigurationKeys.DEFAULT_TASK_EXECUTOR_THREADPOOL_SIZE))), Integer.parseInt(properties
-        .getProperty(ConfigurationKeys.TASK_RETRY_THREAD_POOL_CORE_SIZE_KEY,
-            Integer.toString(ConfigurationKeys.DEFAULT_TASK_RETRY_THREAD_POOL_CORE_SIZE))), Integer.parseInt(properties
-            .getProperty(ConfigurationKeys.TASK_RETRY_THREAD_POOL_MAX_SIZE_KEY,
-                Integer.toString(ConfigurationKeys.DEFAULT_TASK_RETRY_THREAD_POOL_MAX_SIZE))), Long.parseLong(properties
-        .getProperty(ConfigurationKeys.TASK_RETRY_INTERVAL_IN_SEC_KEY,
+            Integer.toString(ConfigurationKeys.DEFAULT_TASK_EXECUTOR_THREADPOOL_SIZE))),
+        Integer.parseInt(properties.getProperty(ConfigurationKeys.TASK_RETRY_THREAD_POOL_CORE_SIZE_KEY,
+            Integer.toString(ConfigurationKeys.DEFAULT_TASK_RETRY_THREAD_POOL_CORE_SIZE))),
+        Integer.parseInt(properties.getProperty(ConfigurationKeys.TASK_RETRY_THREAD_POOL_MAX_SIZE_KEY,
+            Integer.toString(ConfigurationKeys.DEFAULT_TASK_RETRY_THREAD_POOL_MAX_SIZE))),
+        Long.parseLong(properties.getProperty(ConfigurationKeys.TASK_RETRY_INTERVAL_IN_SEC_KEY,
             Long.toString(ConfigurationKeys.DEFAULT_TASK_RETRY_INTERVAL_IN_SEC))));
   }
 
@@ -196,9 +196,6 @@ public class TaskExecutor extends AbstractIdleService {
       // Adjust metrics to clean up numbers from the failed task
       task.getTaskState()
           .adjustJobMetricsOnRetry(task.getTaskState().getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY));
-      // Remove task-level metrics associated with this task so
-      // the retry will use fresh metrics
-      //task.getTaskState().removeMetrics();
     }
 
     // Task retry interval increases linearly with number of retries
