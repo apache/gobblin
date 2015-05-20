@@ -19,7 +19,14 @@ public interface JobListener {
   /**
    * Called when a job is completed.
    *
-   * @param jobState Job state
+   * @param jobState a {@link JobState} object
    */
-  public void jobCompleted(JobState jobState);
+  public void onJobCompletion(JobState jobState);
+
+  /**
+   * Called when a job is cancelled.
+   *
+   * @param jobState a {@link JobState} object
+   */
+  public void onJobCancellation(JobState jobState);
 }

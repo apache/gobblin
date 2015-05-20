@@ -21,6 +21,8 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.fork.ForkOperator;
+import gobblin.instrumented.converter.InstrumentedConverterDecorator;
+import gobblin.instrumented.fork.InstrumentedForkOperatorDecorator;
 import gobblin.publisher.TaskPublisher;
 import gobblin.publisher.TaskPublisherBuilderFactory;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
@@ -28,6 +30,7 @@ import gobblin.qualitychecker.row.RowLevelPolicyCheckerBuilderFactory;
 import gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
 import gobblin.qualitychecker.task.TaskLevelPolicyChecker;
 import gobblin.qualitychecker.task.TaskLevelPolicyCheckerBuilderFactory;
+import gobblin.runtime.util.TaskMetrics;
 import gobblin.source.Source;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.ForkOperatorUtils;
@@ -43,21 +46,33 @@ import gobblin.writer.WriterOutputFormat;
  */
 public class TaskContext {
 
-  private final WorkUnitState workUnitState;
   private final WorkUnit workUnit;
+  private final TaskState taskState;
+  private final TaskMetrics taskMetrics;
 
   public TaskContext(WorkUnitState workUnitState) {
-    this.workUnitState = workUnitState;
     this.workUnit = workUnitState.getWorkunit();
+    this.taskState = new TaskState(workUnitState);
+    this.taskMetrics = TaskMetrics.get(this.taskState);
+    this.taskState.setProp(ConfigurationKeys.METRIC_CONTEXT_NAME_KEY, this.taskMetrics.getName());
   }
 
   /**
-   * Get a {@link TaskState}.
+   * Get a {@link TaskState} instance for the task.
    *
-   * @return a {@link TaskState}
+   * @return a {@link TaskState} instance
    */
   public TaskState getTaskState() {
-    return new TaskState(this.workUnitState);
+    return this.taskState;
+  }
+
+  /**
+   * Get a {@link TaskMetrics} instance for the task.
+   *
+   * @return a {@link TaskMetrics} instance
+   */
+  public TaskMetrics getTaskMetrics() {
+    return this.taskMetrics;
   }
 
   /**
@@ -130,25 +145,26 @@ public class TaskContext {
    * @return list (possibly empty) of {@link Converter}s
    */
   public List<Converter<?, ?, ?, ?>> getConverters(int index) {
-    String converterClassKey =
-        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.CONVERTER_CLASSES_KEY, index);
+    String converterClassKey = ForkOperatorUtils.getPropertyNameForBranch(
+        ConfigurationKeys.CONVERTER_CLASSES_KEY, index);
 
     if (!this.workUnit.contains(converterClassKey)) {
       return Collections.emptyList();
     }
 
-    // Create a copy of the WorkUnitState and set the branch id for that WorkUnitState, then feed it to the Converter's init method
-    WorkUnitState converterWorkUnitState = new WorkUnitState(this.workUnitState.getWorkunit());
-    converterWorkUnitState.addAll(this.workUnitState);
-    converterWorkUnitState.setProp(ConfigurationKeys.FORK_BRANCH_ID_KEY, index);
+    // Create a copy of the TaskState and set the branch id for that TaskState,
+    // then feed it to the Converter's init method.
+    TaskState converterTaskState = new TaskState(this.taskState);
+    converterTaskState.setProp(ConfigurationKeys.FORK_BRANCH_ID_KEY, index);
 
     List<Converter<?, ?, ?, ?>> converters = Lists.newArrayList();
     for (String converterClass : Splitter.on(",").omitEmptyStrings().trimResults()
         .split(this.workUnit.getProp(converterClassKey))) {
       try {
         Converter<?, ?, ?, ?> converter = (Converter<?, ?, ?, ?>) Class.forName(converterClass).newInstance();
-        converter.init(converterWorkUnitState);
-        converters.add(converter);
+        InstrumentedConverterDecorator instrumentedConverter = new InstrumentedConverterDecorator(converter);
+        instrumentedConverter.init(converterTaskState);
+        converters.add(instrumentedConverter);
       } catch (ClassNotFoundException cnfe) {
         throw new RuntimeException(cnfe);
       } catch (InstantiationException ie) {
@@ -166,11 +182,13 @@ public class TaskContext {
    *
    * @return {@link ForkOperator} to be used or <code>null</code> if none is specified
    */
+  @SuppressWarnings("unchecked")
   public ForkOperator getForkOperator() {
     try {
-      return (ForkOperator) Class.forName(this.workUnit
+      ForkOperator fork = (ForkOperator) Class.forName(this.workUnit
           .getProp(ConfigurationKeys.FORK_OPERATOR_CLASS_KEY, ConfigurationKeys.DEFAULT_FORK_OPERATOR_CLASS))
           .newInstance();
+      return new InstrumentedForkOperatorDecorator(fork);
     } catch (ClassNotFoundException cnfe) {
       throw new RuntimeException(cnfe);
     } catch (InstantiationException ie) {
@@ -240,10 +258,11 @@ public class TaskContext {
    * @return a {@link DataWriterBuilder}
    */
   public DataWriterBuilder getDataWriterBuilder(int branches, int index) {
+    String dataWriterBuilderClassName = this.workUnit.getProp(
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUILDER_CLASS, branches, index),
+        ConfigurationKeys.DEFAULT_WRITER_BUILDER_CLASS);
     try {
-      return (DataWriterBuilder) Class.forName(this.workUnit
-          .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUILDER_CLASS, branches, index),
-              ConfigurationKeys.DEFAULT_WRITER_BUILDER_CLASS)).newInstance();
+      return (DataWriterBuilder) Class.forName(dataWriterBuilderClassName).newInstance();
     } catch (ClassNotFoundException cnfe) {
       throw new RuntimeException(cnfe);
     } catch (InstantiationException ie) {

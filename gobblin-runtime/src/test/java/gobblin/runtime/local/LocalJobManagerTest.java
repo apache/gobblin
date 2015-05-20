@@ -113,7 +113,7 @@ public class LocalJobManagerTest {
     }
 
     @Override
-    public void jobCompleted(JobState jobState) {
+    public void onJobCompletion(JobState jobState) {
       try {
         Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
         Assert.assertEquals(jobState.getCompletedTasks(), 2);
@@ -124,6 +124,11 @@ public class LocalJobManagerTest {
         // Make sure this is always called so the test can end
         this.latch.countDown();
       }
+    }
+
+    @Override
+    public void onJobCancellation(JobState jobState) {
+      // Nothing to do
     }
   }
 }

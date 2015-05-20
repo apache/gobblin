@@ -186,4 +186,12 @@ public class WorkUnit extends State {
     super.write(out);
     this.extract.write(out);
   }
+
+  @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = super.hashCode();
+    result = prime * result + ((this.extract == null) ? 0 : this.extract.hashCode());
+    return result;
+  }
 }

@@ -16,31 +16,28 @@ import java.lang.reflect.Constructor;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
-import gobblin.metastore.FsStateStore;
-import gobblin.metastore.JobHistoryStore;
-import gobblin.metastore.MetaStoreModule;
-import gobblin.metastore.StateStore;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.publisher.DataPublisher;
+import gobblin.runtime.util.JobMetrics;
 import gobblin.source.extractor.JobCommitPolicy;
-import gobblin.source.Source;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.ExecutorsUtils;
 import gobblin.util.JobLauncherUtils;
 
 
@@ -56,45 +53,68 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   protected static final String TASK_STATE_STORE_TABLE_SUFFIX = ".tst";
   protected static final String JOB_STATE_STORE_TABLE_SUFFIX = ".jst";
 
-  // Framework configuration properties
-  protected final Properties properties;
+  // System configuration properties
+  protected final Properties sysProps;
 
-  // Store for persisting job state
-  private final StateStore<JobState> jobStateStore;
+  // Job configuration properties
+  protected final Properties jobProps;
 
-  // Job history store that stores job execution information
-  private final Optional<JobHistoryStore> jobHistoryStore;
+  // This contains all job context information
+  protected final JobContext jobContext;
 
-  public AbstractJobLauncher(Properties properties)
+  // This (optional) JobLock is used to prevent the next scheduled run
+  // of the job from starting if the current run has not finished yet
+  protected Optional<JobLock> jobLockOptional = Optional.absent();
+
+  // A conditional variable for which the condition is satisfied if a cancellation is requested
+  protected final Object cancellationRequest = new Object();
+
+  // A flag indicating whether a cancellation has been requested or not
+  protected volatile boolean cancellationRequested = false;
+
+  // A conditional variable for which the condition is satisfied if the cancellation is executed
+  protected final Object cancellationExecution = new Object();
+
+  // A flag indicating whether a cancellation has been executed or not
+  protected volatile boolean cancellationExecuted = false;
+
+  // A single-thread executor for executing job cancellation
+  protected final ExecutorService cancellationExecutor;
+
+  public AbstractJobLauncher(Properties sysProps, Properties jobProps)
       throws Exception {
-    this.properties = properties;
+    Preconditions.checkArgument(
+        jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY), "A job must have a job name specified by job.name");
 
-    this.jobStateStore = new FsStateStore<JobState>(
-        properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI),
-        properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
-        JobState.class);
+    // Make a copy for both the system and job configuration properties
+    this.sysProps = new Properties();
+    this.sysProps.putAll(sysProps);
+    this.jobProps = new Properties();
+    this.jobProps.putAll(jobProps);
 
-    if (Boolean.valueOf(
-        properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, Boolean.FALSE.toString()))) {
-      Injector injector = Guice.createInjector(new MetaStoreModule(properties));
-      this.jobHistoryStore = Optional.of(injector.getInstance(JobHistoryStore.class));
-    } else {
-      this.jobHistoryStore = Optional.absent();
-    }
+    this.jobContext = new JobContext(this.sysProps, this.jobProps, LOG);
+
+    this.cancellationExecutor = Executors.newSingleThreadExecutor(
+        ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of("CancellationExecutor")));
   }
 
   /**
-   * Run the given list of {@link WorkUnit}s of the given job.
+   * Submit a given list of {@link WorkUnit}s of a job to run.
+   *
+   * <p>
+   *   This method assumes that the given list of {@link WorkUnit}s have already been flattened and
+   *   each {@link WorkUnit} contains the task ID in the property {@link ConfigurationKeys#TASK_ID_KEY}.
+   * </p>
    *
    * @param jobId job ID
-   * @param workUnits given list of {@link WorkUnit}s to run
+   * @param workUnits given list of {@link WorkUnit}s to submit to run
    * @param stateTracker a {@link TaskStateTracker} for task state tracking
    * @param taskExecutor a {@link TaskExecutor} for task execution
    * @param countDownLatch a {@link java.util.concurrent.CountDownLatch} waited on for job completion
    * @return a list of {@link Task}s from the {@link WorkUnit}s
    * @throws InterruptedException
    */
-  public static List<Task> runWorkUnits(String jobId, List<WorkUnit> workUnits, TaskStateTracker stateTracker,
+  public static List<Task> submitWorkUnits(String jobId, List<WorkUnit> workUnits, TaskStateTracker stateTracker,
       TaskExecutor taskExecutor, CountDownLatch countDownLatch)
       throws InterruptedException {
 
@@ -114,196 +134,160 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       taskExecutor.submit(task);
     }
 
-    LOG.info(String.format("Waiting for submitted tasks of job %s to complete...", jobId));
-    while (countDownLatch.getCount() > 0) {
-      LOG.info(String
-          .format("%d out of %d tasks of job %s are running", countDownLatch.getCount(), workUnits.size(), jobId));
-      countDownLatch.await(1, TimeUnit.MINUTES);
-    }
-    LOG.info(String.format("All tasks of job %s have completed", jobId));
-
     return tasks;
+  }
+
+  /**
+   * A default implementation of {@link JobLauncher#cancelJob(JobListener)}.
+   *
+   * <p>
+   *   This implementation relies on two conditional variables: one for the condition that a cancellation
+   *   is requested, and the other for the condition that the cancellation is executed. Upon entrance, the
+   *   method notifies the cancellation executor started by {@link #startCancellationExecutor()} on the
+   *   first conditional variable to indicate that a cancellation has been requested so the executor is
+   *   unblocked. Then it waits on the second conditional variable for the cancellation to be executed.
+   * </p>
+   *
+   * <p>
+   *   The actual execution of the cancellation is handled by the cancellation executor started by the
+   *   method {@link #startCancellationExecutor()} that uses the {@link #executeCancellation()} method
+   *   to execute the cancellation.
+   * </p>
+   *
+   * {@inheritDoc JobLauncher#cancelJob(JobListener)}
+   */
+  @Override
+  public void cancelJob(JobListener jobListener)
+      throws JobException {
+    synchronized (this.cancellationRequest) {
+      if (this.cancellationRequested) {
+        // Return immediately if a cancellation has already been requested
+        return;
+      }
+
+      this.cancellationRequested = true;
+      // Notify the cancellation executor that a cancellation has been requested
+      this.cancellationRequest.notify();
+    }
+
+    synchronized (this.cancellationExecution) {
+      try {
+        while (!this.cancellationExecuted) {
+          // Wait for the cancellation to be executed
+          this.cancellationExecution.wait();
+        }
+
+        if (jobListener != null) {
+          jobListener.onJobCancellation(this.jobContext.getJobState());
+        }
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt();
+      }
+    }
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public void launchJob(Properties jobProps, JobListener jobListener)
+  public void launchJob(JobListener jobListener)
       throws JobException {
-    Preconditions.checkNotNull(jobProps);
-    Preconditions.checkArgument(
-        jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY), "A job must have a job name specified by job.name");
+    String jobId = this.jobContext.getJobId();
+    JobState jobState = this.jobContext.getJobState();
 
-    String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-
-    if (Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_DISABLED_KEY, Boolean.FALSE.toString()))) {
-      LOG.info(String.format("Not launching job %s as it is disabled", jobName));
-      return;
-    }
-
-    // Get the job lock if job locking is enabled
-    Optional<JobLock> jobLockOptional = Optional.absent();
-    boolean jobLockEnabled =
-        Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, Boolean.TRUE.toString()));
-    if (jobLockEnabled) {
-      try {
-        jobLockOptional = Optional.of(getJobLock(jobName, jobProps));
-      } catch (IOException ioe) {
-        throw new JobException("Failed to get job lock for job " + jobName, ioe);
-      }
-    }
-
-    // Try acquiring the job lock before proceeding
-    if (!tryLockJob(jobName, jobLockOptional)) {
-      throw new JobException(
-          String.format("Previous instance of job %s is still running, skipping this scheduled run", jobName));
-    }
-
-    String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
-    // If no job ID is assigned (e.g., if the job is assigned through Azkaban), assign a new job ID here.
-    if (Strings.isNullOrEmpty(jobId)) {
-      jobId = JobLauncherUtils.newJobId(jobName);
-      jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
-    }
-
-    State jobPropsState = new State();
-    // Add all job configuration properties of this job
-    jobPropsState.addAll(jobProps);
-
-    // Initialize the source for the job
-    JobState jobState;
-    Source<?, ?> source;
     try {
-      JobState previousJobState = getPreviousJobState(jobName);
-      jobState = new JobState(jobPropsState, previousJobState.getTaskStatesAsWorkUnitStates(), jobName, jobId);
-      // Remember the number of consecutive failures of this job in the past
-      jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY,
-          previousJobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY, 0));
-      source = new SourceDecorator(initSource(jobProps), jobId, LOG);
-    } catch (Throwable t) {
-      String errMsg = "Failed to initialize the source for job " + jobId;
-      LOG.error(errMsg + ": " + t, t);
-      unlockJob(jobName, jobLockOptional);
-      throw new JobException(errMsg, t);
-    }
+      if (!tryLockJob()) {
+        throw new JobException(
+            String.format("Previous instance of job %s is still running, skipping this scheduled run",
+                this.jobContext.getJobName()));
+      }
 
-    jobState.setState(JobState.RunningState.PENDING);
-
-    // Generate work units of the job from the source
-    Optional<List<WorkUnit>> workUnits = Optional.fromNullable(source.getWorkunits(jobState));
-    if (!workUnits.isPresent()) {
+      // Generate work units of the job from the source
+      Optional<List<WorkUnit>> workUnits = Optional.fromNullable(this.jobContext.getSource().getWorkunits(jobState));
       // The absence means there is something wrong getting the work units
-      source.shutdown(jobState);
-      unlockJob(jobName, jobLockOptional);
-      throw new JobException("Failed to get work units for job " + jobId);
-    }
-
-    if (workUnits.get().isEmpty()) {
-      // No real work to do
-      LOG.warn("No work units have been created for job " + jobId);
-      source.shutdown(jobState);
-      unlockJob(jobName, jobLockOptional);
-      return;
-    }
-
-    long startTime = System.currentTimeMillis();
-    jobState.setStartTime(startTime);
-    jobState.setState(JobState.RunningState.RUNNING);
-
-    LOG.info("Starting job " + jobId);
-
-    // Add work units and assign task IDs to them
-    int taskIdSequence = 0;
-    int multiTaskIdSequence = 0;
-    for (WorkUnit workUnit : workUnits.get()) {
-      if (workUnit instanceof MultiWorkUnit) {
-        String multiTaskId = JobLauncherUtils.newMultiTaskId(jobId, multiTaskIdSequence++);
-        workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, multiTaskId);
-        workUnit.setId(multiTaskId);
-        for (WorkUnit innerWorkUnit : ((MultiWorkUnit) workUnit).getWorkUnits()) {
-          addWorkUnit(innerWorkUnit, jobState, taskIdSequence++);
-        }
-      } else {
-        addWorkUnit(workUnit, jobState, taskIdSequence++);
-      }
-    }
-
-    Optional<JobMetrics> jobMetrics = Optional.absent();
-    try {
-      if (JobMetrics.isEnabled(jobProps)) {
-        // Start metric reporting
-        jobMetrics = Optional.fromNullable(JobMetrics.get(jobName, jobId));
-        if (jobMetrics.isPresent()) {
-          jobMetrics.get().startMetricReporting(jobProps);
-        }
+      if (!workUnits.isPresent()) {
+        jobState.setState(JobState.RunningState.FAILED);
+        throw new JobException("Failed to get work units for job " + jobId);
       }
 
-      // Write job execution info to the job history store before the job starts to run
-      if (this.jobHistoryStore.isPresent()) {
-        try {
-          this.jobHistoryStore.get().put(jobState.toJobExecutionInfo());
-        } catch (Throwable t) {
-          LOG.error("Failed to write job execution information to the job history store: " + t, t);
-        }
-      }
-
-      // Start the job and wait for it to finish
-      runJob(jobName, jobProps, jobState, workUnits.get());
-
-      // Check and set final job jobPropsState upon job completion
-      if (jobState.getState() == JobState.RunningState.CANCELLED) {
-        LOG.info(String.format("Job %s has been cancelled", jobId));
+      // No work unit to run
+      if (workUnits.get().isEmpty()) {
+        LOG.warn("No work units have been created for job " + jobId);
         return;
       }
 
-      JobCommitPolicy commitPolicy = JobCommitPolicy.getCommitPolicy(jobState);
+      long startTime = System.currentTimeMillis();
+      jobState.setStartTime(startTime);
+      jobState.setState(JobState.RunningState.RUNNING);
 
-      setFinalJobState(commitPolicy, jobState);
+      LOG.info("Starting job " + jobId);
+
+      // Add work units and assign task IDs to them
+      int taskIdSequence = 0;
+      int multiTaskIdSequence = 0;
+      for (WorkUnit workUnit : workUnits.get()) {
+        if (workUnit instanceof MultiWorkUnit) {
+          String multiTaskId = JobLauncherUtils.newMultiTaskId(jobId, multiTaskIdSequence++);
+          workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, multiTaskId);
+          workUnit.setId(multiTaskId);
+          for (WorkUnit innerWorkUnit : ((MultiWorkUnit) workUnit).getWorkUnits()) {
+            addWorkUnit(innerWorkUnit, taskIdSequence++, jobState);
+          }
+        } else {
+          addWorkUnit(workUnit, taskIdSequence++, jobState);
+        }
+      }
+
+      if (this.jobContext.getJobMetricsOptional().isPresent()) {
+        this.jobContext.getJobMetricsOptional().get().startMetricReporting(this.jobProps);
+      }
+
+      // Write job execution info to the job history store before the job starts to run
+      storeJobExecutionInfo();
+
+      // Start the job and wait for it to finish
+      runWorkUnits(workUnits.get());
+
+      // Check and set final job jobPropsState upon job completion
+      if (jobState.getState() == JobState.RunningState.CANCELLED) {
+        LOG.info(String.format("Job %s has been cancelled, aborting now", jobId));
+        return;
+      }
+
+      setFinalJobState(jobState);
       // Commit and publish job data
-      commitJob(jobId, commitPolicy, jobState);
+      commitJob(jobState);
     } catch (Throwable t) {
       jobState.setState(JobState.RunningState.FAILED);
       String errMsg = "Failed to launch and run job " + jobId;
       LOG.error(errMsg + ": " + t, t);
       throw new JobException(errMsg, t);
     } finally {
-      // Make sure the source connection is shutdown
-      source.shutdown(jobState);
+      long endTime = System.currentTimeMillis();
+      jobState.setEndTime(endTime);
+      jobState.setDuration(endTime - jobState.getStartTime());
 
+      // Persist job state regardless if the job succeeded or failed
       try {
         persistJobState(jobState);
       } catch (Throwable t) {
-        LOG.error(String.format("Failed to persist job/task states of job %s: %s", jobId, t), t);
-        // Fail the job if there is anything wrong with jobPropsState persistence
+        LOG.error(String.format("Failed to persist job state of job %s: %s", jobId, t), t);
         jobState.setState(JobState.RunningState.FAILED);
       }
 
       cleanupStagingData(jobState);
 
-      long endTime = System.currentTimeMillis();
-      jobState.setEndTime(endTime);
-      jobState.setDuration(endTime - startTime);
+      // Write job execution info to the job history store upon job termination
+      storeJobExecutionInfo();
 
-      unlockJob(jobName, jobLockOptional);
-
-      // Write job execution info to the job history store upon job completion/termination
-      if (this.jobHistoryStore.isPresent()) {
-        try {
-          this.jobHistoryStore.get().put(jobState.toJobExecutionInfo());
-        } catch (Throwable t) {
-          LOG.error("Failed to write job execution information to the job history store: " + t, t);
-        }
+      if (this.jobContext.getJobMetricsOptional().isPresent()) {
+        this.jobContext.getJobMetricsOptional().get().stopMetricReporting();
+        JobMetrics.remove(jobState);
       }
 
-      if (JobMetrics.isEnabled(jobProps)) {
-        if (jobMetrics.isPresent()) {
-          jobMetrics.get().stopMetricReporting();
-        }
-        JobMetrics.remove(jobId);
-      }
+      unlockJob();
     }
 
-    if (Optional.fromNullable(jobListener).isPresent()) {
-      jobListener.jobCompleted(jobState);
+    if (jobListener != null) {
+      jobListener.onJobCompletion(jobState);
     }
 
     // Throw an exception at the end if the job failed so the caller knows the job failure
@@ -312,48 +296,94 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
   }
 
+  @Override
+  public void close()
+      throws IOException {
+    this.cancellationExecutor.shutdownNow();
+    try {
+      this.jobContext.getSource().shutdown(this.jobContext.getJobState());
+    } finally {
+      if (GobblinMetrics.isEnabled(this.jobProps)) {
+        GobblinMetricsRegistry.getInstance().remove(this.jobContext.getJobId());
+      }
+    }
+  }
+
   /**
    * Run the given job.
    *
    * <p>
-   *     The contract between {@link AbstractJobLauncher#launchJob(java.util.Properties, JobListener)}
-   *     and this method is this method is responsible for for setting {@link JobState.RunningState}
-   *     properly and upon returning from this method (either normally or due to exceptions) whatever
-   *     {@link JobState.RunningState} is set in this method is used to determine if the job has finished.
+   *   The contract between {@link AbstractJobLauncher#launchJob(JobListener)} and this method is this method
+   *   is responsible for for setting {@link JobState.RunningState} properly and upon returning from this method
+   *   (either normally or due to exceptions) whatever {@link JobState.RunningState} is set in this method is
+   *   used to determine if the job has finished.
    * </p>
    *
-   * @param jobName Job name
-   * @param jobProps Job configuration properties
-   * @param jobState Job state
    * @param workUnits List of {@link WorkUnit}s of the job
    */
-  protected abstract void runJob(String jobName, Properties jobProps, JobState jobState, List<WorkUnit> workUnits)
+  protected abstract void runWorkUnits(List<WorkUnit> workUnits)
       throws Exception;
 
   /**
    * Get a {@link JobLock} to be used for the job.
    *
-   * @param jobName Job name
-   * @param jobProps Job configuration properties
    * @return {@link JobLock} to be used for the job
    */
-  protected abstract JobLock getJobLock(String jobName, Properties jobProps)
+  protected abstract JobLock getJobLock()
       throws IOException;
 
   /**
-   * Initialize the source for the given job.
+   * Execute the job cancellation.
    */
-  private Source<?, ?> initSource(Properties jobProps)
-      throws Exception {
-    return (Source<?, ?>) Class.forName(jobProps.getProperty(ConfigurationKeys.SOURCE_CLASS_KEY)).newInstance();
+  protected abstract void executeCancellation();
+
+  /**
+   * Start the scheduled executor for executing job cancellation.
+   *
+   * <p>
+   *   The executor, upon started, waits on the condition variable indicating a cancellation is requested,
+   *   i.e., it waits for a cancellation request to arrive. If a cancellation is requested, the executor
+   *   is unblocked and calls {@link #executeCancellation()} to execute the cancellation. Upon completion
+   *   of the cancellation execution, the executor notifies the caller that requested the cancellation on
+   *   the conditional variable indicating the cancellation has been executed so the caller is unblocked.
+   *   Upon successful execution of the cancellation, it sets the job state to
+   *   {@link JobState.RunningState#CANCELLED}.
+   * </p>
+   */
+  protected void startCancellationExecutor() {
+    this.cancellationExecutor.execute(new Runnable() {
+      @Override
+      public void run() {
+        synchronized (cancellationRequest) {
+          try {
+            while (!cancellationRequested) {
+              // Wait for a cancellation request to arrive
+              cancellationRequest.wait();
+            }
+            LOG.info("Cancellation has been requested for job " + jobContext.getJobId());
+            executeCancellation();
+            LOG.info("Cancellation has been executed for job " + jobContext.getJobId());
+          } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+          }
+        }
+
+        synchronized (cancellationExecution) {
+          cancellationExecuted = true;
+          jobContext.getJobState().setState(JobState.RunningState.CANCELLED);
+          // Notify that the cancellation has been executed
+          cancellationExecution.notifyAll();
+        }
+      }
+    });
   }
 
   /**
    * Add the given {@link WorkUnit} for execution.
    */
-  private void addWorkUnit(WorkUnit workUnit, JobState jobState, int sequence) {
-    workUnit.setProp(ConfigurationKeys.JOB_ID_KEY, jobState.getJobId());
-    String taskId = JobLauncherUtils.newTaskId(jobState.getJobId(), sequence);
+  private void addWorkUnit(WorkUnit workUnit, int sequence, JobState jobState) {
+    workUnit.setProp(ConfigurationKeys.JOB_ID_KEY, this.jobContext.getJobId());
+    String taskId = JobLauncherUtils.newTaskId(this.jobContext.getJobId(), sequence);
     workUnit.setId(taskId);
     workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
     jobState.addTask();
@@ -363,36 +393,16 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   }
 
   /**
-   * Get the job state of the most recent run of the job.
-   */
-  private JobState getPreviousJobState(String jobName)
-      throws IOException {
-    if (this.jobStateStore.exists(jobName, "current" + JOB_STATE_STORE_TABLE_SUFFIX)) {
-      // Read the job state of the most recent run of the job
-      List<JobState> previousJobStateList =
-          this.jobStateStore.getAll(jobName, "current" + JOB_STATE_STORE_TABLE_SUFFIX);
-      if (!previousJobStateList.isEmpty()) {
-        // There should be a single job state on the list if the list is not empty
-        return previousJobStateList.get(0);
-      }
-    }
-
-    LOG.warn("No previous job state found for job " + jobName);
-    return new JobState();
-  }
-
-  /**
    * Try acquiring the job lock and return whether the lock is successfully locked.
    */
-  private boolean tryLockJob(String jobName, Optional<JobLock> jobLockOptional) {
-    if (!jobLockOptional.isPresent()) {
-      return true;
-    }
-
+  private boolean tryLockJob() {
     try {
-      return jobLockOptional.get().tryLock();
+      if (this.jobContext.isJobLockEnabled()) {
+        this.jobLockOptional = Optional.of(getJobLock());
+      }
+      return !this.jobLockOptional.isPresent() || this.jobLockOptional.get().tryLock();
     } catch (IOException ioe) {
-      LOG.error(String.format("Failed to acquire job lock for job %s: %s", jobName, ioe), ioe);
+      LOG.error(String.format("Failed to acquire job lock for job %s: %s", this.jobContext.getJobId(), ioe), ioe);
       return false;
     }
   }
@@ -400,23 +410,34 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   /**
    * Unlock a completed or failed job.
    */
-  private void unlockJob(String jobName, Optional<JobLock> jobLockOptional) {
-    if (!jobLockOptional.isPresent()) {
-      return;
+  private void unlockJob() {
+    if (this.jobLockOptional.isPresent()) {
+      try {
+        // Unlock so the next run of the same job can proceed
+        this.jobLockOptional.get().unlock();
+      } catch (IOException ioe) {
+        LOG.error(String.format("Failed to unlock for job %s: %s", this.jobContext.getJobId(), ioe), ioe);
+      }
     }
+  }
 
-    try {
-      // Unlock so the next run of the same job can proceed
-      jobLockOptional.get().unlock();
-    } catch (IOException ioe) {
-      LOG.error(String.format("Failed to unlock for job %s: %s", jobName, ioe), ioe);
+  /**
+   * Store job execution information into the job history store.
+   */
+  private void storeJobExecutionInfo() {
+    if (this.jobContext.getJobHistoryStoreOptional().isPresent()) {
+      try {
+        this.jobContext.getJobHistoryStoreOptional().get().put(this.jobContext.getJobState().toJobExecutionInfo());
+      } catch (IOException ioe) {
+        LOG.error("Failed to write job execution information to the job history store: " + ioe, ioe);
+      }
     }
   }
 
   /**
    * Set final {@link JobState} of the given job.
    */
-  private void setFinalJobState(JobCommitPolicy commitPolicy, JobState jobState) {
+  private void setFinalJobState(JobState jobState) {
     jobState.setEndTime(System.currentTimeMillis());
     jobState.setDuration(jobState.getEndTime() - jobState.getStartTime());
 
@@ -430,7 +451,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       // On the other hand, if COMMIT_ON_PARTIAL_SUCCESS is used, the job is considered
       // successful even if some tasks failed.
       if (taskState.getWorkingState() != WorkUnitState.WorkingState.SUCCESSFUL
-          && commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
+          && this.jobContext.getJobCommitPolicy() == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
         jobState.setState(JobState.RunningState.FAILED);
         break;
       }
@@ -463,13 +484,15 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * Commit the job's output data.
    */
   @SuppressWarnings("unchecked")
-  private void commitJob(String jobId, JobCommitPolicy commitPolicy, JobState jobState) throws Exception {
-    if (!canCommit(commitPolicy, jobState)) {
-      LOG.info("Job data will not be committed due to commit policy: " + commitPolicy);
+  private void commitJob(JobState jobState) throws Exception {
+    JobCommitPolicy jobCommitPolicy = this.jobContext.getJobCommitPolicy();
+    if (!canCommit(jobCommitPolicy, jobState)) {
+      LOG.info("Job data will not be committed due to commit policy: " + jobCommitPolicy);
       return;
     }
 
-    LOG.info(String.format("Publishing job data of job %s with commit policy %s", jobId, commitPolicy.name()));
+    LOG.info(String.format("Publishing job data of job %s with commit policy %s", this.jobContext.getJobId(),
+        jobCommitPolicy.name()));
 
     Closer closer = Closer.create();
     try {
@@ -490,7 +513,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   }
 
   /**
-   * Persist job/task states of a completed job.
+   * Persist job state of a completed job.
    */
   private void persistJobState(JobState jobState) throws IOException {
     JobState.RunningState runningState = jobState.getState();
@@ -504,9 +527,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     String jobName = jobState.getJobName();
     String jobId = jobState.getJobId();
 
-    LOG.info("Persisting job states of job " + jobId);
-    this.jobStateStore.put(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX, jobState);
-    this.jobStateStore.createAlias(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX,
+    LOG.info("Persisting job state of job " + jobId);
+    this.jobContext.getJobStateStore().put(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX, jobState);
+    this.jobContext.getJobStateStore().createAlias(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX,
         "current" + JOB_STATE_STORE_TABLE_SUFFIX);
   }
 

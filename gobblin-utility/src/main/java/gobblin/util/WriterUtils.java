@@ -19,9 +19,9 @@ public class WriterUtils {
    * TABLENAME should be used for jobs that pull from multiple tables/topics and intend to write the records
    * in each table/topic to a separate folder. Otherwise, DEFAULT can be used.
    */
-  public static enum WriterFilePathType {
+  public enum WriterFilePathType {
     TABLENAME,
-    DEFAULT;
+    DEFAULT
   }
 
   /**
@@ -159,8 +159,8 @@ public class WriterUtils {
    */
   public static String getWriterFileName(State state, int numBranches, int branchId, String writerId,
       String formatExtension) {
-    return String.format("%s.%s.%s", state.getProp(
+    return state.getProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_NAME, numBranches, branchId),
-        ConfigurationKeys.DEFAULT_WRITER_FILE_NAME), writerId, formatExtension);
+        String.format("%s.%s.%s", ConfigurationKeys.DEFAULT_WRITER_FILE_BASE_NAME, writerId, formatExtension));
   }
 }

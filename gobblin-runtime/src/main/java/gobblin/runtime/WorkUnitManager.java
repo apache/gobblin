@@ -78,7 +78,7 @@ public class WorkUnitManager extends AbstractIdleService {
       throws Exception {
     LOG.info("Stopping the work unit manager");
     this.workUnitHandler.stop();
-    this.executorService.shutdown();
+    ExecutorsUtils.shutdownExecutorService(this.executorService);
   }
 
   /**

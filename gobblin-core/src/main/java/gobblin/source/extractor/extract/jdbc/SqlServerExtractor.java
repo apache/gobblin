@@ -16,13 +16,19 @@ import gobblin.source.extractor.exception.HighWatermarkException;
 import gobblin.source.extractor.utils.Utils;
 import gobblin.source.extractor.watermark.Predicate;
 import gobblin.source.extractor.watermark.WatermarkType;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.commons.lang.StringUtils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonElement;
 
@@ -44,6 +50,8 @@ public class SqlServerExtractor extends JdbcExtractor {
   private static final String DATE_FORMAT = "yyyy-MM-dd";
   private static final String HOUR_FORMAT = "HH";
   private static final long SAMPLERECORDCOUNT = -1;
+
+  private Logger log = LoggerFactory.getLogger(SqlServerExtractor.class);
 
   public SqlServerExtractor(WorkUnitState workUnitState) {
     super(workUnitState);
@@ -77,7 +85,7 @@ public class SqlServerExtractor extends JdbcExtractor {
     this.log.debug("Build query to get high watermark");
     List<Command> commands = new ArrayList<Command>();
 
-    String columnProjection = "max(" + this.getWatermarkColumnName(watermarkColumn) + ")";
+    String columnProjection = "max(" + Utils.getCoalesceColumnNames(watermarkColumn) + ")";
     String watermarkFilter = this.concatPredicates(predicateList);
     String query = this.getExtractSql();
 
@@ -266,20 +274,20 @@ public class SqlServerExtractor extends JdbcExtractor {
   public String getHourPredicateCondition(String column, long value, String valueFormat, String operator) {
     this.log.debug("Getting hour predicate for Sqlserver");
     String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, HOUR_FORMAT);
-    return this.getWatermarkColumnName(column) + " " + operator + " '" + formattedvalue + "'";
+    return Utils.getCoalesceColumnNames(column) + " " + operator + " '" + formattedvalue + "'";
   }
 
   @Override
   public String getDatePredicateCondition(String column, long value, String valueFormat, String operator) {
     this.log.debug("Getting date predicate for Sqlserver");
     String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, DATE_FORMAT);
-    return this.getWatermarkColumnName(column) + " " + operator + " '" + formattedvalue + "'";
+    return Utils.getCoalesceColumnNames(column) + " " + operator + " '" + formattedvalue + "'";
   }
 
   @Override
   public String getTimestampPredicateCondition(String column, long value, String valueFormat, String operator) {
     this.log.debug("Getting timestamp predicate for Sqlserver");
     String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, TIMESTAMP_FORMAT);
-    return this.getWatermarkColumnName(column) + " " + operator + " '" + formattedvalue + "'";
+    return Utils.getCoalesceColumnNames(column) + " " + operator + " '" + formattedvalue + "'";
   }
 }

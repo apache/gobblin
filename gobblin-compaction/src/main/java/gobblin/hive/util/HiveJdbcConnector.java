@@ -89,9 +89,8 @@ public class HiveJdbcConnector implements Closeable {
     HiveJdbcConnector hiveJdbcConnector = new HiveJdbcConnector();
 
     // Set the Hive Server type
-    if (compactRunProps.containsKey(HIVESERVER_VERSION)) {
-      hiveJdbcConnector.withHiveServerVersion(Integer.parseInt(compactRunProps.getProperty(HIVESERVER_VERSION, DEFAULT_HIVESERVER_VERSION)));
-    }
+    hiveJdbcConnector.withHiveServerVersion(Integer.parseInt(compactRunProps.getProperty(HIVESERVER_VERSION,
+        DEFAULT_HIVESERVER_VERSION)));
 
     // Add the Hive Site Dir to the classpath
     if (compactRunProps.containsKey(HIVESITE_DIR)) {

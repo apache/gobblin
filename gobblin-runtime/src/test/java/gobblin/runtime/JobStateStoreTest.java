@@ -23,6 +23,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
+import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
@@ -85,19 +86,34 @@ public class JobStateStoreTest {
 
   @Test
   public void testLaunchFirstJob() throws Exception {
-    new LocalJobLauncher(this.properties).launchJob(this.jobProps, null);
+    Closer closer = Closer.create();
+    try {
+      closer.register(new LocalJobLauncher(this.properties, this.jobProps)).launchJob(null);
+    } finally {
+      closer.close();
+    }
     verifyJobState(1);
   }
 
   @Test(dependsOnMethods = "testLaunchFirstJob")
   public void testLaunchSecondJob() throws Exception {
-    new LocalJobLauncher(this.properties).launchJob(this.jobProps, null);
+    Closer closer = Closer.create();
+    try {
+      closer.register(new LocalJobLauncher(this.properties, this.jobProps)).launchJob(null);
+    } finally {
+      closer.close();
+    }
     verifyJobState(2);
   }
 
   @Test(dependsOnMethods = "testLaunchSecondJob")
   public void testLaunchThirdJob() throws Exception {
-    new LocalJobLauncher(this.properties).launchJob(this.jobProps, null);
+    Closer closer = Closer.create();
+    try {
+      closer.register(new LocalJobLauncher(this.properties, this.jobProps)).launchJob(null);
+    } finally {
+      closer.close();
+    }
     verifyJobState(3);
   }
 

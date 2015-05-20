@@ -53,7 +53,7 @@ if [ -z "$JAVA_HOME" ]; then
 fi
 
 check=false
-if [ $ACTION == "start" ] || [ $ACTION == "restart" ]; then
+if [ "$ACTION" == "start" ] || [ "$ACTION" == "restart" ]; then
   check=true
 fi
 
@@ -192,7 +192,7 @@ case "$ACTION" in
     stop
     ;;
   *)
-    echo $usage
+    print_usage
     exit 1
     ;;
 esac

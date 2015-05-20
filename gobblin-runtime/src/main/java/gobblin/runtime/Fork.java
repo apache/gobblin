@@ -28,6 +28,8 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.instrumented.writer.InstrumentedDataWriterDecorator;
 import gobblin.publisher.TaskPublisher;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
@@ -116,14 +118,14 @@ public class Fork implements Closeable, Runnable {
 
     this.recordQueue = BoundedBlockingRecordQueue.newBuilder()
         .hasCapacity(taskState.getPropAsInt(
-            ConfigurationKeys.FORK_BRANCH_RECORD_QUEUE_CAPACITY_KEY,
-            ConfigurationKeys.DEFAULT_FORK_BRANCH_RECORD_QUEUE_CAPACITY))
+            ConfigurationKeys.FORK_RECORD_QUEUE_CAPACITY_KEY,
+            ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_CAPACITY))
         .useTimeout(taskState.getPropAsLong(
-            ConfigurationKeys.FORK_BRANCH_RECORD_QUEUE_TIMEOUT_KEY,
-            ConfigurationKeys.DEFAULT_FORK_BRANCH_RECORD_QUEUE_TIMEOUT))
+            ConfigurationKeys.FORK_RECORD_QUEUE_TIMEOUT_KEY,
+            ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_TIMEOUT))
         .useTimeoutTimeUnit(TimeUnit.valueOf(taskState.getProp(
-            ConfigurationKeys.FORK_BRANCH_RECORD_QUEUE_TIMEOUT_UNIT_KEY,
-            ConfigurationKeys.DEFAULT_FORK_BRANCH_RECORD_QUEUE_TIMEOUT_UNIT)))
+            ConfigurationKeys.FORK_RECORD_QUEUE_TIMEOUT_UNIT_KEY,
+            ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_TIMEOUT_UNIT)))
         .collectStats()
         .build();
 
@@ -300,10 +302,15 @@ public class Fork implements Closeable, Runnable {
   @SuppressWarnings("unchecked")
   private DataWriter<Object> buildWriter()
       throws IOException, SchemaConversionException {
-    return this.taskContext.getDataWriterBuilder(this.branches, this.index)
+    DataWriter<Object> writer = this.taskContext.getDataWriterBuilder(this.branches, this.index)
         .writeTo(Destination.of(this.taskContext.getDestinationType(this.branches, this.index), this.taskState))
-        .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index)).withWriterId(this.taskId)
-        .withSchema(this.convertedSchema).withBranches(this.branches).forBranch(this.index).build();
+        .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index))
+        .withWriterId(this.taskId)
+        .withSchema(this.convertedSchema)
+        .withBranches(this.branches)
+        .forBranch(this.index)
+        .build();
+    return new InstrumentedDataWriterDecorator<Object>(writer, this.taskState);
   }
 
   /**
@@ -389,7 +396,7 @@ public class Fork implements Closeable, Runnable {
     this.writer.commit();
 
     try {
-      if (JobMetrics.isEnabled(this.taskState.getWorkunit())) {
+      if (GobblinMetrics.isEnabled(this.taskState.getWorkunit())) {
         // Update byte-level metrics after the writer commits
         updateByteMetrics();
       }

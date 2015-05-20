@@ -20,14 +20,16 @@ import gobblin.util.EmailUtils;
 
 
 /**
- * An implementation of {@link JobListener} that sends a notification .
+ * An implementation of {@link JobListener} that sends email notifications.
+ *
+ * @author ynli
  */
 public class EmailNotificationJobListener implements JobListener {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(EmailNotificationJobListener.class);
 
   @Override
-  public void jobCompleted(JobState jobState) {
+  public void onJobCompletion(JobState jobState) {
     boolean alertEmailEnabled =
         Boolean.valueOf(jobState.getProp(ConfigurationKeys.ALERT_EMAIL_ENABLED_KEY, Boolean.toString(false)));
     boolean notificationEmailEnabled =
@@ -50,10 +52,24 @@ public class EmailNotificationJobListener implements JobListener {
 
     if (notificationEmailEnabled) {
       try {
-        EmailUtils
-            .sendJobCompletionEmail(jobState.getJobName(), jobState.toString(), jobState.getState().name(), jobState);
+        EmailUtils.sendJobCompletionEmail(
+            jobState.getJobId(), jobState.toString(), jobState.getState().toString(), jobState);
       } catch (EmailException ee) {
         LOGGER.error("Failed to send job completion notification email for job " + jobState.getJobId(), ee);
+      }
+    }
+  }
+
+  @Override
+  public void onJobCancellation(JobState jobState) {
+    boolean notificationEmailEnabled =
+        Boolean.valueOf(jobState.getProp(ConfigurationKeys.NOTIFICATION_EMAIL_ENABLED_KEY, Boolean.toString(false)));
+
+    if (notificationEmailEnabled) {
+      try {
+        EmailUtils.sendJobCancellationEmail(jobState.getJobId(), jobState.toString(), jobState);
+      } catch (EmailException ee) {
+        LOGGER.error("Failed to send job cancellation notification email for job " + jobState.getJobId(), ee);
       }
     }
   }

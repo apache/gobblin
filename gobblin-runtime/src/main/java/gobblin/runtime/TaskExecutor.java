@@ -28,6 +28,7 @@ import com.google.common.base.Optional;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.util.ExecutorsUtils;
 
 
@@ -131,10 +132,16 @@ public class TaskExecutor extends AbstractIdleService {
   @Override
   protected void shutDown()
       throws Exception {
-    LOG.info("Stopping the task executor ");
-    this.taskExecutor.shutdown();
-    this.taskRetryExecutor.shutdown();
-    this.forkExecutor.shutdown();
+    LOG.info("Stopping the task executor");
+    try {
+      ExecutorsUtils.shutdownExecutorService(this.taskExecutor);
+    } finally {
+      try {
+        ExecutorsUtils.shutdownExecutorService(this.taskRetryExecutor);
+      } finally {
+        ExecutorsUtils.shutdownExecutorService(this.forkExecutor);
+      }
+    }
   }
 
   /**
@@ -185,13 +192,10 @@ public class TaskExecutor extends AbstractIdleService {
    * @param task failed {@link Task} to be retried
    */
   public void retry(Task task) {
-    if (JobMetrics.isEnabled(task.getTaskState().getWorkunit())) {
+    if (GobblinMetrics.isEnabled(task.getTaskState().getWorkunit())) {
       // Adjust metrics to clean up numbers from the failed task
       task.getTaskState()
           .adjustJobMetricsOnRetry(task.getTaskState().getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY));
-      // Remove task-level metrics associated with this task so
-      // the retry will use fresh metrics
-      task.getTaskState().removeMetrics();
     }
 
     // Task retry interval increases linearly with number of retries

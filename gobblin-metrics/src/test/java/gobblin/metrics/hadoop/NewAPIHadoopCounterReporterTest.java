@@ -34,6 +34,7 @@ import com.google.common.collect.ImmutableSortedMap;
 
 import gobblin.metrics.Measurements;
 import gobblin.metrics.MetricContext;
+import static gobblin.metrics.TestConstants.*;
 
 
 /**
@@ -43,14 +44,6 @@ import gobblin.metrics.MetricContext;
  */
 @Test(groups = {"gobblin.metrics.hadoop"})
 public class NewAPIHadoopCounterReporterTest {
-
-  private static final String CONTEXT_NAME = "TestContext";
-  private static final String RECORDS_PROCESSED = "recordsProcessed";
-  private static final String RECORD_PROCESS_RATE = "recordProcessRate";
-  private static final String RECORD_SIZE_DISTRIBUTION = "recordSizeDistribution";
-  private static final String TOTAL_DURATION = "totalDuration";
-  private static final String QUEUE_SIZE = "queueSize";
-
 
   private NewAPIHadoopCounterReporter<Object, Object, Object, Object> hadoopCounterReporter;
   private Counter recordsProcessedCount;
@@ -156,6 +149,8 @@ public class NewAPIHadoopCounterReporterTest {
 
   @AfterClass
   public void tearDown() {
-    this.hadoopCounterReporter.close();
+    if (this.hadoopCounterReporter != null) {
+      this.hadoopCounterReporter.close();
+    }
   }
 }

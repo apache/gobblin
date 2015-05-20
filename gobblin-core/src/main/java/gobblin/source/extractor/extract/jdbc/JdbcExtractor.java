@@ -13,6 +13,7 @@ package gobblin.source.extractor.extract.jdbc;
 
 import gobblin.source.extractor.resultset.RecordSetList;
 import gobblin.source.extractor.watermark.WatermarkType;
+
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -31,11 +32,15 @@ import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.Joiner;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.DataRecordException;
@@ -78,6 +83,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   private long totalRecordCount = 0;
   private boolean nextRecord = true;
   private int unknownColumnCounter = 1;
+
+  private Logger log = LoggerFactory.getLogger(JdbcExtractor.class);
 
   /**
    * Metadata column mapping to lookup columns specified in input query
@@ -304,7 +311,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
       String outputColProjection = Joiner.on(",").useForNull("null").join(this.columnList);
       outputColProjection =
-          outputColProjection.replace(derivedWatermarkColumnName, getWatermarkColumnName(watermarkColumn) + " AS "
+          outputColProjection.replace(derivedWatermarkColumnName, Utils.getCoalesceColumnNames(watermarkColumn) + " AS "
               + derivedWatermarkColumnName);
       this.setOutputColumnProjection(outputColProjection);
       String extractQuery = this.getExtractQuery(schema, entity, inputQuery);
@@ -709,13 +716,13 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   public long getMaxWatermark(String schema, String entity, String watermarkColumn, List<Predicate> predicateList,
       String watermarkSourceFormat) throws HighWatermarkException {
     this.log.info("Get high watermark using JDBC");
-    long CalculatedHighWatermark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
+    long calculatedHighWatermark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
 
     try {
       List<Command> cmds = this.getHighWatermarkMetadata(schema, entity, watermarkColumn, predicateList);
       CommandOutput<?, ?> response = this.executeSql(cmds);
-      CalculatedHighWatermark = this.getHighWatermark(response, watermarkColumn, watermarkSourceFormat);
-      return CalculatedHighWatermark;
+      calculatedHighWatermark = this.getHighWatermark(response, watermarkColumn, watermarkSourceFormat);
+      return calculatedHighWatermark;
     } catch (Exception e) {
       throw new HighWatermarkException("Failed to get high watermark using JDBC; error - " + e.getMessage(), e);
     }
@@ -775,29 +782,6 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     return query;
   }
 
-  /**
-   * Get coalesce of water mark columns if there are multiple water mark columns
-   *
-   * @param water mark column
-   * @return water mark column
-   */
-  protected String getWatermarkColumnName(String waterMarkColumn) {
-    int waterMarkColumnCount = 0;
-
-    if (waterMarkColumn != null) {
-      waterMarkColumnCount = Arrays.asList(waterMarkColumn.split(",")).size();
-    }
-
-    switch (waterMarkColumnCount) {
-      case 0:
-        return null;
-      case 1:
-        return waterMarkColumn;
-      default:
-        return "COALESCE(" + waterMarkColumn + ")";
-    }
-  }
-
   @Override
   public JsonArray getSchema(CommandOutput<?, ?> response) throws SchemaException, IOException {
     this.log.debug("Extract schema from resultset");
@@ -806,7 +790,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     if (itr.hasNext()) {
       resultset = itr.next();
     } else {
-      log.error("Failed to get schema from Mysql - Resultset has no records");
+      throw new SchemaException("Failed to get schema from Mysql - Resultset has no records");
     }
 
     JsonArray fieldJsonArray = new JsonArray();
@@ -851,7 +835,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     if (itr.hasNext()) {
       resultset = itr.next();
     } else {
-      log.error("Failed to get high watermark from Mysql - Resultset has no records");
+      throw new HighWatermarkException("Failed to get high watermark from Mysql - Resultset has no records");
     }
 
     Long HighWatermark;
@@ -924,7 +908,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     if (itr.hasNext()) {
       resultset = itr.next();
     } else {
-      log.error("Failed to get source record count from Mysql - Resultset has no records");
+      throw new DataRecordException("Failed to get source record count from Mysql - Resultset has no records");
     }
 
     try {

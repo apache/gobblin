@@ -67,12 +67,12 @@ import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.publisher.DataPublisher;
 import gobblin.runtime.EmailNotificationJobListener;
 import gobblin.runtime.JobException;
 import gobblin.runtime.JobListener;
 import gobblin.runtime.JobLock;
-import gobblin.runtime.JobMetrics;
 import gobblin.runtime.JobState;
 import gobblin.runtime.RunOnceJobListener;
 import gobblin.runtime.SourceDecorator;
@@ -409,17 +409,12 @@ public class LocalJobManager extends AbstractIdleService {
       return;
     }
 
-    if (JobMetrics.isEnabled(this.properties)) {
-      // Remove all task-level metrics after the task is done
-      taskState.removeMetrics();
-    }
-
     JobState jobState = this.jobStateMap.get(jobId);
     jobState.addTaskState(taskState);
     // If all the tasks of the job have completed (regardless of
     // success or failure), then trigger job committing.
     if (jobState.getCompletedTasks() == jobState.getTasks()) {
-      LOG.info(String.format("All tasks of job %s have completed, committing it", jobId));
+      LOG.info(String.format("All tasks of job the metrics will be generated regardless of activation, but they will not be reported unless %s have completed, committing it", jobId));
       String jobName = taskState.getWorkunit().getProp(ConfigurationKeys.JOB_NAME_KEY);
       try {
         commitJob(jobId, jobName, getFinalJobState(jobState));
@@ -679,10 +674,6 @@ public class LocalJobManager extends AbstractIdleService {
       LOG.error("Failed to publish job data of job " + jobId, e);
       throw e;
     } finally {
-      if (JobMetrics.isEnabled(this.properties)) {
-        // Remove all job-level metrics after the job is done
-        jobState.removeMetrics();
-      }
       boolean runOnce = Boolean.valueOf(jobState.getProp(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
       persistJobState(jobState);
       cleanupJobOnCompletion(jobState, runOnce);
@@ -804,7 +795,7 @@ public class LocalJobManager extends AbstractIdleService {
   private void callJobListener(String jobName, JobState jobState, boolean runOnce) {
     JobListener jobListener = runOnce ? this.jobListenerMap.remove(jobName) : this.jobListenerMap.get(jobName);
     if (jobListener != null) {
-      jobListener.jobCompleted(jobState);
+      jobListener.onJobCompletion(jobState);
     }
   }
 
