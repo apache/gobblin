@@ -32,7 +32,15 @@ public class LimiterFactory {
    * <p>
    *   Note this method will always return a new {@link Limiter} instance of one of the supported types defined
    *   in {@link Limiter.Type} as long as the input configuration specifies a supported {@link Limiter.Type}. It
-   *   will throw an {@link IllegalArgumentException} if otherwise.
+   *   will throw an {@link IllegalArgumentException} if none of the supported {@link Limiter.Type}s is specified
+   *   or if any of the required configuration properties for the specified {@link Limiter.Type} is not present.
+   * </p>
+   *
+   * <p>
+   *   This method will return a functional {@link Limiter} if the configuration is correct. If instead, a
+   *   {@link Limiter} is optional or the caller is fine with a {@link Limiter} that is not really limiting any
+   *   events, then the caller should first make sure that the {@link Limiter} should indeed be created using
+   *   this method, or handle the exception (if any is thrown) appropriately.
    * </p>
    *
    * @param state a {@link State} instance carrying configuration properties
