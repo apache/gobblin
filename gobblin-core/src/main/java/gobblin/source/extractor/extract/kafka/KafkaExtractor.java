@@ -121,7 +121,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
           nextValidMessage = this.messageIterator.next();
         } while (nextValidMessage.offset() < this.nextWatermark.get(this.currentPartitionIdx));
 
-        this.nextWatermark.set(this.currentPartitionIdx, nextValidMessage.offset() + 1);
+        this.nextWatermark.set(this.currentPartitionIdx, nextValidMessage.nextOffset());
         try {
           D record = decodeRecord(nextValidMessage);
           this.maintainStats(nextValidMessage);

@@ -43,8 +43,8 @@ public class MultiLongWatermark implements Watermark {
     this.values = Lists.newArrayList(other.values);
   }
 
-  public MultiLongWatermark() {
-    this.values = Lists.newArrayList();
+  public MultiLongWatermark(List<Long> values) {
+    this.values = Lists.newArrayList(values);
   }
 
   /**
@@ -66,14 +66,12 @@ public class MultiLongWatermark implements Watermark {
    */
   @Override
   public int compareTo(Watermark wm) {
-    Preconditions.checkArgument(wm instanceof MultiLongWatermark);
+    if (!(wm instanceof MultiLongWatermark)) {
+      throw new ClassCastException("Cannot compare MultiLongWatermark with " + wm.getClass().getSimpleName());
+    }
     MultiLongWatermark other = (MultiLongWatermark) wm;
-    Preconditions.checkArgument(
-        this.values.size() == other.values.size(),
-        String.format("%s.%s can only compare two watermarks with the same number of values",
-            MultiLongWatermark.class.getSimpleName(), Thread.currentThread().getStackTrace()[1].getMethodName()));
 
-    ComparisonChain cc = ComparisonChain.start();
+    ComparisonChain cc = ComparisonChain.start().compare(this.size(), other.size());
     for (int i = 0; i < this.values.size(); i++) {
       cc.compare(this.values.get(i), other.values.get(i));
     }
@@ -102,7 +100,7 @@ public class MultiLongWatermark implements Watermark {
 
     long pulled = ((MultiLongWatermark) lowWatermark).getGap(this);
     long all = ((MultiLongWatermark) lowWatermark).getGap((MultiLongWatermark) highWatermark);
-    Preconditions.checkArgument(all > 0);
+    Preconditions.checkState(all > 0);
     long percent = LongMath.divide(pulled * 100, all, RoundingMode.HALF_UP);
     return Shorts.checkedCast(percent);
   }
@@ -143,13 +141,6 @@ public class MultiLongWatermark implements Watermark {
   public long set(int idx, long value) {
     Preconditions.checkElementIndex(idx, this.values.size());
     return this.values.set(idx, value);
-  }
-
-  /**
-   * Add a value to the watermark. This will increase size() by 1.
-   */
-  public void add(long value) {
-    this.values.add(value);
   }
 
   @Override

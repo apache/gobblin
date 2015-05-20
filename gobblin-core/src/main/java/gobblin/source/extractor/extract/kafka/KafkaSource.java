@@ -208,13 +208,14 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
   @SuppressWarnings("deprecation")
   private static WatermarkInterval getWatermarkIntervalFromMultiWorkUnit(MultiWorkUnit multiWorkUnit) {
-    MultiLongWatermark lowWatermark = new MultiLongWatermark();
-    MultiLongWatermark expectedHighWatermark = new MultiLongWatermark();
+    List<Long> lowWatermarkValues = Lists.newArrayList();
+    List<Long> expectedHighWatermarkValues = Lists.newArrayList();
     for (WorkUnit workUnit : multiWorkUnit.getWorkUnits()) {
-      lowWatermark.add(workUnit.getLowWaterMark());
-      expectedHighWatermark.add(workUnit.getHighWaterMark());
+      lowWatermarkValues.add(workUnit.getLowWaterMark());
+      expectedHighWatermarkValues.add(workUnit.getHighWaterMark());
     }
-    return new WatermarkInterval(lowWatermark, expectedHighWatermark);
+    return new WatermarkInterval(new MultiLongWatermark(lowWatermarkValues), new MultiLongWatermark(
+        expectedHighWatermarkValues));
   }
 
   private static List<KafkaPartition> getPartitionsFromMultiWorkUnit(MultiWorkUnit multiWorkUnit) {
