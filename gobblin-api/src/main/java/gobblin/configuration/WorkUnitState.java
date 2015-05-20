@@ -18,6 +18,7 @@ import java.util.Set;
 
 import com.google.common.collect.Sets;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 
 import gobblin.source.extractor.Watermark;
 import gobblin.source.workunit.Extract;
@@ -42,6 +43,8 @@ public class WorkUnitState extends State {
 
   private Watermark actualHighWatermark;
 
+  private static final JsonParser JSON_PARSER = new JsonParser();
+
   /**
    * Runtime state of the {@link WorkUnit}.
    *
@@ -52,12 +55,7 @@ public class WorkUnitState extends State {
    * </p>
    */
   public enum WorkingState {
-    PENDING,
-    RUNNING,
-    SUCCESSFUL,
-    COMMITTED,
-    FAILED,
-    CANCELLED
+    PENDING, RUNNING, SUCCESSFUL, COMMITTED, FAILED, CANCELLED
   }
 
   private WorkUnit workunit;
@@ -109,10 +107,10 @@ public class WorkUnitState extends State {
   /**
    * Get the actual high {@link Watermark} as a {@link JsonElement}.
    *
-   * @return a JSON string representing the actual high {@link Watermark}.
+   * @return a {@link JsonElement} representing the actual high {@link Watermark}.
    */
-  public String getActualHighWatermark() {
-    return getProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY);
+  public JsonElement getActualHighWatermark() {
+    return JSON_PARSER.parse(getProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY));
   }
 
   /**
@@ -126,7 +124,6 @@ public class WorkUnitState extends State {
    *  The invariant for this {@link Watermark} is that it should cover all records up to and including the most recent
    *  record returned by {@link gobblin.source.extractor.Extractor#readRecord(Object)}.
    * </p>
-
    * <p>
    *  The {@link Watermark} set in this method may be polled by the framework multiple times, in order to track the
    *  progress of how the {@link Watermark} changes. This is important for reporting percent completion of a
@@ -147,7 +144,7 @@ public class WorkUnitState extends State {
      * internally in via a configuration key. Once a state-store migration can be done, the {@link Watermark} can be
      * stored as Binary JSON.
      */
-    setProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY, this.actualHighWatermark.toJson());
+    setProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY, this.actualHighWatermark.toJson().toString());
   }
 
   /**
@@ -226,13 +223,15 @@ public class WorkUnitState extends State {
   }
 
   @Override
-  public void readFields(DataInput in) throws IOException {
+  public void readFields(DataInput in)
+      throws IOException {
     this.workunit.readFields(in);
     super.readFields(in);
   }
 
   @Override
-  public void write(DataOutput out) throws IOException {
+  public void write(DataOutput out)
+      throws IOException {
     this.workunit.write(out);
     super.write(out);
   }

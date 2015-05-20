@@ -203,7 +203,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     partitionState.setProp(ESTIMATED_DATA_SIZE, multiWorkUnit.getProp(ESTIMATED_DATA_SIZE));
     Extract extract = createExtract(partitionState, partitions.get(0).getTopicName());
     LOG.info(String.format("Creating workunit for partitions %s", partitions));
-    return partitionState.createWorkUnit(extract);
+    return new WorkUnit(partitionState, extract, interval);
   }
 
   @SuppressWarnings("deprecation")
@@ -493,7 +493,6 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
           .getId());
       partitionsState.setProp(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_HOSTANDPORT, i), partitions.get(i)
           .getLeader().getHostAndPort());
-      partitionsState.setWatermarkInterval(interval);
     }
     return partitionsState;
   }

@@ -111,7 +111,21 @@ public class MRJobLauncher extends AbstractJobLauncher {
   public MRJobLauncher(Properties properties, Properties jobProps, Configuration conf)
       throws Exception {
     super(properties, jobProps);
+
     this.conf = conf;
+
+    // Add job config properties that also contains all framework config properties
+    for (String name : this.jobProps.stringPropertyNames()) {
+      this.conf.set(name, this.jobProps.getProperty(name));
+    }
+
+    // Let the job and all mappers finish even if some mappers fail
+    this.conf.set("mapred.max.map.failures.percent", "100"); // For Hadoop 1.x
+    this.conf.set("mapreduce.map.failures.maxpercent", "100"); // For Hadoop 2.x
+
+    // Do not cancel delegation tokens after job has completed (HADOOP-7002)
+    this.conf.setBoolean("mapreduce.job.complete.cancel.delegation.tokens", false);
+
     URI fsUri = URI.create(this.sysProps.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
     this.fs = FileSystem.get(fsUri, conf);
     this.job = Job.getInstance(this.conf, JOB_NAME_PREFIX + this.jobContext.getJobName());
@@ -135,18 +149,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
   @Override
   protected void runWorkUnits(List<WorkUnit> workUnits)
       throws Exception {
-    // Add job config properties that also contains all framework config properties
-    for (String name : this.jobProps.stringPropertyNames()) {
-      this.conf.set(name, this.jobProps.getProperty(name));
-    }
-
-    // Let the job and all mappers finish even if some mappers fail
-    this.conf.set("mapred.max.map.failures.percent", "100"); // For Hadoop 1.x
-    this.conf.set("mapreduce.map.failures.maxpercent", "100"); // For Hadoop 2.x
-
-    // Do not cancel delegation tokens after job has completed (HADOOP-7002)
-    this.conf.setBoolean("mapreduce.job.complete.cancel.delegation.tokens", false);
-
     String jobName = this.jobContext.getJobName();
     JobState jobState = this.jobContext.getJobState();
 
@@ -286,7 +288,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
    */
   private void addJars(Path jarFileDir, String jarFileList)
       throws IOException {
-    LocalFileSystem lfs = FileSystem.getLocal(conf);
+    LocalFileSystem lfs = FileSystem.getLocal(this.conf);
     for (String jarFile : SPLITTER.split(jarFileList)) {
       Path srcJarFile = new Path(jarFile);
       FileStatus[] fileStatusList = lfs.globStatus(srcJarFile);
