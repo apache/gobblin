@@ -4,6 +4,9 @@ import com.google.common.primitives.Longs;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 
+/**
+ * Implementation of {@link Watermark} used for testing purposes in {@link TestWatermark}.
+ */
 public class TestWatermark implements Watermark {
 
   private static final Gson GSON = new Gson();
