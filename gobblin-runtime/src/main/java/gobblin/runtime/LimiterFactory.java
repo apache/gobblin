@@ -29,8 +29,15 @@ public class LimiterFactory {
   /**
    * Create a new {@link Limiter} instance.
    *
+   * <p>
+   *   Note this method will always return a new {@link Limiter} instance of one of the supported types defined
+   *   in {@link Limiter.Type} as long as the input configuration specifies a supported {@link Limiter.Type}. It
+   *   will throw an {@link IllegalArgumentException} if otherwise.
+   * </p>
+   *
    * @param state a {@link State} instance carrying configuration properties
    * @return a new {@link Limiter} instance
+   * @throws IllegalArgumentException if the input configuration does not specify a valid supported
    */
   public static Limiter newLimiter(State state) {
     Preconditions.checkArgument(state.contains(ConfigurationKeys.EXTRACT_LIMIT_TYPE_KEY),

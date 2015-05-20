@@ -34,12 +34,12 @@ import gobblin.util.ExecutorsUtils;
  *
  * <p>
  *   {@link #acquirePermits(int)} will return {@code false} once the time limit is reached. Permit
- *   refills are not supported in this implementation and {@link #releasePermits(int)} is a no-op.
+ *   refills are not supported in this implementation.
  * </p>
  *
  * @author ynli
  */
-public class TimeBasedLimiter implements Limiter {
+public class TimeBasedLimiter extends NonRefillableLimiter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TimeBasedLimiter.class);
 
@@ -74,12 +74,6 @@ public class TimeBasedLimiter implements Limiter {
   @Override
   public boolean acquirePermits(int permits) throws InterruptedException {
     return this.canIssuePermit;
-  }
-
-  @Override
-  public void releasePermits(int permits) {
-    throw new UnsupportedOperationException("Permit refills are not supported in " +
-        TimeBasedLimiter.class.getSimpleName());
   }
 
   @Override

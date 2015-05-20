@@ -23,12 +23,12 @@ import com.google.common.util.concurrent.RateLimiter;
  * <p>
  *   {@link #acquirePermits(int)} is blocking and will always return {@link true} after the permits
  *   are successfully acquired (probably after being blocked for some amount of time). Permit refills
- *   are not supported in this implementation and {@link #releasePermits(int)} is a no-op.
+ *   are not supported in this implementation.
  * </p>
  *
  * @author ynli
  */
-public class RateBasedLimiter implements Limiter {
+public class RateBasedLimiter extends NonRefillableLimiter {
 
   private final RateLimiter rateLimiter;
 
@@ -49,12 +49,6 @@ public class RateBasedLimiter implements Limiter {
   public boolean acquirePermits(int permits) throws InterruptedException {
     this.rateLimiter.acquire(permits);
     return true;
-  }
-
-  @Override
-  public void releasePermits(int permits) {
-    throw new UnsupportedOperationException("Permit refills are not supported in " +
-        RateBasedLimiter.class.getSimpleName());
   }
 
   @Override

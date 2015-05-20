@@ -17,14 +17,13 @@ package gobblin.runtime;
  *
  * <p>
  *   {@link #acquirePermits(int)} will return {@code false} once if there's not enough permits
- *   available to satisfy the request. Permit refills are not supported in this implementation
- *   and {@link #releasePermits(int)} is a no-op.
+ *   available to satisfy the request. Permit refills are not supported in this implementation.
  * </p>
  * </p>
  *
  * @author ynli
  */
-public class CountBasedLimiter implements Limiter {
+public class CountBasedLimiter extends NonRefillableLimiter {
 
   private final long countLimit;
   private long count;
@@ -48,12 +47,6 @@ public class CountBasedLimiter implements Limiter {
       return true;
     }
     return false;
-  }
-
-  @Override
-  public void releasePermits(int permits) {
-    throw new UnsupportedOperationException("Permit refills are not supported in " +
-        CountBasedLimiter.class.getSimpleName());
   }
 
   @Override
