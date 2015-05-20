@@ -17,8 +17,8 @@ import java.io.IOException;
 import java.util.Set;
 
 import com.google.common.collect.Sets;
-import com.google.gson.Gson;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 
 import gobblin.source.extractor.Watermark;
 import gobblin.source.workunit.Extract;
@@ -43,7 +43,7 @@ public class WorkUnitState extends State {
 
   private Watermark actualHighWatermark;
 
-  private static final Gson GSON = new Gson();
+  private static final JsonParser JSON_PARSER = new JsonParser();
 
   /**
    * Runtime state of the {@link WorkUnit}.
@@ -110,7 +110,7 @@ public class WorkUnitState extends State {
    * @return a {@link JsonElement} representing the actual high {@link Watermark}.
    */
   public JsonElement getActualHighWatermark() {
-    return GSON.toJsonTree(getProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY));
+    return JSON_PARSER.parse(getProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY));
   }
 
   /**
@@ -145,7 +145,7 @@ public class WorkUnitState extends State {
      * internally in via a configuration key. Once a state-store migration can be done, the {@link Watermark} can be
      * stored as Binary JSON.
      */
-    setProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY, this.actualHighWatermark.toJson());
+    setProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY, this.actualHighWatermark.toJson().toString());
   }
 
   /**

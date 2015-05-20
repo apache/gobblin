@@ -19,8 +19,8 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.Watermark;
@@ -41,7 +41,7 @@ public class WorkUnit extends State {
 
   private Extract extract;
 
-  private static final Gson GSON = new Gson();
+  private static final JsonParser JSON_PARSER = new JsonParser();
 
   /**
    * Default constructor.
@@ -87,7 +87,7 @@ public class WorkUnit extends State {
      * {@link WatermarkInterval} is serialized / de-serialized. Once a state-store migration can be done, the
      * {@link Watermark} can be stored as Binary JSON.
      */
-    setProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY, watermarkInterval.toJson());
+    setProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY, watermarkInterval.toJson().toString());
   }
 
   /**
@@ -115,7 +115,7 @@ public class WorkUnit extends State {
    * @return a {@link JsonElement} representing the low {@link Watermark}.
    */
   public JsonElement getLowWatermark() {
-    return GSON.toJsonTree(getProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY)).getAsJsonObject()
+    return JSON_PARSER.parse(getProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY)).getAsJsonObject()
         .get(WatermarkInterval.LOW_WATERMARK_TO_JSON_KEY);
   }
 
@@ -125,7 +125,7 @@ public class WorkUnit extends State {
    * @return a {@link JsonElement} representing the expected high {@link Watermark}.
    */
   public JsonElement getExpectedHighWatermark() {
-    return GSON.toJsonTree(getProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY)).getAsJsonObject()
+    return JSON_PARSER.parse(getProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY)).getAsJsonObject()
         .get(WatermarkInterval.EXPECTED_HIGH_WATERMARK_TO_JSON_KEY);
   }
 
