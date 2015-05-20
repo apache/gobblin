@@ -15,23 +15,28 @@ import gobblin.source.extractor.resultset.RecordSetList;
 import gobblin.source.extractor.watermark.WatermarkType;
 
 import java.io.IOException;
+import java.sql.Blob;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.lang.StringUtils;
-
+import org.apache.commons.codec.binary.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -914,15 +919,31 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     try {
       final ResultSetMetaData resultsetMetadata = resultset.getMetaData();
       final int columnCount = resultsetMetadata.getColumnCount();
-
+      
       int batchSize = this.workUnit.getPropAsInt(ConfigurationKeys.SOURCE_QUERYBASED_FETCH_SIZE, 0);
       batchSize = (batchSize == 0 ? ConfigurationKeys.DEFAULT_SOURCE_FETCH_SIZE : batchSize);
 
       int recordCount = 0;
+      Set<String> blobDataNames = this.getBlobTypeColumnNames(resultsetMetadata);
       while (resultset.next()) {
+
         List<String> record = new ArrayList<String>();
         for (int i = 1; i <= columnCount; i++) {
-          record.add(resultset.getString(i));
+          /*
+           * For Blob data, need to get the bytes and use base64 encoding to encode the byte[]
+           * When reading from the String, need to use base64 decoder
+           *     String tmp = ... ( get the String value )   
+           *     byte[] foo = Base64.decodeBase64(tmp);
+           */
+          if (blobDataNames.contains(resultsetMetadata.getColumnName(i))){
+            Blob logBlob = resultset.getBlob(i);
+            byte[] ba= logBlob.getBytes(1L, (int)(logBlob.length()));
+            String baString = Base64.encodeBase64String(ba);
+            record.add(baString);
+          }
+          else{
+            record.add(resultset.getString(i));
+          }
         }
 
         JsonObject jsonObject = Utils.csvToJsonObject(this.getHeaderRecord(), record, columnCount);
@@ -942,6 +963,21 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     } catch (Exception e) {
       throw new DataRecordException("Failed to get records from MySql; error - " + e.getMessage(), e);
     }
+  }
+  
+  private Set<String> getBlobTypeColumnNames(ResultSetMetaData resultsetMetadata) throws SQLException{
+    Set<String> result = new HashSet<String>();
+    int columnCount = resultsetMetadata.getColumnCount();
+    for (int i = 1; i <= columnCount; i++) {
+      // for Mysql Longblob and blob type, java type is Types.LONGVARBINARY
+      // for Mysql binary type, java type is Types.Binary
+      if (resultsetMetadata.getColumnType(i) == Types.LONGVARBINARY ||
+          resultsetMetadata.getColumnType(i) == Types.BINARY){
+        // the actual value will be set later
+        result.add(resultsetMetadata.getColumnName(i));
+      }
+    }
+    return result;
   }
 
   protected static Command getCommand(String query, JdbcCommandType commandType) {
