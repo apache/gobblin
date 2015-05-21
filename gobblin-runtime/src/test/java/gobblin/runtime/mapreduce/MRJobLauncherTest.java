@@ -32,9 +32,10 @@ import org.testng.annotations.Test;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
+import gobblin.runtime.BaseLimiterType;
+import gobblin.runtime.DefaultLimiterFactory;
 import gobblin.runtime.JobLauncherTestHelper;
 import gobblin.runtime.JobState;
-import gobblin.runtime.Limiter;
 import gobblin.writer.Destination;
 import gobblin.writer.WriterOutputFormat;
 
@@ -89,8 +90,8 @@ public class MRJobLauncherTest extends BMNGRunner {
   public void testLaunchJobWithPullLimit() throws Exception {
     Properties jobProps = loadJobProps();
     jobProps.setProperty(ConfigurationKeys.EXTRACT_LIMIT_ENABLED_KEY, Boolean.TRUE.toString());
-    jobProps.setProperty(ConfigurationKeys.EXTRACT_LIMIT_TYPE_KEY, Limiter.Type.COUNT_BASED.toString());
-    jobProps.setProperty(ConfigurationKeys.EXTRACT_LIMIT_COUNT_LIMIT_KEY, "10");
+    jobProps.setProperty(DefaultLimiterFactory.EXTRACT_LIMIT_TYPE_KEY, BaseLimiterType.COUNT_BASED.toString());
+    jobProps.setProperty(DefaultLimiterFactory.EXTRACT_LIMIT_COUNT_LIMIT_KEY, "10");
     this.jobLauncherTestHelper.runTestWithPullLimit(jobProps);
   }
 

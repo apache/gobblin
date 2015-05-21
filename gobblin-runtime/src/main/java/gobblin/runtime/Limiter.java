@@ -11,6 +11,8 @@
 
 package gobblin.runtime;
 
+import java.io.Closeable;
+
 
 /**
  * An interface for classes that implement some logic limiting on the occurrences of some events,
@@ -19,64 +21,6 @@ package gobblin.runtime;
  * @author ynli
  */
 public interface Limiter {
-
-  /**
-   * Supported types of {@link Limiter}s.
-   */
-  public enum Type {
-    /**
-     * For {@link RateBasedLimiter}.
-     */
-    RATE_BASED("rate"),
-
-    /**
-     * For {@link TimeBasedLimiter}.
-     */
-    TIME_BASED("time"),
-
-    /**
-     * For {@link CountBasedLimiter}.
-     */
-    COUNT_BASED("count"),
-
-    /**
-     * For {@link PoolBasedLimiter}.
-     */
-    POOL_BASED("pool");
-
-    private final String name;
-
-    Type(String name) {
-      this.name = name;
-    }
-
-    @Override
-    public String toString() {
-      return this.name;
-    }
-
-    /**
-     * Get a {@link Limiter.Type} for the given name.
-     *
-     * @param name the given name
-     * @return a {@link Limiter.Type} for the given name
-     */
-    public static Type forName(String name) {
-      if (name.equalsIgnoreCase(RATE_BASED.name)) {
-        return RATE_BASED;
-      }
-      if (name.equalsIgnoreCase(TIME_BASED.name)) {
-        return TIME_BASED;
-      }
-      if (name.equalsIgnoreCase(COUNT_BASED.name)) {
-        return COUNT_BASED;
-      }
-      if (name.equalsIgnoreCase(POOL_BASED.name)) {
-        return POOL_BASED;
-      }
-      throw new IllegalArgumentException("No Limiter implementation available for name: " + name);
-    }
-  }
 
   /**
    * Start the {@link Limiter}.
@@ -94,21 +38,12 @@ public interface Limiter {
    * </p>
    *
    * @param permits number of permits to get
-   * @return {@code true} if the permits have been acquired successfully or {@code false} otherwise
+   * @return a {@link Closeable} instance if the requested permits have been successfully acquired,
+   *         or {@code null} if otherwise; in the former case, calling {@link Closeable#close()} on
+   *         the returned {@link Closeable} instance will release the acquired permits.
    * @throws InterruptedException if the caller is interrupted while being blocked
    */
-  public boolean acquirePermits(int permits) throws InterruptedException;
-
-  /**
-   * Release a given number of permits.
-   *
-   * <p>
-   *   This operation may or may not be supported, depending on the implementations.
-   * </p>
-   *
-   * @param permits number of permits to release
-   */
-  public void releasePermits(int permits);
+  public Closeable acquirePermits(long permits) throws InterruptedException;
 
   /**
    * Stop the {@link Limiter}.

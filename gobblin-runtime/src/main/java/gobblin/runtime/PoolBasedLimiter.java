@@ -11,27 +11,33 @@
 
 package gobblin.runtime;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.concurrent.Semaphore;
+
+import com.google.common.primitives.Ints;
 
 
 /**
  * An implementation of {@link Limiter} that ony allows permits to be acquired from a pool.
  *
  * <p>
- *   This implementation uses a {@link Semaphore} as a permit pool. {@link #acquirePermits(int)}
+ *   This implementation uses a {@link Semaphore} as a permit pool. {@link #acquirePermits(long)}
  *   is blocking and will always return {@link true} after the permits are successfully acquired
- *   (probably after being blocked for some amount of time). Permit refills are supported by
- *   {@link #releasePermits(int)}.
+ *   (probably after being blocked for some amount of time). Permit refills are supported by this
+ *   implementation using {@link Semaphore#release(int)}. Also {@link #acquirePermits(long)} only
+ *   accepts input arguments that can be safely casted to an integer bounded by
+ *   {@link Integer#MAX_VALUE}.
  * </p>
  *
  * @author ynli
  */
 public class PoolBasedLimiter implements Limiter {
 
-  private final Semaphore permits;
+  private final Semaphore permitPool;
 
   public PoolBasedLimiter(int poolSize) {
-    this.permits = new Semaphore(poolSize);
+    this.permitPool = new Semaphore(poolSize);
   }
 
   @Override
@@ -40,19 +46,32 @@ public class PoolBasedLimiter implements Limiter {
   }
 
   @Override
-  public boolean acquirePermits(int permits)
+  public Closeable acquirePermits(long permits)
       throws InterruptedException {
-    this.permits.acquire(permits);
-    return true;
-  }
-
-  @Override
-  public void releasePermits(int permits) {
-    this.permits.release(permits);
+    int permitsToAcquire = Ints.checkedCast(permits);
+    this.permitPool.acquire(permitsToAcquire);
+    return new PoolPermitCloseable(this.permitPool, permitsToAcquire);
   }
 
   @Override
   public void stop() {
     // Nothing to do
+  }
+
+  private static class PoolPermitCloseable implements Closeable {
+
+    private final Semaphore permitPool;
+    private final int permits;
+
+    public PoolPermitCloseable(Semaphore permitPool, int permits) {
+      this.permitPool = permitPool;
+      this.permits = permits;
+    }
+
+    @Override
+    public void close()
+        throws IOException {
+      this.permitPool.release(this.permits);
+    }
   }
 }

@@ -106,7 +106,7 @@ public class TaskContext {
       boolean throttlingEnabled = this.taskState.getPropAsBoolean(
           ConfigurationKeys.EXTRACT_LIMIT_ENABLED_KEY, ConfigurationKeys.DEFAULT_EXTRACT_LIMIT_ENABLED);
       if (throttlingEnabled) {
-        Limiter limiter = LimiterFactory.newLimiter(this.taskState);
+        Limiter limiter = DefaultLimiterFactory.newLimiter(this.taskState);
         if (!(limiter instanceof NonRefillableLimiter)) {
           throw new IllegalArgumentException(
               "The Limiter used with an Extractor should be an instance of " + NonRefillableLimiter.class

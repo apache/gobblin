@@ -11,6 +11,7 @@
 
 package gobblin.runtime;
 
+import java.io.Closeable;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -33,7 +34,7 @@ import gobblin.util.ExecutorsUtils;
  * </p>
  *
  * <p>
- *   {@link #acquirePermits(int)} will return {@code false} once the time limit is reached. Permit
+ *   {@link #acquirePermits(long)} will return {@code false} once the time limit is reached. Permit
  *   refills are not supported in this implementation.
  * </p>
  *
@@ -72,8 +73,8 @@ public class TimeBasedLimiter extends NonRefillableLimiter {
   }
 
   @Override
-  public boolean acquirePermits(int permits) throws InterruptedException {
-    return this.canIssuePermit;
+  public Closeable acquirePermits(long permits) throws InterruptedException {
+    return this.canIssuePermit ? NO_OP_CLOSEABLE : null;
   }
 
   @Override

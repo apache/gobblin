@@ -13,6 +13,8 @@ package gobblin.runtime;
 
 import java.io.IOException;
 
+import com.google.common.io.Closer;
+
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 
@@ -53,14 +55,19 @@ public class LimitingExtractorDecorator<S, D> implements Extractor<S, D> {
   @Override
   public D readRecord(@Deprecated D reuse)
       throws DataRecordException, IOException {
+    Closer closer = Closer.create();
     try {
-      if (this.limiter.acquirePermits(1)) {
+      if (closer.register(this.limiter.acquirePermits(1)) != null) {
         return this.extractor.readRecord(reuse);
       }
       return null;
     } catch (InterruptedException ie) {
       Thread.currentThread().interrupt();
       throw new IOException("Interrupted while trying to acquire the next permit", ie);
+    } catch (Throwable t) {
+      throw closer.rethrow(t);
+    } finally {
+      closer.close();
     }
   }
 

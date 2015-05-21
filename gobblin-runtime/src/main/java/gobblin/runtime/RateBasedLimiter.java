@@ -11,8 +11,10 @@
 
 package gobblin.runtime;
 
+import java.io.Closeable;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.RateLimiter;
 
 
@@ -21,9 +23,10 @@ import com.google.common.util.concurrent.RateLimiter;
  * Guava's {@link RateLimiter}.
  *
  * <p>
- *   {@link #acquirePermits(int)} is blocking and will always return {@link true} after the permits
+ *   {@link #acquirePermits(long)} is blocking and will always return {@link true} after the permits
  *   are successfully acquired (probably after being blocked for some amount of time). Permit refills
- *   are not supported in this implementation.
+ *   are not supported in this implementation. Also {@link #acquirePermits(long)} only accepts input
+ *   arguments that can be safely casted to an integer bounded by {@link Integer#MAX_VALUE}.
  * </p>
  *
  * @author ynli
@@ -46,9 +49,9 @@ public class RateBasedLimiter extends NonRefillableLimiter {
   }
 
   @Override
-  public boolean acquirePermits(int permits) throws InterruptedException {
-    this.rateLimiter.acquire(permits);
-    return true;
+  public Closeable acquirePermits(long permits) throws InterruptedException {
+    this.rateLimiter.acquire(Ints.checkedCast(permits));
+    return NO_OP_CLOSEABLE;
   }
 
   @Override

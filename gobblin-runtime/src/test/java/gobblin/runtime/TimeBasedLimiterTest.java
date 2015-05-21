@@ -37,13 +37,13 @@ public class TimeBasedLimiterTest {
 
   @Test
   public void testThrottling() throws InterruptedException {
-    Assert.assertTrue(this.limiter.acquirePermits(1));
+    Assert.assertTrue(this.limiter.acquirePermits(1) != null);
     Thread.sleep(1000);
-    Assert.assertTrue(this.limiter.acquirePermits(1));
+    Assert.assertTrue(this.limiter.acquirePermits(1) != null);
     Thread.sleep(1000);
-    Assert.assertTrue(this.limiter.acquirePermits(1));
+    Assert.assertTrue(this.limiter.acquirePermits(1) != null);
     Thread.sleep(1100);
-    Assert.assertFalse(this.limiter.acquirePermits(1));
+    Assert.assertTrue(this.limiter.acquirePermits(1) == null);
   }
 
   @AfterClass

@@ -11,16 +11,28 @@
 
 package gobblin.runtime;
 
+import java.io.Closeable;
+import java.io.IOException;
+
+
 /**
- * A type of {@link Limiter}s that do not support permit refills.
+ * A type of {@link Limiter}s that do not support permit refills by returning a no-op
+ * {@link Closeable} in {@link #acquirePermits(long)}.
  *
  * @author ynli
  */
 public abstract class NonRefillableLimiter implements Limiter {
 
+  protected static final Closeable NO_OP_CLOSEABLE = new Closeable() {
+    @Override
+    public void close()
+        throws IOException {
+      // Nothing to do
+    }
+  };
+
   @Override
-  public void releasePermits(int permits) {
-    throw new UnsupportedOperationException(
-        "Permit refills are not supported by a " + NonRefillableLimiter.class.getSimpleName());
+  public Closeable acquirePermits(long permits) throws InterruptedException {
+    return NO_OP_CLOSEABLE;
   }
 }

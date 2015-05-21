@@ -46,7 +46,7 @@ public class RateBasedLimiterTest {
   public void testThrottling() throws InterruptedException {
     Meter meter = new Meter();
     for (int i = 0; i < 1000; i++) {
-      Assert.assertTrue(this.limiter.acquirePermits(1));
+      Assert.assertTrue(this.limiter.acquirePermits(1) != null);
       meter.mark();
       Thread.sleep((RANDOM.nextInt() & Integer.MAX_VALUE) % 10);
     }

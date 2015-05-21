@@ -18,9 +18,9 @@ public class CountBasedLimiterTest {
     limiter.start();
 
     for (int i = 0; i < 10; i++) {
-      Assert.assertTrue(limiter.acquirePermits(1));
+      Assert.assertTrue(limiter.acquirePermits(1) != null);
     }
-    Assert.assertFalse(limiter.acquirePermits(1));
+    Assert.assertTrue(limiter.acquirePermits(1) == null);
 
     limiter.stop();
   }
