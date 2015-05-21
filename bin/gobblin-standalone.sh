@@ -137,6 +137,7 @@ start() {
   COMMAND+="-cp $CLASSPATH "
   COMMAND+="-Dorg.quartz.properties=$FWDIR_CONF/quartz.properties "
   COMMAND+="gobblin.scheduler.SchedulerDaemon $CONFIG_FILE"
+  COMMAND+="${JVM_FLAGS} "
   echo "Running command:"
   echo "$COMMAND"
   nohup $COMMAND & echo $! > $PID
