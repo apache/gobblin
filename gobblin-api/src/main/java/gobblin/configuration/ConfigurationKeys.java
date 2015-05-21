@@ -71,14 +71,10 @@ public class ConfigurationKeys {
    */
   public static final String TASK_EXECUTOR_THREADPOOL_SIZE_KEY = "taskexecutor.threadpool.size";
   public static final String TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE_KEY = "tasktracker.threadpool.coresize";
-  public static final String TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE_KEY = "tasktracker.threadpool.maxsize";
   public static final String TASK_RETRY_THREAD_POOL_CORE_SIZE_KEY = "taskretry.threadpool.coresize";
-  public static final String TASK_RETRY_THREAD_POOL_MAX_SIZE_KEY = "taskretry.threadpool.maxsize";
   public static final int DEFAULT_TASK_EXECUTOR_THREADPOOL_SIZE = 2;
   public static final int DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE = 1;
-  public static final int DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE = 2;
   public static final int DEFAULT_TASK_RETRY_THREAD_POOL_CORE_SIZE = 1;
-  public static final int DEFAULT_TASK_RETRY_THREAD_POOL_MAX_SIZE = 2;
 
   /**
    * Common job configuration properties.
@@ -384,15 +380,6 @@ public class ConfigurationKeys {
   public static final String METRICS_KAFKA_TOPIC = "metrics.reporting.kafka.topic";
   public static final String METRICS_REPORT_INTERVAL_KEY = "metrics.report.interval";
   public static final String DEFAULT_METRICS_REPORT_INTERVAL = "30000";
-
-  /**
-   * FluxDB metrics store configuration properties.
-   */
-  public static final String FLUXDB_URL_KEY = "fluxdb.url";
-  public static final String FLUXDB_USER_NAME_KEY = "fluxdb.user.name";
-  public static final String DEFAULT_FLUXDB_USER_NAME = "root";
-  public static final String FLUXDB_USER_PASSWORD_KEY = "fluxdb.user.password";
-  public static final String DEFAULT_FLUXDB_USER_PASSWORD = "root";
 
   /**
    * Rest server configuration properties.
