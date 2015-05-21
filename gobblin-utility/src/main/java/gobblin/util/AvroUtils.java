@@ -11,12 +11,8 @@
 
 package gobblin.util;
 
-import static org.apache.avro.SchemaCompatibility.checkReaderWriterCompatibility;
-import static org.apache.avro.SchemaCompatibility.SchemaCompatibilityType.COMPATIBLE;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -40,7 +36,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.PathFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +45,10 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
+import com.google.common.primitives.Longs;
+
+import static org.apache.avro.SchemaCompatibility.checkReaderWriterCompatibility;
+import static org.apache.avro.SchemaCompatibility.SchemaCompatibilityType.COMPATIBLE;
 
 
 /**
@@ -184,13 +183,19 @@ public class AvroUtils {
     Closer closer = Closer.create();
     try {
       List<FileStatus> files = getDirectorySchemaHelper(directory, FileSystem.get(conf));
-      FileStatus file = latest ? files.get(0) : files.get(files.size() - 1);
-      LOG.info("Path to get the avro schema: " + file);
-      FsInput fi = new FsInput(file.getPath(), conf);
-      GenericDatumReader<GenericRecord> genReader = new GenericDatumReader<GenericRecord>();
-      schema = new DataFileReader<GenericRecord>(fi, genReader).getSchema();
-    } catch (IOException e) {
-      throw new IOException("Cannot get the schema for directory " + directory);
+      if (files == null || files.size() == 0) {
+        LOG.warn("There is no previous avro file in the directory: " + directory);
+      } else {
+        FileStatus file = latest ? files.get(0) : files.get(files.size() - 1);
+        LOG.info("Path to get the avro schema: " + file);
+        FsInput fi = new FsInput(file.getPath(), conf);
+        GenericDatumReader<GenericRecord> genReader = new GenericDatumReader<GenericRecord>();
+        schema = new DataFileReader<GenericRecord>(fi, genReader).getSchema();
+      }
+    } catch (IOException ioe) {
+      throw new IOException("Cannot get the schema for directory " + directory, ioe);
+    } catch (Throwable t) {
+      throw closer.rethrow(t);
     } finally {
       closer.close();
     }
@@ -198,15 +203,14 @@ public class AvroUtils {
   }
 
   private static List<FileStatus> getDirectorySchemaHelper(Path directory, FileSystem fs) throws IOException {
-    List<FileStatus> files = new ArrayList<FileStatus>();
+    List<FileStatus> files = Lists.newArrayList();
     if (fs.exists(directory)) {
-      //files = Arrays.asList(fs.listStatus(directory, getAvroFileFilter()));
       getAllNestedAvroFiles(fs.getFileStatus(directory), files, fs);
       if (files.size() > 0) {
         Collections.sort(files, new Comparator<FileStatus>() {
           @Override
           public int compare(FileStatus file1, FileStatus file2) {
-            return Long.valueOf(file2.getModificationTime()).compareTo(Long.valueOf(file1.getModificationTime()));
+            return Longs.compare(Long.valueOf(file2.getModificationTime()), Long.valueOf(file1.getModificationTime()));
           }
         });
       }
@@ -216,8 +220,11 @@ public class AvroUtils {
 
   private static void getAllNestedAvroFiles(FileStatus dir, List<FileStatus> files, FileSystem fs) throws IOException {
     if (dir.isDir()) {
-      for (FileStatus f : fs.listStatus(dir.getPath())) {
-        getAllNestedAvroFiles(f, files, fs);
+      FileStatus[] filesInDir = fs.listStatus(dir.getPath());
+      if (filesInDir != null) {
+        for (FileStatus f : filesInDir) {
+          getAllNestedAvroFiles(f, files, fs);
+        }
       }
     } else if (dir.getPath().getName().endsWith(AVRO_SUFFIX)) {
       files.add(dir);
@@ -230,21 +237,27 @@ public class AvroUtils {
    * @param newSchema
    * @return schema that contains all the fields in both old and new schema.
    */
-  public static Schema nullifyFiledsForSchemaMerge(Schema oldSchema, Schema newSchema) {
+  public static Schema nullifyFieldsForSchemaMerge(Schema oldSchema, Schema newSchema) {
     if (oldSchema == null) {
+      LOG.warn("No previous schema available, use the new schema instead.");
       return newSchema;
     }
 
-    List<Field> combinedFields = new ArrayList<Field>();
+    if (!(oldSchema.getType().equals(Type.RECORD) && newSchema.getType().equals(Type.RECORD))) {
+      LOG.warn("Both previous schema and new schema need to be record type. Quit merging schema.");
+      return newSchema;
+    }
+
+    List<Field> combinedFields = Lists.newArrayList();
     for (Field newFld : newSchema.getFields()) {
       combinedFields.add(new Field(newFld.name(), newFld.schema(), newFld.doc(), newFld.defaultValue()));
     }
 
     for (Field oldFld : oldSchema.getFields()) {
       if (newSchema.getField(oldFld.name()) == null) {
+        List<Schema> union = Lists.newArrayList();
         Schema oldFldSchema = oldFld.schema();
         if (oldFldSchema.getType().equals(Type.UNION)) {
-          List<Schema> union = new ArrayList<Schema>();
           union.add(Schema.create(Type.NULL));
           for (Schema itemInUion : oldFldSchema.getTypes()) {
             if (!itemInUion.getType().equals(Type.NULL)) {
@@ -254,7 +267,6 @@ public class AvroUtils {
           Schema newFldSchema = Schema.createUnion(union);
           combinedFields.add(new Field(oldFld.name(), newFldSchema, oldFld.doc(), oldFld.defaultValue()));
         } else {
-          List<Schema> union = new ArrayList<Schema>();
           union.add(Schema.create(Type.NULL));
           union.add(oldFldSchema);
           Schema newFldSchema = Schema.createUnion(union);
@@ -267,21 +279,5 @@ public class AvroUtils {
         Schema.createRecord(newSchema.getName(), newSchema.getDoc(), newSchema.getNamespace(), newSchema.isError());
     mergedSchema.setFields(combinedFields);
     return mergedSchema;
-  }
-
-  /**
-   * This method is to filter out the .avro files that need to be processed.
-   * @return pathFilter
-   */
-  protected static PathFilter getAvroFileFilter() {
-    return new PathFilter() {
-      @Override
-      public boolean accept(Path path) {
-        if (path.getName().endsWith(AVRO_SUFFIX)) {
-          return true;
-        }
-        return false;
-      }
-    };
   }
 }

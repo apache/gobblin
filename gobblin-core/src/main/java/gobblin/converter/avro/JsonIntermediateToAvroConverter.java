@@ -11,6 +11,7 @@
 
 package gobblin.converter.avro;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -51,6 +52,11 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
   private Map<String, JsonElementConversionFactory.JsonElementConverter> converters =
       new HashMap<String, JsonElementConversionFactory.JsonElementConverter>();
   private static final Logger LOG = LoggerFactory.getLogger(JsonIntermediateToAvroConverter.class);
+  private static final String CONVERTER_AVRO_NULLIFY_FIELDS_ENABLED = "converter.avro.nullify.fields.enabled";
+  private static final boolean DEFAULT_CONVERTER_AVRO_NULLIFY_FIELDS_ENABLED = Boolean.FALSE;
+  private static final String CONVERTER_AVRO_NULLIFY_FIELDS_ORIGINAL_SCHEMA_PATH =
+      "converter.avro.nullify.fields.original.schema.path";
+
   private long numFailedConversion = 0;
 
   @Override
@@ -84,8 +90,7 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
         Schema.createRecord(workUnit.getExtract().getTable(), "", workUnit.getExtract().getNamespace(), false);
     avroSchema.setFields(fields);
 
-    if (workUnit.getPropAsBoolean(ConfigurationKeys.CONVERTER_AVRO_NULLIFY_FIELDS_ENABLED,
-        ConfigurationKeys.DEFAULT_CONVERTER_AVRO_NULLIFY_FIELDS_ENABLED)) {
+    if (workUnit.getPropAsBoolean(CONVERTER_AVRO_NULLIFY_FIELDS_ENABLED, DEFAULT_CONVERTER_AVRO_NULLIFY_FIELDS_ENABLED)) {
       return this.generateSchemaWithNullifiedField(workUnit, avroSchema);
     }
 
@@ -127,20 +132,20 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
    * @return merged schema with previous fields nullified.
    * @throws SchemaConversionException
    */
-  protected Schema generateSchemaWithNullifiedField(WorkUnitState workUnitState, Schema currentAvroSchema)
-      throws SchemaConversionException {
+  protected Schema generateSchemaWithNullifiedField(WorkUnitState workUnitState, Schema currentAvroSchema) {
     Configuration conf = new Configuration();
     for (String key : workUnitState.getPropertyNames()) {
       conf.set(key, workUnitState.getProp(key));
     }
     // Get the original schema for merging.
     Path originalSchemaPath = null;
-    if (workUnitState.contains(ConfigurationKeys.CONVERTER_AVRO_NULLIFY_FIELDS_ORIGINAL_SCHEMA_PATH)) {
-      originalSchemaPath =
-          new Path(workUnitState.getProp(ConfigurationKeys.CONVERTER_AVRO_NULLIFY_FIELDS_ORIGINAL_SCHEMA_PATH));
+    if (workUnitState.contains(CONVERTER_AVRO_NULLIFY_FIELDS_ORIGINAL_SCHEMA_PATH)) {
+      originalSchemaPath = new Path(workUnitState.getProp(CONVERTER_AVRO_NULLIFY_FIELDS_ORIGINAL_SCHEMA_PATH));
     } else {
       // If the path to get the original schema is not specified in the configuration,
       // adopt the best-try policy to search adjacent output folders.
+      LOG.info("Property " + CONVERTER_AVRO_NULLIFY_FIELDS_ORIGINAL_SCHEMA_PATH
+          + "is not specified. Trying to get the orignal schema from previous avro files.");
       originalSchemaPath =
           WriterUtils.getDataPublisherFinalDir(workUnitState,
               workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1),
@@ -148,10 +153,11 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
     }
     try {
       Schema prevSchema = AvroUtils.getDirectorySchema(originalSchemaPath, conf, false);
-      Schema mergedSchema = AvroUtils.nullifyFiledsForSchemaMerge(prevSchema, currentAvroSchema);
+      Schema mergedSchema = AvroUtils.nullifyFieldsForSchemaMerge(prevSchema, currentAvroSchema);
       return mergedSchema;
-    } catch (Exception e) {
-      throw new SchemaConversionException("Unable to nullify fields in the new avro schema.");
+    } catch (IOException ioe) {
+      LOG.error("Unable to nullify fields. Will retain the current avro schema.", ioe);
+      return currentAvroSchema;
     }
   }
 }
