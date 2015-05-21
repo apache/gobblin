@@ -134,6 +134,7 @@ start() {
   COMMAND+="-Xloggc:$FWDIR/logs/gobblin-gc.log "
   COMMAND+="-Dgobblin.logs.dir=$FWDIR/logs "
   COMMAND+="-Dlog4j.configuration=file://$FWDIR_CONF/log4j-standalone.xml "
+  COMMAND+="$JVM_FlAGS "
   COMMAND+="-cp $CLASSPATH "
   COMMAND+="-Dorg.quartz.properties=$FWDIR_CONF/quartz.properties "
   COMMAND+="gobblin.scheduler.SchedulerDaemon $CONFIG_FILE"
