@@ -166,6 +166,7 @@ public class SimpleDataWriter extends BaseDataWriter<byte[]> {
    */
   @Override
   public void close() throws IOException {
+    LOG.info("Closing the data writer after writing " + this.recordsWritten() + " records");
     if (outputStream != null && !this.closed) {
       outputStream.flush();
       outputStream.close();
