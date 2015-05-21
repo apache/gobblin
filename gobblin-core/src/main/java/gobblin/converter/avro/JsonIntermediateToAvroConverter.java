@@ -16,15 +16,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
-
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.codehaus.jackson.node.JsonNodeFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -37,6 +37,8 @@ import gobblin.converter.EmptyIterable;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
 import gobblin.converter.ToAvroConverterBase;
+import gobblin.util.AvroUtils;
+import gobblin.util.WriterUtils;
 
 
 /**
@@ -52,8 +54,7 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
   private long numFailedConversion = 0;
 
   @Override
-  public Schema convertSchema(JsonArray schema, WorkUnitState workUnit)
-      throws SchemaConversionException {
+  public Schema convertSchema(JsonArray schema, WorkUnitState workUnit) throws SchemaConversionException {
     List<Schema.Field> fields = new ArrayList<Schema.Field>();
 
     for (JsonElement elem : schema) {
@@ -65,9 +66,9 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
       Schema fldSchema;
 
       try {
-        JsonElementConversionFactory.JsonElementConverter converter = JsonElementConversionFactory
-            .getConvertor(columnName, map.get("dataType").getAsJsonObject().get("type").getAsString(), map, workUnit,
-                nullable);
+        JsonElementConversionFactory.JsonElementConverter converter =
+            JsonElementConversionFactory.getConvertor(columnName, map.get("dataType").getAsJsonObject().get("type")
+                .getAsString(), map, workUnit, nullable);
         converters.put(columnName, converter);
         fldSchema = converter.getSchema();
       } catch (UnsupportedDateTypeException e) {
@@ -83,6 +84,11 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
         Schema.createRecord(workUnit.getExtract().getTable(), "", workUnit.getExtract().getNamespace(), false);
     avroSchema.setFields(fields);
 
+    if (workUnit.getPropAsBoolean(ConfigurationKeys.CONVERTER_AVRO_NULLIFY_FIELDS_ENABLED,
+        ConfigurationKeys.DEFAULT_CONVERTER_AVRO_NULLIFY_FIELDS_ENABLED)) {
+      return this.generateSchemaWithNullifiedField(workUnit, avroSchema);
+    }
+
     return avroSchema;
   }
 
@@ -91,8 +97,9 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
       throws DataConversionException {
 
     GenericRecord avroRecord = new GenericData.Record(outputSchema);
-    long maxFailedConversions = workUnit.getPropAsLong(ConfigurationKeys.CONVERTER_AVRO_MAX_CONVERSION_FAILURES,
-        ConfigurationKeys.DEFAULT_CONVERTER_AVRO_MAX_CONVERSION_FAILURES);
+    long maxFailedConversions =
+        workUnit.getPropAsLong(ConfigurationKeys.CONVERTER_AVRO_MAX_CONVERSION_FAILURES,
+            ConfigurationKeys.DEFAULT_CONVERTER_AVRO_MAX_CONVERSION_FAILURES);
 
     for (Map.Entry<String, JsonElement> entry : inputRecord.entrySet()) {
       try {
@@ -103,13 +110,48 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
           LOG.error("Dropping record " + inputRecord + " because it cannot be converted to Avro", e);
           return new EmptyIterable<GenericRecord>();
         } else {
-          throw new DataConversionException(
-              "Unable to convert field:" + entry.getKey() + " for value:" + entry.getValue() + " for record: "
-                  + inputRecord, e);
+          throw new DataConversionException("Unable to convert field:" + entry.getKey() + " for value:"
+              + entry.getValue() + " for record: " + inputRecord, e);
         }
       }
     }
 
     return new SingleRecordIterable<GenericRecord>(avroRecord);
+  }
+
+  /**
+   * Generate new avro schema by nullifying fields that previously existed but not in the current schema.
+   *
+   * @param workUnitState work unit state
+   * @param currentAvroSchema current schema
+   * @return merged schema with previous fields nullified.
+   * @throws SchemaConversionException
+   */
+  protected Schema generateSchemaWithNullifiedField(WorkUnitState workUnitState, Schema currentAvroSchema)
+      throws SchemaConversionException {
+    Configuration conf = new Configuration();
+    for (String key : workUnitState.getPropertyNames()) {
+      conf.set(key, workUnitState.getProp(key));
+    }
+    // Get the original schema for merging.
+    Path originalSchemaPath = null;
+    if (workUnitState.contains(ConfigurationKeys.CONVERTER_AVRO_NULLIFY_FIELDS_ORIGINAL_SCHEMA_PATH)) {
+      originalSchemaPath =
+          new Path(workUnitState.getProp(ConfigurationKeys.CONVERTER_AVRO_NULLIFY_FIELDS_ORIGINAL_SCHEMA_PATH));
+    } else {
+      // If the path to get the original schema is not specified in the configuration,
+      // adopt the best-try policy to search adjacent output folders.
+      originalSchemaPath =
+          WriterUtils.getDataPublisherFinalDir(workUnitState,
+              workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1),
+              workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCH_ID_KEY, 0)).getParent();
+    }
+    try {
+      Schema prevSchema = AvroUtils.getDirectorySchema(originalSchemaPath, conf, false);
+      Schema mergedSchema = AvroUtils.nullifyFiledsForSchemaMerge(prevSchema, currentAvroSchema);
+      return mergedSchema;
+    } catch (Exception e) {
+      throw new SchemaConversionException("Unable to nullify fields in the new avro schema.");
+    }
   }
 }

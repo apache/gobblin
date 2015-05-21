@@ -11,11 +11,20 @@
 
 package gobblin.util;
 
+import static org.apache.avro.SchemaCompatibility.checkReaderWriterCompatibility;
+import static org.apache.avro.SchemaCompatibility.SchemaCompatibilityType.COMPATIBLE;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import org.apache.avro.Schema;
+import org.apache.avro.Schema.Field;
+import org.apache.avro.Schema.Type;
+import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericData.Record;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -26,6 +35,12 @@ import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.mapred.FsInput;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,9 +51,6 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
-import static org.apache.avro.SchemaCompatibility.*;
-import static org.apache.avro.SchemaCompatibility.SchemaCompatibilityType.*;
-
 
 /**
  * A Utils class for dealing with Avro objects
@@ -48,6 +60,8 @@ public class AvroUtils {
   private static final Logger LOG = LoggerFactory.getLogger(AvroUtils.class);
 
   private static final String FIELD_LOCATION_DELIMITER = ".";
+
+  private static final String AVRO_SUFFIX = ".avro";
 
   /**
    * Given a GenericRecord, this method will return the schema of the field specified by the path parameter. The
@@ -155,5 +169,119 @@ public class AvroUtils {
     } finally {
       closer.close();
     }
+  }
+
+  /**
+   * Get the latest avro schema for a directory
+   * @param directory the input dir that contains avro files
+   * @param conf configuration
+   * @param latest true to return latest schema, false to return oldest schema
+   * @return the latest/oldest schema in the directory
+   * @throws IOException
+   */
+  public static Schema getDirectorySchema(Path directory, Configuration conf, boolean latest) throws IOException {
+    Schema schema = null;
+    Closer closer = Closer.create();
+    try {
+      List<FileStatus> files = getDirectorySchemaHelper(directory, FileSystem.get(conf));
+      FileStatus file = latest ? files.get(0) : files.get(files.size() - 1);
+      LOG.info("Path to get the avro schema: " + file);
+      FsInput fi = new FsInput(file.getPath(), conf);
+      GenericDatumReader<GenericRecord> genReader = new GenericDatumReader<GenericRecord>();
+      schema = new DataFileReader<GenericRecord>(fi, genReader).getSchema();
+    } catch (IOException e) {
+      throw new IOException("Cannot get the schema for directory " + directory);
+    } finally {
+      closer.close();
+    }
+    return schema;
+  }
+
+  private static List<FileStatus> getDirectorySchemaHelper(Path directory, FileSystem fs) throws IOException {
+    List<FileStatus> files = new ArrayList<FileStatus>();
+    if (fs.exists(directory)) {
+      //files = Arrays.asList(fs.listStatus(directory, getAvroFileFilter()));
+      getAllNestedAvroFiles(fs.getFileStatus(directory), files, fs);
+      if (files.size() > 0) {
+        Collections.sort(files, new Comparator<FileStatus>() {
+          @Override
+          public int compare(FileStatus file1, FileStatus file2) {
+            return Long.valueOf(file2.getModificationTime()).compareTo(Long.valueOf(file1.getModificationTime()));
+          }
+        });
+      }
+    }
+    return files;
+  }
+
+  private static void getAllNestedAvroFiles(FileStatus dir, List<FileStatus> files, FileSystem fs) throws IOException {
+    if (dir.isDir()) {
+      for (FileStatus f : fs.listStatus(dir.getPath())) {
+        getAllNestedAvroFiles(f, files, fs);
+      }
+    } else if (dir.getPath().getName().endsWith(AVRO_SUFFIX)) {
+      files.add(dir);
+    }
+  }
+
+  /**
+   * Merge oldSchema and newSchame. Set a field default value to null, if this field exists in the old schema but not in the new schema.
+   * @param oldSchema
+   * @param newSchema
+   * @return schema that contains all the fields in both old and new schema.
+   */
+  public static Schema nullifyFiledsForSchemaMerge(Schema oldSchema, Schema newSchema) {
+    if (oldSchema == null) {
+      return newSchema;
+    }
+
+    List<Field> combinedFields = new ArrayList<Field>();
+    for (Field newFld : newSchema.getFields()) {
+      combinedFields.add(new Field(newFld.name(), newFld.schema(), newFld.doc(), newFld.defaultValue()));
+    }
+
+    for (Field oldFld : oldSchema.getFields()) {
+      if (newSchema.getField(oldFld.name()) == null) {
+        Schema oldFldSchema = oldFld.schema();
+        if (oldFldSchema.getType().equals(Type.UNION)) {
+          List<Schema> union = new ArrayList<Schema>();
+          union.add(Schema.create(Type.NULL));
+          for (Schema itemInUion : oldFldSchema.getTypes()) {
+            if (!itemInUion.getType().equals(Type.NULL)) {
+              union.add(itemInUion);
+            }
+          }
+          Schema newFldSchema = Schema.createUnion(union);
+          combinedFields.add(new Field(oldFld.name(), newFldSchema, oldFld.doc(), oldFld.defaultValue()));
+        } else {
+          List<Schema> union = new ArrayList<Schema>();
+          union.add(Schema.create(Type.NULL));
+          union.add(oldFldSchema);
+          Schema newFldSchema = Schema.createUnion(union);
+          combinedFields.add(new Field(oldFld.name(), newFldSchema, oldFld.doc(), oldFld.defaultValue()));
+        }
+      }
+    }
+
+    Schema mergedSchema =
+        Schema.createRecord(newSchema.getName(), newSchema.getDoc(), newSchema.getNamespace(), newSchema.isError());
+    mergedSchema.setFields(combinedFields);
+    return mergedSchema;
+  }
+
+  /**
+   * This method is to filter out the .avro files that need to be processed.
+   * @return pathFilter
+   */
+  protected static PathFilter getAvroFileFilter() {
+    return new PathFilter() {
+      @Override
+      public boolean accept(Path path) {
+        if (path.getName().endsWith(AVRO_SUFFIX)) {
+          return true;
+        }
+        return false;
+      }
+    };
   }
 }

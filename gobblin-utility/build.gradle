@@ -22,12 +22,15 @@ dependencies {
   compile externalDependency.slf4j
   compile externalDependency.avro
   compile externalDependency.jodaTime
+  compile externalDependency.jacksonCore
   if (project.hasProperty('useHadoop2')) {
+    compile externalDependency.avroMapredH2
     runtime externalDependency.hadoopCommon
     runtime externalDependency.hadoopClientCore
     runtime externalDependency.hadoopHdfs
     runtime externalDependency.hadoopAuth
   } else {
+    compile externalDependency.avroMapredH1
     runtime externalDependency.hadoop
   }
 
