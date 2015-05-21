@@ -203,6 +203,10 @@ public class ConfigurationKeys {
   public static final String WRITER_FILE_NAME = WRITER_PREFIX + ".file.name";
   public static final String WRITER_FILE_PATH = WRITER_PREFIX + ".file.path";
   public static final String WRITER_FILE_PATH_TYPE = WRITER_PREFIX + ".file.path.type";
+  public static final String WRITER_FILE_OWNER = WRITER_PREFIX + ".file.owner";
+  public static final String WRITER_FILE_GROUP = WRITER_PREFIX + ".file.group";
+  public static final String WRITER_FILE_REPLICATION_FACTOR = WRITER_PREFIX + ".file.replication.factor";
+  public static final String WRITER_FILE_PERMISSIONS = WRITER_PREFIX + ".file.permissions";
   public static final String WRITER_BUFFER_SIZE = WRITER_PREFIX + ".buffer.size";
   public static final String WRITER_PRESERVE_FILE_NAME = WRITER_PREFIX + ".preserve.file.name";
   public static final String WRITER_DEFLATE_LEVEL = WRITER_PREFIX + ".deflate.level";

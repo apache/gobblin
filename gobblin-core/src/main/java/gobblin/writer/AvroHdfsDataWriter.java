@@ -46,6 +46,7 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
 
   private static final Logger LOG = LoggerFactory.getLogger(AvroHdfsDataWriter.class);
 
+  private final State properties;
   private final FileSystem fs;
   private final Path stagingFile;
   private final Path outputFile;
@@ -97,7 +98,7 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
       conf.set(key, properties.getProp(key));
     }
     this.fs = FileSystem.get(URI.create(uri), conf);
-
+    this.properties = properties;
     this.stagingFile = new Path(stagingDir, fileName);
 
     // Deleting the staging file if it already exists, which can happen if the
@@ -164,6 +165,9 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
     if (!this.fs.rename(this.stagingFile, this.outputFile)) {
       throw new IOException("Failed to commit data from " + this.stagingFile + " to " + this.outputFile);
     }
+
+    // Setting the same HDFS properties as the original file
+    WriterUtils.setFileAttributesFromState(properties, fs, outputFile);
   }
 
   @Override
