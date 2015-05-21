@@ -136,8 +136,8 @@ start() {
   COMMAND+="-Dlog4j.configuration=file://$FWDIR_CONF/log4j-standalone.xml "
   COMMAND+="-cp $CLASSPATH "
   COMMAND+="-Dorg.quartz.properties=$FWDIR_CONF/quartz.properties "
-  COMMAND+="gobblin.scheduler.SchedulerDaemon $CONFIG_FILE"
   COMMAND+="${JVM_FLAGS} "
+  COMMAND+="gobblin.scheduler.SchedulerDaemon $CONFIG_FILE"
   echo "Running command:"
   echo "$COMMAND"
   nohup $COMMAND & echo $! > $PID
