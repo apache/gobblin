@@ -121,6 +121,7 @@ public class ConfigurationKeys {
   public static final String JOB_FAILURES_KEY = "job.failures";
   public static final String JOB_TRACKING_URL_KEY = "job.tracking.url";
   public static final String FORK_STATE_KEY = "fork.state";
+  public static final String METRIC_CONTEXT_NAME_KEY = "metrics.context.name";
 
   /**
    * Work unit related configuration properties.
@@ -133,6 +134,12 @@ public class ConfigurationKeys {
    */
   public static final String WORK_UNIT_WORKING_STATE_KEY = "workunit.working.state";
   public static final String WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK = "workunit.state.runtime.high.water.mark";
+  public static final String WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY = "workunit.state.actual.high.water.mark";
+
+  /**
+   * Watermark interval related configuration properties.
+   */
+  public static final String WATERMARK_INTERVAL_VALUE_KEY = "watermark.interval.value";
 
   /**
    * Extract related configuration properties.
@@ -197,6 +204,10 @@ public class ConfigurationKeys {
   public static final String WRITER_FILE_NAME = WRITER_PREFIX + ".file.name";
   public static final String WRITER_FILE_PATH = WRITER_PREFIX + ".file.path";
   public static final String WRITER_FILE_PATH_TYPE = WRITER_PREFIX + ".file.path.type";
+  public static final String WRITER_FILE_OWNER = WRITER_PREFIX + ".file.owner";
+  public static final String WRITER_FILE_GROUP = WRITER_PREFIX + ".file.group";
+  public static final String WRITER_FILE_REPLICATION_FACTOR = WRITER_PREFIX + ".file.replication.factor";
+  public static final String WRITER_FILE_PERMISSIONS = WRITER_PREFIX + ".file.permissions";
   public static final String WRITER_BUFFER_SIZE = WRITER_PREFIX + ".buffer.size";
   public static final String WRITER_PRESERVE_FILE_NAME = WRITER_PREFIX + ".preserve.file.name";
   public static final String WRITER_DEFLATE_LEVEL = WRITER_PREFIX + ".deflate.level";
@@ -205,7 +216,7 @@ public class ConfigurationKeys {
   public static final String WRITER_PARTITION_LEVEL = WRITER_PREFIX + ".partition.level";
   public static final String WRITER_PARTITION_PATTERN = WRITER_PREFIX + ".partition.pattern";
   public static final String WRITER_PARTITION_TIMEZONE = WRITER_PREFIX + ".partition.timezone";
-  public static final String DEFAULT_WRITER_FILE_NAME = "part";
+  public static final String DEFAULT_WRITER_FILE_BASE_NAME = "part";
   public static final String DEFAULT_DEFLATE_LEVEL = "9";
   public static final String DEFAULT_BUFFER_SIZE = "4096";
   public static final String DEFAULT_WRITER_PARTITION_LEVEL = "daily";
@@ -370,6 +381,12 @@ public class ConfigurationKeys {
   public static final String DEFAULT_METRICS_REPORTING_FILE_ENABLED = Boolean.toString(true);
   public static final String METRICS_REPORTING_JMX_ENABLED_KEY = "metrics.reporting.jmx.enabled";
   public static final String DEFAULT_METRICS_REPORTING_JMX_ENABLED = Boolean.toString(false);
+  public static final String METRICS_REPORTING_KAFKA_ENABLED_KEY = "metrics.reporting.kafka.enabled";
+  public static final String DEFAULT_METRICS_REPORTING_KAFKA_ENABLED = Boolean.toString(false);
+  public static final String METRICS_REPORTING_KAFKA_FORMAT = "metrics.reporting.kafka.format";
+  public static final String DEFAULT_METRICS_REPORTING_KAFKA_FORMAT = "json";
+  public static final String METRICS_KAFKA_BROKERS = "metrics.reporting.kafka.brokers";
+  public static final String METRICS_KAFKA_TOPIC = "metrics.reporting.kafka.topic";
   public static final String METRICS_REPORT_INTERVAL_KEY = "metrics.report.interval";
   public static final String DEFAULT_METRICS_REPORT_INTERVAL = "30000";
 

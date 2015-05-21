@@ -24,7 +24,6 @@ import java.io.IOException;
 public class KafkaSimpleSource extends KafkaSource<String, byte[]> {
   /**
    * Get an {@link Extractor} based on a given {@link WorkUnitState}.
-   * <p/>
    * <p>
    * The {@link Extractor} returned can use {@link WorkUnitState} to store arbitrary key-value pairs
    * that will be persisted to the state store and loaded in the next scheduled job run.

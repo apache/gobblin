@@ -26,6 +26,8 @@ import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -42,6 +44,8 @@ import static org.apache.avro.SchemaCompatibility.SchemaCompatibilityType.*;
  * A Utils class for dealing with Avro objects
  */
 public class AvroUtils {
+
+  private static final Logger LOG = LoggerFactory.getLogger(AvroUtils.class);
 
   private static final String FIELD_LOCATION_DELIMITER = ".";
 
@@ -131,7 +135,9 @@ public class AvroUtils {
    * @throws IOException if conversion failed.
    */
   public static GenericRecord convertRecordSchema(GenericRecord record, Schema newSchema) throws IOException {
-    Preconditions.checkArgument(checkReaderWriterCompatibility(newSchema, record.getSchema()).getType() == COMPATIBLE);
+    if (checkReaderWriterCompatibility(newSchema, record.getSchema()).getType() != COMPATIBLE) {
+      LOG.warn("Record schema not compatible with writer schema. Converting record schema to writer schema may fail.");
+    }
 
     Closer closer = Closer.create();
     try {

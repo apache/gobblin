@@ -41,7 +41,7 @@ public class TestConstants {
 
   public static final String TEST_OUTPUT_DIR = TEST_ROOT_DIR + "/output";
 
-  public static final String TEST_FILE_NAME = "test";
+  public static final String TEST_FILE_NAME = "test.avro";
 
   public static final String TEST_WRITER_ID = "writer-1";
 

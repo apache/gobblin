@@ -11,7 +11,6 @@
 
 package gobblin.source.workunit;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Queue;
@@ -86,6 +85,7 @@ public class MultiWorkUnitWeightedQueue {
   /**
    * This class defines the weighted multiWorkUnit. It extends {@link MultiWorkUnit}. Each weightedMultiworkUnit has a
    * weight, which is the sum of the file sizes assigned to it. It also implements Comparable, based on the weight value.
+   *
    * @author ydai
    */
   private static class WeightedMultiWorkUnit extends MultiWorkUnit implements Comparable<WeightedMultiWorkUnit> {
@@ -109,6 +109,14 @@ public class MultiWorkUnitWeightedQueue {
     @Override
     public int compareTo(WeightedMultiWorkUnit weightedMultiWorkUnit) {
       return Longs.compare(this.weight, weightedMultiWorkUnit.getWeight());
+    }
+
+    @Override
+    public int hashCode() {
+      final int prime = 31;
+      int result = 1;
+      result = prime * result + (int) (this.weight ^ (this.weight >>> 32));
+      return result;
     }
 
     @Override

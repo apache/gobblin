@@ -16,13 +16,19 @@ import gobblin.source.extractor.exception.HighWatermarkException;
 import gobblin.source.extractor.utils.Utils;
 import gobblin.source.extractor.watermark.Predicate;
 import gobblin.source.extractor.watermark.WatermarkType;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.commons.lang.StringUtils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonElement;
 
@@ -44,6 +50,8 @@ public class SqlServerExtractor extends JdbcExtractor {
   private static final String DATE_FORMAT = "yyyy-MM-dd";
   private static final String HOUR_FORMAT = "HH";
   private static final long SAMPLERECORDCOUNT = -1;
+
+  private Logger log = LoggerFactory.getLogger(SqlServerExtractor.class);
 
   public SqlServerExtractor(WorkUnitState workUnitState) {
     super(workUnitState);

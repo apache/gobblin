@@ -80,10 +80,14 @@ public class AvroHdfsDataWriterTest {
     properties.setProp(ConfigurationKeys.WRITER_FILE_NAME, TestConstants.TEST_FILE_NAME);
 
     // Build a writer to write test records
-    this.writer =
-        new AvroDataWriterBuilder().writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
-            .writeInFormat(WriterOutputFormat.AVRO).withWriterId(TestConstants.TEST_WRITER_ID).withSchema(this.schema)
-            .withBranches(1).forBranch(0).build();
+    this.writer = new AvroDataWriterBuilder()
+        .writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
+        .writeInFormat(WriterOutputFormat.AVRO)
+        .withWriterId(TestConstants.TEST_WRITER_ID)
+        .withSchema(this.schema)
+        .withBranches(1)
+        .forBranch(0)
+        .build();
   }
 
   @Test
@@ -99,9 +103,8 @@ public class AvroHdfsDataWriterTest {
     this.writer.close();
     this.writer.commit();
 
-    File outputFile = new File(TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + this.filePath,
-        TestConstants.TEST_FILE_NAME + "." + TestConstants.TEST_WRITER_ID + "." +
-            TestConstants.TEST_FILE_EXTENSION);
+    File outputFile =
+        new File(TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + this.filePath, TestConstants.TEST_FILE_NAME);
     DataFileReader<GenericRecord> reader =
         new DataFileReader<GenericRecord>(outputFile, new GenericDatumReader<GenericRecord>(this.schema));
 

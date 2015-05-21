@@ -58,7 +58,7 @@ public class LocalJobLauncherTest {
         this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
         JobState.class);
 
-    this.jobLauncherTestHelper = new JobLauncherTestHelper(launcherProps, jobStateStore);
+    this.jobLauncherTestHelper = new JobLauncherTestHelper(this.launcherProps, jobStateStore);
     this.jobLauncherTestHelper.prepareJobHistoryStoreDatabase(this.launcherProps);
   }
 
