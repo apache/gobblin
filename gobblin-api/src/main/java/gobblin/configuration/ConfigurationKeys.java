@@ -71,14 +71,10 @@ public class ConfigurationKeys {
    */
   public static final String TASK_EXECUTOR_THREADPOOL_SIZE_KEY = "taskexecutor.threadpool.size";
   public static final String TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE_KEY = "tasktracker.threadpool.coresize";
-  public static final String TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE_KEY = "tasktracker.threadpool.maxsize";
   public static final String TASK_RETRY_THREAD_POOL_CORE_SIZE_KEY = "taskretry.threadpool.coresize";
-  public static final String TASK_RETRY_THREAD_POOL_MAX_SIZE_KEY = "taskretry.threadpool.maxsize";
   public static final int DEFAULT_TASK_EXECUTOR_THREADPOOL_SIZE = 2;
   public static final int DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE = 1;
-  public static final int DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE = 2;
   public static final int DEFAULT_TASK_RETRY_THREAD_POOL_CORE_SIZE = 1;
-  public static final int DEFAULT_TASK_RETRY_THREAD_POOL_MAX_SIZE = 2;
 
   /**
    * Common job configuration properties.

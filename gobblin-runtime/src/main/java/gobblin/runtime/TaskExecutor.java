@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -56,8 +57,11 @@ public class TaskExecutor extends AbstractIdleService {
   /**
    * Constructor used internally.
    */
-  private TaskExecutor(int taskExecutorThreadPoolSize, int coreRetryThreadPoolSize, int maxRetryThreadPoolSize,
-      long retryIntervalInSeconds) {
+  private TaskExecutor(int taskExecutorThreadPoolSize, int coreRetryThreadPoolSize, long retryIntervalInSeconds) {
+    Preconditions.checkArgument(taskExecutorThreadPoolSize > 0, "Thread pool size should be positive");
+    Preconditions.checkArgument(coreRetryThreadPoolSize > 0, "Thread pool size should be positive");
+    Preconditions.checkArgument(retryIntervalInSeconds > 0, "Retry interval should be positive");
+
     // Currently a fixed-size thread pool is used to execute tasks. We probably need to revisit this later.
     this.taskExecutor = Executors.newFixedThreadPool(
         taskExecutorThreadPoolSize,
@@ -65,8 +69,8 @@ public class TaskExecutor extends AbstractIdleService {
 
     // Using a separate thread pool for task retries to achieve isolation
     // between normal task execution and task retries
-    this.taskRetryExecutor = new ScheduledThreadPoolExecutor(coreRetryThreadPoolSize);
-    this.taskRetryExecutor.setMaximumPoolSize(maxRetryThreadPoolSize);
+    this.taskRetryExecutor = new ScheduledThreadPoolExecutor(coreRetryThreadPoolSize,
+        ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of("TaskRetryExecutor-%d")));
     this.retryIntervalInSeconds = retryIntervalInSeconds;
 
     this.forkExecutor = new ThreadPoolExecutor(
@@ -94,8 +98,6 @@ public class TaskExecutor extends AbstractIdleService {
             Integer.toString(ConfigurationKeys.DEFAULT_TASK_EXECUTOR_THREADPOOL_SIZE))),
         Integer.parseInt(properties.getProperty(ConfigurationKeys.TASK_RETRY_THREAD_POOL_CORE_SIZE_KEY,
             Integer.toString(ConfigurationKeys.DEFAULT_TASK_RETRY_THREAD_POOL_CORE_SIZE))),
-        Integer.parseInt(properties.getProperty(ConfigurationKeys.TASK_RETRY_THREAD_POOL_MAX_SIZE_KEY,
-            Integer.toString(ConfigurationKeys.DEFAULT_TASK_RETRY_THREAD_POOL_MAX_SIZE))),
         Long.parseLong(properties.getProperty(ConfigurationKeys.TASK_RETRY_INTERVAL_IN_SEC_KEY,
             Long.toString(ConfigurationKeys.DEFAULT_TASK_RETRY_INTERVAL_IN_SEC))));
   }
@@ -108,8 +110,6 @@ public class TaskExecutor extends AbstractIdleService {
             ConfigurationKeys.DEFAULT_TASK_EXECUTOR_THREADPOOL_SIZE),
         conf.getInt(ConfigurationKeys.TASK_RETRY_THREAD_POOL_CORE_SIZE_KEY,
             ConfigurationKeys.DEFAULT_TASK_RETRY_THREAD_POOL_CORE_SIZE),
-        conf.getInt(ConfigurationKeys.TASK_RETRY_THREAD_POOL_MAX_SIZE_KEY,
-            ConfigurationKeys.DEFAULT_TASK_RETRY_THREAD_POOL_MAX_SIZE),
         conf.getLong(ConfigurationKeys.TASK_RETRY_INTERVAL_IN_SEC_KEY,
             ConfigurationKeys.DEFAULT_TASK_RETRY_INTERVAL_IN_SEC));
   }
