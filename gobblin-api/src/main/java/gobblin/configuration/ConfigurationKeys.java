@@ -108,7 +108,7 @@ public class ConfigurationKeys {
   public static final String TASK_RETRY_INTERVAL_IN_SEC_KEY = "task.retry.intervalinsec";
   public static final long DEFAULT_TASK_RETRY_INTERVAL_IN_SEC = 300;
   public static final String OVERWRITE_CONFIGS_IN_STATESTORE = "overwrite.configs.in.statestore";
-  public static final boolean DEFAULT_OVERWRITE_CONFIGS_IN_STATESTORE = Boolean.FALSE;
+  public static final boolean DEFAULT_OVERWRITE_CONFIGS_IN_STATESTORE = false;
 
   /**
    * Configuration properties used internally.
@@ -153,7 +153,8 @@ public class ConfigurationKeys {
   public static final String EXTRACT_PRIMARY_KEY_FIELDS_KEY = "extract.primary.key.fields";
   public static final String EXTRACT_DELTA_FIELDS_KEY = "extract.delta.fields";
   public static final String EXTRACT_SCHEMA = "extract.schema";
-  public static final String EXTRACT_PULL_LIMIT = "extract.pull.limit";
+  public static final String EXTRACT_LIMIT_ENABLED_KEY = "extract.limit.enabled";
+  public static final boolean DEFAULT_EXTRACT_LIMIT_ENABLED = false;
 
   /**
    * Converter configuration properties.
@@ -236,6 +237,7 @@ public class ConfigurationKeys {
   /**
    * Configuration properties used by the row count policies.
    */
+  public static final String EXTRACTOR_ROWS_EXTRACTED = QUALITY_CHECKER_PREFIX + ".rows.extracted";
   public static final String EXTRACTOR_ROWS_EXPECTED = QUALITY_CHECKER_PREFIX + ".rows.expected";
   public static final String WRITER_ROWS_WRITTEN = QUALITY_CHECKER_PREFIX + ".rows.written";
   public static final String ROW_COUNT_RANGE = QUALITY_CHECKER_PREFIX + ".row.count.range";
@@ -384,15 +386,6 @@ public class ConfigurationKeys {
   public static final String METRICS_KAFKA_TOPIC = "metrics.reporting.kafka.topic";
   public static final String METRICS_REPORT_INTERVAL_KEY = "metrics.report.interval";
   public static final String DEFAULT_METRICS_REPORT_INTERVAL = "30000";
-
-  /**
-   * FluxDB metrics store configuration properties.
-   */
-  public static final String FLUXDB_URL_KEY = "fluxdb.url";
-  public static final String FLUXDB_USER_NAME_KEY = "fluxdb.user.name";
-  public static final String DEFAULT_FLUXDB_USER_NAME = "root";
-  public static final String FLUXDB_USER_PASSWORD_KEY = "fluxdb.user.password";
-  public static final String DEFAULT_FLUXDB_USER_PASSWORD = "root";
 
   /**
    * Rest server configuration properties.
