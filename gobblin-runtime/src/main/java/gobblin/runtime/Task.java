@@ -114,9 +114,7 @@ public class Task implements Runnable {
     try {
       // Build the extractor for extracting source schema and data records
       Extractor extractor = closer.register(new InstrumentedExtractorDecorator(this.taskState,
-          new ExtractorDecorator(
-              new SourceDecorator(this.taskContext.getSource(), this.jobId, LOG).getExtractor(this.taskState),
-              this.taskId, LOG)));
+          this.taskContext.getExtractor()));
 
       Converter converter = new MultiConverter(this.taskContext.getConverters());
 
@@ -161,11 +159,10 @@ public class Task implements Runnable {
       RowLevelPolicyChecker rowChecker = closer.register(this.taskContext.getRowLevelPolicyChecker(this.taskState));
       RowLevelPolicyCheckResults rowResults = new RowLevelPolicyCheckResults();
 
-      long pullLimit = this.taskState.getPropAsLong(ConfigurationKeys.EXTRACT_PULL_LIMIT, 0);
       long recordsPulled = 0;
       Object record;
       // Extract, convert, and fork one source record at a time.
-      while ((pullLimit <= 0 || recordsPulled < pullLimit) && (record = extractor.readRecord(null)) != null) {
+      while ((record = extractor.readRecord(null)) != null) {
         recordsPulled++;
         for (Object convertedRecord : converter.convertRecord(schema, record, this.taskState)) {
           processRecord(convertedRecord, forkOperator, rowChecker, rowResults, branches);
@@ -175,13 +172,8 @@ public class Task implements Runnable {
       LOG.info("Extracted " + recordsPulled + " data records");
       LOG.info("Row quality checker finished with results: " + rowResults.getResults());
 
-      if (pullLimit > 0) {
-        // If pull limit is set, use the actual number of records pulled.
-        this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, recordsPulled);
-      } else {
-        // Otherwise use the expected record count
-        this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, extractor.getExpectedRecordCount());
-      }
+      this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXTRACTED, recordsPulled);
+      this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, extractor.getExpectedRecordCount());
 
       for (Optional<Fork> fork : this.forks) {
         if (fork.isPresent()) {
