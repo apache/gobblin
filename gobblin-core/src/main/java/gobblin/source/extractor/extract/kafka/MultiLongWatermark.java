@@ -14,9 +14,8 @@ package gobblin.source.extractor.extract.kafka;
 import java.math.RoundingMode;
 import java.util.List;
 
-import com.beust.jcommander.internal.Lists;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Lists;
 import com.google.common.math.LongMath;
 import com.google.common.primitives.Shorts;
 import com.google.gson.Gson;
@@ -57,28 +56,6 @@ public class MultiLongWatermark implements Watermark {
   }
 
   /**
-   * A MultiLongWatermark w1 is less than w2, if there exists i, such that
-   * the 0th to (i-1)th values of w1 are equivalent as those of w2, and the ith
-   * value of w1 is less than the that of w2.
-   *
-   * @param wm must be an instance of MultiLongWatermark, and this.size() must
-   * equal wm.size().
-   */
-  @Override
-  public int compareTo(Watermark wm) {
-    if (!(wm instanceof MultiLongWatermark)) {
-      throw new ClassCastException("Cannot compare MultiLongWatermark with " + wm.getClass().getSimpleName());
-    }
-    MultiLongWatermark other = (MultiLongWatermark) wm;
-
-    ComparisonChain cc = ComparisonChain.start().compare(this.size(), other.size());
-    for (int i = 0; i < this.values.size(); i++) {
-      cc.compare(this.values.get(i), other.values.get(i));
-    }
-    return cc.result();
-  }
-
-  /**
    * Serializes the MultiLongWatermark into a JsonElement.
    */
   @Override
@@ -94,9 +71,10 @@ public class MultiLongWatermark implements Watermark {
    */
   @Override
   public short calculatePercentCompletion(Watermark lowWatermark, Watermark highWatermark) {
-    Preconditions.checkArgument(lowWatermark instanceof MultiLongWatermark, String.format(
-        "Arguments of %s.%s must be of type %s", MultiLongWatermark.class.getSimpleName(), Thread.currentThread()
-            .getStackTrace()[1].getMethodName(), MultiLongWatermark.class.getSimpleName()));
+    Preconditions.checkArgument(
+        lowWatermark instanceof MultiLongWatermark && highWatermark instanceof MultiLongWatermark,
+        String.format("Arguments of %s.%s must be of type %s", MultiLongWatermark.class.getSimpleName(),
+            Thread.currentThread().getStackTrace()[1].getMethodName(), MultiLongWatermark.class.getSimpleName()));
 
     long pulled = ((MultiLongWatermark) lowWatermark).getGap(this);
     long all = ((MultiLongWatermark) lowWatermark).getGap((MultiLongWatermark) highWatermark);

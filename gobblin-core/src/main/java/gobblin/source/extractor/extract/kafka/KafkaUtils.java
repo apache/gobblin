@@ -9,11 +9,9 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.util;
+package gobblin.source.extractor.extract.kafka;
 
 import gobblin.configuration.State;
-import gobblin.source.extractor.extract.kafka.KafkaPartition;
-import gobblin.source.extractor.extract.kafka.KafkaSource;
 
 import java.util.List;
 

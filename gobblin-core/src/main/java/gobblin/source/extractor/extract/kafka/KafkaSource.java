@@ -31,7 +31,6 @@ import gobblin.source.extractor.extract.EventBasedSource;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
-import gobblin.util.KafkaUtils;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;

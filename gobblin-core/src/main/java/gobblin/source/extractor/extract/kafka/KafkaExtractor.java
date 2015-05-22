@@ -30,7 +30,6 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.EventBasedExtractor;
-import gobblin.util.KafkaUtils;
 
 
 /**

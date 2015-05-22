@@ -13,7 +13,7 @@ import com.google.gson.JsonElement;
  *  {@link Watermark} into a {@link JsonElement}.
  * </p>
  */
-public interface Watermark extends Comparable<Watermark> {
+public interface Watermark {
 
   /**
    * Convert this {@link Watermark} into a {@link JsonElement}.
