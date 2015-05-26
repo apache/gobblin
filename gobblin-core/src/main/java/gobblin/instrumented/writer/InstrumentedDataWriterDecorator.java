@@ -88,7 +88,7 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   }
 
   @Override
-  public Object getDirectlyUnderlying() {
+  public Object getDecoratedObject() {
     return this.embeddedWriter;
   }
 }

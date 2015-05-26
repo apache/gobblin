@@ -171,7 +171,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     try {
       Optional<Timer.Context> cleanStagingDataTimer =
-          Instrumented.timerContext(this.runtimeMetrics, MetricNames.RunJobTimings.CLEAN_STAGING_DATA);
+          Instrumented.timerContext(this.runtimeMetricContext, MetricNames.RunJobTimings.MR_STAGING_DATA_CLEAN);
       // Delete any staging directories that already exist before the Hadoop MR job starts
       JobLauncherUtils.cleanStagingData(JobLauncherUtils.flattenWorkUnits(workUnits), LOG);
       Instrumented.endTimer(cleanStagingDataTimer);
@@ -186,7 +186,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
       }
 
       Optional<Timer.Context> runMRJobTimer =
-          Instrumented.timerContext(this.runtimeMetrics, MetricNames.RunJobTimings.RUN_MR_JOB);
+          Instrumented.timerContext(this.runtimeMetricContext, MetricNames.RunJobTimings.MR_JOB_RUN);
       LOG.info(String.format("Waiting for Hadoop MR job %s to complete", this.job.getJobID()));
       this.job.waitForCompletion(true);
       Instrumented.endTimer(runMRJobTimer);
@@ -240,7 +240,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
    */
   private void addDependencies() throws IOException {
     Optional<Timer.Context> distributedCacheSetupTimer =
-        Instrumented.timerContext(this.runtimeMetrics, MetricNames.RunJobTimings.DISTRIBUTED_CACHE);
+        Instrumented.timerContext(this.runtimeMetricContext, MetricNames.RunJobTimings.MR_DISTRIBUTED_CACHE_POPULATE);
     Path jarFileDir = new Path(this.mrJobDir, "_jars");
 
     // Add framework jars to the classpath for the mappers/reducer
@@ -271,7 +271,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
   private Path prepareHadoopJob(List<WorkUnit> workUnits)
       throws IOException {
     Optional<Timer.Context> setupMRJobTimer =
-        Instrumented.timerContext(this.runtimeMetrics, MetricNames.RunJobTimings.SETUP_MR_JOB);
+        Instrumented.timerContext(this.runtimeMetricContext, MetricNames.RunJobTimings.MR_JOB_SETUP);
 
     this.job.setJarByClass(MRJobLauncher.class);
     this.job.setMapperClass(TaskRunner.class);

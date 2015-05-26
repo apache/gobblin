@@ -29,25 +29,30 @@ public class DecoratorUtils {
    * @return the true non-decorator underlying object.
    */
   public static Object resolveUnderlyingObject(Object obj) {
-    Object underlying = obj;
-    while(underlying instanceof Decorator) {
-      underlying = ((Decorator)underlying).getDirectlyUnderlying();
+    while(obj instanceof Decorator) {
+      obj = ((Decorator)obj).getDecoratedObject();
     }
-    return underlying;
+    return obj;
   }
 
   /**
-   * Finds the decorator lineage of the given decorator with the given directly underlying object.
+   * Finds the decorator lineage of the given object.
    *
-   * @param obj decorator object.
+   * <p>
+   * If object is not a {@link gobblin.util.Decorator}, this method will return a singleton list with just the object.
+   * If object is a {@link gobblin.util.Decorator}, it will return a list of the underlying object followed by the
+   * decorator lineage up to the input decorator object.
+   * </p>
+   *
+   * @param obj an object.
    * @return List of the non-decorator underlying object and all decorators on top of it,
-   *  starting with underlying object and ending with decorator.
+   *  starting with underlying object and ending with the input object itself (inclusive).
    */
   public static List<Object> getDecoratorLineage(Object obj) {
     List<Object> lineage = Lists.newArrayList(obj);
     Object currentObject = obj;
     while(currentObject instanceof Decorator) {
-      currentObject = ((Decorator)currentObject).getDirectlyUnderlying();
+      currentObject = ((Decorator)currentObject).getDecoratedObject();
       lineage.add(currentObject);
     }
 

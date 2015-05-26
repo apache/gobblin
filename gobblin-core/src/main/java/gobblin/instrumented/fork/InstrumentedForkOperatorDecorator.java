@@ -75,7 +75,7 @@ public class InstrumentedForkOperatorDecorator<S, D> extends InstrumentedForkOpe
   }
 
   @Override
-  public Object getDirectlyUnderlying() {
+  public Object getDecoratedObject() {
     return this.embeddedForkOperator;
   }
 }

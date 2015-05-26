@@ -17,6 +17,7 @@ import com.google.common.io.Closer;
 
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
+import gobblin.util.Decorator;
 
 
 /**
@@ -35,7 +36,7 @@ import gobblin.source.extractor.Extractor;
  *
  * @author ynli
  */
-public class LimitingExtractorDecorator<S, D> implements Extractor<S, D> {
+public class LimitingExtractorDecorator<S, D> implements Extractor<S, D>, Decorator {
 
   private final Extractor<S, D> extractor;
   private final Limiter limiter;
@@ -44,6 +45,11 @@ public class LimitingExtractorDecorator<S, D> implements Extractor<S, D> {
     this.extractor = extractor;
     this.limiter = limiter;
     this.limiter.start();
+  }
+
+  @Override
+  public Object getDecoratedObject() {
+    return this.extractor;
   }
 
   @Override

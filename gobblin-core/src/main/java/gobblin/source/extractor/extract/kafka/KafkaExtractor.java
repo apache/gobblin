@@ -169,7 +169,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   }
 
   private void switchMetricContextToCurrentPartition() {
-    int currentPartitionId = this.partitions.get(this.currentPartitionIdx).getId();
+    int currentPartitionId = this.getCurrentPartition().getId();
     switchMetricContext(Lists.<Tag<?>>newArrayList(new Tag<Integer>("kafka_partition", currentPartitionId)));
   }
 

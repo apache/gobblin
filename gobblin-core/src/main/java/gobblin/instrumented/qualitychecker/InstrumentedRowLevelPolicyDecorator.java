@@ -60,7 +60,7 @@ public class InstrumentedRowLevelPolicyDecorator extends InstrumentedRowLevelPol
   }
 
   @Override
-  public Object getDirectlyUnderlying() {
+  public Object getDecoratedObject() {
     return this.embeddedPolicy;
   }
 }

@@ -21,22 +21,23 @@ import com.codahale.metrics.MetricRegistry;
 public class MetricNames {
   public static class LauncherTimings {
     public static String BASE_NAME = "gobblin.launcher.timings";
-    public final static String CREATE_WORK_UNITS = MetricRegistry.name(BASE_NAME, "create.work.units");
-    public final static String ADD_WORK_UNITS = MetricRegistry.name(BASE_NAME, "add.work.units");
-    public final static String WRITE_JOB_HISTORY = MetricRegistry.name(BASE_NAME, "write.job.history");
-    public final static String RUN_JOB = MetricRegistry.name(BASE_NAME, "job.run");
-    public final static String COMMIT_JOB = MetricRegistry.name(BASE_NAME, "job.commit");
-    public final static String CLEANUP_JOB = MetricRegistry.name(BASE_NAME, "job.cleanup");
+    public final static String WORK_UNITS_CREATE = MetricRegistry.name(BASE_NAME, "work.units.create");
+    public final static String WORK_UNITS_ADD = MetricRegistry.name(BASE_NAME, "work.units.add");
+    public final static String JOB_HISTORY_WRITE = MetricRegistry.name(BASE_NAME, "job.history.write");
+    public final static String JOB_RUN = MetricRegistry.name(BASE_NAME, "job.run");
+    public final static String JOB_COMMIT = MetricRegistry.name(BASE_NAME, "job.commit");
+    public final static String JOB_CLEANUP = MetricRegistry.name(BASE_NAME, "job.cleanup");
   }
 
   public static class RunJobTimings {
     public static String BASE_NAME = "gobblin.job.run.timings";
-    public final static String SETUP_LOCAL_JOB = MetricRegistry.name(BASE_NAME, "local.job.setup");
-    public final static String RUN_WORK_UNITS = MetricRegistry.name(BASE_NAME, "run.work.units");
-    public final static String SCHEDULE_WORK_UNTIS = MetricRegistry.name(BASE_NAME, "schedule.work.units");
-    public final static String CLEAN_STAGING_DATA = MetricRegistry.name(BASE_NAME, "mr.clean.staging.data");
-    public final static String DISTRIBUTED_CACHE = MetricRegistry.name(BASE_NAME, "populate.distributed.cache");
-    public final static String SETUP_MR_JOB = MetricRegistry.name(BASE_NAME, "mr.job.setup");
-    public final static String RUN_MR_JOB = MetricRegistry.name(BASE_NAME, "run.mr.job");
+    public final static String JOB_LOCAL_SETUP = MetricRegistry.name(BASE_NAME, "job.local.setup");
+    public final static String WORK_UNITS_RUN = MetricRegistry.name(BASE_NAME, "work.units.run");
+    public final static String WORK_UNITS_SCHEDULE = MetricRegistry.name(BASE_NAME, "work.units.schedule");
+    public final static String MR_STAGING_DATA_CLEAN = MetricRegistry.name(BASE_NAME, "job.mr.staging.data.clean");
+    public final static String MR_DISTRIBUTED_CACHE_POPULATE = MetricRegistry.name(
+        BASE_NAME, "job.mr.distributed.cache.populate");
+    public final static String MR_JOB_SETUP = MetricRegistry.name(BASE_NAME, "job.mr.setup");
+    public final static String MR_JOB_RUN = MetricRegistry.name(BASE_NAME, "job.mr.run");
   }
 }

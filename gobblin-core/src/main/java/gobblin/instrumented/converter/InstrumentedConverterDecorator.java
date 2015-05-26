@@ -74,7 +74,7 @@ public class InstrumentedConverterDecorator<SI, SO, DI, DO> extends Instrumented
   }
 
   @Override
-  public Object getDirectlyUnderlying() {
+  public Object getDecoratedObject() {
     return this.embeddedConverter;
   }
 }

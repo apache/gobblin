@@ -68,7 +68,7 @@ abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instr
 
   @Override
   public void switchMetricContext(List<Tag<?>> tags) {
-    this.metricContext = this.closer.register(Instrumented.copyMetricContext(this.metricContext, tags,
+    this.metricContext = this.closer.register(Instrumented.newContextFromReferenceContext(this.metricContext, tags,
         Optional.<String>absent()));
 
     regenerateMetrics();

@@ -34,6 +34,8 @@ import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Timer;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.ImmutableSortedSet;
@@ -92,6 +94,8 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
   private MetricContext(String name, MetricContext parent, List<Tag<?>> tags,
       Map<String, ContextAwareScheduledReporter.Builder> builders, boolean reportFullyQualifiedNames,
       boolean includeTagKeys) {
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(name));
+
     this.name = name;
     this.parent = Optional.fromNullable(parent);
     this.tagged = new Tagged(tags);

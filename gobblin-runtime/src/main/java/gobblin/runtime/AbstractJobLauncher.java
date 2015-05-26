@@ -87,7 +87,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   protected final ExecutorService cancellationExecutor;
 
   // An MetricContext to track runtime metrics only if metrics are enabled.
-  protected final Optional<MetricContext> runtimeMetrics;
+  protected final Optional<MetricContext> runtimeMetricContext;
 
   public AbstractJobLauncher(Properties sysProps, Properties jobProps)
       throws Exception {
@@ -105,7 +105,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     this.cancellationExecutor = Executors.newSingleThreadExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of("CancellationExecutor")));
 
-    this.runtimeMetrics = this.jobContext.getJobMetricsOptional().transform(new Function<JobMetrics, MetricContext>() {
+    this.runtimeMetricContext = this.jobContext.getJobMetricsOptional().transform(new Function<JobMetrics, MetricContext>() {
       @Override
       public MetricContext apply(JobMetrics input) {
         return input.getMetricContext();
@@ -207,12 +207,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       throws JobException {
     String jobId = this.jobContext.getJobId();
     JobState jobState = this.jobContext.getJobState();
-    Optional<MetricContext> metricContext = this.jobContext.getJobMetricsOptional().transform(new Function<JobMetrics, MetricContext>() {
-      @Override
-      public MetricContext apply(JobMetrics input) {
-        return input.getMetricContext();
-      }
-    });
 
     try {
       if (!tryLockJob()) {
@@ -221,8 +215,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                 this.jobContext.getJobName()));
       }
 
-      Optional<Timer.Context> createWorkyunitsTimer = Instrumented.timerContext(metricContext,
-          MetricNames.LauncherTimings.CREATE_WORK_UNITS);
+      Optional<Timer.Context> createWorkyunitsTimer = Instrumented.timerContext(this.runtimeMetricContext,
+          MetricNames.LauncherTimings.WORK_UNITS_CREATE);
       // Generate work units of the job from the source
       Optional<List<WorkUnit>> workUnits = Optional.fromNullable(this.jobContext.getSource().getWorkunits(jobState));
       // The absence means there is something wrong getting the work units
@@ -244,8 +238,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
       LOG.info("Starting job " + jobId);
 
-      Optional<Timer.Context> addWorkUnitsTimer = Instrumented.timerContext(metricContext,
-          MetricNames.LauncherTimings.ADD_WORK_UNITS);
+      Optional<Timer.Context> addWorkUnitsTimer = Instrumented.timerContext(this.runtimeMetricContext,
+          MetricNames.LauncherTimings.WORK_UNITS_ADD);
 
       // Add work units and assign task IDs to them
       int taskIdSequence = 0;
@@ -269,14 +263,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         this.jobContext.getJobMetricsOptional().get().startMetricReporting(this.jobProps);
       }
 
-      Optional<Timer.Context> writeJobHistoryTimer = Instrumented.timerContext(metricContext,
-          MetricNames.LauncherTimings.WRITE_JOB_HISTORY);
+      Optional<Timer.Context> writeJobHistoryTimer = Instrumented.timerContext(this.runtimeMetricContext,
+          MetricNames.LauncherTimings.JOB_HISTORY_WRITE);
       // Write job execution info to the job history store before the job starts to run
       storeJobExecutionInfo();
       Instrumented.endTimer(writeJobHistoryTimer);
 
-      Optional<Timer.Context> runJobTimer = Instrumented.timerContext(metricContext,
-          MetricNames.LauncherTimings.RUN_JOB);
+      Optional<Timer.Context> runJobTimer = Instrumented.timerContext(this.runtimeMetricContext,
+          MetricNames.LauncherTimings.JOB_RUN);
       // Start the job and wait for it to finish
       runWorkUnits(workUnits.get());
       Instrumented.endTimer(runJobTimer);
@@ -287,8 +281,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         return;
       }
 
-      Optional<Timer.Context> commitJobTimer = Instrumented.timerContext(metricContext,
-          MetricNames.LauncherTimings.COMMIT_JOB);
+      Optional<Timer.Context> commitJobTimer = Instrumented.timerContext(this.runtimeMetricContext,
+          MetricNames.LauncherTimings.JOB_COMMIT);
       setFinalJobState(jobState);
       // Commit and publish job data
       commitJob(jobState);
@@ -301,8 +295,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       throw new JobException(errMsg, t);
     } finally {
 
-      Optional<Timer.Context> jobCleanupTimer = Instrumented.timerContext(metricContext,
-          MetricNames.LauncherTimings.CLEANUP_JOB);
+      Optional<Timer.Context> jobCleanupTimer = Instrumented.timerContext(this.runtimeMetricContext,
+          MetricNames.LauncherTimings.JOB_CLEANUP);
       long endTime = System.currentTimeMillis();
       jobState.setEndTime(endTime);
       jobState.setDuration(endTime - jobState.getStartTime());

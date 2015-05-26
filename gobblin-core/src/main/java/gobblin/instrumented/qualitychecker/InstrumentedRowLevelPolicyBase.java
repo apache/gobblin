@@ -65,7 +65,7 @@ abstract class InstrumentedRowLevelPolicyBase extends RowLevelPolicy implements 
 
   @Override
   public void switchMetricContext(List<Tag<?>> tags) {
-    this.metricContext = this.closer.register(Instrumented.copyMetricContext(this.metricContext, tags,
+    this.metricContext = this.closer.register(Instrumented.newContextFromReferenceContext(this.metricContext, tags,
         Optional.<String>absent()));
 
     regenerateMetrics();

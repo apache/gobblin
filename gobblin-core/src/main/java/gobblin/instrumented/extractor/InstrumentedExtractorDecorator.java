@@ -80,7 +80,7 @@ public class InstrumentedExtractorDecorator<S, D> extends InstrumentedExtractorB
   }
 
   @Override
-  public Object getDirectlyUnderlying() {
+  public Object getDecoratedObject() {
     return this.embeddedExtractor;
   }
 }

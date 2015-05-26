@@ -22,6 +22,6 @@ public interface Decorator {
    * Get directly underlying object.
    * @return directly underlying object.
    */
-  public Object getDirectlyUnderlying();
+  public Object getDecoratedObject();
 
 }
