@@ -77,8 +77,7 @@ public class KafkaS3Publisher extends BaseS3Publisher {
     String topic = StringUtils.join(arr1, "-");
     int prefix = new Random(System.nanoTime()).nextInt(s3Partitions);
     return String.format(
-            "%d/%s/%s",
-            prefix,
+            "%s/%s",
             topic,
             new SimpleDateFormat("yyyy/MM/dd/HH").format(new Date())
     );
