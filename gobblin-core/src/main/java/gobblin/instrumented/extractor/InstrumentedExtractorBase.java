@@ -43,10 +43,10 @@ import gobblin.source.extractor.Extractor;
 abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instrumentable, Closeable {
 
   private final boolean instrumentationEnabled;
-  protected final MetricContext metricContext;
-  protected final Optional<Meter> readRecordsMeter;
-  protected final Optional<Meter> dataRecordExceptionsMeter;
-  protected final Optional<Timer> extractorTimer;
+  private MetricContext metricContext;
+  private Optional<Meter> readRecordsMeter;
+  private Optional<Meter> dataRecordExceptionsMeter;
+  private Optional<Timer> extractorTimer;
   protected final Closer closer;
 
   @SuppressWarnings("unchecked")
@@ -60,10 +60,30 @@ abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instr
 
     this.instrumentationEnabled = GobblinMetrics.isEnabled(workUnitState);
 
-    this.metricContext =
-        closer.register(Instrumented.getMetricContext(workUnitState, classTag.or(this.getClass()),
-            generateTags(workUnitState)));
+    this.metricContext = this.closer.register(Instrumented.getMetricContext(workUnitState, classTag.or(this.getClass()),
+        generateTags(workUnitState)));
 
+    regenerateMetrics();
+  }
+
+  @Override
+  public void switchMetricContext(List<Tag<?>> tags) {
+    this.metricContext = this.closer.register(Instrumented.copyMetricContext(this.metricContext, tags,
+        Optional.<String>absent()));
+
+    regenerateMetrics();
+  }
+
+  @Override
+  public void switchMetricContext(MetricContext context) {
+    this.metricContext = context;
+    regenerateMetrics();
+  }
+
+  /**
+   * Generates metrics for the instrumentation of this class.
+   */
+  protected void regenerateMetrics() {
     if(isInstrumentationEnabled()) {
       this.readRecordsMeter = Optional.of(this.metricContext.meter(MetricNames.ExtractorMetrics.RECORDS_READ_METER));
       this.dataRecordExceptionsMeter = Optional.of(
@@ -81,6 +101,7 @@ abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instr
     return this.instrumentationEnabled;
   }
 
+  /** Default with no additional tags */
   @Override
   public List<Tag<?>> generateTags(State state) {
     return Lists.newArrayList();

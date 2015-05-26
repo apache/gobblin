@@ -43,7 +43,7 @@ public class InstrumentedConverterDecorator<SI, SO, DI, DO> extends Instrumented
   @Override
   public Converter<SI, SO, DI, DO> init(WorkUnitState workUnit) {
     this.embeddedConverter = this.embeddedConverter.init(workUnit);
-    return super.init(workUnit, DecoratorUtils.resolveUnderlyingObject(this.embeddedConverter).getClass());
+    return super.init(workUnit, DecoratorUtils.resolveUnderlyingObject(this).getClass());
   }
 
   @Override
@@ -74,12 +74,7 @@ public class InstrumentedConverterDecorator<SI, SO, DI, DO> extends Instrumented
   }
 
   @Override
-  public Object getUnderlying() {
-    return DecoratorUtils.resolveUnderlyingObject(this.embeddedConverter);
-  }
-
-  @Override
-  public List<Object> getDecoratorLineage() {
-    return DecoratorUtils.resolveDecoratorLineage(this, this.embeddedConverter);
+  public Object getDirectlyUnderlying() {
+    return this.embeddedConverter;
   }
 }

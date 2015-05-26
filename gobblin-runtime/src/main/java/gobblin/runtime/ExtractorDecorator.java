@@ -96,12 +96,7 @@ public class ExtractorDecorator<S, D> implements Extractor<S, D>, Decorator {
   }
 
   @Override
-  public Object getUnderlying() {
-    return DecoratorUtils.resolveUnderlyingObject(this.extractor);
-  }
-
-  @Override
-  public List<Object> getDecoratorLineage() {
-    return DecoratorUtils.resolveDecoratorLineage(this, this.extractor);
+  public Object getDirectlyUnderlying() {
+    return this.extractor;
   }
 }

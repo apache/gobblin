@@ -44,4 +44,41 @@ public interface Instrumentable {
    * @return List of tags to add to Metric Context.
    */
   public List<Tag<?>> generateTags(State state);
+
+  /**
+   * Generate a new metric context replacing old tags with input tags (only tags with the same keys will be replaced),
+   * and recreate all metrics in this new context.
+   *
+   * <p>
+   *   This method is useful when the state of the extractor changes and the user wants that state change to
+   *   be reflected in the tags of the extractor instrumentation.
+   * </p>
+   *
+   * <p>
+   *   Notice that this method creates a brand new metric context and metrics every time it is called, with the
+   *   associated processing and memory overhead. Use sparingly only for state changes that MUST be visible in
+   *   emitted metrics.
+   * </p>
+   *
+   * @param tags additional tags.
+   */
+  public void switchMetricContext(List<Tag<?>> tags);
+
+  /**
+   * Switches the existing metric context with the supplied metric context and regenerates metrics.
+   *
+   * <p>
+   *   This method is useful when the state of the extractor changes and the user wants that state change to
+   *   be reflected in the tags of the extractor instrumentation.
+   * </p>
+   *
+   * <p>
+   *   This method is an alternative to {@link #switchMetricContext(List)} when metric context switching is done
+   *   often between a small set of contexts. The subclass should cache contexts, and call this method instead, saving
+   *   the overhead of generating a brand new context every time a metric context switch is required.
+   * </p>
+   *
+   * @param context new context.
+   */
+  public void switchMetricContext(MetricContext context);
 }

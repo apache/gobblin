@@ -25,35 +25,32 @@ public class DecoratorUtils {
   /**
    * Resolves the truly underlying object in a possible chain of {@link gobblin.util.Decorator}.
    *
-   * <p>
-   *   If underlyingCandidate is a decorator, return underlyingCandidate.getUnderlying().
-   *   Otherwise, return underlyingCandidate itself.
-   * </p>
-   *
-   * @param underlyingCandidate the directly overlying object in a Decorator.
+   * @param obj object to resolve.
    * @return the true non-decorator underlying object.
    */
-  public static Object resolveUnderlyingObject(Object underlyingCandidate) {
-    if (underlyingCandidate instanceof Decorator) {
-      return ((Decorator)underlyingCandidate).getUnderlying();
-    } else {
-      return underlyingCandidate;
+  public static Object resolveUnderlyingObject(Object obj) {
+    Object underlying = obj;
+    while(underlying instanceof Decorator) {
+      underlying = ((Decorator)underlying).getDirectlyUnderlying();
     }
+    return underlying;
   }
 
   /**
    * Finds the decorator lineage of the given decorator with the given directly underlying object.
    *
-   * @param decorator decorator object.
-   * @param underlying directly underlying object to decorator.
-   * @return List of the non-decorator underlying object and all decorators on top of it.
+   * @param obj decorator object.
+   * @return List of the non-decorator underlying object and all decorators on top of it,
+   *  starting with underlying object and ending with decorator.
    */
-  public static List<Object> resolveDecoratorLineage(Decorator decorator, Object underlying) {
-    List<Object> lineage =  Decorator.class.isInstance(underlying) ?
-        ((Decorator)underlying).getDecoratorLineage() :
-        Lists.newArrayList(underlying);
-    lineage.add(decorator);
+  public static List<Object> getDecoratorLineage(Object obj) {
+    List<Object> lineage = Lists.newArrayList(obj);
+    Object currentObject = obj;
+    while(currentObject instanceof Decorator) {
+      currentObject = ((Decorator)currentObject).getDirectlyUnderlying();
+      lineage.add(currentObject);
+    }
 
-    return lineage;
+    return Lists.reverse(lineage);
   }
 }

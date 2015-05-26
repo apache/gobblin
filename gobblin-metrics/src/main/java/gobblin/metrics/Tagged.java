@@ -69,7 +69,7 @@ public class Tagged implements Taggable {
    * @return map of tags.
    */
   public Map<String, Object> getTagMap() {
-    return Collections.unmodifiableMap(this.tags);
+    return ImmutableMap.copyOf(this.tags);
   }
 
   /**

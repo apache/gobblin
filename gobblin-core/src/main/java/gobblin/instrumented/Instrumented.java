@@ -19,11 +19,16 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang.StringUtils;
+
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
@@ -38,6 +43,7 @@ import gobblin.metrics.Tag;
 import gobblin.qualitychecker.row.RowLevelPolicy;
 import gobblin.source.extractor.Extractor;
 import gobblin.util.Decorator;
+import gobblin.util.DecoratorUtils;
 import gobblin.writer.DataWriter;
 
 
@@ -65,7 +71,7 @@ public class Instrumented implements Instrumentable, Closeable {
   public static final Random RAND = new Random();
 
   private final boolean instrumentationEnabled;
-  protected final MetricContext metricContext;
+  protected MetricContext metricContext;
   protected final Closer closer;
 
   /**
@@ -132,6 +138,36 @@ public class Instrumented implements Instrumentable, Closeable {
   }
 
   /**
+   * Copies a metric context and returns a new context with different name, and possibly different tags.
+   * @param context Context to copy.
+   * @param tags New tags to apply to context. Repeated keys will override old tags.
+   * @param name Name of the new context. If absent or empty, will modify old name by adding a random integer at the end.
+   * @return Copied context.
+   */
+  public static MetricContext copyMetricContext(MetricContext context, List<Tag<?>> tags, Optional<String> name) {
+
+    String newName = name.orNull();
+
+    if (Strings.isNullOrEmpty(newName)) {
+      int randomId = RAND.nextInt();
+
+      String oldName = context.getName();
+      List<String> splitName = Splitter.on(".").splitToList(oldName);
+      if (StringUtils.isNumeric(Iterables.getLast(splitName))) {
+        splitName.set(splitName.size() - 1, Integer.toString(randomId));
+      } else {
+        splitName.add(Integer.toString(randomId));
+      }
+      newName = StringUtils.join(splitName, ".");
+    }
+
+    MetricContext.Builder builder = context.getParent().isPresent() ?
+        context.getParent().get().childBuilder(newName) :
+        MetricContext.builder(newName);
+    return builder.addTags(context.getTags()).addTags(tags).build();
+  }
+
+  /**
    * Determines whether an object or, if it is a decorator, any object on its lineage, is already instrumented.
    * @param obj Object to analyze.
    * @return Whether the object is instrumented.
@@ -139,7 +175,7 @@ public class Instrumented implements Instrumentable, Closeable {
   public static boolean isLineageInstrumented(Object obj) {
     List<Object> lineage = Lists.newArrayList(obj);
     if(obj instanceof Decorator) {
-      lineage = ((Decorator) obj).getDecoratorLineage();
+      lineage = DecoratorUtils.getDecoratorLineage(obj);
     }
 
     for(Object node : lineage) {
@@ -231,6 +267,7 @@ public class Instrumented implements Instrumentable, Closeable {
     this.metricContext = closer.register(getMetricContext(state, klazz, tags));
   }
 
+  /** Default with no additional tags */
   @Override
   public List<Tag<?>> generateTags(State state) {
     return Lists.newArrayList();
@@ -244,6 +281,17 @@ public class Instrumented implements Instrumentable, Closeable {
   @Override
   public MetricContext getMetricContext() {
     return this.metricContext;
+  }
+
+  @Override
+  public void switchMetricContext(List<Tag<?>> tags) {
+    this.metricContext = this.closer.register(Instrumented.copyMetricContext(this.metricContext, tags,
+        Optional.<String>absent()));
+  }
+
+  @Override
+  public void switchMetricContext(MetricContext context) {
+    this.metricContext = context;
   }
 
   @Override

@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import kafka.message.MessageAndOffset;
 
+import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -72,13 +73,14 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     this.totalRecordSize = 0;
     this.recordCount = 0;
     this.avgRecordSize = 0;
+
+    switchMetricContext(Lists.<Tag<?>>newArrayList(new Tag<Integer>("partition", this.partition.getId())));
   }
 
   @Override
   public List<Tag<?>> generateTags(State state) {
     List<Tag<?>> tags = super.generateTags(state);
     tags.add(new Tag<String>("topic", state.getProp(KafkaSource.TOPIC_NAME)));
-    tags.add(new Tag<Integer>("partition", state.getPropAsInt(KafkaSource.PARTITION_ID)));
     return tags;
   }
 

@@ -80,12 +80,7 @@ public class InstrumentedExtractorDecorator<S, D> extends InstrumentedExtractorB
   }
 
   @Override
-  public Object getUnderlying() {
-    return DecoratorUtils.resolveUnderlyingObject(this.embeddedExtractor);
-  }
-
-  @Override
-  public List<Object> getDecoratorLineage() {
-    return DecoratorUtils.resolveDecoratorLineage(this, this.embeddedExtractor);
+  public Object getDirectlyUnderlying() {
+    return this.embeddedExtractor;
   }
 }

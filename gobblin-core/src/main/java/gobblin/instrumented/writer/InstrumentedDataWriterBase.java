@@ -43,11 +43,11 @@ abstract class InstrumentedDataWriterBase <D> implements DataWriter<D>, Instrume
   private final boolean instrumentationEnabled;
 
   protected final Closer closer;
-  protected final MetricContext metricContext;
-  protected final Optional<Meter> recordsInMeter;
-  protected final Optional<Meter> successfulWriteMeter;
-  protected final Optional<Meter> exceptionWriteMeter;
-  protected final Optional<Timer> dataWriterTimer;
+  private MetricContext metricContext;
+  private Optional<Meter> recordsInMeter;
+  private Optional<Meter> successfulWriteMeter;
+  private Optional<Meter> exceptionWriteMeter;
+  private Optional<Timer> dataWriterTimer;
 
   public InstrumentedDataWriterBase(State state) {
     this(state, Optional.<Class<?>>absent());
@@ -59,6 +59,27 @@ abstract class InstrumentedDataWriterBase <D> implements DataWriter<D>, Instrume
     this.metricContext =
         this.closer.register(Instrumented.getMetricContext(state, classTag.or(this.getClass())));
 
+    regenerateMetrics();
+  }
+
+  @Override
+  public void switchMetricContext(List<Tag<?>> tags) {
+    this.metricContext = this.closer.register(Instrumented.copyMetricContext(this.metricContext, tags,
+        Optional.<String>absent()));
+
+    regenerateMetrics();
+  }
+
+  @Override
+  public void switchMetricContext(MetricContext context) {
+    this.metricContext = context;
+    regenerateMetrics();
+  }
+
+  /**
+   * Generates metrics for the instrumentation of this class.
+   */
+  protected void regenerateMetrics() {
     if(isInstrumentationEnabled()) {
       this.recordsInMeter = Optional.of(this.metricContext.meter(MetricNames.DataWriterMetrics.RECORDS_IN_METER));
       this.successfulWriteMeter = Optional.of(
@@ -74,6 +95,7 @@ abstract class InstrumentedDataWriterBase <D> implements DataWriter<D>, Instrume
     }
   }
 
+  /** Default with no additional tags */
   @Override
   public List<Tag<?>> generateTags(State state) {
     return Lists.newArrayList();

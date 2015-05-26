@@ -145,7 +145,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    * @return Map of child contexts.
    */
   public Map<String, MetricContext> getChildContexts() {
-    return Collections.unmodifiableMap(this.children);
+    return ImmutableMap.copyOf(this.children);
   }
 
   /**
