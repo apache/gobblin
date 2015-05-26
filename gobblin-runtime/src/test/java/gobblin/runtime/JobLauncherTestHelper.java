@@ -107,10 +107,10 @@ public class JobLauncherTestHelper {
 
     for (TaskState taskState : jobState.getTaskStates()) {
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
-      Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED),
-          taskState.getPropAsLong(ConfigurationKeys.EXTRACT_PULL_LIMIT));
+      Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_EXTRACTED),
+          taskState.getPropAsLong(DefaultLimiterFactory.EXTRACT_LIMIT_COUNT_LIMIT_KEY));
       Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_ROWS_WRITTEN),
-          taskState.getPropAsLong(ConfigurationKeys.EXTRACT_PULL_LIMIT));
+          taskState.getPropAsLong(DefaultLimiterFactory.EXTRACT_LIMIT_COUNT_LIMIT_KEY));
     }
   }
 
@@ -148,12 +148,6 @@ public class JobLauncherTestHelper {
 
     List<JobState> jobStateList = this.jobStateStore.getAll(jobName, jobId + ".jst");
     Assert.assertTrue(jobStateList.isEmpty());
-
-    FileSystem lfs = FileSystem.getLocal(new Configuration());
-    Path jobLockFile =
-        new Path(jobProps.getProperty(ConfigurationKeys.JOB_LOCK_DIR_KEY), jobName
-            + FileBasedJobLock.LOCK_FILE_EXTENSION);
-    Assert.assertFalse(lfs.exists(jobLockFile));
   }
 
   @SuppressWarnings("unchecked")

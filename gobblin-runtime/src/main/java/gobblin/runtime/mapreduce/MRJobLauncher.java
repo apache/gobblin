@@ -105,6 +105,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
   private final Configuration conf;
   private final FileSystem fs;
   private final Job job;
+  private final Path mrJobDir;
 
   public MRJobLauncher(Properties sysProps, Properties jobProps)
       throws Exception {
@@ -114,9 +115,36 @@ public class MRJobLauncher extends AbstractJobLauncher {
   public MRJobLauncher(Properties properties, Properties jobProps, Configuration conf)
       throws Exception {
     super(properties, jobProps);
+
     this.conf = conf;
+
+    // Add job config properties that also contains all framework config properties
+    for (String name : this.jobProps.stringPropertyNames()) {
+      this.conf.set(name, this.jobProps.getProperty(name));
+    }
+
+    // Let the job and all mappers finish even if some mappers fail
+    this.conf.set("mapred.max.map.failures.percent", "100"); // For Hadoop 1.x
+    this.conf.set("mapreduce.map.failures.maxpercent", "100"); // For Hadoop 2.x
+
+    // Do not cancel delegation tokens after job has completed (HADOOP-7002)
+    this.conf.setBoolean("mapreduce.job.complete.cancel.delegation.tokens", false);
+
     URI fsUri = URI.create(this.sysProps.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
     this.fs = FileSystem.get(fsUri, conf);
+
+    this.mrJobDir = new Path(this.jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY), jobContext.getJobName());
+    if (this.fs.exists(this.mrJobDir)) {
+      LOG.warn("Job working directory already exists for job " + jobContext.getJobName());
+      this.fs.delete(this.mrJobDir, true);
+    }
+    this.fs.mkdirs(this.mrJobDir);
+
+    // Add dependent jars/files
+    addDependencies();
+
+    // Finally create the Hadoop job after all updates to conf are already made (including
+    // adding dependent jars/files to the DistributedCache that also updates the conf)
     this.job = Job.getInstance(this.conf, JOB_NAME_PREFIX + this.jobContext.getJobName());
 
     startCancellationExecutor();
@@ -138,26 +166,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
   @Override
   protected void runWorkUnits(List<WorkUnit> workUnits)
       throws Exception {
-    // Add job config properties that also contains all framework config properties
-    for (String name : this.jobProps.stringPropertyNames()) {
-      this.conf.set(name, this.jobProps.getProperty(name));
-    }
-
-    // Let the job and all mappers finish even if some mappers fail
-    this.conf.set("mapred.max.map.failures.percent", "100"); // For Hadoop 1.x
-    this.conf.set("mapreduce.map.failures.maxpercent", "100"); // For Hadoop 2.x
-
-    // Do not cancel delegation tokens after job has completed (HADOOP-7002)
-    this.conf.setBoolean("mapreduce.job.complete.cancel.delegation.tokens", false);
-
     String jobName = this.jobContext.getJobName();
     JobState jobState = this.jobContext.getJobState();
-
-    Path mrJobDir = new Path(this.jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY), jobName);
-    if (this.fs.exists(mrJobDir)) {
-      LOG.warn("Job working directory already exists for job " + jobName);
-      this.fs.delete(mrJobDir, true);
-    }
 
     try {
       Optional<Timer.Context> cleanStagingDataTimer =
@@ -166,7 +176,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
       JobLauncherUtils.cleanStagingData(JobLauncherUtils.flattenWorkUnits(workUnits), LOG);
       Instrumented.endTimer(cleanStagingDataTimer);
 
-      Path jobOutputPath = prepareHadoopJob(this.jobProps, workUnits, mrJobDir);
+      Path jobOutputPath = prepareHadoopJob(workUnits);
       LOG.info("Launching Hadoop MR job " + this.job.getJobName());
       this.job.submit();
 
@@ -226,18 +236,18 @@ public class MRJobLauncher extends AbstractJobLauncher {
   }
 
   /**
-   * Prepare the Hadoop MR job, including configuring the job and setting up the input/output paths.
+   * Add dependent jars and files.
    */
-  private Path prepareHadoopJob(Properties jobProps, List<WorkUnit> workUnits, Path mrJobDir)
-      throws IOException {
-
+  private void addDependencies() throws IOException {
     Optional<Timer.Context> distributedCacheSetupTimer =
         Instrumented.timerContext(this.runtimeMetrics, MetricNames.RunJobTimings.DISTRIBUTED_CACHE);
-    Path jarFileDir = new Path(mrJobDir, "_jars");
+    Path jarFileDir = new Path(this.mrJobDir, "_jars");
+
     // Add framework jars to the classpath for the mappers/reducer
     if (jobProps.containsKey(ConfigurationKeys.FRAMEWORK_JAR_FILES_KEY)) {
       addJars(jarFileDir, jobProps.getProperty(ConfigurationKeys.FRAMEWORK_JAR_FILES_KEY));
     }
+
     // Add job-specific jars to the classpath for the mappers
     if (jobProps.containsKey(ConfigurationKeys.JOB_JAR_FILES_KEY)) {
       addJars(jarFileDir, jobProps.getProperty(ConfigurationKeys.JOB_JAR_FILES_KEY));
@@ -245,7 +255,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     // Add other files (if any) the job depends on to DistributedCache
     if (jobProps.containsKey(ConfigurationKeys.JOB_LOCAL_FILES_KEY)) {
-      addLocalFiles(new Path(mrJobDir, "_files"), jobProps.getProperty(ConfigurationKeys.JOB_LOCAL_FILES_KEY));
+      addLocalFiles(new Path(this.mrJobDir, "_files"), jobProps.getProperty(ConfigurationKeys.JOB_LOCAL_FILES_KEY));
     }
 
     // Add files (if any) already on HDFS that the job depends on to DistributedCache
@@ -253,7 +263,13 @@ public class MRJobLauncher extends AbstractJobLauncher {
       addHDFSFiles(jobProps.getProperty(ConfigurationKeys.JOB_HDFS_FILES_KEY));
     }
     Instrumented.endTimer(distributedCacheSetupTimer);
+  }
 
+  /**
+   * Prepare the Hadoop MR job, including configuring the job and setting up the input/output paths.
+   */
+  private Path prepareHadoopJob(List<WorkUnit> workUnits)
+      throws IOException {
     Optional<Timer.Context> setupMRJobTimer =
         Instrumented.timerContext(this.runtimeMetrics, MetricNames.RunJobTimings.SETUP_MR_JOB);
 
@@ -272,20 +288,20 @@ public class MRJobLauncher extends AbstractJobLauncher {
     this.job.setSpeculativeExecution(false);
 
     // Job input path is where input work unit files are stored
-    Path jobInputPath = new Path(mrJobDir, "input");
+    Path jobInputPath = new Path(this.mrJobDir, "input");
 
     // Prepare job input
     Path jobInputFile = prepareJobInput(jobInputPath, workUnits);
     NLineInputFormat.addInputPath(this.job, jobInputFile);
 
     // Job output path is where serialized task states are stored
-    Path jobOutputPath = new Path(mrJobDir, "output");
+    Path jobOutputPath = new Path(this.mrJobDir, "output");
     SequenceFileOutputFormat.setOutputPath(this.job, jobOutputPath);
 
-    if (jobProps.containsKey(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY)) {
+    if (this.jobProps.containsKey(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY)) {
       // When there is a limit on the number of mappers, each mapper may run
       // multiple tasks if the total number of tasks is larger than the limit.
-      int maxMappers = Integer.parseInt(jobProps.getProperty(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY));
+      int maxMappers = Integer.parseInt(this.jobProps.getProperty(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY));
       if (workUnits.size() > maxMappers) {
         int numTasksPerMapper =
             workUnits.size() % maxMappers == 0 ? workUnits.size() / maxMappers : workUnits.size() / maxMappers + 1;
@@ -304,7 +320,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
    */
   private void addJars(Path jarFileDir, String jarFileList)
       throws IOException {
-    LocalFileSystem lfs = FileSystem.getLocal(conf);
+    LocalFileSystem lfs = FileSystem.getLocal(this.conf);
     for (String jarFile : SPLITTER.split(jarFileList)) {
       Path srcJarFile = new Path(jarFile);
       FileStatus[] fileStatusList = lfs.globStatus(srcJarFile);
@@ -442,15 +458,13 @@ public class MRJobLauncher extends AbstractJobLauncher {
    * Cleanup the Hadoop MR working directory.
    */
   private void cleanUpWorkingDirectory() {
-    Path mrJobDir = new Path(this.jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY),
-        this.jobContext.getJobName());
     try {
-      if (this.fs.exists(mrJobDir)) {
-        this.fs.delete(mrJobDir, true);
-        LOG.info("Deleted working directory " + mrJobDir);
+      if (this.fs.exists(this.mrJobDir)) {
+        this.fs.delete(this.mrJobDir, true);
+        LOG.info("Deleted working directory " + this.mrJobDir);
       }
     } catch (IOException ioe) {
-      LOG.error("Failed to delete working directory " + mrJobDir);
+      LOG.error("Failed to delete working directory " + this.mrJobDir);
     }
   }
 

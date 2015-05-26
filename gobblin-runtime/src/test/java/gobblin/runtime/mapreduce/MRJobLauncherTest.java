@@ -32,6 +32,8 @@ import org.testng.annotations.Test;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
+import gobblin.runtime.BaseLimiterType;
+import gobblin.runtime.DefaultLimiterFactory;
 import gobblin.runtime.JobLauncherTestHelper;
 import gobblin.runtime.JobState;
 import gobblin.writer.Destination;
@@ -54,7 +56,6 @@ public class MRJobLauncherTest extends BMNGRunner {
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, "true");
     this.launcherProps.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "true");
     this.launcherProps.setProperty(ConfigurationKeys.METRICS_REPORTING_FILE_ENABLED_KEY, "false");
-    this.launcherProps.setProperty(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, "false");
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY,
         "org.apache.derby.jdbc.EmbeddedDriver");
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY,
@@ -88,7 +89,9 @@ public class MRJobLauncherTest extends BMNGRunner {
   @Test
   public void testLaunchJobWithPullLimit() throws Exception {
     Properties jobProps = loadJobProps();
-    jobProps.setProperty(ConfigurationKeys.EXTRACT_PULL_LIMIT, "10");
+    jobProps.setProperty(ConfigurationKeys.EXTRACT_LIMIT_ENABLED_KEY, Boolean.TRUE.toString());
+    jobProps.setProperty(DefaultLimiterFactory.EXTRACT_LIMIT_TYPE_KEY, BaseLimiterType.COUNT_BASED.toString());
+    jobProps.setProperty(DefaultLimiterFactory.EXTRACT_LIMIT_COUNT_LIMIT_KEY, "10");
     this.jobLauncherTestHelper.runTestWithPullLimit(jobProps);
   }
 
@@ -139,7 +142,7 @@ public class MRJobLauncherTest extends BMNGRunner {
    * an exception is thrown in the {@link MRJobLauncher#collectOutput(Path)} method. The {@link BMRule} is
    * to inject an {@link IOException} when the {@link MRJobLauncher#collectOutput(Path)} method is called.
    */
-  @Test()
+  @Test
   @BMRule(name = "testJobCleanupOnError",
           targetClass = "gobblin.runtime.mapreduce.MRJobLauncher",
           targetMethod = "collectOutput(Path)",
