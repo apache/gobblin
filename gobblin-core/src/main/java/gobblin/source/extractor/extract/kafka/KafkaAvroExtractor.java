@@ -12,13 +12,11 @@
 package gobblin.source.extractor.extract.kafka;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 import kafka.message.MessageAndOffset;
 
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericData.Record;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
@@ -65,7 +63,7 @@ public class KafkaAvroExtractor extends KafkaExtractor<Schema, GenericRecord> {
   }
 
   private Schema getLatestSchemaByTopic() throws SchemaNotFoundException {
-    return this.schemaRegistry.getLatestSchemaByTopic(this.partition.getTopicName());
+    return this.schemaRegistry.getLatestSchemaByTopic(this.topicName);
   }
 
   @Override
@@ -74,12 +72,10 @@ public class KafkaAvroExtractor extends KafkaExtractor<Schema, GenericRecord> {
   }
 
   @Override
-  protected GenericRecord decodeRecord(MessageAndOffset messageAndOffset, GenericRecord reuse)
-      throws SchemaNotFoundException, IOException {
+  protected GenericRecord decodeRecord(MessageAndOffset messageAndOffset) throws SchemaNotFoundException, IOException {
     byte[] payload = getBytes(messageAndOffset.message().payload());
     if (payload[0] != MAGIC_BYTE) {
-      throw new RuntimeException(String.format("Unknown magic byte for topic %s, partition %d",
-          this.partition.getTopicName(), this.partition.getId()));
+      throw new RuntimeException(String.format("Unknown magic byte for partition %s", this.getCurrentPartition()));
     }
 
     byte[] schemaIdByteArray = Arrays.copyOfRange(payload, 1, 1 + SCHEMA_ID_LENGTH_BYTE);
@@ -91,16 +87,14 @@ public class KafkaAvroExtractor extends KafkaExtractor<Schema, GenericRecord> {
         DecoderFactory.get().binaryDecoder(payload, 1 + SCHEMA_ID_LENGTH_BYTE,
             payload.length - 1 - SCHEMA_ID_LENGTH_BYTE, null);
     try {
-      GenericRecord record = reader.read((GenericData.Record) reuse, binaryDecoder);
+      GenericRecord record = reader.read(null, binaryDecoder);
       if (!record.getSchema().equals(this.schema)) {
         record = AvroUtils.convertRecordSchema(record, this.schema);
       }
       return record;
     } catch (IOException e) {
-      LOG.error(String.format("Error during decoding record for topic %s, partition %d: ",
-          this.partition.getTopicName(), this.partition.getId()));
+      LOG.error(String.format("Error during decoding record for partition %s: ", this.getCurrentPartition()));
       throw e;
     }
   }
-
 }
