@@ -34,8 +34,8 @@ import java.util.Map;
  * @author akshay@nerdwallet.com
  */
 class BatchKafkaData {
-  // Cap the Kafka file size to 5 GB
-  private static final long MAX_KAFKA_FILE_SIZE = 5L * 1000000000L;
+  // Cap the Kafka file size to .5 GB
+  private static final long MAX_KAFKA_FILE_SIZE = 500L * 1000000L;
 
   /**
    * Batches all Kafka for one partition for each branch and returns a mapping from
