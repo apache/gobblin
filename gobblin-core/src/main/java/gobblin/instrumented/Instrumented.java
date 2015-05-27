@@ -165,7 +165,7 @@ public class Instrumented implements Instrumentable, Closeable {
       String oldName = context.getName();
       List<String> splitName = Strings.isNullOrEmpty(oldName) ?
           Lists.<String>newArrayList() :
-          Splitter.on(".").splitToList(oldName);
+          Lists.newArrayList(Splitter.on(".").splitToList(oldName));
       if (splitName.size() > 0 && StringUtils.startsWith(Iterables.getLast(splitName), randomIdPrefix)) {
         splitName.set(splitName.size() - 1, String.format("%s%s", randomIdPrefix, uuid.toString()));
       } else {
