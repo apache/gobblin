@@ -105,12 +105,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     this.cancellationExecutor = Executors.newSingleThreadExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of("CancellationExecutor")));
 
-    this.runtimeMetricContext = this.jobContext.getJobMetricsOptional().transform(new Function<JobMetrics, MetricContext>() {
-      @Override
-      public MetricContext apply(JobMetrics input) {
-        return input.getMetricContext();
-      }
-    });
+    this.runtimeMetricContext = this.jobContext.getJobMetricsOptional().transform(
+        new Function<JobMetrics, MetricContext>() {
+          @Override
+          public MetricContext apply(JobMetrics input) {
+            return input.getMetricContext();
+          }
+        });
   }
 
   /**
@@ -215,7 +216,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                 this.jobContext.getJobName()));
       }
 
-      Optional<Timer.Context> createWorkyunitsTimer = Instrumented.timerContext(this.runtimeMetricContext,
+      Optional<Timer.Context> createWorkUnitsTimer = Instrumented.timerContext(this.runtimeMetricContext,
           MetricNames.LauncherTimings.WORK_UNITS_CREATE);
       // Generate work units of the job from the source
       Optional<List<WorkUnit>> workUnits = Optional.fromNullable(this.jobContext.getSource().getWorkunits(jobState));
@@ -224,7 +225,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         jobState.setState(JobState.RunningState.FAILED);
         throw new JobException("Failed to get work units for job " + jobId);
       }
-      Instrumented.endTimer(createWorkyunitsTimer);
+      Instrumented.endTimer(createWorkUnitsTimer);
 
       // No work unit to run
       if (workUnits.get().isEmpty()) {
@@ -287,16 +288,15 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       // Commit and publish job data
       commitJob(jobState);
       Instrumented.endTimer(commitJobTimer);
-
     } catch (Throwable t) {
       jobState.setState(JobState.RunningState.FAILED);
       String errMsg = "Failed to launch and run job " + jobId;
       LOG.error(errMsg + ": " + t, t);
       throw new JobException(errMsg, t);
     } finally {
-
       Optional<Timer.Context> jobCleanupTimer = Instrumented.timerContext(this.runtimeMetricContext,
           MetricNames.LauncherTimings.JOB_CLEANUP);
+
       long endTime = System.currentTimeMillis();
       jobState.setEndTime(endTime);
       jobState.setDuration(endTime - jobState.getStartTime());
