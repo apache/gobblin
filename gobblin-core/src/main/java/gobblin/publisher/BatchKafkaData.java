@@ -19,8 +19,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.SequenceInputStream;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -50,10 +48,10 @@ class BatchKafkaData {
    * @return a mapping from &lt;topic&gt;-&lt;branch&gt; to a list of streams
    * @throws IOException
    */
-  public static Map<String, LinkedList<LengthAndStream>>
+  public static Map<String, LinkedList<String>>
   getInputStreams(Collection<? extends WorkUnitState> tasks, int numBranches, List<FileSystem> fss)
   throws IOException {
-    Map<String, LinkedList<LengthAndStream>> data = new HashMap<String, LinkedList<LengthAndStream>>();
+    Map<String, LinkedList<String>> data = new HashMap<String, LinkedList<String>>();
     for (WorkUnitState task : tasks) {
       String topic = task.getProp(KafkaSource.TOPIC_NAME);
       for (int i=0; i<numBranches; i++) {
@@ -63,52 +61,17 @@ class BatchKafkaData {
         // We want one key per topic per branch
         String topicForBranch = topic + "-" + i;
 
-        // Get the input stream and content length
-        long contentLength = fss.get(i).getFileStatus(writerFile).getLen();
-        InputStream is = fss.get(i).open(writerFile);
-
         // All the batched streams
-        LinkedList<LengthAndStream> lasList = data.get(topicForBranch);
-        if (lasList == null) {
-          lasList = new LinkedList<LengthAndStream>();
-          lasList.add(new LengthAndStream(is, contentLength));
-          data.put(topicForBranch, lasList);
+        LinkedList<String> fnames = data.get(topicForBranch);
+        if (fnames == null) {
+          fnames = new LinkedList<String>();
+          fnames.add(writerFile.toString());
+          data.put(topicForBranch, fnames);
         } else {
-          LengthAndStream las = lasList.getLast();
-          if (!las.appendStream(is, contentLength)) { // stream is too big, add a new one to our list
-            lasList.addLast(new LengthAndStream(is, contentLength));
-          }
+          fnames.addLast(writerFile.toString());
         }
       }
     }
     return data;
-  }
-
-  public static class LengthAndStream {
-    private long length;
-    private InputStream stream;
-
-    public LengthAndStream(InputStream stream, long length) {
-      this.length = length;
-      this.stream = stream;
-    }
-
-    public InputStream getStream() {
-      return stream;
-    }
-
-    public long getLength() {
-      return length;
-    }
-
-    public boolean appendStream(InputStream is, long length) {
-      if (this.length + length >= MAX_KAFKA_FILE_SIZE) {
-        return false; // stream has too much data
-      }
-      // Chain input streams and update length
-      this.stream = new SequenceInputStream(stream, is);
-      this.length += length;
-      return true;
-    }
   }
 }

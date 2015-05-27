@@ -11,20 +11,26 @@
 
 package gobblin.publisher;
 
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.regions.Region;
-import com.amazonaws.regions.Regions;
+import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
-import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.AbortMultipartUploadRequest;
+import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
+import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
+import com.amazonaws.services.s3.model.InitiateMultipartUploadResult;
+import com.amazonaws.services.s3.model.PartETag;
+import com.amazonaws.services.s3.model.UploadPartRequest;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * An implementation of {@link BaseDataPublisher} that publishes the data from the writer
@@ -44,6 +50,7 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
   protected final int s3Partitions;
 
   private static final Logger LOG = LoggerFactory.getLogger(BaseS3Publisher.class);
+  private static final long PART_SIZE = 50 * 1024 * 1024; // 50 mb chunks to s3
 
   public BaseS3Publisher(State state) {
     super(state);
@@ -56,35 +63,57 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
   @Override
   public abstract void publishMetadata(Collection<? extends WorkUnitState> states) throws IOException;
 
-  protected void sendS3Data(BucketAndKey bk, InputStream is, long contentLength) throws IOException {
-    if (contentLength == 0) {
-      LOG.info(String.format("Skipping publishing to %s since content length  is 0", bk.toString()));
-      return;
+  protected void sendS3Data(int branch, BucketAndKey bk, List<String> files) throws IOException {
+    AmazonS3 s3Client = new AmazonS3Client();
+
+    // Create a list of UploadPartResponse objects. You get one of these for
+    // each part upload.
+    List<PartETag> partETags = new ArrayList<PartETag>();
+
+    // Step 1: Initialize.
+    InitiateMultipartUploadRequest initRequest = new InitiateMultipartUploadRequest(
+            bk.getBucket(), bk.getKey());
+    InitiateMultipartUploadResult initResponse =
+            s3Client.initiateMultipartUpload(initRequest);
+    try {
+      for (String file : files) {
+        Path filePath = new Path(file);
+
+        // Get the input stream and content length
+        long contentLength = fss.get(branch).getFileStatus(filePath).getLen();
+        InputStream is = fss.get(branch).open(filePath);
+
+        long filePosition = 0;
+        for (int i = 1; filePosition < contentLength; i++) {
+          // Last part can be less than 5 MB. Adjust part size.
+          long partSize = Math.min(PART_SIZE, (contentLength - filePosition));
+
+          // Create request to upload a part.
+          UploadPartRequest uploadRequest = new UploadPartRequest()
+                  .withBucketName(bk.getBucket()).withKey(bk.getKey())
+                  .withUploadId(initResponse.getUploadId()).withPartNumber(i)
+                  .withFileOffset(filePosition)
+                  .withInputStream(is)
+                  .withPartSize(partSize);
+
+          // Upload part and add response to our list.
+          partETags.add(s3Client.uploadPart(uploadRequest).getPartETag());
+
+          filePosition += partSize;
+        }
+      }
+      // Step 3: Complete.
+      CompleteMultipartUploadRequest compRequest = new
+              CompleteMultipartUploadRequest(bk.getBucket(),
+              bk.getKey(),
+              initResponse.getUploadId(),
+              partETags);
+
+      s3Client.completeMultipartUpload(compRequest);
+    } catch (Exception e) {
+      s3Client.abortMultipartUpload(new AbortMultipartUploadRequest(
+              bk.getBucket(), bk.getKey(), initResponse.getUploadId()));
     }
-    // get config parameters
-    String awsAccessKey = this.getState().getProp(ConfigurationKeys.AWS_ACCESS_KEY);
-    String awsSecretKey = this.getState().getProp(ConfigurationKeys.AWS_SECRET_KEY);
-    String bucket = bk.getBucket();
-    String key = bk.getKey() + this.getState().getProp(ConfigurationKeys.DATA_PUBLISHER_FILE_EXTENSION, ".txt");
-
-    AmazonS3Client s3Client;
-    LOG.info("Attempting to connect to amazon");
-    if (awsAccessKey == null || awsSecretKey == null) {
-      s3Client = new AmazonS3Client();
-    } else {
-      s3Client = new AmazonS3Client(new BasicAWSCredentials(awsAccessKey, awsSecretKey));
-    }
-    s3Client.setRegion(Region.getRegion(Regions.US_EAST_1));
-    LOG.info("Established connection to amazon");
-
-    // add content length to send along to amazon
-    ObjectMetadata metadata = new ObjectMetadata();
-    metadata.setContentLength(contentLength);
-
-    LOG.info("Sending data to amazon with content length = " + contentLength);
-    s3Client.putObject(bucket, key, is, metadata);
-    s3Client.shutdown();
-    LOG.info("Put <" + key + "> to s3 bucket <" + bucket + ">");
   }
 
   protected static class BucketAndKey {

@@ -18,7 +18,6 @@ import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Date;
@@ -43,18 +42,15 @@ public class KafkaS3Publisher extends BaseS3Publisher {
 
   @Override
   public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
-    Map<String, LinkedList<BatchKafkaData.LengthAndStream>> data =
+    Map<String, LinkedList<String>> data =
             BatchKafkaData.getInputStreams(states, this.numBranches, this.fss);
     for (String k : data.keySet()) {
+      String s3Bucket = this.getState().getProp(ConfigurationKeys.S3_BUCKET);
+      String s3Key = getS3Key(k);
+      String[] arr = k.split("-");
+      int branch = Integer.parseInt(arr[arr.length - 1]);
+      this.sendS3Data(branch, new BucketAndKey(s3Bucket, s3Key), data.get(k));
       int i = 0; // append this to s3 keys to keep it unique per fragment
-      for (BatchKafkaData.LengthAndStream las : data.get(k)) {
-        long contentLength = las.getLength();
-        InputStream is = las.getStream();
-        String s3Bucket = this.getState().getProp(ConfigurationKeys.S3_BUCKET);
-        String s3Key = getS3Key(k) + "-" + i;
-        this.sendS3Data(new BucketAndKey(s3Bucket, s3Key), is, contentLength);
-        i++;
-      }
     }
   }
 
