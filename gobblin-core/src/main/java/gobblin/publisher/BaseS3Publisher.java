@@ -104,7 +104,9 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
           // Upload part and add response to our list.
           partETags.add(s3Client.uploadPart(uploadRequest).getPartETag());
 
-          filePosition += partSize;
+          LOG.info("uploadRequest.getFileOffset() = " + uploadRequest.getFileOffset());
+          LOG.info("uploadRequest.getPartSize() = " + uploadRequest.getPartSize());
+          filePosition += uploadRequest.getPartSize();
           i++;
         }
         LOG.info("Finished publishing file " + file);
