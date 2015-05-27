@@ -22,6 +22,7 @@ import com.amazonaws.services.s3.model.UploadPartRequest;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,6 +102,7 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
 
           filePosition += partSize;
         }
+        LOG.info("Finished publishing file " + file);
       }
       // Step 3: Complete.
       CompleteMultipartUploadRequest compRequest = new
@@ -111,9 +113,11 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
 
       s3Client.completeMultipartUpload(compRequest);
     } catch (Exception e) {
+      LOG.error("Error publishing to S3:\n" + ExceptionUtils.getStackTrace(e));
       s3Client.abortMultipartUpload(new AbortMultipartUploadRequest(
               bk.getBucket(), bk.getKey(), initResponse.getUploadId()));
     }
+    LOG.info("Finished publishing " + bk.toString() + "to s3");
   }
 
   protected static class BucketAndKey {
