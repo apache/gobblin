@@ -77,7 +77,7 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
     InitiateMultipartUploadResult initResponse =
             s3Client.initiateMultipartUpload(initRequest);
     try {
-      int i = 0;
+      int i = 1;
       for (String file : files) {
         Path filePath = new Path(file);
 
