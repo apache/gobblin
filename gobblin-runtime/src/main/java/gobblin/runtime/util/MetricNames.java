@@ -22,9 +22,8 @@ public class MetricNames {
 
   public static class LauncherTimings {
     public static final String BASE_NAME = "gobblin.launcher.timings";
-    public static final String WORK_UNITS_CREATE = MetricRegistry.name(BASE_NAME, "work.units.create");
-    public static final String WORK_UNITS_ADD = MetricRegistry.name(BASE_NAME, "work.units.add");
-    public static final String JOB_HISTORY_WRITE = MetricRegistry.name(BASE_NAME, "job.history.write");
+    public static final String WORK_UNITS_CREATION = MetricRegistry.name(BASE_NAME, "work.units.creation");
+    public static final String WORK_UNITS_PREPARATION = MetricRegistry.name(BASE_NAME, "work.units.preparation");
     public static final String JOB_RUN = MetricRegistry.name(BASE_NAME, "job.run");
     public static final String JOB_COMMIT = MetricRegistry.name(BASE_NAME, "job.commit");
     public static final String JOB_CLEANUP = MetricRegistry.name(BASE_NAME, "job.cleanup");
@@ -34,10 +33,10 @@ public class MetricNames {
     public static String BASE_NAME = "gobblin.job.run.timings";
     public static final String JOB_LOCAL_SETUP = MetricRegistry.name(BASE_NAME, "job.local.setup");
     public static final String WORK_UNITS_RUN = MetricRegistry.name(BASE_NAME, "work.units.run");
-    public static final String WORK_UNITS_SCHEDULE = MetricRegistry.name(BASE_NAME, "work.units.schedule");
+    public static final String WORK_UNITS_PREPARATION = MetricRegistry.name(BASE_NAME, "work.units.preparation");
     public static final String MR_STAGING_DATA_CLEAN = MetricRegistry.name(BASE_NAME, "job.mr.staging.data.clean");
-    public static final String MR_DISTRIBUTED_CACHE_POPULATE = MetricRegistry.name(
-        BASE_NAME, "job.mr.distributed.cache.populate");
+    public static final String MR_DISTRIBUTED_CACHE_SETUP = MetricRegistry.name(
+        BASE_NAME, "job.mr.distributed.cache.setup");
     public static final String MR_JOB_SETUP = MetricRegistry.name(BASE_NAME, "job.mr.setup");
     public static final String MR_JOB_RUN = MetricRegistry.name(BASE_NAME, "job.mr.run");
   }

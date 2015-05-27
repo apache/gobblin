@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Timer;
+
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -216,16 +217,17 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                 this.jobContext.getJobName()));
       }
 
-      Optional<Timer.Context> createWorkUnitsTimer = Instrumented.timerContext(this.runtimeMetricContext,
-          MetricNames.LauncherTimings.WORK_UNITS_CREATE);
+      Optional<Timer.Context> workUnitsCreationTimer = Instrumented.timerContext(this.runtimeMetricContext,
+          MetricNames.LauncherTimings.WORK_UNITS_CREATION);
       // Generate work units of the job from the source
       Optional<List<WorkUnit>> workUnits = Optional.fromNullable(this.jobContext.getSource().getWorkunits(jobState));
+      Instrumented.endTimer(workUnitsCreationTimer);
+
       // The absence means there is something wrong getting the work units
       if (!workUnits.isPresent()) {
         jobState.setState(JobState.RunningState.FAILED);
         throw new JobException("Failed to get work units for job " + jobId);
       }
-      Instrumented.endTimer(createWorkUnitsTimer);
 
       // No work unit to run
       if (workUnits.get().isEmpty()) {
@@ -239,8 +241,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
       LOG.info("Starting job " + jobId);
 
-      Optional<Timer.Context> addWorkUnitsTimer = Instrumented.timerContext(this.runtimeMetricContext,
-          MetricNames.LauncherTimings.WORK_UNITS_ADD);
+      Optional<Timer.Context> workUnitsPreparationTimer = Instrumented.timerContext(this.runtimeMetricContext,
+          MetricNames.LauncherTimings.WORK_UNITS_PREPARATION);
 
       // Add work units and assign task IDs to them
       int taskIdSequence = 0;
@@ -258,23 +260,20 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
       }
 
-      Instrumented.endTimer(addWorkUnitsTimer);
+      Instrumented.endTimer(workUnitsPreparationTimer);
 
       if (this.jobContext.getJobMetricsOptional().isPresent()) {
         this.jobContext.getJobMetricsOptional().get().startMetricReporting(this.jobProps);
       }
 
-      Optional<Timer.Context> writeJobHistoryTimer = Instrumented.timerContext(this.runtimeMetricContext,
-          MetricNames.LauncherTimings.JOB_HISTORY_WRITE);
       // Write job execution info to the job history store before the job starts to run
       storeJobExecutionInfo();
-      Instrumented.endTimer(writeJobHistoryTimer);
 
-      Optional<Timer.Context> runJobTimer = Instrumented.timerContext(this.runtimeMetricContext,
+      Optional<Timer.Context> jobRunTimer = Instrumented.timerContext(this.runtimeMetricContext,
           MetricNames.LauncherTimings.JOB_RUN);
       // Start the job and wait for it to finish
       runWorkUnits(workUnits.get());
-      Instrumented.endTimer(runJobTimer);
+      Instrumented.endTimer(jobRunTimer);
 
       // Check and set final job jobPropsState upon job completion
       if (jobState.getState() == JobState.RunningState.CANCELLED) {
@@ -282,21 +281,18 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         return;
       }
 
-      Optional<Timer.Context> commitJobTimer = Instrumented.timerContext(this.runtimeMetricContext,
+      Optional<Timer.Context> jobCommitTimer = Instrumented.timerContext(this.runtimeMetricContext,
           MetricNames.LauncherTimings.JOB_COMMIT);
       setFinalJobState(jobState);
       // Commit and publish job data
       commitJob(jobState);
-      Instrumented.endTimer(commitJobTimer);
+      Instrumented.endTimer(jobCommitTimer);
     } catch (Throwable t) {
       jobState.setState(JobState.RunningState.FAILED);
       String errMsg = "Failed to launch and run job " + jobId;
       LOG.error(errMsg + ": " + t, t);
       throw new JobException(errMsg, t);
     } finally {
-      Optional<Timer.Context> jobCleanupTimer = Instrumented.timerContext(this.runtimeMetricContext,
-          MetricNames.LauncherTimings.JOB_CLEANUP);
-
       long endTime = System.currentTimeMillis();
       jobState.setEndTime(endTime);
       jobState.setDuration(endTime - jobState.getStartTime());
@@ -309,12 +305,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         jobState.setState(JobState.RunningState.FAILED);
       }
 
+      Optional<Timer.Context> jobCleanupTimer = Instrumented.timerContext(this.runtimeMetricContext,
+          MetricNames.LauncherTimings.JOB_CLEANUP);
       cleanupStagingData(jobState);
+      Instrumented.endTimer(jobCleanupTimer);
 
       // Write job execution info to the job history store upon job termination
       storeJobExecutionInfo();
-
-      Instrumented.endTimer(jobCleanupTimer);
 
       if (this.jobContext.getJobMetricsOptional().isPresent()) {
         this.jobContext.getJobMetricsOptional().get().triggerMetricReporting();
