@@ -91,6 +91,10 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
         while (filePosition < contentLength) {
           // Last part can be less than 500 MB. Adjust part size.
           long partSize = Math.min(PART_SIZE, (contentLength - filePosition));
+          // if the last part will be smaller than PART_SIZE, send it along with this part
+          if (partSize + filePosition + PART_SIZE >= contentLength) {
+            partSize += (contentLength - filePosition - partSize);
+          }
 
           LOG.info("Sending part to s3 with part number " + i + " and file position: " + filePosition);
 
