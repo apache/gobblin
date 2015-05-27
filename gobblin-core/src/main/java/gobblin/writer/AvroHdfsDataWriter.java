@@ -53,8 +53,7 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
   private final DatumWriter<GenericRecord> datumWriter;
   private final DataFileWriter<GenericRecord> writer;
 
-  // It is possible that the schema may change based on incoming records
-  private Schema schema;
+  private final Schema schema;
 
   // Number of records successfully written
   private final AtomicLong count = new AtomicLong(0);
@@ -71,9 +70,9 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
   public AvroHdfsDataWriter(State properties, String fileName, Schema schema, int numBranches, int branchId)
       throws IOException {
 
-    String uri = properties
-        .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
-            ConfigurationKeys.LOCAL_FS_URI);
+    String uri = properties.getProp(
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
+        ConfigurationKeys.LOCAL_FS_URI);
 
     Path stagingDir = WriterUtils.getWriterStagingDir(properties, numBranches, branchId);
 
@@ -83,15 +82,14 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
         .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_CODEC_TYPE, numBranches, branchId),
             AvroHdfsDataWriter.CodecType.DEFLATE.name());
 
-    int bufferSize = Integer.parseInt(properties
-        .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUFFER_SIZE, numBranches, branchId),
-            ConfigurationKeys.DEFAULT_BUFFER_SIZE));
+    int bufferSize = Integer.parseInt(properties.getProp(
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUFFER_SIZE, numBranches, branchId),
+        ConfigurationKeys.DEFAULT_BUFFER_SIZE));
 
-    int deflateLevel = Integer.parseInt(properties
-        .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DEFLATE_LEVEL, numBranches, branchId),
-            ConfigurationKeys.DEFAULT_DEFLATE_LEVEL));
+    int deflateLevel = Integer.parseInt(properties.getProp(
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DEFLATE_LEVEL, numBranches, branchId),
+        ConfigurationKeys.DEFAULT_DEFLATE_LEVEL));
 
-    this.properties = properties;
     this.schema = schema;
 
     Configuration conf = new Configuration();
@@ -100,7 +98,7 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
       conf.set(key, properties.getProp(key));
     }
     this.fs = FileSystem.get(URI.create(uri), conf);
-
+    this.properties = properties;
     this.stagingFile = new Path(stagingDir, fileName);
 
     // Deleting the staging file if it already exists, which can happen if the
@@ -167,6 +165,9 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
     if (!this.fs.rename(this.stagingFile, this.outputFile)) {
       throw new IOException("Failed to commit data from " + this.stagingFile + " to " + this.outputFile);
     }
+
+    // Setting the same HDFS properties as the original file
+    WriterUtils.setFileAttributesFromState(properties, fs, outputFile);
   }
 
   @Override
@@ -196,12 +197,11 @@ class AvroHdfsDataWriter implements DataWriter<GenericRecord> {
   /**
    * Create a new {@link DataFileWriter} for writing Avro records.
    *
-   * @param schema Avro schema
    * @param avroFile Avro file to write to
    * @param bufferSize Buffer size
    * @param codecType Compression codec type
    * @param deflateLevel Deflate level
-   * @throws IOException
+   * @throws IOException if there is something wrong creating a new {@link DataFileWriter}
    */
   private DataFileWriter<GenericRecord> createDatumWriter(Path avroFile, int bufferSize,
       CodecType codecType, int deflateLevel)

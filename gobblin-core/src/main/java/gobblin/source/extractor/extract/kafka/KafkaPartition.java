@@ -11,6 +11,9 @@
 
 package gobblin.source.extractor.extract.kafka;
 
+import com.google.common.net.HostAndPort;
+
+
 /**
  * A kafka topic partition.
  * Two partitions are considered equivalent if they have the same topic name and partition id. They may have different leaders.
@@ -27,8 +30,7 @@ public final class KafkaPartition {
     private int id = 0;
     private String topicName = "";
     private int leaderId = 0;
-    private String leaderHost = "";
-    private int leaderPort = 0;
+    private HostAndPort leaderHostAndPort;
 
     public Builder withId(int id) {
       this.id = id;
@@ -45,13 +47,13 @@ public final class KafkaPartition {
       return this;
     }
 
-    public Builder withLeaderHost(String leaderHost) {
-      this.leaderHost = leaderHost;
+    public Builder withLeaderHostAndPort(String hostPortString) {
+      this.leaderHostAndPort = HostAndPort.fromString(hostPortString);
       return this;
     }
 
-    public Builder withLeaderPort(int leaderPort) {
-      this.leaderPort = leaderPort;
+    public Builder withLeaderHostAndPort(String host, int port) {
+      this.leaderHostAndPort = HostAndPort.fromParts(host, port);
       return this;
     }
 
@@ -63,13 +65,13 @@ public final class KafkaPartition {
   public KafkaPartition(KafkaPartition other) {
     this.topicName = other.topicName;
     this.id = other.id;
-    this.leader = new KafkaLeader(other.leader.id, other.leader.host, other.leader.port);
+    this.leader = new KafkaLeader(other.leader.id, other.leader.hostAndPort);
   }
 
   private KafkaPartition(Builder builder) {
     this.id = builder.id;
     this.topicName = builder.topicName;
-    this.leader = new KafkaLeader(builder.leaderId, builder.leaderHost, builder.leaderPort);
+    this.leader = new KafkaLeader(builder.leaderId, builder.leaderHostAndPort);
   }
 
   public KafkaLeader getLeader() {
@@ -85,7 +87,12 @@ public final class KafkaPartition {
   }
 
   public void setLeader(int leaderId, String leaderHost, int leaderPort) {
-    this.leader = new KafkaLeader(leaderId, leaderHost, leaderPort);
+    this.leader = new KafkaLeader(leaderId, HostAndPort.fromParts(leaderHost, leaderPort));
+  }
+
+  @Override
+  public String toString() {
+    return this.getTopicName() + ":" + this.getId();
   }
 
   @Override
@@ -118,25 +125,19 @@ public final class KafkaPartition {
 
   public final static class KafkaLeader {
     private final int id;
-    private final String host;
-    private final int port;
+    private final HostAndPort hostAndPort;
 
     public int getId() {
-      return id;
+      return this.id;
     }
 
-    public String getHost() {
-      return host;
+    public HostAndPort getHostAndPort() {
+      return this.hostAndPort;
     }
 
-    public int getPort() {
-      return port;
-    }
-
-    public KafkaLeader(int id, String host, int port) {
+    public KafkaLeader(int id, HostAndPort hostAndPort) {
       this.id = id;
-      this.host = host;
-      this.port = port;
+      this.hostAndPort = hostAndPort;
     }
   }
 

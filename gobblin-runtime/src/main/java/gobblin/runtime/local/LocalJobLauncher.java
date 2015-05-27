@@ -32,7 +32,6 @@ import com.google.common.util.concurrent.ServiceManager;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.instrumented.Instrumented;
-import gobblin.metrics.MetricContext;
 import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.FileBasedJobLock;
 import gobblin.runtime.JobLock;
@@ -67,7 +66,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     super(sysProps, jobProps);
 
     Optional<Timer.Context> jobLauncherSetupTimer =
-        Instrumented.timerContext(this.runtimeMetrics, MetricNames.RunJobTimings.SETUP_LOCAL_JOB);
+        Instrumented.timerContext(this.runtimeMetricContext, MetricNames.RunJobTimings.JOB_LOCAL_SETUP);
 
     this.taskExecutor = new TaskExecutor(sysProps);
     this.taskStateTracker = new LocalTaskStateTracker2(sysProps, this.taskExecutor);
@@ -101,7 +100,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
       throws Exception {
 
     Optional<Timer.Context> scheduleWorkUnitsTimer =
-        Instrumented.timerContext(this.runtimeMetrics, MetricNames.RunJobTimings.SCHEDULE_WORK_UNTIS);
+        Instrumented.timerContext(this.runtimeMetricContext, MetricNames.RunJobTimings.WORK_UNITS_SCHEDULE);
     // Figure out the actual work units to run by flattening MultiWorkUnits
     List<WorkUnit> workUnitsToRun = Lists.newArrayList();
     for (WorkUnit workUnit : workUnits) {
@@ -122,7 +121,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     JobState jobState = this.jobContext.getJobState();
 
     Optional<Timer.Context> runWorkUnitsTimer =
-        Instrumented.timerContext(this.runtimeMetrics, MetricNames.RunJobTimings.RUN_WORK_UNITS);
+        Instrumented.timerContext(this.runtimeMetricContext, MetricNames.RunJobTimings.WORK_UNITS_RUN);
 
     this.countDownLatch = new CountDownLatch(workUnitsToRun.size());
     List<Task> tasks = AbstractJobLauncher.submitWorkUnits(this.jobContext.getJobId(), workUnitsToRun,

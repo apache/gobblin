@@ -84,12 +84,7 @@ public class SourceDecorator<S, D> implements Source<S, D>, Decorator {
   }
 
   @Override
-  public Object getUnderlying() {
-    return DecoratorUtils.resolveUnderlyingObject(this.source);
-  }
-
-  @Override
-  public List<Object> getDecoratorLineage() {
-    return DecoratorUtils.resolveDecoratorLineage(this, this.source);
+  public Object getDecoratedObject() {
+    return this.source;
   }
 }

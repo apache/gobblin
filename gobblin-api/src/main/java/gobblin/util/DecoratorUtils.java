@@ -25,35 +25,37 @@ public class DecoratorUtils {
   /**
    * Resolves the truly underlying object in a possible chain of {@link gobblin.util.Decorator}.
    *
-   * <p>
-   *   If underlyingCandidate is a decorator, return underlyingCandidate.getUnderlying().
-   *   Otherwise, return underlyingCandidate itself.
-   * </p>
-   *
-   * @param underlyingCandidate the directly overlying object in a Decorator.
+   * @param obj object to resolve.
    * @return the true non-decorator underlying object.
    */
-  public static Object resolveUnderlyingObject(Object underlyingCandidate) {
-    if (underlyingCandidate instanceof Decorator) {
-      return ((Decorator)underlyingCandidate).getUnderlying();
-    } else {
-      return underlyingCandidate;
+  public static Object resolveUnderlyingObject(Object obj) {
+    while(obj instanceof Decorator) {
+      obj = ((Decorator)obj).getDecoratedObject();
     }
+    return obj;
   }
 
   /**
-   * Finds the decorator lineage of the given decorator with the given directly underlying object.
+   * Finds the decorator lineage of the given object.
    *
-   * @param decorator decorator object.
-   * @param underlying directly underlying object to decorator.
-   * @return List of the non-decorator underlying object and all decorators on top of it.
+   * <p>
+   * If object is not a {@link gobblin.util.Decorator}, this method will return a singleton list with just the object.
+   * If object is a {@link gobblin.util.Decorator}, it will return a list of the underlying object followed by the
+   * decorator lineage up to the input decorator object.
+   * </p>
+   *
+   * @param obj an object.
+   * @return List of the non-decorator underlying object and all decorators on top of it,
+   *  starting with underlying object and ending with the input object itself (inclusive).
    */
-  public static List<Object> resolveDecoratorLineage(Decorator decorator, Object underlying) {
-    List<Object> lineage =  Decorator.class.isInstance(underlying) ?
-        ((Decorator)underlying).getDecoratorLineage() :
-        Lists.newArrayList(underlying);
-    lineage.add(decorator);
+  public static List<Object> getDecoratorLineage(Object obj) {
+    List<Object> lineage = Lists.newArrayList(obj);
+    Object currentObject = obj;
+    while(currentObject instanceof Decorator) {
+      currentObject = ((Decorator)currentObject).getDecoratedObject();
+      lineage.add(currentObject);
+    }
 
-    return lineage;
+    return Lists.reverse(lineage);
   }
 }

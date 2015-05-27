@@ -17,13 +17,20 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.commons.lang.StringUtils;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Function;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
@@ -38,6 +45,7 @@ import gobblin.metrics.Tag;
 import gobblin.qualitychecker.row.RowLevelPolicy;
 import gobblin.source.extractor.Extractor;
 import gobblin.util.Decorator;
+import gobblin.util.DecoratorUtils;
 import gobblin.writer.DataWriter;
 
 
@@ -65,7 +73,7 @@ public class Instrumented implements Instrumentable, Closeable {
   public static final Random RAND = new Random();
 
   private final boolean instrumentationEnabled;
-  protected final MetricContext metricContext;
+  protected MetricContext metricContext;
   protected final Closer closer;
 
   /**
@@ -99,7 +107,7 @@ public class Instrumented implements Instrumentable, Closeable {
    * @return A {@link gobblin.metrics.MetricContext} with the appropriate tags and parent.
    */
   public static MetricContext getMetricContext(State state, Class<?> klazz, List<Tag<?>> tags) {
-    int randomId = RAND.nextInt();
+    int randomId = RAND.nextInt(Integer.MAX_VALUE);
 
     Constructs construct = null;
     if(Converter.class.isAssignableFrom(klazz)) {
@@ -118,7 +126,9 @@ public class Instrumented implements Instrumentable, Closeable {
     if (construct != null) {
       generatedTags.add(new Tag<String>("construct", construct.toString()));
     }
-    generatedTags.add(new Tag<String>("class", klazz.isAnonymousClass() ? "anonymous" : klazz.getCanonicalName()));
+    if (!klazz.isAnonymousClass()) {
+      generatedTags.add(new Tag<String>("class", klazz.getCanonicalName()));
+    }
 
     GobblinMetrics gobblinMetrics;
     MetricContext.Builder builder = state.contains(METRIC_CONTEXT_NAME_KEY) &&
@@ -132,15 +142,52 @@ public class Instrumented implements Instrumentable, Closeable {
   }
 
   /**
-   * Determines whether an object or, if it is a decorator, any object on its lineage, is already instrumented.
+   * Generates a new {@link gobblin.metrics.MetricContext} with the parent and tags taken from the reference context.
+   * Allows replacing {@link gobblin.metrics.Tag} with new input tags.
+   * This method will not copy any {@link gobblin.metrics.Metric} contained in the reference {@link gobblin.metrics.MetricContext}.
+   *
+   * @param context Reference {@link gobblin.metrics.MetricContext}.
+   * @param newTags New {@link gobblin.metrics.Tag} to apply to context. Repeated keys will override old tags.
+   * @param name Name of the new {@link gobblin.metrics.MetricContext}.
+   *             If absent or empty, will modify old name by adding a random integer at the end.
+   * @return Generated {@link gobblin.metrics.MetricContext}.
+   */
+  public static MetricContext newContextFromReferenceContext(MetricContext context, List<Tag<?>> newTags,
+      Optional<String> name) {
+
+    String newName = name.orNull();
+
+    if (Strings.isNullOrEmpty(newName)) {
+      UUID uuid = UUID.randomUUID();
+      String randomIdPrefix = "uuid:";
+
+      String oldName = context.getName();
+      List<String> splitName = Strings.isNullOrEmpty(oldName) ?
+          Lists.<String>newArrayList() :
+          Splitter.on(".").splitToList(oldName);
+      if (splitName.size() > 0 && StringUtils.startsWith(Iterables.getLast(splitName), randomIdPrefix)) {
+        splitName.set(splitName.size() - 1, String.format("%s%s", randomIdPrefix, uuid.toString()));
+      } else {
+        splitName.add(String.format("%s%s", randomIdPrefix, uuid.toString()));
+      }
+      newName = Joiner.on(".").join(splitName);
+    }
+
+    MetricContext.Builder builder = context.getParent().isPresent() ?
+        context.getParent().get().childBuilder(newName) :
+        MetricContext.builder(newName);
+    return builder.addTags(context.getTags()).addTags(newTags).build();
+  }
+
+  /**
+   * Determines whether an object or, if it is a {@link gobblin.util.Decorator}, any object on its lineage,
+   * is of class {@link gobblin.instrumented.Instrumentable}.
    * @param obj Object to analyze.
-   * @return Whether the object is instrumented.
+   * @return Whether the lineage is instrumented.
    */
   public static boolean isLineageInstrumented(Object obj) {
-    List<Object> lineage = Lists.newArrayList(obj);
-    if(obj instanceof Decorator) {
-      lineage = ((Decorator) obj).getDecoratorLineage();
-    }
+
+    List<Object> lineage = DecoratorUtils.getDecoratorLineage(obj);
 
     for(Object node : lineage) {
       if(node instanceof Instrumentable) {
@@ -152,7 +199,7 @@ public class Instrumented implements Instrumentable, Closeable {
   }
 
   /**
-   * Returns a timer context only if metric context is defined.
+   * Returns a {@link com.codahale.metrics.Timer.Context} only if {@link gobblin.metrics.MetricContext} is defined.
    * @param context an Optional&lt;{@link gobblin.metrics.MetricContext}$gt;
    * @param name name of the timer.
    * @return an Optional&lt;{@link com.codahale.metrics.Timer.Context}$gt;
@@ -167,7 +214,7 @@ public class Instrumented implements Instrumentable, Closeable {
   }
 
   /**
-   * Ends a timer context only if it exists.
+   * Ends a {@link com.codahale.metrics.Timer.Context} only if it exists.
    * @param timer an Optional&lt;{@link com.codahale.metrics.Timer.Context}$gt;
    */
   public static void endTimer(Optional<Timer.Context> timer) {
@@ -231,6 +278,7 @@ public class Instrumented implements Instrumentable, Closeable {
     this.metricContext = closer.register(getMetricContext(state, klazz, tags));
   }
 
+  /** Default with no additional tags */
   @Override
   public List<Tag<?>> generateTags(State state) {
     return Lists.newArrayList();
@@ -244,6 +292,17 @@ public class Instrumented implements Instrumentable, Closeable {
   @Override
   public MetricContext getMetricContext() {
     return this.metricContext;
+  }
+
+  @Override
+  public void switchMetricContext(List<Tag<?>> tags) {
+    this.metricContext = this.closer.register(Instrumented.newContextFromReferenceContext(this.metricContext, tags,
+        Optional.<String>absent()));
+  }
+
+  @Override
+  public void switchMetricContext(MetricContext context) {
+    this.metricContext = context;
   }
 
   @Override

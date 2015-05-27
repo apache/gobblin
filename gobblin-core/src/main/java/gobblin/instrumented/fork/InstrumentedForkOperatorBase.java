@@ -43,11 +43,11 @@ abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, For
   private boolean instrumentationEnabled = false;
   protected final Closer closer = Closer.create();
 
-  protected MetricContext metricContext = new MetricContext.Builder(InstrumentedForkOperatorBase.class.getName())
+  private MetricContext metricContext = new MetricContext.Builder(InstrumentedForkOperatorBase.class.getName())
       .build();
-  protected Optional<Meter> inputMeter = Optional.absent();
-  protected Optional<Meter> outputForks = Optional.absent();
-  protected Optional<Timer> forkOperatorTimer = Optional.absent();
+  private Optional<Meter> inputMeter = Optional.absent();
+  private Optional<Meter> outputForks = Optional.absent();
+  private Optional<Timer> forkOperatorTimer = Optional.absent();
 
   @Override
   public void init(WorkUnitState workUnitState) throws Exception {
@@ -57,16 +57,36 @@ abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, For
   protected void init(WorkUnitState workUnitState, Class<?> classTag)
       throws Exception {
     this.instrumentationEnabled = GobblinMetrics.isEnabled(workUnitState);
+    this.metricContext = closer.register(Instrumented.getMetricContext(workUnitState, classTag));
+    regenerateMetrics();
+  }
 
+  @Override
+  public void switchMetricContext(List<Tag<?>> tags) {
+    this.metricContext = this.closer.register(Instrumented.newContextFromReferenceContext(this.metricContext, tags,
+        Optional.<String>absent()));
+
+    regenerateMetrics();
+  }
+
+  @Override
+  public void switchMetricContext(MetricContext context) {
+    this.metricContext = context;
+    regenerateMetrics();
+  }
+
+  /**
+   * Generates metrics for the instrumentation of this class.
+   */
+  protected void regenerateMetrics() {
     if(isInstrumentationEnabled()) {
-      this.metricContext = closer.register(Instrumented.getMetricContext(workUnitState, classTag));
-
       this.inputMeter = Optional.of(this.metricContext.meter(MetricNames.ForkOperatorMetrics.RECORDS_IN_METER));
       this.outputForks = Optional.of(this.metricContext.meter(MetricNames.ForkOperatorMetrics.FORKS_OUT_METER));
       this.forkOperatorTimer = Optional.of(this.metricContext.timer(MetricNames.ForkOperatorMetrics.FORK_TIMER));
     }
   }
 
+  /** Default with no additional tags */
   @Override
   public List<Tag<?>> generateTags(State state) {
     return Lists.newArrayList();

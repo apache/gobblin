@@ -42,7 +42,7 @@ public class InstrumentedForkOperatorDecorator<S, D> extends InstrumentedForkOpe
       throws Exception {
     this.embeddedForkOperator.init(workUnitState);
     super.init(workUnitState,
-        DecoratorUtils.resolveUnderlyingObject(this.embeddedForkOperator).getClass());
+        DecoratorUtils.resolveUnderlyingObject(this).getClass());
   }
 
   @Override
@@ -75,12 +75,7 @@ public class InstrumentedForkOperatorDecorator<S, D> extends InstrumentedForkOpe
   }
 
   @Override
-  public Object getUnderlying() {
-    return DecoratorUtils.resolveUnderlyingObject(this.embeddedForkOperator);
-  }
-
-  @Override
-  public List<Object> getDecoratorLineage() {
-    return DecoratorUtils.resolveDecoratorLineage(this, this.embeddedForkOperator);
+  public Object getDecoratedObject() {
+    return this.embeddedForkOperator;
   }
 }

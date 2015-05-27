@@ -42,11 +42,11 @@ abstract class InstrumentedRowLevelPolicyBase extends RowLevelPolicy implements 
 
   private final boolean instrumentationEnabled;
 
-  protected final MetricContext metricContext;
-  protected final Optional<Meter> recordsMeter;
-  protected final Optional<Meter> passedRecordsMeter;
-  protected final Optional<Meter> failedRecordsMeter;
-  protected final Optional<Timer> policyTimer;
+  private MetricContext metricContext;
+  private Optional<Meter> recordsMeter;
+  private Optional<Meter> passedRecordsMeter;
+  private Optional<Meter> failedRecordsMeter;
+  private Optional<Timer> policyTimer;
   protected final Closer closer;
 
   public InstrumentedRowLevelPolicyBase(State state, Type type) {
@@ -60,6 +60,27 @@ abstract class InstrumentedRowLevelPolicyBase extends RowLevelPolicy implements 
     this.metricContext =
         closer.register(Instrumented.getMetricContext(state, classTag.or(this.getClass())));
 
+    regenerateMetrics();
+  }
+
+  @Override
+  public void switchMetricContext(List<Tag<?>> tags) {
+    this.metricContext = this.closer.register(Instrumented.newContextFromReferenceContext(this.metricContext, tags,
+        Optional.<String>absent()));
+
+    regenerateMetrics();
+  }
+
+  @Override
+  public void switchMetricContext(MetricContext context) {
+    this.metricContext = context;
+    regenerateMetrics();
+  }
+
+  /**
+   * Generates metrics for the instrumentation of this class.
+   */
+  protected void regenerateMetrics() {
     if(isInstrumentationEnabled()) {
       this.recordsMeter = Optional.of(this.metricContext.meter(MetricNames.RowLevelPolicyMetrics.RECORDS_IN_METER));
       this.passedRecordsMeter = Optional.of(
@@ -76,6 +97,7 @@ abstract class InstrumentedRowLevelPolicyBase extends RowLevelPolicy implements 
     }
   }
 
+  /** Default with no additional tags */
   @Override
   public List<Tag<?>> generateTags(State state) {
     return Lists.newArrayList();

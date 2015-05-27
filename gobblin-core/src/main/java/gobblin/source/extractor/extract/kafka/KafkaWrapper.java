@@ -46,6 +46,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.net.HostAndPort;
 
 
 /**
@@ -189,8 +190,7 @@ public class KafkaWrapper implements Closeable {
       for (PartitionMetadata partitionMetadata : topicMetadata.partitionsMetadata()) {
         partitions.add(new KafkaPartition.Builder().withId(partitionMetadata.partitionId())
             .withTopicName(topicMetadata.topic()).withLeaderId(partitionMetadata.leader().id())
-            .withLeaderHost(partitionMetadata.leader().host()).withLeaderPort(partitionMetadata.leader().port())
-            .build());
+            .withLeaderHostAndPort(partitionMetadata.leader().host(), partitionMetadata.leader().port()).build());
       }
       return partitions;
     }
@@ -261,8 +261,8 @@ public class KafkaWrapper implements Closeable {
       }
     }
 
-    private SimpleConsumer getSimpleConsumer(String host, int port) {
-      return this.getSimpleConsumer(host + ":" + port);
+    private SimpleConsumer getSimpleConsumer(HostAndPort hostAndPort) {
+      return this.getSimpleConsumer(hostAndPort.toString());
     }
 
     private SimpleConsumer createSimpleConsumer(String broker) {
@@ -294,8 +294,7 @@ public class KafkaWrapper implements Closeable {
     private long getOffset(KafkaPartition partition,
         Map<TopicAndPartition, PartitionOffsetRequestInfo> offsetRequestInfo)
         throws KafkaOffsetRetrievalFailureException {
-      SimpleConsumer consumer =
-          this.getSimpleConsumer(partition.getLeader().getHost(), partition.getLeader().getPort());
+      SimpleConsumer consumer = this.getSimpleConsumer(partition.getLeader().getHostAndPort());
       for (int i = 0; i < NUM_TRIES_FETCH_OFFSET; i++) {
         try {
           OffsetResponse offsetResponse =
@@ -307,19 +306,19 @@ public class KafkaWrapper implements Closeable {
           }
           return offsetResponse.offsets(partition.getTopicName(), partition.getId())[0];
         } catch (Exception e) {
-          LOG.warn(String.format("Fetching offset for topic %s, partition %d has failed %d time(s). Reason: %s",
-              partition.getTopicName(), partition.getId(), i + 1, e.getMessage()));
+          LOG.warn(String.format("Fetching offset for partition %s has failed %d time(s). Reason: %s", partition,
+              i + 1, e));
           if (i < NUM_TRIES_FETCH_OFFSET - 1) {
             try {
               Thread.sleep((long) ((i + Math.random()) * 1000));
             } catch (InterruptedException e2) {
-              LOG.error("Caught interrupted exception between retries of getting latest offsets. " + e2.getMessage());
+              LOG.error("Caught interrupted exception between retries of getting latest offsets. " + e2);
             }
           }
         }
       }
-      throw new KafkaOffsetRetrievalFailureException(String.format(
-          "Fetching offset for topic %s, partition %d has failed.", partition.getTopicName(), partition.getId()));
+      throw new KafkaOffsetRetrievalFailureException(String.format("Fetching offset for partition %s has failed.",
+          partition));
     }
 
     @Override
@@ -335,16 +334,16 @@ public class KafkaWrapper implements Closeable {
         FetchResponse fetchResponse = getFetchResponseForFetchRequest(fetchRequest, partition);
         return getIteratorFromFetchResponse(fetchResponse, partition);
       } catch (Exception e) {
-        LOG.warn(String.format(
-            "Fetch message buffer for topic %s, partition %d has failed: %s. Will refresh topic metadata and retry",
-            partition.getTopicName(), partition.getId(), e.getMessage()));
+        LOG.warn(String
+            .format("Fetch message buffer for partition %s has failed: %s. Will refresh topic metadata and retry",
+                partition, e));
         return refreshTopicMetadataAndRetryFetch(partition, fetchRequest);
       }
     }
 
     private synchronized FetchResponse getFetchResponseForFetchRequest(FetchRequest fetchRequest,
         KafkaPartition partition) {
-      SimpleConsumer consumer = getSimpleConsumer(partition.getLeader().getHost(), partition.getLeader().getPort());
+      SimpleConsumer consumer = getSimpleConsumer(partition.getLeader().getHostAndPort());
 
       FetchResponse fetchResponse = consumer.fetch(fetchRequest);
       if (fetchResponse.hasError()) {
@@ -360,9 +359,8 @@ public class KafkaWrapper implements Closeable {
         ByteBufferMessageSet messageBuffer = fetchResponse.messageSet(partition.getTopicName(), partition.getId());
         return messageBuffer.iterator();
       } catch (Exception e) {
-        LOG.warn(String.format("Failed to retrieve next message buffer for topic %s, partition %d: %s."
-            + "The remainder of this partition will be skipped.", partition.getTopicName(), partition.getId(),
-            e.getMessage()));
+        LOG.warn(String.format("Failed to retrieve next message buffer for partition %s: %s."
+            + "The remainder of this partition will be skipped.", partition, e));
         return null;
       }
     }
@@ -374,9 +372,8 @@ public class KafkaWrapper implements Closeable {
         FetchResponse fetchResponse = getFetchResponseForFetchRequest(fetchRequest, partition);
         return getIteratorFromFetchResponse(fetchResponse, partition);
       } catch (Exception e) {
-        LOG.warn(String.format(
-            "Fetch message buffer for topic %s, partition %d has failed: %s. This partition will be skipped.",
-            partition.getTopicName(), partition.getId(), e.getMessage()));
+        LOG.warn(String.format("Fetch message buffer for partition %s has failed: %s. This partition will be skipped.",
+            partition, e));
         return null;
       }
     }
