@@ -27,6 +27,7 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -98,7 +99,8 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
                   .withBucketName(bk.getBucket()).withKey(bk.getKey())
                   .withUploadId(initResponse.getUploadId()).withPartNumber(i)
                   .withFileOffset(filePosition)
-                  .withInputStream(is)
+                  //.withInputStream(is)
+                  .withFile(new File(file))
                   .withPartSize(partSize);
 
           // Upload part and add response to our list.
