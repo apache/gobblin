@@ -20,7 +20,7 @@ import com.codahale.metrics.MetricRegistry;
  */
 public class MetricNames {
   public static class LauncherTimings {
-    public static String BASE_NAME = "gobblin.launcher.timings";
+    public final static String BASE_NAME = "gobblin.launcher.timings";
     public final static String WORK_UNITS_CREATE = MetricRegistry.name(BASE_NAME, "work.units.create");
     public final static String WORK_UNITS_ADD = MetricRegistry.name(BASE_NAME, "work.units.add");
     public final static String JOB_HISTORY_WRITE = MetricRegistry.name(BASE_NAME, "job.history.write");
@@ -30,7 +30,7 @@ public class MetricNames {
   }
 
   public static class RunJobTimings {
-    public static String BASE_NAME = "gobblin.job.run.timings";
+    public final static String BASE_NAME = "gobblin.job.run.timings";
     public final static String JOB_LOCAL_SETUP = MetricRegistry.name(BASE_NAME, "job.local.setup");
     public final static String WORK_UNITS_RUN = MetricRegistry.name(BASE_NAME, "work.units.run");
     public final static String WORK_UNITS_SCHEDULE = MetricRegistry.name(BASE_NAME, "work.units.schedule");

@@ -20,6 +20,8 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import javax.annotation.Nonnull;
+
 import org.apache.commons.lang.StringUtils;
 
 import com.codahale.metrics.Meter;
@@ -44,7 +46,6 @@ import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
 import gobblin.qualitychecker.row.RowLevelPolicy;
 import gobblin.source.extractor.Extractor;
-import gobblin.util.Decorator;
 import gobblin.util.DecoratorUtils;
 import gobblin.writer.DataWriter;
 
@@ -207,7 +208,7 @@ public class Instrumented implements Instrumentable, Closeable {
   public static Optional<Timer.Context> timerContext(Optional<MetricContext> context, final String name) {
     return context.transform(new Function<MetricContext, Timer.Context>() {
       @Override
-      public Timer.Context apply(MetricContext input) {
+      public Timer.Context apply(@Nonnull MetricContext input) {
         return input.timer(name).time();
       }
     });
@@ -220,7 +221,7 @@ public class Instrumented implements Instrumentable, Closeable {
   public static void endTimer(Optional<Timer.Context> timer) {
     timer.transform(new Function<Timer.Context, Timer.Context>() {
       @Override
-      public Timer.Context apply(Timer.Context input) {
+      public Timer.Context apply(@Nonnull Timer.Context input) {
         input.close();
         return input;
       }
@@ -236,7 +237,7 @@ public class Instrumented implements Instrumentable, Closeable {
   public static void updateTimer(Optional<Timer> timer, final long duration, final TimeUnit unit) {
     timer.transform(new Function<Timer, Timer>() {
       @Override
-      public Timer apply(Timer input) {
+      public Timer apply(@Nonnull Timer input) {
         input.update(duration, unit);
         return input;
       }
@@ -259,7 +260,7 @@ public class Instrumented implements Instrumentable, Closeable {
   public static void markMeter(Optional<Meter> meter, final int value) {
     meter.transform(new Function<Meter, Meter>() {
       @Override
-      public Meter apply(Meter input) {
+      public Meter apply(@Nonnull Meter input) {
         input.mark(value);
         return input;
       }
