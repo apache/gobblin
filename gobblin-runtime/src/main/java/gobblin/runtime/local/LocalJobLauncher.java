@@ -65,7 +65,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
       throws Exception {
     super(sysProps, jobProps);
 
-    Optional<Timer.Context> jobLauncherSetupTimer =
+    Optional<Timer.Context> jobLocalSetupTimer =
         Instrumented.timerContext(this.runtimeMetricContext, MetricNames.RunJobTimings.JOB_LOCAL_SETUP);
 
     this.taskExecutor = new TaskExecutor(sysProps);
@@ -79,7 +79,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
 
     startCancellationExecutor();
 
-    Instrumented.endTimer(jobLauncherSetupTimer);
+    Instrumented.endTimer(jobLocalSetupTimer);
   }
 
   @Override
@@ -99,8 +99,9 @@ public class LocalJobLauncher extends AbstractJobLauncher {
   protected void runWorkUnits(List<WorkUnit> workUnits)
       throws Exception {
 
-    Optional<Timer.Context> scheduleWorkUnitsTimer =
-        Instrumented.timerContext(this.runtimeMetricContext, MetricNames.RunJobTimings.WORK_UNITS_SCHEDULE);
+    Optional<Timer.Context> workUnitsPreparationTimer =
+        Instrumented.timerContext(this.runtimeMetricContext, MetricNames.RunJobTimings.WORK_UNITS_PREPARATION);
+
     // Figure out the actual work units to run by flattening MultiWorkUnits
     List<WorkUnit> workUnitsToRun = Lists.newArrayList();
     for (WorkUnit workUnit : workUnits) {
@@ -110,7 +111,8 @@ public class LocalJobLauncher extends AbstractJobLauncher {
         workUnitsToRun.add(workUnit);
       }
     }
-    Instrumented.endTimer(scheduleWorkUnitsTimer);
+
+    Instrumented.endTimer(workUnitsPreparationTimer);
 
     if (workUnitsToRun.isEmpty()) {
       LOG.warn("No work units to run");
@@ -120,7 +122,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     String jobId = this.jobContext.getJobId();
     JobState jobState = this.jobContext.getJobState();
 
-    Optional<Timer.Context> runWorkUnitsTimer =
+    Optional<Timer.Context> workUnitsRunTimer =
         Instrumented.timerContext(this.runtimeMetricContext, MetricNames.RunJobTimings.WORK_UNITS_RUN);
 
     this.countDownLatch = new CountDownLatch(workUnitsToRun.size());
@@ -134,7 +136,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
       this.countDownLatch.await(1, TimeUnit.MINUTES);
     }
 
-    Instrumented.endTimer(runWorkUnitsTimer);
+    Instrumented.endTimer(workUnitsRunTimer);
 
     if (this.cancellationRequested) {
       // Wait for the cancellation execution if it has been requested
