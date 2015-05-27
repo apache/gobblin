@@ -62,7 +62,7 @@ public class KafkaReporterTest extends KafkaTestBase {
    * @param registry metricregistry
    * @return KafkaReporter builder
    */
-  public KafkaReporter.Builder<?> getBuilder(MetricRegistry registry) {
+  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilder(MetricRegistry registry) {
     return KafkaReporter.forRegistry(registry);
   }
 

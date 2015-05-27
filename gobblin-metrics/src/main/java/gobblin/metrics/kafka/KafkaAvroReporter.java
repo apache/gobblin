@@ -54,7 +54,7 @@ public class KafkaAvroReporter extends KafkaReporter {
    * @param registry the registry to report
    * @return KafkaAvroReporter builder
    */
-  public static Builder<?> forRegistry(MetricRegistry registry) {
+  public static Builder<? extends Builder> forRegistry(MetricRegistry registry) {
     return new BuilderImpl(registry);
   }
 
