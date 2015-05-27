@@ -131,8 +131,6 @@ public class KafkaReporter extends SerializedMetricReportReporter {
       List<KeyedMessage<String, byte[]>> messages = new ArrayList<KeyedMessage<String, byte[]>>();
       messages.add(new KeyedMessage<String, byte[]>(this.topic, serializedReport));
       this.producerOpt.get().send(messages);
-
-      //this.producerOpt.get().send(Lists.newArrayList(new KeyedMessage<String, byte[]>(this.topic, serializedReport)));
     }
   }
 }
