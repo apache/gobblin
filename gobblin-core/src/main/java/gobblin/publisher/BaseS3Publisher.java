@@ -77,6 +77,7 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
     InitiateMultipartUploadResult initResponse =
             s3Client.initiateMultipartUpload(initRequest);
     try {
+      int i = 0;
       for (String file : files) {
         Path filePath = new Path(file);
 
@@ -85,7 +86,7 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
         InputStream is = fss.get(branch).open(filePath);
 
         long filePosition = 0;
-        for (int i = 1; filePosition < contentLength; i++) {
+        while (filePosition < contentLength) {
           // Last part can be less than 5 MB. Adjust part size.
           long partSize = Math.min(PART_SIZE, (contentLength - filePosition));
 
@@ -101,6 +102,7 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
           partETags.add(s3Client.uploadPart(uploadRequest).getPartETag());
 
           filePosition += partSize;
+          i++;
         }
         LOG.info("Finished publishing file " + file);
       }
