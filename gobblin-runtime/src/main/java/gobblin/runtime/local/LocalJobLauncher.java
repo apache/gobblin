@@ -24,11 +24,14 @@ import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.Timer;
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.instrumented.Instrumented;
 import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.FileBasedJobLock;
 import gobblin.runtime.JobLock;
@@ -36,6 +39,7 @@ import gobblin.runtime.JobState;
 import gobblin.runtime.Task;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskStateTracker;
+import gobblin.runtime.util.MetricNames;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 
@@ -61,8 +65,12 @@ public class LocalJobLauncher extends AbstractJobLauncher {
       throws Exception {
     super(sysProps, jobProps);
 
+    Optional<Timer.Context> jobLauncherSetupTimer =
+        Instrumented.timerContext(this.runtimeMetricContext, MetricNames.RunJobTimings.JOB_LOCAL_SETUP);
+
     this.taskExecutor = new TaskExecutor(sysProps);
     this.taskStateTracker = new LocalTaskStateTracker2(sysProps, this.taskExecutor);
+
     this.serviceManager = new ServiceManager(Lists.newArrayList(
         // The order matters due to dependencies between services
         this.taskExecutor, this.taskStateTracker));
@@ -70,6 +78,8 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     this.serviceManager.startAsync().awaitHealthy(5, TimeUnit.SECONDS);
 
     startCancellationExecutor();
+
+    Instrumented.endTimer(jobLauncherSetupTimer);
   }
 
   @Override
@@ -88,6 +98,9 @@ public class LocalJobLauncher extends AbstractJobLauncher {
   @Override
   protected void runWorkUnits(List<WorkUnit> workUnits)
       throws Exception {
+
+    Optional<Timer.Context> scheduleWorkUnitsTimer =
+        Instrumented.timerContext(this.runtimeMetricContext, MetricNames.RunJobTimings.WORK_UNITS_SCHEDULE);
     // Figure out the actual work units to run by flattening MultiWorkUnits
     List<WorkUnit> workUnitsToRun = Lists.newArrayList();
     for (WorkUnit workUnit : workUnits) {
@@ -97,6 +110,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
         workUnitsToRun.add(workUnit);
       }
     }
+    Instrumented.endTimer(scheduleWorkUnitsTimer);
 
     if (workUnitsToRun.isEmpty()) {
       LOG.warn("No work units to run");
@@ -105,6 +119,9 @@ public class LocalJobLauncher extends AbstractJobLauncher {
 
     String jobId = this.jobContext.getJobId();
     JobState jobState = this.jobContext.getJobState();
+
+    Optional<Timer.Context> runWorkUnitsTimer =
+        Instrumented.timerContext(this.runtimeMetricContext, MetricNames.RunJobTimings.WORK_UNITS_RUN);
 
     this.countDownLatch = new CountDownLatch(workUnitsToRun.size());
     List<Task> tasks = AbstractJobLauncher.submitWorkUnits(this.jobContext.getJobId(), workUnitsToRun,
@@ -116,6 +133,8 @@ public class LocalJobLauncher extends AbstractJobLauncher {
           workUnits.size(), jobId));
       this.countDownLatch.await(1, TimeUnit.MINUTES);
     }
+
+    Instrumented.endTimer(runWorkUnitsTimer);
 
     if (this.cancellationRequested) {
       // Wait for the cancellation execution if it has been requested

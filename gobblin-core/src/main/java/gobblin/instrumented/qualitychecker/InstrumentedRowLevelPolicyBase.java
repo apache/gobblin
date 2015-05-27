@@ -14,12 +14,14 @@ package gobblin.instrumented.qualitychecker;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.State;
@@ -28,6 +30,7 @@ import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricNames;
+import gobblin.metrics.Tag;
 import gobblin.qualitychecker.row.RowLevelPolicy;
 
 
@@ -39,20 +42,45 @@ abstract class InstrumentedRowLevelPolicyBase extends RowLevelPolicy implements 
 
   private final boolean instrumentationEnabled;
 
-  protected final MetricContext metricContext;
-  protected final Optional<Meter> recordsMeter;
-  protected final Optional<Meter> passedRecordsMeter;
-  protected final Optional<Meter> failedRecordsMeter;
-  protected final Optional<Timer> policyTimer;
+  private MetricContext metricContext;
+  private Optional<Meter> recordsMeter;
+  private Optional<Meter> passedRecordsMeter;
+  private Optional<Meter> failedRecordsMeter;
+  private Optional<Timer> policyTimer;
   protected final Closer closer;
 
   public InstrumentedRowLevelPolicyBase(State state, Type type) {
-    super(state, type);
+    this(state, type, Optional.<Class<?>>absent());
+  }
+
+  protected InstrumentedRowLevelPolicyBase(State state, Type type, Optional<Class<?>> classTag) {
+  super(state, type);
     this.instrumentationEnabled = GobblinMetrics.isEnabled(state);
     this.closer = Closer.create();
     this.metricContext =
-        closer.register(Instrumented.getMetricContext(state, this.getClass()));
+        closer.register(Instrumented.getMetricContext(state, classTag.or(this.getClass())));
 
+    regenerateMetrics();
+  }
+
+  @Override
+  public void switchMetricContext(List<Tag<?>> tags) {
+    this.metricContext = this.closer.register(Instrumented.newContextFromReferenceContext(this.metricContext, tags,
+        Optional.<String>absent()));
+
+    regenerateMetrics();
+  }
+
+  @Override
+  public void switchMetricContext(MetricContext context) {
+    this.metricContext = context;
+    regenerateMetrics();
+  }
+
+  /**
+   * Generates metrics for the instrumentation of this class.
+   */
+  protected void regenerateMetrics() {
     if(isInstrumentationEnabled()) {
       this.recordsMeter = Optional.of(this.metricContext.meter(MetricNames.RowLevelPolicyMetrics.RECORDS_IN_METER));
       this.passedRecordsMeter = Optional.of(
@@ -67,6 +95,12 @@ abstract class InstrumentedRowLevelPolicyBase extends RowLevelPolicy implements 
       this.failedRecordsMeter = Optional.absent();
       this.policyTimer = Optional.absent();
     }
+  }
+
+  /** Default with no additional tags */
+  @Override
+  public List<Tag<?>> generateTags(State state) {
+    return Lists.newArrayList();
   }
 
   @Override

@@ -11,7 +11,8 @@
 
 package gobblin.source.extractor.extract;
 
-import gobblin.source.extractor.Extractor;
+import gobblin.configuration.WorkUnitState;
+import gobblin.instrumented.extractor.InstrumentedExtractor;
 
 
 /**
@@ -20,6 +21,9 @@ import gobblin.source.extractor.Extractor;
  *
  * @author ziliu
  */
-public abstract class EventBasedExtractor<S, D> implements Extractor<S, D> {
+public abstract class EventBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
 
+  public EventBasedExtractor(WorkUnitState workUnitState) {
+    super(workUnitState);
+  }
 }

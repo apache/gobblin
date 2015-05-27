@@ -124,7 +124,6 @@ public class WorkUnitState extends State {
    *  The invariant for this {@link Watermark} is that it should cover all records up to and including the most recent
    *  record returned by {@link gobblin.source.extractor.Extractor#readRecord(Object)}.
    * </p>
-
    * <p>
    *  The {@link Watermark} set in this method may be polled by the framework multiple times, in order to track the
    *  progress of how the {@link Watermark} changes. This is important for reporting percent completion of a

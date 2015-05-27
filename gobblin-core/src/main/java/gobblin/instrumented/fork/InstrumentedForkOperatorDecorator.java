@@ -12,12 +12,14 @@
 
 package gobblin.instrumented.fork;
 
-import java.io.IOException;
 import java.util.List;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.fork.ForkOperator;
+import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
+import gobblin.util.Decorator;
+import gobblin.util.DecoratorUtils;
 
 
 /**
@@ -25,21 +27,22 @@ import gobblin.metrics.MetricContext;
  * Handles already instrumented {@link gobblin.instrumented.fork.InstrumentedForkOperator}
  * appropriately to avoid double metric reporting.
  */
-public class InstrumentedForkOperatorDecorator<S, D> extends InstrumentedForkOperatorBase<S, D> {
+public class InstrumentedForkOperatorDecorator<S, D> extends InstrumentedForkOperatorBase<S, D> implements Decorator {
 
   private ForkOperator<S, D> embeddedForkOperator;
   private boolean isEmbeddedInstrumented;
 
   public InstrumentedForkOperatorDecorator(ForkOperator<S, D> forkOperator) {
     this.embeddedForkOperator = this.closer.register(forkOperator);
-    this.isEmbeddedInstrumented = InstrumentedForkOperatorBase.class.isInstance(forkOperator);
+    this.isEmbeddedInstrumented = Instrumented.isLineageInstrumented(forkOperator);
   }
 
   @Override
   public void init(WorkUnitState workUnitState)
       throws Exception {
     this.embeddedForkOperator.init(workUnitState);
-    super.init(workUnitState);
+    super.init(workUnitState,
+        DecoratorUtils.resolveUnderlyingObject(this).getClass());
   }
 
   @Override
@@ -69,5 +72,10 @@ public class InstrumentedForkOperatorDecorator<S, D> extends InstrumentedForkOpe
   @Override
   public List<Boolean> forkSchema(WorkUnitState workUnitState, S input) {
     return embeddedForkOperator.forkSchema(workUnitState, input);
+  }
+
+  @Override
+  public Object getDecoratedObject() {
+    return this.embeddedForkOperator;
   }
 }

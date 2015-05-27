@@ -55,9 +55,6 @@ public class KafkaAvroReporter extends KafkaReporter {
    * @return KafkaAvroReporter builder
    */
   public static Builder<?> forRegistry(MetricRegistry registry) {
-    if(MetricContext.class.isInstance(registry)) {
-      LOGGER.warn("Creating Kafka Avro Reporter from MetricContext using forRegistry method. Will not inherit tags.");
-    }
     return new BuilderImpl(registry);
   }
 
@@ -68,7 +65,7 @@ public class KafkaAvroReporter extends KafkaReporter {
    * @return KafkaAvroReporter builder
    */
   public static Builder<?> forContext(MetricContext context) {
-    return new BuilderImpl(context).withTags(context.getTags());
+    return forRegistry(context);
   }
 
   private static class BuilderImpl extends Builder<BuilderImpl> {
