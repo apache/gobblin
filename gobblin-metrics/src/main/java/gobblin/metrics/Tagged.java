@@ -12,12 +12,14 @@
 package gobblin.metrics;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
 
@@ -60,6 +62,14 @@ public class Tagged implements Taggable {
       builder.add(new Tag<Object>(entry.getKey(), entry.getValue()));
     }
     return builder.build();
+  }
+
+  /**
+   * Return tags as a Map.
+   * @return map of tags.
+   */
+  public Map<String, Object> getTagMap() {
+    return ImmutableMap.copyOf(this.tags);
   }
 
   /**

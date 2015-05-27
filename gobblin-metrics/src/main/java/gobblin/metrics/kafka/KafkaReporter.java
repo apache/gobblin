@@ -47,6 +47,7 @@ import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
+import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
 import kafka.producer.KeyedMessage;
@@ -55,6 +56,7 @@ import kafka.producer.ProducerConfig;
 import gobblin.metrics.Metric;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricReport;
+import gobblin.metrics.RecursiveScheduledReporter;
 import gobblin.metrics.Tag;
 
 
@@ -63,7 +65,7 @@ import gobblin.metrics.Tag;
  *
  * @author ibuenros
  */
-public class KafkaReporter extends ScheduledReporter {
+public class KafkaReporter extends RecursiveScheduledReporter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(KafkaReporter.class);
   public static final int SCHEMA_VERSION = 1;
@@ -121,9 +123,6 @@ public class KafkaReporter extends ScheduledReporter {
    * @return KafkaReporter builder
    */
   public static Builder<?> forRegistry(MetricRegistry registry) {
-    if(MetricContext.class.isInstance(registry)) {
-      LOGGER.warn("Creating Kafka Reporter from MetricContext using forRegistry method. Will not inherit tags.");
-    }
     return new BuilderImpl(registry);
   }
 
@@ -135,7 +134,7 @@ public class KafkaReporter extends ScheduledReporter {
    * @return KafkaReporter builder
    */
   public static Builder<?> forContext(MetricContext context) {
-    return new BuilderImpl(context).withTags(context.getTags());
+    return forRegistry(context);
   }
 
   private static class BuilderImpl extends Builder<BuilderImpl> {
@@ -302,6 +301,10 @@ public class KafkaReporter extends ScheduledReporter {
     return READER.get().read(reuse, decoder);
   }
 
+  public void reportForContext(MetricContext context) {
+    report(context.getGauges(), context.getCounters(), context.getHistograms(), context.getMeters(), context.getTimers());
+  }
+
   /**
    * Serializes metrics and pushes the byte arrays to Kafka.
    * Uses the serialize* methods in {@link KafkaReporter}.
@@ -313,7 +316,8 @@ public class KafkaReporter extends ScheduledReporter {
    */
   @Override
   public void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters,
-      SortedMap<String, Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers) {
+      SortedMap<String, Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers,
+      Map<String, String> tags) {
 
     if(!this.reportMetrics || !this.producerOpt.isPresent()) {
       return;
@@ -344,7 +348,11 @@ public class KafkaReporter extends ScheduledReporter {
       metrics.addAll(serializeSingleValue(timer.getKey(), timer.getValue().getCount(), "count"));
     }
 
-    MetricReport report = new MetricReport(this.tags, new DateTime().getMillis(), metrics);
+    Map<String, String> allTags = Maps.newHashMap();
+    allTags.putAll(tags);
+    allTags.putAll(this.tags);
+
+    MetricReport report = new MetricReport(allTags, new DateTime().getMillis(), metrics);
 
     byte[] serializedReport = serializeReport(report);
 

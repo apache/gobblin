@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Counter;
+import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.JmxReporter;
 import com.codahale.metrics.Meter;
@@ -255,6 +256,15 @@ public class GobblinMetrics {
     }
 
     this.reportingStarted = true;
+  }
+
+  /**
+   * Immediately trigger metric reporting.
+   */
+  public void triggerMetricReporting() {
+    if (this.fileReporter.isPresent()) {
+      this.fileReporter.get().report();
+    }
   }
 
   /**

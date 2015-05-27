@@ -14,20 +14,24 @@ package gobblin.instrumented.extractor;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricNames;
+import gobblin.metrics.Tag;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 
@@ -39,22 +43,47 @@ import gobblin.source.extractor.Extractor;
 abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instrumentable, Closeable {
 
   private final boolean instrumentationEnabled;
-  protected final MetricContext metricContext;
-  protected final Optional<Meter> readRecordsMeter;
-  protected final Optional<Meter> dataRecordExceptionsMeter;
-  protected final Optional<Timer> extractorTimer;
+  private MetricContext metricContext;
+  private Optional<Meter> readRecordsMeter;
+  private Optional<Meter> dataRecordExceptionsMeter;
+  private Optional<Timer> extractorTimer;
   protected final Closer closer;
 
   @SuppressWarnings("unchecked")
   public InstrumentedExtractorBase(WorkUnitState workUnitState) {
+    this(workUnitState, Optional.<Class<?>>absent());
+  }
+
+  protected InstrumentedExtractorBase(WorkUnitState workUnitState, Optional<Class<?>> classTag) {
     super();
     this.closer = Closer.create();
 
     this.instrumentationEnabled = GobblinMetrics.isEnabled(workUnitState);
 
-    this.metricContext =
-        closer.register(Instrumented.getMetricContext(workUnitState, this.getClass()));
+    this.metricContext = this.closer.register(Instrumented.getMetricContext(workUnitState, classTag.or(this.getClass()),
+        generateTags(workUnitState)));
 
+    regenerateMetrics();
+  }
+
+  @Override
+  public void switchMetricContext(List<Tag<?>> tags) {
+    this.metricContext = this.closer.register(Instrumented.newContextFromReferenceContext(this.metricContext, tags,
+        Optional.<String>absent()));
+
+    regenerateMetrics();
+  }
+
+  @Override
+  public void switchMetricContext(MetricContext context) {
+    this.metricContext = context;
+    regenerateMetrics();
+  }
+
+  /**
+   * Generates metrics for the instrumentation of this class.
+   */
+  protected void regenerateMetrics() {
     if(isInstrumentationEnabled()) {
       this.readRecordsMeter = Optional.of(this.metricContext.meter(MetricNames.ExtractorMetrics.RECORDS_READ_METER));
       this.dataRecordExceptionsMeter = Optional.of(
@@ -70,6 +99,12 @@ abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instr
   @Override
   public boolean isInstrumentationEnabled() {
     return this.instrumentationEnabled;
+  }
+
+  /** Default with no additional tags */
+  @Override
+  public List<Tag<?>> generateTags(State state) {
+    return Lists.newArrayList();
   }
 
   @Override

@@ -1,0 +1,9 @@
+language: java
+
+script:
+  - ./gradlew clean check
+  - ./gradlew clean check -PuseHadoop2
+
+jdk:
+  - oraclejdk8
+  - oraclejdk7
