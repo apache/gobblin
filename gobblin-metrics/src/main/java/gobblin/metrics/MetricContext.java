@@ -14,6 +14,7 @@ package gobblin.metrics;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
@@ -33,6 +34,8 @@ import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Timer;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.ImmutableSortedSet;
@@ -91,6 +94,8 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
   private MetricContext(String name, MetricContext parent, List<Tag<?>> tags,
       Map<String, ContextAwareScheduledReporter.Builder> builders, boolean reportFullyQualifiedNames,
       boolean includeTagKeys) {
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(name));
+
     this.name = name;
     this.parent = Optional.fromNullable(parent);
     this.tagged = new Tagged(tags);
@@ -137,6 +142,14 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
     if (this.children.putIfAbsent(childContextName, childContext) != null) {
       throw new IllegalArgumentException("A child context named " + childContextName + " already exists");
     }
+  }
+
+  /**
+   * Get child contexts.
+   * @return Map of child contexts.
+   */
+  public Map<String, MetricContext> getChildContexts() {
+    return ImmutableMap.copyOf(this.children);
   }
 
   /**
@@ -362,6 +375,13 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
     return super.register(MetricRegistry.name(metricNamePrefix(this.includeTagKeys), name), metric);
   }
 
+  /**
+   * Register a {@link gobblin.metrics.ContextAwareMetric} under its own name.
+   */
+  public <T extends ContextAwareMetric> T register(T metric) throws IllegalArgumentException {
+    return register(metric.getName(), metric);
+  }
+
   @Override
   public void registerAll(MetricSet metrics)
       throws IllegalArgumentException {
@@ -536,6 +556,10 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
   @Override
   public List<Tag<?>> getTags() {
     return this.tagged.getTags();
+  }
+
+  public Map<String, Object> getTagMap() {
+    return this.tagged.getTagMap();
   }
 
   @Override

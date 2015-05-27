@@ -47,6 +47,8 @@ import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.Timer;
+import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
@@ -69,6 +71,7 @@ import gobblin.runtime.TaskState;
 import gobblin.runtime.TaskStateTracker;
 import gobblin.runtime.util.JobMetrics;
 import gobblin.runtime.util.MetricGroup;
+import gobblin.runtime.util.MetricNames;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.JobLauncherUtils;
@@ -167,8 +170,11 @@ public class MRJobLauncher extends AbstractJobLauncher {
     JobState jobState = this.jobContext.getJobState();
 
     try {
+      Optional<Timer.Context> cleanStagingDataTimer =
+          Instrumented.timerContext(this.runtimeMetricContext, MetricNames.RunJobTimings.MR_STAGING_DATA_CLEAN);
       // Delete any staging directories that already exist before the Hadoop MR job starts
       JobLauncherUtils.cleanStagingData(JobLauncherUtils.flattenWorkUnits(workUnits), LOG);
+      Instrumented.endTimer(cleanStagingDataTimer);
 
       Path jobOutputPath = prepareHadoopJob(workUnits);
       LOG.info("Launching Hadoop MR job " + this.job.getJobName());
@@ -179,8 +185,11 @@ public class MRJobLauncher extends AbstractJobLauncher {
         jobState.setProp(ConfigurationKeys.JOB_TRACKING_URL_KEY, this.job.getTrackingURL());
       }
 
+      Optional<Timer.Context> runMRJobTimer =
+          Instrumented.timerContext(this.runtimeMetricContext, MetricNames.RunJobTimings.MR_JOB_RUN);
       LOG.info(String.format("Waiting for Hadoop MR job %s to complete", this.job.getJobID()));
       this.job.waitForCompletion(true);
+      Instrumented.endTimer(runMRJobTimer);
 
       if (this.cancellationRequested) {
         // Wait for the cancellation execution if it has been requested
@@ -230,6 +239,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
    * Add dependent jars and files.
    */
   private void addDependencies() throws IOException {
+    Optional<Timer.Context> distributedCacheSetupTimer =
+        Instrumented.timerContext(this.runtimeMetricContext, MetricNames.RunJobTimings.MR_DISTRIBUTED_CACHE_POPULATE);
     Path jarFileDir = new Path(this.mrJobDir, "_jars");
 
     // Add framework jars to the classpath for the mappers/reducer
@@ -251,6 +262,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     if (jobProps.containsKey(ConfigurationKeys.JOB_HDFS_FILES_KEY)) {
       addHDFSFiles(jobProps.getProperty(ConfigurationKeys.JOB_HDFS_FILES_KEY));
     }
+    Instrumented.endTimer(distributedCacheSetupTimer);
   }
 
   /**
@@ -258,6 +270,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
    */
   private Path prepareHadoopJob(List<WorkUnit> workUnits)
       throws IOException {
+    Optional<Timer.Context> setupMRJobTimer =
+        Instrumented.timerContext(this.runtimeMetricContext, MetricNames.RunJobTimings.MR_JOB_SETUP);
+
     this.job.setJarByClass(MRJobLauncher.class);
     this.job.setMapperClass(TaskRunner.class);
 
@@ -293,6 +308,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
         NLineInputFormat.setNumLinesPerSplit(this.job, numTasksPerMapper);
       }
     }
+
+    Instrumented.endTimer(setupMRJobTimer);
 
     return jobOutputPath;
   }

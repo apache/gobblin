@@ -14,6 +14,7 @@ package gobblin.instrumented.converter;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Meter;
@@ -22,8 +23,10 @@ import com.codahale.metrics.Timer;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
@@ -32,6 +35,7 @@ import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricNames;
+import gobblin.metrics.Tag;
 
 
 /**
@@ -42,30 +46,58 @@ abstract class InstrumentedConverterBase<SI, SO, DI, DO> extends Converter<SI, S
     implements Instrumentable, Closeable {
 
   private boolean instrumentationEnabled = false;
-  protected MetricContext metricContext = new MetricContext.Builder(InstrumentedConverterBase.class.getName()).build();
-  protected Optional<Meter> recordsInMeter = Optional.absent();
-  protected Optional<Meter> recordsOutMeter = Optional.absent();
-  protected Optional<Meter> recordsExceptionMeter = Optional.absent();
-  protected Optional<Timer> converterTimer = Optional.absent();
+  private MetricContext metricContext = new MetricContext.Builder(InstrumentedConverterBase.class.getName()).build();
+  private Optional<Meter> recordsInMeter = Optional.absent();
+  private Optional<Meter> recordsOutMeter = Optional.absent();
+  private Optional<Meter> recordsExceptionMeter = Optional.absent();
+  private Optional<Timer> converterTimer = Optional.absent();
   protected final Closer closer = Closer.create();
 
   @Override
   public Converter<SI, SO, DI, DO> init(WorkUnitState workUnit) {
+    return init(workUnit, this.getClass());
+  }
+
+  protected Converter<SI, SO, DI, DO> init(WorkUnitState workUnit, Class<?> classTag) {
     Converter<SI, SO, DI, DO> converter = super.init(workUnit);
 
     this.instrumentationEnabled = GobblinMetrics.isEnabled(workUnit);
+    this.metricContext = closer.register(Instrumented.getMetricContext(workUnit, classTag));
+    regenerateMetrics();
 
+    return converter;
+  }
+
+  @Override
+  public void switchMetricContext(List<Tag<?>> tags) {
+    this.metricContext = this.closer.register(Instrumented.newContextFromReferenceContext(this.metricContext, tags,
+        Optional.<String>absent()));
+    regenerateMetrics();
+  }
+
+  @Override
+  public void switchMetricContext(MetricContext context) {
+    this.metricContext = context;
+    regenerateMetrics();
+  }
+
+  /**
+   * Generates metrics for the instrumentation of this class.
+   */
+  protected void regenerateMetrics() {
     if (isInstrumentationEnabled()) {
-      this.metricContext = closer.register(Instrumented.getMetricContext(workUnit, this.getClass()));
-
       this.recordsInMeter = Optional.of(this.metricContext.meter(MetricNames.ConverterMetrics.RECORDS_IN_METER));
       this.recordsOutMeter = Optional.of(this.metricContext.meter(MetricNames.ConverterMetrics.RECORDS_OUT_METER));
       this.recordsExceptionMeter = Optional.of(
           this.metricContext.meter(MetricNames.ConverterMetrics.RECORDS_FAILED_METER));
       this.converterTimer = Optional.of(this.metricContext.timer(MetricNames.ConverterMetrics.CONVERT_TIMER));
     }
+  }
 
-    return converter;
+  /** Default with no additional tags */
+  @Override
+  public List<Tag<?>> generateTags(State state) {
+    return Lists.newArrayList();
   }
 
   @Override

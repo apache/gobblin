@@ -39,10 +39,11 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
+import com.google.common.collect.Maps;
 import com.google.common.base.Charsets;
 
 
-public class OutputStreamReporter extends ScheduledReporter implements Closeable {
+public class OutputStreamReporter extends RecursiveScheduledReporter implements Closeable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(OutputStreamReporter.class);
 
@@ -55,9 +56,6 @@ public class OutputStreamReporter extends ScheduledReporter implements Closeable
    * @return a {@link Builder} instance for a {@link gobblin.metrics.OutputStreamReporter}
    */
   public static Builder<?> forRegistry(MetricRegistry registry) {
-    if(MetricContext.class.isInstance(registry)) {
-      LOGGER.warn("Creating Kafka Reporter from MetricContext using forRegistry method. Will not inherit tags.");
-    }
     return new BuilderImpl(registry);
   }
 
@@ -69,7 +67,7 @@ public class OutputStreamReporter extends ScheduledReporter implements Closeable
    * @return {@link gobblin.metrics.OutputStreamReporter.Builder}
    */
   public static Builder<?> forContext(MetricContext context) {
-    return new BuilderImpl(context).withTags(context.getTags());
+    return forRegistry(context);
   }
 
   private static class BuilderImpl extends Builder<BuilderImpl> {
@@ -266,18 +264,23 @@ public class OutputStreamReporter extends ScheduledReporter implements Closeable
   }
 
   @Override
-  public void report(SortedMap<String, Gauge> gauges,
+  public synchronized void report(SortedMap<String, Gauge> gauges,
       SortedMap<String, Counter> counters,
       SortedMap<String, Histogram> histograms,
       SortedMap<String, Meter> meters,
-      SortedMap<String, Timer> timers) {
+      SortedMap<String, Timer> timers,
+      Map<String, String> tags) {
     final String dateTime = dateFormat.format(new Date(clock.getTime()));
     printWithBanner(dateTime, '=');
     this.output.println();
 
-    if (!tags.isEmpty()) {
+    Map<String, String> allTags = Maps.newHashMap();
+    allTags.putAll(tags);
+    allTags.putAll(this.tags);
+
+    if (!allTags.isEmpty()) {
       printWithBanner("-- Tags", '-');
-      for (Map.Entry<String, String> entry : tags.entrySet()) {
+      for (Map.Entry<String, String> entry : allTags.entrySet()) {
         this.output.println(String.format("%s=%s", entry.getKey(), entry.getValue()));
       }
       this.output.println();

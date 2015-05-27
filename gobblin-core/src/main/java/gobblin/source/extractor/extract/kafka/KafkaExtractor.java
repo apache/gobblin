@@ -22,11 +22,14 @@ import org.slf4j.LoggerFactory;
 
 import kafka.message.MessageAndOffset;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 import com.google.gson.Gson;
 
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.metrics.Tag;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.EventBasedExtractor;
@@ -63,6 +66,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   protected int currentPartitionIdx;
 
   public KafkaExtractor(WorkUnitState state) {
+    super(state);
     this.workUnitState = state;
     this.topicName = KafkaUtils.getTopicName(state);
     this.partitions = KafkaUtils.getPartitions(state);
@@ -79,6 +83,15 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
     this.messageIterator = null;
     this.currentPartitionIdx = 0;
+
+    switchMetricContextToCurrentPartition();
+  }
+
+  @Override
+  public List<Tag<?>> generateTags(State state) {
+    List<Tag<?>> tags = super.generateTags(state);
+    tags.add(new Tag<String>("kafka_topic", KafkaUtils.getTopicName(state)));
+    return tags;
   }
 
   /**
@@ -86,7 +99,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
    * decodable event, move on to the next partition. If all partitions have been processed, return null.
    */
   @Override
-  public D readRecord(D reuse) throws DataRecordException, IOException {
+  public D readRecordImpl(D reuse) throws DataRecordException, IOException {
     if (currentPartitionFinished()) {
       moveToNextPartition();
     }
@@ -152,6 +165,12 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   private void moveToNextPartition() {
     this.currentPartitionIdx++;
     this.messageIterator = null;
+    switchMetricContextToCurrentPartition();
+  }
+
+  private void switchMetricContextToCurrentPartition() {
+    int currentPartitionId = this.getCurrentPartition().getId();
+    switchMetricContext(Lists.<Tag<?>>newArrayList(new Tag<Integer>("kafka_partition", currentPartitionId)));
   }
 
   private Iterator<MessageAndOffset> fetchNextMessageBuffer() {
