@@ -87,8 +87,10 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
 
         long filePosition = 0;
         while (filePosition < contentLength) {
-          // Last part can be less than 5 MB. Adjust part size.
+          // Last part can be less than 500 MB. Adjust part size.
           long partSize = Math.min(PART_SIZE, (contentLength - filePosition));
+
+          LOG.info("Sending part to s3 with part number " + i + " and file position: " + filePosition);
 
           // Create request to upload a part.
           UploadPartRequest uploadRequest = new UploadPartRequest()
@@ -106,6 +108,7 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
         }
         LOG.info("Finished publishing file " + file);
       }
+      LOG.info("Total parts after publishing all files: " + i);
       // Step 3: Complete.
       CompleteMultipartUploadRequest compRequest = new
               CompleteMultipartUploadRequest(bk.getBucket(),
@@ -118,6 +121,7 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
       LOG.error("Error publishing to S3:\n" + ExceptionUtils.getStackTrace(e));
       s3Client.abortMultipartUpload(new AbortMultipartUploadRequest(
               bk.getBucket(), bk.getKey(), initResponse.getUploadId()));
+      return;
     }
     LOG.info("Finished publishing " + bk.toString() + "to s3");
   }
