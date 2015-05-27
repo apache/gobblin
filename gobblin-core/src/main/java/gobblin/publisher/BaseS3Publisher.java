@@ -51,7 +51,7 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
   protected final int s3Partitions;
 
   private static final Logger LOG = LoggerFactory.getLogger(BaseS3Publisher.class);
-  private static final long PART_SIZE = 50 * 1024 * 1024; // 500 mb chunks to s3
+  private static final long PART_SIZE = 5 * 1024 * 1024; // 500 mb chunks to s3
 
   public BaseS3Publisher(State state) {
     super(state);
