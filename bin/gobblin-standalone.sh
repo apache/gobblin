@@ -51,7 +51,7 @@ done
 # Source gobblin default vars
 [ -f /etc/default/gobblin ] && . /etc/default/gobblin
 
-if [ -n "$FWDIR" ]; then
+if [ -z "$FWDIR" ]; then
   FWDIR="$(cd `dirname $0`/..; pwd)"
 fi
 FWDIR_LIB=$FWDIR/lib
