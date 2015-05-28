@@ -81,7 +81,7 @@ fi
 
 # User defined log directory overrides $GOBBLIN_LOG_DIR
 if [ -n "$LOG_DIR" ]; then
-  export GOBBLIN_WORK_DIR="$LOG_DIR"
+  export GOBBLIN_LOG_DIR="$LOG_DIR"
 fi
 
 if [ -z "$GOBBLIN_LOG_DIR" ] && [ "$check" == true ]; then
