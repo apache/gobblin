@@ -91,6 +91,8 @@ if [ -z "$GOBBLIN_LOG_DIR" ] && [ "$check" == true ]; then
   die "GOBBLIN_LOG_DIR is not set!"
 fi
 
+. $FWDIR_CONF/gobblin-env.sh
+
 CONFIG_FILE=$FWDIR_CONF/gobblin-standalone.properties
 
 PID="$GOBBLIN_WORK_DIR/.gobblin-pid"
