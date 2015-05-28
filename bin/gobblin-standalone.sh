@@ -52,6 +52,9 @@ do
   shift
 done
 
+# Source gobblin default vars
+[ -f /etc/default/gobblin ] && . /etc/default/gobblin
+
 if [ -z "$JAVA_HOME" ]; then
   die "Environment variable JAVA_HOME not set!"
 fi
@@ -87,8 +90,6 @@ fi
 if [ -z "$GOBBLIN_LOG_DIR" ] && [ "$check" == true ]; then
   die "GOBBLIN_LOG_DIR is not set!"
 fi
-
-. $FWDIR_CONF/gobblin-env.sh
 
 CONFIG_FILE=$FWDIR_CONF/gobblin-standalone.properties
 
