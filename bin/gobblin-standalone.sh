@@ -1,9 +1,5 @@
 #!/bin/bash
 
-FWDIR="$(cd `dirname $0`/..; pwd)"
-FWDIR_LIB=$FWDIR/lib
-FWDIR_CONF=$FWDIR/conf
-
 function print_usage(){
   echo "gobblin-standalone.sh <start | status | restart | stop> [OPTION]"
   echo "Where OPTION can be:"
@@ -54,6 +50,12 @@ done
 
 # Source gobblin default vars
 [ -f /etc/default/gobblin ] && . /etc/default/gobblin
+
+if [ ! -n "$FWDIR" ]; then
+  FWDIR="$(cd `dirname $0`/..; pwd)"
+fi
+FWDIR_LIB=$FWDIR/lib
+FWDIR_CONF=$FWDIR/conf
 
 if [ -z "$JAVA_HOME" ]; then
   die "Environment variable JAVA_HOME not set!"
