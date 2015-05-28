@@ -30,6 +30,10 @@ do
       WORK_DIR="$2"
       shift
       ;;
+    --logdir)
+      LOG_DIR="$2"
+      shift
+      ;;
     --jars)
       JARS="$2"
       shift
@@ -75,6 +79,15 @@ if [ -z "$GOBBLIN_WORK_DIR" ] && [ "$check" == true ]; then
   die "GOBBLIN_WORK_DIR is not set!"
 fi
 
+# User defined log directory overrides $GOBBLIN_LOG_DIR
+if [ -n "$LOG_DIR" ]; then
+  export GOBBLIN_LOG_DIR="$LOG_DIR"
+fi
+
+if [ -z "$GOBBLIN_LOG_DIR" ] && [ "$check" == true ]; then
+  die "GOBBLIN_LOG_DIR is not set!"
+fi
+
 . $FWDIR_CONF/gobblin-env.sh
 
 CONFIG_FILE=$FWDIR_CONF/gobblin-standalone.properties
@@ -87,8 +100,8 @@ else
   PID_VALUE=""
 fi
 
-if [ ! -d "$FWDIR/logs" ]; then
-  mkdir "$FWDIR/logs"
+if [ ! -d "$GOBBLIN_LOG_DIR" ]; then
+  mkdir "$GOBBLIN_LOG_DIR"
 fi
 
 set_user_jars(){
@@ -130,9 +143,9 @@ start() {
   COMMAND+="-XX:+UseConcMarkSweepGC -XX:+UseParNewGC "
   COMMAND+="-XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintTenuringDistribution "
   COMMAND+="-XX:+UseCompressedOops "
-  COMMAND+="-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$FWDIR/logs/ "
-  COMMAND+="-Xloggc:$FWDIR/logs/gobblin-gc.log "
-  COMMAND+="-Dgobblin.logs.dir=$FWDIR/logs "
+  COMMAND+="-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$GOBBLIN_LOG_DIR/ "
+  COMMAND+="-Xloggc:$GOBBLIN_LOG_DIR/gobblin-gc.log "
+  COMMAND+="-Dgobblin.logs.dir=$GOBBLIN_LOG_DIR "
   COMMAND+="-Dlog4j.configuration=file://$FWDIR_CONF/log4j-standalone.xml "
   COMMAND+="-cp $CLASSPATH "
   COMMAND+="-Dorg.quartz.properties=$FWDIR_CONF/quartz.properties "
