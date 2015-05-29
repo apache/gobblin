@@ -8,6 +8,9 @@
 -- under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 -- CONDITIONS OF ANY KIND, either express or implied.
 
+
+-- Apache Derby DDL for the tables needed by the Gobblin job history store.
+
 CREATE TABLE gobblin_job_executions (
 	job_name VARCHAR(128) NOT NULL,
 	job_id VARCHAR(128) NOT NULL,
@@ -40,8 +43,8 @@ CREATE TABLE gobblin_task_executions (
 	created_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	last_modified_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	PRIMARY KEY (task_id),
-	FOREIGN KEY (job_id) 
-	REFERENCES gobblin_job_executions(job_id) 
+	FOREIGN KEY (job_id)
+	REFERENCES gobblin_job_executions(job_id)
 	ON DELETE CASCADE
 );
 
@@ -55,8 +58,8 @@ CREATE TABLE gobblin_job_metrics (
 	created_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	last_modified_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	PRIMARY KEY (metric_id),
-	FOREIGN KEY (job_id) 
-	REFERENCES gobblin_job_executions(job_id) 
+	FOREIGN KEY (job_id)
+	REFERENCES gobblin_job_executions(job_id)
 	ON DELETE CASCADE
 );
 
@@ -70,8 +73,8 @@ CREATE TABLE gobblin_task_metrics (
 	created_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	last_modified_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	PRIMARY KEY (metric_id),
-	FOREIGN KEY (task_id) 
-	REFERENCES gobblin_task_executions(task_id) 
+	FOREIGN KEY (task_id)
+	REFERENCES gobblin_task_executions(task_id)
 	ON DELETE CASCADE
 );
 

@@ -59,8 +59,8 @@ public class TaskState extends WorkUnitState {
 
   private String jobId;
   private String taskId;
-  private long startTime;
-  private long endTime;
+  private long startTime = 0;
+  private long endTime = 0;
   private long duration;
 
   // Needed for serialization/deserialization
@@ -300,8 +300,12 @@ public class TaskState extends WorkUnitState {
 
     taskExecutionInfo.setJobId(this.jobId);
     taskExecutionInfo.setTaskId(this.taskId);
-    taskExecutionInfo.setStartTime(this.startTime);
-    taskExecutionInfo.setEndTime(this.endTime);
+    if (this.startTime > 0) {
+      taskExecutionInfo.setStartTime(this.startTime);
+    }
+    if (this.endTime > 0) {
+      taskExecutionInfo.setEndTime(this.endTime);
+    }
     taskExecutionInfo.setDuration(this.duration);
     taskExecutionInfo.setState(TaskStateEnum.valueOf(getWorkingState().name()));
     if (this.contains(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)) {

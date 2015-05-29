@@ -8,6 +8,9 @@
 -- under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 -- CONDITIONS OF ANY KIND, either express or implied.
 
+
+-- MySQL DDL for the tables needed by the Gobblin job history store.
+
 CREATE TABLE IF NOT EXISTS gobblin_job_executions (
 	job_name VARCHAR(128) NOT NULL,
 	job_id VARCHAR(128) NOT NULL,

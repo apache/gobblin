@@ -67,8 +67,8 @@ public class JobState extends SourceState {
 
   private String jobName;
   private String jobId;
-  private long startTime;
-  private long endTime;
+  private long startTime = 0;
+  private long endTime = 0;
   private long duration;
   private RunningState state = RunningState.PENDING;
   private int tasks;
@@ -383,8 +383,12 @@ public class JobState extends SourceState {
 
     jobExecutionInfo.setJobName(this.jobName);
     jobExecutionInfo.setJobId(this.jobId);
-    jobExecutionInfo.setStartTime(this.startTime);
-    jobExecutionInfo.setEndTime(this.endTime);
+    if (this.startTime > 0) {
+      jobExecutionInfo.setStartTime(this.startTime);
+    }
+    if (this.endTime > 0) {
+      jobExecutionInfo.setEndTime(this.endTime);
+    }
     jobExecutionInfo.setDuration(this.duration);
     jobExecutionInfo.setState(JobStateEnum.valueOf(this.state.name()));
     jobExecutionInfo.setLaunchedTasks(this.tasks);
