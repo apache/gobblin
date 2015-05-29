@@ -19,6 +19,7 @@ import org.apache.commons.lang.StringUtils;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.LinkedList;
@@ -42,7 +43,7 @@ public class KafkaS3Publisher extends BaseS3Publisher {
 
   @Override
   public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
-    Map<String, LinkedList<String>> data =
+    Map<String, ArrayList<String>> data =
             BatchKafkaData.getInputStreams(states, this.numBranches, this.fss);
     for (String k : data.keySet()) {
       String s3Bucket = this.getState().getProp(ConfigurationKeys.S3_BUCKET);
