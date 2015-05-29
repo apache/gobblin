@@ -46,10 +46,9 @@ import java.util.List;
  *
  * <p>
  *
- * The user must provide a getBucketAndKey method which returns the S3 bucket and key to post the data
- * to. The publisher iterates through all tasks and appends files with the exact same BucketAndKey.
- * If the file size exceeds 4GB or after all the data has been appended, the data is published to S3.
- * The files written by each task are specified by {@link ConfigurationKeys#WRITER_FINAL_OUTPUT_PATH}.
+ * This class should be extended and publishData and publishMetadata should be implemented.
+ * This class provides a method for batching a list of filenames from the local file system
+ * into one S3 key.
  *
  * @author akshay@nerdwallet.com
  */
@@ -224,6 +223,13 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
     return updatedFiles;
   }
 
+  /**
+   * Appends the contents of g to f and writes f back to disk.
+   *
+   * @param f the file to which g is appended
+   * @param g the file to append
+   * @throws IOException
+   */
   private void doAppend(File f, File g) throws IOException {
     OutputStream out = null;
     InputStream in = null;
@@ -249,38 +255,14 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
   private class FileComparator implements Comparator<String> {
 
     /**
-     * Compares its two arguments for order.  Returns a negative integer,
-     * zero, or a positive integer as the first argument is less than, equal
-     * to, or greater than the second.<p>
-     * <p/>
-     * In the foregoing description, the notation
-     * <tt>sgn(</tt><i>expression</i><tt>)</tt> designates the mathematical
-     * <i>signum</i> function, which is defined to return one of <tt>-1</tt>,
-     * <tt>0</tt>, or <tt>1</tt> according to whether the value of
-     * <i>expression</i> is negative, zero or positive.<p>
-     * <p/>
-     * The implementor must ensure that <tt>sgn(compare(x, y)) ==
-     * -sgn(compare(y, x))</tt> for all <tt>x</tt> and <tt>y</tt>.  (This
-     * implies that <tt>compare(x, y)</tt> must throw an exception if and only
-     * if <tt>compare(y, x)</tt> throws an exception.)<p>
-     * <p/>
-     * The implementor must also ensure that the relation is transitive:
-     * <tt>((compare(x, y)&gt;0) &amp;&amp; (compare(y, z)&gt;0))</tt> implies
-     * <tt>compare(x, z)&gt;0</tt>.<p>
-     * <p/>
-     * Finally, the implementor must ensure that <tt>compare(x, y)==0</tt>
-     * implies that <tt>sgn(compare(x, z))==sgn(compare(y, z))</tt> for all
-     * <tt>z</tt>.<p>
-     * <p/>
-     * It is generally the case, but <i>not</i> strictly required that
-     * <tt>(compare(x, y)==0) == (x.equals(y))</tt>.  Generally speaking,
-     * any comparator that violates this condition should clearly indicate
-     * this fact.  The recommended language is "Note: this comparator
-     * imposes orderings that are inconsistent with equals."
+     * Interprets the string as a file name and compares the file
+     * sizes.
      *
-     * @param o1 the first object to be compared.
-     * @param o2 the second object to be compared.
-     * @return a negative integer, zero, or a positive integer as the
+     * Note: this comparator imposes orderings that are inconsistent with {@link String#equals}.
+     *
+     * @param o1 the first file name to be compared.
+     * @param o2 the second file name to be compared.
+     * @return a -1, 0, or 1 as the
      * first argument is less than, equal to, or greater than the
      * second.
      * @throws NullPointerException if an argument is null and this
