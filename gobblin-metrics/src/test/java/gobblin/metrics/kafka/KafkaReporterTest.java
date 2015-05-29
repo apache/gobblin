@@ -11,17 +11,13 @@
 
 package gobblin.metrics.kafka;
 
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.io.IOUtils;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -36,9 +32,11 @@ import com.google.common.collect.Lists;
 
 import kafka.consumer.ConsumerIterator;
 
+import gobblin.metrics.Measurements;
 import gobblin.metrics.Metric;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricReport;
+import gobblin.metrics.MetricReportUtils;
 import gobblin.metrics.Tag;
 
 
@@ -95,9 +93,9 @@ public class KafkaReporterTest extends KafkaTestBase {
     }
 
     Map<String, Double> expected = new HashMap<String, Double>();
-    expected.put("com.linkedin.example.counter", 1.0);
-    expected.put("com.linkedin.example.meter.count", 2.0);
-    expected.put("com.linkedin.example.histogram.count", 3.0);
+    expected.put("com.linkedin.example.counter." + Measurements.COUNT, 1.0);
+    expected.put("com.linkedin.example.meter." + Measurements.COUNT, 2.0);
+    expected.put("com.linkedin.example.histogram." + Measurements.COUNT, 3.0);
 
     MetricReport nextReport = nextReport(iterator);
 
@@ -111,21 +109,21 @@ public class KafkaReporterTest extends KafkaTestBase {
     }
 
     Set<String> expectedSet = new HashSet<String>();
-    expectedSet.add("com.linkedin.example.counter");
-    expectedSet.add("com.linkedin.example.meter.count");
-    expectedSet.add("com.linkedin.example.meter.rate.mean");
-    expectedSet.add("com.linkedin.example.meter.rate.1m");
-    expectedSet.add("com.linkedin.example.meter.rate.5m");
-    expectedSet.add("com.linkedin.example.meter.rate.15m");
-    expectedSet.add("com.linkedin.example.histogram.mean");
-    expectedSet.add("com.linkedin.example.histogram.min");
-    expectedSet.add("com.linkedin.example.histogram.max");
-    expectedSet.add("com.linkedin.example.histogram.median");
-    expectedSet.add("com.linkedin.example.histogram.75percentile");
-    expectedSet.add("com.linkedin.example.histogram.95percentile");
-    expectedSet.add("com.linkedin.example.histogram.99percentile");
-    expectedSet.add("com.linkedin.example.histogram.999percentile");
-    expectedSet.add("com.linkedin.example.histogram.count");
+    expectedSet.add("com.linkedin.example.counter." + Measurements.COUNT);
+    expectedSet.add("com.linkedin.example.meter." + Measurements.COUNT);
+    expectedSet.add("com.linkedin.example.meter." + Measurements.MEAN_RATE);
+    expectedSet.add("com.linkedin.example.meter." + Measurements.RATE_1MIN);
+    expectedSet.add("com.linkedin.example.meter." + Measurements.RATE_5MIN);
+    expectedSet.add("com.linkedin.example.meter." + Measurements.RATE_15MIN);
+    expectedSet.add("com.linkedin.example.histogram." + Measurements.MEAN);
+    expectedSet.add("com.linkedin.example.histogram." + Measurements.MIN);
+    expectedSet.add("com.linkedin.example.histogram." + Measurements.MAX);
+    expectedSet.add("com.linkedin.example.histogram." + Measurements.MEDIAN);
+    expectedSet.add("com.linkedin.example.histogram." + Measurements.PERCENTILE_75TH);
+    expectedSet.add("com.linkedin.example.histogram." + Measurements.PERCENTILE_95TH);
+    expectedSet.add("com.linkedin.example.histogram." + Measurements.PERCENTILE_99TH);
+    expectedSet.add("com.linkedin.example.histogram." + Measurements.PERCENTILE_999TH);
+    expectedSet.add("com.linkedin.example.histogram." + Measurements.COUNT);
 
     nextReport = nextReport(iterator);
     expectMetrics(nextReport, expectedSet, true);
@@ -246,7 +244,7 @@ public class KafkaReporterTest extends KafkaTestBase {
    */
   protected MetricReport nextReport(ConsumerIterator<byte[], byte[]> it) throws IOException {
     Assert.assertTrue(it.hasNext());
-    return KafkaReporter.deserializeReport(new MetricReport(), it.next().message());
+    return MetricReportUtils.deserializeReportFromJson(new MetricReport(), it.next().message());
   }
 
   @AfterClass

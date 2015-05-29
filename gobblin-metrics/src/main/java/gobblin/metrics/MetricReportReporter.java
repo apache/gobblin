@@ -12,18 +12,16 @@
 
 package gobblin.metrics;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 
-import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Counter;
+import com.codahale.metrics.Counting;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
@@ -32,6 +30,8 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
@@ -39,18 +39,20 @@ import com.google.common.io.Closer;
 /**
  * Scheduled reporter based on {@link gobblin.metrics.MetricReport}.
  *
- * This class will generate a metric report, and call pushReport to actually emit the metrics.
+ * <p>
+ * This class will generate a metric report, and call {@link #emitReport} to actually emit the metrics.
+ * </p>
  */
 public abstract class MetricReportReporter extends RecursiveScheduledReporter {
 
   private final static Logger LOGGER = LoggerFactory.getLogger(MetricReportReporter.class);
 
-  public final Map<String, String> tags;
+  protected final ImmutableMap<String, String> tags;
   protected final Closer closer;
 
   public MetricReportReporter(Builder<?> builder) {
     super(builder.registry, builder.name, builder.filter, builder.rateUnit, builder.durationUnit);
-    this.tags = builder.tags;
+    this.tags = ImmutableMap.copyOf(builder.tags);
     this.closer = Closer.create();
   }
 
@@ -68,11 +70,11 @@ public abstract class MetricReportReporter extends RecursiveScheduledReporter {
 
     protected Builder(MetricRegistry registry) {
       this.registry = registry;
-      this.name = "KafkaReporter";
+      this.name = "MetricReportReporter";
       this.rateUnit = TimeUnit.SECONDS;
       this.durationUnit = TimeUnit.MILLISECONDS;
       this.filter = MetricFilter.ALL;
-      this.tags = new LinkedHashMap<String, String>();
+      this.tags = Maps.newHashMap();
     }
 
     protected abstract T self();
@@ -112,7 +114,7 @@ public abstract class MetricReportReporter extends RecursiveScheduledReporter {
 
     /**
      * Add tags
-     * @param tags
+     * @param tags additional {@link gobblin.metrics.Tag}s for the reporter.
      * @return {@code this}
      */
     public T withTags(Map<String, String> tags) {
@@ -149,49 +151,49 @@ public abstract class MetricReportReporter extends RecursiveScheduledReporter {
   /**
    * Serializes metrics and pushes the byte arrays to Kafka.
    * Uses the serialize* methods in {@link gobblin.metrics.MetricReportReporter}.
-   * @param gauges
-   * @param counters
-   * @param histograms
-   * @param meters
-   * @param timers
+   * @param gauges map of {@link com.codahale.metrics.Gauge} to report and their name.
+   * @param counters map of {@link com.codahale.metrics.Counter} to report and their name.
+   * @param histograms map of {@link com.codahale.metrics.Histogram} to report and their name.
+   * @param meters map of {@link com.codahale.metrics.Meter} to report and their name.
+   * @param timers map of {@link com.codahale.metrics.Timer} to report and their name.
    */
   @Override
   public void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters,
       SortedMap<String, Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers,
       Map<String, String> tags) {
 
-    List<Metric> metrics = new ArrayList<Metric>();
+    List<Metric> metrics = Lists.newArrayList();
 
-    for( Map.Entry<String, Gauge> gauge : gauges.entrySet()) {
+    for(Map.Entry<String, Gauge> gauge : gauges.entrySet()) {
       metrics.addAll(serializeGauge(gauge.getKey(), gauge.getValue()));
     }
 
-    for ( Map.Entry<String, Counter> counter : counters.entrySet()) {
+    for(Map.Entry<String, Counter> counter : counters.entrySet()) {
       metrics.addAll(serializeCounter(counter.getKey(), counter.getValue()));
     }
 
-    for( Map.Entry<String, Histogram> histogram : histograms.entrySet()) {
+    for(Map.Entry<String, Histogram> histogram : histograms.entrySet()) {
       metrics.addAll(serializeSnapshot(histogram.getKey(), histogram.getValue().getSnapshot()));
-      metrics.addAll(serializeSingleValue(histogram.getKey(), histogram.getValue().getCount(), "count"));
+      metrics.addAll(serializeCounter(histogram.getKey(), histogram.getValue()));
     }
 
-    for ( Map.Entry<String, Meter> meter : meters.entrySet()) {
+    for(Map.Entry<String, Meter> meter : meters.entrySet()) {
       metrics.addAll(serializeMetered(meter.getKey(), meter.getValue()));
     }
 
-    for ( Map.Entry<String, Timer> timer : timers.entrySet()) {
+    for(Map.Entry<String, Timer> timer : timers.entrySet()) {
       metrics.addAll(serializeSnapshot(timer.getKey(), timer.getValue().getSnapshot()));
       metrics.addAll(serializeMetered(timer.getKey(), timer.getValue()));
-      metrics.addAll(serializeSingleValue(timer.getKey(), timer.getValue().getCount(), "count"));
+      metrics.addAll(serializeSingleValue(timer.getKey(), timer.getValue().getCount(), Measurements.COUNT.getName()));
     }
 
     Map<String, String> allTags = Maps.newHashMap();
     allTags.putAll(tags);
     allTags.putAll(this.tags);
 
-    MetricReport report = new MetricReport(allTags, new DateTime().getMillis(), metrics);
+    MetricReport report = new MetricReport(allTags, System.currentTimeMillis(), metrics);
 
-    pushReport(report);
+    emitReport(report);
 
   }
 
@@ -199,86 +201,82 @@ public abstract class MetricReportReporter extends RecursiveScheduledReporter {
    * Emit the {@link gobblin.metrics.MetricReport} to the metrics sink.
    * @param report metric report to emit.
    */
-  protected abstract void pushReport(MetricReport report);
+  protected abstract void emitReport(MetricReport report);
 
   /**
    * Extracts metrics from {@link com.codahale.metrics.Gauge}.
-   * @param name
-   * @param gauge
+   * @param name name of the {@link com.codahale.metrics.Gauge}.
+   * @param gauge instance of {@link com.codahale.metrics.Gauge} to serialize.
    * @return a list of {@link gobblin.metrics.Metric}.
    */
   protected List<Metric> serializeGauge(String name, Gauge gauge) {
-    List<Metric> metrics = new ArrayList<Metric>();
+    List<Metric> metrics = Lists.newArrayList();
     try {
       metrics.add(new Metric(name, Double.parseDouble(gauge.getValue().toString())));
     } catch(NumberFormatException exception) {
-      LOGGER.info("Failed to serialize gauge metric. Not compatible with double value.");
+      LOGGER.info("Failed to serialize gauge metric. Not compatible with double value.", exception);
     }
     return metrics;
   }
 
   /**
    * Extracts metrics from {@link com.codahale.metrics.Counter}.
-   * @param name
-   * @param counter
+   * @param name name of the {@link com.codahale.metrics.Counter}.
+   * @param counter instance of {@link com.codahale.metrics.Counter} to serialize.
    * @return a list of {@link gobblin.metrics.Metric}.
    */
-  protected List<Metric> serializeCounter(String name, Counter counter) {
-    List<Metric> metrics = new ArrayList<Metric>();
-    metrics.add(serializeValue(name, counter.getCount()));
-    return metrics;
+  protected List<Metric> serializeCounter(String name, Counting counter) {
+    return Lists.newArrayList(
+        serializeValue(name, counter.getCount(), Measurements.COUNT.name())
+    );
   }
 
   /**
    * Extracts metrics from {@link com.codahale.metrics.Metered}.
-   * @param name
-   * @param meter
+   * @param name name of the {@link com.codahale.metrics.Metered}.
+   * @param meter instance of {@link com.codahale.metrics.Metered} to serialize.
    * @return a list of {@link gobblin.metrics.Metric}.
    */
   protected List<Metric> serializeMetered(String name, Metered meter) {
-    List<Metric> metrics = new ArrayList<Metric>();
-
-    metrics.add(serializeValue(name, meter.getCount(), "count"));
-    metrics.add(serializeValue(name, meter.getMeanRate(), "rate", "mean"));
-    metrics.add(serializeValue(name, meter.getOneMinuteRate(), "rate", "1m"));
-    metrics.add(serializeValue(name, meter.getFiveMinuteRate(), "rate", "5m"));
-    metrics.add(serializeValue(name, meter.getFifteenMinuteRate(), "rate", "15m"));
-
-    return metrics;
+    return Lists.newArrayList(
+      serializeValue(name, meter.getCount(), Measurements.COUNT.name()),
+      serializeValue(name, meter.getMeanRate(), Measurements.MEAN_RATE.name()),
+      serializeValue(name, meter.getOneMinuteRate(), Measurements.RATE_1MIN.name()),
+      serializeValue(name, meter.getFiveMinuteRate(), Measurements.RATE_5MIN.name()),
+      serializeValue(name, meter.getFifteenMinuteRate(), Measurements.RATE_15MIN.name())
+    );
   }
 
   /**
    * Extracts metrics from {@link com.codahale.metrics.Snapshot}.
-   * @param name
-   * @param snapshot
+   * @param name name of the {@link com.codahale.metrics.Snapshot}.
+   * @param snapshot instance of {@link com.codahale.metrics.Snapshot} to serialize.
    * @return a list of {@link gobblin.metrics.Metric}.
    */
   protected List<Metric> serializeSnapshot(String name, Snapshot snapshot) {
-    List<Metric> metrics = new ArrayList<Metric>();
-
-    metrics.add(serializeValue(name, snapshot.getMean(), "mean"));
-    metrics.add(serializeValue(name, snapshot.getMin(), "min"));
-    metrics.add(serializeValue(name, snapshot.getMax(), "max"));
-    metrics.add(serializeValue(name, snapshot.getMedian(), "median"));
-    metrics.add(serializeValue(name, snapshot.get75thPercentile(), "75percentile"));
-    metrics.add(serializeValue(name, snapshot.get95thPercentile(), "95percentile"));
-    metrics.add(serializeValue(name, snapshot.get99thPercentile(), "99percentile"));
-    metrics.add(serializeValue(name, snapshot.get999thPercentile(), "999percentile"));
-
-    return metrics;
+    return Lists.newArrayList(
+      serializeValue(name, snapshot.getMean(), Measurements.MEAN.name()),
+      serializeValue(name, snapshot.getMin(), Measurements.MIN.name()),
+      serializeValue(name, snapshot.getMax(), Measurements.MAX.name()),
+      serializeValue(name, snapshot.getMedian(), Measurements.MEDIAN.name()),
+      serializeValue(name, snapshot.get75thPercentile(), Measurements.PERCENTILE_75TH.name()),
+      serializeValue(name, snapshot.get95thPercentile(), Measurements.PERCENTILE_95TH.name()),
+      serializeValue(name, snapshot.get99thPercentile(), Measurements.PERCENTILE_99TH.name()),
+      serializeValue(name, snapshot.get999thPercentile(), Measurements.PERCENTILE_999TH.name())
+    );
   }
 
   /**
-   * Convert single value into list of Metrics.
-   * @param name
-   * @param value
+   * Convert single value into list of {@link gobblin.metrics.Metric}.
+   * @param name name of the metric.
+   * @param value value of the metric.
    * @param path suffixes to more precisely identify the meaning of the reported value
    * @return a Singleton list of {@link gobblin.metrics.Metric}.
    */
   protected List<Metric> serializeSingleValue(String name, Number value, String... path) {
-    List<Metric> metrics = new ArrayList<Metric>();
-    metrics.add(serializeValue(name, value, path));
-    return metrics;
+    return Lists.newArrayList(
+      serializeValue(name, value, path)
+    );
   }
 
   /**
@@ -295,10 +293,11 @@ public abstract class MetricReportReporter extends RecursiveScheduledReporter {
   @Override
   public void close() {
     try {
-      super.close();
       this.closer.close();
     } catch(Exception e) {
       LOGGER.warn("Exception when closing KafkaReporter", e);
+    } finally {
+      super.close();
     }
   }
 }

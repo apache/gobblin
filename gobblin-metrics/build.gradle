@@ -27,6 +27,7 @@ dependencies {
   compile externalDependency.jacksonMapper
   compile externalDependency.jodaTime
   compile externalDependency.influxdbJava
+  compile externalDependency.findBugs
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito

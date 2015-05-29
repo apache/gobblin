@@ -40,7 +40,6 @@ import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
-import gobblin.metrics.kafka.KafkaReporter;
 import gobblin.metrics.kafka.KafkaReportingFormats;
 
 
@@ -139,7 +138,7 @@ public class GobblinMetrics {
   private Optional<JmxReporter> jmxReporter = Optional.absent();
 
   // Custom metric reporters instantiated through reflection
-  private List<ScheduledReporter> scheduledReporters = Lists.newArrayList();
+  private final List<ScheduledReporter> scheduledReporters = Lists.newArrayList();
 
   // A flag telling whether metric reporting has started or not
   private volatile boolean reportingStarted = false;
@@ -246,7 +245,7 @@ public class GobblinMetrics {
     }
 
     buildFileMetricReporter(properties);
-    buildKafkaReporter(properties);
+    buidlKafkaMetricReporter(properties);
     buildCustomMetricReporters(properties);
 
     for (ScheduledReporter reporter : this.scheduledReporters) {
@@ -324,7 +323,7 @@ public class GobblinMetrics {
         append = true;
       }
 
-      this.scheduledReporters.add(closer.register(OutputStreamReporter.forContext(this.metricContext)
+      this.scheduledReporters.add(this.closer.register(OutputStreamReporter.forContext(this.metricContext)
           .outputTo(append ? fs.append(metricLogFile) : fs.create(metricLogFile, true)).build()));
     } catch (IOException ioe) {
       LOGGER.error("Failed to build file metric reporter for job " + this.id, ioe);
@@ -341,7 +340,7 @@ public class GobblinMetrics {
     this.jmxReporter = Optional.of(closer.register(JmxReporter.forRegistry(this.metricContext).convertRatesTo(TimeUnit.SECONDS).convertDurationsTo(TimeUnit.MILLISECONDS).build()));
   }
 
-  private void buildKafkaReporter(Properties properties) {
+  private void buidlKafkaMetricReporter(Properties properties) {
     if (!Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_ENABLED_KEY,
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_ENABLED))) {
       LOGGER.info("Not reporting metrics to Kafka");
@@ -384,7 +383,6 @@ public class GobblinMetrics {
    * reporters for Gobblin runtime without having to modify the code.
    */
   private void buildCustomMetricReporters(Properties properties) {
-
     String reporterClasses = properties.getProperty(ConfigurationKeys.METRICS_CUSTOM_BUILDERS);
 
     if (Strings.isNullOrEmpty(reporterClasses)) {
@@ -393,9 +391,20 @@ public class GobblinMetrics {
 
     for (String reporterClass : Splitter.on(",").split(reporterClasses)) {
       try {
-        ScheduledReporter reporter = ((CustomReporterBuilder)Class.forName(reporterClass)
-            .getConstructor().newInstance()).getReporter(this.metricContext, properties);
+        ScheduledReporter reporter = ((CustomReporterFactory) Class.forName(reporterClass)
+            .getConstructor().newInstance()).newScheduledReporter(this.metricContext, properties);
         this.scheduledReporters.add(reporter);
+      } catch(ClassNotFoundException exception) {
+        LOGGER.warn(
+            String.format("Failed to create metric reporter: requested CustomReporterFactory %s not found.",
+                reporterClass),
+            exception);
+      } catch(NoSuchMethodException exception) {
+        LOGGER.warn(
+            String.format("Failed to create metric reporter: requested CustomReporterFactory %s "
+                    + "does not have parameterless constructor.",
+                reporterClass),
+            exception);
       } catch(Exception exception) {
         LOGGER.warn("Could not create metric reporter from builder " + reporterClass + ".", exception);
       }

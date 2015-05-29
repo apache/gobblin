@@ -12,18 +12,15 @@
 
 package gobblin.metrics;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
-import org.apache.avro.io.Decoder;
-import org.apache.avro.io.DecoderFactory;
+import javax.annotation.Nullable;
+
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
-import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,22 +32,21 @@ import com.google.common.base.Optional;
 /**
  * Metric reporter that pushes serialized {@link gobblin.metrics.MetricReport}.
  *
+ * <p>
  * The serialization format is defined by {@link #getEncoder}. By default, json encoder is used,
  * but subclasses can override this method to use a different encoder.
+ * </p>
  *
  * Concrete subclasses should implement {@link #pushSerializedReport}.
  */
 public abstract class SerializedMetricReportReporter extends MetricReportReporter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SerializedMetricReportReporter.class);
-  public static final int SCHEMA_VERSION = 1;
 
   private final Encoder encoder;
   private final ByteArrayOutputStream byteArrayOutputStream;
   private final DataOutputStream out;
   protected final boolean reportMetrics;
-
-  private static Optional<SpecificDatumReader<MetricReport>> READER = Optional.absent();
 
   private final Optional<SpecificDatumWriter<MetricReport>> writerOpt;
 
@@ -77,7 +73,7 @@ public abstract class SerializedMetricReportReporter extends MetricReportReporte
   }
 
   @Override
-  protected void pushReport(MetricReport report) {
+  protected void emitReport(MetricReport report) {
     pushSerializedReport(serializeReport(report));
   }
 
@@ -85,7 +81,7 @@ public abstract class SerializedMetricReportReporter extends MetricReportReporte
    * Push serialized metric report to metrics sink.
    * @param serializedReport bytes to send.
    */
-  protected abstract void pushSerializedReport(byte[] serializedReport);
+  protected abstract void pushSerializedReport(@Nullable byte[] serializedReport);
 
   /**
    * Get {@link org.apache.avro.io.Encoder} for serializing Avro records.
@@ -114,38 +110,15 @@ public abstract class SerializedMetricReportReporter extends MetricReportReporte
     try {
       this.byteArrayOutputStream.reset();
       // Write version number at the beginning of the message.
-      this.out.writeInt(SCHEMA_VERSION);
+      this.out.writeInt(MetricReportUtils.SCHEMA_VERSION);
       // Now write the report itself.
       this.writerOpt.get().write(report, this.encoder);
       this.encoder.flush();
       return this.byteArrayOutputStream.toByteArray();
     } catch(IOException exception) {
-      LOGGER.warn("Could not serialize Avro record for Kafka Metrics. Exception: %s", exception.getMessage());
+      LOGGER.warn("Could not serialize Avro record for Kafka Metrics.", exception);
       return null;
     }
-  }
-
-  /**
-   * Parses a {@link gobblin.metrics.MetricReport} from a byte array.
-   * @param reuse MetricReport to reuse.
-   * @param bytes Input bytes.
-   * @return MetricReport.
-   * @throws IOException
-   */
-  public static MetricReport deserializeReport(MetricReport reuse, byte[] bytes) throws IOException {
-    if (!READER.isPresent()) {
-      READER = Optional.of(new SpecificDatumReader<MetricReport>(MetricReport.class));
-    }
-
-    DataInputStream inputStream = new DataInputStream(new ByteArrayInputStream(bytes));
-
-    // Check version byte
-    if (inputStream.readInt() != SCHEMA_VERSION) {
-      throw new IOException("MetricReport schema version not recognized.");
-    }
-    // Decode the rest
-    Decoder decoder = DecoderFactory.get().jsonDecoder(MetricReport.SCHEMA$, inputStream);
-    return READER.get().read(reuse, decoder);
   }
 
 }

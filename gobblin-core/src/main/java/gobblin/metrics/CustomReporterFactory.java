@@ -20,16 +20,16 @@ import com.codahale.metrics.ScheduledReporter;
 
 
 /**
- * Builder for custom {@link com.codahale.metrics.ScheduledReporter}.
+ * Factory for custom {@link com.codahale.metrics.ScheduledReporter}.
  *
  * Implementations should have a parameter-less constructor.
  */
-public interface CustomReporterBuilder {
+public interface CustomReporterFactory {
   /**
-   * Builds and returns actual {@link com.codahale.metrics.ScheduledReporter}.
+   * Builds and returns a new {@link com.codahale.metrics.ScheduledReporter}.
    * @param registry {@link com.codahale.metrics.MetricRegistry} for which metrics should be reported.
    * @param properties {@link java.util.Properties} used to build the reporter.
-   * @return {@link com.codahale.metrics.ScheduledReporter}.
+   * @return new {@link com.codahale.metrics.ScheduledReporter}.
    */
-  public ScheduledReporter getReporter(MetricRegistry registry, Properties properties) throws IOException;
+  public ScheduledReporter newScheduledReporter(MetricRegistry registry, Properties properties) throws IOException;
 }
