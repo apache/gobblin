@@ -198,9 +198,10 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
 
     List<String> updatedFiles = new LinkedList<String>();
 
-    Collections.sort(files, new FileComparator());
+    Collections.sort(files, new FileLengthComparator());
     Collections.reverse(files);
-    for (int i=0; i<files.size();) {
+    int i = 0;
+    while (i < files.size()) {
       String fname = files.get(i);
       // need to concatenate
       File f = new File(fname);
@@ -252,7 +253,7 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
     }
   }
 
-  private class FileComparator implements Comparator<String> {
+  private class FileLengthComparator implements Comparator<String> {
 
     /**
      * Interprets the string as a file name and compares the file
