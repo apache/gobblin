@@ -19,6 +19,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -48,10 +49,10 @@ class BatchKafkaData {
    * @return a mapping from &lt;topic&gt;-&lt;branch&gt; to a list of streams
    * @throws IOException
    */
-  public static Map<String, LinkedList<String>>
+  public static Map<String, ArrayList<String>>
   getInputStreams(Collection<? extends WorkUnitState> tasks, int numBranches, List<FileSystem> fss)
   throws IOException {
-    Map<String, LinkedList<String>> data = new HashMap<String, LinkedList<String>>();
+    Map<String, ArrayList<String>> data = new HashMap<String, ArrayList<String>>();
     for (WorkUnitState task : tasks) {
       String topic = task.getProp(KafkaSource.TOPIC_NAME);
       for (int i=0; i<numBranches; i++) {
@@ -62,13 +63,13 @@ class BatchKafkaData {
         String topicForBranch = topic + "-" + i;
 
         // All the batched streams
-        LinkedList<String> fnames = data.get(topicForBranch);
+        ArrayList<String> fnames = data.get(topicForBranch);
         if (fnames == null) {
-          fnames = new LinkedList<String>();
+          fnames = new ArrayList<String>();
           fnames.add(writerFile.toString());
           data.put(topicForBranch, fnames);
         } else {
-          fnames.addLast(writerFile.toString());
+          fnames.add(fnames.size() - 1, writerFile.toString());
         }
       }
     }

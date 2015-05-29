@@ -28,10 +28,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -40,10 +46,9 @@ import java.util.List;
  *
  * <p>
  *
- * The user must provide a getBucketAndKey method which returns the S3 bucket and key to post the data
- * to. The publisher iterates through all tasks and appends files with the exact same BucketAndKey.
- * If the file size exceeds 4GB or after all the data has been appended, the data is published to S3.
- * The files written by each task are specified by {@link ConfigurationKeys#WRITER_FINAL_OUTPUT_PATH}.
+ * This class should be extended and publishData and publishMetadata should be implemented.
+ * This class provides a method for batching a list of filenames from the local file system
+ * into one S3 key.
  *
  * @author akshay@nerdwallet.com
  */
@@ -66,6 +71,9 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
   public abstract void publishMetadata(Collection<? extends WorkUnitState> states) throws IOException;
 
   protected void sendS3Data(int branch, BucketAndKey bk, List<String> files) throws IOException {
+    if ((files = preprocessFiles(branch, files)).size() == 0) {
+      return;
+    }
     AmazonS3 s3Client = new AmazonS3Client();
 
     // Create a list of UploadPartResponse objects. You get one of these for
@@ -77,6 +85,7 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
             bk.getBucket(), bk.getKey());
     InitiateMultipartUploadResult initResponse =
             s3Client.initiateMultipartUpload(initRequest);
+
     try {
       int i = 1;
       for (String file : files) {
@@ -85,11 +94,11 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
         // Get the input stream and content length
         long contentLength = fss.get(branch).getFileStatus(filePath).getLen();
         LOG.info("Attempting to send file " + file + " to s3 with content length " + contentLength);
-        InputStream is = fss.get(branch).open(filePath);
+        //InputStream is = fss.get(branch).open(filePath);
 
         long filePosition = 0;
         while (filePosition < contentLength) {
-          // Last part can be less than 500 MB. Adjust part size.
+          // Last part can be less than PART_SIZE. Adjust partSize.
           long partSize = Math.min(PART_SIZE, (contentLength - filePosition));
           // if the last part will be smaller than PART_SIZE, send it along with this part
           if (partSize + filePosition + PART_SIZE >= contentLength) {
@@ -168,6 +177,111 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
     @Override
     public String toString() {
       return String.format("{Bucket: %s, Key: %s}", bucket, key);
+    }
+  }
+
+  /**
+   * Takes a list of files and batches them such that every file size in the resulting list
+   * is at least PART_SIZE. This is because in the multipart uploader to s3, all file data must
+   * be at least 5 mb except the last one. Thus, if a given file is smaller than 5 mb, it will walk down
+   * the linked list and try to append the next file with non-zero length to the end of this file. It
+   * will then remove the appended file from the list. Implicitly, all 0 length files will be removed from
+   * the final list.
+   * @param branch the writer branch we are currently processing
+   * @param files the original list of file names
+   * @return a modified list of files names which is a subset of files
+   */
+  private List<String> preprocessFiles(int branch, List<String> files) throws IOException {
+    if (files.size() == 0) {
+      return files;
+    }
+
+    List<String> updatedFiles = new LinkedList<String>();
+
+    Collections.sort(files, new FileLengthComparator());
+    Collections.reverse(files);
+    int i = 0;
+    while (i < files.size()) {
+      String fname = files.get(i);
+      // need to concatenate
+      File f = new File(fname);
+      if (f.length() == 0) {
+        return updatedFiles;
+      }
+      updatedFiles.add(fname);
+      i++;
+      while (f.length() < PART_SIZE) {
+        if (i < files.size()) {
+          File g = new File(files.get(i));
+          if (g.length() == 0) {
+            return updatedFiles;
+          }
+          doAppend(f, g);
+          i++;
+        }
+      }
+    }
+    return updatedFiles;
+  }
+
+  /**
+   * Appends the contents of g to f and writes f back to disk.
+   *
+   * @param f the file to which g is appended
+   * @param g the file to append
+   * @throws IOException
+   */
+  private void doAppend(File f, File g) throws IOException {
+    OutputStream out = null;
+    InputStream in = null;
+    byte[] buf = new byte[1024];
+    int b = 0;
+    try {
+      out = new FileOutputStream(f, true);
+      in = new FileInputStream(g);
+      while ((b = in.read(buf)) >= 0) {
+        out.write(buf, 0, b);
+        out.flush();
+      }
+    } finally {
+      if (out != null) {
+        out.close();
+      }
+      if (in != null) {
+        in.close();
+      }
+    }
+  }
+
+  private class FileLengthComparator implements Comparator<String> {
+
+    /**
+     * Interprets the string as a file name and compares the file
+     * sizes.
+     *
+     * Note: this comparator imposes orderings that are inconsistent with {@link String#equals}.
+     *
+     * @param o1 the first file name to be compared.
+     * @param o2 the second file name to be compared.
+     * @return a -1, 0, or 1 as the
+     * first argument is less than, equal to, or greater than the
+     * second.
+     * @throws NullPointerException if an argument is null and this
+     *                              comparator does not permit null arguments
+     * @throws ClassCastException   if the arguments' types prevent them from
+     *                              being compared by this comparator.
+     */
+    @Override
+    public int compare(String o1, String o2) {
+      File f1 = new File(o1);
+      File f2 = new File(o2);
+      if (f1.length() < f2.length()) {
+        return -1;
+      } else if (f1.length() > f2.length()) {
+        return 1;
+      } else {
+        return 0;
+      }
     }
   }
 }
