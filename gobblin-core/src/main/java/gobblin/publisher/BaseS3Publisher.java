@@ -184,7 +184,7 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
   /**
    * Takes a list of files and batches them such that every file size in the resulting list
    * is at least PART_SIZE. This is because in the multipart uploader to s3, all file data must
-   * be at least 5 mb except the last one. Thus, if a given file is bigger than 5 mb, it will walk down
+   * be at least 5 mb except the last one. Thus, if a given file is smaller than 5 mb, it will walk down
    * the linked list and try to append the next file with non-zero length to the end of this file. It
    * will then remove the appended file from the list. Implicitly, all 0 length files will be removed from
    * the final list.
