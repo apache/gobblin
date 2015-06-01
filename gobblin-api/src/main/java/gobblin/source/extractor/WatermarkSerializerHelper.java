@@ -31,7 +31,7 @@ public class WatermarkSerializerHelper {
    * @param clazz is the {@link Class} that the {@link JsonElement} will be converted into.
    * @return an instance of a class that extends {@link Watermark}.
    */
-  public static Watermark convertJsonToWatermark(JsonElement jsonElement, Class<? extends Watermark> clazz) {
+  public static <T extends Watermark> T convertJsonToWatermark(JsonElement jsonElement, Class<T> clazz) {
     return GSON.fromJson(jsonElement, clazz);
   }
 }
