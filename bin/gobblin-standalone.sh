@@ -197,9 +197,11 @@ status() {
       ps -ef | grep -v grep | grep $PID_VALUE
     else
       echo "Gobblin standalone daemon is not running"
+      exit 1
     fi
   else
     echo "No pid file found"
+    exit 1
   fi
 }
 
