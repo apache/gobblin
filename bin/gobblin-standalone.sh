@@ -4,6 +4,8 @@ function print_usage(){
   echo "gobblin-standalone.sh <start | status | restart | stop> [OPTION]"
   echo "Where OPTION can be:"
   echo "  --workdir <job work dir>                       Gobblin's base work directory: if not set, taken from \${GOBBLIN_WORK_DIR}"
+  echo "  --logdir <log dir>                             Gobblin's log directory: if not set, taken from \${GOBBLIN_LOG_DIR}"
+  echo "  --fwdir <fwd dir>                              Gobblin's dist directory: if not set, taken from \${GOBBLIN_FWDIR}"
   echo "  --jars <comma-separated list of job jars>      Job jar(s): if not set, "$FWDIR_LIB" is examined"
   echo "  --conf <directory of job configuration files>  Directory of job configuration files: if not set, taken from ${GOBBLIN_JOB_CONFIG_DIR}"
   echo "  --help                                         Display this help and exit"
@@ -24,6 +26,10 @@ do
       ;;
     --workdir)
       WORK_DIR="$2"
+      shift
+      ;;
+    --fwdir)
+      FWDIR="$2"
       shift
       ;;
     --logdir)
@@ -51,12 +57,6 @@ done
 # Source gobblin default vars
 [ -f /etc/default/gobblin ] && . /etc/default/gobblin
 
-if [ -z "$FWDIR" ]; then
-  FWDIR="$(cd `dirname $0`/..; pwd)"
-fi
-FWDIR_LIB=$FWDIR/lib
-FWDIR_CONF=$FWDIR/conf
-
 if [ -z "$JAVA_HOME" ]; then
   die "Environment variable JAVA_HOME not set!"
 fi
@@ -65,6 +65,17 @@ check=false
 if [ "$ACTION" == "start" ] || [ "$ACTION" == "restart" ]; then
   check=true
 fi
+
+if [ -n "$FWDIR" ]; then
+  export GOBBLIN_FWDIR="$FWDIR"
+fi
+
+if [ -z "$GOBBLIN_FWDIR" ] && [ "$check" == true ]; then
+  die "Environment variable FWDIR not set!"
+fi
+
+FWDIR_LIB=$GOBBLIN_FWDIR/lib
+FWDIR_CONF=$GOBBLIN_FWDIR/conf
 
 # User defined job configuration directory overrides $GOBBLIN_JOB_CONFIG_DIR
 if [ -n "$JOB_CONFIG_DIR" ]; then
@@ -92,8 +103,6 @@ fi
 if [ -z "$GOBBLIN_LOG_DIR" ] && [ "$check" == true ]; then
   die "GOBBLIN_LOG_DIR is not set!"
 fi
-
-. $FWDIR_CONF/gobblin-env.sh
 
 CONFIG_FILE=$FWDIR_CONF/gobblin-standalone.properties
 
