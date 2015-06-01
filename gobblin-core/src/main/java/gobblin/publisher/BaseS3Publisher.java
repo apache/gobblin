@@ -218,6 +218,8 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
           }
           doAppend(f, g);
           i++;
+        } else {
+          return updatedFiles;
         }
       }
     }
