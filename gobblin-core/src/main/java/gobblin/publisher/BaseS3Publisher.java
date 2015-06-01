@@ -210,17 +210,13 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
       }
       updatedFiles.add(fname);
       i++;
-      while (f.length() < PART_SIZE) {
-        if (i < files.size()) {
-          File g = new File(files.get(i));
-          if (g.length() == 0) {
-            return updatedFiles;
-          }
-          doAppend(f, g);
-          i++;
-        } else {
+      while (f.length() < PART_SIZE && i < files.size()) {
+        File g = new File(files.get(i));
+        if (g.length() == 0) {
           return updatedFiles;
         }
+        doAppend(f, g);
+        i++;
       }
     }
     return updatedFiles;
