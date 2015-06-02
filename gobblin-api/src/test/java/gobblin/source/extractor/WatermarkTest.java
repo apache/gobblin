@@ -27,10 +27,10 @@ public class WatermarkTest {
     WorkUnit workUnit = new WorkUnit(null, null, watermarkInterval);
 
     TestWatermark deserializedLowWatermark =
-        (TestWatermark) WatermarkSerializerHelper.convertJsonToWatermark(workUnit.getLowWatermark(),
+        WatermarkSerializerHelper.convertJsonToWatermark(workUnit.getLowWatermark(),
             TestWatermark.class);
     TestWatermark deserializedExpectedHighWatermark =
-        (TestWatermark) WatermarkSerializerHelper.convertJsonToWatermark(workUnit.getExpectedHighWatermark(),
+        WatermarkSerializerHelper.convertJsonToWatermark(workUnit.getExpectedHighWatermark(),
             TestWatermark.class);
 
     Assert.assertEquals(deserializedLowWatermark.getLongWatermark(), lowWatermarkValue);
@@ -48,7 +48,7 @@ public class WatermarkTest {
     workUnitState.setActualHighWatermark(actualHighWatermark);
 
     TestWatermark deserializedActualHighWatermark =
-        (TestWatermark) WatermarkSerializerHelper.convertJsonToWatermark(workUnitState.getActualHighWatermark(),
+        WatermarkSerializerHelper.convertJsonToWatermark(workUnitState.getActualHighWatermark(),
             TestWatermark.class);
 
     Assert.assertEquals(deserializedActualHighWatermark.getLongWatermark(), actualHighWatermarkValue);
