@@ -12,12 +12,8 @@
 
 package gobblin.metrics.kafka;
 
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
 import java.io.IOException;
 
-import org.apache.avro.io.Decoder;
-import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
@@ -29,6 +25,7 @@ import kafka.consumer.ConsumerIterator;
 
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricReport;
+import gobblin.metrics.MetricReportUtils;
 
 
 /**
@@ -55,7 +52,7 @@ public class KafkaAvroReporterTest extends KafkaReporterTest {
   }
 
   @Override
-  public KafkaReporter.Builder<?> getBuilder(MetricRegistry registry) {
+  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilder(MetricRegistry registry) {
     return KafkaAvroReporter.forRegistry(registry);
   }
 
@@ -74,6 +71,6 @@ public class KafkaAvroReporterTest extends KafkaReporterTest {
   protected MetricReport nextReport(ConsumerIterator<byte[], byte[]> it)
       throws IOException {
     Assert.assertTrue(it.hasNext());
-    return KafkaAvroReporter.deserializeReport(new MetricReport(), it.next().message());
+    return MetricReportUtils.deserializeReportFromAvroSerialization(new MetricReport(), it.next().message());
   }
 }
