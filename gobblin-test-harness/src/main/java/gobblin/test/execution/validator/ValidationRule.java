@@ -15,8 +15,6 @@ package gobblin.test.execution.validator;
  * 
  * @author sveerama
  *
- * @param <I> input data files or config
- * @param <O> Output data files
  */
 
 public interface ValidationRule {

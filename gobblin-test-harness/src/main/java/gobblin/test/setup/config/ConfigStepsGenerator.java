@@ -11,6 +11,7 @@
 package gobblin.test.setup.config;
 
 import java.util.Collection;
+import java.util.Properties;
 
 
 /**
@@ -20,15 +21,13 @@ import java.util.Collection;
  * 
  * @author sveerama
  *
- * @param <C> Config for the test
- * @param <S> The steps for the test execution
  */
 
-public interface ConfigStepsGenerator<C> {
+public interface ConfigStepsGenerator{
   /**
    *  This method will generate the list of execution steps associated to the config,
    * @param {@link ConfigReader}
    * @return List of config steps in {@link Step}
    */
-  public Collection<Step> generateExecutionSteps(C config);
+  public Collection<Step> generateExecutionSteps(Properties p);
 }

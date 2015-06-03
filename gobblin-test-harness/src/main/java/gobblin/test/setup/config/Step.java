@@ -36,5 +36,5 @@ public interface Step extends SetupOperator {
    * This method will execute the current step which in turn will execute list of operators
    *
    */
-  public Boolean execute();
+  public Boolean execute() throws Exception;
 }

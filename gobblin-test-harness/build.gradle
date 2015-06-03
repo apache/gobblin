@@ -11,12 +11,8 @@
 
 apply plugin: 'java'
 
-dependencies {
-}
 
 configurations { compile { transitive = false } }
 
-test {
-}
 
 classification="library"
