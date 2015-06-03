@@ -10,8 +10,6 @@
  */
 package gobblin.test.execution.validator;
 
-
-
 /**
  *  An interface is for defining the validator for the test. The input can be the set of input files and the output will be be output of 
  * 
@@ -21,11 +19,11 @@ package gobblin.test.execution.validator;
  * @param <O> Output data files
  */
 
-public interface ValidationRule<I,O> {
-  
+public interface ValidationRule {
+
   /**
    * 
    * @return will be a boolean based on the validation process
    */
-  public Boolean isValid(I input,O output);
+  public Boolean isValid();
 }
