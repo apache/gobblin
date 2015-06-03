@@ -2,6 +2,7 @@ package gobblin.test.setup.config;
 
 import gobblin.test.execution.TestHarnessExecutor;
 
+
 /**
  * An interface for parsing the config data for test harness. 
  * This interface is allows to parse and validate the config setting
@@ -22,7 +23,7 @@ import gobblin.test.execution.TestHarnessExecutor;
 * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 * CONDITIONS OF ANY KIND, either express or implied.
 */
-public interface ConfigReader<I, C> extends ConfigStepsGenerator<C>,TestHarnessExecutor<C>{
+public interface TestHarnessLauncher<I, C> extends ConfigStepsGenerator<C>, TestHarnessExecutor<C> {
 
   /**
    *  This method will parse the config based on the input provided
@@ -32,17 +33,25 @@ public interface ConfigReader<I, C> extends ConfigStepsGenerator<C>,TestHarnessE
    *
    */
 
-  public C parseConfigEntry(I testConfigFolder);
+  public C parseConfigEntry(I input);
 
   /**
    *  This method will validate the config implementer, this allows to customize the config validation
    *   for each type of config 
    *
    * @param <C> config
-   * @return Boolean
    *
    */
-  
-  
-  public Boolean validateConfigEntry(C config);
+
+  public void prepareTest(C config);
+
+  /**
+   *  This method will launch the test for config entry after validation
+   *
+   * @param <C> config
+   *
+   */
+
+  public void launchTest(C config);
+
 }
