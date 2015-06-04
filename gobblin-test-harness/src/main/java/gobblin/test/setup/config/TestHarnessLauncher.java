@@ -29,30 +29,22 @@ public interface TestHarnessLauncher extends ConfigStepsGenerator {
   /**
    *  This method will parse the config based on the input provided
    *
-   * @param input config file which will be used could be a properties file
-   * @return parsed properties file
-   *
    */
 
-  public Properties parseConfigEntry(File configFile);
+  public void parseConfigEntry(File f);
 
   /**
    *  This method will validate the config implementer, this allows to customize the config validation
    *   for each type of config 
    *
-   * @param Properties file that will be used to prepare the test
-   *
    */
 
-  public void prepareTest(Properties prop);
+  public void prepareTest();
 
   /**
    *  This method will launch the test for config entry after validation
-   *
-   * @param Properties file that will be used to launchTest
-   *
    */
 
-  public void launchTest(Properties prop);
+  public void launchTest();
 
 }

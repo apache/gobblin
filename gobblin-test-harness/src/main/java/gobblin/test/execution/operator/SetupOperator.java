@@ -21,6 +21,6 @@ public interface SetupOperator {
    * This method is invoked to execute an operator. The operator will have an associated execution process.
    * @return the success of execution for the operator
    */
-  public Boolean executeOperator() throws Exception;
+  public boolean executeOperator() throws Exception;
 
 }

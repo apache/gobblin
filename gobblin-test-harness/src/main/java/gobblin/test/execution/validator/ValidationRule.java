@@ -23,5 +23,5 @@ public interface ValidationRule {
    * 
    * @return will be a boolean based on the validation process
    */
-  public Boolean isValid();
+  public boolean isValid();
 }

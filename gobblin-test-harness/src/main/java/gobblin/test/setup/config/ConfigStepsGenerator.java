@@ -10,14 +10,12 @@
  */
 package gobblin.test.setup.config;
 
-import java.util.Collection;
-import java.util.Properties;
+import java.util.Collection; 
 
 
 /**
  * An interface for generating the steps associated to the config. The steps may include
  * copy of data or validating of the test. 
- * First the input to this interface is the config{@link ConfigReader#parseConfigEntry(I)} entry and the 
  * 
  * @author sveerama
  *
@@ -26,8 +24,7 @@ import java.util.Properties;
 public interface ConfigStepsGenerator{
   /**
    *  This method will generate the list of execution steps associated to the config,
-   * @param {@link ConfigReader}
    * @return List of config steps in {@link Step}
    */
-  public Collection<Step> generateExecutionSteps(Properties p);
+  public Collection<Step> generateExecutionSteps();
 }
