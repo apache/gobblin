@@ -22,6 +22,7 @@ import com.amazonaws.services.s3.model.UploadPartRequest;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
@@ -74,6 +75,13 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
     if ((files = preprocessFiles(branch, files)).size() == 0) {
       return;
     }
+
+    // Assumption is all files have the same extension, so going to use the first one
+    String ext = FilenameUtils.getExtension(files.get(0));
+    String key = bk.getKey();
+    if (!ext.equals("")) {
+      key = key + "." + ext;
+    }
     AmazonS3 s3Client = new AmazonS3Client();
 
     // Create a list of UploadPartResponse objects. You get one of these for
@@ -82,7 +90,7 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
 
     // Step 1: Initialize.
     InitiateMultipartUploadRequest initRequest = new InitiateMultipartUploadRequest(
-            bk.getBucket(), bk.getKey());
+            bk.getBucket(), key);
     InitiateMultipartUploadResult initResponse =
             s3Client.initiateMultipartUpload(initRequest);
 
@@ -109,7 +117,7 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
 
           // Create request to upload a part.
           UploadPartRequest uploadRequest = new UploadPartRequest()
-                  .withBucketName(bk.getBucket()).withKey(bk.getKey())
+                  .withBucketName(bk.getBucket()).withKey(key)
                   .withUploadId(initResponse.getUploadId()).withPartNumber(i)
                   .withFileOffset(filePosition)
                   //.withInputStream(is)
@@ -130,7 +138,7 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
       // Step 3: Complete.
       CompleteMultipartUploadRequest compRequest = new
               CompleteMultipartUploadRequest(bk.getBucket(),
-              bk.getKey(),
+              key,
               initResponse.getUploadId(),
               partETags);
 
@@ -138,7 +146,7 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
     } catch (Exception e) {
       LOG.error("Error publishing to S3:\n" + ExceptionUtils.getStackTrace(e));
       s3Client.abortMultipartUpload(new AbortMultipartUploadRequest(
-              bk.getBucket(), bk.getKey(), initResponse.getUploadId()));
+              bk.getBucket(), key, initResponse.getUploadId()));
       return;
     }
     LOG.info("Finished publishing " + bk.toString() + "to s3");
