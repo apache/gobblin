@@ -198,9 +198,16 @@ public class MRJobLauncher extends AbstractJobLauncher {
       }
 
       jobState.setState(this.job.isSuccessful() ? JobState.RunningState.SUCCESSFUL : JobState.RunningState.FAILED);
+
       // Collect the output task states and add them to the job state
-      jobState.addTaskStates(collectOutput(new Path(jobOutputPath, this.jobProps
-          .getProperty(ConfigurationKeys.JOB_ID_KEY))));
+      List<TaskState> outputTaskStates = collectOutputTaskStates(new Path(jobOutputPath, jobState.getJobId()));
+      if (outputTaskStates.size() < jobState.getTasks()) {
+        // If the number of collected task states is less than the number of tasks in the job
+        LOG.error(String.format("Collected %d task states while expecting %d task states", outputTaskStates.size(),
+            jobState.getTasks()));
+        jobState.setState(JobState.RunningState.FAILED);
+      }
+      jobState.addTaskStates(outputTaskStates);
 
       // Create a metrics set for this job run from the Hadoop counters.
       // The metrics set is to be persisted to the metrics store later.
@@ -380,8 +387,16 @@ public class MRJobLauncher extends AbstractJobLauncher {
       Writer osw = closer.register(new OutputStreamWriter(os, ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
       Writer bw = closer.register(new BufferedWriter(osw));
 
+      int multiTaskIdSequence = 0;
       // Serialize each work unit into a file named after the task ID
       for (WorkUnit workUnit : workUnits) {
+        if (workUnit instanceof MultiWorkUnit) {
+          // Assign each MultiWorkUnit a pseudo task ID used as the name of the file storing the MultiWorkUnit
+          String multiTaskId = JobLauncherUtils.newMultiTaskId(jobContext.getJobId(), multiTaskIdSequence++);
+          workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, multiTaskId);
+          workUnit.setId(multiTaskId);
+        }
+
         Closer workUnitFileCloser = Closer.create();
         try {
           Path workUnitFile =
@@ -410,7 +425,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
   /**
    * Collect the output {@link TaskState}s of the job as a list.
    */
-  private List<TaskState> collectOutput(Path taskStatePath) throws IOException {
+  private List<TaskState> collectOutputTaskStates(Path taskStatePath) throws IOException {
     List<TaskState> taskStates = Lists.newArrayList();
 
     FileStatus[] fileStatuses = this.fs.listStatus(taskStatePath, new PathFilter() {
