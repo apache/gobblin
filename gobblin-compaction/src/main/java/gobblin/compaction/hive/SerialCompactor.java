@@ -9,7 +9,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.compaction;
+package gobblin.compaction.hive;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.io.Closer;
 
+import gobblin.compaction.Compactor;
 import gobblin.hive.util.HiveJdbcConnector;
 
 

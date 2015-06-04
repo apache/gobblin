@@ -2,7 +2,12 @@ apply plugin: 'java'
 apply plugin: 'eclipse'
 
 dependencies {
+  compile project(":gobblin-api")
+  compile project(":gobblin-utility")
+  compile externalDependency.avro
+  compile externalDependency.commonsLang
   compile externalDependency.hiveExec
+
   if (project.hasProperty('useHadoop2')) {
     runtime externalDependency.hadoopCommon
     runtime externalDependency.hadoopClientCore
@@ -11,7 +16,7 @@ dependencies {
   } else {
     runtime externalDependency.hadoop
   }
-  runtime externalDependency.commonsLang
+
   runtime externalDependency.hiveService
   runtime externalDependency.hiveJdbc
   runtime externalDependency.hiveMetastore

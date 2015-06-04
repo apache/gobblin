@@ -11,6 +11,8 @@
 
 package gobblin.util;
 
+import gobblin.configuration.State;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
@@ -21,6 +23,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.collect.Lists;
+
 
 public class HadoopUtils {
   public static Configuration newConfiguration() {
@@ -40,13 +43,15 @@ public class HadoopUtils {
     return conf;
   }
 
-  public static List<FileStatus> listStatusRecursive(FileSystem fileSystem, Path path) throws FileNotFoundException, IOException {
+  public static List<FileStatus> listStatusRecursive(FileSystem fileSystem, Path path) throws FileNotFoundException,
+      IOException {
     List<FileStatus> results = Lists.newArrayList();
     walk(results, fileSystem, path);
     return results;
   }
 
-  private static void walk(List<FileStatus> results, FileSystem fileSystem, Path path) throws FileNotFoundException, IOException {
+  private static void walk(List<FileStatus> results, FileSystem fileSystem, Path path) throws FileNotFoundException,
+      IOException {
     for (FileStatus status : fileSystem.listStatus(path)) {
       if (!status.isDir()) {
         results.add(status);
@@ -54,5 +59,13 @@ public class HadoopUtils {
         walk(results, fileSystem, status.getPath());
       }
     }
+  }
+
+  public static Configuration getConfFromState(State state) {
+    Configuration conf = new Configuration();
+    for (String propName : state.getPropertyNames()) {
+      conf.set(propName, state.getProp(propName));
+    }
+    return conf;
   }
 }
