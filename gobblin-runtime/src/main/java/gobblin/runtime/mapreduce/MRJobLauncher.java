@@ -51,6 +51,7 @@ import com.codahale.metrics.Timer;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ServiceManager;
@@ -533,7 +534,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
           this.map(context.getCurrentKey(), context.getCurrentValue(), context);
         }
         // Actually run the list of WorkUnits
-        runWorkUnits(this.workUnits);
+        runWorkUnits(this.workUnits, context);
       } finally {
         this.cleanup(context);
       }
@@ -575,14 +576,28 @@ public class MRJobLauncher extends AbstractJobLauncher {
      * Run the given list of {@link WorkUnit}s sequentially. If any work unit/task fails,
      * an {@link java.io.IOException} is thrown so the mapper is failed and retried.
      */
-    private void runWorkUnits(List<WorkUnit> workUnits) throws IOException, InterruptedException {
+    private void runWorkUnits(List<WorkUnit> workUnits, Context context) throws IOException, InterruptedException {
       if (workUnits.isEmpty()) {
         LOG.warn("No work units to run");
         return;
       }
 
       String jobId = workUnits.get(0).getProp(ConfigurationKeys.JOB_ID_KEY);
+
+      // Setup and start metrics reporting
+      Properties metricReportingProperties = workUnits.get(0).getProperties();
       JobMetrics jobMetrics = JobMetrics.get(null, jobId);
+      String metricFileSuffix = metricReportingProperties.getProperty(ConfigurationKeys.METRICS_FILE_SUFFIX,
+          ConfigurationKeys.DEFAULT_METRICS_FILE_SUFFIX);
+      // If running in MR mode, all mappers will try to write metrics to the same file, which will fail.
+      // Instead, append the taskAttemptId to each file name.
+      if(Strings.isNullOrEmpty(metricFileSuffix)) {
+        metricFileSuffix = context.getTaskAttemptID().getTaskID().toString();
+      } else {
+        metricFileSuffix += "." + context.getTaskAttemptID().getTaskID().toString();
+      }
+      metricReportingProperties.setProperty(ConfigurationKeys.METRICS_FILE_SUFFIX, metricFileSuffix);
+      jobMetrics.startMetricReporting(metricReportingProperties);
 
       for (WorkUnit workUnit : workUnits) {
         workUnit.setProp(Instrumented.METRIC_CONTEXT_NAME_KEY, jobMetrics.getName());

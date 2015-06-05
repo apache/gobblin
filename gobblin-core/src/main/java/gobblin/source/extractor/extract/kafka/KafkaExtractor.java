@@ -31,6 +31,7 @@ import com.google.gson.Gson;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metrics.Tag;
+import gobblin.metrics.kafka.SchemaNotFoundException;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.EventBasedExtractor;
@@ -175,6 +176,9 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   }
 
   private void switchMetricContextToCurrentPartition() {
+    if (this.currentPartitionIdx >= this.partitions.size()) {
+      return;
+    }
     int currentPartitionId = this.getCurrentPartition().getId();
     switchMetricContext(Lists.<Tag<?>> newArrayList(new Tag<Integer>("kafka_partition", currentPartitionId)));
   }

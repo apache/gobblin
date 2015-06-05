@@ -9,7 +9,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.source.extractor.extract.kafka;
+package gobblin.metrics.kafka;
 
 @SuppressWarnings("serial")
 public class SchemaNotFoundException extends Exception {

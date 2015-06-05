@@ -9,10 +9,11 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.source.extractor.extract.kafka;
+package gobblin.metrics.kafka;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -34,9 +35,6 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Maps;
 
-import gobblin.configuration.State;
-
-
 /**
  * A schema registry class that provides two services: get the latest schema of a topic, and register a schema.
  *
@@ -52,31 +50,35 @@ public class KafkaAvroSchemaRegistry {
   private static final String GET_RESOURCE_BY_TYPE = "/latest_with_type=";
   private static final String SCHEMA_ID_HEADER_NAME = "Location";
   private static final String SCHEMA_ID_HEADER_PREFIX = "/id=";
-  private static final String KAFKA_SCHEMA_REGISTRY_URL = "kafka.schema.registry.url";
   private static final String KAFKA_SCHEMA_REGISTRY_MAX_CACHE_SIZE = "kafka.schema.registry.max.cache.size";
-  private static final int DEFAULT_KAFKA_SCHEMA_REGISTRY_MAX_CACHE_SIZE = 1000;
+  private static final String DEFAULT_KAFKA_SCHEMA_REGISTRY_MAX_CACHE_SIZE = "1000";
   private static final String KAFKA_SCHEMA_REGISTRY_CACHE_EXPIRE_AFTER_WRITE_MIN =
       "kafka.schema.registry.cache.expire.after.write.min";
-  private static final int DEFAULT_KAFKA_SCHEMA_REGISTRY_CACHE_EXPIRE_AFTER_WRITE_MIN = 10;
+  private static final String DEFAULT_KAFKA_SCHEMA_REGISTRY_CACHE_EXPIRE_AFTER_WRITE_MIN = "10";
+
+  public static final String KAFKA_SCHEMA_REGISTRY_URL = "kafka.schema.registry.url";
+  public static final int SCHEMA_ID_LENGTH_BYTE = 16;
+  public static final byte MAGIC_BYTE = 0x0;
 
   private final LoadingCache<String, Schema> cachedSchemasById;
   private final HttpClient httpClient;
   private final String url;
 
   /**
-   * @param state state should contain property "kafka.schema.registry.url", and optionally
+   * @param properties properties should contain property "kafka.schema.registry.url", and optionally
    * "kafka.schema.registry.max.cache.size" (default = 1000) and
    * "kafka.schema.registry.cache.expire.after.write.min" (default = 10).
    */
-  public KafkaAvroSchemaRegistry(State state) {
-    Preconditions.checkArgument(state.contains(KAFKA_SCHEMA_REGISTRY_URL), "Schema registry URL not provided.");
+  public KafkaAvroSchemaRegistry(Properties properties) {
+    Preconditions.checkArgument(properties.containsKey(KAFKA_SCHEMA_REGISTRY_URL), "Schema registry URL not provided.");
 
-    this.url = state.getProp(KAFKA_SCHEMA_REGISTRY_URL);
+    this.url = properties.getProperty(KAFKA_SCHEMA_REGISTRY_URL);
     int maxCacheSize =
-        state.getPropAsInt(KAFKA_SCHEMA_REGISTRY_MAX_CACHE_SIZE, DEFAULT_KAFKA_SCHEMA_REGISTRY_MAX_CACHE_SIZE);
-    int expireAfterWriteMin =
-        state.getPropAsInt(KAFKA_SCHEMA_REGISTRY_CACHE_EXPIRE_AFTER_WRITE_MIN,
-            DEFAULT_KAFKA_SCHEMA_REGISTRY_CACHE_EXPIRE_AFTER_WRITE_MIN);
+        Integer.parseInt(
+            properties.getProperty(KAFKA_SCHEMA_REGISTRY_MAX_CACHE_SIZE, DEFAULT_KAFKA_SCHEMA_REGISTRY_MAX_CACHE_SIZE));
+    int expireAfterWriteMin = Integer.parseInt(properties
+        .getProperty(KAFKA_SCHEMA_REGISTRY_CACHE_EXPIRE_AFTER_WRITE_MIN,
+            DEFAULT_KAFKA_SCHEMA_REGISTRY_CACHE_EXPIRE_AFTER_WRITE_MIN));
     this.cachedSchemasById =
         CacheBuilder.newBuilder().maximumSize(maxCacheSize).expireAfterWrite(expireAfterWriteMin, TimeUnit.MINUTES)
             .build(new KafkaSchemaCacheLoader());

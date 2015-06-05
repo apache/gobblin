@@ -14,6 +14,7 @@ package gobblin.configuration;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.Properties;
 import java.util.Set;
 
 import com.google.common.collect.Sets;
@@ -168,6 +169,14 @@ public class WorkUnitState extends State {
   @Deprecated
   public void setHighWaterMark(long value) {
     setProp(ConfigurationKeys.WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK, value);
+  }
+
+  @Override
+  public Properties getProperties() {
+    Properties props = new Properties();
+    props.putAll(this.workunit.getProperties());
+    props.putAll(super.getProperties());
+    return props;
   }
 
   @Override
