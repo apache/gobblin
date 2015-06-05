@@ -42,7 +42,6 @@ import com.google.common.collect.Maps;
  */
 public class KafkaAvroSchemaRegistry {
 
-  public static final int SCHEMA_ID_LENGTH_BYTE = 16;
   private static final Logger LOG = LoggerFactory.getLogger(KafkaAvroSchemaRegistry.class);
 
   private static final int GET_SCHEMA_BY_ID_MAX_TIRES = 3;
@@ -51,12 +50,14 @@ public class KafkaAvroSchemaRegistry {
   private static final String GET_RESOURCE_BY_TYPE = "/latest_with_type=";
   private static final String SCHEMA_ID_HEADER_NAME = "Location";
   private static final String SCHEMA_ID_HEADER_PREFIX = "/id=";
-  public static final String KAFKA_SCHEMA_REGISTRY_URL = "kafka.schema.registry.url";
   private static final String KAFKA_SCHEMA_REGISTRY_MAX_CACHE_SIZE = "kafka.schema.registry.max.cache.size";
   private static final String DEFAULT_KAFKA_SCHEMA_REGISTRY_MAX_CACHE_SIZE = "1000";
   private static final String KAFKA_SCHEMA_REGISTRY_CACHE_EXPIRE_AFTER_WRITE_MIN =
       "kafka.schema.registry.cache.expire.after.write.min";
   private static final String DEFAULT_KAFKA_SCHEMA_REGISTRY_CACHE_EXPIRE_AFTER_WRITE_MIN = "10";
+
+  public static final String KAFKA_SCHEMA_REGISTRY_URL = "kafka.schema.registry.url";
+  public static final int SCHEMA_ID_LENGTH_BYTE = 16;
   public static final byte MAGIC_BYTE = 0x0;
 
   private final LoadingCache<String, Schema> cachedSchemasById;
@@ -69,15 +70,14 @@ public class KafkaAvroSchemaRegistry {
    * "kafka.schema.registry.cache.expire.after.write.min" (default = 10).
    */
   public KafkaAvroSchemaRegistry(Properties properties) {
-    LOG.info(properties.toString());
     Preconditions.checkArgument(properties.containsKey(KAFKA_SCHEMA_REGISTRY_URL), "Schema registry URL not provided.");
 
     this.url = properties.getProperty(KAFKA_SCHEMA_REGISTRY_URL);
     int maxCacheSize =
         Integer.parseInt(
             properties.getProperty(KAFKA_SCHEMA_REGISTRY_MAX_CACHE_SIZE, DEFAULT_KAFKA_SCHEMA_REGISTRY_MAX_CACHE_SIZE));
-    int expireAfterWriteMin =
-        Integer.parseInt(properties.getProperty(KAFKA_SCHEMA_REGISTRY_CACHE_EXPIRE_AFTER_WRITE_MIN,
+    int expireAfterWriteMin = Integer.parseInt(properties
+        .getProperty(KAFKA_SCHEMA_REGISTRY_CACHE_EXPIRE_AFTER_WRITE_MIN,
             DEFAULT_KAFKA_SCHEMA_REGISTRY_CACHE_EXPIRE_AFTER_WRITE_MIN));
     this.cachedSchemasById =
         CacheBuilder.newBuilder().maximumSize(maxCacheSize).expireAfterWrite(expireAfterWriteMin, TimeUnit.MINUTES)

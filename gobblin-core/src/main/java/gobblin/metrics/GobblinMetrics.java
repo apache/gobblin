@@ -13,8 +13,6 @@ package gobblin.metrics;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -264,7 +262,7 @@ public class GobblinMetrics {
     }
 
     buildFileMetricReporter(properties);
-    buidlKafkaMetricReporter(properties);
+    buildKafkaMetricReporter(properties);
     buildCustomMetricReporters(properties);
 
     for (ScheduledReporter reporter : this.scheduledReporters) {
@@ -334,7 +332,8 @@ public class GobblinMetrics {
       }
 
       // Add a suffix to file name if specified in properties.
-      String metricsFileSuffix = properties.getProperty(ConfigurationKeys.METRICS_FILE_SUFFIX, "");
+      String metricsFileSuffix = properties.getProperty(ConfigurationKeys.METRICS_FILE_SUFFIX,
+          ConfigurationKeys.DEFAULT_METRICS_FILE_SUFFIX);
       if(!Strings.isNullOrEmpty(metricsFileSuffix) && !metricsFileSuffix.startsWith(".")) {
         metricsFileSuffix = "." + metricsFileSuffix;
       }
@@ -365,7 +364,7 @@ public class GobblinMetrics {
     this.jmxReporter = Optional.of(closer.register(JmxReporter.forRegistry(this.metricContext).convertRatesTo(TimeUnit.SECONDS).convertDurationsTo(TimeUnit.MILLISECONDS).build()));
   }
 
-  private void buidlKafkaMetricReporter(Properties properties) {
+  private void buildKafkaMetricReporter(Properties properties) {
     if (!Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_ENABLED_KEY,
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_ENABLED))) {
       LOGGER.info("Not reporting metrics to Kafka");
@@ -399,7 +398,7 @@ public class GobblinMetrics {
 
     Optional<KafkaAvroSchemaRegistry> registry = Optional.absent();
     try {
-      if ( formatEnum == KafkaReportingFormats.AVRO &&
+      if (formatEnum == KafkaReportingFormats.AVRO &&
           Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
           ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
         registry = Optional.of(new KafkaAvroSchemaRegistry(properties));
@@ -418,7 +417,6 @@ public class GobblinMetrics {
 
     this.scheduledReporters.add(
         this.closer.register(builder.build(brokers, topic)));
-
   }
 
   /**

@@ -39,7 +39,7 @@ public class State implements Writable {
   /**
    * Return a copy of the underlying {@link java.util.Properties} object.
    *
-   * @return Underlying {@link java.util.Properties} object.
+   * @return A copy of the underlying {@link java.util.Properties} object.
    */
   public Properties getProperties() {
     Properties props = new Properties();

@@ -370,10 +370,11 @@ public class ConfigurationKeys {
   public static final String METRICS_CONFIGURATIONS_PREFIX = "metrics.";
   public static final String METRICS_LOG_DIR_KEY = METRICS_CONFIGURATIONS_PREFIX + "log.dir";
   public static final String METRICS_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX + "enabled";
+  public static final String DEFAULT_METRICS_ENABLED = Boolean.toString(true);
   public static final String METRICS_FILE_SUFFIX = METRICS_CONFIGURATIONS_PREFIX + "reporting.file.suffix";
-  public static final String DEFAULT_METRICS_ENABLED = Boolean.toString(false);
+  public static final String DEFAULT_METRICS_FILE_SUFFIX = "";
   public static final String METRICS_REPORTING_FILE_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX + "reporting.file.enabled";
-  public static final String DEFAULT_METRICS_REPORTING_FILE_ENABLED = Boolean.toString(true);
+  public static final String DEFAULT_METRICS_REPORTING_FILE_ENABLED = Boolean.toString(false);
   public static final String METRICS_REPORTING_JMX_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX + "reporting.jmx.enabled";
   public static final String DEFAULT_METRICS_REPORTING_JMX_ENABLED = Boolean.toString(false);
   public static final String METRICS_REPORTING_KAFKA_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.enabled";

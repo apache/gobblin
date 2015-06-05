@@ -585,9 +585,10 @@ public class MRJobLauncher extends AbstractJobLauncher {
       String jobId = workUnits.get(0).getProp(ConfigurationKeys.JOB_ID_KEY);
 
       // Setup and start metrics reporting
-      Properties metricReportingProperties = new WorkUnitState(workUnits.get(0)).getProperties();
+      Properties metricReportingProperties = workUnits.get(0).getProperties();
       JobMetrics jobMetrics = JobMetrics.get(null, jobId);
-      String metricFileSuffix = metricReportingProperties.getProperty(ConfigurationKeys.METRICS_FILE_SUFFIX, "");
+      String metricFileSuffix = metricReportingProperties.getProperty(ConfigurationKeys.METRICS_FILE_SUFFIX,
+          ConfigurationKeys.DEFAULT_METRICS_FILE_SUFFIX);
       // If running in MR mode, all mappers will try to write metrics to the same file, which will fail.
       // Instead, append the taskAttemptId to each file name.
       if(Strings.isNullOrEmpty(metricFileSuffix)) {
