@@ -103,6 +103,8 @@ ext.externalDependency = [
   "salesforcePartner": "com.force.api:force-partner-api:29.0.0",
   "scala": "org.scala-lang:scala-library:2.10.3",
   "influxdbJava": "org.influxdb:influxdb-java:1.5",
+  "lombok":"org.projectlombok:lombok:1.16.4",
+  "mockRunnerJdbc":"com.mockrunner:mockrunner-jdbc:1.0.8",
   "byteman": "org.jboss.byteman:byteman:"+bytemanVersion,
   "bytemanBmunit": "org.jboss.byteman:byteman-bmunit:"+bytemanVersion,
   "pegasus" : [
