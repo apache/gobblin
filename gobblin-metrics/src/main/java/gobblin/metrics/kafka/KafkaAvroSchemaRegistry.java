@@ -96,7 +96,7 @@ public class KafkaAvroSchemaRegistry {
     try {
       return cachedSchemasById.get(id);
     } catch (ExecutionException e) {
-      throw new RuntimeException(e);
+      throw new SchemaNotFoundException(e);
     }
   }
 

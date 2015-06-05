@@ -1,4 +1,4 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/* (c) 2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -13,6 +13,7 @@ package gobblin.util;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -21,6 +22,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
 import org.apache.avro.file.DataFileReader;
+import org.apache.avro.file.SeekableInput;
 import org.apache.avro.generic.GenericData.Record;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -32,8 +34,10 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.mapred.FsInput;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
@@ -149,7 +153,7 @@ public class AvroUtils {
    */
   public static GenericRecord convertRecordSchema(GenericRecord record, Schema newSchema) throws IOException {
     if (checkReaderWriterCompatibility(newSchema, record.getSchema()).getType() != COMPATIBLE) {
-      LOG.warn("Record schema not compatible with writer schema. Converting record schema to writer schema may fail.");
+      LOG.debug("Record schema not compatible with writer schema. Converting record schema to writer schema may fail.");
     }
 
     Closer closer = Closer.create();
@@ -162,9 +166,38 @@ public class AvroUtils {
       DatumReader<GenericRecord> reader = new GenericDatumReader<GenericRecord>(record.getSchema(), newSchema);
       return reader.read(null, decoder);
     } catch (IOException e) {
-      throw new IOException(String.format(
-          "Cannot convert avro record to new schema. Origianl schema = %s, new schema = %s", record.getSchema(),
-          newSchema), e);
+      throw new IOException(
+          String.format("Cannot convert avro record to new schema. Origianl schema = %s, new schema = %s",
+              record.getSchema(), newSchema),
+          e);
+    } finally {
+      closer.close();
+    }
+  }
+
+  /**
+   * Get Avro schema from an Avro data file.
+   */
+  public static Schema getSchemaFromDataFile(Path dataFile, FileSystem fs) throws IOException {
+    Closer closer = Closer.create();
+    try {
+      SeekableInput sin = closer.register(new FsInput(dataFile, fs.getConf()));
+      DataFileReader<GenericRecord> reader =
+          closer.register(new DataFileReader<GenericRecord>(sin, new GenericDatumReader<GenericRecord>()));
+      return reader.getSchema();
+    } finally {
+      closer.close();
+    }
+  }
+
+  /**
+   * Parse Avro schema from a schema file.
+   */
+  public static Schema parseSchemaFromFile(Path filePath, FileSystem fs) throws IOException {
+    Closer closer = Closer.create();
+    try {
+      InputStream in = closer.register(fs.open(filePath));
+      return new Schema.Parser().parse(in);
     } finally {
       closer.close();
     }
@@ -190,7 +223,7 @@ public class AvroUtils {
         LOG.info("Path to get the avro schema: " + file);
         FsInput fi = new FsInput(file.getPath(), conf);
         GenericDatumReader<GenericRecord> genReader = new GenericDatumReader<GenericRecord>();
-        schema = new DataFileReader<GenericRecord>(fi, genReader).getSchema();
+        schema = closer.register(new DataFileReader<GenericRecord>(fi, genReader)).getSchema();
       }
     } catch (IOException ioe) {
       throw new IOException("Cannot get the schema for directory " + directory, ioe);
@@ -218,6 +251,7 @@ public class AvroUtils {
     return files;
   }
 
+  @SuppressWarnings("deprecation")
   private static void getAllNestedAvroFiles(FileStatus dir, List<FileStatus> files, FileSystem fs) throws IOException {
     if (dir.isDir()) {
       FileStatus[] filesInDir = fs.listStatus(dir.getPath());

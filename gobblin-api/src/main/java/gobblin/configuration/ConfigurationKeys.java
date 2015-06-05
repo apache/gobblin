@@ -14,6 +14,8 @@ package gobblin.configuration;
 import java.nio.charset.Charset;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang.StringUtils;
+
 import com.google.common.base.Charsets;
 
 
@@ -363,6 +365,63 @@ public class ConfigurationKeys {
   public static final String EMAIL_PASSWORD_KEY = "email.password";
   public static final String EMAIL_FROM_KEY = "email.from";
   public static final String EMAIL_TOS_KEY = "email.tos";
+
+  /**
+   * Configuration properties for compaction.
+   */
+  public static final String COMPACTION_PREFIX = "compaction.";
+  public static final String COMPACTION_THREAD_POOL_SIZE = COMPACTION_PREFIX + "thread.pool.size";
+  public static final int DEFAULT_COMPACTION_THREAD_POOL_SIZE = 20;
+  public static final String COMPACTION_INPUT_DIR = COMPACTION_PREFIX + "input.dir";
+  public static final String COMPACTION_INPUT_SUBDIR = COMPACTION_PREFIX + "input.subdir";
+  public static final String DEFAULT_COMPACTION_INPUT_SUBDIR = StringUtils.EMPTY;
+  public static final String COMPACTION_JOB_INPUT_DIR = COMPACTION_PREFIX + "job.input.dir";
+  public static final String COMPACTION_DEST_DIR = COMPACTION_PREFIX + "dest.dir";
+  public static final String COMPACTION_DEST_SUBDIR = COMPACTION_PREFIX + "dest.subdir";
+  public static final String DEFAULT_COMPACTION_DEST_SUBDIR = StringUtils.EMPTY;
+  public static final String COMPACTION_JOB_DEST_DIR = COMPACTION_PREFIX + "job.dest.dir";
+  public static final String COMPACTION_TMP_DIR = COMPACTION_PREFIX + "tmp.dir";
+  public static final String DEFAULT_COMPACTION_TMP_DIR = "/tmp";
+  public static final String COMPACTION_JOB_TMP_DIR = COMPACTION_PREFIX + "job.tmp.dir";
+  public static final String COMPACTION_BLACKLIST = COMPACTION_PREFIX + "blacklist";
+  public static final String COMPACTION_WHITELIST = COMPACTION_PREFIX + "whitelist";
+  public static final String COMPACTION_HIGH_PRIORITY_TOPICS = COMPACTION_PREFIX + "high.priority.topics";
+  public static final String COMPACTION_NORMAL_PRIORITY_TOPICS = COMPACTION_PREFIX + "normal.priority.topics";
+  public static final String COMPACTION_FORCE_REPROCESS = COMPACTION_PREFIX + "force.reprocess";
+  public static final boolean DEFAULT_COMPACTION_FORCE_REPROCESS = false;
+  public static final String COMPACTION_JOBPROPS_CREATOR_CLASS = COMPACTION_PREFIX + "jobprops.creator.class";
+  public static final String DEFAULT_COMPACTION_JOBPROPS_CREATOR_CLASS =
+      "gobblin.compaction.mapreduce.MRCompactorJobPropCreator";
+  public static final String COMPACTION_TIMEBASED_FOLDER_PATTERN = COMPACTION_PREFIX + "timebased.folder.pattern";
+  public static final String DEFAULT_COMPACTION_TIMEBASED_FOLDER_PATTERN = "YYYY/MM/dd";
+  public static final String COMPACTION_TIMEZONE = COMPACTION_PREFIX + "timezone";
+  public static final String DEFAULT_COMPACTION_TIMEZONE = "America/Los_Angeles";
+  public static final String COMPACTION_TIMEBASED_MAX_TIME_AGO = COMPACTION_PREFIX + "timebased.max.time.ago";
+  public static final String DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO = "5h";
+  public static final String COMPACTION_TIMEBASED_MIN_TIME_AGO = COMPACTION_PREFIX + "timebased.min.time.ago";
+  public static final String DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO = "1h";
+  public static final String COMPACTION_TOPIC = COMPACTION_PREFIX + "topic";
+  public static final String COMPACTION_OUTPUT_PERMISSION = COMPACTION_PREFIX + "output.permission";
+  public static final int DEFAULT_COMPACTION_OUTPUT_PERMISSION = 0755;
+  public static final String COMPACTION_TARGET_OUTPUT_FILE_SIZE = COMPACTION_PREFIX + "target.output.file.size";
+  public static final long DEFAULT_COMPACTION_TARGET_OUTPUT_FILE_SIZE = 268435456;
+  public static final String COMPACTION_MAX_NUM_REDUCERS = COMPACTION_PREFIX + "max.num.reducers";
+  public static final int DEFAULT_COMPACTION_MAX_NUM_REDUCERS = 100;
+  public static final String COMPACTION_MAPRED_MAX_SPLIT_SIZE = COMPACTION_PREFIX + "mapred.max.split.size";
+  public static final long DEFAULT_COMPACTION_MAPRED_MAX_SPLIT_SIZE = 268435456;
+  public static final String COMPACTION_MAPRED_MIN_SPLIT_SIZE = COMPACTION_PREFIX + "mapred.min.split.size";
+  public static final long DEFAULT_COMPACTION_MAPRED_MIN_SPLIT_SIZE = 268435456;
+  public static final String COMPACTION_AVRO_KEY_SCHEMA_LOC = COMPACTION_PREFIX + "avro.key.schema.loc";
+  public static final String COMPACTION_USE_ALL_ATTRIBUTES = COMPACTION_PREFIX + "use.all.attributes";
+  public static final boolean DEFAULT_COMPACTION_USE_ALL_ATTRIBUTES = false;
+  public static final String COMPACTION_JOB_RUNNER_CLASS = COMPACTION_PREFIX + "job.runner.class";
+  public static final String DEFAULT_COMPACTION_JOB_RUNNER_CLASS =
+      "gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyJobRunner";
+  public static final String COMPACTION_COMPACTOR_CLASS = COMPACTION_PREFIX + "compactor.class";
+  public static final String DEFAULT_COMPACTION_COMPACTOR_CLASS = "gobblin.compaction.mapreduce.MRCompactor";
+  public static final String COMPACTION_FILE_SYSTEM_URI = COMPACTION_PREFIX + "file.system.uri";
+  public static final String COMPACTION_MR_JOB_TIMEOUT_MINUTES = COMPACTION_PREFIX + "mr.job.timeout.minutes";
+  public static final int DEFAULT_COMPACTION_MR_JOB_TIMEOUT_MINUTES = Integer.MAX_VALUE;
 
   /**
    * Common metrics configuration properties.
