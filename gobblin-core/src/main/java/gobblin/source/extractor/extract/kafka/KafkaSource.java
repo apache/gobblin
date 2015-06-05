@@ -56,9 +56,14 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
   public static final String TOPIC_BLACKLIST = "topic.blacklist";
   public static final String TOPIC_WHITELIST = "topic.whitelist";
+  public static final String LATEST_OFFSET = "latest";
+  public static final String EARLIEST_OFFSET = "earliest";
+  public static final String NEAREST_OFFSET = "nearest";
+  public static final String BOOTSTRAP_WITH_OFFSET = "bootstrap.with.offset";
+  public static final String DEFAULT_BOOTSTRAP_WITH_OFFSET = LATEST_OFFSET;
   public static final String TOPICS_MOVE_TO_LATEST_OFFSET = "topics.move.to.latest.offset";
-  public static final String MOVE_TO_EARLIEST_OFFSET_ALLOWED = "move.to.earliest.offset.allowed";
-  public static final boolean DEFAULT_MOVE_TO_EARLIEST_OFFSET_ALLOWED = false;
+  public static final String RESET_ON_OFFSET_OUT_OF_RANGE = "reset.on.offset.out.of.range";
+  public static final String DEFAULT_RESET_ON_OFFSET_OUT_OF_RANGE = NEAREST_OFFSET;
   public static final String TOPIC_NAME = "topic.name";
   public static final String PARTITION_ID = "partition.id";
   public static final String LEADER_ID = "leader.id";
@@ -165,9 +170,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
   private void setWorkUnitEstSize(WorkUnit workUnit) {
     long avgSize = this.getPreviousAvgSizeForPartition(KafkaUtils.getPartition(workUnit));
-    long numOfEvents =
-        workUnit.getPropAsLong(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY)
-            - workUnit.getPropAsLong(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY);
+    long numOfEvents = workUnit.getPropAsLong(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY)
+        - workUnit.getPropAsLong(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY);
     workUnit.setProp(ESTIMATED_DATA_SIZE, avgSize * numOfEvents);
   }
 
@@ -213,8 +217,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       lowWatermarkValues.add(workUnit.getLowWaterMark());
       expectedHighWatermarkValues.add(workUnit.getHighWaterMark());
     }
-    return new WatermarkInterval(new MultiLongWatermark(lowWatermarkValues), new MultiLongWatermark(
-        expectedHighWatermarkValues));
+    return new WatermarkInterval(new MultiLongWatermark(lowWatermarkValues),
+        new MultiLongWatermark(expectedHighWatermarkValues));
   }
 
   private static List<KafkaPartition> getPartitionsFromMultiWorkUnit(MultiWorkUnit multiWorkUnit) {
@@ -301,7 +305,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
    * The best group is the fullest group that has enough capacity for the new workunit.
    * If no existing group has enough capacity for the new workUnit, return null.
    */
-  private MultiWorkUnit findAndPopBestFitGroup(WorkUnit workUnit, PriorityQueue<MultiWorkUnit> pQueue, long avgGroupSize) {
+  private MultiWorkUnit findAndPopBestFitGroup(WorkUnit workUnit, PriorityQueue<MultiWorkUnit> pQueue,
+      long avgGroupSize) {
 
     List<MultiWorkUnit> fullWorkUnits = Lists.newArrayList();
     MultiWorkUnit bestFit = null;
@@ -365,7 +370,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     return workUnits;
   }
 
-  private WorkUnit getWorkUnitForTopicPartition(KafkaWrapper kafkaWrapper, KafkaPartition partition, SourceState state) {
+  private WorkUnit getWorkUnitForTopicPartition(KafkaWrapper kafkaWrapper, KafkaPartition partition,
+      SourceState state) {
     Offsets offsets = new Offsets();
 
     try {
@@ -377,31 +383,43 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         offsets.startAt(getPreviousOffsetForPartition(partition, state));
       }
     } catch (KafkaOffsetRetrievalFailureException e) {
-      LOG.warn(String
-          .format(
-              "Failed to retrieve earliest and/or latest offset for topic %s, partition %s. This partition will be skipped.",
-              partition.getTopicName(), partition.getId()));
+      LOG.warn(String.format(
+          "Failed to retrieve earliest and/or latest offset for partition %s. This partition will be skipped.",
+          partition));
       return null;
 
     } catch (PreviousOffsetNotFoundException e) {
-      LOG.warn(String
-          .format(
-              "Previous offset for topic %s, partition %s does not exist. This partition will start from the earliest offset: %d",
-              partition.getTopicName(), partition.getId(), offsets.getEarliestOffset()));
-      offsets.startAtEarliestOffset();
-
-    } catch (StartOffsetOutOfRangeException e) {
-      LOG.warn(String
-          .format(
-              "Start offset for topic %s, partition %s is out of range. Start offset = %d, earliest offset = %d, latest offset = %d.",
-              partition.getTopicName(), partition.getId(), offsets.getStartOffset(), offsets.getEarliestOffset(),
-              offsets.getLatestOffset()));
-      if (movingToEarliestOffsetAllowed(state)) {
-        LOG.warn("Moving to earliest offset allowed. This partition will start from the earliest offset: %d",
-            offsets.getEarliestOffset());
+      String offsetNotFoundMsg = String.format("Previous offset for partition %s does not exist. ", partition);
+      String offsetOption = state.getProp(BOOTSTRAP_WITH_OFFSET, DEFAULT_BOOTSTRAP_WITH_OFFSET).toLowerCase();
+      if (offsetOption.equals(LATEST_OFFSET)) {
+        LOG.warn(offsetNotFoundMsg + "This partition will start from the latest offset: " + offsets.getLatestOffset());
+        offsets.startAtLatestOffset();
+      } else if (offsetOption.equals(EARLIEST_OFFSET)) {
+        LOG.warn(
+            offsetNotFoundMsg + "This partition will start from the earliest offset: " + offsets.getEarliestOffset());
         offsets.startAtEarliestOffset();
       } else {
-        LOG.warn("Moving to earliest offset not allowed. This partition will be skipped.");
+        LOG.warn(offsetNotFoundMsg + "This partition will be skipped.");
+        return null;
+      }
+
+    } catch (StartOffsetOutOfRangeException e) {
+      String offsetOutOfRangeMsg = String.format(String.format(
+          "Start offset for partition %s is out of range. Start offset = %d, earliest offset = %d, latest offset = %d.",
+          partition, offsets.getStartOffset(), offsets.getEarliestOffset(), offsets.getLatestOffset()));
+      String offsetOption =
+          state.getProp(RESET_ON_OFFSET_OUT_OF_RANGE, DEFAULT_RESET_ON_OFFSET_OUT_OF_RANGE).toLowerCase();
+      if (offsetOption.equals(LATEST_OFFSET)
+          || (offsetOption.equals(NEAREST_OFFSET) && offsets.getStartOffset() >= offsets.getLatestOffset())) {
+        LOG.warn(
+            offsetOutOfRangeMsg + "This partition will start from the latest offset: " + offsets.getLatestOffset());
+        offsets.startAtLatestOffset();
+      } else if (offsetOption.equals(EARLIEST_OFFSET) || offsetOption.equals(NEAREST_OFFSET)) {
+        LOG.warn(
+            offsetOutOfRangeMsg + "This partition will start from the earliest offset: " + offsets.getEarliestOffset());
+        offsets.startAtEarliestOffset();
+      } else {
+        LOG.warn(offsetOutOfRangeMsg + "This partition will be skipped.");
         return null;
       }
     }
@@ -443,8 +461,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       return false;
     }
     if (this.moveToLatestTopics.isEmpty()) {
-      this.moveToLatestTopics.addAll(Splitter.on(',').trimResults().omitEmptyStrings()
-          .splitToList(state.getProp(TOPICS_MOVE_TO_LATEST_OFFSET)));
+      this.moveToLatestTopics.addAll(
+          Splitter.on(',').trimResults().omitEmptyStrings().splitToList(state.getProp(TOPICS_MOVE_TO_LATEST_OFFSET)));
     }
     return this.moveToLatestTopics.contains(partition.getTopicName()) || moveToLatestTopics.contains(ALL_TOPICS);
   }
@@ -489,16 +507,12 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     partitionsState.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, partitions.get(0).getTopicName());
     for (int i = 0; i < partitions.size(); i++) {
       partitionsState.setProp(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, i), partitions.get(i).getId());
-      partitionsState.setProp(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_ID, i), partitions.get(i).getLeader()
-          .getId());
-      partitionsState.setProp(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_HOSTANDPORT, i), partitions.get(i)
-          .getLeader().getHostAndPort());
+      partitionsState.setProp(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_ID, i),
+          partitions.get(i).getLeader().getId());
+      partitionsState.setProp(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_HOSTANDPORT, i),
+          partitions.get(i).getLeader().getHostAndPort());
     }
     return partitionsState;
-  }
-
-  private boolean movingToEarliestOffsetAllowed(SourceState state) {
-    return state.getPropAsBoolean(MOVE_TO_EARLIEST_OFFSET_ALLOWED, DEFAULT_MOVE_TO_EARLIEST_OFFSET_ALLOWED);
   }
 
   private List<KafkaTopic> getFilteredTopics(KafkaWrapper kafkaWrapper, SourceState state) {
@@ -535,9 +549,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
     private void startAt(long offset) throws StartOffsetOutOfRangeException {
       if (offset < this.earliestOffset || offset > this.latestOffset + 1) {
-        throw new StartOffsetOutOfRangeException(String.format(
-            "start offset = %d, earliest offset = %d, latest offset = %d", offset, this.earliestOffset,
-            this.latestOffset));
+        throw new StartOffsetOutOfRangeException(
+            String.format("start offset = %d, earliest offset = %d, latest offset = %d", offset, this.earliestOffset,
+                this.latestOffset));
       }
       this.startOffset = offset;
     }
