@@ -22,4 +22,8 @@ public class SchemaNotFoundException extends Exception {
     super(message, e);
   }
 
+  public SchemaNotFoundException(Exception e) {
+    super(e);
+  }
+
 }
