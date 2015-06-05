@@ -426,21 +426,27 @@ public class ConfigurationKeys {
   /**
    * Common metrics configuration properties.
    */
-  public static final String METRICS_LOG_DIR_KEY = "metrics.log.dir";
-  public static final String METRICS_ENABLED_KEY = "metrics.enabled";
-  public static final String DEFAULT_METRICS_ENABLED = Boolean.toString(false);
-  public static final String METRICS_REPORTING_FILE_ENABLED_KEY = "metrics.reporting.file.enabled";
-  public static final String DEFAULT_METRICS_REPORTING_FILE_ENABLED = Boolean.toString(true);
-  public static final String METRICS_REPORTING_JMX_ENABLED_KEY = "metrics.reporting.jmx.enabled";
+  public static final String METRICS_CONFIGURATIONS_PREFIX = "metrics.";
+  public static final String METRICS_LOG_DIR_KEY = METRICS_CONFIGURATIONS_PREFIX + "log.dir";
+  public static final String METRICS_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX + "enabled";
+  public static final String DEFAULT_METRICS_ENABLED = Boolean.toString(true);
+  public static final String METRICS_FILE_SUFFIX = METRICS_CONFIGURATIONS_PREFIX + "reporting.file.suffix";
+  public static final String DEFAULT_METRICS_FILE_SUFFIX = "";
+  public static final String METRICS_REPORTING_FILE_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX + "reporting.file.enabled";
+  public static final String DEFAULT_METRICS_REPORTING_FILE_ENABLED = Boolean.toString(false);
+  public static final String METRICS_REPORTING_JMX_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX + "reporting.jmx.enabled";
   public static final String DEFAULT_METRICS_REPORTING_JMX_ENABLED = Boolean.toString(false);
-  public static final String METRICS_REPORTING_KAFKA_ENABLED_KEY = "metrics.reporting.kafka.enabled";
+  public static final String METRICS_REPORTING_KAFKA_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.enabled";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_ENABLED = Boolean.toString(false);
-  public static final String METRICS_REPORTING_KAFKA_FORMAT = "metrics.reporting.kafka.format";
+  public static final String METRICS_REPORTING_KAFKA_FORMAT = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.format";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_FORMAT = "json";
-  public static final String METRICS_KAFKA_BROKERS = "metrics.reporting.kafka.brokers";
-  public static final String METRICS_KAFKA_TOPIC = "metrics.reporting.kafka.topic";
-  public static final String METRICS_CUSTOM_BUILDERS = "metrics.reporting.custom.builders";
-  public static final String METRICS_REPORT_INTERVAL_KEY = "metrics.report.interval";
+  public static final String METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY = METRICS_CONFIGURATIONS_PREFIX +
+      "reporting.kafka.avro.use.schema.registry";
+  public static final String DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY = Boolean.toString(false);
+  public static final String METRICS_KAFKA_BROKERS = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.brokers";
+  public static final String METRICS_KAFKA_TOPIC = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic";
+  public static final String METRICS_CUSTOM_BUILDERS = METRICS_CONFIGURATIONS_PREFIX + "reporting.custom.builders";
+  public static final String METRICS_REPORT_INTERVAL_KEY = METRICS_CONFIGURATIONS_PREFIX + "report.interval";
   public static final String DEFAULT_METRICS_REPORT_INTERVAL = "30000";
 
   /**

@@ -28,6 +28,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gobblin.configuration.WorkUnitState;
+import gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
+import gobblin.metrics.kafka.SchemaNotFoundException;
 import gobblin.source.extractor.Extractor;
 import gobblin.util.AvroUtils;
 
@@ -40,9 +42,6 @@ import gobblin.util.AvroUtils;
 public class KafkaAvroExtractor extends KafkaExtractor<Schema, GenericRecord> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaAvroExtractor.class);
-
-  public static final int SCHEMA_ID_LENGTH_BYTE = 16;
-  private static final byte MAGIC_BYTE = 0x0;
 
   private final Schema schema;
   private final KafkaAvroSchemaRegistry schemaRegistry;
@@ -57,7 +56,7 @@ public class KafkaAvroExtractor extends KafkaExtractor<Schema, GenericRecord> {
    */
   public KafkaAvroExtractor(WorkUnitState state) throws SchemaNotFoundException {
     super(state);
-    this.schemaRegistry = new KafkaAvroSchemaRegistry(state);
+    this.schemaRegistry = new KafkaAvroSchemaRegistry(state.getProperties());
     this.schema = getLatestSchemaByTopic();
     this.reader = new GenericDatumReader<Record>(this.schema);
   }
@@ -74,18 +73,18 @@ public class KafkaAvroExtractor extends KafkaExtractor<Schema, GenericRecord> {
   @Override
   protected GenericRecord decodeRecord(MessageAndOffset messageAndOffset) throws SchemaNotFoundException, IOException {
     byte[] payload = getBytes(messageAndOffset.message().payload());
-    if (payload[0] != MAGIC_BYTE) {
+    if (payload[0] != KafkaAvroSchemaRegistry.MAGIC_BYTE) {
       throw new RuntimeException(String.format("Unknown magic byte for partition %s", this.getCurrentPartition()));
     }
 
-    byte[] schemaIdByteArray = Arrays.copyOfRange(payload, 1, 1 + SCHEMA_ID_LENGTH_BYTE);
+    byte[] schemaIdByteArray = Arrays.copyOfRange(payload, 1, 1 + KafkaAvroSchemaRegistry.SCHEMA_ID_LENGTH_BYTE);
     String schemaId = Hex.encodeHexString(schemaIdByteArray);
     Schema schema = null;
     schema = this.schemaRegistry.getSchemaById(schemaId);
     reader.setSchema(schema);
     Decoder binaryDecoder =
-        DecoderFactory.get().binaryDecoder(payload, 1 + SCHEMA_ID_LENGTH_BYTE,
-            payload.length - 1 - SCHEMA_ID_LENGTH_BYTE, null);
+        DecoderFactory.get().binaryDecoder(payload, 1 + KafkaAvroSchemaRegistry.SCHEMA_ID_LENGTH_BYTE,
+            payload.length - 1 - KafkaAvroSchemaRegistry.SCHEMA_ID_LENGTH_BYTE, null);
     try {
       GenericRecord record = reader.read(null, binaryDecoder);
       if (!record.getSchema().equals(this.schema)) {

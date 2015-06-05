@@ -126,7 +126,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
    * @param workUnits A two-dimensional list of workunits, each corresponding to a single Kafka partition, grouped
    * by topics.
    * @param numOfMultiWorkunits Desired number of MultiWorkUnits.
-   * @param state 
+   * @param state
    * @return A list of MultiWorkUnits.
    */
   private List<WorkUnit> getMultiWorkunits(List<List<WorkUnit>> workUnits, int numOfMultiWorkunits, SourceState state) {

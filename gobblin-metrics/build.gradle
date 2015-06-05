@@ -28,6 +28,8 @@ dependencies {
   compile externalDependency.jodaTime
   compile externalDependency.influxdbJava
   compile externalDependency.findBugs
+  compile externalDependency.commonsHttpClient
+  compile externalDependency.commonsCodec
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito

@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 
 import kafka.message.MessageAndOffset;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
@@ -30,6 +31,7 @@ import com.google.gson.Gson;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metrics.Tag;
+import gobblin.metrics.kafka.SchemaNotFoundException;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.EventBasedExtractor;
@@ -100,17 +102,17 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
    */
   @Override
   public D readRecordImpl(D reuse) throws DataRecordException, IOException {
-    if (currentPartitionFinished()) {
-      moveToNextPartition();
-    }
-
     while (!allPartitionsFinished()) {
+      if (currentPartitionFinished()) {
+        moveToNextPartition();
+        continue;
+      }
       if (this.messageIterator == null || !this.messageIterator.hasNext()) {
         try {
           this.messageIterator = fetchNextMessageBuffer();
         } catch (Exception e) {
           LOG.error(String.format("Failed to fetch next message buffer for partition %s. Will skip this partition.",
-              getCurrentPartition()));
+              getCurrentPartition()), e);
           moveToNextPartition();
           continue;
         }
@@ -140,13 +142,16 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
           return record;
         } catch (SchemaNotFoundException e) {
           if (shouldLogError()) {
-            LOG.error(String.format(
-                "An event from partition %s has a schema ID that doesn't exist in the schema registry.",
-                getCurrentPartition()));
+            LOG.error(
+                String.format("An event from partition %s has a schema ID that doesn't exist in the schema registry.",
+                    getCurrentPartition()),
+                e);
+            incrementErrorCount();
           }
         } catch (Exception e) {
           if (shouldLogError()) {
-            LOG.error(String.format("An event from partition %s cannot be decoded.", getCurrentPartition()));
+            LOG.error(String.format("An event from partition %s cannot be decoded.", getCurrentPartition()), e);
+            incrementErrorCount();
           }
         }
       } while (!currentPartitionFinished());
@@ -165,12 +170,17 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   private void moveToNextPartition() {
     this.currentPartitionIdx++;
     this.messageIterator = null;
-    switchMetricContextToCurrentPartition();
+    if (this.currentPartitionIdx < this.partitions.size()) {
+      switchMetricContextToCurrentPartition();
+    }
   }
 
   private void switchMetricContextToCurrentPartition() {
+    if (this.currentPartitionIdx >= this.partitions.size()) {
+      return;
+    }
     int currentPartitionId = this.getCurrentPartition().getId();
-    switchMetricContext(Lists.<Tag<?>>newArrayList(new Tag<Integer>("kafka_partition", currentPartitionId)));
+    switchMetricContext(Lists.<Tag<?>> newArrayList(new Tag<Integer>("kafka_partition", currentPartitionId)));
   }
 
   private Iterator<MessageAndOffset> fetchNextMessageBuffer() {
@@ -179,11 +189,21 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   }
 
   private boolean shouldLogError() {
-    return this.decodingErrorCount.containsKey(getCurrentPartition())
-        && this.decodingErrorCount.get(getCurrentPartition()) <= MAX_LOG_DECODING_ERRORS;
+    return !this.decodingErrorCount.containsKey(getCurrentPartition())
+        || this.decodingErrorCount.get(getCurrentPartition()) <= MAX_LOG_DECODING_ERRORS;
+  }
+
+  private void incrementErrorCount() {
+    if (this.decodingErrorCount.containsKey(getCurrentPartition())) {
+      this.decodingErrorCount.put(getCurrentPartition(), this.decodingErrorCount.get(getCurrentPartition()) + 1);
+    } else {
+      this.decodingErrorCount.put(getCurrentPartition(), 1);
+    }
   }
 
   protected KafkaPartition getCurrentPartition() {
+    Preconditions.checkElementIndex(this.currentPartitionIdx, this.partitions.size(),
+        "KafkaExtractor has finished extracting all partitions. There's no current partition.");
     return this.partitions.get(this.currentPartitionIdx);
   }
 

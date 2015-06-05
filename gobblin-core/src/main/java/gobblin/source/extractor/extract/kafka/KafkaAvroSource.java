@@ -12,6 +12,7 @@
 package gobblin.source.extractor.extract.kafka;
 
 import gobblin.configuration.WorkUnitState;
+import gobblin.metrics.kafka.SchemaNotFoundException;
 import gobblin.source.extractor.Extractor;
 
 import java.io.IOException;
