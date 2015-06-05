@@ -11,11 +11,15 @@
 
 package gobblin.metrics.kafka;
 
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.codec.DecoderException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,8 +41,13 @@ public class KafkaAvroReporter extends KafkaReporter {
 
   private static Optional<SpecificDatumReader<MetricReport>> READER = Optional.absent();
 
+  private final Optional<KafkaAvroSchemaRegistry> registry;
+  private Optional<String> registrySchemaId;
+
   protected KafkaAvroReporter(Builder<?> builder) {
     super(builder);
+    this.registry = builder.registry;
+    this.registrySchemaId = Optional.absent();
   }
 
   /**
@@ -80,8 +89,15 @@ public class KafkaAvroReporter extends KafkaReporter {
    */
   public static abstract class Builder<T extends Builder<T>> extends KafkaReporter.Builder<T> {
 
+    private Optional<KafkaAvroSchemaRegistry> registry = Optional.absent();
+
     private Builder(MetricRegistry registry) {
       super(registry);
+    }
+
+    public T withSchemaRegistry(KafkaAvroSchemaRegistry registry) {
+      this.registry = Optional.of(registry);
+      return self();
     }
 
     /**
@@ -102,5 +118,25 @@ public class KafkaAvroReporter extends KafkaReporter {
   @Override
   protected Encoder getEncoder(OutputStream out) {
     return EncoderFactory.get().binaryEncoder(out, null);
+  }
+
+  @Override
+  protected void writeSchemaVersioningInformation(DataOutputStream outputStream)
+      throws IOException {
+
+    if(this.registry.isPresent()) {
+      if(!this.registrySchemaId.isPresent()) {
+        this.registrySchemaId = Optional.of(this.registry.get().register(MetricReport.SCHEMA$));
+      }
+      outputStream.writeByte(KafkaAvroSchemaRegistry.MAGIC_BYTE);
+      try {
+        outputStream.write(Hex.decodeHex(this.registrySchemaId.get().toCharArray()));
+      } catch(DecoderException exception) {
+        throw new IOException(exception);
+      }
+    } else {
+      super.writeSchemaVersioningInformation(outputStream);
+    }
+
   }
 }

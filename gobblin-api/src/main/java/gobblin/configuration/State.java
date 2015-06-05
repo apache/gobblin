@@ -37,6 +37,17 @@ public class State implements Writable {
   private final Properties properties = new Properties();
 
   /**
+   * Return a copy of the underlying {@link java.util.Properties} object.
+   *
+   * @return Underlying {@link java.util.Properties} object.
+   */
+  public Properties getProperties() {
+    Properties props = new Properties();
+    props.putAll(this.properties);
+    return props;
+  }
+
+  /**
    * Populates this instance with properties of the other instance.
    *
    * @param otherState the other {@link State} instance

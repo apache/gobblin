@@ -98,6 +98,25 @@ public abstract class SerializedMetricReportReporter extends MetricReportReporte
   }
 
   /**
+   * Write schema versioning information to the {@link java.io.DataOutputStream} that will hold the serialized
+   * {@link gobblin.metrics.MetricReport}.
+   *
+   * <p>
+   *   This method will be called before the {@link gobblin.metrics.MetricReport} is serialized. As such,
+   *   any information written by this method to the {@link java.io.DataOutputStream} will appear at the
+   *   beginning of messages emitted by the reporter.
+   * </p>
+   *
+   * @param outputStream Empty {@link java.io.DataOutputStream} that will hold the serialized
+   *                     {@link gobblin.metrics.MetricReport}. Any data written by this method
+   *                     will appear at the beginning of the emitted message.
+   * @throws IOException
+   */
+  protected void writeSchemaVersioningInformation(DataOutputStream outputStream) throws IOException {
+    outputStream.writeInt(MetricReportUtils.SCHEMA_VERSION);
+  }
+
+  /**
    * Converts a {@link gobblin.metrics.MetricReport} to bytes to send through Kafka.
    * @param report MetricReport to serialize.
    * @return Serialized bytes.
@@ -109,8 +128,8 @@ public abstract class SerializedMetricReportReporter extends MetricReportReporte
 
     try {
       this.byteArrayOutputStream.reset();
-      // Write version number at the beginning of the message.
-      this.out.writeInt(MetricReportUtils.SCHEMA_VERSION);
+      // Write schema versioning information.
+      writeSchemaVersioningInformation(this.out);
       // Now write the report itself.
       this.writerOpt.get().write(report, this.encoder);
       this.encoder.flush();

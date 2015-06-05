@@ -13,7 +13,10 @@ package gobblin.metrics;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
@@ -40,6 +43,9 @@ import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.metrics.kafka.KafkaAvroReporter;
+import gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
+import gobblin.metrics.kafka.KafkaReporter;
 import gobblin.metrics.kafka.KafkaReportingFormats;
 
 
@@ -228,6 +234,19 @@ public class GobblinMetrics {
   /**
    * Start metric reporting.
    *
+   * @param configuration configuration properties
+   */
+  public void startMetricReporting(Configuration configuration) {
+    Properties props = new Properties();
+    for( Map.Entry<String, String> entry : configuration) {
+      props.put(entry.getKey(), entry.getValue());
+    }
+    startMetricReporting(props);
+  }
+
+  /**
+   * Start metric reporting.
+   *
    * @param properties configuration properties
    */
   public void startMetricReporting(Properties properties) {
@@ -314,8 +333,14 @@ public class GobblinMetrics {
         return;
       }
 
+      // Add a suffix to file name if specified in properties.
+      String metricsFileSuffix = properties.getProperty(ConfigurationKeys.METRICS_FILE_SUFFIX, "");
+      if(!Strings.isNullOrEmpty(metricsFileSuffix) && !metricsFileSuffix.startsWith(".")) {
+        metricsFileSuffix = "." + metricsFileSuffix;
+      }
+
       // Each job run gets its own metric log file
-      Path metricLogFile = new Path(metricsLogDir, this.id + ".metrics.log");
+      Path metricLogFile = new Path(metricsLogDir, this.id + metricsFileSuffix + ".metrics.log");
       boolean append = false;
       // Append to the metric file if it already exists
       if (fs.exists(metricLogFile)) {
@@ -372,8 +397,27 @@ public class GobblinMetrics {
       formatEnum = KafkaReportingFormats.JSON;
     }
 
+    Optional<KafkaAvroSchemaRegistry> registry = Optional.absent();
+    try {
+      if ( formatEnum == KafkaReportingFormats.AVRO &&
+          Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
+          ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
+        registry = Optional.of(new KafkaAvroSchemaRegistry(properties));
+      }
+    } catch(IllegalArgumentException exception) {
+      LOGGER.error("Not reporting metrics to Kafka due to missing Kafka configuration(s).", exception);
+      return;
+    }
+
+    KafkaReporter.Builder<?> builder = formatEnum.reporterBuilder(this.metricContext);
+
+    if(builder instanceof KafkaAvroReporter.Builder<?> && registry.isPresent()) {
+      LOGGER.info("Using schema registry for Kafka avro metrics reporter.");
+      builder = ((KafkaAvroReporter.Builder<?>) builder).withSchemaRegistry(registry.get());
+    }
+
     this.scheduledReporters.add(
-        this.closer.register(formatEnum.reporterBuilder(this.metricContext).build(brokers, topic)));
+        this.closer.register(builder.build(brokers, topic)));
 
   }
 
