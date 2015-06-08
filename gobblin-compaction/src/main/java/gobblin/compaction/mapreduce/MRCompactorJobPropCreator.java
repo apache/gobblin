@@ -15,9 +15,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
@@ -25,6 +22,9 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
+
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
 
 /**
  * This class creates the following properties for a single MapReduce job for compaction:

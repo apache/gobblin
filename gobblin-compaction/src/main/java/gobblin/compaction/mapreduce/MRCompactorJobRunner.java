@@ -11,10 +11,6 @@
 
 package gobblin.compaction.mapreduce;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.util.HadoopUtils;
-
 import java.io.IOException;
 import java.util.concurrent.Callable;
 
@@ -29,6 +25,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.primitives.Ints;
+
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+import gobblin.util.HadoopUtils;
 
 
 /**
@@ -64,9 +64,8 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
   }
 
   private FsPermission getOutputPermission() {
-    short mode =
-        (short) this.jobProps.getPropAsInt(ConfigurationKeys.COMPACTION_OUTPUT_PERMISSION,
-            ConfigurationKeys.DEFAULT_COMPACTION_OUTPUT_PERMISSION);
+    short mode = (short) this.jobProps.getPropAsInt(ConfigurationKeys.COMPACTION_OUTPUT_PERMISSION,
+        ConfigurationKeys.DEFAULT_COMPACTION_OUTPUT_PERMISSION);
     return new FsPermission(mode);
   }
 
