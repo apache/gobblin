@@ -269,14 +269,11 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
       setFinalJobState(jobState);
       if (canCommit(this.jobContext.getJobCommitPolicy(), jobState)) {
-        commitJob(jobState);
-        // Persist job state only if and only if data has been successfully committed.
-        // WARNING: there's a case that may result in duplicated data given this way of
-        // doing commit and state persistence. Specifically, commitJob is not atomic, so
-        // it may succeed partially and fail in the middle. In this case, job state will
-        // not be persisted, but output data is partially committed. The next run of the
-        // job may pull the committed portion of data again, leading to duplicated data.
-        persistJobState(jobState);
+        try {
+          commitJob(jobState);
+        } finally {
+          persistJobState(jobState);
+        }
       }
 
       Instrumented.endTimer(jobCommitTimer);
@@ -497,14 +494,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * Check if it is OK to commit the output data of the job.
    */
   private boolean canCommit(JobCommitPolicy commitPolicy, JobState jobState) {
-    JobState.RunningState runningState = jobState.getState();
-    if (runningState == JobState.RunningState.PENDING ||
-        runningState == JobState.RunningState.RUNNING ||
-        runningState == JobState.RunningState.CANCELLED) {
-      // Not committing data of incomplete job
-      return false;
-    }
-
     // Only commit job data if 1) COMMIT_ON_PARTIAL_SUCCESS is used,
     // or 2) COMMIT_ON_FULL_SUCCESS is used and the job has succeeded.
     return commitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS ||
@@ -542,6 +531,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * Persist job state of a completed job.
    */
   private void persistJobState(JobState jobState) throws IOException {
+    for (TaskState taskState : jobState.getTaskStates()) {
+      // Restore the previous actual high watermark for each task that has not been committed
+      if (taskState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED) {
+        taskState.restoreActualHighWatermark();
+      }
+    }
+
     String jobName = jobState.getJobName();
     String jobId = jobState.getJobId();
     LOG.info("Persisting job state of job " + jobId);

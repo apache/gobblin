@@ -42,6 +42,9 @@ import gobblin.source.workunit.WorkUnit;
  */
 public class WorkUnitState extends State {
 
+  private static final String WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_BACKUP_KEY =
+      "workunit.state.actual.high.water.mark.backup";
+
   private Watermark actualHighWatermark;
 
   private static final JsonParser JSON_PARSER = new JsonParser();
@@ -108,9 +111,13 @@ public class WorkUnitState extends State {
   /**
    * Get the actual high {@link Watermark} as a {@link JsonElement}.
    *
-   * @return a {@link JsonElement} representing the actual high {@link Watermark}.
+   * @return a {@link JsonElement} representing the actual high {@link Watermark},
+   *         or {@code null} if the actual  high {@link Watermark} is not set.
    */
   public JsonElement getActualHighWatermark() {
+    if (!contains(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY)) {
+      return null;
+    }
     return JSON_PARSER.parse(getProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY));
   }
 
@@ -149,10 +156,36 @@ public class WorkUnitState extends State {
   }
 
   /**
+   * Backup the actual high watermark.
+   *
+   * <p>
+   *   This method is used internally to backup the actual high watermark so we can restore the previous one in case the
+   *   final state of the {@link WorkUnit} is not {@link gobblin.configuration.WorkUnitState.WorkingState#COMMITTED}.
+   * </p>
+   */
+  public void backUpActualHighWatermark() {
+    JsonElement actualHighWatermark = getActualHighWatermark();
+    if (actualHighWatermark != null) {
+      setProp(WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_BACKUP_KEY, actualHighWatermark.toString());
+    }
+  }
+
+  /**
+   * Restore the actual high watermark to the backed-up one stored with the property
+   * {@link #WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_BACKUP_KEY}.
+   */
+  public void restoreActualHighWatermark() {
+    if (contains(WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_BACKUP_KEY)) {
+      setProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY,
+          getProp(WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_BACKUP_KEY));
+    }
+  }
+
+  /**
    * Get the high watermark as set in {@link gobblin.source.extractor.Extractor}.
    *
    * @return high watermark
-   * @deprectated use {@link #getActualHighWatermark}.
+   * @deprecated use {@link #getActualHighWatermark}.
    */
   @Deprecated
   public long getHighWaterMark() {

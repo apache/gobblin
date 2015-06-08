@@ -23,15 +23,6 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.WatermarkInterval;
-import gobblin.source.extractor.extract.EventBasedSource;
-import gobblin.source.workunit.Extract;
-import gobblin.source.workunit.MultiWorkUnit;
-import gobblin.source.workunit.WorkUnit;
-
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
@@ -42,6 +33,16 @@ import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.google.common.primitives.Longs;
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.SourceState;
+import gobblin.configuration.WorkUnitState;
+import gobblin.source.extractor.WatermarkInterval;
+import gobblin.source.extractor.extract.EventBasedSource;
+import gobblin.source.workunit.Extract;
+import gobblin.source.workunit.MultiWorkUnit;
+import gobblin.source.workunit.WorkUnit;
 
 
 /**
@@ -425,7 +426,13 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     this.previousOffsets.clear();
     for (WorkUnitState workUnitState : state.getPreviousWorkUnitStates()) {
       List<KafkaPartition> partitions = KafkaUtils.getPartitions(workUnitState);
-      MultiLongWatermark watermark = GSON.fromJson(workUnitState.getActualHighWatermark(), MultiLongWatermark.class);
+      JsonElement actualHighWatermark = workUnitState.getActualHighWatermark();
+      if (actualHighWatermark == null) {
+        LOG.warn(String
+            .format("Skip previous WorkUnitState %s as there is no actual high watermark set", workUnitState.getId()));
+        continue;
+      }
+      MultiLongWatermark watermark = GSON.fromJson(actualHighWatermark, MultiLongWatermark.class);
       Preconditions.checkArgument(partitions.size() == watermark.size(), String.format(
           "Num of partitions doesn't match number of watermarks: partitions=%s, watermarks=%s", partitions, watermark));
       for (int i = 0; i < partitions.size(); i++) {

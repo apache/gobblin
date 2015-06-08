@@ -242,13 +242,15 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
   @Override
   public void close() throws IOException {
-
-    // Commit high watermark
     for (int i = 0; i < this.partitions.size(); i++) {
       LOG.info(String.format("Last offset pulled for partition %s = %d", this.partitions.get(i),
           this.nextWatermark.get(i) - 1));
     }
-    this.workUnitState.setActualHighWatermark(this.nextWatermark);
+
+    // Commit the actual high watermark only if the WorkUnit has succeeded
+    if (this.workUnitState.getWorkingState() == WorkUnitState.WorkingState.SUCCESSFUL) {
+      this.workUnitState.setActualHighWatermark(this.nextWatermark);
+    }
 
     // Commit avg event size
     for (KafkaPartition partition : this.partitions) {

@@ -112,7 +112,6 @@ public class Task implements Runnable {
 
     Closer closer = Closer.create();
     try {
-      // Build the extractor for extracting source schema and data records
       Extractor extractor = closer.register(new InstrumentedExtractorDecorator(this.taskState,
           this.taskContext.getExtractor()));
 
@@ -124,6 +123,9 @@ public class Task implements Runnable {
       int branches = forkOperator.getBranches(this.taskState);
       // Set fork.branches explicitly here so the rest task flow can pick it up
       this.taskState.setProp(ConfigurationKeys.FORK_BRANCHES_KEY, branches);
+
+      // Backup the actual high watermark before starting the extraction
+      this.taskState.backUpActualHighWatermark();
 
       // Extract, convert, and fork the source schema.
       Object schema = converter.convertSchema(extractor.getSchema(), this.taskState);
