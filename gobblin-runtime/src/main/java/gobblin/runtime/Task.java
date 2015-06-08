@@ -124,9 +124,6 @@ public class Task implements Runnable {
       // Set fork.branches explicitly here so the rest task flow can pick it up
       this.taskState.setProp(ConfigurationKeys.FORK_BRANCHES_KEY, branches);
 
-      // Backup the actual high watermark before starting the extraction
-      this.taskState.backUpActualHighWatermark();
-
       // Extract, convert, and fork the source schema.
       Object schema = converter.convertSchema(extractor.getSchema(), this.taskState);
       List<Boolean> forkedSchemas = forkOperator.forkSchema(this.taskState, schema);

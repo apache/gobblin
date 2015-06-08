@@ -426,13 +426,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     this.previousOffsets.clear();
     for (WorkUnitState workUnitState : state.getPreviousWorkUnitStates()) {
       List<KafkaPartition> partitions = KafkaUtils.getPartitions(workUnitState);
-      JsonElement actualHighWatermark = workUnitState.getActualHighWatermark();
-      if (actualHighWatermark == null) {
-        LOG.warn(String
-            .format("Skip previous WorkUnitState %s as there is no actual high watermark set", workUnitState.getId()));
-        continue;
-      }
-      MultiLongWatermark watermark = GSON.fromJson(actualHighWatermark, MultiLongWatermark.class);
+      MultiLongWatermark watermark = GSON.fromJson(workUnitState.getActualHighWatermark(), MultiLongWatermark.class);
       Preconditions.checkArgument(partitions.size() == watermark.size(), String.format(
           "Num of partitions doesn't match number of watermarks: partitions=%s, watermarks=%s", partitions, watermark));
       for (int i = 0; i < partitions.size(); i++) {

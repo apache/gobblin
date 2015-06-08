@@ -572,7 +572,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
       }
 
       if (workUnit instanceof MultiWorkUnit) {
-        this.workUnits.addAll(((MultiWorkUnit) workUnit).getWorkUnits());
+        this.workUnits.addAll(JobLauncherUtils.flattenWorkUnits(((MultiWorkUnit) workUnit).getWorkUnits()));
       } else {
         this.workUnits.add(workUnit);
       }

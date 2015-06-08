@@ -532,9 +532,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    */
   private void persistJobState(JobState jobState) throws IOException {
     for (TaskState taskState : jobState.getTaskStates()) {
-      // Restore the previous actual high watermark for each task that has not been committed
+      // Backoff the actual high watermark to the low watermark for each task that has not been committed
       if (taskState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED) {
-        taskState.restoreActualHighWatermark();
+        taskState.backoffActualHighWatermark();
       }
     }
 
