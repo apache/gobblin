@@ -11,6 +11,7 @@
 
 package gobblin.metastore.util;
 
+import java.io.Closeable;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -28,11 +29,13 @@ import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.io.Closer;
 import com.google.common.io.Files;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.util.ExecutorsUtils;
 
 
 /**
@@ -41,7 +44,7 @@ import gobblin.configuration.ConfigurationKeys;
  *
  * @author ynli
  */
-public class StateStoreCleaner {
+public class StateStoreCleaner implements Closeable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(StateStoreCleaner.class);
 
@@ -69,8 +72,10 @@ public class StateStoreCleaner {
     this.retentionTimeUnit = TimeUnit.valueOf(properties.getProperty(STATE_STORE_CLEANER_RETENTION_TIMEUNIT_KEY,
         DEFAULT_STATE_STORE_CLEANER_RETENTION_TIMEUNIT).toUpperCase());
 
-    this.cleanerRunnerExecutor = Executors.newFixedThreadPool(Integer.parseInt(properties.getProperty(
-        STATE_STORE_CLEANER_EXECUTOR_THREADS_KEY, DEFAULT_STATE_STORE_CLEANER_EXECUTOR_THREADS)));
+    this.cleanerRunnerExecutor = Executors.newFixedThreadPool(
+        Integer.parseInt(properties.getProperty(
+            STATE_STORE_CLEANER_EXECUTOR_THREADS_KEY, DEFAULT_STATE_STORE_CLEANER_EXECUTOR_THREADS)),
+        ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("StateStoreCleaner")));
 
     URI fsUri = URI.create(properties.getProperty(
         ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
@@ -91,6 +96,11 @@ public class StateStoreCleaner {
       this.cleanerRunnerExecutor.submit(
           new CleanerRunner(this.fs, stateStoreDir.getPath(), this.retention, this.retentionTimeUnit));
     }
+  }
+
+  @Override
+  public void close() throws IOException {
+    this.cleanerRunnerExecutor.shutdownNow();
   }
 
   private static class StateStoreFileFilter implements PathFilter {
@@ -153,7 +163,7 @@ public class StateStoreCleaner {
     try {
       Properties properties = new Properties();
       properties.load(closer.register(new FileInputStream(args[0])));
-      new StateStoreCleaner(properties).run();
+      closer.register(new StateStoreCleaner(properties)).run();
     } catch (Throwable t) {
       throw closer.rethrow(t);
     } finally {
