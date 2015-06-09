@@ -498,6 +498,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     private TaskExecutor taskExecutor;
     private TaskStateTracker taskStateTracker;
     private ServiceManager serviceManager;
+    private Optional<JobMetrics> jobMetrics = Optional.absent();
 
     // A list of WorkUnits (flattened for MultiWorkUnits) to be run by this mapper
     private final List<WorkUnit> workUnits = Lists.newArrayList();
@@ -521,6 +522,26 @@ public class MRJobLauncher extends AbstractJobLauncher {
       } catch (TimeoutException te) {
         LOG.error("Timed out while waiting for the service manager to start up", te);
         throw new RuntimeException(te);
+      }
+
+      Configuration configuration = context.getConfiguration();
+
+      // Setup and start metrics reporting if metric reporting is enabled
+      if (Boolean.valueOf(
+          configuration.get(ConfigurationKeys.METRICS_ENABLED_KEY, ConfigurationKeys.DEFAULT_METRICS_ENABLED))) {
+        this.jobMetrics =
+            Optional.of(JobMetrics.get(null, configuration.get(ConfigurationKeys.JOB_ID_KEY)));
+        String metricFileSuffix = configuration.get(ConfigurationKeys.METRICS_FILE_SUFFIX,
+            ConfigurationKeys.DEFAULT_METRICS_FILE_SUFFIX);
+        // If running in MR mode, all mappers will try to write metrics to the same file, which will fail.
+        // Instead, append the taskAttemptId to each file name.
+        if(Strings.isNullOrEmpty(metricFileSuffix)) {
+          metricFileSuffix = context.getTaskAttemptID().getTaskID().toString();
+        } else {
+          metricFileSuffix += "." + context.getTaskAttemptID().getTaskID().toString();
+        }
+        configuration.set(ConfigurationKeys.METRICS_FILE_SUFFIX, metricFileSuffix);
+        this.jobMetrics.get().startMetricReporting(configuration);
       }
     }
 
@@ -569,6 +590,12 @@ public class MRJobLauncher extends AbstractJobLauncher {
         this.serviceManager.stopAsync().awaitStopped(5, TimeUnit.SECONDS);
       } catch (TimeoutException te) {
         // Ignored
+      } finally {
+        if (this.jobMetrics.isPresent()) {
+          this.jobMetrics.get().triggerMetricReporting();
+          this.jobMetrics.get().stopMetricReporting();
+          JobMetrics.remove(this.jobMetrics.get().getName());
+        }
       }
     }
 
@@ -584,23 +611,10 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
       String jobId = workUnits.get(0).getProp(ConfigurationKeys.JOB_ID_KEY);
 
-      // Setup and start metrics reporting
-      Properties metricReportingProperties = workUnits.get(0).getProperties();
-      JobMetrics jobMetrics = JobMetrics.get(null, jobId);
-      String metricFileSuffix = metricReportingProperties.getProperty(ConfigurationKeys.METRICS_FILE_SUFFIX,
-          ConfigurationKeys.DEFAULT_METRICS_FILE_SUFFIX);
-      // If running in MR mode, all mappers will try to write metrics to the same file, which will fail.
-      // Instead, append the taskAttemptId to each file name.
-      if(Strings.isNullOrEmpty(metricFileSuffix)) {
-        metricFileSuffix = context.getTaskAttemptID().getTaskID().toString();
-      } else {
-        metricFileSuffix += "." + context.getTaskAttemptID().getTaskID().toString();
-      }
-      metricReportingProperties.setProperty(ConfigurationKeys.METRICS_FILE_SUFFIX, metricFileSuffix);
-      jobMetrics.startMetricReporting(metricReportingProperties);
-
       for (WorkUnit workUnit : workUnits) {
-        workUnit.setProp(Instrumented.METRIC_CONTEXT_NAME_KEY, jobMetrics.getName());
+        if (this.jobMetrics.isPresent()) {
+          workUnit.setProp(Instrumented.METRIC_CONTEXT_NAME_KEY, this.jobMetrics.get().getName());
+        }
         String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
         // Delete the task state file for the task if it already exists.
         // This usually happens if the task is retried upon failure.

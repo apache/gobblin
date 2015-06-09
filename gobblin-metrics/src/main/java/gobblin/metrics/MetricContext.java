@@ -14,7 +14,6 @@ package gobblin.metrics;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
@@ -36,11 +35,12 @@ import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Lists;
-import com.google.common.collect.MapMaker;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
@@ -77,7 +77,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
   private final Optional<MetricContext> parent;
 
   // A map from child context names to child contexts
-  private final ConcurrentMap<String, MetricContext> children = new MapMaker().weakValues().makeMap();
+  private final Cache<String, MetricContext> children = CacheBuilder.newBuilder().softValues().build();
 
   // This is used to work on tags associated with this context
   private final Tagged tagged;
@@ -138,10 +138,11 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    *
    * @param childContext the child {@link MetricContext} to add
    */
-  public void addChildContext(String childContextName, MetricContext childContext) {
-    if (this.children.putIfAbsent(childContextName, childContext) != null) {
+  public synchronized void addChildContext(String childContextName, MetricContext childContext) {
+    if(this.children.getIfPresent(childContextName) != null) {
       throw new IllegalArgumentException("A child context named " + childContextName + " already exists");
     }
+    this.children.put(childContextName, childContext);
   }
 
   /**
@@ -149,7 +150,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    * @return Map of child contexts.
    */
   public Map<String, MetricContext> getChildContexts() {
-    return ImmutableMap.copyOf(this.children);
+    return ImmutableMap.copyOf(this.children.asMap());
   }
 
   /**
@@ -634,7 +635,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
 
   private boolean removeChildrenMetrics(String name) {
     boolean removed = true;
-    for (MetricContext child : this.children.values()) {
+    for (MetricContext child : this.children.asMap().values()) {
       if (!child.remove(name)) {
         removed = false;
       }

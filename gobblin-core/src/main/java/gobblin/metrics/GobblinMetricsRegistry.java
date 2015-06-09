@@ -12,9 +12,8 @@
 
 package gobblin.metrics;
 
-import java.util.concurrent.ConcurrentMap;
-
-import com.google.common.collect.MapMaker;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 
 
 /**
@@ -32,18 +31,18 @@ public class GobblinMetricsRegistry {
     return GLOBAL_INSTANCE;
   }
 
-  private final ConcurrentMap<String, GobblinMetrics> metricsMap = new MapMaker().weakValues().makeMap();
+  private final Cache<String, GobblinMetrics> metricsMap = CacheBuilder.newBuilder().softValues().build();
 
   public GobblinMetrics putIfAbsent(String id, GobblinMetrics gobblinMetrics) {
-    return this.metricsMap.putIfAbsent(id, gobblinMetrics);
+    return this.metricsMap.asMap().putIfAbsent(id, gobblinMetrics);
   }
 
   public boolean containsKey(String id) {
-    return this.metricsMap.containsKey(id);
+    return this.metricsMap.asMap().containsKey(id);
   }
 
   public GobblinMetrics get(String id) {
-    return this.metricsMap.get(id);
+    return this.metricsMap.getIfPresent(id);
   }
 
   /**
@@ -54,7 +53,7 @@ public class GobblinMetricsRegistry {
    *         instance for the given job is not found
    */
   public GobblinMetrics remove(String id) {
-    return this.metricsMap.remove(id);
+    return this.metricsMap.asMap().remove(id);
   }
 
 }
