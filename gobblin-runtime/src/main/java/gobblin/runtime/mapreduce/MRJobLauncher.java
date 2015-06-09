@@ -205,7 +205,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
       // Create a metrics set for this job run from the Hadoop counters.
       // The metrics set is to be persisted to the metrics store later.
-      countersToMetrics(this.job.getCounters(),
+      countersToMetrics(Optional.fromNullable(this.job.getCounters()),
           JobMetrics.get(jobName, this.jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY)));
     } finally {
       cleanUpWorkingDirectory();
@@ -465,17 +465,19 @@ public class MRJobLauncher extends AbstractJobLauncher {
   /**
    * Create a {@link gobblin.metrics.GobblinMetrics} instance for this job run from the Hadoop counters.
    */
-  private void countersToMetrics(Counters counters, GobblinMetrics metrics) {
-    // Write job-level counters
-    CounterGroup jobCounterGroup = counters.getGroup(MetricGroup.JOB.name());
-    for (Counter jobCounter : jobCounterGroup) {
-      metrics.getCounter(jobCounter.getName()).inc(jobCounter.getValue());
-    }
+  private void countersToMetrics(Optional<Counters> counters, GobblinMetrics metrics) {
+    if (counters.isPresent()) {
+      // Write job-level counters
+      CounterGroup jobCounterGroup = counters.get().getGroup(MetricGroup.JOB.name());
+      for (Counter jobCounter : jobCounterGroup) {
+        metrics.getCounter(jobCounter.getName()).inc(jobCounter.getValue());
+      }
 
-    // Write task-level counters
-    CounterGroup taskCounterGroup = counters.getGroup(MetricGroup.TASK.name());
-    for (Counter taskCounter : taskCounterGroup) {
-      metrics.getCounter(taskCounter.getName()).inc(taskCounter.getValue());
+      // Write task-level counters
+      CounterGroup taskCounterGroup = counters.get().getGroup(MetricGroup.TASK.name());
+      for (Counter taskCounter : taskCounterGroup) {
+        metrics.getCounter(taskCounter.getName()).inc(taskCounter.getValue());
+      }
     }
   }
 
