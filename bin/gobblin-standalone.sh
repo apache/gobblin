@@ -10,6 +10,7 @@ function print_usage(){
   echo "  --workdir <job work dir>                       Gobblin's base work directory: if not set, taken from \${GOBBLIN_WORK_DIR}"
   echo "  --jars <comma-separated list of job jars>      Job jar(s): if not set, "$FWDIR_LIB" is examined"
   echo "  --conf <directory of job configuration files>  Directory of job configuration files: if not set, taken from ${GOBBLIN_JOB_CONFIG_DIR}"
+  echo "  --logdir <directory of log files>              Directory of log files: if not set, "$FWDIR_LIB/logs" is used"
   echo "  --help                                         Display this help and exit"
 }
 
@@ -36,6 +37,10 @@ do
       ;;
     --conf)
       JOB_CONFIG_DIR="$2"
+      shift
+      ;;
+    --logdir)
+      LOG_DIR="$2"
       shift
       ;;
     --help)
@@ -75,6 +80,10 @@ if [ -z "$GOBBLIN_WORK_DIR" ] && [ "$check" == true ]; then
   die "GOBBLIN_WORK_DIR is not set!"
 fi
 
+if [ -z "$LOG_DIR" ]; then
+  LOG_DIR="$FWDIR/logs"
+fi
+
 . $FWDIR_CONF/gobblin-env.sh
 
 CONFIG_FILE=$FWDIR_CONF/gobblin-standalone.properties
@@ -87,8 +96,8 @@ else
   PID_VALUE=""
 fi
 
-if [ ! -d "$FWDIR/logs" ]; then
-  mkdir "$FWDIR/logs"
+if [ ! -d "$LOG_DIR" ]; then
+  mkdir "$LOG_DIR"
 fi
 
 set_user_jars(){
@@ -130,9 +139,9 @@ start() {
   COMMAND+="-XX:+UseConcMarkSweepGC -XX:+UseParNewGC "
   COMMAND+="-XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintTenuringDistribution "
   COMMAND+="-XX:+UseCompressedOops "
-  COMMAND+="-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$FWDIR/logs/ "
-  COMMAND+="-Xloggc:$FWDIR/logs/gobblin-gc.log "
-  COMMAND+="-Dgobblin.logs.dir=$FWDIR/logs "
+  COMMAND+="-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$LOG_DIR/ "
+  COMMAND+="-Xloggc:$LOG_DIR/gobblin-gc.log "
+  COMMAND+="-Dgobblin.logs.dir=$LOG_DIR "
   COMMAND+="-Dlog4j.configuration=file://$FWDIR_CONF/log4j-standalone.xml "
   COMMAND+="-cp $CLASSPATH "
   COMMAND+="-Dorg.quartz.properties=$FWDIR_CONF/quartz.properties "
