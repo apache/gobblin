@@ -38,11 +38,11 @@ import java.util.List;
  *
  * @author ahollenbach@nerdwallet.com
  */
-public class S3Source extends AbstractSource<String, byte[]> {
+public class S3Source extends AbstractSource<Class<String>, String> {
 
   private static final Logger LOG = LoggerFactory.getLogger(S3Source.class);
 
-  public static final String TOPIC_NAME = "topic.name";
+  public static final String TABLE_NAME = "table.name";
   public static final Extract.TableType DEFAULT_TABLE_TYPE = Extract.TableType.APPEND_ONLY;
   public static final String DEFAULT_NAMESPACE_NAME = "KAFKA";
 
@@ -91,7 +91,7 @@ public class S3Source extends AbstractSource<String, byte[]> {
     SourceState partitionState = new SourceState();
     partitionState.addAll(state);
     partitionState.setProp("OBJECT_KEY", objectKey);
-    Extract extract = partitionState.createExtract(DEFAULT_TABLE_TYPE, DEFAULT_NAMESPACE_NAME, TOPIC_NAME);
+    Extract extract = partitionState.createExtract(DEFAULT_TABLE_TYPE, DEFAULT_NAMESPACE_NAME, TABLE_NAME);
     return partitionState.createWorkUnit(extract);
   }
 
@@ -107,7 +107,7 @@ public class S3Source extends AbstractSource<String, byte[]> {
    * @throws IOException if it fails to create an {@link Extractor}
    */
   @Override
-  public Extractor<String, byte[]> getExtractor(WorkUnitState state) throws IOException {
+  public Extractor<Class<String>, String> getExtractor(WorkUnitState state) throws IOException {
     return new S3TextFileExtractor(state);
   }
 

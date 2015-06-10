@@ -31,7 +31,7 @@ import java.io.*;
  *
  * @author ahollenbach@nerdwallet.com
  */
-public class S3TextFileExtractor implements Extractor<String,byte[]> {
+public class S3TextFileExtractor implements Extractor<Class<String>, String> {
 
   private static final Logger LOG = LoggerFactory.getLogger(S3TextFileExtractor.class);
 
@@ -50,21 +50,20 @@ public class S3TextFileExtractor implements Extractor<String,byte[]> {
   }
 
   @Override
-  public String getSchema() throws IOException {
-    return "BAD";
+  public Class<String> getSchema() throws IOException {
+    return String.class;
   }
 
   @Override
-  public byte[] readRecord(@Deprecated byte[] reuse) throws DataRecordException, IOException {
+  public String readRecord(@Deprecated String reuse) throws DataRecordException, IOException {
     LOG.info("Reading record");
     // returns next line, or null if done
-    // TODO might be slow converting back and forth?
     String line = reader.readLine();
     if (line == null) {
       return null;
     }
     LOG.info(line);
-    return line.getBytes();
+    return line;
   }
 
   @Override
