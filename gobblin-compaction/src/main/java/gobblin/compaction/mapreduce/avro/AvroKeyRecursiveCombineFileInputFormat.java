@@ -115,7 +115,7 @@ public class AvroKeyRecursiveCombineFileInputFormat
 
   /**
    * Set the number of locations in the split to SPLIT_MAX_NUM_LOCATIONS if it is larger than
-   * SPLIT_MAX_NUM_LOCATIONS (for improving locality).
+   * SPLIT_MAX_NUM_LOCATIONS (MAPREDUCE-5186).
    */
   private List<InputSplit> cleanSplits(List<InputSplit> splits) throws IOException {
     List<InputSplit> cleanedSplits = Lists.newArrayList();

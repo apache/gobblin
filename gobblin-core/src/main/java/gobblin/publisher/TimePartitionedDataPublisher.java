@@ -11,7 +11,6 @@
 
 package gobblin.publisher;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import org.apache.hadoop.fs.FileStatus;
@@ -49,7 +48,7 @@ public class TimePartitionedDataPublisher extends BaseDataPublisher {
    */
   @Override
   protected void addWriterOutputToExistingDir(Path writerOutput, Path publisherOutput, WorkUnitState workUnitState,
-      int branchId) throws FileNotFoundException, IOException {
+      int branchId) throws IOException {
 
     for (FileStatus status : HadoopUtils.listStatusRecursive(this.fss.get(branchId), writerOutput)) {
       String filePathStr = status.getPath().toString();

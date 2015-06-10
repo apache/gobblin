@@ -51,12 +51,12 @@ import org.slf4j.LoggerFactory;
  *
  * @author ziliu
  */
-public class MRCompactorAvroKeyJobRunner extends MRCompactorJobRunner {
+public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MRCompactorAvroKeyJobRunner.class);
+  private static final Logger LOG = LoggerFactory.getLogger(MRCompactorAvroKeyDedupJobRunner.class);
   private static final String AVRO = "avro";
 
-  public MRCompactorAvroKeyJobRunner(State jobProps, FileSystem fs) {
+  public MRCompactorAvroKeyDedupJobRunner(State jobProps, FileSystem fs) {
     super(jobProps, fs);
   }
 
