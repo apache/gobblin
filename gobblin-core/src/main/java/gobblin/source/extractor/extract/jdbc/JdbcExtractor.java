@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -919,7 +920,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     try {
       final ResultSetMetaData resultsetMetadata = resultset.getMetaData();
       final int columnCount = resultsetMetadata.getColumnCount();
-      
+
       int batchSize = this.workUnit.getPropAsInt(ConfigurationKeys.SOURCE_QUERYBASED_FETCH_SIZE, 0);
       batchSize = (batchSize == 0 ? ConfigurationKeys.DEFAULT_SOURCE_FETCH_SIZE : batchSize);
 
@@ -932,7 +933,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
           /*
            * For Blob data, need to get the bytes and use base64 encoding to encode the byte[]
            * When reading from the String, need to use base64 decoder
-           *     String tmp = ... ( get the String value )   
+           *     String tmp = ... ( get the String value )
            *     byte[] foo = Base64.decodeBase64(tmp);
            */
           if (blobDataNames.contains(resultsetMetadata.getColumnName(i))){
@@ -964,7 +965,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       throw new DataRecordException("Failed to get records from MySql; error - " + e.getMessage(), e);
     }
   }
-  
+
   private Set<String> getBlobTypeColumnNames(ResultSetMetaData resultsetMetadata) throws SQLException{
     Set<String> result = new HashSet<String>();
     int columnCount = resultsetMetadata.getColumnCount();
