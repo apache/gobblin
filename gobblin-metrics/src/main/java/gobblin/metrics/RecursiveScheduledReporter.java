@@ -67,7 +67,7 @@ public abstract class RecursiveScheduledReporter extends ScheduledReporter {
         registry.getMeters(), registry.getTimers(), tags);
 
     if (registry instanceof MetricContext) {
-      for (MetricContext context : ((MetricContext) registry).getChildContexts().values()) {
+      for (MetricContext context : ((MetricContext) registry).getChildContextsAsMap().values()) {
         report(context);
       }
     }

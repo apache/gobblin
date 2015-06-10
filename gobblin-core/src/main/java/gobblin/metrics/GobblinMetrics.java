@@ -295,7 +295,7 @@ public class GobblinMetrics {
     }
 
     for (ScheduledReporter reporter : this.scheduledReporters) {
-      reporter.stop();
+      reporter.close();
     }
 
     try {

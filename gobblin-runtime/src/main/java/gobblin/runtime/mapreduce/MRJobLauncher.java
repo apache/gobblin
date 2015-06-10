@@ -594,7 +594,12 @@ public class MRJobLauncher extends AbstractJobLauncher {
         // Ignored
       } finally {
         if (this.jobMetrics.isPresent()) {
-          this.jobMetrics.get().stopMetricReporting();
+          try {
+            this.jobMetrics.get().triggerMetricReporting();
+            this.jobMetrics.get().stopMetricReporting();
+          } finally {
+            JobMetrics.remove(this.jobMetrics.get().getName());
+          }
         }
       }
     }
