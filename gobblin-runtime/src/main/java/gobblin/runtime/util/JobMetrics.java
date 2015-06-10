@@ -87,6 +87,7 @@ public class JobMetrics extends GobblinMetrics {
     List<Tag<?>> tags = Lists.newArrayList();
     tags.add(new Tag<String>("jobName", jobState.getJobName() == null ? "" : jobState.getJobName()));
     tags.add(new Tag<String>("jobId", jobState.getJobId()));
+    tags.addAll(getCustomTagsFromState(jobState));
     return tags;
   }
 }

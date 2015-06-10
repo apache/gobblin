@@ -506,7 +506,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     SourceState partitionsState = new SourceState();
     partitionsState.addAll(state);
     partitionsState.setProp(TOPIC_NAME, partitions.get(0).getTopicName());
-    GobblinMetrics.addTagToState(partitionsState, new Tag<String>("kafka_topic", partitions.get(0).getTopicName()));
+    GobblinMetrics.addCustomTagToState(partitionsState,
+        new Tag<String>("kafkaTopic", partitions.get(0).getTopicName()));
     partitionsState.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, partitions.get(0).getTopicName());
     for (int i = 0; i < partitions.size(); i++) {
       partitionsState.setProp(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, i), partitions.get(i).getId());
