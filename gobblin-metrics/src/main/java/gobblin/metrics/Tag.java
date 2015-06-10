@@ -12,7 +12,10 @@
 package gobblin.metrics;
 
 import java.util.AbstractMap;
+import java.util.List;
 import java.util.Map;
+
+import com.google.common.base.Splitter;
 
 
 /**
@@ -24,6 +27,17 @@ import java.util.Map;
  */
 public class Tag<T> extends AbstractMap.SimpleEntry<String, T> {
 
+  private static final Character KEY_VALUE_SEPARATOR = ':';
+
+  public static Tag<String> fromString(String tagKeyValue) {
+    List<String> splitKeyValue = Splitter.on(KEY_VALUE_SEPARATOR).splitToList(tagKeyValue);
+    if(splitKeyValue.size() >= 2) {
+      return new Tag<String>(splitKeyValue.get(0), splitKeyValue.get(1));
+    } else {
+      return null;
+    }
+  }
+
   public Tag(String key, T value) {
     super(key, value);
   }
@@ -34,6 +48,6 @@ public class Tag<T> extends AbstractMap.SimpleEntry<String, T> {
 
   @Override
   public String toString() {
-    return getKey() + ":" + getValue();
+    return getKey() + KEY_VALUE_SEPARATOR + getValue();
   }
 }

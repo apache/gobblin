@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.SortedSet;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
@@ -63,6 +64,8 @@ import com.google.common.io.Closer;
  */
 public class MetricContext extends MetricRegistry implements Taggable, Closeable {
 
+  public static final String METRIC_CONTEXT_ID_TAG_NAME = "metricContextID";
+
   // Name of this context
   private final String name;
 
@@ -99,6 +102,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
     this.name = name;
     this.parent = Optional.fromNullable(parent);
     this.tagged = new Tagged(tags);
+    this.tagged.addTag(new Tag<String>(METRIC_CONTEXT_ID_TAG_NAME, UUID.randomUUID().toString()));
     this.reportFullyQualifiedNames = reportFullyQualifiedNames;
     this.includeTagKeys = includeTagKeys;
 

@@ -21,8 +21,12 @@ import java.util.Set;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSortedSet;
+import com.google.common.collect.Lists;
+import com.google.common.escape.Escaper;
+import com.google.common.escape.Escapers;
 
 
 /**
@@ -95,6 +99,19 @@ public class State implements Writable {
    */
   public void setProp(String key, Object value) {
     properties.put(key, value.toString());
+  }
+
+  /**
+   * Appends the input value to a list property that can be retrieved with {@link #getPropAsList}.
+   * @param key property key
+   * @param value property value (should not include commas, which are used as separators)
+   */
+  public void appendToListProp(String key, String value) {
+    if(contains(key)) {
+      setProp(key, Joiner.on(",").join(getProp(key), value));
+    } else {
+      setProp(key, value);
+    }
   }
 
   /**

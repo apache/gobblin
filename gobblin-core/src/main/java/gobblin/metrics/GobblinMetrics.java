@@ -54,6 +54,17 @@ import gobblin.metrics.kafka.KafkaReportingFormats;
  */
 public class GobblinMetrics {
 
+  public static final String METRIC_TASK_TAGS = "metrics.task.state.tags";
+
+  /**
+   * Add a {@link Tag} to a {@link gobblin.configuration.State}. This tag will be added
+   * @param state {@link gobblin.configuration.State} state to add the tag to.
+   * @param tag {@link Tag} to add.
+   */
+  public static void addTagToState(State state, Tag<?> tag) {
+    state.appendToListProp(METRIC_TASK_TAGS, tag.toString());
+  }
+
   /**
    * Enumeration of metric types.
    */
