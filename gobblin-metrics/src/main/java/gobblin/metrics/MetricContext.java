@@ -142,7 +142,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    *
    * @param childContext the child {@link MetricContext} to add
    */
-  public synchronized void addChildContext(String childContextName, MetricContext childContext) {
+  public void addChildContext(String childContextName, MetricContext childContext) {
     if(this.children.asMap().putIfAbsent(childContextName, childContext) != null) {
       throw new IllegalArgumentException("A child context named " + childContextName + " already exists");
     }
