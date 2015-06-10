@@ -1,4 +1,6 @@
-/* (c) 2015 LinkedIn Corp. All rights reserved.
+/*
+ *
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -114,7 +116,7 @@ public class MRCompactorJobPropCreator {
   /**
    * Create MR job properties for a specific input folder and output folder.
    * @return an Optional&lt;State&gt; object. If the input folder should not
-   * be processed (e.g., jobInputDir already exists, and force reprocess is 
+   * be processed (e.g., jobInputDir already exists, and force reprocess is
    * set to false), the returned object should be absent.
    */
   protected Optional<State> createJobProps(Path jobInputDir, Path jobOutputDir, Path jobTmpDir) throws IOException {
