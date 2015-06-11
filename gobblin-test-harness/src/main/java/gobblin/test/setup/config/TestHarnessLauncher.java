@@ -12,8 +12,7 @@
 
 package gobblin.test.setup.config;
 
-import java.io.File;
-
+import java.util.Properties;
 
 /**
  * An interface for parsing the config data for test harness.
@@ -28,9 +27,10 @@ public interface TestHarnessLauncher extends ConfigStepsGenerator {
   /**
    *  This method will parse the config based on the input provided
    *
+   * @param properties The configuration properties
    */
 
-  public void parseConfigEntry(File f);
+  public void configure(Properties properties);
 
   /**
    *  This method will validate the config implementer, this allows to customize the config validation
