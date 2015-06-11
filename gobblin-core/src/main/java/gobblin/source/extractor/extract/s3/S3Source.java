@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -34,7 +35,7 @@ import java.util.List;
  *
  * @author ahollenbach@nerdwallet.com
  */
-public class S3Source extends AbstractSource<Class<String>, String> {
+public class S3Source extends AbstractSource<Class<String>, ArrayList<String>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(S3Source.class);
 
@@ -103,7 +104,7 @@ public class S3Source extends AbstractSource<Class<String>, String> {
    * @throws IOException if it fails to create an {@link Extractor}
    */
   @Override
-  public Extractor<Class<String>, String> getExtractor(WorkUnitState state) throws IOException {
+  public Extractor<Class<String>, ArrayList<String>> getExtractor(WorkUnitState state) throws IOException {
     return new S3CSVExtractor(state);
   }
 
