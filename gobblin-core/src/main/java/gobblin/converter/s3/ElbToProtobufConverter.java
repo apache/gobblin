@@ -10,6 +10,7 @@
  */
 package gobblin.converter.s3;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
@@ -20,6 +21,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author ahollenbach@nerdwallet.com
@@ -28,6 +31,17 @@ public class ElbToProtobufConverter extends Converter<Class<String>, Class<LogFi
 
   private static final Logger LOG = LoggerFactory.getLogger(ElbToProtobufConverter.class);
 
+  /**
+   * Maps strings (fed in through job file) to Protobuf Environment enum, which then maps to ints
+   */
+  public static final Map<String, LogFileProtobuf.Environment> environmentMap
+          = new HashMap<String, LogFileProtobuf.Environment>() {
+            {
+              put("dev",LogFileProtobuf.Environment.DEV);
+              put("stage",LogFileProtobuf.Environment.STAGE);
+              put("prod",LogFileProtobuf.Environment.PROD);
+            }
+  };
 
   @Override
   public Class<LogFile> convertSchema(Class<String> inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
@@ -36,8 +50,17 @@ public class ElbToProtobufConverter extends Converter<Class<String>, Class<LogFi
 
   @Override
   public Iterable<LogFile> convertRecord(Class<LogFile> outputSchema, ArrayList<String> inputRecord, WorkUnitState workUnit) throws DataConversionException {
+    String envStr = workUnit.getProp(ConfigurationKeys.S3_ENVIRONMENT);
+    if (!environmentMap.containsKey(workUnit.getProp(ConfigurationKeys.S3_ENVIRONMENT))) {
+      LOG.warn("aws.s3.environment variable not set in job file.");
+
+      envStr = workUnit.getProp(ConfigurationKeys.S3_DEFAULT_ENVIRONMENT);
+      LOG.info("Using default: " + envStr);
+    }
+
     // TODO comment this mess
     LogFile logFile = LogFile.newBuilder()
+            .setEnvironment(environmentMap.get(envStr))
             .setDate(inputRecord.get(0))                        // TODO parse datetime
             .setTime(inputRecord.get(0))                        // TODO parse datetime
             .setName(inputRecord.get(1))

@@ -430,5 +430,7 @@ public class ConfigurationKeys {
   public static final String S3_SOURCE_PATH = "aws.s3.source.path";
   public static final String S3_BUCKET = "aws.s3.bucket";
   public static final String S3_PATH = "aws.s3.path";
+  public static final String S3_ENVIRONMENT = "aws.s3.environment";
+  public static final String S3_DEFAULT_ENVIRONMENT = "dev";
   public static final String S3_PARTITIONS = "aws.s3.partitions";
 }

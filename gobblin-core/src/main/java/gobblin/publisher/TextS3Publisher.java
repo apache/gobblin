@@ -41,6 +41,7 @@ public class TextS3Publisher extends BaseS3Publisher {
       ArrayList<String> fileNames = new ArrayList<String>();
       String s = "";
       for(int i=0; i<this.numBranches; i++) {
+        // TODO remove Path
         Path writerFile = new Path(state.getProp(ForkOperatorUtils.getPropertyNameForBranch(
                 ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, i)));
         fileNames.add(writerFile.toString());
