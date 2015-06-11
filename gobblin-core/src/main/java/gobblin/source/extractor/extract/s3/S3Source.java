@@ -10,16 +10,12 @@
  */
 package gobblin.source.extractor.extract.s3;
 
-import com.amazonaws.ClientConfiguration;
-import com.amazonaws.auth.AWSCredentials;
-import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.ListObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.common.collect.Lists;
-import com.sun.corba.se.spi.ior.ObjectKey;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
@@ -108,7 +104,7 @@ public class S3Source extends AbstractSource<Class<String>, String> {
    */
   @Override
   public Extractor<Class<String>, String> getExtractor(WorkUnitState state) throws IOException {
-    return new S3TextFileExtractor(state);
+    return new S3CSVExtractor(state);
   }
 
   @Override

@@ -11,11 +11,9 @@
 
 package gobblin.source.extractor.extract.s3;
 
-import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.DataRecordException;
@@ -23,10 +21,8 @@ import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.utils.InputStreamCSVReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.security.krb5.Config;
 
 import java.io.*;
-import java.nio.Buffer;
 import java.util.ArrayList;
 
 /**
@@ -35,16 +31,16 @@ import java.util.ArrayList;
  *
  * @author ahollenbach@nerdwallet.com
  */
-public class S3TextFileExtractor implements Extractor<Class<String>, ArrayList<String>> {
+public class S3CSVExtractor implements Extractor<Class<String>, ArrayList<String>> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(S3TextFileExtractor.class);
+  private static final Logger LOG = LoggerFactory.getLogger(S3CSVExtractor.class);
 
   protected final WorkUnitState workUnitState;
 
   protected BufferedReader br;
   protected InputStreamCSVReader csvReader;
 
-  public S3TextFileExtractor(WorkUnitState state) {
+  public S3CSVExtractor(WorkUnitState state) {
     this.workUnitState = state;
 
     AmazonS3 s3Client = new AmazonS3Client();
