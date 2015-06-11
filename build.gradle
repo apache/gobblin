@@ -119,7 +119,8 @@ ext.externalDependency = [
     "r2" : "com.linkedin.pegasus:r2:"+pegasusVersion,
     "d2" : "com.linkedin.pegasus:d2:"+pegasusVersion,
     "restliNettyStandalone" : "com.linkedin.pegasus:restli-netty-standalone:"+pegasusVersion
-  ]
+  ],
+  "protobuf" : "com.google.protobuf:protobuf-java:2.6.1"
 ];
 
 if (!isDefaultEnvironment)

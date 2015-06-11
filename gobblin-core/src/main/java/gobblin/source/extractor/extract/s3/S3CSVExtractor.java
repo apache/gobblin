@@ -60,7 +60,7 @@ public class S3CSVExtractor implements Extractor<Class<String>, ArrayList<String
   @Override
   public ArrayList<String> readRecord(@Deprecated ArrayList<String> reuse) throws DataRecordException, IOException {
     ArrayList<String> record = csvReader.nextRecord();
-    LOG.info(record.toString());
+    //LOG.info(record.toString());
     return record;
   }
 

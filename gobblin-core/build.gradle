@@ -38,6 +38,7 @@ dependencies {
   compile externalDependency.aws
   compile externalDependency.s3
   compile externalDependency.findBugs
+  compile externalDependency.protobuf
   if (project.hasProperty('useHadoop2')) {
     compile externalDependency.avroMapredH2
   } else {
