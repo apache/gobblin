@@ -20,6 +20,7 @@ package gobblin.writer;
 public enum WriterOutputFormat {
   AVRO("avro"),
   PARQUET("parquet"),
+  PROTOBUF("protobuf"),
   CSV("csv");
 
   /**
