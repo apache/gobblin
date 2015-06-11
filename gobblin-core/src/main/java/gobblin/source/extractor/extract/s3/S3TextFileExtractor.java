@@ -20,24 +20,29 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
+import gobblin.source.extractor.utils.InputStreamCSVReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.security.krb5.Config;
 
 import java.io.*;
+import java.nio.Buffer;
+import java.util.ArrayList;
 
 /**
- * An extractor for an S3 source
+ * An extractor for an S3 source. Grabs each line from a source and returns the
+ * line parsed as a CSV (using the delimiter set in {@link ConfigurationKeys#CONVERTER_STRING_SPLITTER_DELIMITER}.
  *
  * @author ahollenbach@nerdwallet.com
  */
-public class S3TextFileExtractor implements Extractor<Class<String>, String> {
+public class S3TextFileExtractor implements Extractor<Class<String>, ArrayList<String>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(S3TextFileExtractor.class);
 
   protected final WorkUnitState workUnitState;
 
-  protected BufferedReader reader;
+  protected BufferedReader br;
+  protected InputStreamCSVReader csvReader;
 
   public S3TextFileExtractor(WorkUnitState state) {
     this.workUnitState = state;
@@ -46,7 +51,9 @@ public class S3TextFileExtractor implements Extractor<Class<String>, String> {
 
     // Fetch our object from S3 and build an input stream to read from for each record
     S3Object obj = s3Client.getObject(state.getProp(ConfigurationKeys.S3_SOURCE_BUCKET), state.getProp("OBJECT_KEY"));
-    reader = new BufferedReader(new InputStreamReader(obj.getObjectContent()));
+    br = new BufferedReader(new InputStreamReader(obj.getObjectContent()));
+
+    csvReader = new InputStreamCSVReader(br, state.getProp(ConfigurationKeys.CONVERTER_STRING_SPLITTER_DELIMITER).charAt(0));
   }
 
   @Override
@@ -55,15 +62,10 @@ public class S3TextFileExtractor implements Extractor<Class<String>, String> {
   }
 
   @Override
-  public String readRecord(@Deprecated String reuse) throws DataRecordException, IOException {
-    LOG.info("Reading record");
-    // returns next line, or null if done
-    String line = reader.readLine();
-    if (line == null) {
-      return null;
-    }
-    LOG.info(line);
-    return line;
+  public ArrayList<String> readRecord(@Deprecated ArrayList<String> reuse) throws DataRecordException, IOException {
+    ArrayList<String> record = csvReader.nextRecord();
+    LOG.info(record.toString());
+    return record;
   }
 
   @Override
@@ -78,6 +80,6 @@ public class S3TextFileExtractor implements Extractor<Class<String>, String> {
 
   @Override
   public void close() throws IOException {
-    reader.close();
+    br.close();
   }
 }
