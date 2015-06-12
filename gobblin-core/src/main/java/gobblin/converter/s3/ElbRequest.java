@@ -18,10 +18,10 @@ import java.util.ArrayList;
 /**
  * @author ahollenbach@nerdwallet.com
  */
-public class ElbRequest extends Request {
-  public ElbRequest() {}
+public class ELBRequest extends Request {
+  public ELBRequest() {}
 
-  public ElbRequest(String requestString) {
+  public ELBRequest(String requestString) {
     parseRequestString(requestString);
   }
 

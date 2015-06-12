@@ -10,17 +10,16 @@
  */
 package gobblin.converter.s3;
 
-import org.apache.commons.lang.ObjectUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 /**
- * Tests for {@link ElbRequest}
+ * Tests for {@link ELBRequest}
  *
  * @author ahollenbach@nerdwallet.com
  */
 @Test(groups = {"gobblin.converter.s3"})
-public class ElbRequestTest {
+public class ELBRequestTest {
 
   /**
    * A simple use case test.
@@ -28,7 +27,7 @@ public class ElbRequestTest {
   @Test
   public void testParseRequestStringSimple() {
     String requestString = "POST http://example.url.com:80/example/path HTTP/1.1";
-    ElbRequest request = new ElbRequest(requestString);
+    ELBRequest request = new ELBRequest(requestString);
 
     Assert.assertEquals(request.method, "POST");
     Assert.assertEquals(request.protocol, "http");
@@ -44,7 +43,7 @@ public class ElbRequestTest {
   @Test
   public void testParseRequestStringFile() {
     String requestString = "POST http://example.url.com:80/example/path.html HTTP/1.1";
-    ElbRequest request = new ElbRequest(requestString);
+    ELBRequest request = new ELBRequest(requestString);
 
     Assert.assertEquals(request.method, "POST");
     Assert.assertEquals(request.protocol, "http");
@@ -60,7 +59,7 @@ public class ElbRequestTest {
   @Test
   public void testParseRequestStringTcpIn() {
     String requestString = "- - -";
-    ElbRequest request = new ElbRequest(requestString);
+    ELBRequest request = new ELBRequest(requestString);
 
     Assert.assertEquals(request.method, "");
     Assert.assertEquals(request.protocol, "");
@@ -76,7 +75,7 @@ public class ElbRequestTest {
   @Test
   public void testParseRequestStringEmpty() {
     String requestString = "";
-    ElbRequest request = new ElbRequest(requestString);
+    ELBRequest request = new ELBRequest(requestString);
 
     Assert.assertEquals(request.method, "");
     Assert.assertEquals(request.protocol, "");
@@ -92,7 +91,7 @@ public class ElbRequestTest {
   @Test
   public void testParseRequestStringNull() {
     String requestString = null;
-    ElbRequest request = new ElbRequest(requestString);
+    ELBRequest request = new ELBRequest(requestString);
 
     Assert.assertEquals(request.method, "");
     Assert.assertEquals(request.protocol, "");

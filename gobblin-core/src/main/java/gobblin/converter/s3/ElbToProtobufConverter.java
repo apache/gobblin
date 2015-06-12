@@ -10,7 +10,6 @@
  */
 package gobblin.converter.s3;
 
-import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
@@ -27,9 +26,9 @@ import java.util.*;
 /**
  * @author ahollenbach@nerdwallet.com
  */
-public class ElbToProtobufConverter extends Converter<Class<String>, Class<LogFile>, ArrayList<String>, LogFile> {
+public class ELBToProtobufConverter extends Converter<Class<String>, Class<LogFile>, ArrayList<String>, LogFile> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(ElbToProtobufConverter.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ELBToProtobufConverter.class);
 
   protected static final String ISO8601_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.";
   protected static final String LOG_DATE_FORMAT = "yyyy-MM-dd";
@@ -48,7 +47,7 @@ public class ElbToProtobufConverter extends Converter<Class<String>, Class<LogFi
       throw new DataConversionException("Failed to parse date. Use the format: " + ISO8601_DATE_FORMAT);
     }
 
-    Request request = new ElbRequest(inputRecord.get(11));
+    Request request = new ELBRequest(inputRecord.get(11));
 
     // TODO comment this mess
     LogFile logFile = LogFile.newBuilder()

@@ -16,22 +16,22 @@ import org.testng.annotations.Test;
 import java.text.SimpleDateFormat;
 
 /**
- * Tests for {@link ElbToProtobufConverter}
+ * Tests for {@link ELBToProtobufConverter}
  *
  * @author ahollenbach@nerdwallet.com
  */
 @Test(groups = {"gobblin.converter.s3"})
-public class ElbToProtobufConverterTest {
+public class ELBToProtobufConverterTest {
 
   /**
    * A simple use case test.
    */
   @Test
   public void testParseRequestStringSimple() {
-    SimpleDateFormat df = new SimpleDateFormat(ElbToProtobufConverter.ISO8601_DATE_FORMAT);
+    SimpleDateFormat df = new SimpleDateFormat(ELBToProtobufConverter.ISO8601_DATE_FORMAT);
 
-    Assert.assertNotEquals(ElbToProtobufConverter.parseDate("2015-06-08T21:54:25.889826Z", df), null);
-    Assert.assertNotEquals(ElbToProtobufConverter.parseDate("2015-06-10T13:55:44.504862Z", df), null);
-    Assert.assertNotEquals(ElbToProtobufConverter.parseDate("2015-10-08T01:08:04.997527Z", df), null);
+    Assert.assertNotEquals(ELBToProtobufConverter.parseDate("2015-06-08T21:54:25.889826Z", df), null);
+    Assert.assertNotEquals(ELBToProtobufConverter.parseDate("2015-06-10T13:55:44.504862Z", df), null);
+    Assert.assertNotEquals(ELBToProtobufConverter.parseDate("2015-10-08T01:08:04.997527Z", df), null);
   }
 }
