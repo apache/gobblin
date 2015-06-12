@@ -479,4 +479,5 @@ public class ConfigurationKeys {
    * Other configuration properties.
    */
   public static final Charset DEFAULT_CHARSET_ENCODING = Charsets.UTF_8;
+  public static final String TEST_HARNESS_LAUNCHER_IMPL = "gobblin.testharness.launcher.impl";
 }
