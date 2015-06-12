@@ -49,7 +49,7 @@ public class S3CSVExtractor implements Extractor<Class<String>, ArrayList<String
     S3Object obj = s3Client.getObject(state.getProp(ConfigurationKeys.S3_SOURCE_BUCKET), state.getProp("OBJECT_KEY"));
     br = new BufferedReader(new InputStreamReader(obj.getObjectContent()));
 
-    csvReader = new InputStreamCSVReader(br, state.getProp(ConfigurationKeys.CONVERTER_STRING_SPLITTER_DELIMITER).charAt(0));
+    csvReader = new InputStreamCSVReader(br, state.getProp(ConfigurationKeys.CONVERTER_CSV_DELIMETER).charAt(0));
   }
 
   @Override
