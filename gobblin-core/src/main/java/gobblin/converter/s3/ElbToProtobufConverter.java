@@ -20,9 +20,9 @@ import gobblin.converter.s3.LogFileProtobuf.LogFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 /**
  * @author ahollenbach@nerdwallet.com
@@ -31,15 +31,23 @@ public class ElbToProtobufConverter extends Converter<Class<String>, Class<LogFi
 
   private static final Logger LOG = LoggerFactory.getLogger(ElbToProtobufConverter.class);
 
+  private static final SimpleDateFormat ISO8601_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.");
+  private static final SimpleDateFormat LOG_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
+  private static final SimpleDateFormat LOG_TIME_FORMAT = new SimpleDateFormat("HH:mm:ss");
+
+  private static final String DEV_STR = "dev";
+  private static final String STAGE_STR = "stage";
+  private static final String PROD_STR = "prod";
+
   /**
    * Maps strings (fed in through job file) to Protobuf Environment enum, which then maps to ints
    */
   public static final Map<String, LogFileProtobuf.Environment> environmentMap
           = new HashMap<String, LogFileProtobuf.Environment>() {
             {
-              put("dev",LogFileProtobuf.Environment.DEV);
-              put("stage",LogFileProtobuf.Environment.STAGE);
-              put("prod",LogFileProtobuf.Environment.PROD);
+              put(DEV_STR,LogFileProtobuf.Environment.DEV);
+              put(STAGE_STR,LogFileProtobuf.Environment.STAGE);
+              put(PROD_STR,LogFileProtobuf.Environment.PROD);
             }
   };
 
@@ -58,24 +66,36 @@ public class ElbToProtobufConverter extends Converter<Class<String>, Class<LogFi
       LOG.info("Using default: " + envStr);
     }
 
+    Date datetime;
+
+    try {
+      datetime = ISO8601_DATE_FORMAT.parse(inputRecord.get(0));
+    } catch (Exception e) {
+      LOG.error("Failed to parse date:" + inputRecord.get(0) + "|");
+      //e.printStackTrace();
+      return new SingleRecordIterable<LogFile>(LogFile.newBuilder().build());
+    }
+    LOG.info("          parse date:" + inputRecord.get(0) + "|");
+
+    Request request = new ElbRequest(inputRecord.get(11));
+
     // TODO comment this mess
     LogFile logFile = LogFile.newBuilder()
             .setEnvironment(environmentMap.get(envStr))
-            .setDate(inputRecord.get(0))                        // TODO parse datetime
-            .setTime(inputRecord.get(0))                        // TODO parse datetime
+            .setDate(LOG_DATE_FORMAT.format(datetime))
+            .setTime(LOG_TIME_FORMAT.format(datetime))
             .setName(inputRecord.get(1))
             .setCIp(inputRecord.get(2))
             .setSHost(inputRecord.get(3))
             .setTimeTaken(Double.parseDouble(inputRecord.get(4))
-                        + Double.parseDouble(inputRecord.get(5))
-                        + Double.parseDouble(inputRecord.get(6)))
+                    + Double.parseDouble(inputRecord.get(5))
+                    + Double.parseDouble(inputRecord.get(6)))
             .setScStatus(Integer.parseInt(inputRecord.get(8)))
             .setScBytes(Integer.parseInt(inputRecord.get(10)))  // TODO rename? naming ambiguity with Bytes
-            .setUri(inputRecord.get(11))                        // TODO parse out DNS name
+            .setCsMethod(request.method)
+            .setUri(request.hostHeader + "/" + request.path)
             .setUserAgent(inputRecord.get(12))
             .build();
-
-    LOG.info(logFile.getScStatus() + "|" + logFile.getCIp() + "|" + logFile.getTimeTaken());
 
     return new SingleRecordIterable<LogFile>(logFile);
   }
