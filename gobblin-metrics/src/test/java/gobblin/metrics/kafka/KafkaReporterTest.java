@@ -186,7 +186,7 @@ public class KafkaReporterTest extends KafkaTestBase {
 
     MetricReport metricReport = nextReport(iterator);
 
-    Assert.assertEquals(1, metricReport.getTags().size());
+    Assert.assertEquals(2, metricReport.getTags().size());
     Assert.assertTrue(metricReport.getTags().containsKey(tag1.getKey()));
     Assert.assertEquals(metricReport.getTags().get(tag1.getKey()),
         tag1.getValue().toString());

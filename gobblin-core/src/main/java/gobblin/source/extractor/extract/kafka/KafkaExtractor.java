@@ -96,7 +96,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   @Override
   public List<Tag<?>> generateTags(State state) {
     List<Tag<?>> tags = super.generateTags(state);
-    tags.add(new Tag<String>("kafka_topic", KafkaUtils.getTopicName(state)));
+    tags.add(new Tag<String>("kafkaTopic", KafkaUtils.getTopicName(state)));
     return tags;
   }
 

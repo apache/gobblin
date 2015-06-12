@@ -39,6 +39,8 @@ import com.google.gson.JsonElement;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.Tag;
 import gobblin.source.extractor.WatermarkInterval;
 import gobblin.source.extractor.extract.EventBasedSource;
 import gobblin.source.workunit.Extract;
@@ -506,6 +508,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     SourceState partitionsState = new SourceState();
     partitionsState.addAll(state);
     partitionsState.setProp(TOPIC_NAME, partitions.get(0).getTopicName());
+    GobblinMetrics.addCustomTagToState(partitionsState,
+        new Tag<String>("kafkaTopic", partitions.get(0).getTopicName()));
     partitionsState.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, partitions.get(0).getTopicName());
     for (int i = 0; i < partitions.size(); i++) {
       partitionsState.setProp(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, i), partitions.get(i).getId());

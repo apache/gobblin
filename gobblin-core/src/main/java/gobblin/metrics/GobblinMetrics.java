@@ -55,6 +55,8 @@ import gobblin.metrics.kafka.KafkaReportingFormats;
  */
 public class GobblinMetrics {
 
+  public static final String METRICS_STATE_CUSTOM_TAGS = "metrics.state.custom.tags";
+
   /**
    * Enumeration of metric types.
    */
@@ -122,6 +124,37 @@ public class GobblinMetrics {
       registry.putIfAbsent(id, new GobblinMetrics(id, parentContext, tags));
     }
     return registry.get(id);
+  }
+
+  /**
+   * Add a {@link Tag} to a {@link gobblin.configuration.State} with key {@link #METRICS_STATE_CUSTOM_TAGS}.
+   *
+   * <p>
+   *   {@link gobblin.metrics.Tag}s under this key can later be parsed using the method {@link #getCustomTagsFromState}.
+   * </p>
+   *
+   * @param state {@link gobblin.configuration.State} state to add the tag to.
+   * @param tag {@link Tag} to add.
+   */
+  public static void addCustomTagToState(State state, Tag<?> tag) {
+    state.appendToListProp(METRICS_STATE_CUSTOM_TAGS, tag.toString());
+  }
+
+  /**
+   * Parse custom {@link gobblin.metrics.Tag}s from property {@link #METRICS_STATE_CUSTOM_TAGS}
+   * in the input {@link gobblin.configuration.State}.
+   * @param state {@link gobblin.configuration.State} possibly containing custom tags.
+   * @return List of {@link gobblin.metrics.Tag} parsed from input.
+   */
+  protected static List<Tag<?>> getCustomTagsFromState(State state) {
+    List<Tag<?>> tags = Lists.newArrayList();
+    for (String tagKeyValue : state.getPropAsList(METRICS_STATE_CUSTOM_TAGS, "")) {
+      Tag<?> tag = Tag.fromString(tagKeyValue);
+      if(tag != null) {
+        tags.add(tag);
+      }
+    }
+    return tags;
   }
 
   /**

@@ -22,6 +22,7 @@ import java.util.Set;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSortedSet;
 
@@ -99,6 +100,26 @@ public class State implements Writable {
   }
 
   /**
+   * Appends the input value to a list property that can be retrieved with {@link #getPropAsList}.
+   *
+   * <p>
+   *   List properties are internally stored as comma separated strings. Adding a value that contains commas (for
+   *   example "a,b,c") will essentially add multiple values to the property ("a", "b", and "c"). This is
+   *   similar to the way that {@link org.apache.hadoop.conf.Configuration} works.
+   * </p>
+   *
+   * @param key property key
+   * @param value property value (if it includes commas, it will be split by the commas).
+   */
+  public synchronized void appendToListProp(String key, String value) {
+    if(contains(key)) {
+      setProp(key, Joiner.on(",").join(getProp(key), value));
+    } else {
+      setProp(key, value);
+    }
+  }
+
+  /**
    * Get the value of a property.
    *
    * @param key property key
@@ -120,7 +141,7 @@ public class State implements Writable {
   }
 
   /**
-   * Get the value of a property as a {@link java.util.List} of strings.
+   * Get the value of a comma separated property as a {@link java.util.List} of strings.
    *
    * @param key property key
    * @return value associated with the key as a {@link java.util.List} of strings

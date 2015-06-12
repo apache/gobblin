@@ -25,6 +25,7 @@ import gobblin.Constructs;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.configuration.State;
+import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
 import gobblin.instrumented.extractor.InstrumentedExtractor;
 
@@ -45,13 +46,14 @@ public class InstrumentedTest {
     Assert.assertTrue(instrumented.getMetricContext().getParent().isPresent());
     Assert.assertEquals(instrumented.getMetricContext().getParent().get(), gobblinMetrics.getMetricContext());
 
-    List<Tag<?>> tags = instrumented.getMetricContext().getTags();
+    Map<String, ?> tags = instrumented.getMetricContext().getTagMap();
     Map<String, String> expectedTags = new HashMap<String, String>();
     expectedTags.put("construct", Constructs.EXTRACTOR.toString());
     expectedTags.put("class", InstrumentedExtractor.class.getCanonicalName());
+    expectedTags.put(MetricContext.METRIC_CONTEXT_ID_TAG_NAME, tags.get(MetricContext.METRIC_CONTEXT_ID_TAG_NAME).toString());
 
     Assert.assertEquals(tags.size(), expectedTags.size());
-    for(Tag<?> tag : tags) {
+    for(Map.Entry<String, ?> tag : tags.entrySet()) {
       Assert.assertTrue(expectedTags.containsKey(tag.getKey()));
       Assert.assertEquals(expectedTags.get(tag.getKey()), tag.getValue().toString());
     }
