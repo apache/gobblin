@@ -15,12 +15,13 @@ package gobblin.source.extractor.extract.kafka;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.regex.Pattern;
 
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,10 +35,10 @@ import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.google.common.primitives.Longs;
 import com.google.gson.Gson;
-import com.google.gson.JsonElement;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.Tag;
@@ -46,6 +47,7 @@ import gobblin.source.extractor.extract.EventBasedSource;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.DatasetFilterUtils;
 
 
 /**
@@ -522,11 +524,19 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   }
 
   private List<KafkaTopic> getFilteredTopics(KafkaWrapper kafkaWrapper, SourceState state) {
-    Set<String> blacklist =
-        state.contains(TOPIC_BLACKLIST) ? state.getPropAsCaseInsensitiveSet(TOPIC_BLACKLIST) : new HashSet<String>();
-    Set<String> whitelist =
-        state.contains(TOPIC_WHITELIST) ? state.getPropAsCaseInsensitiveSet(TOPIC_WHITELIST) : new HashSet<String>();
+    List<Pattern> blacklist = getBlacklist(state);
+    List<Pattern> whitelist = getWhitelist(state);
     return kafkaWrapper.getFilteredTopics(blacklist, whitelist);
+  }
+
+  private static List<Pattern> getBlacklist(State state) {
+    List<String> list = state.getPropAsList(ConfigurationKeys.COMPACTION_BLACKLIST, StringUtils.EMPTY);
+    return DatasetFilterUtils.getPatternsFromStrings(list);
+  }
+
+  private static List<Pattern> getWhitelist(State state) {
+    List<String> list = state.getPropAsList(ConfigurationKeys.COMPACTION_WHITELIST, StringUtils.EMPTY);
+    return DatasetFilterUtils.getPatternsFromStrings(list);
   }
 
   /**

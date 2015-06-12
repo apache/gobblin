@@ -158,7 +158,7 @@ public class State implements Writable {
    * @return value (the default value if the property is not set) associated with the key as a list of strings
    */
   public List<String> getPropAsList(String key, String def) {
-    return Splitter.on(",").trimResults().splitToList(getProperty(key, def));
+    return Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProperty(key, def));
   }
 
   /**
