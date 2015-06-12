@@ -355,8 +355,8 @@ public class ConfigurationKeys {
    */
   public static final String MR_JOB_ROOT_DIR_KEY = "mr.job.root.dir";
   public static final String MR_JOB_MAX_MAPPERS_KEY = "mr.job.max.mappers";
-  public static final String MR_INCLUDE_TASK_COUNTERS_KEY = "mr.include.task.counters";
-  public static final boolean DEFAULT_MR_INCLUDE_TASK_COUNTERS = Boolean.FALSE;
+  public static final String MR_REPORT_METRICS_AS_COUNTERS_KEY = "mr.report.metrics.as.counters";
+  public static final boolean DEFAULT_MR_REPORT_METRICS_AS_COUNTERS = false;
   public static final int DEFAULT_MR_JOB_MAX_MAPPERS = 100;
 
   /**

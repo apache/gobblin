@@ -23,7 +23,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Counter;
-import com.codahale.metrics.Metric;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.GobblinMetrics;
@@ -31,8 +30,8 @@ import gobblin.runtime.AbstractTaskStateTracker;
 import gobblin.runtime.Task;
 import gobblin.runtime.util.JobMetrics;
 import gobblin.runtime.util.MetricGroup;
-import gobblin.runtime.util.TaskMetrics;
 import gobblin.source.workunit.WorkUnit;
+
 
 /**
  * A concrete extension to {@link gobblin.runtime.AbstractTaskStateTracker} for Hadoop MapReduce based runtime.
@@ -64,42 +63,23 @@ public class MRTaskStateTracker extends AbstractTaskStateTracker {
   public void onTaskCompletion(Task task) {
     WorkUnit workUnit = task.getTaskState().getWorkunit();
 
-    /*
-     * Update record-level and byte-level metrics and Hadoop MR counters
-     * if enabled at both the task level and job level (aggregated).
-     */
     if (GobblinMetrics.isEnabled(workUnit)) {
       task.updateRecordMetrics();
       task.updateByteMetrics();
 
-      TaskMetrics metrics = TaskMetrics.get(task.getTaskState());
-
-      if (workUnit.getPropAsBoolean(ConfigurationKeys.MR_INCLUDE_TASK_COUNTERS_KEY,
-          ConfigurationKeys.DEFAULT_MR_INCLUDE_TASK_COUNTERS)) {
-        // Task-level counters
-        Map<String, ? extends Metric> taskLevelCounters =
-            metrics.getMetricContext().getCounters();
-        for (Map.Entry<String, ? extends Metric> entry : taskLevelCounters.entrySet()) {
-          this.context.getCounter(MetricGroup.TASK.name(), entry.getKey())
-              .setValue(((Counter) entry.getValue()).getCount());
+      if (workUnit.getPropAsBoolean(ConfigurationKeys.MR_REPORT_METRICS_AS_COUNTERS_KEY,
+          ConfigurationKeys.DEFAULT_MR_REPORT_METRICS_AS_COUNTERS)) {
+        Map<String, Counter> counters = JobMetrics.get(null, task.getJobId()).getMetricContext().getCounters();
+        for (Map.Entry<String, Counter> entry : counters.entrySet()) {
+          this.context.getCounter(MetricGroup.JOB.name(), entry.getKey()).setValue(entry.getValue().getCount());
         }
-      }
-
-      // Job-level counters
-      Map<String, ? extends Metric> jobLevelCounters =
-          JobMetrics.get(null, task.getJobId()).getMetricContext().getCounters();
-      for (Map.Entry<String, ? extends Metric> entry : jobLevelCounters.entrySet()) {
-        this.context.getCounter(MetricGroup.JOB.name(), entry.getKey())
-            .increment(((Counter) entry.getValue()).getCount());
       }
     }
 
-    // Mark the completion of this task
     task.markTaskCompletion();
 
-    LOG.info(String
-        .format("Task %s completed in %dms with state %s", task.getTaskId(), task.getTaskState().getTaskDuration(),
-            task.getTaskState().getWorkingState()));
+    LOG.info(String.format("Task %s completed in %dms with state %s",
+        task.getTaskId(), task.getTaskState().getTaskDuration(), task.getTaskState().getWorkingState()));
   }
 
   /**
@@ -121,21 +101,12 @@ public class MRTaskStateTracker extends AbstractTaskStateTracker {
 
       WorkUnit workUnit = this.task.getTaskState().getWorkunit();
 
-      /*
-       * Update metrics and Hadoop MR counters if enabled at the task level ONLY. Job-level metrics are
-       * updated only after the job completes so metrics can be properly aggregated at the job level.
-       */
       if (GobblinMetrics.isEnabled(workUnit)) {
-        TaskMetrics metrics =
-            TaskMetrics.get(this.task.getTaskState());
-        if (workUnit.getPropAsBoolean(ConfigurationKeys.MR_INCLUDE_TASK_COUNTERS_KEY,
-            ConfigurationKeys.DEFAULT_MR_INCLUDE_TASK_COUNTERS)) {
-          // Task-level counters
-          Map<String, ? extends Metric> taskLevelCounters = metrics
-              .getMetricContext().getCounters();
-          for (Map.Entry<String, ? extends Metric> entry : taskLevelCounters.entrySet()) {
-            this.context.getCounter(MetricGroup.TASK.name(), entry.getKey())
-                .setValue(((Counter) entry.getValue()).getCount());
+        if (workUnit.getPropAsBoolean(ConfigurationKeys.MR_REPORT_METRICS_AS_COUNTERS_KEY,
+            ConfigurationKeys.DEFAULT_MR_REPORT_METRICS_AS_COUNTERS)) {
+          Map<String, Counter> counters = JobMetrics.get(null, task.getJobId()).getMetricContext().getCounters();
+          for (Map.Entry<String, Counter> entry : counters.entrySet()) {
+            this.context.getCounter(MetricGroup.JOB.name(), entry.getKey()).setValue(entry.getValue().getCount());
           }
         }
       }
