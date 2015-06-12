@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -41,7 +42,6 @@ import gobblin.publisher.DataPublisher;
 import gobblin.runtime.util.JobMetrics;
 import gobblin.runtime.util.MetricNames;
 import gobblin.source.extractor.JobCommitPolicy;
-import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.JobLauncherUtils;
@@ -243,23 +243,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
       Optional<Timer.Context> workUnitsPreparationTimer = Instrumented.timerContext(this.runtimeMetricContext,
           MetricNames.LauncherTimings.WORK_UNITS_PREPARATION);
-
-      // Add work units and assign task IDs to them
-      int taskIdSequence = 0;
-      int multiTaskIdSequence = 0;
-      for (WorkUnit workUnit : workUnits.get()) {
-        if (workUnit instanceof MultiWorkUnit) {
-          String multiTaskId = JobLauncherUtils.newMultiTaskId(jobId, multiTaskIdSequence++);
-          workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, multiTaskId);
-          workUnit.setId(multiTaskId);
-          for (WorkUnit innerWorkUnit : ((MultiWorkUnit) workUnit).getWorkUnits()) {
-            addWorkUnit(innerWorkUnit, taskIdSequence++, jobState);
-          }
-        } else {
-          addWorkUnit(workUnit, taskIdSequence++, jobState);
-        }
-      }
-
+      prepareWorkUnits(JobLauncherUtils.flattenWorkUnits(workUnits.get()), jobState);
       Instrumented.endTimer(workUnitsPreparationTimer);
 
       if (this.jobContext.getJobMetricsOptional().isPresent()) {
@@ -283,9 +267,16 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
       Optional<Timer.Context> jobCommitTimer = Instrumented.timerContext(this.runtimeMetricContext,
           MetricNames.LauncherTimings.JOB_COMMIT);
+
       setFinalJobState(jobState);
-      // Commit and publish job data
-      commitJob(jobState);
+      if (canCommit(this.jobContext.getJobCommitPolicy(), jobState)) {
+        try {
+          commitJob(jobState);
+        } finally {
+          persistJobState(jobState);
+        }
+      }
+
       Instrumented.endTimer(jobCommitTimer);
     } catch (Throwable t) {
       jobState.setState(JobState.RunningState.FAILED);
@@ -296,14 +287,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       long endTime = System.currentTimeMillis();
       jobState.setEndTime(endTime);
       jobState.setDuration(endTime - jobState.getStartTime());
-
-      // Persist job state regardless if the job succeeded or failed
-      try {
-        persistJobState(jobState);
-      } catch (Throwable t) {
-        LOG.error(String.format("Failed to persist job state of job %s: %s", jobId, t), t);
-        jobState.setState(JobState.RunningState.FAILED);
-      }
 
       Optional<Timer.Context> jobCleanupTimer = Instrumented.timerContext(this.runtimeMetricContext,
           MetricNames.LauncherTimings.JOB_CLEANUP);
@@ -415,17 +398,20 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   }
 
   /**
-   * Add the given {@link WorkUnit} for execution.
+   * Prepare the {@link WorkUnit}s for execution by populating the job and task IDs.
    */
-  private void addWorkUnit(WorkUnit workUnit, int sequence, JobState jobState) {
-    workUnit.setProp(ConfigurationKeys.JOB_ID_KEY, this.jobContext.getJobId());
-    String taskId = JobLauncherUtils.newTaskId(this.jobContext.getJobId(), sequence);
-    workUnit.setId(taskId);
-    workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
-    jobState.addTask();
-    // Pre-add a task state so if the task fails and no task state is written out,
-    // there is still task state for the task when job/task states are persisted.
-    jobState.addTaskState(new TaskState(new WorkUnitState(workUnit)));
+  private void prepareWorkUnits(List<WorkUnit> workUnits, JobState jobState) {
+    int taskIdSequence = 0;
+    for (WorkUnit workUnit : workUnits) {
+      workUnit.setProp(ConfigurationKeys.JOB_ID_KEY, this.jobContext.getJobId());
+      String taskId = JobLauncherUtils.newTaskId(this.jobContext.getJobId(), taskIdSequence++);
+      workUnit.setId(taskId);
+      workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
+      jobState.addTask();
+      // Pre-add a task state so if the task fails and no task state is written out,
+      // there is still task state for the task when job/task states are persisted.
+      jobState.addTaskState(new TaskState(new WorkUnitState(workUnit)));
+    }
   }
 
   /**
@@ -521,14 +507,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    */
   @SuppressWarnings("unchecked")
   private void commitJob(JobState jobState) throws Exception {
-    JobCommitPolicy jobCommitPolicy = this.jobContext.getJobCommitPolicy();
-    if (!canCommit(jobCommitPolicy, jobState)) {
-      LOG.info("Job data will not be committed due to commit policy: " + jobCommitPolicy);
-      return;
-    }
-
-    LOG.info(String.format("Publishing job data of job %s with commit policy %s", this.jobContext.getJobId(),
-        jobCommitPolicy.name()));
+    LOG.info(String.format("Publishing data of job %s with commit policy %s", this.jobContext.getJobId(),
+        this.jobContext.getJobCommitPolicy().name()));
 
     Closer closer = Closer.create();
     try {
@@ -552,17 +532,15 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * Persist job state of a completed job.
    */
   private void persistJobState(JobState jobState) throws IOException {
-    JobState.RunningState runningState = jobState.getState();
-    if (runningState == JobState.RunningState.PENDING ||
-        runningState == JobState.RunningState.RUNNING ||
-        runningState == JobState.RunningState.CANCELLED) {
-      // Do not persist job state if the job has not completed
-      return;
+    for (TaskState taskState : jobState.getTaskStates()) {
+      // Backoff the actual high watermark to the low watermark for each task that has not been committed
+      if (taskState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED) {
+        taskState.backoffActualHighWatermark();
+      }
     }
 
     String jobName = jobState.getJobName();
     String jobId = jobState.getJobId();
-
     LOG.info("Persisting job state of job " + jobId);
     this.jobContext.getJobStateStore().put(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX, jobState);
     this.jobContext.getJobStateStore().createAlias(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX,

@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -139,13 +140,13 @@ public class MRJobLauncherTest extends BMNGRunner {
 
   /**
    * Byteman test that ensures the {@link MRJobLauncher} successfully cleans up all staging data even when
-   * an exception is thrown in the {@link MRJobLauncher#collectOutput(Path)} method. The {@link BMRule} is
-   * to inject an {@link IOException} when the {@link MRJobLauncher#collectOutput(Path)} method is called.
+   * an exception is thrown in the {@link MRJobLauncher#collectOutputTaskStates(Path)} method. The {@link BMRule} is
+   * to inject an {@link IOException} when the {@link MRJobLauncher#collectOutputTaskStates(Path)} method is called.
    */
   @Test
   @BMRule(name = "testJobCleanupOnError",
           targetClass = "gobblin.runtime.mapreduce.MRJobLauncher",
-          targetMethod = "collectOutput(Path)",
+          targetMethod = "collectOutputTaskStates(Path)",
           targetLocation = "AT ENTRY",
           condition = "true",
           action = "throw new IOException(\"Exception for testJobCleanupOnError\")")

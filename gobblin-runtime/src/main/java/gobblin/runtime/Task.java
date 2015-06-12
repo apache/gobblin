@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -112,7 +113,6 @@ public class Task implements Runnable {
 
     Closer closer = Closer.create();
     try {
-      // Build the extractor for extracting source schema and data records
       Extractor extractor = closer.register(new InstrumentedExtractorDecorator(this.taskState,
           this.taskContext.getExtractor()));
 

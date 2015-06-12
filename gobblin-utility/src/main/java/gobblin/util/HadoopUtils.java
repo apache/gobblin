@@ -1,4 +1,5 @@
-/* (c) 2015 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -48,6 +49,24 @@ public class HadoopUtils {
     List<FileStatus> results = Lists.newArrayList();
     walk(results, fileSystem, path);
     return results;
+  }
+
+  /**
+   * A wrapper around this.fs.delete which throws IOException if this.fs.delete returns False.
+   * @param f Path to be deleted
+   * @param recursive
+   * @throws IOException if the deletion fails
+   */
+  public static void deletePath(FileSystem fs, Path f, boolean recursive) throws IOException {
+    if (!fs.delete(f, recursive)) {
+      throw new IOException("Failed to delete: " + f);
+    }
+  }
+
+  public static void renamePath(FileSystem fs, Path oldName, Path newName) throws IOException {
+    if (!fs.rename(oldName, newName)) {
+      throw new IOException(String.format("Failed to rename %s to %s", oldName.toString(), newName.toString()));
+    }
   }
 
   private static void walk(List<FileStatus> results, FileSystem fileSystem, Path path) throws FileNotFoundException,
