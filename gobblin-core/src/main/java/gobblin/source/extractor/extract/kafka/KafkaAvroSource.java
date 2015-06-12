@@ -13,13 +13,13 @@
 package gobblin.source.extractor.extract.kafka;
 
 import gobblin.configuration.WorkUnitState;
-import gobblin.metrics.kafka.SchemaNotFoundException;
 import gobblin.source.extractor.Extractor;
 
 import java.io.IOException;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
+
 
 /**
  * A {@link gobblin.source.Source} class for Kafka where events are in Avro format.
@@ -29,10 +29,6 @@ import org.apache.avro.generic.GenericRecord;
 public class KafkaAvroSource extends KafkaSource<Schema, GenericRecord> {
   @Override
   public Extractor<Schema, GenericRecord> getExtractor(WorkUnitState state) throws IOException {
-    try {
-      return new KafkaAvroExtractor(state);
-    } catch (SchemaNotFoundException e) {
-      throw new IOException(e);
-    }
+    return new KafkaAvroExtractor(state);
   }
 }

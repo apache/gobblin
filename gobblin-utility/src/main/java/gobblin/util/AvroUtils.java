@@ -97,6 +97,9 @@ public class AvroUtils {
    * @return the schema of the field
    */
   private static Optional<Schema> getFieldSchemaHelper(Schema schema, List<String> pathList, int field) {
+    if (schema.getField(pathList.get(field)) == null) {
+      return Optional.absent();
+    }
     if ((field + 1) == pathList.size()) {
       return Optional.fromNullable(schema.getField(pathList.get(field)).schema());
     } else {

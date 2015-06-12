@@ -422,7 +422,7 @@ public class ConfigurationKeys {
   public static final boolean DEFAULT_COMPACTION_USE_ALL_ATTRIBUTES = false;
   public static final String COMPACTION_JOB_RUNNER_CLASS = COMPACTION_PREFIX + "job.runner.class";
   public static final String DEFAULT_COMPACTION_JOB_RUNNER_CLASS =
-      "gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyJobRunner";
+      "gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner";
   public static final String COMPACTION_COMPACTOR_CLASS = COMPACTION_PREFIX + "compactor.class";
   public static final String DEFAULT_COMPACTION_COMPACTOR_CLASS = "gobblin.compaction.mapreduce.MRCompactor";
   public static final String COMPACTION_FILE_SYSTEM_URI = COMPACTION_PREFIX + "file.system.uri";
