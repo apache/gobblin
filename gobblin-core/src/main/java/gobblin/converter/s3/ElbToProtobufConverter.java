@@ -35,22 +35,6 @@ public class ElbToProtobufConverter extends Converter<Class<String>, Class<LogFi
   protected static final String LOG_DATE_FORMAT = "yyyy-MM-dd";
   protected static final String LOG_TIME_FORMAT = "HH:mm:ss";
 
-  private static final String DEV_STR = "dev";
-  private static final String STAGE_STR = "stage";
-  private static final String PROD_STR = "prod";
-
-  /**
-   * Maps strings (fed in through job file) to Protobuf Environment enum, which then maps to ints
-   */
-  public static final Map<String, LogFileProtobuf.Environment> environmentMap
-          = new HashMap<String, LogFileProtobuf.Environment>() {
-            {
-              put(DEV_STR,LogFileProtobuf.Environment.DEV);
-              put(STAGE_STR,LogFileProtobuf.Environment.STAGE);
-              put(PROD_STR,LogFileProtobuf.Environment.PROD);
-            }
-  };
-
   @Override
   public Class<LogFile> convertSchema(Class<String> inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
     return LogFile.class;
@@ -58,15 +42,7 @@ public class ElbToProtobufConverter extends Converter<Class<String>, Class<LogFi
 
   @Override
   public Iterable<LogFile> convertRecord(Class<LogFile> outputSchema, ArrayList<String> inputRecord, WorkUnitState workUnit) throws DataConversionException {
-    String envStr = workUnit.getProp(ConfigurationKeys.S3_ENVIRONMENT);
-    if (!environmentMap.containsKey(workUnit.getProp(ConfigurationKeys.S3_ENVIRONMENT))) {
-      LOG.warn("aws.s3.environment variable not set in job file.");
-
-      envStr = workUnit.getProp(ConfigurationKeys.S3_DEFAULT_ENVIRONMENT);
-      LOG.info("Using default: " + envStr);
-    }
-
-
+    // Fetch the date of the record
     Date datetime = parseDate(inputRecord.get(0), new SimpleDateFormat(ISO8601_DATE_FORMAT));
     if (datetime == null) {
       throw new DataConversionException("Failed to parse date. Use the format: " + ISO8601_DATE_FORMAT);
@@ -76,7 +52,6 @@ public class ElbToProtobufConverter extends Converter<Class<String>, Class<LogFi
 
     // TODO comment this mess
     LogFile logFile = LogFile.newBuilder()
-            .setEnvironment(environmentMap.get(envStr))
             .setDate(new SimpleDateFormat(LOG_DATE_FORMAT).format(datetime))
             .setTime(new SimpleDateFormat(LOG_TIME_FORMAT).format(datetime))
                     .setName(inputRecord.get(1))
@@ -115,7 +90,6 @@ public class ElbToProtobufConverter extends Converter<Class<String>, Class<LogFi
       e.printStackTrace();
       return null;
     }
-    LOG.info("          parse date:" + input);
 
     return datetime;
   }
