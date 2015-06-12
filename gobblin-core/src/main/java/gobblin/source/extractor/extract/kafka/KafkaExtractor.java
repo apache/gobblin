@@ -88,6 +88,9 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     this.currentPartitionIdx = 0;
 
     switchMetricContextToCurrentPartition();
+
+    // The actual high watermark starts with the low watermark
+    this.workUnitState.setActualHighWatermark(this.lowWatermark);
   }
 
   @Override
@@ -243,8 +246,6 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
   @Override
   public void close() throws IOException {
-
-    // Commit high watermark
     for (int i = 0; i < this.partitions.size(); i++) {
       LOG.info(String.format("Last offset pulled for partition %s = %d", this.partitions.get(i),
           this.nextWatermark.get(i) - 1));

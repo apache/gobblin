@@ -73,21 +73,22 @@ public class JobLauncherUtils {
   }
 
   /**
-   * Utility method that takes in a {@link List} of {@link State}s, and flattens them. It builds up the flattened
-   * list by checking each element of the given list, and seeing if it is an instance of {@link MultiWorkUnit}.
-   * If it is then it calls itself on the {@link WorkUnit}s returned by {@link MultiWorkUnit#getWorkUnits()}.
-   * If not, then it simply adds the {@link WorkUnit} to the flattened list.
+   * Utility method that takes in a {@link List} of {@link WorkUnit}s, and flattens them. It builds up
+   * the flattened list by checking each element of the given list, and seeing if it is an instance of
+   * {@link MultiWorkUnit}. If it is then it calls itself on the {@link WorkUnit}s returned by
+   * {@link MultiWorkUnit#getWorkUnits()}. If not, then it simply adds the {@link WorkUnit} to the
+   * flattened list.
    *
-   * @param states is a {@link List} containing either {@link State}s or {@link MultiWorkUnit}s
-   * @return a {@link List} of {@link State}s
+   * @param workUnits is a {@link List} containing either {@link WorkUnit}s or {@link MultiWorkUnit}s
+   * @return a {@link List} of flattened {@link WorkUnit}s
    */
-  public static List<State> flattenWorkUnits(List<? extends State> states) {
-    List<State> flattenedWorkUnits = Lists.newArrayList();
-    for (State state : states) {
-      if (state instanceof MultiWorkUnit) {
-        flattenedWorkUnits.addAll(flattenWorkUnits(((MultiWorkUnit) state).getWorkUnits()));
+  public static List<WorkUnit> flattenWorkUnits(List<WorkUnit> workUnits) {
+    List<WorkUnit> flattenedWorkUnits = Lists.newArrayList();
+    for (WorkUnit workUnit : workUnits) {
+      if (workUnit instanceof MultiWorkUnit) {
+        flattenedWorkUnits.addAll(flattenWorkUnits(((MultiWorkUnit) workUnit).getWorkUnits()));
       } else {
-        flattenedWorkUnits.add(state);
+        flattenedWorkUnits.add(workUnit);
       }
     }
     return flattenedWorkUnits;
@@ -99,7 +100,7 @@ public class JobLauncherUtils {
    *
    * @param states a {@link List} of {@link State}s that need their staging data cleaned
    */
-  public static void cleanStagingData(List<State> states, Logger logger) throws IOException {
+  public static void cleanStagingData(List<? extends State> states, Logger logger) throws IOException {
     for (State state : states) {
       JobLauncherUtils.cleanStagingData(state, logger);
     }

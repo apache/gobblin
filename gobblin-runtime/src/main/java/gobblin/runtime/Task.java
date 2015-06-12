@@ -113,7 +113,6 @@ public class Task implements Runnable {
 
     Closer closer = Closer.create();
     try {
-      // Build the extractor for extracting source schema and data records
       Extractor extractor = closer.register(new InstrumentedExtractorDecorator(this.taskState,
           this.taskContext.getExtractor()));
 

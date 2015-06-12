@@ -24,15 +24,6 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.WatermarkInterval;
-import gobblin.source.extractor.extract.EventBasedSource;
-import gobblin.source.workunit.Extract;
-import gobblin.source.workunit.MultiWorkUnit;
-import gobblin.source.workunit.WorkUnit;
-
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
@@ -43,6 +34,16 @@ import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.google.common.primitives.Longs;
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.SourceState;
+import gobblin.configuration.WorkUnitState;
+import gobblin.source.extractor.WatermarkInterval;
+import gobblin.source.extractor.extract.EventBasedSource;
+import gobblin.source.workunit.Extract;
+import gobblin.source.workunit.MultiWorkUnit;
+import gobblin.source.workunit.WorkUnit;
 
 
 /**

@@ -109,9 +109,13 @@ public class WorkUnitState extends State {
   /**
    * Get the actual high {@link Watermark} as a {@link JsonElement}.
    *
-   * @return a {@link JsonElement} representing the actual high {@link Watermark}.
+   * @return a {@link JsonElement} representing the actual high {@link Watermark},
+   *         or {@code null} if the actual  high {@link Watermark} is not set.
    */
   public JsonElement getActualHighWatermark() {
+    if (!contains(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY)) {
+      return null;
+    }
     return JSON_PARSER.parse(getProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY));
   }
 
@@ -150,10 +154,17 @@ public class WorkUnitState extends State {
   }
 
   /**
+   * Backoff the actual high watermark to the low watermark returned by {@link WorkUnit#getLowWatermark()}.
+   */
+  public void backoffActualHighWatermark() {
+    setProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY, this.workunit.getLowWatermark().toString());
+  }
+
+  /**
    * Get the high watermark as set in {@link gobblin.source.extractor.Extractor}.
    *
    * @return high watermark
-   * @deprectated use {@link #getActualHighWatermark}.
+   * @deprecated use {@link #getActualHighWatermark}.
    */
   @Deprecated
   public long getHighWaterMark() {
