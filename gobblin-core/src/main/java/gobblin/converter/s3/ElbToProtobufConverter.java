@@ -31,9 +31,9 @@ public class ElbToProtobufConverter extends Converter<Class<String>, Class<LogFi
 
   private static final Logger LOG = LoggerFactory.getLogger(ElbToProtobufConverter.class);
 
-  private static final SimpleDateFormat ISO8601_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.");
-  private static final SimpleDateFormat LOG_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
-  private static final SimpleDateFormat LOG_TIME_FORMAT = new SimpleDateFormat("HH:mm:ss");
+  protected static final String ISO8601_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.";
+  protected static final String LOG_DATE_FORMAT = "yyyy-MM-dd";
+  protected static final String LOG_TIME_FORMAT = "HH:mm:ss";
 
   private static final String DEV_STR = "dev";
   private static final String STAGE_STR = "stage";
@@ -66,37 +66,57 @@ public class ElbToProtobufConverter extends Converter<Class<String>, Class<LogFi
       LOG.info("Using default: " + envStr);
     }
 
-    Date datetime;
 
-    try {
-      datetime = ISO8601_DATE_FORMAT.parse(inputRecord.get(0));
-    } catch (Exception e) {
-      LOG.error("Failed to parse date:" + inputRecord.get(0) + "|");
-      //e.printStackTrace();
-      return new SingleRecordIterable<LogFile>(LogFile.newBuilder().build());
+    Date datetime = parseDate(inputRecord.get(0), new SimpleDateFormat(ISO8601_DATE_FORMAT));
+    if (datetime == null) {
+      throw new DataConversionException("Failed to parse date. Use the format: " + ISO8601_DATE_FORMAT);
     }
-    LOG.info("          parse date:" + inputRecord.get(0) + "|");
 
     Request request = new ElbRequest(inputRecord.get(11));
 
     // TODO comment this mess
     LogFile logFile = LogFile.newBuilder()
             .setEnvironment(environmentMap.get(envStr))
-            .setDate(LOG_DATE_FORMAT.format(datetime))
-            .setTime(LOG_TIME_FORMAT.format(datetime))
-            .setName(inputRecord.get(1))
-            .setCIp(inputRecord.get(2))
-            .setSHost(inputRecord.get(3))
-            .setTimeTaken(Double.parseDouble(inputRecord.get(4))
-                    + Double.parseDouble(inputRecord.get(5))
-                    + Double.parseDouble(inputRecord.get(6)))
-            .setScStatus(Integer.parseInt(inputRecord.get(8)))
-            .setScBytes(Integer.parseInt(inputRecord.get(10)))  // TODO rename? naming ambiguity with Bytes
-            .setCsMethod(request.method)
-            .setUri(request.hostHeader + "/" + request.path)
-            .setUserAgent(inputRecord.get(12))
-            .build();
+            .setDate(new SimpleDateFormat(LOG_DATE_FORMAT).format(datetime))
+            .setTime(new SimpleDateFormat(LOG_TIME_FORMAT).format(datetime))
+                    .setName(inputRecord.get(1))
+                    .setCIp(inputRecord.get(2))
+                    .setSHost(inputRecord.get(3))
+                    .setTimeTaken(Double.parseDouble(inputRecord.get(4))
+                            + Double.parseDouble(inputRecord.get(5))
+                            + Double.parseDouble(inputRecord.get(6)))
+                    .setScStatus(Integer.parseInt(inputRecord.get(8)))
+                    .setScBytes(Integer.parseInt(inputRecord.get(10)))  // TODO rename? naming ambiguity with Bytes
+                    .setCsMethod(request.method)
+                    .setUri(request.hostHeader + "/" + request.path)
+                    .setUserAgent(inputRecord.get(12))
+                    .build();
 
     return new SingleRecordIterable<LogFile>(logFile);
+  }
+
+  public static Date parseDate(String input, SimpleDateFormat dateFormat) {
+    // Clean the input
+    input = input.trim();
+
+    Date datetime;
+    try {
+      datetime = dateFormat.parse(input);
+    } catch (ParseException e) {
+      LOG.error("Failed to parse date:" + input);
+      e.printStackTrace();
+      return null;
+    } catch (ArrayIndexOutOfBoundsException e) {
+      LOG.error("Failed to parse date:" + input);
+      e.printStackTrace();
+      return null;
+    } catch (NumberFormatException e) {
+      LOG.error("Failed to parse date:" + input);
+      e.printStackTrace();
+      return null;
+    }
+    LOG.info("          parse date:" + input);
+
+    return datetime;
   }
 }
