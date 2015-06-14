@@ -31,7 +31,6 @@ import org.joda.time.format.PeriodFormatterBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
 
@@ -66,9 +65,8 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
   MRCompactorTimeBasedJobPropCreator(Builder builder) {
     super(builder);
     this.folderTimePattern = getFolderPattern();
-    this.timeZone =
-        DateTimeZone.forID(this.state.getProp(ConfigurationKeys.COMPACTION_TIMEZONE,
-            ConfigurationKeys.DEFAULT_COMPACTION_TIMEZONE));
+    this.timeZone = DateTimeZone.forID(
+        this.state.getProp(ConfigurationKeys.COMPACTION_TIMEZONE, ConfigurationKeys.DEFAULT_COMPACTION_TIMEZONE));
     this.timeFormatter = DateTimeFormat.forPattern(this.folderTimePattern).withZone(this.timeZone);
   }
 
@@ -82,14 +80,17 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
 
     String folderStructure = getFolderStructure();
     for (FileStatus status : this.fs.globStatus(new Path(this.topicInputDir, folderStructure))) {
-      DateTime folderTime = getFolderTime(status.getPath());
-      if (shouldProcessFolder(status.getPath(), folderTime)) {
-        Path jobOutputDir = new Path(this.topicOutputDir, folderTime.toString(this.timeFormatter));
-        Path jobTmpDir = new Path(this.topicTmpDir, folderTime.toString(this.timeFormatter));
-        Optional<State> jobProps = createJobProps(status.getPath(), jobOutputDir, jobTmpDir);
-        if (jobProps.isPresent()) {
-          allJobProps.add(jobProps.get());
-        }
+      DateTime folderTime = null;
+      try {
+        folderTime = getFolderTime(status.getPath());
+      } catch (RuntimeException e) {
+        LOG.warn(status.getPath() + " is not a valid folder. Will be skipped.");
+        continue;
+      }
+      Path jobOutputDir = new Path(this.topicOutputDir, folderTime.toString(this.timeFormatter));
+      Path jobTmpDir = new Path(this.topicTmpDir, folderTime.toString(this.timeFormatter));
+      if (shouldProcessFolder(status.getPath(), jobOutputDir, folderTime)) {
+        allJobProps.add(createJobProps(status.getPath(), jobOutputDir, jobTmpDir));
       }
     }
 
@@ -101,9 +102,8 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
   }
 
   private String getFolderPattern() {
-    String folderPattern =
-        this.state.getProp(ConfigurationKeys.COMPACTION_TIMEBASED_FOLDER_PATTERN,
-            ConfigurationKeys.DEFAULT_COMPACTION_TIMEBASED_FOLDER_PATTERN);
+    String folderPattern = this.state.getProp(ConfigurationKeys.COMPACTION_TIMEBASED_FOLDER_PATTERN,
+        ConfigurationKeys.DEFAULT_COMPACTION_TIMEBASED_FOLDER_PATTERN);
     LOG.info("Compaction folder pattern: " + folderPattern);
     return folderPattern;
   }
@@ -113,7 +113,11 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
     return this.timeFormatter.parseDateTime(StringUtils.removeStart(path.toString().substring(startPos), "/"));
   }
 
-  private boolean shouldProcessFolder(Path folder, DateTime folderTime) {
+  /**
+   * A folder should be processed if (1) input folder time is between compaction.timebased.max.time.ago and
+   * compaction.timebased.max.time.ago, (2) output folder is not already compacted.
+   */
+  private boolean shouldProcessFolder(Path inputFolder, Path outputFolder, DateTime folderTime) {
     DateTime currentTime = new DateTime(this.timeZone);
     PeriodFormatter periodFormatter = getPeriodFormatter();
     DateTime earliestAllowedFolderTime = getEarliestAllowedFolderTime(currentTime, periodFormatter);
@@ -121,15 +125,17 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
 
     if (folderTime.isBefore(earliestAllowedFolderTime)) {
       LOG.info(String.format("Folder time for %s is %s, earlier than the earliest allowed folder time, %s. Skipping",
-          folder, folderTime, earliestAllowedFolderTime));
+          inputFolder, folderTime, earliestAllowedFolderTime));
       return false;
     } else if (folderTime.isAfter(latestAllowedFolderTime)) {
       LOG.info(String.format("Folder time for %s is %s, later than the latest allowed folder time, %s. Skipping",
-          folder, folderTime, latestAllowedFolderTime));
+          inputFolder, folderTime, latestAllowedFolderTime));
       return false;
-    } else {
-      return true;
+    } else if (folderAlreadyCompacted(outputFolder)) {
+      LOG.info(String.format("Folder %s already compacted. Skipping", outputFolder));
+      return false;
     }
+    return true;
   }
 
   private PeriodFormatter getPeriodFormatter() {
@@ -138,18 +144,27 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
   }
 
   private DateTime getEarliestAllowedFolderTime(DateTime currentTime, PeriodFormatter periodFormatter) {
-    String maxTimeAgoStr =
-        this.state.getProp(ConfigurationKeys.COMPACTION_TIMEBASED_MAX_TIME_AGO,
-            ConfigurationKeys.DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO);
+    String maxTimeAgoStr = this.state.getProp(ConfigurationKeys.COMPACTION_TIMEBASED_MAX_TIME_AGO,
+        ConfigurationKeys.DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO);
     Period maxTimeAgo = periodFormatter.parsePeriod(maxTimeAgoStr);
     return currentTime.minus(maxTimeAgo);
   }
 
   private DateTime getLatestAllowedFolderTime(DateTime currentTime, PeriodFormatter periodFormatter) {
-    String minTimeAgoStr =
-        this.state.getProp(ConfigurationKeys.COMPACTION_TIMEBASED_MIN_TIME_AGO,
-            ConfigurationKeys.DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO);
+    String minTimeAgoStr = this.state.getProp(ConfigurationKeys.COMPACTION_TIMEBASED_MIN_TIME_AGO,
+        ConfigurationKeys.DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO);
     Period minTimeAgo = periodFormatter.parsePeriod(minTimeAgoStr);
     return currentTime.minus(minTimeAgo);
   }
+
+  private boolean folderAlreadyCompacted(Path outputFolder) {
+    Path filePath = new Path(outputFolder, ConfigurationKeys.COMPACTION_COMPLETE_FILE_NAME);
+    try {
+      return this.fs.exists(filePath);
+    } catch (IOException e) {
+      LOG.error("Failed to verify the existence of file " + filePath, e);
+      return false;
+    }
+  }
+
 }

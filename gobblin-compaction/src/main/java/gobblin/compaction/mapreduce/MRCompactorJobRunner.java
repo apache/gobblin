@@ -72,13 +72,21 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
 
   @Override
   public Void call() throws IOException, ClassNotFoundException, InterruptedException {
-    checkOutputPathExistence();
+    if (this.fs.exists(this.outputPath) && !canOverwriteOutputDir()) {
+      LOG.warn(String.format("Output path %s exists. Will not compact %s.", this.outputPath, this.inputPath));
+      return null;
+    }
     Configuration conf = HadoopUtils.getConfFromState(this.jobProps);
     Job job = Job.getInstance(conf);
     this.configureJob(job);
     this.submit(job);
     this.moveTmpPathToOutputPath();
     return null;
+  }
+
+  private boolean canOverwriteOutputDir() {
+    return this.jobProps.getPropAsBoolean(ConfigurationKeys.COMPACTION_OVERWRITE_OUTPUT_DIR,
+        ConfigurationKeys.DEFAULT_COMPACTION_OVERWRITE_OUTPUT_DIR);
   }
 
   protected void configureJob(Job job) throws IOException {
@@ -168,27 +176,12 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
 
   private void moveTmpPathToOutputPath() throws IOException {
     LOG.info(String.format("Moving %s to %s", this.tmpPath, this.outputPath));
+    this.fs.delete(this.outputPath, true);
     this.fs.mkdirs(this.outputPath.getParent(), this.perm);
     if (!this.fs.rename(this.tmpPath, this.outputPath)) {
       throw new IOException(String.format("Unable to move %s to %s", this.tmpPath, this.outputPath));
     }
+    Path completionFilePath = new Path(this.outputPath, ConfigurationKeys.COMPACTION_COMPLETE_FILE_NAME);
+    this.fs.createNewFile(completionFilePath);
   }
-
-  private void checkOutputPathExistence() throws IOException {
-    if (this.fs.exists(this.outputPath)) {
-      if (shouldOverwriteExistingOutputPath()) {
-        LOG.warn("Output path " + this.outputPath + " exists. Will be overwritten.");
-        fs.delete(this.outputPath, true);
-      } else {
-        throw new IOException(String.format("Output path %s exists, property %s set to false. Cannot proceed.",
-            this.outputPath, ConfigurationKeys.COMPACTION_FORCE_REPROCESS));
-      }
-    }
-  }
-
-  private boolean shouldOverwriteExistingOutputPath() {
-    return this.jobProps.getPropAsBoolean(ConfigurationKeys.COMPACTION_FORCE_REPROCESS,
-        ConfigurationKeys.DEFAULT_COMPACTION_FORCE_REPROCESS);
-  }
-
 }
