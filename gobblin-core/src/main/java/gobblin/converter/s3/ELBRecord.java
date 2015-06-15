@@ -30,7 +30,7 @@ import java.util.Date;
  * @author ahollenbach@nerdwallet.com
  */
 public class ELBRecord {
-  private static final Logger LOG = LoggerFactory.getLogger(ELBToProtobufConverter.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ELBRecord.class);
 
   protected static final String ISO8601_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.";
   protected static final String LOG_DATE_FORMAT = "yyyy-MM-dd";
