@@ -14,6 +14,7 @@ dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-compaction")
   compile project(":gobblin-runtime")
+  compile project(":gobblin-test-harness")
   compile project(":gobblin-metastore")
 
   compile externalDependency.azkaban
