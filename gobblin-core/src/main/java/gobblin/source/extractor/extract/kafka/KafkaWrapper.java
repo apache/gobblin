@@ -13,7 +13,7 @@
 package gobblin.source.extractor.extract.kafka;
 
 import gobblin.configuration.State;
-import gobblin.source.extractor.extract.EventBasedSource;
+import gobblin.util.DatasetFilterUtils;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -22,8 +22,8 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
+import java.util.regex.Pattern;
 
 import kafka.api.PartitionFetchInfo;
 import kafka.api.PartitionOffsetRequestInfo;
@@ -119,7 +119,7 @@ public class KafkaWrapper implements Closeable {
     return this.brokers;
   }
 
-  public List<KafkaTopic> getFilteredTopics(Set<String> blacklist, Set<String> whitelist) {
+  public List<KafkaTopic> getFilteredTopics(List<Pattern> blacklist, List<Pattern> whitelist) {
     return this.kafkaAPI.getFilteredTopics(blacklist, whitelist);
   }
 
@@ -149,7 +149,7 @@ public class KafkaWrapper implements Closeable {
   }
 
   private abstract class KafkaAPI implements Closeable {
-    protected abstract List<KafkaTopic> getFilteredTopics(Set<String> blacklist, Set<String> whitelist);
+    protected abstract List<KafkaTopic> getFilteredTopics(List<Pattern> blacklist, List<Pattern> whitelist);
 
     protected abstract long getEarliestOffset(KafkaPartition partition) throws KafkaOffsetRetrievalFailureException;
 
@@ -174,7 +174,7 @@ public class KafkaWrapper implements Closeable {
     private final ConcurrentMap<String, SimpleConsumer> activeConsumers = Maps.newConcurrentMap();
 
     @Override
-    public List<KafkaTopic> getFilteredTopics(Set<String> blacklist, Set<String> whitelist) {
+    public List<KafkaTopic> getFilteredTopics(List<Pattern> blacklist, List<Pattern> whitelist) {
       List<TopicMetadata> topicMetadataList = getFilteredMetadataList(blacklist, whitelist);
 
       List<KafkaTopic> filteredTopics = Lists.newArrayList();
@@ -196,7 +196,7 @@ public class KafkaWrapper implements Closeable {
       return partitions;
     }
 
-    private List<TopicMetadata> getFilteredMetadataList(Set<String> blacklist, Set<String> whitelist) {
+    private List<TopicMetadata> getFilteredMetadataList(List<Pattern> blacklist, List<Pattern> whitelist) {
       List<TopicMetadata> filteredTopicMetadataList = Lists.newArrayList();
 
       //Try all brokers one by one, until successfully retrieved topic metadata (topicMetadataList is non-null)
@@ -211,7 +211,8 @@ public class KafkaWrapper implements Closeable {
           "Fetching topic metadata from all brokers failed. See log warning for more information.");
     }
 
-    private List<TopicMetadata> fetchTopicMetadataFromBroker(String broker, Set<String> blacklist, Set<String> whitelist) {
+    private List<TopicMetadata> fetchTopicMetadataFromBroker(String broker, List<Pattern> blacklist,
+        List<Pattern> whitelist) {
 
       List<TopicMetadata> topicMetadataList = fetchTopicMetadataFromBroker(broker);
       if (topicMetadataList == null) {
@@ -220,7 +221,7 @@ public class KafkaWrapper implements Closeable {
 
       List<TopicMetadata> filteredTopicMetadataList = Lists.newArrayList();
       for (TopicMetadata topicMetadata : topicMetadataList) {
-        if (EventBasedSource.survived(topicMetadata.topic(), blacklist, whitelist)) {
+        if (DatasetFilterUtils.survived(topicMetadata.topic(), blacklist, whitelist)) {
           filteredTopicMetadataList.add(topicMetadata);
         }
       }
@@ -294,21 +295,20 @@ public class KafkaWrapper implements Closeable {
 
     private long getOffset(KafkaPartition partition,
         Map<TopicAndPartition, PartitionOffsetRequestInfo> offsetRequestInfo)
-        throws KafkaOffsetRetrievalFailureException {
+            throws KafkaOffsetRetrievalFailureException {
       SimpleConsumer consumer = this.getSimpleConsumer(partition.getLeader().getHostAndPort());
       for (int i = 0; i < NUM_TRIES_FETCH_OFFSET; i++) {
         try {
-          OffsetResponse offsetResponse =
-              consumer.getOffsetsBefore(new OffsetRequest(offsetRequestInfo, kafka.api.OffsetRequest.CurrentVersion(),
-                  DEFAULT_KAFKA_CLIENT_NAME));
+          OffsetResponse offsetResponse = consumer.getOffsetsBefore(new OffsetRequest(offsetRequestInfo,
+              kafka.api.OffsetRequest.CurrentVersion(), DEFAULT_KAFKA_CLIENT_NAME));
           if (offsetResponse.hasError()) {
-            throw new RuntimeException("offsetReponse has error: "
-                + offsetResponse.errorCode(partition.getTopicName(), partition.getId()));
+            throw new RuntimeException(
+                "offsetReponse has error: " + offsetResponse.errorCode(partition.getTopicName(), partition.getId()));
           }
           return offsetResponse.offsets(partition.getTopicName(), partition.getId())[0];
         } catch (Exception e) {
-          LOG.warn(String.format("Fetching offset for partition %s has failed %d time(s). Reason: %s", partition,
-              i + 1, e));
+          LOG.warn(
+              String.format("Fetching offset for partition %s has failed %d time(s). Reason: %s", partition, i + 1, e));
           if (i < NUM_TRIES_FETCH_OFFSET - 1) {
             try {
               Thread.sleep((long) ((i + Math.random()) * 1000));
@@ -318,8 +318,8 @@ public class KafkaWrapper implements Closeable {
           }
         }
       }
-      throw new KafkaOffsetRetrievalFailureException(String.format("Fetching offset for partition %s has failed.",
-          partition));
+      throw new KafkaOffsetRetrievalFailureException(
+          String.format("Fetching offset for partition %s has failed.", partition));
     }
 
     @Override
@@ -335,8 +335,8 @@ public class KafkaWrapper implements Closeable {
         FetchResponse fetchResponse = getFetchResponseForFetchRequest(fetchRequest, partition);
         return getIteratorFromFetchResponse(fetchResponse, partition);
       } catch (Exception e) {
-        LOG.warn(String
-            .format("Fetch message buffer for partition %s has failed: %s. Will refresh topic metadata and retry",
+        LOG.warn(
+            String.format("Fetch message buffer for partition %s has failed: %s. Will refresh topic metadata and retry",
                 partition, e));
         return refreshTopicMetadataAndRetryFetch(partition, fetchRequest);
       }
@@ -348,8 +348,8 @@ public class KafkaWrapper implements Closeable {
 
       FetchResponse fetchResponse = consumer.fetch(fetchRequest);
       if (fetchResponse.hasError()) {
-        throw new RuntimeException(String.format("error code %d",
-            fetchResponse.errorCode(partition.getTopicName(), partition.getId())));
+        throw new RuntimeException(
+            String.format("error code %d", fetchResponse.errorCode(partition.getTopicName(), partition.getId())));
       }
       return fetchResponse;
     }
@@ -386,8 +386,8 @@ public class KafkaWrapper implements Closeable {
           TopicMetadata topicMetadata = topicMetadataList.get(0);
           for (PartitionMetadata partitionMetadata : topicMetadata.partitionsMetadata()) {
             if (partitionMetadata.partitionId() == partition.getId()) {
-              partition.setLeader(partitionMetadata.leader().id(), partitionMetadata.leader().host(), partitionMetadata
-                  .leader().port());
+              partition.setLeader(partitionMetadata.leader().id(), partitionMetadata.leader().host(),
+                  partitionMetadata.leader().port());
               break;
             }
           }
@@ -432,7 +432,7 @@ public class KafkaWrapper implements Closeable {
   private class KafkaNewAPI extends KafkaAPI {
 
     @Override
-    public List<KafkaTopic> getFilteredTopics(Set<String> blacklist, Set<String> whitelist) {
+    public List<KafkaTopic> getFilteredTopics(List<Pattern> blacklist, List<Pattern> whitelist) {
       throw new NotImplementedException("kafka new API has not been implemented");
     }
 

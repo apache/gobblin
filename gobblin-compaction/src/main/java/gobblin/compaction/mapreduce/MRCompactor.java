@@ -42,6 +42,7 @@ import com.google.common.collect.Sets;
 import gobblin.compaction.Compactor;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.util.DatasetFilterUtils;
 
 
 /**
@@ -157,12 +158,12 @@ public class MRCompactor implements Compactor {
   @SuppressWarnings("deprecation")
   private Set<String> findAllTopics() throws IOException {
     Set<String> topics = Sets.newHashSet();
-    List<Pattern> blacklist = getBlackList();
-    List<Pattern> whitelist = getWhiteList();
+    List<Pattern> blacklist = getBlacklist();
+    List<Pattern> whitelist = getWhitelist();
     for (FileStatus status : this.fs.listStatus(new Path(this.inputDir))) {
       if (status.isDir()) {
         String topic = status.getPath().getName();
-        if (survived(topic, blacklist, whitelist)) {
+        if (DatasetFilterUtils.survived(topic, blacklist, whitelist)) {
           LOG.info("found topic: " + status.getPath().getName());
           topics.add(status.getPath().getName());
         }
@@ -171,44 +172,14 @@ public class MRCompactor implements Compactor {
     return topics;
   }
 
-  private List<Pattern> getBlackList() {
+  private List<Pattern> getBlacklist() {
     List<String> list = this.state.getPropAsList(ConfigurationKeys.COMPACTION_BLACKLIST, StringUtils.EMPTY);
-    return getPatternsFromStrings(list);
+    return DatasetFilterUtils.getPatternsFromStrings(list);
   }
 
-  private List<Pattern> getWhiteList() {
+  private List<Pattern> getWhitelist() {
     List<String> list = this.state.getPropAsList(ConfigurationKeys.COMPACTION_WHITELIST, StringUtils.EMPTY);
-    return getPatternsFromStrings(list);
-  }
-
-  private static List<Pattern> getPatternsFromStrings(List<String> strings) {
-    List<Pattern> patterns = Lists.newArrayList();
-    for (String s : strings) {
-      patterns.add(Pattern.compile(s, Pattern.CASE_INSENSITIVE));
-    }
-    return patterns;
-  }
-
-  /**
-   * If whitelist is non-empty, a topic survives if it matches the whitelist.
-   * Otherwise, a topic survives if it doesn't match the blacklist.
-   * Whitelist and blacklist use regex patterns (NOT glob patterns).
-   */
-  private static boolean survived(String topic, List<Pattern> blacklist, List<Pattern> whitelist) {
-    if (!whitelist.isEmpty()) {
-      return stringInPatterns(topic, whitelist);
-    } else {
-      return !stringInPatterns(topic, blacklist);
-    }
-  }
-
-  private static boolean stringInPatterns(String s, List<Pattern> patterns) {
-    for (Pattern pattern : patterns) {
-      if (pattern.matcher(s).matches()) {
-        return true;
-      }
-    }
-    return false;
+    return DatasetFilterUtils.getPatternsFromStrings(list);
   }
 
   private void processTopics(Set<String> topics) throws IOException {
@@ -220,7 +191,7 @@ public class MRCompactor implements Compactor {
   private void processPriorityTopics(Set<String> topics, List<Pattern> priorityTopics) throws IOException {
     for (Iterator<String> it = topics.iterator(); it.hasNext();) {
       String topic = it.next();
-      if (stringInPatterns(topic, priorityTopics)) {
+      if (DatasetFilterUtils.stringInPatterns(topic, priorityTopics)) {
         processTopic(topic);
 
         // Remove the topic from topics to avoid processing it again.
@@ -237,13 +208,13 @@ public class MRCompactor implements Compactor {
 
   private List<Pattern> getHighPriorityTopics() {
     List<String> list = this.state.getPropAsList(ConfigurationKeys.COMPACTION_HIGH_PRIORITY_TOPICS, StringUtils.EMPTY);
-    return getPatternsFromStrings(list);
+    return DatasetFilterUtils.getPatternsFromStrings(list);
   }
 
   private List<Pattern> getNormalPriorityTopics() {
     List<String> list =
         this.state.getPropAsList(ConfigurationKeys.COMPACTION_NORMAL_PRIORITY_TOPICS, StringUtils.EMPTY);
-    return getPatternsFromStrings(list);
+    return DatasetFilterUtils.getPatternsFromStrings(list);
   }
 
   private void processTopic(String topic) throws IOException {
