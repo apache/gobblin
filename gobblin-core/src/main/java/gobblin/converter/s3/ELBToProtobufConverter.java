@@ -26,7 +26,7 @@ import java.util.*;
 /**
  * @author ahollenbach@nerdwallet.com
  */
-public class ELBToProtobufConverter extends Converter<Class<String>, Class<LogFile>, ArrayList<String>, LogFile> {
+public class ELBToProtobufConverter extends Converter<Class<ELB>, Class<LogFile>, ELB, LogFile> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ELBToProtobufConverter.class);
 
@@ -35,61 +35,28 @@ public class ELBToProtobufConverter extends Converter<Class<String>, Class<LogFi
   protected static final String LOG_TIME_FORMAT = "HH:mm:ss";
 
   @Override
-  public Class<LogFile> convertSchema(Class<String> inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
+  public Class<LogFile> convertSchema(Class<ELB> inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
     return LogFile.class;
   }
 
   @Override
-  public Iterable<LogFile> convertRecord(Class<LogFile> outputSchema, ArrayList<String> inputRecord, WorkUnitState workUnit) throws DataConversionException {
-    // Fetch the date of the record
-    Date datetime = parseDate(inputRecord.get(0), new SimpleDateFormat(ISO8601_DATE_FORMAT));
-    if (datetime == null) {
-      throw new DataConversionException("Failed to parse date. Use the format: " + ISO8601_DATE_FORMAT);
-    }
-
-    Request request = new ELBRequest(inputRecord.get(11));
-
-    // TODO comment this mess
+  public Iterable<LogFile> convertRecord(Class<LogFile> outputSchema, ELB elbRecord, WorkUnitState workUnit) throws DataConversionException {
     LogFile logFile = LogFile.newBuilder()
-            .setDate(new SimpleDateFormat(LOG_DATE_FORMAT).format(datetime))
-            .setTime(new SimpleDateFormat(LOG_TIME_FORMAT).format(datetime))
-                    .setName(inputRecord.get(1))
-                    .setCIp(inputRecord.get(2))
-                    .setSHost(inputRecord.get(3))
-                    .setTimeTaken(Double.parseDouble(inputRecord.get(4))
-                            + Double.parseDouble(inputRecord.get(5))
-                            + Double.parseDouble(inputRecord.get(6)))
-                    .setScStatus(Integer.parseInt(inputRecord.get(8)))
-                    .setScBytes(Integer.parseInt(inputRecord.get(10)))  // TODO rename? naming ambiguity with Bytes
-                    .setCsMethod(request.method)
-                    .setUri(request.hostHeader + "/" + request.path)
-                    .setUserAgent(inputRecord.get(12))
-                    .build();
+            .setDate(elbRecord.getDate())
+            .setTime(elbRecord.getTime())
+            .setName(elbRecord.getElbName())
+            .setCIp(elbRecord.getClientIp())
+            .setSHost(elbRecord.getBackendIp())
+            .setTimeTaken(elbRecord.getTimeTaken())
+            .setScStatus(elbRecord.getBackendStatusCode())
+            .setScBytes(elbRecord.getSentBytes())
+            .setCsMethod(elbRecord.getRequestMethod())
+            .setUri(elbRecord.getRequestUri())
+            .setUserAgent(elbRecord.getUserAgent())
+            .build();
 
     return new SingleRecordIterable<LogFile>(logFile);
   }
 
-  public static Date parseDate(String input, SimpleDateFormat dateFormat) {
-    // Clean the input
-    input = input.trim();
 
-    Date datetime;
-    try {
-      datetime = dateFormat.parse(input);
-    } catch (ParseException e) {
-      LOG.error("Failed to parse date:" + input);
-      e.printStackTrace();
-      return null;
-    } catch (ArrayIndexOutOfBoundsException e) {
-      LOG.error("Failed to parse date:" + input);
-      e.printStackTrace();
-      return null;
-    } catch (NumberFormatException e) {
-      LOG.error("Failed to parse date:" + input);
-      e.printStackTrace();
-      return null;
-    }
-
-    return datetime;
-  }
 }
