@@ -105,6 +105,7 @@ ext.externalDependency = [
   "influxdbJava": "org.influxdb:influxdb-java:1.5",
   "lombok":"org.projectlombok:lombok:1.16.4",
   "mockRunnerJdbc":"com.mockrunner:mockrunner-jdbc:1.0.8",
+  "xerces":"xercesImpl:2.11.0",
   "byteman": "org.jboss.byteman:byteman:"+bytemanVersion,
   "bytemanBmunit": "org.jboss.byteman:byteman-bmunit:"+bytemanVersion,
   "pegasus" : [
@@ -150,6 +151,11 @@ subprojects {
     excludeFilter = file(rootProject.projectDir.path + "/ligradle/findbugs/findbugsExclude.xml")
   }
 */
+  // MockRunner brings outdated dependency of xerces-impl 2.4.0 which fails MRJobLauncher tests.
+  configurations.all {
+    resolutionStrategy.force 'xerces:xercesImpl:2.11.0'
+  }
+
   configurations {
     compile
     dependencies {
