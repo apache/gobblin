@@ -22,14 +22,14 @@ import java.util.ArrayList;
  * Converts an {@link ArrayList} of Strings coming from a space-separated value
  * @author ahollenbach@nerdwallet.com
  */
-public class CSVToELBConverter extends Converter<Class<ArrayList<String>>, Class<ELB>, ArrayList<String>, ELB> {
+public class CSVToELBConverter extends Converter<Class<ArrayList<String>>, Class<ELBRecord>, ArrayList<String>, ELBRecord> {
   @Override
-  public Class<ELB> convertSchema(Class<ArrayList<String>> inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
-    return ELB.class;
+  public Class<ELBRecord> convertSchema(Class<ArrayList<String>> inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
+    return ELBRecord.class;
   }
 
   @Override
-  public Iterable<ELB> convertRecord(Class<ELB> outputSchema, ArrayList<String> inputRecord, WorkUnitState workUnit) throws DataConversionException {
-    return new SingleRecordIterable<ELB>(new ELB(inputRecord));
+  public Iterable<ELBRecord> convertRecord(Class<ELBRecord> outputSchema, ArrayList<String> inputRecord, WorkUnitState workUnit) throws DataConversionException {
+    return new SingleRecordIterable<ELBRecord>(new ELBRecord(inputRecord));
   }
 }

@@ -19,14 +19,10 @@ import gobblin.converter.s3.LogFileProtobuf.LogFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.*;
-
 /**
  * @author ahollenbach@nerdwallet.com
  */
-public class ELBToProtobufConverter extends Converter<Class<ELB>, Class<LogFile>, ELB, LogFile> {
+public class ELBToProtobufConverter extends Converter<Class<ELBRecord>, Class<LogFile>, ELBRecord, LogFile> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ELBToProtobufConverter.class);
 
@@ -35,12 +31,12 @@ public class ELBToProtobufConverter extends Converter<Class<ELB>, Class<LogFile>
   protected static final String LOG_TIME_FORMAT = "HH:mm:ss";
 
   @Override
-  public Class<LogFile> convertSchema(Class<ELB> inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
+  public Class<LogFile> convertSchema(Class<ELBRecord> inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
     return LogFile.class;
   }
 
   @Override
-  public Iterable<LogFile> convertRecord(Class<LogFile> outputSchema, ELB elbRecord, WorkUnitState workUnit) throws DataConversionException {
+  public Iterable<LogFile> convertRecord(Class<LogFile> outputSchema, ELBRecord elbRecord, WorkUnitState workUnit) throws DataConversionException {
     LogFile logFile = LogFile.newBuilder()
             .setDate(elbRecord.getDate())
             .setTime(elbRecord.getTime())

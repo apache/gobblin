@@ -20,7 +20,7 @@ import java.util.ArrayList;
 import java.util.Date;
 
 /**
- * A POJO for an ELB log using the following schema:
+ * A POJO for an ELB record using the following schema:
  * <pre>timestamp elb client:port backend:port request_processing_time backend_processing_time response_processing_time elb_status_code backend_status_code received_bytes sent_bytes "request" "user_agent" ssl_cipher ssl_protocol</pre>
  * <p/>
  * This is built from the ELB format as outlined here (API Version 2012-06-01). For additional
@@ -29,7 +29,7 @@ import java.util.Date;
  *
  * @author ahollenbach@nerdwallet.com
  */
-public class ELB {
+public class ELBRecord {
   private static final Logger LOG = LoggerFactory.getLogger(ELBToProtobufConverter.class);
 
   protected static final String ISO8601_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.";
@@ -55,13 +55,13 @@ public class ELB {
   private final String sslProtocol;
 
   /**
-   * Creates an ELB object.
+   * Creates an ELBRecord object.
    * This constructor in particular takes in an array of strings, presumably extracted directly
    * from the original record in the form of a space separated value.
    *
    * @param values An {@link ArrayList} of Strings in the following order: <pre>timestamp elb client:port backend:port request_processing_time backend_processing_time response_processing_time elb_status_code backend_status_code received_bytes sent_bytes "request" "user_agent" ssl_cipher ssl_protocol</pre>
    */
-  public ELB(ArrayList<String> values) throws DataConversionException {
+  public ELBRecord(ArrayList<String> values) throws DataConversionException {
     if(values.size() != 15) {
       throw new DataConversionException("Malformed log record");
     }
@@ -146,12 +146,12 @@ public class ELB {
    * @param sslCipher
    * @param sslProtocol
    */
-  public ELB(Date timestamp, String elbName, String clientIp, int clientPort,
-             String backendIp, int backendPort, double requestProcessingTime,
-             double backendProcessingTime, double responseProcessingTime,
-             int elbStatusCode, int backendStatusCode, int receivedBytes,
-             int sentBytes, Request request, String userAgent, String sslCipher,
-             String sslProtocol) {
+  public ELBRecord(Date timestamp, String elbName, String clientIp, int clientPort,
+                   String backendIp, int backendPort, double requestProcessingTime,
+                   double backendProcessingTime, double responseProcessingTime,
+                   int elbStatusCode, int backendStatusCode, int receivedBytes,
+                   int sentBytes, Request request, String userAgent, String sslCipher,
+                   String sslProtocol) {
 
     this.timestamp = timestamp;
     this.elbName = elbName;
@@ -202,7 +202,7 @@ public class ELB {
   // Custom getters
 
   /**
-   * Gets the date in {@link ELB#LOG_DATE_FORMAT}.
+   * Gets the date in {@link ELBRecord#LOG_DATE_FORMAT}.
    * This is the date when the load balancer received the request from the client.
    *
    * @return The date formatted to the corresponding string
@@ -212,7 +212,7 @@ public class ELB {
   }
 
   /**
-   * Gets the time in {@link ELB#LOG_TIME_FORMAT}.
+   * Gets the time in {@link ELBRecord#LOG_TIME_FORMAT}.
    * This is the time when the load balancer received the request from the client.
    *
    * @return The time formatted to the corresponding string
@@ -223,7 +223,7 @@ public class ELB {
 
   /**
    * Gets the approximate time taken for the request.
-   * This is just a sum of the the three ELB processing times -> request, backend, and response.
+   * This is just a sum of the the three ELBRecord processing times -> request, backend, and response.
    * @return The time taken, in seconds for the request
    */
   public double getTimeTaken() {
