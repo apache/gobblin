@@ -48,6 +48,7 @@ public class TextS3Publisher extends BaseS3Publisher {
       }
 
       String s3Bucket = this.getState().getProp(ConfigurationKeys.S3_BUCKET);
+      //String s3Key = state.getProp("OBJECT_KEY").replaceAll(".*/", "");
       String s3Key = state.getProp("OBJECT_KEY");
       this.sendS3Data(0, new BucketAndKey(s3Bucket, s3Key), fileNames);
     }

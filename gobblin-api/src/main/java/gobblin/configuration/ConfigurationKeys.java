@@ -425,11 +425,17 @@ public class ConfigurationKeys {
   public static final Charset DEFAULT_CHARSET_ENCODING = Charsets.UTF_8;
 
   /**
-   * Amazon AWS credentials.
+   * Amazon AWS S3 properties.
    */
   public static final String S3_SOURCE_BUCKET = "aws.s3.source.bucket";
   public static final String S3_SOURCE_PATH = "aws.s3.source.path";
   public static final String S3_BUCKET = "aws.s3.bucket";
   public static final String S3_PATH = "aws.s3.path";
   public static final String S3_PARTITIONS = "aws.s3.partitions";
+  public static final String S3_DATE_PATTERN = "aws.s3.date.pattern";
+  public static final String DEFAULT_S3_DATE_PATTERN = "yyyy/MM/dd";
+  public static final String S3_DATE_PLACEHOLDER = "{cur-date}";
+  public static final String DEFAULT_S3_DATE_PLACEHOLDER = "aws.s3.date.placeholder";
+  public static final String S3_DATE_OFFSET = "aws.s3.date.offset";
+  public static final int DEFAULT_S3_DATE_OFFSET = -1;
 }
