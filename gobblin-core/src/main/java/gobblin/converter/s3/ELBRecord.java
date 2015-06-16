@@ -81,7 +81,7 @@ public class ELBRecord {
     this.clientPort = Integer.parseInt(clientIpPort[1]);
 
     // values[3]: backend:port
-    String[] backendIpPort = values.get(2).split(":",2);
+    String[] backendIpPort = values.get(3).split(":",2);
     if (backendIpPort.length == 2) {
       this.backendIp = backendIpPort[0];
       this.backendPort = Integer.parseInt(backendIpPort[1]);
