@@ -41,7 +41,7 @@ public class S3Source extends AbstractSource<Class<String>, ArrayList<String>> {
 
   public static final String TABLE_NAME = "table.name";
   public static final Extract.TableType DEFAULT_TABLE_TYPE = Extract.TableType.APPEND_ONLY;
-  public static final String DEFAULT_NAMESPACE_NAME = "KAFKA";
+  public static final String DEFAULT_NAMESPACE_NAME = "S3_LOG_ANALYSIS";
 
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
