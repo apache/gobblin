@@ -530,12 +530,12 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   }
 
   private static List<Pattern> getBlacklist(State state) {
-    List<String> list = state.getPropAsList(ConfigurationKeys.COMPACTION_BLACKLIST, StringUtils.EMPTY);
+    List<String> list = state.getPropAsList(TOPIC_BLACKLIST, StringUtils.EMPTY);
     return DatasetFilterUtils.getPatternsFromStrings(list);
   }
 
   private static List<Pattern> getWhitelist(State state) {
-    List<String> list = state.getPropAsList(ConfigurationKeys.COMPACTION_WHITELIST, StringUtils.EMPTY);
+    List<String> list = state.getPropAsList(TOPIC_WHITELIST, StringUtils.EMPTY);
     return DatasetFilterUtils.getPatternsFromStrings(list);
   }
 

@@ -33,6 +33,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 
+import gobblin.password.PasswordManager;
+
 
 /**
  * A class for managing a Hive JDBC connection.
@@ -90,8 +92,8 @@ public class HiveJdbcConnector implements Closeable {
     HiveJdbcConnector hiveJdbcConnector = new HiveJdbcConnector();
 
     // Set the Hive Server type
-    hiveJdbcConnector.withHiveServerVersion(Integer.parseInt(compactRunProps.getProperty(HIVESERVER_VERSION,
-        DEFAULT_HIVESERVER_VERSION)));
+    hiveJdbcConnector.withHiveServerVersion(
+        Integer.parseInt(compactRunProps.getProperty(HIVESERVER_VERSION, DEFAULT_HIVESERVER_VERSION)));
 
     // Add the Hive Site Dir to the classpath
     if (compactRunProps.containsKey(HIVESITE_DIR)) {
@@ -103,7 +105,8 @@ public class HiveJdbcConnector implements Closeable {
       hiveJdbcConnector.withHiveConnectionFromUrl(compactRunProps.getProperty(HIVESERVER_CONNECTION_STRING));
     } else if (compactRunProps.containsKey(HIVESERVER_URL)) {
       hiveJdbcConnector.withHiveConnectionFromUrlUserPassword(compactRunProps.getProperty(HIVESERVER_URL),
-          compactRunProps.getProperty(HIVESERVER_USER), compactRunProps.getProperty(HIVESERVER_PASSWORD));
+          compactRunProps.getProperty(HIVESERVER_USER),
+          PasswordManager.getInstance(compactRunProps).readPassword(compactRunProps.getProperty(HIVESERVER_PASSWORD)));
     } else {
       hiveJdbcConnector.withHiveEmbeddedConnection();
     }
@@ -248,8 +251,8 @@ public class HiveJdbcConnector implements Closeable {
     if (statement.length() <= MAX_OUTPUT_STMT_LENGTH) {
       return statement;
     } else {
-      return statement.substring(0, MAX_OUTPUT_STMT_LENGTH) + "...... ("
-          + (statement.length() - MAX_OUTPUT_STMT_LENGTH) + " characters ommitted)";
+      return statement.substring(0, MAX_OUTPUT_STMT_LENGTH) + "...... (" + (statement.length() - MAX_OUTPUT_STMT_LENGTH)
+          + " characters ommitted)";
     }
   }
 

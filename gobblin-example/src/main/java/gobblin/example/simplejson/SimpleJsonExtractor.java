@@ -30,6 +30,7 @@ import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.password.PasswordManager;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 
@@ -55,8 +56,7 @@ public class SimpleJsonExtractor implements Extractor<String, String> {
   private final BufferedReader bufferedReader;
   private final Closer closer = Closer.create();
 
-  public SimpleJsonExtractor(WorkUnitState workUnitState)
-      throws FileSystemException {
+  public SimpleJsonExtractor(WorkUnitState workUnitState) throws FileSystemException {
     this.workUnitState = workUnitState;
 
     // Resolve the file to pull
@@ -64,8 +64,8 @@ public class SimpleJsonExtractor implements Extractor<String, String> {
       // Add authentication credential if authentication is needed
       UserAuthenticator auth =
           new StaticUserAuthenticator(workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_DOMAIN, ""),
-              workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME),
-              workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
+              workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME), PasswordManager.getInstance(workUnitState)
+                  .readPassword(workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD)));
       FileSystemOptions opts = new FileSystemOptions();
       DefaultFileSystemConfigBuilder.getInstance().setUserAuthenticator(opts, auth);
       this.fileObject = VFS.getManager().resolveFile(workUnitState.getProp(SOURCE_FILE_KEY), opts);
@@ -75,8 +75,9 @@ public class SimpleJsonExtractor implements Extractor<String, String> {
 
     // Open the file for reading
     LOGGER.info("Opening file " + this.fileObject.getURL().toString());
-    this.bufferedReader = this.closer.register(new BufferedReader(new InputStreamReader(
-        this.fileObject.getContent().getInputStream(), ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
+    this.bufferedReader =
+        this.closer.register(new BufferedReader(new InputStreamReader(this.fileObject.getContent().getInputStream(),
+            ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
   }
 
   @Override
@@ -103,8 +104,7 @@ public class SimpleJsonExtractor implements Extractor<String, String> {
   }
 
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     try {
       this.closer.close();
     } catch (IOException ioe) {
