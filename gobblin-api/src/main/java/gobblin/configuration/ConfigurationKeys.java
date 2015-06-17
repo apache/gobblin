@@ -438,16 +438,19 @@ public class ConfigurationKeys {
   public static final String DEFAULT_METRICS_ENABLED = Boolean.toString(true);
   public static final String METRICS_FILE_SUFFIX = METRICS_CONFIGURATIONS_PREFIX + "reporting.file.suffix";
   public static final String DEFAULT_METRICS_FILE_SUFFIX = "";
-  public static final String METRICS_REPORTING_FILE_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX + "reporting.file.enabled";
+  public static final String METRICS_REPORTING_FILE_ENABLED_KEY =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.file.enabled";
   public static final String DEFAULT_METRICS_REPORTING_FILE_ENABLED = Boolean.toString(false);
-  public static final String METRICS_REPORTING_JMX_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX + "reporting.jmx.enabled";
+  public static final String METRICS_REPORTING_JMX_ENABLED_KEY =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.jmx.enabled";
   public static final String DEFAULT_METRICS_REPORTING_JMX_ENABLED = Boolean.toString(false);
-  public static final String METRICS_REPORTING_KAFKA_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.enabled";
+  public static final String METRICS_REPORTING_KAFKA_ENABLED_KEY =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.enabled";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_ENABLED = Boolean.toString(false);
   public static final String METRICS_REPORTING_KAFKA_FORMAT = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.format";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_FORMAT = "json";
-  public static final String METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY = METRICS_CONFIGURATIONS_PREFIX +
-      "reporting.kafka.avro.use.schema.registry";
+  public static final String METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.avro.use.schema.registry";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY = Boolean.toString(false);
   public static final String METRICS_KAFKA_BROKERS = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.brokers";
   public static final String METRICS_KAFKA_TOPIC = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic";
@@ -474,6 +477,11 @@ public class ConfigurationKeys {
   public static final String DEFAULT_JOB_HISTORY_STORE_USER = "gobblin";
   public static final String JOB_HISTORY_STORE_PASSWORD_KEY = "job.history.store.password";
   public static final String DEFAULT_JOB_HISTORY_STORE_PASSWORD = "gobblin";
+
+  /**
+   * Password encryption and decryption properties.
+   */
+  public static final String ENCRYPT_KEY_LOC = "encrypt.key.loc";
 
   /**
    * Other configuration properties.

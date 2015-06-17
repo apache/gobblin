@@ -44,6 +44,7 @@ import com.google.gson.JsonObject;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.password.PasswordManager;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.exception.HighWatermarkException;
 import gobblin.source.extractor.exception.RecordCountException;
@@ -62,13 +63,14 @@ import gobblin.source.extractor.watermark.Predicate;
 import gobblin.source.extractor.watermark.WatermarkType;
 import gobblin.source.workunit.WorkUnit;
 
+
 /**
  * Extract data using JDBC protocol
  *
  * @author nveeramr
  */
-public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonElement> implements
-    SourceSpecificLayer<JsonArray, JsonElement>, JdbcSpecificLayer {
+public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonElement>
+    implements SourceSpecificLayer<JsonArray, JsonElement>, JdbcSpecificLayer {
   private static final Gson gson = new Gson();
   private List<String> headerRecord;
   private boolean firstPull = true;
@@ -314,9 +316,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       }
 
       String outputColProjection = Joiner.on(",").useForNull("null").join(this.columnList);
-      outputColProjection =
-          outputColProjection.replace(derivedWatermarkColumnName, Utils.getCoalesceColumnNames(watermarkColumn) + " AS "
-              + derivedWatermarkColumnName);
+      outputColProjection = outputColProjection.replace(derivedWatermarkColumnName,
+          Utils.getCoalesceColumnNames(watermarkColumn) + " AS " + derivedWatermarkColumnName);
       this.setOutputColumnProjection(outputColProjection);
       String extractQuery = this.getExtractQuery(schema, entity, inputQuery);
 
@@ -674,7 +675,6 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       PreparedStatement statement =
           connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 
-
       int parameterPosition = 1;
       if (queryParameters != null && queryParameters.size() > 0) {
         for (String parameter : queryParameters) {
@@ -707,7 +707,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   protected JdbcProvider createJdbcSource() {
     String driver = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_DRIVER);
     String userName = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME);
-    String password = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD);
+    String password = PasswordManager.getInstance(this.workUnit)
+        .readPassword(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
     String connectionUrl = this.getConnectionUrl();
 
     if (this.jdbcSource == null || this.jdbcSource.isClosed()) {
@@ -1023,9 +1024,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
     schema.setColumnName(columnName);
 
-    WatermarkType wmType =
-        WatermarkType.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE,
-            "TIMESTAMP").toUpperCase());
+    WatermarkType wmType = WatermarkType.valueOf(
+        this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, "TIMESTAMP").toUpperCase());
     switch (wmType) {
       case TIMESTAMP:
         dataType = "timestamp";
@@ -1100,9 +1100,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    */
   private String toCase(String targetColumnName) {
     String columnName = targetColumnName;
-    ColumnNameCase caseType =
-        ColumnNameCase.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_COLUMN_NAME_CASE,
-            ConfigurationKeys.DEFAULT_COLUMN_NAME_CASE).toUpperCase());
+    ColumnNameCase caseType = ColumnNameCase.valueOf(this.workUnitState
+        .getProp(ConfigurationKeys.SOURCE_COLUMN_NAME_CASE, ConfigurationKeys.DEFAULT_COLUMN_NAME_CASE).toUpperCase());
     switch (caseType) {
       case TOUPPER:
         columnName = targetColumnName.toUpperCase();

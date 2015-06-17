@@ -36,7 +36,15 @@ public class State implements Writable {
 
   private String id;
 
-  private final Properties properties = new Properties();
+  private final Properties properties;
+
+  public State() {
+    this.properties = new Properties();
+  }
+
+  public State(Properties properties) {
+    this.properties = properties;
+  }
 
   /**
    * Return a copy of the underlying {@link java.util.Properties} object.
@@ -112,7 +120,7 @@ public class State implements Writable {
    * @param value property value (if it includes commas, it will be split by the commas).
    */
   public synchronized void appendToListProp(String key, String value) {
-    if(contains(key)) {
+    if (contains(key)) {
       setProp(key, Joiner.on(",").join(getProp(key), value));
     } else {
       setProp(key, value);
@@ -168,8 +176,8 @@ public class State implements Writable {
    * @return value associated with the key as a case insensitive {@link java.util.Set} of strings
    */
   public Set<String> getPropAsCaseInsensitiveSet(String key) {
-    return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER, Splitter.on(",").trimResults().omitEmptyStrings()
-        .split(getProperty(key)));
+    return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER,
+        Splitter.on(",").trimResults().omitEmptyStrings().split(getProperty(key)));
   }
 
   /**
@@ -180,8 +188,8 @@ public class State implements Writable {
    * @return value associated with the key as a case insensitive {@link java.util.Set} of strings
    */
   public Set<String> getPropAsCaseInsensitiveSet(String key, String def) {
-    return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER, Splitter.on(",").trimResults().omitEmptyStrings()
-        .split(getProperty(key, def)));
+    return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER,
+        Splitter.on(",").trimResults().omitEmptyStrings().split(getProperty(key, def)));
   }
 
   /**
