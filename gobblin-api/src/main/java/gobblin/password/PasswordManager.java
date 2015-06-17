@@ -28,6 +28,7 @@ import org.jasypt.util.text.StrongTextEncryptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
@@ -190,7 +191,7 @@ public class PasswordManager {
         return Optional.absent();
       }
       InputStream in = closer.register(fs.open(masterPwdLoc));
-      return Optional.of(new LineReader(new InputStreamReader(in)).readLine());
+      return Optional.of(new LineReader(new InputStreamReader(in, Charsets.UTF_8)).readLine());
     } catch (IOException e) {
       throw new RuntimeException("Failed to obtain master password from " + masterPwdLoc, e);
     } finally {
