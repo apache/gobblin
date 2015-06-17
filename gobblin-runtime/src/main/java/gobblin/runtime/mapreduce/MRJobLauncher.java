@@ -77,6 +77,7 @@ import gobblin.runtime.util.MetricGroup;
 import gobblin.runtime.util.MetricNames;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.JobConfigurationUtils;
 import gobblin.util.JobLauncherUtils;
 
 
@@ -110,19 +111,16 @@ public class MRJobLauncher extends AbstractJobLauncher {
   private final Job job;
   private final Path mrJobDir;
 
-  public MRJobLauncher(Properties sysProps, Properties jobProps) throws Exception {
-    this(sysProps, jobProps, new Configuration());
+  public MRJobLauncher(Properties jobProps) throws Exception {
+    this(jobProps, new Configuration());
   }
 
-  public MRJobLauncher(Properties properties, Properties jobProps, Configuration conf) throws Exception {
-    super(properties, jobProps);
+  public MRJobLauncher(Properties jobProps, Configuration conf) throws Exception {
+    super(jobProps);
 
     this.conf = conf;
-
-    // Add job config properties that also contains all framework config properties
-    for (String name : this.jobProps.stringPropertyNames()) {
-      this.conf.set(name, this.jobProps.getProperty(name));
-    }
+    // Put job configuration properties into the Hadoop configuration so they are available in the mappers
+    JobConfigurationUtils.putPropertiesIntoConfiguration(this.jobProps, this.conf);
 
     // Let the job and all mappers finish even if some mappers fail
     this.conf.set("mapred.max.map.failures.percent", "100"); // For Hadoop 1.x
@@ -131,7 +129,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     // Do not cancel delegation tokens after job has completed (HADOOP-7002)
     this.conf.setBoolean("mapreduce.job.complete.cancel.delegation.tokens", false);
 
-    URI fsUri = URI.create(this.sysProps.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
+    URI fsUri = URI.create(this.jobProps.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
     this.fs = FileSystem.get(fsUri, conf);
 
     this.mrJobDir = new Path(this.jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY), jobContext.getJobName());
