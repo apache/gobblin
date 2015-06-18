@@ -15,10 +15,6 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.util.ForkOperatorUtils;
-import org.apache.commons.io.FilenameUtils;
-import org.apache.hadoop.fs.Path;
-import org.joda.time.format.DateTimeFormatter;
-import org.joda.time.format.DateTimeFormatterBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,17 +27,17 @@ import java.util.Collection;
  *
  * @author ahollenbach@nerdwallet.com
  */
-public class TextS3Publisher extends BaseS3Publisher {
+public class SimpleS3Publisher extends BaseS3Publisher {
 
-  private static final Logger LOG = LoggerFactory.getLogger(TextS3Publisher.class);
+  private static final Logger LOG = LoggerFactory.getLogger(SimpleS3Publisher.class);
 
   /**
-   * Creates a new TextS3Publisher
+   * Creates a new SimpleS3Publisher
    *
    * @param state The state
    * @throws NullPointerException if the state does not contain the property S3_OBJECT_KEY
    */
-  public TextS3Publisher(State state) {
+  public SimpleS3Publisher(State state) {
     super(state);
   }
 
