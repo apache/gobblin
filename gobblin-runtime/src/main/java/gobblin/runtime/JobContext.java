@@ -58,7 +58,7 @@ public class JobContext {
   private final Source<?, ?> source;
 
   @SuppressWarnings("unchecked")
-  public JobContext(Properties sysProps, Properties jobProps, Logger logger) throws Exception {
+  public JobContext(Properties jobProps, Logger logger) throws Exception {
     Preconditions.checkArgument(jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY),
         "A job must have a job name specified by job.name");
 
@@ -73,14 +73,14 @@ public class JobContext {
         jobProps.getProperty(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, Boolean.TRUE.toString()));
 
     this.jobStateStore = new FsStateStore<JobState>(
-        sysProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI),
-        sysProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
+        jobProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI),
+        jobProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
         JobState.class);
 
     boolean jobHistoryStoreEnabled = Boolean.valueOf(
-        sysProps.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, Boolean.FALSE.toString()));
+        jobProps.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, Boolean.FALSE.toString()));
     if (jobHistoryStoreEnabled) {
-      Injector injector = Guice.createInjector(new MetaStoreModule(sysProps));
+      Injector injector = Guice.createInjector(new MetaStoreModule(jobProps));
       this.jobHistoryStoreOptional = Optional.of(injector.getInstance(JobHistoryStore.class));
     } else {
       this.jobHistoryStoreOptional = Optional.absent();

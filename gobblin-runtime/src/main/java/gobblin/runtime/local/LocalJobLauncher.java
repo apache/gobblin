@@ -62,15 +62,14 @@ public class LocalJobLauncher extends AbstractJobLauncher {
 
   private volatile CountDownLatch countDownLatch;
 
-  public LocalJobLauncher(Properties sysProps, Properties jobProps)
-      throws Exception {
-    super(sysProps, jobProps);
+  public LocalJobLauncher(Properties jobProps) throws Exception {
+    super(jobProps);
 
     Optional<Timer.Context> jobLocalSetupTimer =
         Instrumented.timerContext(this.runtimeMetricContext, MetricNames.RunJobTimings.JOB_LOCAL_SETUP);
 
-    this.taskExecutor = new TaskExecutor(sysProps);
-    this.taskStateTracker = new LocalTaskStateTracker2(sysProps, this.taskExecutor);
+    this.taskExecutor = new TaskExecutor(jobProps);
+    this.taskStateTracker = new LocalTaskStateTracker2(jobProps, this.taskExecutor);
 
     this.serviceManager = new ServiceManager(Lists.newArrayList(
         // The order matters due to dependencies between services
@@ -84,8 +83,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
   }
 
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     try {
       // Stop all dependent services
       this.serviceManager.stopAsync().awaitStopped(5, TimeUnit.SECONDS);
@@ -97,8 +95,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
   }
 
   @Override
-  protected void runWorkUnits(List<WorkUnit> workUnits)
-      throws Exception {
+  protected void runWorkUnits(List<WorkUnit> workUnits) throws Exception {
     Optional<Timer.Context> workUnitsPreparationTimer =
         Instrumented.timerContext(this.runtimeMetricContext, MetricNames.RunJobTimings.WORK_UNITS_PREPARATION);
     List<WorkUnit> workUnitsToRun = JobLauncherUtils.flattenWorkUnits(workUnits);
@@ -153,8 +150,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
   }
 
   @Override
-  protected JobLock getJobLock()
-      throws IOException {
+  protected JobLock getJobLock() throws IOException {
     URI fsUri = URI.create(this.jobProps.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
     return new FileBasedJobLock(FileSystem.get(fsUri, new Configuration()),
         this.jobProps.getProperty(ConfigurationKeys.JOB_LOCK_DIR_KEY), this.jobContext.getJobName());
