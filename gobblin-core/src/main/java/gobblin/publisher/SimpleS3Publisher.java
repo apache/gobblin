@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 /**
- * Publishes plaintext files to S3
+ * Publishes files to S3
  *
  * @author ahollenbach@nerdwallet.com
  */
