@@ -22,7 +22,6 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
-import java.util.LinkedList;
 import java.util.Map;
 import java.util.Random;
 
@@ -46,7 +45,7 @@ public class KafkaS3Publisher extends BaseS3Publisher {
     Map<String, ArrayList<String>> data =
             BatchKafkaData.getInputStreams(states, this.numBranches, this.fss);
     for (String k : data.keySet()) {
-      String s3Bucket = this.getState().getProp(ConfigurationKeys.S3_BUCKET);
+      String s3Bucket = this.getState().getProp(ConfigurationKeys.S3_PUBLISHER_BUCKET);
       String s3Key = getS3Key(k);
       String[] arr = k.split("-");
       int branch = Integer.parseInt(arr[arr.length - 1]);
