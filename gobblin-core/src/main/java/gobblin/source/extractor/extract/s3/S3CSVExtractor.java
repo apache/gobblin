@@ -40,16 +40,31 @@ public class S3CSVExtractor implements Extractor<Class<String>, ArrayList<String
   protected BufferedReader br;
   protected InputStreamCSVReader csvReader;
 
+  /**
+   * Creates a new S3CSVExtractor
+   *
+   * @param state the state
+   * @throws NullPointerException if the state does not contain the property S3_OBJECT_KEY
+   */
   public S3CSVExtractor(WorkUnitState state) {
     this.workUnitState = state;
 
     AmazonS3 s3Client = new AmazonS3Client();
 
-    // Fetch our object from S3 and build an input stream to read from for each record
-    S3Object obj = s3Client.getObject(state.getProp(ConfigurationKeys.S3_SOURCE_BUCKET), state.getProp("OBJECT_KEY"));
-    br = new BufferedReader(new InputStreamReader(obj.getObjectContent()));
+    try {
+      String objectKey = state.getProp("S3_OBJECT_KEY");
+      if(objectKey == null) {
+        throw new NullPointerException();
+      }
 
-    csvReader = new InputStreamCSVReader(br, state.getProp(ConfigurationKeys.CONVERTER_CSV_DELIMETER).charAt(0));
+      // Fetch our object from S3 and build an input stream to read from for each record
+      S3Object obj = s3Client.getObject(state.getProp(ConfigurationKeys.S3_SOURCE_BUCKET), objectKey);
+      br = new BufferedReader(new InputStreamReader(obj.getObjectContent()));
+
+      csvReader = new InputStreamCSVReader(br, state.getProp(ConfigurationKeys.CONVERTER_CSV_DELIMETER).charAt(0));
+    } catch(NullPointerException ex) {
+      LOG.error("S3_OBJECT_KEY not set in state.");
+    }
   }
 
   @Override
