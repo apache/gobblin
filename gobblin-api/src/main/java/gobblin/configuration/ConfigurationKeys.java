@@ -393,11 +393,9 @@ public class ConfigurationKeys {
   public static final String COMPACTION_WHITELIST = COMPACTION_PREFIX + "whitelist";
   public static final String COMPACTION_HIGH_PRIORITY_TOPICS = COMPACTION_PREFIX + "high.priority.topics";
   public static final String COMPACTION_NORMAL_PRIORITY_TOPICS = COMPACTION_PREFIX + "normal.priority.topics";
-  public static final String COMPACTION_FORCE_REPROCESS = COMPACTION_PREFIX + "force.reprocess";
-  public static final boolean DEFAULT_COMPACTION_FORCE_REPROCESS = false;
   public static final String COMPACTION_JOBPROPS_CREATOR_CLASS = COMPACTION_PREFIX + "jobprops.creator.class";
   public static final String DEFAULT_COMPACTION_JOBPROPS_CREATOR_CLASS =
-      "gobblin.compaction.mapreduce.MRCompactorJobPropCreator";
+      "gobblin.compaction.mapreduce.MRCompactorTimeBasedJobPropCreator";
   public static final String COMPACTION_TIMEBASED_FOLDER_PATTERN = COMPACTION_PREFIX + "timebased.folder.pattern";
   public static final String DEFAULT_COMPACTION_TIMEBASED_FOLDER_PATTERN = "YYYY/MM/dd";
   public static final String COMPACTION_TIMEZONE = COMPACTION_PREFIX + "timezone";
@@ -428,6 +426,10 @@ public class ConfigurationKeys {
   public static final String COMPACTION_FILE_SYSTEM_URI = COMPACTION_PREFIX + "file.system.uri";
   public static final String COMPACTION_MR_JOB_TIMEOUT_MINUTES = COMPACTION_PREFIX + "mr.job.timeout.minutes";
   public static final int DEFAULT_COMPACTION_MR_JOB_TIMEOUT_MINUTES = Integer.MAX_VALUE;
+  public static final String COMPACTION_COMPLETE_FILE_NAME = "_COMPACTION_COMPLETE";
+  public static final String COMPACTION_ENABLE_SUCCESS_FILE = "mapreduce.fileoutputcommitter.marksuccessfuljobs";
+  public static final String COMPACTION_OVERWRITE_OUTPUT_DIR = COMPACTION_PREFIX + "overwrite.output.dir";
+  public static final boolean DEFAULT_COMPACTION_OVERWRITE_OUTPUT_DIR = false;
 
   /**
    * Common metrics configuration properties.
