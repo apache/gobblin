@@ -86,9 +86,9 @@ public class JobScheduler extends AbstractIdleService {
 
   private static final Logger LOG = LoggerFactory.getLogger(JobScheduler.class);
 
-  private static final String JOB_SCHEDULER_KEY = "jobScheduler";
-  private static final String PROPERTIES_KEY = "jobProps";
-  private static final String JOB_LISTENER_KEY = "jobListener";
+  public static final String JOB_SCHEDULER_KEY = "jobScheduler";
+  public static final String PROPERTIES_KEY = "jobProps";
+  public static final String JOB_LISTENER_KEY = "jobListener";
 
   // System configuration properties
   private final Properties properties;
@@ -97,7 +97,7 @@ public class JobScheduler extends AbstractIdleService {
   private final Scheduler scheduler;
 
   // A thread pool executor for running jobs without schedules
-  private final ExecutorService jobExecutor;
+  protected final ExecutorService jobExecutor;
 
   // Mapping between jobs to job listeners associated with them
   private final Map<String, JobListener> jobListenerMap = Maps.newHashMap();
@@ -135,6 +135,7 @@ public class JobScheduler extends AbstractIdleService {
   protected void startUp()
       throws Exception {
     LOG.info("Starting the job scheduler");
+
     this.scheduler.start();
     if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)) {
       scheduleLocallyConfiguredJobs();
@@ -146,10 +147,16 @@ public class JobScheduler extends AbstractIdleService {
   protected void shutDown()
       throws Exception {
     LOG.info("Stopping the job scheduler");
-    this.scheduler.shutdown(true);
+
     if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)) {
       // Stop the file alteration monitor in one second
       this.fileAlterationMonitor.stop(1000);
+    }
+
+    try {
+      ExecutorsUtils.shutdownExecutorService(this.jobExecutor);
+    } finally {
+      this.scheduler.shutdown(true);
     }
   }
 
@@ -157,7 +164,7 @@ public class JobScheduler extends AbstractIdleService {
    * Schedule a job.
    *
    * <p>
-   *     This method calls the Quartz scheduler to scheduler the job.
+   *   This method calls the Quartz scheduler to scheduler the job.
    * </p>
    *
    * @param jobProps Job configuration properties
@@ -166,8 +173,28 @@ public class JobScheduler extends AbstractIdleService {
    * @throws JobException when there is anything wrong
    *                      with scheduling the job
    */
-  public void scheduleJob(Properties jobProps, JobListener jobListener)
-      throws JobException {
+  public void scheduleJob(Properties jobProps, JobListener jobListener) throws JobException {
+    scheduleJob(jobProps, jobListener, Maps.<String, Object>newHashMap(), GobblinJob.class);
+  }
+
+  /**
+   * Schedule a job.
+   *
+   * <p>
+   *   This method does what {@link #scheduleJob(Properties, JobListener)} does, and additionally it
+   *   allows the caller to pass in additional job data and the {@link Job} implementation class.
+   * </p>
+   *
+   * @param jobProps Job configuration properties
+   * @param jobListener {@link gobblin.runtime.JobListener} used for callback,
+   *                    can be <em>null</em> if no callback is needed.
+   * @param additionalJobData additional job data in a {@link Map}
+   * @param jobClass Quartz job class
+   * @throws JobException when there is anything wrong
+   *                      with scheduling the job
+   */
+  public void scheduleJob(Properties jobProps, JobListener jobListener, Map<String, Object> additionalJobData,
+      Class<? extends Job> jobClass) throws JobException {
     Preconditions.checkArgument(jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY),
         "A job must have a job name specified by job.name");
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
@@ -196,9 +223,10 @@ public class JobScheduler extends AbstractIdleService {
     jobDataMap.put(JOB_SCHEDULER_KEY, this);
     jobDataMap.put(PROPERTIES_KEY, jobProps);
     jobDataMap.put(JOB_LISTENER_KEY, jobListener);
+    jobDataMap.putAll(additionalJobData);
 
     // Build a Quartz job
-    JobDetail job = JobBuilder.newJob(GobblinJob.class)
+    JobDetail job = JobBuilder.newJob(jobClass)
         .withIdentity(jobName, Strings.nullToEmpty(jobProps.getProperty(ConfigurationKeys.JOB_GROUP_KEY)))
         .withDescription(Strings.nullToEmpty(jobProps.getProperty(ConfigurationKeys.JOB_DESCRIPTION_KEY)))
         .usingJobData(jobDataMap).build();
@@ -236,17 +264,42 @@ public class JobScheduler extends AbstractIdleService {
    * Run a job.
    *
    * <p>
-   *     This method runs the job immediately without going through the Quartz scheduler.
-   *     This is particularly useful for testing.
+   *   This method runs the job immediately without going through the Quartz scheduler.
+   *   This is particularly useful for testing.
    * </p>
    *
    * @param jobProps Job configuration properties
-   * @param jobListener {@link JobListener} used for callback,
-   *                    can be <em>null</em> if no callback is needed.
-   * @throws JobException when there is anything wrong
-   *                      with running the job
+   * @param jobListener {@link JobListener} used for callback, can be <em>null</em> if no callback is needed.
+   * @throws JobException when there is anything wrong with running the job
    */
   public void runJob(Properties jobProps, JobListener jobListener)
+      throws JobException {
+    try {
+      runJob(jobProps, jobListener, JobLauncherFactory.newJobLauncher(this.properties, jobProps));
+    } catch (Exception e) {
+      throw new JobException("Failed to run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
+    }
+  }
+
+  /**
+   * Run a job.
+   *
+   * <p>
+   *   This method runs the job immediately without going through the Quartz scheduler.
+   *   This is particularly useful for testing.
+   * </p>
+   *
+   * <p>
+   *   This method does what {@link #runJob(Properties, JobListener)} does, and additionally it allows
+   *   the caller to pass in a {@link JobLauncher} instance used to launch the job to run.
+   * </p>
+   *
+   * @param jobProps Job configuration properties
+   * @param jobListener {@link JobListener} used for callback, can be <em>null</em> if no callback is needed.
+   * @param jobLauncher a {@link JobLauncher} object used to launch the job to run
+   * @throws JobException when there is anything wrong with running the job
+   */
+  public void runJob(Properties jobProps, JobListener jobListener, JobLauncher jobLauncher)
       throws JobException {
     Preconditions.checkArgument(jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY),
         "A job must have a job name specified by job.name");
@@ -265,16 +318,13 @@ public class JobScheduler extends AbstractIdleService {
     Closer closer = Closer.create();
     // Launch the job
     try {
-      JobLauncher jobLauncher = closer.register(JobLauncherFactory.newJobLauncher(this.properties, jobProps));
-      jobLauncher.launchJob(jobListener);
+      closer.register(jobLauncher).launchJob(jobListener);
       boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
       if (runOnce && this.scheduledJobs.containsKey(jobName)) {
         this.scheduler.deleteJob(this.scheduledJobs.remove(jobName));
       }
     } catch (Throwable t) {
-      String errMsg = "Failed to launch and run job " + jobName;
-      LOG.error(errMsg, t);
-      throw new JobException(errMsg, t);
+      throw new JobException("Failed to launch and run job " + jobName, t);
     } finally {
       try {
         closer.close();

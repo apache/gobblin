@@ -80,9 +80,8 @@ public abstract class AbstractTaskStateTracker extends AbstractIdleService imple
    * @return a {@link java.util.concurrent.ScheduledFuture} corresponding to the scheduled {@link TaskMetricsUpdater}
    */
   protected ScheduledFuture<?> scheduleTaskMetricsUpdater(Runnable taskMetricsUpdater, Task task) {
-    return this.taskMetricsUpdaterExecutor
-        .scheduleAtFixedRate(taskMetricsUpdater, task.getTaskContext().getStatusReportingInterval(),
-            task.getTaskContext().getStatusReportingInterval(), TimeUnit.MILLISECONDS);
+    return this.taskMetricsUpdaterExecutor.scheduleAtFixedRate(taskMetricsUpdater, 0,
+        task.getTaskContext().getStatusReportingInterval(), TimeUnit.MILLISECONDS);
   }
 
   /**
@@ -100,7 +99,7 @@ public abstract class AbstractTaskStateTracker extends AbstractIdleService imple
     public void run() {
       updateTaskMetrics();
       // Log record queue stats/metrics of each fork
-      for (Optional<Fork> fork : task.getForks()) {
+      for (Optional<Fork> fork : this.task.getForks()) {
         if (fork.isPresent() && fork.get().queueStats().isPresent()) {
           logger.info(String.format(
               "Queue stats of fork %d of task %s: %s", fork.get().getIndex(), this.task.getTaskId(),

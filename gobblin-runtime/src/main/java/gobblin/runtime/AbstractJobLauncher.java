@@ -56,7 +56,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
   private static final Logger LOG = LoggerFactory.getLogger(AbstractJobLauncher.class);
 
-  protected static final String TASK_STATE_STORE_TABLE_SUFFIX = ".tst";
+  public static final String TASK_STATE_STORE_TABLE_SUFFIX = ".tst";
   protected static final String JOB_STATE_STORE_TABLE_SUFFIX = ".jst";
 
   // Job configuration properties
@@ -274,9 +274,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       Instrumented.endTimer(jobCommitTimer);
     } catch (Throwable t) {
       jobState.setState(JobState.RunningState.FAILED);
-      String errMsg = "Failed to launch and run job " + jobId;
-      LOG.error(errMsg + ": " + t, t);
-      throw new JobException(errMsg, t);
+      throw new JobException("Failed to launch and run job " + jobId, t);
     } finally {
       long endTime = System.currentTimeMillis();
       jobState.setEndTime(endTime);
@@ -468,6 +466,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       // successful even if some tasks failed.
       if (taskState.getWorkingState() != WorkUnitState.WorkingState.SUCCESSFUL
           && this.jobContext.getJobCommitPolicy() == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
+        LOG.info(String.format("Task %s completed with state %s; setting job state to %s as not all tasks "
+            + "completed successfully.", taskState.getTaskId(), taskState.getWorkingState().toString(),
+            JobState.RunningState.FAILED));
         jobState.setState(JobState.RunningState.FAILED);
         break;
       }

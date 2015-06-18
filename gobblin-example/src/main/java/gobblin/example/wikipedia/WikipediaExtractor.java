@@ -12,7 +12,6 @@
 
 package gobblin.example.wikipedia;
 
-import gobblin.configuration.ConfigurationKeys;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -26,12 +25,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.io.Closer;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
@@ -143,8 +144,7 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
     Closer closer = Closer.create();
     HttpURLConnection conn = null;
     StringBuilder sb = new StringBuilder();
-    String urlStr = rootUrl + "&titles=" + pageTitle
-        + "&rvlimit=" + revisionsCnt;
+    String urlStr = rootUrl + "&titles=" + pageTitle + "&rvlimit=" + revisionsCnt;
     try {
       URL url = new URL(urlStr);
       conn = (HttpURLConnection) url.openConnection();
@@ -168,9 +168,14 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
       }
     }
 
+    if (Strings.isNullOrEmpty(sb.toString())) {
+      LOG.warn("Received empty response for query: " + urlStr);
+      return retrievedRevisions;
+    }
+
     JsonElement jsonElement = GSON.fromJson(sb.toString(), JsonElement.class);
 
-    if (!jsonElement.isJsonObject()) {
+    if (jsonElement == null || !jsonElement.isJsonObject()) {
       return retrievedRevisions;
     }
 
@@ -208,7 +213,7 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
       if (pageIdObj.has(JSON_MEMBER_TITLE)) {
         revObj.add(JSON_MEMBER_TITLE, pageIdObj.get(JSON_MEMBER_TITLE));
       }
-      retrievedRevisions.add((JsonElement) revObj);
+      retrievedRevisions.add(revObj);
     }
 
     LOG.info(retrievedRevisions.size() + " record(s) retrieved for title " + pageTitle);
