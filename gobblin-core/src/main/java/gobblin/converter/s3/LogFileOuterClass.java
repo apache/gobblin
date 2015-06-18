@@ -3,13 +3,13 @@
 
 package gobblin.converter.s3;
 
-public final class LogFileProtobuf {
-  private LogFileProtobuf() {}
+public final class LogFileOuterClass {
+  private LogFileOuterClass() {}
   public static void registerAllExtensions(
       com.google.protobuf.ExtensionRegistry registry) {
   }
   public interface LogFileOrBuilder extends
-      // @@protoc_insertion_point(interface_extends:logfile.LogFile)
+      // @@protoc_insertion_point(interface_extends:LogFile)
       com.google.protobuf.MessageOrBuilder {
 
     /**
@@ -82,33 +82,7 @@ public final class LogFileProtobuf {
     double getTimeTaken();
 
     /**
-     * <code>optional string name = 4;</code>
-     *
-     * <pre>
-     * Name  (x-edge-location for CloudFront, elb name, etc)
-     * </pre>
-     */
-    boolean hasName();
-    /**
-     * <code>optional string name = 4;</code>
-     *
-     * <pre>
-     * Name  (x-edge-location for CloudFront, elb name, etc)
-     * </pre>
-     */
-    java.lang.String getName();
-    /**
-     * <code>optional string name = 4;</code>
-     *
-     * <pre>
-     * Name  (x-edge-location for CloudFront, elb name, etc)
-     * </pre>
-     */
-    com.google.protobuf.ByteString
-        getNameBytes();
-
-    /**
-     * <code>required string s_host = 5;</code>
+     * <code>required string s_host = 4;</code>
      *
      * <pre>
      * IP/DNS name of the host
@@ -116,7 +90,7 @@ public final class LogFileProtobuf {
      */
     boolean hasSHost();
     /**
-     * <code>required string s_host = 5;</code>
+     * <code>required string s_host = 4;</code>
      *
      * <pre>
      * IP/DNS name of the host
@@ -124,7 +98,7 @@ public final class LogFileProtobuf {
      */
     java.lang.String getSHost();
     /**
-     * <code>required string s_host = 5;</code>
+     * <code>required string s_host = 4;</code>
      *
      * <pre>
      * IP/DNS name of the host
@@ -134,59 +108,93 @@ public final class LogFileProtobuf {
         getSHostBytes();
 
     /**
-     * <code>optional string c_ip = 6;</code>
+     * <code>required string uri = 5;</code>
      *
      * <pre>
-     * Client IP
+     * Full URI of the request (query + stem)
      * </pre>
      */
-    boolean hasCIp();
+    boolean hasUri();
     /**
-     * <code>optional string c_ip = 6;</code>
+     * <code>required string uri = 5;</code>
      *
      * <pre>
-     * Client IP
+     * Full URI of the request (query + stem)
      * </pre>
      */
-    java.lang.String getCIp();
+    java.lang.String getUri();
     /**
-     * <code>optional string c_ip = 6;</code>
+     * <code>required string uri = 5;</code>
      *
      * <pre>
-     * Client IP
-     * </pre>
-     */
-    com.google.protobuf.ByteString
-        getCIpBytes();
-
-    /**
-     * <code>optional string c_port = 7;</code>
-     *
-     * <pre>
-     * Client Port
-     * </pre>
-     */
-    boolean hasCPort();
-    /**
-     * <code>optional string c_port = 7;</code>
-     *
-     * <pre>
-     * Client Port
-     * </pre>
-     */
-    java.lang.String getCPort();
-    /**
-     * <code>optional string c_port = 7;</code>
-     *
-     * <pre>
-     * Client Port
+     * Full URI of the request (query + stem)
      * </pre>
      */
     com.google.protobuf.ByteString
-        getCPortBytes();
+        getUriBytes();
 
     /**
-     * <code>optional string cs_method = 8;</code>
+     * <code>required int32 sc_status = 6;</code>
+     *
+     * <pre>
+     * Response status code (2xx, 4xx, etc)
+     * </pre>
+     */
+    boolean hasScStatus();
+    /**
+     * <code>required int32 sc_status = 6;</code>
+     *
+     * <pre>
+     * Response status code (2xx, 4xx, etc)
+     * </pre>
+     */
+    int getScStatus();
+
+    /**
+     * <code>required int32 sc_bytes = 7;</code>
+     *
+     * <pre>
+     * Server to client bytes sent
+     * </pre>
+     */
+    boolean hasScBytes();
+    /**
+     * <code>required int32 sc_bytes = 7;</code>
+     *
+     * <pre>
+     * Server to client bytes sent
+     * </pre>
+     */
+    int getScBytes();
+
+    /**
+     * <code>optional string name = 8;</code>
+     *
+     * <pre>
+     * Name  (x-edge-location for CloudFront, elb name, etc)
+     * </pre>
+     */
+    boolean hasName();
+    /**
+     * <code>optional string name = 8;</code>
+     *
+     * <pre>
+     * Name  (x-edge-location for CloudFront, elb name, etc)
+     * </pre>
+     */
+    java.lang.String getName();
+    /**
+     * <code>optional string name = 8;</code>
+     *
+     * <pre>
+     * Name  (x-edge-location for CloudFront, elb name, etc)
+     * </pre>
+     */
+    com.google.protobuf.ByteString
+        getNameBytes();
+
+    /**
+     * <code>optional string cs_method = 9;</code>
      *
      * <pre>
      * The request method (GET, POST, etc)
@@ -194,7 +202,7 @@ public final class LogFileProtobuf {
      */
     boolean hasCsMethod();
     /**
-     * <code>optional string cs_method = 8;</code>
+     * <code>optional string cs_method = 9;</code>
      *
      * <pre>
      * The request method (GET, POST, etc)
@@ -202,7 +210,7 @@ public final class LogFileProtobuf {
      */
     java.lang.String getCsMethod();
     /**
-     * <code>optional string cs_method = 8;</code>
+     * <code>optional string cs_method = 9;</code>
      *
      * <pre>
      * The request method (GET, POST, etc)
@@ -212,64 +220,56 @@ public final class LogFileProtobuf {
         getCsMethodBytes();
 
     /**
-     * <code>required int32 sc_status = 9;</code>
+     * <code>optional string c_ip = 10;</code>
      *
      * <pre>
-     * Response status code (2xx, 4xx, etc)
+     * Client IP
      * </pre>
      */
-    boolean hasScStatus();
+    boolean hasCIp();
     /**
-     * <code>required int32 sc_status = 9;</code>
+     * <code>optional string c_ip = 10;</code>
      *
      * <pre>
-     * Response status code (2xx, 4xx, etc)
+     * Client IP
      * </pre>
      */
-    int getScStatus();
-
+    java.lang.String getCIp();
     /**
-     * <code>required int32 sc_bytes = 10;</code>
+     * <code>optional string c_ip = 10;</code>
      *
      * <pre>
-     * Server to client bytes sent
-     * </pre>
-     */
-    boolean hasScBytes();
-    /**
-     * <code>required int32 sc_bytes = 10;</code>
-     *
-     * <pre>
-     * Server to client bytes sent
-     * </pre>
-     */
-    int getScBytes();
-
-    /**
-     * <code>required string uri = 11;</code>
-     *
-     * <pre>
-     * Full URI of the request (query + stem)
-     * </pre>
-     */
-    boolean hasUri();
-    /**
-     * <code>required string uri = 11;</code>
-     *
-     * <pre>
-     * Full URI of the request (query + stem)
-     * </pre>
-     */
-    java.lang.String getUri();
-    /**
-     * <code>required string uri = 11;</code>
-     *
-     * <pre>
-     * Full URI of the request (query + stem)
+     * Client IP
      * </pre>
      */
     com.google.protobuf.ByteString
-        getUriBytes();
+        getCIpBytes();
+
+    /**
+     * <code>optional string c_port = 11;</code>
+     *
+     * <pre>
+     * Client Port
+     * </pre>
+     */
+    boolean hasCPort();
+    /**
+     * <code>optional string c_port = 11;</code>
+     *
+     * <pre>
+     * Client Port
+     * </pre>
+     */
+    java.lang.String getCPort();
+    /**
+     * <code>optional string c_port = 11;</code>
+     *
+     * <pre>
+     * Client Port
+     * </pre>
+     */
+    com.google.protobuf.ByteString
+        getCPortBytes();
 
     /**
      * <code>optional string referrer = 12;</code>
@@ -324,7 +324,7 @@ public final class LogFileProtobuf {
         getUserAgentBytes();
   }
   /**
-   * Protobuf type {@code logfile.LogFile}
+   * Protobuf type {@code LogFile}
    *
    * <pre>
    * Represents a log file. 
@@ -336,7 +336,7 @@ public final class LogFileProtobuf {
    */
   public static final class LogFile extends
       com.google.protobuf.GeneratedMessage implements
-      // @@protoc_insertion_point(message_implements:logfile.LogFile)
+      // @@protoc_insertion_point(message_implements:LogFile)
       LogFileOrBuilder {
     // Use LogFile.newBuilder() to construct.
     private LogFile(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
@@ -403,47 +403,47 @@ public final class LogFileProtobuf {
             case 34: {
               com.google.protobuf.ByteString bs = input.readBytes();
               bitField0_ |= 0x00000008;
-              name_ = bs;
+              sHost_ = bs;
               break;
             }
             case 42: {
               com.google.protobuf.ByteString bs = input.readBytes();
               bitField0_ |= 0x00000010;
-              sHost_ = bs;
+              uri_ = bs;
               break;
             }
-            case 50: {
-              com.google.protobuf.ByteString bs = input.readBytes();
+            case 48: {
               bitField0_ |= 0x00000020;
-              cIp_ = bs;
+              scStatus_ = input.readInt32();
               break;
             }
-            case 58: {
-              com.google.protobuf.ByteString bs = input.readBytes();
+            case 56: {
               bitField0_ |= 0x00000040;
-              cPort_ = bs;
+              scBytes_ = input.readInt32();
               break;
             }
             case 66: {
               com.google.protobuf.ByteString bs = input.readBytes();
               bitField0_ |= 0x00000080;
+              name_ = bs;
+              break;
+            }
+            case 74: {
+              com.google.protobuf.ByteString bs = input.readBytes();
+              bitField0_ |= 0x00000100;
               csMethod_ = bs;
               break;
             }
-            case 72: {
-              bitField0_ |= 0x00000100;
-              scStatus_ = input.readInt32();
-              break;
-            }
-            case 80: {
+            case 82: {
+              com.google.protobuf.ByteString bs = input.readBytes();
               bitField0_ |= 0x00000200;
-              scBytes_ = input.readInt32();
+              cIp_ = bs;
               break;
             }
             case 90: {
               com.google.protobuf.ByteString bs = input.readBytes();
               bitField0_ |= 0x00000400;
-              uri_ = bs;
+              cPort_ = bs;
               break;
             }
             case 98: {
@@ -472,14 +472,14 @@ public final class LogFileProtobuf {
     }
     public static final com.google.protobuf.Descriptors.Descriptor
         getDescriptor() {
-      return gobblin.converter.s3.LogFileProtobuf.internal_static_logfile_LogFile_descriptor;
+      return gobblin.converter.s3.LogFileOuterClass.internal_static_LogFile_descriptor;
     }
 
     protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
         internalGetFieldAccessorTable() {
-      return gobblin.converter.s3.LogFileProtobuf.internal_static_logfile_LogFile_fieldAccessorTable
+      return gobblin.converter.s3.LogFileOuterClass.internal_static_LogFile_fieldAccessorTable
           .ensureFieldAccessorsInitialized(
-              gobblin.converter.s3.LogFileProtobuf.LogFile.class, gobblin.converter.s3.LogFileProtobuf.LogFile.Builder.class);
+              gobblin.converter.s3.LogFileOuterClass.LogFile.class, gobblin.converter.s3.LogFileOuterClass.LogFile.Builder.class);
     }
 
     public static com.google.protobuf.Parser<LogFile> PARSER =
@@ -629,74 +629,20 @@ public final class LogFileProtobuf {
       return timeTaken_;
     }
 
-    public static final int NAME_FIELD_NUMBER = 4;
-    private java.lang.Object name_;
-    /**
-     * <code>optional string name = 4;</code>
-     *
-     * <pre>
-     * Name  (x-edge-location for CloudFront, elb name, etc)
-     * </pre>
-     */
-    public boolean hasName() {
-      return ((bitField0_ & 0x00000008) == 0x00000008);
-    }
-    /**
-     * <code>optional string name = 4;</code>
-     *
-     * <pre>
-     * Name  (x-edge-location for CloudFront, elb name, etc)
-     * </pre>
-     */
-    public java.lang.String getName() {
-      java.lang.Object ref = name_;
-      if (ref instanceof java.lang.String) {
-        return (java.lang.String) ref;
-      } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
-        java.lang.String s = bs.toStringUtf8();
-        if (bs.isValidUtf8()) {
-          name_ = s;
-        }
-        return s;
-      }
-    }
-    /**
-     * <code>optional string name = 4;</code>
-     *
-     * <pre>
-     * Name  (x-edge-location for CloudFront, elb name, etc)
-     * </pre>
-     */
-    public com.google.protobuf.ByteString
-        getNameBytes() {
-      java.lang.Object ref = name_;
-      if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8(
-                (java.lang.String) ref);
-        name_ = b;
-        return b;
-      } else {
-        return (com.google.protobuf.ByteString) ref;
-      }
-    }
-
-    public static final int S_HOST_FIELD_NUMBER = 5;
+    public static final int S_HOST_FIELD_NUMBER = 4;
     private java.lang.Object sHost_;
     /**
-     * <code>required string s_host = 5;</code>
+     * <code>required string s_host = 4;</code>
      *
      * <pre>
      * IP/DNS name of the host
      * </pre>
      */
     public boolean hasSHost() {
-      return ((bitField0_ & 0x00000010) == 0x00000010);
+      return ((bitField0_ & 0x00000008) == 0x00000008);
     }
     /**
-     * <code>required string s_host = 5;</code>
+     * <code>required string s_host = 4;</code>
      *
      * <pre>
      * IP/DNS name of the host
@@ -717,7 +663,7 @@ public final class LogFileProtobuf {
       }
     }
     /**
-     * <code>required string s_host = 5;</code>
+     * <code>required string s_host = 4;</code>
      *
      * <pre>
      * IP/DNS name of the host
@@ -737,228 +683,20 @@ public final class LogFileProtobuf {
       }
     }
 
-    public static final int C_IP_FIELD_NUMBER = 6;
-    private java.lang.Object cIp_;
-    /**
-     * <code>optional string c_ip = 6;</code>
-     *
-     * <pre>
-     * Client IP
-     * </pre>
-     */
-    public boolean hasCIp() {
-      return ((bitField0_ & 0x00000020) == 0x00000020);
-    }
-    /**
-     * <code>optional string c_ip = 6;</code>
-     *
-     * <pre>
-     * Client IP
-     * </pre>
-     */
-    public java.lang.String getCIp() {
-      java.lang.Object ref = cIp_;
-      if (ref instanceof java.lang.String) {
-        return (java.lang.String) ref;
-      } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
-        java.lang.String s = bs.toStringUtf8();
-        if (bs.isValidUtf8()) {
-          cIp_ = s;
-        }
-        return s;
-      }
-    }
-    /**
-     * <code>optional string c_ip = 6;</code>
-     *
-     * <pre>
-     * Client IP
-     * </pre>
-     */
-    public com.google.protobuf.ByteString
-        getCIpBytes() {
-      java.lang.Object ref = cIp_;
-      if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8(
-                (java.lang.String) ref);
-        cIp_ = b;
-        return b;
-      } else {
-        return (com.google.protobuf.ByteString) ref;
-      }
-    }
-
-    public static final int C_PORT_FIELD_NUMBER = 7;
-    private java.lang.Object cPort_;
-    /**
-     * <code>optional string c_port = 7;</code>
-     *
-     * <pre>
-     * Client Port
-     * </pre>
-     */
-    public boolean hasCPort() {
-      return ((bitField0_ & 0x00000040) == 0x00000040);
-    }
-    /**
-     * <code>optional string c_port = 7;</code>
-     *
-     * <pre>
-     * Client Port
-     * </pre>
-     */
-    public java.lang.String getCPort() {
-      java.lang.Object ref = cPort_;
-      if (ref instanceof java.lang.String) {
-        return (java.lang.String) ref;
-      } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
-        java.lang.String s = bs.toStringUtf8();
-        if (bs.isValidUtf8()) {
-          cPort_ = s;
-        }
-        return s;
-      }
-    }
-    /**
-     * <code>optional string c_port = 7;</code>
-     *
-     * <pre>
-     * Client Port
-     * </pre>
-     */
-    public com.google.protobuf.ByteString
-        getCPortBytes() {
-      java.lang.Object ref = cPort_;
-      if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8(
-                (java.lang.String) ref);
-        cPort_ = b;
-        return b;
-      } else {
-        return (com.google.protobuf.ByteString) ref;
-      }
-    }
-
-    public static final int CS_METHOD_FIELD_NUMBER = 8;
-    private java.lang.Object csMethod_;
-    /**
-     * <code>optional string cs_method = 8;</code>
-     *
-     * <pre>
-     * The request method (GET, POST, etc)
-     * </pre>
-     */
-    public boolean hasCsMethod() {
-      return ((bitField0_ & 0x00000080) == 0x00000080);
-    }
-    /**
-     * <code>optional string cs_method = 8;</code>
-     *
-     * <pre>
-     * The request method (GET, POST, etc)
-     * </pre>
-     */
-    public java.lang.String getCsMethod() {
-      java.lang.Object ref = csMethod_;
-      if (ref instanceof java.lang.String) {
-        return (java.lang.String) ref;
-      } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
-        java.lang.String s = bs.toStringUtf8();
-        if (bs.isValidUtf8()) {
-          csMethod_ = s;
-        }
-        return s;
-      }
-    }
-    /**
-     * <code>optional string cs_method = 8;</code>
-     *
-     * <pre>
-     * The request method (GET, POST, etc)
-     * </pre>
-     */
-    public com.google.protobuf.ByteString
-        getCsMethodBytes() {
-      java.lang.Object ref = csMethod_;
-      if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8(
-                (java.lang.String) ref);
-        csMethod_ = b;
-        return b;
-      } else {
-        return (com.google.protobuf.ByteString) ref;
-      }
-    }
-
-    public static final int SC_STATUS_FIELD_NUMBER = 9;
-    private int scStatus_;
-    /**
-     * <code>required int32 sc_status = 9;</code>
-     *
-     * <pre>
-     * Response status code (2xx, 4xx, etc)
-     * </pre>
-     */
-    public boolean hasScStatus() {
-      return ((bitField0_ & 0x00000100) == 0x00000100);
-    }
-    /**
-     * <code>required int32 sc_status = 9;</code>
-     *
-     * <pre>
-     * Response status code (2xx, 4xx, etc)
-     * </pre>
-     */
-    public int getScStatus() {
-      return scStatus_;
-    }
-
-    public static final int SC_BYTES_FIELD_NUMBER = 10;
-    private int scBytes_;
-    /**
-     * <code>required int32 sc_bytes = 10;</code>
-     *
-     * <pre>
-     * Server to client bytes sent
-     * </pre>
-     */
-    public boolean hasScBytes() {
-      return ((bitField0_ & 0x00000200) == 0x00000200);
-    }
-    /**
-     * <code>required int32 sc_bytes = 10;</code>
-     *
-     * <pre>
-     * Server to client bytes sent
-     * </pre>
-     */
-    public int getScBytes() {
-      return scBytes_;
-    }
-
-    public static final int URI_FIELD_NUMBER = 11;
+    public static final int URI_FIELD_NUMBER = 5;
     private java.lang.Object uri_;
     /**
-     * <code>required string uri = 11;</code>
+     * <code>required string uri = 5;</code>
      *
      * <pre>
      * Full URI of the request (query + stem)
      * </pre>
      */
     public boolean hasUri() {
-      return ((bitField0_ & 0x00000400) == 0x00000400);
+      return ((bitField0_ & 0x00000010) == 0x00000010);
     }
     /**
-     * <code>required string uri = 11;</code>
+     * <code>required string uri = 5;</code>
      *
      * <pre>
      * Full URI of the request (query + stem)
@@ -979,7 +717,7 @@ public final class LogFileProtobuf {
       }
     }
     /**
-     * <code>required string uri = 11;</code>
+     * <code>required string uri = 5;</code>
      *
      * <pre>
      * Full URI of the request (query + stem)
@@ -993,6 +731,268 @@ public final class LogFileProtobuf {
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         uri_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int SC_STATUS_FIELD_NUMBER = 6;
+    private int scStatus_;
+    /**
+     * <code>required int32 sc_status = 6;</code>
+     *
+     * <pre>
+     * Response status code (2xx, 4xx, etc)
+     * </pre>
+     */
+    public boolean hasScStatus() {
+      return ((bitField0_ & 0x00000020) == 0x00000020);
+    }
+    /**
+     * <code>required int32 sc_status = 6;</code>
+     *
+     * <pre>
+     * Response status code (2xx, 4xx, etc)
+     * </pre>
+     */
+    public int getScStatus() {
+      return scStatus_;
+    }
+
+    public static final int SC_BYTES_FIELD_NUMBER = 7;
+    private int scBytes_;
+    /**
+     * <code>required int32 sc_bytes = 7;</code>
+     *
+     * <pre>
+     * Server to client bytes sent
+     * </pre>
+     */
+    public boolean hasScBytes() {
+      return ((bitField0_ & 0x00000040) == 0x00000040);
+    }
+    /**
+     * <code>required int32 sc_bytes = 7;</code>
+     *
+     * <pre>
+     * Server to client bytes sent
+     * </pre>
+     */
+    public int getScBytes() {
+      return scBytes_;
+    }
+
+    public static final int NAME_FIELD_NUMBER = 8;
+    private java.lang.Object name_;
+    /**
+     * <code>optional string name = 8;</code>
+     *
+     * <pre>
+     * Name  (x-edge-location for CloudFront, elb name, etc)
+     * </pre>
+     */
+    public boolean hasName() {
+      return ((bitField0_ & 0x00000080) == 0x00000080);
+    }
+    /**
+     * <code>optional string name = 8;</code>
+     *
+     * <pre>
+     * Name  (x-edge-location for CloudFront, elb name, etc)
+     * </pre>
+     */
+    public java.lang.String getName() {
+      java.lang.Object ref = name_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        if (bs.isValidUtf8()) {
+          name_ = s;
+        }
+        return s;
+      }
+    }
+    /**
+     * <code>optional string name = 8;</code>
+     *
+     * <pre>
+     * Name  (x-edge-location for CloudFront, elb name, etc)
+     * </pre>
+     */
+    public com.google.protobuf.ByteString
+        getNameBytes() {
+      java.lang.Object ref = name_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        name_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int CS_METHOD_FIELD_NUMBER = 9;
+    private java.lang.Object csMethod_;
+    /**
+     * <code>optional string cs_method = 9;</code>
+     *
+     * <pre>
+     * The request method (GET, POST, etc)
+     * </pre>
+     */
+    public boolean hasCsMethod() {
+      return ((bitField0_ & 0x00000100) == 0x00000100);
+    }
+    /**
+     * <code>optional string cs_method = 9;</code>
+     *
+     * <pre>
+     * The request method (GET, POST, etc)
+     * </pre>
+     */
+    public java.lang.String getCsMethod() {
+      java.lang.Object ref = csMethod_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        if (bs.isValidUtf8()) {
+          csMethod_ = s;
+        }
+        return s;
+      }
+    }
+    /**
+     * <code>optional string cs_method = 9;</code>
+     *
+     * <pre>
+     * The request method (GET, POST, etc)
+     * </pre>
+     */
+    public com.google.protobuf.ByteString
+        getCsMethodBytes() {
+      java.lang.Object ref = csMethod_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        csMethod_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int C_IP_FIELD_NUMBER = 10;
+    private java.lang.Object cIp_;
+    /**
+     * <code>optional string c_ip = 10;</code>
+     *
+     * <pre>
+     * Client IP
+     * </pre>
+     */
+    public boolean hasCIp() {
+      return ((bitField0_ & 0x00000200) == 0x00000200);
+    }
+    /**
+     * <code>optional string c_ip = 10;</code>
+     *
+     * <pre>
+     * Client IP
+     * </pre>
+     */
+    public java.lang.String getCIp() {
+      java.lang.Object ref = cIp_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        if (bs.isValidUtf8()) {
+          cIp_ = s;
+        }
+        return s;
+      }
+    }
+    /**
+     * <code>optional string c_ip = 10;</code>
+     *
+     * <pre>
+     * Client IP
+     * </pre>
+     */
+    public com.google.protobuf.ByteString
+        getCIpBytes() {
+      java.lang.Object ref = cIp_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        cIp_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int C_PORT_FIELD_NUMBER = 11;
+    private java.lang.Object cPort_;
+    /**
+     * <code>optional string c_port = 11;</code>
+     *
+     * <pre>
+     * Client Port
+     * </pre>
+     */
+    public boolean hasCPort() {
+      return ((bitField0_ & 0x00000400) == 0x00000400);
+    }
+    /**
+     * <code>optional string c_port = 11;</code>
+     *
+     * <pre>
+     * Client Port
+     * </pre>
+     */
+    public java.lang.String getCPort() {
+      java.lang.Object ref = cPort_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        if (bs.isValidUtf8()) {
+          cPort_ = s;
+        }
+        return s;
+      }
+    }
+    /**
+     * <code>optional string c_port = 11;</code>
+     *
+     * <pre>
+     * Client Port
+     * </pre>
+     */
+    public com.google.protobuf.ByteString
+        getCPortBytes() {
+      java.lang.Object ref = cPort_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        cPort_ = b;
         return b;
       } else {
         return (com.google.protobuf.ByteString) ref;
@@ -1111,14 +1111,14 @@ public final class LogFileProtobuf {
       date_ = "";
       time_ = "";
       timeTaken_ = 0D;
-      name_ = "";
       sHost_ = "";
-      cIp_ = "";
-      cPort_ = "";
-      csMethod_ = "";
+      uri_ = "";
       scStatus_ = 0;
       scBytes_ = 0;
-      uri_ = "";
+      name_ = "";
+      csMethod_ = "";
+      cIp_ = "";
+      cPort_ = "";
       referrer_ = "";
       userAgent_ = "";
     }
@@ -1144,15 +1144,15 @@ public final class LogFileProtobuf {
         memoizedIsInitialized = 0;
         return false;
       }
+      if (!hasUri()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
       if (!hasScStatus()) {
         memoizedIsInitialized = 0;
         return false;
       }
       if (!hasScBytes()) {
-        memoizedIsInitialized = 0;
-        return false;
-      }
-      if (!hasUri()) {
         memoizedIsInitialized = 0;
         return false;
       }
@@ -1173,28 +1173,28 @@ public final class LogFileProtobuf {
         output.writeDouble(3, timeTaken_);
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        output.writeBytes(4, getNameBytes());
+        output.writeBytes(4, getSHostBytes());
       }
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
-        output.writeBytes(5, getSHostBytes());
+        output.writeBytes(5, getUriBytes());
       }
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
-        output.writeBytes(6, getCIpBytes());
+        output.writeInt32(6, scStatus_);
       }
       if (((bitField0_ & 0x00000040) == 0x00000040)) {
-        output.writeBytes(7, getCPortBytes());
+        output.writeInt32(7, scBytes_);
       }
       if (((bitField0_ & 0x00000080) == 0x00000080)) {
-        output.writeBytes(8, getCsMethodBytes());
+        output.writeBytes(8, getNameBytes());
       }
       if (((bitField0_ & 0x00000100) == 0x00000100)) {
-        output.writeInt32(9, scStatus_);
+        output.writeBytes(9, getCsMethodBytes());
       }
       if (((bitField0_ & 0x00000200) == 0x00000200)) {
-        output.writeInt32(10, scBytes_);
+        output.writeBytes(10, getCIpBytes());
       }
       if (((bitField0_ & 0x00000400) == 0x00000400)) {
-        output.writeBytes(11, getUriBytes());
+        output.writeBytes(11, getCPortBytes());
       }
       if (((bitField0_ & 0x00000800) == 0x00000800)) {
         output.writeBytes(12, getReferrerBytes());
@@ -1225,35 +1225,35 @@ public final class LogFileProtobuf {
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(4, getNameBytes());
+          .computeBytesSize(4, getSHostBytes());
       }
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(5, getSHostBytes());
+          .computeBytesSize(5, getUriBytes());
       }
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(6, getCIpBytes());
+          .computeInt32Size(6, scStatus_);
       }
       if (((bitField0_ & 0x00000040) == 0x00000040)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(7, getCPortBytes());
+          .computeInt32Size(7, scBytes_);
       }
       if (((bitField0_ & 0x00000080) == 0x00000080)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(8, getCsMethodBytes());
+          .computeBytesSize(8, getNameBytes());
       }
       if (((bitField0_ & 0x00000100) == 0x00000100)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeInt32Size(9, scStatus_);
+          .computeBytesSize(9, getCsMethodBytes());
       }
       if (((bitField0_ & 0x00000200) == 0x00000200)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeInt32Size(10, scBytes_);
+          .computeBytesSize(10, getCIpBytes());
       }
       if (((bitField0_ & 0x00000400) == 0x00000400)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(11, getUriBytes());
+          .computeBytesSize(11, getCPortBytes());
       }
       if (((bitField0_ & 0x00000800) == 0x00000800)) {
         size += com.google.protobuf.CodedOutputStream
@@ -1275,53 +1275,53 @@ public final class LogFileProtobuf {
       return super.writeReplace();
     }
 
-    public static gobblin.converter.s3.LogFileProtobuf.LogFile parseFrom(
+    public static gobblin.converter.s3.LogFileOuterClass.LogFile parseFrom(
         com.google.protobuf.ByteString data)
         throws com.google.protobuf.InvalidProtocolBufferException {
       return PARSER.parseFrom(data);
     }
-    public static gobblin.converter.s3.LogFileProtobuf.LogFile parseFrom(
+    public static gobblin.converter.s3.LogFileOuterClass.LogFile parseFrom(
         com.google.protobuf.ByteString data,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
       return PARSER.parseFrom(data, extensionRegistry);
     }
-    public static gobblin.converter.s3.LogFileProtobuf.LogFile parseFrom(byte[] data)
+    public static gobblin.converter.s3.LogFileOuterClass.LogFile parseFrom(byte[] data)
         throws com.google.protobuf.InvalidProtocolBufferException {
       return PARSER.parseFrom(data);
     }
-    public static gobblin.converter.s3.LogFileProtobuf.LogFile parseFrom(
+    public static gobblin.converter.s3.LogFileOuterClass.LogFile parseFrom(
         byte[] data,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
       return PARSER.parseFrom(data, extensionRegistry);
     }
-    public static gobblin.converter.s3.LogFileProtobuf.LogFile parseFrom(java.io.InputStream input)
+    public static gobblin.converter.s3.LogFileOuterClass.LogFile parseFrom(java.io.InputStream input)
         throws java.io.IOException {
       return PARSER.parseFrom(input);
     }
-    public static gobblin.converter.s3.LogFileProtobuf.LogFile parseFrom(
+    public static gobblin.converter.s3.LogFileOuterClass.LogFile parseFrom(
         java.io.InputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return PARSER.parseFrom(input, extensionRegistry);
     }
-    public static gobblin.converter.s3.LogFileProtobuf.LogFile parseDelimitedFrom(java.io.InputStream input)
+    public static gobblin.converter.s3.LogFileOuterClass.LogFile parseDelimitedFrom(java.io.InputStream input)
         throws java.io.IOException {
       return PARSER.parseDelimitedFrom(input);
     }
-    public static gobblin.converter.s3.LogFileProtobuf.LogFile parseDelimitedFrom(
+    public static gobblin.converter.s3.LogFileOuterClass.LogFile parseDelimitedFrom(
         java.io.InputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return PARSER.parseDelimitedFrom(input, extensionRegistry);
     }
-    public static gobblin.converter.s3.LogFileProtobuf.LogFile parseFrom(
+    public static gobblin.converter.s3.LogFileOuterClass.LogFile parseFrom(
         com.google.protobuf.CodedInputStream input)
         throws java.io.IOException {
       return PARSER.parseFrom(input);
     }
-    public static gobblin.converter.s3.LogFileProtobuf.LogFile parseFrom(
+    public static gobblin.converter.s3.LogFileOuterClass.LogFile parseFrom(
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
@@ -1330,7 +1330,7 @@ public final class LogFileProtobuf {
 
     public static Builder newBuilder() { return Builder.create(); }
     public Builder newBuilderForType() { return newBuilder(); }
-    public static Builder newBuilder(gobblin.converter.s3.LogFileProtobuf.LogFile prototype) {
+    public static Builder newBuilder(gobblin.converter.s3.LogFileOuterClass.LogFile prototype) {
       return newBuilder().mergeFrom(prototype);
     }
     public Builder toBuilder() { return newBuilder(this); }
@@ -1342,7 +1342,7 @@ public final class LogFileProtobuf {
       return builder;
     }
     /**
-     * Protobuf type {@code logfile.LogFile}
+     * Protobuf type {@code LogFile}
      *
      * <pre>
      * Represents a log file. 
@@ -1354,21 +1354,21 @@ public final class LogFileProtobuf {
      */
     public static final class Builder extends
         com.google.protobuf.GeneratedMessage.Builder<Builder> implements
-        // @@protoc_insertion_point(builder_implements:logfile.LogFile)
-        gobblin.converter.s3.LogFileProtobuf.LogFileOrBuilder {
+        // @@protoc_insertion_point(builder_implements:LogFile)
+        gobblin.converter.s3.LogFileOuterClass.LogFileOrBuilder {
       public static final com.google.protobuf.Descriptors.Descriptor
           getDescriptor() {
-        return gobblin.converter.s3.LogFileProtobuf.internal_static_logfile_LogFile_descriptor;
+        return gobblin.converter.s3.LogFileOuterClass.internal_static_LogFile_descriptor;
       }
 
       protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
           internalGetFieldAccessorTable() {
-        return gobblin.converter.s3.LogFileProtobuf.internal_static_logfile_LogFile_fieldAccessorTable
+        return gobblin.converter.s3.LogFileOuterClass.internal_static_LogFile_fieldAccessorTable
             .ensureFieldAccessorsInitialized(
-                gobblin.converter.s3.LogFileProtobuf.LogFile.class, gobblin.converter.s3.LogFileProtobuf.LogFile.Builder.class);
+                gobblin.converter.s3.LogFileOuterClass.LogFile.class, gobblin.converter.s3.LogFileOuterClass.LogFile.Builder.class);
       }
 
-      // Construct using gobblin.converter.s3.LogFileProtobuf.LogFile.newBuilder()
+      // Construct using gobblin.converter.s3.LogFileOuterClass.LogFile.newBuilder()
       private Builder() {
         maybeForceBuilderInitialization();
       }
@@ -1394,21 +1394,21 @@ public final class LogFileProtobuf {
         bitField0_ = (bitField0_ & ~0x00000002);
         timeTaken_ = 0D;
         bitField0_ = (bitField0_ & ~0x00000004);
-        name_ = "";
-        bitField0_ = (bitField0_ & ~0x00000008);
         sHost_ = "";
-        bitField0_ = (bitField0_ & ~0x00000010);
-        cIp_ = "";
-        bitField0_ = (bitField0_ & ~0x00000020);
-        cPort_ = "";
-        bitField0_ = (bitField0_ & ~0x00000040);
-        csMethod_ = "";
-        bitField0_ = (bitField0_ & ~0x00000080);
-        scStatus_ = 0;
-        bitField0_ = (bitField0_ & ~0x00000100);
-        scBytes_ = 0;
-        bitField0_ = (bitField0_ & ~0x00000200);
+        bitField0_ = (bitField0_ & ~0x00000008);
         uri_ = "";
+        bitField0_ = (bitField0_ & ~0x00000010);
+        scStatus_ = 0;
+        bitField0_ = (bitField0_ & ~0x00000020);
+        scBytes_ = 0;
+        bitField0_ = (bitField0_ & ~0x00000040);
+        name_ = "";
+        bitField0_ = (bitField0_ & ~0x00000080);
+        csMethod_ = "";
+        bitField0_ = (bitField0_ & ~0x00000100);
+        cIp_ = "";
+        bitField0_ = (bitField0_ & ~0x00000200);
+        cPort_ = "";
         bitField0_ = (bitField0_ & ~0x00000400);
         referrer_ = "";
         bitField0_ = (bitField0_ & ~0x00000800);
@@ -1423,23 +1423,23 @@ public final class LogFileProtobuf {
 
       public com.google.protobuf.Descriptors.Descriptor
           getDescriptorForType() {
-        return gobblin.converter.s3.LogFileProtobuf.internal_static_logfile_LogFile_descriptor;
+        return gobblin.converter.s3.LogFileOuterClass.internal_static_LogFile_descriptor;
       }
 
-      public gobblin.converter.s3.LogFileProtobuf.LogFile getDefaultInstanceForType() {
-        return gobblin.converter.s3.LogFileProtobuf.LogFile.getDefaultInstance();
+      public gobblin.converter.s3.LogFileOuterClass.LogFile getDefaultInstanceForType() {
+        return gobblin.converter.s3.LogFileOuterClass.LogFile.getDefaultInstance();
       }
 
-      public gobblin.converter.s3.LogFileProtobuf.LogFile build() {
-        gobblin.converter.s3.LogFileProtobuf.LogFile result = buildPartial();
+      public gobblin.converter.s3.LogFileOuterClass.LogFile build() {
+        gobblin.converter.s3.LogFileOuterClass.LogFile result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(result);
         }
         return result;
       }
 
-      public gobblin.converter.s3.LogFileProtobuf.LogFile buildPartial() {
-        gobblin.converter.s3.LogFileProtobuf.LogFile result = new gobblin.converter.s3.LogFileProtobuf.LogFile(this);
+      public gobblin.converter.s3.LogFileOuterClass.LogFile buildPartial() {
+        gobblin.converter.s3.LogFileOuterClass.LogFile result = new gobblin.converter.s3.LogFileOuterClass.LogFile(this);
         int from_bitField0_ = bitField0_;
         int to_bitField0_ = 0;
         if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
@@ -1457,35 +1457,35 @@ public final class LogFileProtobuf {
         if (((from_bitField0_ & 0x00000008) == 0x00000008)) {
           to_bitField0_ |= 0x00000008;
         }
-        result.name_ = name_;
+        result.sHost_ = sHost_;
         if (((from_bitField0_ & 0x00000010) == 0x00000010)) {
           to_bitField0_ |= 0x00000010;
         }
-        result.sHost_ = sHost_;
+        result.uri_ = uri_;
         if (((from_bitField0_ & 0x00000020) == 0x00000020)) {
           to_bitField0_ |= 0x00000020;
         }
-        result.cIp_ = cIp_;
+        result.scStatus_ = scStatus_;
         if (((from_bitField0_ & 0x00000040) == 0x00000040)) {
           to_bitField0_ |= 0x00000040;
         }
-        result.cPort_ = cPort_;
+        result.scBytes_ = scBytes_;
         if (((from_bitField0_ & 0x00000080) == 0x00000080)) {
           to_bitField0_ |= 0x00000080;
         }
-        result.csMethod_ = csMethod_;
+        result.name_ = name_;
         if (((from_bitField0_ & 0x00000100) == 0x00000100)) {
           to_bitField0_ |= 0x00000100;
         }
-        result.scStatus_ = scStatus_;
+        result.csMethod_ = csMethod_;
         if (((from_bitField0_ & 0x00000200) == 0x00000200)) {
           to_bitField0_ |= 0x00000200;
         }
-        result.scBytes_ = scBytes_;
+        result.cIp_ = cIp_;
         if (((from_bitField0_ & 0x00000400) == 0x00000400)) {
           to_bitField0_ |= 0x00000400;
         }
-        result.uri_ = uri_;
+        result.cPort_ = cPort_;
         if (((from_bitField0_ & 0x00000800) == 0x00000800)) {
           to_bitField0_ |= 0x00000800;
         }
@@ -1500,16 +1500,16 @@ public final class LogFileProtobuf {
       }
 
       public Builder mergeFrom(com.google.protobuf.Message other) {
-        if (other instanceof gobblin.converter.s3.LogFileProtobuf.LogFile) {
-          return mergeFrom((gobblin.converter.s3.LogFileProtobuf.LogFile)other);
+        if (other instanceof gobblin.converter.s3.LogFileOuterClass.LogFile) {
+          return mergeFrom((gobblin.converter.s3.LogFileOuterClass.LogFile)other);
         } else {
           super.mergeFrom(other);
           return this;
         }
       }
 
-      public Builder mergeFrom(gobblin.converter.s3.LogFileProtobuf.LogFile other) {
-        if (other == gobblin.converter.s3.LogFileProtobuf.LogFile.getDefaultInstance()) return this;
+      public Builder mergeFrom(gobblin.converter.s3.LogFileOuterClass.LogFile other) {
+        if (other == gobblin.converter.s3.LogFileOuterClass.LogFile.getDefaultInstance()) return this;
         if (other.hasDate()) {
           bitField0_ |= 0x00000001;
           date_ = other.date_;
@@ -1523,29 +1523,14 @@ public final class LogFileProtobuf {
         if (other.hasTimeTaken()) {
           setTimeTaken(other.getTimeTaken());
         }
-        if (other.hasName()) {
-          bitField0_ |= 0x00000008;
-          name_ = other.name_;
-          onChanged();
-        }
         if (other.hasSHost()) {
-          bitField0_ |= 0x00000010;
+          bitField0_ |= 0x00000008;
           sHost_ = other.sHost_;
           onChanged();
         }
-        if (other.hasCIp()) {
-          bitField0_ |= 0x00000020;
-          cIp_ = other.cIp_;
-          onChanged();
-        }
-        if (other.hasCPort()) {
-          bitField0_ |= 0x00000040;
-          cPort_ = other.cPort_;
-          onChanged();
-        }
-        if (other.hasCsMethod()) {
-          bitField0_ |= 0x00000080;
-          csMethod_ = other.csMethod_;
+        if (other.hasUri()) {
+          bitField0_ |= 0x00000010;
+          uri_ = other.uri_;
           onChanged();
         }
         if (other.hasScStatus()) {
@@ -1554,9 +1539,24 @@ public final class LogFileProtobuf {
         if (other.hasScBytes()) {
           setScBytes(other.getScBytes());
         }
-        if (other.hasUri()) {
+        if (other.hasName()) {
+          bitField0_ |= 0x00000080;
+          name_ = other.name_;
+          onChanged();
+        }
+        if (other.hasCsMethod()) {
+          bitField0_ |= 0x00000100;
+          csMethod_ = other.csMethod_;
+          onChanged();
+        }
+        if (other.hasCIp()) {
+          bitField0_ |= 0x00000200;
+          cIp_ = other.cIp_;
+          onChanged();
+        }
+        if (other.hasCPort()) {
           bitField0_ |= 0x00000400;
-          uri_ = other.uri_;
+          cPort_ = other.cPort_;
           onChanged();
         }
         if (other.hasReferrer()) {
@@ -1590,15 +1590,15 @@ public final class LogFileProtobuf {
           
           return false;
         }
+        if (!hasUri()) {
+          
+          return false;
+        }
         if (!hasScStatus()) {
           
           return false;
         }
         if (!hasScBytes()) {
-          
-          return false;
-        }
-        if (!hasUri()) {
           
           return false;
         }
@@ -1609,11 +1609,11 @@ public final class LogFileProtobuf {
           com.google.protobuf.CodedInputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
-        gobblin.converter.s3.LogFileProtobuf.LogFile parsedMessage = null;
+        gobblin.converter.s3.LogFileOuterClass.LogFile parsedMessage = null;
         try {
           parsedMessage = PARSER.parsePartialFrom(input, extensionRegistry);
         } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-          parsedMessage = (gobblin.converter.s3.LogFileProtobuf.LogFile) e.getUnfinishedMessage();
+          parsedMessage = (gobblin.converter.s3.LogFileOuterClass.LogFile) e.getUnfinishedMessage();
           throw e;
         } finally {
           if (parsedMessage != null) {
@@ -1872,119 +1872,19 @@ public final class LogFileProtobuf {
         return this;
       }
 
-      private java.lang.Object name_ = "";
-      /**
-       * <code>optional string name = 4;</code>
-       *
-       * <pre>
-       * Name  (x-edge-location for CloudFront, elb name, etc)
-       * </pre>
-       */
-      public boolean hasName() {
-        return ((bitField0_ & 0x00000008) == 0x00000008);
-      }
-      /**
-       * <code>optional string name = 4;</code>
-       *
-       * <pre>
-       * Name  (x-edge-location for CloudFront, elb name, etc)
-       * </pre>
-       */
-      public java.lang.String getName() {
-        java.lang.Object ref = name_;
-        if (!(ref instanceof java.lang.String)) {
-          com.google.protobuf.ByteString bs =
-              (com.google.protobuf.ByteString) ref;
-          java.lang.String s = bs.toStringUtf8();
-          if (bs.isValidUtf8()) {
-            name_ = s;
-          }
-          return s;
-        } else {
-          return (java.lang.String) ref;
-        }
-      }
-      /**
-       * <code>optional string name = 4;</code>
-       *
-       * <pre>
-       * Name  (x-edge-location for CloudFront, elb name, etc)
-       * </pre>
-       */
-      public com.google.protobuf.ByteString
-          getNameBytes() {
-        java.lang.Object ref = name_;
-        if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
-              com.google.protobuf.ByteString.copyFromUtf8(
-                  (java.lang.String) ref);
-          name_ = b;
-          return b;
-        } else {
-          return (com.google.protobuf.ByteString) ref;
-        }
-      }
-      /**
-       * <code>optional string name = 4;</code>
-       *
-       * <pre>
-       * Name  (x-edge-location for CloudFront, elb name, etc)
-       * </pre>
-       */
-      public Builder setName(
-          java.lang.String value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000008;
-        name_ = value;
-        onChanged();
-        return this;
-      }
-      /**
-       * <code>optional string name = 4;</code>
-       *
-       * <pre>
-       * Name  (x-edge-location for CloudFront, elb name, etc)
-       * </pre>
-       */
-      public Builder clearName() {
-        bitField0_ = (bitField0_ & ~0x00000008);
-        name_ = getDefaultInstance().getName();
-        onChanged();
-        return this;
-      }
-      /**
-       * <code>optional string name = 4;</code>
-       *
-       * <pre>
-       * Name  (x-edge-location for CloudFront, elb name, etc)
-       * </pre>
-       */
-      public Builder setNameBytes(
-          com.google.protobuf.ByteString value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000008;
-        name_ = value;
-        onChanged();
-        return this;
-      }
-
       private java.lang.Object sHost_ = "";
       /**
-       * <code>required string s_host = 5;</code>
+       * <code>required string s_host = 4;</code>
        *
        * <pre>
        * IP/DNS name of the host
        * </pre>
        */
       public boolean hasSHost() {
-        return ((bitField0_ & 0x00000010) == 0x00000010);
+        return ((bitField0_ & 0x00000008) == 0x00000008);
       }
       /**
-       * <code>required string s_host = 5;</code>
+       * <code>required string s_host = 4;</code>
        *
        * <pre>
        * IP/DNS name of the host
@@ -2005,7 +1905,7 @@ public final class LogFileProtobuf {
         }
       }
       /**
-       * <code>required string s_host = 5;</code>
+       * <code>required string s_host = 4;</code>
        *
        * <pre>
        * IP/DNS name of the host
@@ -2025,7 +1925,7 @@ public final class LogFileProtobuf {
         }
       }
       /**
-       * <code>required string s_host = 5;</code>
+       * <code>required string s_host = 4;</code>
        *
        * <pre>
        * IP/DNS name of the host
@@ -2036,26 +1936,26 @@ public final class LogFileProtobuf {
         if (value == null) {
     throw new NullPointerException();
   }
-  bitField0_ |= 0x00000010;
+  bitField0_ |= 0x00000008;
         sHost_ = value;
         onChanged();
         return this;
       }
       /**
-       * <code>required string s_host = 5;</code>
+       * <code>required string s_host = 4;</code>
        *
        * <pre>
        * IP/DNS name of the host
        * </pre>
        */
       public Builder clearSHost() {
-        bitField0_ = (bitField0_ & ~0x00000010);
+        bitField0_ = (bitField0_ & ~0x00000008);
         sHost_ = getDefaultInstance().getSHost();
         onChanged();
         return this;
       }
       /**
-       * <code>required string s_host = 5;</code>
+       * <code>required string s_host = 4;</code>
        *
        * <pre>
        * IP/DNS name of the host
@@ -2066,421 +1966,25 @@ public final class LogFileProtobuf {
         if (value == null) {
     throw new NullPointerException();
   }
-  bitField0_ |= 0x00000010;
+  bitField0_ |= 0x00000008;
         sHost_ = value;
-        onChanged();
-        return this;
-      }
-
-      private java.lang.Object cIp_ = "";
-      /**
-       * <code>optional string c_ip = 6;</code>
-       *
-       * <pre>
-       * Client IP
-       * </pre>
-       */
-      public boolean hasCIp() {
-        return ((bitField0_ & 0x00000020) == 0x00000020);
-      }
-      /**
-       * <code>optional string c_ip = 6;</code>
-       *
-       * <pre>
-       * Client IP
-       * </pre>
-       */
-      public java.lang.String getCIp() {
-        java.lang.Object ref = cIp_;
-        if (!(ref instanceof java.lang.String)) {
-          com.google.protobuf.ByteString bs =
-              (com.google.protobuf.ByteString) ref;
-          java.lang.String s = bs.toStringUtf8();
-          if (bs.isValidUtf8()) {
-            cIp_ = s;
-          }
-          return s;
-        } else {
-          return (java.lang.String) ref;
-        }
-      }
-      /**
-       * <code>optional string c_ip = 6;</code>
-       *
-       * <pre>
-       * Client IP
-       * </pre>
-       */
-      public com.google.protobuf.ByteString
-          getCIpBytes() {
-        java.lang.Object ref = cIp_;
-        if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
-              com.google.protobuf.ByteString.copyFromUtf8(
-                  (java.lang.String) ref);
-          cIp_ = b;
-          return b;
-        } else {
-          return (com.google.protobuf.ByteString) ref;
-        }
-      }
-      /**
-       * <code>optional string c_ip = 6;</code>
-       *
-       * <pre>
-       * Client IP
-       * </pre>
-       */
-      public Builder setCIp(
-          java.lang.String value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000020;
-        cIp_ = value;
-        onChanged();
-        return this;
-      }
-      /**
-       * <code>optional string c_ip = 6;</code>
-       *
-       * <pre>
-       * Client IP
-       * </pre>
-       */
-      public Builder clearCIp() {
-        bitField0_ = (bitField0_ & ~0x00000020);
-        cIp_ = getDefaultInstance().getCIp();
-        onChanged();
-        return this;
-      }
-      /**
-       * <code>optional string c_ip = 6;</code>
-       *
-       * <pre>
-       * Client IP
-       * </pre>
-       */
-      public Builder setCIpBytes(
-          com.google.protobuf.ByteString value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000020;
-        cIp_ = value;
-        onChanged();
-        return this;
-      }
-
-      private java.lang.Object cPort_ = "";
-      /**
-       * <code>optional string c_port = 7;</code>
-       *
-       * <pre>
-       * Client Port
-       * </pre>
-       */
-      public boolean hasCPort() {
-        return ((bitField0_ & 0x00000040) == 0x00000040);
-      }
-      /**
-       * <code>optional string c_port = 7;</code>
-       *
-       * <pre>
-       * Client Port
-       * </pre>
-       */
-      public java.lang.String getCPort() {
-        java.lang.Object ref = cPort_;
-        if (!(ref instanceof java.lang.String)) {
-          com.google.protobuf.ByteString bs =
-              (com.google.protobuf.ByteString) ref;
-          java.lang.String s = bs.toStringUtf8();
-          if (bs.isValidUtf8()) {
-            cPort_ = s;
-          }
-          return s;
-        } else {
-          return (java.lang.String) ref;
-        }
-      }
-      /**
-       * <code>optional string c_port = 7;</code>
-       *
-       * <pre>
-       * Client Port
-       * </pre>
-       */
-      public com.google.protobuf.ByteString
-          getCPortBytes() {
-        java.lang.Object ref = cPort_;
-        if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
-              com.google.protobuf.ByteString.copyFromUtf8(
-                  (java.lang.String) ref);
-          cPort_ = b;
-          return b;
-        } else {
-          return (com.google.protobuf.ByteString) ref;
-        }
-      }
-      /**
-       * <code>optional string c_port = 7;</code>
-       *
-       * <pre>
-       * Client Port
-       * </pre>
-       */
-      public Builder setCPort(
-          java.lang.String value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000040;
-        cPort_ = value;
-        onChanged();
-        return this;
-      }
-      /**
-       * <code>optional string c_port = 7;</code>
-       *
-       * <pre>
-       * Client Port
-       * </pre>
-       */
-      public Builder clearCPort() {
-        bitField0_ = (bitField0_ & ~0x00000040);
-        cPort_ = getDefaultInstance().getCPort();
-        onChanged();
-        return this;
-      }
-      /**
-       * <code>optional string c_port = 7;</code>
-       *
-       * <pre>
-       * Client Port
-       * </pre>
-       */
-      public Builder setCPortBytes(
-          com.google.protobuf.ByteString value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000040;
-        cPort_ = value;
-        onChanged();
-        return this;
-      }
-
-      private java.lang.Object csMethod_ = "";
-      /**
-       * <code>optional string cs_method = 8;</code>
-       *
-       * <pre>
-       * The request method (GET, POST, etc)
-       * </pre>
-       */
-      public boolean hasCsMethod() {
-        return ((bitField0_ & 0x00000080) == 0x00000080);
-      }
-      /**
-       * <code>optional string cs_method = 8;</code>
-       *
-       * <pre>
-       * The request method (GET, POST, etc)
-       * </pre>
-       */
-      public java.lang.String getCsMethod() {
-        java.lang.Object ref = csMethod_;
-        if (!(ref instanceof java.lang.String)) {
-          com.google.protobuf.ByteString bs =
-              (com.google.protobuf.ByteString) ref;
-          java.lang.String s = bs.toStringUtf8();
-          if (bs.isValidUtf8()) {
-            csMethod_ = s;
-          }
-          return s;
-        } else {
-          return (java.lang.String) ref;
-        }
-      }
-      /**
-       * <code>optional string cs_method = 8;</code>
-       *
-       * <pre>
-       * The request method (GET, POST, etc)
-       * </pre>
-       */
-      public com.google.protobuf.ByteString
-          getCsMethodBytes() {
-        java.lang.Object ref = csMethod_;
-        if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
-              com.google.protobuf.ByteString.copyFromUtf8(
-                  (java.lang.String) ref);
-          csMethod_ = b;
-          return b;
-        } else {
-          return (com.google.protobuf.ByteString) ref;
-        }
-      }
-      /**
-       * <code>optional string cs_method = 8;</code>
-       *
-       * <pre>
-       * The request method (GET, POST, etc)
-       * </pre>
-       */
-      public Builder setCsMethod(
-          java.lang.String value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000080;
-        csMethod_ = value;
-        onChanged();
-        return this;
-      }
-      /**
-       * <code>optional string cs_method = 8;</code>
-       *
-       * <pre>
-       * The request method (GET, POST, etc)
-       * </pre>
-       */
-      public Builder clearCsMethod() {
-        bitField0_ = (bitField0_ & ~0x00000080);
-        csMethod_ = getDefaultInstance().getCsMethod();
-        onChanged();
-        return this;
-      }
-      /**
-       * <code>optional string cs_method = 8;</code>
-       *
-       * <pre>
-       * The request method (GET, POST, etc)
-       * </pre>
-       */
-      public Builder setCsMethodBytes(
-          com.google.protobuf.ByteString value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000080;
-        csMethod_ = value;
-        onChanged();
-        return this;
-      }
-
-      private int scStatus_ ;
-      /**
-       * <code>required int32 sc_status = 9;</code>
-       *
-       * <pre>
-       * Response status code (2xx, 4xx, etc)
-       * </pre>
-       */
-      public boolean hasScStatus() {
-        return ((bitField0_ & 0x00000100) == 0x00000100);
-      }
-      /**
-       * <code>required int32 sc_status = 9;</code>
-       *
-       * <pre>
-       * Response status code (2xx, 4xx, etc)
-       * </pre>
-       */
-      public int getScStatus() {
-        return scStatus_;
-      }
-      /**
-       * <code>required int32 sc_status = 9;</code>
-       *
-       * <pre>
-       * Response status code (2xx, 4xx, etc)
-       * </pre>
-       */
-      public Builder setScStatus(int value) {
-        bitField0_ |= 0x00000100;
-        scStatus_ = value;
-        onChanged();
-        return this;
-      }
-      /**
-       * <code>required int32 sc_status = 9;</code>
-       *
-       * <pre>
-       * Response status code (2xx, 4xx, etc)
-       * </pre>
-       */
-      public Builder clearScStatus() {
-        bitField0_ = (bitField0_ & ~0x00000100);
-        scStatus_ = 0;
-        onChanged();
-        return this;
-      }
-
-      private int scBytes_ ;
-      /**
-       * <code>required int32 sc_bytes = 10;</code>
-       *
-       * <pre>
-       * Server to client bytes sent
-       * </pre>
-       */
-      public boolean hasScBytes() {
-        return ((bitField0_ & 0x00000200) == 0x00000200);
-      }
-      /**
-       * <code>required int32 sc_bytes = 10;</code>
-       *
-       * <pre>
-       * Server to client bytes sent
-       * </pre>
-       */
-      public int getScBytes() {
-        return scBytes_;
-      }
-      /**
-       * <code>required int32 sc_bytes = 10;</code>
-       *
-       * <pre>
-       * Server to client bytes sent
-       * </pre>
-       */
-      public Builder setScBytes(int value) {
-        bitField0_ |= 0x00000200;
-        scBytes_ = value;
-        onChanged();
-        return this;
-      }
-      /**
-       * <code>required int32 sc_bytes = 10;</code>
-       *
-       * <pre>
-       * Server to client bytes sent
-       * </pre>
-       */
-      public Builder clearScBytes() {
-        bitField0_ = (bitField0_ & ~0x00000200);
-        scBytes_ = 0;
         onChanged();
         return this;
       }
 
       private java.lang.Object uri_ = "";
       /**
-       * <code>required string uri = 11;</code>
+       * <code>required string uri = 5;</code>
        *
        * <pre>
        * Full URI of the request (query + stem)
        * </pre>
        */
       public boolean hasUri() {
-        return ((bitField0_ & 0x00000400) == 0x00000400);
+        return ((bitField0_ & 0x00000010) == 0x00000010);
       }
       /**
-       * <code>required string uri = 11;</code>
+       * <code>required string uri = 5;</code>
        *
        * <pre>
        * Full URI of the request (query + stem)
@@ -2501,7 +2005,7 @@ public final class LogFileProtobuf {
         }
       }
       /**
-       * <code>required string uri = 11;</code>
+       * <code>required string uri = 5;</code>
        *
        * <pre>
        * Full URI of the request (query + stem)
@@ -2521,7 +2025,7 @@ public final class LogFileProtobuf {
         }
       }
       /**
-       * <code>required string uri = 11;</code>
+       * <code>required string uri = 5;</code>
        *
        * <pre>
        * Full URI of the request (query + stem)
@@ -2532,26 +2036,26 @@ public final class LogFileProtobuf {
         if (value == null) {
     throw new NullPointerException();
   }
-  bitField0_ |= 0x00000400;
+  bitField0_ |= 0x00000010;
         uri_ = value;
         onChanged();
         return this;
       }
       /**
-       * <code>required string uri = 11;</code>
+       * <code>required string uri = 5;</code>
        *
        * <pre>
        * Full URI of the request (query + stem)
        * </pre>
        */
       public Builder clearUri() {
-        bitField0_ = (bitField0_ & ~0x00000400);
+        bitField0_ = (bitField0_ & ~0x00000010);
         uri_ = getDefaultInstance().getUri();
         onChanged();
         return this;
       }
       /**
-       * <code>required string uri = 11;</code>
+       * <code>required string uri = 5;</code>
        *
        * <pre>
        * Full URI of the request (query + stem)
@@ -2562,8 +2066,504 @@ public final class LogFileProtobuf {
         if (value == null) {
     throw new NullPointerException();
   }
-  bitField0_ |= 0x00000400;
+  bitField0_ |= 0x00000010;
         uri_ = value;
+        onChanged();
+        return this;
+      }
+
+      private int scStatus_ ;
+      /**
+       * <code>required int32 sc_status = 6;</code>
+       *
+       * <pre>
+       * Response status code (2xx, 4xx, etc)
+       * </pre>
+       */
+      public boolean hasScStatus() {
+        return ((bitField0_ & 0x00000020) == 0x00000020);
+      }
+      /**
+       * <code>required int32 sc_status = 6;</code>
+       *
+       * <pre>
+       * Response status code (2xx, 4xx, etc)
+       * </pre>
+       */
+      public int getScStatus() {
+        return scStatus_;
+      }
+      /**
+       * <code>required int32 sc_status = 6;</code>
+       *
+       * <pre>
+       * Response status code (2xx, 4xx, etc)
+       * </pre>
+       */
+      public Builder setScStatus(int value) {
+        bitField0_ |= 0x00000020;
+        scStatus_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>required int32 sc_status = 6;</code>
+       *
+       * <pre>
+       * Response status code (2xx, 4xx, etc)
+       * </pre>
+       */
+      public Builder clearScStatus() {
+        bitField0_ = (bitField0_ & ~0x00000020);
+        scStatus_ = 0;
+        onChanged();
+        return this;
+      }
+
+      private int scBytes_ ;
+      /**
+       * <code>required int32 sc_bytes = 7;</code>
+       *
+       * <pre>
+       * Server to client bytes sent
+       * </pre>
+       */
+      public boolean hasScBytes() {
+        return ((bitField0_ & 0x00000040) == 0x00000040);
+      }
+      /**
+       * <code>required int32 sc_bytes = 7;</code>
+       *
+       * <pre>
+       * Server to client bytes sent
+       * </pre>
+       */
+      public int getScBytes() {
+        return scBytes_;
+      }
+      /**
+       * <code>required int32 sc_bytes = 7;</code>
+       *
+       * <pre>
+       * Server to client bytes sent
+       * </pre>
+       */
+      public Builder setScBytes(int value) {
+        bitField0_ |= 0x00000040;
+        scBytes_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>required int32 sc_bytes = 7;</code>
+       *
+       * <pre>
+       * Server to client bytes sent
+       * </pre>
+       */
+      public Builder clearScBytes() {
+        bitField0_ = (bitField0_ & ~0x00000040);
+        scBytes_ = 0;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object name_ = "";
+      /**
+       * <code>optional string name = 8;</code>
+       *
+       * <pre>
+       * Name  (x-edge-location for CloudFront, elb name, etc)
+       * </pre>
+       */
+      public boolean hasName() {
+        return ((bitField0_ & 0x00000080) == 0x00000080);
+      }
+      /**
+       * <code>optional string name = 8;</code>
+       *
+       * <pre>
+       * Name  (x-edge-location for CloudFront, elb name, etc)
+       * </pre>
+       */
+      public java.lang.String getName() {
+        java.lang.Object ref = name_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          if (bs.isValidUtf8()) {
+            name_ = s;
+          }
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>optional string name = 8;</code>
+       *
+       * <pre>
+       * Name  (x-edge-location for CloudFront, elb name, etc)
+       * </pre>
+       */
+      public com.google.protobuf.ByteString
+          getNameBytes() {
+        java.lang.Object ref = name_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          name_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>optional string name = 8;</code>
+       *
+       * <pre>
+       * Name  (x-edge-location for CloudFront, elb name, etc)
+       * </pre>
+       */
+      public Builder setName(
+          java.lang.String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000080;
+        name_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>optional string name = 8;</code>
+       *
+       * <pre>
+       * Name  (x-edge-location for CloudFront, elb name, etc)
+       * </pre>
+       */
+      public Builder clearName() {
+        bitField0_ = (bitField0_ & ~0x00000080);
+        name_ = getDefaultInstance().getName();
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>optional string name = 8;</code>
+       *
+       * <pre>
+       * Name  (x-edge-location for CloudFront, elb name, etc)
+       * </pre>
+       */
+      public Builder setNameBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000080;
+        name_ = value;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object csMethod_ = "";
+      /**
+       * <code>optional string cs_method = 9;</code>
+       *
+       * <pre>
+       * The request method (GET, POST, etc)
+       * </pre>
+       */
+      public boolean hasCsMethod() {
+        return ((bitField0_ & 0x00000100) == 0x00000100);
+      }
+      /**
+       * <code>optional string cs_method = 9;</code>
+       *
+       * <pre>
+       * The request method (GET, POST, etc)
+       * </pre>
+       */
+      public java.lang.String getCsMethod() {
+        java.lang.Object ref = csMethod_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          if (bs.isValidUtf8()) {
+            csMethod_ = s;
+          }
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>optional string cs_method = 9;</code>
+       *
+       * <pre>
+       * The request method (GET, POST, etc)
+       * </pre>
+       */
+      public com.google.protobuf.ByteString
+          getCsMethodBytes() {
+        java.lang.Object ref = csMethod_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          csMethod_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>optional string cs_method = 9;</code>
+       *
+       * <pre>
+       * The request method (GET, POST, etc)
+       * </pre>
+       */
+      public Builder setCsMethod(
+          java.lang.String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000100;
+        csMethod_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>optional string cs_method = 9;</code>
+       *
+       * <pre>
+       * The request method (GET, POST, etc)
+       * </pre>
+       */
+      public Builder clearCsMethod() {
+        bitField0_ = (bitField0_ & ~0x00000100);
+        csMethod_ = getDefaultInstance().getCsMethod();
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>optional string cs_method = 9;</code>
+       *
+       * <pre>
+       * The request method (GET, POST, etc)
+       * </pre>
+       */
+      public Builder setCsMethodBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000100;
+        csMethod_ = value;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object cIp_ = "";
+      /**
+       * <code>optional string c_ip = 10;</code>
+       *
+       * <pre>
+       * Client IP
+       * </pre>
+       */
+      public boolean hasCIp() {
+        return ((bitField0_ & 0x00000200) == 0x00000200);
+      }
+      /**
+       * <code>optional string c_ip = 10;</code>
+       *
+       * <pre>
+       * Client IP
+       * </pre>
+       */
+      public java.lang.String getCIp() {
+        java.lang.Object ref = cIp_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          if (bs.isValidUtf8()) {
+            cIp_ = s;
+          }
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>optional string c_ip = 10;</code>
+       *
+       * <pre>
+       * Client IP
+       * </pre>
+       */
+      public com.google.protobuf.ByteString
+          getCIpBytes() {
+        java.lang.Object ref = cIp_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          cIp_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>optional string c_ip = 10;</code>
+       *
+       * <pre>
+       * Client IP
+       * </pre>
+       */
+      public Builder setCIp(
+          java.lang.String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000200;
+        cIp_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>optional string c_ip = 10;</code>
+       *
+       * <pre>
+       * Client IP
+       * </pre>
+       */
+      public Builder clearCIp() {
+        bitField0_ = (bitField0_ & ~0x00000200);
+        cIp_ = getDefaultInstance().getCIp();
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>optional string c_ip = 10;</code>
+       *
+       * <pre>
+       * Client IP
+       * </pre>
+       */
+      public Builder setCIpBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000200;
+        cIp_ = value;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object cPort_ = "";
+      /**
+       * <code>optional string c_port = 11;</code>
+       *
+       * <pre>
+       * Client Port
+       * </pre>
+       */
+      public boolean hasCPort() {
+        return ((bitField0_ & 0x00000400) == 0x00000400);
+      }
+      /**
+       * <code>optional string c_port = 11;</code>
+       *
+       * <pre>
+       * Client Port
+       * </pre>
+       */
+      public java.lang.String getCPort() {
+        java.lang.Object ref = cPort_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          if (bs.isValidUtf8()) {
+            cPort_ = s;
+          }
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>optional string c_port = 11;</code>
+       *
+       * <pre>
+       * Client Port
+       * </pre>
+       */
+      public com.google.protobuf.ByteString
+          getCPortBytes() {
+        java.lang.Object ref = cPort_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          cPort_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>optional string c_port = 11;</code>
+       *
+       * <pre>
+       * Client Port
+       * </pre>
+       */
+      public Builder setCPort(
+          java.lang.String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000400;
+        cPort_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>optional string c_port = 11;</code>
+       *
+       * <pre>
+       * Client Port
+       * </pre>
+       */
+      public Builder clearCPort() {
+        bitField0_ = (bitField0_ & ~0x00000400);
+        cPort_ = getDefaultInstance().getCPort();
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>optional string c_port = 11;</code>
+       *
+       * <pre>
+       * Client Port
+       * </pre>
+       */
+      public Builder setCPortBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000400;
+        cPort_ = value;
         onChanged();
         return this;
       }
@@ -2768,7 +2768,7 @@ public final class LogFileProtobuf {
         return this;
       }
 
-      // @@protoc_insertion_point(builder_scope:logfile.LogFile)
+      // @@protoc_insertion_point(builder_scope:LogFile)
     }
 
     static {
@@ -2776,14 +2776,14 @@ public final class LogFileProtobuf {
       defaultInstance.initFields();
     }
 
-    // @@protoc_insertion_point(class_scope:logfile.LogFile)
+    // @@protoc_insertion_point(class_scope:LogFile)
   }
 
   private static final com.google.protobuf.Descriptors.Descriptor
-    internal_static_logfile_LogFile_descriptor;
+    internal_static_LogFile_descriptor;
   private static
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
-      internal_static_logfile_LogFile_fieldAccessorTable;
+      internal_static_LogFile_fieldAccessorTable;
 
   public static com.google.protobuf.Descriptors.FileDescriptor
       getDescriptor() {
@@ -2793,14 +2793,13 @@ public final class LogFileProtobuf {
       descriptor;
   static {
     java.lang.String[] descriptorData = {
-      "\n\rLogFile.proto\022\007logfile\"\340\001\n\007LogFile\022\014\n\004" +
-      "date\030\001 \002(\t\022\014\n\004time\030\002 \002(\t\022\022\n\ntime_taken\030\003" +
-      " \002(\001\022\014\n\004name\030\004 \001(\t\022\016\n\006s_host\030\005 \002(\t\022\014\n\004c_" +
-      "ip\030\006 \001(\t\022\016\n\006c_port\030\007 \001(\t\022\021\n\tcs_method\030\010 " +
-      "\001(\t\022\021\n\tsc_status\030\t \002(\005\022\020\n\010sc_bytes\030\n \002(\005" +
-      "\022\013\n\003uri\030\013 \002(\t\022\020\n\010referrer\030\014 \001(\t\022\022\n\nuser_" +
-      "agent\030\r \001(\tB\'\n\024gobblin.converter.s3B\017Log" +
-      "FileProtobuf"
+      "\n\rLogFile.proto\"\340\001\n\007LogFile\022\014\n\004date\030\001 \002(" +
+      "\t\022\014\n\004time\030\002 \002(\t\022\022\n\ntime_taken\030\003 \002(\001\022\016\n\006s" +
+      "_host\030\004 \002(\t\022\013\n\003uri\030\005 \002(\t\022\021\n\tsc_status\030\006 " +
+      "\002(\005\022\020\n\010sc_bytes\030\007 \002(\005\022\014\n\004name\030\010 \001(\t\022\021\n\tc" +
+      "s_method\030\t \001(\t\022\014\n\004c_ip\030\n \001(\t\022\016\n\006c_port\030\013" +
+      " \001(\t\022\020\n\010referrer\030\014 \001(\t\022\022\n\nuser_agent\030\r \001" +
+      "(\tB\026\n\024gobblin.converter.s3"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
         new com.google.protobuf.Descriptors.FileDescriptor.    InternalDescriptorAssigner() {
@@ -2814,12 +2813,12 @@ public final class LogFileProtobuf {
       .internalBuildGeneratedFileFrom(descriptorData,
         new com.google.protobuf.Descriptors.FileDescriptor[] {
         }, assigner);
-    internal_static_logfile_LogFile_descriptor =
+    internal_static_LogFile_descriptor =
       getDescriptor().getMessageTypes().get(0);
-    internal_static_logfile_LogFile_fieldAccessorTable = new
+    internal_static_LogFile_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
-        internal_static_logfile_LogFile_descriptor,
-        new java.lang.String[] { "Date", "Time", "TimeTaken", "Name", "SHost", "CIp", "CPort", "CsMethod", "ScStatus", "ScBytes", "Uri", "Referrer", "UserAgent", });
+        internal_static_LogFile_descriptor,
+        new java.lang.String[] { "Date", "Time", "TimeTaken", "SHost", "Uri", "ScStatus", "ScBytes", "Name", "CsMethod", "CIp", "CPort", "Referrer", "UserAgent", });
   }
 
   // @@protoc_insertion_point(outer_class_scope)

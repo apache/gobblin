@@ -11,6 +11,8 @@
 package gobblin.converter.s3;
 
 /**
+ * Represents a request to server
+ *
  * @author ahollenbach@nerdwallet.com
  */
 abstract class Request {

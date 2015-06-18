@@ -24,16 +24,11 @@ import gobblin.source.extractor.extract.AbstractSource;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
 import org.apache.commons.io.FilenameUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import javax.security.auth.login.Configuration;
-import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.List;
 
 /**
@@ -42,8 +37,6 @@ import java.util.List;
  * @author ahollenbach@nerdwallet.com
  */
 public class S3Source extends AbstractSource<Class<String>, ArrayList<String>> {
-
-  private static final Logger LOG = LoggerFactory.getLogger(S3Source.class);
 
   public static final String TABLE_NAME = "default";
   public static final Extract.TableType DEFAULT_TABLE_TYPE = Extract.TableType.APPEND_ONLY;
@@ -70,13 +63,15 @@ public class S3Source extends AbstractSource<Class<String>, ArrayList<String>> {
     ObjectListing objectListing = s3Client.listObjects(listObjectRequest);
     List<S3ObjectSummary> objectSummaries = objectListing.getObjectSummaries();
 
-    while(objectListing.isTruncated()) {
+    // We have to do this if there are a large number of objects in the
+    // given path
+    while (objectListing.isTruncated()) {
       objectListing = s3Client.listNextBatchOfObjects(objectListing);
       objectSummaries.addAll(objectListing.getObjectSummaries());
     }
 
     // Generate a work unit for each object
-    for(S3ObjectSummary summary : objectSummaries) {
+    for (S3ObjectSummary summary : objectSummaries) {
       WorkUnit workUnit = getWorkUnitForS3Object(state, summary.getKey());
       if (workUnit != null) {
         workUnits.add(workUnit);
@@ -94,7 +89,7 @@ public class S3Source extends AbstractSource<Class<String>, ArrayList<String>> {
    * If no date is matched in the path, nothing happens and it returns back
    * the string unchanged.
    *
-   * @param state The source state
+   * @param state  The source state
    * @param s3Path The path to look in on S3
    * @return the s3Path with any date placeholders replaced with the specified date
    * pattern and offset.
@@ -116,8 +111,8 @@ public class S3Source extends AbstractSource<Class<String>, ArrayList<String>> {
    * Generates a work unit for an S3 object. The object key is passed to
    * an extractor that will extract the object at the key joined with the source bucket.
    *
-   * @param state - The source state
-   * @param objectSourceKey - The key of the object to pull from S3.
+   * @param state           The source state
+   * @param objectSourceKey The key of the object to pull from S3.
    * @return a work unit consisting of one S3 object.
    */
   private WorkUnit getWorkUnitForS3Object(SourceState state, String objectSourceKey) {
@@ -130,11 +125,9 @@ public class S3Source extends AbstractSource<Class<String>, ArrayList<String>> {
     partitionState.setProp(ConfigurationKeys.S3_PUBLISHER_PATH, publisherPath);
 
 
-    // Set the object key to be just the filename
+    // Set the object key to be just the filename (with extension)
     // TODO alternatively, we could use a different naming schema
     partitionState.setProp("S3_OBJECT_KEY", FilenameUtils.getName(objectSourceKey));
-
-    String tableName = state.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, "default");
 
     Extract extract = partitionState.createExtract(DEFAULT_TABLE_TYPE, DEFAULT_NAMESPACE_NAME, TABLE_NAME);
     return partitionState.createWorkUnit(extract);

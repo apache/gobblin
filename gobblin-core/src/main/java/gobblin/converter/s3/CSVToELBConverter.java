@@ -20,6 +20,7 @@ import java.util.ArrayList;
 
 /**
  * Converts an {@link ArrayList} of Strings coming from a space-separated value
+ *
  * @author ahollenbach@nerdwallet.com
  */
 public class CSVToELBConverter extends Converter<Class<ArrayList<String>>, Class<ELBRecord>, ArrayList<String>, ELBRecord> {

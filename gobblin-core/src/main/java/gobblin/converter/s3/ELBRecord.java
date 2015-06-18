@@ -62,7 +62,7 @@ public class ELBRecord {
    * @param values An {@link ArrayList} of Strings in the following order: <pre>timestamp elb client:port backend:port request_processing_time backend_processing_time response_processing_time elb_status_code backend_status_code received_bytes sent_bytes "request" "user_agent" ssl_cipher ssl_protocol</pre>
    */
   public ELBRecord(ArrayList<String> values) throws DataConversionException {
-    if(values.size() != 15) {
+    if (values.size() != 15) {
       throw new DataConversionException("Malformed log record");
     }
 
@@ -76,12 +76,12 @@ public class ELBRecord {
     this.elbName = values.get(1);
 
     // values[2]: client:port
-    String[] clientIpPort = values.get(2).split(":",2);
+    String[] clientIpPort = values.get(2).split(":", 2);
     this.clientIp = clientIpPort[0];
     this.clientPort = Integer.parseInt(clientIpPort[1]);
 
     // values[3]: backend:port
-    String[] backendIpPort = values.get(3).split(":",2);
+    String[] backendIpPort = values.get(3).split(":", 2);
     if (backendIpPort.length == 2) {
       this.backendIp = backendIpPort[0];
       this.backendPort = Integer.parseInt(backendIpPort[1]);
@@ -173,7 +173,15 @@ public class ELBRecord {
   }
 
 
-  // private conversion utility functions
+  /**
+   * Parses a date with the given format. The motivation behind this function is to
+   * catch multiple separate parse errors and write the errored date to the log for
+   * more concise error reporting.
+   *
+   * @param input The input date as a string
+   * @param dateFormat The format to convert to
+   * @return the formatted date, or null if the date was unable to be formatted
+   */
   public static Date parseDate(String input, SimpleDateFormat dateFormat) {
     // Clean the input
     input = input.trim();
@@ -182,10 +190,6 @@ public class ELBRecord {
     try {
       datetime = dateFormat.parse(input);
     } catch (ParseException e) {
-      LOG.error("Failed to parse date:" + input);
-      e.printStackTrace();
-      return null;
-    } catch (ArrayIndexOutOfBoundsException e) {
       LOG.error("Failed to parse date:" + input);
       e.printStackTrace();
       return null;
@@ -224,6 +228,7 @@ public class ELBRecord {
   /**
    * Gets the approximate time taken for the request.
    * This is just a sum of the the three ELBRecord processing times -> request, backend, and response.
+   *
    * @return The time taken, in seconds for the request
    */
   public double getTimeTaken() {
@@ -253,7 +258,7 @@ public class ELBRecord {
 
   /**
    * Do not use in favor of extracting the already formatted date and time separately.
-   *
+   * <p/>
    * This is the date/time when the load balancer received the request from the client.
    *
    * @return The timestamp as a {@link Date} object

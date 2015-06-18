@@ -44,9 +44,9 @@ public class SimpleS3Publisher extends BaseS3Publisher {
   @Override
   public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
     ArrayList<String> files = new ArrayList<String>();
-    for(WorkUnitState state : states) {
+    for (WorkUnitState state : states) {
 
-      for(int i=0; i<this.numBranches; i++) {
+      for (int i = 0; i < this.numBranches; i++) {
         ArrayList<String> fileNames = new ArrayList<String>();
         String writerFile = state.getProp(ForkOperatorUtils.getPropertyNameForBranch(
                 ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, i));
@@ -58,7 +58,7 @@ public class SimpleS3Publisher extends BaseS3Publisher {
           String s3Key = state.getProp("S3_OBJECT_KEY");
 
           this.sendS3Data(i, new BucketAndKey(s3Bucket, s3Path + "/" + s3Key), fileNames);
-        } catch(NullPointerException ex) {
+        } catch (NullPointerException ex) {
           LOG.error("S3_OBJECT_KEY not set in state.");
         }
       }

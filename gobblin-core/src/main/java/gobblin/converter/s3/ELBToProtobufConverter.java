@@ -15,20 +15,12 @@ import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
-import gobblin.converter.s3.LogFileProtobuf.LogFile;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import gobblin.converter.s3.LogFileOuterClass.LogFile;
 
 /**
  * @author ahollenbach@nerdwallet.com
  */
 public class ELBToProtobufConverter extends Converter<Class<ELBRecord>, Class<LogFile>, ELBRecord, LogFile> {
-
-  private static final Logger LOG = LoggerFactory.getLogger(ELBToProtobufConverter.class);
-
-  protected static final String ISO8601_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.";
-  protected static final String LOG_DATE_FORMAT = "yyyy-MM-dd";
-  protected static final String LOG_TIME_FORMAT = "HH:mm:ss";
 
   @Override
   public Class<LogFile> convertSchema(Class<ELBRecord> inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
@@ -53,6 +45,4 @@ public class ELBToProtobufConverter extends Converter<Class<ELBRecord>, Class<Lo
 
     return new SingleRecordIterable<LogFile>(logFile);
   }
-
-
 }

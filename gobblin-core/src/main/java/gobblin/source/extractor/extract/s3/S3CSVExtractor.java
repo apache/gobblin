@@ -19,11 +19,12 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.utils.InputStreamCSVReader;
-import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 
 /**
@@ -55,7 +56,7 @@ public class S3CSVExtractor implements Extractor<Class<String>, ArrayList<String
     try {
       String s3Path = state.getProp(ConfigurationKeys.S3_SOURCE_PATH);
       String objectKey = state.getProp("S3_OBJECT_KEY");
-      if(objectKey == null) {
+      if (objectKey == null) {
         throw new NullPointerException();
       }
 
@@ -64,7 +65,7 @@ public class S3CSVExtractor implements Extractor<Class<String>, ArrayList<String
       br = new BufferedReader(new InputStreamReader(obj.getObjectContent()));
 
       csvReader = new InputStreamCSVReader(br, state.getProp(ConfigurationKeys.CONVERTER_CSV_DELIMETER).charAt(0));
-    } catch(NullPointerException ex) {
+    } catch (NullPointerException ex) {
       LOG.error("S3_OBJECT_KEY not set in state.");
     }
   }
@@ -76,9 +77,7 @@ public class S3CSVExtractor implements Extractor<Class<String>, ArrayList<String
 
   @Override
   public ArrayList<String> readRecord(@Deprecated ArrayList<String> reuse) throws DataRecordException, IOException {
-    ArrayList<String> record = csvReader.nextRecord();
-    //LOG.info(record.toString());
-    return record;
+    return csvReader.nextRecord();
   }
 
   @Override

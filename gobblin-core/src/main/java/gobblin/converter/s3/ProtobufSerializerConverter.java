@@ -15,9 +15,7 @@ import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
-import gobblin.converter.s3.LogFileProtobuf.LogFile;
-
-import java.util.ArrayList;
+import gobblin.converter.s3.LogFileOuterClass.LogFile;
 
 /**
  * @author ahollenbach@nerdwallet.com

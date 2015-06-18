@@ -10,31 +10,27 @@
  */
 package gobblin.converter.s3;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-
 /**
+ * Represents an ELB request.
+ *
  * @author ahollenbach@nerdwallet.com
  */
 public class ELBRequest extends Request {
-  public ELBRequest() {}
-
   public ELBRequest(String requestString) {
     parseRequestString(requestString);
   }
 
   /**
-   * Parses the request string according to this format:
-   *
+   * Parses the request string from an ELB log according to this format:
+   * <p/>
    * The request line from the client enclosed in double quotes and logged in the following format: HTTP Method + Protocol://Host header:port + Path + HTTP version.
-   *    [TCP listener] The URL is three dashes, each separated by a space, and ending with a space ("- - - ").
+   * <p/>
+   * [TCP listener] The URL is three dashes, each separated by a space, and ending with a space ("- - - ").
    *
    * @param requestString - A string formatted in one of the two above ways
    */
   public void parseRequestString(String requestString) {
-    if(requestString == null || requestString.isEmpty() || requestString.contains("-")) {
+    if (requestString == null || requestString.isEmpty() || requestString.contains("-")) {
       // This is a TCP record, ignore
       return;
     }
