@@ -23,6 +23,7 @@ import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.AbstractSource;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
+import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,25 +49,17 @@ public class S3Source extends AbstractSource<Class<String>, ArrayList<String>> {
   public static final Extract.TableType DEFAULT_TABLE_TYPE = Extract.TableType.APPEND_ONLY;
   public static final String DEFAULT_NAMESPACE_NAME = "s3Source";
 
-
-  /**
-   * The bucket to look in for S3
-   */
-  protected String s3Bucket;
-
-  /**
-   * The path to look in on S3
-   */
-  protected String s3Path;
-
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
     List<WorkUnit> workUnits = Lists.newArrayList();
 
     AmazonS3 s3Client = new AmazonS3Client();
-    this.s3Bucket = state.getProp(ConfigurationKeys.S3_SOURCE_BUCKET);
-    this.s3Path = state.getProp(ConfigurationKeys.S3_SOURCE_PATH);
-    this.s3Path = checkAndReplaceDate(state, s3Path);
+    String s3Bucket = state.getProp(ConfigurationKeys.S3_SOURCE_BUCKET);
+    String s3Path = state.getProp(ConfigurationKeys.S3_SOURCE_PATH);
+
+    // Replace the date if needed (if none found, s3Path is unaffected
+    s3Path = checkAndReplaceDate(state, s3Path);
+    state.setProp(ConfigurationKeys.S3_SOURCE_PATH, s3Path);
 
     // Build the request
     ListObjectsRequest listObjectRequest = new ListObjectsRequest()
@@ -97,9 +90,12 @@ public class S3Source extends AbstractSource<Class<String>, ArrayList<String>> {
    * If you want your S3 path to contain a date, you can replace it here
    * The placeholder is what the source looks for in the path, and replaces it
    * with the date (offset by S3_DATE_OFFSET), using the pattern to format it.
+   * <p/>
+   * If no date is matched in the path, nothing happens and it returns back
+   * the string unchanged.
    *
-   * @param state - The source state
-   * @param s3Path - The path to look in on S3
+   * @param state The source state
+   * @param s3Path The path to look in on S3
    * @return the s3Path with any date placeholders replaced with the specified date
    * pattern and offset.
    */
@@ -121,13 +117,22 @@ public class S3Source extends AbstractSource<Class<String>, ArrayList<String>> {
    * an extractor that will extract the object at the key joined with the source bucket.
    *
    * @param state - The source state
-   * @param objectKey - The key of the object to pull from S3.
+   * @param objectSourceKey - The key of the object to pull from S3.
    * @return a work unit consisting of one S3 object.
    */
-  private WorkUnit getWorkUnitForS3Object(SourceState state, String objectKey) {
+  private WorkUnit getWorkUnitForS3Object(SourceState state, String objectSourceKey) {
     SourceState partitionState = new SourceState();
     partitionState.addAll(state);
-    partitionState.setProp("OBJECT_KEY", objectKey);
+
+    String publisherPath = partitionState.getProp(ConfigurationKeys.S3_PUBLISHER_PATH);
+    // Replace date placeholder if contained, otherwise this does nothing
+    publisherPath = checkAndReplaceDate(partitionState, publisherPath);
+    partitionState.setProp(ConfigurationKeys.S3_PUBLISHER_PATH, publisherPath);
+
+
+    // Set the object key to be just the filename
+    // TODO alternatively, we could use a different naming schema
+    partitionState.setProp("S3_OBJECT_KEY", FilenameUtils.getName(objectSourceKey));
 
     String tableName = state.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, "default");
 

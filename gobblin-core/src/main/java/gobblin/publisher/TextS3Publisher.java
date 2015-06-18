@@ -15,9 +15,13 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.util.ForkOperatorUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.hadoop.fs.Path;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.DateTimeFormatterBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -29,6 +33,14 @@ import java.util.Collection;
  */
 public class TextS3Publisher extends BaseS3Publisher {
 
+  private static final Logger LOG = LoggerFactory.getLogger(TextS3Publisher.class);
+
+  /**
+   * Creates a new TextS3Publisher
+   *
+   * @param state The state
+   * @throws NullPointerException if the state does not contain the property S3_OBJECT_KEY
+   */
   public TextS3Publisher(State state) {
     super(state);
   }
@@ -38,19 +50,22 @@ public class TextS3Publisher extends BaseS3Publisher {
     ArrayList<String> files = new ArrayList<String>();
     for(WorkUnitState state : states) {
 
-      ArrayList<String> fileNames = new ArrayList<String>();
-      String s = "";
       for(int i=0; i<this.numBranches; i++) {
-        // TODO remove Path
-        Path writerFile = new Path(state.getProp(ForkOperatorUtils.getPropertyNameForBranch(
-                ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, i)));
-        fileNames.add(writerFile.toString());
-      }
+        ArrayList<String> fileNames = new ArrayList<String>();
+        String writerFile = state.getProp(ForkOperatorUtils.getPropertyNameForBranch(
+                ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, i));
+        fileNames.add(writerFile);
 
-      String s3Bucket = this.getState().getProp(ConfigurationKeys.S3_BUCKET);
-      //String s3Key = state.getProp("OBJECT_KEY").replaceAll(".*/", "");
-      String s3Key = state.getProp("OBJECT_KEY");
-      this.sendS3Data(0, new BucketAndKey(s3Bucket, s3Key), fileNames);
+        try {
+          String s3Bucket = state.getProp(ConfigurationKeys.S3_PUBLISHER_BUCKET);
+          String s3Path = state.getProp(ConfigurationKeys.S3_PUBLISHER_PATH);
+          String s3Key = state.getProp("S3_OBJECT_KEY");
+
+          this.sendS3Data(i, new BucketAndKey(s3Bucket, s3Path + "/" + s3Key), fileNames);
+        } catch(NullPointerException ex) {
+          LOG.error("S3_OBJECT_KEY not set in state.");
+        }
+      }
     }
   }
 

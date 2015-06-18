@@ -19,6 +19,7 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.utils.InputStreamCSVReader;
+import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,13 +53,14 @@ public class S3CSVExtractor implements Extractor<Class<String>, ArrayList<String
     AmazonS3 s3Client = new AmazonS3Client();
 
     try {
+      String s3Path = state.getProp(ConfigurationKeys.S3_SOURCE_PATH);
       String objectKey = state.getProp("S3_OBJECT_KEY");
       if(objectKey == null) {
         throw new NullPointerException();
       }
 
       // Fetch our object from S3 and build an input stream to read from for each record
-      S3Object obj = s3Client.getObject(state.getProp(ConfigurationKeys.S3_SOURCE_BUCKET), objectKey);
+      S3Object obj = s3Client.getObject(state.getProp(ConfigurationKeys.S3_SOURCE_BUCKET), s3Path + "/" + objectKey);
       br = new BufferedReader(new InputStreamReader(obj.getObjectContent()));
 
       csvReader = new InputStreamCSVReader(br, state.getProp(ConfigurationKeys.CONVERTER_CSV_DELIMETER).charAt(0));
