@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 
+
 /**
  * Publishes files to S3. The destination bucket and path can be set
  * in {@link ConfigurationKeys#S3_PUBLISHER_BUCKET} and {@link ConfigurationKeys#S3_PUBLISHER_PATH}.
@@ -43,12 +44,13 @@ public class SimpleS3Publisher extends BaseS3Publisher {
   }
 
   @Override
-  public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
+  public void publishData(Collection<? extends WorkUnitState> states)
+      throws IOException {
     for (WorkUnitState state : states) {
       for (int i = 0; i < this.numBranches; i++) {
         ArrayList<String> fileNames = new ArrayList<String>();
-        String writerFile = state.getProp(ForkOperatorUtils.getPropertyNameForBranch(
-                ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, i));
+        String writerFile =
+            state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, i));
         fileNames.add(writerFile);
 
         try {
@@ -65,7 +67,8 @@ public class SimpleS3Publisher extends BaseS3Publisher {
   }
 
   @Override
-  public void publishMetadata(Collection<? extends WorkUnitState> states) throws IOException {
+  public void publishMetadata(Collection<? extends WorkUnitState> states)
+      throws IOException {
 
   }
 }

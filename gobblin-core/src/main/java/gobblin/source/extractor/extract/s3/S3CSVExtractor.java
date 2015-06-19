@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 
+
 /**
  * An extractor for an S3 source. Grabs each line from a source and returns the
  * line parsed as a CSV (using the delimiter set in {@link ConfigurationKeys#CONVERTER_STRING_SPLITTER_DELIMITER}.
@@ -71,12 +72,14 @@ public class S3CSVExtractor implements Extractor<Class<String>, ArrayList<String
   }
 
   @Override
-  public Class<String> getSchema() throws IOException {
+  public Class<String> getSchema()
+      throws IOException {
     return String.class;
   }
 
   @Override
-  public ArrayList<String> readRecord(@Deprecated ArrayList<String> reuse) throws DataRecordException, IOException {
+  public ArrayList<String> readRecord(@Deprecated ArrayList<String> reuse)
+      throws DataRecordException, IOException {
     return csvReader.nextRecord();
   }
 
@@ -91,7 +94,8 @@ public class S3CSVExtractor implements Extractor<Class<String>, ArrayList<String
   }
 
   @Override
-  public void close() throws IOException {
+  public void close()
+      throws IOException {
     br.close();
   }
 }

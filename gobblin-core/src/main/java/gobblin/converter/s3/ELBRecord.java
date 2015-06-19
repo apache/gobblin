@@ -21,7 +21,9 @@ import java.util.Date;
 
 /**
  * A Java representation for an ELB record using the following schema:
- * <pre>timestamp elb client:port backend:port request_processing_time backend_processing_time response_processing_time elb_status_code backend_status_code received_bytes sent_bytes "request" "user_agent" ssl_cipher ssl_protocol</pre>
+ * <p/>
+ * <code>timestamp elb client:port backend:port request_processing_time backend_processing_time response_processing_time
+ * elb_status_code backend_status_code received_bytes sent_bytes "request" "user_agent" ssl_cipher ssl_protocol</code>
  * <p/>
  * This is built from the ELB format as outlined here (API Version 2012-06-01). For additional
  * information, please visit:
@@ -59,7 +61,10 @@ public class ELBRecord {
    * This constructor in particular takes in an array of strings, presumably extracted directly
    * from the original record in the form of a space separated value.
    *
-   * @param values An {@link ArrayList} of Strings in the following order: <pre>timestamp elb client:port backend:port request_processing_time backend_processing_time response_processing_time elb_status_code backend_status_code received_bytes sent_bytes "request" "user_agent" ssl_cipher ssl_protocol</pre>
+   * @param values An {@link ArrayList} of Strings in the following order:
+   *               <code>timestamp elb client:port backend:port request_processing_time backend_processing_time
+   *               response_processing_time elb_status_code backend_status_code received_bytes sent_bytes "request"
+   *               "user_agent" ssl_cipher ssl_protocol</code>
    */
   public ELBRecord(ArrayList<String> values) throws DataConversionException {
     if (values.size() != 15) {
@@ -246,7 +251,7 @@ public class ELBRecord {
 
   /**
    * Gets the request URI. This will look something like
-   * <pre>www.example.com/resource/index.html</pre>
+   * <code>www.example.com/resource/index.html</code>
    *
    * @return The URI of the request
    */

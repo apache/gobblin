@@ -17,6 +17,7 @@ import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
 import gobblin.converter.s3.LogFileOuterClass.LogFile;
 
+
 /**
  * Converts an ELB record to the {@link LogFileOuterClass} serialized protobuf format.
  *
@@ -25,12 +26,14 @@ import gobblin.converter.s3.LogFileOuterClass.LogFile;
 public class ELBToProtobufConverter extends Converter<Class<ELBRecord>, Class<LogFile>, ELBRecord, LogFile> {
 
   @Override
-  public Class<LogFile> convertSchema(Class<ELBRecord> inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
+  public Class<LogFile> convertSchema(Class<ELBRecord> inputSchema, WorkUnitState workUnit)
+      throws SchemaConversionException {
     return LogFile.class;
   }
 
   @Override
-  public Iterable<LogFile> convertRecord(Class<LogFile> outputSchema, ELBRecord elbRecord, WorkUnitState workUnit) throws DataConversionException {
+  public Iterable<LogFile> convertRecord(Class<LogFile> outputSchema, ELBRecord elbRecord, WorkUnitState workUnit)
+      throws DataConversionException {
     LogFile logFile = LogFile.newBuilder()
             .setDate(elbRecord.getDate())
             .setTime(elbRecord.getTime())

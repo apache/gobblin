@@ -18,20 +18,25 @@ import gobblin.converter.SingleRecordIterable;
 
 import java.util.ArrayList;
 
+
 /**
  * Converts an {@link ArrayList} of Strings coming from a space-separated value
  * into an {@link ELBRecord}.
  *
  * @author ahollenbach@nerdwallet.com
  */
-public class CSVToELBConverter extends Converter<Class<ArrayList<String>>, Class<ELBRecord>, ArrayList<String>, ELBRecord> {
+public class CSVToELBConverter extends
+    Converter<Class<ArrayList<String>>, Class<ELBRecord>, ArrayList<String>, ELBRecord> {
   @Override
-  public Class<ELBRecord> convertSchema(Class<ArrayList<String>> inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
+  public Class<ELBRecord> convertSchema(Class<ArrayList<String>> inputSchema, WorkUnitState workUnit)
+      throws SchemaConversionException {
     return ELBRecord.class;
   }
 
   @Override
-  public Iterable<ELBRecord> convertRecord(Class<ELBRecord> outputSchema, ArrayList<String> inputRecord, WorkUnitState workUnit) throws DataConversionException {
+  public Iterable<ELBRecord>
+  convertRecord(Class<ELBRecord> outputSchema, ArrayList<String> inputRecord, WorkUnitState workUnit)
+      throws DataConversionException {
     return new SingleRecordIterable<ELBRecord>(new ELBRecord(inputRecord));
   }
 }

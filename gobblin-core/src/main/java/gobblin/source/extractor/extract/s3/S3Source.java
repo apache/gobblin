@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
+
 /**
  * An implementation of an S3 source to get work units.
  * The source and destination buckets and paths are set in:
@@ -70,9 +71,7 @@ public class S3Source extends AbstractSource<Class<String>, ArrayList<String>> {
     state.setProp(ConfigurationKeys.S3_SOURCE_PATH, s3Path);
 
     // Build the request
-    ListObjectsRequest listObjectRequest = new ListObjectsRequest()
-            .withBucketName(s3Bucket)
-            .withPrefix(s3Path);
+    ListObjectsRequest listObjectRequest = new ListObjectsRequest().withBucketName(s3Bucket).withPrefix(s3Path);
 
     // Fetch all the objects in the given bucket/path
     ObjectListing objectListing = s3Client.listObjects(listObjectRequest);
@@ -110,7 +109,8 @@ public class S3Source extends AbstractSource<Class<String>, ArrayList<String>> {
    * pattern and offset.
    */
   private String checkAndReplaceDate(SourceState state, String s3Path) {
-    String placeholder = state.getProp(ConfigurationKeys.S3_DATE_PLACEHOLDER, ConfigurationKeys.DEFAULT_S3_DATE_PLACEHOLDER);
+    String placeholder =
+        state.getProp(ConfigurationKeys.S3_DATE_PLACEHOLDER, ConfigurationKeys.DEFAULT_S3_DATE_PLACEHOLDER);
     String datePattern = state.getProp(ConfigurationKeys.S3_DATE_PATTERN, ConfigurationKeys.DEFAULT_S3_DATE_PATTERN);
     // If set, 0 for today, -1 for yesterday, etc.
     int dateOffset = state.getPropAsInt(ConfigurationKeys.S3_DATE_OFFSET, ConfigurationKeys.DEFAULT_S3_DATE_OFFSET);
@@ -139,7 +139,6 @@ public class S3Source extends AbstractSource<Class<String>, ArrayList<String>> {
     publisherPath = checkAndReplaceDate(partitionState, publisherPath);
     partitionState.setProp(ConfigurationKeys.S3_PUBLISHER_PATH, publisherPath);
 
-
     // Set the object key to be just the filename (with extension)
     // TODO alternatively, we could use a different naming schema
     partitionState.setProp("S3_OBJECT_KEY", FilenameUtils.getName(objectSourceKey));
@@ -160,7 +159,8 @@ public class S3Source extends AbstractSource<Class<String>, ArrayList<String>> {
    * @throws IOException if it fails to create an {@link Extractor}
    */
   @Override
-  public Extractor<Class<String>, ArrayList<String>> getExtractor(WorkUnitState state) throws IOException {
+  public Extractor<Class<String>, ArrayList<String>> getExtractor(WorkUnitState state)
+      throws IOException {
     return new S3CSVExtractor(state);
   }
 

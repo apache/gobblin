@@ -17,6 +17,7 @@ import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
 import gobblin.converter.s3.LogFileOuterClass.LogFile;
 
+
 /**
  * Writes the Protobuf LogFile to a byte array to be read in by a byte writer.
  *
@@ -24,12 +25,14 @@ import gobblin.converter.s3.LogFileOuterClass.LogFile;
  */
 public class ProtobufSerializerConverter extends Converter<Class<LogFile>, Class<byte[]>, LogFile, byte[]> {
   @Override
-  public Class<byte[]> convertSchema(Class<LogFile> inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
+  public Class<byte[]> convertSchema(Class<LogFile> inputSchema, WorkUnitState workUnit)
+      throws SchemaConversionException {
     return byte[].class;
   }
 
   @Override
-  public Iterable<byte[]> convertRecord(Class<byte[]> outputSchema, LogFile inputRecord, WorkUnitState workUnit) throws DataConversionException {
+  public Iterable<byte[]> convertRecord(Class<byte[]> outputSchema, LogFile inputRecord, WorkUnitState workUnit)
+      throws DataConversionException {
     return new SingleRecordIterable<byte[]>(inputRecord.toByteArray());
   }
 }
