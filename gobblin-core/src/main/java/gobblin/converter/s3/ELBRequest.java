@@ -11,7 +11,7 @@
 package gobblin.converter.s3;
 
 /**
- * Represents an ELB request.
+ * Represents an ELB request string sent to the server.
  *
  * @author ahollenbach@nerdwallet.com
  */
@@ -23,7 +23,8 @@ public class ELBRequest extends Request {
   /**
    * Parses the request string from an ELB log according to this format:
    * <p/>
-   * The request line from the client enclosed in double quotes and logged in the following format: HTTP Method + Protocol://Host header:port + Path + HTTP version.
+   * The request line from the client enclosed in double quotes and logged in the following format:
+   * HTTP Method + Protocol://Host header:port + Path + HTTP version.
    * <p/>
    * [TCP listener] The URL is three dashes, each separated by a space, and ending with a space ("- - - ").
    *

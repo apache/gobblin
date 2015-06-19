@@ -20,7 +20,7 @@ import java.util.ArrayList;
 import java.util.Date;
 
 /**
- * A POJO for an ELB record using the following schema:
+ * A Java representation for an ELB record using the following schema:
  * <pre>timestamp elb client:port backend:port request_processing_time backend_processing_time response_processing_time elb_status_code backend_status_code received_bytes sent_bytes "request" "user_agent" ssl_cipher ssl_protocol</pre>
  * <p/>
  * This is built from the ELB format as outlined here (API Version 2012-06-01). For additional
