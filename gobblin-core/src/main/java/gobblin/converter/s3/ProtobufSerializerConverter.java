@@ -18,6 +18,8 @@ import gobblin.converter.SingleRecordIterable;
 import gobblin.converter.s3.LogFileOuterClass.LogFile;
 
 /**
+ * Writes the Protobuf LogFile to a byte array to be read in by a byte writer.
+ *
  * @author ahollenbach@nerdwallet.com
  */
 public class ProtobufSerializerConverter extends Converter<Class<LogFile>, Class<byte[]>, LogFile, byte[]> {

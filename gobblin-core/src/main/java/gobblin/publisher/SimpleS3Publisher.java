@@ -23,7 +23,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 /**
- * Publishes files to S3
+ * Publishes files to S3. The destination bucket and path can be set
+ * in {@link ConfigurationKeys#S3_PUBLISHER_BUCKET} and {@link ConfigurationKeys#S3_PUBLISHER_PATH}.
  *
  * @author ahollenbach@nerdwallet.com
  */
@@ -43,9 +44,7 @@ public class SimpleS3Publisher extends BaseS3Publisher {
 
   @Override
   public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
-    ArrayList<String> files = new ArrayList<String>();
     for (WorkUnitState state : states) {
-
       for (int i = 0; i < this.numBranches; i++) {
         ArrayList<String> fileNames = new ArrayList<String>();
         String writerFile = state.getProp(ForkOperatorUtils.getPropertyNameForBranch(

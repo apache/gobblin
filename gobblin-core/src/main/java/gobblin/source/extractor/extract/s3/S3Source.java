@@ -32,7 +32,22 @@ import java.util.Calendar;
 import java.util.List;
 
 /**
- * An implementation of an s3 source to get work units
+ * An implementation of an S3 source to get work units.
+ * The source and destination buckets and paths are set in:
+ * {@link ConfigurationKeys#S3_SOURCE_BUCKET},
+ * {@link ConfigurationKeys#S3_SOURCE_PATH},
+ * {@link ConfigurationKeys#S3_PUBLISHER_BUCKET}, and
+ * {@link ConfigurationKeys#S3_PUBLISHER_PATH}.
+ * <p/>
+ * If you want your S3 paths to contain a date, the {@link S3Source} will
+ * automatically check for you.
+ * Relevant date manipulation values are:
+ * {@link ConfigurationKeys#S3_DATE_PATTERN} (the pattern to match),
+ * {@link ConfigurationKeys#S3_DATE_PLACEHOLDER} (the placeholder in the jobfile path), and
+ * {@link ConfigurationKeys#S3_DATE_OFFSET} (the number of days offset (relative to the current date)
+ * <p/>
+ * If you do not wish, defaults are set for those values
+ * and your paths will be unaffected.
  *
  * @author ahollenbach@nerdwallet.com
  */

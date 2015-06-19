@@ -20,6 +20,7 @@ import gobblin.converter.SingleRecordIterable;
 import java.io.ByteArrayInputStream;
 
 /**
+ * Utility converter that converts a String to a byte array.
  *
  * @author ahollenbach@nerdwallet.com
  */

@@ -11,7 +11,8 @@
 package gobblin.converter.s3;
 
 /**
- * Represents a request to server
+ * Represents a request to server. This class should be extended to
+ * represent any sort of web request string.
  *
  * @author ahollenbach@nerdwallet.com
  */

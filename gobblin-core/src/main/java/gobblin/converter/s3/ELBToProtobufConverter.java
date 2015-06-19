@@ -18,6 +18,8 @@ import gobblin.converter.SingleRecordIterable;
 import gobblin.converter.s3.LogFileOuterClass.LogFile;
 
 /**
+ * Converts an ELB record to the {@link LogFileOuterClass} serialized protobuf format.
+ *
  * @author ahollenbach@nerdwallet.com
  */
 public class ELBToProtobufConverter extends Converter<Class<ELBRecord>, Class<LogFile>, ELBRecord, LogFile> {

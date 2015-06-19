@@ -20,6 +20,7 @@ import java.util.ArrayList;
 
 /**
  * Converts an {@link ArrayList} of Strings coming from a space-separated value
+ * into an {@link ELBRecord}.
  *
  * @author ahollenbach@nerdwallet.com
  */
