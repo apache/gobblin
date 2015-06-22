@@ -111,6 +111,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
   private final Job job;
   private final Path mrJobDir;
 
+  private volatile boolean hadoopJobSubmitted = false;
+
   public MRJobLauncher(Properties jobProps) throws Exception {
     this(jobProps, new Configuration());
   }
@@ -152,7 +154,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
   @Override
   public void close() throws IOException {
     try {
-      if (!this.job.isComplete()) {
+      if (this.hadoopJobSubmitted && !this.job.isComplete()) {
         LOG.info("Killing the Hadoop MR job for job " + this.jobContext.getJobId());
         this.job.killJob();
       }
@@ -176,6 +178,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
       Path jobOutputPath = prepareHadoopJob(workUnits);
       LOG.info("Launching Hadoop MR job " + this.job.getJobName());
       this.job.submit();
+      this.hadoopJobSubmitted = true;
 
       // Set job tracking URL to the Hadoop job tracking URL if it is not set yet
       if (!jobState.contains(ConfigurationKeys.JOB_TRACKING_URL_KEY)) {
