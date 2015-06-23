@@ -438,4 +438,13 @@ public class ConfigurationKeys {
   public static final String DEFAULT_S3_DATE_PLACEHOLDER = "{cur-date}";
   public static final String S3_DATE_OFFSET = "aws.s3.date.offset";
   public static final int DEFAULT_S3_DATE_OFFSET = -1;
+  /**
+   * The format of the file to write to S3.
+   * If this is not set, the original filename is used.
+   * <p/>
+   * Can contain the following placeholders:
+   * {counter} - an integer counter (guarantees unique keying)
+   * {cur-date} - the current date (/ will be removed)
+   */
+  public static final String S3_PUBLISHER_FILENAME_FORMAT = "aws.s3.publisher.filename.format";
 }

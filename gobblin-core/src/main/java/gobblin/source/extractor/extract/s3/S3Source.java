@@ -23,13 +23,11 @@ import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.AbstractSource;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
-import org.apache.commons.io.FilenameUtils;
-
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
+import org.apache.commons.io.FilenameUtils;
 
 
 /**
@@ -139,22 +137,11 @@ public class S3Source extends AbstractSource<Class<String>, String> {
     publisherPath = checkAndReplaceDate(partitionState, publisherPath);
     partitionState.setProp(ConfigurationKeys.S3_PUBLISHER_PATH, publisherPath);
 
-    // Set the object key to be just the filename (with extension)
-    // TODO alternatively, we could use a different naming schema
-    partitionState.setProp("S3_OBJECT_KEY", generateObjectName(objectSourceKey));
+    // Set the object key to be the filename, as the path is determined separately
+    partitionState.setProp("S3_SOURCE_OBJECT_KEY", FilenameUtils.getName(objectSourceKey));
 
     Extract extract = partitionState.createExtract(DEFAULT_TABLE_TYPE, DEFAULT_NAMESPACE_NAME, TABLE_NAME);
     return partitionState.createWorkUnit(extract);
-  }
-
-  /**
-   * Generates the object name (filename + extension) for placing in S3.
-   *
-   * @param objectSourceKey The original full object key from S3
-   * @return the filename + extension of the object to place
-   */
-  protected String generateObjectName(String objectSourceKey) {
-    return FilenameUtils.getName(objectSourceKey);
   }
 
   /**

@@ -43,7 +43,7 @@ public class S3StringExtractor implements Extractor<Class<String>, String> {
    * Creates a new S3StringExtractor
    *
    * @param state the state
-   * @throws NullPointerException if the state does not contain the property S3_OBJECT_KEY
+   * @throws NullPointerException if the state does not contain the property S3_SOURCE_OBJECT_KEY
    */
   public S3StringExtractor(WorkUnitState state) {
     this.workUnitState = state;
@@ -52,7 +52,7 @@ public class S3StringExtractor implements Extractor<Class<String>, String> {
 
     try {
       String s3Path = state.getProp(ConfigurationKeys.S3_SOURCE_PATH);
-      String objectKey = state.getProp("S3_OBJECT_KEY");
+      String objectKey = state.getProp("S3_SOURCE_OBJECT_KEY");
       if (objectKey == null) {
         throw new NullPointerException();
       }
@@ -62,7 +62,7 @@ public class S3StringExtractor implements Extractor<Class<String>, String> {
       br = new BufferedReader(new InputStreamReader(obj.getObjectContent()));
 
     } catch (NullPointerException ex) {
-      LOG.error("S3_OBJECT_KEY not set in state.");
+      LOG.error("S3_SOURCE_OBJECT_KEY not set in state.");
     }
   }
 
