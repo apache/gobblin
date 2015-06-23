@@ -52,7 +52,7 @@ import java.util.List;
  *
  * @author ahollenbach@nerdwallet.com
  */
-public class S3Source extends AbstractSource<Class<String>, ArrayList<String>> {
+public class S3Source extends AbstractSource<Class<String>, String> {
 
   public static final String TABLE_NAME = "default";
   public static final Extract.TableType DEFAULT_TABLE_TYPE = Extract.TableType.APPEND_ONLY;
@@ -159,9 +159,9 @@ public class S3Source extends AbstractSource<Class<String>, ArrayList<String>> {
    * @throws IOException if it fails to create an {@link Extractor}
    */
   @Override
-  public Extractor<Class<String>, ArrayList<String>> getExtractor(WorkUnitState state)
+  public Extractor<Class<String>, String> getExtractor(WorkUnitState state)
       throws IOException {
-    return new S3CSVExtractor(state);
+    return new S3StringExtractor(state);
   }
 
   @Override

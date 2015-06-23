@@ -18,38 +18,34 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.utils.InputStreamCSVReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
 
 
 /**
- * An extractor for an S3 source. Grabs each line from a source and returns the
- * line parsed as a CSV (using the delimiter set in {@link ConfigurationKeys#CONVERTER_STRING_SPLITTER_DELIMITER}.
+ * An extractor for an S3 source. Returns each file, line by line, as strings.
  *
  * @author ahollenbach@nerdwallet.com
  */
-public class S3CSVExtractor implements Extractor<Class<String>, ArrayList<String>> {
+public class S3StringExtractor implements Extractor<Class<String>, String> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(S3CSVExtractor.class);
+  private static final Logger LOG = LoggerFactory.getLogger(S3StringExtractor.class);
 
   protected final WorkUnitState workUnitState;
 
   protected BufferedReader br;
-  protected InputStreamCSVReader csvReader;
 
   /**
-   * Creates a new S3CSVExtractor
+   * Creates a new S3StringExtractor
    *
    * @param state the state
    * @throws NullPointerException if the state does not contain the property S3_OBJECT_KEY
    */
-  public S3CSVExtractor(WorkUnitState state) {
+  public S3StringExtractor(WorkUnitState state) {
     this.workUnitState = state;
 
     AmazonS3 s3Client = new AmazonS3Client();
@@ -65,7 +61,6 @@ public class S3CSVExtractor implements Extractor<Class<String>, ArrayList<String
       S3Object obj = s3Client.getObject(state.getProp(ConfigurationKeys.S3_SOURCE_BUCKET), s3Path + "/" + objectKey);
       br = new BufferedReader(new InputStreamReader(obj.getObjectContent()));
 
-      csvReader = new InputStreamCSVReader(br, state.getProp(ConfigurationKeys.CONVERTER_CSV_DELIMETER).charAt(0));
     } catch (NullPointerException ex) {
       LOG.error("S3_OBJECT_KEY not set in state.");
     }
@@ -78,9 +73,9 @@ public class S3CSVExtractor implements Extractor<Class<String>, ArrayList<String
   }
 
   @Override
-  public ArrayList<String> readRecord(@Deprecated ArrayList<String> reuse)
+  public String readRecord(@Deprecated String reuse)
       throws DataRecordException, IOException {
-    return csvReader.nextRecord();
+    return br.readLine();
   }
 
   @Override
