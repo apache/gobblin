@@ -141,10 +141,20 @@ public class S3Source extends AbstractSource<Class<String>, String> {
 
     // Set the object key to be just the filename (with extension)
     // TODO alternatively, we could use a different naming schema
-    partitionState.setProp("S3_OBJECT_KEY", FilenameUtils.getName(objectSourceKey));
+    partitionState.setProp("S3_OBJECT_KEY", generateObjectName(objectSourceKey));
 
     Extract extract = partitionState.createExtract(DEFAULT_TABLE_TYPE, DEFAULT_NAMESPACE_NAME, TABLE_NAME);
     return partitionState.createWorkUnit(extract);
+  }
+
+  /**
+   * Generates the object name (filename + extension) for placing in S3.
+   *
+   * @param objectSourceKey The original full object key from S3
+   * @return the filename + extension of the object to place
+   */
+  protected String generateObjectName(String objectSourceKey) {
+    return FilenameUtils.getName(objectSourceKey);
   }
 
   /**
