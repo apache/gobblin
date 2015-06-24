@@ -9,7 +9,6 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
  */
-
 package gobblin.test.setup.config;
 
 import java.util.Collection;
@@ -17,13 +16,13 @@ import java.util.Collection;
 
 /**
  * An interface for generating the steps associated to the config. The steps may include
- * copy of data or validating of the test.
- *
+ * copy of data or validating of the test. 
+ * 
  * @author sveerama
  *
  */
 
-public interface ConfigStepsGenerator{
+public interface ConfigStepsGenerator {
   /**
    *  This method will generate the list of execution steps associated to the config,
    * @return List of config steps in {@link Step}
