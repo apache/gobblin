@@ -55,13 +55,17 @@ test {
 classification="library"
 
 
+jar {
+ archiveName = "gobblin-utility.jar"
+}
+
 task utilityTar(type: Tar) {
   extension = 'tar.gz'
   baseName = project.name
   compression = Compression.GZIP
 
   into("lib") { from configurations.runtime }
-  into("lib") { from "${project.rootDir}/build/${project.name}/libs/${project.name}.jar"}
+  into("lib") { from "${project.rootDir}/build/${project.name}/libs/gobblin-utility.jar"}
   into("bin") { 
     from "src/main/bash"
     fileMode = 0755
