@@ -23,16 +23,15 @@ public class DatasetFilterUtils {
   }
 
   /**
-   * If whitelist is non-empty, a topic survives if it matches the whitelist.
-   * Otherwise, a topic survives if it doesn't match the blacklist.
+   * A topic survives if (1) it doesn't match the blacklist, and
+   * (2) either whitelist is empty, or it matches the whitelist.
    * Whitelist and blacklist use regex patterns (NOT glob patterns).
    */
   public static boolean survived(String topic, List<Pattern> blacklist, List<Pattern> whitelist) {
-    if (!whitelist.isEmpty()) {
-      return stringInPatterns(topic, whitelist);
-    } else {
-      return !stringInPatterns(topic, blacklist);
+    if (stringInPatterns(topic, blacklist)) {
+      return false;
     }
+    return (whitelist.isEmpty() || stringInPatterns(topic, whitelist));
   }
 
   /**
