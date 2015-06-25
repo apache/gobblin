@@ -115,12 +115,15 @@ public class AvroUtils {
    * @param fieldLocation is the location of the field
    * @return the value of the field
    */
-  public static Optional<Object> getFieldValue(GenericRecord record, String fieldLocation) {
+  public static Optional<Object> getFieldValue(GenericRecord record, Optional<String> fieldLocation) {
     Preconditions.checkNotNull(record);
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(fieldLocation));
+
+    if (!fieldLocation.isPresent()) {
+      return Optional.absent();
+    }
 
     Splitter splitter = Splitter.on(FIELD_LOCATION_DELIMITER).omitEmptyStrings().trimResults();
-    List<String> pathList = splitter.splitToList(fieldLocation);
+    List<String> pathList = splitter.splitToList(fieldLocation.get());
 
     if (pathList.size() == 0) {
       return Optional.absent();
