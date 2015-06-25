@@ -32,7 +32,7 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Timer;
-
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
@@ -140,13 +140,32 @@ public class GobblinMetrics {
     state.appendToListProp(METRICS_STATE_CUSTOM_TAGS, tag.toString());
   }
 
+
+  /**
+   * Add a {@link Tag} to a {@link Properties} with key {@link #METRICS_STATE_CUSTOM_TAGS}.
+   * Also @see {@link #addCustomTagToState(State, Tag)}
+   *
+   * <p>
+   *   The {@link Properties} passed can be used to build a {@link State}.
+   *   {@link gobblin.metrics.Tag}s under this key can later be parsed using the method {@link #getCustomTagsFromState}.
+   * </p>
+   *
+   * @param properties {@link Properties} to add the tag to.
+   * @param tag {@link Tag} to add.
+   */
+  public static void addCustomTagToProperties(Properties properties, Tag<?> tag) {
+    // Build a state wrapper to add custom tag to property
+    State state = new State(properties);
+    addCustomTagToState(state, tag);
+  }
+
   /**
    * Parse custom {@link gobblin.metrics.Tag}s from property {@link #METRICS_STATE_CUSTOM_TAGS}
    * in the input {@link gobblin.configuration.State}.
    * @param state {@link gobblin.configuration.State} possibly containing custom tags.
    * @return List of {@link gobblin.metrics.Tag} parsed from input.
    */
-  protected static List<Tag<?>> getCustomTagsFromState(State state) {
+  public static List<Tag<?>> getCustomTagsFromState(State state) {
     List<Tag<?>> tags = Lists.newArrayList();
     for (String tagKeyValue : state.getPropAsList(METRICS_STATE_CUSTOM_TAGS, "")) {
       Tag<?> tag = Tag.fromString(tagKeyValue);

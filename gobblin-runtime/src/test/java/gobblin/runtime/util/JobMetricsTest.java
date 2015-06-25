@@ -17,10 +17,15 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+
+import gobblin.configuration.State;
 import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
@@ -67,7 +72,7 @@ public class JobMetricsTest {
   }
 
   @Test
-  public void testTags() {
+  public void testClusterIdentifierTags() {
     try {
 
       String expectedClusterIdentifier  = InetAddress.getLocalHost().getHostName();
@@ -80,6 +85,26 @@ public class JobMetricsTest {
     } catch (UnknownHostException e) {
       //Ignore test
     }
+  }
+
+  @Test
+  public void testCustomTags() {
+
+    Properties testProperties = new Properties();
+    Tag<String> expectedPropertyTag = new Tag<String>("key1", "value1");
+
+    JobMetrics.addCustomTagToProperties(testProperties, expectedPropertyTag);
+    State testState = new State(testProperties);
+    List<Tag<?>> tags = JobMetrics.getCustomTagsFromState(testState);
+
+    Assert.assertEquals(Iterables.getFirst(tags, null), expectedPropertyTag);
+
+    Tag<String> expectedStateTag = new Tag<String>("key2", "value2");
+    JobMetrics.addCustomTagToState(testState, expectedStateTag);
+    tags = JobMetrics.getCustomTagsFromState(testState);
+
+    Assert.assertTrue(tags.containsAll(ImmutableList.of(expectedPropertyTag, expectedStateTag)));
+
   }
 
   private JobMetrics buildTestJobMetrics() {
