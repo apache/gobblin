@@ -158,7 +158,7 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
     Optional<Object> writerPartitionColumnValue = AvroUtils.getFieldValue(record, this.partitionColumnName);
 
     // Check if the partition column value is present and is a Long object. Otherwise, use current system time.
-    long recordTimestamp = writerPartitionColumnValue.get() instanceof Long ? (Long) writerPartitionColumnValue.get()
+    long recordTimestamp = writerPartitionColumnValue.orNull() instanceof Long ? (Long) writerPartitionColumnValue.get()
         : System.currentTimeMillis();
 
     Path writerOutputPath = getPathForColumnValue(recordTimestamp);
