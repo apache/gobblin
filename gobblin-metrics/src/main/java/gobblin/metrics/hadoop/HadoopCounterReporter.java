@@ -18,12 +18,12 @@ import org.apache.hadoop.mapred.Reporter;
 
 import com.codahale.metrics.MetricFilter;
 
-import gobblin.metrics.ContextAwareScheduledReporter;
+import gobblin.metrics.reporter.ContextAwareScheduledReporter;
 import gobblin.metrics.MetricContext;
 
 
 /**
- * An implementation of {@link gobblin.metrics.ContextAwareScheduledReporter} that reports
+ * An implementation of {@link gobblin.metrics.reporter.ContextAwareScheduledReporter} that reports
  * applicable metrics as Hadoop counters using a {@link org.apache.hadoop.mapred.Reporter}.
  *
  * @author ynli

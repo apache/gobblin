@@ -21,13 +21,12 @@ import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
 
 import kafka.producer.KeyedMessage;
 import kafka.producer.ProducerConfig;
 
 import gobblin.metrics.MetricContext;
-import gobblin.metrics.SerializedMetricReportReporter;
+import gobblin.metrics.reporter.SerializedMetricReportReporter;
 
 
 /**

@@ -36,13 +36,16 @@ import com.google.common.collect.Lists;
 
 import static gobblin.metrics.TestConstants.*;
 
+import gobblin.metrics.reporter.ContextAwareScheduledReporter;
+
+
 /**
  * Unit tests for {@link MetricContext}.
  *
  * <p>
  *   This test class also tests classes {@link ContextAwareCounter}, {@link ContextAwareMeter},
  *   {@link ContextAwareHistogram}, {@link ContextAwareTimer}, {@link ContextAwareGauge},
- *   {@link ContextAwareScheduledReporter}, and {@link TagBasedMetricFilter}.
+ *   {@link gobblin.metrics.reporter.ContextAwareScheduledReporter}, and {@link TagBasedMetricFilter}.
  * </p>
  *
  * @author ynli

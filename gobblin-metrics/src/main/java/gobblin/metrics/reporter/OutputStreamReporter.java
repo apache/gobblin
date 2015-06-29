@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics;
+package gobblin.metrics.reporter;
 
 import java.io.Closeable;
 import java.io.OutputStream;
@@ -36,35 +36,37 @@ import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
 import com.google.common.collect.Maps;
 import com.google.common.base.Charsets;
 
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.Tag;
 
-public class OutputStreamReporter extends RecursiveScheduledReporter implements Closeable {
+
+public class OutputStreamReporter extends RecursiveScheduledMetricReporter implements Closeable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(OutputStreamReporter.class);
 
   /**
-   * Returns a new {@link Builder} for {@link gobblin.metrics.OutputStreamReporter}.
+   * Returns a new {@link Builder} for {@link OutputStreamReporter}.
    * If the registry is of type {@link gobblin.metrics.MetricContext} tags will NOT be inherited.
    * To inherit tags, use forContext method.
    *
    * @param registry the registry to report
-   * @return a {@link Builder} instance for a {@link gobblin.metrics.OutputStreamReporter}
+   * @return a {@link Builder} instance for a {@link OutputStreamReporter}
    */
   public static Builder<?> forRegistry(MetricRegistry registry) {
     return new BuilderImpl(registry);
   }
 
   /**
-   * Returns a new {@link gobblin.metrics.OutputStreamReporter.Builder} for {@link gobblin.metrics.OutputStreamReporter}.
+   * Returns a new {@link OutputStreamReporter.Builder} for {@link OutputStreamReporter}.
    * Will automatically add all Context tags to the reporter.
    *
    * @param context the {@link gobblin.metrics.MetricContext} to report
-   * @return {@link gobblin.metrics.OutputStreamReporter.Builder}
+   * @return {@link OutputStreamReporter.Builder}
    */
   public static Builder<?> forContext(MetricContext context) {
     return forRegistry(context);
@@ -80,7 +82,7 @@ public class OutputStreamReporter extends RecursiveScheduledReporter implements 
   }
 
   /**
-   * A builder for {@link gobblin.metrics.OutputStreamReporter} instances.
+   * A builder for {@link OutputStreamReporter} instances.
    * Defaults to using the default locale and
    * time zone, writing to {@code System.out}, converting rates to events/second, converting
    * durations to milliseconds, and not filtering metrics.
@@ -226,9 +228,9 @@ public class OutputStreamReporter extends RecursiveScheduledReporter implements 
     }
 
     /**
-     * Builds a {@link gobblin.metrics.OutputStreamReporter} with the given properties.
+     * Builds a {@link OutputStreamReporter} with the given properties.
      *
-     * @return a {@link gobblin.metrics.OutputStreamReporter}
+     * @return a {@link OutputStreamReporter}
      */
     public OutputStreamReporter build() {
       return new OutputStreamReporter(this);

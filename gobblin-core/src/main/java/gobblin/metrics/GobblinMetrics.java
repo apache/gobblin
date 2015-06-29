@@ -46,6 +46,7 @@ import gobblin.metrics.kafka.KafkaAvroReporter;
 import gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
 import gobblin.metrics.kafka.KafkaReporter;
 import gobblin.metrics.kafka.KafkaReportingFormats;
+import gobblin.metrics.reporter.OutputStreamReporter;
 
 
 /**

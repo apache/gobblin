@@ -17,10 +17,14 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Counter;
@@ -34,6 +38,7 @@ import com.codahale.metrics.MetricSet;
 import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Timer;
 
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -44,7 +49,12 @@ import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
+
+import gobblin.metrics.notify.EventNotification;
+import gobblin.metrics.notify.Notification;
+import gobblin.metrics.reporter.ContextAwareScheduledReporter;
 
 
 /**
@@ -95,6 +105,11 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
   // This is used to close all children context when this context is to be closed
   private final Closer closer = Closer.create();
 
+  // Targets for notifications.
+  private final Set<Function<Notification, Void>> notifyTargets;
+
+  private Optional<ExecutorService> executorServiceOptional;
+
   private MetricContext(String name, MetricContext parent, List<Tag<?>> tags,
       Map<String, ContextAwareScheduledReporter.Builder> builders, boolean reportFullyQualifiedNames,
       boolean includeTagKeys) {
@@ -105,6 +120,8 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
     this.tagged = new Tagged(tags);
     this.tagged.addTag(new Tag<String>(METRIC_CONTEXT_ID_TAG_NAME, UUID.randomUUID().toString()));
     this.reportFullyQualifiedNames = reportFullyQualifiedNames;
+    this.notifyTargets = Sets.newConcurrentHashSet();
+    this.executorServiceOptional = Optional.absent();
     this.includeTagKeys = includeTagKeys;
 
     // Add as a child to the parent context if a parent exists
@@ -115,6 +132,13 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
     for (Map.Entry<String, ContextAwareScheduledReporter.Builder> entry : builders.entrySet()) {
       this.contextAwareScheduledReporters.put(entry.getKey(), entry.getValue().build(this));
     }
+  }
+
+  private ExecutorService getExecutorService() {
+    if(!this.executorServiceOptional.isPresent()) {
+      this.executorServiceOptional = Optional.of(Executors.newCachedThreadPool());
+    }
+    return this.executorServiceOptional.get();
   }
 
   /**
@@ -169,6 +193,12 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
   @Override
   public SortedSet<String> getNames() {
     return this.reportFullyQualifiedNames ? super.getNames() : getSimpleNames();
+  }
+
+
+  public void sendEvent(Event event) {
+    EventNotification notification = new EventNotification(event);
+    sendNotification(notification);
   }
 
   /**
@@ -598,6 +628,27 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    */
   public static Builder builder(String name) {
     return new Builder(name);
+  }
+
+
+  public void addNotifiyTarget(Function<Notification, Void> target) {
+    this.notifyTargets.add(target);
+  }
+
+  public void sendNotification(final Notification notification) {
+    for(final Function<Notification, Void> target : this.notifyTargets) {
+      getExecutorService().submit(new Callable<Void>() {
+        @Override
+        public Void call()
+            throws Exception {
+          target.apply(notification);
+          return null;
+        }
+      });
+    }
+    if(this.parent.isPresent()) {
+      this.parent.get().sendNotification(notification);
+    }
   }
 
   private SortedSet<String> getSimpleNames() {

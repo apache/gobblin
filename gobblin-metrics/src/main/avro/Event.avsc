@@ -1,0 +1,25 @@
+{
+  "type": "record",
+  "name": "Event",
+  "namespace": "gobblin.metrics",
+  "fields": [
+    {
+      "name": "namespace",
+      "type": "string",
+      "doc": "Namespace used for filtering of events."
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "doc": "Event name."
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "doc": "Event metadata."
+    }
+  ]
+}

@@ -122,13 +122,13 @@ public class KafkaAvroReporter extends KafkaReporter {
   }
 
   /**
-   * Implementation of {@link gobblin.metrics.SerializedMetricReportReporter#writeSchemaVersioningInformation} supporting
+   * Implementation of {@link gobblin.metrics.reporter.SerializedMetricReportReporter#writeSchemaVersioningInformation} supporting
    * a {@link gobblin.metrics.kafka.KafkaAvroSchemaRegistry}.
    *
    * <p>
    * If a {@link gobblin.metrics.kafka.KafkaAvroSchemaRegistry} is provided to the reporter, this method writes
    * the {@link gobblin.metrics.kafka.KafkaAvroSchemaRegistry} id for the {@link gobblin.metrics.MetricReport} schema
-   * instead of the static {@link gobblin.metrics.MetricReportUtils#SCHEMA_VERSION}. This allows processors like
+   * instead of the static {@link gobblin.metrics.reporter.MetricReportUtils#SCHEMA_VERSION}. This allows processors like
    * Camus to retrieve the correct {@link org.apache.avro.Schema} from a REST schema registry. This method will also
    * automatically register the {@link org.apache.avro.Schema} to the REST registry. It is assumed that calling
    * {@link gobblin.metrics.kafka.KafkaAvroSchemaRegistry#register} more than once for the same

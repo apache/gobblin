@@ -10,6 +10,16 @@
 
 apply plugin: 'java'
 
+buildscript {
+  repositories {
+    jcenter()
+  }
+  dependencies {
+    classpath "com.commercehub.gradle.plugin:gradle-avro-plugin:0.3.4"
+  }
+}
+apply plugin: "com.commercehub.gradle.plugin.avro"
+
 dependencies {
   compile externalDependency.guava
   compile externalDependency.metricsCore
@@ -74,3 +84,7 @@ sourceSets {
 }
 
 classification="library"
+
+avro {
+  stringType = "string"
+}

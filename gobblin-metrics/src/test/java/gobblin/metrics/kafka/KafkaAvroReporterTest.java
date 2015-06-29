@@ -26,7 +26,7 @@ import kafka.consumer.ConsumerIterator;
 
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricReport;
-import gobblin.metrics.MetricReportUtils;
+import gobblin.metrics.reporter.MetricReportUtils;
 
 
 /**

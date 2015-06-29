@@ -1,6 +1,6 @@
 // Avro Schema for MetricReport objects used by gobblin-metrics
 // Compile with:
-// java -jar /path/to/avro-tools-1.7.7.jar compile -string schema gobblin-metrics/src/main/avro/MetricReport.avro gobblin-metrics/src/main/gen-java
+// java -jar /path/to/avro-tools-1.7.7.jar compile -string schema gobblin-metrics/src/main/avro/MetricReport.avsc gobblin-metrics/src/main/gen-java
 {
   "type": "record",
   "name": "MetricReport",
