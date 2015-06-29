@@ -62,6 +62,7 @@ task utilityTar(type: Tar) {
 
   into("lib") { from configurations.runtime }
   into("lib") { from "${project.rootDir}/build/${project.name}/libs/${project.name}.jar"}
+  into("lib") { from "${project.rootDir}/build/${project.name}/libs/${project.name}-${project.version}.jar"}
   into("bin") { 
     from "src/main/bash"
     fileMode = 0755
