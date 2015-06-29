@@ -12,8 +12,8 @@
 
 package gobblin.source.extractor.hadoop;
 
-import gobblin.source.extractor.filebased.FileBasedHelper;
 import gobblin.source.extractor.filebased.FileBasedHelperException;
+import gobblin.source.extractor.filebased.SizeAwareFileBasedHelper;
 import gobblin.util.HadoopUtils;
 
 import java.io.IOException;
@@ -41,7 +41,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 
 
-public class AvroFsHelper implements FileBasedHelper {
+public class AvroFsHelper implements SizeAwareFileBasedHelper {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AvroFsHelper.class);
 
@@ -163,6 +163,16 @@ public class AvroFsHelper implements FileBasedHelper {
           new GenericDatumReader<GenericRecord>());
     } catch (IOException e) {
       throw new FileBasedHelperException("Failed to open avro file " + file + " due to error " + e.getMessage(), e);
+    }
+  }
+
+  @Override
+  public long getFileSize(String filePath) throws FileBasedHelperException {
+    try {
+      return fs.getFileStatus(new Path(filePath)).getLen();
+    } catch (IOException e) {
+      throw new FileBasedHelperException(String.format("Failed to get size for file at path %s due to error %s",
+          filePath, e.getMessage()), e);
     }
   }
 }
