@@ -14,11 +14,15 @@ dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-compaction")
   compile project(":gobblin-runtime")
+  compile project(":gobblin-test-harness")
   compile project(":gobblin-metastore")
+  compile project(":gobblin-core")
+  compile project(":gobblin-metrics")
 
   compile externalDependency.azkaban
   compile externalDependency.log4j
   compile externalDependency.guava
+  compile externalDependency.commonsLang
 }
 
 configurations {

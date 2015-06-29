@@ -35,6 +35,10 @@ dependencies {
   compile externalDependency.kafkaClient
   compile externalDependency.scala
   compile externalDependency.findBugs
+  compile externalDependency.mockito
+  compile externalDependency.lombok
+
+
   if (project.hasProperty('useHadoop2')) {
     compile externalDependency.avroMapredH2
   } else {
@@ -42,6 +46,7 @@ dependencies {
   }
 
   testCompile externalDependency.testng
+  testCompile externalDependency.mockRunnerJdbc
 }
 
 configurations { compile { transitive = false } }

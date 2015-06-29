@@ -18,6 +18,7 @@ import javax.annotation.Nonnull;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.local.LocalJobLauncher;
 import gobblin.runtime.mapreduce.MRJobLauncher;
+import gobblin.util.JobConfigurationUtils;
 
 
 /**
@@ -53,9 +54,9 @@ public class JobLauncherFactory {
         .valueOf(sysProps.getProperty(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherType.LOCAL.name()));
     switch (launcherType) {
       case LOCAL:
-        return new LocalJobLauncher(sysProps, jobProps);
+        return new LocalJobLauncher(JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps));
       case MAPREDUCE:
-        return new MRJobLauncher(sysProps, jobProps);
+        return new MRJobLauncher(JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps));
       default:
         throw new RuntimeException("Unsupported job launcher type: " + launcherType.name());
     }

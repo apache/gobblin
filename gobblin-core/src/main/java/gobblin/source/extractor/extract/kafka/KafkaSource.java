@@ -15,12 +15,13 @@ package gobblin.source.extractor.extract.kafka;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.regex.Pattern;
 
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,10 +35,10 @@ import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.google.common.primitives.Longs;
 import com.google.gson.Gson;
-import com.google.gson.JsonElement;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.Tag;
@@ -46,6 +47,7 @@ import gobblin.source.extractor.extract.EventBasedSource;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.DatasetFilterUtils;
 
 
 /**
@@ -378,21 +380,39 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       SourceState state) {
     Offsets offsets = new Offsets();
 
+    boolean failedToGetKafkaOffsets = false;
+
     try {
       offsets.setEarliestOffset(kafkaWrapper.getEarliestOffset(partition));
       offsets.setLatestOffset(kafkaWrapper.getLatestOffset(partition));
-      if (shouldMoveToLatestOffset(partition, state)) {
-        offsets.startAtLatestOffset();
-      } else {
-        offsets.startAt(getPreviousOffsetForPartition(partition, state));
-      }
     } catch (KafkaOffsetRetrievalFailureException e) {
+      failedToGetKafkaOffsets = true;
+    }
+
+    long previousOffset = 0;
+    boolean previousOffsetNotFound = false;
+    try {
+      previousOffset = getPreviousOffsetForPartition(partition, state);
+    } catch (PreviousOffsetNotFoundException e) {
+      previousOffsetNotFound = true;
+    }
+
+    if (failedToGetKafkaOffsets) {
+
+      // When unable to get earliest/latest offsets from Kafka, skip the partition and create an empty workunit,
+      // so that previousOffset is persisted.
       LOG.warn(String.format(
           "Failed to retrieve earliest and/or latest offset for partition %s. This partition will be skipped.",
           partition));
-      return null;
+      return previousOffsetNotFound ? null : getEmptyWorkunit(partition, state, previousOffset);
+    }
 
-    } catch (PreviousOffsetNotFoundException e) {
+    if (shouldMoveToLatestOffset(partition, state)) {
+      offsets.startAtLatestOffset();
+    } else if (previousOffsetNotFound) {
+
+      // When previous offset cannot be found, either start at earliest offset or latest offset, or skip the partition
+      // (no need to create an empty workunit in this case since there's no offset to persist).
       String offsetNotFoundMsg = String.format("Previous offset for partition %s does not exist. ", partition);
       String offsetOption = state.getProp(BOOTSTRAP_WITH_OFFSET, DEFAULT_BOOTSTRAP_WITH_OFFSET).toLowerCase();
       if (offsetOption.equals(LATEST_OFFSET)) {
@@ -406,25 +426,31 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         LOG.warn(offsetNotFoundMsg + "This partition will be skipped.");
         return null;
       }
+    } else {
+      try {
+        offsets.startAt(previousOffset);
+      } catch (StartOffsetOutOfRangeException e) {
 
-    } catch (StartOffsetOutOfRangeException e) {
-      String offsetOutOfRangeMsg = String.format(String.format(
-          "Start offset for partition %s is out of range. Start offset = %d, earliest offset = %d, latest offset = %d.",
-          partition, offsets.getStartOffset(), offsets.getEarliestOffset(), offsets.getLatestOffset()));
-      String offsetOption =
-          state.getProp(RESET_ON_OFFSET_OUT_OF_RANGE, DEFAULT_RESET_ON_OFFSET_OUT_OF_RANGE).toLowerCase();
-      if (offsetOption.equals(LATEST_OFFSET)
-          || (offsetOption.equals(NEAREST_OFFSET) && offsets.getStartOffset() >= offsets.getLatestOffset())) {
-        LOG.warn(
-            offsetOutOfRangeMsg + "This partition will start from the latest offset: " + offsets.getLatestOffset());
-        offsets.startAtLatestOffset();
-      } else if (offsetOption.equals(EARLIEST_OFFSET) || offsetOption.equals(NEAREST_OFFSET)) {
-        LOG.warn(
-            offsetOutOfRangeMsg + "This partition will start from the earliest offset: " + offsets.getEarliestOffset());
-        offsets.startAtEarliestOffset();
-      } else {
-        LOG.warn(offsetOutOfRangeMsg + "This partition will be skipped.");
-        return null;
+        // When previous offset is out of range, either start at earliest, latest or nearest offset, or skip the
+        // partition. If skipping, need to create an empty workunit so that previousOffset is persisted.
+        String offsetOutOfRangeMsg = String.format(String.format(
+            "Start offset for partition %s is out of range. Start offset = %d, earliest offset = %d, latest offset = %d.",
+            partition, offsets.getStartOffset(), offsets.getEarliestOffset(), offsets.getLatestOffset()));
+        String offsetOption =
+            state.getProp(RESET_ON_OFFSET_OUT_OF_RANGE, DEFAULT_RESET_ON_OFFSET_OUT_OF_RANGE).toLowerCase();
+        if (offsetOption.equals(LATEST_OFFSET)
+            || (offsetOption.equals(NEAREST_OFFSET) && offsets.getStartOffset() >= offsets.getLatestOffset())) {
+          LOG.warn(
+              offsetOutOfRangeMsg + "This partition will start from the latest offset: " + offsets.getLatestOffset());
+          offsets.startAtLatestOffset();
+        } else if (offsetOption.equals(EARLIEST_OFFSET) || offsetOption.equals(NEAREST_OFFSET)) {
+          LOG.warn(offsetOutOfRangeMsg + "This partition will start from the earliest offset: "
+              + offsets.getEarliestOffset());
+          offsets.startAtEarliestOffset();
+        } else {
+          LOG.warn(offsetOutOfRangeMsg + "This partition will be skipped.");
+          return getEmptyWorkunit(partition, state, previousOffset);
+        }
       }
     }
 
@@ -469,6 +495,14 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
           Splitter.on(',').trimResults().omitEmptyStrings().splitToList(state.getProp(TOPICS_MOVE_TO_LATEST_OFFSET)));
     }
     return this.moveToLatestTopics.contains(partition.getTopicName()) || moveToLatestTopics.contains(ALL_TOPICS);
+  }
+
+  private static WorkUnit getEmptyWorkunit(KafkaPartition partition, SourceState state, long previousOffset) {
+    Offsets offsets = new Offsets();
+    offsets.setEarliestOffset(previousOffset);
+    offsets.setLatestOffset(previousOffset);
+    offsets.startAtEarliestOffset();
+    return getWorkUnitForTopicPartition(partition, state, offsets);
   }
 
   private static WorkUnit getWorkUnitForTopicPartition(KafkaPartition partition, SourceState state, Offsets offsets) {
@@ -522,11 +556,19 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   }
 
   private List<KafkaTopic> getFilteredTopics(KafkaWrapper kafkaWrapper, SourceState state) {
-    Set<String> blacklist =
-        state.contains(TOPIC_BLACKLIST) ? state.getPropAsCaseInsensitiveSet(TOPIC_BLACKLIST) : new HashSet<String>();
-    Set<String> whitelist =
-        state.contains(TOPIC_WHITELIST) ? state.getPropAsCaseInsensitiveSet(TOPIC_WHITELIST) : new HashSet<String>();
+    List<Pattern> blacklist = getBlacklist(state);
+    List<Pattern> whitelist = getWhitelist(state);
     return kafkaWrapper.getFilteredTopics(blacklist, whitelist);
+  }
+
+  private static List<Pattern> getBlacklist(State state) {
+    List<String> list = state.getPropAsList(TOPIC_BLACKLIST, StringUtils.EMPTY);
+    return DatasetFilterUtils.getPatternsFromStrings(list);
+  }
+
+  private static List<Pattern> getWhitelist(State state) {
+    List<String> list = state.getPropAsList(TOPIC_WHITELIST, StringUtils.EMPTY);
+    return DatasetFilterUtils.getPatternsFromStrings(list);
   }
 
   /**

@@ -25,6 +25,7 @@ import com.google.common.base.Splitter;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.password.PasswordManager;
 
 
 /**
@@ -44,8 +45,7 @@ public class EmailUtils {
    * @param message email message
    * @throws EmailException if there is anything wrong sending the email
    */
-  public static void sendEmail(State state, String subject, String message)
-      throws EmailException {
+  public static void sendEmail(State state, String subject, String message) throws EmailException {
     Email email = new SimpleEmail();
     email.setHostName(state.getProp(ConfigurationKeys.EMAIL_HOST_KEY, ConfigurationKeys.DEFAULT_EMAIL_HOST));
     if (state.contains(ConfigurationKeys.EMAIL_SMTP_PORT_KEY)) {
@@ -54,7 +54,7 @@ public class EmailUtils {
     email.setFrom(state.getProp(ConfigurationKeys.EMAIL_FROM_KEY));
     if (state.contains(ConfigurationKeys.EMAIL_USER_KEY) && state.contains(ConfigurationKeys.EMAIL_PASSWORD_KEY)) {
       email.setAuthentication(state.getProp(ConfigurationKeys.EMAIL_USER_KEY),
-          state.getProp(ConfigurationKeys.EMAIL_PASSWORD_KEY));
+          PasswordManager.getInstance(state).readPassword(state.getProp(ConfigurationKeys.EMAIL_PASSWORD_KEY)));
     }
     Iterable<String> tos =
         Splitter.on(',').trimResults().omitEmptyStrings().split(state.getProp(ConfigurationKeys.EMAIL_TOS_KEY));
@@ -87,8 +87,7 @@ public class EmailUtils {
    */
   public static void sendJobCompletionEmail(String jobId, String message, String state, State jobState)
       throws EmailException {
-    sendEmail(jobState,
-        String.format("Gobblin notification: job %s has completed with state %s", jobId, state),
+    sendEmail(jobState, String.format("Gobblin notification: job %s has completed with state %s", jobId, state),
         message);
   }
 
@@ -100,8 +99,7 @@ public class EmailUtils {
    * @param jobState a {@link State} object carrying job configuration properties
    * @throws EmailException if there is anything wrong sending the email
    */
-  public static void sendJobCancellationEmail(String jobId, String message, State jobState)
-      throws EmailException {
+  public static void sendJobCancellationEmail(String jobId, String message, State jobState) throws EmailException {
     sendEmail(jobState, String.format("Gobblin notification: job %s has been cancelled", jobId), message);
   }
 
@@ -116,8 +114,7 @@ public class EmailUtils {
    */
   public static void sendJobFailureAlertEmail(String jobName, String message, int failures, State jobState)
       throws EmailException {
-    sendEmail(jobState, String
-            .format("Gobblin alert: job %s has failed %d %s consecutively in the past", jobName, failures,
-                failures > 1 ? "times" : "time"), message);
+    sendEmail(jobState, String.format("Gobblin alert: job %s has failed %d %s consecutively in the past", jobName,
+        failures, failures > 1 ? "times" : "time"), message);
   }
 }

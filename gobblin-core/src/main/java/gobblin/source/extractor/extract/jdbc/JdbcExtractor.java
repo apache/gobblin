@@ -12,9 +12,6 @@
 
 package gobblin.source.extractor.extract.jdbc;
 
-import gobblin.source.extractor.resultset.RecordSetList;
-import gobblin.source.extractor.watermark.WatermarkType;
-
 import java.io.IOException;
 import java.sql.Blob;
 import java.sql.Connection;
@@ -30,14 +27,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
-import org.apache.commons.lang.StringUtils;
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,6 +44,7 @@ import com.google.gson.JsonObject;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.password.PasswordManager;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.exception.HighWatermarkException;
 import gobblin.source.extractor.exception.RecordCountException;
@@ -58,11 +54,13 @@ import gobblin.source.extractor.extract.CommandOutput;
 import gobblin.source.extractor.extract.QueryBasedExtractor;
 import gobblin.source.extractor.extract.SourceSpecificLayer;
 import gobblin.source.extractor.extract.jdbc.JdbcCommand.JdbcCommandType;
+import gobblin.source.extractor.resultset.RecordSetList;
 import gobblin.source.extractor.schema.ColumnAttributes;
 import gobblin.source.extractor.schema.ColumnNameCase;
 import gobblin.source.extractor.schema.Schema;
 import gobblin.source.extractor.utils.Utils;
 import gobblin.source.extractor.watermark.Predicate;
+import gobblin.source.extractor.watermark.WatermarkType;
 import gobblin.source.workunit.WorkUnit;
 
 
@@ -71,8 +69,8 @@ import gobblin.source.workunit.WorkUnit;
  *
  * @author nveeramr
  */
-public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonElement> implements
-    SourceSpecificLayer<JsonArray, JsonElement>, JdbcSpecificLayer {
+public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonElement>
+    implements SourceSpecificLayer<JsonArray, JsonElement>, JdbcSpecificLayer {
   private static final Gson gson = new Gson();
   private List<String> headerRecord;
   private boolean firstPull = true;
@@ -286,7 +284,9 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
     try {
       List<Command> cmds = this.getSchemaMetadata(schema, entity);
+
       CommandOutput<?, ?> response = this.executePreparedSql(cmds);
+
       JsonArray array = this.getSchema(response);
 
       this.buildMetadataColumnMap(array);
@@ -316,9 +316,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       }
 
       String outputColProjection = Joiner.on(",").useForNull("null").join(this.columnList);
-      outputColProjection =
-          outputColProjection.replace(derivedWatermarkColumnName, Utils.getCoalesceColumnNames(watermarkColumn) + " AS "
-              + derivedWatermarkColumnName);
+      outputColProjection = outputColProjection.replace(derivedWatermarkColumnName,
+          Utils.getCoalesceColumnNames(watermarkColumn) + " AS " + derivedWatermarkColumnName);
       this.setOutputColumnProjection(outputColProjection);
       String extractQuery = this.getExtractQuery(schema, entity, inputQuery);
 
@@ -672,6 +671,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     try {
       this.jdbcSource = createJdbcSource();
       Connection connection = this.jdbcSource.getConnection();
+
       PreparedStatement statement =
           connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 
@@ -707,7 +707,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   protected JdbcProvider createJdbcSource() {
     String driver = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_DRIVER);
     String userName = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME);
-    String password = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD);
+    String password = PasswordManager.getInstance(this.workUnit)
+        .readPassword(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
     String connectionUrl = this.getConnectionUrl();
 
     if (this.jdbcSource == null || this.jdbcSource.isClosed()) {
@@ -903,6 +904,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   @Override
   public Iterator<JsonElement> getData(CommandOutput<?, ?> response) throws DataRecordException, IOException {
     this.log.debug("Extract data records from resultset");
+
     RecordSetList<JsonElement> recordSet = this.getNewRecordSetList();
 
     if (response == null || !this.hasNextRecord()) {
@@ -919,36 +921,24 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
     try {
       final ResultSetMetaData resultsetMetadata = resultset.getMetaData();
-      final int columnCount = resultsetMetadata.getColumnCount();
 
       int batchSize = this.workUnit.getPropAsInt(ConfigurationKeys.SOURCE_QUERYBASED_FETCH_SIZE, 0);
       batchSize = (batchSize == 0 ? ConfigurationKeys.DEFAULT_SOURCE_FETCH_SIZE : batchSize);
 
       int recordCount = 0;
-      Set<String> blobDataNames = this.getBlobTypeColumnNames(resultsetMetadata);
       while (resultset.next()) {
 
-        List<String> record = new ArrayList<String>();
-        for (int i = 1; i <= columnCount; i++) {
-          /*
-           * For Blob data, need to get the bytes and use base64 encoding to encode the byte[]
-           * When reading from the String, need to use base64 decoder
-           *     String tmp = ... ( get the String value )
-           *     byte[] foo = Base64.decodeBase64(tmp);
-           */
-          if (blobDataNames.contains(resultsetMetadata.getColumnName(i))){
-            Blob logBlob = resultset.getBlob(i);
-            byte[] ba= logBlob.getBytes(1L, (int)(logBlob.length()));
-            String baString = Base64.encodeBase64String(ba);
-            record.add(baString);
-          }
-          else{
-            record.add(resultset.getString(i));
-          }
+        final int numColumns = resultsetMetadata.getColumnCount();
+        JsonObject jsonObject = new JsonObject();
+
+        for (int i = 1; i < numColumns + 1; i++) {
+          final String columnName = this.getHeaderRecord().get(i - 1);
+          jsonObject.addProperty(columnName, parseColumnAsString(resultset, resultsetMetadata, i));
+
         }
 
-        JsonObject jsonObject = Utils.csvToJsonObject(this.getHeaderRecord(), record, columnCount);
         recordSet.add(jsonObject);
+
         recordCount++;
         this.totalRecordCount++;
 
@@ -966,19 +956,34 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     }
   }
 
-  private Set<String> getBlobTypeColumnNames(ResultSetMetaData resultsetMetadata) throws SQLException{
-    Set<String> result = new HashSet<String>();
-    int columnCount = resultsetMetadata.getColumnCount();
-    for (int i = 1; i <= columnCount; i++) {
-      // for Mysql Longblob and blob type, java type is Types.LONGVARBINARY
-      // for Mysql binary type, java type is Types.Binary
-      if (resultsetMetadata.getColumnType(i) == Types.LONGVARBINARY ||
-          resultsetMetadata.getColumnType(i) == Types.BINARY){
-        // the actual value will be set later
-        result.add(resultsetMetadata.getColumnName(i));
-      }
+  /*
+   * For Blob data, need to get the bytes and use base64 encoding to encode the byte[]
+   * When reading from the String, need to use base64 decoder
+   *     String tmp = ... ( get the String value )
+   *     byte[] foo = Base64.decodeBase64(tmp);
+   */
+  private String readBlobAsString(Blob logBlob) throws SQLException {
+    byte[] ba = logBlob.getBytes(1L, (int) (logBlob.length()));
+
+    if (ba == null) {
+      return StringUtils.EMPTY;
     }
-    return result;
+    String baString = Base64.encodeBase64String(ba);
+    return baString;
+  }
+
+  private String parseColumnAsString(final ResultSet resultset, final ResultSetMetaData resultsetMetadata, int i)
+      throws SQLException {
+
+    if (isBlob(resultsetMetadata.getColumnType(i))) {
+      return readBlobAsString(resultset.getBlob(i));
+    } else {
+      return resultset.getString(i);
+    }
+  }
+
+  private static boolean isBlob(int columnType) {
+    return columnType == Types.LONGVARBINARY || columnType == Types.BINARY;
   }
 
   protected static Command getCommand(String query, JdbcCommandType commandType) {
@@ -1019,9 +1024,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
     schema.setColumnName(columnName);
 
-    WatermarkType wmType =
-        WatermarkType.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE,
-            "TIMESTAMP").toUpperCase());
+    WatermarkType wmType = WatermarkType.valueOf(
+        this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, "TIMESTAMP").toUpperCase());
     switch (wmType) {
       case TIMESTAMP:
         dataType = "timestamp";
@@ -1096,9 +1100,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    */
   private String toCase(String targetColumnName) {
     String columnName = targetColumnName;
-    ColumnNameCase caseType =
-        ColumnNameCase.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_COLUMN_NAME_CASE,
-            ConfigurationKeys.DEFAULT_COLUMN_NAME_CASE).toUpperCase());
+    ColumnNameCase caseType = ColumnNameCase.valueOf(this.workUnitState
+        .getProp(ConfigurationKeys.SOURCE_COLUMN_NAME_CASE, ConfigurationKeys.DEFAULT_COLUMN_NAME_CASE).toUpperCase());
     switch (caseType) {
       case TOUPPER:
         columnName = targetColumnName.toUpperCase();

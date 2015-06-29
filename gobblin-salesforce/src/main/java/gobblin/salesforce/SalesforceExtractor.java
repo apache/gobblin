@@ -14,6 +14,7 @@ package gobblin.salesforce;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.password.PasswordManager;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.exception.HighWatermarkException;
 import gobblin.source.extractor.exception.RecordCountException;
@@ -160,7 +161,8 @@ public class SalesforceExtractor extends RestApiExtractor {
     String clientId = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_CLIENT_ID);
     String clientSecret = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_CLIENT_SECRET);
     String userName = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME);
-    String password = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD);
+    String password = PasswordManager.getInstance(this.workUnit)
+        .readPassword(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
     String securityToken = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_SECURITY_TOKEN);
     String host = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
 
@@ -451,8 +453,8 @@ public class SalesforceExtractor extends RestApiExtractor {
       if (jsonObject.get("done").getAsBoolean()) {
         this.setPullStatus(false);
       } else {
-        this.setNextUrl(this.getFullUri(jsonObject.get("nextRecordsUrl").getAsString()
-            .replaceAll(this.servicesDataEnvPath, "")));
+        this.setNextUrl(
+            this.getFullUri(jsonObject.get("nextRecordsUrl").getAsString().replaceAll(this.servicesDataEnvPath, "")));
       }
 
       JsonArray array = Utils.removeElementFromJsonArray(partRecords, "attributes");
@@ -564,17 +566,15 @@ public class SalesforceExtractor extends RestApiExtractor {
 
   @Override
   public Map<String, String> getDataTypeMap() {
-    Map<String, String> dataTypeMap =
-        ImmutableMap.<String, String> builder().put("url", "string").put("textarea", "string")
-            .put("reference", "string").put("phone", "string").put("masterrecord", "string").put("location", "string")
-            .put("id", "string").put("encryptedstring", "string").put("email", "string")
-            .put("DataCategoryGroupReference", "string").put("calculated", "string").put("anyType", "string")
-            .put("address", "string").put("blob", "string").put("date", "date").put("datetime", "timestamp")
-            .put("time", "time").put("object", "string").put("string", "string").put("int", "int").put("long", "long")
-            .put("double", "double").put("percent", "double").put("currency", "double").put("decimal", "double")
-            .put("boolean", "boolean").put("picklist", "string").put("multipicklist", "string")
-            .put("combobox", "string").put("list", "string").put("set", "string").put("map", "string")
-            .put("enum", "string").build();
+    Map<String, String> dataTypeMap = ImmutableMap.<String, String> builder().put("url", "string")
+        .put("textarea", "string").put("reference", "string").put("phone", "string").put("masterrecord", "string")
+        .put("location", "string").put("id", "string").put("encryptedstring", "string").put("email", "string")
+        .put("DataCategoryGroupReference", "string").put("calculated", "string").put("anyType", "string")
+        .put("address", "string").put("blob", "string").put("date", "date").put("datetime", "timestamp")
+        .put("time", "time").put("object", "string").put("string", "string").put("int", "int").put("long", "long")
+        .put("double", "double").put("percent", "double").put("currency", "double").put("decimal", "double")
+        .put("boolean", "boolean").put("picklist", "string").put("multipicklist", "string").put("combobox", "string")
+        .put("list", "string").put("set", "string").put("map", "string").put("enum", "string").build();
     return dataTypeMap;
   }
 
@@ -604,9 +604,8 @@ public class SalesforceExtractor extends RestApiExtractor {
       this.bulkApiInitialRun = false;
 
       // If bulk job is finished, get soft deleted records using Rest API
-      boolean isSoftDeletesPullDisabled =
-          Boolean.valueOf(this.workUnit
-              .getProp(SalesforceConfigurationKeys.SOURCE_QUERYBASED_SALESFORCE_IS_SOFT_DELETES_PULL_DISABLED));
+      boolean isSoftDeletesPullDisabled = Boolean.valueOf(this.workUnit
+          .getProp(SalesforceConfigurationKeys.SOURCE_QUERYBASED_SALESFORCE_IS_SOFT_DELETES_PULL_DISABLED));
       if (rs == null || rs.isEmpty()) {
         // Get soft delete records only if IsDeleted column exists and soft deletes pull is not disabled
         if (this.columnList.contains("IsDeleted") && !isSoftDeletesPullDisabled) {
@@ -655,7 +654,8 @@ public class SalesforceExtractor extends RestApiExtractor {
       }
 
       partnerConfig.setUsername(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME));
-      partnerConfig.setPassword(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
+      partnerConfig.setPassword(PasswordManager.getInstance(this.workUnit)
+          .readPassword(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD)));
       partnerConfig.setAuthEndpoint(soapAuthEndPoint);
       PartnerConnection connection = new PartnerConnection(partnerConfig);
       String soapEndpoint = partnerConfig.getServiceEndpoint();
@@ -751,8 +751,8 @@ public class SalesforceExtractor extends RestApiExtractor {
       return Arrays.asList(list.getResult());
 
     } catch (Exception e) {
-      throw new RuntimeException("Failed to get query result ids from salesforce using bulk api; error - "
-          + e.getMessage(), e);
+      throw new RuntimeException(
+          "Failed to get query result ids from salesforce using bulk api; error - " + e.getMessage(), e);
     }
   }
 
@@ -772,9 +772,9 @@ public class SalesforceExtractor extends RestApiExtractor {
         if (this.bulkResultIdCount < this.bulkResultIdList.size()) {
           this.log.info("Stream resultset for resultId:" + bulkResultIdList.get(bulkResultIdCount));
           this.setNewBulkResultSet(true);
-          this.bulkBufferedReader = new BufferedReader(new InputStreamReader(this.bulkConnection
-              .getQueryResultStream(bulkJob.getId(), bulkBatchInfo.getId(), bulkResultIdList.get(bulkResultIdCount)),
-              ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
+          this.bulkBufferedReader = new BufferedReader(
+              new InputStreamReader(this.bulkConnection.getQueryResultStream(bulkJob.getId(), bulkBatchInfo.getId(),
+                  bulkResultIdList.get(bulkResultIdCount)), ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
 
           this.bulkResultIdCount++;
         } else {

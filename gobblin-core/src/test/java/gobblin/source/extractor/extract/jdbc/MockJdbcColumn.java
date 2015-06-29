@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+/* (c) 2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -10,20 +9,17 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.test.execution.validator;
+package gobblin.source.extractor.extract.jdbc;
 
-/**
- *  An interface is for defining the validator for the test. The input can be the set of input files and the output will be be output of 
- * 
- * @author sveerama
- *
- */
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 
-public interface ValidationRule {
+@Getter
+@AllArgsConstructor
+public class MockJdbcColumn {
 
-  /**
-   * 
-   * @return will be a boolean based on the validation process
-   */
-  public boolean isValid();
+  private final String columnName;
+  private final String value;
+  private final int type;
+
 }

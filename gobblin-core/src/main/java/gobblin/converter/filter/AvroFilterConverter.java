@@ -78,7 +78,7 @@ public class AvroFilterConverter extends AvroToAvroConverterBase {
   @Override
   public Iterable<GenericRecord> convertRecord(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
-    Optional<Object> fieldValue = AvroUtils.getFieldValue(inputRecord, this.fieldName);
+    Optional<Object> fieldValue = AvroUtils.getFieldValue(inputRecord, Optional.fromNullable(this.fieldName));
     if (fieldValue.isPresent() && fieldValue.get().toString().equals(this.fieldValue)) {
       return new SingleRecordIterable<GenericRecord>(inputRecord);
     }

@@ -14,8 +14,6 @@ package gobblin.source.extractor.extract;
 
 import gobblin.configuration.SourceState;
 
-import java.util.Set;
-
 
 /**
  * A base implementation of {@link gobblin.source.Source} for
@@ -24,14 +22,6 @@ import java.util.Set;
  * @author ziliu
  */
 public abstract class EventBasedSource<S, D> extends AbstractSource<S, D> {
-  public static boolean survived(String candidate, Set<String> blacklist, Set<String> whitelist) {
-    if (!whitelist.isEmpty()) {
-      return whitelist.contains(candidate);
-    } else {
-      return !blacklist.contains(candidate);
-    }
-  }
-
   @Override
   public void shutdown(SourceState state) {
   }

@@ -32,6 +32,8 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.util.HadoopUtils;
+import gobblin.util.WriterUtils;
+
 
 /**
  * An implementation of {@link DataWriter} that writes directly to HDFS in Avro format.
@@ -122,6 +124,10 @@ class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
       LOG.warn(String.format("Task output file %s already exists", this.outputFile));
       HadoopUtils.deletePath(this.fs, this.outputFile, false);
     }
+
+    // Setting the same HDFS properties as the original file
+    WriterUtils.setFileAttributesFromState(properties, fs, outputFile);
+
     HadoopUtils.renamePath(this.fs, this.stagingFile, this.outputFile);
   }
 

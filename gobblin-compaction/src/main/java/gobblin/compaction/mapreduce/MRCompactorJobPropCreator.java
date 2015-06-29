@@ -22,11 +22,11 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+
 
 /**
  * This class creates the following properties for a single MapReduce job for compaction:
@@ -105,12 +105,7 @@ public class MRCompactorJobPropCreator {
       LOG.warn("Input folder " + this.topicInputDir + " does not exist. Skipping topic " + topic);
       return emptyJobProps;
     }
-    Optional<State> jobProps = createJobProps(this.topicInputDir, this.topicOutputDir, this.topicTmpDir);
-    if (jobProps.isPresent()) {
-      return Collections.singletonList(jobProps.get());
-    } else {
-      return emptyJobProps;
-    }
+    return Collections.singletonList(createJobProps(this.topicInputDir, this.topicOutputDir, this.topicTmpDir));
   }
 
   /**
@@ -119,28 +114,16 @@ public class MRCompactorJobPropCreator {
    * be processed (e.g., jobInputDir already exists, and force reprocess is
    * set to false), the returned object should be absent.
    */
-  protected Optional<State> createJobProps(Path jobInputDir, Path jobOutputDir, Path jobTmpDir) throws IOException {
+  protected State createJobProps(Path jobInputDir, Path jobOutputDir, Path jobTmpDir) throws IOException {
     State jobProps = new State();
     jobProps.addAll(this.state);
     jobProps.setProp(ConfigurationKeys.COMPACTION_TOPIC, this.topic);
     jobProps.setProp(ConfigurationKeys.COMPACTION_JOB_INPUT_DIR, jobInputDir);
     jobProps.setProp(ConfigurationKeys.COMPACTION_JOB_DEST_DIR, jobOutputDir);
     jobProps.setProp(ConfigurationKeys.COMPACTION_JOB_TMP_DIR, jobTmpDir);
+    jobProps.setProp(ConfigurationKeys.COMPACTION_ENABLE_SUCCESS_FILE, false);
     LOG.info(String.format("Created MR job properties for input %s and output %s.", jobInputDir, jobOutputDir));
-    if (!fs.exists(jobOutputDir)) {
-      return Optional.of(jobProps);
-    } else if (forceReprocess()) {
-      LOG.info(String.format("Outout dir %s for topic %s exists, force reprocess = true. Reprocessing.", topic,
-          jobOutputDir));
-      return Optional.of(jobProps);
-    } else {
-      LOG.info(String.format("Outout dir %s for topic %s exists, force reprocess = false. Skipping.", topic,
-          jobOutputDir));
-      return Optional.absent();
-    }
+    return jobProps;
   }
 
-  private boolean forceReprocess() {
-    return this.state.getPropAsBoolean(ConfigurationKeys.COMPACTION_FORCE_REPROCESS, false);
-  }
 }

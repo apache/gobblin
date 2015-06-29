@@ -59,9 +59,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   protected static final String TASK_STATE_STORE_TABLE_SUFFIX = ".tst";
   protected static final String JOB_STATE_STORE_TABLE_SUFFIX = ".jst";
 
-  // System configuration properties
-  protected final Properties sysProps;
-
   // Job configuration properties
   protected final Properties jobProps;
 
@@ -90,18 +87,15 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   // An MetricContext to track runtime metrics only if metrics are enabled.
   protected final Optional<MetricContext> runtimeMetricContext;
 
-  public AbstractJobLauncher(Properties sysProps, Properties jobProps)
-      throws Exception {
+  public AbstractJobLauncher(Properties jobProps) throws Exception {
     Preconditions.checkArgument(
         jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY), "A job must have a job name specified by job.name");
 
     // Make a copy for both the system and job configuration properties
-    this.sysProps = new Properties();
-    this.sysProps.putAll(sysProps);
     this.jobProps = new Properties();
     this.jobProps.putAll(jobProps);
 
-    this.jobContext = new JobContext(this.sysProps, this.jobProps, LOG);
+    this.jobContext = new JobContext(this.jobProps, LOG);
 
     this.cancellationExecutor = Executors.newSingleThreadExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of("CancellationExecutor")));

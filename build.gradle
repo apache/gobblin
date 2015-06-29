@@ -49,7 +49,7 @@ ext.externalDependency = [
   "avro": "org.apache.avro:avro:1.7.7",
   "avroMapredH1": "org.apache.avro:avro-mapred:1.7.7:hadoop1",
   "avroMapredH2": "org.apache.avro:avro-mapred:1.7.7:hadoop2",
-  "commonsCli": "commons-cli:commons-cli:1.2",
+  "commonsCli": "commons-cli:commons-cli:1.3",
   "commonsCodec": "commons-codec:commons-codec:1.10",
   "commonsDbcp": "commons-dbcp:commons-dbcp:1.4",
   "commonsEmail": "org.apache.commons:commons-email:1.3.2",
@@ -81,6 +81,7 @@ ext.externalDependency = [
   "testng": "org.testng:testng:6.5.1",
   "jacksonCore": "org.codehaus.jackson:jackson-core-asl:1.9.13",
   "jacksonMapper": "org.codehaus.jackson:jackson-mapper-asl:1.9.13",
+  "jasypt": "org.jasypt:jasypt:1.9.2",
   "slf4j": "org.slf4j:slf4j-api:1.7.6",
   "log4j": "log4j:log4j:1.2.17",
   "log4jextras": "log4j:apache-log4j-extras:1.2.17",
@@ -103,6 +104,9 @@ ext.externalDependency = [
   "salesforcePartner": "com.force.api:force-partner-api:29.0.0",
   "scala": "org.scala-lang:scala-library:2.10.3",
   "influxdbJava": "org.influxdb:influxdb-java:1.5",
+  "lombok":"org.projectlombok:lombok:1.16.4",
+  "mockRunnerJdbc":"com.mockrunner:mockrunner-jdbc:1.0.8",
+  "xerces":"xercesImpl:2.11.0",
   "byteman": "org.jboss.byteman:byteman:"+bytemanVersion,
   "bytemanBmunit": "org.jboss.byteman:byteman-bmunit:"+bytemanVersion,
   "pegasus" : [
@@ -148,6 +152,7 @@ subprojects {
     excludeFilter = file(rootProject.projectDir.path + "/ligradle/findbugs/findbugsExclude.xml")
   }
 */
+
   configurations {
     compile
     dependencies {
