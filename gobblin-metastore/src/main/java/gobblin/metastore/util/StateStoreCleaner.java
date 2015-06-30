@@ -101,14 +101,15 @@ public class StateStoreCleaner implements Closeable {
 
   @Override
   public void close() throws IOException {
-    this.cleanerRunnerExecutor.shutdownNow();
+    this.cleanerRunnerExecutor.shutdown();
   }
 
   private static class StateStoreFileFilter implements PathFilter {
 
     @Override
     public boolean accept(Path path) {
-      return Files.getFileExtension(path.getName()).equalsIgnoreCase("jst");
+      String extension = Files.getFileExtension(path.getName());
+      return extension.equalsIgnoreCase("jst") || extension.equalsIgnoreCase("tst");
     }
   }
 
