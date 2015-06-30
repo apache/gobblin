@@ -101,7 +101,7 @@ public class StateStoreCleaner implements Closeable {
 
   @Override
   public void close() throws IOException {
-    this.cleanerRunnerExecutor.shutdownNow();
+    this.cleanerRunnerExecutor.shutdown();
   }
 
   private static class StateStoreFileFilter implements PathFilter {
