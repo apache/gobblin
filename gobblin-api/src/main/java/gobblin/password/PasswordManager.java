@@ -160,8 +160,8 @@ public class PasswordManager {
       return password;
     }
     Matcher matcher = PASSWORD_PATTERN.matcher(password);
-    if (matcher.matches()) {
-      return this.decryptPassword(password);
+    if (matcher.find()) {
+      return this.decryptPassword(matcher.group(1));
     } else {
       return password;
     }
