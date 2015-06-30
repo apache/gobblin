@@ -85,7 +85,7 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
   /**
    * The name of the column that the writer will use to partition the data.
    */
-  private final String partitionColumnName;
+  private final Optional<String> partitionColumnName;
 
   /**
    * The name that separates the {@link #baseFilePath} from the path created by the {@link #timestampToPathFormatter}.
@@ -142,36 +142,31 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
         this.properties.getProp(getWriterPartitionLevel(), ConfigurationKeys.DEFAULT_WRITER_PARTITION_LEVEL);
 
     // Initialize the timestampToPathFormatter
-    this.timestampToPathFormatter =
-        DateTimeFormat.forPattern(
+    this.timestampToPathFormatter = DateTimeFormat
+        .forPattern(
             this.properties.getProp(getWriterPartitionPattern(), ConfigurationKeys.DEFAULT_WRITER_PARTITION_PATTERN))
-            .withZone(
-                DateTimeZone.forID(this.properties.getProp(ConfigurationKeys.WRITER_PARTITION_TIMEZONE,
-                    ConfigurationKeys.DEFAULT_WRITER_PARTITION_TIMEZONE)));
+        .withZone(DateTimeZone.forID(this.properties.getProp(ConfigurationKeys.WRITER_PARTITION_TIMEZONE,
+            ConfigurationKeys.DEFAULT_WRITER_PARTITION_TIMEZONE)));
 
-    // Check that ConfigurationKeys.WRITER_PARTITION_COLUMN_NAME has been specified and is properly formed
-    Preconditions.checkArgument(this.properties.contains(getWriterPartitionColumnName()), "Missing required property "
-        + ConfigurationKeys.WRITER_PARTITION_COLUMN_NAME);
-
-    this.partitionColumnName = this.properties.getProp(getWriterPartitionColumnName());
-    Optional<Schema> writerPartitionColumnSchema = AvroUtils.getFieldSchema(this.schema, this.partitionColumnName);
-
-    Preconditions.checkArgument(writerPartitionColumnSchema.isPresent(), "The column " + this.partitionColumnName
-        + " specified by " + ConfigurationKeys.WRITER_PARTITION_COLUMN_NAME + " is not in the writer input schema");
-
-    Preconditions.checkArgument(writerPartitionColumnSchema.get().getType().equals(Schema.Type.LONG), "The column "
-        + this.partitionColumnName + " specified by " + ConfigurationKeys.WRITER_PARTITION_COLUMN_NAME
-        + " must be of type " + Schema.Type.LONG);
+    this.partitionColumnName = Optional.fromNullable(this.properties.getProp(getWriterPartitionColumnName()));
   }
 
   @Override
   public void write(GenericRecord record) throws IOException {
 
     // Retrieve the value of the field specified by this.partitionColumnName
-    Optional<Object> writerPartitionColumnValue = AvroUtils.getFieldValue(record, this.partitionColumnName);
-    Preconditions.checkState(writerPartitionColumnValue.isPresent());
+    Optional<Object> writerPartitionColumnValue;
+    if (this.partitionColumnName.isPresent()) {
+      writerPartitionColumnValue = AvroUtils.getFieldValue(record, this.partitionColumnName.get());
+    } else {
+      writerPartitionColumnValue = Optional.absent();
+    }
 
-    Path writerOutputPath = getPathForColumnValue((Long) writerPartitionColumnValue.get());
+    // Check if the partition column value is present and is a Long object. Otherwise, use current system time.
+    long recordTimestamp = writerPartitionColumnValue.orNull() instanceof Long ? (Long) writerPartitionColumnValue.get()
+        : System.currentTimeMillis();
+
+    Path writerOutputPath = getPathForColumnValue(recordTimestamp);
 
     // If the path is not in pathToWriterMap, construct a new DataWriter, add it to the map, and write the record
     // If the path is in pathToWriterMap simply retrieve the writer, and write the record
@@ -312,8 +307,8 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
    * Helper method to get the branched configuration key for {@link ConfigurationKeys#WRITER_FILE_PATH}.
    */
   private String getWriterFilePath() {
-    return ForkOperatorUtils
-        .getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, this.numBranches, this.branch);
+    return ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, this.numBranches,
+        this.branch);
   }
 
   /**

@@ -13,8 +13,8 @@
 package gobblin.test.execution.validator;
 
 /**
- *  An interface is for defining the validator for the test. The input can be the set of input files and the output will be be output of
- *
+ *  An interface is for defining the validator for the test. The input can be the set of input files and the output will be be output of 
+ * 
  * @author sveerama
  *
  */
@@ -22,7 +22,7 @@ package gobblin.test.execution.validator;
 public interface ValidationRule {
 
   /**
-   *
+   * 
    * @return will be a boolean based on the validation process
    */
   public boolean isValid();
