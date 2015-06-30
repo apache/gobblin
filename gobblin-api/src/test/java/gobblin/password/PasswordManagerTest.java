@@ -54,7 +54,8 @@ public class PasswordManagerTest {
     State state = new State();
     state.setProp(ConfigurationKeys.ENCRYPT_KEY_LOC, masterPwdFile.toString());
     String encrypted = PasswordManager.getInstance(state).encryptPassword(password);
-    String decrypted = PasswordManager.getInstance(state).decryptPassword(encrypted);
+    encrypted = "ENC(" + encrypted + ")";
+    String decrypted = PasswordManager.getInstance(state).readPassword(encrypted);
     Assert.assertEquals(decrypted, password);
   }
 
