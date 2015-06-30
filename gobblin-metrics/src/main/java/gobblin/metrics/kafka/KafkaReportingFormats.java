@@ -22,12 +22,24 @@ public enum KafkaReportingFormats {
 
   AVRO, JSON;
 
-  public KafkaReporter.Builder<?> reporterBuilder(MetricContext context) {
+  public KafkaReporter.Builder<?> metricReporterBuilder(MetricContext context) {
     switch (this) {
       case AVRO:
         return KafkaAvroReporter.forContext(context);
       case JSON:
         return KafkaReporter.forContext(context);
+      default:
+        // This should never happen.
+        throw new IllegalArgumentException("KafkaReportingFormat not recognized.");
+    }
+  }
+
+  public KafkaEventReporter.Builder<?> eventReporterBuilder(MetricContext context) {
+    switch (this) {
+      case AVRO:
+        return KafkaAvroEventReporter.forContext(context);
+      case JSON:
+        return KafkaEventReporter.forContext(context);
       default:
         // This should never happen.
         throw new IllegalArgumentException("KafkaReportingFormat not recognized.");

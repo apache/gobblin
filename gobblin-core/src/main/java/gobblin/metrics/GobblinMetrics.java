@@ -13,6 +13,7 @@
 package gobblin.metrics;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -32,7 +33,6 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Timer;
-import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
@@ -42,10 +42,13 @@ import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.metrics.kafka.KafkaAvroEventReporter;
 import gobblin.metrics.kafka.KafkaAvroReporter;
 import gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
+import gobblin.metrics.kafka.KafkaEventReporter;
 import gobblin.metrics.kafka.KafkaReporter;
 import gobblin.metrics.kafka.KafkaReportingFormats;
+import gobblin.metrics.reporter.OutputStreamEventReporter;
 import gobblin.metrics.reporter.OutputStreamReporter;
 
 
@@ -401,8 +404,11 @@ public class GobblinMetrics {
         append = true;
       }
 
+      OutputStream output = append ? fs.append(metricLogFile) : fs.create(metricLogFile, true);
       this.scheduledReporters.add(this.closer.register(OutputStreamReporter.forContext(this.metricContext)
-          .outputTo(append ? fs.append(metricLogFile) : fs.create(metricLogFile, true)).build()));
+          .outputTo(output).build()));
+      this.scheduledReporters.add(this.closer.register(OutputStreamEventReporter.forContext(this.metricContext)
+          .outputTo(output).build()));
     } catch (IOException ioe) {
       LOGGER.error("Failed to build file metric reporter for job " + this.id, ioe);
     }
@@ -415,7 +421,8 @@ public class GobblinMetrics {
       return;
     }
 
-    this.jmxReporter = Optional.of(closer.register(JmxReporter.forRegistry(this.metricContext).convertRatesTo(TimeUnit.SECONDS).convertDurationsTo(TimeUnit.MILLISECONDS).build()));
+    this.jmxReporter = Optional.of(closer.register(JmxReporter.forRegistry(this.metricContext).
+        convertRatesTo(TimeUnit.SECONDS).convertDurationsTo(TimeUnit.MILLISECONDS).build()));
   }
 
   private void buildKafkaMetricReporter(Properties properties) {
@@ -425,18 +432,21 @@ public class GobblinMetrics {
       return;
     }
 
+    Optional<String> topicDefault = Optional.fromNullable(properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC));
+    Optional<String> topicMetrics = Optional.fromNullable(
+        properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC_METRICS));
+    Optional<String> topicEvents = Optional.fromNullable(properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC_EVENTS));
+
     try {
       Preconditions.checkArgument(properties.containsKey(ConfigurationKeys.METRICS_KAFKA_BROKERS),
           "Kafka metrics brokers missing.");
-      Preconditions.checkArgument(properties.containsKey(ConfigurationKeys.METRICS_KAFKA_TOPIC),
-          "Kafka metrics topic missing.");
+      Preconditions.checkArgument(topicMetrics.or(topicEvents).or(topicDefault).isPresent(), "Kafka topic missing.");
     } catch(IllegalArgumentException exception) {
       LOGGER.error("Not reporting metrics to Kafka due to missing Kafka configuration(s).", exception);
       return;
     }
 
     String brokers = properties.getProperty(ConfigurationKeys.METRICS_KAFKA_BROKERS);
-    String topic = properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC);
 
     String reportingFormat = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_FORMAT,
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_FORMAT);
@@ -462,15 +472,35 @@ public class GobblinMetrics {
       return;
     }
 
-    KafkaReporter.Builder<?> builder = formatEnum.reporterBuilder(this.metricContext);
+    if(topicMetrics.or(topicDefault).isPresent()) {
+      try {
+        KafkaReporter.Builder<?> builder = formatEnum.metricReporterBuilder(this.metricContext);
 
-    if(builder instanceof KafkaAvroReporter.Builder<?> && registry.isPresent()) {
-      LOGGER.info("Using schema registry for Kafka avro metrics reporter.");
-      builder = ((KafkaAvroReporter.Builder<?>) builder).withSchemaRegistry(registry.get());
+        if(builder instanceof KafkaAvroReporter.Builder<?> && registry.isPresent()) {
+          LOGGER.info("Using schema registry for Kafka avro metrics reporter.");
+          builder = ((KafkaAvroReporter.Builder<?>) builder).withSchemaRegistry(registry.get());
+        }
+
+        this.scheduledReporters.add(this.closer.register(builder.build(brokers, topicMetrics.or(topicDefault).get())));
+      } catch (IOException exception) {
+        LOGGER.error("Failed to create Kafka metrics reporter. Will not report metrics to Kafka.", exception);
+      }
     }
 
-    this.scheduledReporters.add(
-        this.closer.register(builder.build(brokers, topic)));
+    if(topicEvents.or(topicDefault).isPresent()) {
+      try {
+        KafkaEventReporter.Builder<?> builder = formatEnum.eventReporterBuilder(this.metricContext);
+
+        if(builder instanceof KafkaAvroEventReporter.Builder<?> && registry.isPresent()) {
+          LOGGER.info("Using schema registry for Kafka avro events reporter.");
+          builder = ((KafkaAvroEventReporter.Builder<?>) builder).withSchemaRegistry(registry.get());
+        }
+
+        this.scheduledReporters.add(this.closer.register(builder.build(brokers, topicEvents.or(topicDefault).get())));
+      } catch (IOException exception) {
+        LOGGER.error("Failed to create Kafka events reporter. Will not report events to Kafka.", exception);
+      }
+    }
   }
 
   /**

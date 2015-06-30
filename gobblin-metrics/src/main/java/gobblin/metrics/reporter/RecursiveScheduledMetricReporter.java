@@ -29,11 +29,17 @@ import com.google.common.collect.Maps;
 import gobblin.metrics.MetricContext;
 
 
+/**
+ * Reports the metrics of a {@link gobblin.metrics.MetricContext} following a schedule.
+ */
 public abstract class RecursiveScheduledMetricReporter extends RecursiveScheduledReporter {
+
+  private MetricFilter filter;
 
   public RecursiveScheduledMetricReporter(MetricRegistry registry, String name, MetricFilter filter, TimeUnit rateUnit,
       TimeUnit durationUnit) {
     super(registry, name, filter, rateUnit, durationUnit);
+    this.filter = filter;
   }
 
   public void reportRegistry(MetricRegistry registry) {
@@ -47,8 +53,8 @@ public abstract class RecursiveScheduledMetricReporter extends RecursiveSchedule
       });
     }
 
-    report(registry.getGauges(), registry.getCounters(), registry.getHistograms(),
-        registry.getMeters(), registry.getTimers(), tags);
+    report(registry.getGauges(this.filter), registry.getCounters(this.filter), registry.getHistograms(this.filter),
+        registry.getMeters(this.filter), registry.getTimers(this.filter), tags);
   }
 
   /**

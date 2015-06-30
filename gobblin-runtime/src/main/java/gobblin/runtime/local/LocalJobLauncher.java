@@ -144,6 +144,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     for (Task task : tasks) {
       jobState.addTaskState(task.getTaskState());
       if (task.getTaskState().getWorkingState() == WorkUnitState.WorkingState.FAILED) {
+        this.eventBuilder.setName("TaskFailed").addMetadata("taskId", task.getTaskId()).submit();
         jobState.setState(JobState.RunningState.FAILED);
       }
     }

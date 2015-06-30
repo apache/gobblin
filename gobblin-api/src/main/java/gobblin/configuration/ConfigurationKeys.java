@@ -455,7 +455,13 @@ public class ConfigurationKeys {
       METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.avro.use.schema.registry";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY = Boolean.toString(false);
   public static final String METRICS_KAFKA_BROKERS = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.brokers";
+  // Topic used for both event and metric reporting.
+  // Can be overriden by METRICS_KAFKA_TOPIC_METRICS and METRICS_KAFKA_TOPIC_EVENTS.
   public static final String METRICS_KAFKA_TOPIC = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic";
+  // Topic used only for metric reporting.
+  public static final String METRICS_KAFKA_TOPIC_METRICS = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic.metrics";
+  // Topic used only for event reporting.
+  public static final String METRICS_KAFKA_TOPIC_EVENTS = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic.events";
   public static final String METRICS_CUSTOM_BUILDERS = METRICS_CONFIGURATIONS_PREFIX + "reporting.custom.builders";
   public static final String METRICS_REPORT_INTERVAL_KEY = METRICS_CONFIGURATIONS_PREFIX + "report.interval";
   public static final String DEFAULT_METRICS_REPORT_INTERVAL = "30000";

@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics.reporter;
+package gobblin.metrics.reporter.util;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;

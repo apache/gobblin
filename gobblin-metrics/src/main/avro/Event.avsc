@@ -4,8 +4,14 @@
   "namespace": "gobblin.metrics",
   "fields": [
     {
+      "name": "timestamp",
+      "type": "long",
+      "default": 0,
+      "doc": "Time at which event was created."
+    },
+    {
       "name": "namespace",
-      "type": "string",
+      "type": ["string", "null"],
       "doc": "Namespace used for filtering of events."
     },
     {
@@ -19,6 +25,7 @@
         "type": "map",
         "values": "string"
       },
+      "default": {},
       "doc": "Event metadata."
     }
   ]

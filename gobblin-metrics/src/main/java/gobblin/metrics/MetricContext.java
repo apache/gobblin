@@ -27,6 +27,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.Gauge;
@@ -52,6 +55,8 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
+import javax.annotation.Nullable;
+
 import gobblin.metrics.notify.EventNotification;
 import gobblin.metrics.notify.Notification;
 import gobblin.metrics.reporter.ContextAwareScheduledReporter;
@@ -74,6 +79,8 @@ import gobblin.metrics.reporter.ContextAwareScheduledReporter;
  * @author ynli
  */
 public class MetricContext extends MetricRegistry implements Taggable, Closeable {
+
+  private static final Logger LOG = LoggerFactory.getLogger(MetricContext.class);
 
   public static final String METRIC_CONTEXT_ID_TAG_NAME = "metricContextID";
 
@@ -197,7 +204,20 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
 
 
   public void sendEvent(Event event) {
-    EventNotification notification = new EventNotification(event);
+    Event eventCopy = Event.newBuilder(event).build();
+    eventCopy.setTimestamp(System.currentTimeMillis());
+
+    // Inject metric context tags into event metadata.
+    Map<String, String> originalMetadata = eventCopy.getMetadata();
+    Map<String, Object> tags = getTagMap();
+    Map<String, String> newMetadata = Maps.newHashMap();
+    for(Map.Entry<String, Object> entry : tags.entrySet()) {
+      newMetadata.put(entry.getKey(), entry.getValue().toString());
+    }
+    newMetadata.putAll(originalMetadata);
+    eventCopy.setMetadata(newMetadata);
+
+    EventNotification notification = new EventNotification(eventCopy);
     sendNotification(notification);
   }
 
@@ -630,11 +650,18 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
     return new Builder(name);
   }
 
-
-  public void addNotifiyTarget(Function<Notification, Void> target) {
+  /**
+   * Add a target for notifications.
+   * @param target A function that will be run every time there is a new notification in this context.
+   */
+  public void addNotifyTarget(Function<Notification, Void> target) {
     this.notifyTargets.add(target);
   }
 
+  /**
+   * Send a notification to all targets of this context and to the parent of this context.
+   * @param notification {@link gobblin.metrics.notify.Notification} to send.
+   */
   public void sendNotification(final Notification notification) {
     for(final Function<Notification, Void> target : this.notifyTargets) {
       getExecutorService().submit(new Callable<Void>() {
