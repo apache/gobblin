@@ -15,6 +15,8 @@ package gobblin.password;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.AbstractMap;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -24,7 +26,9 @@ import java.util.regex.Pattern;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.jasypt.util.text.BasicTextEncryptor;
 import org.jasypt.util.text.StrongTextEncryptor;
+import org.jasypt.util.text.TextEncryptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,20 +59,29 @@ public class PasswordManager {
   private static final long CACHE_EXPIRATION_MIN = 10;
   private static final Pattern PASSWORD_PATTERN = Pattern.compile("ENC\\((.*)\\)");
 
-  private static final LoadingCache<Optional<String>, PasswordManager> CACHED_INSTANCES =
+  private static final LoadingCache<Map.Entry<Optional<String>, Boolean>, PasswordManager> CACHED_INSTANCES =
       CacheBuilder.newBuilder().maximumSize(CACHE_SIZE).expireAfterAccess(CACHE_EXPIRATION_MIN, TimeUnit.MINUTES)
-          .build(new CacheLoader<Optional<String>, PasswordManager>() {
-            public PasswordManager load(Optional<String> masterPassword) {
-              return new PasswordManager(masterPassword);
+          .build(new CacheLoader<Map.Entry<Optional<String>, Boolean>, PasswordManager>() {
+            public PasswordManager load(Map.Entry<Optional<String>, Boolean> cacheKey) {
+              return new PasswordManager(cacheKey.getKey(), cacheKey.getValue());
             }
           });
 
-  private final Optional<StrongTextEncryptor> encryptor;
+  private Optional<TextEncryptor> encryptor;
 
-  private PasswordManager(Optional<String> masterPassword) {
+  private PasswordManager(Optional<String> masterPassword, boolean useStrongEncryptor) {
     if (masterPassword.isPresent()) {
-      this.encryptor = Optional.of(new StrongTextEncryptor());
-      this.encryptor.get().setPassword(masterPassword.get());
+      this.encryptor = useStrongEncryptor ? Optional.of((TextEncryptor) new StrongTextEncryptor())
+          : Optional.of((TextEncryptor) new BasicTextEncryptor());
+      try {
+
+        // setPassword() needs to be called via reflection since the TextEncryptor interface doesn't have this method.
+        this.encryptor.get().getClass().getMethod("setPassword", String.class).invoke(this.encryptor.get(),
+            masterPassword.get());
+      } catch (Exception e) {
+        LOG.error("Failed to set master password for encryptor", e);
+        this.encryptor = Optional.absent();
+      }
     } else {
       this.encryptor = Optional.absent();
     }
@@ -80,7 +93,8 @@ public class PasswordManager {
   public static PasswordManager getInstance() {
     try {
       Optional<String> absent = Optional.absent();
-      return CACHED_INSTANCES.get(absent);
+      return CACHED_INSTANCES
+          .get(new AbstractMap.SimpleEntry<Optional<String>, Boolean>(absent, shouldUseStrongEncryptor(new State())));
     } catch (ExecutionException e) {
       throw new RuntimeException("Unable to get an instance of PasswordManager", e);
     }
@@ -91,7 +105,8 @@ public class PasswordManager {
    */
   public static PasswordManager getInstance(State state) {
     try {
-      return CACHED_INSTANCES.get(getMasterPassword(state));
+      return CACHED_INSTANCES.get(new AbstractMap.SimpleEntry<Optional<String>, Boolean>(getMasterPassword(state),
+          shouldUseStrongEncryptor(state)));
     } catch (ExecutionException e) {
       throw new RuntimeException("Unable to get an instance of PasswordManager", e);
     }
@@ -101,11 +116,7 @@ public class PasswordManager {
    * Get an instance. The location of the master password file is provided via "encrypt.key.loc".
    */
   public static PasswordManager getInstance(Properties props) {
-    try {
-      return CACHED_INSTANCES.get(getMasterPassword(new State(props)));
-    } catch (ExecutionException e) {
-      throw new RuntimeException("Unable to get an instance of PasswordManager", e);
-    }
+    return getInstance(new State(props));
   }
 
   /**
@@ -113,10 +124,16 @@ public class PasswordManager {
    */
   public static PasswordManager getInstance(Path masterPwdLoc) {
     try {
-      return CACHED_INSTANCES.get(getMasterPassword(masterPwdLoc));
+      return CACHED_INSTANCES.get(new AbstractMap.SimpleEntry<Optional<String>, Boolean>(
+          getMasterPassword(masterPwdLoc), shouldUseStrongEncryptor(new State())));
     } catch (ExecutionException e) {
       throw new RuntimeException("Unable to get an instance of PasswordManager", e);
     }
+  }
+
+  private static boolean shouldUseStrongEncryptor(State state) {
+    return state.getPropAsBoolean(ConfigurationKeys.ENCRYPT_USE_STRONG_ENCRYPTOR,
+        ConfigurationKeys.DEFAULT_ENCRYPT_USE_STRONG_ENCRYPTOR);
   }
 
   /**
@@ -182,7 +199,7 @@ public class PasswordManager {
   }
 
   @SuppressWarnings("deprecation")
-  private static Optional<String> getMasterPassword(Path masterPwdLoc) {
+  public static Optional<String> getMasterPassword(Path masterPwdLoc) {
     Closer closer = Closer.create();
     try {
       FileSystem fs = masterPwdLoc.getFileSystem(new Configuration());
