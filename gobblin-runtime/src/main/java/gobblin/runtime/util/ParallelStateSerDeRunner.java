@@ -1,0 +1,231 @@
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
+package gobblin.runtime.util;
+
+import java.io.Closeable;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.SequenceFile;
+import org.apache.hadoop.io.Writable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
+import com.google.common.io.Closer;
+
+import gobblin.configuration.State;
+import gobblin.util.ExecutorsUtils;
+
+
+/**
+ * A class that is responsible for serialization and deserialization (so called SerDe) of objects of
+ * {@link gobblin.configuration.State} and its subclasses such as {@link gobblin.source.workunit.WorkUnit}
+ * and {@link gobblin.runtime.TaskState}.
+ *
+ * <p>
+ *   This class uses a fixed-size thread pool {@link ExecutorService} to run the serialization and/or
+ *   deserialization tasks.
+ * </p>
+ *
+ * <p>
+ *   This class is intended to be used in the following pattern:
+ *
+ *   <pre> {@code
+ *     Closer closer = Closer.create();
+ *     try {
+ *       // Do stuff
+ *       ParallelStateSerDeRunner stateSerDeRunner = closer.register(new ParallelStateSerDeRunner(threads, fs));
+ *       stateSerDeRunner.serialize(state1, outputFilePath1);
+ *       // Submit more serialization tasks
+ *       stateSerDeRunner.serialize(stateN, outputFilePathN);
+ *       // Wait until the runner is done before proceeding if this is necessary
+ *       stateSerDeRunner.awaitDone();
+ *       // Do stuff
+ *     } catch (Throwable e) {
+ *       throw closer.rethrow(e);
+ *     } finally {
+ *       closer.close();
+ *     }}
+ *   </pre>
+ *
+ *   Note that calling {@link #close()} will stop the {@link ParallelStateSerDeRunner} by shutting down the
+ *   {@link ExecutorService}. So it should only be called if it is time for {@link ParallelStateSerDeRunner}
+ *   to be stopped.
+ * </p>
+ *
+ * @author ynli
+ */
+public class ParallelStateSerDeRunner implements Closeable {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(ParallelStateSerDeRunner.class);
+
+  public static final String STATE_SERDE_RUNNER_THREADS_KEY = "state.serde.runner.threads";
+  public static final String DEFAULT_STATE_SERDE_RUNNER_THREADS = "10";
+
+  private final ExecutorService executor;
+  private final FileSystem fs;
+
+  private final List<Future<?>> futures = Lists.newArrayList();
+
+  public ParallelStateSerDeRunner(int threads, FileSystem fs) {
+    this.executor = Executors.newFixedThreadPool(threads, ExecutorsUtils.newThreadFactory(Optional.of(LOGGER),
+        Optional.of("ParallelStateSerDeRunner")));
+    this.fs = fs;
+  }
+
+  /**
+   * Serialize a {@link State} object into a file.
+   *
+   * <p>
+   *   This method submits a task to serialize the {@link State} object and returns immediately
+   *   after the task ia submitted.
+   * </p>
+   *
+   * @param state the {@link State} object to be serialized
+   * @param outputFilePath the file to write the serialized {@link State} object to
+   * @param <T> the {@link State} object type
+   * @throws IOException if there's anything serializing the {@link State} object
+   */
+  public <T extends State> void serializeToFile(final T state, final Path outputFilePath) throws IOException {
+    // Use a Callable with a Void return type to allow exceptions to be thrown
+    this.futures.add(this.executor.submit(new Callable<Void>() {
+
+      @Override
+      public Void call()
+          throws Exception {
+        Closer closer = Closer.create();
+        try {
+          OutputStream outputStream = closer.register(fs.create(outputFilePath));
+          DataOutputStream dataOutputStream = closer.register(new DataOutputStream(outputStream));
+          state.write(dataOutputStream);
+        } catch (Throwable t) {
+          throw closer.rethrow(t);
+        } finally {
+          closer.close();
+        }
+
+        return null;
+      }
+    }));
+  }
+
+  /**
+   * Deserialize a {@link State} object from a file.
+   *
+   * <p>
+   *   This method submits a task to deserialize the {@link State} object and returns immediately
+   *   after the task ia submitted.
+   * </p>
+   *
+   * @param state an empty {@link State} object to which the deserialized content will be populated
+   * @param inputFilePath the input file to read from
+   * @param <T> the {@link State} object type
+   * @throws IOException if there's anything deserializing the {@link State} object
+   */
+  public <T extends State> void deserializeFromFile(final T state, final Path inputFilePath) throws IOException {
+    this.futures.add(this.executor.submit(new Callable<Void>() {
+
+      @Override
+      public Void call()
+          throws Exception {
+        Closer closer = Closer.create();
+        try {
+          InputStream inputStream = closer.register(fs.open(inputFilePath));
+          DataInputStream dataInputStream = closer.register(new DataInputStream(inputStream));
+          state.readFields(dataInputStream);
+        } catch (Throwable t) {
+          throw closer.rethrow(t);
+        } finally {
+          closer.close();
+        }
+
+        return null;
+      }
+    }));
+  }
+
+  /**
+   * Deserialize a list of {@link State} objects from a Hadoop {@link SequenceFile}.
+   *
+   * <p>
+   *   This method submits a task to deserialize the {@link State} objects and returns immediately
+   *   after the task ia submitted.
+   * </p>
+   *
+   * @param stateClass the {@link Class} object of the {@link State} class
+   * @param inputFilePath the input {@link SequenceFile} to read from
+   * @param states a {@link Collection} object to store the deserialized {@link State} objects
+   * @param <T> the {@link State} object type
+   * @throws IOException if there's anything deserializing the {@link State} objects
+   */
+  public <T extends State> void deserializeFromSequenceFile(final Class<? extends Writable> keyClass,
+      final Class<T> stateClass, final Path inputFilePath, final Collection<T> states) throws IOException {
+    this.futures.add(this.executor.submit(new Callable<Void>() {
+      @Override
+      public Void call()
+          throws Exception {
+        Closer closer = Closer.create();
+        try {
+          SequenceFile.Reader reader = closer.register(new SequenceFile.Reader(fs, inputFilePath, fs.getConf()));
+          Writable key = keyClass.newInstance();
+          T state = stateClass.newInstance();
+          while (reader.next(key, state)) {
+            states.add(state);
+            state = stateClass.newInstance();
+          }
+        } catch (Throwable t) {
+          throw closer.rethrow(t);
+        } finally {
+          closer.close();
+        }
+
+        return null;
+      }
+    }));
+  }
+
+  /**
+   * Wait until the {@link ParallelStateSerDeRunner} is done running all submitted tasks.
+   *
+   * @throws InterruptedException if the calling thread is interrupted while waiting
+   * @throws ExecutionException if any of the task throws an exception during execution
+   */
+  public void awaitDone() throws InterruptedException, ExecutionException {
+    for (Future<?> future : this.futures) {
+      future.get();
+    }
+  }
+
+  @Override
+  public void close() throws IOException {
+    try {
+      ExecutorsUtils.shutdownExecutorService(this.executor);
+    } catch (InterruptedException ie) {
+      throw new IOException(ie);
+    }
+  }
+}

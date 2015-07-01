@@ -14,7 +14,6 @@ package gobblin.runtime.mapreduce;
 
 import java.io.BufferedWriter;
 import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -23,6 +22,7 @@ import java.io.Writer;
 import java.net.URI;
 import java.util.List;
 import java.util.Properties;
+import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -36,7 +36,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.NullWritable;
-import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.CounterGroup;
@@ -54,6 +53,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Queues;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ServiceManager;
 
@@ -75,6 +75,7 @@ import gobblin.runtime.TaskStateTracker;
 import gobblin.runtime.util.JobMetrics;
 import gobblin.runtime.util.MetricGroup;
 import gobblin.runtime.util.MetricNames;
+import gobblin.runtime.util.ParallelStateSerDeRunner;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.JobConfigurationUtils;
@@ -110,6 +111,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
   private final FileSystem fs;
   private final Job job;
   private final Path mrJobDir;
+
+  private final int stateSerDeRunnerThreads;
 
   private volatile boolean hadoopJobSubmitted = false;
 
@@ -147,6 +150,10 @@ public class MRJobLauncher extends AbstractJobLauncher {
     // Finally create the Hadoop job after all updates to conf are already made (including
     // adding dependent jars/files to the DistributedCache that also updates the conf)
     this.job = Job.getInstance(this.conf, JOB_NAME_PREFIX + this.jobContext.getJobName());
+
+    this.stateSerDeRunnerThreads = Integer.parseInt(
+        jobProps.getProperty(ParallelStateSerDeRunner.STATE_SERDE_RUNNER_THREADS_KEY,
+            ParallelStateSerDeRunner.DEFAULT_STATE_SERDE_RUNNER_THREADS));
 
     startCancellationExecutor();
   }
@@ -390,6 +397,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
       Writer osw = closer.register(new OutputStreamWriter(os, ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
       Writer bw = closer.register(new BufferedWriter(osw));
 
+      ParallelStateSerDeRunner stateSerDeRunner =
+          closer.register(new ParallelStateSerDeRunner(this.stateSerDeRunnerThreads, this.fs));
+
       int multiTaskIdSequence = 0;
       // Serialize each work unit into a file named after the task ID
       for (WorkUnit workUnit : workUnits) {
@@ -400,22 +410,16 @@ public class MRJobLauncher extends AbstractJobLauncher {
           workUnit.setId(multiTaskId);
         }
 
-        Closer workUnitFileCloser = Closer.create();
-        try {
-          Path workUnitFile =
-              new Path(jobInputPath, workUnit.getProp(ConfigurationKeys.TASK_ID_KEY)
-                  + ((workUnit instanceof MultiWorkUnit) ? MULTI_WORK_UNIT_FILE_EXTENSION : WORK_UNIT_FILE_EXTENSION));
-          os = workUnitFileCloser.register(this.fs.create(workUnitFile));
-          DataOutputStream dos = workUnitFileCloser.register(new DataOutputStream(os));
-          workUnit.write(dos);
-          // Append the work unit file path to the job input file
-          bw.write(workUnitFile.toUri().getPath() + "\n");
-        } catch (Throwable t) {
-          throw workUnitFileCloser.rethrow(t);
-        } finally {
-          workUnitFileCloser.close();
-        }
+        Path workUnitFile = new Path(jobInputPath,
+            workUnit.getProp(ConfigurationKeys.TASK_ID_KEY) + ((workUnit instanceof MultiWorkUnit)
+                ? MULTI_WORK_UNIT_FILE_EXTENSION : WORK_UNIT_FILE_EXTENSION));
+        stateSerDeRunner.serializeToFile(workUnit, workUnitFile);
+
+        // Append the work unit file path to the job input file
+        bw.write(workUnitFile.toUri().getPath() + "\n");
       }
+
+      stateSerDeRunner.awaitDone();
 
       return jobInputFile;
     } catch (Throwable t) {
@@ -429,40 +433,36 @@ public class MRJobLauncher extends AbstractJobLauncher {
    * Collect the output {@link TaskState}s of the job as a list.
    */
   private List<TaskState> collectOutputTaskStates(Path taskStatePath) throws IOException {
-    List<TaskState> taskStates = Lists.newArrayList();
-
     FileStatus[] fileStatuses = this.fs.listStatus(taskStatePath, new PathFilter() {
       @Override
       public boolean accept(Path path) {
         return path.getName().endsWith(TASK_STATE_STORE_TABLE_SUFFIX);
       }
     });
+
     if (fileStatuses == null || fileStatuses.length == 0) {
-      return taskStates;
+      return Lists.newArrayList();
     }
 
-    for (FileStatus status : fileStatuses) {
-      Closer closer = Closer.create();
-      try {
-        // Read out the task states
-        SequenceFile.Reader reader =
-            closer.register(new SequenceFile.Reader(this.fs, status.getPath(), this.fs.getConf()));
-        Text text = new Text();
-        TaskState taskState = new TaskState();
-        while (reader.next(text, taskState)) {
-          taskStates.add(taskState);
-          taskState = new TaskState();
-        }
-      } catch (Throwable t) {
-        throw closer.rethrow(t);
-      } finally {
-        closer.close();
+    Queue<TaskState> taskStateQueue = Queues.newConcurrentLinkedQueue();
+
+    Closer closer = Closer.create();
+    try {
+      ParallelStateSerDeRunner stateSerDeRunner =
+          closer.register(new ParallelStateSerDeRunner(this.stateSerDeRunnerThreads, this.fs));
+      for (FileStatus status : fileStatuses) {
+        stateSerDeRunner.deserializeFromSequenceFile(Text.class, TaskState.class, status.getPath(), taskStateQueue);
       }
+      stateSerDeRunner.awaitDone();
+    } catch (Throwable t) {
+      throw closer.rethrow(t);
+    } finally {
+      closer.close();
     }
 
-    LOG.info(String.format("Collected task state of %d completed tasks", taskStates.size()));
+    LOG.info(String.format("Collected task state of %d completed tasks", taskStateQueue.size()));
 
-    return taskStates;
+    return Lists.newArrayList(taskStateQueue);
   }
 
   /**
