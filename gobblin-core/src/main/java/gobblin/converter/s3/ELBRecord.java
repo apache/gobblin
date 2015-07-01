@@ -38,23 +38,31 @@ public class ELBRecord {
   protected static final String LOG_DATE_FORMAT = "yyyy-MM-dd";
   protected static final String LOG_TIME_FORMAT = "HH:mm:ss";
 
-  private final Date timestamp;
-  private final String elbName;
-  private final String clientIp;
-  private final int clientPort;
-  private final String backendIp;
-  private final int backendPort;
-  private final double requestProcessingTime;
-  private final double backendProcessingTime;
-  private final double responseProcessingTime;
-  private final int elbStatusCode;
-  private final int backendStatusCode;
-  private final int receivedBytes;
-  private final int sentBytes;
-  private final Request request;
-  private final String userAgent;
-  private final String sslCipher;
-  private final String sslProtocol;
+  protected final Date timestamp;
+  protected final String elbName;
+  protected final String clientIp;
+  protected final int clientPort;
+  protected final String backendIp;
+  protected final int backendPort;
+  protected final double requestProcessingTime;
+  protected final double backendProcessingTime;
+  protected final double responseProcessingTime;
+  protected final int elbStatusCode;
+  protected final int backendStatusCode;
+  protected final int receivedBytes;
+  protected final int sentBytes;
+
+  // items pulled from request string
+  protected String requestMethod;
+  protected String requestProtocol;
+  protected String requestHostHeader;
+  protected String requestPort;
+  protected String requestPath;
+  protected String requestHttpVersion;
+
+  protected final String userAgent;
+  protected final String sslCipher;
+  protected final String sslProtocol;
 
   /**
    * Creates an ELBRecord object.
@@ -92,7 +100,7 @@ public class ELBRecord {
       this.backendPort = Integer.parseInt(backendIpPort[1]);
     } else {
       // The request was unable to be processed by the ELB
-      this.backendIp = "-";
+      this.backendIp = "";
       this.backendPort = -1;
     }
 
@@ -118,7 +126,8 @@ public class ELBRecord {
     this.sentBytes = Integer.parseInt(values.get(10));
 
     // values[11]: "request"
-    this.request = new ELBRequest(values.get(11));
+    // We don't assign here because the method takes care of that for us
+    this.parseRequestString(values.get(11));
 
     // values[12]: "user_agent"
     this.userAgent = values.get(12);
@@ -131,52 +140,33 @@ public class ELBRecord {
   }
 
   /**
-   * A constructor that takes already parsed ELB record info and builds the ELB record object.
+   * Parses the request string from an ELB log according to this format:
+   * <p/>
+   * The request line from the client enclosed in double quotes and logged in the following format:
+   * HTTP Method + Protocol://Host header:port + Path + HTTP version.
+   * <p/>
+   * [TCP listener] The URL is three dashes, each separated by a space, and ending with a space ("- - - ").
    *
-   * @param timestamp
-   * @param elbName
-   * @param clientIp
-   * @param clientPort
-   * @param backendIp
-   * @param backendPort
-   * @param requestProcessingTime
-   * @param backendProcessingTime
-   * @param responseProcessingTime
-   * @param elbStatusCode
-   * @param backendStatusCode
-   * @param receivedBytes
-   * @param sentBytes
-   * @param request
-   * @param userAgent
-   * @param sslCipher
-   * @param sslProtocol
+   * @param requestString - A string formatted in one of the two above ways
    */
-  public ELBRecord(Date timestamp, String elbName, String clientIp, int clientPort,
-                   String backendIp, int backendPort, double requestProcessingTime,
-                   double backendProcessingTime, double responseProcessingTime,
-                   int elbStatusCode, int backendStatusCode, int receivedBytes,
-                   int sentBytes, Request request, String userAgent, String sslCipher,
-                   String sslProtocol) {
+  private void parseRequestString(String requestString) {
+    if (requestString == null || requestString.isEmpty() || requestString.contains("-")) {
+      // This is a TCP record, ignore
+      return;
+    }
 
-    this.timestamp = timestamp;
-    this.elbName = elbName;
-    this.clientIp = clientIp;
-    this.clientPort = clientPort;
-    this.backendIp = backendIp;
-    this.backendPort = backendPort;
-    this.requestProcessingTime = requestProcessingTime;
-    this.backendProcessingTime = backendProcessingTime;
-    this.responseProcessingTime = responseProcessingTime;
-    this.elbStatusCode = elbStatusCode;
-    this.backendStatusCode = backendStatusCode;
-    this.receivedBytes = receivedBytes;
-    this.sentBytes = sentBytes;
-    this.request = request;
-    this.userAgent = userAgent;
-    this.sslCipher = sslCipher;
-    this.sslProtocol = sslProtocol;
+    // Split record into the three parts: METHOD URL HTTP_VERSION
+    String[] parts = requestString.split(" ");
+    this.requestMethod = parts[0];
+
+    String[] url = parts[1].split("://|:|/", 4);
+    this.requestProtocol = url[0];
+    this.requestHostHeader = url[1];
+    this.requestPort = url[2];
+    this.requestPath = url[3];
+
+    this.requestHttpVersion = parts[2];
   }
-
 
   /**
    * Parses a date with the given format. The motivation behind this function is to
@@ -187,7 +177,7 @@ public class ELBRecord {
    * @param dateFormat The format to convert to
    * @return the formatted date, or null if the date was unable to be formatted
    */
-  public static Date parseDate(String input, SimpleDateFormat dateFormat) {
+  private static Date parseDate(String input, SimpleDateFormat dateFormat) {
     // Clean the input
     input = input.trim();
 
@@ -211,13 +201,13 @@ public class ELBRecord {
   // Custom getters
 
   /**
-   * Gets the date in {@link ELBRecord#LOG_DATE_FORMAT}.
-   * This is the date when the load balancer received the request from the client.
+   * Gets the timestamp in milliseconds since the epoch.
+   * This is the date/time when the load balancer received the request from the client.
    *
-   * @return The date formatted to the corresponding string
+   * @return The time in millis since the epoch
    */
-  public String getDate() {
-    return new SimpleDateFormat(LOG_DATE_FORMAT).format(timestamp);
+  public long getTimestampInMillis() {
+    return timestamp.getTime();
   }
 
   /**
@@ -241,25 +231,55 @@ public class ELBRecord {
   }
 
   /**
-   * Gets the method of the request - i.e. GET, POST, etc.
-   *
-   * @return The request method
-   */
-  public String getRequestMethod() {
-    return request.method;
-  }
-
-  /**
    * Gets the request URI. This will look something like
    * <code>www.example.com/resource/index.html</code>
    *
    * @return The URI of the request
    */
   public String getRequestUri() {
-    return request.hostHeader + "/" + request.path;
+    return this.requestHostHeader + "/" + this.requestPath;
   }
 
   // Auto-generated default getters
+
+  /**
+   * Gets the method of the request - i.e. GET, POST, etc.
+   *
+   * @return The request method
+   */
+  public String getRequestMethod() {
+    return requestMethod;
+  }
+
+  /**
+   * Gets the protocol used in the request (i.e. http).
+   *
+   * @return The request protocol
+   */
+  public String getRequestProtocol() {
+    return requestProtocol;
+  }
+
+  /**
+   * Gets the host header of the request.
+   *
+   * @return The request host header
+   */
+  public String getRequestHostHeader() {
+    return requestHostHeader;
+  }
+
+  public String getRequestPort() {
+    return requestPort;
+  }
+
+  public String getRequestPath() {
+    return requestPath;
+  }
+
+  public String getRequestHttpVersion() {
+    return requestHttpVersion;
+  }
 
   /**
    * Do not use in favor of extracting the already formatted date and time separately.
@@ -418,21 +438,6 @@ public class ELBRecord {
    */
   public int getSentBytes() {
     return sentBytes;
-  }
-
-  /**
-   * Gets the parsed request string.
-   * <p/>
-   * The request line from the client enclosed in double quotes and logged in the following
-   * format: HTTP Method + Protocol://Host header:port + Path + HTTP version.
-   * <p/>
-   * [TCP listener] The URL is three dashes, each separated by a space, and ending
-   * with a space ("- - - ").
-   *
-   * @return A {@link Request} object containing the parsed request string
-   */
-  public Request getRequest() {
-    return request;
   }
 
   /**
