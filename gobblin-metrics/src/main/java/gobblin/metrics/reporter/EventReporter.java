@@ -16,6 +16,8 @@ import java.io.Closeable;
 import java.util.Map;
 import java.util.Queue;
 import java.util.SortedMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -34,14 +36,14 @@ import com.google.common.io.Closer;
 
 import javax.annotation.Nullable;
 
-import gobblin.metrics.Event;
+import gobblin.metrics.GobblinTrackingEvent;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.notify.EventNotification;
 import gobblin.metrics.notify.Notification;
 
 
 /**
- * Abstract class for reporting {@link gobblin.metrics.Event}s at a fixed schedule.
+ * Abstract class for reporting {@link gobblin.metrics.GobblinTrackingEvent}s at a fixed schedule.
  *
  * <p>
  *   Subclasses should implement {@link #reportEventQueue} to emit the events to the sink. Events will only be
@@ -51,14 +53,17 @@ import gobblin.metrics.notify.Notification;
 public abstract class EventReporter extends ScheduledReporter implements Closeable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(EventReporter.class);
+  private static final int QUEUE_CAPACITY = 100;
 
-  private final Queue<Event> reportingQueue;
+  private final Queue<GobblinTrackingEvent> reportingQueue;
+  private final ExecutorService immediateReportExecutor;
   protected final Closer closer;
 
   public EventReporter(Builder builder) {
     super(builder.context, builder.name, builder.filter, builder.rateUnit, builder.durationUnit);
 
     this.closer = Closer.create();
+    this.immediateReportExecutor = Executors.newSingleThreadExecutor();
 
     builder.context.addNotifyTarget(new Function<Notification, Void>() {
       @Nullable
@@ -68,12 +73,12 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
         return null;
       }
     });
-    this.reportingQueue = Queues.newConcurrentLinkedQueue();
+    this.reportingQueue = Queues.newLinkedBlockingQueue(QUEUE_CAPACITY);
   }
 
   /**
    * Callback used by the {@link gobblin.metrics.MetricContext} to notify the object of a new
-   * {@link gobblin.metrics.Event}.
+   * {@link gobblin.metrics.GobblinTrackingEvent}.
    * @param notification {@link gobblin.metrics.notify.Notification} to process.
    */
   public void notificationCallback(Notification notification) {
@@ -83,15 +88,18 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
   }
 
   /**
-   * Add {@link gobblin.metrics.Event} to the events queue.
-   * @param event {@link gobblin.metrics.Event} to add to queue.
+   * Add {@link gobblin.metrics.GobblinTrackingEvent} to the events queue.
+   * @param event {@link gobblin.metrics.GobblinTrackingEvent} to add to queue.
    */
-  public void addEventToReportingQueue(Event event) {
+  public void addEventToReportingQueue(GobblinTrackingEvent event) {
+    if(this.reportingQueue.size() > QUEUE_CAPACITY * 2 / 3) {
+      immediatelyScheduleReport();
+    }
     this.reportingQueue.add(event);
   }
 
   /**
-   * Report all {@link gobblin.metrics.Event}s in the queue.
+   * Report all {@link gobblin.metrics.GobblinTrackingEvent}s in the queue.
    */
   @Override
   public void report() {
@@ -99,10 +107,10 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
   }
 
   /**
-   * Emit all {@link gobblin.metrics.Event} in queue.
-   * @param queue {@link java.util.Queue} containing {@link gobblin.metrics.Event}s that should be emitted.
+   * Emit all {@link gobblin.metrics.GobblinTrackingEvent} in queue.
+   * @param queue {@link java.util.Queue} containing {@link gobblin.metrics.GobblinTrackingEvent}s that should be emitted.
    */
-  public abstract void reportEventQueue(Queue<Event> queue);
+  public abstract void reportEventQueue(Queue<GobblinTrackingEvent> queue);
 
   /**
    * NOOP because {@link com.codahale.metrics.ScheduledReporter} requires this method implemented.
@@ -111,6 +119,15 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
   public final void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters,
       SortedMap<String, Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers) {
     //NOOP
+  }
+
+  private void immediatelyScheduleReport() {
+    immediateReportExecutor.submit(new Runnable() {
+      @Override
+      public void run() {
+        report();
+      }
+    });
   }
 
   /**

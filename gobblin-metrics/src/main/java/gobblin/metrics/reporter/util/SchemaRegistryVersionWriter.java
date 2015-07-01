@@ -23,7 +23,6 @@ import org.apache.commons.codec.binary.Hex;
 
 import com.google.common.collect.Maps;
 
-import gobblin.metrics.MetricReport;
 import gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
 
 
@@ -46,8 +45,8 @@ public class SchemaRegistryVersionWriter implements SchemaVersionWriter {
   public void writeSchemaVersioningInformation(Schema schema, DataOutputStream outputStream)
       throws IOException {
     if(!this.registrySchemaIds.containsKey(schema)) {
-      String schemaId = this.registry.register(MetricReport.SCHEMA$);
-      this.registrySchemaIds.putIfAbsent(schema, schemaId);
+      String schemaId = this.registry.register(schema);
+      this.registrySchemaIds.put(schema, schemaId);
     }
     outputStream.writeByte(KafkaAvroSchemaRegistry.MAGIC_BYTE);
     try {

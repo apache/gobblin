@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Charsets;
 
-import gobblin.metrics.Event;
+import gobblin.metrics.GobblinTrackingEvent;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.reporter.util.AvroJsonSerializer;
 import gobblin.metrics.reporter.util.AvroSerializer;
@@ -35,7 +35,7 @@ import gobblin.metrics.reporter.util.NoopSchemaVersionWriter;
 
 
 /**
- * {@link gobblin.metrics.reporter.EventReporter} that writes {@link gobblin.metrics.Event}s to an
+ * {@link gobblin.metrics.reporter.EventReporter} that writes {@link gobblin.metrics.GobblinTrackingEvent}s to an
  * {@link java.io.OutputStream}.
  */
 public class OutputStreamEventReporter extends EventReporter {
@@ -44,7 +44,7 @@ public class OutputStreamEventReporter extends EventReporter {
   private static final int CONSOLE_WIDTH = 80;
 
   private final PrintStream output;
-  protected final AvroSerializer<Event> serializer;
+  protected final AvroSerializer<GobblinTrackingEvent> serializer;
   private final ByteArrayOutputStream outputBuffer;
   private final PrintStream outputBufferPrintStream;
   private final DateFormat dateFormat;
@@ -52,7 +52,7 @@ public class OutputStreamEventReporter extends EventReporter {
   public OutputStreamEventReporter(Builder builder) throws IOException {
     super(builder);
     this.serializer = this.closer.register(
-        new AvroJsonSerializer<Event>(Event.SCHEMA$, new NoopSchemaVersionWriter()));
+        new AvroJsonSerializer<GobblinTrackingEvent>(GobblinTrackingEvent.SCHEMA$, new NoopSchemaVersionWriter()));
     this.output = builder.output;
     this.outputBuffer = new ByteArrayOutputStream();
     this.outputBufferPrintStream = this.closer.register(new PrintStream(this.outputBuffer));
@@ -60,13 +60,13 @@ public class OutputStreamEventReporter extends EventReporter {
   }
 
   @Override
-  public void reportEventQueue(Queue<Event> queue) {
+  public void reportEventQueue(Queue<GobblinTrackingEvent> queue) {
 
     if(queue.size() <= 0) {
       return;
     }
     this.outputBuffer.reset();
-    Event nextEvent;
+    GobblinTrackingEvent nextEvent;
 
     final String dateTime = dateFormat.format(new Date());
     printWithBanner(dateTime, '=');

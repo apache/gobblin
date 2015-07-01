@@ -18,7 +18,7 @@ import java.util.Queue;
 
 import com.google.common.collect.Lists;
 
-import gobblin.metrics.Event;
+import gobblin.metrics.GobblinTrackingEvent;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.reporter.EventReporter;
 import gobblin.metrics.reporter.util.AvroJsonSerializer;
@@ -29,7 +29,7 @@ import gobblin.metrics.reporter.util.SchemaVersionWriter;
 
 public class KafkaEventReporter extends EventReporter {
 
-  protected final AvroSerializer<Event> serializer;
+  protected final AvroSerializer<GobblinTrackingEvent> serializer;
   private final KafkaPusher kafkaPusher;
 
   public KafkaEventReporter(Builder builder) throws IOException {
@@ -42,8 +42,8 @@ public class KafkaEventReporter extends EventReporter {
   }
 
   @Override
-  public void reportEventQueue(Queue<Event> queue) {
-    Event nextEvent;
+  public void reportEventQueue(Queue<GobblinTrackingEvent> queue) {
+    GobblinTrackingEvent nextEvent;
     List<byte[]> events = Lists.newArrayList();
 
     while(null != (nextEvent = queue.poll())) {
@@ -53,8 +53,8 @@ public class KafkaEventReporter extends EventReporter {
     this.kafkaPusher.pushMessages(events);
   }
 
-  protected AvroSerializer<Event> createSerializer(SchemaVersionWriter schemaVersionWriter) throws IOException {
-    return new AvroJsonSerializer<Event>(Event.SCHEMA$, schemaVersionWriter);
+  protected AvroSerializer<GobblinTrackingEvent> createSerializer(SchemaVersionWriter schemaVersionWriter) throws IOException {
+    return new AvroJsonSerializer<GobblinTrackingEvent>(GobblinTrackingEvent.SCHEMA$, schemaVersionWriter);
   }
 
   /**

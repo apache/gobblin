@@ -18,7 +18,7 @@ import org.testng.Assert;
 
 import kafka.consumer.ConsumerIterator;
 
-import gobblin.metrics.Event;
+import gobblin.metrics.GobblinTrackingEvent;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.reporter.util.EventUtils;
 
@@ -42,9 +42,9 @@ public class KafkaAvroEventReporterTest extends KafkaEventReporterTest {
 
   @Override
   @SuppressWarnings("unchecked")
-  protected Event nextEvent(ConsumerIterator<byte[], byte[]> it)
+  protected GobblinTrackingEvent nextEvent(ConsumerIterator<byte[], byte[]> it)
       throws IOException {
     Assert.assertTrue(it.hasNext());
-    return EventUtils.deserializeReportFromAvroSerialization(new Event(), it.next().message());
+    return EventUtils.deserializeReportFromAvroSerialization(new GobblinTrackingEvent(), it.next().message());
   }
 }

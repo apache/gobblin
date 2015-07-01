@@ -1,6 +1,6 @@
 {
   "type": "record",
-  "name": "Event",
+  "name": "GobblinTrackingEvent",
   "namespace": "gobblin.metrics",
   "fields": [
     {

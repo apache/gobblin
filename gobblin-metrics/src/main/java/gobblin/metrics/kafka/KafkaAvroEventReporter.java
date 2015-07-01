@@ -16,7 +16,7 @@ import java.io.IOException;
 
 import com.google.common.base.Optional;
 
-import gobblin.metrics.Event;
+import gobblin.metrics.GobblinTrackingEvent;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.reporter.util.AvroBinarySerializer;
 import gobblin.metrics.reporter.util.AvroSerializer;
@@ -37,9 +37,9 @@ public class KafkaAvroEventReporter extends KafkaEventReporter {
   }
 
   @Override
-  protected AvroSerializer<Event> createSerializer(SchemaVersionWriter schemaVersionWriter)
+  protected AvroSerializer<GobblinTrackingEvent> createSerializer(SchemaVersionWriter schemaVersionWriter)
       throws IOException {
-    return new AvroBinarySerializer<Event>(Event.SCHEMA$, schemaVersionWriter);
+    return new AvroBinarySerializer<GobblinTrackingEvent>(GobblinTrackingEvent.SCHEMA$, schemaVersionWriter);
   }
 
   /**

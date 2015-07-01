@@ -24,7 +24,7 @@ import com.beust.jcommander.internal.Maps;
 
 import kafka.consumer.ConsumerIterator;
 
-import gobblin.metrics.Event;
+import gobblin.metrics.GobblinTrackingEvent;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
 import gobblin.metrics.reporter.util.EventUtils;
@@ -60,7 +60,7 @@ public class KafkaEventReporterTest extends KafkaTestBase {
     String namespace = "gobblin.metrics.test";
     String eventName = "testEvent";
 
-    Event event = new Event();
+    GobblinTrackingEvent event = new GobblinTrackingEvent();
     event.setName(eventName);
     event.setNamespace(namespace);
     event.setMetadata(Maps.<String, String>newHashMap());
@@ -80,7 +80,7 @@ public class KafkaEventReporterTest extends KafkaTestBase {
       Thread.currentThread().interrupt();
     }
 
-    Event retrievedEvent = nextEvent(this.iterator);
+    GobblinTrackingEvent retrievedEvent = nextEvent(this.iterator);
     Assert.assertEquals(retrievedEvent.getNamespace(), namespace);
     Assert.assertEquals(retrievedEvent.getName(), eventName);
     Assert.assertEquals(retrievedEvent.getMetadata().size(), 1);
@@ -103,7 +103,7 @@ public class KafkaEventReporterTest extends KafkaTestBase {
     String namespace = "gobblin.metrics.test";
     String eventName = "testEvent";
 
-    Event event = new Event();
+    GobblinTrackingEvent event = new GobblinTrackingEvent();
     event.setName(eventName);
     event.setNamespace(namespace);
     Map<String, String> metadata = Maps.newHashMap();
@@ -125,7 +125,7 @@ public class KafkaEventReporterTest extends KafkaTestBase {
       Thread.currentThread().interrupt();
     }
 
-    Event retrievedEvent = nextEvent(this.iterator);
+    GobblinTrackingEvent retrievedEvent = nextEvent(this.iterator);
     Assert.assertEquals(retrievedEvent.getNamespace(), namespace);
     Assert.assertEquals(retrievedEvent.getName(), eventName);
     Assert.assertEquals(retrievedEvent.getMetadata().size(), 3);
@@ -142,9 +142,9 @@ public class KafkaEventReporterTest extends KafkaTestBase {
    * @return next metric in the stream
    * @throws java.io.IOException
    */
-  protected Event nextEvent(ConsumerIterator<byte[], byte[]> it) throws IOException {
+  protected GobblinTrackingEvent nextEvent(ConsumerIterator<byte[], byte[]> it) throws IOException {
     Assert.assertTrue(it.hasNext());
-    return EventUtils.deserializeReportFromJson(new Event(), it.next().message());
+    return EventUtils.deserializeReportFromJson(new GobblinTrackingEvent(), it.next().message());
   }
 
   @AfterClass

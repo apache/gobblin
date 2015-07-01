@@ -12,13 +12,13 @@
 
 package gobblin.metrics.notify;
 
-import gobblin.metrics.Event;
+import gobblin.metrics.GobblinTrackingEvent;
 
 
 public class EventNotification implements Notification {
-  public Event event;
+  public GobblinTrackingEvent event;
 
-  public EventNotification(Event event) {
+  public EventNotification(GobblinTrackingEvent event) {
     this.event = event;
   }
 }

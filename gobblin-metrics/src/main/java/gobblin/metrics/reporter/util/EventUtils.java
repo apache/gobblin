@@ -23,7 +23,7 @@ import org.apache.avro.specific.SpecificDatumReader;
 import com.google.common.base.Optional;
 import com.google.common.io.Closer;
 
-import gobblin.metrics.Event;
+import gobblin.metrics.GobblinTrackingEvent;
 
 
 /**
@@ -32,7 +32,7 @@ import gobblin.metrics.Event;
 public class EventUtils {
 
   public static final int SCHEMA_VERSION = 1;
-  private static Optional<SpecificDatumReader<Event>> READER = Optional.absent();
+  private static Optional<SpecificDatumReader<GobblinTrackingEvent>> READER = Optional.absent();
 
   /**
    * Parses a {@link gobblin.metrics.MetricReport} from a byte array representing a json input.
@@ -41,9 +41,9 @@ public class EventUtils {
    * @return MetricReport.
    * @throws java.io.IOException
    */
-  public synchronized static Event deserializeReportFromJson(Event reuse, byte[] bytes) throws IOException {
+  public synchronized static GobblinTrackingEvent deserializeReportFromJson(GobblinTrackingEvent reuse, byte[] bytes) throws IOException {
     if (!READER.isPresent()) {
-      READER = Optional.of(new SpecificDatumReader<Event>(Event.class));
+      READER = Optional.of(new SpecificDatumReader<GobblinTrackingEvent>(GobblinTrackingEvent.class));
     }
 
     Closer closer = Closer.create();
@@ -60,7 +60,7 @@ public class EventUtils {
       }
 
       // Decode the rest
-      Decoder decoder = DecoderFactory.get().jsonDecoder(Event.SCHEMA$, inputStream);
+      Decoder decoder = DecoderFactory.get().jsonDecoder(GobblinTrackingEvent.SCHEMA$, inputStream);
       return READER.get().read(reuse, decoder);
     } catch(Throwable t) {
       throw closer.rethrow(t);
@@ -76,10 +76,10 @@ public class EventUtils {
    * @return MetricReport.
    * @throws java.io.IOException
    */
-  public synchronized static Event deserializeReportFromAvroSerialization(Event reuse, byte[] bytes)
+  public synchronized static GobblinTrackingEvent deserializeReportFromAvroSerialization(GobblinTrackingEvent reuse, byte[] bytes)
       throws IOException {
     if (!READER.isPresent()) {
-      READER = Optional.of(new SpecificDatumReader<Event>(Event.class));
+      READER = Optional.of(new SpecificDatumReader<GobblinTrackingEvent>(GobblinTrackingEvent.class));
     }
 
     Closer closer = Closer.create();

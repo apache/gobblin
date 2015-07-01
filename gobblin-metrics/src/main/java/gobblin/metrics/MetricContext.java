@@ -55,8 +55,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
-import javax.annotation.Nullable;
-
 import gobblin.metrics.notify.EventNotification;
 import gobblin.metrics.notify.Notification;
 import gobblin.metrics.reporter.ContextAwareScheduledReporter;
@@ -203,8 +201,8 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
   }
 
 
-  public void sendEvent(Event event) {
-    Event eventCopy = Event.newBuilder(event).build();
+  public void sendEvent(GobblinTrackingEvent event) {
+    GobblinTrackingEvent eventCopy = GobblinTrackingEvent.newBuilder(event).build();
     eventCopy.setTimestamp(System.currentTimeMillis());
 
     // Inject metric context tags into event metadata.
