@@ -34,6 +34,7 @@ import java.util.Date;
 public class ELBRecord {
   private static final Logger LOG = LoggerFactory.getLogger(ELBRecord.class);
 
+  // TODO these shouldn't be protected
   protected static final String ISO8601_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.";
   protected static final String LOG_DATE_FORMAT = "yyyy-MM-dd";
   protected static final String LOG_TIME_FORMAT = "HH:mm:ss";
@@ -56,7 +57,7 @@ public class ELBRecord {
   protected String requestMethod;
   protected String requestProtocol;
   protected String requestHostHeader;
-  protected String requestPort;
+  protected int requestPort;
   protected String requestPath;
   protected String requestHttpVersion;
 
@@ -162,7 +163,7 @@ public class ELBRecord {
     String[] url = parts[1].split("://|:|/", 4);
     this.requestProtocol = url[0];
     this.requestHostHeader = url[1];
-    this.requestPort = url[2];
+    this.requestPort = Integer.parseInt(url[2]);
     this.requestPath = url[3];
 
     this.requestHttpVersion = parts[2];
@@ -269,7 +270,12 @@ public class ELBRecord {
     return requestHostHeader;
   }
 
-  public String getRequestPort() {
+  /**
+   * Gets the port found in the request string
+   *
+   * @return The requested port
+   */
+  public int getRequestPort() {
     return requestPort;
   }
 

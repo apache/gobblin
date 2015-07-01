@@ -866,7 +866,7 @@ public final class ServerLogHeaderOuterClass {
     gobblin.converter.s3.ServerLogHeaderOuterClass.Source getSource();
 
     /**
-     * <code>required int32 timestamp = 2;</code>
+     * <code>required int64 timestamp = 2;</code>
      *
      * <pre>
      * The date and time the server finished processing the request in milliseconds (time from epoch)
@@ -874,13 +874,13 @@ public final class ServerLogHeaderOuterClass {
      */
     boolean hasTimestamp();
     /**
-     * <code>required int32 timestamp = 2;</code>
+     * <code>required int64 timestamp = 2;</code>
      *
      * <pre>
      * The date and time the server finished processing the request in milliseconds (time from epoch)
      * </pre>
      */
-    int getTimestamp();
+    long getTimestamp();
 
     /**
      * <code>required double time_taken = 3;</code>
@@ -1150,7 +1150,7 @@ public final class ServerLogHeaderOuterClass {
     int getClientToServerBytes();
 
     /**
-     * <code>optional string client_port = 15;</code>
+     * <code>optional int32 client_port = 15;</code>
      *
      * <pre>
      * Client port
@@ -1158,22 +1158,13 @@ public final class ServerLogHeaderOuterClass {
      */
     boolean hasClientPort();
     /**
-     * <code>optional string client_port = 15;</code>
+     * <code>optional int32 client_port = 15;</code>
      *
      * <pre>
      * Client port
      * </pre>
      */
-    java.lang.String getClientPort();
-    /**
-     * <code>optional string client_port = 15;</code>
-     *
-     * <pre>
-     * Client port
-     * </pre>
-     */
-    com.google.protobuf.ByteString
-        getClientPortBytes();
+    int getClientPort();
 
     /**
      * <code>optional string client_to_server_referrer = 16;</code>
@@ -1370,7 +1361,7 @@ public final class ServerLogHeaderOuterClass {
             }
             case 16: {
               bitField0_ |= 0x00000002;
-              timestamp_ = input.readInt32();
+              timestamp_ = input.readInt64();
               break;
             }
             case 25: {
@@ -1440,10 +1431,9 @@ public final class ServerLogHeaderOuterClass {
               clientToServerBytes_ = input.readInt32();
               break;
             }
-            case 122: {
-              com.google.protobuf.ByteString bs = input.readBytes();
+            case 120: {
               bitField0_ |= 0x00004000;
-              clientPort_ = bs;
+              clientPort_ = input.readInt32();
               break;
             }
             case 130: {
@@ -1539,9 +1529,9 @@ public final class ServerLogHeaderOuterClass {
     }
 
     public static final int TIMESTAMP_FIELD_NUMBER = 2;
-    private int timestamp_;
+    private long timestamp_;
     /**
-     * <code>required int32 timestamp = 2;</code>
+     * <code>required int64 timestamp = 2;</code>
      *
      * <pre>
      * The date and time the server finished processing the request in milliseconds (time from epoch)
@@ -1551,13 +1541,13 @@ public final class ServerLogHeaderOuterClass {
       return ((bitField0_ & 0x00000002) == 0x00000002);
     }
     /**
-     * <code>required int32 timestamp = 2;</code>
+     * <code>required int64 timestamp = 2;</code>
      *
      * <pre>
      * The date and time the server finished processing the request in milliseconds (time from epoch)
      * </pre>
      */
-    public int getTimestamp() {
+    public long getTimestamp() {
       return timestamp_;
     }
 
@@ -2055,9 +2045,9 @@ public final class ServerLogHeaderOuterClass {
     }
 
     public static final int CLIENT_PORT_FIELD_NUMBER = 15;
-    private java.lang.Object clientPort_;
+    private int clientPort_;
     /**
-     * <code>optional string client_port = 15;</code>
+     * <code>optional int32 client_port = 15;</code>
      *
      * <pre>
      * Client port
@@ -2067,45 +2057,14 @@ public final class ServerLogHeaderOuterClass {
       return ((bitField0_ & 0x00004000) == 0x00004000);
     }
     /**
-     * <code>optional string client_port = 15;</code>
+     * <code>optional int32 client_port = 15;</code>
      *
      * <pre>
      * Client port
      * </pre>
      */
-    public java.lang.String getClientPort() {
-      java.lang.Object ref = clientPort_;
-      if (ref instanceof java.lang.String) {
-        return (java.lang.String) ref;
-      } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
-        java.lang.String s = bs.toStringUtf8();
-        if (bs.isValidUtf8()) {
-          clientPort_ = s;
-        }
-        return s;
-      }
-    }
-    /**
-     * <code>optional string client_port = 15;</code>
-     *
-     * <pre>
-     * Client port
-     * </pre>
-     */
-    public com.google.protobuf.ByteString
-        getClientPortBytes() {
-      java.lang.Object ref = clientPort_;
-      if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8(
-                (java.lang.String) ref);
-        clientPort_ = b;
-        return b;
-      } else {
-        return (com.google.protobuf.ByteString) ref;
-      }
+    public int getClientPort() {
+      return clientPort_;
     }
 
     public static final int CLIENT_TO_SERVER_REFERRER_FIELD_NUMBER = 16;
@@ -2327,7 +2286,7 @@ public final class ServerLogHeaderOuterClass {
 
     private void initFields() {
       source_ = gobblin.converter.s3.ServerLogHeaderOuterClass.Source.UNKNOWN;
-      timestamp_ = 0;
+      timestamp_ = 0L;
       timeTaken_ = 0D;
       serverHost_ = "";
       clientToServerUriStem_ = "";
@@ -2340,7 +2299,7 @@ public final class ServerLogHeaderOuterClass {
       clientToServerProtocol_ = "";
       clientToServerUriFull_ = "";
       clientToServerBytes_ = 0;
-      clientPort_ = "";
+      clientPort_ = 0;
       clientToServerReferrer_ = "";
       clientToServerUserAgent_ = "";
       clientToServerProtocolVersion_ = "";
@@ -2421,7 +2380,7 @@ public final class ServerLogHeaderOuterClass {
         output.writeEnum(1, source_.getNumber());
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        output.writeInt32(2, timestamp_);
+        output.writeInt64(2, timestamp_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         output.writeDouble(3, timeTaken_);
@@ -2460,7 +2419,7 @@ public final class ServerLogHeaderOuterClass {
         output.writeInt32(14, clientToServerBytes_);
       }
       if (((bitField0_ & 0x00004000) == 0x00004000)) {
-        output.writeBytes(15, getClientPortBytes());
+        output.writeInt32(15, clientPort_);
       }
       if (((bitField0_ & 0x00008000) == 0x00008000)) {
         output.writeBytes(16, getClientToServerReferrerBytes());
@@ -2489,7 +2448,7 @@ public final class ServerLogHeaderOuterClass {
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeInt32Size(2, timestamp_);
+          .computeInt64Size(2, timestamp_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         size += com.google.protobuf.CodedOutputStream
@@ -2541,7 +2500,7 @@ public final class ServerLogHeaderOuterClass {
       }
       if (((bitField0_ & 0x00004000) == 0x00004000)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(15, getClientPortBytes());
+          .computeInt32Size(15, clientPort_);
       }
       if (((bitField0_ & 0x00008000) == 0x00008000)) {
         size += com.google.protobuf.CodedOutputStream
@@ -2687,7 +2646,7 @@ public final class ServerLogHeaderOuterClass {
         super.clear();
         source_ = gobblin.converter.s3.ServerLogHeaderOuterClass.Source.UNKNOWN;
         bitField0_ = (bitField0_ & ~0x00000001);
-        timestamp_ = 0;
+        timestamp_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000002);
         timeTaken_ = 0D;
         bitField0_ = (bitField0_ & ~0x00000004);
@@ -2713,7 +2672,7 @@ public final class ServerLogHeaderOuterClass {
         bitField0_ = (bitField0_ & ~0x00001000);
         clientToServerBytes_ = 0;
         bitField0_ = (bitField0_ & ~0x00002000);
-        clientPort_ = "";
+        clientPort_ = 0;
         bitField0_ = (bitField0_ & ~0x00004000);
         clientToServerReferrer_ = "";
         bitField0_ = (bitField0_ & ~0x00008000);
@@ -2909,9 +2868,7 @@ public final class ServerLogHeaderOuterClass {
           setClientToServerBytes(other.getClientToServerBytes());
         }
         if (other.hasClientPort()) {
-          bitField0_ |= 0x00004000;
-          clientPort_ = other.clientPort_;
-          onChanged();
+          setClientPort(other.getClientPort());
         }
         if (other.hasClientToServerReferrer()) {
           bitField0_ |= 0x00008000;
@@ -3090,9 +3047,9 @@ public final class ServerLogHeaderOuterClass {
         return this;
       }
 
-      private int timestamp_ ;
+      private long timestamp_ ;
       /**
-       * <code>required int32 timestamp = 2;</code>
+       * <code>required int64 timestamp = 2;</code>
        *
        * <pre>
        * The date and time the server finished processing the request in milliseconds (time from epoch)
@@ -3102,30 +3059,30 @@ public final class ServerLogHeaderOuterClass {
         return ((bitField0_ & 0x00000002) == 0x00000002);
       }
       /**
-       * <code>required int32 timestamp = 2;</code>
+       * <code>required int64 timestamp = 2;</code>
        *
        * <pre>
        * The date and time the server finished processing the request in milliseconds (time from epoch)
        * </pre>
        */
-      public int getTimestamp() {
+      public long getTimestamp() {
         return timestamp_;
       }
       /**
-       * <code>required int32 timestamp = 2;</code>
+       * <code>required int64 timestamp = 2;</code>
        *
        * <pre>
        * The date and time the server finished processing the request in milliseconds (time from epoch)
        * </pre>
        */
-      public Builder setTimestamp(int value) {
+      public Builder setTimestamp(long value) {
         bitField0_ |= 0x00000002;
         timestamp_ = value;
         onChanged();
         return this;
       }
       /**
-       * <code>required int32 timestamp = 2;</code>
+       * <code>required int64 timestamp = 2;</code>
        *
        * <pre>
        * The date and time the server finished processing the request in milliseconds (time from epoch)
@@ -3133,7 +3090,7 @@ public final class ServerLogHeaderOuterClass {
        */
       public Builder clearTimestamp() {
         bitField0_ = (bitField0_ & ~0x00000002);
-        timestamp_ = 0;
+        timestamp_ = 0L;
         onChanged();
         return this;
       }
@@ -4078,9 +4035,9 @@ public final class ServerLogHeaderOuterClass {
         return this;
       }
 
-      private java.lang.Object clientPort_ = "";
+      private int clientPort_ ;
       /**
-       * <code>optional string client_port = 15;</code>
+       * <code>optional int32 client_port = 15;</code>
        *
        * <pre>
        * Client port
@@ -4090,65 +4047,30 @@ public final class ServerLogHeaderOuterClass {
         return ((bitField0_ & 0x00004000) == 0x00004000);
       }
       /**
-       * <code>optional string client_port = 15;</code>
+       * <code>optional int32 client_port = 15;</code>
        *
        * <pre>
        * Client port
        * </pre>
        */
-      public java.lang.String getClientPort() {
-        java.lang.Object ref = clientPort_;
-        if (!(ref instanceof java.lang.String)) {
-          com.google.protobuf.ByteString bs =
-              (com.google.protobuf.ByteString) ref;
-          java.lang.String s = bs.toStringUtf8();
-          if (bs.isValidUtf8()) {
-            clientPort_ = s;
-          }
-          return s;
-        } else {
-          return (java.lang.String) ref;
-        }
+      public int getClientPort() {
+        return clientPort_;
       }
       /**
-       * <code>optional string client_port = 15;</code>
+       * <code>optional int32 client_port = 15;</code>
        *
        * <pre>
        * Client port
        * </pre>
        */
-      public com.google.protobuf.ByteString
-          getClientPortBytes() {
-        java.lang.Object ref = clientPort_;
-        if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
-              com.google.protobuf.ByteString.copyFromUtf8(
-                  (java.lang.String) ref);
-          clientPort_ = b;
-          return b;
-        } else {
-          return (com.google.protobuf.ByteString) ref;
-        }
-      }
-      /**
-       * <code>optional string client_port = 15;</code>
-       *
-       * <pre>
-       * Client port
-       * </pre>
-       */
-      public Builder setClientPort(
-          java.lang.String value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00004000;
+      public Builder setClientPort(int value) {
+        bitField0_ |= 0x00004000;
         clientPort_ = value;
         onChanged();
         return this;
       }
       /**
-       * <code>optional string client_port = 15;</code>
+       * <code>optional int32 client_port = 15;</code>
        *
        * <pre>
        * Client port
@@ -4156,24 +4078,7 @@ public final class ServerLogHeaderOuterClass {
        */
       public Builder clearClientPort() {
         bitField0_ = (bitField0_ & ~0x00004000);
-        clientPort_ = getDefaultInstance().getClientPort();
-        onChanged();
-        return this;
-      }
-      /**
-       * <code>optional string client_port = 15;</code>
-       *
-       * <pre>
-       * Client port
-       * </pre>
-       */
-      public Builder setClientPortBytes(
-          com.google.protobuf.ByteString value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00004000;
-        clientPort_ = value;
+        clientPort_ = 0;
         onChanged();
         return this;
       }
@@ -4823,7 +4728,7 @@ public final class ServerLogHeaderOuterClass {
       "\n\025ServerLogHeader.proto\"%\n\006Cookie\022\014\n\004nam" +
       "e\030\001 \002(\t\022\r\n\005value\030\002 \002(\t\"\321\004\n\017ServerLogHead" +
       "er\022\027\n\006source\030\001 \002(\0162\007.Source\022\021\n\ttimestamp" +
-      "\030\002 \002(\005\022\022\n\ntime_taken\030\003 \002(\001\022\023\n\013server_hos" +
+      "\030\002 \002(\003\022\022\n\ntime_taken\030\003 \002(\001\022\023\n\013server_hos" +
       "t\030\004 \002(\t\022!\n\031client_to_server_uri_stem\030\005 \002" +
       "(\t\022\037\n\027server_to_client_status\030\006 \002(\005\022\036\n\026s" +
       "erver_to_client_bytes\030\007 \002(\005\022\023\n\013server_po" +
@@ -4832,7 +4737,7 @@ public final class ServerLogHeaderOuterClass {
       "_host_header\030\013 \002(\t\022!\n\031client_to_server_p",
       "rotocol\030\014 \002(\t\022!\n\031client_to_server_uri_fu" +
       "ll\030\r \002(\t\022\036\n\026client_to_server_bytes\030\016 \001(\005" +
-      "\022\023\n\013client_port\030\017 \001(\t\022!\n\031client_to_serve" +
+      "\022\023\n\013client_port\030\017 \001(\005\022!\n\031client_to_serve" +
       "r_referrer\030\020 \001(\t\022#\n\033client_to_server_use" +
       "r_agent\030\021 \001(\t\022)\n!client_to_server_protoc" +
       "ol_version\030\022 \001(\t\022(\n\027client_to_server_coo" +
