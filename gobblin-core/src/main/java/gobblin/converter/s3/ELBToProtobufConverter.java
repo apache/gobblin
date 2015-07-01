@@ -15,39 +15,57 @@ import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
-import gobblin.converter.s3.LogFileOuterClass.LogFile;
+import gobblin.converter.s3.ELBLogOuterClass.ELBLog;
+import gobblin.converter.s3.ServerLogHeaderOuterClass.*;
 
 
 /**
- * Converts an ELB record to the {@link LogFileOuterClass} serialized protobuf format.
+ * Converts an ELB record to the {@link ELBLogOuterClass} serialized protobuf format.
  *
  * @author ahollenbach@nerdwallet.com
  */
-public class ELBToProtobufConverter extends Converter<Class<ELBRecord>, Class<LogFile>, ELBRecord, LogFile> {
+public class ELBToProtobufConverter extends Converter<Class<ELBRecord>, Class<ELBLog>, ELBRecord, ELBLog> {
 
   @Override
-  public Class<LogFile> convertSchema(Class<ELBRecord> inputSchema, WorkUnitState workUnit)
+  public Class<ELBLog> convertSchema(Class<ELBRecord> inputSchema, WorkUnitState workUnit)
       throws SchemaConversionException {
-    return LogFile.class;
+    return ELBLog.class;
   }
 
   @Override
-  public Iterable<LogFile> convertRecord(Class<LogFile> outputSchema, ELBRecord elbRecord, WorkUnitState workUnit)
+  public Iterable<ELBLog> convertRecord(Class<ELBLog> outputSchema, ELBRecord elbRecord, WorkUnitState workUnit)
       throws DataConversionException {
-    LogFile logFile = LogFile.newBuilder()
-            .setDate(elbRecord.getDate())
-            .setTime(elbRecord.getTime())
-            .setName(elbRecord.getElbName())
-            .setCIp(elbRecord.getClientIp())
-            .setSHost(elbRecord.getBackendIp())
-            .setTimeTaken(elbRecord.getTimeTaken())
-            .setScStatus(elbRecord.getBackendStatusCode())
-            .setScBytes(elbRecord.getSentBytes())
-            .setCsMethod(elbRecord.getRequestMethod())
-            .setUri(elbRecord.getRequestUri())
-            .setUserAgent(elbRecord.getUserAgent())
-            .build();
+    ServerLogHeader logHeader = ServerLogHeader.newBuilder()
+        .setSource(ServerLogHeaderOuterClass.Source.ELB)
+        .setTimestamp(elbRecord.getTimestampInMillis())
+        .setTimeTaken(elbRecord.getTimeTaken())
+        .setServerHost(elbRecord.getBackendIp())
+        .setClientToServerUriStem(elbRecord.getRequestPath())
+        .setServerToClientStatus(elbRecord.getBackendStatusCode())
+        .setServerToClientBytes(elbRecord.getSentBytes())
+        .setServerPort(elbRecord.getBackendPort())
+        .setClientToServerMethod(elbRecord.getRequestMethod())
+        .setClientIp(elbRecord.getClientIp())
+        .setClientToServerHostHeader(elbRecord.getRequestHostHeader())
+        .setClientToServerProtocol(elbRecord.getRequestProtocol())
+        .setClientToServerUriFull(elbRecord.getRequestUri())
+        .setClientToServerBytes(elbRecord.getReceivedBytes())
+        .setClientPort(elbRecord.getClientPort())
+        .setClientToServerUserAgent(elbRecord.getUserAgent())
+        .setClientToServerProtocolVersion(elbRecord.getRequestHttpVersion())
+        .build();
 
-    return new SingleRecordIterable<LogFile>(logFile);
+    ELBLog log = ELBLog.newBuilder()
+        .setHeader(logHeader)
+        .setElbName(elbRecord.getElbName())
+        .setElbStatusCode(elbRecord.getElbStatusCode())
+        .setClientToServerSslCipher(elbRecord.getSslCipher())
+        .setClientToServerSslProtocol(elbRecord.getSslProtocol())
+        .setRequestProcessingTime(elbRecord.getRequestProcessingTime())
+        .setBackendProcessingTime(elbRecord.getBackendProcessingTime())
+        .setResponseProcessingTime(elbRecord.getResponseProcessingTime())
+        .build();
+
+    return new SingleRecordIterable<ELBLog>(log);
   }
 }
