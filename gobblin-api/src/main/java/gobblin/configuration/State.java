@@ -235,6 +235,27 @@ public class State implements Writable {
   }
 
   /**
+   * Get the value of a property as a short.
+   *
+   * @param key property key
+   * @return short value associated with the key
+   */
+  public short getPropAsShort(String key) {
+    return Short.parseShort(getProperty(key));
+  }
+
+  /**
+   * Get the value of a property as an short, using the given default value if the property is not set.
+   *
+   * @param key property key
+   * @param def default value
+   * @return short value associated with the key or the default value if the property is not set
+   */
+  public short getPropAsShort(String key, short def) {
+    return Short.parseShort(getProperty(key, String.valueOf(def)));
+  }
+
+  /**
    * Get the value of a property as a double.
    *
    * @param key property key
