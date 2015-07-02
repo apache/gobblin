@@ -76,7 +76,7 @@ public class ELBRecord {
    *               "user_agent" ssl_cipher ssl_protocol</code>
    */
   public ELBRecord(ArrayList<String> values) throws DataConversionException {
-    if (values.size() != 15) {
+    if (values.size() != 12 && values.size() != 15) {
       throw new DataConversionException("Malformed log record");
     }
 
@@ -130,14 +130,27 @@ public class ELBRecord {
     // We don't assign here because the method takes care of that for us
     this.parseRequestString(values.get(11));
 
-    // values[12]: "user_agent"
-    this.userAgent = values.get(12);
+    // Some ELB records don't come with these three fields.
+    // TODO find out why....
+    if (values.size() == 15) {
+      // values[12]: "user_agent"
+      this.userAgent = values.get(12);
 
-    // values[13]: ssl_cipher
-    this.sslCipher = values.get(13);
+      // values[13]: ssl_cipher
+      this.sslCipher = values.get(13);
 
-    // values[14]: ssl_protocol
-    this.sslProtocol = values.get(14);
+      // values[14]: ssl_protocol
+      this.sslProtocol = values.get(14);
+    } else {
+      // values[12]: "user_agent"
+      this.userAgent = "";
+
+      // values[13]: ssl_cipher
+      this.sslCipher = "";
+
+      // values[14]: ssl_protocol
+      this.sslProtocol = "";
+    }
   }
 
   /**
@@ -234,6 +247,8 @@ public class ELBRecord {
   /**
    * Gets the request URI. This will look something like
    * <code>www.example.com/resource/index.html</code>
+   * <p/>
+   * Typically this would also have the query string, but ELB logs do not support this.
    *
    * @return The URI of the request
    */
