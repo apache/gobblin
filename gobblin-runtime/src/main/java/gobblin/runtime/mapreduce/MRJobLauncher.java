@@ -388,17 +388,18 @@ public class MRJobLauncher extends AbstractJobLauncher {
    * @throws IOException
    */
   private Path prepareJobInput(Path jobInputPath, List<WorkUnit> workUnits) throws IOException {
+    // The job input is a file named after the job ID listing all work unit file paths
+    Path jobInputFile = new Path(jobInputPath, this.jobContext.getJobId() + ".wulist");
+
     Closer closer = Closer.create();
     try {
-      // The job input is a file named after the job ID listing all work unit file paths
-      Path jobInputFile = new Path(jobInputPath, this.jobContext.getJobId() + ".wulist");
+      ParallelStateSerDeRunner stateSerDeRunner =
+          closer.register(new ParallelStateSerDeRunner(this.stateSerDeRunnerThreads, this.fs));
+
       // Open the job input file
       OutputStream os = closer.register(this.fs.create(jobInputFile));
       Writer osw = closer.register(new OutputStreamWriter(os, ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
       Writer bw = closer.register(new BufferedWriter(osw));
-
-      ParallelStateSerDeRunner stateSerDeRunner =
-          closer.register(new ParallelStateSerDeRunner(this.stateSerDeRunnerThreads, this.fs));
 
       int multiTaskIdSequence = 0;
       // Serialize each work unit into a file named after the task ID
@@ -418,15 +419,13 @@ public class MRJobLauncher extends AbstractJobLauncher {
         // Append the work unit file path to the job input file
         bw.write(workUnitFile.toUri().getPath() + "\n");
       }
-
-      stateSerDeRunner.awaitDone();
-
-      return jobInputFile;
     } catch (Throwable t) {
       throw closer.rethrow(t);
     } finally {
       closer.close();
     }
+
+    return jobInputFile;
   }
 
   /**
@@ -453,7 +452,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
       for (FileStatus status : fileStatuses) {
         stateSerDeRunner.deserializeFromSequenceFile(Text.class, TaskState.class, status.getPath(), taskStateQueue);
       }
-      stateSerDeRunner.awaitDone();
     } catch (Throwable t) {
       throw closer.rethrow(t);
     } finally {

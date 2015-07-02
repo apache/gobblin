@@ -62,8 +62,6 @@ import gobblin.util.ExecutorsUtils;
  *       stateSerDeRunner.serialize(state1, outputFilePath1);
  *       // Submit more serialization tasks
  *       stateSerDeRunner.serialize(stateN, outputFilePathN);
- *       // Wait until the runner is done before proceeding if this is necessary
- *       stateSerDeRunner.awaitDone();
  *       // Do stuff
  *     } catch (Throwable e) {
  *       throw closer.rethrow(e);
@@ -72,9 +70,8 @@ import gobblin.util.ExecutorsUtils;
  *     }}
  *   </pre>
  *
- *   Note that calling {@link #close()} will stop the {@link ParallelStateSerDeRunner} by shutting down the
- *   {@link ExecutorService}. So it should only be called if it is time for {@link ParallelStateSerDeRunner}
- *   to be stopped.
+ *   Note that calling {@link #close()} will wait for all submitted tasks to complete and then stop the
+ *   {@link ParallelStateSerDeRunner} by shutting down the {@link ExecutorService}.
  * </p>
  *
  * @author ynli
@@ -208,24 +205,23 @@ public class ParallelStateSerDeRunner implements Closeable {
     }));
   }
 
-  /**
-   * Wait until the {@link ParallelStateSerDeRunner} is done running all submitted tasks.
-   *
-   * @throws InterruptedException if the calling thread is interrupted while waiting
-   * @throws ExecutionException if any of the task throws an exception during execution
-   */
-  public void awaitDone() throws InterruptedException, ExecutionException {
-    for (Future<?> future : this.futures) {
-      future.get();
-    }
-  }
-
   @Override
   public void close() throws IOException {
     try {
-      ExecutorsUtils.shutdownExecutorService(this.executor);
+      // Wait for all submitted tasks to complete
+      for (Future<?> future : this.futures) {
+        future.get();
+      }
     } catch (InterruptedException ie) {
       throw new IOException(ie);
+    } catch (ExecutionException ee) {
+      throw new IOException(ee);
+    } finally {
+      try {
+        ExecutorsUtils.shutdownExecutorService(this.executor);
+      } catch (InterruptedException ie) {
+        LOGGER.error("Failed to shutdown the executor service", ie);
+      }
     }
   }
 }

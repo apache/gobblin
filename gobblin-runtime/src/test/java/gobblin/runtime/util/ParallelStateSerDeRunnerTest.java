@@ -67,7 +67,6 @@ public class ParallelStateSerDeRunnerTest {
       workUnit2.setProp("b", 20);
       stateSerDeRunner.serializeToFile(workUnit2, new Path(this.outputPath, "wu2"));
 
-      stateSerDeRunner.awaitDone();
     } catch (Throwable t) {
       throw closer.rethrow(t);
     } finally {
@@ -77,30 +76,27 @@ public class ParallelStateSerDeRunnerTest {
 
   @Test(dependsOnMethods = "testSerializeToFile")
   public void testDeserializeFromFile() throws IOException {
+    WorkUnit workUnit1 = new WorkUnit();
+    WorkUnit workUnit2 = new WorkUnit();
+
     Closer closer = Closer.create();
     try {
       ParallelStateSerDeRunner stateSerDeRunner = closer.register(new ParallelStateSerDeRunner(2, this.fs));
-
-      WorkUnit workUnit1 = new WorkUnit();
       stateSerDeRunner.deserializeFromFile(workUnit1, new Path(this.outputPath, "wu1"));
-
-      WorkUnit workUnit2 = new WorkUnit();
       stateSerDeRunner.deserializeFromFile(workUnit2, new Path(this.outputPath, "wu2"));
-
-      stateSerDeRunner.awaitDone();
-
-      Assert.assertEquals(workUnit1.getPropertyNames().size(), 2);
-      Assert.assertEquals(workUnit1.getProp("foo"), "bar");
-      Assert.assertEquals(workUnit1.getPropAsInt("a"), 10);
-
-      Assert.assertEquals(workUnit2.getPropertyNames().size(), 2);
-      Assert.assertEquals(workUnit2.getProp("foo"), "baz");
-      Assert.assertEquals(workUnit2.getPropAsInt("b"), 20);
     } catch (Throwable t) {
       throw closer.rethrow(t);
     } finally {
       closer.close();
     }
+
+    Assert.assertEquals(workUnit1.getPropertyNames().size(), 2);
+    Assert.assertEquals(workUnit1.getProp("foo"), "bar");
+    Assert.assertEquals(workUnit1.getPropAsInt("a"), 10);
+
+    Assert.assertEquals(workUnit2.getPropertyNames().size(), 2);
+    Assert.assertEquals(workUnit2.getProp("foo"), "baz");
+    Assert.assertEquals(workUnit2.getPropAsInt("b"), 20);
   }
 
   @Test
@@ -143,6 +139,7 @@ public class ParallelStateSerDeRunnerTest {
   @Test(dependsOnMethods = "testSerializeToSequenceFile")
   public void testDeserializeFromSequenceFile() throws IOException {
     List<TaskState> taskStates = Lists.newArrayList();
+
     Closer closer = Closer.create();
     try {
       ParallelStateSerDeRunner stateSerDeRunner = closer.register(new ParallelStateSerDeRunner(2, this.fs));
@@ -150,37 +147,36 @@ public class ParallelStateSerDeRunnerTest {
           taskStates);
       stateSerDeRunner.deserializeFromSequenceFile(Text.class, TaskState.class, new Path(this.outputPath, "seq2"),
           taskStates);
-      stateSerDeRunner.awaitDone();
-
-      Assert.assertEquals(taskStates.size(), 4);
-
-      Map<String, TaskState> taskStateMap = Maps.newHashMap();
-      for (TaskState taskState : taskStates) {
-        taskStateMap.put(taskState.getTaskId(), taskState);
-      }
-
-      Assert.assertEquals(taskStateMap.size(), 4);
-
-      TaskState taskState0 = taskStateMap.get("Task0");
-      Assert.assertEquals(taskState0.getStartTime(), 0l);
-      Assert.assertEquals(taskState0.getEndTime(), 1000l);
-
-      TaskState taskState1 = taskStateMap.get("Task1");
-      Assert.assertEquals(taskState1.getStartTime(), 0l);
-      Assert.assertEquals(taskState1.getEndTime(), 2000l);
-
-      TaskState taskState2 = taskStateMap.get("Task2");
-      Assert.assertEquals(taskState2.getStartTime(), 0l);
-      Assert.assertEquals(taskState2.getEndTime(), 3000l);
-
-      TaskState taskState3 = taskStateMap.get("Task3");
-      Assert.assertEquals(taskState3.getStartTime(), 0l);
-      Assert.assertEquals(taskState3.getEndTime(), 1500l);
     } catch (Throwable t) {
       throw closer.rethrow(t);
     } finally {
       closer.close();
     }
+
+    Assert.assertEquals(taskStates.size(), 4);
+
+    Map<String, TaskState> taskStateMap = Maps.newHashMap();
+    for (TaskState taskState : taskStates) {
+      taskStateMap.put(taskState.getTaskId(), taskState);
+    }
+
+    Assert.assertEquals(taskStateMap.size(), 4);
+
+    TaskState taskState0 = taskStateMap.get("Task0");
+    Assert.assertEquals(taskState0.getStartTime(), 0l);
+    Assert.assertEquals(taskState0.getEndTime(), 1000l);
+
+    TaskState taskState1 = taskStateMap.get("Task1");
+    Assert.assertEquals(taskState1.getStartTime(), 0l);
+    Assert.assertEquals(taskState1.getEndTime(), 2000l);
+
+    TaskState taskState2 = taskStateMap.get("Task2");
+    Assert.assertEquals(taskState2.getStartTime(), 0l);
+    Assert.assertEquals(taskState2.getEndTime(), 3000l);
+
+    TaskState taskState3 = taskStateMap.get("Task3");
+    Assert.assertEquals(taskState3.getStartTime(), 0l);
+    Assert.assertEquals(taskState3.getEndTime(), 1500l);
   }
 
   @AfterClass
