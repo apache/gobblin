@@ -102,7 +102,7 @@ public class ParallelStateSerDeRunner implements Closeable {
    *
    * <p>
    *   This method submits a task to serialize the {@link State} object and returns immediately
-   *   after the task ia submitted.
+   *   after the task is submitted.
    * </p>
    *
    * @param state the {@link State} object to be serialized
@@ -138,7 +138,7 @@ public class ParallelStateSerDeRunner implements Closeable {
    *
    * <p>
    *   This method submits a task to deserialize the {@link State} object and returns immediately
-   *   after the task ia submitted.
+   *   after the task is submitted.
    * </p>
    *
    * @param state an empty {@link State} object to which the deserialized content will be populated
@@ -173,7 +173,7 @@ public class ParallelStateSerDeRunner implements Closeable {
    *
    * <p>
    *   This method submits a task to deserialize the {@link State} objects and returns immediately
-   *   after the task ia submitted.
+   *   after the task is submitted.
    * </p>
    *
    * @param stateClass the {@link Class} object of the {@link State} class
