@@ -208,6 +208,7 @@ public class ConfigurationKeys {
   public static final String WRITER_FILE_OWNER = WRITER_PREFIX + ".file.owner";
   public static final String WRITER_FILE_GROUP = WRITER_PREFIX + ".file.group";
   public static final String WRITER_FILE_REPLICATION_FACTOR = WRITER_PREFIX + ".file.replication.factor";
+  public static final String WRITER_FILE_BLOCK_SIZE = WRITER_PREFIX + ".file.block.size";
   public static final String WRITER_FILE_PERMISSIONS = WRITER_PREFIX + ".file.permissions";
   public static final String WRITER_BUFFER_SIZE = WRITER_PREFIX + ".buffer.size";
   public static final String WRITER_PRESERVE_FILE_NAME = WRITER_PREFIX + ".preserve.file.name";
@@ -218,7 +219,7 @@ public class ConfigurationKeys {
   public static final String WRITER_PARTITION_PATTERN = WRITER_PREFIX + ".partition.pattern";
   public static final String WRITER_PARTITION_TIMEZONE = WRITER_PREFIX + ".partition.timezone";
   public static final String DEFAULT_WRITER_FILE_BASE_NAME = "part";
-  public static final String DEFAULT_DEFLATE_LEVEL = "9";
+  public static final int DEFAULT_DEFLATE_LEVEL = 9;
   public static final String DEFAULT_BUFFER_SIZE = "4096";
   public static final String DEFAULT_WRITER_PARTITION_LEVEL = "daily";
   public static final String DEFAULT_WRITER_PARTITION_PATTERN = "yyyy/MM/dd";
