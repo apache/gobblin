@@ -181,12 +181,18 @@ public class WriterUtils {
   }
 
   /**
-   * Creates a {@link CodecFactory} based on the specified codec name and deflate level.
+   * Creates a {@link CodecFactory} based on the specified codec name and deflate level. If codecName is absent, then
+   * a {@link CodecFactory#deflateCodec(int)} is returned. Otherwise the codecName is converted into a
+   * {@link CodecFactory} via the {@link CodecFactory#fromString(String)} method.
+   *
+   * @param codecName the name of the codec to use (e.g. deflate, snappy, xz, etc.).
+   * @param deflateLevel must be an integer from [0-9], and is only applicable if the codecName is "deflate".
+   * @return a {@link CodecFactory}.
    */
   public static CodecFactory getCodecFactory(Optional<String> codecName, Optional<String> deflateLevel) {
     if (!codecName.isPresent()) {
       return CodecFactory.deflateCodec(ConfigurationKeys.DEFAULT_DEFLATE_LEVEL);
-    } else if (codecName.get().equals(DataFileConstants.DEFLATE_CODEC)) {
+    } else if (codecName.get().equalsIgnoreCase(DataFileConstants.DEFLATE_CODEC)) {
       if (!deflateLevel.isPresent()) {
         return CodecFactory.deflateCodec(ConfigurationKeys.DEFAULT_DEFLATE_LEVEL);
       } else {

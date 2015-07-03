@@ -64,6 +64,8 @@ class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
       throws IOException {
     super(properties, fileName, numBranches, branchId);
 
+    Path filePath = new Path(fileName);
+
     CodecFactory codecFactory =
         WriterUtils.getCodecFactory(Optional.fromNullable(properties.getProp(ForkOperatorUtils
             .getPropertyNameForBranch(ConfigurationKeys.WRITER_CODEC_TYPE, numBranches, branchId))), Optional
@@ -78,11 +80,11 @@ class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
     short replication =
         properties.getPropAsShort(ForkOperatorUtils.getPropertyNameForBranch(
             ConfigurationKeys.WRITER_FILE_REPLICATION_FACTOR, numBranches, branchId), this.fs
-            .getDefaultReplication(new Path(fileName)));
+            .getDefaultReplication(filePath));
 
     long blockSize =
         properties.getPropAsLong(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_BLOCK_SIZE,
-            numBranches, branchId), this.fs.getDefaultBlockSize(new Path(fileName)));
+            numBranches, branchId), this.fs.getDefaultBlockSize(filePath));
 
     FsPermission permissions =
         new FsPermission(properties.getPropAsShort(ForkOperatorUtils.getPropertyNameForBranch(
