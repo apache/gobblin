@@ -58,6 +58,10 @@ public class S3Source extends AbstractSource<Class<String>, String> {
   public static final String DEFAULT_NAMESPACE_NAME = "s3Source";
 
   @Override
+  /**
+   * Gets a list of work units. This method will search respecting the wildcard operator (*)
+   * for any directories and return all as object summaries.
+   */
   public List<WorkUnit> getWorkunits(SourceState state) {
     List<WorkUnit> workUnits = Lists.newArrayList();
 
@@ -65,29 +69,28 @@ public class S3Source extends AbstractSource<Class<String>, String> {
     String s3Bucket = state.getProp(ConfigurationKeys.S3_SOURCE_BUCKET);
     String s3Path = state.getProp(ConfigurationKeys.S3_SOURCE_PATH);
 
-    // Replace the date if needed (if none found, s3Path is unaffected
+    // Replace the date if needed (if none found, s3Path is unaffected)
     s3Path = S3Utils.checkAndReplaceDate(state, s3Path);
     state.setProp(ConfigurationKeys.S3_SOURCE_PATH, s3Path);
+
 
     // Build the request
     ListObjectsRequest listObjectRequest = new ListObjectsRequest().withBucketName(s3Bucket).withPrefix(s3Path);
 
     // Fetch all the objects in the given bucket/path
     ObjectListing objectListing = s3Client.listObjects(listObjectRequest);
-    List<S3ObjectSummary> objectSummaries = objectListing.getObjectSummaries();
 
-    // We have to do this if there are a large number of objects in the
-    // given path
+    // We have to do this if there are a large number of objects in the given path
+    // Create the workunits and add them immediately to reduce memory load
     while (objectListing.isTruncated()) {
       objectListing = s3Client.listNextBatchOfObjects(objectListing);
-      objectSummaries.addAll(objectListing.getObjectSummaries());
-    }
 
-    // Generate a work unit for each object
-    for (S3ObjectSummary summary : objectSummaries) {
-      WorkUnit workUnit = getWorkUnitForS3Object(state, summary.getKey());
-      if (workUnit != null) {
-        workUnits.add(workUnit);
+      // Generate a work unit for each object
+      for (S3ObjectSummary summary : objectListing.getObjectSummaries()) {
+        WorkUnit workUnit = getWorkUnitForS3Object(state, summary.getKey());
+        if (workUnit != null) {
+          workUnits.add(workUnit);
+        }
       }
     }
 
