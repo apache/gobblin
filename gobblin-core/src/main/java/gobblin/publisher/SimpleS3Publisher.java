@@ -16,6 +16,7 @@ import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.util.ForkOperatorUtils;
+import gobblin.util.S3Utils;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import org.apache.commons.io.FilenameUtils;
@@ -65,6 +66,9 @@ public class SimpleS3Publisher extends BaseS3Publisher {
         // Send file to S3
         String s3Bucket = state.getProp(ConfigurationKeys.S3_PUBLISHER_BUCKET);
         String s3Path = state.getProp(ConfigurationKeys.S3_PUBLISHER_PATH);
+        // Replace date placeholder if contained, otherwise this does nothing
+        s3Path = S3Utils.checkAndReplaceDate(state, s3Path);
+
         String s3Filename = generateObjectName(state, counter++);
 
         this.sendS3Data(i, new BucketAndKey(s3Bucket, s3Path + "/" + s3Filename), writerFileNames);

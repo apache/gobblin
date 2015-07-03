@@ -23,6 +23,7 @@ import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.AbstractSource;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.S3Utils;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -65,7 +66,7 @@ public class S3Source extends AbstractSource<Class<String>, String> {
     String s3Path = state.getProp(ConfigurationKeys.S3_SOURCE_PATH);
 
     // Replace the date if needed (if none found, s3Path is unaffected
-    s3Path = checkAndReplaceDate(state, s3Path);
+    s3Path = S3Utils.checkAndReplaceDate(state, s3Path);
     state.setProp(ConfigurationKeys.S3_SOURCE_PATH, s3Path);
 
     // Build the request
@@ -94,33 +95,6 @@ public class S3Source extends AbstractSource<Class<String>, String> {
   }
 
   /**
-   * If you want your S3 path to contain a date, you can replace it here
-   * The placeholder is what the source looks for in the path, and replaces it
-   * with the date (offset by S3_DATE_OFFSET), using the pattern to format it.
-   * <p/>
-   * If no date is matched in the path, nothing happens and it returns back
-   * the string unchanged.
-   *
-   * @param state  The source state
-   * @param s3Path The path to look in on S3
-   * @return the s3Path with any date placeholders replaced with the specified date
-   * pattern and offset.
-   */
-  private String checkAndReplaceDate(SourceState state, String s3Path) {
-    String placeholder =
-        state.getProp(ConfigurationKeys.S3_DATE_PLACEHOLDER, ConfigurationKeys.DEFAULT_S3_DATE_PLACEHOLDER);
-    String datePattern = state.getProp(ConfigurationKeys.S3_DATE_PATTERN, ConfigurationKeys.DEFAULT_S3_DATE_PATTERN);
-    // If set, 0 for today, -1 for yesterday, etc.
-    int dateOffset = state.getPropAsInt(ConfigurationKeys.S3_DATE_OFFSET, ConfigurationKeys.DEFAULT_S3_DATE_OFFSET);
-
-    SimpleDateFormat df = new SimpleDateFormat(datePattern);
-    Calendar cal = Calendar.getInstance();
-    cal.add(Calendar.DATE, dateOffset);
-
-    return s3Path.replace(placeholder, df.format(cal.getTime()));
-  }
-
-  /**
    * Generates a work unit for an S3 object. The object key is passed to
    * an extractor that will extract the object at the key joined with the source bucket.
    *
@@ -131,11 +105,6 @@ public class S3Source extends AbstractSource<Class<String>, String> {
   private WorkUnit getWorkUnitForS3Object(SourceState state, String objectSourceKey) {
     SourceState partitionState = new SourceState();
     partitionState.addAll(state);
-
-    String publisherPath = partitionState.getProp(ConfigurationKeys.S3_PUBLISHER_PATH);
-    // Replace date placeholder if contained, otherwise this does nothing
-    publisherPath = checkAndReplaceDate(partitionState, publisherPath);
-    partitionState.setProp(ConfigurationKeys.S3_PUBLISHER_PATH, publisherPath);
 
     // Set the object key to be the filename, as the path is determined separately
     partitionState.setProp("S3_SOURCE_OBJECT_KEY", FilenameUtils.getName(objectSourceKey));
