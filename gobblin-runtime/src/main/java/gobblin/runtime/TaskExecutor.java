@@ -193,7 +193,8 @@ public class TaskExecutor extends AbstractIdleService {
    * @param task failed {@link Task} to be retried
    */
   public void retry(Task task) {
-    if (GobblinMetrics.isEnabled(task.getTaskState().getWorkunit())) {
+    if (GobblinMetrics.isEnabled(task.getTaskState().getWorkunit()) &&
+        task.getTaskState().contains(ConfigurationKeys.FORK_BRANCHES_KEY)) {
       // Adjust metrics to clean up numbers from the failed task
       task.getTaskState()
           .adjustJobMetricsOnRetry(task.getTaskState().getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY));
