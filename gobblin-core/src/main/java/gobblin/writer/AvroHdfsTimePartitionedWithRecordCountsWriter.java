@@ -13,12 +13,9 @@
 package gobblin.writer;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.Map.Entry;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.ForkOperatorUtils;
@@ -54,12 +51,6 @@ public class AvroHdfsTimePartitionedWithRecordCountsWriter extends AvroHdfsTimeP
     String fileName = WriterUtils.getWriterFileName(this.properties, this.numBranches, this.branch, this.writerId,
         this.writerOutputFormat.getExtension());
 
-    Configuration conf = new Configuration();
-    URI fileSystemURI = URI.create(this.properties.getProp(ForkOperatorUtils
-            .getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, this.numBranches, this.branch),
-        ConfigurationKeys.LOCAL_FS_URI));
-    FileSystem fileSystem = FileSystem.get(fileSystemURI, conf);
-
     Path writerOutputDir = new Path(this.properties.getProp(ForkOperatorUtils
         .getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR, this.numBranches, this.branch)));
 
@@ -70,8 +61,8 @@ public class AvroHdfsTimePartitionedWithRecordCountsWriter extends AvroHdfsTimeP
       String filePathNew = filePathOld.substring(0, filePathOld.lastIndexOf(".")) + "."
           + entry.getValue().recordsWritten() + filePathOld.substring(filePathOld.lastIndexOf("."));
 
-      HadoopUtils.renamePath(fileSystem, new Path(writerOutputDir, filePathOld),
-          new Path(writerOutputDir, filePathNew));
+      HadoopUtils.renamePath(((AvroHdfsDataWriter) entry.getValue()).getFileSystem(),
+          new Path(writerOutputDir, filePathOld), new Path(writerOutputDir, filePathNew));
     }
   }
 }
