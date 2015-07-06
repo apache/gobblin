@@ -13,22 +13,24 @@
 package gobblin.writer;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.fs.Path;
+
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.google.common.base.Joiner;
+
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.util.AvroUtils;
@@ -170,11 +172,9 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
     // If the path is in pathToWriterMap simply retrieve the writer, and write the record
     if (!this.pathToWriterMap.containsKey(writerOutputPath)) {
 
-      Path writerOutputPathWithBase = new Path(this.baseFilePath, writerOutputPath);
+      LOG.info("Creating a new DataWriter for path: " + writerOutputPath);
 
-      LOG.info("Creating a new DataWriter for path: " + writerOutputPathWithBase);
-
-      DataWriter<GenericRecord> avroHdfsDataWriter = createAvroHdfsDataWriterForPath(writerOutputPathWithBase);
+      DataWriter<GenericRecord> avroHdfsDataWriter = createAvroHdfsDataWriterForPath(writerOutputPath);
 
       this.pathToWriterMap.put(writerOutputPath, avroHdfsDataWriter);
     }
@@ -247,24 +247,15 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
 
   @Override
   public void close() throws IOException {
-    String fileName = WriterUtils.getWriterFileName(this.properties, this.numBranches, this.branch, this.writerId,
-        this.writerOutputFormat.getExtension());
-    List<String> pathToRecordCountMapList = Lists.newArrayList();
-
     boolean closeFailed = false;
     for (Entry<Path, DataWriter<GenericRecord>> entry : this.pathToWriterMap.entrySet()) {
       try {
         entry.getValue().close();
-        pathToRecordCountMapList.add(new Path(entry.getKey(), fileName) + ":" + entry.getValue().recordsWritten());
       } catch (IOException e) {
         closeFailed = true;
         LOG.error("Failed to close writer for path: " + entry.getKey(), e);
       }
     }
-
-    this.properties.setProp(
-        ForkOperatorUtils.getPropertyNameForBranch("paths.to.record.counts.mapping", this.numBranches, this.branch),
-        Joiner.on(",").join(pathToRecordCountMapList));
 
     if (closeFailed) {
       throw new IOException("Failed to close all writers");
@@ -301,7 +292,7 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
    * @return a {@link Path} based on the value of the timestamp.
    */
   private Path getPathForColumnValue(long timestamp) {
-    return new Path(this.partitionLevel, this.timestampToPathFormatter.print(timestamp));
+    return new Path(this.baseFilePath, partitionLevel + Path.SEPARATOR + timestampToPathFormatter.print(timestamp));
   }
 
   /**
