@@ -55,8 +55,8 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
-import gobblin.metrics.notify.EventNotification;
-import gobblin.metrics.notify.Notification;
+import gobblin.metrics.notification.EventNotification;
+import gobblin.metrics.notification.Notification;
 import gobblin.metrics.reporter.ContextAwareScheduledReporter;
 
 
@@ -111,7 +111,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
   private final Closer closer = Closer.create();
 
   // Targets for notifications.
-  private final Set<Function<Notification, Void>> notifyTargets;
+  private final Set<Function<Notification, Void>> notificationTargets;
 
   private Optional<ExecutorService> executorServiceOptional;
 
@@ -125,7 +125,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
     this.tagged = new Tagged(tags);
     this.tagged.addTag(new Tag<String>(METRIC_CONTEXT_ID_TAG_NAME, UUID.randomUUID().toString()));
     this.reportFullyQualifiedNames = reportFullyQualifiedNames;
-    this.notifyTargets = Sets.newConcurrentHashSet();
+    this.notificationTargets = Sets.newConcurrentHashSet();
     this.executorServiceOptional = Optional.absent();
     this.includeTagKeys = includeTagKeys;
 
@@ -139,7 +139,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
     }
   }
 
-  private ExecutorService getExecutorService() {
+  private synchronized ExecutorService getExecutorService() {
     if(!this.executorServiceOptional.isPresent()) {
       this.executorServiceOptional = Optional.of(Executors.newCachedThreadPool());
     }
@@ -200,22 +200,28 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
     return this.reportFullyQualifiedNames ? super.getNames() : getSimpleNames();
   }
 
-
-  public void sendEvent(GobblinTrackingEvent event) {
-    GobblinTrackingEvent eventCopy = GobblinTrackingEvent.newBuilder(event).build();
-    eventCopy.setTimestamp(System.currentTimeMillis());
+  /**
+   * Submit {@link gobblin.metrics.GobblinTrackingEvent} to all notification listeners attached to this or any
+   * ancestor {@link gobblin.metrics.MetricContext}s. The argument for this method is mutated by the method, so it
+   * should not be reused by the caller.
+   *
+   * @param nonReusableEvent {@link GobblinTrackingEvent} to submit. This object will be mutated by the method,
+   *                                                     so it should not be reused by the caller.
+   */
+  public void submitEvent(GobblinTrackingEvent nonReusableEvent) {
+    nonReusableEvent.setTimestamp(System.currentTimeMillis());
 
     // Inject metric context tags into event metadata.
-    Map<String, String> originalMetadata = eventCopy.getMetadata();
+    Map<String, String> originalMetadata = nonReusableEvent.getMetadata();
     Map<String, Object> tags = getTagMap();
     Map<String, String> newMetadata = Maps.newHashMap();
     for(Map.Entry<String, Object> entry : tags.entrySet()) {
       newMetadata.put(entry.getKey(), entry.getValue().toString());
     }
     newMetadata.putAll(originalMetadata);
-    eventCopy.setMetadata(newMetadata);
+    nonReusableEvent.setMetadata(newMetadata);
 
-    EventNotification notification = new EventNotification(eventCopy);
+    EventNotification notification = new EventNotification(nonReusableEvent);
     sendNotification(notification);
   }
 
@@ -649,19 +655,20 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
   }
 
   /**
-   * Add a target for notifications.
-   * @param target A function that will be run every time there is a new notification in this context.
+   * Add a target for {@link gobblin.metrics.notification.Notification}s.
+   * @param target A {@link com.google.common.base.Function} that will be run every time
+   *               there is a new {@link gobblin.metrics.notification.Notification} in this context.
    */
-  public void addNotifyTarget(Function<Notification, Void> target) {
-    this.notifyTargets.add(target);
+  public void addNotificationTarget(Function<Notification, Void> target) {
+    this.notificationTargets.add(target);
   }
 
   /**
    * Send a notification to all targets of this context and to the parent of this context.
-   * @param notification {@link gobblin.metrics.notify.Notification} to send.
+   * @param notification {@link gobblin.metrics.notification.Notification} to send.
    */
   public void sendNotification(final Notification notification) {
-    for(final Function<Notification, Void> target : this.notifyTargets) {
+    for(final Function<Notification, Void> target : this.notificationTargets) {
       getExecutorService().submit(new Callable<Void>() {
         @Override
         public Void call()

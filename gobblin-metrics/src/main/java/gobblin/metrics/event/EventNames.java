@@ -10,15 +10,17 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics.notify;
+package gobblin.metrics.event;
 
-import gobblin.metrics.GobblinTrackingEvent;
+/**
+ * Constants used as names for {@link gobblin.metrics.GobblinTrackingEvent}s.
+ */
+public class EventNames {
 
+  public static final String LOCK_IN_USE = "LockInUse";
+  public static final String WORK_UNITS_MISSING = "WorkUnitsMissing";
+  public static final String WORK_UNITS_EMPTY = "WorkUnitsEmpty";
+  public static final String TASKS_SUBMITTED = "TasksSubmitted";
+  public static final String TASK_FAILED = "TaskFailed";
 
-public class EventNotification implements Notification {
-  public GobblinTrackingEvent event;
-
-  public EventNotification(GobblinTrackingEvent event) {
-    this.event = event;
-  }
 }

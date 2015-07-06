@@ -32,7 +32,7 @@ import gobblin.metrics.GobblinTrackingEvent;
 public class EventUtils {
 
   public static final int SCHEMA_VERSION = 1;
-  private static Optional<SpecificDatumReader<GobblinTrackingEvent>> READER = Optional.absent();
+  private static Optional<SpecificDatumReader<GobblinTrackingEvent>> reader = Optional.absent();
 
   /**
    * Parses a {@link gobblin.metrics.MetricReport} from a byte array representing a json input.
@@ -42,8 +42,8 @@ public class EventUtils {
    * @throws java.io.IOException
    */
   public synchronized static GobblinTrackingEvent deserializeReportFromJson(GobblinTrackingEvent reuse, byte[] bytes) throws IOException {
-    if (!READER.isPresent()) {
-      READER = Optional.of(new SpecificDatumReader<GobblinTrackingEvent>(GobblinTrackingEvent.class));
+    if (!reader.isPresent()) {
+      reader = Optional.of(new SpecificDatumReader<GobblinTrackingEvent>(GobblinTrackingEvent.class));
     }
 
     Closer closer = Closer.create();
@@ -61,7 +61,7 @@ public class EventUtils {
 
       // Decode the rest
       Decoder decoder = DecoderFactory.get().jsonDecoder(GobblinTrackingEvent.SCHEMA$, inputStream);
-      return READER.get().read(reuse, decoder);
+      return reader.get().read(reuse, decoder);
     } catch(Throwable t) {
       throw closer.rethrow(t);
     } finally {
@@ -78,8 +78,8 @@ public class EventUtils {
    */
   public synchronized static GobblinTrackingEvent deserializeReportFromAvroSerialization(GobblinTrackingEvent reuse, byte[] bytes)
       throws IOException {
-    if (!READER.isPresent()) {
-      READER = Optional.of(new SpecificDatumReader<GobblinTrackingEvent>(GobblinTrackingEvent.class));
+    if (!reader.isPresent()) {
+      reader = Optional.of(new SpecificDatumReader<GobblinTrackingEvent>(GobblinTrackingEvent.class));
     }
 
     Closer closer = Closer.create();
@@ -97,7 +97,7 @@ public class EventUtils {
 
       // Decode the rest
       Decoder decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
-      return READER.get().read(reuse, decoder);
+      return reader.get().read(reuse, decoder);
     } catch(Throwable t) {
       throw closer.rethrow(t);
     } finally {

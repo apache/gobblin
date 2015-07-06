@@ -27,7 +27,6 @@ public class NoopSchemaVersionWriter implements SchemaVersionWriter {
   @Override
   public void writeSchemaVersioningInformation(Schema schema, DataOutputStream outputStream)
       throws IOException {
-    return;
   }
 
   @Override

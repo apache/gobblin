@@ -38,8 +38,8 @@ import javax.annotation.Nullable;
 
 import gobblin.metrics.GobblinTrackingEvent;
 import gobblin.metrics.MetricContext;
-import gobblin.metrics.notify.EventNotification;
-import gobblin.metrics.notify.Notification;
+import gobblin.metrics.notification.EventNotification;
+import gobblin.metrics.notification.Notification;
 
 
 /**
@@ -65,7 +65,7 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
     this.closer = Closer.create();
     this.immediateReportExecutor = Executors.newSingleThreadExecutor();
 
-    builder.context.addNotifyTarget(new Function<Notification, Void>() {
+    builder.context.addNotificationTarget(new Function<Notification, Void>() {
       @Nullable
       @Override
       public Void apply(Notification notification) {
@@ -79,11 +79,11 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
   /**
    * Callback used by the {@link gobblin.metrics.MetricContext} to notify the object of a new
    * {@link gobblin.metrics.GobblinTrackingEvent}.
-   * @param notification {@link gobblin.metrics.notify.Notification} to process.
+   * @param notification {@link gobblin.metrics.notification.Notification} to process.
    */
   public void notificationCallback(Notification notification) {
     if(notification instanceof EventNotification) {
-      addEventToReportingQueue(((EventNotification) notification).event);
+      addEventToReportingQueue(((EventNotification) notification).getEvent());
     }
   }
 
