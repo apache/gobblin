@@ -12,6 +12,8 @@
 
 package gobblin.instrumented.qualitychecker;
 
+import java.io.IOException;
+
 import com.google.common.base.Optional;
 
 import gobblin.instrumented.Instrumented;
@@ -55,6 +57,12 @@ public class InstrumentedRowLevelPolicyDecorator extends InstrumentedRowLevelPol
   @Override
   public Result executePolicyImpl(Object record) {
     return this.embeddedPolicy.executePolicy(record);
+  }
+
+  @Override
+  public void close()
+      throws IOException {
+    this.embeddedPolicy.close();
   }
 
   @Override

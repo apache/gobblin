@@ -16,7 +16,6 @@ import java.util.Collections;
 import java.util.Map;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
 import gobblin.metrics.GobblinTrackingEvent;
@@ -99,12 +98,13 @@ public class EventSubmitter {
    */
   public void submit(String name, Map<String, String> additionalMetadata) {
     if(this.metricContext.isPresent()) {
+      Map<String, String> finalMetadata = Maps.newHashMap(this.metadata);
       if(!additionalMetadata.isEmpty()) {
-        this.metadata.putAll(additionalMetadata);
+        finalMetadata.putAll(additionalMetadata);
       }
 
       // Timestamp is set by metric context.
-      this.metricContext.get().sendEvent(new GobblinTrackingEvent(0l, this.namespace, name, this.metadata));
+      this.metricContext.get().sendEvent(new GobblinTrackingEvent(0l, this.namespace, name, finalMetadata));
     }
   }
 }

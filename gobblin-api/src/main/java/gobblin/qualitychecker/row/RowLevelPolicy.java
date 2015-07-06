@@ -12,6 +12,9 @@
 
 package gobblin.qualitychecker.row;
 
+import java.io.Closeable;
+import java.io.IOException;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 
@@ -20,7 +23,7 @@ import gobblin.configuration.State;
  * and executes a given check
  * @author stakiar
  */
-public abstract class RowLevelPolicy {
+public abstract class RowLevelPolicy implements Closeable {
   private final State state;
   private final Type type;
 
@@ -42,6 +45,10 @@ public abstract class RowLevelPolicy {
   public RowLevelPolicy(State state, RowLevelPolicy.Type type) {
     this.state = state;
     this.type = type;
+  }
+
+  @Override
+  public void close() throws IOException {
   }
 
   public State getTaskState() {

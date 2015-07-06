@@ -151,9 +151,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       taskExecutor.submit(task);
     }
 
-    new EventSubmitter.Builder(JobMetrics.get(jobId).getMetricContext(), "gobblin.runtime").
-        addMetadata("workunitsCount", Integer.toString(workUnits.size())).build().
-        submit("WorkUnitsSubmitted");
+    new EventSubmitter.Builder(JobMetrics.get(jobId).getMetricContext(), "gobblin.runtime").build().
+        submit("TasksSubmitted", "tasksCount", Integer.toString(workUnits.size()));
 
     return tasks;
   }
