@@ -32,9 +32,9 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -51,11 +51,20 @@ public class SchedulerUtils {
 
   // Extension of properties files
   public static final String JOB_PROPS_FILE_EXTENSION = "properties";
+
   // A filter for properties files
   private static final FilenameFilter PROPERTIES_FILE_FILTER = new FilenameFilter() {
     @Override
     public boolean accept(File file, String name) {
       return Files.getFileExtension(name).equalsIgnoreCase(JOB_PROPS_FILE_EXTENSION);
+    }
+  };
+
+  // A filter for non-properties files
+  private static final FilenameFilter NON_PROPERTIES_FILE_FILTER = new FilenameFilter() {
+    @Override
+    public boolean accept(File dir, String name) {
+      return !Files.getFileExtension(name).equalsIgnoreCase(JOB_PROPS_FILE_EXTENSION);
     }
   };
 
@@ -188,7 +197,8 @@ public class SchedulerUtils {
           .getProperties(new PropertiesConfiguration(new File(jobConfigDir, propertiesFiles[0]))));
     }
 
-    String[] names = jobConfigDir.list();
+    // Get all non-properties files
+    String[] names = jobConfigDir.list(NON_PROPERTIES_FILE_FILTER);
     if (names == null || names.length == 0) {
       return;
     }
@@ -226,18 +236,15 @@ public class SchedulerUtils {
   }
 
   private static Set<String> getJobConfigurationFileExtensions(Properties properties) {
-    Iterable<String> jobConfigFileExtensionsIterable = Splitter.on(",").omitEmptyStrings().trimResults().split(
-        properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_EXTENSIONS_KEY,
+    Iterable<String> jobConfigFileExtensionsIterable = Splitter.on(",").omitEmptyStrings().trimResults()
+        .split(properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_EXTENSIONS_KEY,
             ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_EXTENSIONS));
-    return Sets.newHashSet(Iterables.transform(jobConfigFileExtensionsIterable, new Function<String, String>() {
-          @Override
-          public String apply(String input) {
-            if (input == null) {
-              throw new NullPointerException("Given input is null: " + input);
-            }
-            return input.toLowerCase();
-          }
-        }));
+    return ImmutableSet.copyOf(Iterables.transform(jobConfigFileExtensionsIterable, new Function<String, String>() {
+      @Override
+      public String apply(String input) {
+        return input.toLowerCase();
+      }
+    }));
   }
 
   private static void getCommonProperties(List<Properties> commonPropsList, File jobConfigFileDir, File dir)
