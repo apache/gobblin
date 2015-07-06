@@ -19,16 +19,18 @@ import com.google.common.collect.Lists;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
+import gobblin.publisher.SimpleS3Publisher;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.AbstractSource;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.S3Utils;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.commons.io.FilenameUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -53,6 +55,8 @@ import org.apache.commons.io.FilenameUtils;
  */
 public class S3Source extends AbstractSource<Class<String>, String> {
 
+  private static final Logger LOG = LoggerFactory.getLogger(S3Source.class);
+
   public static final String TABLE_NAME = "default";
   public static final Extract.TableType DEFAULT_TABLE_TYPE = Extract.TableType.APPEND_ONLY;
   public static final String DEFAULT_NAMESPACE_NAME = "s3Source";
@@ -63,8 +67,6 @@ public class S3Source extends AbstractSource<Class<String>, String> {
    * for any directories and return all as object summaries.
    */
   public List<WorkUnit> getWorkunits(SourceState state) {
-    List<WorkUnit> workUnits = Lists.newArrayList();
-
     AmazonS3 s3Client = new AmazonS3Client();
     String s3Bucket = state.getProp(ConfigurationKeys.S3_SOURCE_BUCKET);
     String s3Path = state.getProp(ConfigurationKeys.S3_SOURCE_PATH);
@@ -73,28 +75,59 @@ public class S3Source extends AbstractSource<Class<String>, String> {
     s3Path = S3Utils.checkAndReplaceDate(state, s3Path);
     state.setProp(ConfigurationKeys.S3_SOURCE_PATH, s3Path);
 
+    // Generate a work unit for each object
+    List<WorkUnit> workUnits = Lists.newArrayList();
+    for (S3ObjectSummary summary : recursivelyGetObjectSummaries(s3Client, s3Bucket, s3Path)) {
+      WorkUnit workUnit = getWorkUnitForS3Object(state, summary.getKey());
+      if (workUnit != null) {
+        workUnits.add(workUnit);
+      }
+    }
 
+    return workUnits;
+  }
+
+  private List<S3ObjectSummary> recursivelyGetObjectSummaries(AmazonS3 s3Client, String s3Bucket, String s3Path) {
+    // Don't support partial
+    String[] pathParts = s3Path.split("\\*/", 2);
+
+    if(pathParts.length > 1) {
+      // keep recursing splitting and replacing our * with all folders in the dir
+      ListObjectsRequest listObjectRequest = new ListObjectsRequest().withBucketName(s3Bucket)
+          .withPrefix(pathParts[0])
+          .withDelimiter("/");
+
+      ObjectListing objectListing = s3Client.listObjects(listObjectRequest);
+      List<String> folders = objectListing.getCommonPrefixes();
+      while (objectListing.isTruncated()) {
+        objectListing = s3Client.listNextBatchOfObjects(objectListing);
+        folders.addAll(objectListing.getCommonPrefixes());
+      }
+
+      // For each folder, replace what we have and recurse until we are out of wildcards
+      List<S3ObjectSummary> objectSummaries = Lists.newArrayList();
+      for (String folderPath : folders) {
+        objectSummaries.addAll(recursivelyGetObjectSummaries(s3Client, s3Bucket, folderPath + pathParts[1]));
+      }
+      return objectSummaries;
+    }
+
+    // Otherwise, return whatever our path is
     // Build the request
     ListObjectsRequest listObjectRequest = new ListObjectsRequest().withBucketName(s3Bucket).withPrefix(s3Path);
 
     // Fetch all the objects in the given bucket/path
     ObjectListing objectListing = s3Client.listObjects(listObjectRequest);
+    List<S3ObjectSummary> objectSummaries = objectListing.getObjectSummaries();
 
     // We have to do this if there are a large number of objects in the given path
     // Create the workunits and add them immediately to reduce memory load
     while (objectListing.isTruncated()) {
       objectListing = s3Client.listNextBatchOfObjects(objectListing);
-
-      // Generate a work unit for each object
-      for (S3ObjectSummary summary : objectListing.getObjectSummaries()) {
-        WorkUnit workUnit = getWorkUnitForS3Object(state, summary.getKey());
-        if (workUnit != null) {
-          workUnits.add(workUnit);
-        }
-      }
+      objectSummaries.addAll(objectListing.getObjectSummaries());
     }
 
-    return workUnits;
+    return objectSummaries;
   }
 
   /**
@@ -110,7 +143,7 @@ public class S3Source extends AbstractSource<Class<String>, String> {
     partitionState.addAll(state);
 
     // Set the object key to be the filename, as the path is determined separately
-    partitionState.setProp("S3_SOURCE_OBJECT_KEY", FilenameUtils.getName(objectSourceKey));
+    partitionState.setProp("S3_SOURCE_OBJECT_KEY", objectSourceKey);
 
     Extract extract = partitionState.createExtract(DEFAULT_TABLE_TYPE, DEFAULT_NAMESPACE_NAME, TABLE_NAME);
     return partitionState.createWorkUnit(extract);

@@ -51,14 +51,13 @@ public class S3StringExtractor implements Extractor<Class<String>, String> {
     AmazonS3 s3Client = new AmazonS3Client();
 
     try {
-      String s3Path = state.getProp(ConfigurationKeys.S3_SOURCE_PATH);
       String objectKey = state.getProp("S3_SOURCE_OBJECT_KEY");
       if (objectKey == null) {
         throw new NullPointerException();
       }
 
       // Fetch our object from S3 and build an input stream to read from for each record
-      S3Object obj = s3Client.getObject(state.getProp(ConfigurationKeys.S3_SOURCE_BUCKET), s3Path + "/" + objectKey);
+      S3Object obj = s3Client.getObject(state.getProp(ConfigurationKeys.S3_SOURCE_BUCKET), objectKey);
       br = new BufferedReader(new InputStreamReader(obj.getObjectContent()));
 
     } catch (NullPointerException ex) {
