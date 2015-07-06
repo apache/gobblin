@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Timer;
 
+import com.google.common.base.CaseFormat;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -38,7 +39,8 @@ import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.metrics.MetricContext;
-import gobblin.metrics.reporter.util.EventSubmitter;
+import gobblin.metrics.event.EventNames;
+import gobblin.metrics.event.EventSubmitter;
 import gobblin.publisher.DataPublisher;
 import gobblin.runtime.util.JobMetrics;
 import gobblin.runtime.util.MetricNames;
@@ -152,7 +154,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
 
     new EventSubmitter.Builder(JobMetrics.get(jobId).getMetricContext(), "gobblin.runtime").build().
-        submit("TasksSubmitted", "tasksCount", Integer.toString(workUnits.size()));
+        submit(EventNames.TASKS_SUBMITTED, "tasksCount", Integer.toString(workUnits.size()));
 
     return tasks;
   }
@@ -215,7 +217,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
     try {
       if (!tryLockJob()) {
-        this.eventSubmitter.submit("LockInUse");
+        this.eventSubmitter.submit(EventNames.LOCK_IN_USE);
         throw new JobException(
             String.format("Previous instance of job %s is still running, skipping this scheduled run",
                 this.jobContext.getJobName()));
@@ -229,14 +231,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
       // The absence means there is something wrong getting the work units
       if (!workUnits.isPresent()) {
-        this.eventSubmitter.submit("WorkUnitsMissing");
+        this.eventSubmitter.submit(EventNames.WORK_UNITS_MISSING);
         jobState.setState(JobState.RunningState.FAILED);
         throw new JobException("Failed to get work units for job " + jobId);
       }
 
       // No work unit to run
       if (workUnits.get().isEmpty()) {
-        this.eventSubmitter.submit("WorkUnitsEmpty");
+        this.eventSubmitter.submit(EventNames.WORK_UNITS_EMPTY);
         LOG.warn("No work units have been created for job " + jobId);
         return;
       }
@@ -265,18 +267,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       runWorkUnits(workUnits.get());
       Instrumented.endTimer(jobRunTimer);
 
-      switch (jobState.getState()) {
-        case CANCELLED:
-          this.eventSubmitter.submit("JobCancelled");
-          break;
-        case SUCCESSFUL:
-          this.eventSubmitter.submit("JobSucceeded");
-          break;
-        case FAILED:
-          this.eventSubmitter.submit("JobFailed");
-          break;
-        default:
-      }
+      this.eventSubmitter.submit(CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, "JOB_" + jobState.getState()));
 
       // Check and set final job jobPropsState upon job completion
       if (jobState.getState() == JobState.RunningState.CANCELLED) {

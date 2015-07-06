@@ -23,7 +23,7 @@ import org.apache.avro.Schema;
  * Writes schema information to an {@link java.io.DataOutputStream}.
  *
  * <p>
- *   This method is used for prefixing serialized Avro {@link org.apache.avro.generic.GenericData.Record} with
+ *   This class is used for prefixing serialized Avro {@link org.apache.avro.generic.GenericData.Record} with
  *   schema information that may help downstream services to parse the record.
  * </p>
  */

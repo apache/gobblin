@@ -42,12 +42,8 @@ import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
-import gobblin.metrics.kafka.KafkaAvroEventReporter;
-import gobblin.metrics.kafka.KafkaAvroReporter;
-import gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
 import gobblin.metrics.kafka.KafkaEventReporter;
 import gobblin.metrics.kafka.KafkaReporter;
-import gobblin.metrics.kafka.KafkaReportingFormats;
 import gobblin.metrics.reporter.OutputStreamEventReporter;
 import gobblin.metrics.reporter.OutputStreamReporter;
 
@@ -432,15 +428,16 @@ public class GobblinMetrics {
       return;
     }
 
-    Optional<String> topicDefault = Optional.fromNullable(properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC));
-    Optional<String> topicMetrics = Optional.fromNullable(
+    Optional<String> defaultTopic = Optional.fromNullable(properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC));
+    Optional<String> metricsTopic = Optional.fromNullable(
         properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC_METRICS));
-    Optional<String> topicEvents = Optional.fromNullable(properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC_EVENTS));
+    Optional<String> eventsTopic = Optional.fromNullable(
+        properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC_EVENTS));
 
     try {
       Preconditions.checkArgument(properties.containsKey(ConfigurationKeys.METRICS_KAFKA_BROKERS),
           "Kafka metrics brokers missing.");
-      Preconditions.checkArgument(topicMetrics.or(topicEvents).or(topicDefault).isPresent(), "Kafka topic missing.");
+      Preconditions.checkArgument(metricsTopic.or(eventsTopic).or(defaultTopic).isPresent(), "Kafka topic missing.");
     } catch(IllegalArgumentException exception) {
       LOGGER.error("Not reporting metrics to Kafka due to missing Kafka configuration(s).", exception);
       return;
@@ -460,43 +457,19 @@ public class GobblinMetrics {
       formatEnum = KafkaReportingFormats.JSON;
     }
 
-    Optional<KafkaAvroSchemaRegistry> registry = Optional.absent();
-    try {
-      if (formatEnum == KafkaReportingFormats.AVRO &&
-          Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
-          ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
-        registry = Optional.of(new KafkaAvroSchemaRegistry(properties));
-      }
-    } catch(IllegalArgumentException exception) {
-      LOGGER.error("Not reporting metrics to Kafka due to missing Kafka configuration(s).", exception);
-      return;
-    }
-
-    if(topicMetrics.or(topicDefault).isPresent()) {
+    if(metricsTopic.or(defaultTopic).isPresent()) {
       try {
-        KafkaReporter.Builder<?> builder = formatEnum.metricReporterBuilder(this.metricContext);
-
-        if(builder instanceof KafkaAvroReporter.Builder<?> && registry.isPresent()) {
-          LOGGER.info("Using schema registry for Kafka avro metrics reporter.");
-          builder = ((KafkaAvroReporter.Builder<?>) builder).withSchemaRegistry(registry.get());
-        }
-
-        this.scheduledReporters.add(this.closer.register(builder.build(brokers, topicMetrics.or(topicDefault).get())));
+        KafkaReporter.Builder<?> builder = formatEnum.metricReporterBuilder(this.metricContext, properties);
+        this.scheduledReporters.add(this.closer.register(builder.build(brokers, metricsTopic.or(defaultTopic).get())));
       } catch (IOException exception) {
         LOGGER.error("Failed to create Kafka metrics reporter. Will not report metrics to Kafka.", exception);
       }
     }
 
-    if(topicEvents.or(topicDefault).isPresent()) {
+    if(eventsTopic.or(defaultTopic).isPresent()) {
       try {
-        KafkaEventReporter.Builder<?> builder = formatEnum.eventReporterBuilder(this.metricContext);
-
-        if(builder instanceof KafkaAvroEventReporter.Builder<?> && registry.isPresent()) {
-          LOGGER.info("Using schema registry for Kafka avro events reporter.");
-          builder = ((KafkaAvroEventReporter.Builder<?>) builder).withSchemaRegistry(registry.get());
-        }
-
-        this.scheduledReporters.add(this.closer.register(builder.build(brokers, topicEvents.or(topicDefault).get())));
+        KafkaEventReporter.Builder<?> builder = formatEnum.eventReporterBuilder(this.metricContext, properties);
+        this.scheduledReporters.add(this.closer.register(builder.build(brokers, eventsTopic.or(defaultTopic).get())));
       } catch (IOException exception) {
         LOGGER.error("Failed to create Kafka events reporter. Will not report events to Kafka.", exception);
       }

@@ -10,12 +10,12 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics.reporter.util;
+package gobblin.metrics.event;
 
-import java.util.Collections;
 import java.util.Map;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
 import gobblin.metrics.GobblinTrackingEvent;
@@ -71,7 +71,7 @@ public class EventSubmitter {
    * @param name Name of the event.
    */
   public void submit(String name) {
-    submit(name, Collections.<String, String>emptyMap());
+    submit(name, ImmutableMap.<String, String>of());
   }
 
   /**
@@ -104,7 +104,7 @@ public class EventSubmitter {
       }
 
       // Timestamp is set by metric context.
-      this.metricContext.get().sendEvent(new GobblinTrackingEvent(0l, this.namespace, name, finalMetadata));
+      this.metricContext.get().submitEvent(new GobblinTrackingEvent(0l, this.namespace, name, finalMetadata));
     }
   }
 }

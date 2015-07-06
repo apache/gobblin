@@ -26,6 +26,9 @@ import kafka.producer.KeyedMessage;
 import kafka.producer.ProducerConfig;
 
 
+/**
+ * Establishes a connection to a Kafka cluster and pushed byte messages to a specified topic.
+ */
 public class KafkaPusher implements Closeable {
 
   private final String topic;
@@ -46,6 +49,10 @@ public class KafkaPusher implements Closeable {
     this.producer = this.closer.register(new ProducerCloseable<String, byte[]>(config));
   }
 
+  /**
+   * Push all mbyte array messages to the Kafka topic.
+   * @param messages List of byte array messages to push to Kakfa.
+   */
   public void pushMessages(List<byte[]> messages) {
     List<KeyedMessage<String, byte[]>> keyedMessages = Lists.transform(messages,
         new Function<byte[], KeyedMessage<String, byte[]>>() {

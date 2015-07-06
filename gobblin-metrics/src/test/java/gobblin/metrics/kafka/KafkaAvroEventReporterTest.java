@@ -15,6 +15,7 @@ package gobblin.metrics.kafka;
 import java.io.IOException;
 
 import org.testng.Assert;
+import org.testng.annotations.Test;
 
 import kafka.consumer.ConsumerIterator;
 
@@ -23,6 +24,7 @@ import gobblin.metrics.MetricContext;
 import gobblin.metrics.reporter.util.EventUtils;
 
 
+@Test(groups = {"gobblin.metrics"})
 public class KafkaAvroEventReporterTest extends KafkaEventReporterTest {
 
   public KafkaAvroEventReporterTest(String topic)

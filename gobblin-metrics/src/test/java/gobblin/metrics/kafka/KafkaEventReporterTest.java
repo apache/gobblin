@@ -64,7 +64,7 @@ public class KafkaEventReporterTest extends KafkaTestBase {
     event.setName(eventName);
     event.setNamespace(namespace);
     event.setMetadata(Maps.<String, String>newHashMap());
-    context.sendEvent(event);
+    context.submitEvent(event);
 
     try {
       Thread.sleep(100);
@@ -109,7 +109,7 @@ public class KafkaEventReporterTest extends KafkaTestBase {
     Map<String, String> metadata = Maps.newHashMap();
     metadata.put(tag1, metadataValue1);
     event.setMetadata(metadata);
-    context.sendEvent(event);
+    context.submitEvent(event);
 
     try {
       Thread.sleep(100);
@@ -131,8 +131,6 @@ public class KafkaEventReporterTest extends KafkaTestBase {
     Assert.assertEquals(retrievedEvent.getMetadata().size(), 3);
     Assert.assertEquals(retrievedEvent.getMetadata().get(tag1), metadataValue1);
     Assert.assertEquals(retrievedEvent.getMetadata().get(tag2), value2);
-
-    System.out.println(retrievedEvent);
   }
 
   /**

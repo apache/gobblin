@@ -27,6 +27,9 @@ import gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
 import gobblin.metrics.reporter.util.SchemaVersionWriter;
 
 
+/**
+ * Reports {@link gobblin.metrics.GobblinTrackingEvent} to a Kafka topic serialized as JSON.
+ */
 public class KafkaEventReporter extends EventReporter {
 
   protected final AvroSerializer<GobblinTrackingEvent> serializer;

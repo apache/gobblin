@@ -33,6 +33,7 @@ import com.google.common.util.concurrent.ServiceManager;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.instrumented.Instrumented;
+import gobblin.metrics.event.EventNames;
 import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.FileBasedJobLock;
 import gobblin.runtime.JobLock;
@@ -144,7 +145,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     for (Task task : tasks) {
       jobState.addTaskState(task.getTaskState());
       if (task.getTaskState().getWorkingState() == WorkUnitState.WorkingState.FAILED) {
-        this.eventSubmitter.submit("TaskFailed", "taskId", task.getTaskId());
+        this.eventSubmitter.submit(EventNames.TASK_FAILED, "taskId", task.getTaskId());
         jobState.setState(JobState.RunningState.FAILED);
       }
     }
