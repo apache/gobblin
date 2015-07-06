@@ -13,10 +13,14 @@
 package gobblin.compaction.mapreduce;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.Callable;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.filecache.DistributedCache;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.mapreduce.Job;
@@ -42,6 +46,7 @@ import gobblin.util.HadoopUtils;
  *
  * @author ziliu
  */
+@SuppressWarnings("deprecation")
 public abstract class MRCompactorJobRunner implements Callable<Void> {
 
   private static final Logger LOG = LoggerFactory.getLogger(MRCompactorJobRunner.class);
@@ -77,6 +82,7 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
       return null;
     }
     Configuration conf = HadoopUtils.getConfFromState(this.jobProps);
+    addJars(conf);
     Job job = Job.getInstance(conf);
     this.configureJob(job);
     this.submit(job);
@@ -87,6 +93,16 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
   private boolean canOverwriteOutputDir() {
     return this.jobProps.getPropAsBoolean(ConfigurationKeys.COMPACTION_OVERWRITE_OUTPUT_DIR,
         ConfigurationKeys.DEFAULT_COMPACTION_OVERWRITE_OUTPUT_DIR);
+  }
+
+  private void addJars(Configuration conf) throws IOException {
+    if (!this.jobProps.contains(ConfigurationKeys.COMPACTION_JARS)) {
+      return;
+    }
+    Path jarFileDir = new Path(this.jobProps.getProp(ConfigurationKeys.COMPACTION_JARS));
+    for (FileStatus status : this.fs.listStatus(jarFileDir)) {
+      DistributedCache.addFileToClassPath(status.getPath(), conf, this.fs);
+    }
   }
 
   protected void configureJob(Job job) throws IOException {

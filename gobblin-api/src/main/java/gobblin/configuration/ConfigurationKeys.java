@@ -430,6 +430,7 @@ public class ConfigurationKeys {
   public static final String COMPACTION_ENABLE_SUCCESS_FILE = "mapreduce.fileoutputcommitter.marksuccessfuljobs";
   public static final String COMPACTION_OVERWRITE_OUTPUT_DIR = COMPACTION_PREFIX + "overwrite.output.dir";
   public static final boolean DEFAULT_COMPACTION_OVERWRITE_OUTPUT_DIR = false;
+  public static final String COMPACTION_JARS = COMPACTION_PREFIX + "jars";
 
   /**
    * Common metrics configuration properties.

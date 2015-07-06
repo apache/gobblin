@@ -12,11 +12,11 @@
 
 package gobblin.compaction.mapreduce.avro;
 
-import gobblin.util.AvroUtils;
-
 import java.io.IOException;
 
 import org.apache.avro.Schema;
+import org.apache.avro.Schema.Field;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapred.AvroValue;
@@ -45,21 +45,59 @@ public class AvroKeyMapper extends Mapper<AvroKey<GenericRecord>, NullWritable, 
   protected void setup(Context context) throws IOException, InterruptedException {
     keySchema = AvroJob.getMapOutputKeySchema(context.getConfiguration());
     outKey = new AvroKey<GenericRecord>();
+    outKey.datum(new GenericData.Record(keySchema));
     outValue = new AvroValue<GenericRecord>();
   }
 
   @Override
-  protected void map(AvroKey<GenericRecord> key, NullWritable value, Context context) throws IOException,
-      InterruptedException {
+  protected void map(AvroKey<GenericRecord> key, NullWritable value, Context context)
+      throws IOException, InterruptedException {
     if (context.getNumReduceTasks() == 0) {
       context.write(key, NullWritable.get());
     } else {
-
-      // If there are reducers, mapper output key should be converted to the schema used for deduping, and
-      // mapper output value should be the original record.
-      outKey.datum(AvroUtils.convertRecordSchema(key.datum(), keySchema));
+      populateRecord(key.datum(), outKey.datum());
       outValue.datum(key.datum());
       context.write(outKey, outValue);
+    }
+  }
+
+  /**
+   * Populate the target record, based on the field values in the source record.
+   * Target record's schema should be a subset of source record's schema.
+   * Target record's schema cannot have MAP or ARRAY fields.
+   */
+  private static void populateRecord(GenericRecord source, GenericRecord target) {
+    for (Field field : target.getSchema().getFields()) {
+      if (field.schema().getType() == Schema.Type.UNION) {
+
+        // Since a UNION has multiple types, we need to use induce() to get the actual type in the record.
+        Object fieldData = source.get(field.name());
+        Schema actualFieldSchema = GenericData.get().induce(fieldData);
+        if (actualFieldSchema.getType() == Schema.Type.RECORD) {
+
+          // If the actual type is RECORD (which may contain another UNION), we need to recursively
+          // populate it.
+          for (Schema candidateType : field.schema().getTypes()) {
+            if (candidateType.getFullName().equals(actualFieldSchema.getFullName())) {
+              GenericRecord record = new GenericData.Record(candidateType);
+              target.put(field.name(), record);
+              populateRecord((GenericRecord) fieldData, record);
+              break;
+            }
+          }
+        } else {
+          target.put(field.name(), source.get(field.name()));
+        }
+      } else if (field.schema().getType() == Schema.Type.RECORD) {
+        GenericRecord record = (GenericRecord) target.get(field.name());
+        if (record == null) {
+          record = new GenericData.Record(field.schema());
+          target.put(field.name(), record);
+        }
+        populateRecord((GenericRecord) source.get(field.name()), record);
+      } else {
+        target.put(field.name(), source.get(field.name()));
+      }
     }
   }
 
