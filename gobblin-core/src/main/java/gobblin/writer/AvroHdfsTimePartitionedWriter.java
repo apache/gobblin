@@ -107,12 +107,12 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
 
   // Variables needed to build DataWriters
   private final Destination destination;
-  private final String writerId;
+  protected final String writerId;
   private final Schema schema;
-  private final WriterOutputFormat writerOutputFormat;
-  private final State properties;
-  private final int numBranches;
-  private final int branch;
+  protected final WriterOutputFormat writerOutputFormat;
+  protected final State properties;
+  protected final int numBranches;
+  protected final int branch;
 
   private static final Logger LOG = LoggerFactory.getLogger(AvroHdfsTimePartitionedWriter.class);
 

@@ -15,15 +15,12 @@ package gobblin.writer;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Map.Entry;
-
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.WriterUtils;
@@ -45,21 +42,9 @@ import gobblin.util.WriterUtils;
  */
 public class AvroHdfsTimePartitionedWithRecordCountsWriter extends AvroHdfsTimePartitionedWriter {
 
-  private final String writerId;
-  private final WriterOutputFormat writerOutputFormat;
-  private final State properties;
-  private final int numBranches;
-  private final int branch;
-
   public AvroHdfsTimePartitionedWithRecordCountsWriter(Destination destination, String writerId, Schema schema,
       WriterOutputFormat writerOutputFormat, int numBranches, int branch) {
     super(destination, writerId, schema, writerOutputFormat, numBranches, branch);
-
-    this.writerId = writerId;
-    this.writerOutputFormat = writerOutputFormat;
-    this.numBranches = numBranches;
-    this.branch = branch;
-    this.properties = destination.getProperties();
   }
 
   @Override
