@@ -19,11 +19,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-import gobblin.compaction.mapreduce.MRCompactorJobRunner;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.util.AvroUtils;
-
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaCompatibility;
 import org.apache.avro.Schema.Field;
@@ -41,6 +36,15 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+
+import gobblin.compaction.mapreduce.MRCompactorJobRunner;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+import gobblin.util.AvroUtils;
 
 
 /**
@@ -87,7 +91,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
     Schema keySchema = null;
     if (useAllAttributesForCompaction()) {
       LOG.info("Using all attributes in the schema (except Map fields) for compaction");
-      keySchema = getAllFieldsExceptMap(newestSchema);
+      keySchema = AvroUtils.removeUncomparableFields(newestSchema).get();
     } else if (keySchemaFileSpecified()) {
       Path keySchemaFile = getKeySchemaFile();
       LOG.info("Using attributes specified in schema file " + keySchemaFile + " for compaction");
@@ -96,17 +100,17 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
       } catch (IOException e) {
         LOG.error("Failed to parse avro schema from " + keySchemaFile
             + ", using all attributes in the schema (except Map fields) for compaction");
-        keySchema = getAllFieldsExceptMap(newestSchema);
+        keySchema = AvroUtils.removeUncomparableFields(newestSchema).get();
       }
       if (!isKeySchemaValid(keySchema, newestSchema)) {
         LOG.warn(String.format("Key schema %s is not compatible with record schema %s.", keySchema, newestSchema)
             + "Using all attributes in the schema (except Map fields) for compaction");
-        keySchema = getAllFieldsExceptMap(newestSchema);
+        keySchema = AvroUtils.removeUncomparableFields(newestSchema).get();
       }
     } else {
       LOG.info("Property " + ConfigurationKeys.COMPACTION_AVRO_KEY_SCHEMA_LOC
           + " not provided. Using all attributes in the schema (except Map fields) for compaction");
-      keySchema = getAllFieldsExceptMap(newestSchema);
+      keySchema = AvroUtils.removeUncomparableFields(newestSchema).get();
     }
 
     return keySchema;
@@ -159,19 +163,6 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
   private boolean useAllAttributesForCompaction() {
     return this.jobProps.getPropAsBoolean(ConfigurationKeys.COMPACTION_USE_ALL_ATTRIBUTES,
         ConfigurationKeys.DEFAULT_COMPACTION_USE_ALL_ATTRIBUTES);
-  }
-
-  private Schema getAllFieldsExceptMap(Schema schema) {
-    List<Field> fields = new ArrayList<Schema.Field>();
-    for (Field field : schema.getFields()) {
-      if (field.schema().getType() != Schema.Type.MAP) {
-        fields.add(new Field(field.name(), field.schema(), field.doc(), field.defaultValue(), field.order()));
-      }
-    }
-
-    Schema newSchema = Schema.createRecord(schema.getName(), schema.getDoc(), schema.getName(), false);
-    newSchema.setFields(fields);
-    return newSchema;
   }
 
   private boolean keySchemaFileSpecified() {
