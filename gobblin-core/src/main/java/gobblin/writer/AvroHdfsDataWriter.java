@@ -24,6 +24,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 
@@ -93,6 +94,10 @@ class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
     this.schema = schema;
     this.datumWriter = new GenericDatumWriter<GenericRecord>();
     this.writer = createDatumWriter(this.stagingFile, bufferSize, codecFactory, replication, blockSize, permissions);
+  }
+
+  public FileSystem getFileSystem() {
+    return this.fs;
   }
 
   @Override
