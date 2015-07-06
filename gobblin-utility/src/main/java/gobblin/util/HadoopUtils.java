@@ -44,8 +44,7 @@ public class HadoopUtils {
     return conf;
   }
 
-  public static List<FileStatus> listStatusRecursive(FileSystem fileSystem, Path path) throws FileNotFoundException,
-      IOException {
+  public static List<FileStatus> listStatusRecursive(FileSystem fileSystem, Path path) throws IOException {
     List<FileStatus> results = Lists.newArrayList();
     walk(results, fileSystem, path);
     return results;
@@ -69,8 +68,7 @@ public class HadoopUtils {
     }
   }
 
-  private static void walk(List<FileStatus> results, FileSystem fileSystem, Path path) throws FileNotFoundException,
-      IOException {
+  private static void walk(List<FileStatus> results, FileSystem fileSystem, Path path) throws IOException {
     for (FileStatus status : fileSystem.listStatus(path)) {
       if (!status.isDir()) {
         results.add(status);

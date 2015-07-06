@@ -15,6 +15,7 @@ package gobblin.runtime;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -29,6 +30,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -45,6 +47,7 @@ import gobblin.source.extractor.JobCommitPolicy;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.JobLauncherUtils;
+import gobblin.util.ParallelRunner;
 
 
 /**
@@ -88,8 +91,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   protected final Optional<MetricContext> runtimeMetricContext;
 
   public AbstractJobLauncher(Properties jobProps) throws Exception {
-    Preconditions.checkArgument(
-        jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY), "A job must have a job name specified by job.name");
+    Preconditions.checkArgument(jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY),
+        "A job must have a job name specified by job.name");
 
     // Make a copy for both the system and job configuration properties
     this.jobProps = new Properties();
@@ -100,8 +103,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     this.cancellationExecutor = Executors.newSingleThreadExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of("CancellationExecutor")));
 
-    this.runtimeMetricContext = this.jobContext.getJobMetricsOptional().transform(
-        new Function<JobMetrics, MetricContext>() {
+    this.runtimeMetricContext =
+        this.jobContext.getJobMetricsOptional().transform(new Function<JobMetrics, MetricContext>() {
           @Override
           public MetricContext apply(JobMetrics input) {
             return input.getMetricContext();
@@ -126,8 +129,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * @throws InterruptedException
    */
   public static List<Task> submitWorkUnits(String jobId, List<WorkUnit> workUnits, TaskStateTracker stateTracker,
-      TaskExecutor taskExecutor, CountDownLatch countDownLatch)
-      throws InterruptedException {
+      TaskExecutor taskExecutor, CountDownLatch countDownLatch) throws InterruptedException {
 
     List<Task> tasks = Lists.newArrayList();
     for (WorkUnit workUnit : workUnits) {
@@ -168,8 +170,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * {@inheritDoc JobLauncher#cancelJob(JobListener)}
    */
   @Override
-  public void cancelJob(JobListener jobListener)
-      throws JobException {
+  public void cancelJob(JobListener jobListener) throws JobException {
     synchronized (this.cancellationRequest) {
       if (this.cancellationRequested) {
         // Return immediately if a cancellation has already been requested
@@ -199,20 +200,18 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
   @Override
   @SuppressWarnings("unchecked")
-  public void launchJob(JobListener jobListener)
-      throws JobException {
+  public void launchJob(JobListener jobListener) throws JobException {
     String jobId = this.jobContext.getJobId();
     JobState jobState = this.jobContext.getJobState();
 
     try {
       if (!tryLockJob()) {
-        throw new JobException(
-            String.format("Previous instance of job %s is still running, skipping this scheduled run",
-                this.jobContext.getJobName()));
+        throw new JobException(String.format(
+            "Previous instance of job %s is still running, skipping this scheduled run", this.jobContext.getJobName()));
       }
 
-      Optional<Timer.Context> workUnitsCreationTimer = Instrumented.timerContext(this.runtimeMetricContext,
-          MetricNames.LauncherTimings.WORK_UNITS_CREATION);
+      Optional<Timer.Context> workUnitsCreationTimer =
+          Instrumented.timerContext(this.runtimeMetricContext, MetricNames.LauncherTimings.WORK_UNITS_CREATION);
       // Generate work units of the job from the source
       Optional<List<WorkUnit>> workUnits = Optional.fromNullable(this.jobContext.getSource().getWorkunits(jobState));
       Instrumented.endTimer(workUnitsCreationTimer);
@@ -235,8 +234,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
       LOG.info("Starting job " + jobId);
 
-      Optional<Timer.Context> workUnitsPreparationTimer = Instrumented.timerContext(this.runtimeMetricContext,
-          MetricNames.LauncherTimings.WORK_UNITS_PREPARATION);
+      Optional<Timer.Context> workUnitsPreparationTimer =
+          Instrumented.timerContext(this.runtimeMetricContext, MetricNames.LauncherTimings.WORK_UNITS_PREPARATION);
       prepareWorkUnits(JobLauncherUtils.flattenWorkUnits(workUnits.get()), jobState);
       Instrumented.endTimer(workUnitsPreparationTimer);
 
@@ -247,8 +246,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       // Write job execution info to the job history store before the job starts to run
       storeJobExecutionInfo();
 
-      Optional<Timer.Context> jobRunTimer = Instrumented.timerContext(this.runtimeMetricContext,
-          MetricNames.LauncherTimings.JOB_RUN);
+      Optional<Timer.Context> jobRunTimer =
+          Instrumented.timerContext(this.runtimeMetricContext, MetricNames.LauncherTimings.JOB_RUN);
       // Start the job and wait for it to finish
       runWorkUnits(workUnits.get());
       Instrumented.endTimer(jobRunTimer);
@@ -259,8 +258,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         return;
       }
 
-      Optional<Timer.Context> jobCommitTimer = Instrumented.timerContext(this.runtimeMetricContext,
-          MetricNames.LauncherTimings.JOB_COMMIT);
+      Optional<Timer.Context> jobCommitTimer =
+          Instrumented.timerContext(this.runtimeMetricContext, MetricNames.LauncherTimings.JOB_COMMIT);
 
       setFinalJobState(jobState);
       if (canCommit(this.jobContext.getJobCommitPolicy(), jobState)) {
@@ -282,8 +281,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       jobState.setEndTime(endTime);
       jobState.setDuration(endTime - jobState.getStartTime());
 
-      Optional<Timer.Context> jobCleanupTimer = Instrumented.timerContext(this.runtimeMetricContext,
-          MetricNames.LauncherTimings.JOB_CLEANUP);
+      Optional<Timer.Context> jobCleanupTimer =
+          Instrumented.timerContext(this.runtimeMetricContext, MetricNames.LauncherTimings.JOB_CLEANUP);
       cleanupStagingData(jobState);
       Instrumented.endTimer(jobCleanupTimer);
 
@@ -310,8 +309,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   }
 
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     this.cancellationExecutor.shutdownNow();
     try {
       this.jobContext.getSource().shutdown(this.jobContext.getJobState());
@@ -334,16 +332,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    *
    * @param workUnits List of {@link WorkUnit}s of the job
    */
-  protected abstract void runWorkUnits(List<WorkUnit> workUnits)
-      throws Exception;
+  protected abstract void runWorkUnits(List<WorkUnit> workUnits) throws Exception;
 
   /**
    * Get a {@link JobLock} to be used for the job.
    *
    * @return {@link JobLock} to be used for the job
    */
-  protected abstract JobLock getJobLock()
-      throws IOException;
+  protected abstract JobLock getJobLock() throws IOException;
 
   /**
    * Execute the job cancellation.
@@ -491,9 +487,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   private boolean canCommit(JobCommitPolicy commitPolicy, JobState jobState) {
     // Only commit job data if 1) COMMIT_ON_PARTIAL_SUCCESS is used,
     // or 2) COMMIT_ON_FULL_SUCCESS is used and the job has succeeded.
-    return commitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS ||
-        (commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS &&
-            jobState.getState() == JobState.RunningState.SUCCESSFUL);
+    return commitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS
+        || (commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS
+            && jobState.getState() == JobState.RunningState.SUCCESSFUL);
   }
 
   /**
@@ -548,11 +544,21 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * we want the staging data to be cleaned up.
    */
   private void cleanupStagingData(JobState jobState) {
-    for (TaskState taskState : jobState.getTaskStates()) {
+    Closer closer = Closer.create();
+    Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
+    try {
+      for (TaskState taskState : jobState.getTaskStates()) {
+        try {
+          JobLauncherUtils.cleanStagingData(taskState, LOG, closer, parallelRunners);
+        } catch (IOException e) {
+          LOG.error(String.format("Failed to clean staging data for task %s: %s", taskState.getTaskId(), e), e);
+        }
+      }
+    } finally {
       try {
-        JobLauncherUtils.cleanStagingData(taskState, LOG);
-      } catch (IOException ioe) {
-        LOG.error(String.format("Failed to clean staging data for task %s: %s", taskState.getTaskId(), ioe), ioe);
+        closer.close();
+      } catch (IOException e) {
+        LOG.error("Failed to clean staging data", e);
       }
     }
   }
