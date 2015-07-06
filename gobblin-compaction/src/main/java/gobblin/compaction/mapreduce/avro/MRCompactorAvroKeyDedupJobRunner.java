@@ -19,11 +19,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-import gobblin.compaction.mapreduce.MRCompactorJobRunner;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.util.AvroUtils;
-
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaCompatibility;
 import org.apache.avro.Schema.Field;
@@ -41,6 +36,15 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+
+import gobblin.compaction.mapreduce.MRCompactorJobRunner;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+import gobblin.util.AvroUtils;
 
 
 /**
@@ -87,7 +91,9 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
     Schema keySchema = null;
     if (useAllAttributesForCompaction()) {
       LOG.info("Using all attributes in the schema (except Map fields) for compaction");
-      keySchema = getAllFieldsExceptMap(newestSchema);
+      System.out.println("Original schema: " + newestSchema);
+      keySchema = removeUncomparableFields(newestSchema).get();
+      System.out.println("Key schema: " + keySchema);
     } else if (keySchemaFileSpecified()) {
       Path keySchemaFile = getKeySchemaFile();
       LOG.info("Using attributes specified in schema file " + keySchemaFile + " for compaction");
@@ -96,17 +102,17 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
       } catch (IOException e) {
         LOG.error("Failed to parse avro schema from " + keySchemaFile
             + ", using all attributes in the schema (except Map fields) for compaction");
-        keySchema = getAllFieldsExceptMap(newestSchema);
+        keySchema = removeUncomparableFields(newestSchema).get();
       }
       if (!isKeySchemaValid(keySchema, newestSchema)) {
         LOG.warn(String.format("Key schema %s is not compatible with record schema %s.", keySchema, newestSchema)
             + "Using all attributes in the schema (except Map fields) for compaction");
-        keySchema = getAllFieldsExceptMap(newestSchema);
+        keySchema = removeUncomparableFields(newestSchema).get();
       }
     } else {
       LOG.info("Property " + ConfigurationKeys.COMPACTION_AVRO_KEY_SCHEMA_LOC
           + " not provided. Using all attributes in the schema (except Map fields) for compaction");
-      keySchema = getAllFieldsExceptMap(newestSchema);
+      keySchema = removeUncomparableFields(newestSchema).get();
     }
 
     return keySchema;
@@ -161,17 +167,60 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
         ConfigurationKeys.DEFAULT_COMPACTION_USE_ALL_ATTRIBUTES);
   }
 
-  private Schema getAllFieldsExceptMap(Schema schema) {
+  /**
+   * Remove map, array, enum fields, as well as union fields that contain map, array or enum,
+   * from an Avro schema.
+   */
+  private static Optional<Schema> removeUncomparableFields(Schema schema) {
+    switch (schema.getType()) {
+      case RECORD:
+        return removeUncomparableFieldsFromRecord(schema);
+      case UNION:
+        return removeUncomparableFieldsFromUnion(schema);
+      case MAP:
+        return Optional.absent();
+      case ARRAY:
+        return Optional.absent();
+      case ENUM:
+        return Optional.absent();
+      default:
+        return Optional.of(schema);
+    }
+  }
+
+  private static Optional<Schema> removeUncomparableFieldsFromRecord(Schema record) {
+    Preconditions.checkArgument(record.getType() == Schema.Type.RECORD);
+
     List<Field> fields = new ArrayList<Schema.Field>();
-    for (Field field : schema.getFields()) {
-      if (field.schema().getType() != Schema.Type.MAP) {
-        fields.add(new Field(field.name(), field.schema(), field.doc(), field.defaultValue(), field.order()));
+    for (Field field : record.getFields()) {
+      Optional<Schema> newFieldSchema = removeUncomparableFields(field.schema());
+      if (newFieldSchema.isPresent()) {
+        fields.add(new Field(field.name(), newFieldSchema.get(), field.doc(), field.defaultValue()));
       }
     }
 
-    Schema newSchema = Schema.createRecord(schema.getName(), schema.getDoc(), schema.getName(), false);
+    Schema newSchema = Schema.createRecord(record.getName(), record.getDoc(), record.getName(), false);
     newSchema.setFields(fields);
-    return newSchema;
+    return Optional.of(newSchema);
+  }
+
+  private static Optional<Schema> removeUncomparableFieldsFromUnion(Schema union) {
+    Preconditions.checkArgument(union.getType() == Schema.Type.UNION);
+
+    List<Schema> newUnion = Lists.newArrayList();
+    for (Schema unionType : union.getTypes()) {
+      Optional<Schema> newType = removeUncomparableFields(unionType);
+      if (newType.isPresent()) {
+        newUnion.add(newType.get());
+      }
+    }
+
+    // Discard the union field if one or more types are removed from the union.
+    if (newUnion.size() != union.getTypes().size()) {
+      return Optional.absent();
+    } else {
+      return Optional.of(Schema.createUnion(newUnion));
+    }
   }
 
   private boolean keySchemaFileSpecified() {

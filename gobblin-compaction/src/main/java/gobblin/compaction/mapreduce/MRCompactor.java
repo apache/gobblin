@@ -30,6 +30,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
 import org.slf4j.Logger;
@@ -43,6 +44,7 @@ import gobblin.compaction.Compactor;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.util.DatasetFilterUtils;
+import gobblin.util.HadoopUtils;
 
 
 /**
@@ -56,6 +58,7 @@ public class MRCompactor implements Compactor {
   private static final List<Job> RUNNING_MR_JOBS = Lists.newCopyOnWriteArrayList();
 
   private final State state;
+  private final Configuration conf;
   private final String inputDir;
   private final String inputSubDir;
   private final String destDir;
@@ -68,6 +71,7 @@ public class MRCompactor implements Compactor {
   public MRCompactor(Properties props) throws IOException {
     this.state = new State();
     state.addAll(props);
+    this.conf = HadoopUtils.getConfFromState(state);
     this.inputDir = getInputDir();
     this.inputSubDir = getInputSubDir();
     this.destDir = getDestDir();
@@ -105,13 +109,9 @@ public class MRCompactor implements Compactor {
   }
 
   private FileSystem getFileSystem() throws IOException {
-    Configuration conf = new Configuration();
-    for (String propName : this.state.getPropertyNames()) {
-      conf.set(propName, this.state.getProp(propName));
-    }
     URI uri =
         URI.create(this.state.getProp(ConfigurationKeys.COMPACTION_FILE_SYSTEM_URI, ConfigurationKeys.LOCAL_FS_URI));
-    return FileSystem.get(uri, conf);
+    return FileSystem.get(uri, this.conf);
   }
 
   private ExecutorService createExecutorService() {
@@ -127,6 +127,7 @@ public class MRCompactor implements Compactor {
   @Override
   public void compact() throws IOException {
     try {
+      copyDependencyJarsToHdfs();
       Set<String> topics = findAllTopics();
       processTopics(topics);
 
@@ -134,6 +135,7 @@ public class MRCompactor implements Compactor {
       this.executorService.shutdown();
       try {
         executorService.awaitTermination(getMRJobTimeoutValue(), TimeUnit.MINUTES);
+        deleteDependencyJars();
         for (Future<?> future : this.futures) {
 
           // The purpose of calling future.get() is to throw whatever exceptions
@@ -148,6 +150,35 @@ public class MRCompactor implements Compactor {
         LOG.warn("Got an Exception while processing an input folder", e);
         throw new RuntimeException(e);
       }
+    }
+  }
+
+  /**
+   * Copy dependency jars from local fs to HDFS.
+   */
+  private void copyDependencyJarsToHdfs() throws IOException {
+    if (!this.state.contains(ConfigurationKeys.JOB_JAR_FILES_KEY)) {
+      return;
+    }
+    LocalFileSystem lfs = FileSystem.getLocal(this.conf);
+    Path tmpJarFileDir = new Path(this.inputDir, "_tmpjars");
+    this.state.setProp(ConfigurationKeys.COMPACTION_JARS, tmpJarFileDir.toString());
+    this.fs.delete(tmpJarFileDir, true);
+    for (String jarFile : this.state.getPropAsList(ConfigurationKeys.JOB_JAR_FILES_KEY)) {
+      for (FileStatus status : lfs.globStatus(new Path(jarFile))) {
+        Path tmpJarFile = new Path(this.fs.makeQualified(tmpJarFileDir), status.getPath().getName());
+        this.fs.copyFromLocalFile(status.getPath(), tmpJarFile);
+        LOG.info(String.format("%s will be added to classpath", tmpJarFile));
+      }
+    }
+  }
+
+  /**
+   * Delete dependency jars from HDFS when job is done.
+   */
+  private void deleteDependencyJars() throws IllegalArgumentException, IOException {
+    if (this.state.contains(ConfigurationKeys.COMPACTION_JARS)) {
+      this.fs.delete(new Path(this.state.getProp(ConfigurationKeys.COMPACTION_JARS)), true);
     }
   }
 
