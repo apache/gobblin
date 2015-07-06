@@ -10,20 +10,15 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.test.execution.validator;
+package gobblin.source.extractor.filebased;
 
 /**
- *  An interface is for defining the validator for the test. The input can be the set of input files and the output will be be output of 
- * 
- * @author sveerama
+ * A File helper that extends {@link FileBasedHelper} and has functionality to get file size.
  *
+ * This interface exists for backward compatibility of {@link FileBasedHelper}.
  */
+public interface SizeAwareFileBasedHelper extends FileBasedHelper {
 
-public interface ValidationRule {
+  public long getFileSize(String path) throws FileBasedHelperException;
 
-  /**
-   * 
-   * @return will be a boolean based on the validation process
-   */
-  public boolean isValid();
 }

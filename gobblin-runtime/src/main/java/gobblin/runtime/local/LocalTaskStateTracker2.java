@@ -68,33 +68,36 @@ public class LocalTaskStateTracker2 extends AbstractTaskStateTracker {
 
   @Override
   public void onTaskCompletion(Task task) {
-    if (GobblinMetrics.isEnabled(task.getTaskState().getWorkunit())) {
-      // Update record-level metrics after the task is done
-      task.updateRecordMetrics();
-      task.updateByteMetrics();
-    }
+    try {
+      if (GobblinMetrics.isEnabled(task.getTaskState().getWorkunit())) {
+        // Update record-level metrics after the task is done
+        task.updateRecordMetrics();
+        task.updateByteMetrics();
+      }
 
-    // Cancel the task state reporter associated with this task. The reporter might
-    // not be found  for the given task because the task fails before the task is
-    // registered. So we need to make sure the reporter exists before calling cancel.
-    if (this.scheduledReporters.containsKey(task.getTaskId())) {
-      this.scheduledReporters.remove(task.getTaskId()).cancel(false);
-    }
+      // Cancel the task state reporter associated with this task. The reporter might
+      // not be found for the given task because the task fails before the task is
+      // registered. So we need to make sure the reporter exists before calling cancel.
+      if (this.scheduledReporters.containsKey(task.getTaskId())) {
+        this.scheduledReporters.remove(task.getTaskId()).cancel(false);
+      }
 
-    // Check the task state and handle task retry if task failed and
-    // it has not reached the maximum number of retries
-    WorkUnitState.WorkingState state = task.getTaskState().getWorkingState();
-    if (state == WorkUnitState.WorkingState.FAILED && task.getRetryCount() < this.maxTaskRetries) {
-      this.taskExecutor.retry(task);
-      return;
+      // Check the task state and handle task retry if task failed and
+      // it has not reached the maximum number of retries
+      WorkUnitState.WorkingState state = task.getTaskState().getWorkingState();
+      if (state == WorkUnitState.WorkingState.FAILED && task.getRetryCount() < this.maxTaskRetries) {
+        this.taskExecutor.retry(task);
+        return;
+      }
+    } catch (Throwable t) {
+      LOG.error("Failed to process a task completion callback", t);
     }
 
     // Mark the completion of this task
     task.markTaskCompletion();
 
     // At this point, the task is considered being completed.
-    LOG.info(String
-        .format("Task %s completed in %dms with state %s", task.getTaskId(), task.getTaskState().getTaskDuration(),
-            state));
+    LOG.info(String.format("Task %s completed in %dms with state %s", task.getTaskId(),
+        task.getTaskState().getTaskDuration(), task.getTaskState().getWorkingState()));
   }
 }

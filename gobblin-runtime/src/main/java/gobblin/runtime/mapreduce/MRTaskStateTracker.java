@@ -63,20 +63,22 @@ public class MRTaskStateTracker extends AbstractTaskStateTracker {
   public void onTaskCompletion(Task task) {
     WorkUnit workUnit = task.getTaskState().getWorkunit();
 
-    if (GobblinMetrics.isEnabled(workUnit)) {
-      task.updateRecordMetrics();
-      task.updateByteMetrics();
+    try {
+      if (GobblinMetrics.isEnabled(workUnit)) {
+        task.updateRecordMetrics();
+        task.updateByteMetrics();
 
-      if (workUnit.getPropAsBoolean(ConfigurationKeys.MR_REPORT_METRICS_AS_COUNTERS_KEY,
-          ConfigurationKeys.DEFAULT_MR_REPORT_METRICS_AS_COUNTERS)) {
-        Map<String, Counter> counters = JobMetrics.get(null, task.getJobId()).getMetricContext().getCounters();
-        for (Map.Entry<String, Counter> entry : counters.entrySet()) {
-          this.context.getCounter(MetricGroup.JOB.name(), entry.getKey()).setValue(entry.getValue().getCount());
+        if (workUnit.getPropAsBoolean(ConfigurationKeys.MR_REPORT_METRICS_AS_COUNTERS_KEY,
+            ConfigurationKeys.DEFAULT_MR_REPORT_METRICS_AS_COUNTERS)) {
+          Map<String, Counter> counters = JobMetrics.get(null, task.getJobId()).getMetricContext().getCounters();
+          for (Map.Entry<String, Counter> entry : counters.entrySet()) {
+            this.context.getCounter(MetricGroup.JOB.name(), entry.getKey()).setValue(entry.getValue().getCount());
+          }
         }
       }
+    } finally {
+      task.markTaskCompletion();
     }
-
-    task.markTaskCompletion();
 
     LOG.info(String.format("Task %s completed in %dms with state %s",
         task.getTaskId(), task.getTaskState().getTaskDuration(), task.getTaskState().getWorkingState()));

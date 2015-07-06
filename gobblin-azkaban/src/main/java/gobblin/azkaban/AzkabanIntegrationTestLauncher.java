@@ -43,12 +43,6 @@ public class AzkabanIntegrationTestLauncher extends AbstractJob {
     // Get the test harness launcher instance
     launcher = createTestHarnessInstance();
 
-    // Read the properties file
-    launcher.configure(properties);
-
-    // Prepare the tests to be run
-    launcher.prepareTest();
-
     // Execute them
     launcher.launchTest();
   }

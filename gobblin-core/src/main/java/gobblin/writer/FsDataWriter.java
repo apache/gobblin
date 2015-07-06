@@ -14,6 +14,7 @@ package gobblin.writer;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -24,9 +25,11 @@ import org.slf4j.LoggerFactory;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.util.ForkOperatorUtils;
-import gobblin.util.JobConfigurationUtils;
 import gobblin.util.HadoopUtils;
+import gobblin.util.JobConfigurationUtils;
+import gobblin.util.ProxiedFileSystemWrapper;
 import gobblin.util.WriterUtils;
+
 
 /**
  * An implementation of {@link DataWriter} does the work of setting the output/staging dir
@@ -49,17 +52,34 @@ public abstract class FsDataWriter<D> implements DataWriter<D> {
     // Add all job configuration properties so they are picked up by Hadoop
     JobConfigurationUtils.putStateIntoConfiguration(properties, conf);
 
-    // Initialize file system
-    String uri = properties.getProp(
-        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
-        ConfigurationKeys.LOCAL_FS_URI);
-    this.fs = FileSystem.get(URI.create(uri), conf);
+    String uri =
+        properties
+            .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches,
+                branchId), ConfigurationKeys.LOCAL_FS_URI);
+
+    if (properties.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
+        ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
+      // Initialize file system as a proxy user.
+      try {
+        this.fs =
+            new ProxiedFileSystemWrapper().getProxiedFileSystem(properties, ProxiedFileSystemWrapper.AuthType.TOKEN,
+                properties.getProp(ConfigurationKeys.FS_PROXY_AS_USER_TOKEN_FILE), uri);
+      } catch (InterruptedException e) {
+        throw new IOException(e);
+      } catch (URISyntaxException e) {
+        throw new IOException(e);
+      }
+    } else {
+      // Initialize file system as the current user.
+      this.fs = FileSystem.get(URI.create(uri), conf);
+    }
 
     // initialize staging/output dir
     this.stagingFile = new Path(WriterUtils.getWriterStagingDir(properties, numBranches, branchId), fileName);
     this.outputFile = new Path(WriterUtils.getWriterOutputDir(properties, numBranches, branchId), fileName);
-    this.properties.setProp(ForkOperatorUtils.getPropertyNameForBranch(
-            ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, branchId), this.outputFile.toString());
+    this.properties.setProp(
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, branchId),
+        this.outputFile.toString());
 
     // Deleting the staging file if it already exists, which can happen if the
     // task failed and the staging file didn't get cleaned up for some reason.

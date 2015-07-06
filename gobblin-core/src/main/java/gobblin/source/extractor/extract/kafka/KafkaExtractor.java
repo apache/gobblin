@@ -125,19 +125,19 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
           continue;
         }
       }
-
-      MessageAndOffset nextValidMessage = null;
-      do {
+      while (!currentPartitionFinished()) {
         if (!this.messageIterator.hasNext()) {
           break;
         }
 
+        MessageAndOffset nextValidMessage = this.messageIterator.next();
+
         // Even though we ask Kafka to give us a message buffer starting from offset x, it may
         // return a buffer that starts from offset smaller than x, so we need to skip messages
         // until we get to x.
-        do {
-          nextValidMessage = this.messageIterator.next();
-        } while (nextValidMessage.offset() < this.nextWatermark.get(this.currentPartitionIdx));
+        if (nextValidMessage.offset() < this.nextWatermark.get(this.currentPartitionIdx)) {
+          continue;
+        }
 
         this.nextWatermark.set(this.currentPartitionIdx, nextValidMessage.nextOffset());
         try {
@@ -158,7 +158,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
             incrementErrorCount();
           }
         }
-      } while (!currentPartitionFinished());
+      }
     }
     return null;
   }

@@ -9,12 +9,11 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
  */
-
 package gobblin.test.execution.operator;
 
 /**
  * An interface for defining the operator , the operator could be a copy of file or converting a file from one format to another. These operators are used for the setup phase of the test
- *
+ * 
  * @author sveerama
  */
 

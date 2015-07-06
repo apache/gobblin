@@ -1,3 +1,15 @@
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.util;
 
 import java.util.List;
@@ -23,16 +35,15 @@ public class DatasetFilterUtils {
   }
 
   /**
-   * If whitelist is non-empty, a topic survives if it matches the whitelist.
-   * Otherwise, a topic survives if it doesn't match the blacklist.
+   * A topic survives if (1) it doesn't match the blacklist, and
+   * (2) either whitelist is empty, or it matches the whitelist.
    * Whitelist and blacklist use regex patterns (NOT glob patterns).
    */
   public static boolean survived(String topic, List<Pattern> blacklist, List<Pattern> whitelist) {
-    if (!whitelist.isEmpty()) {
-      return stringInPatterns(topic, whitelist);
-    } else {
-      return !stringInPatterns(topic, blacklist);
+    if (stringInPatterns(topic, blacklist)) {
+      return false;
     }
+    return (whitelist.isEmpty() || stringInPatterns(topic, whitelist));
   }
 
   /**
