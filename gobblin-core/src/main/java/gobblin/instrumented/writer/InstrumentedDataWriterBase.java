@@ -32,6 +32,7 @@ import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricNames;
 import gobblin.metrics.Tag;
+import gobblin.util.FinalState;
 import gobblin.writer.DataWriter;
 
 
@@ -39,7 +40,7 @@ import gobblin.writer.DataWriter;
  * package-private implementation of instrumentation for {@link gobblin.writer.DataWriter}.
  * See {@link gobblin.instrumented.writer.InstrumentedDataWriter} for extensible class.
  */
-abstract class InstrumentedDataWriterBase <D> implements DataWriter<D>, Instrumentable, Closeable {
+abstract class InstrumentedDataWriterBase <D> implements DataWriter<D>, Instrumentable, Closeable, FinalState {
 
   private final boolean instrumentationEnabled;
 
@@ -154,6 +155,16 @@ abstract class InstrumentedDataWriterBase <D> implements DataWriter<D>, Instrume
    * Subclasses should implement this instead of {@link gobblin.writer.DataWriter#write}
    */
   public abstract void writeImpl(D record) throws IOException;
+
+  /**
+   * Get final state for this object. By default this returns an empty {@link gobblin.configuration.State}, but
+   * concrete subclasses can add information that will be added to the task state.
+   * @return Empty {@link gobblin.configuration.State}.
+   */
+  @Override
+  public State getFinalState() {
+    return new State();
+  }
 
   @Override
   public void close()

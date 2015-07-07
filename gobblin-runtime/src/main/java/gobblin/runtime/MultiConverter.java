@@ -22,6 +22,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
@@ -88,6 +89,15 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
         }
       }
     };
+  }
+
+  @Override
+  public State getFinalState() {
+    State state = super.getFinalState();
+    for(Converter<?,?,?,?> converter : this.converters) {
+      state.addAll(converter.getFinalState());
+    }
+    return state;
   }
 
   /**

@@ -17,13 +17,14 @@ import java.io.IOException;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.util.FinalState;
 
 /**
  * A policy that operates on each row
  * and executes a given check
  * @author stakiar
  */
-public abstract class RowLevelPolicy implements Closeable {
+public abstract class RowLevelPolicy implements Closeable, FinalState {
   private final State state;
   private final Type type;
 
@@ -68,5 +69,15 @@ public abstract class RowLevelPolicy implements Closeable {
   @Override
   public String toString() {
     return this.getClass().getName();
+  }
+
+  /**
+   * Get final state for this object. By default this returns an empty {@link gobblin.configuration.State}, but
+   * concrete subclasses can add information that will be added to the task state.
+   * @return Empty {@link gobblin.configuration.State}.
+   */
+  @Override
+  public State getFinalState() {
+    return new State();
   }
 }

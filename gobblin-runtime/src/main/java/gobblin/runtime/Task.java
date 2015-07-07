@@ -24,16 +24,17 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
+import gobblin.Constructs;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.fork.CopyNotSupportedException;
 import gobblin.fork.Copyable;
 import gobblin.fork.ForkOperator;
+import gobblin.instrumented.extractor.InstrumentedExtractorBase;
 import gobblin.instrumented.extractor.InstrumentedExtractorDecorator;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
-import gobblin.source.extractor.Extractor;
 
 
 /**
@@ -113,7 +114,7 @@ public class Task implements Runnable {
 
     Closer closer = Closer.create();
     try {
-      Extractor extractor = closer.register(new InstrumentedExtractorDecorator(this.taskState,
+      InstrumentedExtractorBase extractor = closer.register(new InstrumentedExtractorDecorator(this.taskState,
           this.taskContext.getExtractor()));
 
       Converter converter = closer.register(new MultiConverter(this.taskContext.getConverters()));
@@ -207,6 +208,9 @@ public class Task implements Runnable {
         LOG.error(String.format("Not all forks of task %s succeeded", this.taskId));
         this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
       }
+
+      addConstructsFinalStateToTaskState(extractor, converter);
+
     } catch (Throwable t) {
       LOG.error(String.format("Task %s failed", this.taskId), t);
       this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
@@ -391,5 +395,23 @@ public class Task implements Runnable {
       }
     }
     return inBranches > 1;
+  }
+
+  /**
+   * Get the final state of each construct used by this task and add it to the {@link gobblin.runtime.TaskState}.
+   * @param extractor {@link gobblin.instrumented.extractor.InstrumentedExtractorBase} used by this task.
+   * @param converter {@link gobblin.converter.Converter} used by this task.
+   */
+  private void addConstructsFinalStateToTaskState(InstrumentedExtractorBase<?, ?> extractor,
+      Converter<?, ?, ?, ?> converter) {
+    this.taskState.addFinalConstructState(Constructs.EXTRACTOR.toString().toLowerCase(), extractor.getFinalState());
+    this.taskState.addFinalConstructState(Constructs.CONVERTER.toString().toLowerCase(), converter.getFinalState());
+    int forkIdx = 0;
+    for(Optional<Fork> fork : this.forks) {
+      if(fork.isPresent()) {
+        this.taskState.addFinalConstructState("fork." + forkIdx, fork.get().getFinalState());
+      }
+      forkIdx++;
+    }
   }
 }
