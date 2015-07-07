@@ -111,8 +111,7 @@ public class GobblinYarnApplicationMaster {
     Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(fs, applicationName, applicationAttemptIdId.getApplicationId());
 
     List<Service> services = Lists.newArrayList();
-    services.add(new YarnService(config, applicationName, applicationAttemptIdId.getApplicationId(),
-        Resource.newInstance(8192, 8), this.helixManager, eventBus));
+    services.add(new YarnService(config, applicationName, applicationAttemptIdId.getApplicationId(), eventBus));
     services.add(new GobblinHelixJobScheduler(YarnHelixUtils.configToProperties(config), this.helixManager,
         eventBus, appWorkDir));
     services.add(new JobConfigurationManager(eventBus,

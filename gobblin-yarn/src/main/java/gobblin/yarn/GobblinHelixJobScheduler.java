@@ -74,8 +74,7 @@ public class GobblinHelixJobScheduler extends JobScheduler {
   @Override
   public void runJob(Properties jobProps, JobListener jobListener) throws JobException {
     try {
-      JobLauncher jobLauncher =
-          new YarnHelixJobLauncher(jobProps, this.helixManager, this.appWorkDir);
+      JobLauncher jobLauncher = new YarnHelixJobLauncher(jobProps, this.helixManager, this.appWorkDir);
       runJob(jobProps, jobListener, jobLauncher);
     } catch (Exception e) {
       throw new JobException("Failed to run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);

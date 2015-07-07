@@ -36,6 +36,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
+import org.apache.hadoop.yarn.api.records.ContainerState;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.LocalResource;
@@ -103,14 +104,16 @@ public class YarnService extends AbstractIdleService {
   private final EventBus eventBus;
 
   private final int initialContainers;
-  private final int containerMemoryMbs;
-  private final int containerCores;
+  private final int requestedContainerMemoryMbs;
+  private final int requestedContainerCores;
 
   // Security tokens for accessing HDFS
   private final ByteBuffer tokens;
 
-  public YarnService(Config config, String applicationName, ApplicationId applicationId,
-      Resource maxResourceCapacity, EventBus eventBus) throws Exception {
+  private volatile Optional<Resource> maxResourceCapacity =Optional.absent();
+
+  public YarnService(Config config, String applicationName, ApplicationId applicationId, EventBus eventBus)
+      throws Exception {
     this.applicationName = applicationName;
     this.applicationId = applicationId;
 
@@ -133,17 +136,13 @@ public class YarnService extends AbstractIdleService {
         config.getInt(ConfigurationConstants.INITIAL_CONTAINERS_KEY) :
         ConfigurationConstants.DEFAULT_INITIAL_CONTAINERS;
 
-    int requestedMemoryMbs = config.hasPath(ConfigurationConstants.CONTAINER_MEMORY_MBS_KEY) ?
+    this.requestedContainerMemoryMbs = config.hasPath(ConfigurationConstants.CONTAINER_MEMORY_MBS_KEY) ?
         config.getInt(ConfigurationConstants.CONTAINER_MEMORY_MBS_KEY) :
         ConfigurationConstants.DEFAULT_CONTAINER_MEMORY_MBS;
-    this.containerMemoryMbs = requestedMemoryMbs > maxResourceCapacity.getMemory() ?
-        maxResourceCapacity.getMemory() : requestedMemoryMbs;
 
-    int requestedCores = config.hasPath(ConfigurationConstants.CONTAINER_CORES_KEY) ?
+    this.requestedContainerCores = config.hasPath(ConfigurationConstants.CONTAINER_CORES_KEY) ?
         config.getInt(ConfigurationConstants.CONTAINER_CORES_KEY) :
         ConfigurationConstants.DEFAULT_CONTAINER_CORES;
-    this.containerCores = requestedCores > maxResourceCapacity.getVirtualCores() ?
-        maxResourceCapacity.getVirtualCores() : requestedCores;
 
     this.tokens = getSecurityTokens();
 
@@ -157,6 +156,11 @@ public class YarnService extends AbstractIdleService {
     int newContainersRequested = newContainerRequest.getNewContainersRequested();
     if (newContainersRequested <= 0) {
       LOGGER.error("Invalid number of new containers requested: " + newContainersRequested);
+      return;
+    }
+
+    if (!this.maxResourceCapacity.isPresent()) {
+      LOGGER.error("Unable to handle new container request as maximum resource capacity is not available");
       return;
     }
 
@@ -185,7 +189,7 @@ public class YarnService extends AbstractIdleService {
     RegisterApplicationMasterResponse response = this.amrmClientAsync.registerApplicationMaster(
         YarnHelixUtils.getHostname(), -1, "");
     LOGGER.info("ApplicationMaster registration response: " + response);
-
+    this.maxResourceCapacity = Optional.of(response.getMaximumResourceCapability());
 
     LOGGER.info("Requesting initial containers");
     requestContainers(this.initialContainers);
@@ -220,8 +224,12 @@ public class YarnService extends AbstractIdleService {
       priority.setPriority(0);
 
       Resource capability = Records.newRecord(Resource.class);
-      capability.setMemory(this.containerMemoryMbs);
-      capability.setVirtualCores(this.containerCores);
+      int maxMemoryCapacity = this.maxResourceCapacity.get().getMemory();
+      capability.setMemory(this.requestedContainerMemoryMbs <= maxMemoryCapacity ?
+          this.requestedContainerMemoryMbs : maxMemoryCapacity);
+      int maxCoreCapacity = this.maxResourceCapacity.get().getVirtualCores();
+      capability.setVirtualCores(this.requestedContainerCores <= maxCoreCapacity ?
+          this.requestedContainerCores : maxCoreCapacity);
 
       this.amrmClientAsync.addContainerRequest(new AMRMClient.ContainerRequest(capability, null, null, priority));
     }
@@ -355,6 +363,7 @@ public class YarnService extends AbstractIdleService {
         LOGGER.info(String.format("Container %s has completed with exit status %d",
             containerStatus.getContainerId(), containerStatus.getExitStatus()));
         containerMap.remove(containerStatus.getContainerId());
+        containerToParticipantMap.remove(containerStatus.getContainerId());
       }
     }
 
@@ -418,17 +427,26 @@ public class YarnService extends AbstractIdleService {
 
     @Override
     public void onContainerStatusReceived(ContainerId containerId, ContainerStatus containerStatus) {
-      LOGGER.info("Received container status " + containerStatus);
+      LOGGER.info("Received container status for container " + containerId);
+      if (containerStatus.getState() == ContainerState.COMPLETE) {
+        LOGGER.info(String.format("Container %s completed", containerId));
+        containerMap.remove(containerId);
+        containerToParticipantMap.remove(containerId);
+      }
     }
 
     @Override
     public void onContainerStopped(ContainerId containerId) {
       LOGGER.info(String.format("Container %s has been stopped", containerId));
+      containerMap.remove(containerId);
+      containerToParticipantMap.remove(containerId);
     }
 
     @Override
     public void onStartContainerError(ContainerId containerId, Throwable t) {
       LOGGER.error(String.format("Failed to start container %s due to error %s", containerId, t));
+      containerMap.remove(containerId);
+      containerToParticipantMap.remove(containerId);
     }
 
     @Override

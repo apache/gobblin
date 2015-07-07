@@ -33,6 +33,13 @@ public class Log4jConfigurationHelper {
 
   static final String LOG4J_CONFIGURATION_FILE_NAME = "log4j-yarn.properties";
 
+  /**
+   * Update the log4j configuration.
+   *
+   * @param targetClass the target class used to get the original log4j configuration file as a resource
+   * @param log4jPath the custom log4j configuration properties file path
+   * @throws IOException if there's something wrong with updating the log4j configuration
+   */
   public static void updateLog4jConfiguration(Class<?> targetClass, String log4jPath) throws IOException {
     Closer closer = Closer.create();
     try {

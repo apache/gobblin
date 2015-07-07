@@ -59,25 +59,30 @@ public class YarnHelixTaskStateTracker extends AbstractTaskStateTracker {
 
   @Override
   public void onTaskCompletion(Task task) {
-    if (GobblinMetrics.isEnabled(task.getTaskState().getWorkunit())) {
-      // Update record-level metrics after the task is done
-      task.updateRecordMetrics();
-      task.updateByteMetrics();
-    }
+    try {
+      if (GobblinMetrics.isEnabled(task.getTaskState().getWorkunit())) {
+        // Update record-level metrics after the task is done
+        task.updateRecordMetrics();
+        task.updateByteMetrics();
+      }
 
-    // Cancel the task state reporter associated with this task. The reporter might
-    // not be found  for the given task because the task fails before the task is
-    // registered. So we need to make sure the reporter exists before calling cancel.
-    if (this.scheduledReporters.containsKey(task.getTaskId())) {
-      this.scheduledReporters.remove(task.getTaskId()).cancel(false);
+      // Cancel the task state reporter associated with this task. The reporter might
+      // not be found  for the given task because the task fails before the task is
+      // registered. So we need to make sure the reporter exists before calling cancel.
+      if (this.scheduledReporters.containsKey(task.getTaskId())) {
+        this.scheduledReporters.remove(task.getTaskId()).cancel(false);
+      }
+    } finally {
+      task.markTaskCompletion();
     }
-
-    task.markTaskCompletion();
 
     LOGGER.info(String.format("Task %s completed in %dms with state %s",
         task.getTaskId(), task.getTaskState().getTaskDuration(), task.getTaskState().getWorkingState()));
   }
 
+  /**
+   * An extension to {@link gobblin.runtime.AbstractTaskStateTracker.TaskMetricsUpdater}.
+   */
   class YarnTaskMetricsUpdater extends AbstractTaskStateTracker.TaskMetricsUpdater {
 
     public YarnTaskMetricsUpdater(Task task) {
