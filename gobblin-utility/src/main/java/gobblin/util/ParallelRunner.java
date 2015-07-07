@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.runtime.util;
+package gobblin.util;
 
 import java.io.Closeable;
 import java.io.DataInputStream;
@@ -39,29 +39,24 @@ import com.google.common.io.Closer;
 
 import gobblin.configuration.State;
 import gobblin.util.ExecutorsUtils;
+import gobblin.util.HadoopUtils;
 
 
 /**
- * A class that is responsible for serialization and deserialization (so called SerDe) of objects of
- * {@link gobblin.configuration.State} and its subclasses such as {@link gobblin.source.workunit.WorkUnit}
- * and {@link gobblin.runtime.TaskState}.
+ * A class that is responsible for running certain methods in parallel. Methods in this class returns immediately and
+ * are run in a fixed-size thread pool.
  *
  * <p>
- *   This class uses a fixed-size thread pool {@link ExecutorService} to run the serialization and/or
- *   deserialization tasks.
- * </p>
- *
- * <p>
- *   This class is intended to be used in the following pattern:
+ *   This class is intended to be used in the following pattern. This example uses the serialize() method.
  *
  *   <pre> {@code
  *     Closer closer = Closer.create();
  *     try {
  *       // Do stuff
- *       ParallelStateSerDeRunner stateSerDeRunner = closer.register(new ParallelStateSerDeRunner(threads, fs));
- *       stateSerDeRunner.serialize(state1, outputFilePath1);
+ *       ParallelRunner runner = closer.register(new ParallelRunner(threads, fs));
+ *       runner.serialize(state1, outputFilePath1);
  *       // Submit more serialization tasks
- *       stateSerDeRunner.serialize(stateN, outputFilePathN);
+ *       runner.serialize(stateN, outputFilePathN);
  *       // Do stuff
  *     } catch (Throwable e) {
  *       throw closer.rethrow(e);
@@ -71,26 +66,26 @@ import gobblin.util.ExecutorsUtils;
  *   </pre>
  *
  *   Note that calling {@link #close()} will wait for all submitted tasks to complete and then stop the
- *   {@link ParallelStateSerDeRunner} by shutting down the {@link ExecutorService}.
+ *   {@link ParallelRunner} by shutting down the {@link ExecutorService}.
  * </p>
  *
  * @author ynli
  */
-public class ParallelStateSerDeRunner implements Closeable {
+public class ParallelRunner implements Closeable {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(ParallelStateSerDeRunner.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(ParallelRunner.class);
 
-  public static final String STATE_SERDE_RUNNER_THREADS_KEY = "state.serde.runner.threads";
-  public static final String DEFAULT_STATE_SERDE_RUNNER_THREADS = "10";
+  public static final String PARALLEL_RUNNER_THREADS_KEY = "parallel.runner.threads";
+  public static final int DEFAULT_PARALLEL_RUNNER_THREADS = 10;
 
   private final ExecutorService executor;
   private final FileSystem fs;
 
   private final List<Future<?>> futures = Lists.newArrayList();
 
-  public ParallelStateSerDeRunner(int threads, FileSystem fs) {
-    this.executor = Executors.newFixedThreadPool(threads, ExecutorsUtils.newThreadFactory(Optional.of(LOGGER),
-        Optional.of("ParallelStateSerDeRunner")));
+  public ParallelRunner(int threads, FileSystem fs) {
+    this.executor = Executors.newFixedThreadPool(threads,
+        ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("ParallelRunner")));
     this.fs = fs;
   }
 
@@ -112,8 +107,7 @@ public class ParallelStateSerDeRunner implements Closeable {
     this.futures.add(this.executor.submit(new Callable<Void>() {
 
       @Override
-      public Void call()
-          throws Exception {
+      public Void call() throws Exception {
         Closer closer = Closer.create();
         try {
           OutputStream outputStream = closer.register(fs.create(outputFilePath));
@@ -147,8 +141,7 @@ public class ParallelStateSerDeRunner implements Closeable {
     this.futures.add(this.executor.submit(new Callable<Void>() {
 
       @Override
-      public Void call()
-          throws Exception {
+      public Void call() throws Exception {
         Closer closer = Closer.create();
         try {
           InputStream inputStream = closer.register(fs.open(inputFilePath));
@@ -183,10 +176,10 @@ public class ParallelStateSerDeRunner implements Closeable {
       final Class<T> stateClass, final Path inputFilePath, final Collection<T> states) throws IOException {
     this.futures.add(this.executor.submit(new Callable<Void>() {
       @Override
-      public Void call()
-          throws Exception {
+      public Void call() throws Exception {
         Closer closer = Closer.create();
         try {
+          @SuppressWarnings("deprecation")
           SequenceFile.Reader reader = closer.register(new SequenceFile.Reader(fs, inputFilePath, fs.getConf()));
           Writable key = keyClass.newInstance();
           T state = stateClass.newInstance();
@@ -200,6 +193,49 @@ public class ParallelStateSerDeRunner implements Closeable {
           closer.close();
         }
 
+        return null;
+      }
+    }));
+  }
+
+  /**
+   * Delete a {@link Path}.
+   *
+   * <p>
+   *   This method submits a task to delete a {@link Path} and returns immediately
+   *   after the task is submitted.
+   * </p>
+   *
+   * @param path path to be deleted.
+   * @throws IOException if the path cannot be deleted.
+   */
+  public void deletePath(final Path path, final boolean recursive) throws IOException {
+    this.futures.add(this.executor.submit(new Callable<Void>() {
+      @Override
+      public Void call() throws Exception {
+        HadoopUtils.deletePath(fs, path, recursive);
+        return null;
+      }
+    }));
+  }
+
+  /**
+   * Rename a {@link Path}.
+   *
+   * <p>
+   *   This method submits a task to rename a {@link Path} and returns immediately
+   *   after the task is submitted.
+   * </p>
+   *
+   * @param src path to be renamed
+   * @param dst new path after rename
+   * @throws IOException if rename is unsuccessful
+   */
+  public void renamePath(final Path src, final Path dst) {
+    this.futures.add(this.executor.submit(new Callable<Void>() {
+      @Override
+      public Void call() throws Exception {
+        HadoopUtils.renamePath(fs, src, dst);
         return null;
       }
     }));

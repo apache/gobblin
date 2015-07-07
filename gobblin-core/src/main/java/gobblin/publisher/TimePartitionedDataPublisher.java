@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.util.HadoopUtils;
+import gobblin.util.ParallelRunner;
 
 
 /**
@@ -37,7 +38,7 @@ public class TimePartitionedDataPublisher extends BaseDataPublisher {
 
   private static final Logger LOG = LoggerFactory.getLogger(TimePartitionedDataPublisher.class);
 
-  public TimePartitionedDataPublisher(State state) {
+  public TimePartitionedDataPublisher(State state) throws IOException {
     super(state);
   }
 
@@ -49,7 +50,7 @@ public class TimePartitionedDataPublisher extends BaseDataPublisher {
    */
   @Override
   protected void addWriterOutputToExistingDir(Path writerOutput, Path publisherOutput, WorkUnitState workUnitState,
-      int branchId) throws IOException {
+      int branchId, ParallelRunner parallelRunner) throws IOException {
 
     for (FileStatus status : HadoopUtils.listStatusRecursive(this.fss.get(branchId), writerOutput)) {
       String filePathStr = status.getPath().toString();
@@ -61,11 +62,8 @@ public class TimePartitionedDataPublisher extends BaseDataPublisher {
         this.fss.get(branchId).mkdirs(outputPath.getParent());
       }
 
-      if (this.fss.get(branchId).rename(status.getPath(), outputPath)) {
-        LOG.info(String.format("Moved %s to %s", status.getPath(), outputPath));
-      } else {
-        throw new IOException("Failed to move from " + status.getPath() + " to " + outputPath);
-      }
+      LOG.info(String.format("Moving %s to %s", status.getPath(), outputPath));
+      parallelRunner.renamePath(status.getPath(), outputPath);
     }
   }
 }

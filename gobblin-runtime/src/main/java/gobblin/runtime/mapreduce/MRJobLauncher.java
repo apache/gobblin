@@ -75,11 +75,11 @@ import gobblin.runtime.TaskStateTracker;
 import gobblin.runtime.util.JobMetrics;
 import gobblin.runtime.util.MetricGroup;
 import gobblin.runtime.util.MetricNames;
-import gobblin.runtime.util.ParallelStateSerDeRunner;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.JobConfigurationUtils;
 import gobblin.util.JobLauncherUtils;
+import gobblin.util.ParallelRunner;
 
 
 /**
@@ -112,7 +112,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
   private final Job job;
   private final Path mrJobDir;
 
-  private final int stateSerDeRunnerThreads;
+  private final int parallelRunnerThreads;
 
   private volatile boolean hadoopJobSubmitted = false;
 
@@ -151,9 +151,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
     // adding dependent jars/files to the DistributedCache that also updates the conf)
     this.job = Job.getInstance(this.conf, JOB_NAME_PREFIX + this.jobContext.getJobName());
 
-    this.stateSerDeRunnerThreads = Integer.parseInt(
-        jobProps.getProperty(ParallelStateSerDeRunner.STATE_SERDE_RUNNER_THREADS_KEY,
-            ParallelStateSerDeRunner.DEFAULT_STATE_SERDE_RUNNER_THREADS));
+    this.parallelRunnerThreads = Integer.parseInt(jobProps.getProperty(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY,
+        Integer.toString(ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS)));
 
     startCancellationExecutor();
   }
@@ -393,8 +392,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     Closer closer = Closer.create();
     try {
-      ParallelStateSerDeRunner stateSerDeRunner =
-          closer.register(new ParallelStateSerDeRunner(this.stateSerDeRunnerThreads, this.fs));
+      ParallelRunner parallelRunner = closer.register(new ParallelRunner(this.parallelRunnerThreads, this.fs));
 
       // Open the job input file
       OutputStream os = closer.register(this.fs.create(jobInputFile));
@@ -411,10 +409,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
           workUnit.setId(multiTaskId);
         }
 
-        Path workUnitFile = new Path(jobInputPath,
-            workUnit.getProp(ConfigurationKeys.TASK_ID_KEY) + ((workUnit instanceof MultiWorkUnit)
-                ? MULTI_WORK_UNIT_FILE_EXTENSION : WORK_UNIT_FILE_EXTENSION));
-        stateSerDeRunner.serializeToFile(workUnit, workUnitFile);
+        Path workUnitFile = new Path(jobInputPath, workUnit.getProp(ConfigurationKeys.TASK_ID_KEY)
+            + ((workUnit instanceof MultiWorkUnit) ? MULTI_WORK_UNIT_FILE_EXTENSION : WORK_UNIT_FILE_EXTENSION));
+        parallelRunner.serializeToFile(workUnit, workUnitFile);
 
         // Append the work unit file path to the job input file
         bw.write(workUnitFile.toUri().getPath() + "\n");
@@ -447,10 +444,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     Closer closer = Closer.create();
     try {
-      ParallelStateSerDeRunner stateSerDeRunner =
-          closer.register(new ParallelStateSerDeRunner(this.stateSerDeRunnerThreads, this.fs));
+      ParallelRunner parallelRunner = closer.register(new ParallelRunner(this.parallelRunnerThreads, this.fs));
       for (FileStatus status : fileStatuses) {
-        stateSerDeRunner.deserializeFromSequenceFile(Text.class, TaskState.class, status.getPath(), taskStateQueue);
+        parallelRunner.deserializeFromSequenceFile(Text.class, TaskState.class, status.getPath(), taskStateQueue);
       }
     } catch (Throwable t) {
       throw closer.rethrow(t);
@@ -524,9 +520,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
     protected void setup(Context context) {
       try {
         this.fs = FileSystem.get(context.getConfiguration());
-        this.taskStateStore =
-            new FsStateStore<TaskState>(this.fs, SequenceFileOutputFormat.getOutputPath(context).toUri().getPath(),
-                TaskState.class);
+        this.taskStateStore = new FsStateStore<TaskState>(this.fs,
+            SequenceFileOutputFormat.getOutputPath(context).toUri().getPath(), TaskState.class);
       } catch (IOException ioe) {
         throw new RuntimeException("Failed to setup the mapper task", ioe);
       }
@@ -546,13 +541,12 @@ public class MRJobLauncher extends AbstractJobLauncher {
       // Setup and start metrics reporting if metric reporting is enabled
       if (Boolean.valueOf(
           configuration.get(ConfigurationKeys.METRICS_ENABLED_KEY, ConfigurationKeys.DEFAULT_METRICS_ENABLED))) {
-        this.jobMetrics =
-            Optional.of(JobMetrics.get(null, configuration.get(ConfigurationKeys.JOB_ID_KEY)));
-        String metricFileSuffix = configuration.get(ConfigurationKeys.METRICS_FILE_SUFFIX,
-            ConfigurationKeys.DEFAULT_METRICS_FILE_SUFFIX);
+        this.jobMetrics = Optional.of(JobMetrics.get(null, configuration.get(ConfigurationKeys.JOB_ID_KEY)));
+        String metricFileSuffix =
+            configuration.get(ConfigurationKeys.METRICS_FILE_SUFFIX, ConfigurationKeys.DEFAULT_METRICS_FILE_SUFFIX);
         // If running in MR mode, all mappers will try to write metrics to the same file, which will fail.
         // Instead, append the taskAttemptId to each file name.
-        if(Strings.isNullOrEmpty(metricFileSuffix)) {
+        if (Strings.isNullOrEmpty(metricFileSuffix)) {
           metricFileSuffix = context.getTaskAttemptID().getTaskID().toString();
         } else {
           metricFileSuffix += "." + context.getTaskAttemptID().getTaskID().toString();
@@ -644,9 +638,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
       }
 
       CountDownLatch countDownLatch = new CountDownLatch(workUnits.size());
-      List<Task> tasks =
-          AbstractJobLauncher.submitWorkUnits(jobId, workUnits, this.taskStateTracker, this.taskExecutor,
-              countDownLatch);
+      List<Task> tasks = AbstractJobLauncher.submitWorkUnits(jobId, workUnits, this.taskStateTracker, this.taskExecutor,
+          countDownLatch);
 
       LOG.info(String.format("Waiting for submitted tasks of job %s to complete...", jobId));
       while (countDownLatch.getCount() > 0) {
