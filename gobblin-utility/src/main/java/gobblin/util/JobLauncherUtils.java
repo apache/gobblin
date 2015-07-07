@@ -14,6 +14,7 @@ package gobblin.util;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
@@ -116,10 +117,23 @@ public class JobLauncherUtils {
 
     for (int branchId = 0; branchId < numBranches; branchId++) {
       String writerFsUri =
-          state.getProp(
-              ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
-              ConfigurationKeys.LOCAL_FS_URI);
-      FileSystem fs = FileSystem.get(URI.create(writerFsUri), new Configuration());
+          state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI,
+              numBranches, branchId), ConfigurationKeys.LOCAL_FS_URI);
+      FileSystem fs;
+      if (state.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
+          ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
+        try {
+          fs =
+              new ProxiedFileSystemWrapper().getProxiedFileSystem(state, ProxiedFileSystemWrapper.AuthType.KEYTAB,
+                  state.getProp(ConfigurationKeys.SUPER_USER_KEY_TAB_LOCATION), writerFsUri);
+        } catch (InterruptedException e) {
+          throw new IOException(e);
+        } catch (URISyntaxException e) {
+          throw new IOException(e);
+        }
+      } else {
+        fs = FileSystem.get(URI.create(writerFsUri), new Configuration());
+      }
 
       Path stagingPath = WriterUtils.getWriterStagingDir(state, numBranches, branchId);
       if (fs.exists(stagingPath)) {

@@ -496,6 +496,7 @@ public class ConfigurationKeys {
   public static final String FS_PROXY_AS_USER_NAME = "fs.proxy.as.user.name";
   public static final String FS_PROXY_AS_USER_TOKEN_FILE = "fs.proxy.as.user.token.file";
   public static final String SUPER_USER_NAME_TO_PROXY_AS_OTHERS = "super.user.name.to.proxy.as.others";
+  public static final String SUPER_USER_KEY_TAB_LOCATION = "super.user.key.tab.location";
 
   /**
    * Other configuration properties.
