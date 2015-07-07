@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.util.Properties;
 import java.util.Set;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
@@ -42,6 +43,8 @@ import gobblin.source.workunit.WorkUnit;
  * @author kgoodhop
  */
 public class WorkUnitState extends State {
+
+  private final static String FINAL_CONSTRUCT_STATE_PREFIX = "construct.final.state.";
 
   private Watermark actualHighWatermark;
 
@@ -260,5 +263,56 @@ public class WorkUnitState extends State {
   @Override
   public String toString() {
     return super.toString() + "\nWorkUnit: " + getWorkunit().toString() + "\nExtract: " + getExtract().toString();
+  }
+
+  /**
+   * Adds all properties from {@link gobblin.configuration.State} to this {@link gobblin.configuration.WorkUnitState}.
+   *
+   * <p>
+   *   A property with name "property" will be added to this object with the key
+   *   "{@link #FINAL_CONSTRUCT_STATE_PREFIX}[.<infix>].property
+   * </p>
+   *
+   * @param infix Optional infix used for the name of the property in the {@link gobblin.configuration.WorkUnitState}.
+   * @param finalConstructState {@link gobblin.configuration.State} for which all properties should be added to this
+   *                                                               object.
+   */
+  public void addFinalConstructState(String infix, State finalConstructState) {
+    for(String property : finalConstructState.getPropertyNames()) {
+      if(Strings.isNullOrEmpty(infix)) {
+        setProp(FINAL_CONSTRUCT_STATE_PREFIX + property, finalConstructState.getProp(property));
+      } else {
+        setProp(FINAL_CONSTRUCT_STATE_PREFIX + infix + "." + property, finalConstructState.getProp(property));
+      }
+    }
+  }
+
+  /**
+   * Builds a State containing all properties added with {@link #addFinalConstructState}
+   * to this {@link gobblin.configuration.WorkUnitState}. All such properties will be stripped of
+   * {@link #FINAL_CONSTRUCT_STATE_PREFIX} but not of any infixes.
+   *
+   * <p>
+   *   For example, if state={sample.property: sampleValue}
+   *   then
+   *   <pre>
+   *     {@code
+   *        this.addFinalConstructState("infix",state);
+   *        this.getFinalConstructState()
+   *      }
+   *   </pre>
+   *   will return state={infix.sample.property: sampleValue}
+   * </p>
+   *
+   * @return State containing all properties added with {@link #addFinalConstructState}.
+   */
+  public State getFinalConstructStates() {
+    State constructState = new State();
+    for(String property : getPropertyNames()) {
+      if(property.startsWith(FINAL_CONSTRUCT_STATE_PREFIX)) {
+        constructState.setProp(property.substring(FINAL_CONSTRUCT_STATE_PREFIX.length()), getProp(property));
+      }
+    }
+    return constructState;
   }
 }

@@ -15,7 +15,9 @@ package gobblin.converter;
 import java.io.Closeable;
 import java.io.IOException;
 
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.util.FinalState;
 
 
 /**
@@ -35,7 +37,7 @@ import gobblin.configuration.WorkUnitState;
  * @param <DI> input data type
  * @param <DO> output data type
  */
-public abstract class Converter<SI, SO, DI, DO> implements Closeable {
+public abstract class Converter<SI, SO, DI, DO> implements Closeable, FinalState {
   /**
    * Initialize this {@link Converter}.
    *
@@ -83,4 +85,14 @@ public abstract class Converter<SI, SO, DI, DO> implements Closeable {
    */
   public abstract Iterable<DO> convertRecord(SO outputSchema, DI inputRecord, WorkUnitState workUnit)
       throws DataConversionException;
+
+  /**
+   * Get final state for this object. By default this returns an empty {@link gobblin.configuration.State}, but
+   * concrete subclasses can add information that will be added to the task state.
+   * @return Empty {@link gobblin.configuration.State}.
+   */
+  @Override
+  public State getFinalState() {
+    return new State();
+  }
 }
