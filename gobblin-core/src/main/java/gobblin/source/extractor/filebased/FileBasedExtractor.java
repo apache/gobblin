@@ -27,6 +27,8 @@ import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.Counters;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.WorkUnit;
@@ -48,7 +50,7 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
 
   protected final WorkUnit workUnit;
   protected final WorkUnitState workUnitState;
-  protected final FileBasedHelper fsHelper;
+  protected final SizeAwareFileBasedHelper fsHelper;
   protected final List<String> filesToPull;
 
   protected final Closer closer = Closer.create();
@@ -60,6 +62,12 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
   private String currentFile;
   private boolean readRecordStart;
 
+  private enum CounterNames {
+    FileBytesRead;
+  }
+
+  private Counters<CounterNames> counters = new Counters<CounterNames>();
+
   public FileBasedExtractor(WorkUnitState workUnitState, FileBasedHelper fsHelper) {
     this.workUnitState = workUnitState;
     this.workUnit = workUnitState.getWorkunit();
@@ -67,12 +75,19 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
         Lists.newArrayList(workUnitState.getPropAsList(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, ""));
     this.statusCount = this.workUnit.getPropAsInt(ConfigurationKeys.FILEBASED_REPORT_STATUS_ON_COUNT,
         ConfigurationKeys.DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT);
-    this.fsHelper = fsHelper;
+
+    if (fsHelper instanceof SizeAwareFileBasedHelper) {
+      this.fsHelper = (SizeAwareFileBasedHelper)fsHelper;
+    } else {
+      this.fsHelper = new SizeAwareFileBasedHelperDecorator(fsHelper);
+    }
     try {
       this.fsHelper.connect();
     } catch (FileBasedHelperException e) {
       Throwables.propagate(e);
     }
+
+    counters.initialize(Instrumented.getMetricContext(workUnitState, this.getClass()), CounterNames.class, this.getClass());
   }
 
   /**
@@ -105,6 +120,7 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
     while (!currentFileItr.hasNext() && !filesToPull.isEmpty()) {
       LOGGER.info("Finished downloading file: " + currentFile);
       closeCurrentFile();
+      incrementBytesReadCounter();
       currentFile = filesToPull.remove(0);
       currentFileItr = downloadFile(currentFile);
       LOGGER.info("Will start downloading file: " + currentFile);
@@ -190,6 +206,18 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
       this.fsHelper.close();
     } catch (FileBasedHelperException e) {
       LOGGER.error("Could not successfully close file system helper due to error: " + e.getMessage(), e);
+    }
+  }
+
+  private void incrementBytesReadCounter() {
+    try {
+      counters.inc(CounterNames.FileBytesRead, fsHelper.getFileSize(currentFile));
+    } catch (FileBasedHelperException e) {
+      LOGGER.info("Unable to get file size. Will skip increment to bytes counter " + e.getMessage());
+      LOGGER.debug(e.getMessage(), e);
+    } catch (UnsupportedOperationException e) {
+      LOGGER.info("Unable to get file size. Will skip increment to bytes counter " + e.getMessage());
+      LOGGER.debug(e.getMessage(), e);
     }
   }
 }

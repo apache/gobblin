@@ -12,8 +12,9 @@
 
 package gobblin.source.extractor.extract.sftp;
 
-import gobblin.source.extractor.filebased.FileBasedHelper;
 import gobblin.source.extractor.filebased.FileBasedHelperException;
+import gobblin.source.extractor.filebased.SizeAwareFileBasedHelper;
+
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +32,7 @@ import com.jcraft.jsch.Session;
 import com.jcraft.jsch.SftpException;
 import com.jcraft.jsch.SftpProgressMonitor;
 import com.jcraft.jsch.UserInfo;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 
@@ -39,7 +41,7 @@ import gobblin.configuration.State;
  * Connects to a source via SFTP and executes a given list of SFTP commands
  * @author stakiar
  */
-public class SftpFsHelper implements FileBasedHelper {
+public class SftpFsHelper implements SizeAwareFileBasedHelper {
   private static Logger log = LoggerFactory.getLogger(SftpFsHelper.class);
   private ChannelSftp channelSftp;
   private Session session;
@@ -148,6 +150,17 @@ public class SftpFsHelper implements FileBasedHelper {
     }
     if (channelSftp != null) {
       channelSftp.disconnect();
+    }
+  }
+
+
+  @Override
+  public long getFileSize(String filePath) throws FileBasedHelperException {
+    try {
+      return channelSftp.lstat(filePath).getSize();
+    } catch (SftpException e) {
+      throw new FileBasedHelperException(String.format("Failed to get size for file at path %s due to error %s",
+          filePath, e.getMessage()), e);
     }
   }
 

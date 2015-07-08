@@ -65,7 +65,7 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
     this.closer = Closer.create();
     this.immediateReportExecutor = Executors.newSingleThreadExecutor();
 
-    builder.context.addNotifyTarget(new Function<Notification, Void>() {
+    builder.context.addNotificationTarget(new Function<Notification, Void>() {
       @Nullable
       @Override
       public Void apply(Notification notification) {

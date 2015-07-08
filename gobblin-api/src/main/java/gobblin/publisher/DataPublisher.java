@@ -25,7 +25,7 @@ import gobblin.configuration.WorkUnitState;
  */
 public abstract class DataPublisher implements Closeable {
 
-  private final State state;
+  protected final State state;
 
   public DataPublisher(State state) {
     this.state = state;

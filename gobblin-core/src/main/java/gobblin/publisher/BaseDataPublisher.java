@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
@@ -26,12 +27,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.io.Closer;
 
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.ForkOperatorUtils;
+import gobblin.util.ParallelRunner;
 import gobblin.util.WriterUtils;
 
 
@@ -53,14 +57,14 @@ public class BaseDataPublisher extends DataPublisher {
   private static final Logger LOG = LoggerFactory.getLogger(BaseDataPublisher.class);
 
   protected final List<FileSystem> fss = Lists.newArrayList();
-  protected int numBranches;
+  protected final Closer closer;
+  protected final int numBranches;
+  protected final int parallelRunnerThreads;
+  protected final Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
 
-  public BaseDataPublisher(State state) {
+  public BaseDataPublisher(State state) throws IOException {
     super(state);
-  }
-
-  @Override
-  public void initialize() throws IOException {
+    this.closer = Closer.create();
     Configuration conf = new Configuration();
 
     // Add all job configuration properties so they are picked up by Hadoop
@@ -77,11 +81,18 @@ public class BaseDataPublisher extends DataPublisher {
           ConfigurationKeys.LOCAL_FS_URI));
       this.fss.add(FileSystem.get(uri, conf));
     }
+    this.parallelRunnerThreads =
+        state.getPropAsInt(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY, ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS);
+  }
+
+  @Override
+  public void initialize() throws IOException {
+    // Nothing needs to be done since the constructor already initializes the publisher.
   }
 
   @Override
   public void close() throws IOException {
-    // Nothing to do
+    this.closer.close();
   }
 
   @Override
@@ -93,6 +104,8 @@ public class BaseDataPublisher extends DataPublisher {
 
     for (WorkUnitState workUnitState : states) {
       for (int branchId = 0; branchId < this.numBranches; branchId++) {
+        // Get a ParallelRunner instance for moving files in parallel
+        ParallelRunner parallelRunner = this.getParallelRunner(this.fss.get(branchId));
 
         // The directory where the workUnitState wrote its output data. It is a combination of WRITER_OUTPUT_DIR and
         // WRITER_FILE_PATH
@@ -122,7 +135,7 @@ public class BaseDataPublisher extends DataPublisher {
           // If the final output directory is not configured to be replaced, then append the new data to the existing
           // output folder
           if (!replaceFinalOutputDir) {
-            addWriterOutputToExistingDir(writerOutputDir, publisherOutputDir, workUnitState, branchId);
+            addWriterOutputToExistingDir(writerOutputDir, publisherOutputDir, workUnitState, branchId, parallelRunner);
             writerOutputPathsMoved.add(writerOutputDir);
             continue;
           }
@@ -133,12 +146,9 @@ public class BaseDataPublisher extends DataPublisher {
           this.fss.get(branchId).mkdirs(publisherOutputDir.getParent());
         }
 
-        if (this.fss.get(branchId).rename(writerOutputDir, publisherOutputDir)) {
-          LOG.info(String.format("Moved %s to %s", writerOutputDir, publisherOutputDir));
-          writerOutputPathsMoved.add(writerOutputDir);
-        } else {
-          throw new IOException("Failed to move from " + writerOutputDir + " to " + publisherOutputDir);
-        }
+        LOG.info(String.format("Moving %s to %s", writerOutputDir, publisherOutputDir));
+        parallelRunner.renamePath(writerOutputDir, publisherOutputDir);
+        writerOutputPathsMoved.add(writerOutputDir);
       }
 
       // Upon successfully committing the data to the final output directory, set states
@@ -149,7 +159,7 @@ public class BaseDataPublisher extends DataPublisher {
   }
 
   protected void addWriterOutputToExistingDir(Path writerOutputDir, Path publisherOutputDir,
-      WorkUnitState workUnitState, int branchId) throws IOException {
+      WorkUnitState workUnitState, int branchId, ParallelRunner parallelRunner) throws IOException {
     boolean preserveFileName = workUnitState.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(
         ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, this.numBranches, branchId), false);
 
@@ -164,12 +174,17 @@ public class BaseDataPublisher extends DataPublisher {
                       ConfigurationKeys.DATA_PUBLISHER_FINAL_NAME, this.numBranches, branchId)))
           : new Path(publisherOutputDir, status.getPath().getName());
 
-      if (this.fss.get(branchId).rename(status.getPath(), finalOutputPath)) {
-        LOG.info(String.format("Moved %s to %s", status.getPath(), finalOutputPath));
-      } else {
-        throw new IOException("Failed to move file from " + status.getPath() + " to " + finalOutputPath);
-      }
+      LOG.info(String.format("Moving %s to %s", status.getPath(), finalOutputPath));
+      parallelRunner.renamePath(status.getPath(), finalOutputPath);
     }
+  }
+
+  private ParallelRunner getParallelRunner(FileSystem fs) {
+    String uri = fs.getUri().toString();
+    if (!this.parallelRunners.containsKey(uri)) {
+      this.parallelRunners.put(uri, this.closer.register(new ParallelRunner(this.parallelRunnerThreads, fs)));
+    }
+    return this.parallelRunners.get(uri);
   }
 
   @Override

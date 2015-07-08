@@ -120,7 +120,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     LOG.info(String.format("Waiting for submitted tasks of job %s to complete...", jobId));
     while (this.countDownLatch.getCount() > 0) {
       LOG.info(String.format("%d out of %d tasks of job %s are running", this.countDownLatch.getCount(),
-          workUnits.size(), jobId));
+          workUnitsToRun.size(), jobId));
       this.countDownLatch.await(1, TimeUnit.MINUTES);
     }
 

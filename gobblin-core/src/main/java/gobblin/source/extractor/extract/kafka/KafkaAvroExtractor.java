@@ -111,7 +111,7 @@ public class KafkaAvroExtractor extends KafkaExtractor<Schema, GenericRecord> {
             payload.length - 1 - KafkaAvroSchemaRegistry.SCHEMA_ID_LENGTH_BYTE, null);
     try {
       GenericRecord record = reader.get().read(null, binaryDecoder);
-      if (!record.getSchema().equals(this.schema)) {
+      if (!record.getSchema().equals(this.schema.get())) {
         record = AvroUtils.convertRecordSchema(record, this.schema.get());
       }
       return record;

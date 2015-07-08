@@ -659,7 +659,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    * @param target A {@link com.google.common.base.Function} that will be run every time
    *               there is a new {@link gobblin.metrics.notification.Notification} in this context.
    */
-  public void addNotifyTarget(Function<Notification, Void> target) {
+  public void addNotificationTarget(Function<Notification, Void> target) {
     this.notificationTargets.add(target);
   }
 
