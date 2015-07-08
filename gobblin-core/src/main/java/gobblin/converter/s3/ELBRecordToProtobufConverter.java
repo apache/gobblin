@@ -24,7 +24,7 @@ import logFile.ServerLogHeaderProto.*;
  *
  * @author ahollenbach@nerdwallet.com
  */
-public class ELBToProtobufConverter extends Converter<Class<ELBRecord>, Class<ELBLog>, ELBRecord, ELBLog> {
+public class ELBRecordToProtobufConverter extends Converter<Class<ELBRecord>, Class<ELBLog>, ELBRecord, ELBLog> {
 
   @Override
   public Class<ELBLog> convertSchema(Class<ELBRecord> inputSchema, WorkUnitState workUnit)
