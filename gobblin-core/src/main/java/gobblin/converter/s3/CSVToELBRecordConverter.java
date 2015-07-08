@@ -25,7 +25,7 @@ import java.util.ArrayList;
  *
  * @author ahollenbach@nerdwallet.com
  */
-public class CSVToELBConverter extends
+public class CSVToELBRecordConverter extends
     Converter<Class<ArrayList<String>>, Class<ELBRecord>, ArrayList<String>, ELBRecord> {
   @Override
   public Class<ELBRecord> convertSchema(Class<ArrayList<String>> inputSchema, WorkUnitState workUnit)
