@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.util.FinalState;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.JobConfigurationUtils;
@@ -37,7 +38,7 @@ import gobblin.util.WriterUtils;
  *
  * @author akshay@nerdwallet.com
  */
-public abstract class FsDataWriter<D> implements DataWriter<D> {
+public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
   private static final Logger LOG = LoggerFactory.getLogger(FsDataWriter.class);
 
   protected final FileSystem fs;
@@ -93,5 +94,16 @@ public abstract class FsDataWriter<D> implements DataWriter<D> {
     if (!this.fs.exists(this.outputFile.getParent())) {
       this.fs.mkdirs(this.outputFile.getParent());
     }
+  }
+
+  @Override
+  public State getFinalState() {
+    State state = new State();
+    state.setProp("RecordsWritten", recordsWritten());
+    try {
+      state.setProp("BytesWritten", bytesWritten());
+    } catch(IOException ioe) {
+    }
+    return state;
   }
 }
