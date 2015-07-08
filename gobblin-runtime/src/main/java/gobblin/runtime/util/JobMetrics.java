@@ -59,6 +59,16 @@ public class JobMetrics extends GobblinMetrics {
   }
 
   /**
+   * Get a new {@link GobblinMetrics} instance for a given job.
+   *
+   * @param jobId job ID
+   * @return a new {@link GobblinMetrics} instance for the given job
+   */
+  public static JobMetrics get(String jobId) {
+    return get(null, jobId);
+  }
+
+  /**
    * Get a {@link JobMetrics} instance for the job with the given {@link JobState} instance.
    *
    * @param jobState the given {@link JobState} instance

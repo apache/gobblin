@@ -12,22 +12,21 @@
 
 package gobblin.metrics.kafka;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
+import java.io.IOException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.MetricRegistry;
-import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
-import kafka.producer.KeyedMessage;
-import kafka.producer.ProducerConfig;
-
 import gobblin.metrics.MetricContext;
-import gobblin.metrics.SerializedMetricReportReporter;
+import gobblin.metrics.MetricReport;
+import gobblin.metrics.reporter.MetricReportReporter;
+import gobblin.metrics.reporter.util.AvroJsonSerializer;
+import gobblin.metrics.reporter.util.AvroSerializer;
+import gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
+import gobblin.metrics.reporter.util.SchemaVersionWriter;
 
 
 /**
@@ -35,32 +34,24 @@ import gobblin.metrics.SerializedMetricReportReporter;
  *
  * @author ibuenros
  */
-public class KafkaReporter extends SerializedMetricReportReporter {
+public class KafkaReporter extends MetricReportReporter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(KafkaReporter.class);
-  public static final int SCHEMA_VERSION = 1;
 
-  private final String topic;
-  private final Optional<ProducerCloseable<String, byte[]>> producerOpt;
+  protected final AvroSerializer<MetricReport> serializer;
+  private final KafkaPusher kafkaPusher;
 
-  protected KafkaReporter(Builder<?> builder) {
+  protected KafkaReporter(Builder<?> builder) throws IOException {
     super(builder);
 
-    this.topic = builder.topic;
+    this.serializer = this.closer.register(
+        createSerializer(new FixedSchemaVersionWriter()));
+    this.kafkaPusher = this.closer.register(new KafkaPusher(builder.brokers, builder.topic));
 
-    if (this.reportMetrics) {
-      Properties props = new Properties();
-      props.put("metadata.broker.list", builder.brokers);
-      props.put("serializer.class", "kafka.serializer.DefaultEncoder");
-      props.put("request.required.acks", "1");
+  }
 
-      ProducerConfig config = new ProducerConfig(props);
-
-      this.producerOpt = Optional.of(this.closer.register(new ProducerCloseable<String, byte[]>(config)));
-    } else {
-      this.producerOpt = Optional.absent();
-    }
-
+  protected AvroSerializer<MetricReport> createSerializer(SchemaVersionWriter schemaVersionWriter) throws IOException {
+    return new AvroJsonSerializer<MetricReport>(MetricReport.SCHEMA$, schemaVersionWriter);
   }
 
   /**
@@ -101,8 +92,8 @@ public class KafkaReporter extends SerializedMetricReportReporter {
    * Builder for {@link KafkaReporter}.
    * Defaults to no filter, reporting rates in seconds and times in milliseconds.
    */
-  public static abstract class Builder<T extends SerializedMetricReportReporter.Builder<T>>
-      extends SerializedMetricReportReporter.Builder<T> {
+  public static abstract class Builder<T extends MetricReportReporter.Builder<T>>
+      extends MetricReportReporter.Builder<T> {
     protected String brokers;
     protected String topic;
 
@@ -117,7 +108,7 @@ public class KafkaReporter extends SerializedMetricReportReporter {
      * @param topic topic to send metrics to
      * @return KafkaReporter
      */
-    public KafkaReporter build(String brokers, String topic) {
+    public KafkaReporter build(String brokers, String topic) throws IOException {
       this.brokers = brokers;
       this.topic = topic;
       return new KafkaReporter(this);
@@ -126,12 +117,8 @@ public class KafkaReporter extends SerializedMetricReportReporter {
   }
 
   @Override
-  protected void pushSerializedReport(byte[] serializedReport) {
-    if (this.producerOpt.isPresent()) {
-
-      List<KeyedMessage<String, byte[]>> messages = new ArrayList<KeyedMessage<String, byte[]>>();
-      messages.add(new KeyedMessage<String, byte[]>(this.topic, serializedReport));
-      this.producerOpt.get().send(messages);
-    }
+  protected void emitReport(MetricReport report) {
+    this.kafkaPusher.pushMessages(Lists.newArrayList(this.serializer.serializeRecord(report)));
   }
+
 }

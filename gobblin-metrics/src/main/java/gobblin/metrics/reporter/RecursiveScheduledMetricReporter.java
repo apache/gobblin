@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics;
+package gobblin.metrics.reporter;
 
 import java.util.Map;
 import java.util.SortedMap;
@@ -22,37 +22,27 @@ import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Function;
 import com.google.common.collect.Maps;
 
+import gobblin.metrics.MetricContext;
+
 
 /**
- * Reports a Metric context and all of its descendants recursively.
+ * Reports the metrics of a {@link gobblin.metrics.MetricContext} following a schedule.
  */
-public abstract class RecursiveScheduledReporter extends ScheduledReporter {
+public abstract class RecursiveScheduledMetricReporter extends RecursiveScheduledReporter {
 
-  protected final MetricRegistry registry;
+  private MetricFilter filter;
 
-  public RecursiveScheduledReporter(MetricRegistry registry, String name, MetricFilter filter, TimeUnit rateUnit,
+  public RecursiveScheduledMetricReporter(MetricRegistry registry, String name, MetricFilter filter, TimeUnit rateUnit,
       TimeUnit durationUnit) {
     super(registry, name, filter, rateUnit, durationUnit);
-    this.registry = registry;
+    this.filter = filter;
   }
 
-  @Override
-  public final void report() {
-    report(this.registry);
-  }
-
-  /**
-   * Report a {@link com.codahale.metrics.MetricRegistry}. If the input is a {@link gobblin.metrics.MetricContext}
-   * it will also report all of its children recursively.
-   * @param registry MetricRegistry to report.
-   */
-  public void report(MetricRegistry registry) {
-
+  public void reportRegistry(MetricRegistry registry) {
     Map<String, String> tags = Maps.newHashMap();
     if (registry instanceof MetricContext) {
       tags = Maps.transformValues(((MetricContext) registry).getTagMap(), new Function<Object, String>() {
@@ -63,15 +53,8 @@ public abstract class RecursiveScheduledReporter extends ScheduledReporter {
       });
     }
 
-    report(registry.getGauges(), registry.getCounters(), registry.getHistograms(),
-        registry.getMeters(), registry.getTimers(), tags);
-
-    if (registry instanceof MetricContext) {
-      for (MetricContext context : ((MetricContext) registry).getChildContextsAsMap().values()) {
-        report(context);
-      }
-    }
-
+    report(registry.getGauges(this.filter), registry.getCounters(this.filter), registry.getHistograms(this.filter),
+        registry.getMeters(this.filter), registry.getTimers(this.filter), tags);
   }
 
   /**
@@ -81,12 +64,4 @@ public abstract class RecursiveScheduledReporter extends ScheduledReporter {
       SortedMap<String, Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers,
       Map<String, String> tags);
 
-  /**
-   * This is an abstract method of {@link com.codahale.metrics.ScheduledReporter} which is no longer used.
-   * Implement as a NOOP.
-   */
-  @Override
-  public void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters,
-      SortedMap<String, Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers) {
-  }
 }

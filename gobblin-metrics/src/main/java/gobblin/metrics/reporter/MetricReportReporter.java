@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics;
+package gobblin.metrics.reporter;
 
 import java.util.List;
 import java.util.Map;
@@ -35,6 +35,11 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
+import gobblin.metrics.Measurements;
+import gobblin.metrics.Metric;
+import gobblin.metrics.MetricReport;
+import gobblin.metrics.Tag;
+
 
 /**
  * Scheduled reporter based on {@link gobblin.metrics.MetricReport}.
@@ -43,7 +48,7 @@ import com.google.common.io.Closer;
  * This class will generate a metric report, and call {@link #emitReport} to actually emit the metrics.
  * </p>
  */
-public abstract class MetricReportReporter extends RecursiveScheduledReporter {
+public abstract class MetricReportReporter extends RecursiveScheduledMetricReporter {
 
   private final static Logger LOGGER = LoggerFactory.getLogger(MetricReportReporter.class);
 
@@ -57,7 +62,7 @@ public abstract class MetricReportReporter extends RecursiveScheduledReporter {
   }
 
   /**
-   * Builder for {@link gobblin.metrics.MetricReportReporter}.
+   * Builder for {@link MetricReportReporter}.
    * Defaults to no filter, reporting rates in seconds and times in milliseconds.
    */
   public static abstract class Builder<T extends Builder<T>> {
@@ -150,7 +155,7 @@ public abstract class MetricReportReporter extends RecursiveScheduledReporter {
 
   /**
    * Serializes metrics and pushes the byte arrays to Kafka.
-   * Uses the serialize* methods in {@link gobblin.metrics.MetricReportReporter}.
+   * Uses the serialize* methods in {@link MetricReportReporter}.
    * @param gauges map of {@link com.codahale.metrics.Gauge} to report and their name.
    * @param counters map of {@link com.codahale.metrics.Counter} to report and their name.
    * @param histograms map of {@link com.codahale.metrics.Histogram} to report and their name.

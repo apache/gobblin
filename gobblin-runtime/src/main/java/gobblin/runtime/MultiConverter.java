@@ -12,6 +12,7 @@
 
 package gobblin.runtime;
 
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +47,14 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
   public MultiConverter(List<Converter<?, ?, ?, ?>> converters) {
     // Make a copy to guard against changes to the converters from outside
     this.converters = Lists.newArrayList(converters);
+  }
+
+  @Override
+  public void close()
+      throws IOException {
+    for(Converter<?,?,?,?> converter : this.converters) {
+      converter.close();
+    }
   }
 
   @Override

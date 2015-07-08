@@ -15,9 +15,7 @@ package gobblin.metrics.kafka;
 
 import java.io.IOException;
 
-import org.apache.avro.specific.SpecificDatumReader;
 import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.codahale.metrics.MetricRegistry;
@@ -26,7 +24,7 @@ import kafka.consumer.ConsumerIterator;
 
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricReport;
-import gobblin.metrics.MetricReportUtils;
+import gobblin.metrics.reporter.util.MetricReportUtils;
 
 
 /**
@@ -38,14 +36,9 @@ import gobblin.metrics.MetricReportUtils;
 @Test(groups = {"gobblin.metrics"})
 public class KafkaAvroReporterTest extends KafkaReporterTest {
 
-  private SpecificDatumReader<MetricReport> reader;
-
   public KafkaAvroReporterTest(String topic)
       throws IOException, InterruptedException {
     super(topic);
-
-    reader = null;
-
   }
 
   public KafkaAvroReporterTest() throws IOException, InterruptedException {
@@ -60,11 +53,6 @@ public class KafkaAvroReporterTest extends KafkaReporterTest {
   @Override
   public KafkaReporter.Builder<?> getBuilderFromContext(MetricContext context) {
     return KafkaAvroReporter.forContext(context);
-  }
-
-  @BeforeClass
-  public void setup() {
-    reader = new SpecificDatumReader<MetricReport>(MetricReport.class);
   }
 
   @Override

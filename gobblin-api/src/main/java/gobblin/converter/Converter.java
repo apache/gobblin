@@ -12,6 +12,9 @@
 
 package gobblin.converter;
 
+import java.io.Closeable;
+import java.io.IOException;
+
 import gobblin.configuration.WorkUnitState;
 
 
@@ -32,7 +35,7 @@ import gobblin.configuration.WorkUnitState;
  * @param <DI> input data type
  * @param <DO> output data type
  */
-public abstract class Converter<SI, SO, DI, DO> {
+public abstract class Converter<SI, SO, DI, DO> implements Closeable {
   /**
    * Initialize this {@link Converter}.
    *
@@ -41,6 +44,10 @@ public abstract class Converter<SI, SO, DI, DO> {
    */
   public Converter<SI, SO, DI, DO> init(WorkUnitState workUnit) {
     return this;
+  }
+
+  @Override
+  public void close() throws IOException {
   }
 
   /**

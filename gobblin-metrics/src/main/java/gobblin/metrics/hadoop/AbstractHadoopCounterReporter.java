@@ -14,7 +14,7 @@ import com.codahale.metrics.Timer;
 
 import com.google.common.collect.Maps;
 
-import gobblin.metrics.ContextAwareScheduledReporter;
+import gobblin.metrics.reporter.ContextAwareScheduledReporter;
 import gobblin.metrics.Measurements;
 import gobblin.metrics.MetricContext;
 

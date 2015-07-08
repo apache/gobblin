@@ -14,11 +14,10 @@ package gobblin.metrics.kafka;
 
 import java.io.IOException;
 
-import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Optional;
 
+import gobblin.metrics.GobblinTrackingEvent;
 import gobblin.metrics.MetricContext;
-import gobblin.metrics.MetricReport;
 import gobblin.metrics.reporter.util.AvroBinarySerializer;
 import gobblin.metrics.reporter.util.AvroSerializer;
 import gobblin.metrics.reporter.util.SchemaRegistryVersionWriter;
@@ -26,13 +25,11 @@ import gobblin.metrics.reporter.util.SchemaVersionWriter;
 
 
 /**
- * Kafka reporter for codahale metrics writing metrics in Avro format.
- *
- * @author ibuenros
+ * {@link gobblin.metrics.reporter.EventReporter} that emits events to Kafka as serialized Avro records.
  */
-public class KafkaAvroReporter extends KafkaReporter {
+public class KafkaAvroEventReporter extends KafkaEventReporter {
 
-  protected KafkaAvroReporter(Builder<?> builder) throws IOException {
+  protected KafkaAvroEventReporter(Builder<?> builder) throws IOException {
     super(builder);
     if(builder.registry.isPresent()) {
       this.serializer.setSchemaVersionWriter(new SchemaRegistryVersionWriter(builder.registry.get()));
@@ -40,36 +37,24 @@ public class KafkaAvroReporter extends KafkaReporter {
   }
 
   @Override
-  protected AvroSerializer<MetricReport> createSerializer(SchemaVersionWriter schemaVersionWriter)
+  protected AvroSerializer<GobblinTrackingEvent> createSerializer(SchemaVersionWriter schemaVersionWriter)
       throws IOException {
-    return new AvroBinarySerializer<MetricReport>(MetricReport.SCHEMA$, schemaVersionWriter);
+    return new AvroBinarySerializer<GobblinTrackingEvent>(GobblinTrackingEvent.SCHEMA$, schemaVersionWriter);
   }
 
   /**
-   * Returns a new {@link KafkaAvroReporter.Builder} for {@link KafkaAvroReporter}.
-   * If the registry is of type {@link gobblin.metrics.MetricContext} tags will NOT be inherited.
-   * To inherit tags, use forContext method.
-   *
-   * @param registry the registry to report
-   * @return KafkaAvroReporter builder
-   */
-  public static Builder<? extends Builder<?>> forRegistry(MetricRegistry registry) {
-    return new BuilderImpl(registry);
-  }
-
-  /**
-   * Returns a new {@link KafkaAvroReporter.Builder} for {@link KafkaAvroReporter}.
+   * Returns a new {@link KafkaAvroEventReporter.Builder} for {@link KafkaAvroEventReporter}.
    *
    * @param context the {@link gobblin.metrics.MetricContext} to report
    * @return KafkaAvroReporter builder
    */
-  public static Builder<?> forContext(MetricContext context) {
-    return forRegistry(context);
+  public static Builder<? extends Builder<?>> forContext(MetricContext context) {
+    return new BuilderImpl(context);
   }
 
   private static class BuilderImpl extends Builder<BuilderImpl> {
-    public BuilderImpl(MetricRegistry registry) {
-      super(registry);
+    public BuilderImpl(MetricContext context) {
+      super(context);
     }
 
     @Override
@@ -79,15 +64,15 @@ public class KafkaAvroReporter extends KafkaReporter {
   }
 
   /**
-   * Builder for {@link KafkaAvroReporter}.
+   * Builder for {@link KafkaAvroEventReporter}.
    * Defaults to no filter, reporting rates in seconds and times in milliseconds.
    */
-  public static abstract class Builder<T extends Builder<T>> extends KafkaReporter.Builder<T> {
+  public static abstract class Builder<T extends Builder<T>> extends KafkaEventReporter.Builder<T> {
 
     private Optional<KafkaAvroSchemaRegistry> registry = Optional.absent();
 
-    private Builder(MetricRegistry registry) {
-      super(registry);
+    private Builder(MetricContext context) {
+      super(context);
     }
 
     public T withSchemaRegistry(KafkaAvroSchemaRegistry registry) {
@@ -96,16 +81,16 @@ public class KafkaAvroReporter extends KafkaReporter {
     }
 
     /**
-     * Builds and returns {@link KafkaAvroReporter}.
+     * Builds and returns {@link KafkaAvroEventReporter}.
      *
      * @param brokers string of Kafka brokers
      * @param topic topic to send metrics to
      * @return KafkaAvroReporter
      */
-    public KafkaAvroReporter build(String brokers, String topic) throws IOException {
+    public KafkaAvroEventReporter build(String brokers, String topic) throws IOException {
       this.brokers = brokers;
       this.topic = topic;
-      return new KafkaAvroReporter(this);
+      return new KafkaAvroEventReporter(this);
     }
 
   }

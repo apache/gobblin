@@ -116,7 +116,7 @@ public class Task implements Runnable {
       Extractor extractor = closer.register(new InstrumentedExtractorDecorator(this.taskState,
           this.taskContext.getExtractor()));
 
-      Converter converter = new MultiConverter(this.taskContext.getConverters());
+      Converter converter = closer.register(new MultiConverter(this.taskContext.getConverters()));
 
       // Get the fork operator. By default IdentityForkOperator is used with a single branch.
       ForkOperator forkOperator = closer.register(this.taskContext.getForkOperator());
