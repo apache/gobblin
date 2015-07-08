@@ -15,12 +15,12 @@ import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
-import gobblin.converter.s3.ELBLogOuterClass.ELBLog;
-import gobblin.converter.s3.ServerLogHeaderOuterClass.*;
+import logFile.ELBLogProto.ELBLog;
+import logFile.ServerLogHeaderProto.*;
 
 
 /**
- * Converts an ELB record to the {@link ELBLogOuterClass} serialized protobuf format.
+ * Converts an ELB record to the {@link ELBLogProto} serialized protobuf format.
  *
  * @author ahollenbach@nerdwallet.com
  */
@@ -36,7 +36,7 @@ public class ELBToProtobufConverter extends Converter<Class<ELBRecord>, Class<EL
   public Iterable<ELBLog> convertRecord(Class<ELBLog> outputSchema, ELBRecord elbRecord, WorkUnitState workUnit)
       throws DataConversionException {
     ServerLogHeader logHeader = ServerLogHeader.newBuilder()
-        .setSource(ServerLogHeaderOuterClass.Source.ELB)
+        .setSource(logFile.ServerLogHeaderProto.Source.ELB)
         .setTimestamp(elbRecord.getTimestampInMillis())
         .setTimeTaken(elbRecord.getTimeTaken())
         .setServerHost(elbRecord.getBackendIp())

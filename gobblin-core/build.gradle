@@ -45,10 +45,14 @@ dependencies {
     compile externalDependency.avroMapredH1
   }
 
+  if (System.getenv("GOBBLIN_LOCAL_JAR_LOCATION") != null) {
+    compile fileTree(dir: System.getenv("GOBBLIN_LOCAL_JAR_LOCATION"), include: '*.jar')
+  }
+
   testCompile externalDependency.testng
 }
 
-configurations { compile { transitive = false } }
+configurations { compile { transitive = true } }
 
 test {
   useTestNG () { excludeGroups 'ignore' }
