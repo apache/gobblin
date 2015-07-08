@@ -208,6 +208,7 @@ public class ConfigurationKeys {
   public static final String WRITER_FILE_OWNER = WRITER_PREFIX + ".file.owner";
   public static final String WRITER_FILE_GROUP = WRITER_PREFIX + ".file.group";
   public static final String WRITER_FILE_REPLICATION_FACTOR = WRITER_PREFIX + ".file.replication.factor";
+  public static final String WRITER_FILE_BLOCK_SIZE = WRITER_PREFIX + ".file.block.size";
   public static final String WRITER_FILE_PERMISSIONS = WRITER_PREFIX + ".file.permissions";
   public static final String WRITER_BUFFER_SIZE = WRITER_PREFIX + ".buffer.size";
   public static final String WRITER_PRESERVE_FILE_NAME = WRITER_PREFIX + ".preserve.file.name";
@@ -218,7 +219,7 @@ public class ConfigurationKeys {
   public static final String WRITER_PARTITION_PATTERN = WRITER_PREFIX + ".partition.pattern";
   public static final String WRITER_PARTITION_TIMEZONE = WRITER_PREFIX + ".partition.timezone";
   public static final String DEFAULT_WRITER_FILE_BASE_NAME = "part";
-  public static final String DEFAULT_DEFLATE_LEVEL = "9";
+  public static final int DEFAULT_DEFLATE_LEVEL = 9;
   public static final String DEFAULT_BUFFER_SIZE = "4096";
   public static final String DEFAULT_WRITER_PARTITION_LEVEL = "daily";
   public static final String DEFAULT_WRITER_PARTITION_PATTERN = "yyyy/MM/dd";
@@ -440,19 +441,19 @@ public class ConfigurationKeys {
   public static final String DEFAULT_METRICS_ENABLED = Boolean.toString(true);
   public static final String METRICS_FILE_SUFFIX = METRICS_CONFIGURATIONS_PREFIX + "reporting.file.suffix";
   public static final String DEFAULT_METRICS_FILE_SUFFIX = "";
-  public static final String METRICS_REPORTING_FILE_ENABLED_KEY =
-      METRICS_CONFIGURATIONS_PREFIX + "reporting.file.enabled";
+  public static final String METRICS_REPORTING_FILE_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX
+      + "reporting.file.enabled";
   public static final String DEFAULT_METRICS_REPORTING_FILE_ENABLED = Boolean.toString(false);
-  public static final String METRICS_REPORTING_JMX_ENABLED_KEY =
-      METRICS_CONFIGURATIONS_PREFIX + "reporting.jmx.enabled";
+  public static final String METRICS_REPORTING_JMX_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX
+      + "reporting.jmx.enabled";
   public static final String DEFAULT_METRICS_REPORTING_JMX_ENABLED = Boolean.toString(false);
-  public static final String METRICS_REPORTING_KAFKA_ENABLED_KEY =
-      METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.enabled";
+  public static final String METRICS_REPORTING_KAFKA_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX
+      + "reporting.kafka.enabled";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_ENABLED = Boolean.toString(false);
   public static final String METRICS_REPORTING_KAFKA_FORMAT = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.format";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_FORMAT = "json";
-  public static final String METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY =
-      METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.avro.use.schema.registry";
+  public static final String METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY = METRICS_CONFIGURATIONS_PREFIX
+      + "reporting.kafka.avro.use.schema.registry";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY = Boolean.toString(false);
   public static final String METRICS_KAFKA_BROKERS = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.brokers";
   // Topic used for both event and metric reporting.
@@ -490,6 +491,18 @@ public class ConfigurationKeys {
    * Password encryption and decryption properties.
    */
   public static final String ENCRYPT_KEY_LOC = "encrypt.key.loc";
+  public static final String ENCRYPT_USE_STRONG_ENCRYPTOR = "encrypt.use.strong.encryptor";
+  public static final boolean DEFAULT_ENCRYPT_USE_STRONG_ENCRYPTOR = false;
+
+  /**
+   * Proxy Filesystem operation properties.
+   */
+  public static final String SHOULD_FS_PROXY_AS_USER = "should.fs.proxy.as.user";
+  public static final boolean DEFAULT_SHOULD_FS_PROXY_AS_USER = false;
+  public static final String FS_PROXY_AS_USER_NAME = "fs.proxy.as.user.name";
+  public static final String FS_PROXY_AS_USER_TOKEN_FILE = "fs.proxy.as.user.token.file";
+  public static final String SUPER_USER_NAME_TO_PROXY_AS_OTHERS = "super.user.name.to.proxy.as.others";
+  public static final String SUPER_USER_KEY_TAB_LOCATION = "super.user.key.tab.location";
 
   /**
    * Other configuration properties.
