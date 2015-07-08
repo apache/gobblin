@@ -35,6 +35,7 @@ import com.google.common.io.Files;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 
+import gobblin.DefaultLimiterFactory;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metastore.MetaStoreModule;

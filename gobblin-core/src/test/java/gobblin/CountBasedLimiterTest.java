@@ -1,7 +1,9 @@
-package gobblin.runtime;
+package gobblin;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import gobblin.CountBasedLimiter;
+import gobblin.Limiter;
 
 
 /**
