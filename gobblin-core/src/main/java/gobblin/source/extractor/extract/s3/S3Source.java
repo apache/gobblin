@@ -78,7 +78,9 @@ public class S3Source extends AbstractSource<Class<String>, String> {
     // Generate a work unit for each object
     List<S3ObjectSummary> summaries = recursivelyGetObjectSummaries(s3Client, s3Bucket, s3Path);
     if (summaries.size() == 0) {
-      LOG.info("S3 bucket/path was empty, no results found.");
+      LOG.warn("S3 bucket/path was empty, no results found.");
+      LOG.warn("S3 Bucket: " + s3Bucket);
+      LOG.warn("S3 Path: " + s3Path);
     }
     List<WorkUnit> workUnits = Lists.newArrayList();
     for (S3ObjectSummary summary : summaries) {
