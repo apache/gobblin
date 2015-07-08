@@ -27,10 +27,9 @@ import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
-import gobblin.instrumented.Instrumented;
+import gobblin.instrumented.extractor.InstrumentedExtractor;
 import gobblin.metrics.Counters;
 import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.WorkUnit;
 
 
@@ -44,7 +43,7 @@ import gobblin.source.workunit.WorkUnit;
  * @param <D>
  *            type of data record
  */
-public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
+public abstract class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FileBasedExtractor.class);
 
@@ -62,13 +61,14 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
   private String currentFile;
   private boolean readRecordStart;
 
-  private enum CounterNames {
+  protected enum CounterNames {
     FileBytesRead;
   }
 
-  private Counters<CounterNames> counters = new Counters<CounterNames>();
+  protected Counters<CounterNames> counters = new Counters<CounterNames>();
 
   public FileBasedExtractor(WorkUnitState workUnitState, FileBasedHelper fsHelper) {
+    super(workUnitState);
     this.workUnitState = workUnitState;
     this.workUnit = workUnitState.getWorkunit();
     this.filesToPull =
@@ -87,7 +87,7 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
       Throwables.propagate(e);
     }
 
-    counters.initialize(Instrumented.getMetricContext(workUnitState, this.getClass()), CounterNames.class, this.getClass());
+    counters.initialize(getMetricContext(), CounterNames.class, this.getClass());
   }
 
   /**
@@ -97,7 +97,7 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
    * file
    */
   @Override
-  public D readRecord(@Deprecated D reuse) throws DataRecordException, IOException {
+  public D readRecordImpl(@Deprecated D reuse) throws DataRecordException, IOException {
     this.totalRecordCount++;
 
     if (this.statusCount > 0 && this.totalRecordCount % this.statusCount == 0) {
