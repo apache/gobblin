@@ -37,7 +37,9 @@ public class StringToCSVConverter extends Converter<Class<String>, Class<String>
   @Override
   public Iterable<ArrayList<String>> convertRecord(Class<String> outputSchema, String inputRecord,
       WorkUnitState workUnit) throws DataConversionException {
-    char delimiter = workUnit.getProp(ConfigurationKeys.CONVERTER_CSV_DELIMITER).charAt(0);
+    char delimiter = workUnit.getProp(ConfigurationKeys.CONVERTER_CSV_DELIMITER,
+        ConfigurationKeys.DEFAULT_CONVERTER_CSV_DELIMITER).charAt(0);
+
     InputStreamCSVReader r = new InputStreamCSVReader(inputRecord, delimiter);
 
     try {
