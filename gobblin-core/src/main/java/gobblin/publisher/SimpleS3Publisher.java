@@ -93,7 +93,10 @@ public class SimpleS3Publisher extends BaseS3Publisher {
       String datePattern = state.getProp(ConfigurationKeys.S3_DATE_PATTERN, ConfigurationKeys.DEFAULT_S3_DATE_PATTERN);
       datePattern = datePattern.replace("/", ""); // Replace any slashes with nothing
       String dateString = new SimpleDateFormat(datePattern).format(new Date());
-      filenameFormat = filenameFormat.replace("{cur-date}", dateString);
+
+      String placeholder =
+          state.getProp(ConfigurationKeys.S3_DATE_PLACEHOLDER, ConfigurationKeys.DEFAULT_S3_DATE_PLACEHOLDER);
+      filenameFormat = filenameFormat.replace(placeholder, dateString);
 
       // Replace the counter placeholder, if any
       filenameFormat = filenameFormat.replace("{counter}", Integer.toString(counter));
