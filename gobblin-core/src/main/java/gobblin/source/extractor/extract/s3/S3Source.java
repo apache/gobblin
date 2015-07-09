@@ -76,7 +76,7 @@ public class S3Source extends AbstractSource<Class<String>, String> {
     state.setProp(ConfigurationKeys.S3_SOURCE_PATH, s3Path);
 
     // Generate a work unit for each object
-    List<S3ObjectSummary> summaries = recursivelyGetObjectSummaries(s3Client, s3Bucket, s3Path);
+    List<S3ObjectSummary> summaries = recursivelyGetObjectSummaries(state, s3Client, s3Bucket, s3Path);
     if (summaries.size() == 0) {
       LOG.warn("S3 bucket/path was empty, no results found.");
       LOG.warn("S3 Bucket: " + s3Bucket);
@@ -93,15 +93,18 @@ public class S3Source extends AbstractSource<Class<String>, String> {
     return workUnits;
   }
 
-  private List<S3ObjectSummary> recursivelyGetObjectSummaries(AmazonS3 s3Client, String s3Bucket, String s3Path) {
-    // Don't support partial
-    String[] pathParts = s3Path.split("\\*/", 2);
+  private List<S3ObjectSummary>
+  recursivelyGetObjectSummaries(SourceState state, AmazonS3 s3Client, String s3Bucket, String s3Path) {
+    String s3PathDelimiter = state.getProp(ConfigurationKeys.S3_PATH_DELIMITER,
+        ConfigurationKeys.DEFAULT_S3_PATH_DELIMITER);
+
+    String[] pathParts = s3Path.split("\\*" + s3PathDelimiter, 2);
 
     if(pathParts.length > 1) {
       // keep recursing splitting and replacing our * with all folders in the dir
       ListObjectsRequest listObjectRequest = new ListObjectsRequest().withBucketName(s3Bucket)
           .withPrefix(pathParts[0])
-          .withDelimiter("/");
+          .withDelimiter(s3PathDelimiter);
 
       ObjectListing objectListing = s3Client.listObjects(listObjectRequest);
       List<String> folders = objectListing.getCommonPrefixes();
@@ -113,7 +116,7 @@ public class S3Source extends AbstractSource<Class<String>, String> {
       // For each folder, replace what we have and recurse until we are out of wildcards
       List<S3ObjectSummary> objectSummaries = Lists.newArrayList();
       for (String folderPath : folders) {
-        objectSummaries.addAll(recursivelyGetObjectSummaries(s3Client, s3Bucket, folderPath + pathParts[1]));
+        objectSummaries.addAll(recursivelyGetObjectSummaries(state, s3Client, s3Bucket, folderPath + pathParts[1]));
       }
       return objectSummaries;
     }

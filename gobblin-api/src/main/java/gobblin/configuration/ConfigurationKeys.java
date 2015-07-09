@@ -437,6 +437,8 @@ public class ConfigurationKeys {
   public static final String DEFAULT_S3_DATE_PATTERN = "yyyy/MM/dd";
   public static final String S3_DATE_PLACEHOLDER = "aws.s3.date.placeholder";
   public static final String DEFAULT_S3_DATE_PLACEHOLDER = "{date}";
+  public static final String S3_PATH_DELIMITER = "aws.s3.path.delimiter";
+  public static final String DEFAULT_S3_PATH_DELIMITER = "/";
   public static final String S3_DATE_OFFSET = "aws.s3.date.offset";
   public static final int DEFAULT_S3_DATE_OFFSET = -1;
   /**
