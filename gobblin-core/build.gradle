@@ -41,8 +41,11 @@ dependencies {
 
   if (project.hasProperty('useHadoop2')) {
     compile externalDependency.avroMapredH2
+    compile externalDependency.hadoopClientCore
+    compile externalDependency.hadoopAnnotations
   } else {
     compile externalDependency.avroMapredH1
+    compile externalDependency.hadoop
   }
 
   testCompile externalDependency.testng

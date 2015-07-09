@@ -566,7 +566,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
           this.map(context.getCurrentKey(), context.getCurrentValue(), context);
         }
         // Actually run the list of WorkUnits
-        runWorkUnits(this.workUnits, context);
+        runWorkUnits(this.workUnits);
       } finally {
         this.cleanup(context);
       }
@@ -617,7 +617,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
      * Run the given list of {@link WorkUnit}s sequentially. If any work unit/task fails,
      * an {@link java.io.IOException} is thrown so the mapper is failed and retried.
      */
-    private void runWorkUnits(List<WorkUnit> workUnits, Context context) throws IOException, InterruptedException {
+    private void runWorkUnits(List<WorkUnit> workUnits) throws IOException, InterruptedException {
       if (workUnits.isEmpty()) {
         LOG.warn("No work units to run");
         return;
