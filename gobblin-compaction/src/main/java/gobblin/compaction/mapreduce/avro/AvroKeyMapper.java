@@ -55,7 +55,7 @@ public class AvroKeyMapper extends Mapper<AvroKey<GenericRecord>, NullWritable, 
     if (context.getNumReduceTasks() == 0) {
       context.write(key, NullWritable.get());
     } else {
-      populateRecord(key.datum(), outKey.datum());
+      populateComparableKeyRecord(key.datum(), outKey.datum());
       outValue.datum(key.datum());
       context.write(outKey, outValue);
     }
@@ -64,9 +64,10 @@ public class AvroKeyMapper extends Mapper<AvroKey<GenericRecord>, NullWritable, 
   /**
    * Populate the target record, based on the field values in the source record.
    * Target record's schema should be a subset of source record's schema.
-   * Target record's schema cannot have MAP or ARRAY fields.
+   * Target record's schema cannot have MAP, ARRAY or ENUM fields, or UNION fields that
+   * contain these fields.
    */
-  private static void populateRecord(GenericRecord source, GenericRecord target) {
+  private static void populateComparableKeyRecord(GenericRecord source, GenericRecord target) {
     for (Field field : target.getSchema().getFields()) {
       if (field.schema().getType() == Schema.Type.UNION) {
 
@@ -81,7 +82,7 @@ public class AvroKeyMapper extends Mapper<AvroKey<GenericRecord>, NullWritable, 
             if (candidateType.getFullName().equals(actualFieldSchema.getFullName())) {
               GenericRecord record = new GenericData.Record(candidateType);
               target.put(field.name(), record);
-              populateRecord((GenericRecord) fieldData, record);
+              populateComparableKeyRecord((GenericRecord) fieldData, record);
               break;
             }
           }
@@ -94,7 +95,7 @@ public class AvroKeyMapper extends Mapper<AvroKey<GenericRecord>, NullWritable, 
           record = new GenericData.Record(field.schema());
           target.put(field.name(), record);
         }
-        populateRecord((GenericRecord) source.get(field.name()), record);
+        populateComparableKeyRecord((GenericRecord) source.get(field.name()), record);
       } else {
         target.put(field.name(), source.get(field.name()));
       }
