@@ -199,7 +199,7 @@ public abstract class OldApiHadoopFileInputSource<S, D, K, V> implements Source<
     try {
       byte[] fileSplitBytes = BaseEncoding.base64().decode(fileSplitBytesStr);
       ByteArrayInputStream byteArrayInputStream = closer.register(new ByteArrayInputStream(fileSplitBytes));
-      DataInputStream dataInputStream = new DataInputStream(byteArrayInputStream);
+      DataInputStream dataInputStream = closer.register(new DataInputStream(byteArrayInputStream));
       FileSplit fileSplit = ReflectionUtils.newInstance(FileSplit.class, new Configuration());
       fileSplit.readFields(dataInputStream);
       return fileSplit;
