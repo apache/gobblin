@@ -102,7 +102,9 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
     state.setProp("RecordsWritten", recordsWritten());
     try {
       state.setProp("BytesWritten", bytesWritten());
-    } catch(IOException ioe) {
+    } catch(Exception exception) {
+      // If Writer fails to return bytesWritten, it might not be implemented, or implemented incorrectly.
+      // Omit property instead of failing.
     }
     return state;
   }

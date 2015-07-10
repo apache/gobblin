@@ -35,6 +35,7 @@ import gobblin.instrumented.extractor.InstrumentedExtractorBase;
 import gobblin.instrumented.extractor.InstrumentedExtractorDecorator;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
+import gobblin.runtime.util.RuntimeConstructs;
 
 
 /**
@@ -409,7 +410,8 @@ public class Task implements Runnable {
     int forkIdx = 0;
     for(Optional<Fork> fork : this.forks) {
       if(fork.isPresent()) {
-        this.taskState.addFinalConstructState("fork." + forkIdx, fork.get().getFinalState());
+        this.taskState.addFinalConstructState(RuntimeConstructs.FORK.toString().toLowerCase() + "." + forkIdx,
+            fork.get().getFinalState());
       }
       forkIdx++;
     }

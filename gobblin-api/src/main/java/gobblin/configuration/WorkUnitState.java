@@ -44,7 +44,7 @@ import gobblin.source.workunit.WorkUnit;
  */
 public class WorkUnitState extends State {
 
-  private final static String FINAL_CONSTRUCT_STATE_PREFIX = "construct.final.state.";
+  private static final String FINAL_CONSTRUCT_STATE_PREFIX = "construct.final.state.";
 
   private Watermark actualHighWatermark;
 
@@ -270,7 +270,7 @@ public class WorkUnitState extends State {
    *
    * <p>
    *   A property with name "property" will be added to this object with the key
-   *   "{@link #FINAL_CONSTRUCT_STATE_PREFIX}[.<infix>].property
+   *   "{@link #FINAL_CONSTRUCT_STATE_PREFIX}[.<infix>].property"
    * </p>
    *
    * @param infix Optional infix used for the name of the property in the {@link gobblin.configuration.WorkUnitState}.
@@ -298,7 +298,7 @@ public class WorkUnitState extends State {
    *   <pre>
    *     {@code
    *        this.addFinalConstructState("infix",state);
-   *        this.getFinalConstructState()
+   *        this.getFinalConstructState();
    *      }
    *   </pre>
    *   will return state={infix.sample.property: sampleValue}

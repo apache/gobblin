@@ -36,16 +36,16 @@ public class TimingEvent {
   }
 
   /**
-   * Stop the timer and submit the event.
+   * Stop the timer and submit the event. If timer was already stopped before, this is a no-op.
    */
   public void stop() {
     if(this.stopped) {
-      throw new RuntimeException("Timer has already been stopped.");
+      return;
     }
     this.stopped = true;
     long endTime = System.currentTimeMillis();
     long duration = endTime - this.startTime;
-    submitter.submit(this.name, EventSubmitter.EVENT_TYPE, TIMING_EVENT, START_TIME, Long.toString(this.startTime),
+    this.submitter.submit(this.name, EventSubmitter.EVENT_TYPE, TIMING_EVENT, START_TIME, Long.toString(this.startTime),
         END_TIME, Long.toString(endTime), DURATION, Long.toString(duration));
   }
 }
