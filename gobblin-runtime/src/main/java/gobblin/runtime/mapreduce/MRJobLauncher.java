@@ -402,16 +402,15 @@ public class MRJobLauncher extends AbstractJobLauncher {
       // Serialize each work unit into a file named after the task ID
       for (WorkUnit workUnit : workUnits) {
 
-        Path workUnitFileExt;
+        String workUnitFileName;
         if (workUnit instanceof MultiWorkUnit) {
-          workUnitFileExt =
-              new Path(JobLauncherUtils.newMultiTaskId(this.jobContext.getJobId(), multiTaskIdSequence++)
-                  + MULTI_WORK_UNIT_FILE_EXTENSION);
+          workUnitFileName =
+              JobLauncherUtils.newMultiTaskId(this.jobContext.getJobId(), multiTaskIdSequence++)
+                  + MULTI_WORK_UNIT_FILE_EXTENSION;
         } else {
-          workUnitFileExt =
-              new Path(workUnit.getProp(ConfigurationKeys.TASK_ID_KEY) + WORK_UNIT_FILE_EXTENSION);
+          workUnitFileName = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY) + WORK_UNIT_FILE_EXTENSION;
         }
-        Path workUnitFile = new Path(jobInputPath, workUnitFileExt);
+        Path workUnitFile = new Path(jobInputPath, workUnitFileName);
 
         parallelRunner.serializeToFile(workUnit, workUnitFile);
 
