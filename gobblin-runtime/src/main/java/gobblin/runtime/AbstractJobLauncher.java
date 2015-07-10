@@ -38,6 +38,7 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.metrics.MetricContext;
+import gobblin.metrics.event.EventNames;
 import gobblin.metrics.event.EventSubmitter;
 import gobblin.metrics.event.TimingEvent;
 import gobblin.publisher.DataPublisher;
@@ -153,7 +154,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
 
     new EventSubmitter.Builder(JobMetrics.get(jobId).getMetricContext(), "gobblin.runtime").build().
-        submit(gobblin.metrics.event.EventNames.TASKS_SUBMITTED, "tasksCount", Integer.toString(workUnits.size()));
+        submit(EventNames.TASKS_SUBMITTED, "tasksCount", Integer.toString(workUnits.size()));
 
     return tasks;
   }
@@ -225,7 +226,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             "Previous instance of job %s is still running, skipping this scheduled run", this.jobContext.getJobName()));
       }
 
-      TimingEvent workUnitsCreationTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.WORK_UNITS_CREATION);
+      TimingEvent workUnitsCreationTimer = this.eventSubmitter.getTimingEvent(
+          TimingEventNames.LauncherTimings.WORK_UNITS_CREATION);
       // Generate work units of the job from the source
       Optional<List<WorkUnit>> workUnits = Optional.fromNullable(this.jobContext.getSource().getWorkunits(jobState));
       workUnitsCreationTimer.stop();
