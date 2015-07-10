@@ -55,23 +55,29 @@ public class S3FsHelper implements FileBasedHelper {
   private String s3Bucket;
   private String s3Path;
 
+  /**
+   * Creates an S3 filesystem helper. This method creates and stores the Amazon S3 client, as well as fetches the
+   * bucket that the source should be looking into.
+   * @param state
+   */
   public S3FsHelper(State state) {
     this.state = state;
+
+    s3Client = new AmazonS3Client();
+    s3Bucket = state.getProp(ConfigurationKeys.S3_SOURCE_BUCKET);
   }
 
   /**
-   * Opens up a connection S3. Credentials need to be stored in environment variables.
+   * Opens up a connection to S3. Credentials need to be stored in environment variables.
    * <p/>
    * In reality, S3 doesn't have an open connection to maintain - individual actions such as a listing or object
    * content download require a temporary open connection.
    * <p/>
-   * TODO: link to S3 docs
-   *
+   * In this method, the S3 path is set. This is because the source path can contain a date, which we want to be
+   * updated every time we "connect".
    */
   @Override
   public void connect() {
-    s3Client = new AmazonS3Client();
-    s3Bucket = state.getProp(ConfigurationKeys.S3_SOURCE_BUCKET);
     s3Path = state.getProp(ConfigurationKeys.S3_SOURCE_PATH);
 
     // Replace the date if needed (if none found, s3Path is unaffected)
