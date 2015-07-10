@@ -89,12 +89,12 @@ public class ELBRecordTest {
   }
 
   /**
-   * Tests if the TCP input for the request string ("- - -") fails
+   * Tests if the TCP input for the request string ("- - - ") fails
    */
   @Test
   public void testParseRequestStringTcpIn()
       throws DataConversionException {
-    String requestString = "\"- - -\"";
+    String requestString = "\"- - - \"";
     String elbRecordString = "2015-05-13T23:39:43.945958Z my-loadbalancer 192.168.131.39:2817 10.0.0.1:80 0.000073 0"
         + ".001048 0.000057 200 200 0 29 " + requestString + " \"curl/7.38.0\" - -";
     ELBRecord elbRecord = generateELBRecord(elbRecordString);

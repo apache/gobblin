@@ -164,8 +164,9 @@ public class ELBRecord {
    * @param requestString - A string formatted in one of the two above ways
    */
   private void parseRequestString(String requestString) {
-    if (requestString == null || requestString.isEmpty() || requestString.contains("-")) {
+    if (requestString == null || requestString.isEmpty() || requestString.equals("- - - ")) {
       // This is a TCP record, ignore
+      LOG.warn("Ignoring request:" + requestString);
       return;
     }
 
@@ -174,6 +175,7 @@ public class ELBRecord {
     this.requestMethod = parts[0];
 
     String[] url = parts[1].split("://|:|/", 4);
+
     this.requestProtocol = url[0];
     this.requestHostHeader = url[1];
     this.requestPort = Integer.parseInt(url[2]);
