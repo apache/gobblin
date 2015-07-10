@@ -72,6 +72,7 @@ public class SimpleS3Publisher extends BaseS3Publisher {
         String s3Filename = generateObjectName(state, counter++);
 
         this.sendS3Data(i, new BucketAndKey(s3Bucket, s3Path + s3Filename), writerFileNames);
+        state.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
       }
     }
   }
