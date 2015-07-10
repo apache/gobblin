@@ -55,7 +55,7 @@ public class OutputStreamEventReporter extends EventReporter {
         new AvroJsonSerializer<GobblinTrackingEvent>(GobblinTrackingEvent.SCHEMA$, new NoopSchemaVersionWriter()));
     this.output = builder.output;
     this.outputBuffer = new ByteArrayOutputStream();
-    this.outputBufferPrintStream = this.closer.register(new PrintStream(this.outputBuffer));
+    this.outputBufferPrintStream = this.closer.register(new PrintStream(this.outputBuffer, false, Charsets.UTF_8.toString()));
     this.dateFormat = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.MEDIUM, Locale.getDefault());
   }
 
@@ -74,7 +74,7 @@ public class OutputStreamEventReporter extends EventReporter {
     printWithBanner("-- Events", '-');
 
     while(null != (nextEvent = queue.poll())) {
-      this.outputBufferPrintStream.println(new String(this.serializer.serializeRecord(nextEvent)));
+      this.outputBufferPrintStream.println(new String(this.serializer.serializeRecord(nextEvent), Charsets.UTF_8));
     }
 
     this.outputBufferPrintStream.println();

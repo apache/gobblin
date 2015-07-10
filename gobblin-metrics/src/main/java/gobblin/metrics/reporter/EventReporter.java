@@ -13,7 +13,6 @@
 package gobblin.metrics.reporter;
 
 import java.io.Closeable;
-import java.util.Map;
 import java.util.Queue;
 import java.util.SortedMap;
 import java.util.concurrent.ExecutorService;
@@ -140,7 +139,6 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
     protected MetricFilter filter;
     protected TimeUnit rateUnit;
     protected TimeUnit durationUnit;
-    protected Map<String, String> tags;
 
     protected Builder(MetricContext context) {
       this.context = context;
