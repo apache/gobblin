@@ -65,7 +65,7 @@ public class OldApiHadoopFileInputSourceTest {
     this.sourceState.setProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY, Extract.TableType.SNAPSHOT_ONLY.toString());
     this.sourceState.setProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, "test");
     this.sourceState.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, "test");
-    this.sourceState.setProp(OldApiHadoopFileInputSource.FILE_INPUT_PATHS_KEY, textFile.getAbsolutePath());
+    this.sourceState.setProp(HadoopFileInputSource.FILE_INPUT_PATHS_KEY, textFile.getAbsolutePath());
   }
 
   @Test
@@ -80,7 +80,8 @@ public class OldApiHadoopFileInputSourceTest {
     Closer closer = Closer.create();
     try {
       OldApiHadoopFileInputExtractor<String, Text, LongWritable, Text> extractor =
-          (OldApiHadoopFileInputExtractor<String, Text, LongWritable, Text>) fileInputSource.getExtractor(workUnitState);
+          (OldApiHadoopFileInputExtractor<String, Text, LongWritable, Text>) fileInputSource.getExtractor(
+              workUnitState);
       Text text = extractor.readRecord(null);
       Assert.assertEquals(text.toString(), TEXT);
       Assert.assertNull(extractor.readRecord(null));
@@ -106,7 +107,8 @@ public class OldApiHadoopFileInputSourceTest {
     }
   }
 
-  private static class TestHadoopFileInputExtractor extends OldApiHadoopFileInputExtractor<String, Text, LongWritable, Text> {
+  private static class TestHadoopFileInputExtractor
+      extends OldApiHadoopFileInputExtractor<String, Text, LongWritable, Text> {
 
     public TestHadoopFileInputExtractor(RecordReader<LongWritable, Text> recordReader, boolean readKeys) {
       super(recordReader, readKeys);
