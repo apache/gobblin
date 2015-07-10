@@ -15,6 +15,7 @@ package gobblin.util;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -317,5 +318,62 @@ public class AvroUtils {
         Schema.createRecord(newSchema.getName(), newSchema.getDoc(), newSchema.getNamespace(), newSchema.isError());
     mergedSchema.setFields(combinedFields);
     return mergedSchema;
+  }
+
+  /**
+   * Remove map, array, enum fields, as well as union fields that contain map, array or enum,
+   * from an Avro schema. A schema with these fields cannot be used as Mapper key in a
+   * MapReduce job.
+   */
+  public static Optional<Schema> removeUncomparableFields(Schema schema) {
+    switch (schema.getType()) {
+      case RECORD:
+        return removeUncomparableFieldsFromRecord(schema);
+      case UNION:
+        return removeUncomparableFieldsFromUnion(schema);
+      case MAP:
+        return Optional.absent();
+      case ARRAY:
+        return Optional.absent();
+      case ENUM:
+        return Optional.absent();
+      default:
+        return Optional.of(schema);
+    }
+  }
+
+  private static Optional<Schema> removeUncomparableFieldsFromRecord(Schema record) {
+    Preconditions.checkArgument(record.getType() == Schema.Type.RECORD);
+
+    List<Field> fields = new ArrayList<Schema.Field>();
+    for (Field field : record.getFields()) {
+      Optional<Schema> newFieldSchema = removeUncomparableFields(field.schema());
+      if (newFieldSchema.isPresent()) {
+        fields.add(new Field(field.name(), newFieldSchema.get(), field.doc(), field.defaultValue()));
+      }
+    }
+
+    Schema newSchema = Schema.createRecord(record.getName(), record.getDoc(), record.getName(), false);
+    newSchema.setFields(fields);
+    return Optional.of(newSchema);
+  }
+
+  private static Optional<Schema> removeUncomparableFieldsFromUnion(Schema union) {
+    Preconditions.checkArgument(union.getType() == Schema.Type.UNION);
+
+    List<Schema> newUnion = Lists.newArrayList();
+    for (Schema unionType : union.getTypes()) {
+      Optional<Schema> newType = removeUncomparableFields(unionType);
+      if (newType.isPresent()) {
+        newUnion.add(newType.get());
+      }
+    }
+
+    // Discard the union field if one or more types are removed from the union.
+    if (newUnion.size() != union.getTypes().size()) {
+      return Optional.absent();
+    } else {
+      return Optional.of(Schema.createUnion(newUnion));
+    }
   }
 }
