@@ -265,7 +265,11 @@ public class OutputStreamReporter extends RecursiveScheduledMetricReporter imple
     this.tags = builder.tags;
     this.dateFormat.setTimeZone(builder.timeZone);
     this.outputBuffer = new ByteArrayOutputStream();
-    this.outputBufferPrintStream = this.closer.register(new PrintStream(this.outputBuffer));
+    try {
+      this.outputBufferPrintStream = this.closer.register(new PrintStream(this.outputBuffer, false, Charsets.UTF_8.toString()));
+    } catch(UnsupportedEncodingException re) {
+      throw new RuntimeException("This should never happen.", re);
+    }
   }
 
   @Override
