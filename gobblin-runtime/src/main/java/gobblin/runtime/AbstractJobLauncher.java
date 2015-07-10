@@ -24,8 +24,6 @@ import java.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.codahale.metrics.Timer;
-
 import com.google.common.base.CaseFormat;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -37,15 +35,15 @@ import com.google.common.io.Closer;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
-import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.event.EventNames;
 import gobblin.metrics.event.EventSubmitter;
+import gobblin.metrics.event.TimingEvent;
 import gobblin.publisher.DataPublisher;
 import gobblin.runtime.util.JobMetrics;
-import gobblin.runtime.util.MetricNames;
+import gobblin.runtime.util.TimingEventNames;
 import gobblin.source.extractor.JobCommitPolicy;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.ExecutorsUtils;
@@ -212,32 +210,38 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   @Override
   @SuppressWarnings("unchecked")
   public void launchJob(JobListener jobListener) throws JobException {
+
+    if (this.jobContext.getJobMetricsOptional().isPresent()) {
+      this.jobContext.getJobMetricsOptional().get().startMetricReporting(this.jobProps);
+    }
+
+    TimingEvent launchJobTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.FULL_JOB_EXECUTION);
     String jobId = this.jobContext.getJobId();
     JobState jobState = this.jobContext.getJobState();
 
     try {
       if (!tryLockJob()) {
-        this.eventSubmitter.submit(EventNames.LOCK_IN_USE);
+        this.eventSubmitter.submit(gobblin.metrics.event.EventNames.LOCK_IN_USE);
         throw new JobException(String.format(
             "Previous instance of job %s is still running, skipping this scheduled run", this.jobContext.getJobName()));
       }
 
-      Optional<Timer.Context> workUnitsCreationTimer =
-          Instrumented.timerContext(this.runtimeMetricContext, MetricNames.LauncherTimings.WORK_UNITS_CREATION);
+      TimingEvent workUnitsCreationTimer = this.eventSubmitter.getTimingEvent(
+          TimingEventNames.LauncherTimings.WORK_UNITS_CREATION);
       // Generate work units of the job from the source
       Optional<List<WorkUnit>> workUnits = Optional.fromNullable(this.jobContext.getSource().getWorkunits(jobState));
-      Instrumented.endTimer(workUnitsCreationTimer);
+      workUnitsCreationTimer.stop();
 
       // The absence means there is something wrong getting the work units
       if (!workUnits.isPresent()) {
-        this.eventSubmitter.submit(EventNames.WORK_UNITS_MISSING);
+        this.eventSubmitter.submit(gobblin.metrics.event.EventNames.WORK_UNITS_MISSING);
         jobState.setState(JobState.RunningState.FAILED);
         throw new JobException("Failed to get work units for job " + jobId);
       }
 
       // No work unit to run
       if (workUnits.get().isEmpty()) {
-        this.eventSubmitter.submit(EventNames.WORK_UNITS_EMPTY);
+        this.eventSubmitter.submit(gobblin.metrics.event.EventNames.WORK_UNITS_EMPTY);
         LOG.warn("No work units have been created for job " + jobId);
         return;
       }
@@ -248,23 +252,19 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
       LOG.info("Starting job " + jobId);
 
-      Optional<Timer.Context> workUnitsPreparationTimer =
-          Instrumented.timerContext(this.runtimeMetricContext, MetricNames.LauncherTimings.WORK_UNITS_PREPARATION);
+      TimingEvent workUnitsPreparationTimer =
+          this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.WORK_UNITS_PREPARATION);
       prepareWorkUnits(JobLauncherUtils.flattenWorkUnits(workUnits.get()), jobState);
-      Instrumented.endTimer(workUnitsPreparationTimer);
-
-      if (this.jobContext.getJobMetricsOptional().isPresent()) {
-        this.jobContext.getJobMetricsOptional().get().startMetricReporting(this.jobProps);
-      }
+      workUnitsPreparationTimer.stop();
 
       // Write job execution info to the job history store before the job starts to run
       storeJobExecutionInfo();
 
-      Optional<Timer.Context> jobRunTimer =
-          Instrumented.timerContext(this.runtimeMetricContext, MetricNames.LauncherTimings.JOB_RUN);
+      TimingEvent jobRunTimer =
+          this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.JOB_RUN);
       // Start the job and wait for it to finish
       runWorkUnits(workUnits.get());
-      Instrumented.endTimer(jobRunTimer);
+      jobRunTimer.stop();
 
       this.eventSubmitter.submit(CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, "JOB_" + jobState.getState()));
 
@@ -274,8 +274,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         return;
       }
 
-      Optional<Timer.Context> jobCommitTimer =
-          Instrumented.timerContext(this.runtimeMetricContext, MetricNames.LauncherTimings.JOB_COMMIT);
+      TimingEvent jobCommitTimer =
+          this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.JOB_COMMIT);
 
       setFinalJobState(jobState);
       if (canCommit(this.jobContext.getJobCommitPolicy(), jobState)) {
@@ -286,7 +286,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
       }
 
-      Instrumented.endTimer(jobCommitTimer);
+      jobCommitTimer.stop();
     } catch (Throwable t) {
       jobState.setState(JobState.RunningState.FAILED);
       String errMsg = "Failed to launch and run job " + jobId;
@@ -297,13 +297,15 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       jobState.setEndTime(endTime);
       jobState.setDuration(endTime - jobState.getStartTime());
 
-      Optional<Timer.Context> jobCleanupTimer =
-          Instrumented.timerContext(this.runtimeMetricContext, MetricNames.LauncherTimings.JOB_CLEANUP);
+      TimingEvent jobCleanupTimer =
+          this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.JOB_CLEANUP);
       cleanupStagingData(jobState);
-      Instrumented.endTimer(jobCleanupTimer);
+      jobCleanupTimer.stop();
 
       // Write job execution info to the job history store upon job termination
       storeJobExecutionInfo();
+
+      launchJobTimer.stop();
 
       if (this.jobContext.getJobMetricsOptional().isPresent()) {
         this.jobContext.getJobMetricsOptional().get().triggerMetricReporting();

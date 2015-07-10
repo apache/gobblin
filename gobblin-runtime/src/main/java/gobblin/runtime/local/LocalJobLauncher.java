@@ -25,15 +25,12 @@ import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.codahale.metrics.Timer;
-import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.event.EventNames;
+import gobblin.metrics.event.TimingEvent;
 import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.FileBasedJobLock;
 import gobblin.runtime.JobLock;
@@ -41,7 +38,7 @@ import gobblin.runtime.JobState;
 import gobblin.runtime.Task;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskStateTracker;
-import gobblin.runtime.util.MetricNames;
+import gobblin.runtime.util.TimingEventNames;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.JobLauncherUtils;
 
@@ -66,8 +63,8 @@ public class LocalJobLauncher extends AbstractJobLauncher {
   public LocalJobLauncher(Properties jobProps) throws Exception {
     super(jobProps);
 
-    Optional<Timer.Context> jobLocalSetupTimer =
-        Instrumented.timerContext(this.runtimeMetricContext, MetricNames.RunJobTimings.JOB_LOCAL_SETUP);
+    TimingEvent jobLocalSetupTimer =
+        this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.JOB_LOCAL_SETUP);
 
     this.taskExecutor = new TaskExecutor(jobProps);
     this.taskStateTracker = new LocalTaskStateTracker2(jobProps, this.taskExecutor);
@@ -80,7 +77,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
 
     startCancellationExecutor();
 
-    Instrumented.endTimer(jobLocalSetupTimer);
+    jobLocalSetupTimer.stop();
   }
 
   @Override
@@ -97,10 +94,10 @@ public class LocalJobLauncher extends AbstractJobLauncher {
 
   @Override
   protected void runWorkUnits(List<WorkUnit> workUnits) throws Exception {
-    Optional<Timer.Context> workUnitsPreparationTimer =
-        Instrumented.timerContext(this.runtimeMetricContext, MetricNames.RunJobTimings.WORK_UNITS_PREPARATION);
+    TimingEvent workUnitsPreparationTimer =
+        this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.WORK_UNITS_PREPARATION);
     List<WorkUnit> workUnitsToRun = JobLauncherUtils.flattenWorkUnits(workUnits);
-    Instrumented.endTimer(workUnitsPreparationTimer);
+    workUnitsPreparationTimer.stop();
 
     if (workUnitsToRun.isEmpty()) {
       LOG.warn("No work units to run");
@@ -110,8 +107,8 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     String jobId = this.jobContext.getJobId();
     JobState jobState = this.jobContext.getJobState();
 
-    Optional<Timer.Context> workUnitsRunTimer =
-        Instrumented.timerContext(this.runtimeMetricContext, MetricNames.RunJobTimings.WORK_UNITS_RUN);
+    TimingEvent workUnitsRunTimer =
+        this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.WORK_UNITS_RUN);
 
     this.countDownLatch = new CountDownLatch(workUnitsToRun.size());
     List<Task> tasks = AbstractJobLauncher.submitWorkUnits(this.jobContext.getJobId(), workUnitsToRun,
@@ -124,7 +121,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
       this.countDownLatch.await(1, TimeUnit.MINUTES);
     }
 
-    Instrumented.endTimer(workUnitsRunTimer);
+    workUnitsRunTimer.stop();
 
     if (this.cancellationRequested) {
       // Wait for the cancellation execution if it has been requested
@@ -145,7 +142,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     for (Task task : tasks) {
       jobState.addTaskState(task.getTaskState());
       if (task.getTaskState().getWorkingState() == WorkUnitState.WorkingState.FAILED) {
-        this.eventSubmitter.submit(EventNames.TASK_FAILED, "taskId", task.getTaskId());
+        this.eventSubmitter.submit(gobblin.metrics.event.EventNames.TASK_FAILED, "taskId", task.getTaskId());
         jobState.setState(JobState.RunningState.FAILED);
       }
     }

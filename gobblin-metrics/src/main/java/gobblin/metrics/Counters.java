@@ -51,12 +51,25 @@ public class Counters<E extends Enum<E>> {
   /**
    * Increment the counter associated with enum value passed.
    *
-   * @param e
+   * @param e Counter to increment.
    * @param n the value to increment
    */
   public void inc(E e, long n) {
     if (counters != null && counters.containsKey(e)) {
       counters.get(e).inc(n);
+    }
+  }
+
+  /**
+   * Get count for counter associated with enum value passed.
+   * @param e Counter to query.
+   * @return the count for this counter.
+   */
+  public long getCount(E e) {
+    if (counters.containsKey(e)) {
+      return counters.get(e).getCount();
+    } else {
+      return 0l;
     }
   }
 }

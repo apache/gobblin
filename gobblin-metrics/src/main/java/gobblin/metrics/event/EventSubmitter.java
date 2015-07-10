@@ -31,6 +31,8 @@ import gobblin.metrics.MetricContext;
  */
 public class EventSubmitter {
 
+  public static final String EVENT_TYPE = "eventType";
+
   private final Map<String, String> metadata;
   private final String namespace;
   private final Optional<MetricContext> metricContext;
@@ -106,5 +108,14 @@ public class EventSubmitter {
       // Timestamp is set by metric context.
       this.metricContext.get().submitEvent(new GobblinTrackingEvent(0l, this.namespace, name, finalMetadata));
     }
+  }
+
+  /**
+   * Get a {@link gobblin.metrics.event.TimingEvent} attached to this {@link gobblin.metrics.event.EventSubmitter}.
+   * @param name Name of the {@link gobblin.metrics.GobblinTrackingEvent} that will be generated.
+   * @return a {@link gobblin.metrics.event.TimingEvent}.
+   */
+  public TimingEvent getTimingEvent(String name) {
+    return new TimingEvent(this, name);
   }
 }
