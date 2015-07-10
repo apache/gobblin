@@ -25,6 +25,14 @@ import com.google.common.collect.Lists;
 /**
  * A class that wraps multiple {@link WorkUnit}s so they can executed within a single task.
  *
+ * <p>
+ *  This class also extends the {@link gobblin.configuration.State} object and thus it is possible to set and get
+ *  properties from this class. The {@link #setProp(String, Object)} method will add the specified key, value pair to
+ *  this class as well as to every {@link WorkUnit} in {@link #workUnits}. The {@link #getProp(String)} methods will
+ *  only return properties that have been explicitily set in this class (e.g. it will not retrieve properties from
+ *  {@link #workUnits}.
+ * </p>
+ *
  * @author ynli
  */
 public class MultiWorkUnit extends WorkUnit {
@@ -59,6 +67,14 @@ public class MultiWorkUnit extends WorkUnit {
   }
 
   @Override
+  public void setProp(String key, Object value) {
+    super.setProp(key, value);
+    for (WorkUnit workUnit : this.workUnits) {
+      workUnit.setProp(key, value);
+    }
+  }
+
+  @Override
   public void readFields(DataInput in)
       throws IOException {
     int numWorkUnits = in.readInt();
@@ -67,6 +83,7 @@ public class MultiWorkUnit extends WorkUnit {
       workUnit.readFields(in);
       this.workUnits.add(workUnit);
     }
+    super.readFields(in);
   }
 
   @Override
@@ -76,6 +93,7 @@ public class MultiWorkUnit extends WorkUnit {
     for (WorkUnit workUnit : this.workUnits) {
       workUnit.write(out);
     }
+    super.write(out);
   }
 
   @Override
