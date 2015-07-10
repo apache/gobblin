@@ -82,7 +82,6 @@ public class S3FsHelper implements FileBasedHelper {
 
     // Replace the date if needed (if none found, s3Path is unaffected)
     s3Path = S3Utils.checkAndReplaceDate(state, s3Path);
-    LOG.info("S3PATH:" + s3Path);
   }
 
   /**
