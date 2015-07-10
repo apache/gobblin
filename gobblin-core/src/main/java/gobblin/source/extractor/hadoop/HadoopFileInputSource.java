@@ -73,13 +73,14 @@ import gobblin.source.workunit.WorkUnit;
  */
 public abstract class HadoopFileInputSource<S, D, K, V> implements Source<S, D> {
 
-  public static final String FILE_INPUT_FORMAT_CLASS_KEY = "file.input.format.class";
-  public static final String FILE_SPLITS_DESIRED_KEY = "file.splits.desired";
+  private static final String HADOOP_SOURCE_KEY_PREFIX = "source.hadoop.";
+  public static final String FILE_INPUT_FORMAT_CLASS_KEY = HADOOP_SOURCE_KEY_PREFIX + "file.input.format.class";
+  public static final String FILE_SPLITS_DESIRED_KEY = HADOOP_SOURCE_KEY_PREFIX + "file.splits.desired";
   public static final int DEFAULT_FILE_SPLITS_DESIRED = 1;
-  public static final String FILE_INPUT_PATHS_KEY = "file.input.paths";
-  public static final String FILE_INPUT_READ_KEYS_KEY = "file.input.read.keys";
+  public static final String FILE_INPUT_PATHS_KEY = HADOOP_SOURCE_KEY_PREFIX + "file.input.paths";
+  public static final String FILE_INPUT_READ_KEYS_KEY = HADOOP_SOURCE_KEY_PREFIX + "file.read.keys";
   public static final boolean DEFAULT_FILE_INPUT_READ_KEYS = false;
-  static final String FILE_SPLIT_BYTES_STRING_KEY = "file.split.bytes.string";
+  static final String FILE_SPLIT_BYTES_STRING_KEY = HADOOP_SOURCE_KEY_PREFIX + "file.split.bytes.string";
 
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
