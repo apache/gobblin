@@ -18,28 +18,25 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.common.collect.Lists;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
-import gobblin.publisher.SimpleS3Publisher;
 import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.extract.AbstractSource;
+import gobblin.source.extractor.filebased.FileBasedHelperException;
+import gobblin.source.extractor.filebased.FileBasedSource;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.S3Utils;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
 /**
  * An implementation of an S3 source to get work units.
- * The source and destination buckets and paths are set in:
- * {@link ConfigurationKeys#S3_SOURCE_BUCKET},
- * {@link ConfigurationKeys#S3_SOURCE_PATH},
- * {@link ConfigurationKeys#S3_PUBLISHER_BUCKET}, and
- * {@link ConfigurationKeys#S3_PUBLISHER_PATH}.
+ * The source buckets and paths are set in
+ * {@link ConfigurationKeys#S3_SOURCE_BUCKET} and {@link ConfigurationKeys#S3_SOURCE_PATH}
  * <p/>
  * If you want your S3 paths to contain a date, the {@link S3Source} will
  * automatically check for you.
@@ -53,130 +50,47 @@ import org.slf4j.LoggerFactory;
  *
  * @author ahollenbach@nerdwallet.com
  */
-public class S3Source extends AbstractSource<Class<String>, String> {
+public class S3Source<S, D> extends FileBasedSource<S, D> {
 
   private static final Logger LOG = LoggerFactory.getLogger(S3Source.class);
 
-  public static final String TABLE_NAME = "default";
-  public static final Extract.TableType DEFAULT_TABLE_TYPE = Extract.TableType.APPEND_ONLY;
-  public static final String DEFAULT_NAMESPACE_NAME = "s3Source";
-
-  @Override
   /**
-   * Gets a list of work units. This method will search respecting the wildcard operator (*)
-   * for any directories and return all as object summaries.
-   */
-  public List<WorkUnit> getWorkunits(SourceState state) {
-    AmazonS3 s3Client = new AmazonS3Client();
-    String s3Bucket = state.getProp(ConfigurationKeys.S3_SOURCE_BUCKET);
-    String s3Path = state.getProp(ConfigurationKeys.S3_SOURCE_PATH);
-
-    // Replace the date if needed (if none found, s3Path is unaffected)
-    s3Path = S3Utils.checkAndReplaceDate(state, s3Path);
-    state.setProp(ConfigurationKeys.S3_SOURCE_PATH, s3Path);
-
-    // Generate a work unit for each object
-    List<S3ObjectSummary> summaries = recursivelyGetObjectSummaries(state, s3Client, s3Bucket, s3Path);
-    if (summaries.size() == 0) {
-      LOG.warn("S3 bucket/path was empty, no results found.");
-      LOG.warn("S3 Bucket: " + s3Bucket);
-      LOG.warn("S3 Path: " + s3Path);
-    }
-    List<WorkUnit> workUnits = Lists.newArrayList();
-    for (S3ObjectSummary summary : summaries) {
-      WorkUnit workUnit = getWorkUnitForS3Object(state, summary.getKey());
-      if (workUnit != null) {
-        workUnits.add(workUnit);
-      }
-    }
-
-    return workUnits;
-  }
-
-  private List<S3ObjectSummary>
-  recursivelyGetObjectSummaries(SourceState state, AmazonS3 s3Client, String s3Bucket, String s3Path) {
-    String s3PathDelimiter = state.getProp(ConfigurationKeys.S3_PATH_DELIMITER,
-        ConfigurationKeys.DEFAULT_S3_PATH_DELIMITER);
-
-    String[] pathParts = s3Path.split("\\*" + s3PathDelimiter, 2);
-
-    if(pathParts.length > 1) {
-      // keep recursing splitting and replacing our * with all folders in the dir
-      ListObjectsRequest listObjectRequest = new ListObjectsRequest().withBucketName(s3Bucket)
-          .withPrefix(pathParts[0])
-          .withDelimiter(s3PathDelimiter);
-
-      ObjectListing objectListing = s3Client.listObjects(listObjectRequest);
-      List<String> folders = objectListing.getCommonPrefixes();
-      while (objectListing.isTruncated()) {
-        objectListing = s3Client.listNextBatchOfObjects(objectListing);
-        folders.addAll(objectListing.getCommonPrefixes());
-      }
-
-      // For each folder, replace what we have and recurse until we are out of wildcards
-      List<S3ObjectSummary> objectSummaries = Lists.newArrayList();
-      for (String folderPath : folders) {
-        objectSummaries.addAll(recursivelyGetObjectSummaries(state, s3Client, s3Bucket, folderPath + pathParts[1]));
-      }
-      return objectSummaries;
-    }
-
-    // Otherwise, return whatever our path is
-    // Build the request
-    ListObjectsRequest listObjectRequest = new ListObjectsRequest().withBucketName(s3Bucket).withPrefix(s3Path);
-
-    // Fetch all the objects in the given bucket/path
-    ObjectListing objectListing = s3Client.listObjects(listObjectRequest);
-    List<S3ObjectSummary> objectSummaries = objectListing.getObjectSummaries();
-
-    // We have to do this if there are a large number of objects in the given path
-    // Create the workunits and add them immediately to reduce memory load
-    while (objectListing.isTruncated()) {
-      objectListing = s3Client.listNextBatchOfObjects(objectListing);
-      objectSummaries.addAll(objectListing.getObjectSummaries());
-    }
-
-    return objectSummaries;
-  }
-
-  /**
-   * Generates a work unit for an S3 object. The object key is passed to
-   * an extractor that will extract the object at the key joined with the source bucket.
-   *
-   * @param state           The source state
-   * @param objectSourceKey The key of the object to pull from S3.
-   * @return a work unit consisting of one S3 object.
-   */
-  private WorkUnit getWorkUnitForS3Object(SourceState state, String objectSourceKey) {
-    SourceState partitionState = new SourceState();
-    partitionState.addAll(state);
-
-    // Set the object key to be the filename, as the path is determined separately
-    partitionState.setProp("S3_SOURCE_OBJECT_KEY", objectSourceKey);
-
-    Extract extract = partitionState.createExtract(DEFAULT_TABLE_TYPE, DEFAULT_NAMESPACE_NAME, TABLE_NAME);
-    return partitionState.createWorkUnit(extract);
-  }
-
-  /**
-   * Get an {@link Extractor} based on a given {@link WorkUnitState}.
+   * Get an {@link S3Extractor} based on a given {@link WorkUnitState}.
    * <p>
-   * The {@link Extractor} returned can use {@link WorkUnitState} to store arbitrary key-value pairs
+   * The {@link S3Extractor} returned can use {@link WorkUnitState} to store arbitrary key-value pairs
    * that will be persisted to the state store and loaded in the next scheduled job run.
    * </p>
    *
-   * @param state a {@link WorkUnitState} carrying properties needed by the returned {@link Extractor}
-   * @return an {@link Extractor} used to extract schema and data records from the data source
-   * @throws IOException if it fails to create an {@link Extractor}
+   * @param state a {@link WorkUnitState} carrying properties needed by the returned {@link S3Extractor}
+   * @return an {@link S3Extractor} used to extract schema and data records from the data source
+   * @throws IOException if it fails to create an {@link S3Extractor}
    */
   @Override
-  public Extractor<Class<String>, String> getExtractor(WorkUnitState state)
+  public Extractor<S, D> getExtractor(WorkUnitState state)
       throws IOException {
-    return new S3StringExtractor(state);
+    return new S3Extractor<S, D>(state);
   }
 
   @Override
-  public void shutdown(SourceState state) {
+  public void initFileSystemHelper(State state)
+      throws FileBasedHelperException {
+    this.fsHelper = new S3FsHelper(state);
+    this.fsHelper.connect();
+  }
 
+  @Override
+  public List<String> getcurrentFsSnapshot(State state) {
+    List<String> results = new ArrayList<String>();
+    S3FsHelper s3FsHelper = (S3FsHelper) this.fsHelper;
+    String path = s3FsHelper.getS3Path();
+
+    try {
+      LOG.info("Running ls command with input " + path);
+      results = this.fsHelper.ls(path);
+    } catch (FileBasedHelperException e) {
+      LOG.error("Not able to run ls command due to " + e.getMessage() + " will not pull any files", e);
+    }
+
+    return results;
   }
 }

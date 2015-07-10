@@ -104,6 +104,7 @@ public class SimpleS3Publisher extends BaseS3Publisher {
       return filenameFormat;
     }
 
+    // TODO keep this functionality?
     // If The S3 Source stored the source key, just use that
     String sourceKey = state.getProp("S3_SOURCE_OBJECT_KEY");
     if(sourceKey != null) {
