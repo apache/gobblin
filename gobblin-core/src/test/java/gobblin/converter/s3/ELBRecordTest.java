@@ -61,12 +61,12 @@ public class ELBRecordTest {
         + ".001048 0.000057 200 200 0 29 " + requestString + " \"curl/7.38.0\" - -";
     ELBRecord elbRecord = generateELBRecord(elbRecordString);
 
-    Assert.assertEquals(elbRecord.requestMethod, "POST");
-    Assert.assertEquals(elbRecord.requestProtocol, "http");
-    Assert.assertEquals(elbRecord.requestHostHeader, "example.url.com");
-    Assert.assertEquals(elbRecord.requestPort, 80);
-    Assert.assertEquals(elbRecord.requestPath, "example/path");
-    Assert.assertEquals(elbRecord.requestHttpVersion, "HTTP/1.1");
+    Assert.assertEquals(elbRecord.getRequestMethod(), "POST");
+    Assert.assertEquals(elbRecord.getRequestProtocol(), "http");
+    Assert.assertEquals(elbRecord.getRequestHostHeader(), "example.url.com");
+    Assert.assertEquals(elbRecord.getRequestPort(), 80);
+    Assert.assertEquals(elbRecord.getRequestPath(), "example/path");
+    Assert.assertEquals(elbRecord.getRequestHttpVersion(), "HTTP/1.1");
   }
 
   /**
@@ -80,12 +80,12 @@ public class ELBRecordTest {
         + ".001048 0.000057 200 200 0 29 " + requestString + " \"curl/7.38.0\" - -";
     ELBRecord elbRecord = generateELBRecord(elbRecordString);
 
-    Assert.assertEquals(elbRecord.requestMethod, "POST");
-    Assert.assertEquals(elbRecord.requestProtocol, "http");
-    Assert.assertEquals(elbRecord.requestHostHeader, "example.url.com");
-    Assert.assertEquals(elbRecord.requestPort, 80);
-    Assert.assertEquals(elbRecord.requestPath, "example/path.html");
-    Assert.assertEquals(elbRecord.requestHttpVersion, "HTTP/1.1");
+    Assert.assertEquals(elbRecord.getRequestMethod(), "POST");
+    Assert.assertEquals(elbRecord.getRequestProtocol(), "http");
+    Assert.assertEquals(elbRecord.getRequestHostHeader(), "example.url.com");
+    Assert.assertEquals(elbRecord.getRequestPort(), 80);
+    Assert.assertEquals(elbRecord.getRequestPath(), "example/path.html");
+    Assert.assertEquals(elbRecord.getRequestHttpVersion(), "HTTP/1.1");
   }
 
   /**
@@ -99,11 +99,11 @@ public class ELBRecordTest {
         + ".001048 0.000057 200 200 0 29 " + requestString + " \"curl/7.38.0\" - -";
     ELBRecord elbRecord = generateELBRecord(elbRecordString);
 
-    Assert.assertNull(elbRecord.requestMethod);
-    Assert.assertNull(elbRecord.requestProtocol);
-    Assert.assertNull(elbRecord.requestHostHeader);
-    Assert.assertEquals(elbRecord.requestPort, 0);
-    Assert.assertNull(elbRecord.requestPath);
-    Assert.assertNull(elbRecord.requestHttpVersion);
+    Assert.assertNull(elbRecord.getRequestMethod());
+    Assert.assertNull(elbRecord.getRequestProtocol());
+    Assert.assertNull(elbRecord.getRequestHostHeader());
+    Assert.assertEquals(elbRecord.getRequestPort(), 0);
+    Assert.assertNull(elbRecord.getRequestPath());
+    Assert.assertNull(elbRecord.getRequestHttpVersion());
   }
 }

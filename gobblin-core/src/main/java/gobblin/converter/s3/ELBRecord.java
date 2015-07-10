@@ -34,36 +34,35 @@ import java.util.Date;
 public class ELBRecord {
   private static final Logger LOG = LoggerFactory.getLogger(ELBRecord.class);
 
-  // TODO these shouldn't be protected
-  protected static final String ISO8601_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.";
-  protected static final String LOG_DATE_FORMAT = "yyyy-MM-dd";
-  protected static final String LOG_TIME_FORMAT = "HH:mm:ss";
+  private static final String ISO8601_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.";
+  private static final String LOG_DATE_FORMAT = "yyyy-MM-dd";
+  private static final String LOG_TIME_FORMAT = "HH:mm:ss";
 
-  protected final Date timestamp;
-  protected final String elbName;
-  protected final String clientIp;
-  protected final int clientPort;
-  protected final String backendIp;
-  protected final int backendPort;
-  protected final double requestProcessingTime;
-  protected final double backendProcessingTime;
-  protected final double responseProcessingTime;
-  protected final int elbStatusCode;
-  protected final int backendStatusCode;
-  protected final int receivedBytes;
-  protected final int sentBytes;
+  private final Date timestamp;
+  private final String elbName;
+  private final String clientIp;
+  private final int clientPort;
+  private final String backendIp;
+  private final int backendPort;
+  private final double requestProcessingTime;
+  private final double backendProcessingTime;
+  private final double responseProcessingTime;
+  private final int elbStatusCode;
+  private final int backendStatusCode;
+  private final int receivedBytes;
+  private final int sentBytes;
 
   // items pulled from request string
-  protected String requestMethod;
-  protected String requestProtocol;
-  protected String requestHostHeader;
-  protected int requestPort;
-  protected String requestPath;
-  protected String requestHttpVersion;
+  private String requestMethod;
+  private String requestProtocol;
+  private String requestHostHeader;
+  private int requestPort;
+  private String requestPath;
+  private String requestHttpVersion;
 
-  protected final String userAgent;
-  protected final String sslCipher;
-  protected final String sslProtocol;
+  private final String userAgent;
+  private final String sslCipher;
+  private final String sslProtocol;
 
   /**
    * Creates an ELBRecord object.
