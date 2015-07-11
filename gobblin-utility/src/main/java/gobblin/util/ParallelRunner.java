@@ -100,9 +100,8 @@ public class ParallelRunner implements Closeable {
    * @param state the {@link State} object to be serialized
    * @param outputFilePath the file to write the serialized {@link State} object to
    * @param <T> the {@link State} object type
-   * @throws IOException if there's anything serializing the {@link State} object
    */
-  public <T extends State> void serializeToFile(final T state, final Path outputFilePath) throws IOException {
+  public <T extends State> void serializeToFile(final T state, final Path outputFilePath) {
     // Use a Callable with a Void return type to allow exceptions to be thrown
     this.futures.add(this.executor.submit(new Callable<Void>() {
 
@@ -135,9 +134,8 @@ public class ParallelRunner implements Closeable {
    * @param state an empty {@link State} object to which the deserialized content will be populated
    * @param inputFilePath the input file to read from
    * @param <T> the {@link State} object type
-   * @throws IOException if there's anything deserializing the {@link State} object
    */
-  public <T extends State> void deserializeFromFile(final T state, final Path inputFilePath) throws IOException {
+  public <T extends State> void deserializeFromFile(final T state, final Path inputFilePath) {
     this.futures.add(this.executor.submit(new Callable<Void>() {
 
       @Override
@@ -170,10 +168,9 @@ public class ParallelRunner implements Closeable {
    * @param inputFilePath the input {@link SequenceFile} to read from
    * @param states a {@link Collection} object to store the deserialized {@link State} objects
    * @param <T> the {@link State} object type
-   * @throws IOException if there's anything deserializing the {@link State} objects
    */
   public <T extends State> void deserializeFromSequenceFile(final Class<? extends Writable> keyClass,
-      final Class<T> stateClass, final Path inputFilePath, final Collection<T> states) throws IOException {
+      final Class<T> stateClass, final Path inputFilePath, final Collection<T> states) {
     this.futures.add(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
@@ -207,9 +204,8 @@ public class ParallelRunner implements Closeable {
    * </p>
    *
    * @param path path to be deleted.
-   * @throws IOException if the path cannot be deleted.
    */
-  public void deletePath(final Path path, final boolean recursive) throws IOException {
+  public void deletePath(final Path path, final boolean recursive) {
     this.futures.add(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
@@ -229,7 +225,6 @@ public class ParallelRunner implements Closeable {
    *
    * @param src path to be renamed
    * @param dst new path after rename
-   * @throws IOException if rename is unsuccessful
    */
   public void renamePath(final Path src, final Path dst) {
     this.futures.add(this.executor.submit(new Callable<Void>() {
