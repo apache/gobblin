@@ -38,6 +38,9 @@ public class ELBRecord {
   private static final String LOG_DATE_FORMAT = "yyyy-MM-dd";
   private static final String LOG_TIME_FORMAT = "HH:mm:ss";
 
+  private static final int RECORD_LENGTH_SHORT = 12;
+  private static final int ELB_RECORD_FULL = 15;
+
   private final Date timestamp;
   private final String elbName;
   private final String clientIp;
@@ -75,7 +78,7 @@ public class ELBRecord {
    *               "user_agent" ssl_cipher ssl_protocol</code>
    */
   public ELBRecord(ArrayList<String> values) throws DataConversionException {
-    if (values.size() != 12 && values.size() != 15) {
+    if (values.size() != RECORD_LENGTH_SHORT && values.size() != ELB_RECORD_FULL) {
       throw new DataConversionException("Malformed log record");
     }
 
@@ -131,7 +134,7 @@ public class ELBRecord {
 
     // Some ELB records don't come with these three fields.
     // TODO find out why....
-    if (values.size() == 15) {
+    if (values.size() == ELB_RECORD_FULL) {
       // values[12]: "user_agent"
       this.userAgent = values.get(12);
 
@@ -142,13 +145,13 @@ public class ELBRecord {
       this.sslProtocol = values.get(14);
     } else {
       // values[12]: "user_agent"
-      this.userAgent = "";
+      this.userAgent = null;
 
       // values[13]: ssl_cipher
-      this.sslCipher = "";
+      this.sslCipher = null;
 
       // values[14]: ssl_protocol
-      this.sslProtocol = "";
+      this.sslProtocol = null;
     }
   }
 

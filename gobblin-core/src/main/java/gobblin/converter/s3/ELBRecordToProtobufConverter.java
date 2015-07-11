@@ -35,7 +35,7 @@ public class ELBRecordToProtobufConverter extends Converter<Class<ELBRecord>, Cl
   @Override
   public Iterable<ELBLog> convertRecord(Class<ELBLog> outputSchema, ELBRecord elbRecord, WorkUnitState workUnit)
       throws DataConversionException {
-    ServerLogHeader logHeader = ServerLogHeader.newBuilder()
+    ServerLogHeader.Builder logHeaderBuilder = ServerLogHeader.newBuilder()
         .setSource(logFile.ServerLogHeaderProto.Source.ELB)
         .setTimestamp(elbRecord.getTimestampInMillis())
         .setTimeTaken(elbRecord.getTimeTaken())
@@ -49,22 +49,44 @@ public class ELBRecordToProtobufConverter extends Converter<Class<ELBRecord>, Cl
         .setClientToServerHostHeader(elbRecord.getRequestHostHeader())
         .setClientToServerProtocol(elbRecord.getRequestProtocol())
         .setClientToServerUriFull(elbRecord.getRequestUri())
-        .setClientToServerBytes(elbRecord.getReceivedBytes())
-        .setClientPort(elbRecord.getClientPort())
-        .setClientToServerUserAgent(elbRecord.getUserAgent())
-        .setClientToServerProtocolVersion(elbRecord.getRequestHttpVersion())
-        .build();
+        // optional fields
+        .setClientToServerBytes(elbRecord.getReceivedBytes());
 
-    ELBLog log = ELBLog.newBuilder()
+    if (elbRecord.getClientPort() != 0) {
+      logHeaderBuilder.setClientPort(elbRecord.getClientPort());
+    }
+    if (elbRecord.getUserAgent() != null) {
+      logHeaderBuilder.setClientToServerUserAgent(elbRecord.getUserAgent());
+    }
+    if (elbRecord.getRequestHttpVersion() != null) {
+      logHeaderBuilder.setClientToServerProtocolVersion(elbRecord.getRequestHttpVersion());
+    }
+    ServerLogHeader logHeader = logHeaderBuilder.build();
+
+
+    ELBLog.Builder elbLogBuilder = ELBLog.newBuilder()
         .setHeader(logHeader)
         .setElbName(elbRecord.getElbName())
-        .setElbStatusCode(elbRecord.getElbStatusCode())
-        .setClientToServerSslCipher(elbRecord.getSslCipher())
-        .setClientToServerSslProtocol(elbRecord.getSslProtocol())
-        .setRequestProcessingTime(elbRecord.getRequestProcessingTime())
-        .setBackendProcessingTime(elbRecord.getBackendProcessingTime())
-        .setResponseProcessingTime(elbRecord.getResponseProcessingTime())
-        .build();
+        .setElbStatusCode(elbRecord.getElbStatusCode());
+        // optional fields
+
+    if (elbRecord.getSslCipher() != null && elbRecord.getSslCipher().equals("-") ) {
+      elbLogBuilder.setClientToServerSslCipher(elbRecord.getSslCipher());
+    }
+    if (elbRecord.getSslProtocol() != null) {
+      elbLogBuilder.setClientToServerSslProtocol(elbRecord.getSslProtocol());
+    }
+    if (elbRecord.getRequestProcessingTime() != -1) {
+      elbLogBuilder.setRequestProcessingTime(elbRecord.getRequestProcessingTime());
+    }
+    if (elbRecord.getBackendProcessingTime() != -1) {
+      elbLogBuilder.setBackendProcessingTime(elbRecord.getBackendProcessingTime());
+    }
+    if (elbRecord.getResponseProcessingTime() != -1) {
+      elbLogBuilder.setResponseProcessingTime(elbRecord.getResponseProcessingTime());
+    }
+
+    ELBLog log = elbLogBuilder.build();
 
     return new SingleRecordIterable<ELBLog>(log);
   }
