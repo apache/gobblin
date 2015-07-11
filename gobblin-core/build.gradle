@@ -38,16 +38,21 @@ dependencies {
   compile externalDependency.aws
   compile externalDependency.s3
   compile externalDependency.findBugs
+  compile externalDependency.protobuf
   if (project.hasProperty('useHadoop2')) {
     compile externalDependency.avroMapredH2
   } else {
     compile externalDependency.avroMapredH1
   }
 
+  if (System.getenv("GOBBLIN_LOCAL_JAR_LOCATION") != null) {
+    compile fileTree(dir: System.getenv("GOBBLIN_LOCAL_JAR_LOCATION"), include: '*.jar')
+  }
+
   testCompile externalDependency.testng
 }
 
-configurations { compile { transitive = false } }
+configurations { compile { transitive = true } }
 
 test {
   useTestNG () { excludeGroups 'ignore' }

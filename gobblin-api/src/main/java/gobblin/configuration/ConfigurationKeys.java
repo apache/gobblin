@@ -173,6 +173,8 @@ public class ConfigurationKeys {
   public static final String CONVERTER_STRING_FILTER_PATTERN = "converter.string.filter.pattern";
   public static final String CONVERTER_STRING_SPLITTER_DELIMITER = "converter.string.splitter.delimiter";
   public static final String CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR = "converter.csv.to.json.enclosedchar";
+  public static final String CONVERTER_CSV_DELIMITER = "converter.csv.delimiter";
+  public static final String DEFAULT_CONVERTER_CSV_DELIMITER = ",";
   public static final String DEFAULT_CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR = "\0";
 
   /**
@@ -424,10 +426,28 @@ public class ConfigurationKeys {
   public static final Charset DEFAULT_CHARSET_ENCODING = Charsets.UTF_8;
 
   /**
-   * Amazon AWS credentials.
+   * Amazon AWS S3 properties.
    */
-  public static final String AWS_ACCESS_KEY = "aws.access.key";
-  public static final String AWS_SECRET_KEY = "aws.secret.key";
-  public static final String S3_BUCKET = "aws.s3.bucket";
+  public static final String S3_SOURCE_BUCKET = "aws.s3.source.bucket";
+  public static final String S3_SOURCE_PATH = "aws.s3.source.path";
+  public static final String S3_PUBLISHER_BUCKET = "aws.s3.publisher.bucket";
+  public static final String S3_PUBLISHER_PATH = "aws.s3.publisher.path";
   public static final String S3_PARTITIONS = "aws.s3.partitions";
+  public static final String S3_DATE_PATTERN = "aws.s3.date.pattern";
+  public static final String DEFAULT_S3_DATE_PATTERN = "yyyy/MM/dd";
+  public static final String S3_DATE_PLACEHOLDER = "aws.s3.date.placeholder";
+  public static final String DEFAULT_S3_DATE_PLACEHOLDER = "{date}";
+  public static final String S3_PATH_DELIMITER = "aws.s3.path.delimiter";
+  public static final String DEFAULT_S3_PATH_DELIMITER = "/";
+  public static final String S3_DATE_OFFSET = "aws.s3.date.offset";
+  public static final int DEFAULT_S3_DATE_OFFSET = -1;
+  /**
+   * The format of the file to write to S3.
+   * If this is not set, the original filename is used.
+   * <p/>
+   * Can contain the following placeholders:
+   * {counter} - an integer counter (guarantees unique keying)
+   * {date} - the current date (/ will be removed)
+   */
+  public static final String S3_PUBLISHER_FILENAME_FORMAT = "aws.s3.publisher.filename.format";
 }
