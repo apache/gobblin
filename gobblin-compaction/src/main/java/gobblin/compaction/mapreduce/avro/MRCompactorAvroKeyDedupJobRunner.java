@@ -26,7 +26,6 @@ import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapred.AvroValue;
 import org.apache.avro.mapreduce.AvroJob;
-import org.apache.avro.mapreduce.AvroKeyOutputFormat;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -195,7 +194,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
 
   @Override
   protected void setOutputFormatClass(Job job) {
-    job.setOutputFormatClass(AvroKeyOutputFormat.class);
+    job.setOutputFormatClass(AvroKeyCompactorOutputFormat.class);
   }
 
   @Override
