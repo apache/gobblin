@@ -60,8 +60,8 @@ import gobblin.source.workunit.WorkUnit;
  *
  * <p>
  *   A concrete implementation of this class should implement {@link #getFileInputFormat(State, Configuration)}
- *   and {@link #getExtractor(RecordReader, boolean)}, which returns a {@link HadoopFileInputExtractor}
- *   that needs an concrete implementation.
+ *   and {@link #getExtractor(WorkUnitState, RecordReader, FileSplit, boolean)}, which returns a
+ *   {@link HadoopFileInputExtractor} that needs an concrete implementation.
  * </p>
  *
  * @param <S> output schema type
@@ -80,6 +80,7 @@ public abstract class HadoopFileInputSource<S, D, K, V> implements Source<S, D> 
   public static final String FILE_INPUT_PATHS_KEY = HADOOP_SOURCE_KEY_PREFIX + "file.input.paths";
   public static final String FILE_INPUT_READ_KEYS_KEY = HADOOP_SOURCE_KEY_PREFIX + "file.read.keys";
   public static final boolean DEFAULT_FILE_INPUT_READ_KEYS = false;
+  public static final String FILE_SPLIT_PATH_KEY = HADOOP_SOURCE_KEY_PREFIX + "file.split.path";
   static final String FILE_SPLIT_BYTES_STRING_KEY = HADOOP_SOURCE_KEY_PREFIX + "file.split.bytes.string";
 
   @Override
@@ -111,6 +112,7 @@ public abstract class HadoopFileInputSource<S, D, K, V> implements Source<S, D> 
         Extract extract = state.createExtract(tableType, tableNamespace, tableName);
         WorkUnit workUnit = state.createWorkUnit(extract);
         workUnit.setProp(FILE_SPLIT_BYTES_STRING_KEY, serializeFileSplit(fileSplit));
+        workUnit.setProp(FILE_SPLIT_PATH_KEY, fileSplit.getPath().toString());
         workUnits.add(workUnit);
       }
 
@@ -136,9 +138,8 @@ public abstract class HadoopFileInputSource<S, D, K, V> implements Source<S, D> 
     try {
       RecordReader<K, V> recordReader = fileInputFormat.createRecordReader(fileSplit, taskAttemptContext);
       recordReader.initialize(fileSplit, taskAttemptContext);
-      boolean readKeys = workUnitState.getPropAsBoolean(FILE_INPUT_READ_KEYS_KEY,
-          DEFAULT_FILE_INPUT_READ_KEYS);
-      return getExtractor(recordReader, readKeys);
+      boolean readKeys = workUnitState.getPropAsBoolean(FILE_INPUT_READ_KEYS_KEY, DEFAULT_FILE_INPUT_READ_KEYS);
+      return getExtractor(workUnitState, recordReader, fileSplit, readKeys);
     } catch (InterruptedException ie) {
       throw new IOException(ie);
     }
@@ -176,13 +177,15 @@ public abstract class HadoopFileInputSource<S, D, K, V> implements Source<S, D> 
   /**
    * Get a {@link HadoopFileInputExtractor} instance.
    *
+   * @param workUnitState a {@link WorkUnitState} object carrying Gobblin configuration properties
    * @param recordReader a Hadoop {@link RecordReader} object used to read input records
+   * @param fileSplit the {@link FileSplit} to read input records from
    * @param readKeys whether the {@link OldApiHadoopFileInputExtractor} should read keys of type {@link #<K>};
    *                 by default values of type {@link #>V>} are read.
    * @return a {@link HadoopFileInputExtractor} instance
    */
-  protected abstract HadoopFileInputExtractor<S, D, K, V> getExtractor(RecordReader<K, V> recordReader,
-      boolean readKeys);
+  protected abstract HadoopFileInputExtractor<S, D, K, V> getExtractor(WorkUnitState workUnitState,
+      RecordReader<K, V> recordReader, FileSplit fileSplit, boolean readKeys);
 
   private String serializeFileSplit(FileSplit fileSplit) throws IOException {
     Closer closer = Closer.create();

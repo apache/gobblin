@@ -19,6 +19,7 @@ import java.util.List;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.RecordReader;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -102,7 +103,8 @@ public class OldApiHadoopFileInputSourceTest {
 
     @Override
     protected OldApiHadoopFileInputExtractor<String, Text, LongWritable, Text> getExtractor(
-        RecordReader<LongWritable, Text> recordReader, boolean readKeys) {
+        WorkUnitState workUnitState, RecordReader<LongWritable, Text> recordReader,
+        FileSplit fileSplit, boolean readKeys) {
       return new TestHadoopFileInputExtractor(recordReader, readKeys);
     }
   }

@@ -18,6 +18,7 @@ import java.util.List;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.RecordReader;
+import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -75,8 +76,8 @@ public class HadoopFileInputSourceTest extends OldApiHadoopFileInputSourceTest {
   private static class TestHadoopFileInputSource extends HadoopTextInputSource<String> {
 
     @Override
-    protected HadoopFileInputExtractor<String, Text, LongWritable, Text> getExtractor(
-        RecordReader<LongWritable, Text> recordReader, boolean readKeys) {
+    protected HadoopFileInputExtractor<String, Text, LongWritable, Text> getExtractor(WorkUnitState workUnitState,
+        RecordReader<LongWritable, Text> recordReader, FileSplit fileSplit, boolean readKeys) {
       return new TestHadoopFileInputExtractor(recordReader, readKeys);
     }
   }
