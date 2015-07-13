@@ -15,11 +15,14 @@ package gobblin.source.extractor.hadoop;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.FileInputFormat;
+import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.mapred.TextInputFormat;
 import org.apache.hadoop.util.ReflectionUtils;
 
 import gobblin.configuration.State;
+import gobblin.configuration.WorkUnitState;
 
 
 /**
@@ -27,7 +30,7 @@ import gobblin.configuration.State;
  *
  * <p>
  *   A concrete implementation of this class should at least implement the
- *   {@link #getExtractor(org.apache.hadoop.mapred.RecordReader, boolean)} method.
+ *   {@link #getExtractor(WorkUnitState, RecordReader, FileSplit, boolean)} method.
  * </p>
  *
  * @param <S> output schema type
