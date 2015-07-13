@@ -76,6 +76,50 @@ public class State implements Writable {
   }
 
   /**
+   * Add properties in a {@link State} instance that are not in the current instance.
+   *
+   * @param otherState a {@link State} instance
+   */
+  public void addAllIfNotExist(State otherState) {
+    addAllIfNotExist(otherState.properties);
+  }
+
+  /**
+   * Add properties in a {@link Properties} instance that are not in the current instance.
+   *
+   * @param properties a {@link Properties} instance
+   */
+  public void addAllIfNotExist(Properties properties) {
+    for (String key : properties.stringPropertyNames()) {
+      if (!this.properties.containsKey(key)) {
+        this.properties.setProperty(key, properties.getProperty(key));
+      }
+    }
+  }
+
+  /**
+   * Add properties in a {@link State} instance that are in the current instance.
+   *
+   * @param otherState a {@link State} instance
+   */
+  public void overrideWith(State otherState) {
+    overrideWith(otherState.properties);
+  }
+
+  /**
+   * Add properties in a {@link Properties} instance that are in the current instance.
+   *
+   * @param properties a {@link Properties} instance
+   */
+  public void overrideWith(Properties properties) {
+    for (String key : properties.stringPropertyNames()) {
+      if (this.properties.containsKey(key)) {
+        this.properties.setProperty(key, properties.getProperty(key));
+      }
+    }
+  }
+
+  /**
    * Set the id used for state persistence and logging.
    *
    * @param id id of this instance

@@ -46,7 +46,10 @@ public class WorkUnit extends State {
 
   /**
    * Default constructor.
+   *
+   * @deprecated Use {@link #createEmpty()}
    */
+  @Deprecated
   public WorkUnit() {
     this(null, null);
   }
@@ -56,7 +59,11 @@ public class WorkUnit extends State {
    *
    * @param state a {@link SourceState} the properties of which will be copied into this {@link WorkUnit} instance
    * @param extract an {@link Extract}
+   *
+   * @deprecated Properties in {@link SourceState} should not be added to a {@link WorkUnit}. Having each 
+   * {@link WorkUnit} contain a copy of {@link SourceState} is a waste of memory. Use {@link #create(Extract)}.
    */
+  @Deprecated
   public WorkUnit(SourceState state, Extract extract) {
     // Values should only be null for deserialization
     if (state != null) {
@@ -76,7 +83,11 @@ public class WorkUnit extends State {
    * @param state a {@link gobblin.configuration.SourceState} the properties of which will be copied into this {@link WorkUnit} instance.
    * @param extract an {@link Extract}.
    * @param watermarkInterval a {@link WatermarkInterval} which defines the range of data this {@link WorkUnit} will process.
+   *
+   * @deprecated Properties in {@link SourceState} should not be added to a {@link WorkUnit}. Having each 
+   * {@link WorkUnit} contain a copy of {@link SourceState} is a waste of memory. Use {@link #create(Extract, WatermarkInterval)}.
    */
+  @Deprecated
   public WorkUnit(SourceState state, Extract extract, WatermarkInterval watermarkInterval) {
     this(state, extract);
 
@@ -104,10 +115,53 @@ public class WorkUnit extends State {
    * Copy constructor.
    *
    * @param other the other {@link WorkUnit} instance
+   *
+   * @deprecated Use {@link #copyOf(WorkUnit)}
    */
+  @Deprecated
   public WorkUnit(WorkUnit other) {
     super.addAll(other);
     this.extract = other.getExtract();
+  }
+
+  /**
+   * Facotry method.
+   *
+   * @return An empty {@link WorkUnit}.
+   */
+  public static WorkUnit createEmpty() {
+    return new WorkUnit();
+  }
+
+  /**
+   * Facotry method.
+   *
+   * @param extract {@link Extract}
+   * @return A {@link WorkUnit} with the given {@link Extract}
+   */
+  public static WorkUnit create(Extract extract) {
+    return new WorkUnit(null, extract);
+  }
+
+  /**
+   * Facotry method.
+   *
+   * @param extract {@link Extract}
+   * @param watermarkInterval {@link WatermarkInterval}
+   * @return A {@link WorkUnit} with the given {@link Extract} and {@link WatermarkInterval}
+   */
+  public static WorkUnit create(Extract extract, WatermarkInterval watermarkInterval) {
+    return new WorkUnit(null, extract, watermarkInterval);
+  }
+
+  /**
+   * Facotry method.
+   *
+   * @param workUnit a {@link WorkUnit} instance
+   * @return A copy of the given {@link WorkUnit} instance
+   */
+  public static WorkUnit copyOf(WorkUnit other) {
+    return new WorkUnit(other);
   }
 
   /**
@@ -188,15 +242,13 @@ public class WorkUnit extends State {
   }
 
   @Override
-  public void readFields(DataInput in)
-      throws IOException {
+  public void readFields(DataInput in) throws IOException {
     super.readFields(in);
     this.extract.readFields(in);
   }
 
   @Override
-  public void write(DataOutput out)
-      throws IOException {
+  public void write(DataOutput out) throws IOException {
     super.write(out);
     this.extract.write(out);
   }

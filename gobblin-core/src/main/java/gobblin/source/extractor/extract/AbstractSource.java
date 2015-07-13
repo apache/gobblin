@@ -23,7 +23,10 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.source.Source;
 import gobblin.source.extractor.JobCommitPolicy;
 import gobblin.source.extractor.WorkUnitRetryPolicy;
+import gobblin.source.workunit.ExtractFactory;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.source.workunit.Extract;
+import gobblin.source.workunit.Extract.TableType;
 
 
 /**
@@ -32,6 +35,8 @@ import gobblin.source.workunit.WorkUnit;
  * @author ynli
  */
 public abstract class AbstractSource<S, D> implements Source<S, D> {
+
+  private final ExtractFactory extractFactory = new ExtractFactory("yyyyMMddHHmmss");
 
   /**
    * Get a list of {@link WorkUnitState}s of previous {@link WorkUnit}s subject for retries.
@@ -81,7 +86,7 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
           // for which addAll is not supported
           WorkUnitState workUnitStateCopy = new WorkUnitState(workUnitState.getWorkunit());
           workUnitStateCopy.addAll(workUnitState);
-          workUnitStateCopy.addAll(state);
+          workUnitStateCopy.overrideWith(state);
           previousWorkUnitStates.add(workUnitStateCopy);
         } else {
           previousWorkUnitStates.add(workUnitState);
@@ -96,8 +101,8 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
     JobCommitPolicy jobCommitPolicy = JobCommitPolicy
         .forName(state.getProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
     if ((workUnitRetryPolicy == WorkUnitRetryPolicy.ON_COMMIT_ON_PARTIAL_SUCCESS
-        && jobCommitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS) || (
-        workUnitRetryPolicy == WorkUnitRetryPolicy.ON_COMMIT_ON_FULL_SUCCESS
+        && jobCommitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS)
+        || (workUnitRetryPolicy == WorkUnitRetryPolicy.ON_COMMIT_ON_FULL_SUCCESS
             && jobCommitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS)) {
       return previousWorkUnitStates;
     } else {
@@ -120,9 +125,13 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
     List<WorkUnit> workUnits = Lists.newArrayList();
     for (WorkUnitState workUnitState : getPreviousWorkUnitStatesForRetry(state)) {
       // Make a copy here as getWorkUnit() below returns an ImmutableWorkUnit
-      workUnits.add(new WorkUnit(workUnitState.getWorkunit()));
+      workUnits.add(WorkUnit.copyOf(workUnitState.getWorkunit()));
     }
 
     return workUnits;
+  }
+
+  public Extract createExtract(TableType type, String namespace, String table) {
+    return this.extractFactory.getUniqueExtract(type, namespace, table);
   }
 }

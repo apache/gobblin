@@ -49,7 +49,7 @@ import gobblin.source.workunit.Extract;
  */
 public class SourceState extends State {
 
-  private static final Set<Extract> extractSet = Sets.newConcurrentHashSet();
+  private static final Set<Extract> EXTRACT_SET = Sets.newConcurrentHashSet();
   private static final DateTimeFormatter DTF =
       DateTimeFormat.forPattern("yyyyMMddHHmmss").withLocale(Locale.US).withZone(DateTimeZone.UTC);
 
@@ -107,7 +107,7 @@ public class SourceState extends State {
    * @return (possibly empty) list of {@link WorkUnitState}s from the previous job run
    */
   public List<WorkUnitState> getPreviousWorkUnitStates() {
-    return ImmutableList.<WorkUnitState>builder().addAll(this.previousWorkUnitStates).build();
+    return ImmutableList.<WorkUnitState> builder().addAll(this.previousWorkUnitStates).build();
   }
 
   /**
@@ -121,10 +121,13 @@ public class SourceState extends State {
    * @param namespace namespace of the table this extract belongs to
    * @param table name of the table this extract belongs to
    * @return a new unique {@link Extract} instance
+   *
+   * @Deprecated Use {@link gobblin.source.extractor.extract.AbstractSource#createExtract(gobblin.source.workunit.Extract.TableType, String, String)}
    */
+  @Deprecated
   public synchronized Extract createExtract(Extract.TableType type, String namespace, String table) {
     Extract extract = new Extract(this, type, namespace, table);
-    while (extractSet.contains(extract)) {
+    while (EXTRACT_SET.contains(extract)) {
       if (Strings.isNullOrEmpty(extract.getExtractId())) {
         extract.setExtractId(DTF.print(new DateTime()));
       } else {
@@ -132,7 +135,7 @@ public class SourceState extends State {
         extract.setExtractId(DTF.print(extractDateTime.plusSeconds(1)));
       }
     }
-    extractSet.add(extract);
+    EXTRACT_SET.add(extract);
     return extract;
   }
 
@@ -141,7 +144,11 @@ public class SourceState extends State {
    *
    * @param extract given {@link Extract}
    * @return a new {@link WorkUnit} instance
+   *
+   * @deprecated Properties in SourceState should not added to a WorkUnit. Having each WorkUnit contain a copy of
+   * SourceState is a waste of memory. Use {@link WorkUnit#create(Extract)}.
    */
+  @Deprecated
   public WorkUnit createWorkUnit(Extract extract) {
     return new WorkUnit(this, extract);
   }
@@ -173,8 +180,8 @@ public class SourceState extends State {
     }
 
     SourceState other = (SourceState) object;
-    return super.equals(other) && this.previousSourceState.equals(other.previousSourceState) &&
-        this.previousWorkUnitStates.equals(other.previousWorkUnitStates);
+    return super.equals(other) && this.previousSourceState.equals(other.previousSourceState)
+        && this.previousWorkUnitStates.equals(other.previousWorkUnitStates);
   }
 
   @Override
