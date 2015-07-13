@@ -66,12 +66,26 @@ public class MultiWorkUnit extends WorkUnit {
     this.workUnits.addAll(workUnits);
   }
 
+  /**
+   * Set the specified key, value pair in this {@link MultiWorkUnit} as well as in all the inner {@link WorkUnit}s.
+   *
+   * {@inheritDoc}
+   * @see gobblin.configuration.State#setProp(java.lang.String, java.lang.Object)
+   */
   @Override
   public void setProp(String key, Object value) {
     super.setProp(key, value);
     for (WorkUnit workUnit : this.workUnits) {
       workUnit.setProp(key, value);
     }
+  }
+
+  /**
+   * Set the specified key, value pair in this {@link MultiWorkUnit} only, but do not propagate it to all the inner
+   * {@link WorkUnit}s.
+   */
+  public void setPropExcludeInnerWorkUnits(String key, Object value) {
+    super.setProp(key, value);
   }
 
   @Override
