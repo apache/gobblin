@@ -12,10 +12,6 @@
 
 package gobblin.source.extractor.hadoop;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.List;
 
@@ -32,8 +28,6 @@ import org.apache.hadoop.util.ReflectionUtils;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.io.BaseEncoding;
-import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
@@ -43,6 +37,7 @@ import gobblin.source.Source;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.HadoopUtils;
 
 
 /**
@@ -110,7 +105,7 @@ public abstract class OldApiHadoopFileInputSource<S, D, K, V> implements Source<
         FileSplit fileSplit = (FileSplit) inputSplit;
         Extract extract = state.createExtract(tableType, tableNamespace, tableName);
         WorkUnit workUnit = state.createWorkUnit(extract);
-        workUnit.setProp(HadoopFileInputSource.FILE_SPLIT_BYTES_STRING_KEY, serializeFileSplit(fileSplit));
+        workUnit.setProp(HadoopFileInputSource.FILE_SPLIT_BYTES_STRING_KEY, HadoopUtils.serializeToString(fileSplit));
         workUnit.setProp(HadoopFileInputSource.FILE_SPLIT_PATH_KEY, fileSplit.getPath().toString());
         workUnits.add(workUnit);
       }
@@ -133,7 +128,7 @@ public abstract class OldApiHadoopFileInputSource<S, D, K, V> implements Source<
     }
 
     String fileSplitBytesStr = workUnitState.getProp(HadoopFileInputSource.FILE_SPLIT_BYTES_STRING_KEY);
-    FileSplit fileSplit = deserializeFileSplit(fileSplitBytesStr);
+    FileSplit fileSplit = (FileSplit) HadoopUtils.deserializeFromString(FileSplit.class, fileSplitBytesStr);
     FileInputFormat<K, V> fileInputFormat = getFileInputFormat(workUnitState, jobConf);
     RecordReader<K, V> recordReader = fileInputFormat.getRecordReader(fileSplit, jobConf, Reporter.NULL);
     boolean readKeys = workUnitState.getPropAsBoolean(
@@ -182,34 +177,4 @@ public abstract class OldApiHadoopFileInputSource<S, D, K, V> implements Source<
    */
   protected abstract OldApiHadoopFileInputExtractor<S, D, K, V> getExtractor(WorkUnitState workUnitState,
       RecordReader<K, V> recordReader, FileSplit fileSplit, boolean readKeys);
-
-  private String serializeFileSplit(FileSplit fileSplit) throws IOException {
-    Closer closer = Closer.create();
-    try {
-      ByteArrayOutputStream byteArrayOutputStream = closer.register(new ByteArrayOutputStream());
-      DataOutputStream dataOutputStream = closer.register(new DataOutputStream(byteArrayOutputStream));
-      fileSplit.write(dataOutputStream);
-      return BaseEncoding.base64().encode(byteArrayOutputStream.toByteArray());
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
-    }
-  }
-
-  private FileSplit deserializeFileSplit(String fileSplitBytesStr) throws IOException  {
-    Closer closer = Closer.create();
-    try {
-      byte[] fileSplitBytes = BaseEncoding.base64().decode(fileSplitBytesStr);
-      ByteArrayInputStream byteArrayInputStream = closer.register(new ByteArrayInputStream(fileSplitBytes));
-      DataInputStream dataInputStream = closer.register(new DataInputStream(byteArrayInputStream));
-      FileSplit fileSplit = ReflectionUtils.newInstance(FileSplit.class, new Configuration());
-      fileSplit.readFields(dataInputStream);
-      return fileSplit;
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
-    }
-  }
 }
