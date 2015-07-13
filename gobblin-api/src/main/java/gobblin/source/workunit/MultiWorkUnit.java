@@ -83,6 +83,9 @@ public class MultiWorkUnit extends WorkUnit {
   /**
    * Set the specified key, value pair in this {@link MultiWorkUnit} only, but do not propagate it to all the inner
    * {@link WorkUnit}s.
+   *
+   * @param key property key
+   * @param value property value
    */
   public void setPropExcludeInnerWorkUnits(String key, Object value) {
     super.setProp(key, value);
