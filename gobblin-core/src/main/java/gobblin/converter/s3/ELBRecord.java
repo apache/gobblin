@@ -257,7 +257,7 @@ public class ELBRecord {
    * @return The URI of the request
    */
   public String getRequestUri() {
-    return this.requestHostHeader + "/" + this.requestPath;
+    return requestHostHeader + "/" + requestPath;
   }
 
   // Auto-generated default getters

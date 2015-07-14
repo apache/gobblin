@@ -27,27 +27,22 @@ import org.testng.annotations.Test;
  */
 @Test(groups = {"gobblin.converter.s3"})
 public class ELBRecordTest {
-  private static final Logger LOG = LoggerFactory.getLogger(ELBRecordTest.class);
-
   /**
-   * Generates an ArrayList of values based on a CSV string using the system set by StringToCSVConverter.
-   * @param recordString The string to split
-   * @return An ArrayList of split strings using the StringToCSVConverter
+   * Generates an ELB record from a CSV string. Uses {@link StringToCSVConverter#splitString(String, char)} and
+   * passes the result to make a new {@link ELBRecord}
+   *
+   * @param recordString A CSV string containing ELB log data
+   * @return An {@link ELBRecord} that best represents the string passed in
+   * @throws DataConversionException
    */
-  public static ArrayList<String> generateList(String recordString) {
-    try {
-      return StringToCSVConverter.splitString(recordString, '\u0020');
-    } catch (IOException e) {
-      e.printStackTrace();
-      return new ArrayList<String>();
-    }
-  }
-
   public static ELBRecord generateELBRecord(String recordString)
       throws DataConversionException {
-    ArrayList<String> recordArray = generateList(recordString);
-
-    return new ELBRecord(recordArray);
+    try {
+      return new ELBRecord(StringToCSVConverter.splitString(recordString, '\u0020'));
+    } catch (IOException e) {
+      e.printStackTrace();
+      return null;
+    }
   }
 
   /**
