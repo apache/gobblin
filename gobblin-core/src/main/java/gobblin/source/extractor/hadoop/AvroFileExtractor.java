@@ -16,7 +16,6 @@ import java.io.IOException;
 import java.util.Iterator;
 
 import org.apache.avro.Schema;
-import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericRecord;
 
 import com.google.common.base.Throwables;
@@ -39,10 +38,10 @@ public class AvroFileExtractor extends FileBasedExtractor<Schema, GenericRecord>
   @Override
   public Iterator<GenericRecord> downloadFile(String file) throws IOException {
     try {
-      DataFileReader<GenericRecord> dataFileReader = ((AvroFsHelper) this.fsHelper).getAvroFile(file);
-      if (dataFileReader != null) {
-        return this.closer.register(dataFileReader);
-      }
+      //  DataFileReader<GenericRecord> dataFileReader = ((AvroFsHelper) this.fsHelper).getAvroFile(file);
+      //if (dataFileReader != null) {
+      return this.closer.register(((AvroFsHelper) this.fsHelper).getAvroFile(file));
+      //}
     } catch (FileBasedHelperException e) {
       Throwables.propagate(e);
     }
