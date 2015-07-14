@@ -14,10 +14,12 @@ package gobblin.data.management.retention.dataset;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Callable;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -88,8 +90,6 @@ import gobblin.data.management.trash.Trash;
  */
 public abstract class DatasetBase<T extends DatasetVersion> implements Dataset {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(DatasetBase.class);
-
   public static final String CONFIGURATION_KEY_PREFIX = "gobblin.retention.";
   public static final String SIMULATE_KEY = CONFIGURATION_KEY_PREFIX + "simulate";
   public static final boolean SIMULATE_DEFAULT = false;
@@ -104,6 +104,8 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Dataset {
   protected final boolean skipTrash;
   protected final boolean deleteEmptyDirectories;
 
+  protected final Logger log;
+
   /**
    * Get {@link gobblin.data.management.retention.version.finder.VersionFinder} to use.
    */
@@ -111,30 +113,51 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Dataset {
 
   /**
    * Get {@link gobblin.data.management.retention.policy.RetentionPolicy} to use.
-   * @return
    */
   public abstract RetentionPolicy<T> getRetentionPolicy();
 
-  public DatasetBase(FileSystem fs, Props props) throws IOException {
-    this.fs = fs;
-
-    this.simulate = props.getBoolean(SIMULATE_KEY, SIMULATE_DEFAULT);
-    this.skipTrash = props.getBoolean(SKIP_TRASH_KEY, SKIP_TRASH_DEFAULT);
-    this.deleteEmptyDirectories = props.getBoolean(DELETE_EMPTY_DIRECTORIES_KEY, DELETE_EMPTY_DIRECTORIES_DEFAULT);
-
-    if(this.simulate || this.skipTrash) {
-      this.trash = null;
-    } else {
-      this.trash = new Trash(fs, props);
-    }
+  public DatasetBase(final FileSystem fs, final Props props, Logger log) throws IOException {
+    this(fs,
+        new Callable<Trash>() {
+          @Override
+          public Trash call()
+              throws Exception {
+            return new Trash(fs, props);
+          }
+        },
+        props.getBoolean(SIMULATE_KEY, SIMULATE_DEFAULT),
+        props.getBoolean(SKIP_TRASH_KEY, SKIP_TRASH_DEFAULT),
+        props.getBoolean(DELETE_EMPTY_DIRECTORIES_KEY, DELETE_EMPTY_DIRECTORIES_DEFAULT),
+        log);
   }
 
-  public DatasetBase(FileSystem fs, Trash trash, boolean simulate, boolean skipTrash, boolean deleteEmptyDirectories) {
+  public DatasetBase(FileSystem fs, final Trash trash, boolean simulate,
+      boolean skipTrash, boolean deleteEmptyDirectories, Logger log) throws IOException {
+    this(fs, new Callable<Trash>() {
+      @Override
+      public Trash call() {
+        return trash;
+      }
+    }, simulate, skipTrash, deleteEmptyDirectories, log);
+  }
+
+  private DatasetBase(FileSystem fs, Callable<Trash> trashGenerator, boolean simulate, boolean skipTrash,
+      boolean deleteEmptyDirectories, Logger log) throws IOException {
+    this.log = log;
     this.fs = fs;
-    this.trash = trash;
     this.simulate = simulate;
     this.skipTrash = skipTrash;
     this.deleteEmptyDirectories = deleteEmptyDirectories;
+    if(this.simulate || this.skipTrash) {
+      this.trash = null;
+    } else {
+      try {
+        this.trash = trashGenerator.call();
+      } catch(Exception exception) {
+        // Callable allows for generic Exception, but new Trash() only throws IOException.
+        throw new IOException(exception);
+      }
+    }
   }
 
   /**
@@ -152,21 +175,21 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Dataset {
       throw new IOException("Incompatible dataset version classes.");
     }
 
-    LOGGER.info("Cleaning dataset " + this);
+    this.log.info("Cleaning dataset " + this);
 
     List<T> versions = Lists.newArrayList(getVersionFinder().findDatasetVersions(this));
     Collections.sort(versions, Collections.reverseOrder());
 
-    List<T> deletableVersions =
-        getRetentionPolicy().preserveDeletableVersions(versions);
+    Collection<T> deletableVersions =
+        getRetentionPolicy().listDeletableVersions(versions);
 
     Set<Path> possiblyEmptyDirectories = new HashSet<Path>();
 
     for(DatasetVersion versionToDelete : deletableVersions) {
-      LOGGER.info("Deleting dataset version " + versionToDelete);
+      this.log.info("Deleting dataset version " + versionToDelete);
 
       Set<Path> pathsToDelete = versionToDelete.getPathsToDelete();
-      LOGGER.info("Deleting paths: " + Arrays.toString(pathsToDelete.toArray()));
+      this.log.info("Deleting paths: " + Arrays.toString(pathsToDelete.toArray()));
 
       boolean deletedAllPaths = true;
 
@@ -181,14 +204,14 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Dataset {
           if (successfullyDeleted) {
             possiblyEmptyDirectories.add(path.getParent());
           } else {
-            LOGGER.error("Failed to delete path " + path + " in dataset version " + versionToDelete);
+            this.log.error("Failed to delete path " + path + " in dataset version " + versionToDelete);
             deletedAllPaths = false;
           }
         }
       }
 
       if(!deletedAllPaths) {
-        LOGGER.error("Failed to delete some paths in dataset version " + versionToDelete);
+        this.log.error("Failed to delete some paths in dataset version " + versionToDelete);
       }
 
     }

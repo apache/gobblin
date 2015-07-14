@@ -1,5 +1,6 @@
 package gobblin.data.management.retention.policy;
 
+import java.util.Collection;
 import java.util.List;
 
 import gobblin.data.management.retention.version.DatasetVersion;
@@ -21,10 +22,10 @@ public interface RetentionPolicy<T extends DatasetVersion> {
   /**
    * Logic to decide which dataset versions should be deleted. Only datasets returned will be deleted from filesystem.
    *
-   * @param allVersions {@link java.util.SortedMap} of all dataset versions in the file system,
+   * @param allVersions List of all dataset versions in the file system,
    *                                               sorted from newest to oldest.
-   * @return Map of dataset versions that should be deleted.
+   * @return Collection of dataset versions that should be deleted.
    */
-  public List<T> preserveDeletableVersions(List<T> allVersions);
+  public Collection<T> listDeletableVersions(List<T> allVersions);
 
 }

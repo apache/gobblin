@@ -1,21 +1,17 @@
 package gobblin.data.management.retention.policy;
 
+import java.util.Collection;
 import java.util.List;
-import java.util.Map;
-import java.util.SortedMap;
 
-import org.apache.hadoop.fs.FileStatus;
 import org.joda.time.Duration;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 
 import azkaban.utils.Props;
 
 import gobblin.data.management.retention.DatasetCleaner;
-import gobblin.data.management.retention.policy.RetentionPolicy;
 import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.TimestampedDatasetVersion;
 
@@ -41,7 +37,7 @@ public class TimeBasedRetentionPolicy implements RetentionPolicy<TimestampedData
   }
 
   @Override
-  public List<TimestampedDatasetVersion> preserveDeletableVersions(List<TimestampedDatasetVersion> allVersions) {
+  public Collection<TimestampedDatasetVersion> listDeletableVersions(List<TimestampedDatasetVersion> allVersions) {
     return Lists.newArrayList(Collections2.filter(allVersions, new Predicate<DatasetVersion>() {
       @Override
       public boolean apply(DatasetVersion version) {

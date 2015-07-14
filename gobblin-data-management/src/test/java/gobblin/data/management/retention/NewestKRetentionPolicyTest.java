@@ -47,7 +47,7 @@ public class NewestKRetentionPolicyTest {
     versions.add(datasetVersion1);
     versions.add(datasetVersion2);
     versions.add(datasetVersion3);
-    List<DatasetVersion> deletableVersions = policy.preserveDeletableVersions(versions);
+    List<DatasetVersion> deletableVersions = Lists.newArrayList(policy.listDeletableVersions(versions));
     Assert.assertEquals(deletableVersions.size(),1);
     Assert.assertEquals(((StringDatasetVersion) deletableVersions.get(0)).getVersion(), "002_oldest");
 

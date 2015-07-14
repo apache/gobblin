@@ -13,7 +13,7 @@
 package gobblin.data.management.retention.version.finder;
 
 import java.io.IOException;
-import java.util.List;
+import java.util.Collection;
 
 import gobblin.data.management.retention.dataset.Dataset;
 import gobblin.data.management.retention.version.DatasetVersion;
@@ -37,9 +37,9 @@ public interface VersionFinder<T extends DatasetVersion> {
    * See {@link gobblin.data.management.retention.DatasetCleaner} for more information.
    *
    * @param dataset {@link org.apache.hadoop.fs.Path} to directory containing all versions of a dataset.
-   * @return Map of {@link gobblin.data.management.retention.version.DatasetVersion} and {@link org.apache.hadoop.fs.FileStatus}
+   * @return Collection of {@link gobblin.data.management.retention.version.DatasetVersion}
    *        for each dataset version found.
    * @throws IOException
    */
-  public List<T> findDatasetVersions(Dataset dataset) throws IOException;
+  public Collection<T> findDatasetVersions(Dataset dataset) throws IOException;
 }

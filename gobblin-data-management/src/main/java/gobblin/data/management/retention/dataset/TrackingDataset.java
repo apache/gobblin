@@ -16,6 +16,8 @@ import java.io.IOException;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import azkaban.utils.Props;
 
@@ -40,7 +42,12 @@ public class TrackingDataset extends DatasetBase<TimestampedDatasetVersion> {
 
   public TrackingDataset(FileSystem fs, Props props, Path datasetRoot)
       throws IOException {
-    super(fs, props);
+    this(fs, props, datasetRoot, LoggerFactory.getLogger(TrackingDataset.class));
+  }
+
+  public TrackingDataset(FileSystem fs, Props props, Path datasetRoot, Logger log)
+      throws IOException {
+    super(fs, props, log);
     this.datasetRoot = datasetRoot;
     this.versionFinder = new DateTimeDatasetVersionFinder(fs, props);
     this.retentionPolicy = new TimeBasedRetentionPolicy(props);

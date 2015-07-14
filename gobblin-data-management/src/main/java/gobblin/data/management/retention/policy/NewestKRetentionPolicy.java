@@ -1,18 +1,16 @@
 package gobblin.data.management.retention.policy;
 
+import java.util.Collection;
 import java.util.List;
-import java.util.Map;
-import java.util.SortedMap;
 
-import org.apache.hadoop.fs.FileStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 
 import azkaban.utils.Props;
 
 import gobblin.data.management.retention.DatasetCleaner;
-import gobblin.data.management.retention.policy.RetentionPolicy;
 import gobblin.data.management.retention.version.DatasetVersion;
 
 
@@ -20,6 +18,8 @@ import gobblin.data.management.retention.version.DatasetVersion;
  * Retains the newest k versions of the dataset.
  */
 public class NewestKRetentionPolicy implements RetentionPolicy<DatasetVersion> {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(NewestKRetentionPolicy.class);
 
   public static final String VERSIONS_RETAINED_KEY = DatasetCleaner.CONFIGURATION_KEY_PREFIX +
       "versions.retained";
@@ -29,6 +29,8 @@ public class NewestKRetentionPolicy implements RetentionPolicy<DatasetVersion> {
 
   public NewestKRetentionPolicy(Props props) {
     this.versionsRetained = props.getInt(VERSIONS_RETAINED_KEY, VERSIONS_RETAINED_DEFAULT);
+    LOGGER.info(String.format("%s will retain %d versions of each dataset.",
+        NewestKRetentionPolicy.class.getCanonicalName(), this.versionsRetained));
   }
 
   @Override
@@ -37,7 +39,7 @@ public class NewestKRetentionPolicy implements RetentionPolicy<DatasetVersion> {
   }
 
   @Override
-  public List<DatasetVersion> preserveDeletableVersions(List<DatasetVersion> allVersions) {
+  public Collection<DatasetVersion> listDeletableVersions(List<DatasetVersion> allVersions) {
     int newerVersions = 0;
     List<DatasetVersion> deletableVersions = Lists.newArrayList();
     for(DatasetVersion datasetVersion : allVersions) {

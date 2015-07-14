@@ -17,6 +17,8 @@ import java.lang.reflect.InvocationTargetException;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import azkaban.utils.Props;
 
@@ -45,10 +47,14 @@ public class ConfigurableDataset<T extends DatasetVersion> extends DatasetBase<T
   private final VersionFinder<? extends T> versionFinder;
   private final RetentionPolicy<T> retentionPolicy;
 
+  public ConfigurableDataset(FileSystem fs, Props props, Path datasetRoot) throws IOException {
+    this(fs, props, datasetRoot, LoggerFactory.getLogger(ConfigurableDataset.class));
+  }
+
   @SuppressWarnings("unchecked")
-  public ConfigurableDataset(FileSystem fs, Props props, Path datasetRoot)
+  public ConfigurableDataset(FileSystem fs, Props props, Path datasetRoot, Logger log)
       throws IOException {
-    super(fs, props);
+    super(fs, props, log);
     this.datasetRoot = datasetRoot;
 
     try {

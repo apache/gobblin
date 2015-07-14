@@ -13,11 +13,13 @@
 package gobblin.data.management.retention;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
@@ -153,7 +155,7 @@ public class DatasetBaseTest {
     }
 
     @Override
-    public List<StringDatasetVersion> preserveDeletableVersions(List<StringDatasetVersion> allVersions) {
+    public Collection<StringDatasetVersion> listDeletableVersions(List<StringDatasetVersion> allVersions) {
       return Lists.newArrayList(allVersions.get(0));
     }
   }
@@ -165,8 +167,8 @@ public class DatasetBaseTest {
     public Path path;
 
     public DatasetImpl(FileSystem fs, Trash trash, boolean simulate, boolean skipTrash,
-        boolean deleteEmptyDirectories, Path path) {
-      super(fs, trash, simulate, skipTrash, deleteEmptyDirectories);
+        boolean deleteEmptyDirectories, Path path) throws IOException {
+      super(fs, trash, simulate, skipTrash, deleteEmptyDirectories, LoggerFactory.getLogger(DatasetImpl.class));
       when(versionFinder.versionClass()).thenReturn(StringDatasetVersion.class);
       this.path = path;
     }

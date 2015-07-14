@@ -30,7 +30,7 @@ import gobblin.data.management.retention.dataset.SnapshotDataset;
  *   Snapshot datasets are datasets where each version is a snapshot/full-dump of a dataset (e.g. a database).
  * </p>
  */
-public class SnapshotDatasetProfile extends ConfigurableGlobDataset {
+public class SnapshotDatasetProfile extends ConfigurableGlobDatasetFinder {
 
   public SnapshotDatasetProfile(FileSystem fs, Props props)
       throws IOException {

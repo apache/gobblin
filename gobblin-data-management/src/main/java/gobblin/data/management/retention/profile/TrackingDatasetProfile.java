@@ -33,7 +33,7 @@ import gobblin.data.management.retention.version.finder.DateTimeDatasetVersionFi
  *   organized in a time aware directory pattern (e.g. one directory per minute / hour / day).
  * </p>
  */
-public class TrackingDatasetProfile extends ConfigurableGlobDataset {
+public class TrackingDatasetProfile extends ConfigurableGlobDatasetFinder {
 
   public TrackingDatasetProfile(FileSystem fs, Props props)
       throws IOException {

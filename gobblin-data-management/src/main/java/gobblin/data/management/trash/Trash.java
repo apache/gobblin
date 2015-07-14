@@ -31,8 +31,6 @@ import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Preconditions;
-
 import azkaban.utils.Props;
 
 import gobblin.data.management.util.PathUtils;
@@ -78,7 +76,6 @@ public class Trash {
    * @throws java.io.IOException
    */
   public static Path getTrashLocation(FileSystem fs, Props props) throws IOException {
-    Preconditions.checkArgument(props.containsKey(TRASH_LOCATION_KEY), "Trash location not provided.");
     Path trashLocation;
     if(props.containsKey(TRASH_LOCATION_KEY)) {
       trashLocation = new Path(props.get(TRASH_LOCATION_KEY));

@@ -1,15 +1,14 @@
 package gobblin.data.management.retention.version.finder;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 
 import azkaban.utils.Props;
 
@@ -45,7 +44,7 @@ public abstract class DatasetVersionFinder<T extends DatasetVersion> implements 
    * @throws IOException
    */
   @Override
-  public List<T> findDatasetVersions(Dataset dataset) throws IOException {
+  public Collection<T> findDatasetVersions(Dataset dataset) throws IOException {
     Path versionGlobStatus = new Path(dataset.datasetRoot(), globVersionPattern());
 
     FileStatus[] dataSetVersionPaths = this.fs.globStatus(versionGlobStatus);

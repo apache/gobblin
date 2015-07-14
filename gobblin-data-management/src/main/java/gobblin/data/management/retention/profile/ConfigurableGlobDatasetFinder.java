@@ -40,9 +40,9 @@ import gobblin.data.management.retention.version.DatasetVersion;
  * A configurable {@link gobblin.data.management.retention.dataset.finder.DatasetFinder} that looks for
  * {@link gobblin.data.management.retention.dataset.Dataset}s using a glob pattern.
  */
-public class ConfigurableGlobDataset implements DatasetFinder {
+public class ConfigurableGlobDatasetFinder implements DatasetFinder {
 
-  private static final Logger LOG = LoggerFactory.getLogger(ConfigurableGlobDataset.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ConfigurableGlobDatasetFinder.class);
 
   public static final String DATASET_PATTERN_KEY = DatasetCleaner.CONFIGURATION_KEY_PREFIX + "dataset.pattern";
   public static final String DATASET_BLACKLIST_KEY = DatasetCleaner.CONFIGURATION_KEY_PREFIX + "dataset.blacklist";
@@ -52,7 +52,7 @@ public class ConfigurableGlobDataset implements DatasetFinder {
   protected final FileSystem fs;
   protected final Props props;
 
-  public ConfigurableGlobDataset(FileSystem fs, Props props) throws IOException {
+  public ConfigurableGlobDatasetFinder(FileSystem fs, Props props) throws IOException {
     for(String property : requiredProperties()) {
       Preconditions.checkArgument(props.containsKey(property));
     }

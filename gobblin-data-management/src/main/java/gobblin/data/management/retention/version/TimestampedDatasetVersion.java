@@ -34,7 +34,7 @@ public class TimestampedDatasetVersion implements DatasetVersion {
 
   @Override
   public String toString() {
-    return version.toString(DateTimeFormat.shortDateTime());
+    return "Version " + version.toString(DateTimeFormat.shortDateTime()) + " at path " + this.path;
   }
 
   @Override

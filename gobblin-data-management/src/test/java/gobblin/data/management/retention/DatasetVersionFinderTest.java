@@ -55,7 +55,7 @@ public class DatasetVersionFinderTest {
     DatasetVersionFinder<StringDatasetVersion> versionFinder = new MockDatasetVersionFinder(fs, new Props());
 
     List<StringDatasetVersion> datasetVersions =
-        versionFinder.findDatasetVersions(new MockDataset(datasetPath));
+        Lists.newArrayList(versionFinder.findDatasetVersions(new MockDataset(datasetPath)));
     Assert.assertEquals(datasetVersions.size(), 2);
     Assert.assertEquals(datasetVersions.get(0).getVersion(), dataset1);
     Assert.assertEquals(datasetVersions.get(0).getPathsToDelete().iterator().next(), datasetVersion1);

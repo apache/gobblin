@@ -47,7 +47,7 @@ public class TimeBasedRetentionPolicyTest {
     List<TimestampedDatasetVersion> versions = Lists.newArrayList();
     versions.add(datasetVersion1);
     versions.add(datasetVersion2);
-    List<TimestampedDatasetVersion> deletableVersions = policy.preserveDeletableVersions(versions);
+    List<TimestampedDatasetVersion> deletableVersions = Lists.newArrayList(policy.listDeletableVersions(versions));
     Assert.assertEquals(deletableVersions.size(),1);
     Assert.assertEquals(deletableVersions.get(0).getDateTime(),
         new DateTime(2015, 6, 1, 10, 0, 0, 0));
