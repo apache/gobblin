@@ -15,11 +15,6 @@ import com.google.common.base.Joiner;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.string.StringToCSVConverter;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.GregorianCalendar;
 import java.util.List;
 import org.joda.time.DateTime;
 import org.testng.Assert;
@@ -34,12 +29,13 @@ import org.testng.annotations.Test;
 @Test(groups = {"gobblin.converter.s3"})
 public class ELBRecordTest {
   public static final char DELIMITER = '\u0020';
+
   /**
    * Generates a default ELB CSV string, replacing one input at the given position.
    * Useful for testing individual perversions of fields in the ELB CSV.
    *
    * @param input The string to test
-   * @param pos The position to place the string
+   * @param pos The position to place the string (or -1 if you don't want to replace anything)
    * @param length The length of the CSV string (either 12 or 15)
    * @return An ELB CSV string containing all defaults except the specified value, which is placed at the specified pos
    */
@@ -59,14 +55,16 @@ public class ELBRecordTest {
     values.add("29");
     values.add("\"POST http://example.url.com:80/example/path HTTP/1.1\"");
 
-    if(length == ELBRecord.RECORD_LENGTH_FULL) {
+    if (length == ELBRecord.RECORD_LENGTH_FULL) {
       values.add("\"curl/7.38.0\"");
       values.add("-");
       values.add("-");
     }
 
     // Replace our value
-    values.set(pos, input);
+    if (pos != -1) {
+      values.set(pos, input);
+    }
 
     // Return joined by spaces
     return Joiner.on(DELIMITER).join(values);
@@ -101,7 +99,7 @@ public class ELBRecordTest {
     String elbRecordString = generateDefaultELBCSV(timeString, 0, ELBRecord.RECORD_LENGTH_FULL);
     ELBRecord elbRecord = generateELBRecord(elbRecordString);
 
-    DateTime d = new DateTime(2015,5,13,23,39,43,0);
+    DateTime d = new DateTime(2015, 5, 13, 23, 39, 43, 0);
     Assert.assertEquals(elbRecord.getTimestampInMillis(), d.getMillis());
   }
 
@@ -118,7 +116,7 @@ public class ELBRecordTest {
     try {
       ELBRecord elbRecord = generateELBRecord(elbRecordString);
       Assert.fail("ELB Record parsed malformed timestamp");
-    } catch(DataConversionException ex) {
+    } catch (DataConversionException ex) {
 
     }
   }
@@ -220,5 +218,19 @@ public class ELBRecordTest {
     Assert.assertEquals(elbRecord.getRequestPort(), 0);
     Assert.assertNull(elbRecord.getRequestPath());
     Assert.assertNull(elbRecord.getRequestHttpVersion());
+  }
+
+  /**
+   * Tests a short record to make sure it parses correctly
+   */
+  @Test
+  public void testShortRecord()
+      throws DataConversionException {
+    String elbRecordString = generateDefaultELBCSV("", -1, ELBRecord.RECORD_LENGTH_SHORT);
+    ELBRecord elbRecord = generateELBRecord(elbRecordString);
+
+    Assert.assertNull(elbRecord.getUserAgent());
+    Assert.assertNull(elbRecord.getSslCipher());
+    Assert.assertNull(elbRecord.getSslProtocol());
   }
 }
