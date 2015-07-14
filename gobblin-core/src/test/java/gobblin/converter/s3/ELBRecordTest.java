@@ -10,17 +10,14 @@
  */
 package gobblin.converter.s3;
 
-import gobblin.configuration.ConfigurationKeys;
 import gobblin.converter.DataConversionException;
-import gobblin.source.extractor.utils.InputStreamCSVReader;
+import gobblin.converter.string.StringToCSVConverter;
 import java.io.IOException;
 import java.util.ArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.text.SimpleDateFormat;
 
 
 /**
@@ -32,11 +29,14 @@ import java.text.SimpleDateFormat;
 public class ELBRecordTest {
   private static final Logger LOG = LoggerFactory.getLogger(ELBRecordTest.class);
 
-  public static ArrayList<String> generateCsv(String recordString) {
-    InputStreamCSVReader r = new InputStreamCSVReader(recordString, '\u0020');
-
+  /**
+   * Generates an ArrayList of values based on a CSV string using the system set by StringToCSVConverter.
+   * @param recordString The string to split
+   * @return An ArrayList of split strings using the StringToCSVConverter
+   */
+  public static ArrayList<String> generateList(String recordString) {
     try {
-      return r.splitRecord();
+      return StringToCSVConverter.splitString(recordString, '\u0020');
     } catch (IOException e) {
       e.printStackTrace();
       return new ArrayList<String>();
@@ -45,7 +45,7 @@ public class ELBRecordTest {
 
   public static ELBRecord generateELBRecord(String recordString)
       throws DataConversionException {
-    ArrayList<String> recordArray = generateCsv(recordString);
+    ArrayList<String> recordArray = generateList(recordString);
 
     return new ELBRecord(recordArray);
   }
