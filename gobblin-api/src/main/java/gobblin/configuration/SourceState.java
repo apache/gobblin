@@ -24,6 +24,7 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -92,8 +93,12 @@ public class SourceState extends State {
   public synchronized Extract createExtract(Extract.TableType type, String namespace, String table) {
     Extract extract = new Extract(this, type, namespace, table);
     while (extractSet.contains(extract)) {
-      DateTime extractDateTime = DTF.parseDateTime(extract.getExtractId());
-      extract.setExtractId(DTF.print(extractDateTime.plusSeconds(1)));
+      if (Strings.isNullOrEmpty(extract.getExtractId())) {
+        extract.setExtractId(DTF.print(new DateTime()));
+      } else {
+        DateTime extractDateTime = DTF.parseDateTime(extract.getExtractId());
+        extract.setExtractId(DTF.print(extractDateTime.plusSeconds(1)));
+      }
     }
     extractSet.add(extract);
     return extract;
