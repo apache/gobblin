@@ -73,11 +73,12 @@ public abstract class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, 
     this.workUnit = workUnitState.getWorkunit();
     this.filesToPull =
         Lists.newArrayList(workUnitState.getPropAsList(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, ""));
-    this.statusCount = this.workUnit.getPropAsInt(ConfigurationKeys.FILEBASED_REPORT_STATUS_ON_COUNT,
-        ConfigurationKeys.DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT);
+    this.statusCount =
+        this.workUnit.getPropAsInt(ConfigurationKeys.FILEBASED_REPORT_STATUS_ON_COUNT,
+            ConfigurationKeys.DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT);
 
     if (fsHelper instanceof SizeAwareFileBasedHelper) {
-      this.fsHelper = (SizeAwareFileBasedHelper)fsHelper;
+      this.fsHelper = (SizeAwareFileBasedHelper) fsHelper;
     } else {
       this.fsHelper = new SizeAwareFileBasedHelperDecorator(fsHelper);
     }
@@ -117,7 +118,7 @@ public abstract class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, 
       readRecordStart = true;
     }
 
-    while (!currentFileItr.hasNext() && !filesToPull.isEmpty()) {
+    while ((currentFileItr == null || !currentFileItr.hasNext()) && !filesToPull.isEmpty()) {
       LOGGER.info("Finished downloading file: " + currentFile);
       closeCurrentFile();
       incrementBytesReadCounter();
@@ -126,7 +127,7 @@ public abstract class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, 
       LOGGER.info("Will start downloading file: " + currentFile);
     }
 
-    if (currentFileItr.hasNext()) {
+    if (currentFileItr != null && currentFileItr.hasNext()) {
       return currentFileItr.next();
     } else {
       LOGGER.info("Finished reading records from all files");
