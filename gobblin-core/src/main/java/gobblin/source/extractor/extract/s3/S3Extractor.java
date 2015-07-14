@@ -38,7 +38,6 @@ public class S3Extractor<S, D> extends FileBasedExtractor<S, D> {
    * Creates a new S3Extractor
    *
    * @param state the state
-   * @throws NullPointerException if the state does not contain the property S3_SOURCE_OBJECT_KEY
    */
   public S3Extractor(WorkUnitState state) {
     super(state, new S3FsHelper(state));

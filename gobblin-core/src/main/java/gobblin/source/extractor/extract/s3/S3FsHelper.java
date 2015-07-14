@@ -18,27 +18,13 @@ import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.common.collect.Lists;
-import com.jcraft.jsch.ChannelSftp;
-import com.jcraft.jsch.ChannelSftp.LsEntry;
-import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.JSchException;
-import com.jcraft.jsch.ProxyHTTP;
-import com.jcraft.jsch.Session;
-import com.jcraft.jsch.SftpException;
-import com.jcraft.jsch.SftpProgressMonitor;
-import com.jcraft.jsch.UserInfo;
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 import gobblin.source.extractor.filebased.FileBasedHelper;
 import gobblin.source.extractor.filebased.FileBasedHelperException;
 import gobblin.util.S3Utils;
-import java.io.BufferedReader;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Vector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,7 +67,7 @@ public class S3FsHelper implements FileBasedHelper {
     s3Path = state.getProp(ConfigurationKeys.S3_SOURCE_PATH);
 
     // Replace the date if needed (if none found, s3Path is unaffected)
-    s3Path = S3Utils.checkAndReplaceDate(state, s3Path);
+    s3Path = S3Utils.checkAndReplaceDates(state, s3Path);
   }
 
   /**
