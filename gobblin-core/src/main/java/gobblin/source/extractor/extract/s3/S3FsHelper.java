@@ -67,7 +67,7 @@ public class S3FsHelper implements FileBasedHelper {
     s3Path = state.getProp(ConfigurationKeys.S3_SOURCE_PATH);
 
     // Replace the date if needed (if none found, s3Path is unaffected)
-    s3Path = S3Utils.checkAndReplaceDates(state, s3Path);
+    s3Path = S3Utils.checkAndReplaceDate(state, s3Path);
   }
 
   /**
