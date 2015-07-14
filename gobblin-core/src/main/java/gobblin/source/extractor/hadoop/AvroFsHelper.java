@@ -81,8 +81,6 @@ public class AvroFsHelper implements SizeAwareFileBasedHelper {
   public void connect() throws FileBasedHelperException {
     URI uri = null;
     try {
-      //uri = new URI(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI));
-      // this.fs = FileSystem.get(uri, configuration);
       this.updateFileSystem(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI));
     } catch (IOException e) {
       throw new FileBasedHelperException("Cannot connect to given URI " + uri + " due to " + e.getMessage(), e);
