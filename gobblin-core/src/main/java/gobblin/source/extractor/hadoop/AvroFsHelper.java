@@ -62,7 +62,7 @@ public class AvroFsHelper implements SizeAwareFileBasedHelper {
     return this.fs;
   }
 
-  private void updateFileSystem(String uri) throws IOException, InterruptedException, URISyntaxException {
+  private void createFileSystem(String uri) throws IOException, InterruptedException, URISyntaxException {
 
     if (state.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
         ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
@@ -81,7 +81,7 @@ public class AvroFsHelper implements SizeAwareFileBasedHelper {
   public void connect() throws FileBasedHelperException {
     URI uri = null;
     try {
-      this.updateFileSystem(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI));
+      this.createFileSystem(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI));
     } catch (IOException e) {
       throw new FileBasedHelperException("Cannot connect to given URI " + uri + " due to " + e.getMessage(), e);
     } catch (URISyntaxException e) {
@@ -93,19 +93,7 @@ public class AvroFsHelper implements SizeAwareFileBasedHelper {
 
   @Override
   public void close() throws FileBasedHelperException {
-    /*
-     * TODO
-     * Removing this for now, FileSystem.get() returns the same object each time it is called within a process
-     * If this method gets called in parallel across tasks it is going to cause problems
-     * Basically, close cannot be called multiple times within a process
-     * http://stackoverflow.com/questions/17421218/multiples-hadoop-filesystem-instances
-     */
 
-    //        try {
-    //            this.fs.close();
-    //        } catch (IOException e) {
-    //            throw new FileBasedHelperException("Cannot close Hadoop filesystem due to "  + e.getMessage(), e);
-    //        }
   }
 
   @Override
