@@ -13,7 +13,7 @@
 package gobblin.util;
 
 import java.io.IOException;
-import java.util.List;
+import java.util.Queue;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -25,7 +25,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
+import com.google.common.collect.Queues;
 import com.google.common.io.Closer;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
@@ -34,7 +34,6 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.Watermark;
 import gobblin.source.extractor.WatermarkSerializerHelper;
 import gobblin.source.workunit.WorkUnit;
-import gobblin.util.ParallelRunner;
 
 
 /**
@@ -132,7 +131,7 @@ public class ParallelRunnerTest {
 
   @Test(dependsOnMethods = "testSerializeToSequenceFile")
   public void testDeserializeFromSequenceFile() throws IOException {
-    List<WorkUnitState> workUnitStates = Lists.newArrayList();
+    Queue<WorkUnitState> workUnitStates = Queues.newConcurrentLinkedQueue();
 
     Closer closer = Closer.create();
     try {

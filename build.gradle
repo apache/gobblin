@@ -68,6 +68,7 @@ ext.externalDependency = [
   "hadoopClientCommon": "org.apache.hadoop:hadoop-mapreduce-client-common:"+hadoopVersion,
   "hadoopHdfs": "org.apache.hadoop:hadoop-hdfs:"+hadoopVersion,
   "hadoopAuth": "org.apache.hadoop:hadoop-auth:"+hadoopVersion,
+  "hadoopAnnotations": "org.apache.hadoop:hadoop-annotations:"+hadoopVersion,
   "hiveService": "org.apache.hive:hive-service:"+hiveVersion,
   "hiveJdbc": "org.apache.hive:hive-jdbc:"+hiveVersion,
   "hiveMetastore": "org.apache.hive:hive-metastore:"+hiveVersion,
@@ -159,6 +160,7 @@ subprojects {
       if (project.hasProperty('useHadoop2')) {
         compile externalDependency.hadoopCommon
         compile externalDependency.hadoopClientCore
+        compile externalDependency.hadoopAnnotations
         if (project.name.equals('gobblin-runtime') || project.name.equals('gobblin-test')) {
           compile externalDependency.hadoopClientCommon
         }
