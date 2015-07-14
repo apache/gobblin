@@ -10,12 +10,18 @@
  */
 package gobblin.converter.s3;
 
+import com.beust.jcommander.internal.Lists;
+import com.google.common.base.Joiner;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.string.StringToCSVConverter;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.List;
+import org.joda.time.DateTime;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -27,6 +33,45 @@ import org.testng.annotations.Test;
  */
 @Test(groups = {"gobblin.converter.s3"})
 public class ELBRecordTest {
+  public static final char DELIMITER = '\u0020';
+  /**
+   * Generates a default ELB CSV string, replacing one input at the given position.
+   * Useful for testing individual perversions of fields in the ELB CSV.
+   *
+   * @param input The string to test
+   * @param pos The position to place the string
+   * @param length The length of the CSV string (either 12 or 15)
+   * @return An ELB CSV string containing all defaults except the specified value, which is placed at the specified pos
+   */
+  public static String generateDefaultELBCSV(String input, int pos, int length) {
+    // Construct default
+    List<String> values = Lists.newArrayList();
+    values.add("2015-05-13T23:39:43.945958Z");
+    values.add("my-loadbalancer");
+    values.add("192.168.131.39:2817");
+    values.add("10.0.0.1:80");
+    values.add("0.000073");
+    values.add("0.001048");
+    values.add("0.000057");
+    values.add("200");
+    values.add("200");
+    values.add("0");
+    values.add("29");
+    values.add("\"POST http://example.url.com:80/example/path HTTP/1.1\"");
+
+    if(length == ELBRecord.RECORD_LENGTH_FULL) {
+      values.add("\"curl/7.38.0\"");
+      values.add("-");
+      values.add("-");
+    }
+
+    // Replace our value
+    values.set(pos, input);
+
+    // Return joined by spaces
+    return Joiner.on(DELIMITER).join(values);
+  }
+
   /**
    * Generates an ELB record from a CSV string. Uses {@link StringToCSVConverter#splitString(String, char)} and
    * passes the result to make a new {@link ELBRecord}
@@ -38,11 +83,89 @@ public class ELBRecordTest {
   public static ELBRecord generateELBRecord(String recordString)
       throws DataConversionException {
     try {
-      return new ELBRecord(StringToCSVConverter.splitString(recordString, '\u0020'));
+      return new ELBRecord(StringToCSVConverter.splitString(recordString, DELIMITER));
     } catch (IOException e) {
       e.printStackTrace();
       return null;
     }
+  }
+
+  /**
+   * Standard test to check if timestamp parsing is working
+   * @throws DataConversionException
+   */
+  @Test
+  public void testTimestamp()
+      throws DataConversionException {
+    String timeString = "2015-05-13T23:39:43.000000Z";
+    String elbRecordString = generateDefaultELBCSV(timeString, 0, ELBRecord.RECORD_LENGTH_FULL);
+    ELBRecord elbRecord = generateELBRecord(elbRecordString);
+
+    DateTime d = new DateTime(2015,5,13,23,39,43,0);
+    Assert.assertEquals(elbRecord.getTimestampInMillis(), d.getMillis());
+  }
+
+  /**
+   * Check if bad timestamp parsing is working
+   * @throws DataConversionException
+   */
+  @Test
+  public void testTimestampMalformed()
+      throws DataConversionException {
+    String timeString = "2015-05-13T23:39";
+    String elbRecordString = generateDefaultELBCSV(timeString, 0, ELBRecord.RECORD_LENGTH_FULL);
+
+    try {
+      ELBRecord elbRecord = generateELBRecord(elbRecordString);
+      Assert.fail("ELB Record parsed malformed timestamp");
+    } catch(DataConversionException ex) {
+
+    }
+  }
+
+  /**
+   * Standard test to check if client ip/port parsing is working
+   * @throws DataConversionException
+   */
+  @Test
+  public void testClientIpPort()
+      throws DataConversionException {
+    String clientIpPort = "192.168.131.39:2817";
+    String elbRecordString = generateDefaultELBCSV(clientIpPort, 2, ELBRecord.RECORD_LENGTH_FULL);
+    ELBRecord elbRecord = generateELBRecord(elbRecordString);
+
+    Assert.assertEquals(elbRecord.getClientIp(), "192.168.131.39");
+    Assert.assertEquals(elbRecord.getClientPort(), 2817);
+  }
+
+  /**
+   * Standard test to check if backend ip/port parsing is working
+   * @throws DataConversionException
+   */
+  @Test
+  public void backendClientIpPort()
+      throws DataConversionException {
+    String backendIpPort = "10.0.0.1:80";
+    String elbRecordString = generateDefaultELBCSV(backendIpPort, 3, ELBRecord.RECORD_LENGTH_FULL);
+    ELBRecord elbRecord = generateELBRecord(elbRecordString);
+
+    Assert.assertEquals(elbRecord.getBackendIp(), "10.0.0.1");
+    Assert.assertEquals(elbRecord.getBackendPort(), 80);
+  }
+
+  /**
+   * Check for performance in the absence of a valid backend port (as described by the ELB docs)
+   * @throws DataConversionException
+   */
+  @Test
+  public void backendClientIpPortMissing()
+      throws DataConversionException {
+    String backendIpPort = "-";
+    String elbRecordString = generateDefaultELBCSV(backendIpPort, 3, ELBRecord.RECORD_LENGTH_FULL);
+    ELBRecord elbRecord = generateELBRecord(elbRecordString);
+
+    Assert.assertEquals(elbRecord.getBackendIp(), "");
+    Assert.assertEquals(elbRecord.getBackendPort(), -1);
   }
 
   /**
@@ -52,8 +175,7 @@ public class ELBRecordTest {
   public void testParseRequestStringSimple()
       throws DataConversionException {
     String requestString = "\"POST http://example.url.com:80/example/path HTTP/1.1\"";
-    String elbRecordString = "2015-05-13T23:39:43.945958Z my-loadbalancer 192.168.131.39:2817 10.0.0.1:80 0.000073 0"
-        + ".001048 0.000057 200 200 0 29 " + requestString + " \"curl/7.38.0\" - -";
+    String elbRecordString = generateDefaultELBCSV(requestString, 11, ELBRecord.RECORD_LENGTH_FULL);
     ELBRecord elbRecord = generateELBRecord(elbRecordString);
 
     Assert.assertEquals(elbRecord.getRequestMethod(), "POST");
@@ -71,8 +193,7 @@ public class ELBRecordTest {
   public void testParseRequestStringFile()
       throws DataConversionException {
     String requestString = "\"POST http://example.url.com:80/example/path.html HTTP/1.1\"";
-    String elbRecordString = "2015-05-13T23:39:43.945958Z my-loadbalancer 192.168.131.39:2817 10.0.0.1:80 0.000073 0"
-        + ".001048 0.000057 200 200 0 29 " + requestString + " \"curl/7.38.0\" - -";
+    String elbRecordString = generateDefaultELBCSV(requestString, 11, ELBRecord.RECORD_LENGTH_FULL);
     ELBRecord elbRecord = generateELBRecord(elbRecordString);
 
     Assert.assertEquals(elbRecord.getRequestMethod(), "POST");
@@ -90,8 +211,7 @@ public class ELBRecordTest {
   public void testParseRequestStringTcpIn()
       throws DataConversionException {
     String requestString = "\"- - - \"";
-    String elbRecordString = "2015-05-13T23:39:43.945958Z my-loadbalancer 192.168.131.39:2817 10.0.0.1:80 0.000073 0"
-        + ".001048 0.000057 200 200 0 29 " + requestString + " \"curl/7.38.0\" - -";
+    String elbRecordString = generateDefaultELBCSV(requestString, 11, ELBRecord.RECORD_LENGTH_FULL);
     ELBRecord elbRecord = generateELBRecord(elbRecordString);
 
     Assert.assertNull(elbRecord.getRequestMethod());
