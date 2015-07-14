@@ -59,9 +59,8 @@ public class TaskExecutor extends AbstractIdleService {
    * Constructor used internally.
    */
   private TaskExecutor(int taskExecutorThreadPoolSize, int coreRetryThreadPoolSize, long retryIntervalInSeconds) {
-    Preconditions.checkArgument(taskExecutorThreadPoolSize > 0, "Thread pool size should be positive");
-    Preconditions.checkArgument(coreRetryThreadPoolSize > 0, "Thread pool size should be positive");
-    Preconditions.checkArgument(retryIntervalInSeconds > 0, "Retry interval should be positive");
+    Preconditions.checkArgument(taskExecutorThreadPoolSize > 0, "Task executor thread pool size should be positive");
+    Preconditions.checkArgument(retryIntervalInSeconds > 0, "Task retry interval should be positive");
 
     // Currently a fixed-size thread pool is used to execute tasks. We probably need to revisit this later.
     this.taskExecutor = Executors.newFixedThreadPool(
