@@ -12,10 +12,6 @@
 
 package gobblin.source.extractor.hadoop;
 
-import gobblin.source.extractor.filebased.FileBasedHelperException;
-import gobblin.source.extractor.filebased.SizeAwareFileBasedHelper;
-import gobblin.util.HadoopUtils;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -39,6 +35,10 @@ import org.slf4j.LoggerFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.source.extractor.filebased.FileBasedHelperException;
+import gobblin.source.extractor.filebased.SizeAwareFileBasedHelper;
+import gobblin.util.HadoopUtils;
+import gobblin.util.ProxiedFileSystemWrapper;
 
 
 public class AvroFsHelper implements SizeAwareFileBasedHelper {
@@ -62,41 +62,42 @@ public class AvroFsHelper implements SizeAwareFileBasedHelper {
     return this.fs;
   }
 
-  @Override
-  public void connect()
-      throws FileBasedHelperException {
-    URI uri = null;
-    try {
-      uri = new URI(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI));
-      this.fs = FileSystem.get(uri, configuration);
-    } catch (IOException e) {
-      throw new FileBasedHelperException("Cannot connect to given URI " + uri + " due to " + e.getMessage(), e);
-    } catch (URISyntaxException e) {
-      throw new FileBasedHelperException("Malformed uri " + uri + " due to " + e.getMessage(), e);
+  private void createFileSystem(String uri) throws IOException, InterruptedException, URISyntaxException {
+
+    if (state.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
+        ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
+      // Initialize file system as a proxy user.
+      this.fs =
+          new ProxiedFileSystemWrapper().getProxiedFileSystem(state, ProxiedFileSystemWrapper.AuthType.TOKEN,
+              state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_TOKEN_FILE), uri);
+
+    } else {
+      // Initialize file system as the current user.
+      this.fs = FileSystem.get(URI.create(uri), this.configuration);
     }
   }
 
   @Override
-  public void close()
-      throws FileBasedHelperException {
-        /*
-         * TODO
-         * Removing this for now, FileSystem.get() returns the same object each time it is called within a process
-         * If this method gets called in parallel across tasks it is going to cause problems
-         * Basically, close cannot be called multiple times within a process
-         * http://stackoverflow.com/questions/17421218/multiples-hadoop-filesystem-instances
-         */
-
-//        try {
-//            this.fs.close();
-//        } catch (IOException e) {
-//            throw new FileBasedHelperException("Cannot close Hadoop filesystem due to "  + e.getMessage(), e);
-//        }
+  public void connect() throws FileBasedHelperException {
+    URI uri = null;
+    try {
+      this.createFileSystem(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI));
+    } catch (IOException e) {
+      throw new FileBasedHelperException("Cannot connect to given URI " + uri + " due to " + e.getMessage(), e);
+    } catch (URISyntaxException e) {
+      throw new FileBasedHelperException("Malformed uri " + uri + " due to " + e.getMessage(), e);
+    } catch (InterruptedException e) {
+      throw new FileBasedHelperException("Interruptted exception is caught when getting the proxy file system", e);
+    }
   }
 
   @Override
-  public List<String> ls(String path)
-      throws FileBasedHelperException {
+  public void close() throws FileBasedHelperException {
+
+  }
+
+  @Override
+  public List<String> ls(String path) throws FileBasedHelperException {
     List<String> results = new ArrayList<String>();
     try {
       lsr(new Path(path), results);
@@ -106,8 +107,7 @@ public class AvroFsHelper implements SizeAwareFileBasedHelper {
     return results;
   }
 
-  public void lsr(Path p, List<String> results)
-      throws IOException {
+  public void lsr(Path p, List<String> results) throws IOException {
     if (!this.fs.getFileStatus(p).isDir()) {
       results.add(p.toString());
     }
@@ -121,8 +121,7 @@ public class AvroFsHelper implements SizeAwareFileBasedHelper {
   }
 
   @Override
-  public InputStream getFileStream(String path)
-      throws FileBasedHelperException {
+  public InputStream getFileStream(String path) throws FileBasedHelperException {
     try {
       Path p = new Path(path);
       InputStream in = this.fs.open(p);
@@ -136,12 +135,12 @@ public class AvroFsHelper implements SizeAwareFileBasedHelper {
     }
   }
 
-  public Schema getAvroSchema(String file)
-      throws FileBasedHelperException {
+  public Schema getAvroSchema(String file) throws FileBasedHelperException {
     DataFileReader<GenericRecord> dfr = null;
     try {
-      dfr = new DataFileReader<GenericRecord>(new FsInput(new Path(file), fs.getConf()),
-          new GenericDatumReader<GenericRecord>());
+      dfr =
+          new DataFileReader<GenericRecord>(new FsInput(new Path(file), fs.getConf()),
+              new GenericDatumReader<GenericRecord>());
       return dfr.getSchema();
     } catch (IOException e) {
       throw new FileBasedHelperException("Failed to open avro file " + file + " due to error " + e.getMessage(), e);
@@ -156,9 +155,12 @@ public class AvroFsHelper implements SizeAwareFileBasedHelper {
     }
   }
 
-  public DataFileReader<GenericRecord> getAvroFile(String file)
-      throws FileBasedHelperException {
+  public DataFileReader<GenericRecord> getAvroFile(String file) throws FileBasedHelperException {
     try {
+      if (!fs.exists(new Path(file))) {
+        LOGGER.warn(file + " does not exist.");
+        return null;
+      }
       return new DataFileReader<GenericRecord>(new FsInput(new Path(file), fs.getConf()),
           new GenericDatumReader<GenericRecord>());
     } catch (IOException e) {
