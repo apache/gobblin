@@ -10,22 +10,12 @@
  */
 package gobblin.source.extractor.extract.s3;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3Client;
-import com.amazonaws.services.s3.model.ListObjectsRequest;
-import com.amazonaws.services.s3.model.ObjectListing;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
-import com.google.common.collect.Lists;
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.filebased.FileBasedHelperException;
 import gobblin.source.extractor.filebased.FileBasedSource;
-import gobblin.source.workunit.Extract;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.util.S3Utils;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,9 +31,9 @@ import org.slf4j.LoggerFactory;
  * If you want your S3 paths to contain a date, the {@link S3Source} will
  * automatically check for you.
  * Relevant date manipulation values are:
- * {@link ConfigurationKeys#S3_DATE_PATTERN} (the pattern to match),
- * {@link ConfigurationKeys#S3_DATE_PLACEHOLDER} (the placeholder in the jobfile path), and
- * {@link ConfigurationKeys#S3_DATE_OFFSET} (the number of days offset (relative to the current date)
+ * {@link ConfigurationKeys#S3_SOURCE_DATE_PATTERN} (the pattern to match),
+ * {@link ConfigurationKeys#S3_SOURCE_DATE_PLACEHOLDER} (the placeholder in the jobfile path), and
+ * {@link ConfigurationKeys#S3_SOURCE_DATE_OFFSET} (the number of days offset (relative to the current date)
  * <p/>
  * If you do not wish, defaults are set for those values
  * and your paths will be unaffected.
