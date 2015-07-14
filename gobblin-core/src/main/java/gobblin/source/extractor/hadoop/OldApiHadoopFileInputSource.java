@@ -94,8 +94,8 @@ public abstract class OldApiHadoopFileInputSource<S, D, K, V> implements Source<
         return ImmutableList.of();
       }
 
-      Extract.TableType tableType =
-          Extract.TableType.valueOf(state.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY).toUpperCase());
+      Extract.TableType tableType = state.contains(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY) ?
+          Extract.TableType.valueOf(state.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY).toUpperCase()) : null;
       String tableNamespace = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY);
       String tableName = state.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY);
 
