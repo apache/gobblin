@@ -41,31 +41,83 @@ public class S3Utils {
    * @return the string with any date placeholders replaced with the specified date
    * pattern and offset.
    */
-  public static String checkAndReplaceDates(State state, String str) {
-    // Replace any now placeholders
-    String publisherPlaceholder =
-        state.getProp(ConfigurationKeys.S3_PUBLISHER_DATE_PLACEHOLDER, ConfigurationKeys.DEFAULT_S3_PUBLISHER_DATE_PLACEHOLDER);
+  public static String checkAndReplaceDatePlaceholders(State state, String str) {
+    return checkAndReplaceDatePlaceholders(state, str, 0);
+  }
+
+  /**
+   * The more specific version of {@link S3Utils#checkAndReplaceDatePlaceholders(State, String)}. This allows the
+   * specification of a lookback value, which is added on top of the source date offset.
+   *
+   * @param state  The state
+   * @param str A string possibly containing a date placeholder
+   * @param lookback Should be a value from {@link ConfigurationKeys#S3_SOURCE_DATE_LOOKBACK}
+   * @return the string with any date placeholders replaced with the specified date
+   * pattern and offset.
+   */
+  public static String checkAndReplaceDatePlaceholders(State state, String str, int lookback) {
+    str = replaceSourceDate(state, str, lookback);
+    str = replacePublisherDate(state, str);
+    str = replaceTimestamp(state, str);
+
+    return str;
+  }
+
+  /**
+   * Replaces the {@link ConfigurationKeys#S3_SOURCE_DATE_PLACEHOLDER} with the time as specified by the other
+   * associated source date configuration keys.
+   *
+   * @param state The state
+   * @param str A string possibly containing a source date placeholder
+   * @return The string with any source date placeholders replaced with the specified date pattern and offset
+   */
+  private static String replaceSourceDate(State state, String str, int lookback) {
+    // Replace any of the date placeholders
+    String datePlaceholder = state
+        .getProp(ConfigurationKeys.S3_SOURCE_DATE_PLACEHOLDER, ConfigurationKeys.DEFAULT_S3_SOURCE_DATE_PLACEHOLDER);
+    String datePattern =
+        state.getProp(ConfigurationKeys.S3_SOURCE_DATE_PATTERN, ConfigurationKeys.DEFAULT_S3_SOURCE_DATE_PATTERN);
+    // If set, 0 for today, -1 for yesterday, etc.
+    int dateOffset =
+        state.getPropAsInt(ConfigurationKeys.S3_SOURCE_DATE_OFFSET, ConfigurationKeys.DEFAULT_S3_SOURCE_DATE_OFFSET);
+    // Add the lookback on top of the offset
+    dateOffset -= lookback;
+
+    return replacePlaceholder(str, datePlaceholder, datePattern, dateOffset);
+  }
+
+  /**
+   * Replaces the {@link ConfigurationKeys#S3_PUBLISHER_DATE_PLACEHOLDER} with the time as specified by the other
+   * associated publisher date configuration keys.
+   *
+   * @param state The state
+   * @param str A string possibly containing a publisher date placeholder
+   * @return The string with any publisher date placeholders replaced with the specified date pattern and offset
+   */
+  private static String replacePublisherDate(State state, String str) {
+    String publisherPlaceholder = state.getProp(ConfigurationKeys.S3_PUBLISHER_DATE_PLACEHOLDER,
+        ConfigurationKeys.DEFAULT_S3_PUBLISHER_DATE_PLACEHOLDER);
     String publisherPattern =
         state.getProp(ConfigurationKeys.S3_PUBLISHER_DATE_PATTERN, ConfigurationKeys.DEFAULT_S3_PUBLISHER_DATE_PATTERN);
-    str = replaceDate(str, publisherPlaceholder, publisherPattern, 0);
 
+    return replacePlaceholder(str, publisherPlaceholder, publisherPattern, 0);
+  }
 
-    // Replace any of the date placeholders
-    String datePlaceholder =
-        state.getProp(ConfigurationKeys.S3_SOURCE_DATE_PLACEHOLDER, ConfigurationKeys.DEFAULT_S3_SOURCE_DATE_PLACEHOLDER);
-    String datePattern = state.getProp(ConfigurationKeys.S3_SOURCE_DATE_PATTERN, ConfigurationKeys.DEFAULT_S3_SOURCE_DATE_PATTERN);
-    // If set, 0 for today, -1 for yesterday, etc.
-    int dateOffset = state.getPropAsInt(ConfigurationKeys.S3_SOURCE_DATE_OFFSET, ConfigurationKeys.DEFAULT_S3_SOURCE_DATE_OFFSET);
-    str = replaceDate(str, datePlaceholder, datePattern, dateOffset);
-
-
+  /**
+   * Replaces the {@link ConfigurationKeys#S3_TIMESTAMP_PLACEHOLDER} with the time as specified by
+   * {@link ConfigurationKeys#S3_TIMESTAMP_PATTERN}
+   *
+   * @param state The state
+   * @param str A string possibly containing a timestamp placeholder
+   * @return The string with any timestamp placeholders replaced with the specified timestamp pattern
+   */
+  private static String replaceTimestamp(State state, String str) {
     // Replace any timestamp placeholders
     String timestampPlaceholder = ConfigurationKeys.S3_TIMESTAMP_PLACEHOLDER;
     String timestampPattern =
         state.getProp(ConfigurationKeys.S3_TIMESTAMP_PATTERN, ConfigurationKeys.DEFAULT_S3_TIMESTAMP_PATTERN);
-    str = replaceDate(str, timestampPlaceholder, timestampPattern, 0);
 
-    return str;
+    return replacePlaceholder(str, timestampPlaceholder, timestampPattern, 0);
   }
 
   /**
@@ -77,7 +129,7 @@ public class S3Utils {
    * @param dateOffset The offset to the current time (0 for current, -1 for one day ago, etc.)
    * @return The input with all of the given placeholder replaced with the date formatted as specified.
    */
-  private static String replaceDate(String input, String datePlaceholder, String datePattern, int dateOffset) {
+  private static String replacePlaceholder(String input, String datePlaceholder, String datePattern, int dateOffset) {
     SimpleDateFormat df = new SimpleDateFormat(datePattern);
     Calendar cal = Calendar.getInstance();
     cal.add(Calendar.DATE, dateOffset);

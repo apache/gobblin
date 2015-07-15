@@ -72,13 +72,19 @@ public class S3Source<S, D> extends FileBasedSource<S, D> {
   public List<String> getcurrentFsSnapshot(State state) {
     List<String> results = new ArrayList<String>();
     S3FsHelper s3FsHelper = (S3FsHelper) this.fsHelper;
-    String path = s3FsHelper.getS3Path();
+    List<String> paths = s3FsHelper.getS3Paths();
 
-    try {
-      LOG.info("Running ls command with input " + path);
-      results = this.fsHelper.ls(path);
-    } catch (FileBasedHelperException e) {
-      LOG.error("Not able to run ls command due to " + e.getMessage() + " will not pull any files", e);
+    for(String path : paths) {
+      try {
+        LOG.info("Running ls command with input " + path);
+        results.addAll(this.fsHelper.ls(path));
+      } catch (FileBasedHelperException e) {
+        LOG.error("ls command unsuccessful - " + e.getMessage() + " will not pull any files", e);
+      }
+    }
+
+    if(results.size() == 0) {
+      LOG.error("Either there were no new files or no files found in the specified path(s).");
     }
 
     return results;

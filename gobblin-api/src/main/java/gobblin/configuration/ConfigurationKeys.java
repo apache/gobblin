@@ -441,6 +441,21 @@ public class ConfigurationKeys {
   public static final String DEFAULT_S3_SOURCE_DATE_PLACEHOLDER = "{source-date}";
   public static final String S3_SOURCE_DATE_OFFSET = "aws.s3.source.date.offset";
   public static final int DEFAULT_S3_SOURCE_DATE_OFFSET = -1;
+  /**
+   * The number of days to look backwards in time to propagate any slower changes.
+   * <p/>
+   * This allows a user to set the number of days they want to look back beyond the date offset. For example, if the
+   * system is set up with an offset of -1 and a lookback of 2, and the current date is June 19th, the system will
+   * check the S3 source for objects published June 18th, but also will look for any files added to "directories"
+   * from the 17th and 16th for changes.
+   * <p/>
+   * This is useful if you have systems with slow/eventual propagation, as it allows your system to process data as
+   * it comes in - both a mixture of real-time and delayed inputs.
+   * <p/>
+   * The value should be an integer greater than or equal to 0, representing the number of days to look backwards.
+   */
+  public static final String S3_SOURCE_DATE_LOOKBACK = "aws.s3.source.date.lookback";
+  public static final int DEFAULT_S3_SOURCE_DATE_LOOKBACK = 1;
 
   // Settings and defaults for the now keyword
   public static final String S3_PUBLISHER_DATE_PATTERN = "aws.s3.publisher.date.pattern";

@@ -59,7 +59,7 @@ public class SimpleS3Publisher extends BaseS3Publisher {
       throws IOException {
     String s3Bucket = this.getState().getProp(ConfigurationKeys.S3_PUBLISHER_BUCKET);
     String s3Path = this.getState().getProp(ConfigurationKeys.S3_PUBLISHER_PATH);
-    s3Path = S3Utils.checkAndReplaceDates(this.getState(), s3Path);
+    s3Path = S3Utils.checkAndReplaceDatePlaceholders(this.getState(), s3Path);
 
     boolean append = this.getState().getPropAsBoolean(ConfigurationKeys.S3_PUBLISHER_APPEND,
         ConfigurationKeys.DEFAULT_S3_PUBLISHER_APPEND);
@@ -84,7 +84,7 @@ public class SimpleS3Publisher extends BaseS3Publisher {
     ArrayList<String> writerFileNames = new ArrayList<String>();
 
     String s3Filename = generateObjectName(this.getState(), 0);
-    s3Path = S3Utils.checkAndReplaceDates(this.getState(), s3Path);
+    s3Path = S3Utils.checkAndReplaceDatePlaceholders(this.getState(), s3Path);
 
     for (WorkUnitState state : states) {
       for (int i = 0; i < this.numBranches; i++) {
@@ -118,7 +118,7 @@ public class SimpleS3Publisher extends BaseS3Publisher {
             state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, i));
         writerFileNames.add(writerFileName);
 
-        s3Path = S3Utils.checkAndReplaceDates(this.getState(), s3Path);
+        s3Path = S3Utils.checkAndReplaceDatePlaceholders(this.getState(), s3Path);
         String s3Filename = generateObjectName(state, counter++);
 
         this.sendS3Data(i, new BucketAndKey(s3Bucket, s3Path + s3Filename), writerFileNames);
@@ -144,7 +144,7 @@ public class SimpleS3Publisher extends BaseS3Publisher {
     String filenameFormat = state.getProp(ConfigurationKeys.S3_PUBLISHER_FILENAME_FORMAT);
     if (filenameFormat != null) {
       // If we use a filename format, replace out any date placeholders ({date},{now})
-      filenameFormat = S3Utils.checkAndReplaceDates(state, filenameFormat);
+      filenameFormat = S3Utils.checkAndReplaceDatePlaceholders(state, filenameFormat);
 
       // Replace the counter placeholder, if any
       filenameFormat = filenameFormat.replace("{counter}", Integer.toString(counter));
