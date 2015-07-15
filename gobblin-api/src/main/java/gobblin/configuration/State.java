@@ -28,7 +28,7 @@ import com.google.common.collect.ImmutableSortedSet;
 
 
 /**
- * A serializable wrapper class that can be persisted for {@link java.util.Properties}.
+ * A serializable wrapper class that can be persisted for {@link Properties}.
  *
  * @author kgoodhop
  */
@@ -47,9 +47,9 @@ public class State implements Writable {
   }
 
   /**
-   * Return a copy of the underlying {@link java.util.Properties} object.
+   * Return a copy of the underlying {@link Properties} object.
    *
-   * @return A copy of the underlying {@link java.util.Properties} object.
+   * @return A copy of the underlying {@link Properties} object.
    */
   public Properties getProperties() {
     Properties props = new Properties();
@@ -104,7 +104,7 @@ public class State implements Writable {
    * @param value property value
    */
   public void setProp(String key, Object value) {
-    properties.put(key, value.toString());
+    this.properties.put(key, value.toString());
   }
 
   /**
@@ -149,10 +149,10 @@ public class State implements Writable {
   }
 
   /**
-   * Get the value of a comma separated property as a {@link java.util.List} of strings.
+   * Get the value of a comma separated property as a {@link List} of strings.
    *
    * @param key property key
-   * @return value associated with the key as a {@link java.util.List} of strings
+   * @return value associated with the key as a {@link List} of strings
    */
   public List<String> getPropAsList(String key) {
     return Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProperty(key));
@@ -170,10 +170,10 @@ public class State implements Writable {
   }
 
   /**
-   * Get the value of a property as a case insensitive {@link java.util.Set} of strings.
+   * Get the value of a property as a case insensitive {@link Set} of strings.
    *
    * @param key property key
-   * @return value associated with the key as a case insensitive {@link java.util.Set} of strings
+   * @return value associated with the key as a case insensitive {@link Set} of strings
    */
   public Set<String> getPropAsCaseInsensitiveSet(String key) {
     return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER,
@@ -181,11 +181,11 @@ public class State implements Writable {
   }
 
   /**
-   * Get the value of a property as a case insensitive {@link java.util.Set} of strings, using the given default value if the property is not set.
+   * Get the value of a property as a case insensitive {@link Set} of strings, using the given default value if the property is not set.
    *
    * @param key property key
    * @param def default value
-   * @return value associated with the key as a case insensitive {@link java.util.Set} of strings
+   * @return value associated with the key as a case insensitive {@link Set} of strings
    */
   public Set<String> getPropAsCaseInsensitiveSet(String key, String def) {
     return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER,
@@ -298,17 +298,17 @@ public class State implements Writable {
   }
 
   protected String getProperty(String key) {
-    return properties.getProperty(key);
+    return this.properties.getProperty(key);
   }
 
   protected String getProperty(String key, String def) {
-    return properties.getProperty(key, def);
+    return this.properties.getProperty(key, def);
   }
 
   /**
-   * Get the names of all the properties set in a {@link java.util.Set}.
+   * Get the names of all the properties set in a {@link Set}.
    *
-   * @return names of all the properties set in a {@link java.util.Set}
+   * @return names of all the properties set in a {@link Set}
    */
   public Set<String> getPropertyNames() {
     return this.properties.stringPropertyNames();
@@ -321,7 +321,7 @@ public class State implements Writable {
    * @return <code>true</code> if the property is set or <code>false</code> otherwise
    */
   public boolean contains(String key) {
-    return properties.getProperty(key) != null;
+    return this.properties.getProperty(key) != null;
   }
 
   @Override
