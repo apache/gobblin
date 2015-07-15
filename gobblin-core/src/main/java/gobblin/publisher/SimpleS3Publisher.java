@@ -16,8 +16,6 @@ import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.util.S3Utils;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,9 +65,9 @@ public class SimpleS3Publisher extends BaseS3Publisher {
         ConfigurationKeys.DEFAULT_S3_PUBLISHER_APPEND);
 
     if (append) {
-      publishDataAsGroup(states, s3Bucket, s3Path);
+      batchPublishData(states, s3Bucket, s3Path);
     } else {
-      publishDataSeparately(states, s3Bucket, s3Path);
+      publishData(states, s3Bucket, s3Path);
     }
   }
 
@@ -81,7 +79,7 @@ public class SimpleS3Publisher extends BaseS3Publisher {
    * @param s3Path The S3 path to publish to (raw)
    * @throws IOException
    */
-  private void publishDataAsGroup(Collection<? extends WorkUnitState> states, String s3Bucket, String s3Path)
+  private void batchPublishData(Collection<? extends WorkUnitState> states, String s3Bucket, String s3Path)
       throws IOException {
     ArrayList<String> writerFileNames = new ArrayList<String>();
 
@@ -110,7 +108,7 @@ public class SimpleS3Publisher extends BaseS3Publisher {
    * @param s3Path The S3 path to publish to (raw)
    * @throws IOException
    */
-  private void publishDataSeparately(Collection<? extends WorkUnitState> states, String s3Bucket, String s3Path)
+  private void publishData(Collection<? extends WorkUnitState> states, String s3Bucket, String s3Path)
       throws IOException {
     int counter = 0;  // for filename counting
     for (WorkUnitState state : states) {
