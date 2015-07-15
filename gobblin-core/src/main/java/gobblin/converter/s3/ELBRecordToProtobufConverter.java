@@ -70,7 +70,7 @@ public class ELBRecordToProtobufConverter extends Converter<Class<ELBRecord>, Cl
         .setElbStatusCode(elbRecord.getElbStatusCode());
         // optional fields
 
-    if (elbRecord.getSslCipher() != null && elbRecord.getSslCipher().equals("-") ) {
+    if (elbRecord.getSslCipher() != null) {
       elbLogBuilder.setClientToServerSslCipher(elbRecord.getSslCipher());
     }
     if (elbRecord.getSslProtocol() != null) {

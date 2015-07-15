@@ -34,12 +34,12 @@ import java.util.Date;
 public class ELBRecord {
   private static final Logger LOG = LoggerFactory.getLogger(ELBRecord.class);
 
-  private static final String ISO8601_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.";
-  private static final String LOG_DATE_FORMAT = "yyyy-MM-dd";
-  private static final String LOG_TIME_FORMAT = "HH:mm:ss";
+  public static final String ISO8601_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.";
+  public static final String LOG_DATE_FORMAT = "yyyy-MM-dd";
+  public static final String LOG_TIME_FORMAT = "HH:mm:ss";
 
-  private static final int RECORD_LENGTH_SHORT = 12;
-  private static final int ELB_RECORD_FULL = 15;
+  public static final int RECORD_LENGTH_SHORT = 12;
+  public static final int RECORD_LENGTH_FULL = 15;
 
   private final Date timestamp;
   private final String elbName;
@@ -78,7 +78,7 @@ public class ELBRecord {
    *               "user_agent" ssl_cipher ssl_protocol</code>
    */
   public ELBRecord(ArrayList<String> values) throws DataConversionException {
-    if (values.size() != RECORD_LENGTH_SHORT && values.size() != ELB_RECORD_FULL) {
+    if (values.size() != RECORD_LENGTH_SHORT && values.size() != RECORD_LENGTH_FULL) {
       throw new DataConversionException("Malformed log record");
     }
 
@@ -134,15 +134,15 @@ public class ELBRecord {
 
     // Some ELB records don't come with these three fields.
     // TODO find out why....
-    if (values.size() == ELB_RECORD_FULL) {
+    if (values.size() == RECORD_LENGTH_FULL) {
       // values[12]: "user_agent"
       this.userAgent = values.get(12);
 
       // values[13]: ssl_cipher
-      this.sslCipher = values.get(13);
+      this.sslCipher = values.get(13).equals("-") ? null : values.get(13);
 
       // values[14]: ssl_protocol
-      this.sslProtocol = values.get(14);
+      this.sslProtocol = values.get(14).equals("-") ? null : values.get(14);
     } else {
       // values[12]: "user_agent"
       this.userAgent = null;
@@ -257,7 +257,7 @@ public class ELBRecord {
    * @return The URI of the request
    */
   public String getRequestUri() {
-    return this.requestHostHeader + "/" + this.requestPath;
+    return requestHostHeader + "/" + requestPath;
   }
 
   // Auto-generated default getters

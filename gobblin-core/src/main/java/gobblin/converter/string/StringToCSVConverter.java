@@ -40,13 +40,24 @@ public class StringToCSVConverter extends Converter<Class<String>, Class<String>
     char delimiter = workUnit.getProp(ConfigurationKeys.CONVERTER_CSV_DELIMITER,
         ConfigurationKeys.DEFAULT_CONVERTER_CSV_DELIMITER).charAt(0);
 
-    InputStreamCSVReader r = new InputStreamCSVReader(inputRecord, delimiter);
-
     try {
-      return new SingleRecordIterable<ArrayList<String>>(r.splitRecord());
+      return new SingleRecordIterable<ArrayList<String>>(splitString(inputRecord, delimiter));
     } catch (IOException e) {
       e.printStackTrace();
       throw new DataConversionException("Error splitting record");
     }
+  }
+
+  /**
+   * Splits the input string using the given delimiter.
+   * @param s The string to split
+   * @param delimiter The delimiter to split on
+   * @return An ArrayList of split strings using standard CSV splitting practices (respects quotes)
+   * @throws IOException
+   */
+  public static ArrayList<String> splitString(String s, char delimiter)
+      throws IOException {
+    InputStreamCSVReader r = new InputStreamCSVReader(s, delimiter);
+    return r.splitRecord();
   }
 }
