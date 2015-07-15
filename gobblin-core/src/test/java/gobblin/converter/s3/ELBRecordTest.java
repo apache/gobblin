@@ -233,4 +233,57 @@ public class ELBRecordTest {
     Assert.assertNull(elbRecord.getSslCipher());
     Assert.assertNull(elbRecord.getSslProtocol());
   }
+
+  /**
+   * Tests to see that all fields of the ELB CSV are properly mapped. Deliberately uses hardcoded string for a sanity
+   * check to make sure all values are mapped as expected.
+   *
+   * @throws DataConversionException
+   */
+  @Test
+  public void testFullRecord()
+      throws DataConversionException {
+    String elbRecordString =
+        "2015-05-13T23:39:43.000000Z "
+        + "my-loadbalancer "
+        + "192.168.131.39:2817 "
+        + "10.0.0.1:80 "
+        + "0.000086 "
+        + "0.001048 "
+        + "0.001333 "
+        + "200 "
+        + "200 "
+        + "0 "
+        + "57 "
+        + "\"GET https://www.example.com:443/ HTTP/1.1\" "
+        + "\"curl/7.38.0\" "
+        + "DHE-RSA-AES128-SHA "
+        + "TLSv1.2";
+    ELBRecord elbRecord = generateELBRecord(elbRecordString);
+
+    DateTime d = new DateTime(2015, 5, 13, 23, 39, 43, 0);
+    Assert.assertEquals(elbRecord.getTimestampInMillis(), d.getMillis());
+    Assert.assertEquals(elbRecord.getElbName(), "my-loadbalancer");
+    Assert.assertEquals(elbRecord.getClientIp(), "192.168.131.39");
+    Assert.assertEquals(elbRecord.getClientPort(), 2817);
+    Assert.assertEquals(elbRecord.getBackendIp(), "10.0.0.1");
+    Assert.assertEquals(elbRecord.getBackendPort(), 80);
+    Assert.assertEquals(elbRecord.getRequestProcessingTime(), 0.000086);
+    Assert.assertEquals(elbRecord.getBackendProcessingTime(), 0.001048);
+    Assert.assertEquals(elbRecord.getResponseProcessingTime(), 0.001333);
+    Assert.assertEquals(elbRecord.getElbStatusCode(), 200);
+    Assert.assertEquals(elbRecord.getBackendStatusCode(), 200);
+    Assert.assertEquals(elbRecord.getReceivedBytes(), 0);
+    Assert.assertEquals(elbRecord.getSentBytes(), 57);
+    Assert.assertEquals(elbRecord.getRequestMethod(), "GET");
+    Assert.assertEquals(elbRecord.getRequestProtocol(), "https");
+    Assert.assertEquals(elbRecord.getRequestHostHeader(), "www.example.com");
+    Assert.assertEquals(elbRecord.getRequestPort(), 443);
+    Assert.assertEquals(elbRecord.getRequestPath(), "");
+    Assert.assertEquals(elbRecord.getRequestHttpVersion(), "HTTP/1.1");
+    Assert.assertEquals(elbRecord.getUserAgent(), "curl/7.38.0");
+    Assert.assertEquals(elbRecord.getSslCipher(), "DHE-RSA-AES128-SHA");
+    Assert.assertEquals(elbRecord.getSslProtocol(), "TLSv1.2");
+
+  }
 }
