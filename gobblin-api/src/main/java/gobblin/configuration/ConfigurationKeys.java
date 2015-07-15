@@ -455,7 +455,7 @@ public class ConfigurationKeys {
   public static final String S3_TIMESTAMP_PLACEHOLDER = "{timestamp}";
 
   /**
-   * If set to true, the publisher will
+   * If set to true, the publisher will append all files in the job together. Otherwise, it ships them back 1:1
    */
   public static final String S3_PUBLISHER_APPEND = "aws.s3.publisher.append";
   public static final boolean DEFAULT_S3_PUBLISHER_APPEND = true;
