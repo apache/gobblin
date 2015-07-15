@@ -1,9 +1,9 @@
 package gobblin.data.management.trash;
 
+import java.util.Properties;
+
 import org.apache.hadoop.fs.FileStatus;
 import org.joda.time.DateTime;
-
-import azkaban.utils.Props;
 
 
 /**
@@ -17,9 +17,9 @@ public class TimeBasedSnapshotCleanupPolicy implements SnapshotCleanupPolicy {
 
   private final int retentionMinutes;
 
-  public TimeBasedSnapshotCleanupPolicy(Props props) {
-    this.retentionMinutes = props.getInt(SNAPSHOT_RETENTION_POLICY_MINUTES_KEY,
-        SNAPSHOT_RETENTION_POLICY_MINUTES_DEFAULT);
+  public TimeBasedSnapshotCleanupPolicy(Properties props) {
+    this.retentionMinutes = Integer.parseInt(props.getProperty(SNAPSHOT_RETENTION_POLICY_MINUTES_KEY,
+        Integer.toString(SNAPSHOT_RETENTION_POLICY_MINUTES_DEFAULT)));
   }
 
   @Override

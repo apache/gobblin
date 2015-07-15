@@ -3,14 +3,13 @@ package gobblin.data.management.retention.version.finder;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Properties;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.collect.Lists;
-
-import azkaban.utils.Props;
 
 import gobblin.data.management.retention.dataset.Dataset;
 import gobblin.data.management.retention.version.DatasetVersion;
@@ -20,7 +19,7 @@ import gobblin.data.management.util.PathUtils;
 /**
  * Class to find dataset versions in the file system.
  *
- * Concrete subclasses should implement a ({@link org.apache.hadoop.fs.FileSystem}, {@link azkaban.utils.Props})
+ * Concrete subclasses should implement a ({@link org.apache.hadoop.fs.FileSystem}, {@link java.util.Properties})
  * constructor to be instantiated by {@link gobblin.data.management.retention.DatasetCleaner}.
  *
  * @param <T> Type of {@link gobblin.data.management.retention.version.DatasetVersion} expected from this class.
@@ -29,7 +28,7 @@ public abstract class DatasetVersionFinder<T extends DatasetVersion> implements 
 
   FileSystem fs;
 
-  public DatasetVersionFinder(FileSystem fs, Props props) {
+  public DatasetVersionFinder(FileSystem fs, Properties props) {
     this.fs = fs;
   }
 

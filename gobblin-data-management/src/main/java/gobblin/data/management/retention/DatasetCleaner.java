@@ -3,20 +3,16 @@ package gobblin.data.management.retention;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
+import java.util.Properties;
 
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import azkaban.utils.Props;
+import com.google.common.base.Preconditions;
 
 import gobblin.data.management.retention.dataset.Dataset;
 import gobblin.data.management.retention.dataset.finder.DatasetFinder;
-import gobblin.data.management.retention.policy.RetentionPolicy;
-import gobblin.data.management.retention.version.finder.DatasetVersionFinder;
-import gobblin.data.management.retention.version.finder.VersionFinder;
-import gobblin.data.management.trash.Trash;
 
 
 /**
@@ -31,11 +27,16 @@ public class DatasetCleaner {
 
   private final DatasetFinder datasetFinder;
 
-  public DatasetCleaner(FileSystem fs, Props props) throws IOException {
+  public DatasetCleaner(FileSystem fs, Properties props) throws IOException {
+
+    Preconditions.checkArgument(props.containsKey(DATASET_PROFILE_CLASS_KEY));
 
     try{
-      this.datasetFinder = (DatasetFinder) props.getClass(DATASET_PROFILE_CLASS_KEY).
-          getConstructor(FileSystem.class, Props.class).newInstance(fs, props);
+      Class<?> datasetFinderClass = Class.forName(props.getProperty(DATASET_PROFILE_CLASS_KEY));
+      this.datasetFinder = (DatasetFinder) datasetFinderClass.
+          getConstructor(FileSystem.class, Properties.class).newInstance(fs, props);
+    } catch(ClassNotFoundException exception) {
+      throw new IOException(exception);
     } catch(NoSuchMethodException exception) {
       throw new IOException(exception);
     } catch(InstantiationException exception) {

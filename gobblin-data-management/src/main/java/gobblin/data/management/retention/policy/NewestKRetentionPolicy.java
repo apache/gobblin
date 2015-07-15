@@ -2,13 +2,12 @@ package gobblin.data.management.retention.policy;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
-
-import azkaban.utils.Props;
 
 import gobblin.data.management.retention.DatasetCleaner;
 import gobblin.data.management.retention.version.DatasetVersion;
@@ -23,12 +22,12 @@ public class NewestKRetentionPolicy implements RetentionPolicy<DatasetVersion> {
 
   public static final String VERSIONS_RETAINED_KEY = DatasetCleaner.CONFIGURATION_KEY_PREFIX +
       "versions.retained";
-  public static final int VERSIONS_RETAINED_DEFAULT = 2;
+  public static final String VERSIONS_RETAINED_DEFAULT = Integer.toString(2);
 
   private final int versionsRetained;
 
-  public NewestKRetentionPolicy(Props props) {
-    this.versionsRetained = props.getInt(VERSIONS_RETAINED_KEY, VERSIONS_RETAINED_DEFAULT);
+  public NewestKRetentionPolicy(Properties props) {
+    this.versionsRetained = Integer.valueOf(props.getProperty(VERSIONS_RETAINED_KEY, VERSIONS_RETAINED_DEFAULT));
     LOGGER.info(String.format("%s will retain %d versions of each dataset.",
         NewestKRetentionPolicy.class.getCanonicalName(), this.versionsRetained));
   }

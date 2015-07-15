@@ -14,6 +14,7 @@ package gobblin.data.management.retention;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Properties;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -22,11 +23,9 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.beust.jcommander.internal.Lists;
-import com.google.common.collect.ImmutableSortedMap;
 
-import azkaban.utils.Props;
-
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import gobblin.data.management.retention.dataset.Dataset;
 import gobblin.data.management.retention.version.DatasetVersion;
@@ -52,7 +51,7 @@ public class DatasetVersionFinderTest {
         thenReturn(new FileStatus[]{new FileStatus(0, true, 0, 0, 0, datasetVersion1),
             new FileStatus(0, true, 0, 0, 0, datasetVersion2)});
 
-    DatasetVersionFinder<StringDatasetVersion> versionFinder = new MockDatasetVersionFinder(fs, new Props());
+    DatasetVersionFinder<StringDatasetVersion> versionFinder = new MockDatasetVersionFinder(fs, new Properties());
 
     List<StringDatasetVersion> datasetVersions =
         Lists.newArrayList(versionFinder.findDatasetVersions(new MockDataset(datasetPath)));
@@ -65,7 +64,7 @@ public class DatasetVersionFinderTest {
 
 
   public static class MockDatasetVersionFinder extends DatasetVersionFinder<StringDatasetVersion> {
-    public MockDatasetVersionFinder(FileSystem fs, Props props) {
+    public MockDatasetVersionFinder(FileSystem fs, Properties props) {
       super(fs, props);
     }
 
