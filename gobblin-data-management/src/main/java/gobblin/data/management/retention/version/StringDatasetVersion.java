@@ -27,6 +27,11 @@ public class StringDatasetVersion implements DatasetVersion {
   }
 
   @Override
+  public boolean equals(Object obj) {
+    return obj instanceof StringDatasetVersion && compareTo((StringDatasetVersion) obj) == 0;
+  }
+
+  @Override
   public String toString() {
     return this.version;
   }

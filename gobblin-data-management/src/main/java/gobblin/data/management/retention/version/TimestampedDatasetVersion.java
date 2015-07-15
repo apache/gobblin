@@ -33,6 +33,11 @@ public class TimestampedDatasetVersion implements DatasetVersion {
   }
 
   @Override
+  public boolean equals(Object obj) {
+    return obj instanceof TimestampedDatasetVersion && compareTo((TimestampedDatasetVersion) obj) == 0;
+  }
+
+  @Override
   public String toString() {
     return "Version " + version.toString(DateTimeFormat.shortDateTime()) + " at path " + this.path;
   }
