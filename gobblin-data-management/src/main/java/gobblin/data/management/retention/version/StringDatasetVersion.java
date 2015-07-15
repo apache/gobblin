@@ -23,12 +23,19 @@ public class StringDatasetVersion implements DatasetVersion {
   @Override
   public int compareTo(DatasetVersion other) {
     StringDatasetVersion otherAsString = (StringDatasetVersion)other;
-    return this.version.compareTo(otherAsString.version);
+    return this.version.equals(otherAsString.version) ?
+        this.path.compareTo(otherAsString.path) :
+        this.version.compareTo(otherAsString.version);
   }
 
   @Override
   public boolean equals(Object obj) {
     return obj instanceof StringDatasetVersion && compareTo((StringDatasetVersion) obj) == 0;
+  }
+
+  @Override
+  public int hashCode() {
+    return this.path.hashCode() + this.version.hashCode();
   }
 
   @Override
