@@ -29,12 +29,19 @@ public class TimestampedDatasetVersion implements DatasetVersion {
   @Override
   public int compareTo(DatasetVersion other) {
     TimestampedDatasetVersion otherAsDateTime = (TimestampedDatasetVersion)other;
-    return this.version.compareTo(otherAsDateTime.version);
+    return this.version.equals(otherAsDateTime.version) ?
+        this.path.compareTo(otherAsDateTime.path) :
+        this.version.compareTo(otherAsDateTime.version);
   }
 
   @Override
   public boolean equals(Object obj) {
     return obj instanceof TimestampedDatasetVersion && compareTo((TimestampedDatasetVersion) obj) == 0;
+  }
+
+  @Override
+  public int hashCode() {
+    return this.version.hashCode() + this.path.hashCode();
   }
 
   @Override
