@@ -104,7 +104,7 @@ public class ProxiedFileSystemWrapper {
     proxyUser.doAs(new PrivilegedExceptionAction<Void>() {
       @Override
       public Void run() throws IOException {
-        LOG.info("Now performing file system operations as :" + UserGroupInformation.getCurrentUser());
+        LOG.debug("Now performing file system operations as :" + UserGroupInformation.getCurrentUser());
         proxiedFs = FileSystem.get(fsURI, conf);
         return null;
       }
