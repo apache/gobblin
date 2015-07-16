@@ -37,6 +37,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.source.extractor.filebased.FileBasedHelperException;
 import gobblin.source.extractor.filebased.SizeAwareFileBasedHelper;
+import gobblin.source.extractor.utils.ProxyFsInput;
 import gobblin.util.HadoopUtils;
 import gobblin.util.ProxiedFileSystemWrapper;
 
@@ -138,9 +139,16 @@ public class AvroFsHelper implements SizeAwareFileBasedHelper {
   public Schema getAvroSchema(String file) throws FileBasedHelperException {
     DataFileReader<GenericRecord> dfr = null;
     try {
-      dfr =
-          new DataFileReader<GenericRecord>(new FsInput(new Path(file), fs.getConf()),
-              new GenericDatumReader<GenericRecord>());
+      if (state.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
+          ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
+        dfr =
+            new DataFileReader<GenericRecord>(new ProxyFsInput(new Path(file), this.fs),
+                new GenericDatumReader<GenericRecord>());
+      } else {
+        dfr =
+            new DataFileReader<GenericRecord>(new FsInput(new Path(file), fs.getConf()),
+                new GenericDatumReader<GenericRecord>());
+      }
       return dfr.getSchema();
     } catch (IOException e) {
       throw new FileBasedHelperException("Failed to open avro file " + file + " due to error " + e.getMessage(), e);
