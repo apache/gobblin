@@ -103,18 +103,14 @@ public class S3FsHelper implements FileBasedHelper {
   public List<String> ls(String path)
       throws FileBasedHelperException {
     try {
-      List<String> objectKeys = Lists.newArrayList();
-      for (String s3Path : s3Paths) {
-        objectKeys.addAll(recursivelyGetObjectKeys(s3Path));
-        if (objectKeys.size() == 0) {
-          LOG.warn("S3 bucket/path was empty, no results found.");
-          LOG.warn("S3 Bucket: " + s3Bucket);
-          LOG.warn("S3 Path: " + s3Path);
-        } else {
-          LOG.info("Found " + objectKeys.size() + " S3 objects!");
-        }
+      List<String> objectKeys = recursivelyGetObjectKeys(path);
+      if (objectKeys.size() == 0) {
+        LOG.warn("S3 bucket/path was empty, no results found.");
+        LOG.warn("S3 Bucket: " + s3Bucket);
+        LOG.warn("S3 Path: " + path);
+      } else {
+        LOG.info("Found " + objectKeys.size() + " S3 objects!");
       }
-
       return objectKeys;
     } catch (Exception e) {
       // TODO better exception finding
