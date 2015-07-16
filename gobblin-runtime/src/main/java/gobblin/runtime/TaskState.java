@@ -255,6 +255,17 @@ public class TaskState extends WorkUnitState {
     super.write(out);
   }
 
+  @Override
+  public boolean equals(Object object) {
+    if (!(object instanceof TaskState)) {
+      return false;
+    }
+
+    TaskState other = (TaskState) object;
+    return super.equals(other) && this.jobId.equals(other.jobId) && this.taskId.equals(other.taskId) &&
+        this.startTime == other.startTime && this.endTime == other.endTime && this.duration == other.duration;
+  }
+
   /**
    * Convert this {@link TaskState} to a json document.
    *

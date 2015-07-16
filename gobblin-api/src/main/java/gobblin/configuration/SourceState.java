@@ -25,6 +25,7 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -48,20 +49,18 @@ import gobblin.source.workunit.Extract;
  */
 public class SourceState extends State {
 
-  private static final SourceState EMPTY_SOURCE_STATE = new SourceState();
-
   private static final Set<Extract> extractSet = Sets.newConcurrentHashSet();
   private static final DateTimeFormatter DTF =
       DateTimeFormat.forPattern("yyyyMMddHHmmss").withLocale(Locale.US).withZone(DateTimeZone.UTC);
 
-  private final SourceState previousSourceState;
+  private final Optional<SourceState> previousSourceState;
   private final List<WorkUnitState> previousWorkUnitStates = Lists.newArrayList();
 
   /**
    * Default constructor.
    */
   public SourceState() {
-    this.previousSourceState = EMPTY_SOURCE_STATE;
+    this.previousSourceState = Optional.absent();
   }
 
   /**
@@ -72,7 +71,7 @@ public class SourceState extends State {
    */
   public SourceState(State properties, List<WorkUnitState> previousWorkUnitStates) {
     addAll(properties);
-    this.previousSourceState = EMPTY_SOURCE_STATE;
+    this.previousSourceState = Optional.absent();
     for (WorkUnitState workUnitState : previousWorkUnitStates) {
       this.previousWorkUnitStates.add(new ImmutableWorkUnitState(workUnitState));
     }
@@ -87,7 +86,7 @@ public class SourceState extends State {
    */
   public SourceState(State properties, SourceState previousSourceState, List<WorkUnitState> previousWorkUnitStates) {
     addAll(properties);
-    this.previousSourceState = previousSourceState;
+    this.previousSourceState = Optional.of(previousSourceState);
     for (WorkUnitState workUnitState : previousWorkUnitStates) {
       this.previousWorkUnitStates.add(new ImmutableWorkUnitState(workUnitState));
     }
@@ -99,7 +98,7 @@ public class SourceState extends State {
    * @return {@link SourceState} of the previous job run
    */
   public SourceState getPreviousSourceState() {
-    return new ImmutableSourceState(this.previousSourceState);
+    return new ImmutableSourceState(this.previousSourceState.or(new SourceState()));
   }
 
   /**
@@ -167,6 +166,17 @@ public class SourceState extends State {
     super.readFields(in);
   }
 
+  @Override
+  public boolean equals(Object object) {
+    if (!(object instanceof SourceState)) {
+      return false;
+    }
+
+    SourceState other = (SourceState) object;
+    return super.equals(other) && this.previousSourceState.equals(other.previousSourceState) &&
+        this.previousWorkUnitStates.equals(other.previousWorkUnitStates);
+  }
+
   /**
    * An immutable version of {@link SourceState} that disables all methods that may change the
    * internal state of a {@link SourceState}.
@@ -174,7 +184,7 @@ public class SourceState extends State {
   private static class ImmutableSourceState extends SourceState {
 
     public ImmutableSourceState(SourceState sourceState) {
-      super(sourceState, sourceState.previousSourceState, sourceState.previousWorkUnitStates);
+      super(sourceState, sourceState.previousSourceState.or(new SourceState()), sourceState.previousWorkUnitStates);
     }
 
     @Override
