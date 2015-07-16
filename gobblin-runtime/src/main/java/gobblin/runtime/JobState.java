@@ -83,8 +83,8 @@ public class JobState extends SourceState {
     this.setId(jobId);
   }
 
-  public JobState(State properties, List<WorkUnitState> previousTaskStates, String jobName, String jobId) {
-    super(properties, previousTaskStates);
+  public JobState(State properties, JobState previousJobState, String jobName, String jobId) {
+    super(properties, previousJobState, previousJobState.getTaskStatesAsWorkUnitStates());
     this.jobName = jobName;
     this.jobId = jobId;
     this.setId(jobId);

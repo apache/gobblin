@@ -16,19 +16,43 @@ import java.io.DataInput;
 import java.io.IOException;
 import java.util.Properties;
 
+import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 
 
 /**
- * An immutable version of {@link WorkUnit}.
+ * An immutable version of {@link Extract}.
  *
  * @author ynli
  */
-public class ImmutableWorkUnit extends WorkUnit {
+public class ImmutableExtract extends Extract {
 
-  public ImmutableWorkUnit(WorkUnit workUnit) {
-    super(workUnit.getExtract());
-    super.addAll(workUnit);
+  public ImmutableExtract(SourceState state, TableType type, String namespace, String table) {
+    super(state, type, namespace, table);
+  }
+
+  public ImmutableExtract(Extract extract) {
+    super(extract);
+  }
+
+  @Override
+  public void setFullTrue(long extractFullRunTime) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void setPrimaryKeys(String... primaryKeyFieldName) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void setDeltaFields(String... deltaFieldName) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void setId(String id) {
+    throw new UnsupportedOperationException();
   }
 
   @Override
@@ -36,15 +60,8 @@ public class ImmutableWorkUnit extends WorkUnit {
     throw new UnsupportedOperationException();
   }
 
-  @Deprecated
   @Override
-  public void setHighWaterMark(long highWaterMark) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Deprecated
-  @Override
-  public void setLowWaterMark(long lowWaterMark) {
+  public synchronized void appendToListProp(String key, String value) {
     throw new UnsupportedOperationException();
   }
 
@@ -55,21 +72,26 @@ public class ImmutableWorkUnit extends WorkUnit {
 
   @Override
   public void addAll(State otherState) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void setId(String id) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public synchronized void appendToListProp(String key, String value) {
-    throw new UnsupportedOperationException();
+    super.addAll(otherState);
   }
 
   @Override
   public void readFields(DataInput in) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void setExtractId(String extractId) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void addPrimaryKey(String... primaryKeyFieldName) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void addDeltaField(String... deltaFieldName) {
     throw new UnsupportedOperationException();
   }
 }

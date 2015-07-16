@@ -46,8 +46,6 @@ public class WorkUnitState extends State {
 
   private static final String FINAL_CONSTRUCT_STATE_PREFIX = "construct.final.state.";
 
-  private Watermark actualHighWatermark;
-
   private static final JsonParser JSON_PARSER = new JsonParser();
 
   /**
@@ -144,8 +142,6 @@ public class WorkUnitState extends State {
    * a method such as getCurrentHighWatermark() should be added.
    */
   public void setActualHighWatermark(Watermark watermark) {
-    this.actualHighWatermark = watermark;
-
     /**
      * TODO
      *
@@ -153,7 +149,7 @@ public class WorkUnitState extends State {
      * internally in via a configuration key. Once a state-store migration can be done, the {@link Watermark} can be
      * stored as Binary JSON.
      */
-    setProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY, this.actualHighWatermark.toJson().toString());
+    setProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY, watermark.toJson().toString());
   }
 
   /**
@@ -262,6 +258,17 @@ public class WorkUnitState extends State {
       throws IOException {
     this.workunit.write(out);
     super.write(out);
+  }
+
+  @Override
+  public boolean equals(Object object) {
+    if (!(object instanceof WorkUnitState)) {
+      return false;
+    }
+
+    WorkUnitState other = (WorkUnitState) object;
+    return ((this.workunit == null && other.workunit == null) ||
+        (this.workunit != null && this.workunit.equals(other.workunit))) && super.equals(other);
   }
 
   @Override

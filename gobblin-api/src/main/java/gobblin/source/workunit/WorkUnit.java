@@ -92,6 +92,15 @@ public class WorkUnit extends State {
   }
 
   /**
+   * Constructor.
+   *
+   * @param extract a {@link Extract} object
+   */
+  public WorkUnit(Extract extract) {
+    this.extract = extract;
+  }
+
+  /**
    * Copy constructor.
    *
    * @param other the other {@link WorkUnit} instance
@@ -107,7 +116,7 @@ public class WorkUnit extends State {
    * @return the {@link Extract} associated with this {@link WorkUnit}
    */
   public Extract getExtract() {
-    return this.extract;
+    return new ImmutableExtract(this.extract);
   }
 
   /**
@@ -190,6 +199,17 @@ public class WorkUnit extends State {
       throws IOException {
     super.write(out);
     this.extract.write(out);
+  }
+
+  @Override
+  public boolean equals(Object object) {
+    if (!(object instanceof WorkUnit)) {
+      return false;
+    }
+
+    WorkUnit other = (WorkUnit) object;
+    return ((this.extract == null && other.extract == null) ||
+        (this.extract != null && this.extract.equals(other.extract))) && super.equals(other);
   }
 
   @Override

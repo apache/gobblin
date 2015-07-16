@@ -17,6 +17,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
+import java.util.Properties;
 import java.util.Set;
 
 import org.joda.time.DateTime;
@@ -47,26 +48,58 @@ import gobblin.source.workunit.Extract;
  */
 public class SourceState extends State {
 
-  private final List<WorkUnitState> previousTaskStates = Lists.newArrayList();
+  private static final SourceState EMPTY_SOURCE_STATE = new SourceState();
+
   private static final Set<Extract> extractSet = Sets.newConcurrentHashSet();
   private static final DateTimeFormatter DTF =
       DateTimeFormat.forPattern("yyyyMMddHHmmss").withLocale(Locale.US).withZone(DateTimeZone.UTC);
+
+  private final SourceState previousSourceState;
+  private final List<WorkUnitState> previousWorkUnitStates = Lists.newArrayList();
 
   /**
    * Default constructor.
    */
   public SourceState() {
+    this.previousSourceState = EMPTY_SOURCE_STATE;
   }
 
   /**
    * Constructor.
    *
    * @param properties job configuration properties
-   * @param previousTaskStates list of previous task states
+   * @param previousWorkUnitStates list of {@link WorkUnitState}s of the previous job run
    */
-  public SourceState(State properties, List<WorkUnitState> previousTaskStates) {
+  public SourceState(State properties, List<WorkUnitState> previousWorkUnitStates) {
     addAll(properties);
-    this.previousTaskStates.addAll(previousTaskStates);
+    this.previousSourceState = EMPTY_SOURCE_STATE;
+    for (WorkUnitState workUnitState : previousWorkUnitStates) {
+      this.previousWorkUnitStates.add(new ImmutableWorkUnitState(workUnitState));
+    }
+  }
+
+  /**
+   * Constructor.
+   *
+   * @param properties job configuration properties
+   * @param previousSourceState {@link SourceState} of the previous job run
+   * @param previousWorkUnitStates list of {@link WorkUnitState}s of the previous job run
+   */
+  public SourceState(State properties, SourceState previousSourceState, List<WorkUnitState> previousWorkUnitStates) {
+    addAll(properties);
+    this.previousSourceState = previousSourceState;
+    for (WorkUnitState workUnitState : previousWorkUnitStates) {
+      this.previousWorkUnitStates.add(new ImmutableWorkUnitState(workUnitState));
+    }
+  }
+
+  /**
+   * Get the {@link SourceState} of the previous job run.
+   *
+   * @return {@link SourceState} of the previous job run
+   */
+  public SourceState getPreviousSourceState() {
+    return new ImmutableSourceState(this.previousSourceState);
   }
 
   /**
@@ -75,7 +108,7 @@ public class SourceState extends State {
    * @return (possibly empty) list of {@link WorkUnitState}s from the previous job run
    */
   public List<WorkUnitState> getPreviousWorkUnitStates() {
-    return ImmutableList.<WorkUnitState>builder().addAll(this.previousTaskStates).build();
+    return ImmutableList.<WorkUnitState>builder().addAll(this.previousWorkUnitStates).build();
   }
 
   /**
@@ -115,24 +148,63 @@ public class SourceState extends State {
   }
 
   @Override
-  public void write(DataOutput out)
-      throws IOException {
-    out.writeInt(this.previousTaskStates.size());
-    for (WorkUnitState state : this.previousTaskStates) {
+  public void write(DataOutput out) throws IOException {
+    out.writeInt(this.previousWorkUnitStates.size());
+    for (WorkUnitState state : this.previousWorkUnitStates) {
       state.write(out);
     }
     super.write(out);
   }
 
   @Override
-  public void readFields(DataInput in)
-      throws IOException {
+  public void readFields(DataInput in) throws IOException {
     int size = in.readInt();
     for (int i = 0; i < size; i++) {
-      WorkUnitState state = new WorkUnitState();
-      state.readFields(in);
-      this.previousTaskStates.add(state);
+      WorkUnitState workUnitState = new WorkUnitState();
+      workUnitState.readFields(in);
+      this.previousWorkUnitStates.add(new ImmutableWorkUnitState(workUnitState));
     }
     super.readFields(in);
+  }
+
+  /**
+   * An immutable version of {@link SourceState} that disables all methods that may change the
+   * internal state of a {@link SourceState}.
+   */
+  private static class ImmutableSourceState extends SourceState {
+
+    public ImmutableSourceState(SourceState sourceState) {
+      super(sourceState, sourceState.previousSourceState, sourceState.previousWorkUnitStates);
+    }
+
+    @Override
+    public void readFields(DataInput in) throws IOException {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void setId(String id) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void setProp(String key, Object value) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public synchronized void appendToListProp(String key, String value) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void addAll(State otherState) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void addAll(Properties properties) {
+      throw new UnsupportedOperationException();
+    }
   }
 }

@@ -89,8 +89,7 @@ public class JobContext {
     State jobPropsState = new State();
     jobPropsState.addAll(jobProps);
     JobState previousJobState = getPreviousJobState(this.jobName);
-    this.jobState = new JobState(jobPropsState, previousJobState.getTaskStatesAsWorkUnitStates(),
-        this.jobName, this.jobId);
+    this.jobState = new JobState(jobPropsState, previousJobState, this.jobName, this.jobId);
     // Remember the number of consecutive failures of this job in the past
     this.jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY,
         previousJobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY, 0));
