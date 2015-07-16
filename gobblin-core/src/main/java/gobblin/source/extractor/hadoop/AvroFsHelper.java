@@ -169,8 +169,14 @@ public class AvroFsHelper implements SizeAwareFileBasedHelper {
         LOGGER.warn(file + " does not exist.");
         return null;
       }
-      return new DataFileReader<GenericRecord>(new FsInput(new Path(file), fs.getConf()),
-          new GenericDatumReader<GenericRecord>());
+      if (state.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
+          ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
+        return new DataFileReader<GenericRecord>(new ProxyFsInput(new Path(file), this.fs),
+            new GenericDatumReader<GenericRecord>());
+      } else {
+        return new DataFileReader<GenericRecord>(new FsInput(new Path(file), fs.getConf()),
+            new GenericDatumReader<GenericRecord>());
+      }
     } catch (IOException e) {
       throw new FileBasedHelperException("Failed to open avro file " + file + " due to error " + e.getMessage(), e);
     }
