@@ -77,7 +77,7 @@ public class Fork implements Closeable, Runnable, FinalState {
   private final int index;
 
   private final Converter converter;
-  private final Object convertedSchema;
+  private final Optional<Object> convertedSchema;
   private final RowLevelPolicyChecker rowLevelPolicyChecker;
   private final RowLevelPolicyCheckResults rowLevelPolicyCheckingResult;
 
@@ -116,7 +116,7 @@ public class Fork implements Closeable, Runnable, FinalState {
     this.index = index;
 
     this.converter = this.closer.register(new MultiConverter(this.taskContext.getConverters(this.index)));
-    this.convertedSchema = this.converter.convertSchema(schema, this.taskState);
+    this.convertedSchema = Optional.fromNullable(this.converter.convertSchema(schema, this.taskState));
     this.rowLevelPolicyChecker =
         this.closer.register(this.taskContext.getRowLevelPolicyChecker(this.taskState, this.index));
     this.rowLevelPolicyCheckingResult = new RowLevelPolicyCheckResults();
@@ -328,7 +328,7 @@ public class Fork implements Closeable, Runnable, FinalState {
         .writeTo(Destination.of(this.taskContext.getDestinationType(this.branches, this.index), this.taskState))
         .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index))
         .withWriterId(this.taskId)
-        .withSchema(this.convertedSchema)
+        .withSchema(this.convertedSchema.orNull())
         .withBranches(this.branches)
         .forBranch(this.index)
         .build();
@@ -374,7 +374,7 @@ public class Fork implements Closeable, Runnable, FinalState {
    *
    * @return whether data publishing is successful and data should be committed
    */
-  private boolean checkDataQuality(Object schema)
+  private boolean checkDataQuality(Optional<Object> schema)
       throws Exception {
     TaskState taskStateForFork = this.taskState;
     if (this.branches > 1) {
@@ -387,7 +387,10 @@ public class Fork implements Closeable, Runnable, FinalState {
     } else {
       taskStateForFork.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, 0l);
     }
-    taskStateForFork.setProp(ConfigurationKeys.EXTRACT_SCHEMA, schema.toString());
+
+    if (schema.isPresent()) {
+      taskStateForFork.setProp(ConfigurationKeys.EXTRACT_SCHEMA, schema.get().toString());
+    }
 
     try {
       // Do task-level quality checking
