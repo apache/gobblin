@@ -114,6 +114,16 @@ public class MultiWorkUnit extends WorkUnit {
   }
 
   @Override
+  public boolean equals(Object object) {
+    if (!(object instanceof MultiWorkUnit)) {
+      return false;
+    }
+
+    MultiWorkUnit other = (MultiWorkUnit) object;
+    return super.equals(other) && this.workUnits.equals(other.workUnits);
+  }
+
+  @Override
   public int hashCode() {
     final int prime = 31;
     int result = super.hashCode();

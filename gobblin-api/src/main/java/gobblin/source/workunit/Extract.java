@@ -98,13 +98,14 @@ public class Extract extends State {
   }
 
   @Override
-  public boolean equals(Object other) {
-    if (!(other instanceof Extract)) {
+  public boolean equals(Object object) {
+    if (!(object instanceof Extract)) {
       return false;
     }
-    Extract otherExtract = (Extract) other;
-    return this.getNamespace().equals(otherExtract.getNamespace()) && this.getTable().equals(otherExtract.getTable())
-        && this.getExtractId().equals(otherExtract.getExtractId());
+
+    Extract other = (Extract) object;
+    return super.equals(other) && this.getNamespace().equals(other.getNamespace()) &&
+        this.getTable().equals(other.getTable()) && this.getExtractId().equals(other.getExtractId());
   }
 
   @Override

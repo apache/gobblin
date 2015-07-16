@@ -73,6 +73,11 @@ public class HadoopFileInputSourceTest extends OldApiHadoopFileInputSourceTest {
     super.tearDown();
   }
 
+  @Override
+  protected String getFileDir() {
+    return HadoopFileInputSourceTest.class.getSimpleName();
+  }
+
   private static class TestHadoopFileInputSource extends HadoopTextInputSource<String> {
 
     @Override

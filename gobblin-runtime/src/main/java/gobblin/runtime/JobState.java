@@ -360,6 +360,18 @@ public class JobState extends SourceState {
   }
 
   @Override
+  public boolean equals(Object object) {
+    if (!(object instanceof JobState)) {
+      return false;
+    }
+
+    JobState other = (JobState) object;
+    return super.equals(other) && this.jobName.equals(other.jobName) && this.jobId.equals(other.jobId) &&
+        this.startTime == other.startTime && this.endTime == other.endTime && this.duration == other.duration &&
+        this.state == other.state && this.tasks == other.tasks && this.taskStates.equals(other.taskStates);
+  }
+
+  @Override
   public String toString() {
     StringWriter stringWriter = new StringWriter();
     JsonWriter jsonWriter = new JsonWriter(stringWriter);

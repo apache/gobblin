@@ -51,7 +51,7 @@ public class OldApiHadoopFileInputSourceTest {
 
   @BeforeClass
   public void setUp() throws IOException {
-    File textFile = new File(OldApiHadoopFileInputSourceTest.class.getSimpleName(), "test.txt");
+    File textFile = new File(getFileDir(), "test.txt");
     File dir = textFile.getParentFile();
     if (!dir.exists() && !dir.mkdir()) {
       throw new IOException("Failed to create directory: " + dir);
@@ -95,8 +95,12 @@ public class OldApiHadoopFileInputSourceTest {
 
   @AfterClass
   public void tearDown() throws IOException {
-    File dir = new File(OldApiHadoopFileInputSourceTest.class.getSimpleName());
+    File dir = new File(getFileDir());
     FileUtils.deleteDirectory(dir);
+  }
+
+  protected String getFileDir() {
+    return OldApiHadoopFileInputSourceTest.class.getSimpleName();
   }
 
   private static class TestHadoopFileInputSource extends OldApiHadoopTextInputSource<String> {
