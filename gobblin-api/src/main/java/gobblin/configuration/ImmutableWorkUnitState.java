@@ -10,46 +10,45 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.source.workunit;
+package gobblin.configuration;
 
 import java.io.DataInput;
 import java.io.IOException;
 import java.util.Properties;
 
-import gobblin.configuration.State;
+import gobblin.source.extractor.Watermark;
 
 
 /**
- * An immutable version of {@link WorkUnit}.
+ * An immutable version of {@link WorkUnitState}.
  *
  * @author ynli
  */
-public class ImmutableWorkUnit extends WorkUnit {
+public class ImmutableWorkUnitState extends WorkUnitState {
 
-  public ImmutableWorkUnit(WorkUnit workUnit) {
-    super(workUnit.getExtract());
-    super.addAll(workUnit);
+  public ImmutableWorkUnitState(WorkUnitState workUnitState) {
+    super(workUnitState.getWorkunit());
+    super.addAll(workUnitState);
+  }
+
+  @Override
+  public void setWorkingState(WorkingState state) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void setActualHighWatermark(Watermark watermark) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Deprecated
+  @Override
+  public void setHighWaterMark(long value) {
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public void setProp(String key, Object value) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Deprecated
-  @Override
-  public void setHighWaterMark(long highWaterMark) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Deprecated
-  @Override
-  public void setLowWaterMark(long lowWaterMark) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void addAll(Properties properties) {
     throw new UnsupportedOperationException();
   }
 
@@ -59,17 +58,27 @@ public class ImmutableWorkUnit extends WorkUnit {
   }
 
   @Override
+  public void addAll(Properties properties) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public void setId(String id) {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public synchronized void appendToListProp(String key, String value) {
+  public void readFields(DataInput in) throws IOException {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void readFields(DataInput in) throws IOException {
+  public void backoffActualHighWatermark() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public synchronized void appendToListProp(String key, String value) {
     throw new UnsupportedOperationException();
   }
 }

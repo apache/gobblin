@@ -12,9 +12,9 @@
 
 package gobblin.source.extractor.extract;
 
-import java.util.Collections;
 import java.util.List;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -54,7 +54,7 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
    */
   protected List<WorkUnitState> getPreviousWorkUnitStatesForRetry(SourceState state) {
     if (state.getPreviousWorkUnitStates().isEmpty()) {
-      return Collections.emptyList();
+      return ImmutableList.of();
     }
 
     // Determine a work unit retry policy
@@ -69,7 +69,7 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
     }
 
     if (workUnitRetryPolicy == WorkUnitRetryPolicy.NEVER) {
-      return Collections.emptyList();
+      return ImmutableList.of();
     }
 
     List<WorkUnitState> previousWorkUnitStates = Lists.newArrayList();
@@ -78,10 +78,15 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
       if (workUnitState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED) {
         if (state.getPropAsBoolean(ConfigurationKeys.OVERWRITE_CONFIGS_IN_STATESTORE,
             ConfigurationKeys.DEFAULT_OVERWRITE_CONFIGS_IN_STATESTORE)) {
-          workUnitState.addAll(state);
+          // We need to make a copy here since getPreviousWorkUnitStates returns ImmutableWorkUnitStates
+          // for which addAll is not supported
+          WorkUnitState workUnitStateCopy = new WorkUnitState(workUnitState.getWorkunit());
+          workUnitStateCopy.addAll(workUnitState);
+          workUnitStateCopy.addAll(state);
+          previousWorkUnitStates.add(workUnitStateCopy);
+        } else {
+          previousWorkUnitStates.add(workUnitState);
         }
-
-        previousWorkUnitStates.add(workUnitState);
       }
     }
 
@@ -98,7 +103,7 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
       return previousWorkUnitStates;
     } else {
       // Return an empty list if job commit policy and work unit retry policy do not match
-      return Collections.emptyList();
+      return ImmutableList.of();
     }
   }
 

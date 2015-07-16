@@ -73,7 +73,9 @@ public class SourceState extends State {
   public SourceState(State properties, List<WorkUnitState> previousWorkUnitStates) {
     addAll(properties);
     this.previousSourceState = EMPTY_SOURCE_STATE;
-    this.previousWorkUnitStates.addAll(previousWorkUnitStates);
+    for (WorkUnitState workUnitState : previousWorkUnitStates) {
+      this.previousWorkUnitStates.add(new ImmutableWorkUnitState(workUnitState));
+    }
   }
 
   /**
@@ -86,7 +88,9 @@ public class SourceState extends State {
   public SourceState(State properties, SourceState previousSourceState, List<WorkUnitState> previousWorkUnitStates) {
     addAll(properties);
     this.previousSourceState = previousSourceState;
-    this.previousWorkUnitStates.addAll(previousWorkUnitStates);
+    for (WorkUnitState workUnitState : previousWorkUnitStates) {
+      this.previousWorkUnitStates.add(new ImmutableWorkUnitState(workUnitState));
+    }
   }
 
   /**
@@ -156,9 +160,9 @@ public class SourceState extends State {
   public void readFields(DataInput in) throws IOException {
     int size = in.readInt();
     for (int i = 0; i < size; i++) {
-      WorkUnitState state = new WorkUnitState();
-      state.readFields(in);
-      this.previousWorkUnitStates.add(state);
+      WorkUnitState workUnitState = new WorkUnitState();
+      workUnitState.readFields(in);
+      this.previousWorkUnitStates.add(new ImmutableWorkUnitState(workUnitState));
     }
     super.readFields(in);
   }
@@ -168,10 +172,6 @@ public class SourceState extends State {
    * internal state of a {@link SourceState}.
    */
   private static class ImmutableSourceState extends SourceState {
-
-    public ImmutableSourceState() {
-
-    }
 
     public ImmutableSourceState(SourceState sourceState) {
       super(sourceState, sourceState.previousSourceState, sourceState.previousWorkUnitStates);
