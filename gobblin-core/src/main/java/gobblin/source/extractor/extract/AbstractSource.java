@@ -27,8 +27,7 @@ import gobblin.source.workunit.WorkUnit;
 
 
 /**
- * A base implementation of {@link gobblin.source.Source}
- * that provides default behavior.
+ * A base implementation of {@link gobblin.source.Source} that provides default behavior.
  *
  * @author ynli
  */

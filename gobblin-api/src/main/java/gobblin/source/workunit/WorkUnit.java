@@ -116,7 +116,7 @@ public class WorkUnit extends State {
    * @return the {@link Extract} associated with this {@link WorkUnit}
    */
   public Extract getExtract() {
-    return this.extract;
+    return new ImmutableExtract(this.extract);
   }
 
   /**
