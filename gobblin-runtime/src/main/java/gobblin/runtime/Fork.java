@@ -328,7 +328,7 @@ public class Fork implements Closeable, Runnable, FinalState {
         .writeTo(Destination.of(this.taskContext.getDestinationType(this.branches, this.index), this.taskState))
         .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index))
         .withWriterId(this.taskId)
-        .withSchema(this.convertedSchema.get())
+        .withSchema(this.convertedSchema.orNull())
         .withBranches(this.branches)
         .forBranch(this.index)
         .build();
