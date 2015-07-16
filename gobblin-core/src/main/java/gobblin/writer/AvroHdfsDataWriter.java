@@ -17,7 +17,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
-import org.apache.avro.file.DataFileConstants;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
@@ -167,10 +166,12 @@ class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
   /**
    * Create a new {@link DataFileWriter} for writing Avro records.
    *
-   * @param avroFile Avro file to write to
-   * @param bufferSize Buffer size
-   * @param codecType Compression codec type
-   * @param deflateLevel Deflate level
+   * @param avroFile the Avro file to write to
+   * @param bufferSize the Avro data writer buffer size
+   * @param codecFactory a {@link CodecFactory} object for building the compression codec
+   * @param replication the replication factor
+   * @param blockSize the block size
+   * @param permissions a {@link FsPermission} object defining the Avro file permission
    * @throws IOException if there is something wrong creating a new {@link DataFileWriter}
    */
   private DataFileWriter<GenericRecord> createDatumWriter(Path avroFile, int bufferSize, CodecFactory codecFactory,

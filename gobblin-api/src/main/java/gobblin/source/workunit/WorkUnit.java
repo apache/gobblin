@@ -113,9 +113,13 @@ public class WorkUnit extends State {
   /**
    * Get the low {@link Watermark} as a {@link JsonElement}.
    *
-   * @return a {@link JsonElement} representing the low {@link Watermark}.
+   * @return a {@link JsonElement} representing the low {@link Watermark} or
+   *         {@code null} if the low {@link Watermark} is not set.
    */
   public JsonElement getLowWatermark() {
+    if (!contains(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY)) {
+      return null;
+    }
     return JSON_PARSER.parse(getProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY)).getAsJsonObject()
         .get(WatermarkInterval.LOW_WATERMARK_TO_JSON_KEY);
   }

@@ -164,7 +164,11 @@ public class MRJobLauncher extends AbstractJobLauncher {
         this.job.killJob();
       }
     } finally {
-      super.close();
+      try {
+        cleanUpWorkingDirectory();
+      } finally {
+        super.close();
+      }
     }
   }
 
@@ -235,7 +239,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
   @Override
   protected void executeCancellation() {
     try {
-      if (!this.job.isComplete()) {
+      if (this.hadoopJobSubmitted && !this.job.isComplete()) {
         LOG.info("Killing the Hadoop MR job for job " + this.jobContext.getJobId());
         this.job.killJob();
       }

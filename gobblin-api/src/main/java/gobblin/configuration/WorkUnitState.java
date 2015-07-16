@@ -160,7 +160,11 @@ public class WorkUnitState extends State {
    * Backoff the actual high watermark to the low watermark returned by {@link WorkUnit#getLowWatermark()}.
    */
   public void backoffActualHighWatermark() {
-    setProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY, this.workunit.getLowWatermark().toString());
+    JsonElement lowWatermark = this.workunit.getLowWatermark();
+    if (lowWatermark == null) {
+      return;
+    }
+    setProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY, lowWatermark.toString());
   }
 
   /**
