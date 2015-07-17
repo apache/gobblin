@@ -23,16 +23,19 @@ import org.slf4j.LoggerFactory;
 
 import kafka.message.MessageAndOffset;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 import com.google.gson.Gson;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metrics.Tag;
 import gobblin.metrics.kafka.SchemaNotFoundException;
+import gobblin.TimeBasedLimiter;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.EventBasedExtractor;
@@ -59,12 +62,14 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   protected final MultiLongWatermark nextWatermark;
   protected final Closer closer;
   protected final KafkaWrapper kafkaWrapper;
+  protected final int timeoutLimit;
 
   protected final Map<KafkaPartition, Integer> decodingErrorCount;
   protected final Map<KafkaPartition, Long> totalEventSizes;
   protected final Map<KafkaPartition, Integer> eventCounts;
   protected final Map<KafkaPartition, Long> avgEventSizes;
 
+  protected Optional<TimeBasedLimiter> timeLimiter;
   protected Iterator<MessageAndOffset> messageIterator;
   protected int currentPartitionIdx;
 
@@ -78,12 +83,15 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     this.nextWatermark = new MultiLongWatermark(this.lowWatermark);
     this.closer = Closer.create();
     this.kafkaWrapper = closer.register(KafkaWrapper.create(state));
+    this.timeoutLimit = state.getPropAsInt(ConfigurationKeys.EXTRACT_TIMEOUT_LIMIT_IN_SECONDS,
+        ConfigurationKeys.DEFAULT_EXTRACT_TIMEOUT_LIMIT_IN_SECONDS);
 
     this.decodingErrorCount = Maps.newHashMap();
     this.totalEventSizes = Maps.newHashMapWithExpectedSize(this.partitions.size());
     this.eventCounts = Maps.newHashMapWithExpectedSize(this.partitions.size());
     this.avgEventSizes = Maps.newHashMapWithExpectedSize(this.partitions.size());
 
+    this.timeLimiter = Optional.absent();
     this.messageIterator = null;
     this.currentPartitionIdx = 0;
 
@@ -124,6 +132,15 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
           moveToNextPartition();
           continue;
         }
+      }
+      if (!this.timeLimiter.isPresent()) {
+        this.timeLimiter = Optional.of(new TimeBasedLimiter(this.timeoutLimit));
+        this.timeLimiter.get().start();
+      } else if (this.timeLimiter.get().acquirePermits(0) == null) {
+        LOG.warn(String.format("While processing partition %s, time limit was exceeded. "
+            + " Leaving remaining messages for processing by the next run.", getCurrentPartition()));
+        moveToNextPartition();
+        continue;
       }
       while (!currentPartitionFinished()) {
         if (!this.messageIterator.hasNext()) {
@@ -172,6 +189,10 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   }
 
   private void moveToNextPartition() {
+    if (this.timeLimiter.isPresent()) {
+      this.timeLimiter.get().stop();
+      this.timeLimiter = Optional.absent();
+    }
     this.currentPartitionIdx++;
     this.messageIterator = null;
     if (this.currentPartitionIdx < this.partitions.size()) {
@@ -246,6 +267,9 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
   @Override
   public void close() throws IOException {
+    if (this.timeLimiter.isPresent()) {
+      this.timeLimiter.get().stop();
+    }
     for (int i = 0; i < this.partitions.size(); i++) {
       LOG.info(String.format("Last offset pulled for partition %s = %d", this.partitions.get(i),
           this.nextWatermark.get(i) - 1));

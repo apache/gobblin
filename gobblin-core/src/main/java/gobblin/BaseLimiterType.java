@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.runtime;
+package gobblin;
 
 /**
  * An enumeration of types of {@link Limiter}s supported out-of-the-box.

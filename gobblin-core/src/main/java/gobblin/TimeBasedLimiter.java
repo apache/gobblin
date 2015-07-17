@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.runtime;
+package gobblin;
 
 import java.io.Closeable;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -74,7 +74,7 @@ public class TimeBasedLimiter extends NonRefillableLimiter {
   }
 
   @Override
-  public Closeable acquirePermits(long permits) throws InterruptedException {
+  public Closeable acquirePermits(long permits) {
     return this.canIssuePermit ? NO_OP_CLOSEABLE : null;
   }
 

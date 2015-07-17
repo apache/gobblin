@@ -10,13 +10,12 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.runtime;
+package gobblin;
 
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Preconditions;
 
-import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 
 

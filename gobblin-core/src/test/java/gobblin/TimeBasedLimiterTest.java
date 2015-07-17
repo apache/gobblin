@@ -10,50 +10,43 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.runtime;
+package gobblin;
 
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import com.codahale.metrics.Meter;
-
-import com.google.common.math.DoubleMath;
+import gobblin.Limiter;
+import gobblin.TimeBasedLimiter;
 
 
 /**
- * Unit tests for {@link RateBasedLimiter}.
+ * Unit tests for {@link TimeBasedLimiter}.
  *
  * @author ynli
  */
 @Test(groups = {"gobblin.runtime"})
-public class RateBasedLimiterTest {
-
-  private static final Random RANDOM = new Random();
+public class TimeBasedLimiterTest {
 
   private Limiter limiter;
 
   @BeforeClass
   public void setUp() {
-    this.limiter = new RateBasedLimiter(20, TimeUnit.SECONDS);
+    this.limiter = new TimeBasedLimiter(3l, TimeUnit.SECONDS);
     this.limiter.start();
   }
 
   @Test
   public void testThrottling() throws InterruptedException {
-    Meter meter = new Meter();
-    for (int i = 0; i < 1000; i++) {
-      Assert.assertTrue(this.limiter.acquirePermits(1) != null);
-      meter.mark();
-      Thread.sleep((RANDOM.nextInt() & Integer.MAX_VALUE) % 10);
-    }
-
-    // Assert a fuzzy equal with 5% of tolerance
-    Assert.assertTrue(DoubleMath.fuzzyEquals(meter.getMeanRate(), 20d, 20d * 0.05));
+    Assert.assertTrue(this.limiter.acquirePermits(1) != null);
+    Thread.sleep(1000);
+    Assert.assertTrue(this.limiter.acquirePermits(1) != null);
+    Thread.sleep(1000);
+    Assert.assertTrue(this.limiter.acquirePermits(1) != null);
+    Thread.sleep(1100);
+    Assert.assertTrue(this.limiter.acquirePermits(1) == null);
   }
 
   @AfterClass

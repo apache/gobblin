@@ -153,7 +153,9 @@ public class ConfigurationKeys {
   public static final String EXTRACT_DELTA_FIELDS_KEY = "extract.delta.fields";
   public static final String EXTRACT_SCHEMA = "extract.schema";
   public static final String EXTRACT_LIMIT_ENABLED_KEY = "extract.limit.enabled";
+  public static final String EXTRACT_TIMEOUT_LIMIT_IN_SECONDS = "extract.timeout.limit.in.seconds";
   public static final boolean DEFAULT_EXTRACT_LIMIT_ENABLED = false;
+  public static final int DEFAULT_EXTRACT_TIMEOUT_LIMIT_IN_SECONDS = 600;
 
   /**
    * Converter configuration properties.
