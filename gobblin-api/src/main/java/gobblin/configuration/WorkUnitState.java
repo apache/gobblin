@@ -233,7 +233,6 @@ public class WorkUnitState extends State {
    */
   public Extract getExtract() {
     Extract curExtract = new Extract(workunit.getExtract());
-    curExtract.addAll(this);
     return curExtract;
   }
 
