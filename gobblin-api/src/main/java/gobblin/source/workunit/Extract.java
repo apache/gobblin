@@ -94,7 +94,7 @@ public class Extract extends State {
    * @param extract the other {@link Extract} instance
    */
   public Extract(Extract extract) {
-    addAll(extract);
+    super.addAll(extract);
   }
 
   @Override
