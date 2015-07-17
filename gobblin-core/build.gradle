@@ -46,13 +46,15 @@ dependencies {
   }
 
   if (System.getenv("GOBBLIN_LOCAL_JAR_LOCATION") != null) {
-    compile fileTree(dir: System.getenv("GOBBLIN_LOCAL_JAR_LOCATION"), include: '*.jar')
+    compile(fileTree(dir: System.getenv("GOBBLIN_LOCAL_JAR_LOCATION"), include: '*.jar')) {
+      transitive = true
+    }
   }
 
   testCompile externalDependency.testng
 }
 
-configurations { compile { transitive = true } }
+configurations { compile { transitive = false } }
 
 test {
   useTestNG () { excludeGroups 'ignore' }

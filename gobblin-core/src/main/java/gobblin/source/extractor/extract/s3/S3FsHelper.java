@@ -24,6 +24,7 @@ import gobblin.source.extractor.filebased.FileBasedHelper;
 import gobblin.source.extractor.filebased.FileBasedHelperException;
 import gobblin.util.S3Utils;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,18 +40,19 @@ public class S3FsHelper implements FileBasedHelper {
   private State state;
   private AmazonS3 s3Client;
   private String s3Bucket;
-  private String s3Path;
+  private List<String> s3Paths;
 
   /**
    * Creates an S3 filesystem helper. This method creates and stores the Amazon S3 client, as well as fetches the
    * bucket that the source should be looking into.
-   * @param state
+   * @param state The state
    */
   public S3FsHelper(State state) {
     this.state = state;
 
     s3Client = new AmazonS3Client();
     s3Bucket = state.getProp(ConfigurationKeys.S3_SOURCE_BUCKET);
+    s3Paths = Lists.newArrayList();
   }
 
   /**
@@ -64,10 +66,15 @@ public class S3FsHelper implements FileBasedHelper {
    */
   @Override
   public void connect() {
-    s3Path = state.getProp(ConfigurationKeys.S3_SOURCE_PATH);
+    String path = state.getProp(ConfigurationKeys.S3_SOURCE_PATH);
+    int lookback = state.getPropAsInt(ConfigurationKeys.S3_SOURCE_DATE_LOOKBACK,
+        ConfigurationKeys.DEFAULT_S3_SOURCE_DATE_LOOKBACK);
 
-    // Replace the date if needed (if none found, s3Path is unaffected)
-    s3Path = S3Utils.checkAndReplaceDate(state, s3Path);
+    // Go through each day of possible lookback to find old logs that may not have been logged
+    while (lookback >= 0) {
+      // Replace the date if needed (if none found, s3Path is unaffected)
+      s3Paths.add(S3Utils.checkAndReplaceDatePlaceholders(state, path, lookback--));
+    }
   }
 
   /**
@@ -96,11 +103,11 @@ public class S3FsHelper implements FileBasedHelper {
   public List<String> ls(String path)
       throws FileBasedHelperException {
     try {
-      List<String> objectKeys = recursivelyGetObjectKeys(s3Path);
+      List<String> objectKeys = recursivelyGetObjectKeys(path);
       if (objectKeys.size() == 0) {
         LOG.warn("S3 bucket/path was empty, no results found.");
         LOG.warn("S3 Bucket: " + s3Bucket);
-        LOG.warn("S3 Path: " + s3Path);
+        LOG.warn("S3 Path: " + path);
       } else {
         LOG.info("Found " + objectKeys.size() + " S3 objects!");
       }
@@ -138,11 +145,11 @@ public class S3FsHelper implements FileBasedHelper {
       }
 
       // For each folder, replace what we have and recurse until we are out of wildcards
-      List<String> objectSummaries = Lists.newArrayList();
+      List<String> objectKeys = Lists.newArrayList();
       for (String folderPath : folders) {
-        objectSummaries.addAll(recursivelyGetObjectKeys(folderPath + pathParts[1]));
+        objectKeys.addAll(recursivelyGetObjectKeys(folderPath + pathParts[1]));
       }
-      return objectSummaries;
+      return objectKeys;
     }
 
     // Otherwise, return whatever our path is
@@ -151,16 +158,16 @@ public class S3FsHelper implements FileBasedHelper {
 
     // Fetch all the objects in the given bucket/path
     ObjectListing objectListing = s3Client.listObjects(listObjectRequest);
-    List<S3ObjectSummary> objectSummaries = objectListing.getObjectSummaries();
+    List<String> objectKeys = getObjectKeys(objectListing.getObjectSummaries());
 
     // We have to do this if there are a large number of objects in the given path
     // Create the workunits and add them immediately to reduce memory load
     while (objectListing.isTruncated()) {
       objectListing = s3Client.listNextBatchOfObjects(objectListing);
-      objectSummaries.addAll(objectListing.getObjectSummaries());
+      objectKeys.addAll(getObjectKeys(objectListing.getObjectSummaries()));
     }
 
-    return getObjectKeys(objectSummaries);
+    return objectKeys;
   }
 
   /**
@@ -181,7 +188,7 @@ public class S3FsHelper implements FileBasedHelper {
   public void close() {
   }
 
-  public String getS3Path() {
-    return this.s3Path;
+  public List<String> getS3Paths() {
+    return this.s3Paths;
   }
 }

@@ -433,21 +433,60 @@ public class ConfigurationKeys {
   public static final String S3_PUBLISHER_BUCKET = "aws.s3.publisher.bucket";
   public static final String S3_PUBLISHER_PATH = "aws.s3.publisher.path";
   public static final String S3_PARTITIONS = "aws.s3.partitions";
-  public static final String S3_DATE_PATTERN = "aws.s3.date.pattern";
-  public static final String DEFAULT_S3_DATE_PATTERN = "yyyy/MM/dd";
-  public static final String S3_DATE_PLACEHOLDER = "aws.s3.date.placeholder";
-  public static final String DEFAULT_S3_DATE_PLACEHOLDER = "{date}";
+
+  // Settings and defaults for the date keyword
+  public static final String S3_SOURCE_DATE_PATTERN = "aws.s3.source.date.pattern";
+  public static final String DEFAULT_S3_SOURCE_DATE_PATTERN = "yyyy/MM/dd";
+  public static final String S3_SOURCE_DATE_PLACEHOLDER = "aws.s3.source.date.placeholder";
+  public static final String DEFAULT_S3_SOURCE_DATE_PLACEHOLDER = "{source-date}";
+  public static final String S3_SOURCE_DATE_OFFSET = "aws.s3.source.date.offset";
+  public static final int DEFAULT_S3_SOURCE_DATE_OFFSET = -1;
+  /**
+   * The number of days to look backwards in time to propagate any slower changes.
+   * <p/>
+   * This allows a user to set the number of days they want to look back beyond the date offset. For example, if the
+   * system is set up with an offset of -1 and a lookback of 2, and the current date is June 19th, the system will
+   * check the S3 source for objects published June 18th, but also will look for any files added to "directories"
+   * from the 17th and 16th for changes.
+   * <p/>
+   * This is useful if you have systems with slow/eventual propagation, as it allows your system to process data as
+   * it comes in - both a mixture of real-time and delayed inputs.
+   * <p/>
+   * The value should be an integer greater than or equal to 0, representing the number of days to look backwards.
+   */
+  public static final String S3_SOURCE_DATE_LOOKBACK = "aws.s3.source.date.lookback";
+  public static final int DEFAULT_S3_SOURCE_DATE_LOOKBACK = 1;
+
+  // Settings and defaults for the now keyword
+  public static final String S3_PUBLISHER_DATE_PATTERN = "aws.s3.publisher.date.pattern";
+  public static final String DEFAULT_S3_PUBLISHER_DATE_PATTERN = "yyyy/MM/dd";
+  public static final String S3_PUBLISHER_DATE_PLACEHOLDER = "aws.s3.publisher.date.placeholder";
+  public static final String DEFAULT_S3_PUBLISHER_DATE_PLACEHOLDER = "{publisher-date}";
+  public static final String S3_PUBLISHER_DATE_OFFSET = "aws.s3.publisher.date.offset";
+  public static final int DEFAULT_S3_PUBLISHER_DATE_OFFSET = 0;
+
+  public static final String S3_TIMESTAMP_PATTERN = "aws.s3.timestamp.pattern";
+  public static final String DEFAULT_S3_TIMESTAMP_PATTERN = "yyyyMMdd-HHmmss";
+  public static final String S3_TIMESTAMP_PLACEHOLDER = "{timestamp}";
+
+  /**
+   * If set to true, the publisher will append all files in the job together. Otherwise, it ships them back 1:1
+   */
+  public static final String S3_PUBLISHER_APPEND = "aws.s3.publisher.append";
+  public static final boolean DEFAULT_S3_PUBLISHER_APPEND = true;
   public static final String S3_PATH_DELIMITER = "aws.s3.path.delimiter";
   public static final String DEFAULT_S3_PATH_DELIMITER = "/";
-  public static final String S3_DATE_OFFSET = "aws.s3.date.offset";
-  public static final int DEFAULT_S3_DATE_OFFSET = -1;
+
   /**
    * The format of the file to write to S3.
    * If this is not set, the original filename is used.
    * <p/>
    * Can contain the following placeholders:
-   * {counter} - an integer counter (guarantees unique keying)
-   * {date} - the current date (/ will be removed)
+   * {counter} - an integer counter of files in run (does NOT guarantee unique keying - doesn't check existing keys)
+   * <p/>
+   * {@link ConfigurationKeys#S3_SOURCE_DATE_PLACEHOLDER}
+   * <p/>
+   * {@link ConfigurationKeys#DEFAULT_S3_PUBLISHER_DATE_PLACEHOLDER}
    */
   public static final String S3_PUBLISHER_FILENAME_FORMAT = "aws.s3.publisher.filename.format";
 }
