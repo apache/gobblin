@@ -60,7 +60,7 @@ public class WorkUnit extends State {
   public WorkUnit(SourceState state, Extract extract) {
     // Values should only be null for deserialization
     if (state != null) {
-      this.addAll(state);
+      super.addAll(state);
     }
 
     if (extract != null) {
@@ -106,7 +106,7 @@ public class WorkUnit extends State {
    * @param other the other {@link WorkUnit} instance
    */
   public WorkUnit(WorkUnit other) {
-    addAll(other);
+    super.addAll(other);
     this.extract = other.getExtract();
   }
 

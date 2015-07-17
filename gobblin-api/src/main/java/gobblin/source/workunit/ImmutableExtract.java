@@ -72,7 +72,7 @@ public class ImmutableExtract extends Extract {
 
   @Override
   public void addAll(State otherState) {
-    super.addAll(otherState);
+    throw new UnsupportedOperationException();
   }
 
   @Override

@@ -70,7 +70,7 @@ public class SourceState extends State {
    * @param previousWorkUnitStates list of {@link WorkUnitState}s of the previous job run
    */
   public SourceState(State properties, List<WorkUnitState> previousWorkUnitStates) {
-    addAll(properties);
+    super.addAll(properties);
     this.previousSourceState = Optional.absent();
     for (WorkUnitState workUnitState : previousWorkUnitStates) {
       this.previousWorkUnitStates.add(new ImmutableWorkUnitState(workUnitState));
@@ -85,7 +85,7 @@ public class SourceState extends State {
    * @param previousWorkUnitStates list of {@link WorkUnitState}s of the previous job run
    */
   public SourceState(State properties, SourceState previousSourceState, List<WorkUnitState> previousWorkUnitStates) {
-    addAll(properties);
+    super.addAll(properties);
     this.previousSourceState = Optional.of(previousSourceState);
     for (WorkUnitState workUnitState : previousWorkUnitStates) {
       this.previousWorkUnitStates.add(new ImmutableWorkUnitState(workUnitState));
