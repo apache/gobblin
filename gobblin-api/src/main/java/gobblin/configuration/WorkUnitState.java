@@ -272,6 +272,14 @@ public class WorkUnitState extends State {
   }
 
   @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = super.hashCode();
+    result = prime * result + (this.workunit == null ? 0 : this.workunit.hashCode());
+    return result;
+  }
+
+  @Override
   public String toString() {
     return super.toString() + "\nWorkUnit: " + getWorkunit().toString() + "\nExtract: " + getExtract().toString();
   }
