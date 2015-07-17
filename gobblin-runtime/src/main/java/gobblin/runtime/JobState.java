@@ -366,9 +366,16 @@ public class JobState extends SourceState {
     }
 
     JobState other = (JobState) object;
-    return super.equals(other) && this.jobName.equals(other.jobName) && this.jobId.equals(other.jobId) &&
-        this.startTime == other.startTime && this.endTime == other.endTime && this.duration == other.duration &&
-        this.state == other.state && this.tasks == other.tasks && this.taskStates.equals(other.taskStates);
+    return super.equals(other) && this.jobName.equals(other.jobName) && this.jobId.equals(other.jobId);
+  }
+
+  @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = super.hashCode();
+    result = prime * result + this.jobName.hashCode();
+    result = prime * result + this.jobId.hashCode();
+    return result;
   }
 
   @Override

@@ -177,6 +177,15 @@ public class SourceState extends State {
         this.previousWorkUnitStates.equals(other.previousWorkUnitStates);
   }
 
+  @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = super.hashCode();
+    result = prime * result + this.previousSourceState.hashCode();
+    result = prime * result + this.previousWorkUnitStates.hashCode();
+    return result;
+  }
+
   /**
    * An immutable version of {@link SourceState} that disables all methods that may change the
    * internal state of a {@link SourceState}.
