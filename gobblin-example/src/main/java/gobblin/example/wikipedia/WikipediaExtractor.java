@@ -95,7 +95,7 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
         while (!requestedTitles.isEmpty()) {
           String currentTitle = requestedTitles.poll();
           try {
-            recordsOfCurrentTitle = retrievePageRevisions(workUnit, currentTitle);
+            recordsOfCurrentTitle = retrievePageRevisions(currentTitle);
           } catch (IOException e) {
             LOG.error("IOException while retrieving revisions for title '" + currentTitle + "'");
           }
@@ -133,13 +133,13 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
       this.recordsOfCurrentTitle = new LinkedList<JsonElement>();
     } else {
       String firstTitle = this.requestedTitles.poll();
-      this.recordsOfCurrentTitle = retrievePageRevisions(this.workUnit, firstTitle);
+      this.recordsOfCurrentTitle = retrievePageRevisions(firstTitle);
     }
 
     this.reader = new WikiResponseReader();
   }
 
-  private Queue<JsonElement> retrievePageRevisions(WorkUnit workUnit, String pageTitle) throws IOException {
+  private Queue<JsonElement> retrievePageRevisions(String pageTitle) throws IOException {
     Queue<JsonElement> retrievedRevisions = new LinkedList<JsonElement>();
 
     Closer closer = Closer.create();
@@ -147,7 +147,7 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
     StringBuilder sb = new StringBuilder();
     String urlStr = this.rootUrl + "&titles=" + pageTitle + "&rvlimit=" + this.revisionsCnt;
     try {
-      conn = getHttpConnection(workUnit, urlStr);
+      conn = getHttpConnection(urlStr);
       conn.connect();
       BufferedReader br = closer.register(
           new BufferedReader(new InputStreamReader(conn.getInputStream(), ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
@@ -216,16 +216,16 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
     return retrievedRevisions;
   }
 
-  private HttpURLConnection getHttpConnection(WorkUnit workUnit, String urlStr) throws IOException {
+  private HttpURLConnection getHttpConnection(String urlStr) throws IOException {
     URL url = new URL(urlStr);
     Proxy proxy = Proxy.NO_PROXY;
-    if (workUnit.contains(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL) &&
-        workUnit.contains(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT)) {
-      LOG.info("Use proxy host: " + workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL));
-      LOG.info("Use proxy port: " + workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT));
+    if (this.workUnit.contains(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL) &&
+        this.workUnit.contains(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT)) {
+      LOG.info("Use proxy host: " + this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL));
+      LOG.info("Use proxy port: " + this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT));
       InetSocketAddress proxyAddress =
-          new InetSocketAddress(workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL),
-              Integer.parseInt(workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT)));
+          new InetSocketAddress(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL),
+              Integer.parseInt(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT)));
       proxy = new Proxy(Proxy.Type.HTTP, proxyAddress);
     }
     return (HttpURLConnection) url.openConnection(proxy);
