@@ -12,7 +12,6 @@
 
 package gobblin.source.extractor.utils;
 
-import gobblin.source.extractor.watermark.WatermarkType;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
@@ -36,7 +35,9 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.source.extractor.watermark.WatermarkType;
 
 
 public class Utils {
@@ -46,14 +47,6 @@ public class Utils {
   private static final String CURRENT_HOUR = "CURRENTHOUR";
 
   private static final String CURRENT_DATE_FORMAT = "yyyyMMddHHmmss";
-
-  public static String getClause(String clause, String datePredicate) {
-    String retStr = "";
-    if (!Strings.isNullOrEmpty(datePredicate)) {
-      retStr = " " + clause + " (" + datePredicate + ")";
-    }
-    return retStr;
-  }
 
   /**
    * Get coalesce of columns if there are multiple comma-separated columns

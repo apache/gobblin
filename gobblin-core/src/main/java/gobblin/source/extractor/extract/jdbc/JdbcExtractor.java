@@ -358,7 +358,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
     String watermarkPredicateSymbol = ConfigurationKeys.DEFAULT_SOURCE_QUERYBASED_WATERMARK_PREDICATE_SYMBOL;
     if (!query.contains(watermarkPredicateSymbol)) {
-      query = this.addPredicate(query, watermarkPredicateSymbol);
+      query = SqlQueryHelper.addPredicate(query, watermarkPredicateSymbol);
     }
     return query;
   }
@@ -769,24 +769,6 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     } catch (Exception e) {
       throw new DataRecordException("Failed to get record set using JDBC; error - " + e.getMessage(), e);
     }
-  }
-
-  /**
-   * Add a new predicate(filter condition) to the query
-   *
-   * @param query
-   * @param predicate
-   * @return query
-   */
-  protected String addPredicate(String query, String predicateCond) {
-    String predicate = " where ";
-    if (query.toLowerCase().contains(predicate)) {
-      predicate = "and";
-    } else if (query.toLowerCase().contains(predicate)) {
-      predicate = "and";
-    }
-    query = query + Utils.getClause(predicate, predicateCond);
-    return query;
   }
 
   @Override

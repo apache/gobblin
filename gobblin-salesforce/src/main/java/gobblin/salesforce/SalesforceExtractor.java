@@ -12,29 +12,6 @@
 
 package gobblin.salesforce;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.password.PasswordManager;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.exception.HighWatermarkException;
-import gobblin.source.extractor.exception.RecordCountException;
-import gobblin.source.extractor.exception.RestApiClientException;
-import gobblin.source.extractor.exception.RestApiConnectionException;
-import gobblin.source.extractor.exception.SchemaException;
-import gobblin.source.extractor.extract.Command;
-import gobblin.source.extractor.extract.CommandOutput;
-import gobblin.source.extractor.extract.restapi.RestApiCommand;
-import gobblin.source.extractor.extract.restapi.RestApiCommand.RestApiCommandType;
-import gobblin.source.extractor.extract.restapi.RestApiExtractor;
-import gobblin.source.extractor.resultset.RecordSet;
-import gobblin.source.extractor.resultset.RecordSetList;
-import gobblin.source.extractor.schema.Schema;
-import gobblin.source.extractor.utils.InputStreamCSVReader;
-import gobblin.source.extractor.utils.Utils;
-import gobblin.source.extractor.watermark.Predicate;
-import gobblin.source.extractor.watermark.WatermarkType;
-import gobblin.source.workunit.WorkUnit;
-
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -78,6 +55,30 @@ import com.sforce.async.OperationEnum;
 import com.sforce.async.QueryResultList;
 import com.sforce.soap.partner.PartnerConnection;
 import com.sforce.ws.ConnectorConfig;
+
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.WorkUnitState;
+import gobblin.password.PasswordManager;
+import gobblin.source.extractor.DataRecordException;
+import gobblin.source.extractor.exception.HighWatermarkException;
+import gobblin.source.extractor.exception.RecordCountException;
+import gobblin.source.extractor.exception.RestApiClientException;
+import gobblin.source.extractor.exception.RestApiConnectionException;
+import gobblin.source.extractor.exception.SchemaException;
+import gobblin.source.extractor.extract.Command;
+import gobblin.source.extractor.extract.CommandOutput;
+import gobblin.source.extractor.extract.jdbc.SqlQueryHelper;
+import gobblin.source.extractor.extract.restapi.RestApiCommand;
+import gobblin.source.extractor.extract.restapi.RestApiCommand.RestApiCommandType;
+import gobblin.source.extractor.extract.restapi.RestApiExtractor;
+import gobblin.source.extractor.resultset.RecordSet;
+import gobblin.source.extractor.resultset.RecordSetList;
+import gobblin.source.extractor.schema.Schema;
+import gobblin.source.extractor.utils.InputStreamCSVReader;
+import gobblin.source.extractor.utils.Utils;
+import gobblin.source.extractor.watermark.Predicate;
+import gobblin.source.extractor.watermark.WatermarkType;
+import gobblin.source.workunit.WorkUnit;
 
 
 /**
@@ -268,9 +269,9 @@ public class SalesforceExtractor extends RestApiExtractor {
     Iterator<Predicate> i = predicateList.listIterator();
     while (i.hasNext()) {
       Predicate predicate = i.next();
-      query = this.addPredicate(query, predicate.getCondition());
+      query = SqlQueryHelper.addPredicate(query, predicate.getCondition());
     }
-    query = this.addPredicate(query, defaultPredicate);
+    query = SqlQueryHelper.addPredicate(query, defaultPredicate);
     query = query + defaultSortOrder;
     this.log.info("QUERY: " + query);
 
@@ -349,7 +350,7 @@ public class SalesforceExtractor extends RestApiExtractor {
         Iterator<Predicate> i = predicateList.listIterator();
         while (i.hasNext()) {
           Predicate predicate = i.next();
-          query = this.addPredicate(query, predicate.getCondition());
+          query = SqlQueryHelper.addPredicate(query, predicate.getCondition());
         }
 
         query = query + this.getLimitFromInputQuery(this.updatedQuery);
@@ -405,11 +406,11 @@ public class SalesforceExtractor extends RestApiExtractor {
         Iterator<Predicate> i = predicateList.listIterator();
         while (i.hasNext()) {
           Predicate predicate = i.next();
-          query = this.addPredicate(query, predicate.getCondition());
+          query = SqlQueryHelper.addPredicate(query, predicate.getCondition());
         }
 
         if (Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_SPECIFIC_API_ACTIVE))) {
-          query = this.addPredicate(query, "IsDeleted = true");
+          query = SqlQueryHelper.addPredicate(query, "IsDeleted = true");
         }
 
         query = query + limitString;
@@ -502,15 +503,6 @@ public class SalesforceExtractor extends RestApiExtractor {
       throw new RestApiClientException("Failed to build url; error - " + e.getMessage(), e);
     }
     return new HttpGet(uri).getURI().toString();
-  }
-
-  protected String addPredicate(String query, String predicateCond) {
-    String predicate = "where";
-    if (query.toLowerCase().contains(predicate)) {
-      predicate = "and";
-    }
-    query = query + Utils.getClause(predicate, predicateCond);
-    return query;
   }
 
   private String getServiceBaseUrl() {
@@ -716,7 +708,7 @@ public class SalesforceExtractor extends RestApiExtractor {
         Iterator<Predicate> i = predicateList.listIterator();
         while (i.hasNext()) {
           Predicate predicate = i.next();
-          query = this.addPredicate(query, predicate.getCondition());
+          query = SqlQueryHelper.addPredicate(query, predicate.getCondition());
         }
 
         query = query + limitString;
