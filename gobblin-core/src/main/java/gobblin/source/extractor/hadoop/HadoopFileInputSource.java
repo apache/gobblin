@@ -34,17 +34,17 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
-import gobblin.source.Source;
 import gobblin.source.extractor.Extractor;
+import gobblin.source.extractor.extract.AbstractSource;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.HadoopUtils;
 
 
 /**
- * An implementation of {@link Source} that uses a Hadoop {@link FileInputFormat} to get a {@link FileSplit}
- * per {@link Extractor} return by {@link #getExtractor(WorkUnitState)} and a {@link RecordReader} to read
- * the {@link FileSplit}.
+ * An implementation of {@link gobblin.source.Source} that uses a Hadoop {@link FileInputFormat} to get a
+ * {@link FileSplit} per {@link Extractor} return by {@link #getExtractor(WorkUnitState)} and a
+ * {@link RecordReader} to read the {@link FileSplit}.
  *
  * <p>
  *   This class can read either keys of type {@link #<K>} or values of type {@link #<V>} supported by the
@@ -66,7 +66,7 @@ import gobblin.util.HadoopUtils;
  *
  * @author ynli
  */
-public abstract class HadoopFileInputSource<S, D, K, V> implements Source<S, D> {
+public abstract class HadoopFileInputSource<S, D, K, V> extends AbstractSource<S, D> {
 
   private static final String HADOOP_SOURCE_KEY_PREFIX = "source.hadoop.";
   public static final String FILE_INPUT_FORMAT_CLASS_KEY = HADOOP_SOURCE_KEY_PREFIX + "file.input.format.class";
@@ -104,8 +104,8 @@ public abstract class HadoopFileInputSource<S, D, K, V> implements Source<S, D> 
       for (InputSplit inputSplit : fileSplits) {
         // Create one WorkUnit per InputSplit
         FileSplit fileSplit = (FileSplit) inputSplit;
-        Extract extract = state.createExtract(tableType, tableNamespace, tableName);
-        WorkUnit workUnit = state.createWorkUnit(extract);
+        Extract extract = createExtract(tableType, tableNamespace, tableName);
+        WorkUnit workUnit = WorkUnit.create(extract);
         workUnit.setProp(FILE_SPLIT_BYTES_STRING_KEY, HadoopUtils.serializeToString(fileSplit));
         workUnit.setProp(FILE_SPLIT_PATH_KEY, fileSplit.getPath().toString());
         workUnits.add(workUnit);
