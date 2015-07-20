@@ -472,8 +472,8 @@ public class ConfigurationKeys {
   /**
    * If set to true, the publisher will append all files in the job together. Otherwise, it ships them back 1:1
    */
-  public static final String S3_PUBLISHER_APPEND = "aws.s3.publisher.append";
-  public static final boolean DEFAULT_S3_PUBLISHER_APPEND = true;
+  public static final String S3_PUBLISHER_BATCH = "aws.s3.publisher.batch";
+  public static final boolean DEFAULT_S3_PUBLISHER_BATCH = true;
   public static final String S3_PATH_DELIMITER = "aws.s3.path.delimiter";
   public static final String DEFAULT_S3_PATH_DELIMITER = "/";
 
