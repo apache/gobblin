@@ -193,7 +193,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   /**
    * For each input MultiWorkUnit, combine all workunits in it into a single workunit.
    */
-  private static List<WorkUnit> squeezeMultiWorkUnits(List<MultiWorkUnit> multiWorkUnits, SourceState state) {
+  private List<WorkUnit> squeezeMultiWorkUnits(List<MultiWorkUnit> multiWorkUnits, SourceState state) {
     List<WorkUnit> workUnits = Lists.newArrayList();
     for (MultiWorkUnit multiWorkUnit : multiWorkUnits) {
       workUnits.add(squeezeMultiWorkUnit(multiWorkUnit, state));
@@ -204,15 +204,16 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   /**
    * Combine all workunits in the multiWorkUnit into a single workunit.
    */
-  private static WorkUnit squeezeMultiWorkUnit(MultiWorkUnit multiWorkUnit, SourceState state) {
+  private WorkUnit squeezeMultiWorkUnit(MultiWorkUnit multiWorkUnit, SourceState state) {
     WatermarkInterval interval = getWatermarkIntervalFromMultiWorkUnit(multiWorkUnit);
     List<KafkaPartition> partitions = getPartitionsFromMultiWorkUnit(multiWorkUnit);
     Preconditions.checkArgument(!partitions.isEmpty(), "There must be at least one partition in the multiWorkUnit");
-    SourceState partitionState = createAndPopulateMultiPartitionState(partitions, interval, state);
-    partitionState.setProp(ESTIMATED_DATA_SIZE, multiWorkUnit.getProp(ESTIMATED_DATA_SIZE));
-    Extract extract = createExtract(partitionState, partitions.get(0).getTopicName());
-    LOG.info(String.format("Creating workunit for partitions %s", partitions));
-    return new WorkUnit(partitionState, extract, interval);
+    Extract extract = this.createExtract(DEFAULT_TABLE_TYPE, DEFAULT_NAMESPACE_NAME, partitions.get(0).getTopicName());
+    WorkUnit workUnit = WorkUnit.create(extract, interval);
+    populateMultiPartitionWorkUnit(partitions, workUnit);
+    workUnit.setProp(ESTIMATED_DATA_SIZE, multiWorkUnit.getProp(ESTIMATED_DATA_SIZE));
+    LOG.info(String.format("Created workunit for partitions %s", partitions));
+    return workUnit;
   }
 
   @SuppressWarnings("deprecation")
@@ -404,7 +405,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       LOG.warn(String.format(
           "Failed to retrieve earliest and/or latest offset for partition %s. This partition will be skipped.",
           partition));
-      return previousOffsetNotFound ? null : getEmptyWorkunit(partition, state, previousOffset);
+      return previousOffsetNotFound ? null : getEmptyWorkunit(partition, previousOffset);
     }
 
     if (shouldMoveToLatestOffset(partition, state)) {
@@ -449,12 +450,12 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
           offsets.startAtEarliestOffset();
         } else {
           LOG.warn(offsetOutOfRangeMsg + "This partition will be skipped.");
-          return getEmptyWorkunit(partition, state, previousOffset);
+          return getEmptyWorkunit(partition, previousOffset);
         }
       }
     }
 
-    return getWorkUnitForTopicPartition(partition, state, offsets);
+    return getWorkUnitForTopicPartition(partition, offsets);
   }
 
   private long getPreviousOffsetForPartition(KafkaPartition partition, SourceState state)
@@ -497,62 +498,44 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     return this.moveToLatestTopics.contains(partition.getTopicName()) || moveToLatestTopics.contains(ALL_TOPICS);
   }
 
-  private static WorkUnit getEmptyWorkunit(KafkaPartition partition, SourceState state, long previousOffset) {
+  private WorkUnit getEmptyWorkunit(KafkaPartition partition, long previousOffset) {
     Offsets offsets = new Offsets();
     offsets.setEarliestOffset(previousOffset);
     offsets.setLatestOffset(previousOffset);
     offsets.startAtEarliestOffset();
-    return getWorkUnitForTopicPartition(partition, state, offsets);
+    return getWorkUnitForTopicPartition(partition, offsets);
   }
 
-  private static WorkUnit getWorkUnitForTopicPartition(KafkaPartition partition, SourceState state, Offsets offsets) {
-    SourceState partitionState = createAndPopulatePartitionState(partition, state, offsets);
-    Extract extract = createExtract(partitionState, partition.getTopicName());
-    LOG.info(String.format("Creating workunit for partition %s: lowWatermark=%d, highWatermark=%d", partition,
+  private WorkUnit getWorkUnitForTopicPartition(KafkaPartition partition, Offsets offsets) {
+    Extract extract = this.createExtract(DEFAULT_TABLE_TYPE, DEFAULT_NAMESPACE_NAME, partition.getTopicName());
+    WorkUnit workUnit = WorkUnit.create(extract);
+    workUnit.setProp(TOPIC_NAME, partition.getTopicName());
+    workUnit.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, partition.getTopicName());
+    workUnit.setProp(PARTITION_ID, partition.getId());
+    workUnit.setProp(LEADER_ID, partition.getLeader().getId());
+    workUnit.setProp(LEADER_HOSTANDPORT, partition.getLeader().getHostAndPort().toString());
+    workUnit.setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, offsets.getStartOffset());
+    workUnit.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, offsets.getLatestOffset());
+    LOG.info(String.format("Created workunit for partition %s: lowWatermark=%d, highWatermark=%d", partition,
         offsets.getStartOffset(), offsets.getLatestOffset()));
-    return partitionState.createWorkUnit(extract);
-  }
-
-  private static Extract createExtract(SourceState partitionState, String topicName) {
-    return partitionState.createExtract(DEFAULT_TABLE_TYPE, DEFAULT_NAMESPACE_NAME, topicName);
-  }
-
-  private static SourceState createAndPopulatePartitionState(KafkaPartition partition, SourceState state,
-      Offsets offsets) {
-    SourceState partitionState = new SourceState();
-    partitionState.addAll(state);
-    partitionState.setProp(TOPIC_NAME, partition.getTopicName());
-    partitionState.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, partition.getTopicName());
-    partitionState.setProp(PARTITION_ID, partition.getId());
-    partitionState.setProp(LEADER_ID, partition.getLeader().getId());
-    partitionState.setProp(LEADER_HOSTANDPORT, partition.getLeader().getHostAndPort().toString());
-    partitionState.setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, offsets.getStartOffset());
-    partitionState.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, offsets.getLatestOffset());
-    return partitionState;
+    return workUnit;
   }
 
   /**
-   * Create a SourceState object from a list of partitions used to construct a workunit.
-   * All input partitions should have the same topic name.
-   * The size of the watermark should equal the size of the partitions.
+   * Add a list of partitions of the same topic to a workUnit.
    */
-  private static SourceState createAndPopulateMultiPartitionState(List<KafkaPartition> partitions,
-      WatermarkInterval interval, SourceState state) {
+  private static void populateMultiPartitionWorkUnit(List<KafkaPartition> partitions, WorkUnit workUnit) {
     Preconditions.checkArgument(!partitions.isEmpty(), "There should be at least one partition");
-    SourceState partitionsState = new SourceState();
-    partitionsState.addAll(state);
-    partitionsState.setProp(TOPIC_NAME, partitions.get(0).getTopicName());
-    GobblinMetrics.addCustomTagToState(partitionsState,
-        new Tag<String>("kafkaTopic", partitions.get(0).getTopicName()));
-    partitionsState.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, partitions.get(0).getTopicName());
+    workUnit.setProp(TOPIC_NAME, partitions.get(0).getTopicName());
+    GobblinMetrics.addCustomTagToState(workUnit, new Tag<String>("kafkaTopic", partitions.get(0).getTopicName()));
+    workUnit.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, partitions.get(0).getTopicName());
     for (int i = 0; i < partitions.size(); i++) {
-      partitionsState.setProp(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, i), partitions.get(i).getId());
-      partitionsState.setProp(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_ID, i),
+      workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, i), partitions.get(i).getId());
+      workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_ID, i),
           partitions.get(i).getLeader().getId());
-      partitionsState.setProp(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_HOSTANDPORT, i),
+      workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_HOSTANDPORT, i),
           partitions.get(i).getLeader().getHostAndPort());
     }
-    return partitionsState;
   }
 
   private List<KafkaTopic> getFilteredTopics(KafkaWrapper kafkaWrapper, SourceState state) {

@@ -63,8 +63,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
   public LocalJobLauncher(Properties jobProps) throws Exception {
     super(jobProps);
 
-    TimingEvent jobLocalSetupTimer =
-        this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.JOB_LOCAL_SETUP);
+    TimingEvent jobLocalSetupTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.JOB_LOCAL_SETUP);
 
     this.taskExecutor = new TaskExecutor(jobProps);
     this.taskStateTracker = new LocalTaskStateTracker2(jobProps, this.taskExecutor);
@@ -107,8 +106,11 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     String jobId = this.jobContext.getJobId();
     JobState jobState = this.jobContext.getJobState();
 
-    TimingEvent workUnitsRunTimer =
-        this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.WORK_UNITS_RUN);
+    for (WorkUnit workUnit : workUnitsToRun) {
+      workUnit.addAllIfNotExist(jobState);
+    }
+
+    TimingEvent workUnitsRunTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.WORK_UNITS_RUN);
 
     this.countDownLatch = new CountDownLatch(workUnitsToRun.size());
     List<Task> tasks = AbstractJobLauncher.submitWorkUnits(this.jobContext.getJobId(), workUnitsToRun,

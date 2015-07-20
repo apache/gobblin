@@ -14,6 +14,7 @@ package gobblin.runtime.mapreduce;
 
 import java.io.BufferedWriter;
 import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -48,6 +49,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -103,6 +105,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
   private static final String WORK_UNIT_FILE_EXTENSION = ".wu";
   private static final String MULTI_WORK_UNIT_FILE_EXTENSION = ".mwu";
+
+  private static final String JOB_STATE_FILE_NAME = "job.state";
 
   private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
 
@@ -181,7 +185,11 @@ public class MRJobLauncher extends AbstractJobLauncher {
       TimingEvent stagingDataCleanTimer =
           this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.MR_STAGING_DATA_CLEAN);
       // Delete any staging directories that already exist before the Hadoop MR job starts
-      JobLauncherUtils.cleanStagingData(JobLauncherUtils.flattenWorkUnits(workUnits), LOG);
+      for (WorkUnit workUnit : JobLauncherUtils.flattenWorkUnits(workUnits)) {
+        WorkUnit fatWorkUnit = WorkUnit.copyOf(workUnit);
+        fatWorkUnit.addAllIfNotExist(jobState);
+        JobLauncherUtils.cleanStagingData(fatWorkUnit, LOG);
+      }
       stagingDataCleanTimer.stop();
 
       Path jobOutputPath = prepareHadoopJob(workUnits);
@@ -194,8 +202,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
         jobState.setProp(ConfigurationKeys.JOB_TRACKING_URL_KEY, this.job.getTrackingURL());
       }
 
-      TimingEvent mrJobRunTimer =
-          this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.MR_JOB_RUN);
+      TimingEvent mrJobRunTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.MR_JOB_RUN);
       LOG.info(String.format("Waiting for Hadoop MR job %s to complete", this.job.getJobID()));
       this.job.waitForCompletion(true);
       mrJobRunTimer.stop();
@@ -286,8 +293,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
    * Prepare the Hadoop MR job, including configuring the job and setting up the input/output paths.
    */
   private Path prepareHadoopJob(List<WorkUnit> workUnits) throws IOException {
-    TimingEvent mrJobSetupTimer =
-        this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.MR_JOB_SETUP);
+    TimingEvent mrJobSetupTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.MR_JOB_SETUP);
 
     this.job.setJarByClass(MRJobLauncher.class);
     this.job.setMapperClass(TaskRunner.class);
@@ -313,6 +319,11 @@ public class MRJobLauncher extends AbstractJobLauncher {
     // Job output path is where serialized task states are stored
     Path jobOutputPath = new Path(this.mrJobDir, "output");
     SequenceFileOutputFormat.setOutputPath(this.job, jobOutputPath);
+
+    // Serialize source state to a file which will be picked up by the mappers
+    Path jobStateFile = new Path(this.mrJobDir, JOB_STATE_FILE_NAME);
+    serializeJobState(jobStateFile, this.jobContext.getJobState());
+    job.getConfiguration().set(ConfigurationKeys.JOB_STATE_FILE_PATH_KEY, jobStateFile.toString());
 
     if (this.jobProps.containsKey(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY)) {
       // When there is a limit on the number of mappers, each mapper may run
@@ -408,9 +419,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
         String workUnitFileName;
         if (workUnit instanceof MultiWorkUnit) {
-          workUnitFileName =
-              JobLauncherUtils.newMultiTaskId(this.jobContext.getJobId(), multiTaskIdSequence++)
-                  + MULTI_WORK_UNIT_FILE_EXTENSION;
+          workUnitFileName = JobLauncherUtils.newMultiTaskId(this.jobContext.getJobId(), multiTaskIdSequence++)
+              + MULTI_WORK_UNIT_FILE_EXTENSION;
         } else {
           workUnitFileName = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY) + WORK_UNIT_FILE_EXTENSION;
         }
@@ -428,6 +438,19 @@ public class MRJobLauncher extends AbstractJobLauncher {
     }
 
     return jobInputFile;
+  }
+
+  private void serializeJobState(Path jobStateFile, JobState jobState) throws IOException {
+    Closer closer = Closer.create();
+    try {
+      OutputStream os = closer.register(this.fs.create(jobStateFile));
+      DataOutputStream dataOutputStream = closer.register(new DataOutputStream(os));
+      jobState.write(dataOutputStream);
+    } catch (Throwable t) {
+      throw closer.rethrow(t);
+    } finally {
+      closer.close();
+    }
   }
 
   /**
@@ -518,6 +541,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
     private ServiceManager serviceManager;
     private Optional<JobMetrics> jobMetrics = Optional.absent();
 
+    private final JobState jobState = new JobState();
+
     // A list of WorkUnits (flattened for MultiWorkUnits) to be run by this mapper
     private final List<WorkUnit> workUnits = Lists.newArrayList();
 
@@ -527,6 +552,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
         this.fs = FileSystem.get(context.getConfiguration());
         this.taskStateStore = new FsStateStore<TaskState>(this.fs,
             SequenceFileOutputFormat.getOutputPath(context).toUri().getPath(), TaskState.class);
+        readJobState(context);
       } catch (IOException ioe) {
         throw new RuntimeException("Failed to setup the mapper task", ioe);
       }
@@ -561,6 +587,23 @@ public class MRJobLauncher extends AbstractJobLauncher {
       }
     }
 
+    private void readJobState(Context context) throws IOException {
+      Preconditions.checkNotNull(context.getConfiguration().get(ConfigurationKeys.JOB_STATE_FILE_PATH_KEY),
+          ConfigurationKeys.JOB_STATE_FILE_PATH_KEY + " not found in Hadoop job conf");
+
+      Path jobStateFile = new Path(context.getConfiguration().get(ConfigurationKeys.JOB_STATE_FILE_PATH_KEY));
+      Closer closer = Closer.create();
+      try {
+        InputStream is = closer.register(this.fs.open(jobStateFile));
+        DataInputStream dis = closer.register((new DataInputStream(is)));
+        this.jobState.readFields(dis);
+      } catch (Throwable t) {
+        throw closer.rethrow(t);
+      } finally {
+        closer.close();
+      }
+    }
+
     @Override
     public void run(Context context) throws IOException, InterruptedException {
       this.setup(context);
@@ -580,13 +623,14 @@ public class MRJobLauncher extends AbstractJobLauncher {
     @Override
     public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
       WorkUnit workUnit =
-          (value.toString().endsWith(MULTI_WORK_UNIT_FILE_EXTENSION) ? new MultiWorkUnit() : new WorkUnit());
+          (value.toString().endsWith(MULTI_WORK_UNIT_FILE_EXTENSION) ? new MultiWorkUnit() : WorkUnit.createEmpty());
       Closer closer = Closer.create();
       // Deserialize the work unit of the assigned task
       try {
         InputStream is = closer.register(this.fs.open(new Path(value.toString())));
         DataInputStream dis = closer.register((new DataInputStream(is)));
         workUnit.readFields(dis);
+
       } catch (Throwable t) {
         throw closer.rethrow(t);
       } finally {
@@ -594,8 +638,14 @@ public class MRJobLauncher extends AbstractJobLauncher {
       }
 
       if (workUnit instanceof MultiWorkUnit) {
-        this.workUnits.addAll(JobLauncherUtils.flattenWorkUnits(((MultiWorkUnit) workUnit).getWorkUnits()));
+        List<WorkUnit> flattenedWorkUnits =
+            JobLauncherUtils.flattenWorkUnits(((MultiWorkUnit) workUnit).getWorkUnits());
+        for (WorkUnit flattenedWorkUnit : flattenedWorkUnits) {
+          flattenedWorkUnit.addAllIfNotExist(this.jobState);
+        }
+        this.workUnits.addAll(flattenedWorkUnits);
       } else {
+        workUnit.addAllIfNotExist(this.jobState);
         this.workUnits.add(workUnit);
       }
     }

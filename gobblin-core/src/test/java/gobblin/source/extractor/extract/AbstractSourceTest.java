@@ -148,6 +148,10 @@ public class AbstractSourceTest {
    */
   @Test
   public void testGetPreviousWorkUnitStatesWithConfigOverWrittenEnabled() {
+    for (WorkUnitState workUnitState : this.previousWorkUnitStates) {
+      workUnitState.setProp("a", "3");
+      workUnitState.setProp("b", "4");
+    }
     SourceState sourceState = new SourceState(new State(), this.previousWorkUnitStates);
     sourceState.setProp(ConfigurationKeys.WORK_UNIT_RETRY_POLICY_KEY, "always");
     sourceState.setProp(ConfigurationKeys.OVERWRITE_CONFIGS_IN_STATESTORE, Boolean.TRUE);

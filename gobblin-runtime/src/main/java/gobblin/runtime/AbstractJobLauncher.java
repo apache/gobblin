@@ -153,8 +153,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       taskExecutor.submit(task);
     }
 
-    new EventSubmitter.Builder(JobMetrics.get(jobId).getMetricContext(), "gobblin.runtime").build().
-        submit(EventNames.TASKS_SUBMITTED, "tasksCount", Integer.toString(workUnits.size()));
+    new EventSubmitter.Builder(JobMetrics.get(jobId).getMetricContext(), "gobblin.runtime").build()
+        .submit(EventNames.TASKS_SUBMITTED, "tasksCount", Integer.toString(workUnits.size()));
 
     return tasks;
   }
@@ -208,14 +208,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public void launchJob(JobListener jobListener) throws JobException {
 
     if (this.jobContext.getJobMetricsOptional().isPresent()) {
       this.jobContext.getJobMetricsOptional().get().startMetricReporting(this.jobProps);
     }
 
-    TimingEvent launchJobTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.FULL_JOB_EXECUTION);
+    TimingEvent launchJobTimer =
+        this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.FULL_JOB_EXECUTION);
     String jobId = this.jobContext.getJobId();
     JobState jobState = this.jobContext.getJobState();
 
@@ -226,8 +226,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             "Previous instance of job %s is still running, skipping this scheduled run", this.jobContext.getJobName()));
       }
 
-      TimingEvent workUnitsCreationTimer = this.eventSubmitter.getTimingEvent(
-          TimingEventNames.LauncherTimings.WORK_UNITS_CREATION);
+      TimingEvent workUnitsCreationTimer =
+          this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.WORK_UNITS_CREATION);
       // Generate work units of the job from the source
       Optional<List<WorkUnit>> workUnits = Optional.fromNullable(this.jobContext.getSource().getWorkunits(jobState));
       workUnitsCreationTimer.stop();
@@ -260,8 +260,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       // Write job execution info to the job history store before the job starts to run
       storeJobExecutionInfo();
 
-      TimingEvent jobRunTimer =
-          this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.JOB_RUN);
+      TimingEvent jobRunTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.JOB_RUN);
       // Start the job and wait for it to finish
       runWorkUnits(workUnits.get());
       jobRunTimer.stop();
@@ -274,8 +273,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         return;
       }
 
-      TimingEvent jobCommitTimer =
-          this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.JOB_COMMIT);
+      TimingEvent jobCommitTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.JOB_COMMIT);
 
       setFinalJobState(jobState);
       if (canCommit(this.jobContext.getJobCommitPolicy(), jobState)) {
@@ -297,8 +295,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       jobState.setEndTime(endTime);
       jobState.setDuration(endTime - jobState.getStartTime());
 
-      TimingEvent jobCleanupTimer =
-          this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.JOB_CLEANUP);
+      TimingEvent jobCleanupTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.JOB_CLEANUP);
       cleanupStagingData(jobState);
       jobCleanupTimer.stop();
 
