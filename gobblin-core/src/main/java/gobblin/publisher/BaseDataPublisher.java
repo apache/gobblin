@@ -40,8 +40,8 @@ import gobblin.util.WriterUtils;
 
 
 /**
- * A basic implementation of {@link DataPublisher} that publishes the data from the writer output directory to the final
- * output directory.
+ * A basic implementation of {@link DataPublisher} that publishes the data from the writer output directory to
+ * the final output directory.
  *
  * <p>
  *
@@ -107,33 +107,30 @@ public class BaseDataPublisher extends DataPublisher {
         // Get a ParallelRunner instance for moving files in parallel
         ParallelRunner parallelRunner = this.getParallelRunner(this.fss.get(branchId));
 
-        // The directory where the workUnitState wrote its output data. It is a combination of WRITER_OUTPUT_DIR and
-        // WRITER_FILE_PATH
+        // The directory where the workUnitState wrote its output data.
+        // It is a combination of WRITER_OUTPUT_DIR and WRITER_FILE_PATH.
         Path writerOutputDir = WriterUtils.getWriterOutputDir(workUnitState, this.numBranches, branchId);
 
-        if (!this.fss.get(branchId).exists(writerOutputDir)) {
-          LOG.warn("WorkUnit " + workUnitState.getId() + " produced no data");
-          workUnitState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
-          break;
-        }
-
-        // The directory where the final output directory for this job will be placed. It is a combination of
-        // DATA_PUBLISHER_FINAL_DIR and WRITER_FILE_PATH
-        Path publisherOutputDir = WriterUtils.getDataPublisherFinalDir(workUnitState, this.numBranches, branchId);
-
         if (writerOutputPathsMoved.contains(writerOutputDir)) {
-          // This writer output path has already been moved for another task of the same extract, so skip to the next one
+          // This writer output path has already been moved for another task of the same extract
           continue;
         }
 
-        if (this.fss.get(branchId).exists(publisherOutputDir)) {
+        if (!this.fss.get(branchId).exists(writerOutputDir)) {
+          LOG.warn(String.format("Branch %d of WorkUnit %s produced no data", branchId, workUnitState.getId()));
+          continue;
+        }
 
-          // The final output directory already exists, check if the job is configured to replace it
+        // The directory where the final output directory for this job will be placed.
+        // It is a combination of DATA_PUBLISHER_FINAL_DIR and WRITER_FILE_PATH.
+        Path publisherOutputDir = WriterUtils.getDataPublisherFinalDir(workUnitState, this.numBranches, branchId);
+
+        if (this.fss.get(branchId).exists(publisherOutputDir)) {
+          // The final output directory already exists, check if the job is configured to replace it.
           boolean replaceFinalOutputDir = this.getState().getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(
               ConfigurationKeys.DATA_PUBLISHER_REPLACE_FINAL_DIR, this.numBranches, branchId));
 
-          // If the final output directory is not configured to be replaced, then append the new data to the existing
-          // output folder
+          // If the final output directory is not configured to be replaced, put new data to the existing directory.
           if (!replaceFinalOutputDir) {
             addWriterOutputToExistingDir(writerOutputDir, publisherOutputDir, workUnitState, branchId, parallelRunner);
             writerOutputPathsMoved.add(writerOutputDir);
