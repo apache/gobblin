@@ -434,7 +434,7 @@ public class ConfigurationKeys {
   public static final String S3_PUBLISHER_PATH = "aws.s3.publisher.path";
   public static final String S3_PARTITIONS = "aws.s3.partitions";
 
-  // Settings and defaults for the date keyword
+  // Settings and defaults for the source date keyword
   public static final String S3_SOURCE_DATE_PATTERN = "aws.s3.source.date.pattern";
   public static final String DEFAULT_S3_SOURCE_DATE_PATTERN = "yyyy/MM/dd";
   public static final String S3_SOURCE_DATE_PLACEHOLDER = "aws.s3.source.date.placeholder";
@@ -457,7 +457,7 @@ public class ConfigurationKeys {
   public static final String S3_SOURCE_DATE_LOOKBACK = "aws.s3.source.date.lookback";
   public static final int DEFAULT_S3_SOURCE_DATE_LOOKBACK = 1;
 
-  // Settings and defaults for the now keyword
+  // Settings and defaults for the publisher date keyword
   public static final String S3_PUBLISHER_DATE_PATTERN = "aws.s3.publisher.date.pattern";
   public static final String DEFAULT_S3_PUBLISHER_DATE_PATTERN = "yyyy/MM/dd";
   public static final String S3_PUBLISHER_DATE_PLACEHOLDER = "aws.s3.publisher.date.placeholder";
@@ -472,8 +472,8 @@ public class ConfigurationKeys {
   /**
    * If set to true, the publisher will append all files in the job together. Otherwise, it ships them back 1:1
    */
-  public static final String S3_PUBLISHER_APPEND = "aws.s3.publisher.append";
-  public static final boolean DEFAULT_S3_PUBLISHER_APPEND = true;
+  public static final String S3_PUBLISHER_BATCH = "aws.s3.publisher.batch";
+  public static final boolean DEFAULT_S3_PUBLISHER_BATCH = true;
   public static final String S3_PATH_DELIMITER = "aws.s3.path.delimiter";
   public static final String DEFAULT_S3_PATH_DELIMITER = "/";
 

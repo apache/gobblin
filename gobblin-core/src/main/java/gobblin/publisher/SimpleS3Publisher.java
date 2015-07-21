@@ -35,7 +35,7 @@ import java.util.Collection;
  * of valid placeholders.
  * <p/>
  * This will take all files fed into the job and combine them into one if {@link
- * ConfigurationKeys#S3_PUBLISHER_APPEND} is set to true. Otherwise, it will upload 1:1 input files to output files.
+ * ConfigurationKeys#S3_PUBLISHER_BATCH} is set to true. Otherwise, it will upload 1:1 input files to output files.
  * <b>Be careful with your filenames, as you might have naming conflicts if your filename format is
  * not sufficiently unique.</b>
  *
@@ -61,8 +61,8 @@ public class SimpleS3Publisher extends BaseS3Publisher {
     String s3Path = this.getState().getProp(ConfigurationKeys.S3_PUBLISHER_PATH);
     s3Path = S3Utils.checkAndReplaceDatePlaceholders(this.getState(), s3Path);
 
-    boolean append = this.getState().getPropAsBoolean(ConfigurationKeys.S3_PUBLISHER_APPEND,
-        ConfigurationKeys.DEFAULT_S3_PUBLISHER_APPEND);
+    boolean append = this.getState().getPropAsBoolean(ConfigurationKeys.S3_PUBLISHER_BATCH,
+        ConfigurationKeys.DEFAULT_S3_PUBLISHER_BATCH);
 
     if (append) {
       batchPublishData(states, s3Bucket, s3Path);
