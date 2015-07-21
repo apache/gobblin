@@ -434,7 +434,7 @@ public class ConfigurationKeys {
   public static final String S3_PUBLISHER_PATH = "aws.s3.publisher.path";
   public static final String S3_PARTITIONS = "aws.s3.partitions";
 
-  // Settings and defaults for the date keyword
+  // Settings and defaults for the source date keyword
   public static final String S3_SOURCE_DATE_PATTERN = "aws.s3.source.date.pattern";
   public static final String DEFAULT_S3_SOURCE_DATE_PATTERN = "yyyy/MM/dd";
   public static final String S3_SOURCE_DATE_PLACEHOLDER = "aws.s3.source.date.placeholder";
@@ -457,7 +457,7 @@ public class ConfigurationKeys {
   public static final String S3_SOURCE_DATE_LOOKBACK = "aws.s3.source.date.lookback";
   public static final int DEFAULT_S3_SOURCE_DATE_LOOKBACK = 1;
 
-  // Settings and defaults for the now keyword
+  // Settings and defaults for the publisher date keyword
   public static final String S3_PUBLISHER_DATE_PATTERN = "aws.s3.publisher.date.pattern";
   public static final String DEFAULT_S3_PUBLISHER_DATE_PATTERN = "yyyy/MM/dd";
   public static final String S3_PUBLISHER_DATE_PLACEHOLDER = "aws.s3.publisher.date.placeholder";
