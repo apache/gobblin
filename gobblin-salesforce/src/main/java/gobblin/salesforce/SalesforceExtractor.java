@@ -67,7 +67,7 @@ import gobblin.source.extractor.exception.RestApiConnectionException;
 import gobblin.source.extractor.exception.SchemaException;
 import gobblin.source.extractor.extract.Command;
 import gobblin.source.extractor.extract.CommandOutput;
-import gobblin.source.extractor.extract.jdbc.SqlQueryHelper;
+import gobblin.source.extractor.extract.jdbc.SqlQueryUtils;
 import gobblin.source.extractor.extract.restapi.RestApiCommand;
 import gobblin.source.extractor.extract.restapi.RestApiCommand.RestApiCommandType;
 import gobblin.source.extractor.extract.restapi.RestApiExtractor;
@@ -269,9 +269,9 @@ public class SalesforceExtractor extends RestApiExtractor {
     Iterator<Predicate> i = predicateList.listIterator();
     while (i.hasNext()) {
       Predicate predicate = i.next();
-      query = SqlQueryHelper.addPredicate(query, predicate.getCondition());
+      query = SqlQueryUtils.addPredicate(query, predicate.getCondition());
     }
-    query = SqlQueryHelper.addPredicate(query, defaultPredicate);
+    query = SqlQueryUtils.addPredicate(query, defaultPredicate);
     query = query + defaultSortOrder;
     this.log.info("QUERY: " + query);
 
@@ -350,7 +350,7 @@ public class SalesforceExtractor extends RestApiExtractor {
         Iterator<Predicate> i = predicateList.listIterator();
         while (i.hasNext()) {
           Predicate predicate = i.next();
-          query = SqlQueryHelper.addPredicate(query, predicate.getCondition());
+          query = SqlQueryUtils.addPredicate(query, predicate.getCondition());
         }
 
         query = query + this.getLimitFromInputQuery(this.updatedQuery);
@@ -406,11 +406,11 @@ public class SalesforceExtractor extends RestApiExtractor {
         Iterator<Predicate> i = predicateList.listIterator();
         while (i.hasNext()) {
           Predicate predicate = i.next();
-          query = SqlQueryHelper.addPredicate(query, predicate.getCondition());
+          query = SqlQueryUtils.addPredicate(query, predicate.getCondition());
         }
 
         if (Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_SPECIFIC_API_ACTIVE))) {
-          query = SqlQueryHelper.addPredicate(query, "IsDeleted = true");
+          query = SqlQueryUtils.addPredicate(query, "IsDeleted = true");
         }
 
         query = query + limitString;
@@ -708,7 +708,7 @@ public class SalesforceExtractor extends RestApiExtractor {
         Iterator<Predicate> i = predicateList.listIterator();
         while (i.hasNext()) {
           Predicate predicate = i.next();
-          query = SqlQueryHelper.addPredicate(query, predicate.getCondition());
+          query = SqlQueryUtils.addPredicate(query, predicate.getCondition());
         }
 
         query = query + limitString;

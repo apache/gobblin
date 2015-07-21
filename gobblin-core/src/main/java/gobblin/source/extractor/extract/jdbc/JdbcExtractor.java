@@ -358,7 +358,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
     String watermarkPredicateSymbol = ConfigurationKeys.DEFAULT_SOURCE_QUERYBASED_WATERMARK_PREDICATE_SYMBOL;
     if (!query.contains(watermarkPredicateSymbol)) {
-      query = SqlQueryHelper.addPredicate(query, watermarkPredicateSymbol);
+      query = SqlQueryUtils.addPredicate(query, watermarkPredicateSymbol);
     }
     return query;
   }

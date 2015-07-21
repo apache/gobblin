@@ -1,9 +1,19 @@
-/**
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
  */
 package gobblin.source.extractor.extract.jdbc;
 
 import static com.google.common.base.Preconditions.checkArgument;
+
+import com.google.common.base.Strings;
 
 /**
  * A helper class for handling SQL queries as strings. This is a temp solution until something more
@@ -11,7 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
  *
  * @see https://github.com/linkedin/gobblin/issues/236
  */
-public class SqlQueryHelper {
+public class SqlQueryUtils {
 
   /**
    * Add a new predicate(filter condition) to the query. The method will add a "where" clause if
@@ -26,6 +36,9 @@ public class SqlQueryHelper {
    * @throws IllegalArgumentException if the predicate cannot be added because of additional clauses
    */
   public static String addPredicate(String query, String predicateCond) {
+    if (Strings.isNullOrEmpty(predicateCond)) {
+      return query;
+    }
     String normalizedQuery = query.toLowerCase().trim();
     checkArgument(normalizedQuery.contains(" from "),
                   "query does not contain 'from': " + query);
