@@ -99,16 +99,23 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   private final Map<KafkaPartition, Long> previousOffsets = Maps.newHashMap();
   private final Map<KafkaPartition, Long> previousAvgSizes = Maps.newHashMap();
 
+  private final Set<KafkaPartition> partitionsToBeProcessed = Sets.newHashSet();
+
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
-    List<List<WorkUnit>> workUnits = Lists.newArrayList();
+    Map<String, List<WorkUnit>> workUnits = Maps.newHashMap();
     Closer closer = Closer.create();
     try {
       KafkaWrapper kafkaWrapper = closer.register(KafkaWrapper.create(state));
       List<KafkaTopic> topics = getFilteredTopics(kafkaWrapper, state);
       for (KafkaTopic topic : topics) {
-        workUnits.add(getWorkUnitsForTopic(kafkaWrapper, topic, state));
+        workUnits.put(topic.getName(), getWorkUnitsForTopic(kafkaWrapper, topic, state));
       }
+
+      // Create empty WorkUnits for skipped partitions (i.e., partitions that have previous offsets,
+      // but aren't processed.
+      createEmptyWorkUnitsForSkippedPartitions(workUnits, state);
+
       int numOfMultiWorkunits =
           state.getPropAsInt(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, ConfigurationKeys.DEFAULT_MR_JOB_MAX_MAPPERS);
       this.getAllPreviousAvgSizes(state);
@@ -118,6 +125,26 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         closer.close();
       } catch (IOException e) {
         LOG.error("Failed to close kafkaWrapper", e);
+      }
+    }
+  }
+
+  private void createEmptyWorkUnitsForSkippedPartitions(Map<String, List<WorkUnit>> workUnits, SourceState state) {
+
+    // For each partition that has a previous offset, create an empty WorkUnit for it if
+    // it is not in this.partitionsToBeProcessed.
+    for (Map.Entry<KafkaPartition, Long> entry : this.previousOffsets.entrySet()) {
+      KafkaPartition partition = entry.getKey();
+
+      if (!this.partitionsToBeProcessed.contains(partition)) {
+        long previousOffset = entry.getValue();
+        WorkUnit emptyWorkUnit = createEmptyWorkUnit(partition, previousOffset);
+        String topicName = partition.getTopicName();
+        if (workUnits.containsKey(topicName)) {
+          workUnits.get(topicName).add(emptyWorkUnit);
+        } else {
+          workUnits.put(topicName, Lists.newArrayList(emptyWorkUnit));
+        }
       }
     }
   }
@@ -140,11 +167,12 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
    * @param state
    * @return A list of MultiWorkUnits.
    */
-  private List<WorkUnit> getMultiWorkunits(List<List<WorkUnit>> workUnits, int numOfMultiWorkunits, SourceState state) {
+  private List<WorkUnit> getMultiWorkunits(Map<String, List<WorkUnit>> workUnits, int numOfMultiWorkunits,
+      SourceState state) {
     Preconditions.checkArgument(numOfMultiWorkunits >= 1);
 
     long totalEstDataSize = 0;
-    for (List<WorkUnit> workUnitsForTopic : workUnits) {
+    for (List<WorkUnit> workUnitsForTopic : workUnits.values()) {
       for (WorkUnit workUnit : workUnitsForTopic) {
         setWorkUnitEstSize(workUnit);
         totalEstDataSize += getWorkUnitEstSize(workUnit);
@@ -153,7 +181,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     long avgGroupSize = (long) ((double) totalEstDataSize / (double) numOfMultiWorkunits / 3.0);
 
     List<MultiWorkUnit> mwuGroups = Lists.newArrayList();
-    for (List<WorkUnit> workUnitsForTopic : workUnits) {
+    for (List<WorkUnit> workUnitsForTopic : workUnits.values()) {
       long estimatedDataSizeForTopic = calcTotalEstSizeForTopic(workUnitsForTopic);
       if (estimatedDataSizeForTopic < avgGroupSize) {
 
@@ -370,6 +398,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     List<WorkUnit> workUnits = Lists.newArrayList();
     for (KafkaPartition partition : topic.getPartitions()) {
       WorkUnit workUnit = getWorkUnitForTopicPartition(kafkaWrapper, partition, state);
+      this.partitionsToBeProcessed.add(partition);
       if (workUnit != null) {
         workUnits.add(workUnit);
       }
@@ -405,7 +434,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       LOG.warn(String.format(
           "Failed to retrieve earliest and/or latest offset for partition %s. This partition will be skipped.",
           partition));
-      return previousOffsetNotFound ? null : getEmptyWorkunit(partition, previousOffset);
+      return previousOffsetNotFound ? null : createEmptyWorkUnit(partition, previousOffset);
     }
 
     if (shouldMoveToLatestOffset(partition, state)) {
@@ -450,7 +479,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
           offsets.startAtEarliestOffset();
         } else {
           LOG.warn(offsetOutOfRangeMsg + "This partition will be skipped.");
-          return getEmptyWorkunit(partition, previousOffset);
+          return createEmptyWorkUnit(partition, previousOffset);
         }
       }
     }
@@ -498,7 +527,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     return this.moveToLatestTopics.contains(partition.getTopicName()) || moveToLatestTopics.contains(ALL_TOPICS);
   }
 
-  private WorkUnit getEmptyWorkunit(KafkaPartition partition, long previousOffset) {
+  private WorkUnit createEmptyWorkUnit(KafkaPartition partition, long previousOffset) {
     Offsets offsets = new Offsets();
     offsets.setEarliestOffset(previousOffset);
     offsets.setLatestOffset(previousOffset);
