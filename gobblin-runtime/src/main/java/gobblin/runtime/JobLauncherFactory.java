@@ -31,7 +31,7 @@ public class JobLauncherFactory {
   /**
    * Supported types of {@link JobLauncher}.
    */
-  enum JobLauncherType {
+  public enum JobLauncherType {
     LOCAL,
     MAPREDUCE,
     YARN
