@@ -406,7 +406,7 @@ public class State implements Writable {
 
     State other = (State) object;
     return ((this.id == null && other.id == null) || (this.id != null && this.id.equals(other.id))) &&
-        this.properties.equals(other.getProperties());
+        this.properties.equals(other.properties);
   }
 
   @Override
