@@ -23,7 +23,10 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -38,6 +41,7 @@ import gobblin.source.workunit.WorkUnit;
  * @author ynli
  */
 public class JobLauncherUtils {
+  private static Map<String, FileSystem> ownerAndFs = Maps.newConcurrentMap();
 
   /**
    * Create a new job ID.
@@ -118,9 +122,9 @@ public class JobLauncherUtils {
     int numBranches = state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
 
     for (int branchId = 0; branchId < numBranches; branchId++) {
-      String writerFsUri = state.getProp(
-          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
-          ConfigurationKeys.LOCAL_FS_URI);
+      String writerFsUri =
+          state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI,
+              numBranches, branchId), ConfigurationKeys.LOCAL_FS_URI);
       FileSystem fs = getFsWithProxy(state, writerFsUri);
 
       Path stagingPath = WriterUtils.getWriterStagingDir(state, numBranches, branchId);
@@ -158,9 +162,9 @@ public class JobLauncherUtils {
         state.getPropAsInt(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY, ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS);
 
     for (int branchId = 0; branchId < numBranches; branchId++) {
-      String writerFsUri = state.getProp(
-          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
-          ConfigurationKeys.LOCAL_FS_URI);
+      String writerFsUri =
+          state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI,
+              numBranches, branchId), ConfigurationKeys.LOCAL_FS_URI);
       FileSystem fs = getFsWithProxy(state, writerFsUri);
 
       ParallelRunner parallelRunner = getParallelRunner(fs, closer, parallelRunnerThreads, parallelRunners);
@@ -179,19 +183,30 @@ public class JobLauncherUtils {
     }
   }
 
-  private static FileSystem getFsWithProxy(State state, String writerFsUri) throws IOException {
-    if (state.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
+  private static FileSystem getFsWithProxy(State state, String writerFsUri)
+      throws IOException {
+    if (!state.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
         ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
-      try {
-        return new ProxiedFileSystemWrapper().getProxiedFileSystem(state, ProxiedFileSystemWrapper.AuthType.KEYTAB,
-            state.getProp(ConfigurationKeys.SUPER_USER_KEY_TAB_LOCATION), writerFsUri);
-      } catch (InterruptedException e) {
-        throw new IOException(e);
-      } catch (URISyntaxException e) {
-        throw new IOException(e);
-      }
-    } else {
       return FileSystem.get(URI.create(writerFsUri), new Configuration());
+    } else {
+      Preconditions.checkArgument(!Strings.isNullOrEmpty(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME)),
+          "State does not contain a proper proxy user name");
+      String owner = state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME);
+      if (ownerAndFs.containsKey(owner)) {
+        return ownerAndFs.get(owner);
+      } else {
+        try {
+          FileSystem proxiedFs =
+              new ProxiedFileSystemWrapper().getProxiedFileSystem(state, ProxiedFileSystemWrapper.AuthType.KEYTAB,
+              state.getProp(ConfigurationKeys.SUPER_USER_KEY_TAB_LOCATION), writerFsUri);
+          ownerAndFs.put(owner, proxiedFs);
+          return proxiedFs;
+        } catch (InterruptedException e) {
+          throw new IOException(e);
+        } catch (URISyntaxException e) {
+          throw new IOException(e);
+        }
+      }
     }
   }
 
