@@ -59,6 +59,24 @@ public class ImmutableWorkUnit extends WorkUnit {
   }
 
   @Override
+  public void addAllIfNotExist(Properties properties) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void addAllIfNotExist(State otherState) {
+    throw new UnsupportedOperationException();
+  }
+
+  public void overrideWith(Properties properties) {
+    throw new UnsupportedOperationException();
+  }
+
+  public void overrideWith(State otherState) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public void setId(String id) {
     throw new UnsupportedOperationException();
   }
