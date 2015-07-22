@@ -90,9 +90,12 @@ class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
         new FsPermission(properties.getPropAsShort(ForkOperatorUtils.getPropertyNameForBranch(
             ConfigurationKeys.WRITER_FILE_PERMISSIONS, numBranches, branchId), FsPermission.getDefault().toShort()));
 
+    Optional<String> group = Optional.fromNullable(properties.getProp(ConfigurationKeys.WRITER_GROUP_NAME));
+
     this.schema = schema;
     this.datumWriter = new GenericDatumWriter<GenericRecord>();
-    this.writer = createDatumWriter(this.stagingFile, bufferSize, codecFactory, replication, blockSize, permissions);
+    this.writer =
+        createDatumWriter(this.stagingFile, bufferSize, codecFactory, replication, blockSize, permissions, group);
   }
 
   public FileSystem getFileSystem() {
@@ -175,7 +178,7 @@ class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
    * @throws IOException if there is something wrong creating a new {@link DataFileWriter}
    */
   private DataFileWriter<GenericRecord> createDatumWriter(Path avroFile, int bufferSize, CodecFactory codecFactory,
-      short replication, long blockSize, FsPermission permissions) throws IOException {
+      short replication, long blockSize, FsPermission permissions, Optional<String> group) throws IOException {
 
     if (this.fs.exists(avroFile)) {
       throw new IOException(String.format("File %s already exists", avroFile));
@@ -183,6 +186,11 @@ class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
 
     FSDataOutputStream outputStream =
         this.fs.create(avroFile, permissions, true, bufferSize, replication, blockSize, null);
+
+    if (group.isPresent()) {
+      this.fs.setOwner(avroFile, this.fs.getFileStatus(avroFile).getOwner(), group.get());
+    }
+
     DataFileWriter<GenericRecord> writer = new DataFileWriter<GenericRecord>(this.datumWriter);
     writer.setCodec(codecFactory);
 
