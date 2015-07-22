@@ -36,6 +36,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Maps;
 
+
 /**
  * A schema registry class that provides two services: get the latest schema of a topic, and register a schema.
  *
@@ -71,18 +72,17 @@ public class KafkaAvroSchemaRegistry {
    * "kafka.schema.registry.cache.expire.after.write.min" (default = 10).
    */
   public KafkaAvroSchemaRegistry(Properties properties) {
-    Preconditions.checkArgument(properties.containsKey(KAFKA_SCHEMA_REGISTRY_URL), "Schema registry URL not provided.");
+    Preconditions.checkArgument(properties.containsKey(KAFKA_SCHEMA_REGISTRY_URL),
+        String.format("Property %s not provided.", KAFKA_SCHEMA_REGISTRY_URL));
 
     this.url = properties.getProperty(KAFKA_SCHEMA_REGISTRY_URL);
-    int maxCacheSize =
-        Integer.parseInt(
-            properties.getProperty(KAFKA_SCHEMA_REGISTRY_MAX_CACHE_SIZE, DEFAULT_KAFKA_SCHEMA_REGISTRY_MAX_CACHE_SIZE));
-    int expireAfterWriteMin = Integer.parseInt(properties
-        .getProperty(KAFKA_SCHEMA_REGISTRY_CACHE_EXPIRE_AFTER_WRITE_MIN,
+    int maxCacheSize = Integer.parseInt(
+        properties.getProperty(KAFKA_SCHEMA_REGISTRY_MAX_CACHE_SIZE, DEFAULT_KAFKA_SCHEMA_REGISTRY_MAX_CACHE_SIZE));
+    int expireAfterWriteMin =
+        Integer.parseInt(properties.getProperty(KAFKA_SCHEMA_REGISTRY_CACHE_EXPIRE_AFTER_WRITE_MIN,
             DEFAULT_KAFKA_SCHEMA_REGISTRY_CACHE_EXPIRE_AFTER_WRITE_MIN));
-    this.cachedSchemasById =
-        CacheBuilder.newBuilder().maximumSize(maxCacheSize).expireAfterWrite(expireAfterWriteMin, TimeUnit.MINUTES)
-            .build(new KafkaSchemaCacheLoader());
+    this.cachedSchemasById = CacheBuilder.newBuilder().maximumSize(maxCacheSize)
+        .expireAfterWrite(expireAfterWriteMin, TimeUnit.MINUTES).build(new KafkaSchemaCacheLoader());
     this.httpClient = new HttpClient(new MultiThreadedHttpConnectionManager());
   }
 
@@ -255,8 +255,8 @@ public class KafkaAvroSchemaRegistry {
       }
 
       if (statusCode != HttpStatus.SC_OK) {
-        throw new SchemaNotFoundException(String.format("Schema with ID = %s cannot be retrieved, statusCode = %d", id,
-            statusCode));
+        throw new SchemaNotFoundException(
+            String.format("Schema with ID = %s cannot be retrieved, statusCode = %d", id, statusCode));
       }
 
       Schema schema;
@@ -267,8 +267,8 @@ public class KafkaAvroSchemaRegistry {
           throw new SchemaNotFoundException(String.format("Schema with ID = %s cannot be parsed", id), e);
         }
       } else {
-        throw new SchemaNotFoundException(String.format(
-            "Schema with ID = %s cannot be parsed: schema should start with '{'", id));
+        throw new SchemaNotFoundException(
+            String.format("Schema with ID = %s cannot be parsed: schema should start with '{'", id));
       }
 
       return schema;

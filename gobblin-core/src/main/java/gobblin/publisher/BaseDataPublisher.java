@@ -104,48 +104,7 @@ public class BaseDataPublisher extends DataPublisher {
 
     for (WorkUnitState workUnitState : states) {
       for (int branchId = 0; branchId < this.numBranches; branchId++) {
-        // Get a ParallelRunner instance for moving files in parallel
-        ParallelRunner parallelRunner = this.getParallelRunner(this.fss.get(branchId));
-
-        // The directory where the workUnitState wrote its output data.
-        // It is a combination of WRITER_OUTPUT_DIR and WRITER_FILE_PATH.
-        Path writerOutputDir = WriterUtils.getWriterOutputDir(workUnitState, this.numBranches, branchId);
-
-        if (writerOutputPathsMoved.contains(writerOutputDir)) {
-          // This writer output path has already been moved for another task of the same extract
-          continue;
-        }
-
-        if (!this.fss.get(branchId).exists(writerOutputDir)) {
-          LOG.warn(String.format("Branch %d of WorkUnit %s produced no data", branchId, workUnitState.getId()));
-          continue;
-        }
-
-        // The directory where the final output directory for this job will be placed.
-        // It is a combination of DATA_PUBLISHER_FINAL_DIR and WRITER_FILE_PATH.
-        Path publisherOutputDir = WriterUtils.getDataPublisherFinalDir(workUnitState, this.numBranches, branchId);
-
-        if (this.fss.get(branchId).exists(publisherOutputDir)) {
-          // The final output directory already exists, check if the job is configured to replace it.
-          boolean replaceFinalOutputDir = this.getState().getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(
-              ConfigurationKeys.DATA_PUBLISHER_REPLACE_FINAL_DIR, this.numBranches, branchId));
-
-          // If the final output directory is not configured to be replaced, put new data to the existing directory.
-          if (!replaceFinalOutputDir) {
-            addWriterOutputToExistingDir(writerOutputDir, publisherOutputDir, workUnitState, branchId, parallelRunner);
-            writerOutputPathsMoved.add(writerOutputDir);
-            continue;
-          }
-          // Delete the final output directory if it is configured to be replaced
-          this.fss.get(branchId).delete(publisherOutputDir, true);
-        } else {
-          // Create the parent directory of the final output directory if it does not exist
-          this.fss.get(branchId).mkdirs(publisherOutputDir.getParent());
-        }
-
-        LOG.info(String.format("Moving %s to %s", writerOutputDir, publisherOutputDir));
-        parallelRunner.renamePath(writerOutputDir, publisherOutputDir);
-        writerOutputPathsMoved.add(writerOutputDir);
+        publishData(workUnitState, branchId, writerOutputPathsMoved);
       }
 
       // Upon successfully committing the data to the final output directory, set states
@@ -153,6 +112,52 @@ public class BaseDataPublisher extends DataPublisher {
       // This makes sense to the COMMIT_ON_PARTIAL_SUCCESS policy.
       workUnitState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
     }
+  }
+
+  protected void publishData(WorkUnitState workUnitState, int branchId, Set<Path> writerOutputPathsMoved)
+      throws IOException {
+    // Get a ParallelRunner instance for moving files in parallel
+    ParallelRunner parallelRunner = this.getParallelRunner(this.fss.get(branchId));
+
+    // The directory where the workUnitState wrote its output data.
+    // It is a combination of WRITER_OUTPUT_DIR and WRITER_FILE_PATH.
+    Path writerOutputDir = WriterUtils.getWriterOutputDir(workUnitState, this.numBranches, branchId);
+
+    if (writerOutputPathsMoved.contains(writerOutputDir)) {
+      // This writer output path has already been moved for another task of the same extract
+      return;
+    }
+
+    if (!this.fss.get(branchId).exists(writerOutputDir)) {
+      LOG.warn(String.format("Branch %d of WorkUnit %s produced no data", branchId, workUnitState.getId()));
+      return;
+    }
+
+    // The directory where the final output directory for this job will be placed.
+    // It is a combination of DATA_PUBLISHER_FINAL_DIR and WRITER_FILE_PATH.
+    Path publisherOutputDir = WriterUtils.getDataPublisherFinalDir(workUnitState, this.numBranches, branchId);
+
+    if (this.fss.get(branchId).exists(publisherOutputDir)) {
+      // The final output directory already exists, check if the job is configured to replace it.
+      boolean replaceFinalOutputDir = this.getState().getPropAsBoolean(ForkOperatorUtils
+          .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_REPLACE_FINAL_DIR, this.numBranches, branchId));
+
+      // If the final output directory is not configured to be replaced, put new data to the existing directory.
+      if (!replaceFinalOutputDir) {
+        addWriterOutputToExistingDir(writerOutputDir, publisherOutputDir, workUnitState, branchId, parallelRunner);
+        writerOutputPathsMoved.add(writerOutputDir);
+        return;
+      }
+      // Delete the final output directory if it is configured to be replaced
+      this.fss.get(branchId).delete(publisherOutputDir, true);
+    } else {
+      // Create the parent directory of the final output directory if it does not exist
+      this.fss.get(branchId).mkdirs(publisherOutputDir.getParent());
+    }
+
+    LOG.info(String.format("Moving %s to %s", writerOutputDir, publisherOutputDir));
+    parallelRunner.renamePath(writerOutputDir, publisherOutputDir);
+    writerOutputPathsMoved.add(writerOutputDir);
   }
 
   protected void addWriterOutputToExistingDir(Path writerOutputDir, Path publisherOutputDir,

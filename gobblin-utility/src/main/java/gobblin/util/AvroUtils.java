@@ -161,13 +161,8 @@ public class AvroUtils {
       LOG.debug("Record schema not compatible with writer schema. Converting record schema to writer schema may fail.");
     }
 
-    Closer closer = Closer.create();
     try {
-      ByteArrayOutputStream out = closer.register(new ByteArrayOutputStream());
-      Encoder encoder = new EncoderFactory().directBinaryEncoder(out, null);
-      DatumWriter<GenericRecord> writer = new GenericDatumWriter<GenericRecord>(record.getSchema());
-      writer.write(record, encoder);
-      BinaryDecoder decoder = new DecoderFactory().binaryDecoder(out.toByteArray(), null);
+      BinaryDecoder decoder = new DecoderFactory().binaryDecoder(recordToByteArray(record), null);
       DatumReader<GenericRecord> reader = new GenericDatumReader<GenericRecord>(record.getSchema(), newSchema);
       return reader.read(null, decoder);
     } catch (IOException e) {
@@ -175,6 +170,23 @@ public class AvroUtils {
           String.format("Cannot convert avro record to new schema. Origianl schema = %s, new schema = %s",
               record.getSchema(), newSchema),
           e);
+    }
+  }
+
+  /**
+   * Convert a GenericRecord to a byte array.
+   */
+  public static byte[] recordToByteArray(GenericRecord record) throws IOException {
+    Closer closer = Closer.create();
+    try {
+      ByteArrayOutputStream out = closer.register(new ByteArrayOutputStream());
+      Encoder encoder = EncoderFactory.get().directBinaryEncoder(out, null);
+      DatumWriter<GenericRecord> writer = new GenericDatumWriter<GenericRecord>(record.getSchema());
+      writer.write(record, encoder);
+      byte[] byteArray = out.toByteArray();
+      return byteArray;
+    } catch (Throwable t) {
+      throw closer.rethrow(t);
     } finally {
       closer.close();
     }

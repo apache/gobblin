@@ -153,19 +153,35 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
 
   @Override
   public void write(GenericRecord record) throws IOException {
+    long recordTimestamp = getRecordTimestamp(record);
+    write(record, recordTimestamp);
+  }
 
-    // Retrieve the value of the field specified by this.partitionColumnName
-    Optional<Object> writerPartitionColumnValue;
-    if (this.partitionColumnName.isPresent()) {
-      writerPartitionColumnValue = AvroUtils.getFieldValue(record, this.partitionColumnName.get());
-    } else {
-      writerPartitionColumnValue = Optional.absent();
-    }
+  protected long getRecordTimestamp(GenericRecord record) {
+    Optional<Object> writerPartitionColumnValue = getWriterPartitionColumnValue(record);
+    return getRecordTimestamp(writerPartitionColumnValue);
+  }
 
-    // Check if the partition column value is present and is a Long object. Otherwise, use current system time.
-    long recordTimestamp = writerPartitionColumnValue.orNull() instanceof Long ? (Long) writerPartitionColumnValue.get()
+  /**
+   *  Check if the partition column value is present and is a Long object. Otherwise, use current system time.
+   */
+  protected long getRecordTimestamp(Optional<Object> writerPartitionColumnValue) {
+    return writerPartitionColumnValue.orNull() instanceof Long ? (Long) writerPartitionColumnValue.get()
         : System.currentTimeMillis();
+  }
 
+  /**
+   * Retrieve the value of the field specified by this.partitionColumnName
+   */
+  protected Optional<Object> getWriterPartitionColumnValue(GenericRecord record) {
+    if (this.partitionColumnName.isPresent()) {
+      return AvroUtils.getFieldValue(record, this.partitionColumnName.get());
+    } else {
+      return Optional.absent();
+    }
+  }
+
+  protected void write(GenericRecord record, long recordTimestamp) throws IOException {
     Path writerOutputPath = getPathForColumnValue(recordTimestamp);
 
     // If the path is not in pathToWriterMap, construct a new DataWriter, add it to the map, and write the record
