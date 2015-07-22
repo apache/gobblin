@@ -13,6 +13,7 @@
 package gobblin.configuration;
 
 import gobblin.source.workunit.Extract;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -130,5 +131,13 @@ public class WorkUnitStateTest {
     Assert.assertEquals(state2.getPropAsInt("int"), Integer.MIN_VALUE);
     Assert.assertEquals(state2.getPropAsDouble("double"), Double.MIN_VALUE);
     Assert.assertEquals(state2.getPropAsBoolean("boolean"), false);
+  }
+
+  @Test
+  public void testEquals() {
+    SourceState sourceState = new SourceState();
+    sourceState.setProp("testKey", "true");
+    WorkUnitState workUnitState = new WorkUnitState(new WorkUnit(sourceState, null));
+    Assert.assertEquals(workUnitState, workUnitState);
   }
 }
