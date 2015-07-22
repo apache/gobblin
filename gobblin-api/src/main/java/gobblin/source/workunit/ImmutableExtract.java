@@ -76,6 +76,24 @@ public class ImmutableExtract extends Extract {
   }
 
   @Override
+  public void addAllIfNotExist(Properties properties) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void addAllIfNotExist(State otherState) {
+    throw new UnsupportedOperationException();
+  }
+
+  public void overrideWith(Properties properties) {
+    throw new UnsupportedOperationException();
+  }
+
+  public void overrideWith(State otherState) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public void readFields(DataInput in) throws IOException {
     throw new UnsupportedOperationException();
   }
