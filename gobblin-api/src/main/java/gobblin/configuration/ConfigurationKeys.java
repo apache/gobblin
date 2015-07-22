@@ -444,28 +444,30 @@ public class ConfigurationKeys {
   public static final String DEFAULT_METRICS_ENABLED = Boolean.toString(true);
   public static final String METRICS_FILE_SUFFIX = METRICS_CONFIGURATIONS_PREFIX + "reporting.file.suffix";
   public static final String DEFAULT_METRICS_FILE_SUFFIX = "";
-  public static final String METRICS_REPORTING_FILE_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX
-      + "reporting.file.enabled";
+  public static final String METRICS_REPORTING_FILE_ENABLED_KEY =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.file.enabled";
   public static final String DEFAULT_METRICS_REPORTING_FILE_ENABLED = Boolean.toString(false);
-  public static final String METRICS_REPORTING_JMX_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX
-      + "reporting.jmx.enabled";
+  public static final String METRICS_REPORTING_JMX_ENABLED_KEY =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.jmx.enabled";
   public static final String DEFAULT_METRICS_REPORTING_JMX_ENABLED = Boolean.toString(false);
-  public static final String METRICS_REPORTING_KAFKA_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX
-      + "reporting.kafka.enabled";
+  public static final String METRICS_REPORTING_KAFKA_ENABLED_KEY =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.enabled";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_ENABLED = Boolean.toString(false);
   public static final String METRICS_REPORTING_KAFKA_FORMAT = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.format";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_FORMAT = "json";
-  public static final String METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY = METRICS_CONFIGURATIONS_PREFIX
-      + "reporting.kafka.avro.use.schema.registry";
+  public static final String METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.avro.use.schema.registry";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY = Boolean.toString(false);
   public static final String METRICS_KAFKA_BROKERS = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.brokers";
   // Topic used for both event and metric reporting.
   // Can be overriden by METRICS_KAFKA_TOPIC_METRICS and METRICS_KAFKA_TOPIC_EVENTS.
   public static final String METRICS_KAFKA_TOPIC = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic";
   // Topic used only for metric reporting.
-  public static final String METRICS_KAFKA_TOPIC_METRICS = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic.metrics";
+  public static final String METRICS_KAFKA_TOPIC_METRICS =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic.metrics";
   // Topic used only for event reporting.
-  public static final String METRICS_KAFKA_TOPIC_EVENTS = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic.events";
+  public static final String METRICS_KAFKA_TOPIC_EVENTS =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic.events";
   public static final String METRICS_CUSTOM_BUILDERS = METRICS_CONFIGURATIONS_PREFIX + "reporting.custom.builders";
   public static final String METRICS_REPORT_INTERVAL_KEY = METRICS_CONFIGURATIONS_PREFIX + "report.interval";
   public static final String DEFAULT_METRICS_REPORT_INTERVAL = Long.toString(TimeUnit.SECONDS.toMillis(30));
@@ -477,6 +479,11 @@ public class ConfigurationKeys {
   public static final String DEFAULT_REST_SERVER_HOST = "localhost";
   public static final String REST_SERVER_PORT_KEY = "rest.server.port";
   public static final String DEFAULT_REST_SERVER_PORT = "8080";
+
+  /**
+   * Kafka job configurations.
+   */
+  public static final String KAFKA_BROKERS = "kafka.brokers";
 
   /**
    * MySQL job history store configuration properties.

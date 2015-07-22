@@ -12,6 +12,7 @@
 
 package gobblin.source.extractor.extract.kafka;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.util.DatasetFilterUtils;
 
@@ -62,7 +63,6 @@ public class KafkaWrapper implements Closeable {
 
   private static final String USE_NEW_KAFKA_API = "use.new.kafka.api";
   private static final boolean DEFAULT_USE_NEW_KAFKA_API = false;
-  private static final String KAFKA_BROKERS = "kafka.brokers";
 
   private final List<String> brokers;
   private final KafkaAPI kafkaAPI;
@@ -107,12 +107,13 @@ public class KafkaWrapper implements Closeable {
    * use.new.kafka.api=true.
    */
   public static KafkaWrapper create(State state) {
-    Preconditions.checkNotNull(state.getProp(KAFKA_BROKERS), "Need to specify at least one Kafka broker.");
+    Preconditions.checkNotNull(state.getProp(ConfigurationKeys.KAFKA_BROKERS),
+        "Need to specify at least one Kafka broker.");
     KafkaWrapper.Builder builder = new KafkaWrapper.Builder();
     if (state.getPropAsBoolean(USE_NEW_KAFKA_API, DEFAULT_USE_NEW_KAFKA_API)) {
       builder = builder.withNewKafkaAPI();
     }
-    return builder.withBrokers(state.getPropAsList(KAFKA_BROKERS)).build();
+    return builder.withBrokers(state.getPropAsList(ConfigurationKeys.KAFKA_BROKERS)).build();
   }
 
   public List<String> getBrokers() {
