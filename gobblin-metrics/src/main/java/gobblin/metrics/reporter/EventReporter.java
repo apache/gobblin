@@ -17,6 +17,7 @@ import java.util.Queue;
 import java.util.SortedMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -30,8 +31,10 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.collect.Queues;
 import com.google.common.io.Closer;
+import com.google.common.util.concurrent.MoreExecutors;
 
 import javax.annotation.Nullable;
 
@@ -39,6 +42,7 @@ import gobblin.metrics.GobblinTrackingEvent;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.notification.EventNotification;
 import gobblin.metrics.notification.Notification;
+import gobblin.util.ExecutorsUtils;
 
 
 /**
@@ -62,7 +66,10 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
     super(builder.context, builder.name, builder.filter, builder.rateUnit, builder.durationUnit);
 
     this.closer = Closer.create();
-    this.immediateReportExecutor = Executors.newSingleThreadExecutor();
+    this.immediateReportExecutor = MoreExecutors.
+        getExitingExecutorService((ThreadPoolExecutor) Executors.newFixedThreadPool(1,
+            ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("EventReporter-" + builder.name + "-%d"))),
+            5, TimeUnit.MINUTES);
 
     builder.context.addNotificationTarget(new Function<Notification, Void>() {
       @Nullable
@@ -121,7 +128,7 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
   }
 
   private void immediatelyScheduleReport() {
-    immediateReportExecutor.submit(new Runnable() {
+    this.immediateReportExecutor.submit(new Runnable() {
       @Override
       public void run() {
         report();
