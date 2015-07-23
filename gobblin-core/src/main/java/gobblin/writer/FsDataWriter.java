@@ -53,6 +53,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
   protected final short replicationFactor;
   protected final long blockSize;
   protected final FsPermission permission;
+  protected final Optional<String> group;
 
   public FsDataWriter(State properties, String fileName, int numBranches, int branchId) throws IOException {
     this.properties = properties;
@@ -94,7 +95,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
         ConfigurationKeys.DEFAULT_BUFFER_SIZE));
 
     this.replicationFactor = properties.getPropAsShort(ForkOperatorUtils
-        .getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_REPLICATION_FACTOR, numBranches, branchId),
+            .getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_REPLICATION_FACTOR, numBranches, branchId),
         this.fs.getDefaultReplication(this.outputFile));
 
     this.blockSize = properties.getPropAsLong(
@@ -105,10 +106,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PERMISSIONS, numBranches, branchId),
         FsPermission.getDefault().toShort()));
 
-    Optional<String> group = Optional.fromNullable(properties.getProp(ConfigurationKeys.WRITER_GROUP_NAME));
-    if (group.isPresent()) {
-      this.fs.setOwner(this.stagingFile, this.fs.getFileStatus(this.stagingFile).getOwner(), group.get());
-    }
+    this.group = Optional.fromNullable(properties.getProp(ConfigurationKeys.WRITER_GROUP_NAME));
 
     // Deleting the staging file if it already exists, which can happen if the
     // task failed and the staging file didn't get cleaned up for some reason.
@@ -140,6 +138,10 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
 
     if (!this.fs.exists(this.stagingFile)) {
       throw new IOException(String.format("File %s does not exist", this.stagingFile));
+    }
+
+    if (this.group.isPresent()) {
+      this.fs.setOwner(this.stagingFile, this.fs.getFileStatus(this.stagingFile).getOwner(), this.group.get());
     }
 
     LOG.info(String.format("Moving data from %s to %s", this.stagingFile, this.outputFile));

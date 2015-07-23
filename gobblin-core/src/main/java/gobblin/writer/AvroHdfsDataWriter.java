@@ -36,7 +36,7 @@ import gobblin.util.WriterUtils;
 
 
 /**
- * An extension to {@link DataWriter} that writes in Avro format.
+ * An extension to {@link FsDataWriter} that writes in Avro format in the form of {@link GenericRecord}s.
  *
  * <p>
  *   This implementation allows users to specify the {@link CodecFactory} to use through the configuration
