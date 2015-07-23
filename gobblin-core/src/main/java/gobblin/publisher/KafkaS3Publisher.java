@@ -36,7 +36,7 @@ import java.util.Random;
  * @author akshay@nerdwallet.com
  */
 public class KafkaS3Publisher extends BaseS3Publisher {
-  public KafkaS3Publisher(State state) {
+  public KafkaS3Publisher(State state) throws IOException {
     super(state);
   }
 

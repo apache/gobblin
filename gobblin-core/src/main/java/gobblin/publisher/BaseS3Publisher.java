@@ -60,7 +60,7 @@ public abstract class BaseS3Publisher extends BaseDataPublisher {
   private static final Logger LOG = LoggerFactory.getLogger(BaseS3Publisher.class);
   private static final long PART_SIZE = 5 * 1024 * 1024; // 500 mb chunks to s3
 
-  public BaseS3Publisher(State state) {
+  public BaseS3Publisher(State state) throws IOException {
     super(state);
     s3Partitions = state.getPropAsInt(ConfigurationKeys.S3_PARTITIONS, DEFAULT_S3_PARTITIONS);
   }

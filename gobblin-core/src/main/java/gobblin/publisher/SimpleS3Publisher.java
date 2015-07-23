@@ -50,7 +50,7 @@ public class SimpleS3Publisher extends BaseS3Publisher {
    *
    * @param state The state
    */
-  public SimpleS3Publisher(State state) {
+  public SimpleS3Publisher(State state) throws IOException {
     super(state);
   }
 
