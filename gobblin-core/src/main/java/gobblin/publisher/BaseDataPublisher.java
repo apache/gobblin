@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -11,11 +12,11 @@
 
 package gobblin.publisher;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
@@ -26,18 +27,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.io.Closer;
 
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.ForkOperatorUtils;
+import gobblin.util.ParallelRunner;
 import gobblin.util.WriterUtils;
 
 
 /**
- * A basic implementation of {@link DataPublisher} that publishes the data from the writer output directory to the final
- * output directory.
+ * A basic implementation of {@link DataPublisher} that publishes the data from the writer output directory to
+ * the final output directory.
  *
  * <p>
  *
@@ -53,16 +57,14 @@ public class BaseDataPublisher extends DataPublisher {
   private static final Logger LOG = LoggerFactory.getLogger(BaseDataPublisher.class);
 
   protected final List<FileSystem> fss = Lists.newArrayList();
-  protected int numBranches;
+  protected final Closer closer;
+  protected final int numBranches;
+  protected final int parallelRunnerThreads;
+  protected final Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
 
-  private boolean closed = false;
-
-  public BaseDataPublisher(State state) {
+  public BaseDataPublisher(State state) throws IOException {
     super(state);
-  }
-
-  @Override
-  public void initialize() throws IOException {
+    this.closer = Closer.create();
     Configuration conf = new Configuration();
 
     // Add all job configuration properties so they are picked up by Hadoop
@@ -73,26 +75,24 @@ public class BaseDataPublisher extends DataPublisher {
     this.numBranches = this.getState().getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
 
     // Get a FileSystem instance for each branch
-    URI uri;
     for (int i = 0; i < this.numBranches; i++) {
-      uri =
-          URI.create(this.getState()
-              .getProp(
-                  ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI,
-                      this.numBranches, i), ConfigurationKeys.LOCAL_FS_URI));
+      URI uri = URI.create(this.getState().getProp(
+          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, this.numBranches, i),
+          ConfigurationKeys.LOCAL_FS_URI));
       this.fss.add(FileSystem.get(uri, conf));
     }
+    this.parallelRunnerThreads =
+        state.getPropAsInt(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY, ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS);
+  }
+
+  @Override
+  public void initialize() throws IOException {
+    // Nothing needs to be done since the constructor already initializes the publisher.
   }
 
   @Override
   public void close() throws IOException {
-    if (this.closed) {
-      return;
-    }
-    for (FileSystem fs : fss) {
-      fs.close();
-      this.closed = true;
-    }
+    this.closer.close();
   }
 
   @Override
@@ -104,32 +104,35 @@ public class BaseDataPublisher extends DataPublisher {
 
     for (WorkUnitState workUnitState : states) {
       for (int branchId = 0; branchId < this.numBranches; branchId++) {
+        // Get a ParallelRunner instance for moving files in parallel
+        ParallelRunner parallelRunner = this.getParallelRunner(this.fss.get(branchId));
 
-        // The directory where the workUnitState wrote its output data. It is a combination of WRITER_OUTPUT_DIR and
-        // WRITER_FILE_PATH
+        // The directory where the workUnitState wrote its output data.
+        // It is a combination of WRITER_OUTPUT_DIR and WRITER_FILE_PATH.
         Path writerOutputDir = WriterUtils.getWriterOutputDir(workUnitState, this.numBranches, branchId);
 
-        // The directory where the final output directory for this job will be placed. It is a combination of
-        // DATA_PUBLISHER_FINAL_DIR and WRITER_FILE_PATH
-        Path publisherOutputDir = WriterUtils.getDataPublisherFinalDir(workUnitState, this.numBranches, branchId);
-
         if (writerOutputPathsMoved.contains(writerOutputDir)) {
-          // This writer output path has already been moved for another task of the same extract, so skip to the next one
+          // This writer output path has already been moved for another task of the same extract
           continue;
         }
 
+        if (!this.fss.get(branchId).exists(writerOutputDir)) {
+          LOG.warn(String.format("Branch %d of WorkUnit %s produced no data", branchId, workUnitState.getId()));
+          continue;
+        }
+
+        // The directory where the final output directory for this job will be placed.
+        // It is a combination of DATA_PUBLISHER_FINAL_DIR and WRITER_FILE_PATH.
+        Path publisherOutputDir = WriterUtils.getDataPublisherFinalDir(workUnitState, this.numBranches, branchId);
+
         if (this.fss.get(branchId).exists(publisherOutputDir)) {
+          // The final output directory already exists, check if the job is configured to replace it.
+          boolean replaceFinalOutputDir = this.getState().getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(
+              ConfigurationKeys.DATA_PUBLISHER_REPLACE_FINAL_DIR, this.numBranches, branchId));
 
-          // The final output directory already exists, check if the job is configured to replace it
-          boolean replaceFinalOutputDir =
-              this.getState().getPropAsBoolean(
-                  ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_REPLACE_FINAL_DIR,
-                      this.numBranches, branchId));
-
-          // If the final output directory is not configured to be replaced, then append the new data to the existing
-          // output folder
+          // If the final output directory is not configured to be replaced, put new data to the existing directory.
           if (!replaceFinalOutputDir) {
-            addWriterOutputToExistingDir(writerOutputDir, publisherOutputDir, workUnitState, branchId);
+            addWriterOutputToExistingDir(writerOutputDir, publisherOutputDir, workUnitState, branchId, parallelRunner);
             writerOutputPathsMoved.add(writerOutputDir);
             continue;
           }
@@ -140,16 +143,9 @@ public class BaseDataPublisher extends DataPublisher {
           this.fss.get(branchId).mkdirs(publisherOutputDir.getParent());
         }
 
-        if (this.fss.get(branchId).exists(writerOutputDir)) {
-          if (this.fss.get(branchId).rename(writerOutputDir, publisherOutputDir)) {
-            LOG.info(String.format("Moved %s to %s", writerOutputDir, publisherOutputDir));
-            writerOutputPathsMoved.add(writerOutputDir);
-          } else {
-            throw new IOException("Failed to move from " + writerOutputDir + " to " + publisherOutputDir);
-          }
-        } else {
-          LOG.warn("WorkUnit " + workUnitState.getId() + " produced no data");
-        }
+        LOG.info(String.format("Moving %s to %s", writerOutputDir, publisherOutputDir));
+        parallelRunner.renamePath(writerOutputDir, publisherOutputDir);
+        writerOutputPathsMoved.add(writerOutputDir);
       }
 
       // Upon successfully committing the data to the final output directory, set states
@@ -160,26 +156,32 @@ public class BaseDataPublisher extends DataPublisher {
   }
 
   protected void addWriterOutputToExistingDir(Path writerOutputDir, Path publisherOutputDir,
-      WorkUnitState workUnitState, int branchId) throws FileNotFoundException, IOException {
-    boolean preserveFileName =
-        workUnitState.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(
-            ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, this.numBranches, branchId), false);
+      WorkUnitState workUnitState, int branchId, ParallelRunner parallelRunner) throws IOException {
+    boolean preserveFileName = workUnitState.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(
+        ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, this.numBranches, branchId), false);
 
     // Go through each file in writerOutputDir and move it into publisherOutputDir
     for (FileStatus status : this.fss.get(branchId).listStatus(writerOutputDir)) {
 
       // Preserve the file name if configured, use specified name otherwise
       Path finalOutputPath =
-          preserveFileName ? new Path(publisherOutputDir, workUnitState.getProp(ForkOperatorUtils
-              .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_NAME, this.numBranches, branchId)))
-              : new Path(publisherOutputDir, status.getPath().getName());
+          preserveFileName
+              ? new Path(publisherOutputDir,
+                  workUnitState.getProp(ForkOperatorUtils.getPropertyNameForBranch(
+                      ConfigurationKeys.DATA_PUBLISHER_FINAL_NAME, this.numBranches, branchId)))
+          : new Path(publisherOutputDir, status.getPath().getName());
 
-      if (this.fss.get(branchId).rename(status.getPath(), finalOutputPath)) {
-        LOG.info(String.format("Moved %s to %s", status.getPath(), finalOutputPath));
-      } else {
-        throw new IOException("Failed to move file from " + status.getPath() + " to " + finalOutputPath);
-      }
+      LOG.info(String.format("Moving %s to %s", status.getPath(), finalOutputPath));
+      parallelRunner.renamePath(status.getPath(), finalOutputPath);
     }
+  }
+
+  private ParallelRunner getParallelRunner(FileSystem fs) {
+    String uri = fs.getUri().toString();
+    if (!this.parallelRunners.containsKey(uri)) {
+      this.parallelRunners.put(uri, this.closer.register(new ParallelRunner(this.parallelRunnerThreads, fs)));
+    }
+    return this.parallelRunners.get(uri);
   }
 
   @Override

@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -26,8 +27,9 @@ import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.instrumented.extractor.InstrumentedExtractor;
+import gobblin.metrics.Counters;
 import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.WorkUnit;
 
 
@@ -41,13 +43,13 @@ import gobblin.source.workunit.WorkUnit;
  * @param <D>
  *            type of data record
  */
-public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
+public abstract class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FileBasedExtractor.class);
 
   protected final WorkUnit workUnit;
   protected final WorkUnitState workUnitState;
-  protected final FileBasedHelper fsHelper;
+  protected final SizeAwareFileBasedHelper fsHelper;
   protected final List<String> filesToPull;
 
   protected final Closer closer = Closer.create();
@@ -59,19 +61,34 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
   private String currentFile;
   private boolean readRecordStart;
 
+  protected enum CounterNames {
+    FileBytesRead;
+  }
+
+  protected Counters<CounterNames> counters = new Counters<CounterNames>();
+
   public FileBasedExtractor(WorkUnitState workUnitState, FileBasedHelper fsHelper) {
+    super(workUnitState);
     this.workUnitState = workUnitState;
     this.workUnit = workUnitState.getWorkunit();
     this.filesToPull =
         Lists.newArrayList(workUnitState.getPropAsList(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, ""));
-    this.statusCount = this.workUnit.getPropAsInt(ConfigurationKeys.FILEBASED_REPORT_STATUS_ON_COUNT,
-        ConfigurationKeys.DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT);
-    this.fsHelper = fsHelper;
+    this.statusCount =
+        this.workUnit.getPropAsInt(ConfigurationKeys.FILEBASED_REPORT_STATUS_ON_COUNT,
+            ConfigurationKeys.DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT);
+
+    if (fsHelper instanceof SizeAwareFileBasedHelper) {
+      this.fsHelper = (SizeAwareFileBasedHelper) fsHelper;
+    } else {
+      this.fsHelper = new SizeAwareFileBasedHelperDecorator(fsHelper);
+    }
     try {
       this.fsHelper.connect();
     } catch (FileBasedHelperException e) {
       Throwables.propagate(e);
     }
+
+    counters.initialize(getMetricContext(), CounterNames.class, this.getClass());
   }
 
   /**
@@ -81,7 +98,7 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
    * file
    */
   @Override
-  public D readRecord(@Deprecated D reuse) throws DataRecordException, IOException {
+  public D readRecordImpl(@Deprecated D reuse) throws DataRecordException, IOException {
     this.totalRecordCount++;
 
     if (this.statusCount > 0 && this.totalRecordCount % this.statusCount == 0) {
@@ -101,15 +118,16 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
       readRecordStart = true;
     }
 
-    while (!currentFileItr.hasNext() && !filesToPull.isEmpty()) {
+    while ((currentFileItr == null || !currentFileItr.hasNext()) && !filesToPull.isEmpty()) {
       LOGGER.info("Finished downloading file: " + currentFile);
       closeCurrentFile();
+      incrementBytesReadCounter();
       currentFile = filesToPull.remove(0);
       currentFileItr = downloadFile(currentFile);
       LOGGER.info("Will start downloading file: " + currentFile);
     }
 
-    if (currentFileItr.hasNext()) {
+    if (currentFileItr != null && currentFileItr.hasNext()) {
       return currentFileItr.next();
     } else {
       LOGGER.info("Finished reading records from all files");
@@ -189,6 +207,18 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
       this.fsHelper.close();
     } catch (FileBasedHelperException e) {
       LOGGER.error("Could not successfully close file system helper due to error: " + e.getMessage(), e);
+    }
+  }
+
+  private void incrementBytesReadCounter() {
+    try {
+      counters.inc(CounterNames.FileBytesRead, fsHelper.getFileSize(currentFile));
+    } catch (FileBasedHelperException e) {
+      LOGGER.info("Unable to get file size. Will skip increment to bytes counter " + e.getMessage());
+      LOGGER.debug(e.getMessage(), e);
+    } catch (UnsupportedOperationException e) {
+      LOGGER.info("Unable to get file size. Will skip increment to bytes counter " + e.getMessage());
+      LOGGER.debug(e.getMessage(), e);
     }
   }
 }

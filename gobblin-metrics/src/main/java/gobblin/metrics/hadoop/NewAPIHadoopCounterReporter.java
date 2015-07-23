@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -17,12 +18,12 @@ import org.apache.hadoop.mapreduce.TaskInputOutputContext;
 
 import com.codahale.metrics.MetricFilter;
 
-import gobblin.metrics.ContextAwareScheduledReporter;
+import gobblin.metrics.reporter.ContextAwareScheduledReporter;
 import gobblin.metrics.MetricContext;
 
 
 /**
- * An implementation of {@link gobblin.metrics.ContextAwareScheduledReporter} that reports applicable
+ * An implementation of {@link gobblin.metrics.reporter.ContextAwareScheduledReporter} that reports applicable
  * metrics as Hadoop counters using a {@link org.apache.hadoop.mapreduce.TaskInputOutputContext}.
  *
  * @param <KI> the input key type of {@code hadoopContext}

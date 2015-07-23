@@ -1,4 +1,5 @@
-/* (c) 2015 NerdWallet All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -11,10 +12,10 @@
 
 package gobblin.writer;
 
+import java.io.IOException;
+
 import gobblin.configuration.State;
 import gobblin.util.WriterUtils;
-
-import java.io.IOException;
 
 /**
  * A {@link DataWriterBuilder} for building {@link DataWriter} that writes bytes.
@@ -31,8 +32,9 @@ public class SimpleDataWriterBuilder extends DataWriterBuilder<String, byte[]> {
   @Override
   public DataWriter<byte[]> build() throws IOException {
     State properties = this.destination.getProperties();
-    String fileName =
-            WriterUtils.getWriterFileName(properties, this.branches, this.branch, this.writerId, this.format.getExtension());
+    String fileName = WriterUtils.getWriterFileName(
+            properties, this.branches, this.branch, this.writerId, this.format.getExtension()
+    );
     return new SimpleDataWriter(properties, fileName, this.branches, this.branch);
   }
 }

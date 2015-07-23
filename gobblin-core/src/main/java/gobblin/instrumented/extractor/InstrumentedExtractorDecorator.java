@@ -1,5 +1,5 @@
 /*
- * (c) 2014 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -14,25 +14,33 @@ package gobblin.instrumented.extractor;
 
 import java.io.IOException;
 
+import com.google.common.base.Optional;
+
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
+import gobblin.util.Decorator;
+import gobblin.util.DecoratorUtils;
+import gobblin.util.FinalState;
+
 
 /**
  * Decorator that automatically instruments {@link gobblin.source.extractor.Extractor}.
  * Handles already instrumented {@link gobblin.instrumented.extractor.InstrumentedExtractor}
  * appropriately to avoid double metric reporting.
  */
-public class InstrumentedExtractorDecorator<S, D> extends InstrumentedExtractorBase<S, D> {
+public class InstrumentedExtractorDecorator<S, D> extends InstrumentedExtractorBase<S, D> implements Decorator {
 
   private final Extractor<S, D> embeddedExtractor;
   private final boolean isEmbeddedInstrumented;
 
   public InstrumentedExtractorDecorator(WorkUnitState workUnitState, Extractor<S, D> extractor) {
-    super(workUnitState);
+    super(workUnitState, Optional.<Class<?>>of(DecoratorUtils.resolveUnderlyingObject(extractor).getClass()));
     this.embeddedExtractor = this.closer.register(extractor);
-    this.isEmbeddedInstrumented = InstrumentedExtractorBase.class.isInstance(extractor);
+    this.isEmbeddedInstrumented = Instrumented.isLineageInstrumented(extractor);
   }
 
   @Override
@@ -70,5 +78,19 @@ public class InstrumentedExtractorDecorator<S, D> extends InstrumentedExtractorB
   @Override
   public long getHighWatermark() {
     return this.embeddedExtractor.getHighWatermark();
+  }
+
+  @Override
+  public State getFinalState() {
+    if(this.embeddedExtractor instanceof FinalState) {
+      return ((FinalState) this.embeddedExtractor).getFinalState();
+    } else {
+      return super.getFinalState();
+    }
+  }
+
+  @Override
+  public Object getDecoratedObject() {
+    return this.embeddedExtractor;
   }
 }

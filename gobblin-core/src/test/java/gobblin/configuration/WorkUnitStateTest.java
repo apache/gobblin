@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -12,6 +13,7 @@
 package gobblin.configuration;
 
 import gobblin.source.workunit.Extract;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -129,5 +131,13 @@ public class WorkUnitStateTest {
     Assert.assertEquals(state2.getPropAsInt("int"), Integer.MIN_VALUE);
     Assert.assertEquals(state2.getPropAsDouble("double"), Double.MIN_VALUE);
     Assert.assertEquals(state2.getPropAsBoolean("boolean"), false);
+  }
+
+  @Test
+  public void testEquals() {
+    SourceState sourceState = new SourceState();
+    sourceState.setProp("testKey", "true");
+    WorkUnitState workUnitState = new WorkUnitState(new WorkUnit(sourceState, null));
+    Assert.assertEquals(workUnitState, workUnitState);
   }
 }

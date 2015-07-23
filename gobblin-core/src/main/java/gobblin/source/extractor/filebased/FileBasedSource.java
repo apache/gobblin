@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -103,17 +104,27 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
     List<String> filesToPull = Lists.newArrayList(currentFsSnapshot);
     filesToPull.removeAll(prevFsSnapshot);
 
+    List<WorkUnit> workUnits = Lists.newArrayList();
+    if (filesToPull.isEmpty()) {
+      return workUnits;
+    }
+
     log.info("Will pull the following files in this run: " + Arrays.toString(filesToPull.toArray()));
 
     int numPartitions = state.contains((ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS))
         && state.getPropAsInt(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS) <= filesToPull.size() ? state
         .getPropAsInt(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS) : filesToPull.size();
-    int filesPerPartition = (numPartitions == 0) ? 0 : (int) Math.ceil(filesToPull.size() / numPartitions);
+    if (numPartitions <= 0) {
+      throw new IllegalArgumentException("The number of partitions should be positive");
+    }
+
+    int filesPerPartition = filesToPull.size() % numPartitions == 0 ?
+        filesToPull.size() / numPartitions : filesToPull.size() / numPartitions + 1;
+
     int workUnitCount = 0;
     int fileOffset = 0;
 
     // Distribute the files across the workunits
-    List<WorkUnit> workUnits = Lists.newArrayList();
     for (int i = 0; i < numPartitions; i++) {
       SourceState partitionState = new SourceState();
       partitionState.addAll(state);

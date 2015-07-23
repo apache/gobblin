@@ -1,4 +1,5 @@
-/* (c) 2015 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -20,25 +21,31 @@ import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
+
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.util.ForkOperatorUtils;
+import gobblin.util.HadoopUtils;
 import gobblin.util.WriterUtils;
+
 
 /**
  * An implementation of {@link DataWriter} that writes directly to HDFS in Avro format.
  *
  * @author ynli
  */
-class AvroHdfsDataWriter extends BaseDataWriter<GenericRecord> {
+class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
 
   private static final Logger LOG = LoggerFactory.getLogger(AvroHdfsDataWriter.class);
 
@@ -53,37 +60,50 @@ class AvroHdfsDataWriter extends BaseDataWriter<GenericRecord> {
   // Whether the writer has already been closed or not
   private volatile boolean closed = false;
 
-  public enum CodecType {
-    NOCOMPRESSION,
-    DEFLATE,
-    SNAPPY
-  }
-
   public AvroHdfsDataWriter(State properties, String fileName, Schema schema, int numBranches, int branchId)
       throws IOException {
     super(properties, fileName, numBranches, branchId);
 
-    String codecType = properties
-        .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_CODEC_TYPE, numBranches, branchId),
-            AvroHdfsDataWriter.CodecType.DEFLATE.name());
+    Path filePath = new Path(fileName);
 
-    int bufferSize = Integer.parseInt(properties.getProp(
-        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUFFER_SIZE, numBranches, branchId),
-        ConfigurationKeys.DEFAULT_BUFFER_SIZE));
+    CodecFactory codecFactory =
+        WriterUtils.getCodecFactory(Optional.fromNullable(properties.getProp(ForkOperatorUtils
+            .getPropertyNameForBranch(ConfigurationKeys.WRITER_CODEC_TYPE, numBranches, branchId))), Optional
+            .fromNullable(properties.getProp(ForkOperatorUtils.getPropertyNameForBranch(
+                ConfigurationKeys.WRITER_DEFLATE_LEVEL, numBranches, branchId))));
 
-    int deflateLevel = Integer.parseInt(properties.getProp(
-        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DEFLATE_LEVEL, numBranches, branchId),
-        ConfigurationKeys.DEFAULT_DEFLATE_LEVEL));
+    int bufferSize =
+        Integer.parseInt(properties.getProp(
+            ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUFFER_SIZE, numBranches, branchId),
+            ConfigurationKeys.DEFAULT_BUFFER_SIZE));
+
+    short replication =
+        properties.getPropAsShort(ForkOperatorUtils.getPropertyNameForBranch(
+            ConfigurationKeys.WRITER_FILE_REPLICATION_FACTOR, numBranches, branchId), this.fs
+            .getDefaultReplication(filePath));
+
+    long blockSize =
+        properties.getPropAsLong(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_BLOCK_SIZE,
+            numBranches, branchId), this.fs.getDefaultBlockSize(filePath));
+
+    FsPermission permissions =
+        new FsPermission(properties.getPropAsShort(ForkOperatorUtils.getPropertyNameForBranch(
+            ConfigurationKeys.WRITER_FILE_PERMISSIONS, numBranches, branchId), FsPermission.getDefault().toShort()));
+
+    Optional<String> group = Optional.fromNullable(properties.getProp(ConfigurationKeys.WRITER_GROUP_NAME));
 
     this.schema = schema;
-
     this.datumWriter = new GenericDatumWriter<GenericRecord>();
-    this.writer = createDatumWriter(this.stagingFile, bufferSize, CodecType.valueOf(codecType), deflateLevel);
+    this.writer =
+        createDatumWriter(this.stagingFile, bufferSize, codecFactory, replication, blockSize, permissions, group);
+  }
+
+  public FileSystem getFileSystem() {
+    return this.fs;
   }
 
   @Override
-  public void write(GenericRecord record)
-      throws IOException {
+  public void write(GenericRecord record) throws IOException {
     Preconditions.checkNotNull(record);
 
     this.writer.append(record);
@@ -92,8 +112,7 @@ class AvroHdfsDataWriter extends BaseDataWriter<GenericRecord> {
   }
 
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     if (this.closed) {
       return;
     }
@@ -104,8 +123,7 @@ class AvroHdfsDataWriter extends BaseDataWriter<GenericRecord> {
   }
 
   @Override
-  public void commit()
-      throws IOException {
+  public void commit() throws IOException {
     // Close the writer first if it has not been closed yet
     if (!this.closed) {
       this.close();
@@ -120,23 +138,17 @@ class AvroHdfsDataWriter extends BaseDataWriter<GenericRecord> {
     // the output file if it already exists prevents task retry from being blocked.
     if (this.fs.exists(this.outputFile)) {
       LOG.warn(String.format("Task output file %s already exists", this.outputFile));
-      this.deletePath(this.outputFile, false);
+      HadoopUtils.deletePath(this.fs, this.outputFile, false);
     }
 
-    if (!this.fs.rename(this.stagingFile, this.outputFile)) {
-      throw new IOException("Failed to commit data from " + this.stagingFile + " to " + this.outputFile);
-    }
-
-    // Setting the same HDFS properties as the original file
-    WriterUtils.setFileAttributesFromState(properties, fs, outputFile);
+    HadoopUtils.renamePath(this.fs, this.stagingFile, this.outputFile);
   }
 
   @Override
-  public void cleanup()
-      throws IOException {
+  public void cleanup() throws IOException {
     // Delete the staging file
     if (this.fs.exists(this.stagingFile)) {
-      this.deletePath(this.stagingFile, false);
+      HadoopUtils.deletePath(this.fs, this.stagingFile, false);
     }
   }
 
@@ -146,8 +158,7 @@ class AvroHdfsDataWriter extends BaseDataWriter<GenericRecord> {
   }
 
   @Override
-  public long bytesWritten()
-      throws IOException {
+  public long bytesWritten() throws IOException {
     if (!this.fs.exists(this.outputFile) || !this.closed) {
       return 0;
     }
@@ -158,37 +169,30 @@ class AvroHdfsDataWriter extends BaseDataWriter<GenericRecord> {
   /**
    * Create a new {@link DataFileWriter} for writing Avro records.
    *
-   * @param avroFile Avro file to write to
-   * @param bufferSize Buffer size
-   * @param codecType Compression codec type
-   * @param deflateLevel Deflate level
+   * @param avroFile the Avro file to write to
+   * @param bufferSize the Avro data writer buffer size
+   * @param codecFactory a {@link CodecFactory} object for building the compression codec
+   * @param replication the replication factor
+   * @param blockSize the block size
+   * @param permissions a {@link FsPermission} object defining the Avro file permission
    * @throws IOException if there is something wrong creating a new {@link DataFileWriter}
    */
-  private DataFileWriter<GenericRecord> createDatumWriter(Path avroFile, int bufferSize,
-      CodecType codecType, int deflateLevel)
-      throws IOException {
+  private DataFileWriter<GenericRecord> createDatumWriter(Path avroFile, int bufferSize, CodecFactory codecFactory,
+      short replication, long blockSize, FsPermission permissions, Optional<String> group) throws IOException {
 
     if (this.fs.exists(avroFile)) {
       throw new IOException(String.format("File %s already exists", avroFile));
     }
 
-    FSDataOutputStream outputStream = this.fs.create(avroFile, true, bufferSize);
-    DataFileWriter<GenericRecord> writer = new DataFileWriter<GenericRecord>(this.datumWriter);
+    FSDataOutputStream outputStream =
+        this.fs.create(avroFile, permissions, true, bufferSize, replication, blockSize, null);
 
-    // Set compression type
-    switch (codecType) {
-      case DEFLATE:
-        writer.setCodec(CodecFactory.deflateCodec(deflateLevel));
-        break;
-      case SNAPPY:
-        writer.setCodec(CodecFactory.snappyCodec());
-        break;
-      case NOCOMPRESSION:
-        break;
-      default:
-        writer.setCodec(CodecFactory.deflateCodec(deflateLevel));
-        break;
+    if (group.isPresent()) {
+      this.fs.setOwner(avroFile, this.fs.getFileStatus(avroFile).getOwner(), group.get());
     }
+
+    DataFileWriter<GenericRecord> writer = new DataFileWriter<GenericRecord>(this.datumWriter);
+    writer.setCodec(codecFactory);
 
     // Open the file and return the DataFileWriter
     return writer.create(this.schema, outputStream);

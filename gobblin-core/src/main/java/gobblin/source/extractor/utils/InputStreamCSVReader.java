@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -48,8 +49,8 @@ public class InputStreamCSVReader {
   }
 
   public InputStreamCSVReader(String input) {
-    this(new InputStreamReader(new ByteArrayInputStream(input.getBytes()),
-            ConfigurationKeys.DEFAULT_CHARSET_ENCODING), ',', '\"');
+    this(new InputStreamReader(
+        new ByteArrayInputStream(input.getBytes()), ConfigurationKeys.DEFAULT_CHARSET_ENCODING), ',', '\"');
   }
 
   public InputStreamCSVReader(Reader input, char customizedSeparator) {
@@ -65,8 +66,9 @@ public class InputStreamCSVReader {
   }
 
   public InputStreamCSVReader(String input, char customizedSeparator) {
-    this(new InputStreamReader(new ByteArrayInputStream(input.getBytes()),
-        ConfigurationKeys.DEFAULT_CHARSET_ENCODING), customizedSeparator, '\"');
+    this(new InputStreamReader(
+        new ByteArrayInputStream(input.getBytes()), ConfigurationKeys.DEFAULT_CHARSET_ENCODING),
+        customizedSeparator, '\"');
   }
 
   public InputStreamCSVReader(Reader input, char customizedSeparator, char enclosedChar) {
@@ -78,8 +80,9 @@ public class InputStreamCSVReader {
   }
 
   public InputStreamCSVReader(String input, char customizedSeparator, char enclosedChar) {
-    this(new InputStreamReader(new ByteArrayInputStream(input.getBytes()),
-        ConfigurationKeys.DEFAULT_CHARSET_ENCODING), customizedSeparator, enclosedChar);
+    this(new InputStreamReader(
+        new ByteArrayInputStream(input.getBytes()), ConfigurationKeys.DEFAULT_CHARSET_ENCODING),
+        customizedSeparator, enclosedChar);
   }
 
   public InputStreamCSVReader(BufferedReader input, char separator, char enclosedChar) {

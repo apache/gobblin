@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -23,16 +24,18 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
+import gobblin.Constructs;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.fork.CopyNotSupportedException;
 import gobblin.fork.Copyable;
 import gobblin.fork.ForkOperator;
+import gobblin.instrumented.extractor.InstrumentedExtractorBase;
 import gobblin.instrumented.extractor.InstrumentedExtractorDecorator;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
-import gobblin.source.extractor.Extractor;
+import gobblin.runtime.util.RuntimeConstructs;
 
 
 /**
@@ -112,13 +115,10 @@ public class Task implements Runnable {
 
     Closer closer = Closer.create();
     try {
-      // Build the extractor for extracting source schema and data records
-      Extractor extractor = closer.register(new InstrumentedExtractorDecorator(this.taskState,
-          new ExtractorDecorator(
-              new SourceDecorator(this.taskContext.getSource(), this.jobId, LOG).getExtractor(this.taskState),
-              this.taskId, LOG)));
+      InstrumentedExtractorBase extractor = closer.register(new InstrumentedExtractorDecorator(this.taskState,
+          this.taskContext.getExtractor()));
 
-      Converter converter = new MultiConverter(this.taskContext.getConverters());
+      Converter converter = closer.register(new MultiConverter(this.taskContext.getConverters()));
 
       // Get the fork operator. By default IdentityForkOperator is used with a single branch.
       ForkOperator forkOperator = closer.register(this.taskContext.getForkOperator());
@@ -161,11 +161,10 @@ public class Task implements Runnable {
       RowLevelPolicyChecker rowChecker = closer.register(this.taskContext.getRowLevelPolicyChecker(this.taskState));
       RowLevelPolicyCheckResults rowResults = new RowLevelPolicyCheckResults();
 
-      long pullLimit = this.taskState.getPropAsLong(ConfigurationKeys.EXTRACT_PULL_LIMIT, 0);
       long recordsPulled = 0;
       Object record;
       // Extract, convert, and fork one source record at a time.
-      while ((pullLimit <= 0 || recordsPulled < pullLimit) && (record = extractor.readRecord(null)) != null) {
+      while ((record = extractor.readRecord(null)) != null) {
         recordsPulled++;
         for (Object convertedRecord : converter.convertRecord(schema, record, this.taskState)) {
           processRecord(convertedRecord, forkOperator, rowChecker, rowResults, branches);
@@ -175,13 +174,8 @@ public class Task implements Runnable {
       LOG.info("Extracted " + recordsPulled + " data records");
       LOG.info("Row quality checker finished with results: " + rowResults.getResults());
 
-      if (pullLimit > 0) {
-        // If pull limit is set, use the actual number of records pulled.
-        this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, recordsPulled);
-      } else {
-        // Otherwise use the expected record count
-        this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, extractor.getExpectedRecordCount());
-      }
+      this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXTRACTED, recordsPulled);
+      this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, extractor.getExpectedRecordCount());
 
       for (Optional<Fork> fork : this.forks) {
         if (fork.isPresent()) {
@@ -215,6 +209,9 @@ public class Task implements Runnable {
         LOG.error(String.format("Not all forks of task %s succeeded", this.taskId));
         this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
       }
+
+      addConstructsFinalStateToTaskState(extractor, converter);
+
     } catch (Throwable t) {
       LOG.error(String.format("Task %s failed", this.taskId), t);
       this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
@@ -399,5 +396,24 @@ public class Task implements Runnable {
       }
     }
     return inBranches > 1;
+  }
+
+  /**
+   * Get the final state of each construct used by this task and add it to the {@link gobblin.runtime.TaskState}.
+   * @param extractor {@link gobblin.instrumented.extractor.InstrumentedExtractorBase} used by this task.
+   * @param converter {@link gobblin.converter.Converter} used by this task.
+   */
+  private void addConstructsFinalStateToTaskState(InstrumentedExtractorBase<?, ?> extractor,
+      Converter<?, ?, ?, ?> converter) {
+    this.taskState.addFinalConstructState(Constructs.EXTRACTOR.toString().toLowerCase(), extractor.getFinalState());
+    this.taskState.addFinalConstructState(Constructs.CONVERTER.toString().toLowerCase(), converter.getFinalState());
+    int forkIdx = 0;
+    for(Optional<Fork> fork : this.forks) {
+      if(fork.isPresent()) {
+        this.taskState.addFinalConstructState(RuntimeConstructs.FORK.toString().toLowerCase() + "." + forkIdx,
+            fork.get().getFinalState());
+      }
+      forkIdx++;
+    }
   }
 }

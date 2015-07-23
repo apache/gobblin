@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -13,13 +14,15 @@ package gobblin.qualitychecker.row;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.List;
 
 import org.apache.hadoop.fs.Path;
 
+import gobblin.configuration.State;
+import gobblin.util.FinalState;
 
-public class RowLevelPolicyChecker implements Closeable {
+
+public class RowLevelPolicyChecker implements Closeable, FinalState {
 
   private final List<RowLevelPolicy> list;
   private boolean errFileOpen;
@@ -61,5 +64,19 @@ public class RowLevelPolicyChecker implements Closeable {
     if (errFileOpen) {
       this.writer.close();
     }
+  }
+
+  /**
+   * Get final state for this object, obtained by merging the final states of the
+   * {@link gobblin.qualitychecker.row.RowLevelPolicy}s used by this object.
+   * @return Merged {@link gobblin.configuration.State} of final states for
+   *                {@link gobblin.qualitychecker.row.RowLevelPolicy} used by this checker.
+   */
+  public State getFinalState() {
+    State state = new State();
+    for(RowLevelPolicy policy : this.list) {
+      state.addAll(policy.getFinalState());
+    }
+    return state;
   }
 }

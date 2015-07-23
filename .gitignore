@@ -49,5 +49,5 @@ out/
 */bin/
 **/mainGeneratedDataTemplate
 **/mainGeneratedRest
-gobblin-dist*.tar.gz
+gobblin-dist*
 .DS_Store

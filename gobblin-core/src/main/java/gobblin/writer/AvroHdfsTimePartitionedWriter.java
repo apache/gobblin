@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -52,8 +53,8 @@ import gobblin.util.WriterUtils;
  *
  * <p>
  *
- * By default, The complete output path for a directory is "/baseFilePath/daily/[yyyy]/[MM]/[dd]/fileName.avro". The
- * baseFilePath is specified by the configuration key {@link ConfigurationKeys#WRITER_FILE_PATH}. The writer uses the
+ * By default, The complete output path for a directory is "/datasetName/daily/[yyyy]/[MM]/[dd]/fileName.avro". The
+ * datasetName is specified by the configuration key {@link ConfigurationKeys#WRITER_FILE_PATH}. The writer uses the
  * configuration key {@link ConfigurationKeys#WRITER_PARTITION_COLUMN_NAME} to determine the name of the column to
  * partition by. The "daily" portion of the path is also configurable, and can be changed by setting
  * {@link ConfigurationKeys#DEFAULT_WRITER_PARTITION_LEVEL}.
@@ -77,17 +78,17 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
 
   /**
    * This is the base file path that all data will be written to. By default, data will be written to
-   * /baseFilePath/daily/[yyyy]/[MM]/[dd]/.
+   * /datasetName/daily/[yyyy]/[MM]/[dd]/.
    */
-  private final Path baseFilePath;
+  private final Path datasetName;
 
   /**
    * The name of the column that the writer will use to partition the data.
    */
-  private final String partitionColumnName;
+  private final Optional<String> partitionColumnName;
 
   /**
-   * The name that separates the {@link #baseFilePath} from the path created by the {@link #timestampToPathFormatter}.
+   * The name that separates the {@link #datasetName} from the path created by the {@link #timestampToPathFormatter}.
    * The default value is specified by {@link ConfigurationKeys#DEFAULT_WRITER_PARTITION_LEVEL}.
    */
   private final String partitionLevel;
@@ -102,16 +103,16 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
   /**
    * Maps a {@link Path} to the the {@link DataWriter} that is writing data to the Path.
    */
-  private final Map<Path, DataWriter<GenericRecord>> pathToWriterMap = Maps.newHashMap();
+  protected final Map<Path, DataWriter<GenericRecord>> pathToWriterMap = Maps.newHashMap();
 
   // Variables needed to build DataWriters
   private final Destination destination;
-  private final String writerId;
+  protected final String writerId;
   private final Schema schema;
-  private final WriterOutputFormat writerOutputFormat;
-  private final State properties;
-  private final int numBranches;
-  private final int branch;
+  protected final WriterOutputFormat writerOutputFormat;
+  protected final State properties;
+  protected final int numBranches;
+  protected final int branch;
 
   private static final Logger LOG = LoggerFactory.getLogger(AvroHdfsTimePartitionedWriter.class);
 
@@ -134,49 +135,44 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
     this.numBranches = numBranches;
     this.branch = branch;
     this.properties = destination.getProperties();
-    this.baseFilePath = WriterUtils.getWriterFilePath(this.properties, numBranches, branch);
+    this.datasetName = WriterUtils.getWriterFilePath(this.properties, numBranches, branch);
 
     // Initialize the partitionLevel
     this.partitionLevel =
         this.properties.getProp(getWriterPartitionLevel(), ConfigurationKeys.DEFAULT_WRITER_PARTITION_LEVEL);
 
     // Initialize the timestampToPathFormatter
-    this.timestampToPathFormatter =
-        DateTimeFormat.forPattern(
+    this.timestampToPathFormatter = DateTimeFormat
+        .forPattern(
             this.properties.getProp(getWriterPartitionPattern(), ConfigurationKeys.DEFAULT_WRITER_PARTITION_PATTERN))
-            .withZone(
-                DateTimeZone.forID(this.properties.getProp(ConfigurationKeys.WRITER_PARTITION_TIMEZONE,
-                    ConfigurationKeys.DEFAULT_WRITER_PARTITION_TIMEZONE)));
+        .withZone(DateTimeZone.forID(this.properties.getProp(ConfigurationKeys.WRITER_PARTITION_TIMEZONE,
+            ConfigurationKeys.DEFAULT_WRITER_PARTITION_TIMEZONE)));
 
-    // Check that ConfigurationKeys.WRITER_PARTITION_COLUMN_NAME has been specified and is properly formed
-    Preconditions.checkArgument(this.properties.contains(getWriterPartitionColumnName()), "Missing required property "
-        + ConfigurationKeys.WRITER_PARTITION_COLUMN_NAME);
-
-    this.partitionColumnName = this.properties.getProp(getWriterPartitionColumnName());
-    Optional<Schema> writerPartitionColumnSchema = AvroUtils.getFieldSchema(this.schema, this.partitionColumnName);
-
-    Preconditions.checkArgument(writerPartitionColumnSchema.isPresent(), "The column " + this.partitionColumnName
-        + " specified by " + ConfigurationKeys.WRITER_PARTITION_COLUMN_NAME + " is not in the writer input schema");
-
-    Preconditions.checkArgument(writerPartitionColumnSchema.get().getType().equals(Schema.Type.LONG), "The column "
-        + this.partitionColumnName + " specified by " + ConfigurationKeys.WRITER_PARTITION_COLUMN_NAME
-        + " must be of type " + Schema.Type.LONG);
+    this.partitionColumnName = Optional.fromNullable(this.properties.getProp(getWriterPartitionColumnName()));
   }
 
   @Override
   public void write(GenericRecord record) throws IOException {
 
     // Retrieve the value of the field specified by this.partitionColumnName
-    Optional<Object> writerPartitionColumnValue = AvroUtils.getFieldValue(record, this.partitionColumnName);
-    Preconditions.checkState(writerPartitionColumnValue.isPresent());
+    Optional<Object> writerPartitionColumnValue;
+    if (this.partitionColumnName.isPresent()) {
+      writerPartitionColumnValue = AvroUtils.getFieldValue(record, this.partitionColumnName.get());
+    } else {
+      writerPartitionColumnValue = Optional.absent();
+    }
 
-    Path writerOutputPath = getPathForColumnValue((Long) writerPartitionColumnValue.get());
+    // Check if the partition column value is present and is a Long object. Otherwise, use current system time.
+    long recordTimestamp = writerPartitionColumnValue.orNull() instanceof Long ? (Long) writerPartitionColumnValue.get()
+        : System.currentTimeMillis();
+
+    Path writerOutputPath = getPathForColumnValue(recordTimestamp);
 
     // If the path is not in pathToWriterMap, construct a new DataWriter, add it to the map, and write the record
     // If the path is in pathToWriterMap simply retrieve the writer, and write the record
     if (!this.pathToWriterMap.containsKey(writerOutputPath)) {
 
-      LOG.info("Creating a new DataWriter for path: " + new Path(this.baseFilePath, writerOutputPath));
+      LOG.info("Creating a new DataWriter for path: " + writerOutputPath);
 
       DataWriter<GenericRecord> avroHdfsDataWriter = createAvroHdfsDataWriterForPath(writerOutputPath);
 
@@ -296,7 +292,7 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
    * @return a {@link Path} based on the value of the timestamp.
    */
   private Path getPathForColumnValue(long timestamp) {
-    return new Path(this.baseFilePath, partitionLevel + Path.SEPARATOR + timestampToPathFormatter.print(timestamp));
+    return new Path(this.datasetName, partitionLevel + Path.SEPARATOR + timestampToPathFormatter.print(timestamp));
   }
 
   /**
@@ -311,8 +307,8 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
    * Helper method to get the branched configuration key for {@link ConfigurationKeys#WRITER_FILE_PATH}.
    */
   private String getWriterFilePath() {
-    return ForkOperatorUtils
-        .getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, this.numBranches, this.branch);
+    return ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, this.numBranches,
+        this.branch);
   }
 
   /**

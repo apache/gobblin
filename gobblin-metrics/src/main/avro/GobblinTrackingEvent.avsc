@@ -1,0 +1,32 @@
+{
+  "type": "record",
+  "name": "GobblinTrackingEvent",
+  "namespace": "gobblin.metrics",
+  "fields": [
+    {
+      "name": "timestamp",
+      "type": "long",
+      "default": 0,
+      "doc": "Time at which event was created."
+    },
+    {
+      "name": "namespace",
+      "type": ["string", "null"],
+      "doc": "Namespace used for filtering of events."
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "doc": "Event name."
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Event metadata."
+    }
+  ]
+}

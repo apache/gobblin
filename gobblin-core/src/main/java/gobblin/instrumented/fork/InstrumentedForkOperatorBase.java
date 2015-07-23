@@ -1,5 +1,5 @@
 /*
- * (c) 2014 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -20,8 +20,10 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.fork.ForkOperator;
 import gobblin.instrumented.Instrumentable;
@@ -29,6 +31,7 @@ import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricNames;
+import gobblin.metrics.Tag;
 
 
 /**
@@ -40,24 +43,53 @@ abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, For
   private boolean instrumentationEnabled = false;
   protected final Closer closer = Closer.create();
 
-  protected MetricContext metricContext = new MetricContext.Builder(InstrumentedForkOperatorBase.class.getName())
+  private MetricContext metricContext = new MetricContext.Builder(InstrumentedForkOperatorBase.class.getName())
       .build();
-  protected Optional<Meter> inputMeter = Optional.absent();
-  protected Optional<Meter> outputForks = Optional.absent();
-  protected Optional<Timer> forkOperatorTimer = Optional.absent();
+  private Optional<Meter> inputMeter = Optional.absent();
+  private Optional<Meter> outputForks = Optional.absent();
+  private Optional<Timer> forkOperatorTimer = Optional.absent();
 
   @Override
-  public void init(WorkUnitState workUnitState)
+  public void init(WorkUnitState workUnitState) throws Exception {
+    init(workUnitState, this.getClass());
+  }
+
+  protected void init(WorkUnitState workUnitState, Class<?> classTag)
       throws Exception {
     this.instrumentationEnabled = GobblinMetrics.isEnabled(workUnitState);
+    this.metricContext = closer.register(Instrumented.getMetricContext(workUnitState, classTag));
+    regenerateMetrics();
+  }
 
+  @Override
+  public void switchMetricContext(List<Tag<?>> tags) {
+    this.metricContext = this.closer.register(Instrumented.newContextFromReferenceContext(this.metricContext, tags,
+        Optional.<String>absent()));
+
+    regenerateMetrics();
+  }
+
+  @Override
+  public void switchMetricContext(MetricContext context) {
+    this.metricContext = context;
+    regenerateMetrics();
+  }
+
+  /**
+   * Generates metrics for the instrumentation of this class.
+   */
+  protected void regenerateMetrics() {
     if(isInstrumentationEnabled()) {
-      this.metricContext = closer.register(Instrumented.getMetricContext(workUnitState, this.getClass()));
-
       this.inputMeter = Optional.of(this.metricContext.meter(MetricNames.ForkOperatorMetrics.RECORDS_IN_METER));
       this.outputForks = Optional.of(this.metricContext.meter(MetricNames.ForkOperatorMetrics.FORKS_OUT_METER));
       this.forkOperatorTimer = Optional.of(this.metricContext.timer(MetricNames.ForkOperatorMetrics.FORK_TIMER));
     }
+  }
+
+  /** Default with no additional tags */
+  @Override
+  public List<Tag<?>> generateTags(State state) {
+    return Lists.newArrayList();
   }
 
   @Override

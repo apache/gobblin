@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -416,7 +417,6 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
 
   private boolean existsMetric(Connection connection, String template, String id, Metric metric)
       throws SQLException {
-
     Preconditions.checkArgument(!Strings.isNullOrEmpty(id));
     Preconditions.checkArgument(metric.hasGroup());
     Preconditions.checkArgument(metric.hasName());
@@ -433,7 +433,6 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
 
   private void updateMetric(Connection connection, String template, String id, Metric metric, boolean insert)
       throws SQLException {
-
     Preconditions.checkArgument(!Strings.isNullOrEmpty(id));
     Preconditions.checkArgument(metric.hasGroup());
     Preconditions.checkArgument(metric.hasName());
@@ -460,7 +459,6 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
 
   private boolean existsProperty(Connection connection, String template, String id, String key)
       throws SQLException {
-
     Preconditions.checkArgument(!Strings.isNullOrEmpty(id));
     Preconditions.checkArgument(!Strings.isNullOrEmpty(key));
 
@@ -474,7 +472,6 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
   private void updateProperty(Connection connection, String template, String id, String key, String value,
       boolean insert)
       throws SQLException {
-
     Preconditions.checkArgument(!Strings.isNullOrEmpty(id));
     Preconditions.checkArgument(!Strings.isNullOrEmpty(key));
     Preconditions.checkArgument(!Strings.isNullOrEmpty(value));
@@ -495,7 +492,6 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
 
   private JobExecutionInfo processQueryById(Connection connection, String jobId, Optional<String> tableFilter)
       throws SQLException {
-
     Preconditions.checkArgument(!Strings.isNullOrEmpty(jobId));
 
     // Query job execution information
@@ -579,7 +575,6 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
   private List<JobExecutionInfo> processQueryByJobName(Connection connection, String jobName, JobExecutionQuery query,
       Optional<String> tableFilter)
       throws SQLException {
-
     Preconditions.checkArgument(!Strings.isNullOrEmpty(jobName));
 
     // Construct the query for job IDs by a given job name
@@ -619,7 +614,6 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
 
   private List<JobExecutionInfo> processQueryByTable(Connection connection, JobExecutionQuery query)
       throws SQLException {
-
     Preconditions.checkArgument(query.getId().isTable());
 
     String tableFilter = constructTableFilter(query.getId().getTable());
@@ -731,7 +725,6 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
 
   private AbstractMap.SimpleEntry<String, String> resultSetToProperty(ResultSet rs)
       throws SQLException {
-
     return new AbstractMap.SimpleEntry<String, String>(rs.getString(1), rs.getString(2));
   }
 

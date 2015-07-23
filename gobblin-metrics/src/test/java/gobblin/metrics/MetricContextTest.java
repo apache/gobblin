@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -35,13 +36,16 @@ import com.google.common.collect.Lists;
 
 import static gobblin.metrics.TestConstants.*;
 
+import gobblin.metrics.reporter.ContextAwareScheduledReporter;
+
+
 /**
  * Unit tests for {@link MetricContext}.
  *
  * <p>
  *   This test class also tests classes {@link ContextAwareCounter}, {@link ContextAwareMeter},
  *   {@link ContextAwareHistogram}, {@link ContextAwareTimer}, {@link ContextAwareGauge},
- *   {@link ContextAwareScheduledReporter}, and {@link TagBasedMetricFilter}.
+ *   {@link gobblin.metrics.reporter.ContextAwareScheduledReporter}, and {@link TagBasedMetricFilter}.
  * </p>
  *
  * @author ynli
@@ -72,10 +76,14 @@ public class MetricContextTest {
 
     Assert.assertEquals(this.context.getName(), CONTEXT_NAME);
     Assert.assertFalse(this.context.getParent().isPresent());
-    Assert.assertEquals(this.context.getTags().size(), 1);
+    Assert.assertEquals(this.context.getTags().size(), 2); // uuid tag gets added automatically
     Assert.assertEquals(this.context.getTags().get(0).getKey(), JOB_ID_KEY);
     Assert.assertEquals(this.context.getTags().get(0).getValue(), JOB_ID_PREFIX + 0);
-    Assert.assertEquals(this.context.metricNamePrefix(false), JOB_ID_PREFIX + 0);
+    // Second tag should be uuid
+    Assert.assertTrue(this.context.getTags().get(1).getValue().toString()
+        .matches("[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"));
+    Assert.assertEquals(this.context.metricNamePrefix(false),
+        this.context.getTags().get(0).getValue() + "." + this.context.getTags().get(1).getValue());
   }
 
   @Test
@@ -90,13 +98,15 @@ public class MetricContextTest {
     Assert.assertEquals(this.childContext.getName(), CHILD_CONTEXT_NAME);
     Assert.assertTrue(this.childContext.getParent().isPresent());
     Assert.assertEquals(this.childContext.getParent().get(), this.context);
-    Assert.assertEquals(this.childContext.getTags().size(), 2);
+    Assert.assertEquals(this.childContext.getTags().size(), 3);
     Assert.assertEquals(this.childContext.getTags().get(0).getKey(), JOB_ID_KEY);
     Assert.assertEquals(this.childContext.getTags().get(0).getValue(), JOB_ID_PREFIX + 0);
-    Assert.assertEquals(this.childContext.getTags().get(1).getKey(), TASK_ID_KEY);
-    Assert.assertEquals(this.childContext.getTags().get(1).getValue(), TASK_ID_PREFIX + 0);
+    Assert.assertEquals(this.childContext.getTags().get(1).getKey(), MetricContext.METRIC_CONTEXT_ID_TAG_NAME);
+    Assert.assertEquals(this.childContext.getTags().get(2).getKey(), TASK_ID_KEY);
+    Assert.assertEquals(this.childContext.getTags().get(2).getValue(), TASK_ID_PREFIX + 0);
     Assert.assertEquals(this.childContext.metricNamePrefix(false),
-        MetricRegistry.name(JOB_ID_PREFIX + 0, TASK_ID_PREFIX + 0));
+        MetricRegistry.name(JOB_ID_PREFIX + 0, this.childContext.getTags().get(1).getValue().toString(),
+            TASK_ID_PREFIX + 0));
   }
 
   @Test(dependsOnMethods = "testChildContext")

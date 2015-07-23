@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -13,6 +14,8 @@ package gobblin.configuration;
 
 import java.nio.charset.Charset;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.commons.lang.StringUtils;
 
 import com.google.common.base.Charsets;
 
@@ -71,14 +74,10 @@ public class ConfigurationKeys {
    */
   public static final String TASK_EXECUTOR_THREADPOOL_SIZE_KEY = "taskexecutor.threadpool.size";
   public static final String TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE_KEY = "tasktracker.threadpool.coresize";
-  public static final String TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE_KEY = "tasktracker.threadpool.maxsize";
   public static final String TASK_RETRY_THREAD_POOL_CORE_SIZE_KEY = "taskretry.threadpool.coresize";
-  public static final String TASK_RETRY_THREAD_POOL_MAX_SIZE_KEY = "taskretry.threadpool.maxsize";
   public static final int DEFAULT_TASK_EXECUTOR_THREADPOOL_SIZE = 2;
   public static final int DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE = 1;
-  public static final int DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE = 2;
   public static final int DEFAULT_TASK_RETRY_THREAD_POOL_CORE_SIZE = 1;
-  public static final int DEFAULT_TASK_RETRY_THREAD_POOL_MAX_SIZE = 2;
 
   /**
    * Common job configuration properties.
@@ -108,7 +107,7 @@ public class ConfigurationKeys {
   public static final String TASK_RETRY_INTERVAL_IN_SEC_KEY = "task.retry.intervalinsec";
   public static final long DEFAULT_TASK_RETRY_INTERVAL_IN_SEC = 300;
   public static final String OVERWRITE_CONFIGS_IN_STATESTORE = "overwrite.configs.in.statestore";
-  public static final boolean DEFAULT_OVERWRITE_CONFIGS_IN_STATESTORE = Boolean.FALSE;
+  public static final boolean DEFAULT_OVERWRITE_CONFIGS_IN_STATESTORE = false;
 
   /**
    * Configuration properties used internally.
@@ -122,6 +121,7 @@ public class ConfigurationKeys {
   public static final String JOB_TRACKING_URL_KEY = "job.tracking.url";
   public static final String FORK_STATE_KEY = "fork.state";
   public static final String METRIC_CONTEXT_NAME_KEY = "metrics.context.name";
+  public static final String JOB_STATE_FILE_PATH_KEY = "job.state.file.path";
 
   /**
    * Work unit related configuration properties.
@@ -153,7 +153,8 @@ public class ConfigurationKeys {
   public static final String EXTRACT_PRIMARY_KEY_FIELDS_KEY = "extract.primary.key.fields";
   public static final String EXTRACT_DELTA_FIELDS_KEY = "extract.delta.fields";
   public static final String EXTRACT_SCHEMA = "extract.schema";
-  public static final String EXTRACT_PULL_LIMIT = "extract.pull.limit";
+  public static final String EXTRACT_LIMIT_ENABLED_KEY = "extract.limit.enabled";
+  public static final boolean DEFAULT_EXTRACT_LIMIT_ENABLED = false;
 
   /**
    * Converter configuration properties.
@@ -200,6 +201,7 @@ public class ConfigurationKeys {
   public static final String WRITER_FILE_SYSTEM_URI = WRITER_PREFIX + ".fs.uri";
   public static final String WRITER_STAGING_DIR = WRITER_PREFIX + ".staging.dir";
   public static final String WRITER_OUTPUT_DIR = WRITER_PREFIX + ".output.dir";
+  // WRITER_FINAL_OUTPUT_PATH is used for internal purposes only to pass the absolute writer path to the publisher
   public static final String WRITER_FINAL_OUTPUT_PATH = WRITER_PREFIX + ".final.output.path";
   public static final String WRITER_BUILDER_CLASS = WRITER_PREFIX + ".builder.class";
   public static final String DEFAULT_WRITER_BUILDER_CLASS = "gobblin.writer.AvroDataWriterBuilder";
@@ -209,6 +211,7 @@ public class ConfigurationKeys {
   public static final String WRITER_FILE_OWNER = WRITER_PREFIX + ".file.owner";
   public static final String WRITER_FILE_GROUP = WRITER_PREFIX + ".file.group";
   public static final String WRITER_FILE_REPLICATION_FACTOR = WRITER_PREFIX + ".file.replication.factor";
+  public static final String WRITER_FILE_BLOCK_SIZE = WRITER_PREFIX + ".file.block.size";
   public static final String WRITER_FILE_PERMISSIONS = WRITER_PREFIX + ".file.permissions";
   public static final String WRITER_BUFFER_SIZE = WRITER_PREFIX + ".buffer.size";
   public static final String WRITER_PRESERVE_FILE_NAME = WRITER_PREFIX + ".preserve.file.name";
@@ -218,8 +221,9 @@ public class ConfigurationKeys {
   public static final String WRITER_PARTITION_LEVEL = WRITER_PREFIX + ".partition.level";
   public static final String WRITER_PARTITION_PATTERN = WRITER_PREFIX + ".partition.pattern";
   public static final String WRITER_PARTITION_TIMEZONE = WRITER_PREFIX + ".partition.timezone";
+  public static final String WRITER_GROUP_NAME = WRITER_PREFIX + ".group.name";
   public static final String DEFAULT_WRITER_FILE_BASE_NAME = "part";
-  public static final String DEFAULT_DEFLATE_LEVEL = "9";
+  public static final int DEFAULT_DEFLATE_LEVEL = 9;
   public static final String DEFAULT_BUFFER_SIZE = "4096";
   public static final String DEFAULT_WRITER_PARTITION_LEVEL = "daily";
   public static final String DEFAULT_WRITER_PARTITION_PATTERN = "yyyy/MM/dd";
@@ -242,6 +246,7 @@ public class ConfigurationKeys {
   /**
    * Configuration properties used by the row count policies.
    */
+  public static final String EXTRACTOR_ROWS_EXTRACTED = QUALITY_CHECKER_PREFIX + ".rows.extracted";
   public static final String EXTRACTOR_ROWS_EXPECTED = QUALITY_CHECKER_PREFIX + ".rows.expected";
   public static final String WRITER_ROWS_WRITTEN = QUALITY_CHECKER_PREFIX + ".rows.written";
   public static final String ROW_COUNT_RANGE = QUALITY_CHECKER_PREFIX + ".row.count.range";
@@ -355,8 +360,8 @@ public class ConfigurationKeys {
    */
   public static final String MR_JOB_ROOT_DIR_KEY = "mr.job.root.dir";
   public static final String MR_JOB_MAX_MAPPERS_KEY = "mr.job.max.mappers";
-  public static final String MR_INCLUDE_TASK_COUNTERS_KEY = "mr.include.task.counters";
-  public static final boolean DEFAULT_MR_INCLUDE_TASK_COUNTERS = Boolean.FALSE;
+  public static final String MR_REPORT_METRICS_AS_COUNTERS_KEY = "mr.report.metrics.as.counters";
+  public static final boolean DEFAULT_MR_REPORT_METRICS_AS_COUNTERS = false;
   public static final int DEFAULT_MR_JOB_MAX_MAPPERS = 100;
 
   /**
@@ -373,32 +378,99 @@ public class ConfigurationKeys {
   public static final String EMAIL_TOS_KEY = "email.tos";
 
   /**
-   * Common metrics configuration properties.
+   * Configuration properties for compaction.
    */
-  public static final String METRICS_LOG_DIR_KEY = "metrics.log.dir";
-  public static final String METRICS_ENABLED_KEY = "metrics.enabled";
-  public static final String DEFAULT_METRICS_ENABLED = Boolean.toString(false);
-  public static final String METRICS_REPORTING_FILE_ENABLED_KEY = "metrics.reporting.file.enabled";
-  public static final String DEFAULT_METRICS_REPORTING_FILE_ENABLED = Boolean.toString(true);
-  public static final String METRICS_REPORTING_JMX_ENABLED_KEY = "metrics.reporting.jmx.enabled";
-  public static final String DEFAULT_METRICS_REPORTING_JMX_ENABLED = Boolean.toString(false);
-  public static final String METRICS_REPORTING_KAFKA_ENABLED_KEY = "metrics.reporting.kafka.enabled";
-  public static final String DEFAULT_METRICS_REPORTING_KAFKA_ENABLED = Boolean.toString(false);
-  public static final String METRICS_REPORTING_KAFKA_FORMAT = "metrics.reporting.kafka.format";
-  public static final String DEFAULT_METRICS_REPORTING_KAFKA_FORMAT = "json";
-  public static final String METRICS_KAFKA_BROKERS = "metrics.reporting.kafka.brokers";
-  public static final String METRICS_KAFKA_TOPIC = "metrics.reporting.kafka.topic";
-  public static final String METRICS_REPORT_INTERVAL_KEY = "metrics.report.interval";
-  public static final String DEFAULT_METRICS_REPORT_INTERVAL = "30000";
+  public static final String COMPACTION_PREFIX = "compaction.";
+  public static final String COMPACTION_THREAD_POOL_SIZE = COMPACTION_PREFIX + "thread.pool.size";
+  public static final int DEFAULT_COMPACTION_THREAD_POOL_SIZE = 20;
+  public static final String COMPACTION_INPUT_DIR = COMPACTION_PREFIX + "input.dir";
+  public static final String COMPACTION_INPUT_SUBDIR = COMPACTION_PREFIX + "input.subdir";
+  public static final String DEFAULT_COMPACTION_INPUT_SUBDIR = StringUtils.EMPTY;
+  public static final String COMPACTION_JOB_INPUT_DIR = COMPACTION_PREFIX + "job.input.dir";
+  public static final String COMPACTION_DEST_DIR = COMPACTION_PREFIX + "dest.dir";
+  public static final String COMPACTION_DEST_SUBDIR = COMPACTION_PREFIX + "dest.subdir";
+  public static final String DEFAULT_COMPACTION_DEST_SUBDIR = StringUtils.EMPTY;
+  public static final String COMPACTION_JOB_DEST_DIR = COMPACTION_PREFIX + "job.dest.dir";
+  public static final String COMPACTION_TMP_DIR = COMPACTION_PREFIX + "tmp.dir";
+  public static final String DEFAULT_COMPACTION_TMP_DIR = "/tmp";
+  public static final String COMPACTION_JOB_TMP_DIR = COMPACTION_PREFIX + "job.tmp.dir";
+  public static final String COMPACTION_BLACKLIST = COMPACTION_PREFIX + "blacklist";
+  public static final String COMPACTION_WHITELIST = COMPACTION_PREFIX + "whitelist";
+  public static final String COMPACTION_HIGH_PRIORITY_TOPICS = COMPACTION_PREFIX + "high.priority.topics";
+  public static final String COMPACTION_NORMAL_PRIORITY_TOPICS = COMPACTION_PREFIX + "normal.priority.topics";
+  public static final String COMPACTION_JOBPROPS_CREATOR_CLASS = COMPACTION_PREFIX + "jobprops.creator.class";
+  public static final String DEFAULT_COMPACTION_JOBPROPS_CREATOR_CLASS =
+      "gobblin.compaction.mapreduce.MRCompactorTimeBasedJobPropCreator";
+  public static final String COMPACTION_TIMEBASED_FOLDER_PATTERN = COMPACTION_PREFIX + "timebased.folder.pattern";
+  public static final String DEFAULT_COMPACTION_TIMEBASED_FOLDER_PATTERN = "YYYY/MM/dd";
+  public static final String COMPACTION_TIMEZONE = COMPACTION_PREFIX + "timezone";
+  public static final String DEFAULT_COMPACTION_TIMEZONE = "America/Los_Angeles";
+  public static final String COMPACTION_TIMEBASED_MAX_TIME_AGO = COMPACTION_PREFIX + "timebased.max.time.ago";
+  public static final String DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO = "5h";
+  public static final String COMPACTION_TIMEBASED_MIN_TIME_AGO = COMPACTION_PREFIX + "timebased.min.time.ago";
+  public static final String DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO = "1h";
+  public static final String COMPACTION_TOPIC = COMPACTION_PREFIX + "topic";
+  public static final String COMPACTION_OUTPUT_PERMISSION = COMPACTION_PREFIX + "output.permission";
+  public static final int DEFAULT_COMPACTION_OUTPUT_PERMISSION = 0755;
+  public static final String COMPACTION_TARGET_OUTPUT_FILE_SIZE = COMPACTION_PREFIX + "target.output.file.size";
+  public static final long DEFAULT_COMPACTION_TARGET_OUTPUT_FILE_SIZE = 268435456;
+  public static final String COMPACTION_MAX_NUM_REDUCERS = COMPACTION_PREFIX + "max.num.reducers";
+  public static final int DEFAULT_COMPACTION_MAX_NUM_REDUCERS = 100;
+  public static final String COMPACTION_MAPRED_MAX_SPLIT_SIZE = COMPACTION_PREFIX + "mapred.max.split.size";
+  public static final long DEFAULT_COMPACTION_MAPRED_MAX_SPLIT_SIZE = 268435456;
+  public static final String COMPACTION_MAPRED_MIN_SPLIT_SIZE = COMPACTION_PREFIX + "mapred.min.split.size";
+  public static final long DEFAULT_COMPACTION_MAPRED_MIN_SPLIT_SIZE = 268435456;
+  public static final String COMPACTION_AVRO_KEY_SCHEMA_LOC = COMPACTION_PREFIX + "avro.key.schema.loc";
+  public static final String COMPACTION_USE_ALL_ATTRIBUTES = COMPACTION_PREFIX + "use.all.attributes";
+  public static final boolean DEFAULT_COMPACTION_USE_ALL_ATTRIBUTES = false;
+  public static final String COMPACTION_JOB_RUNNER_CLASS = COMPACTION_PREFIX + "job.runner.class";
+  public static final String DEFAULT_COMPACTION_JOB_RUNNER_CLASS =
+      "gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner";
+  public static final String COMPACTION_COMPACTOR_CLASS = COMPACTION_PREFIX + "compactor.class";
+  public static final String DEFAULT_COMPACTION_COMPACTOR_CLASS = "gobblin.compaction.mapreduce.MRCompactor";
+  public static final String COMPACTION_FILE_SYSTEM_URI = COMPACTION_PREFIX + "file.system.uri";
+  public static final String COMPACTION_MR_JOB_TIMEOUT_MINUTES = COMPACTION_PREFIX + "mr.job.timeout.minutes";
+  public static final int DEFAULT_COMPACTION_MR_JOB_TIMEOUT_MINUTES = Integer.MAX_VALUE;
+  public static final String COMPACTION_COMPLETE_FILE_NAME = "_COMPACTION_COMPLETE";
+  public static final String COMPACTION_ENABLE_SUCCESS_FILE = "mapreduce.fileoutputcommitter.marksuccessfuljobs";
+  public static final String COMPACTION_OVERWRITE_OUTPUT_DIR = COMPACTION_PREFIX + "overwrite.output.dir";
+  public static final boolean DEFAULT_COMPACTION_OVERWRITE_OUTPUT_DIR = false;
+  public static final String COMPACTION_JARS = COMPACTION_PREFIX + "jars";
 
   /**
-   * FluxDB metrics store configuration properties.
+   * Common metrics configuration properties.
    */
-  public static final String FLUXDB_URL_KEY = "fluxdb.url";
-  public static final String FLUXDB_USER_NAME_KEY = "fluxdb.user.name";
-  public static final String DEFAULT_FLUXDB_USER_NAME = "root";
-  public static final String FLUXDB_USER_PASSWORD_KEY = "fluxdb.user.password";
-  public static final String DEFAULT_FLUXDB_USER_PASSWORD = "root";
+  public static final String METRICS_CONFIGURATIONS_PREFIX = "metrics.";
+  public static final String METRICS_LOG_DIR_KEY = METRICS_CONFIGURATIONS_PREFIX + "log.dir";
+  public static final String METRICS_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX + "enabled";
+  public static final String DEFAULT_METRICS_ENABLED = Boolean.toString(true);
+  public static final String METRICS_FILE_SUFFIX = METRICS_CONFIGURATIONS_PREFIX + "reporting.file.suffix";
+  public static final String DEFAULT_METRICS_FILE_SUFFIX = "";
+  public static final String METRICS_REPORTING_FILE_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX
+      + "reporting.file.enabled";
+  public static final String DEFAULT_METRICS_REPORTING_FILE_ENABLED = Boolean.toString(false);
+  public static final String METRICS_REPORTING_JMX_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX
+      + "reporting.jmx.enabled";
+  public static final String DEFAULT_METRICS_REPORTING_JMX_ENABLED = Boolean.toString(false);
+  public static final String METRICS_REPORTING_KAFKA_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX
+      + "reporting.kafka.enabled";
+  public static final String DEFAULT_METRICS_REPORTING_KAFKA_ENABLED = Boolean.toString(false);
+  public static final String METRICS_REPORTING_KAFKA_FORMAT = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.format";
+  public static final String DEFAULT_METRICS_REPORTING_KAFKA_FORMAT = "json";
+  public static final String METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY = METRICS_CONFIGURATIONS_PREFIX
+      + "reporting.kafka.avro.use.schema.registry";
+  public static final String DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY = Boolean.toString(false);
+  public static final String METRICS_KAFKA_BROKERS = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.brokers";
+  // Topic used for both event and metric reporting.
+  // Can be overriden by METRICS_KAFKA_TOPIC_METRICS and METRICS_KAFKA_TOPIC_EVENTS.
+  public static final String METRICS_KAFKA_TOPIC = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic";
+  // Topic used only for metric reporting.
+  public static final String METRICS_KAFKA_TOPIC_METRICS = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic.metrics";
+  // Topic used only for event reporting.
+  public static final String METRICS_KAFKA_TOPIC_EVENTS = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic.events";
+  public static final String METRICS_CUSTOM_BUILDERS = METRICS_CONFIGURATIONS_PREFIX + "reporting.custom.builders";
+  public static final String METRICS_REPORT_INTERVAL_KEY = METRICS_CONFIGURATIONS_PREFIX + "report.interval";
+  public static final String DEFAULT_METRICS_REPORT_INTERVAL = Long.toString(TimeUnit.SECONDS.toMillis(30));
 
   /**
    * Rest server configuration properties.
@@ -421,9 +493,27 @@ public class ConfigurationKeys {
   public static final String DEFAULT_JOB_HISTORY_STORE_PASSWORD = "gobblin";
 
   /**
+   * Password encryption and decryption properties.
+   */
+  public static final String ENCRYPT_KEY_LOC = "encrypt.key.loc";
+  public static final String ENCRYPT_USE_STRONG_ENCRYPTOR = "encrypt.use.strong.encryptor";
+  public static final boolean DEFAULT_ENCRYPT_USE_STRONG_ENCRYPTOR = false;
+
+  /**
+   * Proxy Filesystem operation properties.
+   */
+  public static final String SHOULD_FS_PROXY_AS_USER = "should.fs.proxy.as.user";
+  public static final boolean DEFAULT_SHOULD_FS_PROXY_AS_USER = false;
+  public static final String FS_PROXY_AS_USER_NAME = "fs.proxy.as.user.name";
+  public static final String FS_PROXY_AS_USER_TOKEN_FILE = "fs.proxy.as.user.token.file";
+  public static final String SUPER_USER_NAME_TO_PROXY_AS_OTHERS = "super.user.name.to.proxy.as.others";
+  public static final String SUPER_USER_KEY_TAB_LOCATION = "super.user.key.tab.location";
+
+  /**
    * Other configuration properties.
    */
   public static final Charset DEFAULT_CHARSET_ENCODING = Charsets.UTF_8;
+  public static final String TEST_HARNESS_LAUNCHER_IMPL = "gobblin.testharness.launcher.impl";
 
   /**
    * Amazon AWS S3 properties.

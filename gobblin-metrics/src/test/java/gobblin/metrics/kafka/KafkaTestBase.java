@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -104,10 +105,10 @@ public class KafkaTestBase implements Closeable {
     Properties consumeProps = new Properties();
     consumeProps.put("zookeeper.connect", zkConnect);
     consumeProps.put("group.id", "testConsumer");
-    consumeProps.put("zookeeper.session.timeout.ms", "400");
-    consumeProps.put("zookeeper.sync.time.ms", "200");
+    consumeProps.put("zookeeper.session.timeout.ms", "1000");
+    consumeProps.put("zookeeper.sync.time.ms", "1000");
     consumeProps.put("auto.commit.interval.ms", "1000");
-    consumeProps.put("consumer.timeout.ms", "200");
+    consumeProps.put("consumer.timeout.ms", "1000");
 
     consumer = Consumer.createJavaConsumerConnector(new ConsumerConfig(consumeProps));
 

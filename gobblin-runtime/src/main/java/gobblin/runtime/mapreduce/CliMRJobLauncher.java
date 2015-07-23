@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -30,6 +31,7 @@ import org.apache.hadoop.util.ToolRunner;
 import com.google.common.io.Closer;
 
 import gobblin.runtime.JobException;
+import gobblin.util.JobConfigurationUtils;
 
 
 /**
@@ -51,15 +53,11 @@ public class CliMRJobLauncher extends Configured implements Tool {
   @Override
   public int run(String[] args)
       throws Exception {
-    final Properties jobProps = new Properties();
-    // First load system configuration properties
-    jobProps.putAll(this.sysConfig);
-    // Then load job configuration properties that might overwrite system configuration properties
-    jobProps.putAll(this.jobConfig);
+    final Properties jobProps = JobConfigurationUtils.combineSysAndJobProperties(this.sysConfig, this.jobConfig);
 
     Closer closer = Closer.create();
     try {
-      closer.register(new MRJobLauncher(this.sysConfig, jobProps, getConf())).launchJob(null);
+      closer.register(new MRJobLauncher(jobProps, getConf())).launchJob(null);
     } catch (JobException je) {
       System.err.println("Failed to launch the job due to the following exception:");
       System.err.println(je.toString());

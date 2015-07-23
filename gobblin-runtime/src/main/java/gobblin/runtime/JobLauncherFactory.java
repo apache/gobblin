@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -17,6 +18,7 @@ import javax.annotation.Nonnull;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.local.LocalJobLauncher;
 import gobblin.runtime.mapreduce.MRJobLauncher;
+import gobblin.util.JobConfigurationUtils;
 
 
 /**
@@ -29,7 +31,7 @@ public class JobLauncherFactory {
   /**
    * Supported types of {@link JobLauncher}.
    */
-  enum JobLauncherType {
+  public enum JobLauncherType {
     LOCAL,
     MAPREDUCE,
     YARN
@@ -52,9 +54,9 @@ public class JobLauncherFactory {
         .valueOf(sysProps.getProperty(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherType.LOCAL.name()));
     switch (launcherType) {
       case LOCAL:
-        return new LocalJobLauncher(sysProps, jobProps);
+        return new LocalJobLauncher(JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps));
       case MAPREDUCE:
-        return new MRJobLauncher(sysProps, jobProps);
+        return new MRJobLauncher(JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps));
       default:
         throw new RuntimeException("Unsupported job launcher type: " + launcherType.name());
     }

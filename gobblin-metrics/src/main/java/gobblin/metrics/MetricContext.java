@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -16,10 +17,18 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
+import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.MetricFilter;
@@ -32,14 +41,23 @@ import com.codahale.metrics.MetricSet;
 import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Timer;
 
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Lists;
-import com.google.common.collect.MapMaker;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
+
+import gobblin.metrics.notification.EventNotification;
+import gobblin.metrics.notification.Notification;
+import gobblin.metrics.reporter.ContextAwareScheduledReporter;
 
 
 /**
@@ -60,6 +78,10 @@ import com.google.common.io.Closer;
  */
 public class MetricContext extends MetricRegistry implements Taggable, Closeable {
 
+  private static final Logger LOG = LoggerFactory.getLogger(MetricContext.class);
+
+  public static final String METRIC_CONTEXT_ID_TAG_NAME = "metricContextID";
+
   // Name of this context
   private final String name;
 
@@ -74,7 +96,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
   private final Optional<MetricContext> parent;
 
   // A map from child context names to child contexts
-  private final ConcurrentMap<String, MetricContext> children = new MapMaker().weakValues().makeMap();
+  private final Cache<String, MetricContext> children = CacheBuilder.newBuilder().softValues().build();
 
   // This is used to work on tags associated with this context
   private final Tagged tagged;
@@ -88,13 +110,23 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
   // This is used to close all children context when this context is to be closed
   private final Closer closer = Closer.create();
 
+  // Targets for notifications.
+  private final Set<Function<Notification, Void>> notificationTargets;
+
+  private Optional<ExecutorService> executorServiceOptional;
+
   private MetricContext(String name, MetricContext parent, List<Tag<?>> tags,
       Map<String, ContextAwareScheduledReporter.Builder> builders, boolean reportFullyQualifiedNames,
       boolean includeTagKeys) {
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(name));
+
     this.name = name;
     this.parent = Optional.fromNullable(parent);
     this.tagged = new Tagged(tags);
+    this.tagged.addTag(new Tag<String>(METRIC_CONTEXT_ID_TAG_NAME, UUID.randomUUID().toString()));
     this.reportFullyQualifiedNames = reportFullyQualifiedNames;
+    this.notificationTargets = Sets.newConcurrentHashSet();
+    this.executorServiceOptional = Optional.absent();
     this.includeTagKeys = includeTagKeys;
 
     // Add as a child to the parent context if a parent exists
@@ -105,6 +137,13 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
     for (Map.Entry<String, ContextAwareScheduledReporter.Builder> entry : builders.entrySet()) {
       this.contextAwareScheduledReporters.put(entry.getKey(), entry.getValue().build(this));
     }
+  }
+
+  private synchronized ExecutorService getExecutorService() {
+    if(!this.executorServiceOptional.isPresent()) {
+      this.executorServiceOptional = Optional.of(Executors.newCachedThreadPool());
+    }
+    return this.executorServiceOptional.get();
   }
 
   /**
@@ -134,9 +173,18 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    * @param childContext the child {@link MetricContext} to add
    */
   public void addChildContext(String childContextName, MetricContext childContext) {
-    if (this.children.putIfAbsent(childContextName, childContext) != null) {
+    if(this.children.asMap().putIfAbsent(childContextName, childContext) != null) {
       throw new IllegalArgumentException("A child context named " + childContextName + " already exists");
     }
+  }
+
+  /**
+   * Get a view of the child {@link gobblin.metrics.MetricContext}s as a {@link com.google.common.collect.ImmutableMap}.
+   * @return {@link com.google.common.collect.ImmutableMap} of
+   *      child {@link gobblin.metrics.MetricContext}s keyed by their names.
+   */
+  public Map<String, MetricContext> getChildContextsAsMap() {
+    return ImmutableMap.copyOf(this.children.asMap());
   }
 
   /**
@@ -150,6 +198,31 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
   @Override
   public SortedSet<String> getNames() {
     return this.reportFullyQualifiedNames ? super.getNames() : getSimpleNames();
+  }
+
+  /**
+   * Submit {@link gobblin.metrics.GobblinTrackingEvent} to all notification listeners attached to this or any
+   * ancestor {@link gobblin.metrics.MetricContext}s. The argument for this method is mutated by the method, so it
+   * should not be reused by the caller.
+   *
+   * @param nonReusableEvent {@link GobblinTrackingEvent} to submit. This object will be mutated by the method,
+   *                                                     so it should not be reused by the caller.
+   */
+  public void submitEvent(GobblinTrackingEvent nonReusableEvent) {
+    nonReusableEvent.setTimestamp(System.currentTimeMillis());
+
+    // Inject metric context tags into event metadata.
+    Map<String, String> originalMetadata = nonReusableEvent.getMetadata();
+    Map<String, Object> tags = getTagMap();
+    Map<String, String> newMetadata = Maps.newHashMap();
+    for(Map.Entry<String, Object> entry : tags.entrySet()) {
+      newMetadata.put(entry.getKey(), entry.getValue().toString());
+    }
+    newMetadata.putAll(originalMetadata);
+    nonReusableEvent.setMetadata(newMetadata);
+
+    EventNotification notification = new EventNotification(nonReusableEvent);
+    sendNotification(notification);
   }
 
   /**
@@ -362,6 +435,13 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
     return super.register(MetricRegistry.name(metricNamePrefix(this.includeTagKeys), name), metric);
   }
 
+  /**
+   * Register a {@link gobblin.metrics.ContextAwareMetric} under its own name.
+   */
+  public <T extends ContextAwareMetric> T register(T metric) throws IllegalArgumentException {
+    return register(metric.getName(), metric);
+  }
+
   @Override
   public void registerAll(MetricSet metrics)
       throws IllegalArgumentException {
@@ -538,6 +618,10 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
     return this.tagged.getTags();
   }
 
+  public Map<String, Object> getTagMap() {
+    return this.tagged.getTagMap();
+  }
+
   @Override
   public String metricNamePrefix(boolean includeTagKeys) {
     return this.tagged.metricNamePrefix(includeTagKeys);
@@ -568,6 +652,35 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    */
   public static Builder builder(String name) {
     return new Builder(name);
+  }
+
+  /**
+   * Add a target for {@link gobblin.metrics.notification.Notification}s.
+   * @param target A {@link com.google.common.base.Function} that will be run every time
+   *               there is a new {@link gobblin.metrics.notification.Notification} in this context.
+   */
+  public void addNotificationTarget(Function<Notification, Void> target) {
+    this.notificationTargets.add(target);
+  }
+
+  /**
+   * Send a notification to all targets of this context and to the parent of this context.
+   * @param notification {@link gobblin.metrics.notification.Notification} to send.
+   */
+  public void sendNotification(final Notification notification) {
+    for(final Function<Notification, Void> target : this.notificationTargets) {
+      getExecutorService().submit(new Callable<Void>() {
+        @Override
+        public Void call()
+            throws Exception {
+          target.apply(notification);
+          return null;
+        }
+      });
+    }
+    if(this.parent.isPresent()) {
+      this.parent.get().sendNotification(notification);
+    }
   }
 
   private SortedSet<String> getSimpleNames() {
@@ -610,7 +723,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
 
   private boolean removeChildrenMetrics(String name) {
     boolean removed = true;
-    for (MetricContext child : this.children.values()) {
+    for (MetricContext child : this.children.asMap().values()) {
       if (!child.remove(name)) {
         removed = false;
       }
