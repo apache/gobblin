@@ -18,9 +18,8 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.nio.charset.Charset;
 
-import com.google.common.base.Charsets;
+import com.google.common.io.BaseEncoding;
 import com.google.common.io.Closer;
 
 
@@ -31,23 +30,36 @@ import com.google.common.io.Closer;
  */
 public class SerializationUtils {
 
-  private static final Charset CHARSET = Charsets.ISO_8859_1;
+  private static final BaseEncoding DEFAULT_ENCODING = BaseEncoding.base64();
 
   /**
    * Serialize an object into a String. The object is first serialized into a byte array,
-   * which is converted into a String using charset ISO_8859_1.
+   * which is converted into a String using {@link BaseEncoding#base64()}.
    *
    * @param obj A {@link Serializable} object
    * @return A String representing the input object
    */
   public static <T extends Serializable> String serialize(T obj) throws IOException {
+    return serialize(obj, DEFAULT_ENCODING);
+  }
+
+  /**
+   * Serialize an object into a String. The object is first serialized into a byte array,
+   * which is converted into a String using the given {@link BaseEncoding}.
+   *
+   * @param obj A {@link Serializable} object
+   * @param enc The {@link BaseEncoding} used to encode a byte array.
+   * @return A String representing the input object
+   * @throws IOException 
+   */
+  public static <T extends Serializable> String serialize(T obj, BaseEncoding enc) throws IOException {
     Closer closer = Closer.create();
     try {
       ByteArrayOutputStream bos = closer.register(new ByteArrayOutputStream());
       ObjectOutputStream oos = closer.register(new ObjectOutputStream(bos));
       oos.writeObject(obj);
       oos.flush();
-      return bos.toString(CHARSET.name());
+      return enc.encode(bos.toByteArray());
     } catch (Throwable e) {
       throw closer.rethrow(e);
     } finally {
@@ -56,16 +68,32 @@ public class SerializationUtils {
   }
 
   /**
-   * Deserialize a String obtained via {@link #serialize(Serializable)} into an object.
+   * Deserialize a String obtained via {@link #serialize(Serializable)} into an object, using
+   * {@link BaseEncoding#base64()}.
    *
    * @param serialized The serialized String
    * @param clazz The class the deserialized object should be cast to.
    * @return The deserialized object
    */
   public static <T extends Serializable> T deserialize(String serialized, Class<T> clazz) throws IOException {
+    return deserialize(serialized, clazz, DEFAULT_ENCODING);
+  }
+
+  /**
+   * Deserialize a String obtained via {@link #serialize(Serializable)} into an object, using the
+   * given {@BaseEncoding}, which must be the same {@BaseEncoding} used to serialize the object.
+   *
+   * @param serialized The serialized String
+   * @param clazz The class the deserialized object should be cast to.
+   * @param enc The {@link BaseEncoding} used to decode the String.
+   * @return The deserialized object
+   * @throws IOException
+   */
+  public static <T extends Serializable> T deserialize(String serialized, Class<T> clazz, BaseEncoding enc)
+      throws IOException {
     Closer closer = Closer.create();
     try {
-      ByteArrayInputStream bis = closer.register(new ByteArrayInputStream(serialized.getBytes(CHARSET)));
+      ByteArrayInputStream bis = closer.register(new ByteArrayInputStream(enc.decode(serialized)));
       ObjectInputStream ois = new ObjectInputStream(bis);
       return clazz.cast(ois.readObject());
     } catch (Throwable e) {

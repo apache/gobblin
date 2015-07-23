@@ -153,13 +153,11 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
 
   @Override
   public void write(GenericRecord record) throws IOException {
-    long recordTimestamp = getRecordTimestamp(record);
-    write(record, recordTimestamp);
+    write(record, getRecordTimestamp(record));
   }
 
   protected long getRecordTimestamp(GenericRecord record) {
-    Optional<Object> writerPartitionColumnValue = getWriterPartitionColumnValue(record);
-    return getRecordTimestamp(writerPartitionColumnValue);
+    return getRecordTimestamp(getWriterPartitionColumnValue(record));
   }
 
   /**
