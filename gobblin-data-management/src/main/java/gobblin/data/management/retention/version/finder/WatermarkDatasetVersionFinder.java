@@ -1,5 +1,6 @@
 package gobblin.data.management.retention.version.finder;
 
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -11,7 +12,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 
-import azkaban.utils.Props;
 import javax.annotation.Nullable;
 
 import gobblin.data.management.retention.DatasetCleaner;
@@ -42,10 +42,10 @@ public class WatermarkDatasetVersionFinder extends DatasetVersionFinder<StringDa
 
   private Optional<Pattern> pattern;
 
-  public WatermarkDatasetVersionFinder(FileSystem fs, Props props) {
+  public WatermarkDatasetVersionFinder(FileSystem fs, Properties props) {
     super(fs, props);
     if(props.containsKey(WATERMARK_REGEX_KEY)) {
-      this.pattern = Optional.of(props.getString(WATERMARK_REGEX_KEY)).transform(new Function<String, Pattern>() {
+      this.pattern = Optional.of(props.getProperty(WATERMARK_REGEX_KEY)).transform(new Function<String, Pattern>() {
         @Nullable
         @Override
         public Pattern apply(String input) {

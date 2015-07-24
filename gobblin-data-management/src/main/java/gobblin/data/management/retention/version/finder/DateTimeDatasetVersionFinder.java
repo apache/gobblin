@@ -1,13 +1,13 @@
 package gobblin.data.management.retention.version.finder;
 
+import java.util.Properties;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import azkaban.utils.Props;
 
 import gobblin.data.management.retention.DatasetCleaner;
 import gobblin.data.management.retention.version.DatasetVersion;
@@ -27,9 +27,9 @@ public class DateTimeDatasetVersionFinder extends DatasetVersionFinder<Timestamp
   private final Path globPattern;
   private final DateTimeFormatter formatter;
 
-  public DateTimeDatasetVersionFinder(FileSystem fs, Props props) {
+  public DateTimeDatasetVersionFinder(FileSystem fs, Properties props) {
     super(fs, props);
-    String pattern = props.getString(DATE_TIME_PATTERN_KEY);
+    String pattern = props.getProperty(DATE_TIME_PATTERN_KEY);
     this.globPattern = new Path(pattern.replaceAll("[^/]+", "*"));
     this.formatter = DateTimeFormat.forPattern(pattern);
   }

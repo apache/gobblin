@@ -13,13 +13,12 @@
 package gobblin.data.management.retention.dataset;
 
 import java.io.IOException;
+import java.util.Properties;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import azkaban.utils.Props;
 
 import gobblin.data.management.retention.policy.NewestKRetentionPolicy;
 import gobblin.data.management.retention.policy.RetentionPolicy;
@@ -41,11 +40,11 @@ public class SnapshotDataset extends DatasetBase<DatasetVersion> {
   private final RetentionPolicy<DatasetVersion> retentionPolicy;
   private final Path datasetRoot;
 
-  public SnapshotDataset(FileSystem fs, Props props, Path datasetRoot) throws IOException {
+  public SnapshotDataset(FileSystem fs, Properties props, Path datasetRoot) throws IOException {
     this(fs, props, datasetRoot, LoggerFactory.getLogger(SnapshotDataset.class));
   }
 
-  public SnapshotDataset(FileSystem fs, Props props, Path datasetRoot, Logger log)
+  public SnapshotDataset(FileSystem fs, Properties props, Path datasetRoot, Logger log)
       throws IOException {
     super(fs, props, log);
     this.datasetRoot = datasetRoot;

@@ -12,12 +12,12 @@
 
 package gobblin.data.management.retention;
 
+import java.util.Properties;
+
 import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTime;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import azkaban.utils.Props;
 
 import gobblin.data.management.retention.version.TimestampedDatasetVersion;
 import gobblin.data.management.retention.version.finder.DateTimeDatasetVersionFinder;
@@ -27,7 +27,7 @@ public class TimestampedDatasetVersionFinderTest {
 
   @Test
   public void testVersionParser() {
-    Props props = new Props();
+    Properties props = new Properties();
     props.put(DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_KEY, "yyyy/MM/dd/hh/mm");
 
     DateTimeDatasetVersionFinder parser = new DateTimeDatasetVersionFinder(null, props);

@@ -13,11 +13,10 @@
 package gobblin.data.management.retention.profile;
 
 import java.io.IOException;
+import java.util.Properties;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
-import azkaban.utils.Props;
 
 import gobblin.data.management.retention.dataset.Dataset;
 import gobblin.data.management.retention.dataset.SnapshotDataset;
@@ -32,7 +31,7 @@ import gobblin.data.management.retention.dataset.SnapshotDataset;
  */
 public class SnapshotDatasetProfile extends ConfigurableGlobDatasetFinder {
 
-  public SnapshotDatasetProfile(FileSystem fs, Props props)
+  public SnapshotDatasetProfile(FileSystem fs, Properties props)
       throws IOException {
     super(fs, props);
   }
