@@ -13,6 +13,7 @@
 package gobblin.writer;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 
@@ -24,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -54,6 +56,8 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
   protected final long blockSize;
   protected final FsPermission permission;
   protected final Optional<String> group;
+  protected final OutputStream stagingFileOutputStream;
+  protected final Closer closer = Closer.create();
 
   public FsDataWriter(State properties, String fileName, int numBranches, int branchId) throws IOException {
     this.properties = properties;
@@ -90,6 +94,19 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
         .setProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, branchId),
             this.outputFile.toString());
 
+    // Deleting the staging file if it already exists, which can happen if the
+    // task failed and the staging file didn't get cleaned up for some reason.
+    // Deleting the staging file prevents the task retry from being blocked.
+    if (this.fs.exists(this.stagingFile)) {
+      LOG.warn(String.format("Task staging file %s already exists, deleting it", this.stagingFile));
+      HadoopUtils.deletePath(this.fs, this.stagingFile, false);
+    }
+
+    // Create the parent directory of the output file if it does not exist
+    if (!this.fs.exists(this.outputFile.getParent())) {
+      this.fs.mkdirs(this.outputFile.getParent());
+    }
+
     this.bufferSize = Integer.parseInt(properties.getProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUFFER_SIZE, numBranches, branchId),
         ConfigurationKeys.DEFAULT_BUFFER_SIZE));
@@ -106,19 +123,12 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PERMISSIONS, numBranches, branchId),
         FsPermission.getDefault().toShort()));
 
+    this.stagingFileOutputStream = this.closer.register(this.fs.create(this.stagingFile, this.permission, true,
+        this.bufferSize, this.replicationFactor, this.blockSize, null));
+
     this.group = Optional.fromNullable(properties.getProp(ConfigurationKeys.WRITER_GROUP_NAME));
-
-    // Deleting the staging file if it already exists, which can happen if the
-    // task failed and the staging file didn't get cleaned up for some reason.
-    // Deleting the staging file prevents the task retry from being blocked.
-    if (this.fs.exists(this.stagingFile)) {
-      LOG.warn(String.format("Task staging file %s already exists, deleting it", this.stagingFile));
-      HadoopUtils.deletePath(this.fs, this.stagingFile, false);
-    }
-
-    // Create the parent directory of the output file if it does not exist
-    if (!this.fs.exists(this.outputFile.getParent())) {
-      this.fs.mkdirs(this.outputFile.getParent());
+    if (this.group.isPresent()) {
+      this.fs.setOwner(this.stagingFile, this.fs.getFileStatus(this.stagingFile).getOwner(), this.group.get());
     }
   }
 
@@ -138,10 +148,6 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
 
     if (!this.fs.exists(this.stagingFile)) {
       throw new IOException(String.format("File %s does not exist", this.stagingFile));
-    }
-
-    if (this.group.isPresent()) {
-      this.fs.setOwner(this.stagingFile, this.fs.getFileStatus(this.stagingFile).getOwner(), this.group.get());
     }
 
     LOG.info(String.format("Moving data from %s to %s", this.stagingFile, this.outputFile));
@@ -170,6 +176,11 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
     if (this.fs.exists(this.stagingFile)) {
       HadoopUtils.deletePath(this.fs, this.stagingFile, false);
     }
+  }
+
+  @Override
+  public void close() throws IOException {
+    this.closer.close();
   }
 
   @Override

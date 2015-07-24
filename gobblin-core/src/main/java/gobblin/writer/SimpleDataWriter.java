@@ -13,7 +13,6 @@
 package gobblin.writer;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
@@ -43,13 +42,11 @@ import gobblin.configuration.State;
  */
 public class SimpleDataWriter extends FsDataWriter<byte[]> {
 
-  private final OutputStream stagingFileOutputStream;
   private final Optional<Byte> recordDelimiter; // optional byte to place between each record write
   private final boolean prependSize;
 
   private int recordsWritten;
   private int bytesWritten;
-  private volatile boolean closed = false;
 
   public SimpleDataWriter(State properties, String fileName, int numBranches, int branchId) throws IOException {
     super(properties, fileName, numBranches, branchId);
@@ -60,7 +57,6 @@ public class SimpleDataWriter extends FsDataWriter<byte[]> {
       this.recordDelimiter = Optional.of(delim.getBytes()[0]);
     }
 
-    this.stagingFileOutputStream = this.fs.create(this.stagingFile, true);
     this.prependSize = properties.getPropAsBoolean(ConfigurationKeys.SIMPLE_WRITER_PREPEND_SIZE, true);
     this.recordsWritten = 0;
     this.bytesWritten = 0;
@@ -109,30 +105,5 @@ public class SimpleDataWriter extends FsDataWriter<byte[]> {
   @Override
   public long bytesWritten() throws IOException {
     return this.bytesWritten;
-  }
-
-  /**
-   * Closes this stream and releases any system resources associated
-   * with it. If the stream is already closed then invoking this
-   * method has no effect.
-   * <p/>
-   * <p> As noted in {@link AutoCloseable#close()}, cases where the
-   * close may fail require careful attention. It is strongly advised
-   * to relinquish the underlying resources and to internally
-   * <em>mark</em> the {@code Closeable} as closed, prior to throwing
-   * the {@code IOException}.
-   *
-   * @throws java.io.IOException if an I/O error occurs
-   */
-  @Override
-  public void close() throws IOException {
-    if (this.stagingFileOutputStream != null && !this.closed) {
-      try {
-        this.stagingFileOutputStream.flush();
-      } finally {
-        this.stagingFileOutputStream.close();
-        this.closed = true;
-      }
-    }
   }
 }

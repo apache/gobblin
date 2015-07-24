@@ -22,9 +22,7 @@ import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 
-import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -54,9 +52,6 @@ class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
   // Number of records successfully written
   protected final AtomicLong count = new AtomicLong(0);
 
-  // Whether the writer has already been closed or not
-  private volatile boolean closed = false;
-
   public AvroHdfsDataWriter(State properties, String fileName, Schema schema, int numBranches, int branchId)
       throws IOException {
     super(properties, fileName, numBranches, branchId);
@@ -69,7 +64,7 @@ class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
 
     this.schema = schema;
     this.datumWriter = new GenericDatumWriter<GenericRecord>();
-    this.writer = createDatumWriter(this.stagingFile, codecFactory);
+    this.writer = this.closer.register(createDataFileWriter(codecFactory));
   }
 
   public FileSystem getFileSystem() {
@@ -86,27 +81,13 @@ class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
   }
 
   @Override
-  public void close() throws IOException {
-    if (this.closed) {
-      return;
-    }
-
-    try {
-      this.writer.flush();
-    } finally {
-      this.writer.close();
-      this.closed = true;
-    }
-  }
-
-  @Override
   public long recordsWritten() {
     return this.count.get();
   }
 
   @Override
   public long bytesWritten() throws IOException {
-    if (!this.fs.exists(this.outputFile) || !this.closed) {
+    if (!this.fs.exists(this.outputFile)) {
       return 0;
     }
 
@@ -116,22 +97,14 @@ class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
   /**
    * Create a new {@link DataFileWriter} for writing Avro records.
    *
-   * @param avroFile the Avro file to write to
    * @param codecFactory a {@link CodecFactory} object for building the compression codec
    * @throws IOException if there is something wrong creating a new {@link DataFileWriter}
    */
-  private DataFileWriter<GenericRecord> createDatumWriter(Path avroFile, CodecFactory codecFactory) throws IOException {
-    if (this.fs.exists(avroFile)) {
-      throw new IOException(String.format("File %s already exists", avroFile));
-    }
-
-    FSDataOutputStream outputStream =
-        this.fs.create(avroFile, this.permission, true, this.bufferSize, this.replicationFactor, this.blockSize, null);
-
+  private DataFileWriter<GenericRecord> createDataFileWriter(CodecFactory codecFactory) throws IOException {
     DataFileWriter<GenericRecord> writer = new DataFileWriter<GenericRecord>(this.datumWriter);
     writer.setCodec(codecFactory);
 
     // Open the file and return the DataFileWriter
-    return writer.create(this.schema, outputStream);
+    return writer.create(this.schema, this.stagingFileOutputStream);
   }
 }
