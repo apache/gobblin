@@ -39,6 +39,7 @@ import gobblin.configuration.State;
 /**
  * A wrapper class for generating a file system as a proxy user.
  */
+@Deprecated
 public class ProxiedFileSystemWrapper {
   private static final Logger LOG = LoggerFactory.getLogger(ProxiedFileSystemWrapper.class);
   private FileSystem proxiedFs;
