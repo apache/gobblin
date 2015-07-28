@@ -158,7 +158,7 @@ public class Task implements Runnable {
       }
 
       // Build the row-level quality checker
-      RowLevelPolicyChecker rowChecker = closer.register(this.taskContext.getRowLevelPolicyChecker(this.taskState));
+      RowLevelPolicyChecker rowChecker = closer.register(this.taskContext.getRowLevelPolicyChecker());
       RowLevelPolicyCheckResults rowResults = new RowLevelPolicyCheckResults();
 
       long recordsPulled = 0;

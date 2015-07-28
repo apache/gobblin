@@ -19,6 +19,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.List;
 
+import java.util.Optional;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -95,6 +96,18 @@ public class HadoopUtils {
       conf.set(propName, state.getProp(propName));
     }
     return conf;
+  }
+
+  /**
+   * Set the group associated with a given path.
+   *
+   * @param fs the {@link FileSystem} instance used to perform the file operation
+   * @param path the given path
+   * @param group the group associated with the path
+   * @throws IOException
+   */
+  public static void setGroup(FileSystem fs, Path path, String group) throws IOException {
+    fs.setOwner(path, fs.getFileStatus(path).getOwner(), group);
   }
 
   /**

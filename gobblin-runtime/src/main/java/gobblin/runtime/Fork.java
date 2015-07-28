@@ -117,8 +117,7 @@ public class Fork implements Closeable, Runnable, FinalState {
 
     this.converter = this.closer.register(new MultiConverter(this.taskContext.getConverters(this.index)));
     this.convertedSchema = Optional.fromNullable(this.converter.convertSchema(schema, this.taskState));
-    this.rowLevelPolicyChecker =
-        this.closer.register(this.taskContext.getRowLevelPolicyChecker(this.taskState, this.index));
+    this.rowLevelPolicyChecker = this.closer.register(this.taskContext.getRowLevelPolicyChecker(this.index));
     this.rowLevelPolicyCheckingResult = new RowLevelPolicyCheckResults();
 
     this.recordQueue = BoundedBlockingRecordQueue.newBuilder()

@@ -28,6 +28,7 @@ import com.codahale.metrics.Meter;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.gson.stream.JsonWriter;
 
@@ -83,8 +84,8 @@ public class JobState extends SourceState {
     this.setId(jobId);
   }
 
-  public JobState(State properties, JobState previousJobState, String jobName, String jobId) {
-    super(properties, previousJobState, previousJobState.getTaskStatesAsWorkUnitStates());
+  public JobState(State properties, Map<String, JobState> previousDatasetStates, String jobName, String jobId) {
+    super(properties, previousDatasetStates, workUnitStatesFromDatasetStates(previousDatasetStates.values()));
     this.jobName = jobName;
     this.jobId = jobId;
     this.setId(jobId);
@@ -259,6 +260,35 @@ public class JobState extends SourceState {
    */
   public List<TaskState> getTaskStates() {
     return ImmutableList.<TaskState>builder().addAll(this.taskStates.values()).build();
+  }
+
+  /**
+   * Get a {@link Map} from dataset URNs (as being specified by {@link ConfigurationKeys#DATASET_URN_KEY} to
+   * {@link JobState} objects that represent the dataset states and store {@link TaskState}s corresponding
+   * to the datasets.
+   *
+   * <p>
+   *   {@link TaskState}s that do not have {@link ConfigurationKeys#DATASET_URN_KEY} set will be added to
+   *   the dataset state belonging to {@link ConfigurationKeys#DEFAULT_DATASET_URN}.
+   * </p>
+   *
+   * @return a {@link Map} from dataset URNs to {@link JobState}s representing the dataset states
+   */
+  public Map<String, JobState> getDatasetStatesByUrns() {
+    Map<String, JobState> datasetStatesByUrns = Maps.newHashMap();
+
+    for (TaskState taskState : this.taskStates.values()) {
+      String datasetUrn = taskState.getProp(ConfigurationKeys.DATASET_URN_KEY, ConfigurationKeys.DEFAULT_DATASET_URN);
+      if (!datasetStatesByUrns.containsKey(datasetUrn)) {
+        JobState datasetState = JobState.copyOf(this, false);
+        datasetState.setProp(ConfigurationKeys.DATASET_URN_KEY, datasetUrn);
+        datasetStatesByUrns.put(datasetUrn, datasetState);
+      }
+
+      datasetStatesByUrns.get(datasetUrn).addTaskState(taskState);
+    }
+
+    return ImmutableMap.copyOf(datasetStatesByUrns);
   }
 
   /**
@@ -470,5 +500,41 @@ public class JobState extends SourceState {
     jobExecutionInfo.setJobProperties(new StringMap(jobProperties));
 
     return jobExecutionInfo;
+  }
+
+  /**
+   * Make a copy of a given {@link JobState}.
+   *
+   * <p>
+   *   This method copies all of the properties associated with the given {@link JobState} except for
+   *   the {@link TaskState}s, the copying of which is configurable.
+   * </p>
+   *
+   * @param other the given {@link JobState}
+   * @param copyTaskStates whether to copy {@link TaskState}s of the given {@link JobState} or not
+   * @return a copy of the given {@link JobState}
+   */
+  public static JobState copyOf(JobState other, boolean copyTaskStates) {
+    JobState copy = new JobState(other.getJobName(), other.getJobId());
+
+    copy.addAll(other);
+    copy.tasks = other.tasks;
+    copy.startTime = other.startTime;
+    copy.endTime = other.endTime;
+    copy.duration = other.duration;
+    copy.state = other.state;
+    if (copyTaskStates) {
+      copy.taskStates.putAll(other.taskStates);
+    }
+
+    return copy;
+  }
+
+  private static List<WorkUnitState> workUnitStatesFromDatasetStates(Collection<JobState> datasetStates) {
+    ImmutableList.Builder<WorkUnitState> taskStateBuilder = ImmutableList.builder();
+    for (JobState datasetState : datasetStates) {
+      taskStateBuilder.addAll(datasetState.getTaskStatesAsWorkUnitStates());
+    }
+    return taskStateBuilder.build();
   }
 }

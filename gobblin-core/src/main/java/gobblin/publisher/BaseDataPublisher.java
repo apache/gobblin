@@ -26,6 +26,7 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -35,6 +36,7 @@ import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.ForkOperatorUtils;
+import gobblin.util.HadoopUtils;
 import gobblin.util.ParallelRunner;
 import gobblin.util.WriterUtils;
 
@@ -57,6 +59,7 @@ public class BaseDataPublisher extends DataPublisher {
   private static final Logger LOG = LoggerFactory.getLogger(BaseDataPublisher.class);
 
   protected final List<FileSystem> fss = Lists.newArrayList();
+  protected final List<Optional<String>> groups = Lists.newArrayList();
   protected final Closer closer;
   protected final int numBranches;
   protected final int parallelRunnerThreads;
@@ -80,7 +83,11 @@ public class BaseDataPublisher extends DataPublisher {
           ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, this.numBranches, i),
           ConfigurationKeys.LOCAL_FS_URI));
       this.fss.add(FileSystem.get(uri, conf));
+
+      this.groups.add(Optional.fromNullable(this.getState().getProp(ForkOperatorUtils.getPropertyNameForBranch(
+          ConfigurationKeys.DATA_PUBLISHER_GROUP_NAME, this.numBranches, i))));
     }
+
     this.parallelRunnerThreads =
         state.getPropAsInt(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY, ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS);
   }
@@ -151,8 +158,12 @@ public class BaseDataPublisher extends DataPublisher {
       // Delete the final output directory if it is configured to be replaced
       this.fss.get(branchId).delete(publisherOutputDir, true);
     } else {
+      Path parentDir = publisherOutputDir.getParent();
       // Create the parent directory of the final output directory if it does not exist
-      this.fss.get(branchId).mkdirs(publisherOutputDir.getParent());
+      this.fss.get(branchId).mkdirs(parentDir);
+      if (this.groups.get(branchId).isPresent()) {
+        HadoopUtils.setGroup(this.fss.get(branchId), parentDir, this.groups.get(branchId).get());
+      }
     }
 
     LOG.info(String.format("Moving %s to %s", writerOutputDir, publisherOutputDir));

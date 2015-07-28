@@ -19,12 +19,15 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
 import gobblin.rest.JobExecutionInfo;
@@ -63,6 +66,7 @@ public class JobStateTest {
       WorkUnitState workUnitState = new WorkUnitState();
       workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, "TestJob-1");
       workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, "TestTask-" + i);
+      workUnitState.setProp(ConfigurationKeys.DATASET_URN_KEY, "TestDataset" + i);
       TaskState taskState = new TaskState(workUnitState);
       taskState.setTaskId("TestTask-" + i);
       taskState.setId(taskState.getTaskId());
@@ -74,7 +78,7 @@ public class JobStateTest {
       this.jobState.addTaskState(taskState);
     }
 
-    doAsserts();
+    doAsserts(this.jobState, true);
   }
 
   @Test(dependsOnMethods = {"testSetAndGet"})
@@ -91,7 +95,7 @@ public class JobStateTest {
       JobState newJobState = new JobState();
       newJobState.readFields(dis);
 
-      doAsserts();
+      doAsserts(this.jobState, true);
     } catch (Throwable t) {
       throw closer.rethrow(t);
     } finally {
@@ -99,32 +103,48 @@ public class JobStateTest {
     }
   }
 
-  private void doAsserts() {
-    Assert.assertEquals(this.jobState.getJobName(), "TestJob");
-    Assert.assertEquals(this.jobState.getJobId(), "TestJob-1");
-    Assert.assertEquals(this.jobState.getId(), "TestJob-1");
-    Assert.assertEquals(this.jobState.getStartTime(), this.startTime);
-    Assert.assertEquals(this.jobState.getEndTime(), this.startTime + 1000);
-    Assert.assertEquals(this.jobState.getDuration(), 1000);
-    Assert.assertEquals(this.jobState.getState(), JobState.RunningState.COMMITTED);
-    Assert.assertEquals(this.jobState.getTasks(), 3);
-    Assert.assertEquals(this.jobState.getCompletedTasks(), 3);
-    Assert.assertEquals(this.jobState.getProp("foo"), "bar");
+  private void doAsserts(JobState jobState, boolean considerTaskStates) {
+    Assert.assertEquals(jobState.getJobName(), "TestJob");
+    Assert.assertEquals(jobState.getJobId(), "TestJob-1");
+    Assert.assertEquals(jobState.getId(), "TestJob-1");
+    Assert.assertEquals(jobState.getStartTime(), this.startTime);
+    Assert.assertEquals(jobState.getEndTime(), this.startTime + 1000);
+    Assert.assertEquals(jobState.getDuration(), 1000);
+    Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
+    Assert.assertEquals(jobState.getTasks(), 3);
+    Assert.assertEquals(jobState.getProp("foo"), "bar");
+
+    if (!considerTaskStates) {
+      return;
+    }
 
     List<String> taskStateIds = Lists.newArrayList();
-    for (int i = 0; i < this.jobState.getCompletedTasks(); i++) {
-      TaskState taskState = this.jobState.getTaskStates().get(i);
+    for (int i = 0; i < jobState.getCompletedTasks(); i++) {
+      TaskState taskState = jobState.getTaskStates().get(i);
       Assert.assertEquals(taskState.getJobId(), "TestJob-1");
       Assert.assertEquals(taskState.getStartTime(), this.startTime);
       Assert.assertEquals(taskState.getEndTime(), this.startTime + 1000);
       Assert.assertEquals(taskState.getTaskDuration(), 1000);
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
+      Assert.assertTrue(taskState.getProp(ConfigurationKeys.DATASET_URN_KEY).startsWith("TestDataset"));
       Assert.assertEquals(taskState.getProp("foo"), "bar");
       taskStateIds.add(taskState.getTaskId());
     }
 
     Collections.sort(taskStateIds);
     Assert.assertEquals(taskStateIds, Lists.newArrayList("TestTask-0", "TestTask-1", "TestTask-2"));
+
+    Set<String> sortedDatasetUrns = Sets.newTreeSet(jobState.getDatasetStatesByUrns().keySet());
+    Assert.assertEquals(sortedDatasetUrns.size(), jobState.getCompletedTasks());
+    Map<String, JobState> datasetStatesByUrns = jobState.getDatasetStatesByUrns();
+    int index = 0;
+    for (String dataSetUrn : sortedDatasetUrns) {
+      Assert.assertEquals(dataSetUrn, "TestDataset" + index);
+      List<TaskState> taskStates = datasetStatesByUrns.get(dataSetUrn).getTaskStates();
+      Assert.assertEquals(taskStates.size(), 1);
+      Assert.assertEquals(taskStates.get(0).getTaskId(), "TestTask-" + index);
+      index++;
+    }
   }
 
   @Test(dependsOnMethods = {"testSetAndGet"})
@@ -153,5 +173,14 @@ public class JobStateTest {
 
     Collections.sort(taskStateIds);
     Assert.assertEquals(taskStateIds, Lists.newArrayList("TestTask-0", "TestTask-1", "TestTask-2"));
+  }
+
+  @Test (dependsOnMethods = {"testSetAndGet"})
+  public void testCopyOf() {
+    JobState copy = JobState.copyOf(this.jobState, false);
+    doAsserts(copy, false);
+
+    copy = JobState.copyOf(this.jobState, true);
+    doAsserts(copy, true);
   }
 }

@@ -13,6 +13,7 @@
 package gobblin.runtime;
 
 import java.io.File;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.util.List;
@@ -36,9 +37,14 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metastore.MetaStoreModule;
 import gobblin.metastore.StateStore;
+import gobblin.source.extractor.Extractor;
+import gobblin.source.workunit.WorkUnit;
+import gobblin.test.TestExtractor;
+import gobblin.test.TestSource;
 import gobblin.util.JobLauncherUtils;
 
 
@@ -189,6 +195,69 @@ public class JobLauncherTestHelper {
     }
   }
 
+  public void runTestWithMultipleDatasets(Properties jobProps) throws Exception {
+    String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+    String jobId = JobLauncherUtils.newJobId(jobName);
+    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
+    jobProps.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, MultiDatasetTestSource.class.getName());
+
+    Closer closer = Closer.create();
+    try {
+      JobLauncher jobLauncher = closer.register(JobLauncherFactory.newJobLauncher(this.launcherProps, jobProps));
+      jobLauncher.launchJob(null);
+    } finally {
+      closer.close();
+    }
+
+    for (int i = 0; i < 4; i++) {
+      List<JobState> jobStateList = this.jobStateStore.getAll(jobName, "Dataset" + i + "-current.jst");
+      JobState jobState = jobStateList.get(0);
+
+      Assert.assertEquals(jobState.getProp(ConfigurationKeys.DATASET_URN_KEY), "Dataset" + i);
+      Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
+      Assert.assertEquals(jobState.getCompletedTasks(), 1);
+      Assert.assertEquals(jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY), 0);
+      for (TaskState taskState : jobState.getTaskStates()) {
+        Assert.assertEquals(taskState.getProp(ConfigurationKeys.DATASET_URN_KEY), "Dataset" + i);
+        Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
+      }
+    }
+  }
+
+  public void runTestWithMultipleDatasetsWithFaultyExtractor(Properties jobProps) throws Exception {
+    String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+    String jobId = JobLauncherUtils.newJobId(jobName);
+    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
+    jobProps.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, MultiDatasetTestSourceWithFaultyExtractor.class.getName());
+    jobProps.setProperty(ConfigurationKeys.MAX_TASK_RETRIES_KEY, "0");
+
+    Closer closer = Closer.create();
+    try {
+      JobLauncher jobLauncher = closer.register(JobLauncherFactory.newJobLauncher(this.launcherProps, jobProps));
+      jobLauncher.launchJob(null);
+    } catch (JobException je) {
+      // JobException is expected
+    } finally {
+      closer.close();
+    }
+
+    // Task 0 should have failed
+    Assert.assertTrue(this.jobStateStore.getAll(jobName, "Dataset0-current.jst").isEmpty());
+
+    for (int i = 1; i < 4; i++) {
+      List<JobState> jobStateList = this.jobStateStore.getAll(jobName, "Dataset" + i + "-current.jst");
+      JobState jobState = jobStateList.get(0);
+
+      Assert.assertEquals(jobState.getProp(ConfigurationKeys.DATASET_URN_KEY), "Dataset" + i);
+      Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
+      Assert.assertEquals(jobState.getCompletedTasks(), 1);
+      for (TaskState taskState : jobState.getTaskStates()) {
+        Assert.assertEquals(taskState.getProp(ConfigurationKeys.DATASET_URN_KEY), "Dataset" + i);
+        Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
+      }
+    }
+  }
+
   public void prepareJobHistoryStoreDatabase(Properties properties) throws Exception {
     // Read the DDL statements
     List<String> statementLines = Lists.newArrayList();
@@ -218,6 +287,46 @@ public class JobLauncherTestHelper {
       if (connectionOptional.isPresent()) {
         connectionOptional.get().close();
       }
+    }
+  }
+
+  public void deleteStateStore(String storeName) throws IOException {
+    this.jobStateStore.delete(storeName);
+  }
+
+  public static class MultiDatasetTestSource extends TestSource {
+
+    @Override
+    public List<WorkUnit> getWorkunits(SourceState state) {
+      List<WorkUnit> workUnits = super.getWorkunits(state);
+      for (int i = 0; i < workUnits.size(); i++) {
+        workUnits.get(i).setProp(ConfigurationKeys.DATASET_URN_KEY, "Dataset" + i);
+      }
+      return workUnits;
+    }
+  }
+
+  public static class MultiDatasetTestSourceWithFaultyExtractor extends MultiDatasetTestSource {
+
+    @Override
+    public Extractor<String, String> getExtractor(WorkUnitState workUnitState) {
+      Extractor<String, String> extractor = super.getExtractor(workUnitState);
+      if (workUnitState.getProp(ConfigurationKeys.DATASET_URN_KEY).endsWith("0")) {
+        return new FaultyExtractor(workUnitState);
+      }
+      return extractor;
+    }
+  }
+
+  public static class FaultyExtractor extends TestExtractor {
+
+    public FaultyExtractor(WorkUnitState workUnitState) {
+      super(workUnitState);
+    }
+
+    @Override
+    public String readRecord(@Deprecated String reuse) throws IOException {
+      throw new IOException();
     }
   }
 }

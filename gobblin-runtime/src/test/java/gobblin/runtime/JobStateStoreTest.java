@@ -63,6 +63,7 @@ public class JobStateStoreTest {
   private static final String BAR = "bar";
   private static final String WORK_UNIT_INDEX_KEY = "work.unit.index";
   private static final String LAST_READ_RECORD_KEY = "last.read.record";
+  private static final String CURRENT_RUN_KEY = "current.run";
 
   private StateStore<JobState> jobStateStore;
   private Properties jobConfig = new Properties();
@@ -129,6 +130,7 @@ public class JobStateStoreTest {
     Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
     Assert.assertEquals(jobState.getTaskStates().size(), DummySource.NUM_WORK_UNITS);
     Assert.assertEquals(jobState.getProp(FOO), BAR);
+    Assert.assertEquals(jobState.getPropAsInt(CURRENT_RUN_KEY), run);
 
     for (TaskState taskState : jobState.getTaskStates()) {
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
@@ -160,6 +162,9 @@ public class JobStateStoreTest {
 
     @Override
     public List<WorkUnit> getWorkunits(SourceState sourceState) {
+      SourceState previousSourceState = sourceState.getPreviousSourceState();
+        sourceState.setProp(CURRENT_RUN_KEY,
+            previousSourceState != null ? previousSourceState.getPropAsInt(CURRENT_RUN_KEY) + 1 : 1);
       sourceState.setProp(FOO, BAR);
 
       if (sourceState.getPreviousWorkUnitStates().isEmpty()) {
@@ -168,10 +173,9 @@ public class JobStateStoreTest {
 
       List<WorkUnit> workUnits = Lists.newArrayList();
       for (WorkUnitState workUnitState : sourceState.getPreviousWorkUnitStates()) {
-        WorkUnit workUnit = sourceState.createWorkUnit(
-            sourceState.createExtract(Extract.TableType.SNAPSHOT_ONLY, NAMESPACE, TABLE));
-        workUnit.setLowWaterMark(workUnitState.getPropAsInt(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY) +
-            NUM_WORK_UNITS * NUM_RECORDS_TO_EXTRACT_PER_EXTRACTOR);
+        WorkUnit workUnit = WorkUnit.create(createExtract(Extract.TableType.SNAPSHOT_ONLY, NAMESPACE, TABLE));
+        workUnit.setLowWaterMark(workUnitState.getPropAsInt(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY)
+            + NUM_WORK_UNITS * NUM_RECORDS_TO_EXTRACT_PER_EXTRACTOR);
         workUnit.setHighWaterMark(workUnitState.getPropAsInt(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY) +
             NUM_WORK_UNITS * NUM_RECORDS_TO_EXTRACT_PER_EXTRACTOR);
         workUnit.setProp(WORK_UNIT_INDEX_KEY, workUnitState.getPropAsInt(WORK_UNIT_INDEX_KEY));
@@ -194,8 +198,7 @@ public class JobStateStoreTest {
     private List<WorkUnit> initializeWorkUnits(SourceState sourceState) {
       List<WorkUnit> workUnits = Lists.newArrayList();
       for (int i = 0; i < NUM_WORK_UNITS; i++) {
-        WorkUnit workUnit =
-            sourceState.createWorkUnit(sourceState.createExtract(Extract.TableType.SNAPSHOT_ONLY, NAMESPACE, TABLE));
+        WorkUnit workUnit = WorkUnit.create(createExtract(Extract.TableType.SNAPSHOT_ONLY, NAMESPACE, TABLE));
         workUnit.setLowWaterMark(i * NUM_RECORDS_TO_EXTRACT_PER_EXTRACTOR + 1);
         workUnit.setHighWaterMark((i + 1) * NUM_RECORDS_TO_EXTRACT_PER_EXTRACTOR);
         workUnit.setProp(WORK_UNIT_INDEX_KEY, i);
