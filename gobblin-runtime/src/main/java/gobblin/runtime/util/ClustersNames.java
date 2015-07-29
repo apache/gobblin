@@ -57,7 +57,7 @@ public class ClustersNames {
   }
 
   public String getClusterName(String clusterUrl) {
-    Preconditions.checkNotNull(clusterUrl, "cluster URL expected");
+    if (null == clusterUrl) return null;
     String res = _urlToNameMap.getProperty(clusterUrl);
     return null != res ? res : normalizeClusterUrl(clusterUrl);
   }
