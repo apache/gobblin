@@ -13,13 +13,10 @@
 package gobblin.writer;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 import org.apache.commons.lang.ArrayUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -27,7 +24,6 @@ import com.google.common.primitives.Longs;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
-import gobblin.util.HadoopUtils;
 
 /**
  * An implementation of {@link DataWriter} that writes bytes directly to HDFS.
@@ -46,15 +42,11 @@ import gobblin.util.HadoopUtils;
  */
 public class SimpleDataWriter extends FsDataWriter<byte[]> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(SimpleDataWriter.class);
-
-  private final OutputStream stagingFileOutputStream;
   private final Optional<Byte> recordDelimiter; // optional byte to place between each record write
   private final boolean prependSize;
 
   private int recordsWritten;
   private int bytesWritten;
-  private boolean closed;
 
   public SimpleDataWriter(State properties, String fileName, int numBranches, int branchId) throws IOException {
     super(properties, fileName, numBranches, branchId);
@@ -65,11 +57,9 @@ public class SimpleDataWriter extends FsDataWriter<byte[]> {
       this.recordDelimiter = Optional.of(delim.getBytes()[0]);
     }
 
-    this.stagingFileOutputStream = this.fs.create(this.stagingFile, true);
     this.prependSize = properties.getPropAsBoolean(ConfigurationKeys.SIMPLE_WRITER_PREPEND_SIZE, true);
     this.recordsWritten = 0;
     this.bytesWritten = 0;
-    this.closed = false;
   }
   /**
    * Write a source record to the staging file
@@ -82,53 +72,19 @@ public class SimpleDataWriter extends FsDataWriter<byte[]> {
     Preconditions.checkNotNull(record);
 
     byte[] toWrite = record;
-    if (recordDelimiter.isPresent()) {
+    if (this.recordDelimiter.isPresent()) {
       toWrite = Arrays.copyOf(record, record.length + 1);
-      toWrite[toWrite.length - 1] = recordDelimiter.get();
+      toWrite[toWrite.length - 1] = this.recordDelimiter.get();
     }
-    if (prependSize) {
+    if (this.prependSize) {
       long recordSize = toWrite.length;
       ByteBuffer buf = ByteBuffer.allocate(Longs.BYTES);
       buf.putLong(recordSize);
       toWrite = ArrayUtils.addAll(buf.array(), toWrite);
     }
     this.stagingFileOutputStream.write(toWrite);
-    bytesWritten += toWrite.length;
-    recordsWritten++;
-  }
-
-  /**
-   * Commit the data written to the final output file.
-   *
-   * @throws java.io.IOException if there is anything wrong committing the output
-   */
-  @Override
-  public void commit() throws IOException {
-    this.close();
-    if (!this.fs.exists(this.stagingFile)) {
-      throw new IOException(String.format("File %s does not exist", this.stagingFile));
-    }
-
-    LOG.info(String.format("Moving data from %s to %s", this.stagingFile, this.outputFile));
-    // For the same reason as deleting the staging file if it already exists, deleting
-    // the output file if it already exists prevents task retry from being blocked.
-    if (this.fs.exists(this.outputFile)) {
-      LOG.warn(String.format("Task output file %s already exists", this.outputFile));
-      HadoopUtils.deletePath(this.fs, this.outputFile, false);
-    }
-    HadoopUtils.renamePath(this.fs, this.stagingFile, this.outputFile);
-  }
-
-  /**
-   * Cleanup context/resources.
-   *
-   * @throws java.io.IOException if there is anything wrong doing cleanup.
-   */
-  @Override
-  public void cleanup() throws IOException {
-    if (this.fs.exists(this.stagingFile)) {
-      HadoopUtils.deletePath(this.fs, this.stagingFile, false);
-    }
+    this.bytesWritten += toWrite.length;
+    this.recordsWritten++;
   }
 
   /**
@@ -149,30 +105,5 @@ public class SimpleDataWriter extends FsDataWriter<byte[]> {
   @Override
   public long bytesWritten() throws IOException {
     return this.bytesWritten;
-  }
-
-  /**
-   * Closes this stream and releases any system resources associated
-   * with it. If the stream is already closed then invoking this
-   * method has no effect.
-   * <p/>
-   * <p> As noted in {@link AutoCloseable#close()}, cases where the
-   * close may fail require careful attention. It is strongly advised
-   * to relinquish the underlying resources and to internally
-   * <em>mark</em> the {@code Closeable} as closed, prior to throwing
-   * the {@code IOException}.
-   *
-   * @throws java.io.IOException if an I/O error occurs
-   */
-  @Override
-  public void close() throws IOException {
-    if (stagingFileOutputStream != null && !this.closed) {
-      try {
-        stagingFileOutputStream.flush();
-      } finally {
-        stagingFileOutputStream.close();
-        this.closed = true;
-      }
-    }
   }
 }

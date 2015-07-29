@@ -13,6 +13,7 @@
 package gobblin.data.management.retention;
 
 import java.util.List;
+import java.util.Properties;
 
 import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTime;
@@ -21,8 +22,6 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.beust.jcommander.internal.Lists;
-
-import azkaban.utils.Props;
 
 import gobblin.data.management.retention.policy.TimeBasedRetentionPolicy;
 import gobblin.data.management.retention.version.TimestampedDatasetVersion;
@@ -33,7 +32,7 @@ public class TimeBasedRetentionPolicyTest {
   @Test
   public void test() {
 
-    Props props = new Props();
+    Properties props = new Properties();
 
     TimeBasedRetentionPolicy policy = new TimeBasedRetentionPolicy(props);
 

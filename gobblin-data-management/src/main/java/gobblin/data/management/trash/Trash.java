@@ -17,6 +17,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Properties;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -71,14 +72,14 @@ public class Trash {
    * Get location of Trash directory. Parsed from props at key {@link #TRASH_LOCATION_KEY}, defaulting to
    * /home/directory/_GOBBLIN_TRASH.
    * @param fs {@link org.apache.hadoop.fs.FileSystem} where trash should be found.
-   * @param props {@link azkaban.utils.Props} containing trash configuration.
+   * @param props {@link java.util.Properties} containing trash configuration.
    * @return {@link org.apache.hadoop.fs.Path} for trash directory.
    * @throws java.io.IOException
    */
-  public static Path getTrashLocation(FileSystem fs, Props props) throws IOException {
+  public static Path getTrashLocation(FileSystem fs, Properties props) throws IOException {
     Path trashLocation;
     if(props.containsKey(TRASH_LOCATION_KEY)) {
-      trashLocation = new Path(props.get(TRASH_LOCATION_KEY));
+      trashLocation = new Path(props.getProperty(TRASH_LOCATION_KEY));
     } else {
       trashLocation = new Path(fs.getHomeDirectory(), DEFAULT_TRASH_DIRECTORY);
       LOG.info("Using default trash location at " + trashLocation);
@@ -122,7 +123,7 @@ public class Trash {
    * Move a path to trash. The absolute path of the input path will be replicated under the trash directory.
    * @param fs {@link org.apache.hadoop.fs.FileSystem} where path and trash exist.
    * @param path {@link org.apache.hadoop.fs.FileSystem} path to move to trash.
-   * @param props {@link azkaban.utils.Props} containing trash configuration.
+   * @param props {@link java.util.Properties} containing trash configuration.
    * @return true if move to trash was done successfully.
    * @throws IOException
    */
@@ -135,20 +136,25 @@ public class Trash {
   private final SnapshotCleanupPolicy snapshotCleanupPolicy;
 
   public Trash(FileSystem fs) throws IOException {
-    this(fs, new Props());
+    this(fs, new Properties());
   }
 
   public Trash(FileSystem fs, Props props) throws IOException {
+    this(fs, props.toProperties());
+  }
+
+  public Trash(FileSystem fs, Properties props) throws IOException {
     this.fs = fs;
     this.trashLocation = getTrashLocation(fs, props);
-    Class<?> snapshotCleanupPolicyClass = props.getClass(SNAPSHOT_CLEANUP_POLICY_CLASS_KEY,
-        TimeBasedSnapshotCleanupPolicy.class);
     try {
+      Class<?> snapshotCleanupPolicyClass = Class.forName(props.getProperty(SNAPSHOT_CLEANUP_POLICY_CLASS_KEY,
+          TimeBasedSnapshotCleanupPolicy.class.getCanonicalName()));
       this.snapshotCleanupPolicy = (SnapshotCleanupPolicy) snapshotCleanupPolicyClass.
-          getConstructor(Props.class).newInstance(props);
+          getConstructor(Properties.class).newInstance(props);
     } catch(Exception exception) {
       throw new IllegalArgumentException("Could not create snapshot cleanup policy with class " +
-          snapshotCleanupPolicyClass.getCanonicalName(), exception);
+          props.getProperty(SNAPSHOT_CLEANUP_POLICY_CLASS_KEY, TimeBasedSnapshotCleanupPolicy.class.getCanonicalName()),
+          exception);
     }
   }
 

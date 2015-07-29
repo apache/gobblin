@@ -31,7 +31,7 @@ public class RowCountRangePolicy extends TaskLevelPolicy {
 
   @Override
   public Result executePolicy() {
-    if (Math.abs((this.rowsWritten - this.rowsRead) / this.rowsRead) <= this.range) {
+    if (Math.abs((this.rowsWritten - this.rowsRead) / (double)this.rowsRead) <= this.range) {
       return Result.PASSED;
     } else {
       return Result.FAILED;

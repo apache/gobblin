@@ -13,14 +13,19 @@
 package gobblin.writer;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Optional;
+import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -39,12 +44,20 @@ import gobblin.util.WriterUtils;
  * @author akshay@nerdwallet.com
  */
 public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
+
   private static final Logger LOG = LoggerFactory.getLogger(FsDataWriter.class);
 
+  protected final State properties;
   protected final FileSystem fs;
   protected final Path stagingFile;
   protected final Path outputFile;
-  protected final State properties;
+  protected final int bufferSize;
+  protected final short replicationFactor;
+  protected final long blockSize;
+  protected final FsPermission permission;
+  protected final Optional<String> group;
+  protected final OutputStream stagingFileOutputStream;
+  protected final Closer closer = Closer.create();
 
   public FsDataWriter(State properties, String fileName, int numBranches, int branchId) throws IOException {
     this.properties = properties;
@@ -53,17 +66,16 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
     // Add all job configuration properties so they are picked up by Hadoop
     JobConfigurationUtils.putStateIntoConfiguration(properties, conf);
 
-    String uri =
-        properties
-            .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches,
-                branchId), ConfigurationKeys.LOCAL_FS_URI);
+    String uri = properties.getProp(
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
+        ConfigurationKeys.LOCAL_FS_URI);
 
     if (properties.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
         ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
       // Initialize file system as a proxy user.
       try {
-        this.fs =
-            new ProxiedFileSystemWrapper().getProxiedFileSystem(properties, ProxiedFileSystemWrapper.AuthType.TOKEN,
+        this.fs = new ProxiedFileSystemWrapper()
+            .getProxiedFileSystem(properties, ProxiedFileSystemWrapper.AuthType.TOKEN,
                 properties.getProp(ConfigurationKeys.FS_PROXY_AS_USER_TOKEN_FILE), uri);
       } catch (InterruptedException e) {
         throw new IOException(e);
@@ -75,12 +87,12 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
       this.fs = FileSystem.get(URI.create(uri), conf);
     }
 
-    // initialize staging/output dir
+    // Initialize staging/output directory
     this.stagingFile = new Path(WriterUtils.getWriterStagingDir(properties, numBranches, branchId), fileName);
     this.outputFile = new Path(WriterUtils.getWriterOutputDir(properties, numBranches, branchId), fileName);
-    this.properties.setProp(
-        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, branchId),
-        this.outputFile.toString());
+    this.properties
+        .setProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, branchId),
+            this.outputFile.toString());
 
     // Deleting the staging file if it already exists, which can happen if the
     // task failed and the staging file didn't get cleaned up for some reason.
@@ -94,11 +106,87 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
     if (!this.fs.exists(this.outputFile.getParent())) {
       this.fs.mkdirs(this.outputFile.getParent());
     }
+
+    this.bufferSize = Integer.parseInt(properties.getProp(
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUFFER_SIZE, numBranches, branchId),
+        ConfigurationKeys.DEFAULT_BUFFER_SIZE));
+
+    this.replicationFactor = properties.getPropAsShort(ForkOperatorUtils
+            .getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_REPLICATION_FACTOR, numBranches, branchId),
+        this.fs.getDefaultReplication(this.outputFile));
+
+    this.blockSize = properties.getPropAsLong(
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_BLOCK_SIZE, numBranches, branchId),
+        this.fs.getDefaultBlockSize(this.outputFile));
+
+    this.permission = new FsPermission(properties.getPropAsShort(
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PERMISSIONS, numBranches, branchId),
+        FsPermission.getDefault().toShort()));
+
+    this.stagingFileOutputStream = this.closer.register(this.fs.create(this.stagingFile, this.permission, true,
+        this.bufferSize, this.replicationFactor, this.blockSize, null));
+
+    this.group = Optional.fromNullable(properties.getProp(ConfigurationKeys.WRITER_GROUP_NAME));
+    if (this.group.isPresent()) {
+      this.fs.setOwner(this.stagingFile, this.fs.getFileStatus(this.stagingFile).getOwner(), this.group.get());
+    }
+  }
+
+  /**
+   * {@inheritDoc}.
+   *
+   * <p>
+   *   This default implementation simply renames the staging file to the output file. If the output file
+   *   already exists, it will delete it first before doing the renaming.
+   * </p>
+   *
+   * @throws IOException if any file operation fails
+   */
+  @Override
+  public void commit() throws IOException {
+    this.close();
+
+    if (!this.fs.exists(this.stagingFile)) {
+      throw new IOException(String.format("File %s does not exist", this.stagingFile));
+    }
+
+    LOG.info(String.format("Moving data from %s to %s", this.stagingFile, this.outputFile));
+    // For the same reason as deleting the staging file if it already exists, deleting
+    // the output file if it already exists prevents task retry from being blocked.
+    if (this.fs.exists(this.outputFile)) {
+      LOG.warn(String.format("Task output file %s already exists", this.outputFile));
+      HadoopUtils.deletePath(this.fs, this.outputFile, false);
+    }
+
+    HadoopUtils.renamePath(this.fs, this.stagingFile, this.outputFile);
+  }
+
+  /**
+   * {@inheritDoc}.
+   *
+   * <p>
+   *   This default implementation simply deletes the staging file if it exists.
+   * </p>
+   *
+   * @throws IOException if deletion of the staging file fails
+   */
+  @Override
+  public void cleanup() throws IOException {
+    // Delete the staging file
+    if (this.fs.exists(this.stagingFile)) {
+      HadoopUtils.deletePath(this.fs, this.stagingFile, false);
+    }
+  }
+
+  @Override
+  public void close() throws IOException {
+    this.closer.close();
   }
 
   @Override
   public State getFinalState() {
     State state = new State();
+
     state.setProp("RecordsWritten", recordsWritten());
     try {
       state.setProp("BytesWritten", bytesWritten());
@@ -106,6 +194,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
       // If Writer fails to return bytesWritten, it might not be implemented, or implemented incorrectly.
       // Omit property instead of failing.
     }
+
     return state;
   }
 }

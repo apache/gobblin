@@ -18,20 +18,18 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Callable;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
-import azkaban.utils.Props;
-
-import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.policy.RetentionPolicy;
+import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.finder.VersionFinder;
 import gobblin.data.management.trash.Trash;
 
@@ -92,11 +90,11 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Dataset {
 
   public static final String CONFIGURATION_KEY_PREFIX = "gobblin.retention.";
   public static final String SIMULATE_KEY = CONFIGURATION_KEY_PREFIX + "simulate";
-  public static final boolean SIMULATE_DEFAULT = false;
+  public static final String SIMULATE_DEFAULT = Boolean.toString(false);
   public static final String SKIP_TRASH_KEY = CONFIGURATION_KEY_PREFIX + "skip.trash";
-  public static final boolean SKIP_TRASH_DEFAULT = false;
+  public static final String SKIP_TRASH_DEFAULT = Boolean.toString(false);
   public static final String DELETE_EMPTY_DIRECTORIES_KEY = CONFIGURATION_KEY_PREFIX + "delete.empty.directories";
-  public static final boolean DELETE_EMPTY_DIRECTORIES_DEFAULT = true;
+  public static final String DELETE_EMPTY_DIRECTORIES_DEFAULT = Boolean.toString(true);
 
   protected final FileSystem fs;
   protected final Trash trash;
@@ -116,7 +114,7 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Dataset {
    */
   public abstract RetentionPolicy<T> getRetentionPolicy();
 
-  public DatasetBase(final FileSystem fs, final Props props, Logger log) throws IOException {
+  public DatasetBase(final FileSystem fs, final Properties props, Logger log) throws IOException {
     this(fs,
         new Callable<Trash>() {
           @Override
@@ -125,9 +123,9 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Dataset {
             return new Trash(fs, props);
           }
         },
-        props.getBoolean(SIMULATE_KEY, SIMULATE_DEFAULT),
-        props.getBoolean(SKIP_TRASH_KEY, SKIP_TRASH_DEFAULT),
-        props.getBoolean(DELETE_EMPTY_DIRECTORIES_KEY, DELETE_EMPTY_DIRECTORIES_DEFAULT),
+        Boolean.valueOf(props.getProperty(SIMULATE_KEY, SIMULATE_DEFAULT)),
+        Boolean.valueOf(props.getProperty(SKIP_TRASH_KEY, SKIP_TRASH_DEFAULT)),
+        Boolean.valueOf(props.getProperty(DELETE_EMPTY_DIRECTORIES_KEY, DELETE_EMPTY_DIRECTORIES_DEFAULT)),
         log);
   }
 

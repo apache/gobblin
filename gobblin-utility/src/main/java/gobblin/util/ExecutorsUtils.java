@@ -19,6 +19,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 
@@ -30,6 +31,9 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 public class ExecutorsUtils {
 
   private static final ThreadFactory DEFAULT_THREAD_FACTORY = newThreadFactory(Optional.<Logger>absent());
+
+  private static final long EXECUTOR_SERVICE_SHUTDOWN_TIMEOUT = 60;
+  private static final TimeUnit EXECUTOR_SERVICE_SHUTDOWN_TIMEOUT_TIMEUNIT = TimeUnit.SECONDS;
 
   /**
    * Get a default {@link java.util.concurrent.ThreadFactory}.
@@ -80,18 +84,7 @@ public class ExecutorsUtils {
    * @param executorService the {@link ExecutorService} to shutdown
    */
   public static void shutdownExecutorService(ExecutorService executorService) throws InterruptedException {
-    executorService.shutdown();
-    try {
-      // Wait a while for existing tasks to terminate
-      if (!executorService.awaitTermination(60, TimeUnit.SECONDS)) {
-        executorService.shutdownNow();
-        // Wait a while for tasks to respond to being cancelled
-        executorService.awaitTermination(60, TimeUnit.SECONDS);
-      }
-    } catch (InterruptedException ie) {
-      executorService.shutdownNow();
-      Thread.currentThread().interrupt();
-      throw ie;
-    }
+    MoreExecutors.shutdownAndAwaitTermination(executorService, EXECUTOR_SERVICE_SHUTDOWN_TIMEOUT,
+        EXECUTOR_SERVICE_SHUTDOWN_TIMEOUT_TIMEUNIT);
   }
 }

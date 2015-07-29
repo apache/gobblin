@@ -13,14 +13,13 @@
 package gobblin.data.management.retention;
 
 import java.util.List;
+import java.util.Properties;
 
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
-
-import azkaban.utils.Props;
 
 import gobblin.data.management.retention.policy.NewestKRetentionPolicy;
 import gobblin.data.management.retention.version.DatasetVersion;
@@ -32,7 +31,7 @@ public class NewestKRetentionPolicyTest {
   @Test
   public void test() {
 
-    Props props = new Props();
+    Properties props = new Properties();
 
     NewestKRetentionPolicy policy = new NewestKRetentionPolicy(props);
 

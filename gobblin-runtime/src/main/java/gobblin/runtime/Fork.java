@@ -240,7 +240,7 @@ public class Fork implements Closeable, Runnable, FinalState {
    *
    * @throws Exception if there is anything wrong committing the data
    */
-  public void commit() throws Exception {
+  public boolean commit() throws Exception {
     try {
       if (checkDataQuality(this.convertedSchema)) {
         // Commit data if all quality checkers pass. Again, not to catch the exception
@@ -248,14 +248,17 @@ public class Fork implements Closeable, Runnable, FinalState {
         this.logger.info(String.format("Committing data for fork %d of task %s", this.index, this.taskId));
         commitData();
         compareAndSetForkState(ForkState.SUCCEEDED, ForkState.COMMITTED);
+        return true;
       } else {
         this.logger.error(String.format("Fork %d of task %s failed to pass quality checking", this.index, this.taskId));
         compareAndSetForkState(ForkState.SUCCEEDED, ForkState.FAILED);
+        return false;
       }
     } catch (Throwable t) {
       this.logger.error(String.format("Fork %d of task %s failed to commit data", this.index, this.taskId), t);
       this.forkState.set(ForkState.FAILED);
       Throwables.propagate(t);
+      return false;
     }
   }
 
