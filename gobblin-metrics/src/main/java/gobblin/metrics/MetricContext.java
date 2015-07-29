@@ -25,6 +25,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -54,10 +55,12 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
+import com.google.common.util.concurrent.MoreExecutors;
 
 import gobblin.metrics.notification.EventNotification;
 import gobblin.metrics.notification.Notification;
 import gobblin.metrics.reporter.ContextAwareScheduledReporter;
+import gobblin.util.ExecutorsUtils;
 
 
 /**
@@ -141,7 +144,10 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
 
   private synchronized ExecutorService getExecutorService() {
     if(!this.executorServiceOptional.isPresent()) {
-      this.executorServiceOptional = Optional.of(Executors.newCachedThreadPool());
+      this.executorServiceOptional = Optional.of(MoreExecutors.getExitingExecutorService(
+          (ThreadPoolExecutor) Executors.newCachedThreadPool(ExecutorsUtils.newThreadFactory(Optional.of(LOG),
+              Optional.of("MetricContext-" + this.name + "-%d"))), 5,
+          TimeUnit.MINUTES));
     }
     return this.executorServiceOptional.get();
   }
