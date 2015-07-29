@@ -57,12 +57,12 @@ public class JobLauncherTestHelper {
 
   public static final String SOURCE_FILE_LIST_KEY = "source.files";
 
-  private final StateStore<JobState> jobStateStore;
+  private final StateStore<JobState.DatasetState> datasetStateStore;
   private final Properties launcherProps;
 
-  public JobLauncherTestHelper(Properties launcherProps, StateStore<JobState> jobStateStore) {
+  public JobLauncherTestHelper(Properties launcherProps, StateStore<JobState.DatasetState> datasetStateStore) {
     this.launcherProps = launcherProps;
-    this.jobStateStore = jobStateStore;
+    this.datasetStateStore = datasetStateStore;
   }
 
   @SuppressWarnings("unchecked")
@@ -79,8 +79,8 @@ public class JobLauncherTestHelper {
       closer.close();
     }
 
-    List<JobState> jobStateList = this.jobStateStore.getAll(jobName, jobId + ".jst");
-    JobState jobState = jobStateList.get(0);
+    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId + ".jst");
+    JobState jobState = datasetStateList.get(0);
 
     Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
     Assert.assertEquals(jobState.getCompletedTasks(), 4);
@@ -105,8 +105,8 @@ public class JobLauncherTestHelper {
       closer.close();
     }
 
-    List<JobState> jobStateList = this.jobStateStore.getAll(jobName, jobId + ".jst");
-    JobState jobState = jobStateList.get(0);
+    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId + ".jst");
+    JobState jobState = datasetStateList.get(0);
 
     Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
     Assert.assertEquals(jobState.getCompletedTasks(), 4);
@@ -153,8 +153,8 @@ public class JobLauncherTestHelper {
       closer.close();
     }
 
-    List<JobState> jobStateList = this.jobStateStore.getAll(jobName, jobId + ".jst");
-    Assert.assertTrue(jobStateList.isEmpty());
+    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId + ".jst");
+    Assert.assertTrue(datasetStateList.isEmpty());
   }
 
   @SuppressWarnings("unchecked")
@@ -172,8 +172,8 @@ public class JobLauncherTestHelper {
       closer.close();
     }
 
-    List<JobState> jobStateList = this.jobStateStore.getAll(jobName, jobId + ".jst");
-    JobState jobState = jobStateList.get(0);
+    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId + ".jst");
+    JobState jobState = datasetStateList.get(0);
 
     Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
     Assert.assertEquals(jobState.getCompletedTasks(), 4);
@@ -210,8 +210,8 @@ public class JobLauncherTestHelper {
     }
 
     for (int i = 0; i < 4; i++) {
-      List<JobState> jobStateList = this.jobStateStore.getAll(jobName, "Dataset" + i + "-current.jst");
-      JobState jobState = jobStateList.get(0);
+      List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, "Dataset" + i + "-current.jst");
+      JobState jobState = datasetStateList.get(0);
 
       Assert.assertEquals(jobState.getProp(ConfigurationKeys.DATASET_URN_KEY), "Dataset" + i);
       Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
@@ -242,11 +242,11 @@ public class JobLauncherTestHelper {
     }
 
     // Task 0 should have failed
-    Assert.assertTrue(this.jobStateStore.getAll(jobName, "Dataset0-current.jst").isEmpty());
+    Assert.assertTrue(this.datasetStateStore.getAll(jobName, "Dataset0-current.jst").isEmpty());
 
     for (int i = 1; i < 4; i++) {
-      List<JobState> jobStateList = this.jobStateStore.getAll(jobName, "Dataset" + i + "-current.jst");
-      JobState jobState = jobStateList.get(0);
+      List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, "Dataset" + i + "-current.jst");
+      JobState jobState = datasetStateList.get(0);
 
       Assert.assertEquals(jobState.getProp(ConfigurationKeys.DATASET_URN_KEY), "Dataset" + i);
       Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
@@ -291,7 +291,7 @@ public class JobLauncherTestHelper {
   }
 
   public void deleteStateStore(String storeName) throws IOException {
-    this.jobStateStore.delete(storeName);
+    this.datasetStateStore.delete(storeName);
   }
 
   public static class MultiDatasetTestSource extends TestSource {

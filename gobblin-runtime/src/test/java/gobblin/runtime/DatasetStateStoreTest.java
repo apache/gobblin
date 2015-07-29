@@ -54,9 +54,9 @@ import gobblin.writer.DataWriterBuilder;
  * @author ynli
  */
 @Test(groups = {"gobblin.runtime"})
-public class JobStateStoreTest {
+public class DatasetStateStoreTest {
 
-  private static final String JOB_NAME = JobStateStoreTest.class.getSimpleName();
+  private static final String JOB_NAME = DatasetStateStoreTest.class.getSimpleName();
   private static final String NAMESPACE = "TestNamespace";
   private static final String TABLE = "TestTable";
   private static final String FOO = "foo";
@@ -65,7 +65,7 @@ public class JobStateStoreTest {
   private static final String LAST_READ_RECORD_KEY = "last.read.record";
   private static final String CURRENT_RUN_KEY = "current.run";
 
-  private StateStore<JobState> jobStateStore;
+  private StateStore<JobState.DatasetState> datasetStateStore;
   private Properties jobConfig = new Properties();
 
   @BeforeClass
@@ -73,10 +73,10 @@ public class JobStateStoreTest {
     Properties properties = new Properties();
     properties.load(new FileReader("gobblin-test/resource/gobblin.test.properties"));
 
-    this.jobStateStore = new FsStateStore<JobState>(
+    this.datasetStateStore = new FsStateStore<JobState.DatasetState>(
         properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI),
         properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
-        JobState.class);
+        JobState.DatasetState.class);
 
     this.jobConfig.putAll(properties);
     this.jobConfig.setProperty(ConfigurationKeys.JOB_NAME_KEY, JOB_NAME);
@@ -119,14 +119,14 @@ public class JobStateStoreTest {
 
   @AfterClass
   public void tearDown() throws IOException {
-    this.jobStateStore.delete(JOB_NAME);
+    this.datasetStateStore.delete(JOB_NAME);
   }
 
   private void verifyJobState(int run) throws IOException {
-    List<JobState> jobStateList = this.jobStateStore.getAll(JOB_NAME, "current.jst");
-    Assert.assertEquals(jobStateList.size(), 1);
+    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(JOB_NAME, "current.jst");
+    Assert.assertEquals(datasetStateList.size(), 1);
 
-    JobState jobState = jobStateList.get(0);
+    JobState jobState = datasetStateList.get(0);
     Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
     Assert.assertEquals(jobState.getTaskStates().size(), DummySource.NUM_WORK_UNITS);
     Assert.assertEquals(jobState.getProp(FOO), BAR);
@@ -168,7 +168,7 @@ public class JobStateStoreTest {
       sourceState.setProp(FOO, BAR);
 
       if (sourceState.getPreviousWorkUnitStates().isEmpty()) {
-        return initializeWorkUnits(sourceState);
+        return initializeWorkUnits();
       }
 
       List<WorkUnit> workUnits = Lists.newArrayList();
@@ -195,7 +195,7 @@ public class JobStateStoreTest {
       // Nothing to do
     }
 
-    private List<WorkUnit> initializeWorkUnits(SourceState sourceState) {
+    private List<WorkUnit> initializeWorkUnits() {
       List<WorkUnit> workUnits = Lists.newArrayList();
       for (int i = 0; i < NUM_WORK_UNITS; i++) {
         WorkUnit workUnit = WorkUnit.create(createExtract(Extract.TableType.SNAPSHOT_ONLY, NAMESPACE, TABLE));

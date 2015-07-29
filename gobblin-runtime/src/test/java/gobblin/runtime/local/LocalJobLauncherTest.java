@@ -56,12 +56,12 @@ public class LocalJobLauncherTest {
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY,
         "jdbc:derby:memory:gobblin1;create=true");
 
-    StateStore<JobState> jobStateStore = new FsStateStore<JobState>(
+    StateStore<JobState.DatasetState> datasetStateStore = new FsStateStore<JobState.DatasetState>(
         this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
         this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
-        JobState.class);
+        JobState.DatasetState.class);
 
-    this.jobLauncherTestHelper = new JobLauncherTestHelper(this.launcherProps, jobStateStore);
+    this.jobLauncherTestHelper = new JobLauncherTestHelper(this.launcherProps, datasetStateStore);
     this.jobLauncherTestHelper.prepareJobHistoryStoreDatabase(this.launcherProps);
   }
 

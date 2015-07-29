@@ -72,7 +72,7 @@ public class JobState extends SourceState {
   private long duration;
   private RunningState state = RunningState.PENDING;
   private int tasks;
-  private final Map<String, TaskState> taskStates = Maps.newHashMap();
+  private final Map<String, TaskState> taskStates = Maps.newLinkedHashMap();
 
   // Necessary for serialization/deserialization
   public JobState() {
@@ -84,7 +84,8 @@ public class JobState extends SourceState {
     this.setId(jobId);
   }
 
-  public JobState(State properties, Map<String, JobState> previousDatasetStates, String jobName, String jobId) {
+  public JobState(State properties, Map<String, JobState.DatasetState> previousDatasetStates, String jobName,
+      String jobId) {
     super(properties, previousDatasetStates, workUnitStatesFromDatasetStates(previousDatasetStates.values()));
     this.jobName = jobName;
     this.jobId = jobId;
@@ -264,7 +265,7 @@ public class JobState extends SourceState {
 
   /**
    * Get a {@link Map} from dataset URNs (as being specified by {@link ConfigurationKeys#DATASET_URN_KEY} to
-   * {@link JobState} objects that represent the dataset states and store {@link TaskState}s corresponding
+   * {@link DatasetState} objects that represent the dataset states and store {@link TaskState}s corresponding
    * to the datasets.
    *
    * <p>
@@ -272,15 +273,15 @@ public class JobState extends SourceState {
    *   the dataset state belonging to {@link ConfigurationKeys#DEFAULT_DATASET_URN}.
    * </p>
    *
-   * @return a {@link Map} from dataset URNs to {@link JobState}s representing the dataset states
+   * @return a {@link Map} from dataset URNs to {@link DatasetState}s representing the dataset states
    */
-  public Map<String, JobState> getDatasetStatesByUrns() {
-    Map<String, JobState> datasetStatesByUrns = Maps.newHashMap();
+  public Map<String, DatasetState> getDatasetStatesByUrns() {
+    Map<String, DatasetState> datasetStatesByUrns = Maps.newHashMap();
 
     for (TaskState taskState : this.taskStates.values()) {
       String datasetUrn = taskState.getProp(ConfigurationKeys.DATASET_URN_KEY, ConfigurationKeys.DEFAULT_DATASET_URN);
       if (!datasetStatesByUrns.containsKey(datasetUrn)) {
-        JobState datasetState = JobState.copyOf(this, false);
+        DatasetState datasetState = newDatasetState(false);
         datasetState.setProp(ConfigurationKeys.DATASET_URN_KEY, datasetUrn);
         datasetStatesByUrns.put(datasetUrn, datasetState);
       }
@@ -503,38 +504,60 @@ public class JobState extends SourceState {
   }
 
   /**
-   * Make a copy of a given {@link JobState}.
+   * Create a new {@link JobState.DatasetState} based on this {@link JobState} instance.
    *
-   * <p>
-   *   This method copies all of the properties associated with the given {@link JobState} except for
-   *   the {@link TaskState}s, the copying of which is configurable.
-   * </p>
-   *
-   * @param other the given {@link JobState}
-   * @param copyTaskStates whether to copy {@link TaskState}s of the given {@link JobState} or not
-   * @return a copy of the given {@link JobState}
+   * @return a new {@link JobState.DatasetState} object
    */
-  public static JobState copyOf(JobState other, boolean copyTaskStates) {
-    JobState copy = new JobState(other.getJobName(), other.getJobId());
-
-    copy.addAll(other);
-    copy.tasks = other.tasks;
-    copy.startTime = other.startTime;
-    copy.endTime = other.endTime;
-    copy.duration = other.duration;
-    copy.state = other.state;
-    if (copyTaskStates) {
-      copy.taskStates.putAll(other.taskStates);
+  public DatasetState newDatasetState(boolean addTaskStates) {
+    DatasetState datasetState = new DatasetState(this.jobName, this.jobId);
+    datasetState.addAll(this);
+    datasetState.setState(this.state);
+    if (addTaskStates) {
+      datasetState.addTaskStates(this.taskStates.values());
     }
-
-    return copy;
+    return datasetState;
   }
 
-  private static List<WorkUnitState> workUnitStatesFromDatasetStates(Collection<JobState> datasetStates) {
+  private static List<WorkUnitState> workUnitStatesFromDatasetStates(Iterable<JobState.DatasetState> datasetStates) {
     ImmutableList.Builder<WorkUnitState> taskStateBuilder = ImmutableList.builder();
     for (JobState datasetState : datasetStates) {
       taskStateBuilder.addAll(datasetState.getTaskStatesAsWorkUnitStates());
     }
     return taskStateBuilder.build();
+  }
+
+  /**
+   * A subclass of {@link JobState} that is used to represent dataset states. This class is currently
+   * identical to {@link JobState} except that the name is more meaningful and less confusing.
+   */
+  public static class DatasetState extends JobState {
+
+    // For serialization/deserialization
+    @SuppressWarnings("unused")
+    public DatasetState() {
+      super();
+    }
+
+    public DatasetState(String jobName, String jobId) {
+      super(jobName, jobId);
+    }
+
+    public void setDatasetUrn(String datasetUrn) {
+      setProp(ConfigurationKeys.DATASET_URN_KEY, datasetUrn);
+    }
+
+    public String getDatasetUrn() {
+      return getProp(ConfigurationKeys.DATASET_URN_KEY, ConfigurationKeys.DEFAULT_DATASET_URN);
+    }
+
+    @Override
+    public void write(DataOutput out) throws IOException {
+      super.write(out);
+    }
+
+    @Override
+    public void readFields(DataInput in) throws IOException {
+      super.readFields(in);
+    }
   }
 }

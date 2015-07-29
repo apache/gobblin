@@ -58,10 +58,10 @@ public class BaseDataPublisher extends DataPublisher {
 
   private static final Logger LOG = LoggerFactory.getLogger(BaseDataPublisher.class);
 
-  protected final List<FileSystem> fss = Lists.newArrayList();
-  protected final List<Optional<String>> groups = Lists.newArrayList();
-  protected final Closer closer;
   protected final int numBranches;
+  protected final List<FileSystem> fss;
+  protected final List<Optional<String>> groups;
+  protected final Closer closer;
   protected final int parallelRunnerThreads;
   protected final Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
 
@@ -77,6 +77,9 @@ public class BaseDataPublisher extends DataPublisher {
 
     this.numBranches = this.getState().getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
 
+    this.fss = Lists.newArrayListWithCapacity(this.numBranches);
+    this.groups = Lists.newArrayListWithCapacity(this.numBranches);
+
     // Get a FileSystem instance for each branch
     for (int i = 0; i < this.numBranches; i++) {
       URI uri = URI.create(this.getState().getProp(
@@ -84,8 +87,9 @@ public class BaseDataPublisher extends DataPublisher {
           ConfigurationKeys.LOCAL_FS_URI));
       this.fss.add(FileSystem.get(uri, conf));
 
-      this.groups.add(Optional.fromNullable(this.getState().getProp(ForkOperatorUtils.getPropertyNameForBranch(
-          ConfigurationKeys.DATA_PUBLISHER_GROUP_NAME, this.numBranches, i))));
+      // The group(s) will be applied to the final publisher output directory(ies)
+      this.groups.add(Optional.fromNullable(this.getState().getProp(ForkOperatorUtils
+          .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_GROUP_NAME, this.numBranches, i))));
     }
 
     this.parallelRunnerThreads =
@@ -161,13 +165,10 @@ public class BaseDataPublisher extends DataPublisher {
       Path parentDir = publisherOutputDir.getParent();
       // Create the parent directory of the final output directory if it does not exist
       this.fss.get(branchId).mkdirs(parentDir);
-      if (this.groups.get(branchId).isPresent()) {
-        HadoopUtils.setGroup(this.fss.get(branchId), parentDir, this.groups.get(branchId).get());
-      }
     }
 
     LOG.info(String.format("Moving %s to %s", writerOutputDir, publisherOutputDir));
-    parallelRunner.renamePath(writerOutputDir, publisherOutputDir);
+    parallelRunner.renamePath(writerOutputDir, publisherOutputDir, this.groups.get(branchId));
     writerOutputPathsMoved.add(writerOutputDir);
   }
 
@@ -188,7 +189,7 @@ public class BaseDataPublisher extends DataPublisher {
           : new Path(publisherOutputDir, status.getPath().getName());
 
       LOG.info(String.format("Moving %s to %s", status.getPath(), finalOutputPath));
-      parallelRunner.renamePath(status.getPath(), finalOutputPath);
+      parallelRunner.renamePath(status.getPath(), finalOutputPath, Optional.<String>absent());
     }
   }
 
