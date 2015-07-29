@@ -1,16 +1,13 @@
 #!/bin/bash
 
-FWDIR="$(cd `dirname $0`/..; pwd)"
-FWDIR_LIB=$FWDIR/lib
-FWDIR_CONF=$FWDIR/conf
-
 function print_usage(){
   echo "gobblin-standalone.sh <start | status | restart | stop> [OPTION]"
   echo "Where OPTION can be:"
   echo "  --workdir <job work dir>                       Gobblin's base work directory: if not set, taken from \${GOBBLIN_WORK_DIR}"
+  echo "  --logdir <log dir>                             Gobblin's log directory: if not set, taken from \${GOBBLIN_LOG_DIR}"
+  echo "  --fwdir <fwd dir>                              Gobblin's dist directory: if not set, taken from \${GOBBLIN_FWDIR}"
   echo "  --jars <comma-separated list of job jars>      Job jar(s): if not set, "$FWDIR_LIB" is examined"
   echo "  --conf <directory of job configuration files>  Directory of job configuration files: if not set, taken from ${GOBBLIN_JOB_CONFIG_DIR}"
-  echo "  --logdir <directory of log files>              Directory of log files: if not set, "$FWDIR_LIB/logs" is used"
   echo "  --help                                         Display this help and exit"
 }
 
@@ -31,16 +28,20 @@ do
       WORK_DIR="$2"
       shift
       ;;
+    --fwdir)
+      FWDIR="$2"
+      shift
+      ;;
+    --logdir)
+      LOG_DIR="$2"
+      shift
+      ;;
     --jars)
       JARS="$2"
       shift
       ;;
     --conf)
       JOB_CONFIG_DIR="$2"
-      shift
-      ;;
-    --logdir)
-      LOG_DIR="$2"
       shift
       ;;
     --help)
@@ -53,6 +54,9 @@ do
   shift
 done
 
+# Source gobblin default vars
+[ -f /etc/default/gobblin ] && . /etc/default/gobblin
+
 if [ -z "$JAVA_HOME" ]; then
   die "Environment variable JAVA_HOME not set!"
 fi
@@ -61,6 +65,17 @@ check=false
 if [ "$ACTION" == "start" ] || [ "$ACTION" == "restart" ]; then
   check=true
 fi
+
+if [ -n "$FWDIR" ]; then
+  export GOBBLIN_FWDIR="$FWDIR"
+fi
+
+if [ -z "$GOBBLIN_FWDIR" ] && [ "$check" == true ]; then
+  die "Environment variable FWDIR not set!"
+fi
+
+FWDIR_LIB=$GOBBLIN_FWDIR/lib
+FWDIR_CONF=$GOBBLIN_FWDIR/conf
 
 # User defined job configuration directory overrides $GOBBLIN_JOB_CONFIG_DIR
 if [ -n "$JOB_CONFIG_DIR" ]; then
@@ -80,11 +95,14 @@ if [ -z "$GOBBLIN_WORK_DIR" ] && [ "$check" == true ]; then
   die "GOBBLIN_WORK_DIR is not set!"
 fi
 
-if [ -z "$LOG_DIR" ]; then
-  LOG_DIR="$FWDIR/logs"
+# User defined log directory overrides $GOBBLIN_LOG_DIR
+if [ -n "$LOG_DIR" ]; then
+  export GOBBLIN_LOG_DIR="$LOG_DIR"
 fi
 
-. $FWDIR_CONF/gobblin-env.sh
+if [ -z "$GOBBLIN_LOG_DIR" ] && [ "$check" == true ]; then
+  die "GOBBLIN_LOG_DIR is not set!"
+fi
 
 CONFIG_FILE=$FWDIR_CONF/gobblin-standalone.properties
 
@@ -96,8 +114,8 @@ else
   PID_VALUE=""
 fi
 
-if [ ! -d "$LOG_DIR" ]; then
-  mkdir "$LOG_DIR"
+if [ ! -d "$GOBBLIN_LOG_DIR" ]; then
+  mkdir "$GOBBLIN_LOG_DIR"
 fi
 
 set_user_jars(){
@@ -139,12 +157,13 @@ start() {
   COMMAND+="-XX:+UseConcMarkSweepGC -XX:+UseParNewGC "
   COMMAND+="-XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintTenuringDistribution "
   COMMAND+="-XX:+UseCompressedOops "
-  COMMAND+="-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$LOG_DIR/ "
-  COMMAND+="-Xloggc:$LOG_DIR/gobblin-gc.log "
-  COMMAND+="-Dgobblin.logs.dir=$LOG_DIR "
+  COMMAND+="-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$GOBBLIN_LOG_DIR/ "
+  COMMAND+="-Xloggc:$GOBBLIN_LOG_DIR/gobblin-gc.log "
+  COMMAND+="-Dgobblin.logs.dir=$GOBBLIN_LOG_DIR "
   COMMAND+="-Dlog4j.configuration=file://$FWDIR_CONF/log4j-standalone.xml "
   COMMAND+="-cp $CLASSPATH "
   COMMAND+="-Dorg.quartz.properties=$FWDIR_CONF/quartz.properties "
+  COMMAND+="${JVM_FLAGS} "
   COMMAND+="gobblin.scheduler.SchedulerDaemon $CONFIG_FILE"
   echo "Running command:"
   echo "$COMMAND"
@@ -178,9 +197,11 @@ status() {
       ps -ef | grep -v grep | grep $PID_VALUE
     else
       echo "Gobblin standalone daemon is not running"
+      exit 1
     fi
   else
     echo "No pid file found"
+    exit 1
   fi
 }
 

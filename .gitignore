@@ -50,3 +50,4 @@ out/
 **/mainGeneratedDataTemplate
 **/mainGeneratedRest
 gobblin-dist*
+.DS_Store
