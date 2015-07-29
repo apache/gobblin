@@ -28,7 +28,7 @@ public class TimeBasedRetentionPolicy implements RetentionPolicy<TimestampedData
 
   public TimeBasedRetentionPolicy(Properties props) {
     this.retention = Duration.standardMinutes(
-        Long.valueOf(props.getProperty(RETENTION_MINUTES_KEY, RETENTION_MINUTES_DEFAULT)));
+        Long.parseLong(props.getProperty(RETENTION_MINUTES_KEY, RETENTION_MINUTES_DEFAULT)));
   }
 
   @Override
