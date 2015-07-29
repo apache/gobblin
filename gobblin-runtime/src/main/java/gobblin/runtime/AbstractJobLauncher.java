@@ -279,12 +279,12 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       if (canCommit(this.jobContext.getJobCommitPolicy(), jobState)) {
         try {
           commitJob(jobState);
-          processTaskStates(jobState.getTaskStates());
         } finally {
           persistJobState(jobState);
         }
       }
 
+      postProcessTaskStates(jobState.getTaskStates());
       jobCommitTimer.stop();
     } catch (Throwable t) {
       jobState.setState(JobState.RunningState.FAILED);
@@ -325,10 +325,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   }
 
   /**
-   * Subclasses can override this method to do whatever processing on the taskStates,
+   * Subclasses can override this method to do whatever processing on the {@link TaskState}s,
    * e.g., aggregate task-level metrics into job-level metrics.
    */
-  protected void processTaskStates(List<TaskState> taskStates) {
+  protected void postProcessTaskStates(List<TaskState> taskStates) {
     // Do nothing
   }
 
