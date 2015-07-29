@@ -103,8 +103,6 @@ ext.externalDependency = [
   "salesforceWsc": "com.force.api:force-wsc:29.0.0",
   "salesforcePartner": "com.force.api:force-partner-api:29.0.0",
   "scala": "org.scala-lang:scala-library:2.10.3",
-  "s3": "com.amazonaws:aws-java-sdk-s3:1.9.38",
-  "aws": "com.amazonaws:aws-java-sdk-core:1.9.38",
   "influxdbJava": "org.influxdb:influxdb-java:1.5",
   "lombok":"org.projectlombok:lombok:1.16.4",
   "mockRunnerJdbc":"com.mockrunner:mockrunner-jdbc:1.0.8",
@@ -122,8 +120,7 @@ ext.externalDependency = [
     "r2" : "com.linkedin.pegasus:r2:"+pegasusVersion,
     "d2" : "com.linkedin.pegasus:d2:"+pegasusVersion,
     "restliNettyStandalone" : "com.linkedin.pegasus:restli-netty-standalone:"+pegasusVersion
-  ],
-  "protobuf" : "com.google.protobuf:protobuf-java:2.6.1"
+  ]
 ];
 
 if (!isDefaultEnvironment)
