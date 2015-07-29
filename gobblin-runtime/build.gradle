@@ -15,6 +15,7 @@ dependencies {
   compile project(":gobblin-core")
   compile project(":gobblin-metrics")
   compile project(":gobblin-metastore")
+  compile project(":gobblin-modules")
   compile project(":gobblin-utility")
   compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'restClient')
 
