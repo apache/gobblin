@@ -16,6 +16,7 @@ import org.testng.annotations.Test;
 
 /** Unit tests for {@link ClustersNames}. This test relies on the ClustersNames.properties file */
 public class TestClustersNames {
+
   @Test
   public void testClustersNames() {
     ClustersNames clustersNames = ClustersNames.getInstance();

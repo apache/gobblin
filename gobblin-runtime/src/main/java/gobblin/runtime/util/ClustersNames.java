@@ -44,7 +44,10 @@ public class ClustersNames {
   private Properties _urlToNameMap = new Properties();
 
   private ClustersNames() {
-    InputStream propsInput = this.getClass().getResourceAsStream(URL_TO_NAME_MAP_RESOURCE_NAME);
+    InputStream propsInput = getClass().getResourceAsStream(URL_TO_NAME_MAP_RESOURCE_NAME);
+    if (null == propsInput) {
+      propsInput = ClassLoader.getSystemResourceAsStream(URL_TO_NAME_MAP_RESOURCE_NAME);
+    }
     if (null != propsInput) {
       try {
         _urlToNameMap.load(propsInput);
@@ -53,6 +56,9 @@ public class ClustersNames {
       catch (IOException e) {
         LOG.warn("Unable to load cluster names map: " + e, e);
       }
+    }
+    else {
+      LOG.info("no default cluster mapping found");
     }
   }
 
