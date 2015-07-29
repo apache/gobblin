@@ -20,6 +20,7 @@ import java.util.regex.Pattern;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +34,7 @@ import gobblin.data.management.retention.dataset.ConfigurableDataset;
 import gobblin.data.management.retention.dataset.Dataset;
 import gobblin.data.management.retention.dataset.finder.DatasetFinder;
 import gobblin.data.management.retention.version.DatasetVersion;
+import gobblin.data.management.util.PathUtils;
 
 
 /**
@@ -52,10 +54,10 @@ public class ConfigurableGlobDatasetFinder implements DatasetFinder {
   protected final Properties props;
 
   public ConfigurableGlobDatasetFinder(FileSystem fs, Properties props) throws IOException {
-    for(String property : requiredProperties()) {
+    for (String property : requiredProperties()) {
       Preconditions.checkArgument(props.containsKey(property));
     }
-    if(props.containsKey(DATASET_BLACKLIST_KEY) && !Strings.isNullOrEmpty(props.getProperty(DATASET_BLACKLIST_KEY))) {
+    if (props.containsKey(DATASET_BLACKLIST_KEY) && !Strings.isNullOrEmpty(props.getProperty(DATASET_BLACKLIST_KEY))) {
       this.blacklist = Optional.of(Pattern.compile(props.getProperty(DATASET_BLACKLIST_KEY)));
     } else {
       this.blacklist = Optional.absent();
@@ -83,8 +85,9 @@ public class ConfigurableGlobDatasetFinder implements DatasetFinder {
   @Override
   public List<Dataset> findDatasets() throws IOException {
     List<Dataset> datasets = Lists.newArrayList();
-    for(FileStatus fileStatus : this.fs.globStatus(datasetPattern)) {
-      if(this.blacklist.isPresent() && this.blacklist.get().matcher(fileStatus.getPath().toString()).matches()) {
+    for (FileStatus fileStatus : this.fs.globStatus(datasetPattern)) {
+      Path pathToMatch = PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath());
+      if (this.blacklist.isPresent() && this.blacklist.get().matcher(pathToMatch.toString()).matches()) {
         continue;
       }
       LOG.info("Found dataset at " + fileStatus.getPath());

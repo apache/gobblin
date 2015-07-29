@@ -14,4 +14,12 @@ public class PathUtils {
     return new Path(pathPrefix.toUri().relativize(fullPath.toUri()));
   }
 
+  /**
+   * Removes the Scheme and Authority from a Path.
+   *
+   * @see {@link Path}, {@link URI}
+   */
+  public static Path getPathWithoutSchemeAndAuthority(Path path) {
+    return new Path(null, null, path.toUri().getPath());
+  }
 }
