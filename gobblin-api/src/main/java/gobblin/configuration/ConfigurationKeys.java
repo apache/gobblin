@@ -232,6 +232,12 @@ public class ConfigurationKeys {
   public static final String SIMPLE_WRITER_PREPEND_SIZE = "simple.writer.prepend.size";
 
   /**
+   * Writer configuration properties used internally.
+   */
+  public static final String WRITER_RECORDS_WRITTEN = WRITER_PREFIX + ".records.written";
+  public static final String WRITER_BYTES_WRITTEN = WRITER_PREFIX + ".bytes.written";
+
+  /**
    * Configuration properties used by the quality checker.
    */
   public static final String QUALITY_CHECKER_PREFIX = "qualitychecker";
