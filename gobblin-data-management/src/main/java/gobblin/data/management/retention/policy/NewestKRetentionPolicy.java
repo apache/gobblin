@@ -27,7 +27,7 @@ public class NewestKRetentionPolicy implements RetentionPolicy<DatasetVersion> {
   private final int versionsRetained;
 
   public NewestKRetentionPolicy(Properties props) {
-    this.versionsRetained = Integer.valueOf(props.getProperty(VERSIONS_RETAINED_KEY, VERSIONS_RETAINED_DEFAULT));
+    this.versionsRetained = Integer.parseInt(props.getProperty(VERSIONS_RETAINED_KEY, VERSIONS_RETAINED_DEFAULT));
     LOGGER.info(String.format("%s will retain %d versions of each dataset.",
         NewestKRetentionPolicy.class.getCanonicalName(), this.versionsRetained));
   }
