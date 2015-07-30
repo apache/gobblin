@@ -115,6 +115,9 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
   protected final int numBranches;
   protected final int branch;
 
+  private long earliestTimestampWritten = Long.MAX_VALUE;
+  private double totalTimestampWritten = 0.0;
+
   public AvroHdfsTimePartitionedWriter(Destination destination, String writerId, Schema schema,
       WriterOutputFormat writerOutputFormat, int numBranches, int branch) {
 
@@ -193,6 +196,8 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
     }
 
     this.pathToWriterMap.get(writerOutputPath).write(record);
+    this.earliestTimestampWritten = Math.min(this.earliestTimestampWritten, recordTimestamp);
+    this.totalTimestampWritten += recordTimestamp;
   }
 
   @Override
@@ -264,6 +269,11 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
     // Add records written and bytes written to task state
     this.properties.setProp(ConfigurationKeys.WRITER_RECORDS_WRITTEN, recordsWritten());
     this.properties.setProp(ConfigurationKeys.WRITER_BYTES_WRITTEN, bytesWritten());
+
+    // Add earliest timestamp and average timestamp to task state
+    this.properties.setProp(ConfigurationKeys.WRITER_EARLIEST_TIMESTAMP, this.earliestTimestampWritten);
+    this.properties.setProp(ConfigurationKeys.WRITER_AVERAGE_TIMESTAMP,
+        (long) (this.totalTimestampWritten / recordsWritten()));
 
     // Close all writers
     boolean closeFailed = false;

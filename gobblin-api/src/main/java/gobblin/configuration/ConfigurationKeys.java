@@ -236,6 +236,8 @@ public class ConfigurationKeys {
    */
   public static final String WRITER_RECORDS_WRITTEN = WRITER_PREFIX + ".records.written";
   public static final String WRITER_BYTES_WRITTEN = WRITER_PREFIX + ".bytes.written";
+  public static final String WRITER_EARLIEST_TIMESTAMP = WRITER_PREFIX + ".earliest.timestamp";
+  public static final String WRITER_AVERAGE_TIMESTAMP = WRITER_PREFIX + ".average.timestamp";
 
   /**
    * Configuration properties used by the quality checker.
@@ -316,6 +318,13 @@ public class ConfigurationKeys {
   public static final String SOURCE_FILEBASED_FS_SNAPSHOT = "source.filebased.fs.snapshot";
   public static final String SOURCE_FILEBASED_FS_URI = "source.filebased.fs.uri";
   public static final String SOURCE_FILEBASED_PRESERVE_FILE_NAME = "source.filebased.preserve.file.name";
+
+  /**
+   * Configuration properties used internally by the KafkaExtractor.
+   */
+  public static final String ERROR_PARTITION_COUNT = "error.partition.count";
+  public static final String ERROR_MESSAGE_INVALID_SCHEMA_ID_COUNT = "error.message.invalid.schema.id.count";
+  public static final String ERROR_MESSAGE_UNDECODABLE_COUNT = "error.message.undecodable.count";
 
   /**
    * Configuration properties for source connection.
