@@ -533,7 +533,6 @@ public class JobState extends SourceState {
   public static class DatasetState extends JobState {
 
     // For serialization/deserialization
-    @SuppressWarnings("unused")
     public DatasetState() {
       super();
     }
@@ -548,16 +547,6 @@ public class JobState extends SourceState {
 
     public String getDatasetUrn() {
       return getProp(ConfigurationKeys.DATASET_URN_KEY, ConfigurationKeys.DEFAULT_DATASET_URN);
-    }
-
-    @Override
-    public void write(DataOutput out) throws IOException {
-      super.write(out);
-    }
-
-    @Override
-    public void readFields(DataInput in) throws IOException {
-      super.readFields(in);
     }
   }
 }

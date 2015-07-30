@@ -169,12 +169,16 @@ public class JobContext {
   }
 
   /**
-   * Get an {@link Optional} of {@link JobHistoryStore}.
-   *
-   * @return an {@link Optional} of {@link JobHistoryStore}
+   * Store job execution information into the job history store.
    */
-  public Optional<JobHistoryStore> getJobHistoryStoreOptional() {
-    return this.jobHistoryStoreOptional;
+  void storeJobExecutionInfo() {
+    if (this.jobHistoryStoreOptional.isPresent()) {
+      try {
+        this.jobHistoryStoreOptional.get().put(this.jobState.toJobExecutionInfo());
+      } catch (IOException ioe) {
+        this.logger.error("Failed to write job execution information to the job history store: " + ioe, ioe);
+      }
+    }
   }
 
   /**

@@ -251,7 +251,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       workUnitsPreparationTimer.stop();
 
       // Write job execution info to the job history store before the job starts to run
-      storeJobExecutionInfo();
+      this.jobContext.storeJobExecutionInfo();
 
       TimingEvent jobRunTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.JOB_RUN);
       // Start the job and wait for it to finish
@@ -286,7 +286,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       jobCleanupTimer.stop();
 
       // Write job execution info to the job history store upon job termination
-      storeJobExecutionInfo();
+      this.jobContext.storeJobExecutionInfo();
 
       launchJobTimer.stop();
 
@@ -438,19 +438,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         this.jobLockOptional.get().unlock();
       } catch (IOException ioe) {
         LOG.error(String.format("Failed to unlock for job %s: %s", this.jobContext.getJobId(), ioe), ioe);
-      }
-    }
-  }
-
-  /**
-   * Store job execution information into the job history store.
-   */
-  private void storeJobExecutionInfo() {
-    if (this.jobContext.getJobHistoryStoreOptional().isPresent()) {
-      try {
-        this.jobContext.getJobHistoryStoreOptional().get().put(this.jobContext.getJobState().toJobExecutionInfo());
-      } catch (IOException ioe) {
-        LOG.error("Failed to write job execution information to the job history store: " + ioe, ioe);
       }
     }
   }

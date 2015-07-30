@@ -36,7 +36,6 @@ import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.ForkOperatorUtils;
-import gobblin.util.HadoopUtils;
 import gobblin.util.ParallelRunner;
 import gobblin.util.WriterUtils;
 
