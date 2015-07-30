@@ -194,7 +194,9 @@ public class Task implements Runnable {
       for (Optional<Fork> fork : this.forks) {
         if (fork.isPresent()) {
           if (fork.get().isSucceeded()) {
-            fork.get().commit();
+            if (!fork.get().commit()) {
+              allForksSucceeded = false;
+            }
           } else {
             allForksSucceeded = false;
           }

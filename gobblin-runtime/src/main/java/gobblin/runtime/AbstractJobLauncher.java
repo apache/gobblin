@@ -267,9 +267,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       }
 
       TimingEvent jobCommitTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.JOB_COMMIT);
-
       this.jobContext.setFinalJobState();
       this.jobContext.commit();
+      postProcessTaskStates(jobState.getTaskStates());
       jobCommitTimer.stop();
     } catch (Throwable t) {
       jobState.setState(JobState.RunningState.FAILED);
@@ -307,6 +307,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     if (jobState.getState() == JobState.RunningState.FAILED) {
       throw new JobException(String.format("Job %s failed", jobId));
     }
+  }
+
+  /**
+   * Subclasses can override this method to do whatever processing on the {@link TaskState}s,
+   * e.g., aggregate task-level metrics into job-level metrics.
+   */
+  protected void postProcessTaskStates(List<TaskState> taskStates) {
+    // Do nothing
   }
 
   @Override
