@@ -75,6 +75,7 @@ import gobblin.util.WriterUtils;
  * on each {@link DataWriter}.
  */
 public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> {
+  private static final Logger LOG = LoggerFactory.getLogger(AvroHdfsTimePartitionedWriter.class);
 
   /**
    * This is the base file path that all data will be written to. By default, data will be written to
@@ -114,7 +115,8 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
   protected final int numBranches;
   protected final int branch;
 
-  private static final Logger LOG = LoggerFactory.getLogger(AvroHdfsTimePartitionedWriter.class);
+  private long earliestTimestampWritten = Long.MAX_VALUE;
+  private double totalTimestampWritten = 0.0;
 
   public AvroHdfsTimePartitionedWriter(Destination destination, String writerId, Schema schema,
       WriterOutputFormat writerOutputFormat, int numBranches, int branch) {
@@ -194,6 +196,8 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
     }
 
     this.pathToWriterMap.get(writerOutputPath).write(record);
+    this.earliestTimestampWritten = Math.min(this.earliestTimestampWritten, recordTimestamp);
+    this.totalTimestampWritten += recordTimestamp;
   }
 
   @Override
@@ -261,6 +265,17 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
 
   @Override
   public void close() throws IOException {
+
+    // Add records written and bytes written to task state
+    this.properties.setProp(ConfigurationKeys.WRITER_RECORDS_WRITTEN, recordsWritten());
+    this.properties.setProp(ConfigurationKeys.WRITER_BYTES_WRITTEN, bytesWritten());
+
+    // Add earliest timestamp and average timestamp to task state
+    this.properties.setProp(ConfigurationKeys.WRITER_EARLIEST_TIMESTAMP, this.earliestTimestampWritten);
+    this.properties.setProp(ConfigurationKeys.WRITER_AVERAGE_TIMESTAMP,
+        (long) (this.totalTimestampWritten / recordsWritten()));
+
+    // Close all writers
     boolean closeFailed = false;
     for (Entry<Path, DataWriter<GenericRecord>> entry : this.pathToWriterMap.entrySet()) {
       try {
