@@ -12,6 +12,7 @@
 
 package gobblin.publisher;
 
+import com.google.common.base.Optional;
 import java.io.IOException;
 
 import org.apache.hadoop.fs.FileStatus;
@@ -63,7 +64,7 @@ public class TimePartitionedDataPublisher extends BaseDataPublisher {
       }
 
       LOG.info(String.format("Moving %s to %s", status.getPath(), outputPath));
-      parallelRunner.renamePath(status.getPath(), outputPath);
+      parallelRunner.renamePath(status.getPath(), outputPath, Optional.<String>absent());
     }
   }
 }
