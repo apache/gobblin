@@ -53,14 +53,14 @@ public class TimePartitionedDataPublisher extends BaseDataPublisher {
   protected void addWriterOutputToExistingDir(Path writerOutput, Path publisherOutput, WorkUnitState workUnitState,
       int branchId, ParallelRunner parallelRunner) throws IOException {
 
-    for (FileStatus status : HadoopUtils.listStatusRecursive(this.fss.get(branchId), writerOutput)) {
+    for (FileStatus status : HadoopUtils.listStatusRecursive(this.fileSystemByBranches.get(branchId), writerOutput)) {
       String filePathStr = status.getPath().toString();
       String pathSuffix =
           filePathStr.substring(filePathStr.indexOf(writerOutput.toString()) + writerOutput.toString().length() + 1);
       Path outputPath = new Path(publisherOutput, pathSuffix);
 
-      if (!this.fss.get(branchId).exists(outputPath.getParent())) {
-        this.fss.get(branchId).mkdirs(outputPath.getParent());
+      if (!this.fileSystemByBranches.get(branchId).exists(outputPath.getParent())) {
+        this.fileSystemByBranches.get(branchId).mkdirs(outputPath.getParent());
       }
 
       LOG.info(String.format("Moving %s to %s", status.getPath(), outputPath));

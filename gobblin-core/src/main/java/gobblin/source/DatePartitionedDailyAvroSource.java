@@ -290,7 +290,7 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
    * Gets the LWM for this job runs. The new LWM is the HWM of the previous run + 1 day. If there was no previous
    * execution then it is set to the given lowWaterMark + 1 day.
    */
-  private long getLowWaterMark(List<WorkUnitState> previousStates, String lowWaterMark) {
+  private long getLowWaterMark(Iterable<WorkUnitState> previousStates, String lowWaterMark) {
 
     long lowWaterMarkValue = DAILY_FOLDER_FORMATTER.parseMillis(lowWaterMark);
 

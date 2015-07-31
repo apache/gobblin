@@ -512,6 +512,7 @@ public class JobState extends SourceState {
     DatasetState datasetState = new DatasetState(this.jobName, this.jobId);
     datasetState.addAll(this);
     datasetState.setState(this.state);
+    datasetState.setTasks(this.tasks);
     if (addTaskStates) {
       datasetState.addTaskStates(this.taskStates.values());
     }

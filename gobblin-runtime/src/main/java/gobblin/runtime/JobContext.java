@@ -209,20 +209,36 @@ public class JobContext {
   /**
    * Commit the job on a per-dataset basis.
    */
-  void commit() throws Exception {
+  void commit() throws IOException {
     Map<String, JobState.DatasetState> datasetStatesByUrns = this.jobState.getDatasetStatesByUrns();
     for (Map.Entry<String, JobState.DatasetState> entry : datasetStatesByUrns.entrySet()) {
       setFinalDatasetState(entry.getValue());
       if (canCommitDataset(this.jobCommitPolicy, entry.getValue())) {
+        boolean allDatasetsCommit = true;
         try {
           commitDataset(entry.getValue());
+        } catch (IOException ioe) {
+          this.logger.error("Failed to commit dataset state for dataset " + entry.getKey(), ioe);
+          allDatasetsCommit = false;
         } finally {
-          persistDatasetState(entry.getKey(), entry.getValue());
+          try {
+            persistDatasetState(entry.getKey(), entry.getValue());
+          } catch (IOException ioe) {
+            this.logger.error("Failed to persist dataset state for dataset " + entry.getKey(), ioe);
+            allDatasetsCommit = false;
+          }
+        }
+
+        if (!allDatasetsCommit) {
+          throw new IOException("Failed to commit dataset state for some dataset(s)");
         }
       }
     }
   }
 
+  /**
+   * Finalize a given {@link JobState.DatasetState} before committing the dataset.
+   */
   private void setFinalDatasetState(JobState.DatasetState datasetState) {
     for (TaskState taskState : datasetState.getTaskStates()) {
       if (taskState.getWorkingState() != WorkUnitState.WorkingState.SUCCESSFUL) {
@@ -250,7 +266,7 @@ public class JobContext {
    * Commit the output data of a dataset.
    */
   @SuppressWarnings("unchecked")
-  private void commitDataset(JobState.DatasetState datasetState) throws Exception {
+  private void commitDataset(JobState.DatasetState datasetState) throws IOException {
     this.logger.info(
         String.format("Publishing data of job %s with commit policy %s", this.jobId, this.jobCommitPolicy.name()));
 

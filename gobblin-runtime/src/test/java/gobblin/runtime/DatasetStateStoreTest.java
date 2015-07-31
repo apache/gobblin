@@ -23,6 +23,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
@@ -167,7 +168,7 @@ public class DatasetStateStoreTest {
             previousSourceState != null ? previousSourceState.getPropAsInt(CURRENT_RUN_KEY) + 1 : 1);
       sourceState.setProp(FOO, BAR);
 
-      if (sourceState.getPreviousWorkUnitStates().isEmpty()) {
+      if (Iterables.isEmpty(sourceState.getPreviousWorkUnitStates())) {
         return initializeWorkUnits();
       }
 

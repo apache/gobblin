@@ -26,6 +26,7 @@ import org.apache.hadoop.io.Writable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.CharMatcher;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -196,6 +197,14 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> {
     return datasetStatesByUrns;
   }
 
+  /**
+   * Get the latest {@link JobState.DatasetState} of a given dataset.
+   *
+   * @param storeName the name of the dataset state store
+   * @param datasetUrn the dataset URN
+   * @return the latest {@link JobState.DatasetState} of the dataset or {@link null} if it is not found
+   * @throws IOException
+   */
   public JobState.DatasetState getLatestDatasetState(String storeName, String datasetUrn) throws IOException {
     String alias = Strings.isNullOrEmpty(datasetUrn) ?
         CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX
@@ -216,11 +225,15 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> {
 
     String tableName = Strings.isNullOrEmpty(datasetUrn) ? jobId + DATASET_STATE_STORE_TABLE_SUFFIX
         : datasetUrn + "-" + jobId + DATASET_STATE_STORE_TABLE_SUFFIX;
-    String alias = Strings.isNullOrEmpty(datasetUrn) ?
-        CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX
-        : datasetUrn + "-" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
     LOGGER.info("Persisting " + tableName + " to the job state store");
     put(jobName, tableName, datasetState);
-    createAlias(jobName, tableName, alias);
+    createAlias(jobName, tableName, getAliasName(datasetUrn));
+  }
+
+  private String getAliasName(String datasetUrn) {
+    return Strings.isNullOrEmpty(datasetUrn) ?
+        CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX :
+        CharMatcher.is(':').replaceFrom(datasetUrn, '.') + "-" + CURRENT_DATASET_STATE_FILE_SUFFIX +
+            DATASET_STATE_STORE_TABLE_SUFFIX;
   }
 }

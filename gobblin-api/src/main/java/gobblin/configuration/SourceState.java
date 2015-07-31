@@ -69,9 +69,9 @@ public class SourceState extends State {
    * Constructor.
    *
    * @param properties job configuration properties
-   * @param previousWorkUnitStates list of {@link WorkUnitState}s of the previous job run
+   * @param previousWorkUnitStates an {@link Iterable} of {@link WorkUnitState}s of the previous job run
    */
-  public SourceState(State properties, List<WorkUnitState> previousWorkUnitStates) {
+  public SourceState(State properties, Iterable<WorkUnitState> previousWorkUnitStates) {
     super.addAll(properties);
     this.previousDatasetStatesByUrns = ImmutableMap.of();
     for (WorkUnitState workUnitState : previousWorkUnitStates) {
@@ -84,10 +84,10 @@ public class SourceState extends State {
    *
    * @param properties job configuration properties
    * @param previousDatasetStatesByUrns {@link SourceState} of the previous job run
-   * @param previousWorkUnitStates list of {@link WorkUnitState}s of the previous job run
+   * @param previousWorkUnitStates an {@link Iterable} of {@link WorkUnitState}s of the previous job run
    */
   public SourceState(State properties, Map<String, ? extends SourceState> previousDatasetStatesByUrns,
-      List<WorkUnitState> previousWorkUnitStates) {
+      Iterable<WorkUnitState> previousWorkUnitStates) {
     super.addAll(properties);
     this.previousDatasetStatesByUrns = ImmutableMap.copyOf(previousDatasetStatesByUrns);
     for (WorkUnitState workUnitState : previousWorkUnitStates) {
@@ -126,27 +126,27 @@ public class SourceState extends State {
   }
 
   /**
-   * Get a (possibly empty) list of {@link WorkUnitState}s from the previous job run.
+   * Get {@link WorkUnitState}s from the previous job run.
    *
-   * @return (possibly empty) list of {@link WorkUnitState}s from the previous job run
+   * @return an {@link Iterable} of {@link WorkUnitState}s from the previous job run
    */
-  public List<WorkUnitState> getPreviousWorkUnitStates() {
+  public Iterable<WorkUnitState> getPreviousWorkUnitStates() {
     return ImmutableList.<WorkUnitState> builder().addAll(this.previousWorkUnitStates).build();
   }
 
   /**
    * Get a {@link Map} from dataset URNs (as being specified by {@link ConfigurationKeys#DATASET_URN_KEY}
-   * to the {@link List} of {@link WorkUnitState} with the dataset URNs.
+   * to the {@link WorkUnitState} with the dataset URNs.
    *
    * <p>
    *   {@link WorkUnitState}s that do not have {@link ConfigurationKeys#DATASET_URN_KEY} set will be added
    *   to the dataset state belonging to {@link ConfigurationKeys#DEFAULT_DATASET_URN}.
    * </p>
    *
-   * @return a {@link Map} from dataset URNs to the {@link List} of {@link WorkUnitState} with the dataset URNs
+   * @return a {@link Map} from dataset URNs to the {@link WorkUnitState} with the dataset URNs
    */
-  public Map<String, List<WorkUnitState>> getPreviousWorkUnitStatesByDatasetUrns() {
-    Map<String, List<WorkUnitState>> previousWorkUnitStatesByDatasetUrns = Maps.newHashMap();
+  public Map<String, Iterable<WorkUnitState>> getPreviousWorkUnitStatesByDatasetUrns() {
+    Map<String, Iterable<WorkUnitState>> previousWorkUnitStatesByDatasetUrns = Maps.newHashMap();
 
     for (WorkUnitState workUnitState : this.previousWorkUnitStates) {
       String datasetUrn = workUnitState.getProp(ConfigurationKeys.DATASET_URN_KEY,
@@ -154,7 +154,7 @@ public class SourceState extends State {
       if (!previousWorkUnitStatesByDatasetUrns.containsKey(datasetUrn)) {
         previousWorkUnitStatesByDatasetUrns.put(datasetUrn, Lists.<WorkUnitState>newArrayList());
       }
-      previousWorkUnitStatesByDatasetUrns.get(datasetUrn).add(workUnitState);
+      ((List<WorkUnitState>) previousWorkUnitStatesByDatasetUrns.get(datasetUrn)).add(workUnitState);
     }
 
     return ImmutableMap.copyOf(previousWorkUnitStatesByDatasetUrns);
