@@ -41,7 +41,7 @@ public class RowCountRangePolicy extends TaskLevelPolicy {
       return Result.PASSED;
     } else {
 
-      LOG.info(String
+      LOG.error(String
           .format(
               "RowCountRangePolicy check failed. Rows read %s, Rows written %s, computed range %s, expected range %s ",
               this.rowsRead, this.rowsWritten, computedRange, this.range));
