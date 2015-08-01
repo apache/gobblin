@@ -89,7 +89,7 @@ public class ClustersNames {
       clusterIdentifier = uri.getHost();
     }
   } catch (URISyntaxException e) {
-    LOG.warn("Unable to parse cluster URL: " + e, e);
+    //leave ID as is
   }
 
     return clusterIdentifier;
