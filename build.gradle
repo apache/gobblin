@@ -152,6 +152,11 @@ subprojects {
     excludeFilter = file(rootProject.projectDir.path + "/ligradle/findbugs/findbugsExclude.xml")
   }
 */
+  test {
+    if (project.hasProperty("printTestOutput")) {
+      testLogging.showStandardStreams = true
+    }
+  }
 
   configurations {
     compile
