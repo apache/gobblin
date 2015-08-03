@@ -18,9 +18,9 @@ import java.util.Properties;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import junit.framework.Assert;
 import static org.mockito.Mockito.*;
 
 
