@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -64,12 +65,11 @@ public class JobStateStoreTest {
   private static final String LAST_READ_RECORD_KEY = "last.read.record";
 
   private StateStore<JobState> jobStateStore;
-  private Properties properties;
-  private Properties jobProps;
+  private Properties jobConfig = new Properties();
 
   @BeforeClass
   public void setUp() throws Exception {
-    this.properties = new Properties();
+    Properties properties = new Properties();
     properties.load(new FileReader("gobblin-test/resource/gobblin.test.properties"));
 
     this.jobStateStore = new FsStateStore<JobState>(
@@ -77,18 +77,17 @@ public class JobStateStoreTest {
         properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
         JobState.class);
 
-    this.jobProps = new Properties();
-    this.jobProps.putAll(properties);
-    this.jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, JOB_NAME);
-    this.jobProps.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, DummySource.class.getName());
-    this.jobProps.setProperty(ConfigurationKeys.WRITER_BUILDER_CLASS, DummyDataWriterBuilder.class.getName());
+    this.jobConfig.putAll(properties);
+    this.jobConfig.setProperty(ConfigurationKeys.JOB_NAME_KEY, JOB_NAME);
+    this.jobConfig.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, DummySource.class.getName());
+    this.jobConfig.setProperty(ConfigurationKeys.WRITER_BUILDER_CLASS, DummyDataWriterBuilder.class.getName());
   }
 
   @Test
   public void testLaunchFirstJob() throws Exception {
     Closer closer = Closer.create();
     try {
-      closer.register(new LocalJobLauncher(this.properties, this.jobProps)).launchJob(null);
+      closer.register(new LocalJobLauncher(this.jobConfig)).launchJob(null);
     } finally {
       closer.close();
     }
@@ -99,7 +98,7 @@ public class JobStateStoreTest {
   public void testLaunchSecondJob() throws Exception {
     Closer closer = Closer.create();
     try {
-      closer.register(new LocalJobLauncher(this.properties, this.jobProps)).launchJob(null);
+      closer.register(new LocalJobLauncher(this.jobConfig)).launchJob(null);
     } finally {
       closer.close();
     }
@@ -110,7 +109,7 @@ public class JobStateStoreTest {
   public void testLaunchThirdJob() throws Exception {
     Closer closer = Closer.create();
     try {
-      closer.register(new LocalJobLauncher(this.properties, this.jobProps)).launchJob(null);
+      closer.register(new LocalJobLauncher(this.jobConfig)).launchJob(null);
     } finally {
       closer.close();
     }

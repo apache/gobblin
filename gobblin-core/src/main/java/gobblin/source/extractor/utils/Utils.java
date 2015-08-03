@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -11,7 +12,6 @@
 
 package gobblin.source.extractor.utils;
 
-import gobblin.source.extractor.watermark.WatermarkType;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
@@ -35,7 +35,9 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.source.extractor.watermark.WatermarkType;
 
 
 public class Utils {
@@ -44,16 +46,8 @@ public class Utils {
   private static final String CURRENT_DAY = "CURRENTDAY";
   private static final String CURRENT_HOUR = "CURRENTHOUR";
 
-  private static final String CURRENT_DATE_FORMAT = "yyyyMMddHHmmss"; 
+  private static final String CURRENT_DATE_FORMAT = "yyyyMMddHHmmss";
 
-  public static String getClause(String clause, String datePredicate) {
-    String retStr = "";
-    if (!Strings.isNullOrEmpty(datePredicate)) {
-      retStr = " " + clause + " (" + datePredicate + ")";
-    }
-    return retStr;
-  }
-  
   /**
    * Get coalesce of columns if there are multiple comma-separated columns
    */
@@ -66,7 +60,7 @@ public class Utils {
     }
     return columnOrColumnList;
   }
-  
+
   public static JsonArray removeElementFromJsonArray(JsonArray inputJsonArray, String key) {
     JsonArray outputJsonArray = new JsonArray();
     for (int i = 0; i < inputJsonArray.size(); i += 1) {

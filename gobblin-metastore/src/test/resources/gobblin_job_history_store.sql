@@ -1,4 +1,4 @@
--- (c) 2014 LinkedIn Corp. All rights reserved.
+-- Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
 --
 -- Licensed under the Apache License, Version 2.0 (the "License"); you may not use
 -- this file except in compliance with the License. You may obtain a copy of the
@@ -7,6 +7,9 @@
 -- Unless required by applicable law or agreed to in writing, software distributed
 -- under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 -- CONDITIONS OF ANY KIND, either express or implied.
+
+
+-- Apache Derby DDL for the tables needed by the Gobblin job history store.
 
 CREATE TABLE gobblin_job_executions (
 	job_name VARCHAR(128) NOT NULL,
@@ -40,8 +43,8 @@ CREATE TABLE gobblin_task_executions (
 	created_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	last_modified_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	PRIMARY KEY (task_id),
-	FOREIGN KEY (job_id) 
-	REFERENCES gobblin_job_executions(job_id) 
+	FOREIGN KEY (job_id)
+	REFERENCES gobblin_job_executions(job_id)
 	ON DELETE CASCADE
 );
 
@@ -55,8 +58,8 @@ CREATE TABLE gobblin_job_metrics (
 	created_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	last_modified_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	PRIMARY KEY (metric_id),
-	FOREIGN KEY (job_id) 
-	REFERENCES gobblin_job_executions(job_id) 
+	FOREIGN KEY (job_id)
+	REFERENCES gobblin_job_executions(job_id)
 	ON DELETE CASCADE
 );
 
@@ -70,8 +73,8 @@ CREATE TABLE gobblin_task_metrics (
 	created_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	last_modified_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	PRIMARY KEY (metric_id),
-	FOREIGN KEY (task_id) 
-	REFERENCES gobblin_task_executions(task_id) 
+	FOREIGN KEY (task_id)
+	REFERENCES gobblin_task_executions(task_id)
 	ON DELETE CASCADE
 );
 

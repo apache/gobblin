@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -10,28 +11,6 @@
  */
 
 package gobblin.salesforce;
-
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.exception.HighWatermarkException;
-import gobblin.source.extractor.exception.RecordCountException;
-import gobblin.source.extractor.exception.RestApiClientException;
-import gobblin.source.extractor.exception.RestApiConnectionException;
-import gobblin.source.extractor.exception.SchemaException;
-import gobblin.source.extractor.extract.Command;
-import gobblin.source.extractor.extract.CommandOutput;
-import gobblin.source.extractor.extract.restapi.RestApiCommand;
-import gobblin.source.extractor.extract.restapi.RestApiCommand.RestApiCommandType;
-import gobblin.source.extractor.extract.restapi.RestApiExtractor;
-import gobblin.source.extractor.resultset.RecordSet;
-import gobblin.source.extractor.resultset.RecordSetList;
-import gobblin.source.extractor.schema.Schema;
-import gobblin.source.extractor.utils.InputStreamCSVReader;
-import gobblin.source.extractor.utils.Utils;
-import gobblin.source.extractor.watermark.Predicate;
-import gobblin.source.extractor.watermark.WatermarkType;
-import gobblin.source.workunit.WorkUnit;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -76,6 +55,30 @@ import com.sforce.async.OperationEnum;
 import com.sforce.async.QueryResultList;
 import com.sforce.soap.partner.PartnerConnection;
 import com.sforce.ws.ConnectorConfig;
+
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.WorkUnitState;
+import gobblin.password.PasswordManager;
+import gobblin.source.extractor.DataRecordException;
+import gobblin.source.extractor.exception.HighWatermarkException;
+import gobblin.source.extractor.exception.RecordCountException;
+import gobblin.source.extractor.exception.RestApiClientException;
+import gobblin.source.extractor.exception.RestApiConnectionException;
+import gobblin.source.extractor.exception.SchemaException;
+import gobblin.source.extractor.extract.Command;
+import gobblin.source.extractor.extract.CommandOutput;
+import gobblin.source.extractor.extract.jdbc.SqlQueryUtils;
+import gobblin.source.extractor.extract.restapi.RestApiCommand;
+import gobblin.source.extractor.extract.restapi.RestApiCommand.RestApiCommandType;
+import gobblin.source.extractor.extract.restapi.RestApiExtractor;
+import gobblin.source.extractor.resultset.RecordSet;
+import gobblin.source.extractor.resultset.RecordSetList;
+import gobblin.source.extractor.schema.Schema;
+import gobblin.source.extractor.utils.InputStreamCSVReader;
+import gobblin.source.extractor.utils.Utils;
+import gobblin.source.extractor.watermark.Predicate;
+import gobblin.source.extractor.watermark.WatermarkType;
+import gobblin.source.workunit.WorkUnit;
 
 
 /**
@@ -159,7 +162,8 @@ public class SalesforceExtractor extends RestApiExtractor {
     String clientId = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_CLIENT_ID);
     String clientSecret = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_CLIENT_SECRET);
     String userName = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME);
-    String password = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD);
+    String password = PasswordManager.getInstance(this.workUnit)
+        .readPassword(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
     String securityToken = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_SECURITY_TOKEN);
     String host = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
 
@@ -265,9 +269,9 @@ public class SalesforceExtractor extends RestApiExtractor {
     Iterator<Predicate> i = predicateList.listIterator();
     while (i.hasNext()) {
       Predicate predicate = i.next();
-      query = this.addPredicate(query, predicate.getCondition());
+      query = SqlQueryUtils.addPredicate(query, predicate.getCondition());
     }
-    query = this.addPredicate(query, defaultPredicate);
+    query = SqlQueryUtils.addPredicate(query, defaultPredicate);
     query = query + defaultSortOrder;
     this.log.info("QUERY: " + query);
 
@@ -346,7 +350,7 @@ public class SalesforceExtractor extends RestApiExtractor {
         Iterator<Predicate> i = predicateList.listIterator();
         while (i.hasNext()) {
           Predicate predicate = i.next();
-          query = this.addPredicate(query, predicate.getCondition());
+          query = SqlQueryUtils.addPredicate(query, predicate.getCondition());
         }
 
         query = query + this.getLimitFromInputQuery(this.updatedQuery);
@@ -402,11 +406,11 @@ public class SalesforceExtractor extends RestApiExtractor {
         Iterator<Predicate> i = predicateList.listIterator();
         while (i.hasNext()) {
           Predicate predicate = i.next();
-          query = this.addPredicate(query, predicate.getCondition());
+          query = SqlQueryUtils.addPredicate(query, predicate.getCondition());
         }
 
         if (Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_SPECIFIC_API_ACTIVE))) {
-          query = this.addPredicate(query, "IsDeleted = true");
+          query = SqlQueryUtils.addPredicate(query, "IsDeleted = true");
         }
 
         query = query + limitString;
@@ -450,8 +454,8 @@ public class SalesforceExtractor extends RestApiExtractor {
       if (jsonObject.get("done").getAsBoolean()) {
         this.setPullStatus(false);
       } else {
-        this.setNextUrl(this.getFullUri(jsonObject.get("nextRecordsUrl").getAsString()
-            .replaceAll(this.servicesDataEnvPath, "")));
+        this.setNextUrl(
+            this.getFullUri(jsonObject.get("nextRecordsUrl").getAsString().replaceAll(this.servicesDataEnvPath, "")));
       }
 
       JsonArray array = Utils.removeElementFromJsonArray(partRecords, "attributes");
@@ -499,15 +503,6 @@ public class SalesforceExtractor extends RestApiExtractor {
       throw new RestApiClientException("Failed to build url; error - " + e.getMessage(), e);
     }
     return new HttpGet(uri).getURI().toString();
-  }
-
-  protected String addPredicate(String query, String predicateCond) {
-    String predicate = "where";
-    if (query.toLowerCase().contains(predicate)) {
-      predicate = "and";
-    }
-    query = query + Utils.getClause(predicate, predicateCond);
-    return query;
   }
 
   private String getServiceBaseUrl() {
@@ -563,17 +558,15 @@ public class SalesforceExtractor extends RestApiExtractor {
 
   @Override
   public Map<String, String> getDataTypeMap() {
-    Map<String, String> dataTypeMap =
-        ImmutableMap.<String, String> builder().put("url", "string").put("textarea", "string")
-            .put("reference", "string").put("phone", "string").put("masterrecord", "string").put("location", "string")
-            .put("id", "string").put("encryptedstring", "string").put("email", "string")
-            .put("DataCategoryGroupReference", "string").put("calculated", "string").put("anyType", "string")
-            .put("address", "string").put("blob", "string").put("date", "date").put("datetime", "timestamp")
-            .put("time", "time").put("object", "string").put("string", "string").put("int", "int").put("long", "long")
-            .put("double", "double").put("percent", "double").put("currency", "double").put("decimal", "double")
-            .put("boolean", "boolean").put("picklist", "string").put("multipicklist", "string")
-            .put("combobox", "string").put("list", "string").put("set", "string").put("map", "string")
-            .put("enum", "string").build();
+    Map<String, String> dataTypeMap = ImmutableMap.<String, String> builder().put("url", "string")
+        .put("textarea", "string").put("reference", "string").put("phone", "string").put("masterrecord", "string")
+        .put("location", "string").put("id", "string").put("encryptedstring", "string").put("email", "string")
+        .put("DataCategoryGroupReference", "string").put("calculated", "string").put("anyType", "string")
+        .put("address", "string").put("blob", "string").put("date", "date").put("datetime", "timestamp")
+        .put("time", "time").put("object", "string").put("string", "string").put("int", "int").put("long", "long")
+        .put("double", "double").put("percent", "double").put("currency", "double").put("decimal", "double")
+        .put("boolean", "boolean").put("picklist", "string").put("multipicklist", "string").put("combobox", "string")
+        .put("list", "string").put("set", "string").put("map", "string").put("enum", "string").build();
     return dataTypeMap;
   }
 
@@ -603,9 +596,8 @@ public class SalesforceExtractor extends RestApiExtractor {
       this.bulkApiInitialRun = false;
 
       // If bulk job is finished, get soft deleted records using Rest API
-      boolean isSoftDeletesPullDisabled =
-          Boolean.valueOf(this.workUnit
-              .getProp(SalesforceConfigurationKeys.SOURCE_QUERYBASED_SALESFORCE_IS_SOFT_DELETES_PULL_DISABLED));
+      boolean isSoftDeletesPullDisabled = Boolean.valueOf(this.workUnit
+          .getProp(SalesforceConfigurationKeys.SOURCE_QUERYBASED_SALESFORCE_IS_SOFT_DELETES_PULL_DISABLED));
       if (rs == null || rs.isEmpty()) {
         // Get soft delete records only if IsDeleted column exists and soft deletes pull is not disabled
         if (this.columnList.contains("IsDeleted") && !isSoftDeletesPullDisabled) {
@@ -654,7 +646,8 @@ public class SalesforceExtractor extends RestApiExtractor {
       }
 
       partnerConfig.setUsername(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME));
-      partnerConfig.setPassword(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
+      partnerConfig.setPassword(PasswordManager.getInstance(this.workUnit)
+          .readPassword(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD)));
       partnerConfig.setAuthEndpoint(soapAuthEndPoint);
       PartnerConnection connection = new PartnerConnection(partnerConfig);
       String soapEndpoint = partnerConfig.getServiceEndpoint();
@@ -715,7 +708,7 @@ public class SalesforceExtractor extends RestApiExtractor {
         Iterator<Predicate> i = predicateList.listIterator();
         while (i.hasNext()) {
           Predicate predicate = i.next();
-          query = this.addPredicate(query, predicate.getCondition());
+          query = SqlQueryUtils.addPredicate(query, predicate.getCondition());
         }
 
         query = query + limitString;
@@ -750,8 +743,8 @@ public class SalesforceExtractor extends RestApiExtractor {
       return Arrays.asList(list.getResult());
 
     } catch (Exception e) {
-      throw new RuntimeException("Failed to get query result ids from salesforce using bulk api; error - "
-          + e.getMessage(), e);
+      throw new RuntimeException(
+          "Failed to get query result ids from salesforce using bulk api; error - " + e.getMessage(), e);
     }
   }
 
@@ -771,9 +764,9 @@ public class SalesforceExtractor extends RestApiExtractor {
         if (this.bulkResultIdCount < this.bulkResultIdList.size()) {
           this.log.info("Stream resultset for resultId:" + bulkResultIdList.get(bulkResultIdCount));
           this.setNewBulkResultSet(true);
-          this.bulkBufferedReader = new BufferedReader(new InputStreamReader(this.bulkConnection
-              .getQueryResultStream(bulkJob.getId(), bulkBatchInfo.getId(), bulkResultIdList.get(bulkResultIdCount)),
-              ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
+          this.bulkBufferedReader = new BufferedReader(
+              new InputStreamReader(this.bulkConnection.getQueryResultStream(bulkJob.getId(), bulkBatchInfo.getId(),
+                  bulkResultIdList.get(bulkResultIdCount)), ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
 
           this.bulkResultIdCount++;
         } else {

@@ -1,5 +1,5 @@
 /*
- * (c) 2014 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -12,7 +12,14 @@
 
 package gobblin.runtime.util;
 
+import java.net.InetAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.UnknownHostException;
 import java.util.List;
+
+import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.conf.Configuration;
 
 import com.google.common.collect.Lists;
 
@@ -32,9 +39,12 @@ public class JobMetrics extends GobblinMetrics {
 
   protected final String jobName;
 
+  private static final Configuration HADOOP_CONFIGURATION = new Configuration();
+
   protected JobMetrics(JobState job) {
     super(name(job), null, tagsForJob(job));
     this.jobName = job.getJobName();
+
   }
 
   /**
@@ -46,6 +56,16 @@ public class JobMetrics extends GobblinMetrics {
    */
   public static JobMetrics get(String jobName, String jobId) {
     return get(new JobState(jobName, jobId));
+  }
+
+  /**
+   * Get a new {@link GobblinMetrics} instance for a given job.
+   *
+   * @param jobId job ID
+   * @return a new {@link GobblinMetrics} instance for the given job
+   */
+  public static JobMetrics get(String jobId) {
+    return get(null, jobId);
   }
 
   /**
@@ -87,6 +107,73 @@ public class JobMetrics extends GobblinMetrics {
     List<Tag<?>> tags = Lists.newArrayList();
     tags.add(new Tag<String>("jobName", jobState.getJobName() == null ? "" : jobState.getJobName()));
     tags.add(new Tag<String>("jobId", jobState.getJobId()));
+
+    String clusterIdentifierTag = getClusterIdentifierTag();
+    if (StringUtils.isNotBlank(clusterIdentifierTag)) {
+      tags.add(new Tag<String>("clusterIdentifier", clusterIdentifierTag));
+    }
+
+    tags.addAll(getCustomTagsFromState(jobState));
     return tags;
   }
+
+  /**
+   *
+   * Builds the clusterIdentifier tag.
+   *
+   * <p><b>MapReduce mode</b>
+   * Gets the value for "yarn.resourcemanager.address" from {@link Configuration} excluding the port number.
+   * If "yarn.resourcemanager.address" is not set, (possible in Hadoop1), falls back to "mapreduce.jobtracker.address"</p>
+   *
+   *<p><b>Standalone mode (outside of hadoop)</b>
+   * returns the Hostname of {@link InetAddress#getLocalHost()}</p>
+   *
+   */
+  public static String getClusterIdentifierTag() {
+
+    // ResourceManager address in Hadoop2
+    String clusterIdentifier = HADOOP_CONFIGURATION.get("yarn.resourcemanager.address");
+
+    // If job is running on Hadoop1 use jobtracker address
+    if (clusterIdentifier == null) {
+      clusterIdentifier = HADOOP_CONFIGURATION.get("mapreduce.jobtracker.address");
+    }
+
+    clusterIdentifier = stripPort(clusterIdentifier);
+
+    // If job is running outside of Hadoop (Standalone) use hostname
+    // If clusterIdentifier is localhost or 0.0.0.0 use hostname
+    if (clusterIdentifier == null
+        || StringUtils.startsWithIgnoreCase(clusterIdentifier, "localhost")
+        || StringUtils.startsWithIgnoreCase(clusterIdentifier, "0.0.0.0")) {
+      try {
+        clusterIdentifier = InetAddress.getLocalHost().getHostName();
+      } catch (UnknownHostException e) {
+        // Do nothing. Tag will not be generated
+      }
+    }
+
+    return clusterIdentifier;
+
+  }
+
+  // Strip out the port number if it is a valid URI
+  private static String stripPort(String clusterIdentifier) {
+    if (clusterIdentifier != null) {
+      try {
+        URI uri = new URI(clusterIdentifier.trim());
+        // URIs without protocol prefix
+        if (uri.isOpaque()) {
+          clusterIdentifier = uri.getScheme();
+        } else {
+          clusterIdentifier = uri.getHost();
+        }
+      } catch (URISyntaxException e) {
+        // Do nothing. Not a URI
+      }
+    }
+
+    return clusterIdentifier;
+  }
+
 }

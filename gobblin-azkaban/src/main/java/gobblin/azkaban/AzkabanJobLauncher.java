@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -13,6 +14,7 @@ package gobblin.azkaban;
 
 import java.util.Properties;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.log4j.Logger;
 
@@ -20,12 +22,13 @@ import com.google.common.base.Strings;
 import com.google.common.io.Closer;
 
 import azkaban.jobExecutor.AbstractJob;
-
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.metrics.Tag;
 import gobblin.runtime.EmailNotificationJobListener;
 import gobblin.runtime.JobLauncher;
 import gobblin.runtime.JobLauncherFactory;
 import gobblin.runtime.JobListener;
+import gobblin.runtime.util.JobMetrics;
 
 
 /**
@@ -41,6 +44,8 @@ public class AzkabanJobLauncher extends AbstractJob {
   private static final String AZKABAN_LINK_JOBEXEC_URL = "azkaban.link.jobexec.url";
   private static final String HADOOP_TOKEN_FILE_LOCATION = "HADOOP_TOKEN_FILE_LOCATION";
   private static final String MAPREDUCE_JOB_CREDENTIALS_BINARY = "mapreduce.job.credentials.binary";
+  private static final String AZKABAN_FLOW_ID_CONFIG_KEY_NAME = "azkaban.flow.flowid";
+  private static final String FLOW_ID_TAG_NAME = "flowId";
 
   private final Closer closer = Closer.create();
   private final JobLauncher jobLauncher;
@@ -72,6 +77,12 @@ public class AzkabanJobLauncher extends AbstractJob {
     // http://azkaban.github.io/azkaban/docs/2.5/#hadoopjava-type
     if (System.getenv(HADOOP_TOKEN_FILE_LOCATION) != null) {
       properties.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, System.getenv(HADOOP_TOKEN_FILE_LOCATION));
+    }
+
+    String flowId = conf.get(AZKABAN_FLOW_ID_CONFIG_KEY_NAME);
+
+    if (StringUtils.isNotBlank(flowId)) {
+      JobMetrics.addCustomTagToProperties(properties, new Tag<String>(FLOW_ID_TAG_NAME, flowId));
     }
 
     // Create a JobLauncher instance depending on the configuration. The same properties object is

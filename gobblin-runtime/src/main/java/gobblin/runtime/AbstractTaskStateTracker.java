@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -41,32 +42,21 @@ public abstract class AbstractTaskStateTracker extends AbstractIdleService imple
 
   private final Logger logger;
 
-  public AbstractTaskStateTracker(int coreThreadPoolSize, int maxThreadPoolSize, Logger logger) {
-    Preconditions.checkArgument(maxThreadPoolSize >= coreThreadPoolSize,
-        "Maximum thread pool size must not be smaller than the core thread pool size for the "
-            + "task metrics updater executor");
+  public AbstractTaskStateTracker(int coreThreadPoolSize, Logger logger) {
+    Preconditions.checkArgument(coreThreadPoolSize > 0, "Thread pool size should be positive");
     this.taskMetricsUpdaterExecutor = new ScheduledThreadPoolExecutor(
         coreThreadPoolSize, ExecutorsUtils.newThreadFactory(Optional.of(logger), Optional.of("TaskStateTracker-%d")));
-    this.taskMetricsUpdaterExecutor.setMaximumPoolSize(maxThreadPoolSize);
     this.logger = logger;
   }
 
   public AbstractTaskStateTracker(Properties properties, Logger logger) {
-    this(
-        Integer.parseInt(properties.getProperty(ConfigurationKeys.TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE_KEY,
-            Integer.toString(ConfigurationKeys.DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE))),
-        Integer.parseInt(properties.getProperty(ConfigurationKeys.TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE_KEY,
-            Integer.toString(ConfigurationKeys.DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE))),
-        logger);
+    this(Integer.parseInt(properties.getProperty(ConfigurationKeys.TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE_KEY,
+        Integer.toString(ConfigurationKeys.DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE))), logger);
   }
 
   public AbstractTaskStateTracker(Configuration configuration, Logger logger) {
-    this(
-        Integer.parseInt(configuration.get(ConfigurationKeys.TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE_KEY,
-            Integer.toString(ConfigurationKeys.DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE))),
-        Integer.parseInt(configuration.get(ConfigurationKeys.TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE_KEY,
-            Integer.toString(ConfigurationKeys.DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_MAX_SIZE))),
-        logger);
+    this(Integer.parseInt(configuration.get(ConfigurationKeys.TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE_KEY,
+        Integer.toString(ConfigurationKeys.DEFAULT_TASK_STATE_TRACKER_THREAD_POOL_CORE_SIZE))), logger);
   }
 
   @Override

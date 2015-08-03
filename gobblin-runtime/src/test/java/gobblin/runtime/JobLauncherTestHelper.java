@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -107,10 +108,10 @@ public class JobLauncherTestHelper {
 
     for (TaskState taskState : jobState.getTaskStates()) {
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
-      Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED),
-          taskState.getPropAsLong(ConfigurationKeys.EXTRACT_PULL_LIMIT));
+      Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_EXTRACTED),
+          taskState.getPropAsLong(DefaultLimiterFactory.EXTRACT_LIMIT_COUNT_LIMIT_KEY));
       Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_ROWS_WRITTEN),
-          taskState.getPropAsLong(ConfigurationKeys.EXTRACT_PULL_LIMIT));
+          taskState.getPropAsLong(DefaultLimiterFactory.EXTRACT_LIMIT_COUNT_LIMIT_KEY));
     }
   }
 

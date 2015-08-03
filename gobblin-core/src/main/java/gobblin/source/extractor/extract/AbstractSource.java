@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -11,9 +12,9 @@
 
 package gobblin.source.extractor.extract;
 
-import java.util.Collections;
 import java.util.List;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -22,16 +23,20 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.source.Source;
 import gobblin.source.extractor.JobCommitPolicy;
 import gobblin.source.extractor.WorkUnitRetryPolicy;
+import gobblin.source.workunit.ExtractFactory;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.source.workunit.Extract;
+import gobblin.source.workunit.Extract.TableType;
 
 
 /**
- * A base implementation of {@link gobblin.source.Source}
- * that provides default behavior.
+ * A base implementation of {@link gobblin.source.Source} that provides default behavior.
  *
  * @author ynli
  */
 public abstract class AbstractSource<S, D> implements Source<S, D> {
+
+  private final ExtractFactory extractFactory = new ExtractFactory("yyyyMMddHHmmss");
 
   /**
    * Get a list of {@link WorkUnitState}s of previous {@link WorkUnit}s subject for retries.
@@ -53,7 +58,7 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
    */
   protected List<WorkUnitState> getPreviousWorkUnitStatesForRetry(SourceState state) {
     if (state.getPreviousWorkUnitStates().isEmpty()) {
-      return Collections.emptyList();
+      return ImmutableList.of();
     }
 
     // Determine a work unit retry policy
@@ -68,7 +73,7 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
     }
 
     if (workUnitRetryPolicy == WorkUnitRetryPolicy.NEVER) {
-      return Collections.emptyList();
+      return ImmutableList.of();
     }
 
     List<WorkUnitState> previousWorkUnitStates = Lists.newArrayList();
@@ -77,10 +82,15 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
       if (workUnitState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED) {
         if (state.getPropAsBoolean(ConfigurationKeys.OVERWRITE_CONFIGS_IN_STATESTORE,
             ConfigurationKeys.DEFAULT_OVERWRITE_CONFIGS_IN_STATESTORE)) {
-          workUnitState.addAll(state);
+          // We need to make a copy here since getPreviousWorkUnitStates returns ImmutableWorkUnitStates
+          // for which addAll is not supported
+          WorkUnitState workUnitStateCopy = new WorkUnitState(workUnitState.getWorkunit());
+          workUnitStateCopy.addAll(workUnitState);
+          workUnitStateCopy.overrideWith(state);
+          previousWorkUnitStates.add(workUnitStateCopy);
+        } else {
+          previousWorkUnitStates.add(workUnitState);
         }
-
-        previousWorkUnitStates.add(workUnitState);
       }
     }
 
@@ -91,13 +101,13 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
     JobCommitPolicy jobCommitPolicy = JobCommitPolicy
         .forName(state.getProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
     if ((workUnitRetryPolicy == WorkUnitRetryPolicy.ON_COMMIT_ON_PARTIAL_SUCCESS
-        && jobCommitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS) || (
-        workUnitRetryPolicy == WorkUnitRetryPolicy.ON_COMMIT_ON_FULL_SUCCESS
+        && jobCommitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS)
+        || (workUnitRetryPolicy == WorkUnitRetryPolicy.ON_COMMIT_ON_FULL_SUCCESS
             && jobCommitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS)) {
       return previousWorkUnitStates;
     } else {
       // Return an empty list if job commit policy and work unit retry policy do not match
-      return Collections.emptyList();
+      return ImmutableList.of();
     }
   }
 
@@ -115,9 +125,13 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
     List<WorkUnit> workUnits = Lists.newArrayList();
     for (WorkUnitState workUnitState : getPreviousWorkUnitStatesForRetry(state)) {
       // Make a copy here as getWorkUnit() below returns an ImmutableWorkUnit
-      workUnits.add(new WorkUnit(workUnitState.getWorkunit()));
+      workUnits.add(WorkUnit.copyOf(workUnitState.getWorkunit()));
     }
 
     return workUnits;
+  }
+
+  public Extract createExtract(TableType type, String namespace, String table) {
+    return this.extractFactory.getUniqueExtract(type, namespace, table);
   }
 }

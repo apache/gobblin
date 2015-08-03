@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -21,12 +22,13 @@ import java.util.Set;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSortedSet;
 
 
 /**
- * A serializable wrapper class that can be persisted for {@link java.util.Properties}.
+ * A serializable wrapper class that can be persisted for {@link Properties}.
  *
  * @author kgoodhop
  */
@@ -34,7 +36,26 @@ public class State implements Writable {
 
   private String id;
 
-  private final Properties properties = new Properties();
+  private final Properties properties;
+
+  public State() {
+    this.properties = new Properties();
+  }
+
+  public State(Properties properties) {
+    this.properties = properties;
+  }
+
+  /**
+   * Return a copy of the underlying {@link Properties} object.
+   *
+   * @return A copy of the underlying {@link Properties} object.
+   */
+  public Properties getProperties() {
+    Properties props = new Properties();
+    props.putAll(this.properties);
+    return props;
+  }
 
   /**
    * Populates this instance with properties of the other instance.
@@ -52,6 +73,50 @@ public class State implements Writable {
    */
   public void addAll(Properties properties) {
     this.properties.putAll(properties);
+  }
+
+  /**
+   * Add properties in a {@link State} instance that are not in the current instance.
+   *
+   * @param otherState a {@link State} instance
+   */
+  public void addAllIfNotExist(State otherState) {
+    addAllIfNotExist(otherState.properties);
+  }
+
+  /**
+   * Add properties in a {@link Properties} instance that are not in the current instance.
+   *
+   * @param properties a {@link Properties} instance
+   */
+  public void addAllIfNotExist(Properties properties) {
+    for (String key : properties.stringPropertyNames()) {
+      if (!this.properties.containsKey(key)) {
+        this.properties.setProperty(key, properties.getProperty(key));
+      }
+    }
+  }
+
+  /**
+   * Add properties in a {@link State} instance that are in the current instance.
+   *
+   * @param otherState a {@link State} instance
+   */
+  public void overrideWith(State otherState) {
+    overrideWith(otherState.properties);
+  }
+
+  /**
+   * Add properties in a {@link Properties} instance that are in the current instance.
+   *
+   * @param properties a {@link Properties} instance
+   */
+  public void overrideWith(Properties properties) {
+    for (String key : properties.stringPropertyNames()) {
+      if (this.properties.containsKey(key)) {
+        this.properties.setProperty(key, properties.getProperty(key));
+      }
+    }
   }
 
   /**
@@ -83,7 +148,27 @@ public class State implements Writable {
    * @param value property value
    */
   public void setProp(String key, Object value) {
-    properties.put(key, value.toString());
+    this.properties.put(key, value.toString());
+  }
+
+  /**
+   * Appends the input value to a list property that can be retrieved with {@link #getPropAsList}.
+   *
+   * <p>
+   *   List properties are internally stored as comma separated strings. Adding a value that contains commas (for
+   *   example "a,b,c") will essentially add multiple values to the property ("a", "b", and "c"). This is
+   *   similar to the way that {@link org.apache.hadoop.conf.Configuration} works.
+   * </p>
+   *
+   * @param key property key
+   * @param value property value (if it includes commas, it will be split by the commas).
+   */
+  public synchronized void appendToListProp(String key, String value) {
+    if (contains(key)) {
+      setProp(key, Joiner.on(",").join(getProp(key), value));
+    } else {
+      setProp(key, value);
+    }
   }
 
   /**
@@ -108,10 +193,10 @@ public class State implements Writable {
   }
 
   /**
-   * Get the value of a property as a {@link java.util.List} of strings.
+   * Get the value of a comma separated property as a {@link List} of strings.
    *
    * @param key property key
-   * @return value associated with the key as a {@link java.util.List} of strings
+   * @return value associated with the key as a {@link List} of strings
    */
   public List<String> getPropAsList(String key) {
     return Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProperty(key));
@@ -125,30 +210,30 @@ public class State implements Writable {
    * @return value (the default value if the property is not set) associated with the key as a list of strings
    */
   public List<String> getPropAsList(String key, String def) {
-    return Splitter.on(",").trimResults().splitToList(getProperty(key, def));
+    return Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProperty(key, def));
   }
 
   /**
-   * Get the value of a property as a case insensitive {@link java.util.Set} of strings.
+   * Get the value of a property as a case insensitive {@link Set} of strings.
    *
    * @param key property key
-   * @return value associated with the key as a case insensitive {@link java.util.Set} of strings
+   * @return value associated with the key as a case insensitive {@link Set} of strings
    */
   public Set<String> getPropAsCaseInsensitiveSet(String key) {
-    return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER, Splitter.on(",").trimResults().omitEmptyStrings()
-        .split(getProperty(key)));
+    return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER,
+        Splitter.on(",").trimResults().omitEmptyStrings().split(getProperty(key)));
   }
 
   /**
-   * Get the value of a property as a case insensitive {@link java.util.Set} of strings, using the given default value if the property is not set.
+   * Get the value of a property as a case insensitive {@link Set} of strings, using the given default value if the property is not set.
    *
    * @param key property key
    * @param def default value
-   * @return value associated with the key as a case insensitive {@link java.util.Set} of strings
+   * @return value associated with the key as a case insensitive {@link Set} of strings
    */
   public Set<String> getPropAsCaseInsensitiveSet(String key, String def) {
-    return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER, Splitter.on(",").trimResults().omitEmptyStrings()
-        .split(getProperty(key, def)));
+    return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER,
+        Splitter.on(",").trimResults().omitEmptyStrings().split(getProperty(key, def)));
   }
 
   /**
@@ -194,6 +279,27 @@ public class State implements Writable {
   }
 
   /**
+   * Get the value of a property as a short.
+   *
+   * @param key property key
+   * @return short value associated with the key
+   */
+  public short getPropAsShort(String key) {
+    return Short.parseShort(getProperty(key));
+  }
+
+  /**
+   * Get the value of a property as an short, using the given default value if the property is not set.
+   *
+   * @param key property key
+   * @param def default value
+   * @return short value associated with the key or the default value if the property is not set
+   */
+  public short getPropAsShort(String key, short def) {
+    return Short.parseShort(getProperty(key, String.valueOf(def)));
+  }
+
+  /**
    * Get the value of a property as a double.
    *
    * @param key property key
@@ -236,17 +342,17 @@ public class State implements Writable {
   }
 
   protected String getProperty(String key) {
-    return properties.getProperty(key);
+    return this.properties.getProperty(key);
   }
 
   protected String getProperty(String key, String def) {
-    return properties.getProperty(key, def);
+    return this.properties.getProperty(key, def);
   }
 
   /**
-   * Get the names of all the properties set in a {@link java.util.Set}.
+   * Get the names of all the properties set in a {@link Set}.
    *
-   * @return names of all the properties set in a {@link java.util.Set}
+   * @return names of all the properties set in a {@link Set}
    */
   public Set<String> getPropertyNames() {
     return this.properties.stringPropertyNames();
@@ -259,7 +365,7 @@ public class State implements Writable {
    * @return <code>true</code> if the property is set or <code>false</code> otherwise
    */
   public boolean contains(String key) {
-    return properties.getProperty(key) != null;
+    return this.properties.getProperty(key) != null;
   }
 
   @Override
@@ -290,6 +396,17 @@ public class State implements Writable {
       txt.set(properties.getProperty((String) key));
       txt.write(out);
     }
+  }
+
+  @Override
+  public boolean equals(Object object) {
+    if (!(object instanceof State)) {
+      return false;
+    }
+
+    State other = (State) object;
+    return ((this.id == null && other.id == null) || (this.id != null && this.id.equals(other.id))) &&
+        this.properties.equals(other.properties);
   }
 
   @Override

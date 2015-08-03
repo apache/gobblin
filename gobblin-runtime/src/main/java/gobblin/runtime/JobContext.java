@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -57,7 +58,7 @@ public class JobContext {
   private final Source<?, ?> source;
 
   @SuppressWarnings("unchecked")
-  public JobContext(Properties sysProps, Properties jobProps, Logger logger) throws Exception {
+  public JobContext(Properties jobProps, Logger logger) throws Exception {
     Preconditions.checkArgument(jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY),
         "A job must have a job name specified by job.name");
 
@@ -72,14 +73,14 @@ public class JobContext {
         jobProps.getProperty(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, Boolean.TRUE.toString()));
 
     this.jobStateStore = new FsStateStore<JobState>(
-        sysProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI),
-        sysProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
+        jobProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI),
+        jobProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
         JobState.class);
 
     boolean jobHistoryStoreEnabled = Boolean.valueOf(
-        sysProps.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, Boolean.FALSE.toString()));
+        jobProps.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, Boolean.FALSE.toString()));
     if (jobHistoryStoreEnabled) {
-      Injector injector = Guice.createInjector(new MetaStoreModule(sysProps));
+      Injector injector = Guice.createInjector(new MetaStoreModule(jobProps));
       this.jobHistoryStoreOptional = Optional.of(injector.getInstance(JobHistoryStore.class));
     } else {
       this.jobHistoryStoreOptional = Optional.absent();
@@ -88,8 +89,7 @@ public class JobContext {
     State jobPropsState = new State();
     jobPropsState.addAll(jobProps);
     JobState previousJobState = getPreviousJobState(this.jobName);
-    this.jobState = new JobState(jobPropsState, previousJobState.getTaskStatesAsWorkUnitStates(),
-        this.jobName, this.jobId);
+    this.jobState = new JobState(jobPropsState, previousJobState, this.jobName, this.jobId);
     // Remember the number of consecutive failures of this job in the past
     this.jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY,
         previousJobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY, 0));

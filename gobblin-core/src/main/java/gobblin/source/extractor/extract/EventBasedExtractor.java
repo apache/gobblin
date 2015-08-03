@@ -1,4 +1,5 @@
-/* (c) 2015 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -11,7 +12,8 @@
 
 package gobblin.source.extractor.extract;
 
-import gobblin.source.extractor.Extractor;
+import gobblin.configuration.WorkUnitState;
+import gobblin.instrumented.extractor.InstrumentedExtractor;
 
 
 /**
@@ -20,6 +22,9 @@ import gobblin.source.extractor.Extractor;
  *
  * @author ziliu
  */
-public abstract class EventBasedExtractor<S, D> implements Extractor<S, D> {
+public abstract class EventBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
 
+  public EventBasedExtractor(WorkUnitState workUnitState) {
+    super(workUnitState);
+  }
 }

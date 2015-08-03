@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -23,6 +24,8 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.source.Source;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.Decorator;
+import gobblin.util.DecoratorUtils;
 
 
 /**
@@ -31,7 +34,7 @@ import gobblin.source.workunit.WorkUnit;
  *
  * @author ynli
  */
-public class SourceDecorator<S, D> implements Source<S, D> {
+public class SourceDecorator<S, D> implements Source<S, D>, Decorator {
 
   private final Source<S, D> source;
   private final String jobId;
@@ -79,5 +82,10 @@ public class SourceDecorator<S, D> implements Source<S, D> {
     } catch (Throwable t) {
       this.logger.error("Failed to shutdown source for job " + this.jobId, t);
     }
+  }
+
+  @Override
+  public Object getDecoratedObject() {
+    return this.source;
   }
 }

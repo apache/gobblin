@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -43,8 +44,6 @@ import gobblin.rest.Metric;
 import gobblin.rest.MetricArray;
 import gobblin.rest.MetricTypeEnum;
 import gobblin.rest.TaskExecutionInfoArray;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.runtime.util.JobMetrics;
 
@@ -67,8 +66,8 @@ public class JobState extends SourceState {
 
   private String jobName;
   private String jobId;
-  private long startTime;
-  private long endTime;
+  private long startTime = 0;
+  private long endTime = 0;
   private long duration;
   private RunningState state = RunningState.PENDING;
   private int tasks;
@@ -84,8 +83,8 @@ public class JobState extends SourceState {
     this.setId(jobId);
   }
 
-  public JobState(State properties, List<WorkUnitState> previousTaskStates, String jobName, String jobId) {
-    super(properties, previousTaskStates);
+  public JobState(State properties, JobState previousJobState, String jobName, String jobId) {
+    super(properties, previousJobState, previousJobState.getTaskStatesAsWorkUnitStates());
     this.jobName = jobName;
     this.jobId = jobId;
     this.setId(jobId);
@@ -361,6 +360,25 @@ public class JobState extends SourceState {
   }
 
   @Override
+  public boolean equals(Object object) {
+    if (!(object instanceof JobState)) {
+      return false;
+    }
+
+    JobState other = (JobState) object;
+    return super.equals(other) && this.jobName.equals(other.jobName) && this.jobId.equals(other.jobId);
+  }
+
+  @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = super.hashCode();
+    result = prime * result + this.jobName.hashCode();
+    result = prime * result + this.jobId.hashCode();
+    return result;
+  }
+
+  @Override
   public String toString() {
     StringWriter stringWriter = new StringWriter();
     JsonWriter jsonWriter = new JsonWriter(stringWriter);
@@ -383,8 +401,12 @@ public class JobState extends SourceState {
 
     jobExecutionInfo.setJobName(this.jobName);
     jobExecutionInfo.setJobId(this.jobId);
-    jobExecutionInfo.setStartTime(this.startTime);
-    jobExecutionInfo.setEndTime(this.endTime);
+    if (this.startTime > 0) {
+      jobExecutionInfo.setStartTime(this.startTime);
+    }
+    if (this.endTime > 0) {
+      jobExecutionInfo.setEndTime(this.endTime);
+    }
     jobExecutionInfo.setDuration(this.duration);
     jobExecutionInfo.setState(JobStateEnum.valueOf(this.state.name()));
     jobExecutionInfo.setLaunchedTasks(this.tasks);

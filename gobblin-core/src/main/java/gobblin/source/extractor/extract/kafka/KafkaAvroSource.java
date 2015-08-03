@@ -1,4 +1,5 @@
-/* (c) 2015 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -19,6 +20,7 @@ import java.io.IOException;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
+
 /**
  * A {@link gobblin.source.Source} class for Kafka where events are in Avro format.
  *
@@ -27,10 +29,6 @@ import org.apache.avro.generic.GenericRecord;
 public class KafkaAvroSource extends KafkaSource<Schema, GenericRecord> {
   @Override
   public Extractor<Schema, GenericRecord> getExtractor(WorkUnitState state) throws IOException {
-    try {
-      return new KafkaAvroExtractor(state);
-    } catch (SchemaNotFoundException e) {
-      throw new IOException(e);
-    }
+    return new KafkaAvroExtractor(state);
   }
 }

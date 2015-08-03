@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -11,6 +12,7 @@
 
 package gobblin.runtime;
 
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +22,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
@@ -45,6 +48,14 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
   public MultiConverter(List<Converter<?, ?, ?, ?>> converters) {
     // Make a copy to guard against changes to the converters from outside
     this.converters = Lists.newArrayList(converters);
+  }
+
+  @Override
+  public void close()
+      throws IOException {
+    for(Converter<?,?,?,?> converter : this.converters) {
+      converter.close();
+    }
   }
 
   @Override
@@ -78,6 +89,15 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
         }
       }
     };
+  }
+
+  @Override
+  public State getFinalState() {
+    State state = super.getFinalState();
+    for(Converter<?,?,?,?> converter : this.converters) {
+      state.addAll(converter.getFinalState());
+    }
+    return state;
   }
 
   /**

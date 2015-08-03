@@ -1,4 +1,5 @@
-/* (c) 2015 NerdWallet All rights reserved.
+/*
+ * Copyright (C) 2014-2015 NerdWallet All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -12,9 +13,12 @@
 package gobblin.source.extractor.extract.kafka;
 
 import gobblin.configuration.WorkUnitState;
-import kafka.message.MessageAndOffset;
+import gobblin.metrics.kafka.SchemaNotFoundException;
 
 import java.io.IOException;
+
+import kafka.message.MessageAndOffset;
+
 
 /**
  * An implementation of {@link KafkaExtractor} from which reads and returns records as an array of bytes.
@@ -26,8 +30,9 @@ public class KafkaSimpleExtractor extends KafkaExtractor<String, byte[]> {
   public KafkaSimpleExtractor(WorkUnitState state) {
     super(state);
   }
+
   @Override
-  protected byte[] decodeRecord(MessageAndOffset messageAndOffset, byte[] reuse) throws SchemaNotFoundException, IOException {
+  protected byte[] decodeRecord(MessageAndOffset messageAndOffset) throws SchemaNotFoundException, IOException {
     return getBytes(messageAndOffset.message().payload());
   }
 
@@ -39,6 +44,6 @@ public class KafkaSimpleExtractor extends KafkaExtractor<String, byte[]> {
    */
   @Override
   public String getSchema() throws IOException {
-    return this.partition.getTopicName();
+    return this.topicName;
   }
 }

@@ -100,8 +100,8 @@ set_user_jars "$JARS"
 # Jars Gobblin runtime depends on
 LIBJARS=$USER_JARS$separator$FWDIR_LIB/gobblin-metastore.jar,$FWDIR_LIB/gobblin-metrics.jar,\
 $FWDIR_LIB/gobblin-core.jar,$FWDIR_LIB/gobblin-api.jar,$FWDIR_LIB/gobblin-utility.jar,\
-$FWDIR_LIB/guava-15.0.jar,$FWDIR_LIB/avro-1.7.6.jar,$FWDIR_LIB/avro-mapred-1.7.6.jar,\
-$FWDIR_LIB/metrics-core-3.1.0.jar,$FWDIR_LIB/gson-2.2.4.jar,$FWDIR_LIB/joda-time-1.6.jar,$FWDIR_LIB/data-1.15.9.jar
+$FWDIR_LIB/guava-18.0.jar,$FWDIR_LIB/avro-1.7.7.jar,$FWDIR_LIB/metrics-core-3.1.0.jar,\
+$FWDIR_LIB/gson-2.3.1.jar,$FWDIR_LIB/joda-time-2.8.1.jar,$FWDIR_LIB/data-1.15.9.jar
 
 # Add libraries to the Hadoop classpath
 GOBBLIN_DEP_JARS=`echo "$USER_JARS" | tr ',' ':' `
