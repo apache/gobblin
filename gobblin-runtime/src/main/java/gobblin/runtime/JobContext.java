@@ -13,23 +13,28 @@
 package gobblin.runtime;
 
 import java.io.IOException;
-import java.util.List;
+import java.lang.reflect.Constructor;
+import java.net.URI;
+import java.util.Map;
 import java.util.Properties;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.io.Closer;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
-import gobblin.metastore.FsStateStore;
+import gobblin.configuration.WorkUnitState;
 import gobblin.metastore.JobHistoryStore;
 import gobblin.metastore.MetaStoreModule;
-import gobblin.metastore.StateStore;
 import gobblin.metrics.GobblinMetrics;
+import gobblin.publisher.DataPublisher;
 import gobblin.runtime.util.JobMetrics;
 import gobblin.source.Source;
 import gobblin.source.extractor.JobCommitPolicy;
@@ -43,12 +48,6 @@ import gobblin.util.JobLauncherUtils;
  */
 public class JobContext {
 
-  // State store for persisting job states
-  private final StateStore<JobState> jobStateStore;
-
-  // Store for runtime job execution information
-  private final Optional<JobHistoryStore> jobHistoryStoreOptional;
-
   private final String jobName;
   private final String jobId;
   private final JobState jobState;
@@ -56,6 +55,15 @@ public class JobContext {
   private final boolean jobLockEnabled;
   private final Optional<JobMetrics> jobMetricsOptional;
   private final Source<?, ?> source;
+
+
+  // State store for persisting job states
+  private final FsDatasetStateStore datasetStateStore;
+
+  // Store for runtime job execution information
+  private final Optional<JobHistoryStore> jobHistoryStoreOptional;
+
+  private final Logger logger;
 
   @SuppressWarnings("unchecked")
   public JobContext(Properties jobProps, Logger logger) throws Exception {
@@ -72,10 +80,11 @@ public class JobContext {
     this.jobLockEnabled = Boolean.valueOf(
         jobProps.getProperty(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, Boolean.TRUE.toString()));
 
-    this.jobStateStore = new FsStateStore<JobState>(
-        jobProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI),
-        jobProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
-        JobState.class);
+    String stateStoreFsUri = jobProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY,
+        ConfigurationKeys.LOCAL_FS_URI);
+    FileSystem stateStoreFs = FileSystem.get(URI.create(stateStoreFsUri), new Configuration());
+    String stateStoreRootDir = jobProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY);
+    this.datasetStateStore = new FsDatasetStateStore(stateStoreFs, stateStoreRootDir);
 
     boolean jobHistoryStoreEnabled = Boolean.valueOf(
         jobProps.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, Boolean.FALSE.toString()));
@@ -88,11 +97,8 @@ public class JobContext {
 
     State jobPropsState = new State();
     jobPropsState.addAll(jobProps);
-    JobState previousJobState = getPreviousJobState(this.jobName);
-    this.jobState = new JobState(jobPropsState, previousJobState, this.jobName, this.jobId);
-    // Remember the number of consecutive failures of this job in the past
-    this.jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY,
-        previousJobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY, 0));
+    this.jobState = new JobState(jobPropsState, this.datasetStateStore.getLatestDatasetStatesByUrns(this.jobName),
+        this.jobName, this.jobId);
 
     if (GobblinMetrics.isEnabled(jobProps)) {
       this.jobMetricsOptional = Optional.of(JobMetrics.get(this.jobState));
@@ -102,8 +108,10 @@ public class JobContext {
     }
 
     this.source = new SourceDecorator(
-        (Source<?, ?>) Class.forName(jobProps.getProperty(ConfigurationKeys.SOURCE_CLASS_KEY)).newInstance(),
+        Source.class.cast(Class.forName(jobProps.getProperty(ConfigurationKeys.SOURCE_CLASS_KEY)).newInstance()),
         this.jobId, logger);
+
+    this.logger = logger;
   }
 
   /**
@@ -134,15 +142,6 @@ public class JobContext {
   }
 
   /**
-   * Get a {@link JobCommitPolicy} instance for the policy on committing job output.
-   *
-   * @return a {@link JobCommitPolicy} instance for the policy on committing job output
-   */
-  public JobCommitPolicy getJobCommitPolicy() {
-    return this.jobCommitPolicy;
-  }
-
-  /**
    * Check whether the use of job lock is enabled or not.
    *
    * @return {@code true} if the use of job lock is enabled or {@code false} otherwise
@@ -170,38 +169,147 @@ public class JobContext {
   }
 
   /**
-   * Get an instance of {@link StateStore} for serializing/deserializing {@link JobState}.
-   *
-   * @return an instance of {@link StateStore} for serializing/deserializing {@link JobState}
+   * Store job execution information into the job history store.
    */
-  public StateStore<JobState> getJobStateStore() {
-    return this.jobStateStore;
+  void storeJobExecutionInfo() {
+    if (this.jobHistoryStoreOptional.isPresent()) {
+      try {
+        this.jobHistoryStoreOptional.get().put(this.jobState.toJobExecutionInfo());
+      } catch (IOException ioe) {
+        this.logger.error("Failed to write job execution information to the job history store: " + ioe, ioe);
+      }
+    }
   }
 
   /**
-   * Get an {@link Optional} of {@link JobHistoryStore}.
-   *
-   * @return an {@link Optional} of {@link JobHistoryStore}
+   * Set final {@link JobState} of the given job.
    */
-  public Optional<JobHistoryStore> getJobHistoryStoreOptional() {
-    return this.jobHistoryStoreOptional;
+  void setFinalJobState() {
+    this.jobState.setEndTime(System.currentTimeMillis());
+    this.jobState.setDuration(this.jobState.getEndTime() - this.jobState.getStartTime());
+
+    for (TaskState taskState : this.jobState.getTaskStates()) {
+      // Set fork.branches explicitly here so the rest job flow can pick it up
+      this.jobState.setProp(ConfigurationKeys.FORK_BRANCHES_KEY,
+          taskState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1));
+    }
+
+    if (this.jobState.getState() == JobState.RunningState.SUCCESSFUL) {
+      // Reset the failure count if the job successfully completed
+      this.jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY, 0);
+    }
+
+    if (this.jobState.getState() == JobState.RunningState.FAILED) {
+      // Increment the failure count by 1 if the job failed
+      int failures = this.jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY, 0) + 1;
+      this.jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY, failures);
+    }
   }
 
   /**
-   * Get the job state of the most recent run of the job.
+   * Commit the job on a per-dataset basis.
    */
-  private JobState getPreviousJobState(String jobName)
-      throws IOException {
-    if (this.jobStateStore.exists(jobName, "current" + AbstractJobLauncher.JOB_STATE_STORE_TABLE_SUFFIX)) {
-      // Read the job state of the most recent run of the job
-      List<JobState> previousJobStateList =
-          this.jobStateStore.getAll(jobName, "current" + AbstractJobLauncher.JOB_STATE_STORE_TABLE_SUFFIX);
-      if (!previousJobStateList.isEmpty()) {
-        // There should be a single job state on the list if the list is not empty
-        return previousJobStateList.get(0);
+  void commit() throws IOException {
+    Map<String, JobState.DatasetState> datasetStatesByUrns = this.jobState.getDatasetStatesByUrns();
+    for (Map.Entry<String, JobState.DatasetState> entry : datasetStatesByUrns.entrySet()) {
+      setFinalDatasetState(entry.getValue());
+      if (canCommitDataset(this.jobCommitPolicy, entry.getValue())) {
+        boolean allDatasetsCommit = true;
+        try {
+          commitDataset(entry.getValue());
+        } catch (IOException ioe) {
+          this.logger.error("Failed to commit dataset state for dataset " + entry.getKey(), ioe);
+          allDatasetsCommit = false;
+        } finally {
+          try {
+            persistDatasetState(entry.getKey(), entry.getValue());
+          } catch (IOException ioe) {
+            this.logger.error("Failed to persist dataset state for dataset " + entry.getKey(), ioe);
+            allDatasetsCommit = false;
+          }
+        }
+
+        if (!allDatasetsCommit) {
+          throw new IOException("Failed to commit dataset state for some dataset(s)");
+        }
+      }
+    }
+  }
+
+  /**
+   * Finalize a given {@link JobState.DatasetState} before committing the dataset.
+   */
+  private void setFinalDatasetState(JobState.DatasetState datasetState) {
+    for (TaskState taskState : datasetState.getTaskStates()) {
+      if (taskState.getWorkingState() != WorkUnitState.WorkingState.SUCCESSFUL) {
+        // The dataset state is set to FAILED if any task failed
+        datasetState.setState(JobState.RunningState.FAILED);
+        return;
       }
     }
 
-    return new JobState();
+    datasetState.setState(JobState.RunningState.SUCCESSFUL);
+  }
+
+  /**
+   * Check if it is OK to commit the output data of a dataset.
+   */
+  private boolean canCommitDataset(JobCommitPolicy commitPolicy, JobState.DatasetState datasetState) {
+    // Only commit a dataset if 1) COMMIT_ON_PARTIAL_SUCCESS is used, or 2)
+    // COMMIT_ON_FULL_SUCCESS is used and all of the tasks of the dataset have succeeded.
+    return commitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS
+        || (commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS
+        && datasetState.getState() == JobState.RunningState.SUCCESSFUL);
+  }
+
+  /**
+   * Commit the output data of a dataset.
+   */
+  @SuppressWarnings("unchecked")
+  private void commitDataset(JobState.DatasetState datasetState) throws IOException {
+    this.logger.info(
+        String.format("Publishing data of job %s with commit policy %s", this.jobId, this.jobCommitPolicy.name()));
+
+    Closer closer = Closer.create();
+    try {
+      Class<? extends DataPublisher> dataPublisherClass = (Class<? extends DataPublisher>) Class.forName(
+          datasetState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE, ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
+      Constructor<? extends DataPublisher> dataPublisherConstructor = dataPublisherClass.getConstructor(State.class);
+      DataPublisher publisher = closer.register(dataPublisherConstructor.newInstance(datasetState));
+      publisher.initialize();
+      publisher.publish(datasetState.getTaskStates());
+    } catch (Throwable t) {
+      throw closer.rethrow(t);
+    } finally {
+      closer.close();
+    }
+
+    // Set the job state to COMMITTED upon successful commit
+    datasetState.setState(JobState.RunningState.COMMITTED);
+  }
+
+  /**
+   * Persist dataset state of a given dataset identified by the dataset URN.
+   */
+  private void persistDatasetState(String datasetUrn, JobState.DatasetState datasetState) throws IOException {
+    for (TaskState taskState : datasetState.getTaskStates()) {
+      // Backoff the actual high watermark to the low watermark for each task that has not been committed
+      if (taskState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED) {
+        taskState.backoffActualHighWatermark();
+        if (this.jobCommitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
+          // Determine the final dataset state based on the task states and the job commit policy.
+          // 1. If COMMIT_ON_FULL_SUCCESS is used, the processing of the dataset is considered failed if any task
+          //    for the dataset failed.
+          // 2. On the other hand, if COMMIT_ON_PARTIAL_SUCCESS is used, the processing of the dataset is considered
+          //    successful even if some tasks for the dataset failed.
+          // The job is considered failed if it fails to process the dataset if COMMIT_ON_FULL_SUCCESS is used.
+          datasetState.setState(JobState.RunningState.FAILED);
+          this.jobState.setState(JobState.RunningState.FAILED);
+        }
+      }
+    }
+
+    datasetState.setId(datasetUrn);
+    this.datasetStateStore.persistDatasetState(datasetUrn, datasetState);
   }
 }

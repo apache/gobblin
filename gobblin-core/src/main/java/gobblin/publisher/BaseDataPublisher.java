@@ -26,6 +26,7 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -56,9 +57,10 @@ public class BaseDataPublisher extends DataPublisher {
 
   private static final Logger LOG = LoggerFactory.getLogger(BaseDataPublisher.class);
 
-  protected final List<FileSystem> fss = Lists.newArrayList();
-  protected final Closer closer;
   protected final int numBranches;
+  protected final List<FileSystem> fileSystemByBranches;
+  protected final List<Optional<String>> publisherFinalDirOwnerGroupsByBranches;
+  protected final Closer closer;
   protected final int parallelRunnerThreads;
   protected final Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
 
@@ -74,13 +76,21 @@ public class BaseDataPublisher extends DataPublisher {
 
     this.numBranches = this.getState().getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
 
+    this.fileSystemByBranches = Lists.newArrayListWithCapacity(this.numBranches);
+    this.publisherFinalDirOwnerGroupsByBranches = Lists.newArrayListWithCapacity(this.numBranches);
+
     // Get a FileSystem instance for each branch
     for (int i = 0; i < this.numBranches; i++) {
       URI uri = URI.create(this.getState().getProp(
           ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, this.numBranches, i),
           ConfigurationKeys.LOCAL_FS_URI));
-      this.fss.add(FileSystem.get(uri, conf));
+      this.fileSystemByBranches.add(FileSystem.get(uri, conf));
+
+      // The group(s) will be applied to the final publisher output directory(ies)
+      this.publisherFinalDirOwnerGroupsByBranches.add(Optional.fromNullable(this.getState().getProp(ForkOperatorUtils
+          .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR_GROUP, this.numBranches, i))));
     }
+
     this.parallelRunnerThreads =
         state.getPropAsInt(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY, ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS);
   }
@@ -117,7 +127,7 @@ public class BaseDataPublisher extends DataPublisher {
   protected void publishData(WorkUnitState workUnitState, int branchId, Set<Path> writerOutputPathsMoved)
       throws IOException {
     // Get a ParallelRunner instance for moving files in parallel
-    ParallelRunner parallelRunner = this.getParallelRunner(this.fss.get(branchId));
+    ParallelRunner parallelRunner = this.getParallelRunner(this.fileSystemByBranches.get(branchId));
 
     // The directory where the workUnitState wrote its output data.
     // It is a combination of WRITER_OUTPUT_DIR and WRITER_FILE_PATH.
@@ -128,7 +138,7 @@ public class BaseDataPublisher extends DataPublisher {
       return;
     }
 
-    if (!this.fss.get(branchId).exists(writerOutputDir)) {
+    if (!this.fileSystemByBranches.get(branchId).exists(writerOutputDir)) {
       LOG.warn(String.format("Branch %d of WorkUnit %s produced no data", branchId, workUnitState.getId()));
       return;
     }
@@ -137,7 +147,7 @@ public class BaseDataPublisher extends DataPublisher {
     // It is a combination of DATA_PUBLISHER_FINAL_DIR and WRITER_FILE_PATH.
     Path publisherOutputDir = WriterUtils.getDataPublisherFinalDir(workUnitState, this.numBranches, branchId);
 
-    if (this.fss.get(branchId).exists(publisherOutputDir)) {
+    if (this.fileSystemByBranches.get(branchId).exists(publisherOutputDir)) {
       // The final output directory already exists, check if the job is configured to replace it.
       boolean replaceFinalOutputDir = this.getState().getPropAsBoolean(ForkOperatorUtils
           .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_REPLACE_FINAL_DIR, this.numBranches, branchId));
@@ -149,14 +159,16 @@ public class BaseDataPublisher extends DataPublisher {
         return;
       }
       // Delete the final output directory if it is configured to be replaced
-      this.fss.get(branchId).delete(publisherOutputDir, true);
+      this.fileSystemByBranches.get(branchId).delete(publisherOutputDir, true);
     } else {
+      Path parentDir = publisherOutputDir.getParent();
       // Create the parent directory of the final output directory if it does not exist
-      this.fss.get(branchId).mkdirs(publisherOutputDir.getParent());
+      this.fileSystemByBranches.get(branchId).mkdirs(parentDir);
     }
 
     LOG.info(String.format("Moving %s to %s", writerOutputDir, publisherOutputDir));
-    parallelRunner.renamePath(writerOutputDir, publisherOutputDir);
+    parallelRunner.renamePath(writerOutputDir, publisherOutputDir,
+        this.publisherFinalDirOwnerGroupsByBranches.get(branchId));
     writerOutputPathsMoved.add(writerOutputDir);
   }
 
@@ -166,7 +178,7 @@ public class BaseDataPublisher extends DataPublisher {
         ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, this.numBranches, branchId), false);
 
     // Go through each file in writerOutputDir and move it into publisherOutputDir
-    for (FileStatus status : this.fss.get(branchId).listStatus(writerOutputDir)) {
+    for (FileStatus status : this.fileSystemByBranches.get(branchId).listStatus(writerOutputDir)) {
 
       // Preserve the file name if configured, use specified name otherwise
       Path finalOutputPath =
@@ -177,7 +189,7 @@ public class BaseDataPublisher extends DataPublisher {
           : new Path(publisherOutputDir, status.getPath().getName());
 
       LOG.info(String.format("Moving %s to %s", status.getPath(), finalOutputPath));
-      parallelRunner.renamePath(status.getPath(), finalOutputPath);
+      parallelRunner.renamePath(status.getPath(), finalOutputPath, Optional.<String>absent());
     }
   }
 

@@ -128,7 +128,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
 
     this.group = Optional.fromNullable(properties.getProp(ConfigurationKeys.WRITER_GROUP_NAME));
     if (this.group.isPresent()) {
-      this.fs.setOwner(this.stagingFile, this.fs.getFileStatus(this.stagingFile).getOwner(), this.group.get());
+      HadoopUtils.setGroup(this.fs, this.stagingFile, this.group.get());
     }
   }
 

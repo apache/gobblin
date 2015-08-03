@@ -76,7 +76,7 @@ public class GobblinOutputCommitter extends OutputCommitter {
 
         // If the file ends with ".wu" de-serialize it into a WorkUnit
         if (status.getPath().getName().endsWith(".wu")) {
-          WorkUnit wu = new WorkUnit();
+          WorkUnit wu = WorkUnit.createEmpty();
           try {
             wu.readFields(workUnitFileCloser.register(new DataInputStream(fs.open(status.getPath()))));
           } finally {

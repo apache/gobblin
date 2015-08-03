@@ -124,6 +124,13 @@ public class ConfigurationKeys {
   public static final String JOB_STATE_FILE_PATH_KEY = "job.state.file.path";
 
   /**
+   * Dataset-related configuration properties;
+   */
+  // This property is used to specify the URN of a dataset a job or WorkUnit extracts data for
+  public static final String DATASET_URN_KEY = "dataset.urn";
+  public static final String DEFAULT_DATASET_URN = "";
+
+  /**
    * Work unit related configuration properties.
    */
   public static final String WORK_UNIT_LOW_WATER_MARK_KEY = "workunit.low.water.mark";
@@ -272,6 +279,8 @@ public class ConfigurationKeys {
   public static final String DATA_PUBLISHER_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".final.dir";
   public static final String DATA_PUBLISHER_REPLACE_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".replace.final.dir";
   public static final String DATA_PUBLISHER_FINAL_NAME = DATA_PUBLISHER_PREFIX + ".final.name";
+  // This property is used to specify the owner group of the data publisher final output directory
+  public static final String DATA_PUBLISHER_FINAL_DIR_GROUP = DATA_PUBLISHER_PREFIX + "final.dir.group";
 
   /**
    * Configuration properties used by the extractor.

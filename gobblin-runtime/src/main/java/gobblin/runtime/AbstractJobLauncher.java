@@ -13,7 +13,6 @@
 package gobblin.runtime;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -33,7 +32,6 @@ import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.GobblinMetricsRegistry;
@@ -41,10 +39,8 @@ import gobblin.metrics.MetricContext;
 import gobblin.metrics.event.EventNames;
 import gobblin.metrics.event.EventSubmitter;
 import gobblin.metrics.event.TimingEvent;
-import gobblin.publisher.DataPublisher;
 import gobblin.runtime.util.JobMetrics;
 import gobblin.runtime.util.TimingEventNames;
-import gobblin.source.extractor.JobCommitPolicy;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.JobLauncherUtils;
@@ -59,9 +55,6 @@ import gobblin.util.ParallelRunner;
 public abstract class AbstractJobLauncher implements JobLauncher {
 
   private static final Logger LOG = LoggerFactory.getLogger(AbstractJobLauncher.class);
-
-  protected static final String TASK_STATE_STORE_TABLE_SUFFIX = ".tst";
-  protected static final String JOB_STATE_STORE_TABLE_SUFFIX = ".jst";
 
   // Job configuration properties
   protected final Properties jobProps;
@@ -258,7 +251,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       workUnitsPreparationTimer.stop();
 
       // Write job execution info to the job history store before the job starts to run
-      storeJobExecutionInfo();
+      this.jobContext.storeJobExecutionInfo();
 
       TimingEvent jobRunTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.JOB_RUN);
       // Start the job and wait for it to finish
@@ -274,16 +267,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       }
 
       TimingEvent jobCommitTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.JOB_COMMIT);
-
-      setFinalJobState(jobState);
-      if (canCommit(this.jobContext.getJobCommitPolicy(), jobState)) {
-        try {
-          commitJob(jobState);
-        } finally {
-          persistJobState(jobState);
-        }
-      }
-
+      this.jobContext.setFinalJobState();
+      this.jobContext.commit();
       postProcessTaskStates(jobState.getTaskStates());
       jobCommitTimer.stop();
     } catch (Throwable t) {
@@ -301,7 +286,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       jobCleanupTimer.stop();
 
       // Write job execution info to the job history store upon job termination
-      storeJobExecutionInfo();
+      this.jobContext.storeJobExecutionInfo();
 
       launchJobTimer.stop();
 
@@ -455,110 +440,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         LOG.error(String.format("Failed to unlock for job %s: %s", this.jobContext.getJobId(), ioe), ioe);
       }
     }
-  }
-
-  /**
-   * Store job execution information into the job history store.
-   */
-  private void storeJobExecutionInfo() {
-    if (this.jobContext.getJobHistoryStoreOptional().isPresent()) {
-      try {
-        this.jobContext.getJobHistoryStoreOptional().get().put(this.jobContext.getJobState().toJobExecutionInfo());
-      } catch (IOException ioe) {
-        LOG.error("Failed to write job execution information to the job history store: " + ioe, ioe);
-      }
-    }
-  }
-
-  /**
-   * Set final {@link JobState} of the given job.
-   */
-  private void setFinalJobState(JobState jobState) {
-    jobState.setEndTime(System.currentTimeMillis());
-    jobState.setDuration(jobState.getEndTime() - jobState.getStartTime());
-
-    for (TaskState taskState : jobState.getTaskStates()) {
-      // Set fork.branches explicitly here so the rest job flow can pick it up
-      jobState.setProp(ConfigurationKeys.FORK_BRANCHES_KEY,
-          taskState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1));
-
-      // Determine the final job state based on the task states and the job commit policy.
-      // If COMMIT_ON_FULL_SUCCESS is used, the job is considered failed if any task failed.
-      // On the other hand, if COMMIT_ON_PARTIAL_SUCCESS is used, the job is considered
-      // successful even if some tasks failed.
-      if (taskState.getWorkingState() != WorkUnitState.WorkingState.SUCCESSFUL
-          && this.jobContext.getJobCommitPolicy() == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
-        jobState.setState(JobState.RunningState.FAILED);
-        break;
-      }
-    }
-
-    if (jobState.getState() == JobState.RunningState.SUCCESSFUL) {
-      // Reset the failure count if the job successfully completed
-      jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY, 0);
-    }
-
-    if (jobState.getState() == JobState.RunningState.FAILED) {
-      // Increment the failure count by 1 if the job failed
-      int failures = jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY, 0) + 1;
-      jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY, failures);
-    }
-  }
-
-  /**
-   * Check if it is OK to commit the output data of the job.
-   */
-  private boolean canCommit(JobCommitPolicy commitPolicy, JobState jobState) {
-    // Only commit job data if 1) COMMIT_ON_PARTIAL_SUCCESS is used,
-    // or 2) COMMIT_ON_FULL_SUCCESS is used and the job has succeeded.
-    return commitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS
-        || (commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS
-            && jobState.getState() == JobState.RunningState.SUCCESSFUL);
-  }
-
-  /**
-   * Commit the job's output data.
-   */
-  @SuppressWarnings("unchecked")
-  private void commitJob(JobState jobState) throws Exception {
-    LOG.info(String.format("Publishing data of job %s with commit policy %s", this.jobContext.getJobId(),
-        this.jobContext.getJobCommitPolicy().name()));
-
-    Closer closer = Closer.create();
-    try {
-      Class<? extends DataPublisher> dataPublisherClass = (Class<? extends DataPublisher>) Class.forName(
-          jobState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE, ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
-      Constructor<? extends DataPublisher> dataPublisherConstructor = dataPublisherClass.getConstructor(State.class);
-      DataPublisher publisher = closer.register(dataPublisherConstructor.newInstance(jobState));
-      publisher.initialize();
-      publisher.publish(jobState.getTaskStates());
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
-    }
-
-    // Set the job state to COMMITTED upon successful commit
-    jobState.setState(JobState.RunningState.COMMITTED);
-  }
-
-  /**
-   * Persist job state of a completed job.
-   */
-  private void persistJobState(JobState jobState) throws IOException {
-    for (TaskState taskState : jobState.getTaskStates()) {
-      // Backoff the actual high watermark to the low watermark for each task that has not been committed
-      if (taskState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED) {
-        taskState.backoffActualHighWatermark();
-      }
-    }
-
-    String jobName = jobState.getJobName();
-    String jobId = jobState.getJobId();
-    LOG.info("Persisting job state of job " + jobId);
-    this.jobContext.getJobStateStore().put(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX, jobState);
-    this.jobContext.getJobStateStore().createAlias(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX,
-        "current" + JOB_STATE_STORE_TABLE_SUFFIX);
   }
 
   /**

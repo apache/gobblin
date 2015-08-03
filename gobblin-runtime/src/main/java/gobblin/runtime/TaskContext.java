@@ -86,7 +86,7 @@ public class TaskContext {
    */
   public Source getSource() {
     try {
-      return (Source) Class.forName(this.workUnit.getProp(ConfigurationKeys.SOURCE_CLASS_KEY)).newInstance();
+      return Source.class.cast(Class.forName(this.workUnit.getProp(ConfigurationKeys.SOURCE_CLASS_KEY)).newInstance());
     } catch (ClassNotFoundException cnfe) {
       throw new RuntimeException(cnfe);
     } catch (InstantiationException ie) {
@@ -191,7 +191,7 @@ public class TaskContext {
     for (String converterClass : Splitter.on(",").omitEmptyStrings().trimResults()
         .split(this.workUnit.getProp(converterClassKey))) {
       try {
-        Converter<?, ?, ?, ?> converter = (Converter<?, ?, ?, ?>) Class.forName(converterClass).newInstance();
+        Converter<?, ?, ?, ?> converter = Converter.class.cast(Class.forName(converterClass).newInstance());
         InstrumentedConverterDecorator instrumentedConverter = new InstrumentedConverterDecorator(converter);
         instrumentedConverter.init(converterTaskState);
         converters.add(instrumentedConverter);
@@ -215,9 +215,9 @@ public class TaskContext {
   @SuppressWarnings("unchecked")
   public ForkOperator getForkOperator() {
     try {
-      ForkOperator fork = (ForkOperator) Class.forName(this.workUnit
-          .getProp(ConfigurationKeys.FORK_OPERATOR_CLASS_KEY, ConfigurationKeys.DEFAULT_FORK_OPERATOR_CLASS))
-          .newInstance();
+      ForkOperator fork = ForkOperator.class.cast(
+          Class.forName(this.workUnit.getProp(ConfigurationKeys.FORK_OPERATOR_CLASS_KEY,
+              ConfigurationKeys.DEFAULT_FORK_OPERATOR_CLASS)).newInstance());
       return new InstrumentedForkOperatorDecorator(fork);
     } catch (ClassNotFoundException cnfe) {
       throw new RuntimeException(cnfe);
@@ -232,25 +232,23 @@ public class TaskContext {
    * Get a pre-fork {@link RowLevelPolicyChecker} for executing row-level
    * {@link gobblin.qualitychecker.row.RowLevelPolicy}.
    *
-   * @param taskState {@link TaskState} of a {@link Task}
    * @return a {@link RowLevelPolicyChecker}
    */
-  public RowLevelPolicyChecker getRowLevelPolicyChecker(TaskState taskState)
+  public RowLevelPolicyChecker getRowLevelPolicyChecker()
       throws Exception {
-    return getRowLevelPolicyChecker(taskState, -1);
+    return getRowLevelPolicyChecker(-1);
   }
 
   /**
    * Get a post-fork {@link RowLevelPolicyChecker} for executing row-level
    * {@link gobblin.qualitychecker.row.RowLevelPolicy} in the given branch.
    *
-   * @param taskState {@link TaskState} of a {@link Task}
    * @param index branch index
    * @return a {@link RowLevelPolicyChecker}
    */
-  public RowLevelPolicyChecker getRowLevelPolicyChecker(TaskState taskState, int index)
+  public RowLevelPolicyChecker getRowLevelPolicyChecker(int index)
       throws Exception {
-    return new RowLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(taskState, index).build();
+    return new RowLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(this.taskState, index).build();
   }
 
   /**
@@ -292,7 +290,7 @@ public class TaskContext {
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUILDER_CLASS, branches, index),
         ConfigurationKeys.DEFAULT_WRITER_BUILDER_CLASS);
     try {
-      return (DataWriterBuilder) Class.forName(dataWriterBuilderClassName).newInstance();
+      return DataWriterBuilder.class.cast(Class.forName(dataWriterBuilderClassName).newInstance());
     } catch (ClassNotFoundException cnfe) {
       throw new RuntimeException(cnfe);
     } catch (InstantiationException ie) {

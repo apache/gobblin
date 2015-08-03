@@ -15,6 +15,7 @@ package gobblin.source.extractor.extract;
 import java.util.List;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -57,7 +58,7 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
    * @return list of {@link WorkUnitState}s of previous {@link WorkUnit}s subject for retries
    */
   protected List<WorkUnitState> getPreviousWorkUnitStatesForRetry(SourceState state) {
-    if (state.getPreviousWorkUnitStates().isEmpty()) {
+    if (Iterables.isEmpty(state.getPreviousWorkUnitStates())) {
       return ImmutableList.of();
     }
 

@@ -28,6 +28,7 @@ import com.codahale.metrics.Meter;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.gson.stream.JsonWriter;
 
@@ -71,7 +72,7 @@ public class JobState extends SourceState {
   private long duration;
   private RunningState state = RunningState.PENDING;
   private int tasks;
-  private final Map<String, TaskState> taskStates = Maps.newHashMap();
+  private final Map<String, TaskState> taskStates = Maps.newLinkedHashMap();
 
   // Necessary for serialization/deserialization
   public JobState() {
@@ -83,8 +84,9 @@ public class JobState extends SourceState {
     this.setId(jobId);
   }
 
-  public JobState(State properties, JobState previousJobState, String jobName, String jobId) {
-    super(properties, previousJobState, previousJobState.getTaskStatesAsWorkUnitStates());
+  public JobState(State properties, Map<String, JobState.DatasetState> previousDatasetStates, String jobName,
+      String jobId) {
+    super(properties, previousDatasetStates, workUnitStatesFromDatasetStates(previousDatasetStates.values()));
     this.jobName = jobName;
     this.jobId = jobId;
     this.setId(jobId);
@@ -259,6 +261,35 @@ public class JobState extends SourceState {
    */
   public List<TaskState> getTaskStates() {
     return ImmutableList.<TaskState>builder().addAll(this.taskStates.values()).build();
+  }
+
+  /**
+   * Get a {@link Map} from dataset URNs (as being specified by {@link ConfigurationKeys#DATASET_URN_KEY} to
+   * {@link DatasetState} objects that represent the dataset states and store {@link TaskState}s corresponding
+   * to the datasets.
+   *
+   * <p>
+   *   {@link TaskState}s that do not have {@link ConfigurationKeys#DATASET_URN_KEY} set will be added to
+   *   the dataset state belonging to {@link ConfigurationKeys#DEFAULT_DATASET_URN}.
+   * </p>
+   *
+   * @return a {@link Map} from dataset URNs to {@link DatasetState}s representing the dataset states
+   */
+  public Map<String, DatasetState> getDatasetStatesByUrns() {
+    Map<String, DatasetState> datasetStatesByUrns = Maps.newHashMap();
+
+    for (TaskState taskState : this.taskStates.values()) {
+      String datasetUrn = taskState.getProp(ConfigurationKeys.DATASET_URN_KEY, ConfigurationKeys.DEFAULT_DATASET_URN);
+      if (!datasetStatesByUrns.containsKey(datasetUrn)) {
+        DatasetState datasetState = newDatasetState(false);
+        datasetState.setProp(ConfigurationKeys.DATASET_URN_KEY, datasetUrn);
+        datasetStatesByUrns.put(datasetUrn, datasetState);
+      }
+
+      datasetStatesByUrns.get(datasetUrn).addTaskState(taskState);
+    }
+
+    return ImmutableMap.copyOf(datasetStatesByUrns);
   }
 
   /**
@@ -470,5 +501,53 @@ public class JobState extends SourceState {
     jobExecutionInfo.setJobProperties(new StringMap(jobProperties));
 
     return jobExecutionInfo;
+  }
+
+  /**
+   * Create a new {@link JobState.DatasetState} based on this {@link JobState} instance.
+   *
+   * @return a new {@link JobState.DatasetState} object
+   */
+  public DatasetState newDatasetState(boolean addTaskStates) {
+    DatasetState datasetState = new DatasetState(this.jobName, this.jobId);
+    datasetState.addAll(this);
+    datasetState.setState(this.state);
+    datasetState.setTasks(this.tasks);
+    if (addTaskStates) {
+      datasetState.addTaskStates(this.taskStates.values());
+    }
+    return datasetState;
+  }
+
+  private static List<WorkUnitState> workUnitStatesFromDatasetStates(Iterable<JobState.DatasetState> datasetStates) {
+    ImmutableList.Builder<WorkUnitState> taskStateBuilder = ImmutableList.builder();
+    for (JobState datasetState : datasetStates) {
+      taskStateBuilder.addAll(datasetState.getTaskStatesAsWorkUnitStates());
+    }
+    return taskStateBuilder.build();
+  }
+
+  /**
+   * A subclass of {@link JobState} that is used to represent dataset states. This class is currently
+   * identical to {@link JobState} except that the name is more meaningful and less confusing.
+   */
+  public static class DatasetState extends JobState {
+
+    // For serialization/deserialization
+    public DatasetState() {
+      super();
+    }
+
+    public DatasetState(String jobName, String jobId) {
+      super(jobName, jobId);
+    }
+
+    public void setDatasetUrn(String datasetUrn) {
+      setProp(ConfigurationKeys.DATASET_URN_KEY, datasetUrn);
+    }
+
+    public String getDatasetUrn() {
+      return getProp(ConfigurationKeys.DATASET_URN_KEY, ConfigurationKeys.DEFAULT_DATASET_URN);
+    }
   }
 }
