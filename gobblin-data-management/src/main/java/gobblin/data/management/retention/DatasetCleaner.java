@@ -38,20 +38,19 @@ public class DatasetCleaner {
   public DatasetCleaner(FileSystem fs, Properties props) throws IOException {
 
     Preconditions.checkArgument(props.containsKey(DATASET_PROFILE_CLASS_KEY));
-
     try {
       Class<?> datasetFinderClass = Class.forName(props.getProperty(DATASET_PROFILE_CLASS_KEY));
-      this.datasetFinder = (DatasetFinder) datasetFinderClass.
-          getConstructor(FileSystem.class, Properties.class).newInstance(fs, props);
-    } catch(ClassNotFoundException exception) {
+      this.datasetFinder =
+          (DatasetFinder) datasetFinderClass.getConstructor(FileSystem.class, Properties.class).newInstance(fs, props);
+    } catch (ClassNotFoundException exception) {
       throw new IOException(exception);
-    } catch(NoSuchMethodException exception) {
+    } catch (NoSuchMethodException exception) {
       throw new IOException(exception);
-    } catch(InstantiationException exception) {
+    } catch (InstantiationException exception) {
       throw new IOException(exception);
-    } catch(IllegalAccessException exception) {
+    } catch (IllegalAccessException exception) {
       throw new IOException(exception);
-    } catch(InvocationTargetException exception) {
+    } catch (InvocationTargetException exception) {
       throw new IOException(exception);
     }
   }
@@ -63,7 +62,7 @@ public class DatasetCleaner {
   public void clean() throws IOException {
     List<Dataset> dataSets = this.datasetFinder.findDatasets();
 
-    for (Dataset dataset: dataSets) {
+    for (Dataset dataset : dataSets) {
       dataset.clean();
     }
   }

@@ -44,7 +44,11 @@ public class ProxiedFileSystemWrapper {
   private static final Logger LOG = LoggerFactory.getLogger(ProxiedFileSystemWrapper.class);
   private FileSystem proxiedFs;
 
-  // Two authentication types for Hadoop Security, through TOKEN or KEYTAB.
+  /**
+   * Two authentication types for Hadoop Security, through TOKEN or KEYTAB.
+   * @deprecated Use {@link gobblin.util.ProxiedFileSystemUtils.AuthType}.
+   */
+  @Deprecated
   public enum AuthType {
     TOKEN,
     KEYTAB;
@@ -86,7 +90,7 @@ public class ProxiedFileSystemWrapper {
         break;
       case TOKEN: // If the authentication type is TOKEN, create a proxy user and then add the token to the user.
         proxyUser = UserGroupInformation.createProxyUser(proxyUserName, UserGroupInformation.getLoginUser());
-        Optional<Token> proxyToken = this.getTokenFromSeqFile(authPath, proxyUserName);
+        Optional<Token> proxyToken = getTokenFromSeqFile(authPath, proxyUserName);
         if (proxyToken.isPresent()) {
           proxyUser.addToken(proxyToken.get());
         } else {

@@ -20,6 +20,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
@@ -32,6 +33,7 @@ import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.StringDatasetVersion;
 import gobblin.data.management.retention.version.finder.DatasetVersionFinder;
 import gobblin.data.management.retention.version.finder.VersionFinder;
+import gobblin.data.management.trash.TestTrash;
 import gobblin.data.management.trash.Trash;
 
 
@@ -41,7 +43,6 @@ public class DatasetBaseTest {
   public void test() throws IOException {
 
     FileSystem fs = mock(FileSystem.class);
-    Trash trash = mock(Trash.class);
 
     Path datasetRoot = new Path("/test/dataset");
 
@@ -49,18 +50,17 @@ public class DatasetBaseTest {
     DatasetVersion dataset1Version2 = new StringDatasetVersion("version2", new Path(datasetRoot, "version2"));
 
     when(fs.delete(any(Path.class), anyBoolean())).thenReturn(true);
-    when(trash.moveToTrash(any(Path.class))).thenReturn(true);
 
-    DatasetImpl dataset = new DatasetImpl(fs, trash, false, false, false, datasetRoot);
+    DatasetImpl dataset = new DatasetImpl(fs, false, false, false, false, datasetRoot);
 
     when(dataset.versionFinder.findDatasetVersions(dataset)).
         thenReturn(Lists.newArrayList(dataset1Version1, dataset1Version2));
 
     dataset.clean();
 
-    verify(fs, never()).delete(any(Path.class), anyBoolean());
-    verify(trash).moveToTrash(dataset1Version2.getPathsToDelete().iterator().next());
-    verifyNoMoreInteractions(trash);
+    Assert.assertEquals(dataset.getTrash().getDeleteOperations().size(), 1);
+    Assert.assertTrue(dataset.getTrash().getDeleteOperations().get(0).getPath()
+        .equals(dataset1Version2.getPathsToDelete().iterator().next()));
 
   }
 
@@ -78,16 +78,18 @@ public class DatasetBaseTest {
     when(fs.delete(any(Path.class), anyBoolean())).thenReturn(true);
     when(trash.moveToTrash(any(Path.class))).thenReturn(true);
 
-    DatasetImpl dataset = new DatasetImpl(fs, trash, false, true, false, datasetRoot);
+    DatasetImpl dataset = new DatasetImpl(fs, false, true, false, false, datasetRoot);
 
     when(dataset.versionFinder.findDatasetVersions(dataset)).
         thenReturn(Lists.newArrayList(dataset1Version1, dataset1Version2));
 
     dataset.clean();
 
-    verify(trash, never()).moveToTrash(any(Path.class));
-    verify(fs).delete(dataset1Version2.getPathsToDelete().iterator().next(), true);
-    verify(fs, times(1)).delete(any(Path.class), anyBoolean());
+    Assert.assertEquals(dataset.getTrash().getDeleteOperations().size(), 1);
+    Assert.assertTrue(dataset.getTrash().getDeleteOperations().get(0).getPath()
+        .equals(dataset1Version2.getPathsToDelete().iterator().next()));
+
+    Assert.assertTrue(dataset.getTrash().isSkipTrash());
 
   }
 
@@ -105,15 +107,18 @@ public class DatasetBaseTest {
     when(fs.delete(any(Path.class), anyBoolean())).thenReturn(true);
     when(trash.moveToTrash(any(Path.class))).thenReturn(true);
 
-    DatasetImpl dataset = new DatasetImpl(fs, trash, true, false, false, datasetRoot);
+    DatasetImpl dataset = new DatasetImpl(fs, true, false, false, false, datasetRoot);
 
     when(dataset.versionFinder.findDatasetVersions(dataset)).
         thenReturn(Lists.newArrayList(dataset1Version1, dataset1Version2));
 
     dataset.clean();
 
-    verify(trash, never()).moveToTrash(any(Path.class));
-    verify(fs, never()).delete(any(Path.class), anyBoolean());
+    Assert.assertEquals(dataset.getTrash().getDeleteOperations().size(), 1);
+    Assert.assertTrue(dataset.getTrash().getDeleteOperations().get(0).getPath()
+        .equals(dataset1Version2.getPathsToDelete().iterator().next()));
+
+    Assert.assertTrue(dataset.getTrash().isSimulate());
 
   }
 
@@ -130,7 +135,7 @@ public class DatasetBaseTest {
     when(fs.delete(any(Path.class), anyBoolean())).thenReturn(true);
     when(trash.moveToTrash(any(Path.class))).thenReturn(true);
 
-    DatasetImpl dataset = new DatasetImpl(fs, trash, false, false, true, datasetRoot);
+    DatasetImpl dataset = new DatasetImpl(fs, false, false, true, false, datasetRoot);
 
     when(dataset.versionFinder.findDatasetVersions(dataset)).
         thenReturn(Lists.newArrayList(dataset1Version1, dataset1Version2));
@@ -139,7 +144,9 @@ public class DatasetBaseTest {
 
     dataset.clean();
 
-    verify(trash).moveToTrash(dataset1Version2.getPathsToDelete().iterator().next());
+    Assert.assertEquals(dataset.getTrash().getDeleteOperations().size(), 1);
+    Assert.assertTrue(dataset.getTrash().getDeleteOperations().get(0).getPath()
+        .equals(dataset1Version2.getPathsToDelete().iterator().next()));
     verify(fs).listStatus(dataset1Version2.getPathsToDelete().iterator().next().getParent());
     verify(fs, times(1)).listStatus(any(Path.class));
     verify(fs).delete(dataset1Version2.getPathsToDelete().iterator().next().getParent(), false);
@@ -166,9 +173,10 @@ public class DatasetBaseTest {
     public RetentionPolicy retentionPolicy = new DeleteFirstRetentionPolicy();
     public Path path;
 
-    public DatasetImpl(FileSystem fs, Trash trash, boolean simulate, boolean skipTrash,
-        boolean deleteEmptyDirectories, Path path) throws IOException {
-      super(fs, trash, simulate, skipTrash, deleteEmptyDirectories, LoggerFactory.getLogger(DatasetImpl.class));
+    public DatasetImpl(FileSystem fs, boolean simulate, boolean skipTrash,
+        boolean deleteEmptyDirectories, boolean deleteAsOwner, Path path) throws IOException {
+      super(fs, TestTrash.propertiesForTestTrash(), simulate, skipTrash, deleteEmptyDirectories, deleteAsOwner,
+          LoggerFactory.getLogger(DatasetImpl.class));
       when(versionFinder.versionClass()).thenReturn(StringDatasetVersion.class);
       this.path = path;
     }
@@ -186,6 +194,10 @@ public class DatasetBaseTest {
     @Override
     public Path datasetRoot() {
       return this.path;
+    }
+
+    public TestTrash getTrash() {
+      return (TestTrash) this.trash;
     }
   }
 
