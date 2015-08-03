@@ -130,7 +130,6 @@ public class BaseDataPublisher extends DataPublisher {
     ParallelRunner parallelRunner = this.getParallelRunner(this.fileSystemByBranches.get(branchId));
 
     // The directory where the workUnitState wrote its output data.
-    // It is a combination of WRITER_OUTPUT_DIR and WRITER_FILE_PATH.
     Path writerOutputDir = WriterUtils.getWriterOutputDir(workUnitState, this.numBranches, branchId);
 
     if (writerOutputPathsMoved.contains(writerOutputDir)) {
@@ -145,7 +144,7 @@ public class BaseDataPublisher extends DataPublisher {
 
     // The directory where the final output directory for this job will be placed.
     // It is a combination of DATA_PUBLISHER_FINAL_DIR and WRITER_FILE_PATH.
-    Path publisherOutputDir = WriterUtils.getDataPublisherFinalDir(workUnitState, this.numBranches, branchId);
+    Path publisherOutputDir = getPublisherOutputDir(workUnitState, branchId);
 
     if (this.fileSystemByBranches.get(branchId).exists(publisherOutputDir)) {
       // The final output directory already exists, check if the job is configured to replace it.
@@ -170,6 +169,22 @@ public class BaseDataPublisher extends DataPublisher {
     parallelRunner.renamePath(writerOutputDir, publisherOutputDir,
         this.publisherFinalDirOwnerGroupsByBranches.get(branchId));
     writerOutputPathsMoved.add(writerOutputDir);
+  }
+
+  /**
+   * Get the output directory path this {@link BaseDataPublisher} will write to.
+   *
+   * <p>
+   *   This is the default implementation. Subclasses of {@link BaseDataPublisher} may override this
+   *   to write to a custom directory or write using a custom directory structure or naming pattern.
+   * </p>
+   *
+   * @param workUnitState a {@link WorkUnitState} object
+   * @param branchId the fork branch ID
+   * @return the output directory path this {@link BaseDataPublisher} will write to
+   */
+  protected Path getPublisherOutputDir(WorkUnitState workUnitState, int branchId) {
+    return WriterUtils.getDataPublisherFinalDir(workUnitState, this.numBranches, branchId);
   }
 
   protected void addWriterOutputToExistingDir(Path writerOutputDir, Path publisherOutputDir,
