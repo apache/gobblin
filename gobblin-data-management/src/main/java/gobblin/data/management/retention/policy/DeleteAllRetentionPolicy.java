@@ -14,6 +14,7 @@ package gobblin.data.management.retention.policy;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Properties;
 
 import gobblin.data.management.retention.version.DatasetVersion;
 
@@ -21,6 +22,9 @@ import gobblin.data.management.retention.version.DatasetVersion;
  * Implementation of {@link RetentionPolicy} that marks all {@link DatasetVersion}s as deletable.
  */
 public class DeleteAllRetentionPolicy implements RetentionPolicy<DatasetVersion> {
+
+  public DeleteAllRetentionPolicy(Properties properties) {
+  }
 
   @Override
   public Class<? extends DatasetVersion> versionClass() {
