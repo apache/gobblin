@@ -86,7 +86,7 @@ public class ProxiedFileSystemWrapper {
         break;
       case TOKEN: // If the authentication type is TOKEN, create a proxy user and then add the token to the user.
         proxyUser = UserGroupInformation.createProxyUser(proxyUserName, UserGroupInformation.getLoginUser());
-        Optional<Token> proxyToken = this.getTokenFromSeqFile(authPath, proxyUserName);
+        Optional<Token> proxyToken = getTokenFromSeqFile(authPath, proxyUserName);
         if (proxyToken.isPresent()) {
           proxyUser.addToken(proxyToken.get());
         } else {
@@ -120,7 +120,7 @@ public class ProxiedFileSystemWrapper {
    * @return Token for proxyUserName if it exists.
    * @throws IOException
    */
-  private Optional<Token> getTokenFromSeqFile(String authPath, String proxyUserName) throws IOException {
+  public static Optional<Token> getTokenFromSeqFile(String authPath, String proxyUserName) throws IOException {
     Closer closer = Closer.create();
     try {
       FileSystem localFs = FileSystem.getLocal(new Configuration());

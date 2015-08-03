@@ -12,10 +12,13 @@
 
 package gobblin.util;
 
+import java.io.IOException;
 import java.net.URI;
+import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -45,8 +48,53 @@ public class ProxiedFileSystemCache {
 
   private static final int DEFAULT_MAX_CACHE_SIZE = 1000;
 
+  private static final String AUTH_TYPE_KEY = "gobblin.utility.user.proxy.auth.type";
+  private static final String AUTH_PATH = "gobblin.utility.proxy.auth.path";
+  private static final String SUPERUSER_NAME = "gobblin.utility.proxy.super.user.name.to.proxy.as.others";
+
   private static final Cache<String, FileSystem> USER_NAME_TO_FILESYSTEM_CACHE = CacheBuilder.newBuilder()
       .maximumSize(DEFAULT_MAX_CACHE_SIZE).build();
+
+  public static FileSystem getProxiedFileSystem(@NonNull final String userNameToProxyAs, Properties properties,
+      URI fsURI) throws IOException {
+    return getProxiedFileSystem(userNameToProxyAs, properties, fsURI, new Configuration());
+  }
+
+  public static FileSystem getProxiedFileSystem(@NonNull final String userNameToProxyAs, Properties properties,
+      Configuration conf) throws IOException {
+    return getProxiedFileSystem(userNameToProxyAs, properties, FileSystem.getDefaultUri(conf), conf);
+  }
+
+  public static FileSystem getProxiedFileSystem(@NonNull final String userNameToProxyAs, Properties properties,
+      URI fsURI, Configuration conf)
+      throws IOException {
+    Preconditions.checkArgument(properties.containsKey(AUTH_TYPE_KEY) && properties.containsKey(AUTH_PATH));
+    String authPath = properties.getProperty(AUTH_PATH);
+
+    switch (ProxiedFileSystemWrapper.AuthType.valueOf(properties.getProperty(AUTH_TYPE_KEY))) {
+      case TOKEN:
+        Optional<Token> proxyToken = ProxiedFileSystemWrapper.getTokenFromSeqFile(authPath, userNameToProxyAs);
+        if(proxyToken.isPresent()) {
+          try {
+            return getProxiedFileSystemUsingToken(userNameToProxyAs, proxyToken.get(), fsURI, conf);
+          } catch(ExecutionException ee) {
+            throw new IOException("Failed to proxy as user " + userNameToProxyAs, ee);
+          }
+        } else {
+          throw new IOException("No delegation token found for proxy user " + userNameToProxyAs);
+        }
+      case KEYTAB:
+        Preconditions.checkArgument(properties.containsKey(SUPERUSER_NAME));
+        String superUserName = properties.getProperty(SUPERUSER_NAME);
+        try {
+          return getProxiedFileSystemUsingKeytab(userNameToProxyAs, superUserName, new Path(authPath), fsURI, conf);
+        } catch(ExecutionException ee) {
+          throw new IOException("Failed to proxy as user " + userNameToProxyAs, ee);
+        }
+      default:
+        throw new IOException("User proxy auth type " + properties.getProperty(AUTH_TYPE_KEY) + " not recognized.");
+    }
+  }
 
   /**
    * Cached version of {@link ProxiedFileSystemUtils#getProxiedFileSystemUsingKeytab(String, String, Path, URI, Configuration)}.

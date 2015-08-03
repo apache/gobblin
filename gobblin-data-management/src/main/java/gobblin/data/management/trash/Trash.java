@@ -25,6 +25,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -48,6 +49,10 @@ public class Trash {
   private static final FsPermission ALL_PERM =
       new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
 
+  /**
+   * Location of trash directory in file system. The location can include a token $USER that will be automatically
+   * replaced by the name of the active user.
+   */
   public static final String TRASH_LOCATION_KEY = "gobblin.trash.location";
   public static final String SNAPSHOT_CLEANUP_POLICY_CLASS_KEY = "gobblin.trash.snapshot.cleanup.policy.class";
   public static final String TRASH_SNAPSHOT_PREFIX = "_TRASH_SNAPSHOT_";
@@ -69,17 +74,27 @@ public class Trash {
   };
 
   /**
-   * Get location of Trash directory. Parsed from props at key {@link #TRASH_LOCATION_KEY}, defaulting to
+   * Get trash location.
+   * @return {@link org.apache.hadoop.fs.Path} for trash directory.
+   * @throws IOException
+   */
+  public Path getTrashLocation() throws IOException {
+    return this.trashLocation;
+  }
+
+  /**
+   * Create location of Trash directory. Parsed from props at key {@link #TRASH_LOCATION_KEY}, defaulting to
    * /home/directory/_GOBBLIN_TRASH.
    * @param fs {@link org.apache.hadoop.fs.FileSystem} where trash should be found.
    * @param props {@link java.util.Properties} containing trash configuration.
+   * @param user If the trash location contains the token $USER, the token will be replaced by the value of user.
    * @return {@link org.apache.hadoop.fs.Path} for trash directory.
    * @throws java.io.IOException
    */
-  public static Path getTrashLocation(FileSystem fs, Properties props) throws IOException {
+  protected Path createTrashLocation(FileSystem fs, Properties props, String user) throws IOException {
     Path trashLocation;
     if(props.containsKey(TRASH_LOCATION_KEY)) {
-      trashLocation = new Path(props.getProperty(TRASH_LOCATION_KEY));
+      trashLocation = new Path(props.getProperty(TRASH_LOCATION_KEY).replaceAll("\\$USER", user));
     } else {
       trashLocation = new Path(fs.getHomeDirectory(), DEFAULT_TRASH_DIRECTORY);
       LOG.info("Using default trash location at " + trashLocation);
@@ -92,7 +107,7 @@ public class Trash {
     return qualifiedTrashLocation;
   }
 
-  private static void ensureTrashLocationExists(FileSystem fs, Path trashLocation) throws IOException {
+  protected void ensureTrashLocationExists(FileSystem fs, Path trashLocation) throws IOException {
 
     if(fs.exists(trashLocation)) {
       if(!fs.isDirectory(trashLocation)) {
@@ -128,27 +143,43 @@ public class Trash {
    * @throws IOException
    */
   public static boolean moveToTrash(FileSystem fs, Path path, Props props) throws IOException {
-    return new Trash(fs, props).moveToTrash(path);
+    return TrashFactory.createTrash(fs, props.toProperties()).moveToTrash(path);
   }
 
-  private final FileSystem fs;
+  protected final FileSystem fs;
   private final Path trashLocation;
   private final SnapshotCleanupPolicy snapshotCleanupPolicy;
 
+  /**
+   * @deprecated Use {@link gobblin.data.management.trash.TrashFactory}.
+   */
+  @Deprecated
   public Trash(FileSystem fs) throws IOException {
     this(fs, new Properties());
   }
 
+  /**
+   * @deprecated Use {@link gobblin.data.management.trash.TrashFactory}.
+   */
+  @Deprecated
   public Trash(FileSystem fs, Props props) throws IOException {
     this(fs, props.toProperties());
   }
 
+  /**
+   * @deprecated Use {@link gobblin.data.management.trash.TrashFactory}.
+   */
+  @Deprecated
   public Trash(FileSystem fs, Properties props) throws IOException {
+    this(fs, props, UserGroupInformation.getCurrentUser().getUserName());
+  }
+
+  protected Trash(FileSystem fs, Properties props, String user) throws IOException {
     this.fs = fs;
-    this.trashLocation = getTrashLocation(fs, props);
+    this.trashLocation = createTrashLocation(fs, props, user);
     try {
-      Class<?> snapshotCleanupPolicyClass = Class.forName(props.getProperty(SNAPSHOT_CLEANUP_POLICY_CLASS_KEY,
-          TimeBasedSnapshotCleanupPolicy.class.getCanonicalName()));
+      Class<?> snapshotCleanupPolicyClass = Class.forName(
+          props.getProperty(SNAPSHOT_CLEANUP_POLICY_CLASS_KEY, TimeBasedSnapshotCleanupPolicy.class.getCanonicalName()));
       this.snapshotCleanupPolicy = (SnapshotCleanupPolicy) snapshotCleanupPolicyClass.
           getConstructor(Properties.class).newInstance(props);
     } catch(Exception exception) {
