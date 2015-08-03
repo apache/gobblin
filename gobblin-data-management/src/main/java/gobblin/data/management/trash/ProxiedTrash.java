@@ -137,7 +137,7 @@ public class ProxiedTrash extends Trash {
    * @throws IOException
    */
   protected Trash getUserTrash(final String user) throws IOException {
-    if(UserGroupInformation.getCurrentUser().getUserName().equals(user)) {
+    if(UserGroupInformation.getCurrentUser().getShortUserName().equals(user)) {
       return this;
     } else {
       try {

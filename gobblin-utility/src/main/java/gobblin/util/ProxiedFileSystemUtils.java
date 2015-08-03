@@ -16,6 +16,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.PrivilegedExceptionAction;
+import java.util.Properties;
+import java.util.concurrent.ExecutionException;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -42,6 +44,10 @@ import gobblin.configuration.State;
  * user with secure impersonation priveleges. The {@link FileSystem} objects returned will have full permissions to
  * access any operations on behalf of the specified user.
  *
+ * <p>
+ *   As a user, use methods in {@link gobblin.util.ProxiedFileSystemCache} to generate the proxied file systems.
+ * </p>
+ *
  * @see <a href="http://hadoop.apache.org/docs/r1.2.1/Secure_Impersonation.html">Secure Impersonation</a>,
  * <a href="https://hadoop.apache.org/docs/r1.2.1/api/org/apache/hadoop/security/UserGroupInformation.html">UserGroupInformation</a>
  *
@@ -49,6 +55,59 @@ import gobblin.configuration.State;
  */
 @Slf4j
 public class ProxiedFileSystemUtils {
+
+  private static final String AUTH_TYPE_KEY = "gobblin.utility.user.proxy.auth.type";
+  private static final String AUTH_PATH = "gobblin.utility.proxy.auth.path";
+  private static final String SUPERUSER_NAME = "gobblin.utility.proxy.super.user.name.to.proxy.as.others";
+
+  // Two authentication types for Hadoop Security, through TOKEN or KEYTAB.
+  public enum AuthType {
+    TOKEN,
+    KEYTAB;
+  }
+
+  /**
+   * Creates a {@link FileSystem} that can perform any operations allowed by the specified userNameToProxyAs.
+   *
+   * @param userNameToProxyAs The name of the user the super user should proxy as
+   * @param properties {@link java.util.Properties} containing initialization properties.
+   * @param fsURI The {@link URI} for the {@link FileSystem} that should be created.
+   * @param conf The {@link Configuration} for the {@link FileSystem} that should be created.
+   * @return a {@link FileSystem} that can execute commands on behalf of the specified userNameToProxyAs
+   * @throws IOException
+   */
+  static FileSystem createProxiedFileSystem(@NonNull final String userNameToProxyAs, Properties properties, URI fsURI,
+      Configuration conf)
+      throws IOException {
+    Preconditions.checkArgument(properties.containsKey(AUTH_TYPE_KEY) && properties.containsKey(AUTH_PATH));
+    Path authPath = new Path(properties.getProperty(AUTH_PATH));
+
+    switch (AuthType.valueOf(properties.getProperty(AUTH_TYPE_KEY))) {
+      case TOKEN:
+        Optional<Token<?>> proxyToken = getTokenFromSeqFile(userNameToProxyAs, authPath);
+        if(proxyToken.isPresent()) {
+          try {
+            return ProxiedFileSystemCache
+                .getProxiedFileSystemUsingToken(userNameToProxyAs, proxyToken.get(), fsURI, conf);
+          } catch(ExecutionException ee) {
+            throw new IOException("Failed to proxy as user " + userNameToProxyAs, ee);
+          }
+        } else {
+          throw new IOException("No delegation token found for proxy user " + userNameToProxyAs);
+        }
+      case KEYTAB:
+        Preconditions.checkArgument(properties.containsKey(SUPERUSER_NAME));
+        String superUserName = properties.getProperty(SUPERUSER_NAME);
+        try {
+          return ProxiedFileSystemCache
+              .getProxiedFileSystemUsingKeytab(userNameToProxyAs, superUserName, authPath, fsURI, conf);
+        } catch(ExecutionException ee) {
+          throw new IOException("Failed to proxy as user " + userNameToProxyAs, ee);
+        }
+      default:
+        throw new IOException("User proxy auth type " + properties.getProperty(AUTH_TYPE_KEY) + " not recognized.");
+    }
+  }
 
   /**
    * Creates a {@link FileSystem} that can perform any operations allowed by the specified userNameToProxyAs. This
@@ -64,7 +123,7 @@ public class ProxiedFileSystemUtils {
    *
    * @return a {@link FileSystem} that can execute commands on behalf of the specified userNameToProxyAs
    */
-  public static FileSystem getProxiedFileSystemUsingKeytab(String userNameToProxyAs, String superUserName,
+  static FileSystem createProxiedFileSystemUsingKeytab(String userNameToProxyAs, String superUserName,
       Path superUserKeytabLocation, URI fsURI, Configuration conf) throws IOException, InterruptedException,
       URISyntaxException {
 
@@ -74,7 +133,7 @@ public class ProxiedFileSystemUtils {
 
   /**
    * Create a {@link FileSystem} that can perform any operations allowed the by the specified userNameToProxyAs. This
-   * method uses the {@link #getProxiedFileSystemUsingKeytab(String, String, Path, URI, Configuration)} object to perform
+   * method uses the {@link #createProxiedFileSystemUsingKeytab(String, String, Path, URI, Configuration)} object to perform
    * all its work. A specific set of configuration keys are required to be set in the given {@link State} object:
    *
    * <ul>
@@ -85,19 +144,19 @@ public class ProxiedFileSystemUtils {
    * <ul>
    *
    * @param state The {@link State} object that contains all the necessary key, value pairs for
-   * {@link #getProxiedFileSystemUsingKeytab(String, String, Path, URI, Configuration)}
+   * {@link #createProxiedFileSystemUsingKeytab(String, String, Path, URI, Configuration)}
    * @param fsURI The {@link URI} for the {@link FileSystem} that should be created
    * @param conf The {@link Configuration} for the {@link FileSystem} that should be created
    *
    * @return a {@link FileSystem} that can execute commands on behalf of the specified userNameToProxyAs
    */
-  public static FileSystem getProxiedFileSystemUsingKeytab(State state, URI fsURI, Configuration conf)
+  static FileSystem createProxiedFileSystemUsingKeytab(State state, URI fsURI, Configuration conf)
       throws IOException, InterruptedException, URISyntaxException {
     Preconditions.checkArgument(state.contains(ConfigurationKeys.FS_PROXY_AS_USER_NAME));
     Preconditions.checkArgument(state.contains(ConfigurationKeys.SUPER_USER_NAME_TO_PROXY_AS_OTHERS));
     Preconditions.checkArgument(state.contains(ConfigurationKeys.SUPER_USER_KEY_TAB_LOCATION));
 
-    return getProxiedFileSystemUsingKeytab(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME),
+    return createProxiedFileSystemUsingKeytab(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME),
         state.getProp(ConfigurationKeys.SUPER_USER_NAME_TO_PROXY_AS_OTHERS),
         new Path(state.getProp(ConfigurationKeys.SUPER_USER_KEY_TAB_LOCATION)), fsURI, conf);
   }
@@ -115,7 +174,7 @@ public class ProxiedFileSystemUtils {
    *
    * @return a {@link FileSystem} that can execute commands on behalf of the specified userNameToProxyAs
    */
-  public static FileSystem getProxiedFileSystemUsingToken(@NonNull String userNameToProxyAs,
+  static FileSystem createProxiedFileSystemUsingToken(@NonNull String userNameToProxyAs,
       @NonNull Token<?> userNameToken, URI fsURI, Configuration conf) throws IOException, InterruptedException {
     UserGroupInformation ugi =
         UserGroupInformation.createProxyUser(userNameToProxyAs, UserGroupInformation.getLoginUser());
