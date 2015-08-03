@@ -12,7 +12,9 @@
 
 package gobblin.util;
 
+import java.io.IOException;
 import java.net.URI;
+import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
@@ -49,7 +51,60 @@ public class ProxiedFileSystemCache {
       .maximumSize(DEFAULT_MAX_CACHE_SIZE).build();
 
   /**
-   * Cached version of {@link ProxiedFileSystemUtils#getProxiedFileSystemUsingKeytab(String, String, Path, URI, Configuration)}.
+   * Gets a {@link FileSystem} that can perform any operations allowed by the specified userNameToProxyAs.
+   *
+   * @param userNameToProxyAs The name of the user the super user should proxy as
+   * @param properties {@link java.util.Properties} containing initialization properties.
+   * @param fsURI The {@link URI} for the {@link FileSystem} that should be created.
+   * @return a {@link FileSystem} that can execute commands on behalf of the specified userNameToProxyAs
+   * @throws IOException
+   */
+  public static FileSystem getProxiedFileSystem(@NonNull final String userNameToProxyAs, Properties properties,
+      URI fsURI) throws IOException {
+    return getProxiedFileSystem(userNameToProxyAs, properties, fsURI, new Configuration());
+  }
+
+  /**
+   * Gets a {@link FileSystem} that can perform any operations allowed by the specified userNameToProxyAs.
+   *
+   * @param userNameToProxyAs The name of the user the super user should proxy as
+   * @param properties {@link java.util.Properties} containing initialization properties.
+   * @param conf The {@link Configuration} for the {@link FileSystem} that should be created.
+   * @return a {@link FileSystem} that can execute commands on behalf of the specified userNameToProxyAs
+   * @throws IOException
+   */
+  public static FileSystem getProxiedFileSystem(@NonNull final String userNameToProxyAs, Properties properties,
+      Configuration conf) throws IOException {
+    return getProxiedFileSystem(userNameToProxyAs, properties, FileSystem.getDefaultUri(conf), conf);
+  }
+
+  /**
+   * Gets a {@link FileSystem} that can perform any operations allowed by the specified userNameToProxyAs.
+   *
+   * @param userNameToProxyAs The name of the user the super user should proxy as
+   * @param properties {@link java.util.Properties} containing initialization properties.
+   * @param fsURI The {@link URI} for the {@link FileSystem} that should be created.
+   * @param configuration The {@link Configuration} for the {@link FileSystem} that should be created.
+   * @return a {@link FileSystem} that can execute commands on behalf of the specified userNameToProxyAs
+   * @throws IOException
+   */
+  public static FileSystem getProxiedFileSystem(@NonNull final String userNameToProxyAs, final Properties properties,
+      final URI fsURI, final Configuration configuration) throws IOException {
+    try {
+      return USER_NAME_TO_FILESYSTEM_CACHE.get(userNameToProxyAs, new Callable<FileSystem>() {
+        @Override
+        public FileSystem call()
+            throws Exception {
+          return ProxiedFileSystemUtils.createProxiedFileSystem(userNameToProxyAs, properties, fsURI, configuration);
+        }
+      });
+    } catch(ExecutionException ee) {
+      throw new IOException("Failed to get proxied file system for user " + userNameToProxyAs, ee);
+    }
+  }
+
+  /**
+   * Cached version of {@link ProxiedFileSystemUtils#createProxiedFileSystemUsingKeytab(String, String, Path, URI, Configuration)}.
    */
   public static FileSystem getProxiedFileSystemUsingKeytab(@NonNull final String userNameToProxyAs,
       final String superUserName, final Path superUserKeytabLocation, final URI fsURI, final Configuration conf)
@@ -58,14 +113,14 @@ public class ProxiedFileSystemCache {
     return USER_NAME_TO_FILESYSTEM_CACHE.get(userNameToProxyAs, new Callable<FileSystem>() {
       @Override
       public FileSystem call() throws Exception {
-        return ProxiedFileSystemUtils.getProxiedFileSystemUsingKeytab(userNameToProxyAs, superUserName,
+        return ProxiedFileSystemUtils.createProxiedFileSystemUsingKeytab(userNameToProxyAs, superUserName,
             superUserKeytabLocation, fsURI, conf);
       }
     });
   }
 
   /**
-   * Cached version of {@link ProxiedFileSystemUtils#getProxiedFileSystemUsingKeytab(State, URI, Configuration)}.
+   * Cached version of {@link ProxiedFileSystemUtils#createProxiedFileSystemUsingKeytab(State, URI, Configuration)}.
    */
   public static FileSystem getProxiedFileSystemUsingKeytab(State state, URI fsURI, Configuration conf)
       throws ExecutionException {
@@ -79,7 +134,7 @@ public class ProxiedFileSystemCache {
   }
 
   /**
-   * Cached version of {@link ProxiedFileSystemUtils#getProxiedFileSystemUsingToken(String, Token, URI, Configuration)}.
+   * Cached version of {@link ProxiedFileSystemUtils#createProxiedFileSystemUsingToken(String, Token, URI, Configuration)}.
    */
   public static FileSystem getProxiedFileSystemUsingToken(@NonNull final String userNameToProxyAs,
       final Token<?> userNameToken, final URI fsURI, final Configuration conf) throws ExecutionException {
@@ -87,7 +142,7 @@ public class ProxiedFileSystemCache {
     return USER_NAME_TO_FILESYSTEM_CACHE.get(userNameToProxyAs, new Callable<FileSystem>() {
       @Override
       public FileSystem call() throws Exception {
-        return ProxiedFileSystemUtils.getProxiedFileSystemUsingToken(userNameToProxyAs, userNameToken, fsURI, conf);
+        return ProxiedFileSystemUtils.createProxiedFileSystemUsingToken(userNameToProxyAs, userNameToken, fsURI, conf);
       }
     });
   }

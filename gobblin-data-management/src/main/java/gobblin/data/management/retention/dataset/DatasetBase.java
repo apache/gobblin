@@ -20,7 +20,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.Callable;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -31,7 +30,8 @@ import com.google.common.collect.Lists;
 import gobblin.data.management.retention.policy.RetentionPolicy;
 import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.finder.VersionFinder;
-import gobblin.data.management.trash.Trash;
+import gobblin.data.management.trash.ProxiedTrash;
+import gobblin.data.management.trash.TrashFactory;
 
 
 /**
@@ -95,12 +95,15 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Dataset {
   public static final String SKIP_TRASH_DEFAULT = Boolean.toString(false);
   public static final String DELETE_EMPTY_DIRECTORIES_KEY = CONFIGURATION_KEY_PREFIX + "delete.empty.directories";
   public static final String DELETE_EMPTY_DIRECTORIES_DEFAULT = Boolean.toString(true);
+  public static final String DELETE_AS_OWNER_KEY = CONFIGURATION_KEY_PREFIX + "delete.as.owner";
+  public static final String DELETE_AS_OWNER_DEFAULT = Boolean.toString(true);
 
   protected final FileSystem fs;
-  protected final Trash trash;
+  protected final ProxiedTrash trash;
   protected final boolean simulate;
   protected final boolean skipTrash;
   protected final boolean deleteEmptyDirectories;
+  protected final boolean deleteAsOwner;
 
   protected final Logger log;
 
@@ -116,46 +119,43 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Dataset {
 
   public DatasetBase(final FileSystem fs, final Properties props, Logger log) throws IOException {
     this(fs,
-        new Callable<Trash>() {
-          @Override
-          public Trash call()
-              throws Exception {
-            return new Trash(fs, props);
-          }
-        },
+        props,
         Boolean.valueOf(props.getProperty(SIMULATE_KEY, SIMULATE_DEFAULT)),
         Boolean.valueOf(props.getProperty(SKIP_TRASH_KEY, SKIP_TRASH_DEFAULT)),
         Boolean.valueOf(props.getProperty(DELETE_EMPTY_DIRECTORIES_KEY, DELETE_EMPTY_DIRECTORIES_DEFAULT)),
+        Boolean.valueOf(props.getProperty(DELETE_AS_OWNER_KEY, DELETE_AS_OWNER_DEFAULT)),
         log);
   }
 
-  public DatasetBase(FileSystem fs, final Trash trash, boolean simulate,
-      boolean skipTrash, boolean deleteEmptyDirectories, Logger log) throws IOException {
-    this(fs, new Callable<Trash>() {
-      @Override
-      public Trash call() {
-        return trash;
-      }
-    }, simulate, skipTrash, deleteEmptyDirectories, log);
-  }
-
-  private DatasetBase(FileSystem fs, Callable<Trash> trashGenerator, boolean simulate, boolean skipTrash,
-      boolean deleteEmptyDirectories, Logger log) throws IOException {
+  /**
+   * Constructor for {@link DatasetBase}.
+   * @param fs {@link org.apache.hadoop.fs.FileSystem} where files are located.
+   * @param properties {@link java.util.Properties} for object.
+   * @param simulate whether to simulate deletes.
+   * @param skipTrash if true, delete files and directories immediately.
+   * @param deleteEmptyDirectories if true, newly empty parent directories will be deleted.
+   * @param deleteAsOwner if true, all deletions will be executed as the owner of the file / directory.
+   * @param log logger to use.
+   * @throws IOException
+   */
+  public DatasetBase(FileSystem fs, Properties properties, boolean simulate,
+      boolean skipTrash, boolean deleteEmptyDirectories, boolean deleteAsOwner, Logger log)
+      throws IOException {
     this.log = log;
     this.fs = fs;
     this.simulate = simulate;
     this.skipTrash = skipTrash;
     this.deleteEmptyDirectories = deleteEmptyDirectories;
-    if(this.simulate || this.skipTrash) {
-      this.trash = null;
-    } else {
-      try {
-        this.trash = trashGenerator.call();
-      } catch(Exception exception) {
-        // Callable allows for generic Exception, but new Trash() only throws IOException.
-        throw new IOException(exception);
-      }
+    Properties thisProperties = new Properties();
+    thisProperties.putAll(properties);
+    if(this.simulate) {
+      thisProperties.setProperty(TrashFactory.SIMULATE, Boolean.toString(true));
     }
+    if(this.skipTrash) {
+      thisProperties.setProperty(TrashFactory.SKIP_TRASH, Boolean.toString(true));
+    }
+    this.trash = TrashFactory.createProxiedTrash(this.fs, thisProperties);
+    this.deleteAsOwner = deleteAsOwner;
   }
 
   /**
@@ -192,19 +192,15 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Dataset {
       boolean deletedAllPaths = true;
 
       for(Path path: pathsToDelete) {
-        if (!this.simulate) {
-          boolean successfullyDeleted;
-          if (this.skipTrash) {
-            successfullyDeleted = this.fs.delete(path, true);
-          } else {
-            successfullyDeleted = this.trash.moveToTrash(path);
-          }
-          if (successfullyDeleted) {
-            possiblyEmptyDirectories.add(path.getParent());
-          } else {
-            this.log.error("Failed to delete path " + path + " in dataset version " + versionToDelete);
-            deletedAllPaths = false;
-          }
+        boolean successfullyDeleted = this.deleteAsOwner ?
+            this.trash.moveToTrashAsOwner(path) :
+            this.trash.moveToTrash(path);
+
+        if (successfullyDeleted) {
+          possiblyEmptyDirectories.add(path.getParent());
+        } else {
+          this.log.error("Failed to delete path " + path + " in dataset version " + versionToDelete);
+          deletedAllPaths = false;
         }
       }
 
