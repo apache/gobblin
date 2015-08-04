@@ -101,6 +101,10 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
   private final Set<KafkaPartition> partitionsToBeProcessed = Sets.newHashSet();
 
+  private int failToGetOffsetCount = 0;
+  private int offsetTooEarlyCount = 0;
+  private int offsetTooLateCount = 0;
+
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
     Map<String, List<WorkUnit>> workUnits = Maps.newHashMap();
@@ -429,6 +433,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
     if (failedToGetKafkaOffsets) {
 
+      // Increment counts, which will be reported as job metrics
+      this.failToGetOffsetCount++;
+
       // When unable to get earliest/latest offsets from Kafka, skip the partition and create an empty workunit,
       // so that previousOffset is persisted.
       LOG.warn(String.format(
@@ -460,6 +467,13 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       try {
         offsets.startAt(previousOffset);
       } catch (StartOffsetOutOfRangeException e) {
+
+        // Increment counts, which will be reported as job metrics
+        if (offsets.getStartOffset() <= offsets.getLatestOffset()) {
+          this.offsetTooEarlyCount++;
+        } else {
+          this.offsetTooLateCount++;
+        }
 
         // When previous offset is out of range, either start at earliest, latest or nearest offset, or skip the
         // partition. If skipping, need to create an empty workunit so that previousOffset is persisted.
@@ -581,6 +595,13 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   private static List<Pattern> getWhitelist(State state) {
     List<String> list = state.getPropAsList(TOPIC_WHITELIST, StringUtils.EMPTY);
     return DatasetFilterUtils.getPatternsFromStrings(list);
+  }
+
+  @Override
+  public void shutdown(SourceState state) {
+    state.setProp(ConfigurationKeys.OFFSET_TOO_EARLY_COUNT, this.offsetTooEarlyCount);
+    state.setProp(ConfigurationKeys.OFFSET_TOO_LATE_COUNT, this.offsetTooLateCount);
+    state.setProp(ConfigurationKeys.FAIL_TO_GET_OFFSET_COUNT, this.failToGetOffsetCount);
   }
 
   /**

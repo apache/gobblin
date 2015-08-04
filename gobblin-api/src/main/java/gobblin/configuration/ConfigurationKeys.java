@@ -329,6 +329,13 @@ public class ConfigurationKeys {
   public static final String SOURCE_FILEBASED_PRESERVE_FILE_NAME = "source.filebased.preserve.file.name";
 
   /**
+   * Configuration properties used internally by the KafkaSource.
+   */
+  public static final String OFFSET_TOO_EARLY_COUNT = "offset.too.early.count";
+  public static final String OFFSET_TOO_LATE_COUNT = "offset.too.late.count";
+  public static final String FAIL_TO_GET_OFFSET_COUNT = "fail.to.get.offset.count";
+
+  /**
    * Configuration properties used internally by the KafkaExtractor.
    */
   public static final String ERROR_PARTITION_COUNT = "error.partition.count";
