@@ -14,4 +14,4 @@ apply plugin: 'java'
 configurations { compile { transitive = false } }
 
 
-classification="library"
+ext.classification="library"

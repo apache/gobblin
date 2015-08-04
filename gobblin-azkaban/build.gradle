@@ -38,4 +38,4 @@ test {
     workingDir rootProject.rootDir
 }
 
-classification="library"
+ext.classification="library"

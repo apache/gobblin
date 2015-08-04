@@ -24,24 +24,31 @@ File getEnvironmentScript()
 
 apply from: environmentScript
 
+def gradleVersionDotIdx = project.gradle.gradleVersion.indexOf(".")
+ext.gradleVersionMajor=Integer.parseInt(project.gradle.gradleVersion.substring(0,gradleVersionDotIdx))
+ext.gradleVersionMinor=Integer.parseInt(project.gradle.gradleVersion.substring(gradleVersionDotIdx+1))
+
+println "Detected Gradle version major=" + gradleVersionMajor + " minor=" + gradleVersionMinor
+
+
 if (!project.hasProperty('hadoopVersion')) {
   if (project.hasProperty('useHadoop2')) {
-    hadoopVersion = '2.3.0'
+    ext.hadoopVersion = '2.3.0'
   } else {
-    hadoopVersion = '1.2.1'
+    ext.hadoopVersion = '1.2.1'
   }
 }
 
 if (!project.hasProperty('hiveVersion')) {
-  hiveVersion = '0.13.0'
+  ext.hiveVersion = '0.13.0'
 }
 
 if (!project.hasProperty('pegasusVersion')) {
-  pegasusVersion = '1.15.9'
+  ext.pegasusVersion = '2.6.0'
 }
 
 if (!project.hasProperty('bytemanVersion')) {
-  bytemanVersion = '2.2.1'
+  ext.bytemanVersion = '2.2.1'
 }
 
 ext.externalDependency = [
@@ -141,17 +148,19 @@ subprojects {
   apply plugin: 'java'
   apply plugin: 'idea'
   apply plugin: 'eclipse'
-// Disabling the FindBugs plugin for now because FindBugs 2.x is not compatible with Java8
-//  apply plugin: 'findbugs'
+  // Disabling the FindBugs plugin for older versions of gradle because FindBugs 2.x is not compatible with Java8
+  if (gradleVersionMajor > 2 || (gradleVersionMajor == 2 && gradleVersionMinor >= 5)) {
+    apply plugin: 'findbugs'
+
+    findbugs {
+      ignoreFailures = true
+      effort = "max"
+      excludeFilter = file(rootProject.projectDir.path + "/ligradle/findbugs/findbugsExclude.xml")
+    }
+  }
 
   sourceCompatibility = JavaVersion.VERSION_1_6
 
-/*  findbugs {
-    ignoreFailures = true
-    effort = "max"
-    excludeFilter = file(rootProject.projectDir.path + "/ligradle/findbugs/findbugsExclude.xml")
-  }
-*/
   test {
     if (project.hasProperty("printTestOutput")) {
       testLogging.showStandardStreams = true

@@ -53,7 +53,7 @@ test {
     workingDir rootProject.rootDir
 }
 
-classification="library"
+ext.classification="library"
 
 
 task utilityTar(type: Tar) {
