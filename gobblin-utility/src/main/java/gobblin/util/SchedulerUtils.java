@@ -12,6 +12,8 @@
 
 package gobblin.util;
 
+import gobblin.configuration.ConfigurationKeys;
+
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FilenameFilter;
@@ -36,8 +38,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
-
-import gobblin.configuration.ConfigurationKeys;
 
 
 /**
@@ -242,7 +242,7 @@ public class SchedulerUtils {
     return ImmutableSet.copyOf(Iterables.transform(jobConfigFileExtensionsIterable, new Function<String, String>() {
       @Override
       public String apply(String input) {
-        return input.toLowerCase();
+        return null != input ? input.toLowerCase() : "";
       }
     }));
   }

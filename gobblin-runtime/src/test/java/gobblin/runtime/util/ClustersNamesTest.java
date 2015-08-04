@@ -15,7 +15,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 /** Unit tests for {@link ClustersNames}. This test relies on the ClustersNames.properties file */
-public class TestClustersNames {
+public class ClustersNamesTest {
 
   @Test
   public void testClustersNames() {

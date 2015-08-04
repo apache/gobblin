@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
+import com.google.common.io.Closer;
 
 /**
  * Allows conversion of URLs identifying a Hadoop cluster (e.g. resource manager url or
@@ -44,21 +45,35 @@ public class ClustersNames {
   private Properties _urlToNameMap = new Properties();
 
   private ClustersNames() {
-    InputStream propsInput = getClass().getResourceAsStream(URL_TO_NAME_MAP_RESOURCE_NAME);
-    if (null == propsInput) {
-      propsInput = ClassLoader.getSystemResourceAsStream(URL_TO_NAME_MAP_RESOURCE_NAME);
+    Closer closer = Closer.create();
+    try {
+      InputStream propsInput =
+          closer.register(getClass().getResourceAsStream(URL_TO_NAME_MAP_RESOURCE_NAME));
+      if (null == propsInput) {
+        propsInput =
+            closer.register(ClassLoader.getSystemResourceAsStream(URL_TO_NAME_MAP_RESOURCE_NAME));
+      }
+      if (null != propsInput) {
+        try {
+          _urlToNameMap.load(propsInput);
+          LOG.info("Loaded cluster names map:" + _urlToNameMap);
+        }
+        catch (IOException e) {
+          LOG.warn("Unable to load cluster names map: " + e, e);
+        }
+      }
+      else {
+        LOG.info("no default cluster mapping found");
+      }
     }
-    if (null != propsInput) {
-      try {
-        _urlToNameMap.load(propsInput);
-        LOG.info("Loaded cluster names map:" + _urlToNameMap);
+    finally {
+      try{
+        closer.close();
       }
       catch (IOException e) {
-        LOG.warn("Unable to load cluster names map: " + e, e);
+        LOG.warn("unable to close resource input stream for " + URL_TO_NAME_MAP_RESOURCE_NAME +
+            ":" + e, e);
       }
-    }
-    else {
-      LOG.info("no default cluster mapping found");
     }
   }
 
