@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.io.Closer;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -241,8 +242,9 @@ public class JobContext {
    */
   private void setFinalDatasetState(JobState.DatasetState datasetState) {
     for (TaskState taskState : datasetState.getTaskStates()) {
-      if (taskState.getWorkingState() != WorkUnitState.WorkingState.SUCCESSFUL) {
-        // The dataset state is set to FAILED if any task failed
+      if (taskState.getWorkingState() != WorkUnitState.WorkingState.SUCCESSFUL &&
+          this.jobCommitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
+        // The dataset state is set to FAILED if any task failed and COMMIT_ON_FULL_SUCCESS is used
         datasetState.setState(JobState.RunningState.FAILED);
         return;
       }
@@ -267,8 +269,10 @@ public class JobContext {
    */
   @SuppressWarnings("unchecked")
   private void commitDataset(JobState.DatasetState datasetState) throws IOException {
+    String datasetUrn = datasetState.getDatasetUrn();
     this.logger.info(
-        String.format("Publishing data of job %s with commit policy %s", this.jobId, this.jobCommitPolicy.name()));
+        String.format("Publishing data of dataset %s with commit policy %s",
+            !Strings.isNullOrEmpty(datasetUrn) ? datasetUrn : this.jobId, this.jobCommitPolicy.name()));
 
     Closer closer = Closer.create();
     try {
