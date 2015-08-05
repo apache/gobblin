@@ -121,6 +121,14 @@ public class ConfigurationKeys {
   public static final String JOB_TRACKING_URL_KEY = "job.tracking.url";
   public static final String FORK_STATE_KEY = "fork.state";
   public static final String METRIC_CONTEXT_NAME_KEY = "metrics.context.name";
+  public static final String JOB_STATE_FILE_PATH_KEY = "job.state.file.path";
+
+  /**
+   * Dataset-related configuration properties;
+   */
+  // This property is used to specify the URN of a dataset a job or WorkUnit extracts data for
+  public static final String DATASET_URN_KEY = "dataset.urn";
+  public static final String DEFAULT_DATASET_URN = "";
 
   /**
    * Work unit related configuration properties.
@@ -218,6 +226,7 @@ public class ConfigurationKeys {
   public static final String WRITER_PARTITION_LEVEL = WRITER_PREFIX + ".partition.level";
   public static final String WRITER_PARTITION_PATTERN = WRITER_PREFIX + ".partition.pattern";
   public static final String WRITER_PARTITION_TIMEZONE = WRITER_PREFIX + ".partition.timezone";
+  public static final String WRITER_GROUP_NAME = WRITER_PREFIX + ".group.name";
   public static final String DEFAULT_WRITER_FILE_BASE_NAME = "part";
   public static final int DEFAULT_DEFLATE_LEVEL = 9;
   public static final String DEFAULT_BUFFER_SIZE = "4096";
@@ -228,6 +237,14 @@ public class ConfigurationKeys {
 
   public static final String SIMPLE_WRITER_DELIMITER = "simple.writer.delimiter";
   public static final String SIMPLE_WRITER_PREPEND_SIZE = "simple.writer.prepend.size";
+
+  /**
+   * Writer configuration properties used internally.
+   */
+  public static final String WRITER_RECORDS_WRITTEN = WRITER_PREFIX + ".records.written";
+  public static final String WRITER_BYTES_WRITTEN = WRITER_PREFIX + ".bytes.written";
+  public static final String WRITER_EARLIEST_TIMESTAMP = WRITER_PREFIX + ".earliest.timestamp";
+  public static final String WRITER_AVERAGE_TIMESTAMP = WRITER_PREFIX + ".average.timestamp";
 
   /**
    * Configuration properties used by the quality checker.
@@ -262,6 +279,8 @@ public class ConfigurationKeys {
   public static final String DATA_PUBLISHER_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".final.dir";
   public static final String DATA_PUBLISHER_REPLACE_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".replace.final.dir";
   public static final String DATA_PUBLISHER_FINAL_NAME = DATA_PUBLISHER_PREFIX + ".final.name";
+  // This property is used to specify the owner group of the data publisher final output directory
+  public static final String DATA_PUBLISHER_FINAL_DIR_GROUP = DATA_PUBLISHER_PREFIX + ".final.dir.group";
 
   /**
    * Configuration properties used by the extractor.
@@ -308,6 +327,20 @@ public class ConfigurationKeys {
   public static final String SOURCE_FILEBASED_FS_SNAPSHOT = "source.filebased.fs.snapshot";
   public static final String SOURCE_FILEBASED_FS_URI = "source.filebased.fs.uri";
   public static final String SOURCE_FILEBASED_PRESERVE_FILE_NAME = "source.filebased.preserve.file.name";
+
+  /**
+   * Configuration properties used internally by the KafkaSource.
+   */
+  public static final String OFFSET_TOO_EARLY_COUNT = "offset.too.early.count";
+  public static final String OFFSET_TOO_LATE_COUNT = "offset.too.late.count";
+  public static final String FAIL_TO_GET_OFFSET_COUNT = "fail.to.get.offset.count";
+
+  /**
+   * Configuration properties used internally by the KafkaExtractor.
+   */
+  public static final String ERROR_PARTITION_COUNT = "error.partition.count";
+  public static final String ERROR_MESSAGE_INVALID_SCHEMA_ID_COUNT = "error.message.invalid.schema.id.count";
+  public static final String ERROR_MESSAGE_UNDECODABLE_COUNT = "error.message.undecodable.count";
 
   /**
    * Configuration properties for source connection.
@@ -431,6 +464,7 @@ public class ConfigurationKeys {
   public static final String COMPACTION_ENABLE_SUCCESS_FILE = "mapreduce.fileoutputcommitter.marksuccessfuljobs";
   public static final String COMPACTION_OVERWRITE_OUTPUT_DIR = COMPACTION_PREFIX + "overwrite.output.dir";
   public static final boolean DEFAULT_COMPACTION_OVERWRITE_OUTPUT_DIR = false;
+  public static final String COMPACTION_JARS = COMPACTION_PREFIX + "jars";
 
   /**
    * Common metrics configuration properties.
@@ -441,25 +475,33 @@ public class ConfigurationKeys {
   public static final String DEFAULT_METRICS_ENABLED = Boolean.toString(true);
   public static final String METRICS_FILE_SUFFIX = METRICS_CONFIGURATIONS_PREFIX + "reporting.file.suffix";
   public static final String DEFAULT_METRICS_FILE_SUFFIX = "";
-  public static final String METRICS_REPORTING_FILE_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX
-      + "reporting.file.enabled";
+  public static final String METRICS_REPORTING_FILE_ENABLED_KEY =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.file.enabled";
   public static final String DEFAULT_METRICS_REPORTING_FILE_ENABLED = Boolean.toString(false);
-  public static final String METRICS_REPORTING_JMX_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX
-      + "reporting.jmx.enabled";
+  public static final String METRICS_REPORTING_JMX_ENABLED_KEY =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.jmx.enabled";
   public static final String DEFAULT_METRICS_REPORTING_JMX_ENABLED = Boolean.toString(false);
-  public static final String METRICS_REPORTING_KAFKA_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX
-      + "reporting.kafka.enabled";
+  public static final String METRICS_REPORTING_KAFKA_ENABLED_KEY =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.enabled";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_ENABLED = Boolean.toString(false);
   public static final String METRICS_REPORTING_KAFKA_FORMAT = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.format";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_FORMAT = "json";
-  public static final String METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY = METRICS_CONFIGURATIONS_PREFIX
-      + "reporting.kafka.avro.use.schema.registry";
+  public static final String METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.avro.use.schema.registry";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY = Boolean.toString(false);
   public static final String METRICS_KAFKA_BROKERS = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.brokers";
+  // Topic used for both event and metric reporting.
+  // Can be overriden by METRICS_KAFKA_TOPIC_METRICS and METRICS_KAFKA_TOPIC_EVENTS.
   public static final String METRICS_KAFKA_TOPIC = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic";
+  // Topic used only for metric reporting.
+  public static final String METRICS_KAFKA_TOPIC_METRICS =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic.metrics";
+  // Topic used only for event reporting.
+  public static final String METRICS_KAFKA_TOPIC_EVENTS =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic.events";
   public static final String METRICS_CUSTOM_BUILDERS = METRICS_CONFIGURATIONS_PREFIX + "reporting.custom.builders";
   public static final String METRICS_REPORT_INTERVAL_KEY = METRICS_CONFIGURATIONS_PREFIX + "report.interval";
-  public static final String DEFAULT_METRICS_REPORT_INTERVAL = "30000";
+  public static final String DEFAULT_METRICS_REPORT_INTERVAL = Long.toString(TimeUnit.SECONDS.toMillis(30));
 
   /**
    * Rest server configuration properties.
@@ -468,6 +510,11 @@ public class ConfigurationKeys {
   public static final String DEFAULT_REST_SERVER_HOST = "localhost";
   public static final String REST_SERVER_PORT_KEY = "rest.server.port";
   public static final String DEFAULT_REST_SERVER_PORT = "8080";
+
+  /**
+   * Kafka job configurations.
+   */
+  public static final String KAFKA_BROKERS = "kafka.brokers";
 
   /**
    * MySQL job history store configuration properties.
@@ -496,6 +543,7 @@ public class ConfigurationKeys {
   public static final String FS_PROXY_AS_USER_NAME = "fs.proxy.as.user.name";
   public static final String FS_PROXY_AS_USER_TOKEN_FILE = "fs.proxy.as.user.token.file";
   public static final String SUPER_USER_NAME_TO_PROXY_AS_OTHERS = "super.user.name.to.proxy.as.others";
+  public static final String SUPER_USER_KEY_TAB_LOCATION = "super.user.key.tab.location";
 
   /**
    * Other configuration properties.

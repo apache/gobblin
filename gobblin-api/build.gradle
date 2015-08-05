@@ -17,6 +17,7 @@ dependencies {
     compile externalDependency.jodaTime
     compile externalDependency.commonsLang
     compile externalDependency.slf4j
+    compile externalDependency.commonsCli
 
     testCompile externalDependency.testng
 }

@@ -27,6 +27,8 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import gobblin.metrics.reporter.OutputStreamReporter;
+
 
 @Test(groups = {"gobblin.metrics"})
 public class OutputStreamReporterTest {

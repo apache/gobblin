@@ -36,7 +36,7 @@ dependencies {
   compile externalDependency.gson
   compile externalDependency.metricsCore
   compile externalDependency.metricsJvm
-  compile externalDependency.commonsIO
+  compile externalDependency.commonsIo
   compile externalDependency.commonsEmail
   compile externalDependency.pegasus.data
   compile externalDependency.guice

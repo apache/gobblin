@@ -37,7 +37,7 @@ import gobblin.metrics.Measurements;
 import gobblin.metrics.Metric;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricReport;
-import gobblin.metrics.MetricReportUtils;
+import gobblin.metrics.reporter.util.MetricReportUtils;
 import gobblin.metrics.Tag;
 
 

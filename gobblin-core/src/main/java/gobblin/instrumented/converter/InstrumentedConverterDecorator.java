@@ -12,6 +12,9 @@
 
 package gobblin.instrumented.converter;
 
+import java.io.IOException;
+
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
@@ -69,6 +72,17 @@ public class InstrumentedConverterDecorator<SI, SO, DI, DO> extends Instrumented
   public SO convertSchema(SI inputSchema, WorkUnitState workUnit)
       throws SchemaConversionException {
     return this.embeddedConverter.convertSchema(inputSchema, workUnit);
+  }
+
+  @Override
+  public void close()
+      throws IOException {
+    this.embeddedConverter.close();
+  }
+
+  @Override
+  public State getFinalState() {
+    return this.embeddedConverter.getFinalState();
   }
 
   @Override

@@ -39,11 +39,16 @@ import gobblin.configuration.State;
 /**
  * A wrapper class for generating a file system as a proxy user.
  */
+@Deprecated
 public class ProxiedFileSystemWrapper {
   private static final Logger LOG = LoggerFactory.getLogger(ProxiedFileSystemWrapper.class);
   private FileSystem proxiedFs;
 
-  // Two authentication types for Hadoop Security, through TOKEN or KEYTAB.
+  /**
+   * Two authentication types for Hadoop Security, through TOKEN or KEYTAB.
+   * @deprecated Use {@link gobblin.util.ProxiedFileSystemUtils.AuthType}.
+   */
+  @Deprecated
   public enum AuthType {
     TOKEN,
     KEYTAB;
@@ -85,7 +90,7 @@ public class ProxiedFileSystemWrapper {
         break;
       case TOKEN: // If the authentication type is TOKEN, create a proxy user and then add the token to the user.
         proxyUser = UserGroupInformation.createProxyUser(proxyUserName, UserGroupInformation.getLoginUser());
-        Optional<Token> proxyToken = this.getTokenFromSeqFile(authPath, proxyUserName);
+        Optional<Token> proxyToken = getTokenFromSeqFile(authPath, proxyUserName);
         if (proxyToken.isPresent()) {
           proxyUser.addToken(proxyToken.get());
         } else {
@@ -104,7 +109,7 @@ public class ProxiedFileSystemWrapper {
     proxyUser.doAs(new PrivilegedExceptionAction<Void>() {
       @Override
       public Void run() throws IOException {
-        LOG.info("Now performing file system operations as :" + UserGroupInformation.getCurrentUser());
+        LOG.debug("Now performing file system operations as :" + UserGroupInformation.getCurrentUser());
         proxiedFs = FileSystem.get(fsURI, conf);
         return null;
       }

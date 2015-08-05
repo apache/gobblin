@@ -52,11 +52,11 @@ import gobblin.configuration.State;
  */
 public class FsStateStore<T extends State> implements StateStore<T> {
 
-  private final Configuration conf;
-  private final FileSystem fs;
+  protected final Configuration conf;
+  protected final FileSystem fs;
 
   // Root directory for the task state store
-  private final String storeRootDir;
+  protected final String storeRootDir;
 
   // Class of the state objects to be put into the store
   private final Class<T> stateClass;

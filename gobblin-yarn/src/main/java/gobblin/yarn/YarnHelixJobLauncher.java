@@ -16,8 +16,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-
 import java.util.Queue;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -46,10 +46,10 @@ import gobblin.runtime.JobLauncher;
 import gobblin.runtime.JobLock;
 import gobblin.runtime.JobState;
 import gobblin.runtime.TaskState;
-import gobblin.runtime.util.ParallelStateSerDeRunner;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.JobLauncherUtils;
+import gobblin.util.ParallelRunner;
 
 
 /**
@@ -91,9 +91,8 @@ public class YarnHelixJobLauncher extends AbstractJobLauncher {
     this.helixQueueName = this.jobContext.getJobName();
     this.jobResourceName = TaskUtil.getNamespacedJobName(this.helixQueueName, this.jobContext.getJobId());
 
-    this.stateSerDeRunnerThreads = Integer.parseInt(jobProps
-        .getProperty(ParallelStateSerDeRunner.STATE_SERDE_RUNNER_THREADS_KEY,
-            ParallelStateSerDeRunner.DEFAULT_STATE_SERDE_RUNNER_THREADS));
+    this.stateSerDeRunnerThreads = Integer.parseInt(jobProps.getProperty(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY,
+        Integer.toString(ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS)));
   }
 
   @Override
@@ -129,7 +128,7 @@ public class YarnHelixJobLauncher extends AbstractJobLauncher {
 
     Closer closer = Closer.create();
     try {
-      ParallelStateSerDeRunner stateSerDeRunner = new ParallelStateSerDeRunner(this.stateSerDeRunnerThreads, this.fs);
+      ParallelRunner stateSerDeRunner = new ParallelRunner(this.stateSerDeRunnerThreads, this.fs);
 
       for (WorkUnit workUnit : workUnits) {
         if (workUnit instanceof MultiWorkUnit) {
@@ -172,7 +171,7 @@ public class YarnHelixJobLauncher extends AbstractJobLauncher {
   /**
    * Add a single {@link WorkUnit} (flattened).
    */
-  private void addWorkUnit(WorkUnit workUnit, ParallelStateSerDeRunner stateSerDeRunner,
+  private void addWorkUnit(WorkUnit workUnit, ParallelRunner stateSerDeRunner,
       Map<String, TaskConfig> taskConfigMap, String jobName, String jobId) throws IOException {
     String workUnitFilePath = persistWorkUnit(new Path(this.inputWorkUnitDir, jobId), workUnit, stateSerDeRunner);
 
@@ -190,8 +189,8 @@ public class YarnHelixJobLauncher extends AbstractJobLauncher {
   /**
    * Persist a single {@link WorkUnit} (flattened) to a file.
    */
-  private String persistWorkUnit(Path workUnitFileDir, WorkUnit workUnit,
-      ParallelStateSerDeRunner stateSerDeRunner) throws IOException {
+  private String persistWorkUnit(Path workUnitFileDir, WorkUnit workUnit, ParallelRunner stateSerDeRunner)
+      throws IOException {
     Path workUnitFile = new Path(workUnitFileDir, workUnit.getId() + WORK_UNIT_FILE_EXTENSION);
     stateSerDeRunner.serializeToFile(workUnit, workUnitFile);
     return workUnitFile.toString();
@@ -230,7 +229,7 @@ public class YarnHelixJobLauncher extends AbstractJobLauncher {
 
     Closer closer = Closer.create();
     try {
-      ParallelStateSerDeRunner stateSerDeRunner = new ParallelStateSerDeRunner(this.stateSerDeRunnerThreads, this.fs);
+      ParallelRunner stateSerDeRunner = new ParallelRunner(this.stateSerDeRunnerThreads, this.fs);
       for (FileStatus status : fileStatuses) {
         LOGGER.info("Found output task state file " + status.getPath());
         stateSerDeRunner.deserializeFromSequenceFile(Text.class, TaskState.class, status.getPath(), taskStateQueue);

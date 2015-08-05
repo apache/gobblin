@@ -32,7 +32,7 @@ dependencies {
   compile externalDependency.commonsCli
   compile externalDependency.gson
   compile externalDependency.metricsCore
-  compile externalDependency.commonsIO
+  compile externalDependency.commonsIo
   compile externalDependency.commonsEmail
   compile externalDependency.pegasus.data
   compile externalDependency.guice
@@ -72,6 +72,9 @@ artifacts {
 test {
     useTestNG () {
       excludeGroups 'ignore'
+      if (project.hasProperty('useHadoop2')) {
+        excludeGroups 'Hadoop1Only'
+      }
     }
     workingDir rootProject.rootDir
     maxParallelForks = 1

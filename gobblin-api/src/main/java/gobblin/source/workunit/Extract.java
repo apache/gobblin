@@ -62,7 +62,11 @@ public class Extract extends State {
    * @param namespace dot separated namespace path
    * @param type {@link TableType}
    * @param table table name
+   *
+   * @deprecated Extract does not use any property in {@link SourceState}.
+   * Use {@link #Extract(TableType, String, String)}
    */
+  @Deprecated
   public Extract(SourceState state, TableType type, String namespace, String table) {
     // Values should only be null for deserialization
     if (state != null && type != null && !Strings.isNullOrEmpty(namespace) && !Strings.isNullOrEmpty(table)) {
@@ -81,11 +85,22 @@ public class Extract extends State {
       }
 
       // Setting full drop date if not already specified, the value can still be overridden if required.
-      if (state.getPropAsBoolean(ConfigurationKeys.EXTRACT_IS_FULL_KEY) && !state
-          .contains(ConfigurationKeys.EXTRACT_FULL_RUN_TIME_KEY)) {
+      if (state.getPropAsBoolean(ConfigurationKeys.EXTRACT_IS_FULL_KEY)
+          && !state.contains(ConfigurationKeys.EXTRACT_FULL_RUN_TIME_KEY)) {
         super.setProp(ConfigurationKeys.EXTRACT_FULL_RUN_TIME_KEY, System.currentTimeMillis());
       }
     }
+  }
+
+  /**
+   * Constructor.
+   *
+   * @param type {@link TableType}
+   * @param namespace dot separated namespace path
+   * @param table table name
+   */
+  public Extract(TableType type, String namespace, String table) {
+    this(new SourceState(), type, namespace, table);
   }
 
   /**
@@ -94,17 +109,18 @@ public class Extract extends State {
    * @param extract the other {@link Extract} instance
    */
   public Extract(Extract extract) {
-    addAll(extract);
+    super.addAll(extract);
   }
 
   @Override
-  public boolean equals(Object other) {
-    if (!(other instanceof Extract)) {
+  public boolean equals(Object object) {
+    if (!(object instanceof Extract)) {
       return false;
     }
-    Extract otherExtract = (Extract) other;
-    return this.getNamespace().equals(otherExtract.getNamespace()) && this.getTable().equals(otherExtract.getTable())
-        && this.getExtractId().equals(otherExtract.getExtractId());
+
+    Extract other = (Extract) object;
+    return super.equals(other) && this.getNamespace().equals(other.getNamespace())
+        && this.getTable().equals(other.getTable()) && this.getExtractId().equals(other.getExtractId());
   }
 
   @Override
@@ -118,9 +134,8 @@ public class Extract extends State {
    * @return writer output file path corresponding to this {@link Extract}
    */
   public String getOutputFilePath() {
-    return this.getNamespace().replaceAll("\\.", "/") + "/" +
-        this.getTable() + "/" + this.getExtractId() + "_" +
-        (this.getIsFull() ? "full" : "append");
+    return this.getNamespace().replaceAll("\\.", "/") + "/" + this.getTable() + "/" + this.getExtractId() + "_"
+        + (this.getIsFull() ? "full" : "append");
   }
 
   /**

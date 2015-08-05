@@ -36,8 +36,7 @@ public class AvroFileExtractor extends FileBasedExtractor<Schema, GenericRecord>
   }
 
   @Override
-  public Iterator<GenericRecord> downloadFile(String file)
-      throws IOException {
+  public Iterator<GenericRecord> downloadFile(String file) throws IOException {
     try {
       return this.closer.register(((AvroFsHelper) this.fsHelper).getAvroFile(file));
     } catch (FileBasedHelperException e) {

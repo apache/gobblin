@@ -13,10 +13,10 @@ apply plugin: 'java'
 dependencies {
   compile project(":gobblin-api")
 
-compile externalDependency.commonsCli
+  compile externalDependency.commonsCli
   compile externalDependency.commonsConfiguration
   compile externalDependency.commonsEmail
-  compile externalDependency.commonsIO
+  compile externalDependency.commonsIo
   compile externalDependency.commonsLang
   compile externalDependency.guava
   compile externalDependency.slf4j
@@ -24,6 +24,7 @@ compile externalDependency.commonsCli
   compile externalDependency.jodaTime
   compile externalDependency.jacksonCore
   compile externalDependency.jasypt
+  compile externalDependency.lombok
   if (project.hasProperty('useHadoop2')) {
     compile externalDependency.avroMapredH2
     runtime externalDependency.hadoopCommon

@@ -15,6 +15,7 @@ package gobblin.util;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -160,13 +161,8 @@ public class AvroUtils {
       LOG.debug("Record schema not compatible with writer schema. Converting record schema to writer schema may fail.");
     }
 
-    Closer closer = Closer.create();
     try {
-      ByteArrayOutputStream out = closer.register(new ByteArrayOutputStream());
-      Encoder encoder = new EncoderFactory().directBinaryEncoder(out, null);
-      DatumWriter<GenericRecord> writer = new GenericDatumWriter<GenericRecord>(record.getSchema());
-      writer.write(record, encoder);
-      BinaryDecoder decoder = new DecoderFactory().binaryDecoder(out.toByteArray(), null);
+      BinaryDecoder decoder = new DecoderFactory().binaryDecoder(recordToByteArray(record), null);
       DatumReader<GenericRecord> reader = new GenericDatumReader<GenericRecord>(record.getSchema(), newSchema);
       return reader.read(null, decoder);
     } catch (IOException e) {
@@ -174,6 +170,23 @@ public class AvroUtils {
           String.format("Cannot convert avro record to new schema. Origianl schema = %s, new schema = %s",
               record.getSchema(), newSchema),
           e);
+    }
+  }
+
+  /**
+   * Convert a GenericRecord to a byte array.
+   */
+  public static byte[] recordToByteArray(GenericRecord record) throws IOException {
+    Closer closer = Closer.create();
+    try {
+      ByteArrayOutputStream out = closer.register(new ByteArrayOutputStream());
+      Encoder encoder = EncoderFactory.get().directBinaryEncoder(out, null);
+      DatumWriter<GenericRecord> writer = new GenericDatumWriter<GenericRecord>(record.getSchema());
+      writer.write(record, encoder);
+      byte[] byteArray = out.toByteArray();
+      return byteArray;
+    } catch (Throwable t) {
+      throw closer.rethrow(t);
     } finally {
       closer.close();
     }
@@ -317,5 +330,62 @@ public class AvroUtils {
         Schema.createRecord(newSchema.getName(), newSchema.getDoc(), newSchema.getNamespace(), newSchema.isError());
     mergedSchema.setFields(combinedFields);
     return mergedSchema;
+  }
+
+  /**
+   * Remove map, array, enum fields, as well as union fields that contain map, array or enum,
+   * from an Avro schema. A schema with these fields cannot be used as Mapper key in a
+   * MapReduce job.
+   */
+  public static Optional<Schema> removeUncomparableFields(Schema schema) {
+    switch (schema.getType()) {
+      case RECORD:
+        return removeUncomparableFieldsFromRecord(schema);
+      case UNION:
+        return removeUncomparableFieldsFromUnion(schema);
+      case MAP:
+        return Optional.absent();
+      case ARRAY:
+        return Optional.absent();
+      case ENUM:
+        return Optional.absent();
+      default:
+        return Optional.of(schema);
+    }
+  }
+
+  private static Optional<Schema> removeUncomparableFieldsFromRecord(Schema record) {
+    Preconditions.checkArgument(record.getType() == Schema.Type.RECORD);
+
+    List<Field> fields = new ArrayList<Schema.Field>();
+    for (Field field : record.getFields()) {
+      Optional<Schema> newFieldSchema = removeUncomparableFields(field.schema());
+      if (newFieldSchema.isPresent()) {
+        fields.add(new Field(field.name(), newFieldSchema.get(), field.doc(), field.defaultValue()));
+      }
+    }
+
+    Schema newSchema = Schema.createRecord(record.getName(), record.getDoc(), record.getName(), false);
+    newSchema.setFields(fields);
+    return Optional.of(newSchema);
+  }
+
+  private static Optional<Schema> removeUncomparableFieldsFromUnion(Schema union) {
+    Preconditions.checkArgument(union.getType() == Schema.Type.UNION);
+
+    List<Schema> newUnion = Lists.newArrayList();
+    for (Schema unionType : union.getTypes()) {
+      Optional<Schema> newType = removeUncomparableFields(unionType);
+      if (newType.isPresent()) {
+        newUnion.add(newType.get());
+      }
+    }
+
+    // Discard the union field if one or more types are removed from the union.
+    if (newUnion.size() != union.getTypes().size()) {
+      return Optional.absent();
+    } else {
+      return Optional.of(Schema.createUnion(newUnion));
+    }
   }
 }

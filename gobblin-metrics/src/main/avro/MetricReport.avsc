@@ -1,0 +1,37 @@
+// Avro Schema for MetricReport objects used by gobblin-metrics
+// Compile with:
+// java -jar /path/to/avro-tools-1.7.7.jar compile -string schema gobblin-metrics/src/main/avro/MetricReport.avsc gobblin-metrics/src/main/gen-java
+{
+  "type": "record",
+  "name": "MetricReport",
+  "namespace": "gobblin.metrics",
+  "fields" : [
+    {
+      "name": "tags",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "doc": "Tags associated with the metrics."
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "doc": "Time at which metrics were reported."
+    },
+    {
+      "name": "metrics",
+      "type": {
+      "type": "array", "items": {
+        "type": "record",
+        "name": "Metric",
+        "fields": [
+          {"name": "name", "type": "string", "doc": "Metric name."},
+          {"name": "value", "type": "double", "doc": "Metric value."}
+        ]
+        }
+      },
+      "doc": "Array of metrics in this report."
+    }
+  ]
+}

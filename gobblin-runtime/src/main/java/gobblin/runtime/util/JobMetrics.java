@@ -13,8 +13,6 @@
 package gobblin.runtime.util;
 
 import java.net.InetAddress;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.util.List;
 
@@ -56,6 +54,16 @@ public class JobMetrics extends GobblinMetrics {
    */
   public static JobMetrics get(String jobName, String jobId) {
     return get(new JobState(jobName, jobId));
+  }
+
+  /**
+   * Get a new {@link GobblinMetrics} instance for a given job.
+   *
+   * @param jobId job ID
+   * @return a new {@link GobblinMetrics} instance for the given job
+   */
+  public static JobMetrics get(String jobId) {
+    return get(null, jobId);
   }
 
   /**
@@ -129,7 +137,7 @@ public class JobMetrics extends GobblinMetrics {
       clusterIdentifier = HADOOP_CONFIGURATION.get("mapreduce.jobtracker.address");
     }
 
-    clusterIdentifier = stripPort(clusterIdentifier);
+    clusterIdentifier = ClustersNames.getInstance().getClusterName(clusterIdentifier);
 
     // If job is running outside of Hadoop (Standalone) use hostname
     // If clusterIdentifier is localhost or 0.0.0.0 use hostname
@@ -145,25 +153,6 @@ public class JobMetrics extends GobblinMetrics {
 
     return clusterIdentifier;
 
-  }
-
-  // Strip out the port number if it is a valid URI
-  private static String stripPort(String clusterIdentifier) {
-    if (clusterIdentifier != null) {
-      try {
-        URI uri = new URI(clusterIdentifier.trim());
-        // URIs without protocol prefix
-        if (uri.isOpaque()) {
-          clusterIdentifier = uri.getScheme();
-        } else {
-          clusterIdentifier = uri.getHost();
-        }
-      } catch (URISyntaxException e) {
-        // Do nothing. Not a URI
-      }
-    }
-
-    return clusterIdentifier;
   }
 
 }

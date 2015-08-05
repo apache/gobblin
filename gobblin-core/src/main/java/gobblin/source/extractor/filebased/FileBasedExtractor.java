@@ -27,10 +27,9 @@ import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
-import gobblin.instrumented.Instrumented;
+import gobblin.instrumented.extractor.InstrumentedExtractor;
 import gobblin.metrics.Counters;
 import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.WorkUnit;
 
 
@@ -44,7 +43,7 @@ import gobblin.source.workunit.WorkUnit;
  * @param <D>
  *            type of data record
  */
-public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
+public abstract class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FileBasedExtractor.class);
 
@@ -62,22 +61,24 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
   private String currentFile;
   private boolean readRecordStart;
 
-  private enum CounterNames {
+  protected enum CounterNames {
     FileBytesRead;
   }
 
-  private Counters<CounterNames> counters = new Counters<CounterNames>();
+  protected Counters<CounterNames> counters = new Counters<CounterNames>();
 
   public FileBasedExtractor(WorkUnitState workUnitState, FileBasedHelper fsHelper) {
+    super(workUnitState);
     this.workUnitState = workUnitState;
     this.workUnit = workUnitState.getWorkunit();
     this.filesToPull =
         Lists.newArrayList(workUnitState.getPropAsList(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, ""));
-    this.statusCount = this.workUnit.getPropAsInt(ConfigurationKeys.FILEBASED_REPORT_STATUS_ON_COUNT,
-        ConfigurationKeys.DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT);
+    this.statusCount =
+        this.workUnit.getPropAsInt(ConfigurationKeys.FILEBASED_REPORT_STATUS_ON_COUNT,
+            ConfigurationKeys.DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT);
 
     if (fsHelper instanceof SizeAwareFileBasedHelper) {
-      this.fsHelper = (SizeAwareFileBasedHelper)fsHelper;
+      this.fsHelper = (SizeAwareFileBasedHelper) fsHelper;
     } else {
       this.fsHelper = new SizeAwareFileBasedHelperDecorator(fsHelper);
     }
@@ -87,7 +88,7 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
       Throwables.propagate(e);
     }
 
-    counters.initialize(Instrumented.getMetricContext(workUnitState, this.getClass()), CounterNames.class, this.getClass());
+    counters.initialize(getMetricContext(), CounterNames.class, this.getClass());
   }
 
   /**
@@ -97,7 +98,7 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
    * file
    */
   @Override
-  public D readRecord(@Deprecated D reuse) throws DataRecordException, IOException {
+  public D readRecordImpl(@Deprecated D reuse) throws DataRecordException, IOException {
     this.totalRecordCount++;
 
     if (this.statusCount > 0 && this.totalRecordCount % this.statusCount == 0) {
@@ -117,7 +118,7 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
       readRecordStart = true;
     }
 
-    while (!currentFileItr.hasNext() && !filesToPull.isEmpty()) {
+    while ((currentFileItr == null || !currentFileItr.hasNext()) && !filesToPull.isEmpty()) {
       LOGGER.info("Finished downloading file: " + currentFile);
       closeCurrentFile();
       incrementBytesReadCounter();
@@ -126,7 +127,7 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
       LOGGER.info("Will start downloading file: " + currentFile);
     }
 
-    if (currentFileItr.hasNext()) {
+    if (currentFileItr != null && currentFileItr.hasNext()) {
       return currentFileItr.next();
     } else {
       LOGGER.info("Finished reading records from all files");

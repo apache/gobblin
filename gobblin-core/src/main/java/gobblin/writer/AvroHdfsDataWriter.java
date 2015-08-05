@@ -17,19 +17,12 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
-import org.apache.avro.file.DataFileConstants;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 
-import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.FsPermission;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -37,63 +30,41 @@ import com.google.common.base.Preconditions;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.util.ForkOperatorUtils;
-import gobblin.util.HadoopUtils;
 import gobblin.util.WriterUtils;
 
 
 /**
- * An implementation of {@link DataWriter} that writes directly to HDFS in Avro format.
+ * An extension to {@link FsDataWriter} that writes in Avro format in the form of {@link GenericRecord}s.
+ *
+ * <p>
+ *   This implementation allows users to specify the {@link CodecFactory} to use through the configuration
+ *   property {@link ConfigurationKeys#WRITER_CODEC_TYPE}. By default, the deflate codec is used.
+ * </p>
  *
  * @author ynli
  */
 class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(AvroHdfsDataWriter.class);
-
+  private final Schema schema;
   private final DatumWriter<GenericRecord> datumWriter;
   private final DataFileWriter<GenericRecord> writer;
 
-  private final Schema schema;
-
   // Number of records successfully written
-  private final AtomicLong count = new AtomicLong(0);
-
-  // Whether the writer has already been closed or not
-  private volatile boolean closed = false;
+  protected final AtomicLong count = new AtomicLong(0);
 
   public AvroHdfsDataWriter(State properties, String fileName, Schema schema, int numBranches, int branchId)
       throws IOException {
     super(properties, fileName, numBranches, branchId);
 
-    Path filePath = new Path(fileName);
-
     CodecFactory codecFactory =
-        WriterUtils.getCodecFactory(Optional.fromNullable(properties.getProp(ForkOperatorUtils
-            .getPropertyNameForBranch(ConfigurationKeys.WRITER_CODEC_TYPE, numBranches, branchId))), Optional
-            .fromNullable(properties.getProp(ForkOperatorUtils.getPropertyNameForBranch(
-                ConfigurationKeys.WRITER_DEFLATE_LEVEL, numBranches, branchId))));
-
-    int bufferSize =
-        Integer.parseInt(properties.getProp(
-            ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUFFER_SIZE, numBranches, branchId),
-            ConfigurationKeys.DEFAULT_BUFFER_SIZE));
-
-    short replication =
-        properties.getPropAsShort(ForkOperatorUtils.getPropertyNameForBranch(
-            ConfigurationKeys.WRITER_FILE_REPLICATION_FACTOR, numBranches, branchId), this.fs
-            .getDefaultReplication(filePath));
-
-    long blockSize =
-        properties.getPropAsLong(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_BLOCK_SIZE,
-            numBranches, branchId), this.fs.getDefaultBlockSize(filePath));
-
-    FsPermission permissions =
-        new FsPermission(properties.getPropAsShort(ForkOperatorUtils.getPropertyNameForBranch(
-            ConfigurationKeys.WRITER_FILE_PERMISSIONS, numBranches, branchId), FsPermission.getDefault().toShort()));
+        WriterUtils.getCodecFactory(Optional.fromNullable(properties.getProp(
+            ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_CODEC_TYPE, numBranches, branchId))),
+            Optional.fromNullable(properties.getProp(ForkOperatorUtils
+                .getPropertyNameForBranch(ConfigurationKeys.WRITER_DEFLATE_LEVEL, numBranches, branchId))));
 
     this.schema = schema;
     this.datumWriter = new GenericDatumWriter<GenericRecord>();
-    this.writer = createDatumWriter(this.stagingFile, bufferSize, codecFactory, replication, blockSize, permissions);
+    this.writer = this.closer.register(createDataFileWriter(codecFactory));
   }
 
   public FileSystem getFileSystem() {
@@ -110,54 +81,13 @@ class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
   }
 
   @Override
-  public void close() throws IOException {
-    if (this.closed) {
-      return;
-    }
-
-    this.writer.flush();
-    this.writer.close();
-    this.closed = true;
-  }
-
-  @Override
-  public void commit() throws IOException {
-    // Close the writer first if it has not been closed yet
-    if (!this.closed) {
-      this.close();
-    }
-
-    if (!this.fs.exists(this.stagingFile)) {
-      throw new IOException(String.format("File %s does not exist", this.stagingFile));
-    }
-
-    LOG.info(String.format("Moving data from %s to %s", this.stagingFile, this.outputFile));
-    // For the same reason as deleting the staging file if it already exists, deleting
-    // the output file if it already exists prevents task retry from being blocked.
-    if (this.fs.exists(this.outputFile)) {
-      LOG.warn(String.format("Task output file %s already exists", this.outputFile));
-      HadoopUtils.deletePath(this.fs, this.outputFile, false);
-    }
-
-    HadoopUtils.renamePath(this.fs, this.stagingFile, this.outputFile);
-  }
-
-  @Override
-  public void cleanup() throws IOException {
-    // Delete the staging file
-    if (this.fs.exists(this.stagingFile)) {
-      HadoopUtils.deletePath(this.fs, this.stagingFile, false);
-    }
-  }
-
-  @Override
   public long recordsWritten() {
     return this.count.get();
   }
 
   @Override
   public long bytesWritten() throws IOException {
-    if (!this.fs.exists(this.outputFile) || !this.closed) {
+    if (!this.fs.exists(this.outputFile)) {
       return 0;
     }
 
@@ -167,25 +97,14 @@ class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
   /**
    * Create a new {@link DataFileWriter} for writing Avro records.
    *
-   * @param avroFile Avro file to write to
-   * @param bufferSize Buffer size
-   * @param codecType Compression codec type
-   * @param deflateLevel Deflate level
+   * @param codecFactory a {@link CodecFactory} object for building the compression codec
    * @throws IOException if there is something wrong creating a new {@link DataFileWriter}
    */
-  private DataFileWriter<GenericRecord> createDatumWriter(Path avroFile, int bufferSize, CodecFactory codecFactory,
-      short replication, long blockSize, FsPermission permissions) throws IOException {
-
-    if (this.fs.exists(avroFile)) {
-      throw new IOException(String.format("File %s already exists", avroFile));
-    }
-
-    FSDataOutputStream outputStream =
-        this.fs.create(avroFile, permissions, true, bufferSize, replication, blockSize, null);
+  private DataFileWriter<GenericRecord> createDataFileWriter(CodecFactory codecFactory) throws IOException {
     DataFileWriter<GenericRecord> writer = new DataFileWriter<GenericRecord>(this.datumWriter);
     writer.setCodec(codecFactory);
 
     // Open the file and return the DataFileWriter
-    return writer.create(this.schema, outputStream);
+    return writer.create(this.schema, this.stagingFileOutputStream);
   }
 }

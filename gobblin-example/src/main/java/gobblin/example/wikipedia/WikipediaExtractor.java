@@ -16,6 +16,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.net.URL;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -68,6 +70,7 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
 
   private static final Gson GSON = new Gson();
 
+  private final WorkUnit workUnit;
   private final WikiResponseReader reader;
   private final int revisionsCnt;
   private final String rootUrl;
@@ -93,8 +96,7 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
         while (!requestedTitles.isEmpty()) {
           String currentTitle = requestedTitles.poll();
           try {
-            recordsOfCurrentTitle =
-                retrievePageRevisions(currentTitle);
+            recordsOfCurrentTitle = retrievePageRevisions(currentTitle);
           } catch (IOException e) {
             LOG.error("IOException while retrieving revisions for title '" + currentTitle + "'");
           }
@@ -121,18 +123,18 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
   }
 
   public WikipediaExtractor(WorkUnitState workUnitState) throws IOException {
-    WorkUnit workUnit = workUnitState.getWorkunit();
-    rootUrl = workUnit.getProp(WIKIPEDIA_API_ROOTURL);
-    schema = workUnit.getProp(WIKIPEDIA_AVRO_SCHEMA);
-    requestedTitles = new LinkedList<String>(SPLITTER.splitToList(workUnit.getProp(SOURCE_PAGE_TITLES)));
-    revisionsCnt = Integer.parseInt(workUnit.getProp(SOURCE_REVISIONS_CNT));
-    numRequestedTitles = requestedTitles.size();
+    this.workUnit = workUnitState.getWorkunit();
+    this.rootUrl = this.workUnit.getProp(WIKIPEDIA_API_ROOTURL);
+    this.schema = this.workUnit.getProp(WIKIPEDIA_AVRO_SCHEMA);
+    this.requestedTitles = new LinkedList<String>(SPLITTER.splitToList(this.workUnit.getProp(SOURCE_PAGE_TITLES)));
+    this.revisionsCnt = Integer.parseInt(this.workUnit.getProp(SOURCE_REVISIONS_CNT));
+    this.numRequestedTitles = this.requestedTitles.size();
 
-    if (requestedTitles.isEmpty()) {
-      recordsOfCurrentTitle = new LinkedList<JsonElement>();
+    if (this.requestedTitles.isEmpty()) {
+      this.recordsOfCurrentTitle = new LinkedList<JsonElement>();
     } else {
-      String firstTitle = requestedTitles.poll();
-      recordsOfCurrentTitle = retrievePageRevisions(firstTitle);
+      String firstTitle = this.requestedTitles.poll();
+      this.recordsOfCurrentTitle = retrievePageRevisions(firstTitle);
     }
 
     this.reader = new WikiResponseReader();
@@ -144,10 +146,10 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
     Closer closer = Closer.create();
     HttpURLConnection conn = null;
     StringBuilder sb = new StringBuilder();
-    String urlStr = rootUrl + "&titles=" + pageTitle + "&rvlimit=" + revisionsCnt;
+    String urlStr = this.rootUrl + "&titles=" + pageTitle + "&rvlimit=" + this.revisionsCnt;
     try {
-      URL url = new URL(urlStr);
-      conn = (HttpURLConnection) url.openConnection();
+      conn = getHttpConnection(urlStr);
+      conn.connect();
       BufferedReader br = closer.register(
           new BufferedReader(new InputStreamReader(conn.getInputStream(), ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
       String line;
@@ -220,6 +222,21 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
     return retrievedRevisions;
   }
 
+  private HttpURLConnection getHttpConnection(String urlStr) throws IOException {
+    URL url = new URL(urlStr);
+    Proxy proxy = Proxy.NO_PROXY;
+    if (this.workUnit.contains(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL) &&
+        this.workUnit.contains(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT)) {
+      LOG.info("Use proxy host: " + this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL));
+      LOG.info("Use proxy port: " + this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT));
+      InetSocketAddress proxyAddress =
+          new InetSocketAddress(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL),
+              Integer.parseInt(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT)));
+      proxy = new Proxy(Proxy.Type.HTTP, proxyAddress);
+    }
+    return (HttpURLConnection) url.openConnection(proxy);
+  }
+
   @Override
   public void close() throws IOException {
     // There's nothing to close
@@ -227,7 +244,7 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
 
   @Override
   public String getSchema() {
-    return schema;
+    return this.schema;
   }
 
   @Override
@@ -243,7 +260,7 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
 
   @Override
   public long getExpectedRecordCount() {
-    return numRequestedTitles * this.revisionsCnt;
+    return this.numRequestedTitles * this.revisionsCnt;
   }
 
   @Override

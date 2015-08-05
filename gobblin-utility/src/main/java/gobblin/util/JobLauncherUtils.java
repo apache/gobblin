@@ -14,14 +14,20 @@ package gobblin.util;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -35,6 +41,7 @@ import gobblin.source.workunit.WorkUnit;
  * @author ynli
  */
 public class JobLauncherUtils {
+  private static Map<String, FileSystem> ownerAndFs = Maps.newConcurrentMap();
 
   /**
    * Create a new job ID.
@@ -116,10 +123,9 @@ public class JobLauncherUtils {
 
     for (int branchId = 0; branchId < numBranches; branchId++) {
       String writerFsUri =
-          state.getProp(
-              ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
-              ConfigurationKeys.LOCAL_FS_URI);
-      FileSystem fs = FileSystem.get(URI.create(writerFsUri), new Configuration());
+          state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI,
+              numBranches, branchId), ConfigurationKeys.LOCAL_FS_URI);
+      FileSystem fs = getFsWithProxy(state, writerFsUri);
 
       Path stagingPath = WriterUtils.getWriterStagingDir(state, numBranches, branchId);
       if (fs.exists(stagingPath)) {
@@ -137,5 +143,79 @@ public class JobLauncherUtils {
         }
       }
     }
+  }
+
+  /**
+   * Cleanup staging data of a Gobblin task using a {@link ParallelRunner}
+   *
+   * @param state workunit state
+   * @param closer a closer that registers the given map of ParallelRunners. The caller is responsible
+   * for closing the closer after the cleaning is done.
+   * @param parallelRunners a map from FileSystem URI to ParallelRunner.
+   * @throws IOException
+   */
+  public static void cleanStagingData(State state, Logger logger, Closer closer,
+      Map<String, ParallelRunner> parallelRunners) throws IOException {
+    int numBranches = state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
+
+    int parallelRunnerThreads =
+        state.getPropAsInt(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY, ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS);
+
+    for (int branchId = 0; branchId < numBranches; branchId++) {
+      String writerFsUri =
+          state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI,
+              numBranches, branchId), ConfigurationKeys.LOCAL_FS_URI);
+      FileSystem fs = getFsWithProxy(state, writerFsUri);
+
+      ParallelRunner parallelRunner = getParallelRunner(fs, closer, parallelRunnerThreads, parallelRunners);
+
+      Path stagingPath = WriterUtils.getWriterStagingDir(state, numBranches, branchId);
+      if (fs.exists(stagingPath)) {
+        logger.info("Cleaning up staging directory " + stagingPath.toUri().getPath());
+        parallelRunner.deletePath(stagingPath, true);
+      }
+
+      Path outputPath = WriterUtils.getWriterOutputDir(state, numBranches, branchId);
+      if (fs.exists(outputPath)) {
+        logger.info("Cleaning up output directory " + outputPath.toUri().getPath());
+        parallelRunner.deletePath(outputPath, true);
+      }
+    }
+  }
+
+  private static FileSystem getFsWithProxy(State state, String writerFsUri)
+      throws IOException {
+    if (!state.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
+        ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
+      return FileSystem.get(URI.create(writerFsUri), new Configuration());
+    } else {
+      Preconditions.checkArgument(!Strings.isNullOrEmpty(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME)),
+          "State does not contain a proper proxy user name");
+      String owner = state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME);
+      if (ownerAndFs.containsKey(owner)) {
+        return ownerAndFs.get(owner);
+      } else {
+        try {
+          FileSystem proxiedFs =
+              new ProxiedFileSystemWrapper().getProxiedFileSystem(state, ProxiedFileSystemWrapper.AuthType.KEYTAB,
+              state.getProp(ConfigurationKeys.SUPER_USER_KEY_TAB_LOCATION), writerFsUri);
+          ownerAndFs.put(owner, proxiedFs);
+          return proxiedFs;
+        } catch (InterruptedException e) {
+          throw new IOException(e);
+        } catch (URISyntaxException e) {
+          throw new IOException(e);
+        }
+      }
+    }
+  }
+
+  private static ParallelRunner getParallelRunner(FileSystem fs, Closer closer, int parallelRunnerThreads,
+      Map<String, ParallelRunner> parallelRunners) {
+    String uri = fs.getUri().toString();
+    if (!parallelRunners.containsKey(uri)) {
+      parallelRunners.put(uri, closer.register(new ParallelRunner(parallelRunnerThreads, fs)));
+    }
+    return parallelRunners.get(uri);
   }
 }

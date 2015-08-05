@@ -22,7 +22,7 @@ dependencies {
   compile externalDependency.commonsLang
   compile externalDependency.slf4j
   compile externalDependency.commonsCli
-  compile externalDependency.commonsIO
+  compile externalDependency.commonsIo
   compile externalDependency.metricsCore
   compile externalDependency.metricsJvm
 

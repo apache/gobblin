@@ -30,13 +30,13 @@ import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
 import com.codahale.metrics.graphite.GraphiteSender;
 
-import gobblin.metrics.ContextAwareScheduledReporter;
+import gobblin.metrics.reporter.ContextAwareScheduledReporter;
 import gobblin.metrics.Measurements;
 import gobblin.metrics.MetricContext;
 
 
 /**
- * An implementation of {@link gobblin.metrics.ContextAwareScheduledReporter} that reports
+ * An implementation of {@link gobblin.metrics.reporter.ContextAwareScheduledReporter} that reports
  * metrics to Graphite.
  *
  * @see <a href="http://graphite.wikidot.com/">Graphite - Scalable Realtime Graphing</a>.

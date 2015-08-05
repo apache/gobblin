@@ -17,6 +17,7 @@ import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,9 +27,11 @@ import kafka.message.MessageAndOffset;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.google.gson.Gson;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metrics.Tag;
@@ -65,8 +68,12 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   protected final Map<KafkaPartition, Integer> eventCounts;
   protected final Map<KafkaPartition, Long> avgEventSizes;
 
-  protected Iterator<MessageAndOffset> messageIterator;
-  protected int currentPartitionIdx;
+  private final Set<Integer> errorPartitions;
+  private int invalidSchemaIdCount = 0;
+  private int undecodableMessageCount = 0;
+
+  protected Iterator<MessageAndOffset> messageIterator = null;
+  protected int currentPartitionIdx = 0;
 
   public KafkaExtractor(WorkUnitState state) {
     super(state);
@@ -84,8 +91,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     this.eventCounts = Maps.newHashMapWithExpectedSize(this.partitions.size());
     this.avgEventSizes = Maps.newHashMapWithExpectedSize(this.partitions.size());
 
-    this.messageIterator = null;
-    this.currentPartitionIdx = 0;
+    this.errorPartitions = Sets.newHashSet();
 
     switchMetricContextToCurrentPartition();
 
@@ -145,6 +151,8 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
           this.maintainStats(nextValidMessage);
           return record;
         } catch (SchemaNotFoundException e) {
+          this.errorPartitions.add(this.currentPartitionIdx);
+          this.invalidSchemaIdCount++;
           if (shouldLogError()) {
             LOG.error(
                 String.format("An event from partition %s has a schema ID that doesn't exist in the schema registry.",
@@ -153,6 +161,8 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
             incrementErrorCount();
           }
         } catch (Exception e) {
+          this.errorPartitions.add(this.currentPartitionIdx);
+          this.undecodableMessageCount++;
           if (shouldLogError()) {
             LOG.error(String.format("An event from partition %s cannot be decoded.", getCurrentPartition()), e);
             incrementErrorCount();
@@ -246,6 +256,13 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
   @Override
   public void close() throws IOException {
+
+    // Add error partition count and error message count to workUnitState
+    this.workUnitState.setProp(ConfigurationKeys.ERROR_PARTITION_COUNT, this.errorPartitions.size());
+    this.workUnitState.setProp(ConfigurationKeys.ERROR_MESSAGE_INVALID_SCHEMA_ID_COUNT, this.invalidSchemaIdCount);
+    this.workUnitState.setProp(ConfigurationKeys.ERROR_MESSAGE_UNDECODABLE_COUNT, this.undecodableMessageCount);
+
+    // Commit watermark
     for (int i = 0; i < this.partitions.size(); i++) {
       LOG.info(String.format("Last offset pulled for partition %s = %d", this.partitions.get(i),
           this.nextWatermark.get(i) - 1));

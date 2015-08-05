@@ -89,7 +89,7 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
     }
 
     TableType tableType = TableType.valueOf(state.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY).toUpperCase());
-    List<WorkUnitState> previousWorkunits = state.getPreviousWorkUnitStates();
+    List<WorkUnitState> previousWorkunits = Lists.newArrayList(state.getPreviousWorkUnitStates());
     List<String> prevFsSnapshot = Lists.newArrayList();
 
     // Get list of files seen in the previous run
