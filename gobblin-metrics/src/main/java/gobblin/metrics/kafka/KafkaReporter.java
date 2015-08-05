@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.MetricRegistry;
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
 import gobblin.metrics.MetricContext;
@@ -46,8 +47,12 @@ public class KafkaReporter extends MetricReportReporter {
 
     this.serializer = this.closer.register(
         createSerializer(new FixedSchemaVersionWriter()));
-    this.kafkaPusher = this.closer.register(new KafkaPusher(builder.brokers, builder.topic));
 
+    if(builder.kafkaPusher.isPresent()) {
+      this.kafkaPusher = builder.kafkaPusher.get();
+    } else {
+      this.kafkaPusher = this.closer.register(new KafkaPusher(builder.brokers, builder.topic));
+    }
   }
 
   protected AvroSerializer<MetricReport> createSerializer(SchemaVersionWriter schemaVersionWriter) throws IOException {
@@ -61,7 +66,9 @@ public class KafkaReporter extends MetricReportReporter {
    *
    * @param registry the registry to report
    * @return KafkaReporter builder
+   * @deprecated This method is bugged. Use {@link gobblin.metrics.kafka.KafkaReporter.Factory#forRegistry}.
    */
+  @Deprecated
   public static Builder<? extends Builder> forRegistry(MetricRegistry registry) {
     return new BuilderImpl(registry);
   }
@@ -72,13 +79,40 @@ public class KafkaReporter extends MetricReportReporter {
    *
    * @param context the {@link gobblin.metrics.MetricContext} to report
    * @return KafkaReporter builder
+   * @deprecated This method is bugged. Use {@link gobblin.metrics.kafka.KafkaReporter.Factory#forContext}.
    */
+  @Deprecated
   public static Builder<?> forContext(MetricContext context) {
     return forRegistry(context);
   }
 
-  private static class BuilderImpl extends Builder<BuilderImpl> {
-    public BuilderImpl(MetricRegistry registry) {
+  public static class Factory {
+    /**
+     * Returns a new {@link KafkaReporter.Builder} for {@link KafkaReporter}.
+     * If the registry is of type {@link gobblin.metrics.MetricContext} tags will NOT be inherited.
+     * To inherit tags, use forContext method.
+     *
+     * @param registry the registry to report
+     * @return KafkaReporter builder
+     */
+    public static BuilderImpl forRegistry(MetricRegistry registry) {
+      return new BuilderImpl(registry);
+    }
+
+    /**
+     * Returns a new {@link KafkaReporter.Builder} for {@link KafkaReporter}.
+     * Will automatically add all Context tags to the reporter.
+     *
+     * @param context the {@link gobblin.metrics.MetricContext} to report
+     * @return KafkaReporter builder
+     */
+    public static BuilderImpl forContext(MetricContext context) {
+      return forRegistry(context);
+    }
+  }
+
+  public static class BuilderImpl extends Builder<BuilderImpl> {
+    private BuilderImpl(MetricRegistry registry) {
       super(registry);
     }
 
@@ -96,9 +130,19 @@ public class KafkaReporter extends MetricReportReporter {
       extends MetricReportReporter.Builder<T> {
     protected String brokers;
     protected String topic;
+    protected Optional<KafkaPusher> kafkaPusher;
 
     protected Builder(MetricRegistry registry) {
       super(registry);
+      this.kafkaPusher = Optional.absent();
+    }
+
+    /**
+     * Set {@link gobblin.metrics.kafka.KafkaPusher} to use.
+     */
+    public T withKafkaPusher(KafkaPusher pusher) {
+      this.kafkaPusher = Optional.of(pusher);
+      return self();
     }
 
     /**

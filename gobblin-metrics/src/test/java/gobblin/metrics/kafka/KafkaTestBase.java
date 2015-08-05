@@ -105,10 +105,10 @@ public class KafkaTestBase implements Closeable {
     Properties consumeProps = new Properties();
     consumeProps.put("zookeeper.connect", zkConnect);
     consumeProps.put("group.id", "testConsumer");
-    consumeProps.put("zookeeper.session.timeout.ms", "1000");
-    consumeProps.put("zookeeper.sync.time.ms", "1000");
-    consumeProps.put("auto.commit.interval.ms", "1000");
-    consumeProps.put("consumer.timeout.ms", "1000");
+    consumeProps.put("zookeeper.session.timeout.ms", "10000");
+    consumeProps.put("zookeeper.sync.time.ms", "10000");
+    consumeProps.put("auto.commit.interval.ms", "10000");
+    consumeProps.put("consumer.timeout.ms", "10000");
 
     consumer = Consumer.createJavaConsumerConnector(new ConsumerConfig(consumeProps));
 

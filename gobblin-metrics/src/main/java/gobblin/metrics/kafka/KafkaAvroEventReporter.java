@@ -47,19 +47,33 @@ public class KafkaAvroEventReporter extends KafkaEventReporter {
    *
    * @param context the {@link gobblin.metrics.MetricContext} to report
    * @return KafkaAvroReporter builder
+   * @deprecated this method is bugged. Use {@link KafkaAvroEventReporter.Factory#forContext} instead.
    */
+  @Deprecated
   public static Builder<? extends Builder<?>> forContext(MetricContext context) {
     return new BuilderImpl(context);
   }
 
   private static class BuilderImpl extends Builder<BuilderImpl> {
-    public BuilderImpl(MetricContext context) {
+    private BuilderImpl(MetricContext context) {
       super(context);
     }
 
     @Override
     protected BuilderImpl self() {
       return this;
+    }
+  }
+
+  public static abstract class Factory {
+    /**
+     * Returns a new {@link KafkaAvroEventReporter.Builder} for {@link KafkaAvroEventReporter}.
+     *
+     * @param context the {@link gobblin.metrics.MetricContext} to report
+     * @return KafkaAvroReporter builder
+     */
+    public static KafkaAvroEventReporter.BuilderImpl forContext(MetricContext context) {
+      return new BuilderImpl(context);
     }
   }
 
