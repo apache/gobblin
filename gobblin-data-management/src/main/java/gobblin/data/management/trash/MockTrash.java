@@ -18,6 +18,8 @@ import java.util.Properties;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
@@ -28,6 +30,8 @@ import com.google.common.collect.Lists;
  */
 public class MockTrash extends ProxiedTrash {
 
+  private static final Logger LOG = LoggerFactory.getLogger(MockTrash.class);
+
   public MockTrash(FileSystem fs, Properties props, String user)
       throws IOException {
     super(fs, props, user);
@@ -36,6 +40,7 @@ public class MockTrash extends ProxiedTrash {
   @Override
   public boolean moveToTrash(Path path)
       throws IOException {
+    LOG.info("Simulating move to trash: " + path);
     return true;
   }
 
