@@ -140,7 +140,7 @@ if (!isDefaultEnvironment)
   }
 }
 
-task wrapper(type: Wrapper) { gradleVersion = '1.12' }
+task wrapper(type: Wrapper) { gradleVersion = '2.5' }
 
 import javax.tools.ToolProvider
 
