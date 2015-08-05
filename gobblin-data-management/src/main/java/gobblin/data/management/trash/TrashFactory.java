@@ -37,7 +37,7 @@ public class TrashFactory {
   }
 
   public static Trash createTrash(FileSystem fs, Properties props) throws IOException {
-    return createTrash(fs, props, UserGroupInformation.getCurrentUser().getUserName());
+    return createTrash(fs, props, UserGroupInformation.getCurrentUser().getShortUserName());
   }
 
   /**
@@ -67,7 +67,7 @@ public class TrashFactory {
   }
 
   public static ProxiedTrash createProxiedTrash(FileSystem fs, Properties props) throws IOException {
-    return createProxiedTrash(fs, props, UserGroupInformation.getCurrentUser().getUserName());
+    return createProxiedTrash(fs, props, UserGroupInformation.getCurrentUser().getShortUserName());
   }
 
   /**
