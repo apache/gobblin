@@ -87,10 +87,9 @@ public class ProxiedFileSystemUtils {
         Optional<Token<?>> proxyToken = getTokenFromSeqFile(userNameToProxyAs, authPath);
         if(proxyToken.isPresent()) {
           try {
-            return ProxiedFileSystemCache
-                .getProxiedFileSystemUsingToken(userNameToProxyAs, proxyToken.get(), fsURI, conf);
-          } catch(ExecutionException ee) {
-            throw new IOException("Failed to proxy as user " + userNameToProxyAs, ee);
+            return createProxiedFileSystemUsingToken(userNameToProxyAs, proxyToken.get(), fsURI, conf);
+          } catch (InterruptedException e) {
+            throw new IOException("Failed to proxy as user " + userNameToProxyAs, e);
           }
         } else {
           throw new IOException("No delegation token found for proxy user " + userNameToProxyAs);
@@ -99,10 +98,11 @@ public class ProxiedFileSystemUtils {
         Preconditions.checkArgument(properties.containsKey(SUPERUSER_NAME));
         String superUserName = properties.getProperty(SUPERUSER_NAME);
         try {
-          return ProxiedFileSystemCache
-              .getProxiedFileSystemUsingKeytab(userNameToProxyAs, superUserName, authPath, fsURI, conf);
-        } catch(ExecutionException ee) {
-          throw new IOException("Failed to proxy as user " + userNameToProxyAs, ee);
+          return createProxiedFileSystemUsingKeytab(userNameToProxyAs, superUserName, authPath, fsURI, conf);
+        } catch (InterruptedException e) {
+          throw new IOException("Failed to proxy as user " + userNameToProxyAs, e);
+        } catch (URISyntaxException e) {
+          throw new IOException("Failed to proxy as user " + userNameToProxyAs, e);
         }
       default:
         throw new IOException("User proxy auth type " + properties.getProperty(AUTH_TYPE_KEY) + " not recognized.");
