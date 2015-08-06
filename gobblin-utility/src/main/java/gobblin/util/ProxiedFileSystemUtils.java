@@ -57,8 +57,7 @@ import gobblin.configuration.State;
 public class ProxiedFileSystemUtils {
 
   private static final String AUTH_TYPE_KEY = "gobblin.utility.user.proxy.auth.type";
-  private static final String AUTH_PATH = "gobblin.utility.proxy.auth.path";
-  private static final String SUPERUSER_NAME = "gobblin.utility.proxy.super.user.name.to.proxy.as.others";
+  private static final String AUTH_TOKEN_PATH = "gobblin.utility.proxy.auth.token.path";
 
   // Two authentication types for Hadoop Security, through TOKEN or KEYTAB.
   public enum AuthType {
@@ -79,12 +78,13 @@ public class ProxiedFileSystemUtils {
   static FileSystem createProxiedFileSystem(@NonNull final String userNameToProxyAs, Properties properties, URI fsURI,
       Configuration conf)
       throws IOException {
-    Preconditions.checkArgument(properties.containsKey(AUTH_TYPE_KEY) && properties.containsKey(AUTH_PATH));
-    Path authPath = new Path(properties.getProperty(AUTH_PATH));
+    Preconditions.checkArgument(properties.containsKey(AUTH_TYPE_KEY));
 
     switch (AuthType.valueOf(properties.getProperty(AUTH_TYPE_KEY))) {
       case TOKEN:
-        Optional<Token<?>> proxyToken = getTokenFromSeqFile(userNameToProxyAs, authPath);
+        Preconditions.checkArgument(properties.containsKey(AUTH_TOKEN_PATH));
+        Path tokenPath = new Path(properties.getProperty(AUTH_TOKEN_PATH));
+        Optional<Token<?>> proxyToken = getTokenFromSeqFile(userNameToProxyAs, tokenPath);
         if(proxyToken.isPresent()) {
           try {
             return createProxiedFileSystemUsingToken(userNameToProxyAs, proxyToken.get(), fsURI, conf);
@@ -95,10 +95,12 @@ public class ProxiedFileSystemUtils {
           throw new IOException("No delegation token found for proxy user " + userNameToProxyAs);
         }
       case KEYTAB:
-        Preconditions.checkArgument(properties.containsKey(SUPERUSER_NAME));
-        String superUserName = properties.getProperty(SUPERUSER_NAME);
+        Preconditions.checkArgument(properties.containsKey(ConfigurationKeys.SUPER_USER_NAME_TO_PROXY_AS_OTHERS)
+            && properties.containsKey(ConfigurationKeys.SUPER_USER_KEY_TAB_LOCATION));
+        String superUserName = properties.getProperty(ConfigurationKeys.SUPER_USER_NAME_TO_PROXY_AS_OTHERS);
+        Path keytabPath = new Path(properties.getProperty(ConfigurationKeys.SUPER_USER_KEY_TAB_LOCATION));
         try {
-          return createProxiedFileSystemUsingKeytab(userNameToProxyAs, superUserName, authPath, fsURI, conf);
+          return createProxiedFileSystemUsingKeytab(userNameToProxyAs, superUserName, keytabPath, fsURI, conf);
         } catch (InterruptedException e) {
           throw new IOException("Failed to proxy as user " + userNameToProxyAs, e);
         } catch (URISyntaxException e) {
