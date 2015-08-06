@@ -134,9 +134,9 @@ public class JobStateTest {
     Collections.sort(taskStateIds);
     Assert.assertEquals(taskStateIds, Lists.newArrayList("TestTask-0", "TestTask-1", "TestTask-2"));
 
-    Set<String> sortedDatasetUrns = Sets.newTreeSet(jobState.getDatasetStatesByUrns().keySet());
+    Set<String> sortedDatasetUrns = Sets.newTreeSet(jobState.createDatasetStatesByUrns().keySet());
     Assert.assertEquals(sortedDatasetUrns.size(), jobState.getCompletedTasks());
-    Map<String, JobState.DatasetState> datasetStatesByUrns = jobState.getDatasetStatesByUrns();
+    Map<String, JobState.DatasetState> datasetStatesByUrns = jobState.createDatasetStatesByUrns();
     int index = 0;
     for (String dataSetUrn : sortedDatasetUrns) {
       Assert.assertEquals(dataSetUrn, "TestDataset" + index);

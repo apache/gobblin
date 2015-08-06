@@ -24,7 +24,8 @@ import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -57,7 +58,6 @@ public class JobContext {
   private final Optional<JobMetrics> jobMetricsOptional;
   private final Source<?, ?> source;
 
-
   // State store for persisting job states
   private final FsDatasetStateStore datasetStateStore;
 
@@ -65,6 +65,9 @@ public class JobContext {
   private final Optional<JobHistoryStore> jobHistoryStoreOptional;
 
   private final Logger logger;
+
+  // A map from dataset URNs to DatasetStates (optional and maybe absent if not populated)
+  private Optional<Map<String, JobState.DatasetState>> datasetStatesByUrns = Optional.absent();
 
   @SuppressWarnings("unchecked")
   public JobContext(Properties jobProps, Logger logger) throws Exception {
@@ -143,15 +146,6 @@ public class JobContext {
   }
 
   /**
-   * Check whether the use of job lock is enabled or not.
-   *
-   * @return {@code true} if the use of job lock is enabled or {@code false} otherwise
-   */
-  public boolean isJobLockEnabled() {
-    return this.jobLockEnabled;
-  }
-
-  /**
    * Get an {@link Optional} of {@link JobMetrics}.
    *
    * @return an {@link Optional} of {@link JobMetrics}
@@ -165,8 +159,30 @@ public class JobContext {
    *
    * @return an instance of the {@link Source} class specified in the job configuration
    */
-  public Source<?, ?> getSource() {
+  Source<?, ?> getSource() {
     return this.source;
+  }
+
+  /**
+   * Check whether the use of job lock is enabled or not.
+   *
+   * @return {@code true} if the use of job lock is enabled or {@code false} otherwise
+   */
+  boolean isJobLockEnabled() {
+    return this.jobLockEnabled;
+  }
+
+  /**
+   * Get a {@link Map} from dataset URNs (as being specified by {@link ConfigurationKeys#DATASET_URN_KEY} to
+   * {@link JobState.DatasetState} objects that represent the dataset states and store {@link TaskState}s
+   * corresponding to the datasets.
+   *
+   * @see {@link JobState#createDatasetStatesByUrns()}.
+   *
+   * @return a {@link Map} from dataset URNs to {@link JobState.DatasetState}s representing the dataset states
+   */
+  Map<String, JobState.DatasetState> getDatasetStatesByUrns() {
+    return ImmutableMap.copyOf(this.datasetStatesByUrns.or(Maps.<String, JobState.DatasetState>newHashMap()));
   }
 
   /**
@@ -183,9 +199,9 @@ public class JobContext {
   }
 
   /**
-   * Set final {@link JobState} of the given job.
+   * Finalize the {@link JobState} before committing the job.
    */
-  void setFinalJobState() {
+  void finalizeJobStateBeforeCommit() {
     this.jobState.setEndTime(System.currentTimeMillis());
     this.jobState.setDuration(this.jobState.getEndTime() - this.jobState.getStartTime());
 
@@ -211,27 +227,31 @@ public class JobContext {
    * Commit the job on a per-dataset basis.
    */
   void commit() throws IOException {
-    Map<String, JobState.DatasetState> datasetStatesByUrns = this.jobState.getDatasetStatesByUrns();
-    for (Map.Entry<String, JobState.DatasetState> entry : datasetStatesByUrns.entrySet()) {
-      setFinalDatasetState(entry.getValue());
-      if (canCommitDataset(this.jobCommitPolicy, entry.getValue())) {
+    this.datasetStatesByUrns = Optional.of(this.jobState.createDatasetStatesByUrns());
+    for (Map.Entry<String, JobState.DatasetState> entry : this.datasetStatesByUrns.get().entrySet()) {
+      String datasetUrn = entry.getKey();
+      JobState.DatasetState datasetState = entry.getValue();
+      finalizeDatasetStateBeforeCommit(datasetState);
+      if (canCommitDataset(datasetState)) {
         boolean allDatasetsCommit = true;
         try {
-          commitDataset(entry.getValue());
+          commitDataset(datasetState);
         } catch (IOException ioe) {
-          this.logger.error("Failed to commit dataset state for dataset " + entry.getKey(), ioe);
+          this.logger.error(
+              String.format("Failed to commit dataset state for dataset %s of job %s", datasetUrn, this.jobId), ioe);
           allDatasetsCommit = false;
         } finally {
           try {
-            persistDatasetState(entry.getKey(), entry.getValue());
+            persistDatasetState(datasetUrn, datasetState);
           } catch (IOException ioe) {
-            this.logger.error("Failed to persist dataset state for dataset " + entry.getKey(), ioe);
+            this.logger.error(
+                String.format("Failed to persist dataset state for dataset %s of job %s", datasetUrn, this.jobId), ioe);
             allDatasetsCommit = false;
           }
         }
 
         if (!allDatasetsCommit) {
-          throw new IOException("Failed to commit dataset state for some dataset(s)");
+          throw new IOException("Failed to commit dataset state for some dataset(s) of job " + this.jobId);
         }
       }
     }
@@ -240,7 +260,7 @@ public class JobContext {
   /**
    * Finalize a given {@link JobState.DatasetState} before committing the dataset.
    */
-  private void setFinalDatasetState(JobState.DatasetState datasetState) {
+  private void finalizeDatasetStateBeforeCommit(JobState.DatasetState datasetState) {
     for (TaskState taskState : datasetState.getTaskStates()) {
       if (taskState.getWorkingState() != WorkUnitState.WorkingState.SUCCESSFUL &&
           this.jobCommitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
@@ -256,11 +276,11 @@ public class JobContext {
   /**
    * Check if it is OK to commit the output data of a dataset.
    */
-  private boolean canCommitDataset(JobCommitPolicy commitPolicy, JobState.DatasetState datasetState) {
+  private boolean canCommitDataset(JobState.DatasetState datasetState) {
     // Only commit a dataset if 1) COMMIT_ON_PARTIAL_SUCCESS is used, or 2)
     // COMMIT_ON_FULL_SUCCESS is used and all of the tasks of the dataset have succeeded.
-    return commitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS
-        || (commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS
+    return this.jobCommitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS
+        || (this.jobCommitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS
         && datasetState.getState() == JobState.RunningState.SUCCESSFUL);
   }
 
@@ -270,9 +290,8 @@ public class JobContext {
   @SuppressWarnings("unchecked")
   private void commitDataset(JobState.DatasetState datasetState) throws IOException {
     String datasetUrn = datasetState.getDatasetUrn();
-    this.logger.info(
-        String.format("Publishing data of dataset %s with commit policy %s",
-            !Strings.isNullOrEmpty(datasetUrn) ? datasetUrn : this.jobId, this.jobCommitPolicy.name()));
+    this.logger.info(String.format("Publishing dataset %s of job %s with commit policy %s",
+        datasetUrn, this.jobId, this.jobCommitPolicy.name()));
 
     Closer closer = Closer.create();
     try {
@@ -288,7 +307,7 @@ public class JobContext {
       closer.close();
     }
 
-    // Set the job state to COMMITTED upon successful commit
+    // Set the dataset state to COMMITTED upon successful commit
     datasetState.setState(JobState.RunningState.COMMITTED);
   }
 
@@ -301,14 +320,12 @@ public class JobContext {
       if (taskState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED) {
         taskState.backoffActualHighWatermark();
         if (this.jobCommitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
-          // Determine the final dataset state based on the task states and the job commit policy.
-          // 1. If COMMIT_ON_FULL_SUCCESS is used, the processing of the dataset is considered failed if any task
-          //    for the dataset failed.
-          // 2. On the other hand, if COMMIT_ON_PARTIAL_SUCCESS is used, the processing of the dataset is considered
-          //    successful even if some tasks for the dataset failed.
-          // The job is considered failed if it fails to process the dataset if COMMIT_ON_FULL_SUCCESS is used.
+          // Determine the final dataset state based on the task states (post commit) and the job commit policy.
+          // 1. If COMMIT_ON_FULL_SUCCESS is used, the processing of the dataset is considered failed
+          //    if any task for the dataset failed to be committed.
+          // 2. On the other hand, if COMMIT_ON_PARTIAL_SUCCESS is used, the processing of the dataset
+          //    is considered successful even if some tasks for the dataset failed to be committed.
           datasetState.setState(JobState.RunningState.FAILED);
-          this.jobState.setState(JobState.RunningState.FAILED);
         }
       }
     }
