@@ -49,7 +49,7 @@ public class FileStatusDatasetVersion extends StringDatasetVersion {
 
   @Override
   public boolean equals(Object obj) {
-    return obj instanceof FileStatusDatasetVersion && compareTo((DatasetVersion) obj) == 0;
+    return obj.getClass().equals(FileStatusDatasetVersion.class) && compareTo((DatasetVersion) obj) == 0;
   }
 
   @Override
