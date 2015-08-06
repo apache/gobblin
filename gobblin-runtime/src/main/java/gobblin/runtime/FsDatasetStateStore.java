@@ -223,6 +223,7 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> {
     String jobName = datasetState.getJobName();
     String jobId = datasetState.getJobId();
 
+    datasetUrn = CharMatcher.is(':').replaceFrom(datasetUrn, '.');
     String tableName = Strings.isNullOrEmpty(datasetUrn) ? jobId + DATASET_STATE_STORE_TABLE_SUFFIX
         : datasetUrn + "-" + jobId + DATASET_STATE_STORE_TABLE_SUFFIX;
     LOGGER.info("Persisting " + tableName + " to the job state store");
@@ -233,7 +234,6 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> {
   private String getAliasName(String datasetUrn) {
     return Strings.isNullOrEmpty(datasetUrn) ?
         CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX :
-        CharMatcher.is(':').replaceFrom(datasetUrn, '.') + "-" + CURRENT_DATASET_STATE_FILE_SUFFIX +
-            DATASET_STATE_STORE_TABLE_SUFFIX;
+        datasetUrn + "-" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
   }
 }

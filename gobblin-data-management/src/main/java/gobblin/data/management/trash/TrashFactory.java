@@ -17,6 +17,8 @@ import java.util.Properties;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -28,6 +30,8 @@ import org.apache.hadoop.security.UserGroupInformation;
  */
 public class TrashFactory {
 
+  private static final Logger LOG = LoggerFactory.getLogger(TrashFactory.class);
+
   public static final String TRASH_TEST = "gobblin.trash.test";
   public static final String SIMULATE = "gobblin.trash.simulate";
   public static final String SKIP_TRASH = "gobblin.trash.skip.trash";
@@ -37,7 +41,7 @@ public class TrashFactory {
   }
 
   public static Trash createTrash(FileSystem fs, Properties props) throws IOException {
-    return createTrash(fs, props, UserGroupInformation.getCurrentUser().getUserName());
+    return createTrash(fs, props, UserGroupInformation.getCurrentUser().getShortUserName());
   }
 
   /**
@@ -51,12 +55,15 @@ public class TrashFactory {
   public static Trash createTrash(FileSystem fs, Properties props, String user)
       throws IOException {
     if(props.containsKey(TRASH_TEST) && Boolean.parseBoolean(props.getProperty(TRASH_TEST))) {
+      LOG.info("Creating a test trash. Nothing will actually be deleted.");
       return new TestTrash(fs, props, user);
     }
     if(props.containsKey(SIMULATE) && Boolean.parseBoolean(props.getProperty(SIMULATE))) {
+      LOG.info("Creating a simulate trash. Nothing will actually be deleted.");
       return new MockTrash(fs, props, user);
     }
     if(props.containsKey(SKIP_TRASH) && Boolean.parseBoolean(props.getProperty(SKIP_TRASH))) {
+      LOG.info("Creating an immediate deletion trash. Files will be deleted immediately instead of moved to trash.");
       return new ImmediateDeletionTrash(fs, props, user);
     }
     return new Trash(fs, props, user);
@@ -67,7 +74,7 @@ public class TrashFactory {
   }
 
   public static ProxiedTrash createProxiedTrash(FileSystem fs, Properties props) throws IOException {
-    return createProxiedTrash(fs, props, UserGroupInformation.getCurrentUser().getUserName());
+    return createProxiedTrash(fs, props, UserGroupInformation.getCurrentUser().getShortUserName());
   }
 
   /**
@@ -81,12 +88,15 @@ public class TrashFactory {
   public static ProxiedTrash createProxiedTrash(FileSystem fs, Properties props, String user)
     throws IOException {
     if(props.containsKey(TRASH_TEST) && Boolean.parseBoolean(props.getProperty(TRASH_TEST))) {
+      LOG.info("Creating a test trash. Nothing will actually be deleted.");
       return new TestTrash(fs, props, user);
     }
     if(props.containsKey(SIMULATE) && Boolean.parseBoolean(props.getProperty(SIMULATE))) {
+      LOG.info("Creating a simulate trash. Nothing will actually be deleted.");
       return new MockTrash(fs, props, user);
     }
     if(props.containsKey(SKIP_TRASH) && Boolean.parseBoolean(props.getProperty(SKIP_TRASH))) {
+      LOG.info("Creating an immediate deletion trash. Files will be deleted immediately instead of moved to trash.");
       return new ImmediateDeletionTrash(fs, props, user);
     }
     return new ProxiedTrash(fs, props, user);

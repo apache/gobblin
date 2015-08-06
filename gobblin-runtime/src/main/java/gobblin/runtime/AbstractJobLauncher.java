@@ -267,7 +267,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       }
 
       TimingEvent jobCommitTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.JOB_COMMIT);
-      this.jobContext.setFinalJobState();
+      this.jobContext.finalizeJobStateBeforeCommit();
       this.jobContext.commit();
       postProcessTaskStates(jobState.getTaskStates());
       jobCommitTimer.stop();
@@ -303,9 +303,12 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       jobListener.onJobCompletion(jobState);
     }
 
-    // Throw an exception at the end if the job failed so the caller knows the job failure
-    if (jobState.getState() == JobState.RunningState.FAILED) {
-      throw new JobException(String.format("Job %s failed", jobId));
+    for (JobState.DatasetState datasetState : this.jobContext.getDatasetStatesByUrns().values()) {
+      // Throw an exception at the end if the job failed to process any dataset
+      if (datasetState.getState() == JobState.RunningState.FAILED) {
+        jobState.setState(JobState.RunningState.FAILED);
+        throw new JobException(String.format("Job %s failed", jobId));
+      }
     }
   }
 

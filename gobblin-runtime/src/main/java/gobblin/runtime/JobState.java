@@ -264,7 +264,7 @@ public class JobState extends SourceState {
   }
 
   /**
-   * Get a {@link Map} from dataset URNs (as being specified by {@link ConfigurationKeys#DATASET_URN_KEY} to
+   * Create a {@link Map} from dataset URNs (as being specified by {@link ConfigurationKeys#DATASET_URN_KEY} to
    * {@link DatasetState} objects that represent the dataset states and store {@link TaskState}s corresponding
    * to the datasets.
    *
@@ -275,7 +275,7 @@ public class JobState extends SourceState {
    *
    * @return a {@link Map} from dataset URNs to {@link DatasetState}s representing the dataset states
    */
-  public Map<String, DatasetState> getDatasetStatesByUrns() {
+  public Map<String, DatasetState> createDatasetStatesByUrns() {
     Map<String, DatasetState> datasetStatesByUrns = Maps.newHashMap();
 
     for (TaskState taskState : this.taskStates.values()) {
@@ -286,6 +286,7 @@ public class JobState extends SourceState {
         datasetStatesByUrns.put(datasetUrn, datasetState);
       }
 
+      datasetStatesByUrns.get(datasetUrn).addTask();
       datasetStatesByUrns.get(datasetUrn).addTaskState(taskState);
     }
 
@@ -506,14 +507,15 @@ public class JobState extends SourceState {
   /**
    * Create a new {@link JobState.DatasetState} based on this {@link JobState} instance.
    *
+   * @param fullCopy whether to do a full copy of this {@link JobState} instance
    * @return a new {@link JobState.DatasetState} object
    */
-  public DatasetState newDatasetState(boolean addTaskStates) {
+  public DatasetState newDatasetState(boolean fullCopy) {
     DatasetState datasetState = new DatasetState(this.jobName, this.jobId);
     datasetState.addAll(this);
-    datasetState.setState(this.state);
-    datasetState.setTasks(this.tasks);
-    if (addTaskStates) {
+    if (fullCopy) {
+      datasetState.setState(this.state);
+      datasetState.setTasks(this.tasks);
       datasetState.addTaskStates(this.taskStates.values());
     }
     return datasetState;

@@ -13,22 +13,26 @@
 package gobblin.compaction.mapreduce;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.concurrent.Callable;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.filecache.DistributedCache;
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalFileSystem;
+import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.io.Closer;
 import com.google.common.primitives.Ints;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -43,6 +47,11 @@ import gobblin.util.HadoopUtils;
  * The properties that control the number of reducers are compaction.target.output.file.size and
  * compaction.max.num.reducers. The number of reducers will be the smaller of
  * [total input size] / [compaction.target.output.file.size] + 1 and [compaction.max.num.reducers].
+ *
+ * If {@value ConfigurationKeys#COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK} is set to true, does not
+ * launch an MR job. Instead, just copies the files present in
+ * {@value ConfigurationKeys#COMPACTION_JOB_LATE_DATA_FILES} to a 'late' subdirectory within
+ * the output directory.
  *
  * @author ziliu
  */
@@ -77,17 +86,34 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
 
   @Override
   public Void call() throws IOException, ClassNotFoundException, InterruptedException {
-    if (this.fs.exists(this.outputPath) && !canOverwriteOutputDir()) {
-      LOG.warn(String.format("Output path %s exists. Will not compact %s.", this.outputPath, this.inputPath));
-      return null;
-    }
     Configuration conf = HadoopUtils.getConfFromState(this.jobProps);
-    addJars(conf);
-    Job job = Job.getInstance(conf);
-    this.configureJob(job);
-    this.submit(job);
-    this.moveTmpPathToOutputPath();
+    DateTime jobStartTime = new DateTime(DateTimeZone.forID(this.jobProps.getProp(
+        ConfigurationKeys.COMPACTION_TIMEZONE, ConfigurationKeys.DEFAULT_COMPACTION_TIMEZONE)));
+    if (this.jobProps.getPropAsBoolean(ConfigurationKeys.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, false)) {
+      this.copyLateDataFiles(new Path(this.outputPath, "late"), conf);
+    } else {
+      if (this.fs.exists(this.outputPath) && !canOverwriteOutputDir()) {
+        LOG.warn(String.format("Output path %s exists. Will not compact %s.", this.outputPath, this.inputPath));
+        return null;
+      }
+      addJars(conf);
+      Job job = Job.getInstance(conf);
+      this.configureJob(job);
+      this.submit(job);
+      this.moveTmpPathToOutputPath();
+    }
+    this.markOutputDirAsCompleted(jobStartTime);
     return null;
+  }
+
+  private void copyLateDataFiles(Path outputDirectory, Configuration conf) throws IOException {
+    for (String filePath : this.jobProps.getPropAsList(ConfigurationKeys.COMPACTION_JOB_LATE_DATA_FILES)) {
+      Path outPath = new Path(outputDirectory,
+          StringUtils.removeStart(StringUtils.removeStart(filePath, this.inputPath.toString()), "/"));
+      if (!FileUtil.copy(this.fs, new Path(filePath), this.fs, outPath, false, conf)) {
+        LOG.warn(String.format("Failed to copy %s to %s.", filePath, outPath));
+      }
+    }
   }
 
   private boolean canOverwriteOutputDir() {
@@ -190,6 +216,19 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
     }
   }
 
+  private void markOutputDirAsCompleted(DateTime jobStartTime) throws IOException {
+    Path completionFilePath = new Path(this.outputPath, ConfigurationKeys.COMPACTION_COMPLETE_FILE_NAME);
+    Closer closer = Closer.create();
+    try {
+      FSDataOutputStream completionFileStream = closer.register(this.fs.create(completionFilePath));
+      completionFileStream.writeLong(jobStartTime.getMillis());
+    } catch (Throwable e) {
+      throw closer.rethrow(e);
+    } finally {
+      closer.close();
+    }
+  }
+
   private void moveTmpPathToOutputPath() throws IOException {
     LOG.info(String.format("Moving %s to %s", this.tmpPath, this.outputPath));
     this.fs.delete(this.outputPath, true);
@@ -197,7 +236,5 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
     if (!this.fs.rename(this.tmpPath, this.outputPath)) {
       throw new IOException(String.format("Unable to move %s to %s", this.tmpPath, this.outputPath));
     }
-    Path completionFilePath = new Path(this.outputPath, ConfigurationKeys.COMPACTION_COMPLETE_FILE_NAME);
-    this.fs.createNewFile(completionFilePath);
   }
 }

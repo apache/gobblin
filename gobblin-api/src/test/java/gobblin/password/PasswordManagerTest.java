@@ -12,20 +12,21 @@
 
 package gobblin.password;
 
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.UUID;
 
-import org.testng.annotations.Test;
+import org.jasypt.exceptions.EncryptionOperationNotPossibleException;
 import org.jasypt.util.text.BasicTextEncryptor;
 import org.jasypt.util.text.StrongTextEncryptor;
 import org.testng.Assert;
+import org.testng.annotations.Test;
 
 import com.google.common.io.Files;
-
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
 
 
 public class PasswordManagerTest {
@@ -72,12 +73,17 @@ public class PasswordManagerTest {
     State state = new State();
     state.setProp(ConfigurationKeys.ENCRYPT_KEY_LOC, masterPwdFile.toString());
     state.setProp(ConfigurationKeys.ENCRYPT_USE_STRONG_ENCRYPTOR, true);
-    StrongTextEncryptor encryptor = new StrongTextEncryptor();
-    encryptor.setPassword(masterPassword);
-    String encrypted = encryptor.encrypt(password);
-    encrypted = "ENC(" + encrypted + ")";
-    String decrypted = PasswordManager.getInstance(state).readPassword(encrypted);
-    Assert.assertEquals(decrypted, password);
+    try{
+      StrongTextEncryptor encryptor = new StrongTextEncryptor();
+      encryptor.setPassword(masterPassword);
+      String encrypted = encryptor.encrypt(password);
+      encrypted = "ENC(" + encrypted + ")";
+      String decrypted = PasswordManager.getInstance(state).readPassword(encrypted);
+      Assert.assertEquals(decrypted, password);
+    }
+    catch (EncryptionOperationNotPossibleException e) {
+      //no strong encryption is supported
+    }
   }
 
   private File getMasterPwdFile(String masterPwd) throws IOException {

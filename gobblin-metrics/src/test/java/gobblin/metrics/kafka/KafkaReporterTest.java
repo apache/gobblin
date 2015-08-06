@@ -15,11 +15,11 @@ package gobblin.metrics.kafka;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.codehaus.jackson.map.ObjectMapper;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterSuite;
@@ -31,8 +31,6 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.collect.Lists;
 
-import kafka.consumer.ConsumerIterator;
-
 import gobblin.metrics.Measurements;
 import gobblin.metrics.Metric;
 import gobblin.metrics.MetricContext;
@@ -42,18 +40,10 @@ import gobblin.metrics.Tag;
 
 
 @Test(groups = {"gobblin.metrics"})
-public class KafkaReporterTest extends KafkaTestBase {
+public class KafkaReporterTest {
 
-  private ObjectMapper mapper;
-
-  public KafkaReporterTest(String topic)
-      throws IOException, InterruptedException {
-    super(topic);
-    mapper = new ObjectMapper();
-  }
 
   public KafkaReporterTest() throws IOException, InterruptedException {
-    this("KafkaReporterTest");
   }
 
   /**
@@ -61,14 +51,15 @@ public class KafkaReporterTest extends KafkaTestBase {
    * @param registry metricregistry
    * @return KafkaReporter builder
    */
-  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilder(MetricRegistry registry) {
-    return KafkaReporter.forRegistry(registry);
+  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilder(MetricRegistry registry,
+      KafkaPusher pusher) {
+    return KafkaReporter.Factory.forRegistry(registry).withKafkaPusher(pusher);
   }
 
-  public KafkaReporter.Builder<?> getBuilderFromContext(MetricContext context) {
-    return KafkaReporter.forContext(context);
+  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilderFromContext(MetricContext context,
+      KafkaPusher pusher) {
+    return KafkaReporter.Factory.forContext(context).withKafkaPusher(pusher);
   }
-
 
   @Test
   public void testKafkaReporter() throws IOException {
@@ -77,7 +68,8 @@ public class KafkaReporterTest extends KafkaTestBase {
     Meter meter = registry.meter("com.linkedin.example.meter");
     Histogram histogram = registry.histogram("com.linkedin.example.histogram");
 
-    KafkaReporter kafkaReporter = getBuilder(registry).build("localhost:" + kafkaPort, topic);
+    MockKafkaPusher pusher = new MockKafkaPusher();
+    KafkaReporter kafkaReporter = getBuilder(registry, pusher).build("localhost:0000", "topic");
 
     counter.inc();
     meter.mark(2);
@@ -98,7 +90,7 @@ public class KafkaReporterTest extends KafkaTestBase {
     expected.put("com.linkedin.example.meter." + Measurements.COUNT, 2.0);
     expected.put("com.linkedin.example.histogram." + Measurements.COUNT, 3.0);
 
-    MetricReport nextReport = nextReport(iterator);
+    MetricReport nextReport = nextReport(pusher.messageIterator());
 
     expectMetricsWithValues(nextReport, expected);
 
@@ -126,7 +118,7 @@ public class KafkaReporterTest extends KafkaTestBase {
     expectedSet.add("com.linkedin.example.histogram." + Measurements.PERCENTILE_999TH);
     expectedSet.add("com.linkedin.example.histogram." + Measurements.COUNT);
 
-    nextReport = nextReport(iterator);
+    nextReport = nextReport(pusher.messageIterator());
     expectMetrics(nextReport, expectedSet, true);
 
     kafkaReporter.close();
@@ -141,9 +133,10 @@ public class KafkaReporterTest extends KafkaTestBase {
     Tag<?> tag1 = new Tag<String>("tag1", "value1");
     Tag<?> tag2 = new Tag<Integer>("tag2", 2);
 
-    KafkaReporter kafkaReporter = getBuilder(registry).
+    MockKafkaPusher pusher = new MockKafkaPusher();
+    KafkaReporter kafkaReporter = getBuilder(registry, pusher).
         withTags(Lists.newArrayList(tag1, tag2)).
-        build("localhost:" + kafkaPort, topic);
+        build("localhost:0000", "topic");
 
     counter.inc();
 
@@ -155,7 +148,7 @@ public class KafkaReporterTest extends KafkaTestBase {
       Thread.currentThread().interrupt();
     }
 
-    MetricReport metricReport = nextReport(iterator);
+    MetricReport metricReport = nextReport(pusher.messageIterator());
 
     Assert.assertEquals(2, metricReport.getTags().size());
     Assert.assertTrue(metricReport.getTags().containsKey(tag1.getKey()));
@@ -172,7 +165,8 @@ public class KafkaReporterTest extends KafkaTestBase {
     MetricContext context = MetricContext.builder("context").addTag(tag1).build();
     Counter counter = context.counter("com.linkedin.example.counter");
 
-    KafkaReporter kafkaReporter = getBuilderFromContext(context).build("localhost:" + kafkaPort, topic);
+    MockKafkaPusher pusher = new MockKafkaPusher();
+    KafkaReporter kafkaReporter = getBuilderFromContext(context, pusher).build("localhost:0000", "topic");
 
     counter.inc();
 
@@ -184,7 +178,7 @@ public class KafkaReporterTest extends KafkaTestBase {
       Thread.currentThread().interrupt();
     }
 
-    MetricReport metricReport = nextReport(iterator);
+    MetricReport metricReport = nextReport(pusher.messageIterator());
 
     Assert.assertEquals(2, metricReport.getTags().size());
     Assert.assertTrue(metricReport.getTags().containsKey(tag1.getKey()));
@@ -243,22 +237,20 @@ public class KafkaReporterTest extends KafkaTestBase {
    * @return next metric in the stream
    * @throws IOException
    */
-  protected MetricReport nextReport(ConsumerIterator<byte[], byte[]> it) throws IOException {
+  protected MetricReport nextReport(Iterator<byte[]> it) throws IOException {
     Assert.assertTrue(it.hasNext());
-    return MetricReportUtils.deserializeReportFromJson(new MetricReport(), it.next().message());
+    return MetricReportUtils.deserializeReportFromJson(new MetricReport(), it.next());
   }
 
   @AfterClass
   public void after() {
     try {
-      close();
     } catch(Exception e) {
     }
   }
 
   @AfterSuite
   public void afterSuite() {
-    closeServer();
   }
 
 }
