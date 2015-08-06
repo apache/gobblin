@@ -224,12 +224,16 @@ public class JobLauncherTestHelper {
     }
   }
 
-  public void runTestWithMultipleDatasetsWithFaultyExtractor(Properties jobProps) throws Exception {
+  public void runTestWithMultipleDatasetsAndFaultyExtractor(Properties jobProps, boolean usePartialCommitPolicy)
+      throws Exception {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     String jobId = JobLauncherUtils.newJobId(jobName);
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
     jobProps.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, MultiDatasetTestSourceWithFaultyExtractor.class.getName());
     jobProps.setProperty(ConfigurationKeys.MAX_TASK_RETRIES_KEY, "0");
+    if (usePartialCommitPolicy) {
+      jobProps.setProperty(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "partial");
+    }
 
     Closer closer = Closer.create();
     try {
@@ -241,17 +245,28 @@ public class JobLauncherTestHelper {
       closer.close();
     }
 
-    // Task 0 should have failed
-    Assert.assertTrue(this.datasetStateStore.getAll(jobName, "Dataset0-current.jst").isEmpty());
+    if (usePartialCommitPolicy) {
+      List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, "Dataset0-current.jst");
+      JobState.DatasetState datasetState = datasetStateList.get(0);
+      Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
+      Assert.assertEquals(datasetState.getTasks(), 1);
+      TaskState taskState = datasetState.getTaskStates().get(0);
+      // BaseDataPublisher will change the state to COMMITTED
+      Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
+    } else {
+      // Task 0 should have failed
+      Assert.assertTrue(this.datasetStateStore.getAll(jobName, "Dataset0-current.jst").isEmpty());
+    }
 
     for (int i = 1; i < 4; i++) {
-      List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, "Dataset" + i + "-current.jst");
-      JobState jobState = datasetStateList.get(0);
+      List<JobState.DatasetState> datasetStateList =
+          this.datasetStateStore.getAll(jobName, "Dataset" + i + "-current.jst");
+      JobState.DatasetState datasetState = datasetStateList.get(0);
 
-      Assert.assertEquals(jobState.getProp(ConfigurationKeys.DATASET_URN_KEY), "Dataset" + i);
-      Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
-      Assert.assertEquals(jobState.getCompletedTasks(), 1);
-      for (TaskState taskState : jobState.getTaskStates()) {
+      Assert.assertEquals(datasetState.getProp(ConfigurationKeys.DATASET_URN_KEY), "Dataset" + i);
+      Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
+      Assert.assertEquals(datasetState.getCompletedTasks(), 1);
+      for (TaskState taskState : datasetState.getTaskStates()) {
         Assert.assertEquals(taskState.getProp(ConfigurationKeys.DATASET_URN_KEY), "Dataset" + i);
         Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
       }
