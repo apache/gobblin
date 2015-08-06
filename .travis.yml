@@ -1,7 +1,8 @@
 language: java
 
 script:
-  - ./gradlew clean check 
+  - ./gradlew clean assemble
+  - ./gradlew --debug gobblin-runtime:check 
   - ./gradlew clean check -PuseHadoop2
 
 jdk:
