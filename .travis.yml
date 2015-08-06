@@ -1,7 +1,7 @@
 language: java
 
 script:
-  - ./gradlew clean check
+  - ./gradlew --debug clean check
   - ./gradlew clean check -PuseHadoop2
 
 jdk:
