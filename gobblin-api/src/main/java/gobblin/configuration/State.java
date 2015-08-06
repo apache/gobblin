@@ -341,10 +341,18 @@ public class State implements Writable {
     return Boolean.parseBoolean(getProperty(key, String.valueOf(def)));
   }
 
+  /**
+   * @deprecated Use {@link #getProp(String)}
+   */
+  @Deprecated
   protected String getProperty(String key) {
     return this.properties.getProperty(key);
   }
 
+  /**
+   * @deprecated Use {@link #getProp(String, String)}
+   */
+  @Deprecated
   protected String getProperty(String key, String def) {
     return this.properties.getProperty(key, def);
   }
@@ -405,8 +413,8 @@ public class State implements Writable {
     }
 
     State other = (State) object;
-    return ((this.id == null && other.id == null) || (this.id != null && this.id.equals(other.id))) &&
-        this.properties.equals(other.properties);
+    return ((this.id == null && other.id == null) || (this.id != null && this.id.equals(other.id)))
+        && this.properties.equals(other.properties);
   }
 
   @Override

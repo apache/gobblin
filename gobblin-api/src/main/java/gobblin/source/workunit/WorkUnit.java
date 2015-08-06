@@ -23,6 +23,8 @@ import java.io.IOException;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 
+import gobblin.configuration.WorkUnitState;
+import gobblin.source.Source;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.Watermark;
 import gobblin.source.extractor.WatermarkInterval;
@@ -220,6 +222,17 @@ public class WorkUnit extends State {
   }
 
   /**
+   * {@link Extractor}s should generally set the actual high watermark in {@link WorkUnitState},
+   * not in WorkUnit. However, it is recommended that when {@link Source} creates a WorkUnit, it sets an actual
+   * high watermark in the WorkUnit, so that if an {@link Extractor} fails and its {@link WorkUnitState} is still
+   * committed (which may happen if 'job.commit.policy' is set to 'partial'), the actual high watermark will be
+   * missing and the next run may lose the checkpoint.
+   */
+  public void setActualHighWatermark(Watermark watermark) {
+    setProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY, watermark.toJson().toString());
+  }
+
+  /**
    * Get the low watermark of this {@link WorkUnit}.
    *
    * @return low watermark
@@ -260,8 +273,8 @@ public class WorkUnit extends State {
     }
 
     WorkUnit other = (WorkUnit) object;
-    return ((this.extract == null && other.extract == null) ||
-        (this.extract != null && this.extract.equals(other.extract))) && super.equals(other);
+    return ((this.extract == null && other.extract == null)
+        || (this.extract != null && this.extract.equals(other.extract))) && super.equals(other);
   }
 
   @Override

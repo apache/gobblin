@@ -242,6 +242,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     Preconditions.checkArgument(!partitions.isEmpty(), "There must be at least one partition in the multiWorkUnit");
     Extract extract = this.createExtract(DEFAULT_TABLE_TYPE, DEFAULT_NAMESPACE_NAME, partitions.get(0).getTopicName());
     WorkUnit workUnit = WorkUnit.create(extract, interval);
+    workUnit.setActualHighWatermark(interval.getLowWatermark());
     populateMultiPartitionWorkUnit(partitions, workUnit);
     workUnit.setProp(ESTIMATED_DATA_SIZE, multiWorkUnit.getProp(ESTIMATED_DATA_SIZE));
     LOG.info(String.format("Created workunit for partitions %s", partitions));
