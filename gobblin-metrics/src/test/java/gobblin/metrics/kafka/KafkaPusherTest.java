@@ -19,7 +19,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.Test;
 
-import com.beust.jcommander.internal.Lists;
+import com.google.common.collect.Lists;
 
 
 /**
