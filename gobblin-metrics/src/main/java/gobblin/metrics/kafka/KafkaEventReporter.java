@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Queue;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
 import gobblin.metrics.GobblinTrackingEvent;
@@ -35,12 +36,17 @@ public class KafkaEventReporter extends EventReporter {
   protected final AvroSerializer<GobblinTrackingEvent> serializer;
   private final KafkaPusher kafkaPusher;
 
-  public KafkaEventReporter(Builder builder) throws IOException {
+  public KafkaEventReporter(Builder<?> builder) throws IOException {
     super(builder);
 
     this.serializer = this.closer.register(
         createSerializer(new FixedSchemaVersionWriter()));
-    this.kafkaPusher = this.closer.register(new KafkaPusher(builder.brokers, builder.topic));
+
+    if(builder.kafkaPusher.isPresent()) {
+      this.kafkaPusher = builder.kafkaPusher.get();
+    } else {
+      this.kafkaPusher = this.closer.register(new KafkaPusher(builder.brokers, builder.topic));
+    }
 
   }
 
@@ -66,19 +72,34 @@ public class KafkaEventReporter extends EventReporter {
    *
    * @param context the {@link gobblin.metrics.MetricContext} to report
    * @return KafkaReporter builder
+   * @deprecated this method is bugged. Use {@link KafkaEventReporter.Factory#forContext} instead.
    */
+  @Deprecated
   public static Builder<? extends Builder> forContext(MetricContext context) {
     return new BuilderImpl(context);
   }
 
-  private static class BuilderImpl extends Builder<BuilderImpl> {
-    public BuilderImpl(MetricContext context) {
+  public static class BuilderImpl extends Builder<BuilderImpl> {
+    private BuilderImpl(MetricContext context) {
       super(context);
     }
 
     @Override
     protected BuilderImpl self() {
       return this;
+    }
+  }
+
+  public static class Factory {
+    /**
+     * Returns a new {@link KafkaEventReporter.Builder} for {@link KafkaEventReporter}.
+     * Will automatically add all Context tags to the reporter.
+     *
+     * @param context the {@link gobblin.metrics.MetricContext} to report
+     * @return KafkaReporter builder
+     */
+    public static BuilderImpl forContext(MetricContext context) {
+      return new BuilderImpl(context);
     }
   }
 
@@ -90,9 +111,19 @@ public class KafkaEventReporter extends EventReporter {
       extends EventReporter.Builder<T> {
     protected String brokers;
     protected String topic;
+    protected Optional<KafkaPusher> kafkaPusher;
 
     protected Builder(MetricContext context) {
       super(context);
+      this.kafkaPusher = Optional.absent();
+    }
+
+    /**
+     * Set {@link gobblin.metrics.kafka.KafkaPusher} to use.
+     */
+    public T withKafkaPusher(KafkaPusher pusher) {
+      this.kafkaPusher = Optional.of(pusher);
+      return self();
     }
 
     /**
