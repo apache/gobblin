@@ -3,6 +3,7 @@ language: java
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install --only-upgrade -y oracle-java8-installer
+  - java -Xmx32m -version
 
 script:
   - ./gradlew clean assemble
