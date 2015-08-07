@@ -6,9 +6,9 @@ before_install:
   - java -Xmx32m -version
 
 script:
-  - ./gradlew clean assemble
-  - ./gradlew check 
-  - ./gradlew clean check -PuseHadoop2
+  - ./gradlew --no-daemon clean assemble
+  - ./gradlew --no-daemon check 
+  - ./gradlew --no-daemon clean check -PuseHadoop2
 
 jdk:
   - oraclejdk8
