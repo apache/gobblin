@@ -12,14 +12,6 @@
 
 package gobblin.azkaban;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.Tag;
-import gobblin.runtime.EmailNotificationJobListener;
-import gobblin.runtime.JobLauncher;
-import gobblin.runtime.JobLauncherFactory;
-import gobblin.runtime.JobListener;
-import gobblin.runtime.util.JobMetrics;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -34,6 +26,14 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
+
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.metrics.Tag;
+import gobblin.runtime.EmailNotificationJobListener;
+import gobblin.runtime.JobLauncher;
+import gobblin.runtime.JobLauncherFactory;
+import gobblin.runtime.JobListener;
+import gobblin.runtime.util.JobMetrics;
 
 
 /**
