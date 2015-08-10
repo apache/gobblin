@@ -140,6 +140,11 @@ public class GobblinMetrics {
     state.appendToListProp(METRICS_STATE_CUSTOM_TAGS, tag.toString());
   }
 
+  public static void addCustomTagsToProperties(Properties properties, List<Tag<?>> tags) {
+    for (Tag<?> tag : tags) {
+      addCustomTagToProperties(properties, tag);
+    }
+  }
 
   /**
    * Add a {@link Tag} to a {@link Properties} with key {@link #METRICS_STATE_CUSTOM_TAGS}.
