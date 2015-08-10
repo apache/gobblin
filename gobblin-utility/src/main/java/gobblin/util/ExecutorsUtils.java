@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
-import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 
@@ -32,8 +32,8 @@ public class ExecutorsUtils {
 
   private static final ThreadFactory DEFAULT_THREAD_FACTORY = newThreadFactory(Optional.<Logger>absent());
 
-  private static final long EXECUTOR_SERVICE_SHUTDOWN_TIMEOUT = 60;
-  private static final TimeUnit EXECUTOR_SERVICE_SHUTDOWN_TIMEOUT_TIMEUNIT = TimeUnit.SECONDS;
+  public static final long EXECUTOR_SERVICE_SHUTDOWN_TIMEOUT = 60;
+  public static final TimeUnit EXECUTOR_SERVICE_SHUTDOWN_TIMEOUT_TIMEUNIT = TimeUnit.SECONDS;
 
   /**
    * Get a default {@link java.util.concurrent.ThreadFactory}.
@@ -74,17 +74,54 @@ public class ExecutorsUtils {
   }
 
   /**
-   * Shutdown a {@link ExecutorService}.
+   * Shutdown an {@link ExecutorService} gradually, first disabling new task submissions and later cancelling
+   * existing tasks.
    *
-   * See
-   * <a href="http://docs.oracle.com/javase/7/docs/api/java/util/concurrent/ExecutorService.html">
-   *   ExecutorService
-   * </a>.
+   * <p>
+   *   The implementation is based on the implementation of Guava's MoreExecutors.shutdownAndAwaitTermination,
+   *   which is available since version 17.0. We cannot use Guava version 17.0 or after directly, however, as
+   *   it cannot be used with Hadoop 2.6.0 or after due to the issue reported in HADOOP-10961.
+   * </p>
+   *
+   * @param executorService the {@link ExecutorService} to shutdown
+   * @param timeout the maximum time to wait for the {@code ExecutorService} to terminate
+   * @param unit the time unit of the timeout argument
+   */
+  public static void shutdownExecutorService(ExecutorService executorService, long timeout, TimeUnit unit) {
+    Preconditions.checkNotNull(unit);
+    // Disable new tasks from being submitted
+    executorService.shutdown();
+    try {
+      long halfTimeoutNanos = TimeUnit.NANOSECONDS.convert(timeout, unit) / 2;
+      // Wait for half the duration of the timeout for existing tasks to terminate
+      if (!executorService.awaitTermination(halfTimeoutNanos, TimeUnit.NANOSECONDS)) {
+        // Cancel currently executing tasks
+        executorService.shutdownNow();
+        // Wait the other half of the timeout for tasks to respond to being cancelled
+        executorService.awaitTermination(halfTimeoutNanos, TimeUnit.NANOSECONDS);
+      }
+    } catch (InterruptedException ie) {
+      // Preserve interrupt status
+      Thread.currentThread().interrupt();
+      // (Re-)Cancel if current thread also interrupted
+      executorService.shutdownNow();
+    }
+  }
+
+  /**
+   * Shutdown an {@link ExecutorService} gradually, first disabling new task submissions and
+   * later cancelling existing tasks.
+   *
+   * <p>
+   *   This method calls {@link #shutdownExecutorService(ExecutorService, long, TimeUnit)}
+   *   with default timeout time {@link #EXECUTOR_SERVICE_SHUTDOWN_TIMEOUT} and time unit
+   *   {@link #EXECUTOR_SERVICE_SHUTDOWN_TIMEOUT_TIMEUNIT}.
+   * </p>
    *
    * @param executorService the {@link ExecutorService} to shutdown
    */
-  public static void shutdownExecutorService(ExecutorService executorService) throws InterruptedException {
-    MoreExecutors.shutdownAndAwaitTermination(executorService, EXECUTOR_SERVICE_SHUTDOWN_TIMEOUT,
+  public static void shutdownExecutorService(ExecutorService executorService) {
+    shutdownExecutorService(executorService, EXECUTOR_SERVICE_SHUTDOWN_TIMEOUT,
         EXECUTOR_SERVICE_SHUTDOWN_TIMEOUT_TIMEUNIT);
   }
 }
