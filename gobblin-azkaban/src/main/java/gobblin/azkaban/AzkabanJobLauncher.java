@@ -12,16 +12,21 @@
 
 package gobblin.azkaban;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.log4j.Logger;
 
+import azkaban.jobExecutor.AbstractJob;
+
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
-import azkaban.jobExecutor.AbstractJob;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.Tag;
 import gobblin.runtime.EmailNotificationJobListener;
@@ -44,8 +49,10 @@ public class AzkabanJobLauncher extends AbstractJob {
   private static final String AZKABAN_LINK_JOBEXEC_URL = "azkaban.link.jobexec.url";
   private static final String HADOOP_TOKEN_FILE_LOCATION = "HADOOP_TOKEN_FILE_LOCATION";
   private static final String MAPREDUCE_JOB_CREDENTIALS_BINARY = "mapreduce.job.credentials.binary";
-  private static final String AZKABAN_FLOW_ID_CONFIG_KEY_NAME = "azkaban.flow.flowid";
-  private static final String FLOW_ID_TAG_NAME = "flowId";
+
+  private static final ImmutableMap<String, String> PROPERTIES_TO_TAGS_MAP = new ImmutableMap.Builder<String, String>()
+      .put("azkaban.flow.projectname", "azkabanProjectName").put("azkaban.flow.flowid", "azkabanFlowId")
+      .put("azkaban.job.id", "azkabanJobId").put("azkaban.flow.execid", "azkabanExecId").build();
 
   private final Closer closer = Closer.create();
   private final JobLauncher jobLauncher;
@@ -79,16 +86,27 @@ public class AzkabanJobLauncher extends AbstractJob {
       properties.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, System.getenv(HADOOP_TOKEN_FILE_LOCATION));
     }
 
-    String flowId = conf.get(AZKABAN_FLOW_ID_CONFIG_KEY_NAME);
-
-    if (StringUtils.isNotBlank(flowId)) {
-      JobMetrics.addCustomTagToProperties(properties, new Tag<String>(FLOW_ID_TAG_NAME, flowId));
-    }
+    JobMetrics.addCustomTagsToProperties(properties, getAzkabanTags());
 
     // Create a JobLauncher instance depending on the configuration. The same properties object is
     // used for both system and job configuration properties because Azkaban puts configuration
     // properties in the .job file and in the .properties file into the same Properties object.
     this.jobLauncher = this.closer.register(JobLauncherFactory.newJobLauncher(properties, properties));
+  }
+
+  private List<Tag<?>> getAzkabanTags() {
+    Configuration conf = new Configuration();
+    List<Tag<?>> tags = Lists.newArrayList();
+
+    for (Map.Entry<String, String> entry : PROPERTIES_TO_TAGS_MAP.entrySet()) {
+      if (StringUtils.isNotBlank(conf.get(entry.getKey()))) {
+        tags.add(new Tag<String>(entry.getValue(), conf.get(entry.getKey())));
+      } else {
+        LOG.warn(String.format("No config value found for azkaban config %s. Metics will not have tag %s", entry.getKey(),
+            entry.getValue()));
+      }
+    }
+    return tags;
   }
 
   @Override
