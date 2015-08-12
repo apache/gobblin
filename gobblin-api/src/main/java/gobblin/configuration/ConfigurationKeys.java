@@ -460,9 +460,12 @@ public class ConfigurationKeys {
   public static final int DEFAULT_COMPACTION_MR_JOB_TIMEOUT_MINUTES = Integer.MAX_VALUE;
   public static final String COMPACTION_RECOMPACT_FOR_LATE_DATA = COMPACTION_PREFIX + "recompact.for.late.data";
   public static final boolean DEFAULT_COMPACTION_RECOMPACT_FOR_LATE_DATA = false;
+  public static final String COMPACTION_DEDUPLICATE = COMPACTION_PREFIX + "deduplicate";
+  public static final boolean DEFAULT_COMPACTION_DEDUPLICATE = true;
   public static final String COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK = COMPACTION_PREFIX + "job.late.data.movement.task";
   public static final String COMPACTION_JOB_LATE_DATA_FILES = COMPACTION_PREFIX + "job.late.data.files";
   public static final String COMPACTION_COMPLETE_FILE_NAME = "_COMPACTION_COMPLETE";
+  public static final String COMPACTION_LATE_FILES_DIRECTORY = "late";
   public static final String COMPACTION_ENABLE_SUCCESS_FILE = "mapreduce.fileoutputcommitter.marksuccessfuljobs";
   public static final String COMPACTION_OVERWRITE_OUTPUT_DIR = COMPACTION_PREFIX + "overwrite.output.dir";
   public static final boolean DEFAULT_COMPACTION_OVERWRITE_OUTPUT_DIR = false;

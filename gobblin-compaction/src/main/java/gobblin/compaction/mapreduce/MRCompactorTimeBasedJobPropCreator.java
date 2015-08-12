@@ -95,7 +95,7 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
       Path jobTmpDir = new Path(this.topicTmpDir, folderTime.toString(this.timeFormatter));
       if (folderWithinAllowedPeriod(status.getPath(), folderTime)) {
         if (!folderAlreadyCompacted(jobOutputDir)) {
-          allJobProps.add(createJobProps(status.getPath(), jobOutputDir, jobTmpDir));
+          allJobProps.add(createJobProps(status.getPath(), jobOutputDir, jobTmpDir, this.deduplicate));
         } else {
           List<Path> newDataFiles = getNewDataInFolder(status.getPath(), jobOutputDir);
           if (newDataFiles.isEmpty()) {
@@ -158,11 +158,11 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
     if (this.state.getPropAsBoolean(ConfigurationKeys.COMPACTION_RECOMPACT_FOR_LATE_DATA,
         ConfigurationKeys.DEFAULT_COMPACTION_RECOMPACT_FOR_LATE_DATA)) {
       LOG.info(String.format("Recompacting folder at %s.", jobOutputDir));
-      return createJobProps(jobInputDir, jobOutputDir, jobTmpDir);
+      return createJobProps(jobInputDir, jobOutputDir, jobTmpDir, this.deduplicate);
     } else {
-      LOG.info(String.format("Moving %d new data files from %s to %s",
-          newDataFiles.size(), jobInputDir, new Path(jobOutputDir, "late")));
-      State jobProps = createJobProps(jobInputDir, jobOutputDir, jobTmpDir);
+      LOG.info(String.format("Moving %d new data files from %s to %s", newDataFiles.size(), jobInputDir,
+          new Path(jobOutputDir, ConfigurationKeys.COMPACTION_LATE_FILES_DIRECTORY)));
+      State jobProps = createJobProps(jobInputDir, jobOutputDir, jobTmpDir, this.deduplicate);
       jobProps.setProp(ConfigurationKeys.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, true);
       jobProps.setProp(ConfigurationKeys.COMPACTION_JOB_LATE_DATA_FILES, Joiner.on(",").join(newDataFiles));
       return jobProps;
