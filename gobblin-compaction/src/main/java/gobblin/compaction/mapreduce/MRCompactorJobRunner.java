@@ -13,9 +13,11 @@
 package gobblin.compaction.mapreduce;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.Callable;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -32,6 +34,7 @@ import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.primitives.Ints;
 
@@ -89,28 +92,59 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
     Configuration conf = HadoopUtils.getConfFromState(this.jobProps);
     DateTime jobStartTime = new DateTime(DateTimeZone.forID(this.jobProps.getProp(
         ConfigurationKeys.COMPACTION_TIMEZONE, ConfigurationKeys.DEFAULT_COMPACTION_TIMEZONE)));
+    boolean deduplicate = this.jobProps.getPropAsBoolean(ConfigurationKeys.COMPACTION_DEDUPLICATE,
+        ConfigurationKeys.DEFAULT_COMPACTION_DEDUPLICATE);
+
     if (this.jobProps.getPropAsBoolean(ConfigurationKeys.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, false)) {
-      this.copyLateDataFiles(new Path(this.outputPath, "late"), conf);
+      List<Path> lateFilePaths = Lists.newArrayList();
+      for (String filePathString : this.jobProps.getPropAsList(ConfigurationKeys.COMPACTION_JOB_LATE_DATA_FILES)) {
+        if (FilenameUtils.isExtension(filePathString, getApplicableFileExtensions())) {
+          lateFilePaths.add(new Path(filePathString));
+        }
+      }
+      Path lateDataOutputPath = deduplicate ? this.outputPath :
+          new Path(this.outputPath, ConfigurationKeys.COMPACTION_LATE_FILES_DIRECTORY);
+      this.copyDataFiles(lateDataOutputPath, lateFilePaths, conf);
     } else {
       if (this.fs.exists(this.outputPath) && !canOverwriteOutputDir()) {
         LOG.warn(String.format("Output path %s exists. Will not compact %s.", this.outputPath, this.inputPath));
         return null;
       }
-      addJars(conf);
-      Job job = Job.getInstance(conf);
-      this.configureJob(job);
-      this.submit(job);
+      if (deduplicate) {
+        addJars(conf);
+        Job job = Job.getInstance(conf);
+        this.configureJob(job);
+        this.submit(job);
+      } else {
+        this.fs.mkdirs(this.tmpPath);
+        List<Path> filePaths = Lists.newArrayList();
+        for (FileStatus status : HadoopUtils.listStatusRecursive(this.fs, this.inputPath)) {
+          if (FilenameUtils.isExtension(status.getPath().getName(), getApplicableFileExtensions())) {
+            filePaths.add(status.getPath());
+          }
+        }
+        this.copyDataFiles(this.tmpPath, filePaths, conf);
+      }
       this.moveTmpPathToOutputPath();
     }
     this.markOutputDirAsCompleted(jobStartTime);
     return null;
   }
 
-  private void copyLateDataFiles(Path outputDirectory, Configuration conf) throws IOException {
-    for (String filePath : this.jobProps.getPropAsList(ConfigurationKeys.COMPACTION_JOB_LATE_DATA_FILES)) {
-      Path outPath = new Path(outputDirectory,
-          StringUtils.removeStart(StringUtils.removeStart(filePath, this.inputPath.toString()), "/"));
-      if (!FileUtil.copy(this.fs, new Path(filePath), this.fs, outPath, false, conf)) {
+  private void copyDataFiles(Path outputDirectory, List<Path> inputFilePaths, Configuration conf)
+      throws IOException {
+    for (Path filePath : inputFilePaths) {
+      String fileName = filePath.getName();
+      Path outPath;
+      int fileSuffix = 0;
+      do {
+        outPath = new Path(outputDirectory, String.format("%s.%d.%s",
+            FilenameUtils.getBaseName(fileName), fileSuffix++, FilenameUtils.getExtension(fileName)));
+      } while (this.fs.exists(outPath));
+
+      if (FileUtil.copy(this.fs, filePath, this.fs, outPath, false, conf)) {
+        LOG.info(String.format("Copied %s to %s.", filePath, outPath));
+      } else {
         LOG.warn(String.format("Failed to copy %s to %s.", filePath, outPath));
       }
     }
@@ -183,6 +217,8 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
   protected abstract void setOutputKeyClass(Job job);
 
   protected abstract void setOutputValueClass(Job job);
+
+  protected abstract Collection<String> getApplicableFileExtensions();
 
   protected void setNumberOfReducers(Job job) throws IOException {
     long inputSize = getInputSize();
