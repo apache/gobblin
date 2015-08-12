@@ -27,7 +27,7 @@ import org.testng.annotations.Test;
 
 public class AvroFsHelperTest {
 
-  @Test(groups = { "ignore" }, expectedExceptions = IllegalArgumentException.class)
+  @Test(expectedExceptions = IllegalArgumentException.class)
   public void testConnectFailsWithS3URLWithoutAWSCredentials() throws FileBasedHelperException {
     Configuration conf = new Configuration(); // plain conf, no S3 credentials
     SourceState sourceState = new SourceState();
