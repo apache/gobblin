@@ -432,8 +432,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       // When unable to get earliest/latest offsets from Kafka, skip the partition and create an empty workunit,
       // so that previousOffset is persisted.
       LOG.warn(String.format(
-          "Failed to retrieve earliest and/or latest offset for partition %s. This partition will be skipped.",
-          partition));
+              "Failed to retrieve earliest and/or latest offset for partition %s. This partition will be skipped.",
+              partition));
       return previousOffsetNotFound ? null : createEmptyWorkUnit(partition, previousOffset);
     }
 
@@ -499,16 +499,38 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         partition.getTopicName(), partition.getId()));
   }
 
+  private KafkaPartition getKafkaPartitionFromLegacyState(State state) {
+    Preconditions.checkArgument(state.contains(TOPIC_NAME) && state.contains(PARTITION_ID));
+
+    return new KafkaPartition.Builder()
+              .withTopicName(state.getProp(TOPIC_NAME))
+              .withId(state.getPropAsInt(PARTITION_ID))
+              .build();
+  }
+
   private void getAllPreviousOffsets(SourceState state) {
     this.previousOffsets.clear();
     for (WorkUnitState workUnitState : state.getPreviousWorkUnitStates()) {
-      List<KafkaPartition> partitions = KafkaUtils.getPartitions(workUnitState);
-      MultiLongWatermark watermark = GSON.fromJson(workUnitState.getActualHighWatermark(), MultiLongWatermark.class);
-      Preconditions.checkArgument(partitions.size() == watermark.size(), String.format(
-          "Num of partitions doesn't match number of watermarks: partitions=%s, watermarks=%s", partitions, watermark));
-      for (int i = 0; i < partitions.size(); i++) {
-        if (watermark.get(i) != ConfigurationKeys.DEFAULT_WATERMARK_VALUE)
-          this.previousOffsets.put(partitions.get(i), watermark.get(i));
+      if (workUnitState.getActualHighWatermark() == null) {
+        LOG.info("Transitioning from old source state");
+        KafkaPartition partition = getKafkaPartitionFromLegacyState(workUnitState);
+        if (partition == null) {
+          continue;
+        }
+        long previousOffset = workUnitState.getHighWaterMark();
+        if (previousOffset != ConfigurationKeys.DEFAULT_WATERMARK_VALUE) {
+          this.previousOffsets.put(partition, previousOffset);
+        }
+      } else {
+        List<KafkaPartition> partitions = KafkaUtils.getPartitions(workUnitState);
+
+        MultiLongWatermark watermark = GSON.fromJson(workUnitState.getActualHighWatermark(), MultiLongWatermark.class);
+        Preconditions.checkArgument(partitions.size() == watermark.size(), String.format(
+                "Num of partitions doesn't match number of watermarks: partitions=%s, watermarks=%s", partitions, watermark));
+        for (int i = 0; i < partitions.size(); i++) {
+          if (watermark.get(i) != ConfigurationKeys.DEFAULT_WATERMARK_VALUE)
+            this.previousOffsets.put(partitions.get(i), watermark.get(i));
+        }
       }
     }
   }
