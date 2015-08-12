@@ -35,7 +35,7 @@ public class KafkaAvroReporter extends KafkaReporter {
   protected KafkaAvroReporter(Builder<?> builder) throws IOException {
     super(builder);
     if(builder.registry.isPresent()) {
-      this.serializer.setSchemaVersionWriter(new SchemaRegistryVersionWriter(builder.registry.get()));
+      this.serializer.setSchemaVersionWriter(new SchemaRegistryVersionWriter(builder.registry.get(), builder.topic));
     }
   }
 
