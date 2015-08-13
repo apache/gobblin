@@ -88,7 +88,7 @@ public class PublisherUtils {
   @AllArgsConstructor
   @Getter
   public static class SplitExtractsResult {
-    private Multimap<Extract, WorkUnitState> filtered;
     private Multimap<Extract, WorkUnitState> retained;
+    private Multimap<Extract, WorkUnitState> filtered;
   }
 }
