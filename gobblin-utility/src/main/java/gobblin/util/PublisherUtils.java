@@ -54,20 +54,24 @@ public class PublisherUtils {
   /**
    * Given a {@link Multimap} of {@link Extract}s to {@link WorkUnitState}s, filter out any {@link Extract}s where all
    * of the corresponding {@link WorkUnitState}s do not meet the given {@link Predicate}.
-   * The filtered {@link Extract}s will be available in {@link SplitExtractsResult#getFailedExtracts()}
+   * <ul>
+   *  <li> The filtered {@link Extract}s will be available in {@link SplitExtractsResult#getFiltered()}</li>
+   *  <li> The {@link Extract}s satisfying the predicated will be available in {@link SplitExtractsResult#getRetained()}</li>
+   * </ul>
+   *
    */
   public static SplitExtractsResult splitExtractsByPredicate(
       Multimap<Extract, WorkUnitState> extractToWorkUnitStateMap, Predicate<WorkUnitState> predicate) {
-    Multimap<Extract, WorkUnitState> successfulExtracts = ArrayListMultimap.create();
-    Multimap<Extract, WorkUnitState> failedExtracts = ArrayListMultimap.create();
+    Multimap<Extract, WorkUnitState> retained = ArrayListMultimap.create();
+    Multimap<Extract, WorkUnitState> filtered = ArrayListMultimap.create();
     for (Map.Entry<Extract, Collection<WorkUnitState>> entry : extractToWorkUnitStateMap.asMap().entrySet()) {
       if (Iterables.all(entry.getValue(), predicate)) {
-        successfulExtracts.putAll(entry.getKey(), entry.getValue());
+        retained.putAll(entry.getKey(), entry.getValue());
       } else {
-        failedExtracts.putAll(entry.getKey(), entry.getValue());
+        filtered.putAll(entry.getKey(), entry.getValue());
       }
     }
-    return new SplitExtractsResult(successfulExtracts, failedExtracts);
+    return new SplitExtractsResult(retained, filtered);
   }
 
   /**
@@ -84,7 +88,7 @@ public class PublisherUtils {
   @AllArgsConstructor
   @Getter
   public static class SplitExtractsResult {
-    private Multimap<Extract, WorkUnitState> successfulExtracts;
-    private Multimap<Extract, WorkUnitState> failedExtracts;
+    private Multimap<Extract, WorkUnitState> filtered;
+    private Multimap<Extract, WorkUnitState> retained;
   }
 }
