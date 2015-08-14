@@ -39,6 +39,12 @@ import gobblin.runtime.util.JobMetrics;
 /**
  * A utility class for launching a Gobblin Hadoop MR job through Azkaban.
  *
+ * <p>
+ *   By default, this class will use the {@link gobblin.runtime.mapreduce.MRJobLauncher} to launch and run
+ *   the Gobblin job unless a different job launcher type is explicitly specified in the job configuration
+ *   using {@link ConfigurationKeys#JOB_LAUNCHER_TYPE_KEY}.
+ * </p>
+ *
  * @author ynli
  */
 public class AzkabanJobLauncher extends AbstractJob {
@@ -50,9 +56,13 @@ public class AzkabanJobLauncher extends AbstractJob {
   private static final String HADOOP_TOKEN_FILE_LOCATION = "HADOOP_TOKEN_FILE_LOCATION";
   private static final String MAPREDUCE_JOB_CREDENTIALS_BINARY = "mapreduce.job.credentials.binary";
 
-  private static final ImmutableMap<String, String> PROPERTIES_TO_TAGS_MAP = new ImmutableMap.Builder<String, String>()
-      .put("azkaban.flow.projectname", "azkabanProjectName").put("azkaban.flow.flowid", "azkabanFlowId")
-      .put("azkaban.job.id", "azkabanJobId").put("azkaban.flow.execid", "azkabanExecId").build();
+  private static final ImmutableMap<String, String> PROPERTIES_TO_TAGS_MAP =
+      new ImmutableMap.Builder<String, String>()
+          .put("azkaban.flow.projectname", "azkabanProjectName")
+          .put("azkaban.flow.flowid", "azkabanFlowId")
+          .put("azkaban.job.id", "azkabanJobId")
+          .put("azkaban.flow.execid", "azkabanExecId")
+          .build();
 
   private final Closer closer = Closer.create();
   private final JobLauncher jobLauncher;
@@ -88,6 +98,13 @@ public class AzkabanJobLauncher extends AbstractJob {
 
     JobMetrics.addCustomTagsToProperties(properties, getAzkabanTags());
 
+    // If the job launcher type is not specified in the job configuration,
+    // override the default to use the MAPREDUCE launcher.
+    if (!properties.containsKey(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY)) {
+      properties.setProperty(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY,
+          JobLauncherFactory.JobLauncherType.MAPREDUCE.toString());
+    }
+
     // Create a JobLauncher instance depending on the configuration. The same properties object is
     // used for both system and job configuration properties because Azkaban puts configuration
     // properties in the .job file and in the .properties file into the same Properties object.
@@ -102,8 +119,8 @@ public class AzkabanJobLauncher extends AbstractJob {
       if (StringUtils.isNotBlank(conf.get(entry.getKey()))) {
         tags.add(new Tag<String>(entry.getValue(), conf.get(entry.getKey())));
       } else {
-        LOG.warn(String.format("No config value found for azkaban config %s. Metics will not have tag %s", entry.getKey(),
-            entry.getValue()));
+        LOG.warn(String.format("No config value found for azkaban config %s. Metrics will not have tag %s",
+            entry.getKey(), entry.getValue()));
       }
     }
     return tags;
