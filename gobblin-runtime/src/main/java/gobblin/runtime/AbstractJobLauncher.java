@@ -260,16 +260,18 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
       this.eventSubmitter.submit(CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, "JOB_" + jobState.getState()));
 
-      // Check and set final job jobPropsState upon job completion
+      // Return without committing if the job has been cancelled
       if (jobState.getState() == JobState.RunningState.CANCELLED) {
         LOG.info(String.format("Job %s has been cancelled, aborting now", jobId));
         return;
       }
 
+      // Custom post-processing of task states before committing
+      postProcessTaskStates(jobState.getTaskStates());
+
       TimingEvent jobCommitTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.JOB_COMMIT);
       this.jobContext.finalizeJobStateBeforeCommit();
       this.jobContext.commit();
-      postProcessTaskStates(jobState.getTaskStates());
       jobCommitTimer.stop();
     } catch (Throwable t) {
       jobState.setState(JobState.RunningState.FAILED);
@@ -313,8 +315,18 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   }
 
   /**
-   * Subclasses can override this method to do whatever processing on the {@link TaskState}s,
-   * e.g., aggregate task-level metrics into job-level metrics.
+   * A method that allows custom post-processing of {@link TaskState}s.
+   *
+   * <p>
+   *   Subclasses can override this method to do whatever processing on the {@link TaskState}s,
+   *   e.g., aggregate task-level metrics into job-level metrics.
+   * </p>
+   *
+   * <p>
+   *   This method will be called before the job state gets committed.
+   * </p>
+   *
+   * @param taskStates a list of {@link TaskState}s of the current completed job
    */
   protected void postProcessTaskStates(List<TaskState> taskStates) {
     // Do nothing
