@@ -26,10 +26,10 @@ import org.apache.commons.cli.ParseException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
-import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.helix.HelixManager;
@@ -73,9 +73,9 @@ import gobblin.yarn.event.ApplicationMasterShutdownRequest;
  *
  * @author ynli
  */
-public class GobblinYarnApplicationMaster {
+public class GobblinApplicationMaster {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(GobblinYarnApplicationMaster.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(GobblinApplicationMaster.class);
 
   private final ServiceManager serviceManager;
 
@@ -87,7 +87,7 @@ public class GobblinYarnApplicationMaster {
       .convertDurationsTo(TimeUnit.MILLISECONDS)
       .build();
 
-  public GobblinYarnApplicationMaster(String applicationName, Config config) throws Exception {
+  public GobblinApplicationMaster(String applicationName, Config config) throws Exception {
     ContainerId containerId =
         ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
     ApplicationAttemptId applicationAttemptIdId = containerId.getApplicationAttemptId();
@@ -104,13 +104,17 @@ public class GobblinYarnApplicationMaster {
     this.helixManager.addLiveInstanceChangeListener(new GobblinLiveInstanceChangeListener());
 
     // An EventBus used for communications between services running in the ApplicationMaster
-    EventBus eventBus = new EventBus(GobblinYarnApplicationMaster.class.getSimpleName());
+    EventBus eventBus = new EventBus(GobblinApplicationMaster.class.getSimpleName());
     eventBus.register(this);
 
     FileSystem fs = FileSystem.get(new Configuration());
     Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(fs, applicationName, applicationAttemptIdId.getApplicationId());
 
     List<Service> services = Lists.newArrayList();
+    if (UserGroupInformation.isSecurityEnabled()) {
+      LOGGER.info("Adding YarnAMSecurityManager since security is enabled");
+      services.add(new ControllerSecurityManager(config, fs));
+    }
     services.add(new YarnService(config, applicationName, applicationAttemptIdId.getApplicationId(), eventBus));
     services.add(new GobblinHelixJobScheduler(YarnHelixUtils.configToProperties(config), this.helixManager,
         eventBus, appWorkDir));
@@ -118,6 +122,7 @@ public class GobblinYarnApplicationMaster {
         config.hasPath(ConfigurationConstants.JOB_CONF_PACKAGE_PATH_KEY) ?
             Optional.of(config.getString(ConfigurationConstants.JOB_CONF_PACKAGE_PATH_KEY)) :
             Optional.<String>absent()));
+
     this.serviceManager = new ServiceManager(services);
   }
 
@@ -185,7 +190,7 @@ public class GobblinYarnApplicationMaster {
 
       @Override
       public void run() {
-        GobblinYarnApplicationMaster.this.stop();
+        GobblinApplicationMaster.this.stop();
       }
     });
   }
@@ -211,7 +216,7 @@ public class GobblinYarnApplicationMaster {
 
   private static void printUsage(Options options) {
     HelpFormatter formatter = new HelpFormatter();
-    formatter.printHelp(GobblinYarnApplicationMaster.class.getSimpleName(), options);
+    formatter.printHelp(GobblinApplicationMaster.class.getSimpleName(), options);
   }
 
   public static void main(String[] args) throws Exception {
@@ -224,9 +229,9 @@ public class GobblinYarnApplicationMaster {
       }
 
       Log4jConfigurationHelper.updateLog4jConfiguration(
-          GobblinYarnApplicationMaster.class, Log4jConfigurationHelper.LOG4J_CONFIGURATION_FILE_NAME);
+          GobblinApplicationMaster.class, Log4jConfigurationHelper.LOG4J_CONFIGURATION_FILE_NAME);
 
-      GobblinYarnApplicationMaster applicationMaster = new GobblinYarnApplicationMaster(
+      GobblinApplicationMaster applicationMaster = new GobblinApplicationMaster(
           cmd.getOptionValue(ConfigurationConstants.APPLICATION_NAME_OPTION_NAME), ConfigFactory.load());
       applicationMaster.start();
     } catch (ParseException pe) {

@@ -26,6 +26,7 @@ import org.apache.commons.cli.ParseException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.util.ConverterUtils;
@@ -71,9 +72,9 @@ import gobblin.runtime.TaskStateTracker;
  *
  * @author ynli
  */
-public class GobblinYarnWorkUnitRunner {
+public class GobblinWorkUnitRunner {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(GobblinYarnWorkUnitRunner.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(GobblinWorkUnitRunner.class);
 
   static final String GOBBLIN_TASK_FACTORY_NAME = "GobblinTaskFactory";
 
@@ -89,24 +90,31 @@ public class GobblinYarnWorkUnitRunner {
       .convertDurationsTo(TimeUnit.MILLISECONDS)
       .build();
 
-  public GobblinYarnWorkUnitRunner(String applicationName, Config config) throws Exception {
+  public GobblinWorkUnitRunner(String applicationName, Config config) throws Exception {
     this.containerId =
         ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
     FileSystem fs = FileSystem.get(new Configuration());
 
     String zkConnectionString = config.getString(ConfigurationConstants.ZK_CONNECTION_STRING_KEY);
     this.helixManager = HelixManagerFactory.getZKHelixManager(
-        config.hasPath(ConfigurationConstants.HELIX_CLUSTER_NAME_KEY) ?
-            config.getString(ConfigurationConstants.HELIX_CLUSTER_NAME_KEY) : applicationName,
-        YarnHelixUtils.getParticipantIdStr(YarnHelixUtils.getHostname(), this.containerId),
-        InstanceType.PARTICIPANT, zkConnectionString);
+        config.hasPath(ConfigurationConstants.HELIX_CLUSTER_NAME_KEY) ? config
+            .getString(ConfigurationConstants.HELIX_CLUSTER_NAME_KEY) : applicationName,
+        YarnHelixUtils.getParticipantIdStr(YarnHelixUtils.getHostname(), this.containerId), InstanceType.PARTICIPANT,
+        zkConnectionString);
 
     Properties properties = YarnHelixUtils.configToProperties(config);
     TaskExecutor taskExecutor = new TaskExecutor(properties);
-    TaskStateTracker taskStateTracker = new YarnHelixTaskStateTracker(properties, this.helixManager);
-    List<? extends Service> services = Lists.newArrayList(taskExecutor, taskStateTracker);
+    TaskStateTracker taskStateTracker = new GobblinHelixTaskStateTracker(properties, this.helixManager);
+
+    List<Service> services = Lists.newArrayList();
+    if (UserGroupInformation.isSecurityEnabled()) {
+      services.add(new ParticipantSecurityManager(config, fs));
+    }
+    services.add(taskExecutor);
+    services.add(taskStateTracker);
     this.serviceManager = new ServiceManager(services);
 
+    // Register task factory for the Helix task state model
     StateMachineEngine stateMachineEngine = this.helixManager.getStateMachineEngine();
     Map<String, TaskFactory> taskFactoryMap = Maps.newHashMap();
     Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(
@@ -118,11 +126,11 @@ public class GobblinYarnWorkUnitRunner {
   }
 
   /**
-   * Start this {@link GobblinYarnWorkUnitRunner} instance.
+   * Start this {@link GobblinWorkUnitRunner} instance.
    */
   public void start() {
     LOGGER.info(String.format("Starting %s in container %s",
-        GobblinYarnWorkUnitRunner.class.getSimpleName(), this.containerId));
+        GobblinWorkUnitRunner.class.getSimpleName(), this.containerId));
 
     // Add a shutdown hook so the task scheduler gets properly shutdown
     addShutdownHook();
@@ -184,7 +192,7 @@ public class GobblinYarnWorkUnitRunner {
 
   private static void printUsage(Options options) {
     HelpFormatter formatter = new HelpFormatter();
-    formatter.printHelp(GobblinYarnApplicationMaster.class.getSimpleName(), options);
+    formatter.printHelp(GobblinApplicationMaster.class.getSimpleName(), options);
   }
 
   public static void main(String[] args) throws Exception {
@@ -197,11 +205,11 @@ public class GobblinYarnWorkUnitRunner {
       }
 
       Log4jConfigurationHelper.updateLog4jConfiguration(
-          GobblinYarnWorkUnitRunner.class, Log4jConfigurationHelper.LOG4J_CONFIGURATION_FILE_NAME);
+          GobblinWorkUnitRunner.class, Log4jConfigurationHelper.LOG4J_CONFIGURATION_FILE_NAME);
 
-      GobblinYarnWorkUnitRunner yarnWorkUnitRunner = new GobblinYarnWorkUnitRunner(
+      GobblinWorkUnitRunner gobblinWorkUnitRunner = new GobblinWorkUnitRunner(
           cmd.getOptionValue(ConfigurationConstants.APPLICATION_NAME_OPTION_NAME), ConfigFactory.load());
-      yarnWorkUnitRunner.start();
+      gobblinWorkUnitRunner.start();
     } catch (ParseException pe) {
       printUsage(options);
       System.exit(1);

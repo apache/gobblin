@@ -53,6 +53,13 @@ public class ConfigurationConstants {
 
   public static final String WORK_UNIT_FILE_PATH = GOBBLIN_YARN_PREFIX + "work.unit.file.path";
 
+  public static final String KEYTAB_FILE_PATH = GOBBLIN_YARN_PREFIX + "keytab.file.path";
+  public static final String KEYTAB_PRINCIPAL_NAME = GOBBLIN_YARN_PREFIX + "keytab.principal.name";
+  public static final String TOKEN_FILE_PATH = GOBBLIN_YARN_PREFIX + "token.file.path";
+  public static final String LOGIN_INTERVAL_IN_HOURS = GOBBLIN_YARN_PREFIX + "login.interval.hours";
+  public static final String TOKEN_RENEW_INTERVAL_IN_HOURS = GOBBLIN_YARN_PREFIX + "token.renew.interval.hours";
+  public static final String TOKEN_FILE_MONITOR_INTERVAL_IN_MINUTES = "token.file.monitor.interval.minutes";
+
   public static final String APP_MASTER_WORK_DIR_NAME = "appmaster";
   public static final String CONTAINER_WORK_DIR_NAME = "container";
   public static final String LIB_JARS_DIR_NAME = "_libjars";

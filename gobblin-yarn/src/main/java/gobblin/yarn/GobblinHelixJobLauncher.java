@@ -61,9 +61,9 @@ import gobblin.util.ParallelRunner;
  *
  * @author ynli
  */
-public class YarnHelixJobLauncher extends AbstractJobLauncher {
+public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(YarnHelixJobLauncher.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(GobblinHelixJobLauncher.class);
 
   private static final String WORK_UNIT_FILE_EXTENSION = ".wu";
 
@@ -78,7 +78,7 @@ public class YarnHelixJobLauncher extends AbstractJobLauncher {
 
   private final int stateSerDeRunnerThreads;
 
-  public YarnHelixJobLauncher(Properties jobProps, HelixManager helixManager, Path appWorkDir) throws Exception {
+  public GobblinHelixJobLauncher(Properties jobProps, HelixManager helixManager, Path appWorkDir) throws Exception {
     super(jobProps);
 
     this.helixManager = helixManager;
@@ -147,7 +147,7 @@ public class YarnHelixJobLauncher extends AbstractJobLauncher {
     }
 
     JobConfig.Builder jobConfigBuilder = new JobConfig.Builder();
-    jobConfigBuilder.addTaskConfigMap(taskConfigMap).setCommand(GobblinYarnWorkUnitRunner.GOBBLIN_TASK_FACTORY_NAME);
+    jobConfigBuilder.addTaskConfigMap(taskConfigMap).setCommand(GobblinWorkUnitRunner.GOBBLIN_TASK_FACTORY_NAME);
 
     return jobConfigBuilder;
   }

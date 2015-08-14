@@ -12,13 +12,19 @@
 
 package gobblin.yarn;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Properties;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.helix.api.id.ParticipantId;
@@ -87,5 +93,33 @@ public class YarnHelixUtils {
     }
 
     return properties;
+  }
+
+  /**
+   * Write a {@link Token} to a given file.
+   *
+   * @param token the token to write
+   * @param tokenFilePath the token file path
+   * @param configuration a {@link Configuration} object carrying Hadoop configuration properties
+   * @throws IOException
+   */
+  public static void writeTokenToFile(Token<? extends TokenIdentifier> token, Path tokenFilePath,
+      Configuration configuration) throws IOException {
+    Credentials credentials = new Credentials();
+    credentials.addToken(token.getService(), token);
+    credentials.writeTokenStorageFile(tokenFilePath, configuration);
+  }
+
+  /**
+   * Read a collection {@link Token}s from a given file.
+   *
+   * @param tokenFilePath the token file path
+   * @param configuration a {@link Configuration} object carrying Hadoop configuration properties
+   * @return a collection of {@link Token}s
+   * @throws IOException
+   */
+  public static Collection<Token<? extends TokenIdentifier>> readTokensFromFile(Path tokenFilePath,
+      Configuration configuration) throws IOException {
+    return Credentials.readTokenStorageFile(tokenFilePath, configuration).getAllTokens();
   }
 }

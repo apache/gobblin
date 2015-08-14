@@ -27,7 +27,7 @@ import gobblin.scheduler.JobScheduler;
 
 
 /**
- * An implementation of a Quartz's {@link Job} that uses a {@link YarnHelixJobLauncher}
+ * An implementation of a Quartz's {@link Job} that uses a {@link GobblinHelixJobLauncher}
  * to launch a Gobblin job.
  *
  * @author ynli
@@ -44,7 +44,7 @@ public class GobblinHelixJob implements Job {
     Path appWorkDir = (Path) dataMap.get(GobblinHelixJobScheduler.APPLICATION_WORK_DIR_KEY);
 
     try {
-      JobLauncher jobLauncher = new YarnHelixJobLauncher(jobProps, helixManager, appWorkDir);
+      JobLauncher jobLauncher = new GobblinHelixJobLauncher(jobProps, helixManager, appWorkDir);
       jobScheduler.runJob(jobProps, jobListener, jobLauncher);
     } catch (Throwable t) {
       throw new JobExecutionException(t);

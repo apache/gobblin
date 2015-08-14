@@ -34,16 +34,16 @@ import gobblin.runtime.Task;
  *
  * @author ynli
  */
-public class YarnHelixTaskStateTracker extends AbstractTaskStateTracker {
+public class GobblinHelixTaskStateTracker extends AbstractTaskStateTracker {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(YarnHelixTaskStateTracker.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(GobblinHelixTaskStateTracker.class);
 
   private final HelixManager helixManager;
 
   // Mapping between tasks and the task state reporters associated with them
   private final Map<String, ScheduledFuture<?>> scheduledReporters = Maps.newHashMap();
 
-  public YarnHelixTaskStateTracker(Properties properties, HelixManager helixManager) {
+  public GobblinHelixTaskStateTracker(Properties properties, HelixManager helixManager) {
     super(properties, LOGGER);
     this.helixManager = helixManager;
   }

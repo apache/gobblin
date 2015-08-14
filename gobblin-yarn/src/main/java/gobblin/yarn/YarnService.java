@@ -332,18 +332,23 @@ public class YarnService extends AbstractIdleService {
       }
     }
 
+    if (UserGroupInformation.isSecurityEnabled()) {
+      Apps.addToEnvironment(environmentVariableMap, "HADOOP_TOKEN_FILE_LOCATION",
+          this.config.getString(ConfigurationConstants.TOKEN_FILE_PATH));
+    }
+
     return environmentVariableMap;
   }
 
   private String buildContainerCommand(Container container) {
-    String containerProcessName = GobblinYarnWorkUnitRunner.class.getSimpleName();
+    String containerProcessName = GobblinWorkUnitRunner.class.getSimpleName();
     return String.format(
         "%s/bin/java -Xmx%dM %s" +
         " --%s %s" +
         " 1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + File.separator + "%s.%s" +
         " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + File.separator + "%s.%s",
         ApplicationConstants.Environment.JAVA_HOME.$(), container.getResource().getMemory(),
-        GobblinYarnWorkUnitRunner.class.getName(), ConfigurationConstants.APPLICATION_NAME_OPTION_NAME,
+        GobblinWorkUnitRunner.class.getName(), ConfigurationConstants.APPLICATION_NAME_OPTION_NAME,
         this.applicationName, containerProcessName, ApplicationConstants.STDOUT, containerProcessName,
         ApplicationConstants.STDERR);
   }

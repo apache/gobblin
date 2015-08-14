@@ -79,7 +79,7 @@ import gobblin.util.ExecutorsUtils;
  * A client driver to launch Gobblin on Yarn.
  *
  * <p>
- *   This class starts the {@link GobblinYarnApplicationMaster}.
+ *   This class starts the {@link GobblinApplicationMaster}.
  * </p>
  *
  * @author ynli
@@ -421,12 +421,12 @@ public class GobblinYarnAppLauncher implements Closeable {
   }
 
   private String buildApplicationMasterCommand(int memoryMbs) {
-    String appMasterClassName = GobblinYarnApplicationMaster.class.getSimpleName();
+    String appMasterClassName = GobblinApplicationMaster.class.getSimpleName();
     return String.format("%s/bin/java -Xmx%dM %s" +
             " --%s %s" +
             " 1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + File.separator + "%s.%s" +
             " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + File.separator + "%s.%s",
-        ApplicationConstants.Environment.JAVA_HOME.$(), memoryMbs, GobblinYarnApplicationMaster.class.getName(),
+        ApplicationConstants.Environment.JAVA_HOME.$(), memoryMbs, GobblinApplicationMaster.class.getName(),
         ConfigurationConstants.APPLICATION_NAME_OPTION_NAME, this.appName, appMasterClassName,
         ApplicationConstants.STDOUT, appMasterClassName, ApplicationConstants.STDERR);
   }
