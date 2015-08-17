@@ -448,8 +448,7 @@ public class ConfigurationKeys {
   public static final String COMPACTION_MAPRED_MIN_SPLIT_SIZE = COMPACTION_PREFIX + "mapred.min.split.size";
   public static final long DEFAULT_COMPACTION_MAPRED_MIN_SPLIT_SIZE = 268435456;
   public static final String COMPACTION_AVRO_KEY_SCHEMA_LOC = COMPACTION_PREFIX + "avro.key.schema.loc";
-  public static final String COMPACTION_USE_ALL_ATTRIBUTES = COMPACTION_PREFIX + "use.all.attributes";
-  public static final boolean DEFAULT_COMPACTION_USE_ALL_ATTRIBUTES = false;
+  public static final String COMPACTION_DEDUP_KEY = COMPACTION_PREFIX + "dedup.key";
   public static final String COMPACTION_JOB_RUNNER_CLASS = COMPACTION_PREFIX + "job.runner.class";
   public static final String DEFAULT_COMPACTION_JOB_RUNNER_CLASS =
       "gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner";
