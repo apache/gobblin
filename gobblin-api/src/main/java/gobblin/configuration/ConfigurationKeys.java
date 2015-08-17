@@ -118,7 +118,6 @@ public class ConfigurationKeys {
   public static final String JOB_FAILURES_KEY = "job.failures";
   public static final String JOB_TRACKING_URL_KEY = "job.tracking.url";
   public static final String FORK_STATE_KEY = "fork.state";
-  public static final String METRIC_CONTEXT_NAME_KEY = "metrics.context.name";
   public static final String JOB_STATE_FILE_PATH_KEY = "job.state.file.path";
 
   /**
