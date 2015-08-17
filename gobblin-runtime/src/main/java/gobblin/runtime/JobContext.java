@@ -20,6 +20,7 @@ import java.util.Properties;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
@@ -33,6 +34,7 @@ import com.google.inject.Injector;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.instrumented.Instrumented;
 import gobblin.metastore.JobHistoryStore;
 import gobblin.metastore.MetaStoreModule;
 import gobblin.metrics.GobblinMetrics;
@@ -106,7 +108,7 @@ public class JobContext {
 
     if (GobblinMetrics.isEnabled(jobProps)) {
       this.jobMetricsOptional = Optional.of(JobMetrics.get(this.jobState));
-      this.jobState.setProp(ConfigurationKeys.METRIC_CONTEXT_NAME_KEY, this.jobMetricsOptional.get().getName());
+      this.jobState.setProp(Instrumented.METRIC_CONTEXT_NAME_KEY, this.jobMetricsOptional.get().getName());
     } else {
       this.jobMetricsOptional = Optional.absent();
     }
