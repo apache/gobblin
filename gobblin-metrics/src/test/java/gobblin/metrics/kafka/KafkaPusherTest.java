@@ -12,50 +12,50 @@
 
 package gobblin.metrics.kafka;
 
-import java.util.Properties;
+import java.io.IOException;
 
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.Test;
 
-import kafka.javaapi.producer.Producer;
-import kafka.producer.KeyedMessage;
-import kafka.producer.ProducerConfig;
+import com.google.common.collect.Lists;
 
 
-@Test(groups = {"gobblin.metrics"})
-public class KafkaTestBaseTest extends KafkaTestBase {
+/**
+ * Test {@link gobblin.metrics.kafka.KafkaPusher}.
+ */
+public class KafkaPusherTest extends KafkaTestBase {
 
-  public KafkaTestBaseTest()
+  public static final String TOPIC = KafkaPusherTest.class.getSimpleName();
+
+  public KafkaPusherTest()
       throws InterruptedException, RuntimeException {
-    super("test");
+    super(TOPIC);
   }
 
   @Test
-  public void test() {
+  public void test() throws IOException {
+    KafkaPusher pusher = new KafkaPusher("localhost:" + kafkaPort, TOPIC);
 
-    Properties props = new Properties();
-    props.put("metadata.broker.list", "localhost:" + kafkaPort);
-    props.put("serializer.class", "kafka.serializer.StringEncoder");
-    props.put("request.required.acks", "1");
+    String msg1 = "msg1";
+    String msg2 = "msg2";
 
-    ProducerConfig config = new ProducerConfig(props);
-
-    Producer<String, String> producer = new Producer<String, String>(config);
-
-    producer.send(new KeyedMessage<String, String>("test", "testMessage"));
+    pusher.pushMessages(Lists.newArrayList(msg1.getBytes(), msg2.getBytes()));
 
     try {
-      Thread.sleep(100);
+      Thread.sleep(1000);
     } catch(InterruptedException ex) {
       Thread.currentThread().interrupt();
     }
 
     assert(iterator.hasNext());
-    Assert.assertEquals(new String(iterator.next().message()), "testMessage");
+    Assert.assertEquals(new String(iterator.next().message()), msg1);
+    assert(iterator.hasNext());
+    Assert.assertEquals(new String(iterator.next().message()), msg2);
 
-    producer.close();
+    pusher.close();
+
   }
 
   @AfterClass
@@ -71,4 +71,5 @@ public class KafkaTestBaseTest extends KafkaTestBase {
   public void afterSuite() {
     closeServer();
   }
+
 }

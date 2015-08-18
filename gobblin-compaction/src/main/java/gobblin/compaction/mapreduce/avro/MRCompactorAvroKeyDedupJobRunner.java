@@ -15,18 +15,17 @@ package gobblin.compaction.mapreduce.avro;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaCompatibility;
-import org.apache.avro.Schema.Field;
 import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapred.AvroValue;
 import org.apache.avro.mapreduce.AvroJob;
-import org.apache.avro.mapreduce.AvroKeyOutputFormat;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -37,8 +36,6 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 import gobblin.compaction.mapreduce.MRCompactorJobRunner;
@@ -195,7 +192,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
 
   @Override
   protected void setOutputFormatClass(Job job) {
-    job.setOutputFormatClass(AvroKeyOutputFormat.class);
+    job.setOutputFormatClass(AvroKeyCompactorOutputFormat.class);
   }
 
   @Override
@@ -211,6 +208,11 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
   @Override
   protected void setOutputValueClass(Job job) {
     job.setOutputValueClass(NullWritable.class);
+  }
+
+  @Override
+  protected Collection<String> getApplicableFileExtensions() {
+    return Lists.newArrayList(AVRO);
   }
 
   /**

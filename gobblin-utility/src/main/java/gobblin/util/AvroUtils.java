@@ -36,25 +36,25 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.mapred.FsInput;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
-
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.primitives.Longs;
 
-import static org.apache.avro.SchemaCompatibility.checkReaderWriterCompatibility;
 import static org.apache.avro.SchemaCompatibility.SchemaCompatibilityType.COMPATIBLE;
+import static org.apache.avro.SchemaCompatibility.checkReaderWriterCompatibility;
 
 
 /**
@@ -387,5 +387,30 @@ public class AvroUtils {
     } else {
       return Optional.of(Schema.createUnion(newUnion));
     }
+  }
+
+  /**
+   * Copies the input {@link org.apache.avro.Schema} but changes the schema name.
+   * @param schema {@link org.apache.avro.Schema} to copy.
+   * @param newName name for the copied {@link org.apache.avro.Schema}.
+   * @return A {@link org.apache.avro.Schema} that is a copy of schema, but has the name newName.
+   */
+  public static Schema switchName(Schema schema, String newName) {
+    if(schema.getName().equals(newName)) {
+      return schema;
+    }
+
+    Schema newSchema = Schema.createRecord(newName, schema.getDoc(), schema.getNamespace(), schema.isError());
+
+    List<Field> fields = schema.getFields();
+    Iterable<Field> fieldsNew = Iterables.transform(fields, new Function<Field, Field>() {
+      @Override public Schema.Field apply(Field input) {
+        Field field = new Field(input.name(), input.schema(), input.doc(), input.defaultValue(), input.order());
+        return field;
+      }
+    });
+
+    newSchema.setFields(Lists.newArrayList(fieldsNew));
+    return newSchema;
   }
 }

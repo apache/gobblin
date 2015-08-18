@@ -15,8 +15,6 @@ package gobblin.configuration;
 import java.nio.charset.Charset;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.lang.StringUtils;
-
 import com.google.common.base.Charsets;
 
 
@@ -414,11 +412,11 @@ public class ConfigurationKeys {
   public static final int DEFAULT_COMPACTION_THREAD_POOL_SIZE = 20;
   public static final String COMPACTION_INPUT_DIR = COMPACTION_PREFIX + "input.dir";
   public static final String COMPACTION_INPUT_SUBDIR = COMPACTION_PREFIX + "input.subdir";
-  public static final String DEFAULT_COMPACTION_INPUT_SUBDIR = StringUtils.EMPTY;
+  public static final String DEFAULT_COMPACTION_INPUT_SUBDIR = "hourly";
   public static final String COMPACTION_JOB_INPUT_DIR = COMPACTION_PREFIX + "job.input.dir";
   public static final String COMPACTION_DEST_DIR = COMPACTION_PREFIX + "dest.dir";
   public static final String COMPACTION_DEST_SUBDIR = COMPACTION_PREFIX + "dest.subdir";
-  public static final String DEFAULT_COMPACTION_DEST_SUBDIR = StringUtils.EMPTY;
+  public static final String DEFAULT_COMPACTION_DEST_SUBDIR = "daily";
   public static final String COMPACTION_JOB_DEST_DIR = COMPACTION_PREFIX + "job.dest.dir";
   public static final String COMPACTION_TMP_DIR = COMPACTION_PREFIX + "tmp.dir";
   public static final String DEFAULT_COMPACTION_TMP_DIR = "/tmp";
@@ -435,16 +433,16 @@ public class ConfigurationKeys {
   public static final String COMPACTION_TIMEZONE = COMPACTION_PREFIX + "timezone";
   public static final String DEFAULT_COMPACTION_TIMEZONE = "America/Los_Angeles";
   public static final String COMPACTION_TIMEBASED_MAX_TIME_AGO = COMPACTION_PREFIX + "timebased.max.time.ago";
-  public static final String DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO = "5h";
+  public static final String DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO = "3d";
   public static final String COMPACTION_TIMEBASED_MIN_TIME_AGO = COMPACTION_PREFIX + "timebased.min.time.ago";
-  public static final String DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO = "1h";
+  public static final String DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO = "1d";
   public static final String COMPACTION_TOPIC = COMPACTION_PREFIX + "topic";
   public static final String COMPACTION_OUTPUT_PERMISSION = COMPACTION_PREFIX + "output.permission";
   public static final int DEFAULT_COMPACTION_OUTPUT_PERMISSION = 0755;
   public static final String COMPACTION_TARGET_OUTPUT_FILE_SIZE = COMPACTION_PREFIX + "target.output.file.size";
   public static final long DEFAULT_COMPACTION_TARGET_OUTPUT_FILE_SIZE = 268435456;
   public static final String COMPACTION_MAX_NUM_REDUCERS = COMPACTION_PREFIX + "max.num.reducers";
-  public static final int DEFAULT_COMPACTION_MAX_NUM_REDUCERS = 100;
+  public static final int DEFAULT_COMPACTION_MAX_NUM_REDUCERS = 900;
   public static final String COMPACTION_MAPRED_MAX_SPLIT_SIZE = COMPACTION_PREFIX + "mapred.max.split.size";
   public static final long DEFAULT_COMPACTION_MAPRED_MAX_SPLIT_SIZE = 268435456;
   public static final String COMPACTION_MAPRED_MIN_SPLIT_SIZE = COMPACTION_PREFIX + "mapred.min.split.size";
@@ -462,9 +460,12 @@ public class ConfigurationKeys {
   public static final int DEFAULT_COMPACTION_MR_JOB_TIMEOUT_MINUTES = Integer.MAX_VALUE;
   public static final String COMPACTION_RECOMPACT_FOR_LATE_DATA = COMPACTION_PREFIX + "recompact.for.late.data";
   public static final boolean DEFAULT_COMPACTION_RECOMPACT_FOR_LATE_DATA = false;
+  public static final String COMPACTION_DEDUPLICATE = COMPACTION_PREFIX + "deduplicate";
+  public static final boolean DEFAULT_COMPACTION_DEDUPLICATE = true;
   public static final String COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK = COMPACTION_PREFIX + "job.late.data.movement.task";
   public static final String COMPACTION_JOB_LATE_DATA_FILES = COMPACTION_PREFIX + "job.late.data.files";
   public static final String COMPACTION_COMPLETE_FILE_NAME = "_COMPACTION_COMPLETE";
+  public static final String COMPACTION_LATE_FILES_DIRECTORY = "late";
   public static final String COMPACTION_ENABLE_SUCCESS_FILE = "mapreduce.fileoutputcommitter.marksuccessfuljobs";
   public static final String COMPACTION_OVERWRITE_OUTPUT_DIR = COMPACTION_PREFIX + "overwrite.output.dir";
   public static final boolean DEFAULT_COMPACTION_OVERWRITE_OUTPUT_DIR = false;

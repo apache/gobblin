@@ -13,6 +13,7 @@
 package gobblin.metrics.kafka;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.Map;
 
 import org.testng.Assert;
@@ -22,8 +23,6 @@ import org.testng.annotations.Test;
 
 import com.beust.jcommander.internal.Maps;
 
-import kafka.consumer.ConsumerIterator;
-
 import gobblin.metrics.GobblinTrackingEvent;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
@@ -31,31 +30,25 @@ import gobblin.metrics.reporter.util.EventUtils;
 
 
 @Test(groups = {"gobblin.metrics"})
-public class KafkaEventReporterTest extends KafkaTestBase {
-
-  public KafkaEventReporterTest(String topic)
-      throws IOException, InterruptedException {
-    super(topic);
-  }
-
-  public KafkaEventReporterTest() throws IOException, InterruptedException {
-    this("KafkaEventReporterTest");
-  }
+public class KafkaEventReporterTest {
 
   /**
    * Get builder for KafkaReporter (override if testing an extension of KafkaReporter)
    * @param context metricregistry
    * @return KafkaReporter builder
    */
-  public KafkaEventReporter.Builder<? extends KafkaEventReporter.Builder> getBuilder(MetricContext context) {
-    return KafkaEventReporter.forContext(context);
+  public KafkaEventReporter.Builder<? extends KafkaEventReporter.Builder> getBuilder(MetricContext context,
+      KafkaPusher pusher) {
+    return KafkaEventReporter.Factory.forContext(context).withKafkaPusher(pusher);
   }
 
 
   @Test
   public void testKafkaEventReporter() throws IOException {
     MetricContext context = MetricContext.builder("context").build();
-    KafkaEventReporter kafkaReporter = getBuilder(context).build("localhost:" + kafkaPort, topic);
+
+    MockKafkaPusher pusher = new MockKafkaPusher();
+    KafkaEventReporter kafkaReporter = getBuilder(context, pusher).build("localhost:0000", "topic");
 
     String namespace = "gobblin.metrics.test";
     String eventName = "testEvent";
@@ -80,7 +73,7 @@ public class KafkaEventReporterTest extends KafkaTestBase {
       Thread.currentThread().interrupt();
     }
 
-    GobblinTrackingEvent retrievedEvent = nextEvent(this.iterator);
+    GobblinTrackingEvent retrievedEvent = nextEvent(pusher.messageIterator());
     Assert.assertEquals(retrievedEvent.getNamespace(), namespace);
     Assert.assertEquals(retrievedEvent.getName(), eventName);
     Assert.assertEquals(retrievedEvent.getMetadata().size(), 1);
@@ -98,7 +91,9 @@ public class KafkaEventReporterTest extends KafkaTestBase {
 
     MetricContext context = MetricContext.builder("context").addTag(new Tag<String>(tag1, value1)).
         addTag(new Tag<String>(tag2, value2)).build();
-    KafkaEventReporter kafkaReporter = getBuilder(context).build("localhost:" + kafkaPort, topic);
+
+    MockKafkaPusher pusher = new MockKafkaPusher();
+    KafkaEventReporter kafkaReporter = getBuilder(context, pusher).build("localhost:0000", "topic");
 
     String namespace = "gobblin.metrics.test";
     String eventName = "testEvent";
@@ -125,7 +120,7 @@ public class KafkaEventReporterTest extends KafkaTestBase {
       Thread.currentThread().interrupt();
     }
 
-    GobblinTrackingEvent retrievedEvent = nextEvent(this.iterator);
+    GobblinTrackingEvent retrievedEvent = nextEvent(pusher.messageIterator());
     Assert.assertEquals(retrievedEvent.getNamespace(), namespace);
     Assert.assertEquals(retrievedEvent.getName(), eventName);
     Assert.assertEquals(retrievedEvent.getMetadata().size(), 3);
@@ -140,22 +135,21 @@ public class KafkaEventReporterTest extends KafkaTestBase {
    * @return next metric in the stream
    * @throws java.io.IOException
    */
-  protected GobblinTrackingEvent nextEvent(ConsumerIterator<byte[], byte[]> it) throws IOException {
+  protected GobblinTrackingEvent nextEvent(Iterator<byte[]> it) throws IOException {
     Assert.assertTrue(it.hasNext());
-    return EventUtils.deserializeReportFromJson(new GobblinTrackingEvent(), it.next().message());
+    return EventUtils.deserializeReportFromJson(new GobblinTrackingEvent(), it.next());
   }
 
   @AfterClass
   public void after() {
     try {
-      close();
     } catch(Exception e) {
     }
   }
 
   @AfterSuite
   public void afterSuite() {
-    closeServer();
+
   }
 
 }

@@ -45,6 +45,7 @@ public class MRCompactorJobPropCreator {
     Path topicOutputDir;
     Path topicTmpDir;
     FileSystem fs;
+    boolean deduplicate;
     State state;
 
     T withTopic(String topic) {
@@ -72,6 +73,11 @@ public class MRCompactorJobPropCreator {
       return (T) this;
     }
 
+    T withDeduplicate(boolean deduplicate) {
+      this.deduplicate = deduplicate;
+      return (T) this;
+    }
+
     T withState(State state) {
       this.state = new State();
       this.state.addAll(state);
@@ -88,6 +94,7 @@ public class MRCompactorJobPropCreator {
   protected final Path topicOutputDir;
   protected final Path topicTmpDir;
   protected final FileSystem fs;
+  protected final boolean deduplicate;
   protected final State state;
 
   protected MRCompactorJobPropCreator(Builder<?> builder) {
@@ -96,25 +103,25 @@ public class MRCompactorJobPropCreator {
     this.topicOutputDir = builder.topicOutputDir;
     this.topicTmpDir = builder.topicTmpDir;
     this.fs = builder.fs;
+    this.deduplicate = builder.deduplicate;
     this.state = builder.state;
   }
 
   protected List<State> createJobProps() throws IOException {
     List<State> emptyJobProps = Lists.newArrayList();
-    if (!fs.exists(this.topicInputDir)) {
-      LOG.warn("Input folder " + this.topicInputDir + " does not exist. Skipping topic " + topic);
+    if (!this.fs.exists(this.topicInputDir)) {
+      LOG.warn("Input folder " + this.topicInputDir + " does not exist. Skipping topic " + this.topic);
       return emptyJobProps;
     }
-    return Collections.singletonList(createJobProps(this.topicInputDir, this.topicOutputDir, this.topicTmpDir));
+    return Collections.singletonList(
+        createJobProps(this.topicInputDir, this.topicOutputDir, this.topicTmpDir, this.deduplicate));
   }
 
   /**
    * Create MR job properties for a specific input folder and output folder.
-   * @return an Optional&lt;State&gt; object. If the input folder should not
-   * be processed (e.g., jobInputDir already exists, and force reprocess is
-   * set to false), the returned object should be absent.
    */
-  protected State createJobProps(Path jobInputDir, Path jobOutputDir, Path jobTmpDir) throws IOException {
+  protected State createJobProps(Path jobInputDir, Path jobOutputDir, Path jobTmpDir, boolean deduplicate)
+      throws IOException {
     State jobProps = new State();
     jobProps.addAll(this.state);
     jobProps.setProp(ConfigurationKeys.COMPACTION_TOPIC, this.topic);
@@ -122,6 +129,7 @@ public class MRCompactorJobPropCreator {
     jobProps.setProp(ConfigurationKeys.COMPACTION_JOB_DEST_DIR, jobOutputDir);
     jobProps.setProp(ConfigurationKeys.COMPACTION_JOB_TMP_DIR, jobTmpDir);
     jobProps.setProp(ConfigurationKeys.COMPACTION_ENABLE_SUCCESS_FILE, false);
+    jobProps.setProp(ConfigurationKeys.COMPACTION_DEDUPLICATE, deduplicate);
     LOG.info(String.format("Created MR job properties for input %s and output %s.", jobInputDir, jobOutputDir));
     return jobProps;
   }

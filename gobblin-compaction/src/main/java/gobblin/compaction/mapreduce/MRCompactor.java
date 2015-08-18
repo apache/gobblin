@@ -266,11 +266,13 @@ public class MRCompactor implements Compactor {
   MRCompactorJobPropCreator getJobPropCreator(String topic, Path topicInputDir, Path topicOutputDir, Path topicTmpDir) {
     String builderClassName = this.state.getProp(ConfigurationKeys.COMPACTION_JOBPROPS_CREATOR_CLASS,
         ConfigurationKeys.DEFAULT_COMPACTION_JOBPROPS_CREATOR_CLASS) + "$Builder";
+    boolean deduplicate = this.state.getPropAsBoolean(ConfigurationKeys.COMPACTION_DEDUPLICATE,
+        ConfigurationKeys.DEFAULT_COMPACTION_DEDUPLICATE);
 
     try {
       return ((MRCompactorJobPropCreator.Builder<?>) Class.forName(builderClassName).newInstance()).withTopic(topic)
           .withTopicInputDir(topicInputDir).withTopicOutputDir(topicOutputDir).withTopicTmpDir(topicTmpDir)
-          .withFileSystem(this.fs).withState(this.state).build();
+          .withFileSystem(this.fs).withDeduplicate(deduplicate).withState(this.state).build();
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

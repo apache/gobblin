@@ -46,7 +46,7 @@ public class KafkaPusher implements Closeable {
     props.put("request.required.acks", "1");
 
     ProducerConfig config = new ProducerConfig(props);
-    this.producer = this.closer.register(new ProducerCloseable<String, byte[]>(config));
+    this.producer = createProducer(config);
   }
 
   /**
@@ -69,5 +69,12 @@ public class KafkaPusher implements Closeable {
   public void close()
       throws IOException {
     this.closer.close();
+  }
+
+  /**
+   * Actually creates the Kafka producer.
+   */
+  protected ProducerCloseable<String, byte[]> createProducer(ProducerConfig config) {
+    return this.closer.register(new ProducerCloseable<String, byte[]>(config));
   }
 }

@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.eventbus.EventBus;
-import com.google.common.io.Files;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -51,17 +50,18 @@ public class JobConfigurationManager extends AbstractIdleService {
   protected void startUp() throws Exception {
     if (this.jobConfPackagePath.isPresent()) {
       File path = new File(this.jobConfPackagePath.get());
-      File jobConfigDir = new File(System.getenv().get(ApplicationConstants.Environment.PWD.key()),
-          Files.getNameWithoutExtension(path.getName()));
+      File jobConfigDir = new File(System.getenv().get(ApplicationConstants.Environment.PWD.key()), path.getName());
       if (jobConfigDir.exists()) {
         LOGGER.info("Loading job configurations from " + jobConfigDir);
         Properties properties = new Properties();
         properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, jobConfigDir.getAbsolutePath());
         List<Properties> jobConfigs = SchedulerUtils.loadJobConfigs(properties);
-        LOGGER.info("Loaded " + jobConfigs.size() + "job configuration(s)");
+        LOGGER.info("Loaded " + jobConfigs.size() + " job configuration(s)");
         for (Properties config : jobConfigs) {
           postNewJobConfigArrival(config.getProperty(ConfigurationKeys.JOB_NAME_KEY), config);
         }
+      } else {
+        LOGGER.warn("Job configuration directory " + jobConfigDir + " not found");
       }
     }
   }

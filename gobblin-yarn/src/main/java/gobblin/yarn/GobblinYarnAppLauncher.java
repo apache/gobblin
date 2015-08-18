@@ -170,12 +170,7 @@ public class GobblinYarnAppLauncher implements Closeable {
 
   @Override
   public void close() throws IOException {
-    try {
-      ExecutorsUtils.shutdownExecutorService(this.applicationStatusMonitor);
-    } catch (InterruptedException ie) {
-      LOGGER.error("Interrupted while waiting for the application status monitor to shutdown", ie);
-      Thread.currentThread().interrupt();
-    }
+    ExecutorsUtils.shutdownExecutorService(this.applicationStatusMonitor);
 
     try {
       if (this.applicationId != null
@@ -388,13 +383,14 @@ public class GobblinYarnAppLauncher implements Closeable {
   private void addFileAsLocalResource(Path destFilePath, LocalResourceType resourceType,
       Map<String, LocalResource> resourceMap) throws IOException {
     LocalResource fileResource = Records.newRecord(LocalResource.class);
-    FileStatus fileStatus = destFilePath.getFileSystem(this.yarnConfiguration).getFileStatus(destFilePath);
+    FileStatus fileStatus = this.fs.getFileStatus(destFilePath);
     fileResource.setResource(ConverterUtils.getYarnUrlFromPath(destFilePath));
     fileResource.setSize(fileStatus.getLen());
     fileResource.setTimestamp(fileStatus.getModificationTime());
     fileResource.setType(resourceType);
     fileResource.setVisibility(LocalResourceVisibility.APPLICATION);
-    LOGGER.info("Created a LocalResource for file: " + fileResource.getResource());
+    LOGGER.info(String.format("Created a LocalResource for file %s of type %s",
+        fileResource.getResource(), resourceType));
     resourceMap.put(destFilePath.getName(), fileResource);
   }
 
@@ -462,6 +458,7 @@ public class GobblinYarnAppLauncher implements Closeable {
   private void cleanUpAppWorkDirectory(ApplicationId applicationId) throws IOException {
     Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(this.fs, this.appName, applicationId);
     if (this.fs.exists(appWorkDir)) {
+      LOGGER.info("Deleting application working directory " + appWorkDir);
       this.fs.delete(appWorkDir, true);
     }
   }

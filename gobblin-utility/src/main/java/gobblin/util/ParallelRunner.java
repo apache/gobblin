@@ -38,8 +38,6 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.State;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.HadoopUtils;
 
 
 /**
@@ -252,11 +250,7 @@ public class ParallelRunner implements Closeable {
     } catch (ExecutionException ee) {
       throw new IOException(ee);
     } finally {
-      try {
-        ExecutorsUtils.shutdownExecutorService(this.executor);
-      } catch (InterruptedException ie) {
-        LOGGER.error("Failed to shutdown the executor service", ie);
-      }
+      ExecutorsUtils.shutdownExecutorService(this.executor);
     }
   }
 }

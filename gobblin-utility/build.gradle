@@ -25,6 +25,7 @@ dependencies {
   compile externalDependency.jacksonCore
   compile externalDependency.jasypt
   compile externalDependency.lombok
+
   if (project.hasProperty('useHadoop2')) {
     compile externalDependency.avroMapredH2
     runtime externalDependency.hadoopCommon
@@ -64,7 +65,7 @@ task utilityTar(type: Tar) {
   into("lib") { from configurations.runtime }
   into("lib") { from "${project.rootDir}/build/${project.name}/libs/${project.name}.jar"}
   into("lib") { from "${project.rootDir}/build/${project.name}/libs/${project.name}-${project.version}.jar"}
-  into("bin") { 
+  into("bin") {
     from "src/main/bash"
     fileMode = 0755
   }

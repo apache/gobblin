@@ -142,7 +142,7 @@ public class GobblinHelixTask implements Task {
   }
 
   private WorkUnit deserializeWorkUnit(String workUnitFile) throws IOException {
-    WorkUnit workUnit = new WorkUnit();
+    WorkUnit workUnit = WorkUnit.createEmpty();
 
     Closer closer = Closer.create();
     try {
