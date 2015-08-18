@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -217,7 +218,9 @@ public class Task implements Runnable {
     } catch (Throwable t) {
       LOG.error(String.format("Task %s failed", this.taskId), t);
       this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-      this.taskState.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, t.toString());
+      // newline chars confuses some implementations of hive ingestion.
+      this.taskState.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY,
+          StringUtils.replaceEach(t.toString(), new String[] { "\n", "\r" }, new String[] { "|", "|" }));
     } finally {
       try {
         closer.close();
