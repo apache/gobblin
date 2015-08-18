@@ -24,6 +24,7 @@ import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.util.HadoopUtils;
 import gobblin.util.ParallelRunner;
+import gobblin.util.WriterUtils;
 
 
 /**
@@ -59,9 +60,8 @@ public class TimePartitionedDataPublisher extends BaseDataPublisher {
           filePathStr.substring(filePathStr.indexOf(writerOutput.toString()) + writerOutput.toString().length() + 1);
       Path outputPath = new Path(publisherOutput, pathSuffix);
 
-      if (!this.fileSystemByBranches.get(branchId).exists(outputPath.getParent())) {
-        this.fileSystemByBranches.get(branchId).mkdirs(outputPath.getParent());
-      }
+      WriterUtils.mkdirsWithRecursivePermission(this.fileSystemByBranches.get(branchId), outputPath.getParent(),
+          this.permissions.get(branchId));
 
       LOG.info(String.format("Moving %s to %s", status.getPath(), outputPath));
       parallelRunner.renamePath(status.getPath(), outputPath, Optional.<String>absent());

@@ -216,6 +216,7 @@ public class ConfigurationKeys {
   public static final String WRITER_FILE_REPLICATION_FACTOR = WRITER_PREFIX + ".file.replication.factor";
   public static final String WRITER_FILE_BLOCK_SIZE = WRITER_PREFIX + ".file.block.size";
   public static final String WRITER_FILE_PERMISSIONS = WRITER_PREFIX + ".file.permissions";
+  public static final String WRITER_DIR_PERMISSIONS = WRITER_PREFIX + ".dir.permissions";
   public static final String WRITER_BUFFER_SIZE = WRITER_PREFIX + ".buffer.size";
   public static final String WRITER_PRESERVE_FILE_NAME = WRITER_PREFIX + ".preserve.file.name";
   public static final String WRITER_DEFLATE_LEVEL = WRITER_PREFIX + ".deflate.level";
@@ -279,6 +280,7 @@ public class ConfigurationKeys {
   public static final String DATA_PUBLISHER_FINAL_NAME = DATA_PUBLISHER_PREFIX + ".final.name";
   // This property is used to specify the owner group of the data publisher final output directory
   public static final String DATA_PUBLISHER_FINAL_DIR_GROUP = DATA_PUBLISHER_PREFIX + ".final.dir.group";
+  public static final String DATA_PUBLISHER_PERMISSIONS = DATA_PUBLISHER_PREFIX + ".permissions";
 
   /**
    * Configuration properties used by the extractor.
@@ -555,4 +557,5 @@ public class ConfigurationKeys {
    */
   public static final Charset DEFAULT_CHARSET_ENCODING = Charsets.UTF_8;
   public static final String TEST_HARNESS_LAUNCHER_IMPL = "gobblin.testharness.launcher.impl";
+  public static final int PERMISSION_PARSING_RADIX = 8;
 }
