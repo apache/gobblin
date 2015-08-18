@@ -16,10 +16,10 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
-import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.CharMatcher;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -220,7 +220,7 @@ public class Task implements Runnable {
       this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
       // newline chars confuses some implementations of hive ingestion.
       this.taskState.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY,
-          StringUtils.replaceEach(t.toString(), new String[] { "\n", "\r" }, new String[] { "|", "|" }));
+          CharMatcher.anyOf("\n\r").replaceFrom(t.toString(), '|'));
     } finally {
       try {
         closer.close();
