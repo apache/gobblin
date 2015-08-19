@@ -357,7 +357,7 @@ public class AvroUtils {
   private static Optional<Schema> removeUncomparableFieldsFromRecord(Schema record) {
     Preconditions.checkArgument(record.getType() == Schema.Type.RECORD);
 
-    List<Field> fields = new ArrayList<Schema.Field>();
+    List<Field> fields = Lists.newArrayList();
     for (Field field : record.getFields()) {
       Optional<Schema> newFieldSchema = removeUncomparableFields(field.schema());
       if (newFieldSchema.isPresent()) {
