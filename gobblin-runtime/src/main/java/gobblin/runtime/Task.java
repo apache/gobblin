@@ -15,6 +15,7 @@ package gobblin.runtime;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,7 +83,7 @@ public class Task implements Runnable {
   private final List<Optional<Fork>> forks = Lists.newArrayList();
 
   // Number of task retries
-  private volatile int retryCount = 0;
+  private final AtomicInteger retryCount = new AtomicInteger();
 
   /**
    * Instantiate a new {@link Task}.
@@ -92,7 +93,6 @@ public class Task implements Runnable {
    * @param taskExecutor a {@link TaskExecutor} for executing the {@link Task} and its {@link Fork}s
    * @param countDownLatch an optional {@link java.util.concurrent.CountDownLatch} used to signal the task completion
    */
-  @SuppressWarnings("unchecked")
   public Task(TaskContext context, TaskStateTracker taskStateTracker, TaskExecutor taskExecutor,
       Optional<CountDownLatch> countDownLatch) {
     this.taskContext = context;
@@ -313,7 +313,7 @@ public class Task implements Runnable {
    * Increment the retry count of this task.
    */
   public void incrementRetryCount() {
-    this.retryCount++;
+    this.retryCount.incrementAndGet();
   }
 
   /**
@@ -322,7 +322,7 @@ public class Task implements Runnable {
    * @return number of times this task has been retried
    */
   public int getRetryCount() {
-    return this.retryCount;
+    return this.retryCount.get();
   }
 
   /**
@@ -332,7 +332,7 @@ public class Task implements Runnable {
     if (this.countDownLatch.isPresent()) {
       this.countDownLatch.get().countDown();
     }
-    this.taskState.setProp(ConfigurationKeys.TASK_RETRIES_KEY, this.retryCount);
+    this.taskState.setProp(ConfigurationKeys.TASK_RETRIES_KEY, this.retryCount.get());
   }
 
   @Override
