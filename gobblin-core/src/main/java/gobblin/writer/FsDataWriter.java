@@ -153,6 +153,11 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
       throw new IOException(String.format("File %s does not exist", this.stagingFile));
     }
 
+    // Double check permission of staging file
+    if (!this.fs.getFileStatus(this.stagingFile).getPermission().equals(this.filePermission)) {
+      this.fs.setPermission(this.stagingFile, this.filePermission);
+    }
+
     LOG.info(String.format("Moving data from %s to %s", this.stagingFile, this.outputFile));
     // For the same reason as deleting the staging file if it already exists, deleting
     // the output file if it already exists prevents task retry from being blocked.
