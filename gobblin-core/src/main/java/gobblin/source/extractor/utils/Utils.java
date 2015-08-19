@@ -12,6 +12,9 @@
 
 package gobblin.source.extractor.utils;
 
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.source.extractor.watermark.WatermarkType;
+
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
@@ -35,9 +38,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.source.extractor.watermark.WatermarkType;
 
 
 public class Utils {
@@ -245,11 +245,11 @@ public class Utils {
     DateTimeFormatter dtFormatter = DateTimeFormat.forPattern(CURRENT_DATE_FORMAT).withZone(time.getZone());
     if (value.toUpperCase().startsWith(CURRENT_DAY)) {
       return Long
-          .valueOf(dtFormatter.print(time.minusDays(Integer.parseInt(value.substring(CURRENT_DAY.length() + 1)))));
+          .parseLong(dtFormatter.print(time.minusDays(Integer.parseInt(value.substring(CURRENT_DAY.length() + 1)))));
     }
     if (value.toUpperCase().startsWith(CURRENT_HOUR)) {
       return Long
-          .valueOf(dtFormatter.print(time.minusHours(Integer.parseInt(value.substring(CURRENT_HOUR.length() + 1)))));
+          .parseLong(dtFormatter.print(time.minusHours(Integer.parseInt(value.substring(CURRENT_HOUR.length() + 1)))));
     }
     return Long.parseLong(value);
   }
