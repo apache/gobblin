@@ -12,19 +12,6 @@
 
 package gobblin.runtime;
 
-import gobblin.Constructs;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.Converter;
-import gobblin.fork.CopyNotSupportedException;
-import gobblin.fork.Copyable;
-import gobblin.fork.ForkOperator;
-import gobblin.instrumented.extractor.InstrumentedExtractorBase;
-import gobblin.instrumented.extractor.InstrumentedExtractorDecorator;
-import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
-import gobblin.qualitychecker.row.RowLevelPolicyChecker;
-import gobblin.runtime.util.RuntimeConstructs;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -38,6 +25,19 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
+
+import gobblin.Constructs;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.WorkUnitState;
+import gobblin.converter.Converter;
+import gobblin.fork.CopyNotSupportedException;
+import gobblin.fork.Copyable;
+import gobblin.fork.ForkOperator;
+import gobblin.instrumented.extractor.InstrumentedExtractorBase;
+import gobblin.instrumented.extractor.InstrumentedExtractorDecorator;
+import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
+import gobblin.qualitychecker.row.RowLevelPolicyChecker;
+import gobblin.runtime.util.RuntimeConstructs;
 
 
 /**
@@ -83,7 +83,7 @@ public class Task implements Runnable {
   private final List<Optional<Fork>> forks = Lists.newArrayList();
 
   // Number of task retries
-  private AtomicInteger retryCount = new AtomicInteger();
+  private final AtomicInteger retryCount = new AtomicInteger();
 
   /**
    * Instantiate a new {@link Task}.
