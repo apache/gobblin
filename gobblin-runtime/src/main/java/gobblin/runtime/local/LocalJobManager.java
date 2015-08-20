@@ -16,6 +16,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.Reader;
 import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.util.Arrays;
@@ -61,6 +62,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.io.Closer;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -68,7 +70,6 @@ import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
-import gobblin.metrics.GobblinMetrics;
 import gobblin.publisher.DataPublisher;
 import gobblin.runtime.EmailNotificationJobListener;
 import gobblin.runtime.JobException;
@@ -472,7 +473,7 @@ public class LocalJobManager extends AbstractIdleService {
           Long ts1 = Long.parseLong(taskId1.substring(taskId1.lastIndexOf('_') + 1));
           Long ts2 = Long.parseLong(taskId2.substring(taskId2.lastIndexOf('_') + 1));
 
-          return -ts1.compareTo(ts2);
+          return -Integer.signum(ts1.compareTo(ts2));
         }
       });
 
@@ -582,12 +583,23 @@ public class LocalJobManager extends AbstractIdleService {
         }
       }
 
-      private void loadJobConfig(Properties jobProps, File file) {
+      private void loadJobConfig(Properties jobProps, File file)  {
+        Closer closer = Closer.create();
         try {
-          jobProps.load(new InputStreamReader(new FileInputStream(file), ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
+          Reader propsReader =
+              closer.register(new InputStreamReader(new FileInputStream(file),
+                                                    ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
+          jobProps.load(propsReader);
           jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, file.getAbsolutePath());
         } catch (Exception e) {
           LOG.error("Failed to load job configuration from file " + file.getAbsolutePath(), e);
+        }
+        finally {
+          try {
+            closer.close();
+          } catch (IOException e) {
+            LOG.error("unable to close properties file:" + e, e);
+          }
         }
       }
     };

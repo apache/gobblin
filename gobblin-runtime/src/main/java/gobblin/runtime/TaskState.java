@@ -78,6 +78,14 @@ public class TaskState extends WorkUnitState {
     this.setId(this.taskId);
   }
 
+  public TaskState(TaskState taskState) {
+    super(taskState.getWorkunit());
+    addAll(taskState);
+    this.jobId = taskState.getProp(ConfigurationKeys.JOB_ID_KEY);
+    this.taskId = taskState.getProp(ConfigurationKeys.TASK_ID_KEY);
+    this.setId(this.taskId);
+  }
+
   /**
    * Get the ID of the job this {@link TaskState} is for.
    *

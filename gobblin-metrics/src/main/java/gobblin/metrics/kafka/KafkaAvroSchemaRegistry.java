@@ -18,6 +18,7 @@ import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import gobblin.util.AvroUtils;
 import org.apache.avro.Schema;
 import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HttpClient;
@@ -144,6 +145,22 @@ public class KafkaAvroSchemaRegistry {
     }
 
     return schema;
+  }
+
+  /**
+   * Register a schema to the Kafka schema registry under the provided input name. This method will change the name
+   * of the schema to the provided name. This is useful because certain services (like Gobblin kafka adaptor and
+   * Camus) get the schema for a topic by querying for the latest schema with the topic name, requiring the topic
+   * name and schema name to match for all topics. This method registers the schema to the schema registry in such a
+   * way that any schema can be written to any topic.
+   *
+   * @param schema {@link org.apache.avro.Schema} to register.
+   * @param overrideName Name of the schema when registerd to the schema registry. This name should match the name
+   *                     of the topic where instances will be published.
+   * @return schema ID of the registered schema.
+   */
+  public String register(Schema schema, String overrideName) {
+    return register(AvroUtils.switchName(schema, overrideName));
   }
 
   /**

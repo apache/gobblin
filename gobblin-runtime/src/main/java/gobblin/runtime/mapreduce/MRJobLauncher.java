@@ -579,7 +579,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
       // Setup and start metrics reporting if metric reporting is enabled
       if (Boolean.valueOf(
           configuration.get(ConfigurationKeys.METRICS_ENABLED_KEY, ConfigurationKeys.DEFAULT_METRICS_ENABLED))) {
-        this.jobMetrics = Optional.of(JobMetrics.get(null, configuration.get(ConfigurationKeys.JOB_ID_KEY)));
+        this.jobMetrics = Optional.of(JobMetrics.get(this.jobState));
         String metricFileSuffix =
             configuration.get(ConfigurationKeys.METRICS_FILE_SUFFIX, ConfigurationKeys.DEFAULT_METRICS_FILE_SUFFIX);
         // If running in MR mode, all mappers will try to write metrics to the same file, which will fail.

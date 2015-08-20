@@ -23,6 +23,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.fork.ForkOperator;
+import gobblin.instrumented.Instrumented;
 import gobblin.instrumented.converter.InstrumentedConverterDecorator;
 import gobblin.instrumented.fork.InstrumentedForkOperatorDecorator;
 import gobblin.publisher.TaskPublisher;
@@ -57,7 +58,7 @@ public class TaskContext {
     this.workUnit = workUnitState.getWorkunit();
     this.taskState = new TaskState(workUnitState);
     this.taskMetrics = TaskMetrics.get(this.taskState);
-    this.taskState.setProp(ConfigurationKeys.METRIC_CONTEXT_NAME_KEY, this.taskMetrics.getName());
+    this.taskState.setProp(Instrumented.METRIC_CONTEXT_NAME_KEY, this.taskMetrics.getName());
   }
 
   /**

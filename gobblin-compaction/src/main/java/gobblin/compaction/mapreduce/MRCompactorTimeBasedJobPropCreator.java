@@ -12,13 +12,11 @@
 
 package gobblin.compaction.mapreduce;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-
 import java.io.IOException;
 import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTime;
@@ -31,7 +29,13 @@ import org.joda.time.format.PeriodFormatterBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
+import com.google.common.io.Closer;
+
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+import gobblin.util.HadoopUtils;
 
 
 /**
@@ -42,7 +46,7 @@ import com.google.common.collect.Lists;
  * being YYYY/MM/dd, which means an MR job will be launched for each qualified folder that matches
  * [this.inputPath]&#47;*&#47;*&#47;*.
  *
- * To control which folders to process, use properties compaction.timebased.max.time.ago and
+ * To control which folders to process, use properties compaction.timebased.min.time.ago and
  * compaction.timebased.max.time.ago. The format is ?m?d?h, e.g., 3m or 2d10h.
  *
  * @author ziliu
@@ -89,8 +93,17 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
       }
       Path jobOutputDir = new Path(this.topicOutputDir, folderTime.toString(this.timeFormatter));
       Path jobTmpDir = new Path(this.topicTmpDir, folderTime.toString(this.timeFormatter));
-      if (shouldProcessFolder(status.getPath(), jobOutputDir, folderTime)) {
-        allJobProps.add(createJobProps(status.getPath(), jobOutputDir, jobTmpDir));
+      if (folderWithinAllowedPeriod(status.getPath(), folderTime)) {
+        if (!folderAlreadyCompacted(jobOutputDir)) {
+          allJobProps.add(createJobProps(status.getPath(), jobOutputDir, jobTmpDir, this.deduplicate));
+        } else {
+          List<Path> newDataFiles = getNewDataInFolder(status.getPath(), jobOutputDir);
+          if (newDataFiles.isEmpty()) {
+            LOG.info(String.format("Folder %s already compacted. Skipping", jobOutputDir));
+          } else {
+            allJobProps.add(createJobPropsForLateData(status.getPath(), jobOutputDir, jobTmpDir, newDataFiles));
+          }
+        }
       }
     }
 
@@ -114,10 +127,10 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
   }
 
   /**
-   * A folder should be processed if (1) input folder time is between compaction.timebased.max.time.ago and
-   * compaction.timebased.max.time.ago, (2) output folder is not already compacted.
+   * Return true iff input folder time is between compaction.timebased.min.time.ago and
+   * compaction.timebased.max.time.ago.
    */
-  private boolean shouldProcessFolder(Path inputFolder, Path outputFolder, DateTime folderTime) {
+  private boolean folderWithinAllowedPeriod(Path inputFolder, DateTime folderTime) {
     DateTime currentTime = new DateTime(this.timeZone);
     PeriodFormatter periodFormatter = getPeriodFormatter();
     DateTime earliestAllowedFolderTime = getEarliestAllowedFolderTime(currentTime, periodFormatter);
@@ -131,11 +144,29 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
       LOG.info(String.format("Folder time for %s is %s, later than the latest allowed folder time, %s. Skipping",
           inputFolder, folderTime, latestAllowedFolderTime));
       return false;
-    } else if (folderAlreadyCompacted(outputFolder)) {
-      LOG.info(String.format("Folder %s already compacted. Skipping", outputFolder));
-      return false;
+    } else {
+      return true;
     }
-    return true;
+  }
+
+  /**
+   * Return job properties for a job to handle the appearance of data within jobInputDir which is
+   * more recent than the time of the last compaction.
+   */
+  private State createJobPropsForLateData(Path jobInputDir, Path jobOutputDir, Path jobTmpDir,
+      List<Path> newDataFiles) throws IOException {
+    if (this.state.getPropAsBoolean(ConfigurationKeys.COMPACTION_RECOMPACT_FOR_LATE_DATA,
+        ConfigurationKeys.DEFAULT_COMPACTION_RECOMPACT_FOR_LATE_DATA)) {
+      LOG.info(String.format("Recompacting folder at %s.", jobOutputDir));
+      return createJobProps(jobInputDir, jobOutputDir, jobTmpDir, this.deduplicate);
+    } else {
+      LOG.info(String.format("Moving %d new data files from %s to %s", newDataFiles.size(), jobInputDir,
+          new Path(jobOutputDir, ConfigurationKeys.COMPACTION_LATE_FILES_DIRECTORY)));
+      State jobProps = createJobProps(jobInputDir, jobOutputDir, jobTmpDir, this.deduplicate);
+      jobProps.setProp(ConfigurationKeys.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, true);
+      jobProps.setProp(ConfigurationKeys.COMPACTION_JOB_LATE_DATA_FILES, Joiner.on(",").join(newDataFiles));
+      return jobProps;
+    }
   }
 
   private PeriodFormatter getPeriodFormatter() {
@@ -165,6 +196,39 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
       LOG.error("Failed to verify the existence of file " + filePath, e);
       return false;
     }
+  }
+
+  /**
+   * Check if inputFolder contains any files which have modification times which are more
+   * recent than the last compaction time as stored within outputFolder; return any files
+   * which do. An empty list will be returned if all files are older than the last compaction time.
+   */
+  private List<Path> getNewDataInFolder(Path inputFolder, Path outputFolder) throws IOException {
+    List<Path> newFiles = Lists.newArrayList();
+
+    Path filePath = new Path(outputFolder, ConfigurationKeys.COMPACTION_COMPLETE_FILE_NAME);
+    Closer closer = Closer.create();
+    try {
+      FSDataInputStream completionFileStream = closer.register(this.fs.open(filePath));
+      DateTime lastCompactionTime = new DateTime(completionFileStream.readLong(), this.timeZone);
+      for (FileStatus fstat : HadoopUtils.listStatusRecursive(this.fs, inputFolder)) {
+        DateTime fileModificationTime = new DateTime(fstat.getModificationTime(), this.timeZone);
+        if (fileModificationTime.isAfter(lastCompactionTime)) {
+          newFiles.add(fstat.getPath());
+        }
+      }
+      if (!newFiles.isEmpty()) {
+        LOG.info(String.format("Found %d new files within folder %s which are more recent than the previous "
+            + "compaction start time of %s.", newFiles.size(), inputFolder, lastCompactionTime));
+      }
+    } catch (IOException e) {
+      LOG.error("Failed to check for new data within folder: " + inputFolder, e);
+    } catch (Throwable e) {
+      throw closer.rethrow(e);
+    } finally {
+      closer.close();
+    }
+    return newFiles;
   }
 
 }

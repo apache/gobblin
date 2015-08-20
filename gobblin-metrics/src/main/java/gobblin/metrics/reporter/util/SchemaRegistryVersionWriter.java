@@ -35,17 +35,19 @@ public class SchemaRegistryVersionWriter implements SchemaVersionWriter {
 
   private final KafkaAvroSchemaRegistry registry;
   private Map<Schema, String> registrySchemaIds;
+  private final String topic;
 
-  public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry) {
+  public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry, String topic) {
     this.registry = registry;
     this.registrySchemaIds = Maps.newConcurrentMap();
+    this.topic = topic;
   }
 
   @Override
   public void writeSchemaVersioningInformation(Schema schema, DataOutputStream outputStream)
       throws IOException {
     if(!this.registrySchemaIds.containsKey(schema)) {
-      String schemaId = this.registry.register(schema);
+      String schemaId = this.registry.register(schema, this.topic);
       this.registrySchemaIds.put(schema, schemaId);
     }
     outputStream.writeByte(KafkaAvroSchemaRegistry.MAGIC_BYTE);
