@@ -299,16 +299,20 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       unlockJob();
     }
 
+    for (JobState.DatasetState datasetState : this.jobContext.getDatasetStatesByUrns().values()) {
+      // Set the overall job state to FAILED if the job failed to process any dataset
+      if (datasetState.getState() == JobState.RunningState.FAILED) {
+        jobState.setState(JobState.RunningState.FAILED);
+        break;
+      }
+    }
+
     if (jobListener != null) {
       jobListener.onJobCompletion(jobState);
     }
 
-    for (JobState.DatasetState datasetState : this.jobContext.getDatasetStatesByUrns().values()) {
-      // Throw an exception at the end if the job failed to process any dataset
-      if (datasetState.getState() == JobState.RunningState.FAILED) {
-        jobState.setState(JobState.RunningState.FAILED);
-        throw new JobException(String.format("Job %s failed", jobId));
-      }
+    if (jobState.getState() == JobState.RunningState.FAILED) {
+      throw new JobException(String.format("Job %s failed", jobId));
     }
   }
 
