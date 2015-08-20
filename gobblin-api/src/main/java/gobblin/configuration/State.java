@@ -364,10 +364,18 @@ public class State implements Writable {
     return Boolean.parseBoolean(getProperty(key, String.valueOf(def)));
   }
 
+  /**
+   * @deprecated Use {@link #getProp(String)}
+   */
+  @Deprecated
   protected String getProperty(String key) {
     return this.properties.getProperty(key);
   }
 
+  /**
+   * @deprecated Use {@link #getProp(String, String)}
+   */
+  @Deprecated
   protected String getProperty(String key, String def) {
     return this.properties.getProperty(key, def);
   }
