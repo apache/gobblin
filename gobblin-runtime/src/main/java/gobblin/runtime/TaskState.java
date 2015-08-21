@@ -177,6 +177,16 @@ public class TaskState extends WorkUnitState {
   }
 
   /**
+   * Return whether the task has completed running or not.
+   *
+   * @return {@code true} if the task has completed or {@code false} otherwise
+   */
+  public boolean isCompleted() {
+    WorkingState state = getWorkingState();
+    return state == WorkingState.SUCCESSFUL || state == WorkingState.COMMITTED || state == WorkingState.FAILED;
+  }
+
+  /**
    * Update record-level metrics.
    *
    * @param recordsWritten number of records written by the writer

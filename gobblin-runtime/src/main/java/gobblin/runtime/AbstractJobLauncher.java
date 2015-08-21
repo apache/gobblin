@@ -413,7 +413,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       String taskId = JobLauncherUtils.newTaskId(this.jobContext.getJobId(), taskIdSequence++);
       workUnit.setId(taskId);
       workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
-      jobState.addTask();
+      jobState.incrementTaskCount();
       // Pre-add a task state so if the task fails and no task state is written out,
       // there is still task state for the task when job/task states are persisted.
       jobState.addTaskState(new TaskState(new WorkUnitState(workUnit)));
