@@ -137,7 +137,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       workUnitState.setId(taskId);
       workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
       workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
-      LOG.info("WORKUNIT PREP: " + taskId + " owner: " + workUnitState.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME));
 
       // Create a new task from the work unit and submit the task to run
       Task task = new Task(new TaskContext(workUnitState), stateTracker, taskExecutor, Optional.of(countDownLatch));
@@ -458,8 +457,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     try {
       for (TaskState taskState : jobState.getTaskStates()) {
         try {
-          LOG.info("current task id" + taskState.getTaskId() + " owner: "
-              + taskState.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME));
           JobLauncherUtils.cleanStagingData(taskState, LOG, closer, parallelRunners);
         } catch (IOException e) {
           LOG.error(String.format("Failed to clean staging data for task %s: %s", taskState.getTaskId(), e), e);
