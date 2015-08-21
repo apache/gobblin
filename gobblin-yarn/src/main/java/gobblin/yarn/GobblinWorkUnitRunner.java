@@ -33,8 +33,10 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
+import org.apache.helix.MessageListener;
+import org.apache.helix.NotificationContext;
 import org.apache.helix.api.id.StateModelDefId;
-
+import org.apache.helix.model.Message;
 import org.apache.helix.participant.StateMachineEngine;
 import org.apache.helix.task.TaskFactory;
 import org.apache.helix.task.TaskStateModelFactory;
@@ -101,6 +103,8 @@ public class GobblinWorkUnitRunner {
             .getString(ConfigurationConstants.HELIX_CLUSTER_NAME_KEY) : applicationName,
         YarnHelixUtils.getParticipantIdStr(YarnHelixUtils.getHostname(), this.containerId), InstanceType.PARTICIPANT,
         zkConnectionString);
+    this.helixManager.addMessageListener(new GobblinParticipantMessageListener(),
+        YarnHelixUtils.getParticipantIdStr(YarnHelixUtils.getHostname(), this.containerId));
 
     Properties properties = YarnHelixUtils.configToProperties(config);
     TaskExecutor taskExecutor = new TaskExecutor(properties);
@@ -150,23 +154,30 @@ public class GobblinWorkUnitRunner {
     this.serviceManager.awaitStopped();
   }
 
+  public void stop() {
+    LOGGER.info("Shutting down the Gobblin Yarn WorkUnit runner");
+
+    try {
+      // Give the services 5 minutes to stop to ensure that we are responsive to shutdown requests
+      this.serviceManager.stopAsync().awaitStopped(5, TimeUnit.MINUTES);
+    } catch (TimeoutException te) {
+      LOGGER.error("Timeout in stopping the service manager", te);
+    } finally {
+      // Stop metric reporting
+      this.jmxReporter.stop();
+
+      if (this.helixManager.isConnected()) {
+        this.helixManager.disconnect();
+      }
+    }
+  }
+
   private void addShutdownHook() {
     Runtime.getRuntime().addShutdownHook(new Thread() {
 
       @Override
       public void run() {
-        LOGGER.info("Shutting down the Gobblin Yarn ApplicationMaster");
-        try {
-          // Give the services 5 seconds to stop to ensure that we are responsive to shutdown requests
-          serviceManager.stopAsync().awaitStopped(5, TimeUnit.SECONDS);
-        } catch (TimeoutException te) {
-          LOGGER.error("Timeout in stopping the service manager", te);
-        } finally {
-          // Stop metric reporting
-          jmxReporter.stop();
-
-          helixManager.disconnect();
-        }
+        GobblinWorkUnitRunner.this.stop();
       }
     });
   }
@@ -213,6 +224,26 @@ public class GobblinWorkUnitRunner {
     } catch (ParseException pe) {
       printUsage(options);
       System.exit(1);
+    }
+  }
+
+  /**
+   * A custom implementation of {@link MessageListener} that handles application-defined messages for the participants.
+   */
+  private class GobblinParticipantMessageListener implements MessageListener {
+
+    @Override
+    public void onMessage(String instanceName, List<Message> messages, NotificationContext changeContext) {
+      for (Message message : messages) {
+        if (message.getMsgType().equalsIgnoreCase(Message.MessageType.USER_DEFINE_MSG.toString())) {
+          if (message.getMsgSubType().equalsIgnoreCase(HelixMessageSubTypes.CONTAINER_SHUTDOWN.toString())) {
+            LOGGER.info("Received SHUTDOWN message, stopping the WorkUnitRunner");
+            GobblinWorkUnitRunner.this.stop();
+            message.setMsgState(Message.MessageState.READ);
+            break;
+          }
+        }
+      }
     }
   }
 }

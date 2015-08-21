@@ -15,6 +15,7 @@ package gobblin.yarn;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -32,12 +33,15 @@ import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.ConverterUtils;
+import org.apache.helix.Criteria;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.apache.helix.LiveInstanceChangeListener;
+import org.apache.helix.MessageListener;
 import org.apache.helix.NotificationContext;
 import org.apache.helix.model.LiveInstance;
+import org.apache.helix.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -102,6 +106,7 @@ public class GobblinApplicationMaster {
         YarnHelixUtils.getParticipantIdStr(YarnHelixUtils.getHostname(), containerId),
         InstanceType.CONTROLLER, zkConnectionString);
     this.helixManager.addLiveInstanceChangeListener(new GobblinLiveInstanceChangeListener());
+    this.helixManager.addControllerMessageListener(new GobblinControllerMessageListener());
 
     // An EventBus used for communications between services running in the ApplicationMaster
     EventBus eventBus = new EventBus(GobblinApplicationMaster.class.getSimpleName());
@@ -116,12 +121,11 @@ public class GobblinApplicationMaster {
       services.add(new ControllerSecurityManager(config, fs));
     }
     services.add(new YarnService(config, applicationName, applicationAttemptIdId.getApplicationId(), eventBus));
-    services.add(new GobblinHelixJobScheduler(YarnHelixUtils.configToProperties(config), this.helixManager,
-        eventBus, appWorkDir));
+    services.add(new GobblinHelixJobScheduler(YarnHelixUtils.configToProperties(config), this.helixManager, eventBus,
+        appWorkDir));
     services.add(new JobConfigurationManager(eventBus,
-        config.hasPath(ConfigurationConstants.JOB_CONF_PACKAGE_PATH_KEY) ?
-            Optional.of(config.getString(ConfigurationConstants.JOB_CONF_PACKAGE_PATH_KEY)) :
-            Optional.<String>absent()));
+        config.hasPath(ConfigurationConstants.JOB_CONF_PACKAGE_PATH_KEY) ? Optional
+            .of(config.getString(ConfigurationConstants.JOB_CONF_PACKAGE_PATH_KEY)) : Optional.<String>absent()));
 
     this.serviceManager = new ServiceManager(services);
   }
@@ -153,16 +157,19 @@ public class GobblinApplicationMaster {
 
   public void stop() {
     LOGGER.info("Shutting down the Gobblin Yarn ApplicationMaster");
+
     try {
-      // Give the services 5 seconds to stop to ensure that we are responsive to shutdown requests
-      serviceManager.stopAsync().awaitStopped(5, TimeUnit.SECONDS);
+      // Give the services 5 minutes to stop to ensure that we are responsive to shutdown requests
+      this.serviceManager.stopAsync().awaitStopped(5, TimeUnit.MINUTES);
     } catch (TimeoutException te) {
       LOGGER.error("Timeout in stopping the service manager", te);
     } finally {
       // Stop metric reporting
-      jmxReporter.stop();
+      this.jmxReporter.stop();
 
-      helixManager.disconnect();
+      if (this.helixManager.isConnected()) {
+        this.helixManager.disconnect();
+      }
     }
   }
 
@@ -195,6 +202,25 @@ public class GobblinApplicationMaster {
     });
   }
 
+  private void sendShutdownRequest() {
+    Criteria criteria = new Criteria();
+    criteria.setInstanceName("%");
+    criteria.setResource("%");
+    criteria.setPartition("%");
+    criteria.setPartitionState("%");
+    criteria.setRecipientInstanceType(InstanceType.PARTICIPANT);
+    criteria.setSessionSpecific(false);
+
+    Message shutdownRequest = new Message(Message.MessageType.USER_DEFINE_MSG, UUID.randomUUID().toString());
+    shutdownRequest.setMsgSubType(HelixMessageSubTypes.CONTAINER_SHUTDOWN.toString());
+    shutdownRequest.setMsgState(Message.MessageState.NEW);
+
+    int messagesSent = this.helixManager.getMessagingService().send(criteria, shutdownRequest);
+    if (messagesSent == 0) {
+      LOGGER.error(String.format("Failed to send the %s message to the participants", shutdownRequest.getMsgSubType()));
+    }
+  }
+
   private static Options buildOptions() {
     Options options = new Options();
     options.addOption("a", ConfigurationConstants.APPLICATION_NAME_OPTION_NAME, true, "Yarn application name");
@@ -210,6 +236,26 @@ public class GobblinApplicationMaster {
     public void onLiveInstanceChange(List<LiveInstance> liveInstances, NotificationContext changeContext) {
       for (LiveInstance liveInstance : liveInstances) {
         LOGGER.info("Live Helix participant instance: " + liveInstance.getInstanceName());
+      }
+    }
+  }
+
+  /**
+   * A custom implementation of {@link MessageListener} that handles application-defined messages for the controller.
+   */
+  private class GobblinControllerMessageListener implements MessageListener {
+
+    @Override
+    public void onMessage(String instanceName, List<Message> messages, NotificationContext changeContext) {
+      for (Message message : messages) {
+        if (message.getMsgType().equalsIgnoreCase(Message.MessageType.USER_DEFINE_MSG.toString())) {
+          if (message.getMsgSubType().equalsIgnoreCase(HelixMessageSubTypes.APPLICATION_MASTER_SHUTDOWN.toString())) {
+            LOGGER.info("Received SHUTDOWN message, stopping the ApplicationMaster");
+            message.setMsgState(Message.MessageState.READ);
+            GobblinApplicationMaster.this.stop();
+            break;
+          }
+        }
       }
     }
   }

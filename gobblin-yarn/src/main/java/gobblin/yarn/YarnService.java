@@ -110,6 +110,10 @@ public class YarnService extends AbstractIdleService {
   // Security tokens for accessing HDFS
   private final ByteBuffer tokens;
 
+  private final Closer closer = Closer.create();
+
+  private final Object allContainersStopped = new Object();
+
   private volatile Optional<Resource> maxResourceCapacity =Optional.absent();
 
   public YarnService(Config config, String applicationName, ApplicationId applicationId, EventBus eventBus)
@@ -120,9 +124,10 @@ public class YarnService extends AbstractIdleService {
     this.config = config;
 
     this.yarnConfiguration = new YarnConfiguration();
-    this.amrmClientAsync = AMRMClientAsync.createAMRMClientAsync(1000, new AMRMClientCallbackHandler());
+    this.amrmClientAsync = closer.register(
+        AMRMClientAsync.createAMRMClientAsync(1000, new AMRMClientCallbackHandler()));
     this.amrmClientAsync.init(this.yarnConfiguration);
-    this.nmClientAsync = NMClientAsync.createNMClientAsync(new NMClientCallbackHandler());
+    this.nmClientAsync = closer.register(NMClientAsync.createNMClientAsync(new NMClientCallbackHandler()));
     this.nmClientAsync.init(this.yarnConfiguration);
 
     this.containerLaunchExecutor = Executors.newFixedThreadPool(10,
@@ -176,7 +181,10 @@ public class YarnService extends AbstractIdleService {
   @SuppressWarnings("unused")
   @Subscribe
   public void handleContainerShutdownRequest(ContainerShutdownRequest containerShutdownRequest) {
-
+    for (Container container : containerShutdownRequest.getContainers()) {
+      LOGGER.info(String.format("Stopping container %s running on %s", container.getId(), container.getNodeId()));
+      this.nmClientAsync.stopContainerAsync(container.getId(), container.getNodeId());
+    }
   }
 
   @Override
@@ -199,11 +207,20 @@ public class YarnService extends AbstractIdleService {
   protected void shutDown() throws Exception {
     LOGGER.info("Stopping the YarnService");
 
-    // Stop the running containers
-    this.nmClientAsync.stop();
-
-    // Unregister the ApplicationMaster and stop the AMRMClient
     try {
+      ExecutorsUtils.shutdownExecutorService(this.containerLaunchExecutor);
+
+      // Stop the running containers
+      for (Container container : this.containerMap.values()) {
+        LOGGER.info("Stopping container " + container.getId());
+        this.nmClientAsync.stopContainerAsync(container.getId(), container.getNodeId());
+      }
+
+      synchronized (this.allContainersStopped) {
+        this.allContainersStopped.wait();
+        LOGGER.info("All of the containers have been stopped");
+      }
+
       this.amrmClientAsync.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, null, null);
     } catch (IOException ioe) {
       LOGGER.error("Failed to unregister the ApplicationMaster", ioe);
@@ -212,10 +229,8 @@ public class YarnService extends AbstractIdleService {
     } catch (Exception e) {
       LOGGER.error("Failed to unregister the ApplicationMaster", e);
     } finally {
-      this.amrmClientAsync.stop();
+      this.closer.close();
     }
-
-    ExecutorsUtils.shutdownExecutorService(this.containerLaunchExecutor);
   }
 
   private void requestContainers(int containersRequested) throws IOException, YarnException {
@@ -353,8 +368,6 @@ public class YarnService extends AbstractIdleService {
         ApplicationConstants.STDERR);
   }
 
-
-
   /**
    * A custom implementation of {@link AMRMClientAsync.CallbackHandler}.
    */
@@ -445,6 +458,11 @@ public class YarnService extends AbstractIdleService {
       LOGGER.info(String.format("Container %s has been stopped", containerId));
       containerMap.remove(containerId);
       containerToParticipantMap.remove(containerId);
+      if (containerMap.isEmpty()) {
+        synchronized (allContainersStopped) {
+          allContainersStopped.notify();
+        }
+      }
     }
 
     @Override

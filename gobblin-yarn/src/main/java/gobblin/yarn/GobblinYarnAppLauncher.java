@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -53,10 +54,15 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Apps;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
+import org.apache.helix.Criteria;
 import org.apache.helix.HelixConnection;
+import org.apache.helix.HelixManager;
+import org.apache.helix.HelixManagerFactory;
+import org.apache.helix.InstanceType;
 import org.apache.helix.api.config.ClusterConfig;
 import org.apache.helix.api.id.ClusterId;
 import org.apache.helix.manager.zk.ZkHelixConnection;
+import org.apache.helix.model.Message;
 import org.apache.helix.model.StateModelDefinition;
 import org.apache.helix.tools.StateModelConfigGenerator;
 import org.slf4j.Logger;
@@ -94,6 +100,7 @@ public class GobblinYarnAppLauncher implements Closeable {
   private final String appQueueName;
 
   private final Config config;
+  private final HelixManager helixManager;
   private final Configuration yarnConfiguration;
   private final YarnClient yarnClient;
   private final ExecutorService applicationStatusMonitor;
@@ -109,7 +116,16 @@ public class GobblinYarnAppLauncher implements Closeable {
         config.getString(ConfigurationConstants.APP_QUEUE_KEY) : ConfigurationConstants.DEFAULT_APP_QUEUE;
 
     this.config = config;
+
+    String zkConnectionString = config.hasPath(ConfigurationConstants.ZK_CONNECTION_STRING_KEY) ?
+        config.getString(ConfigurationConstants.ZK_CONNECTION_STRING_KEY) :
+        ConfigurationConstants.DEFAULT_ZK_CONNECTION_STRING;
+    this.helixManager = HelixManagerFactory.getZKHelixManager(
+        config.getString(ConfigurationConstants.HELIX_CLUSTER_NAME_KEY), YarnHelixUtils.getHostname(),
+        InstanceType.SPECTATOR, zkConnectionString);
+
     this.yarnConfiguration = new YarnConfiguration();
+    this.yarnConfiguration.set("fs.automatic.close", "false");
     this.yarnClient = YarnClient.createYarnClient();
     this.yarnClient.init(this.yarnConfiguration);
 
@@ -130,6 +146,12 @@ public class GobblinYarnAppLauncher implements Closeable {
    */
   public ApplicationReport launch() throws IOException, YarnException {
     createGobblinYarnHelixCluster();
+
+    try {
+      this.helixManager.connect();
+    } catch (Exception e) {
+      throw new RuntimeException("The HelixManager failed to connect", e);
+    }
 
     this.yarnClient.start();
     this.applicationId = setupAndSubmitApplication();
@@ -153,7 +175,11 @@ public class GobblinYarnAppLauncher implements Closeable {
           }
 
           LOGGER.info("Gobblin Yarn application state: " + appState.toString());
-          Thread.sleep(TimeUnit.SECONDS.toMillis(60));
+          try {
+            Thread.sleep(TimeUnit.SECONDS.toMillis(60));
+          } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+          }
         }
       }});
 
@@ -170,24 +196,25 @@ public class GobblinYarnAppLauncher implements Closeable {
 
   @Override
   public void close() throws IOException {
-    ExecutorsUtils.shutdownExecutorService(this.applicationStatusMonitor);
-
     try {
-      if (this.applicationId != null
-          && this.yarnClient.getApplicationReport(this.applicationId).getYarnApplicationState()
-          == YarnApplicationState.RUNNING) {
-        this.yarnClient.killApplication(this.applicationId);
-      }
-    } catch (YarnException ye) {
-      LOGGER.error("Failed to kill the Yarn application " + this.applicationId);
-    } finally {
+      ExecutorsUtils.shutdownExecutorService(this.applicationStatusMonitor);
+      sendShutdownRequest();
       this.yarnClient.stop();
+      this.helixManager.disconnect();
+    } finally {
+      try {
+        if (this.applicationId != null) {
+          cleanUpAppWorkDirectory(this.applicationId);
+        }
+      } finally {
+        this.fs.close();
+      }
     }
   }
 
   /**
    * Create a Helix cluster with the cluster name specified using
-   * {@link ConfigurationConstants#HELIX_CLUSTER_NAME_KEY} if it does not eixst.
+   * {@link ConfigurationConstants#HELIX_CLUSTER_NAME_KEY} if it does not exist.
    */
   private void createGobblinYarnHelixCluster() {
     HelixConnection helixConnection =
@@ -418,10 +445,11 @@ public class GobblinYarnAppLauncher implements Closeable {
 
   private String buildApplicationMasterCommand(int memoryMbs) {
     String appMasterClassName = GobblinApplicationMaster.class.getSimpleName();
-    return String.format("%s/bin/java -Xmx%dM %s" +
-            " --%s %s" +
-            " 1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + File.separator + "%s.%s" +
-            " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + File.separator + "%s.%s",
+    return String.format(
+        "%s/bin/java -Xmx%dM %s" +
+        " --%s %s" +
+        " 1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + File.separator + "%s.%s" +
+        " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + File.separator + "%s.%s",
         ApplicationConstants.Environment.JAVA_HOME.$(), memoryMbs, GobblinApplicationMaster.class.getName(),
         ConfigurationConstants.APPLICATION_NAME_OPTION_NAME, this.appName, appMasterClassName,
         ApplicationConstants.STDOUT, appMasterClassName, ApplicationConstants.STDERR);
@@ -455,6 +483,25 @@ public class GobblinYarnAppLauncher implements Closeable {
     }
   }
 
+  private void sendShutdownRequest() {
+    Criteria criteria = new Criteria();
+    criteria.setInstanceName("%");
+    criteria.setResource("%");
+    criteria.setPartition("%");
+    criteria.setPartitionState("%");
+    criteria.setRecipientInstanceType(InstanceType.CONTROLLER);
+    criteria.setSessionSpecific(false);
+
+    Message shutdownRequest = new Message(Message.MessageType.USER_DEFINE_MSG, UUID.randomUUID().toString());
+    shutdownRequest.setMsgSubType(HelixMessageSubTypes.APPLICATION_MASTER_SHUTDOWN.toString());
+    shutdownRequest.setMsgState(Message.MessageState.NEW);
+
+    int messagesSent = this.helixManager.getMessagingService().send(criteria, shutdownRequest);
+    if (messagesSent == 0) {
+      LOGGER.error(String.format("Failed to send the %s message to the controller", shutdownRequest.getMsgSubType()));
+    }
+  }
+
   private void cleanUpAppWorkDirectory(ApplicationId applicationId) throws IOException {
     Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(this.fs, this.appName, applicationId);
     if (this.fs.exists(appWorkDir)) {
@@ -464,7 +511,7 @@ public class GobblinYarnAppLauncher implements Closeable {
   }
 
   public static void main(String[] args) throws Exception {
-    Closer closer = Closer.create();
+    final Closer closer = Closer.create();
     try {
       final GobblinYarnAppLauncher gobblinYarnAppLauncher = closer.register(
           new GobblinYarnAppLauncher(ConfigFactory.load()));
@@ -473,7 +520,7 @@ public class GobblinYarnAppLauncher implements Closeable {
         @Override
         public void run() {
           try {
-            gobblinYarnAppLauncher.close();
+            closer.close();
           } catch (IOException ioe) {
             LOGGER.error("Failed to shutdown the " + GobblinYarnAppLauncher.class.getSimpleName(), ioe);
           }

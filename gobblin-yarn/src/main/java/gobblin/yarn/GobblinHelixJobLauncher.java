@@ -128,7 +128,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
     Closer closer = Closer.create();
     try {
-      ParallelRunner stateSerDeRunner = new ParallelRunner(this.stateSerDeRunnerThreads, this.fs);
+      ParallelRunner stateSerDeRunner = closer.register(new ParallelRunner(this.stateSerDeRunnerThreads, this.fs));
 
       for (WorkUnit workUnit : workUnits) {
         if (workUnit instanceof MultiWorkUnit) {
