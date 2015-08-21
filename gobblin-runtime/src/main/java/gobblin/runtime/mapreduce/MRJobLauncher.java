@@ -223,10 +223,10 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
       // Collect the output task states and add them to the job state
       List<TaskState> outputTaskStates = collectOutputTaskStates(new Path(jobOutputPath, jobState.getJobId()));
-      if (outputTaskStates.size() < jobState.getTasks()) {
+      if (outputTaskStates.size() < jobState.getTaskCount()) {
         // If the number of collected task states is less than the number of tasks in the job
         LOG.error(String.format("Collected %d task states while expecting %d task states", outputTaskStates.size(),
-            jobState.getTasks()));
+            jobState.getTaskCount()));
         jobState.setState(JobState.RunningState.FAILED);
       }
       jobState.addTaskStates(outputTaskStates);

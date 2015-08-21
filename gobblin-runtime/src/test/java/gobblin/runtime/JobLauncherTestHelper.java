@@ -249,7 +249,7 @@ public class JobLauncherTestHelper {
       List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, "Dataset0-current.jst");
       JobState.DatasetState datasetState = datasetStateList.get(0);
       Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
-      Assert.assertEquals(datasetState.getTasks(), 1);
+      Assert.assertEquals(datasetState.getTaskCount(), 1);
       TaskState taskState = datasetState.getTaskStates().get(0);
       // BaseDataPublisher will change the state to COMMITTED
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);

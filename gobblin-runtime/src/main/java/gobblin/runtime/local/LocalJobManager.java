@@ -68,7 +68,6 @@ import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
-import gobblin.metrics.GobblinMetrics;
 import gobblin.publisher.DataPublisher;
 import gobblin.runtime.EmailNotificationJobListener;
 import gobblin.runtime.JobException;
@@ -338,7 +337,7 @@ public class LocalJobManager extends AbstractIdleService {
         return;
       }
 
-      jobState.setTasks(workUnits.get().size());
+      jobState.setTaskCount(workUnits.get().size());
       jobState.setStartTime(System.currentTimeMillis());
       jobState.setState(JobState.RunningState.RUNNING);
 
@@ -414,7 +413,7 @@ public class LocalJobManager extends AbstractIdleService {
     jobState.addTaskState(taskState);
     // If all the tasks of the job have completed (regardless of
     // success or failure), then trigger job committing.
-    if (jobState.getCompletedTasks() == jobState.getTasks()) {
+    if (jobState.getCompletedTasks() == jobState.getTaskCount()) {
       LOG.info(String.format("All tasks of job the metrics will be generated regardless of activation, but they will not be reported unless %s have completed, committing it", jobId));
       String jobName = taskState.getWorkunit().getProp(ConfigurationKeys.JOB_NAME_KEY);
       try {
