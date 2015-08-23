@@ -23,7 +23,7 @@ import gobblin.data.management.retention.dataset.Dataset;
  *
  * <p>
  *   Concrete subclasses should have a constructor with signature
- *   ({@link org.apache.hadoop.fs.FileSystem}, {@link azkaban.utils.Props}).
+ *   ({@link org.apache.hadoop.fs.FileSystem}, {@link java.util.Properties}).
  * </p>
  */
 public interface DatasetFinder {

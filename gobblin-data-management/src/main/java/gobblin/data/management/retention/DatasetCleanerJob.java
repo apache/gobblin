@@ -43,7 +43,7 @@ public class DatasetCleanerJob extends AbstractJob implements Tool {
   public DatasetCleanerJob(String id, Props props) throws IOException {
     super(id, Logger.getLogger(DatasetCleanerJob.class));
     this.conf = new Configuration();
-    this.datasetCleaner = new DatasetCleaner(FileSystem.get(getConf()), props);
+    this.datasetCleaner = new DatasetCleaner(FileSystem.get(getConf()), props.toProperties());
   }
 
   @Override

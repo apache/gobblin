@@ -15,9 +15,8 @@ package gobblin.runtime.util;
 
 import java.util.ArrayList;
 
+import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import junit.framework.Assert;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;

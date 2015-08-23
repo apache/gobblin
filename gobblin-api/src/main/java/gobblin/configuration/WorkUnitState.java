@@ -58,7 +58,12 @@ public class WorkUnitState extends State {
    * </p>
    */
   public enum WorkingState {
-    PENDING, RUNNING, SUCCESSFUL, COMMITTED, FAILED, CANCELLED
+    PENDING,
+    RUNNING,
+    SUCCESSFUL,
+    COMMITTED,
+    FAILED,
+    CANCELLED
   }
 
   private WorkUnit workunit;
@@ -195,6 +200,20 @@ public class WorkUnitState extends State {
   }
 
   @Override
+  public String getProp(String key) {
+    return getProperty(key);
+  }
+
+  @Override
+  public String getProp(String key, String def) {
+    return getProperty(key, def);
+  }
+
+  /**
+   * @deprecated Use {@link #getProp(String)}
+   */
+  @Deprecated
+  @Override
   protected String getProperty(String key) {
     String propStr = super.getProperty(key);
     if (propStr != null) {
@@ -204,6 +223,10 @@ public class WorkUnitState extends State {
     }
   }
 
+  /**
+   * @deprecated Use {@link #getProp(String, String)}
+   */
+  @Deprecated
   @Override
   protected String getProperty(String key, String def) {
     String propStr = super.getProperty(key);
@@ -246,15 +269,13 @@ public class WorkUnitState extends State {
   }
 
   @Override
-  public void readFields(DataInput in)
-      throws IOException {
+  public void readFields(DataInput in) throws IOException {
     this.workunit.readFields(in);
     super.readFields(in);
   }
 
   @Override
-  public void write(DataOutput out)
-      throws IOException {
+  public void write(DataOutput out) throws IOException {
     this.workunit.write(out);
     super.write(out);
   }
@@ -266,8 +287,8 @@ public class WorkUnitState extends State {
     }
 
     WorkUnitState other = (WorkUnitState) object;
-    return ((this.workunit == null && other.workunit == null) ||
-        (this.workunit != null && this.workunit.equals(other.workunit))) && super.equals(other);
+    return ((this.workunit == null && other.workunit == null)
+        || (this.workunit != null && this.workunit.equals(other.workunit))) && super.equals(other);
   }
 
   @Override
@@ -296,8 +317,8 @@ public class WorkUnitState extends State {
    *                                                               object.
    */
   public void addFinalConstructState(String infix, State finalConstructState) {
-    for(String property : finalConstructState.getPropertyNames()) {
-      if(Strings.isNullOrEmpty(infix)) {
+    for (String property : finalConstructState.getPropertyNames()) {
+      if (Strings.isNullOrEmpty(infix)) {
         setProp(FINAL_CONSTRUCT_STATE_PREFIX + property, finalConstructState.getProp(property));
       } else {
         setProp(FINAL_CONSTRUCT_STATE_PREFIX + infix + "." + property, finalConstructState.getProp(property));
@@ -326,8 +347,8 @@ public class WorkUnitState extends State {
    */
   public State getFinalConstructStates() {
     State constructState = new State();
-    for(String property : getPropertyNames()) {
-      if(property.startsWith(FINAL_CONSTRUCT_STATE_PREFIX)) {
+    for (String property : getPropertyNames()) {
+      if (property.startsWith(FINAL_CONSTRUCT_STATE_PREFIX)) {
         constructState.setProp(property.substring(FINAL_CONSTRUCT_STATE_PREFIX.length()), getProp(property));
       }
     }

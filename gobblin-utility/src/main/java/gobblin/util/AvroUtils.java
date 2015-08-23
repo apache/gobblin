@@ -12,6 +12,9 @@
 
 package gobblin.util;
 
+import static org.apache.avro.SchemaCompatibility.checkReaderWriterCompatibility;
+import static org.apache.avro.SchemaCompatibility.SchemaCompatibilityType.COMPATIBLE;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,25 +39,22 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.mapred.FsInput;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
-
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.primitives.Longs;
-
-import static org.apache.avro.SchemaCompatibility.checkReaderWriterCompatibility;
-import static org.apache.avro.SchemaCompatibility.SchemaCompatibilityType.COMPATIBLE;
 
 
 /**
@@ -161,13 +161,8 @@ public class AvroUtils {
       LOG.debug("Record schema not compatible with writer schema. Converting record schema to writer schema may fail.");
     }
 
-    Closer closer = Closer.create();
     try {
-      ByteArrayOutputStream out = closer.register(new ByteArrayOutputStream());
-      Encoder encoder = new EncoderFactory().directBinaryEncoder(out, null);
-      DatumWriter<GenericRecord> writer = new GenericDatumWriter<GenericRecord>(record.getSchema());
-      writer.write(record, encoder);
-      BinaryDecoder decoder = new DecoderFactory().binaryDecoder(out.toByteArray(), null);
+      BinaryDecoder decoder = new DecoderFactory().binaryDecoder(recordToByteArray(record), null);
       DatumReader<GenericRecord> reader = new GenericDatumReader<GenericRecord>(record.getSchema(), newSchema);
       return reader.read(null, decoder);
     } catch (IOException e) {
@@ -175,6 +170,23 @@ public class AvroUtils {
           String.format("Cannot convert avro record to new schema. Origianl schema = %s, new schema = %s",
               record.getSchema(), newSchema),
           e);
+    }
+  }
+
+  /**
+   * Convert a GenericRecord to a byte array.
+   */
+  public static byte[] recordToByteArray(GenericRecord record) throws IOException {
+    Closer closer = Closer.create();
+    try {
+      ByteArrayOutputStream out = closer.register(new ByteArrayOutputStream());
+      Encoder encoder = EncoderFactory.get().directBinaryEncoder(out, null);
+      DatumWriter<GenericRecord> writer = new GenericDatumWriter<GenericRecord>(record.getSchema());
+      writer.write(record, encoder);
+      byte[] byteArray = out.toByteArray();
+      return byteArray;
+    } catch (Throwable t) {
+      throw closer.rethrow(t);
     } finally {
       closer.close();
     }
@@ -345,7 +357,7 @@ public class AvroUtils {
   private static Optional<Schema> removeUncomparableFieldsFromRecord(Schema record) {
     Preconditions.checkArgument(record.getType() == Schema.Type.RECORD);
 
-    List<Field> fields = new ArrayList<Schema.Field>();
+    List<Field> fields = Lists.newArrayList();
     for (Field field : record.getFields()) {
       Optional<Schema> newFieldSchema = removeUncomparableFields(field.schema());
       if (newFieldSchema.isPresent()) {
@@ -375,5 +387,34 @@ public class AvroUtils {
     } else {
       return Optional.of(Schema.createUnion(newUnion));
     }
+  }
+
+  /**
+   * Copies the input {@link org.apache.avro.Schema} but changes the schema name.
+   * @param schema {@link org.apache.avro.Schema} to copy.
+   * @param newName name for the copied {@link org.apache.avro.Schema}.
+   * @return A {@link org.apache.avro.Schema} that is a copy of schema, but has the name newName.
+   */
+  public static Schema switchName(Schema schema, String newName) {
+    if(schema.getName().equals(newName)) {
+      return schema;
+    }
+
+    Schema newSchema = Schema.createRecord(newName, schema.getDoc(), schema.getNamespace(), schema.isError());
+
+    List<Field> fields = schema.getFields();
+    Iterable<Field> fieldsNew = Iterables.transform(fields, new Function<Field, Field>() {
+      @Override public Schema.Field apply(Field input) {
+        //this should never happen but the API has marked input as Nullable
+        if (null == input) {
+          return null;
+        }
+        Field field = new Field(input.name(), input.schema(), input.doc(), input.defaultValue(), input.order());
+        return field;
+      }
+    });
+
+    newSchema.setFields(Lists.newArrayList(fieldsNew));
+    return newSchema;
   }
 }

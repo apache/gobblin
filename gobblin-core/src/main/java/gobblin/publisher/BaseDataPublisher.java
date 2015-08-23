@@ -23,9 +23,11 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -56,9 +58,11 @@ public class BaseDataPublisher extends DataPublisher {
 
   private static final Logger LOG = LoggerFactory.getLogger(BaseDataPublisher.class);
 
-  protected final List<FileSystem> fss = Lists.newArrayList();
-  protected final Closer closer;
   protected final int numBranches;
+  protected final List<FileSystem> fileSystemByBranches;
+  protected final List<Optional<String>> publisherFinalDirOwnerGroupsByBranches;
+  protected final List<FsPermission> permissions;
+  protected final Closer closer;
   protected final int parallelRunnerThreads;
   protected final Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
 
@@ -74,13 +78,29 @@ public class BaseDataPublisher extends DataPublisher {
 
     this.numBranches = this.getState().getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
 
+    this.fileSystemByBranches = Lists.newArrayListWithCapacity(this.numBranches);
+    this.publisherFinalDirOwnerGroupsByBranches = Lists.newArrayListWithCapacity(this.numBranches);
+    this.permissions = Lists.newArrayListWithCapacity(this.numBranches);
+
     // Get a FileSystem instance for each branch
     for (int i = 0; i < this.numBranches; i++) {
       URI uri = URI.create(this.getState().getProp(
           ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, this.numBranches, i),
           ConfigurationKeys.LOCAL_FS_URI));
-      this.fss.add(FileSystem.get(uri, conf));
+      this.fileSystemByBranches.add(FileSystem.get(uri, conf));
+
+      // The group(s) will be applied to the final publisher output directory(ies)
+      this.publisherFinalDirOwnerGroupsByBranches.add(Optional.fromNullable(this.getState().getProp(ForkOperatorUtils
+          .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR_GROUP, this.numBranches, i))));
+
+      // The permission(s) will be applied to all directories created by the publisher,
+      // which do NOT include directories created by the writer and moved by the publisher.
+      // The permissions of those directories are controlled by writer.file.permissions and writer.dir.permissions.
+      this.permissions.add(new FsPermission(state.getPropAsShortWithRadix(
+          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_PERMISSIONS, numBranches, i),
+          FsPermission.getDefault().toShort(), ConfigurationKeys.PERMISSION_PARSING_RADIX)));
     }
+
     this.parallelRunnerThreads =
         state.getPropAsInt(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY, ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS);
   }
@@ -104,48 +124,7 @@ public class BaseDataPublisher extends DataPublisher {
 
     for (WorkUnitState workUnitState : states) {
       for (int branchId = 0; branchId < this.numBranches; branchId++) {
-        // Get a ParallelRunner instance for moving files in parallel
-        ParallelRunner parallelRunner = this.getParallelRunner(this.fss.get(branchId));
-
-        // The directory where the workUnitState wrote its output data.
-        // It is a combination of WRITER_OUTPUT_DIR and WRITER_FILE_PATH.
-        Path writerOutputDir = WriterUtils.getWriterOutputDir(workUnitState, this.numBranches, branchId);
-
-        if (writerOutputPathsMoved.contains(writerOutputDir)) {
-          // This writer output path has already been moved for another task of the same extract
-          continue;
-        }
-
-        if (!this.fss.get(branchId).exists(writerOutputDir)) {
-          LOG.warn(String.format("Branch %d of WorkUnit %s produced no data", branchId, workUnitState.getId()));
-          continue;
-        }
-
-        // The directory where the final output directory for this job will be placed.
-        // It is a combination of DATA_PUBLISHER_FINAL_DIR and WRITER_FILE_PATH.
-        Path publisherOutputDir = WriterUtils.getDataPublisherFinalDir(workUnitState, this.numBranches, branchId);
-
-        if (this.fss.get(branchId).exists(publisherOutputDir)) {
-          // The final output directory already exists, check if the job is configured to replace it.
-          boolean replaceFinalOutputDir = this.getState().getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(
-              ConfigurationKeys.DATA_PUBLISHER_REPLACE_FINAL_DIR, this.numBranches, branchId));
-
-          // If the final output directory is not configured to be replaced, put new data to the existing directory.
-          if (!replaceFinalOutputDir) {
-            addWriterOutputToExistingDir(writerOutputDir, publisherOutputDir, workUnitState, branchId, parallelRunner);
-            writerOutputPathsMoved.add(writerOutputDir);
-            continue;
-          }
-          // Delete the final output directory if it is configured to be replaced
-          this.fss.get(branchId).delete(publisherOutputDir, true);
-        } else {
-          // Create the parent directory of the final output directory if it does not exist
-          this.fss.get(branchId).mkdirs(publisherOutputDir.getParent());
-        }
-
-        LOG.info(String.format("Moving %s to %s", writerOutputDir, publisherOutputDir));
-        parallelRunner.renamePath(writerOutputDir, publisherOutputDir);
-        writerOutputPathsMoved.add(writerOutputDir);
+        publishData(workUnitState, branchId, writerOutputPathsMoved);
       }
 
       // Upon successfully committing the data to the final output directory, set states
@@ -155,13 +134,76 @@ public class BaseDataPublisher extends DataPublisher {
     }
   }
 
+  protected void publishData(WorkUnitState workUnitState, int branchId, Set<Path> writerOutputPathsMoved)
+      throws IOException {
+    // Get a ParallelRunner instance for moving files in parallel
+    ParallelRunner parallelRunner = this.getParallelRunner(this.fileSystemByBranches.get(branchId));
+
+    // The directory where the workUnitState wrote its output data.
+    Path writerOutputDir = WriterUtils.getWriterOutputDir(workUnitState, this.numBranches, branchId);
+
+    if (writerOutputPathsMoved.contains(writerOutputDir)) {
+      // This writer output path has already been moved for another task of the same extract
+      return;
+    }
+
+    if (!this.fileSystemByBranches.get(branchId).exists(writerOutputDir)) {
+      LOG.warn(String.format("Branch %d of WorkUnit %s produced no data", branchId, workUnitState.getId()));
+      return;
+    }
+
+    // The directory where the final output directory for this job will be placed.
+    // It is a combination of DATA_PUBLISHER_FINAL_DIR and WRITER_FILE_PATH.
+    Path publisherOutputDir = getPublisherOutputDir(workUnitState, branchId);
+
+    if (this.fileSystemByBranches.get(branchId).exists(publisherOutputDir)) {
+      // The final output directory already exists, check if the job is configured to replace it.
+      boolean replaceFinalOutputDir = this.getState().getPropAsBoolean(ForkOperatorUtils
+          .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_REPLACE_FINAL_DIR, this.numBranches, branchId));
+
+      // If the final output directory is not configured to be replaced, put new data to the existing directory.
+      if (!replaceFinalOutputDir) {
+        addWriterOutputToExistingDir(writerOutputDir, publisherOutputDir, workUnitState, branchId, parallelRunner);
+        writerOutputPathsMoved.add(writerOutputDir);
+        return;
+      }
+      // Delete the final output directory if it is configured to be replaced
+      this.fileSystemByBranches.get(branchId).delete(publisherOutputDir, true);
+    } else {
+      // Create the parent directory of the final output directory if it does not exist
+      WriterUtils.mkdirsWithRecursivePermission(this.fileSystemByBranches.get(branchId), publisherOutputDir.getParent(),
+          this.permissions.get(branchId));
+    }
+
+    LOG.info(String.format("Moving %s to %s", writerOutputDir, publisherOutputDir));
+    parallelRunner.renamePath(writerOutputDir, publisherOutputDir,
+        this.publisherFinalDirOwnerGroupsByBranches.get(branchId));
+    writerOutputPathsMoved.add(writerOutputDir);
+  }
+
+  /**
+   * Get the output directory path this {@link BaseDataPublisher} will write to.
+   *
+   * <p>
+   *   This is the default implementation. Subclasses of {@link BaseDataPublisher} may override this
+   *   to write to a custom directory or write using a custom directory structure or naming pattern.
+   * </p>
+   *
+   * @param workUnitState a {@link WorkUnitState} object
+   * @param branchId the fork branch ID
+   * @return the output directory path this {@link BaseDataPublisher} will write to
+   */
+  protected Path getPublisherOutputDir(WorkUnitState workUnitState, int branchId) {
+    return WriterUtils.getDataPublisherFinalDir(workUnitState, this.numBranches, branchId);
+  }
+
   protected void addWriterOutputToExistingDir(Path writerOutputDir, Path publisherOutputDir,
       WorkUnitState workUnitState, int branchId, ParallelRunner parallelRunner) throws IOException {
     boolean preserveFileName = workUnitState.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(
         ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, this.numBranches, branchId), false);
 
     // Go through each file in writerOutputDir and move it into publisherOutputDir
-    for (FileStatus status : this.fss.get(branchId).listStatus(writerOutputDir)) {
+    for (FileStatus status : this.fileSystemByBranches.get(branchId).listStatus(writerOutputDir)) {
 
       // Preserve the file name if configured, use specified name otherwise
       Path finalOutputPath =
@@ -172,7 +214,7 @@ public class BaseDataPublisher extends DataPublisher {
           : new Path(publisherOutputDir, status.getPath().getName());
 
       LOG.info(String.format("Moving %s to %s", status.getPath(), finalOutputPath));
-      parallelRunner.renamePath(status.getPath(), finalOutputPath);
+      parallelRunner.renamePath(status.getPath(), finalOutputPath, Optional.<String>absent());
     }
   }
 

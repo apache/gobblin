@@ -1,0 +1,40 @@
+{
+   "type":"record",
+   "name":"GobblinCompactionTestEvent",
+   "namespace":"GobblinCompactionTestEvent",
+   "fields":[
+      {
+         "name":"header",
+         "type":{
+            "type":"record",
+            "name":"EventHeader",
+            "namespace":"EventHeader",
+            "fields":[
+               {
+                  "name":"memberId",
+                  "type":"int",
+                  "doc":"The member id of the user initiating the action. PrimaryKey"
+               }
+            ]
+         }
+      },
+      {
+         "name":"requestHeader",
+         "type":{
+            "type":"record",
+            "name":"UserRequestHeader",
+            "namespace":"UserRequestHeader",
+            "fields":[
+               {
+                  "name":"ip",
+                  "type":[
+                     "string",
+                     "null"
+                  ],
+                  "doc":"The user's IPv4 address in string representation. For IPv6 users, this field is null. PrimaryKey"
+               }
+            ]
+         }
+      }
+   ]
+}

@@ -17,9 +17,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import junit.framework.Assert;
 
 import gobblin.Constructs;
 import gobblin.configuration.ConfigurationKeys;

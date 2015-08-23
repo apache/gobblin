@@ -14,13 +14,12 @@
 package gobblin.metrics.kafka;
 
 import java.io.IOException;
+import java.util.Iterator;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.codahale.metrics.MetricRegistry;
-
-import kafka.consumer.ConsumerIterator;
 
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricReport;
@@ -38,7 +37,7 @@ public class KafkaAvroReporterTest extends KafkaReporterTest {
 
   public KafkaAvroReporterTest(String topic)
       throws IOException, InterruptedException {
-    super(topic);
+    super();
   }
 
   public KafkaAvroReporterTest() throws IOException, InterruptedException {
@@ -46,20 +45,20 @@ public class KafkaAvroReporterTest extends KafkaReporterTest {
   }
 
   @Override
-  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilder(MetricRegistry registry) {
-    return KafkaAvroReporter.forRegistry(registry);
+  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilder(MetricRegistry registry, KafkaPusher pusher) {
+    return KafkaAvroReporter.Factory.forRegistry(registry).withKafkaPusher(pusher);
   }
 
   @Override
-  public KafkaReporter.Builder<?> getBuilderFromContext(MetricContext context) {
-    return KafkaAvroReporter.forContext(context);
+  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilderFromContext(MetricContext context, KafkaPusher pusher) {
+    return KafkaAvroReporter.Factory.forContext(context).withKafkaPusher(pusher);
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  protected MetricReport nextReport(ConsumerIterator<byte[], byte[]> it)
+  protected MetricReport nextReport(Iterator<byte[]> it)
       throws IOException {
     Assert.assertTrue(it.hasNext());
-    return MetricReportUtils.deserializeReportFromAvroSerialization(new MetricReport(), it.next().message());
+    return MetricReportUtils.deserializeReportFromAvroSerialization(new MetricReport(), it.next());
   }
 }

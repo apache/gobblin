@@ -15,8 +15,6 @@ package gobblin.configuration;
 import java.nio.charset.Charset;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.lang.StringUtils;
-
 import com.google.common.base.Charsets;
 
 
@@ -120,8 +118,14 @@ public class ConfigurationKeys {
   public static final String JOB_FAILURES_KEY = "job.failures";
   public static final String JOB_TRACKING_URL_KEY = "job.tracking.url";
   public static final String FORK_STATE_KEY = "fork.state";
-  public static final String METRIC_CONTEXT_NAME_KEY = "metrics.context.name";
   public static final String JOB_STATE_FILE_PATH_KEY = "job.state.file.path";
+
+  /**
+   * Dataset-related configuration properties;
+   */
+  // This property is used to specify the URN of a dataset a job or WorkUnit extracts data for
+  public static final String DATASET_URN_KEY = "dataset.urn";
+  public static final String DEFAULT_DATASET_URN = "";
 
   /**
    * Work unit related configuration properties.
@@ -211,6 +215,7 @@ public class ConfigurationKeys {
   public static final String WRITER_FILE_REPLICATION_FACTOR = WRITER_PREFIX + ".file.replication.factor";
   public static final String WRITER_FILE_BLOCK_SIZE = WRITER_PREFIX + ".file.block.size";
   public static final String WRITER_FILE_PERMISSIONS = WRITER_PREFIX + ".file.permissions";
+  public static final String WRITER_DIR_PERMISSIONS = WRITER_PREFIX + ".dir.permissions";
   public static final String WRITER_BUFFER_SIZE = WRITER_PREFIX + ".buffer.size";
   public static final String WRITER_PRESERVE_FILE_NAME = WRITER_PREFIX + ".preserve.file.name";
   public static final String WRITER_DEFLATE_LEVEL = WRITER_PREFIX + ".deflate.level";
@@ -230,6 +235,14 @@ public class ConfigurationKeys {
 
   public static final String SIMPLE_WRITER_DELIMITER = "simple.writer.delimiter";
   public static final String SIMPLE_WRITER_PREPEND_SIZE = "simple.writer.prepend.size";
+
+  /**
+   * Writer configuration properties used internally.
+   */
+  public static final String WRITER_RECORDS_WRITTEN = WRITER_PREFIX + ".records.written";
+  public static final String WRITER_BYTES_WRITTEN = WRITER_PREFIX + ".bytes.written";
+  public static final String WRITER_EARLIEST_TIMESTAMP = WRITER_PREFIX + ".earliest.timestamp";
+  public static final String WRITER_AVERAGE_TIMESTAMP = WRITER_PREFIX + ".average.timestamp";
 
   /**
    * Configuration properties used by the quality checker.
@@ -264,6 +277,9 @@ public class ConfigurationKeys {
   public static final String DATA_PUBLISHER_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".final.dir";
   public static final String DATA_PUBLISHER_REPLACE_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".replace.final.dir";
   public static final String DATA_PUBLISHER_FINAL_NAME = DATA_PUBLISHER_PREFIX + ".final.name";
+  // This property is used to specify the owner group of the data publisher final output directory
+  public static final String DATA_PUBLISHER_FINAL_DIR_GROUP = DATA_PUBLISHER_PREFIX + ".final.dir.group";
+  public static final String DATA_PUBLISHER_PERMISSIONS = DATA_PUBLISHER_PREFIX + ".permissions";
 
   /**
    * Configuration properties used by the extractor.
@@ -310,6 +326,20 @@ public class ConfigurationKeys {
   public static final String SOURCE_FILEBASED_FS_SNAPSHOT = "source.filebased.fs.snapshot";
   public static final String SOURCE_FILEBASED_FS_URI = "source.filebased.fs.uri";
   public static final String SOURCE_FILEBASED_PRESERVE_FILE_NAME = "source.filebased.preserve.file.name";
+
+  /**
+   * Configuration properties used internally by the KafkaSource.
+   */
+  public static final String OFFSET_TOO_EARLY_COUNT = "offset.too.early.count";
+  public static final String OFFSET_TOO_LATE_COUNT = "offset.too.late.count";
+  public static final String FAIL_TO_GET_OFFSET_COUNT = "fail.to.get.offset.count";
+
+  /**
+   * Configuration properties used internally by the KafkaExtractor.
+   */
+  public static final String ERROR_PARTITION_COUNT = "error.partition.count";
+  public static final String ERROR_MESSAGE_INVALID_SCHEMA_ID_COUNT = "error.message.invalid.schema.id.count";
+  public static final String ERROR_MESSAGE_UNDECODABLE_COUNT = "error.message.undecodable.count";
 
   /**
    * Configuration properties for source connection.
@@ -383,11 +413,11 @@ public class ConfigurationKeys {
   public static final int DEFAULT_COMPACTION_THREAD_POOL_SIZE = 20;
   public static final String COMPACTION_INPUT_DIR = COMPACTION_PREFIX + "input.dir";
   public static final String COMPACTION_INPUT_SUBDIR = COMPACTION_PREFIX + "input.subdir";
-  public static final String DEFAULT_COMPACTION_INPUT_SUBDIR = StringUtils.EMPTY;
+  public static final String DEFAULT_COMPACTION_INPUT_SUBDIR = "hourly";
   public static final String COMPACTION_JOB_INPUT_DIR = COMPACTION_PREFIX + "job.input.dir";
   public static final String COMPACTION_DEST_DIR = COMPACTION_PREFIX + "dest.dir";
   public static final String COMPACTION_DEST_SUBDIR = COMPACTION_PREFIX + "dest.subdir";
-  public static final String DEFAULT_COMPACTION_DEST_SUBDIR = StringUtils.EMPTY;
+  public static final String DEFAULT_COMPACTION_DEST_SUBDIR = "daily";
   public static final String COMPACTION_JOB_DEST_DIR = COMPACTION_PREFIX + "job.dest.dir";
   public static final String COMPACTION_TMP_DIR = COMPACTION_PREFIX + "tmp.dir";
   public static final String DEFAULT_COMPACTION_TMP_DIR = "/tmp";
@@ -404,23 +434,22 @@ public class ConfigurationKeys {
   public static final String COMPACTION_TIMEZONE = COMPACTION_PREFIX + "timezone";
   public static final String DEFAULT_COMPACTION_TIMEZONE = "America/Los_Angeles";
   public static final String COMPACTION_TIMEBASED_MAX_TIME_AGO = COMPACTION_PREFIX + "timebased.max.time.ago";
-  public static final String DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO = "5h";
+  public static final String DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO = "3d";
   public static final String COMPACTION_TIMEBASED_MIN_TIME_AGO = COMPACTION_PREFIX + "timebased.min.time.ago";
-  public static final String DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO = "1h";
+  public static final String DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO = "1d";
   public static final String COMPACTION_TOPIC = COMPACTION_PREFIX + "topic";
   public static final String COMPACTION_OUTPUT_PERMISSION = COMPACTION_PREFIX + "output.permission";
   public static final int DEFAULT_COMPACTION_OUTPUT_PERMISSION = 0755;
   public static final String COMPACTION_TARGET_OUTPUT_FILE_SIZE = COMPACTION_PREFIX + "target.output.file.size";
   public static final long DEFAULT_COMPACTION_TARGET_OUTPUT_FILE_SIZE = 268435456;
   public static final String COMPACTION_MAX_NUM_REDUCERS = COMPACTION_PREFIX + "max.num.reducers";
-  public static final int DEFAULT_COMPACTION_MAX_NUM_REDUCERS = 100;
+  public static final int DEFAULT_COMPACTION_MAX_NUM_REDUCERS = 900;
   public static final String COMPACTION_MAPRED_MAX_SPLIT_SIZE = COMPACTION_PREFIX + "mapred.max.split.size";
   public static final long DEFAULT_COMPACTION_MAPRED_MAX_SPLIT_SIZE = 268435456;
   public static final String COMPACTION_MAPRED_MIN_SPLIT_SIZE = COMPACTION_PREFIX + "mapred.min.split.size";
   public static final long DEFAULT_COMPACTION_MAPRED_MIN_SPLIT_SIZE = 268435456;
   public static final String COMPACTION_AVRO_KEY_SCHEMA_LOC = COMPACTION_PREFIX + "avro.key.schema.loc";
-  public static final String COMPACTION_USE_ALL_ATTRIBUTES = COMPACTION_PREFIX + "use.all.attributes";
-  public static final boolean DEFAULT_COMPACTION_USE_ALL_ATTRIBUTES = false;
+  public static final String COMPACTION_DEDUP_KEY = COMPACTION_PREFIX + "dedup.key";
   public static final String COMPACTION_JOB_RUNNER_CLASS = COMPACTION_PREFIX + "job.runner.class";
   public static final String DEFAULT_COMPACTION_JOB_RUNNER_CLASS =
       "gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner";
@@ -429,7 +458,14 @@ public class ConfigurationKeys {
   public static final String COMPACTION_FILE_SYSTEM_URI = COMPACTION_PREFIX + "file.system.uri";
   public static final String COMPACTION_MR_JOB_TIMEOUT_MINUTES = COMPACTION_PREFIX + "mr.job.timeout.minutes";
   public static final int DEFAULT_COMPACTION_MR_JOB_TIMEOUT_MINUTES = Integer.MAX_VALUE;
+  public static final String COMPACTION_RECOMPACT_FOR_LATE_DATA = COMPACTION_PREFIX + "recompact.for.late.data";
+  public static final boolean DEFAULT_COMPACTION_RECOMPACT_FOR_LATE_DATA = false;
+  public static final String COMPACTION_DEDUPLICATE = COMPACTION_PREFIX + "deduplicate";
+  public static final boolean DEFAULT_COMPACTION_DEDUPLICATE = true;
+  public static final String COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK = COMPACTION_PREFIX + "job.late.data.movement.task";
+  public static final String COMPACTION_JOB_LATE_DATA_FILES = COMPACTION_PREFIX + "job.late.data.files";
   public static final String COMPACTION_COMPLETE_FILE_NAME = "_COMPACTION_COMPLETE";
+  public static final String COMPACTION_LATE_FILES_DIRECTORY = "late";
   public static final String COMPACTION_ENABLE_SUCCESS_FILE = "mapreduce.fileoutputcommitter.marksuccessfuljobs";
   public static final String COMPACTION_OVERWRITE_OUTPUT_DIR = COMPACTION_PREFIX + "overwrite.output.dir";
   public static final boolean DEFAULT_COMPACTION_OVERWRITE_OUTPUT_DIR = false;
@@ -519,4 +555,5 @@ public class ConfigurationKeys {
    */
   public static final Charset DEFAULT_CHARSET_ENCODING = Charsets.UTF_8;
   public static final String TEST_HARNESS_LAUNCHER_IMPL = "gobblin.testharness.launcher.impl";
+  public static final int PERMISSION_PARSING_RADIX = 8;
 }

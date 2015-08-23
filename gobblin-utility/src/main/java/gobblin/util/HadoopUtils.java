@@ -98,6 +98,18 @@ public class HadoopUtils {
   }
 
   /**
+   * Set the group associated with a given path.
+   *
+   * @param fs the {@link FileSystem} instance used to perform the file operation
+   * @param path the given path
+   * @param group the group associated with the path
+   * @throws IOException
+   */
+  public static void setGroup(FileSystem fs, Path path, String group) throws IOException {
+    fs.setOwner(path, fs.getFileStatus(path).getOwner(), group);
+  }
+
+  /**
    * Serialize a {@link Writable} object into a string.
    *
    * @param writable the {@link Writable} object to be serialized

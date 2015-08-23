@@ -13,13 +13,12 @@
 package gobblin.data.management.retention.dataset;
 
 import java.io.IOException;
+import java.util.Properties;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import azkaban.utils.Props;
 
 import gobblin.data.management.retention.policy.RetentionPolicy;
 import gobblin.data.management.retention.policy.TimeBasedRetentionPolicy;
@@ -40,12 +39,12 @@ public class TrackingDataset extends DatasetBase<TimestampedDatasetVersion> {
   private final RetentionPolicy<TimestampedDatasetVersion> retentionPolicy;
   private final Path datasetRoot;
 
-  public TrackingDataset(FileSystem fs, Props props, Path datasetRoot)
+  public TrackingDataset(FileSystem fs, Properties props, Path datasetRoot)
       throws IOException {
     this(fs, props, datasetRoot, LoggerFactory.getLogger(TrackingDataset.class));
   }
 
-  public TrackingDataset(FileSystem fs, Props props, Path datasetRoot, Logger log)
+  public TrackingDataset(FileSystem fs, Properties props, Path datasetRoot, Logger log)
       throws IOException {
     super(fs, props, log);
     this.datasetRoot = datasetRoot;

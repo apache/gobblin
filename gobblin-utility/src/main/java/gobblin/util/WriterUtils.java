@@ -12,11 +12,13 @@
 
 package gobblin.util;
 
+import java.io.IOException;
 
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileConstants;
-
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -25,6 +27,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.workunit.WorkUnit;
+
 
 /**
  * Utility class for use with the {@link gobblin.writer.DataWriter} class.
@@ -50,13 +53,15 @@ public class WriterUtils {
    * @return a {@link Path} specifying the directory where the {@link gobblin.writer.DataWriter} will write to.
    */
   public static Path getWriterStagingDir(State state, int numBranches, int branchId) {
-    String writerStagingDirKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_DIR,
-        numBranches, branchId);
-    Preconditions.checkArgument(state.contains(writerStagingDirKey), "Missing required property " +
-        writerStagingDirKey);
+    String writerStagingDirKey =
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_DIR, numBranches, branchId);
+    Preconditions.checkArgument(state.contains(writerStagingDirKey),
+        "Missing required property " + writerStagingDirKey);
 
-    return new Path(state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_DIR,
-        numBranches, branchId)), WriterUtils.getWriterFilePath(state, numBranches, branchId));
+    return new Path(
+        state.getProp(
+            ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_DIR, numBranches, branchId)),
+        WriterUtils.getWriterFilePath(state, numBranches, branchId));
   }
 
   /**
@@ -69,13 +74,14 @@ public class WriterUtils {
    * @return a {@link Path} specifying the directory where the {@link gobblin.writer.DataWriter} will write to.
    */
   public static Path getWriterOutputDir(State state, int numBranches, int branchId) {
-    String writerOutputDirKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR,
-        numBranches, branchId);
-    Preconditions.checkArgument(state.contains(writerOutputDirKey), "Missing required property " +
-        writerOutputDirKey);
+    String writerOutputDirKey =
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR, numBranches, branchId);
+    Preconditions.checkArgument(state.contains(writerOutputDirKey), "Missing required property " + writerOutputDirKey);
 
-    return new Path(state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR,
-        numBranches, branchId)), WriterUtils.getWriterFilePath(state, numBranches, branchId));
+    return new Path(
+        state.getProp(
+            ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR, numBranches, branchId)),
+        WriterUtils.getWriterFilePath(state, numBranches, branchId));
   }
 
   /**
@@ -88,14 +94,14 @@ public class WriterUtils {
    * @return a {@link Path} specifying the directory where the {@link gobblin.publisher.BaseDataPublisher} will publish.
    */
   public static Path getDataPublisherFinalDir(State state, int numBranches, int branchId) {
-    String dataPublisherFinalDirKey = ForkOperatorUtils.getPropertyNameForBranch(
-        ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, numBranches, branchId);
-    Preconditions.checkArgument(state.contains(dataPublisherFinalDirKey), "Missing required property " +
-        dataPublisherFinalDirKey);
+    String dataPublisherFinalDirKey =
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, numBranches, branchId);
+    Preconditions.checkArgument(state.contains(dataPublisherFinalDirKey),
+        "Missing required property " + dataPublisherFinalDirKey);
 
-    return new Path(state.getProp(ForkOperatorUtils.getPropertyNameForBranch(
-        ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, numBranches, branchId)), WriterUtils.getWriterFilePath(state,
-        numBranches, branchId));
+    return new Path(state.getProp(
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, numBranches, branchId)),
+        WriterUtils.getWriterFilePath(state, numBranches, branchId));
   }
 
   /**
@@ -109,10 +115,10 @@ public class WriterUtils {
    * @return a {@link Path} specifying the relative directory where the {@link gobblin.writer.DataWriter} will write to.
    */
   public static Path getWriterFilePath(State state, int numBranches, int branchId) {
-    if (state.contains(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, numBranches,
-        branchId))) {
-      return new Path(state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH,
-          numBranches, branchId)));
+    if (state.contains(
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, numBranches, branchId))) {
+      return new Path(state.getProp(
+          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PATH, numBranches, branchId)));
     }
 
     switch (getWriterFilePathType(state)) {
@@ -200,6 +206,33 @@ public class WriterUtils {
       }
     } else {
       return CodecFactory.fromString(codecName.get());
+    }
+  }
+
+  /**
+   * Create the given dir as well as all missing ancestor dirs. All created dirs will have the given permission.
+   * This should be used instead of {@link FileSystem#mkdirs(Path, FsPermission)}, since that method only sets
+   * the permission for the given dir, and not recursively for the ancestor dirs.
+   *
+   * @param fs FileSystem
+   * @param path The dir to be created
+   * @param perm The permission to be set
+   * @throws IOException if failing to create dir or set permission.
+   */
+  public static void mkdirsWithRecursivePermission(FileSystem fs, Path path, FsPermission perm) throws IOException {
+    if (fs.exists(path)) {
+      return;
+    }
+    if (!fs.exists(path.getParent())) {
+      mkdirsWithRecursivePermission(fs, path.getParent(), perm);
+    }
+    if (!fs.mkdirs(path, perm)) {
+      throw new IOException(String.format("Unable to mkdir %s with permission %s", path, perm));
+    }
+
+    // Double check permission, since fs.mkdirs() may not guarantee to set the permission correctly
+    if (!fs.getFileStatus(path).getPermission().equals(perm)) {
+      fs.setPermission(path, perm);
     }
   }
 }

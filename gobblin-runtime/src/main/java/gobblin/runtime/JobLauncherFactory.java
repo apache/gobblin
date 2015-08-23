@@ -15,6 +15,9 @@ package gobblin.runtime;
 import java.util.Properties;
 import javax.annotation.Nonnull;
 
+import com.google.common.base.Enums;
+import com.google.common.base.Optional;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.local.LocalJobLauncher;
 import gobblin.runtime.mapreduce.MRJobLauncher;
@@ -48,17 +51,27 @@ public class JobLauncherFactory {
    * @param jobProps job configuration properties
    * @return newly created {@link JobLauncher}
    */
-  public static @Nonnull JobLauncher newJobLauncher(Properties sysProps, Properties jobProps)
-      throws Exception {
-    JobLauncherType launcherType = JobLauncherType
-        .valueOf(sysProps.getProperty(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherType.LOCAL.name()));
-    switch (launcherType) {
-      case LOCAL:
-        return new LocalJobLauncher(JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps));
-      case MAPREDUCE:
-        return new MRJobLauncher(JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps));
-      default:
-        throw new RuntimeException("Unsupported job launcher type: " + launcherType.name());
+  public static @Nonnull JobLauncher newJobLauncher(Properties sysProps, Properties jobProps) throws Exception {
+
+    String launcherTypeValue =
+        sysProps.getProperty(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherType.LOCAL.name());
+    Optional<JobLauncherType> launcherType = Enums.getIfPresent(JobLauncherType.class, launcherTypeValue);
+
+    if (launcherType.isPresent()) {
+      switch (launcherType.get()) {
+        case LOCAL:
+          return new LocalJobLauncher(JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps));
+        case MAPREDUCE:
+          return new MRJobLauncher(JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps));
+        default:
+          throw new RuntimeException("Unsupported job launcher type: " + launcherType.get().name());
+      }
+    } else {
+      @SuppressWarnings("unchecked")
+      Class<? extends AbstractJobLauncher> launcherClass =
+          (Class<? extends AbstractJobLauncher>) Class.forName(launcherTypeValue);
+      return launcherClass.getDeclaredConstructor(Properties.class)
+          .newInstance(JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps));
     }
   }
 }

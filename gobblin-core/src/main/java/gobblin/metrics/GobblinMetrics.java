@@ -140,10 +140,29 @@ public class GobblinMetrics {
     state.appendToListProp(METRICS_STATE_CUSTOM_TAGS, tag.toString());
   }
 
+  /**
+   * Add {@link List} of {@link Tag}s to a {@link Properties} with key {@link #METRICS_STATE_CUSTOM_TAGS}.
+   * <p>
+   *  Also see {@link #addCustomTagToState(State, Tag)} , {@link #addCustomTagToProperties(Properties, Tag)}
+   * </p>
+   *
+   * <p>
+   *   The {@link Properties} passed can be used to build a {@link State}.
+   *   {@link gobblin.metrics.Tag}s under this key can later be parsed using the method {@link #getCustomTagsFromState}.
+   * </p>
+   *
+   * @param properties {@link Properties} to add the tag to.
+   * @param tags list of {@link Tag}s to add.
+   */
+  public static void addCustomTagsToProperties(Properties properties, List<Tag<?>> tags) {
+    for (Tag<?> tag : tags) {
+      addCustomTagToProperties(properties, tag);
+    }
+  }
 
   /**
    * Add a {@link Tag} to a {@link Properties} with key {@link #METRICS_STATE_CUSTOM_TAGS}.
-   * Also @see {@link #addCustomTagToState(State, Tag)}
+   * Also see {@link #addCustomTagToState(State, Tag)}
    *
    * <p>
    *   The {@link Properties} passed can be used to build a {@link State}.

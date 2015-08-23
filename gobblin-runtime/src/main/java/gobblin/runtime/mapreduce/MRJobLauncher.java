@@ -52,6 +52,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Queues;
 import com.google.common.io.Closer;
@@ -105,6 +106,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
   private static final String WORK_UNIT_FILE_EXTENSION = ".wu";
   private static final String MULTI_WORK_UNIT_FILE_EXTENSION = ".mwu";
+
+  private static final String TASK_STATE_STORE_TABLE_SUFFIX = ".tst";
 
   private static final String JOB_STATE_FILE_NAME = "job.state";
 
@@ -220,10 +223,10 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
       // Collect the output task states and add them to the job state
       List<TaskState> outputTaskStates = collectOutputTaskStates(new Path(jobOutputPath, jobState.getJobId()));
-      if (outputTaskStates.size() < jobState.getTasks()) {
+      if (outputTaskStates.size() < jobState.getTaskCount()) {
         // If the number of collected task states is less than the number of tasks in the job
         LOG.error(String.format("Collected %d task states while expecting %d task states", outputTaskStates.size(),
-            jobState.getTasks()));
+            jobState.getTaskCount()));
         jobState.setState(JobState.RunningState.FAILED);
       }
       jobState.addTaskStates(outputTaskStates);
@@ -457,6 +460,10 @@ public class MRJobLauncher extends AbstractJobLauncher {
    * Collect the output {@link TaskState}s of the job as a list.
    */
   private List<TaskState> collectOutputTaskStates(Path taskStatePath) throws IOException {
+    if (!this.fs.exists(taskStatePath)) {
+      return ImmutableList.of();
+    }
+
     FileStatus[] fileStatuses = this.fs.listStatus(taskStatePath, new PathFilter() {
       @Override
       public boolean accept(Path path) {
@@ -465,7 +472,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     });
 
     if (fileStatuses == null || fileStatuses.length == 0) {
-      return Lists.newArrayList();
+      return ImmutableList.of();
     }
 
     Queue<TaskState> taskStateQueue = Queues.newConcurrentLinkedQueue();
@@ -484,7 +491,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     LOG.info(String.format("Collected task state of %d completed tasks", taskStateQueue.size()));
 
-    return Lists.newArrayList(taskStateQueue);
+    return ImmutableList.copyOf(taskStateQueue);
   }
 
   /**
@@ -572,7 +579,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
       // Setup and start metrics reporting if metric reporting is enabled
       if (Boolean.valueOf(
           configuration.get(ConfigurationKeys.METRICS_ENABLED_KEY, ConfigurationKeys.DEFAULT_METRICS_ENABLED))) {
-        this.jobMetrics = Optional.of(JobMetrics.get(null, configuration.get(ConfigurationKeys.JOB_ID_KEY)));
+        this.jobMetrics = Optional.of(JobMetrics.get(this.jobState));
         String metricFileSuffix =
             configuration.get(ConfigurationKeys.METRICS_FILE_SUFFIX, ConfigurationKeys.DEFAULT_METRICS_FILE_SUFFIX);
         // If running in MR mode, all mappers will try to write metrics to the same file, which will fail.
@@ -614,7 +621,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
           this.map(context.getCurrentKey(), context.getCurrentValue(), context);
         }
         // Actually run the list of WorkUnits
-        runWorkUnits(this.workUnits);
+        runWorkUnits(this.workUnits, context);
       } finally {
         this.cleanup(context);
       }
@@ -672,9 +679,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
      * Run the given list of {@link WorkUnit}s sequentially. If any work unit/task fails,
      * an {@link java.io.IOException} is thrown so the mapper is failed and retried.
      */
-    private void runWorkUnits(List<WorkUnit> workUnits) throws IOException, InterruptedException {
+    private void runWorkUnits(List<WorkUnit> workUnits, Context context) throws IOException, InterruptedException {
       if (workUnits.isEmpty()) {
-        LOG.warn("No work units to run");
+        LOG.warn("No work units to run in mapper " + context.getTaskAttemptID());
         return;
       }
 
@@ -696,13 +703,14 @@ public class MRJobLauncher extends AbstractJobLauncher {
       List<Task> tasks = AbstractJobLauncher.submitWorkUnits(jobId, workUnits, this.taskStateTracker, this.taskExecutor,
           countDownLatch);
 
-      LOG.info(String.format("Waiting for submitted tasks of job %s to complete...", jobId));
+      LOG.info(String.format("Waiting for submitted tasks of job %s to complete in mapper %s...", jobId,
+          context.getTaskAttemptID()));
       while (countDownLatch.getCount() > 0) {
-        LOG.info(String.format("%d out of %d tasks of job %s are running", countDownLatch.getCount(), workUnits.size(),
-            jobId));
+        LOG.info(String.format("%d out of %d tasks of job %s are running in mapper %s", countDownLatch.getCount(),
+            workUnits.size(), jobId, context.getTaskAttemptID()));
         countDownLatch.await(10, TimeUnit.SECONDS);
       }
-      LOG.info(String.format("All tasks of job %s have completed", jobId));
+      LOG.info(String.format("All tasks of job %s have completed in mapper %s", jobId, context.getTaskAttemptID()));
 
       boolean hasTaskFailure = false;
       for (Task task : tasks) {
@@ -715,7 +723,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
       }
 
       if (hasTaskFailure) {
-        throw new IOException("Not all tasks completed successfully");
+        throw new IOException(String.format("Not all tasks running in mapper %s completed successfully",
+            context.getTaskAttemptID()));
       }
     }
   }

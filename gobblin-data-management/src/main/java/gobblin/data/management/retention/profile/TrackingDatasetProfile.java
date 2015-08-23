@@ -14,11 +14,10 @@ package gobblin.data.management.retention.profile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Properties;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
-import azkaban.utils.Props;
 
 import gobblin.data.management.retention.dataset.Dataset;
 import gobblin.data.management.retention.dataset.TrackingDataset;
@@ -35,7 +34,7 @@ import gobblin.data.management.retention.version.finder.DateTimeDatasetVersionFi
  */
 public class TrackingDatasetProfile extends ConfigurableGlobDatasetFinder {
 
-  public TrackingDatasetProfile(FileSystem fs, Props props)
+  public TrackingDatasetProfile(FileSystem fs, Properties props)
       throws IOException {
     super(fs, props);
   }

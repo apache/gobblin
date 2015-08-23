@@ -82,7 +82,7 @@ public class TestExtractor implements Extractor<String, String> {
   }
 
   @Override
-  public String readRecord(@Deprecated String reuse) {
+  public String readRecord(@Deprecated String reuse) throws IOException {
     if (this.dataFileReader == null) {
       return null;
     }

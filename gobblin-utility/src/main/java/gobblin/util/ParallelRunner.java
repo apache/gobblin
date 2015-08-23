@@ -225,12 +225,16 @@ public class ParallelRunner implements Closeable {
    *
    * @param src path to be renamed
    * @param dst new path after rename
+   * @param group an optional group name for the destination path
    */
-  public void renamePath(final Path src, final Path dst) {
+  public void renamePath(final Path src, final Path dst, final Optional<String> group) {
     this.futures.add(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
         HadoopUtils.renamePath(fs, src, dst);
+        if (group.isPresent()) {
+          HadoopUtils.setGroup(fs, dst, group.get());
+        }
         return null;
       }
     }));
@@ -248,11 +252,7 @@ public class ParallelRunner implements Closeable {
     } catch (ExecutionException ee) {
       throw new IOException(ee);
     } finally {
-      try {
-        ExecutorsUtils.shutdownExecutorService(this.executor);
-      } catch (InterruptedException ie) {
-        LOGGER.error("Failed to shutdown the executor service", ie);
-      }
+      ExecutorsUtils.shutdownExecutorService(this.executor);
     }
   }
 }
