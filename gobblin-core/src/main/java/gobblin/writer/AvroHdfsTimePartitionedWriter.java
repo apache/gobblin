@@ -13,6 +13,7 @@
 package gobblin.writer;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -29,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -84,9 +86,14 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
   private final Path datasetName;
 
   /**
-   * The name of the column that the writer will use to partition the data.
+   * The names of the columns that the writer will use to partition the data.
+   * The writer will try the columns one by one in the order of their positions in the list,
+   * until it finds a column that is present in the data record.
+   *
+   * If partition columns are not specified, or no column in the list is present in the data record,
+   * the writer will partition the data based on the current time.
    */
-  private final Optional<String> partitionColumnName;
+  private final Optional<List<String>> partitionColumns;
 
   /**
    * The name that separates the {@link #datasetName} from the path created by the {@link #timestampToPathFormatter}.
@@ -150,7 +157,7 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
         .withZone(DateTimeZone.forID(this.properties.getProp(ConfigurationKeys.WRITER_PARTITION_TIMEZONE,
             ConfigurationKeys.DEFAULT_WRITER_PARTITION_TIMEZONE)));
 
-    this.partitionColumnName = Optional.fromNullable(this.properties.getProp(getWriterPartitionColumnName()));
+    this.partitionColumns = getWriterPartitionColumns();
   }
 
   @Override
@@ -171,14 +178,20 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
   }
 
   /**
-   * Retrieve the value of the field specified by this.partitionColumnName
+   * Retrieve the value of the partition column field specified by this.partitionColumns
    */
   protected Optional<Object> getWriterPartitionColumnValue(GenericRecord record) {
-    if (this.partitionColumnName.isPresent()) {
-      return AvroUtils.getFieldValue(record, this.partitionColumnName.get());
-    } else {
+    if (!this.partitionColumns.isPresent()) {
       return Optional.absent();
     }
+
+    for (String partitionColumn : this.partitionColumns.get()) {
+      Optional<Object> fieldValue = AvroUtils.getFieldValue(record, partitionColumn);
+      if (fieldValue.isPresent()) {
+        return fieldValue;
+      }
+    }
+    return Optional.absent();
   }
 
   protected void write(GenericRecord record, long recordTimestamp) throws IOException {
@@ -325,11 +338,22 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
   }
 
   /**
-   * Helper method to get the branched configuration key for {@link ConfigurationKeys#WRITER_PARTITION_COLUMN_NAME}.
+   * Helper method to get the time partition columns.
    */
-  private String getWriterPartitionColumnName() {
-    return ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_PARTITION_COLUMN_NAME, this.numBranches,
-        this.branch);
+  private Optional<List<String>> getWriterPartitionColumns() {
+    String propName = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_PARTITION_COLUMNS,
+        this.numBranches, this.branch);
+    if (this.properties.contains(propName)) {
+      return Optional.of(this.properties.getPropAsList(propName));
+    } else {
+      @SuppressWarnings("deprecation")
+      String deprecatedPropName = ForkOperatorUtils
+          .getPropertyNameForBranch(ConfigurationKeys.WRITER_PARTITION_COLUMN_NAME, this.numBranches, this.branch);
+      if (this.properties.contains(deprecatedPropName)) {
+        return Optional.of((List<String>) ImmutableList.of(this.properties.getProp(deprecatedPropName)));
+      }
+    }
+    return Optional.absent();
   }
 
   /**

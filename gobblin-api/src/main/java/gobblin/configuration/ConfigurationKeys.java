@@ -220,7 +220,11 @@ public class ConfigurationKeys {
   public static final String WRITER_PRESERVE_FILE_NAME = WRITER_PREFIX + ".preserve.file.name";
   public static final String WRITER_DEFLATE_LEVEL = WRITER_PREFIX + ".deflate.level";
   public static final String WRITER_CODEC_TYPE = WRITER_PREFIX + ".codec.type";
+
+  // Deprecated. Use WRITER_PARTITION_COLUMNS
+  @Deprecated
   public static final String WRITER_PARTITION_COLUMN_NAME = WRITER_PREFIX + ".partition.column.name";
+  public static final String WRITER_PARTITION_COLUMNS = WRITER_PREFIX + ".partition.columns";
   public static final String WRITER_PARTITION_LEVEL = WRITER_PREFIX + ".partition.level";
   public static final String WRITER_PARTITION_PATTERN = WRITER_PREFIX + ".partition.pattern";
   public static final String WRITER_PARTITION_TIMEZONE = WRITER_PREFIX + ".partition.timezone";
