@@ -511,6 +511,8 @@ public class ConfigurationKeys {
   public static final String METRICS_CUSTOM_BUILDERS = METRICS_CONFIGURATIONS_PREFIX + "reporting.custom.builders";
   public static final String METRICS_REPORT_INTERVAL_KEY = METRICS_CONFIGURATIONS_PREFIX + "report.interval";
   public static final String DEFAULT_METRICS_REPORT_INTERVAL = Long.toString(TimeUnit.SECONDS.toMillis(30));
+  public static final String METRICS_KAFKA_REPORTER_BUILDER_CLASS =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.reporter.builder.class";
 
   /**
    * Rest server configuration properties.
