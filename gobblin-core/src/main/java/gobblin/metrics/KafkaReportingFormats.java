@@ -14,6 +14,8 @@ package gobblin.metrics;
 
 import java.util.Properties;
 
+import com.google.common.base.Preconditions;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.kafka.KafkaAvroEventReporter;
 import gobblin.metrics.kafka.KafkaAvroReporter;
@@ -27,7 +29,9 @@ import gobblin.metrics.kafka.KafkaReporter;
  */
 public enum KafkaReportingFormats {
 
-  AVRO, JSON;
+  AVRO,
+  JSON,
+  CLASS;
 
   /**
    * Get a {@link gobblin.metrics.kafka.KafkaReporter.Builder} for this reporting format.
@@ -38,14 +42,30 @@ public enum KafkaReportingFormats {
   public KafkaReporter.Builder<?> metricReporterBuilder(MetricContext context, Properties properties) {
     switch (this) {
       case AVRO:
-        KafkaAvroReporter.Builder<?> builder = KafkaAvroReporter.forContext(context);
+        KafkaAvroReporter.Builder<?> avroBuilder = KafkaAvroReporter.forContext(context);
         if (Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
             ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
-          builder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
+          avroBuilder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
         }
-        return builder;
+        return avroBuilder;
       case JSON:
         return KafkaReporter.forContext(context);
+      case CLASS:
+        Preconditions.checkArgument(properties.containsKey(ConfigurationKeys.METRICS_KAFKA_REPORTER_BUILDER_CLASS),
+            "Missing required property " + ConfigurationKeys.METRICS_KAFKA_REPORTER_BUILDER_CLASS);
+        try {
+          KafkaReporter.Builder<?> classBuilder = (KafkaReporter.Builder<?>) Class
+              .forName(properties.getProperty(ConfigurationKeys.METRICS_KAFKA_REPORTER_BUILDER_CLASS))
+              .getMethod("forContext", MetricContext.class).invoke(null, context);
+          if (Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
+              ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
+            classBuilder.getClass().getMethod("withSchemaRegistry", KafkaAvroSchemaRegistry.class).invoke(classBuilder,
+                new KafkaAvroSchemaRegistry(properties));
+          }
+        } catch (Exception e) {
+          throw new RuntimeException("Unable to create KafkaReporter.Builder from "
+              + properties.getProperty(ConfigurationKeys.METRICS_KAFKA_REPORTER_BUILDER_CLASS));
+        }
       default:
         // This should never happen.
         throw new IllegalArgumentException("KafkaReportingFormat not recognized.");
