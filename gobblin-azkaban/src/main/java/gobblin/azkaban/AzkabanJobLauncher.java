@@ -12,13 +12,16 @@
 
 package gobblin.azkaban;
 
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.log4j.Appender;
 import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
 
 import azkaban.jobExecutor.AbstractJob;
 
@@ -55,6 +58,7 @@ public class AzkabanJobLauncher extends AbstractJob {
   private static final String AZKABAN_LINK_JOBEXEC_URL = "azkaban.link.jobexec.url";
   private static final String HADOOP_TOKEN_FILE_LOCATION = "HADOOP_TOKEN_FILE_LOCATION";
   private static final String MAPREDUCE_JOB_CREDENTIALS_BINARY = "mapreduce.job.credentials.binary";
+  private static final String LOGGER_PATTERN_LAYOUT = "%c: %L - %m%n";
 
   private static final ImmutableMap<String, String> PROPERTIES_TO_TAGS_MAP =
       new ImmutableMap.Builder<String, String>()
@@ -71,6 +75,8 @@ public class AzkabanJobLauncher extends AbstractJob {
   public AzkabanJobLauncher(String jobId, Properties props)
       throws Exception {
     super(jobId, LOG);
+
+    updateLogger();
 
     Properties properties = new Properties();
     properties.putAll(props);
@@ -124,6 +130,22 @@ public class AzkabanJobLauncher extends AbstractJob {
       }
     }
     return tags;
+  }
+
+  /**
+   * Azkaban ignores the log4j config provided in the artifacts. This method includes class name and line number to azkaban logs
+   */
+  private void updateLogger() {
+
+    @SuppressWarnings("unchecked")
+    Enumeration<Appender> appenders = Logger.getRootLogger().getAllAppenders();
+
+    if (appenders != null) {
+      while (appenders.hasMoreElements()) {
+        appenders.nextElement().setLayout(new PatternLayout(LOGGER_PATTERN_LAYOUT));
+
+      }
+    }
   }
 
   @Override
