@@ -219,8 +219,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
         }
       }
 
-      jobState.setState(this.job.isSuccessful() ? JobState.RunningState.SUCCESSFUL : JobState.RunningState.FAILED);
-
       // Collect the output task states and add them to the job state
       List<TaskState> outputTaskStates = collectOutputTaskStates(new Path(jobOutputPath, jobState.getJobId()));
       if (outputTaskStates.size() < jobState.getTaskCount()) {
