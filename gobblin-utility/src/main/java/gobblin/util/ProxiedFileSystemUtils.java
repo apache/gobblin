@@ -56,8 +56,8 @@ import gobblin.configuration.State;
 @Slf4j
 public class ProxiedFileSystemUtils {
 
-  private static final String AUTH_TYPE_KEY = "gobblin.utility.user.proxy.auth.type";
-  private static final String AUTH_TOKEN_PATH = "gobblin.utility.proxy.auth.token.path";
+  public static final String AUTH_TYPE_KEY = "gobblin.utility.user.proxy.auth.type";
+  public static final String AUTH_TOKEN_PATH = "gobblin.utility.proxy.auth.token.path";
 
   // Two authentication types for Hadoop Security, through TOKEN or KEYTAB.
   public enum AuthType {
