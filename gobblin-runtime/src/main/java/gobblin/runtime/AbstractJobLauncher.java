@@ -275,7 +275,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       jobState.setState(JobState.RunningState.FAILED);
       String errMsg = "Failed to launch and run job " + jobId;
       LOG.error(errMsg + ": " + t, t);
-      throw new JobException(errMsg, t);
     } finally {
       long endTime = System.currentTimeMillis();
       jobState.setEndTime(endTime);
@@ -320,7 +319,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * Subclasses can override this method to do whatever processing on the {@link TaskState}s,
    * e.g., aggregate task-level metrics into job-level metrics.
    */
-  protected void postProcessTaskStates(List<TaskState> taskStates) {
+  protected void postProcessTaskStates(@SuppressWarnings("unused") List<TaskState> taskStates) {
     // Do nothing
   }
 
