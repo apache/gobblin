@@ -35,7 +35,7 @@ public class KafkaAvroReporter extends KafkaReporter {
   protected KafkaAvroReporter(Builder<?> builder) throws IOException {
     super(builder);
     if(builder.registry.isPresent()) {
-      this.serializer.setSchemaVersionWriter(new SchemaRegistryVersionWriter(builder.registry.get()));
+      this.serializer.setSchemaVersionWriter(new SchemaRegistryVersionWriter(builder.registry.get(), builder.topic));
     }
   }
 
@@ -52,7 +52,9 @@ public class KafkaAvroReporter extends KafkaReporter {
    *
    * @param registry the registry to report
    * @return KafkaAvroReporter builder
+   * @deprecated this method is bugged. Use {@link KafkaAvroReporter.Factory#forRegistry} instead.
    */
+  @Deprecated
   public static Builder<? extends Builder<?>> forRegistry(MetricRegistry registry) {
     return new BuilderImpl(registry);
   }
@@ -62,13 +64,39 @@ public class KafkaAvroReporter extends KafkaReporter {
    *
    * @param context the {@link gobblin.metrics.MetricContext} to report
    * @return KafkaAvroReporter builder
+   * @deprecated this method is bugged. Use {@link KafkaAvroReporter.Factory#forContext} instead.
    */
-  public static Builder<?> forContext(MetricContext context) {
+  @Deprecated
+  public static Builder<? extends Builder<?>> forContext(MetricContext context) {
     return forRegistry(context);
   }
 
-  private static class BuilderImpl extends Builder<BuilderImpl> {
-    public BuilderImpl(MetricRegistry registry) {
+  public static class Factory {
+    /**
+     * Returns a new {@link KafkaAvroReporter.Builder} for {@link KafkaAvroReporter}.
+     * If the registry is of type {@link gobblin.metrics.MetricContext} tags will NOT be inherited.
+     * To inherit tags, use forContext method.
+     *
+     * @param registry the registry to report
+     * @return KafkaAvroReporter builder
+     */
+    public static BuilderImpl forRegistry(MetricRegistry registry) {
+      return new BuilderImpl(registry);
+    }
+
+    /**
+     * Returns a new {@link KafkaAvroReporter.Builder} for {@link KafkaAvroReporter}.
+     *
+     * @param context the {@link gobblin.metrics.MetricContext} to report
+     * @return KafkaAvroReporter builder
+     */
+    public static BuilderImpl forContext(MetricContext context) {
+      return forRegistry(context);
+    }
+  }
+
+  public static class BuilderImpl extends Builder<BuilderImpl> {
+    private BuilderImpl(MetricRegistry registry) {
       super(registry);
     }
 

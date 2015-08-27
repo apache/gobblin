@@ -14,11 +14,13 @@ package gobblin.data.management.retention.profile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Properties;
 import java.util.regex.Pattern;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,13 +29,12 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 
-import azkaban.utils.Props;
-
 import gobblin.data.management.retention.DatasetCleaner;
 import gobblin.data.management.retention.dataset.ConfigurableDataset;
 import gobblin.data.management.retention.dataset.Dataset;
 import gobblin.data.management.retention.dataset.finder.DatasetFinder;
 import gobblin.data.management.retention.version.DatasetVersion;
+import gobblin.data.management.util.PathUtils;
 
 
 /**
@@ -50,26 +51,26 @@ public class ConfigurableGlobDatasetFinder implements DatasetFinder {
   private final Path datasetPattern;
   private final Optional<Pattern> blacklist;
   protected final FileSystem fs;
-  protected final Props props;
+  protected final Properties props;
 
-  public ConfigurableGlobDatasetFinder(FileSystem fs, Props props) throws IOException {
-    for(String property : requiredProperties()) {
+  public ConfigurableGlobDatasetFinder(FileSystem fs, Properties props) throws IOException {
+    for (String property : requiredProperties()) {
       Preconditions.checkArgument(props.containsKey(property));
     }
-    if(props.containsKey(DATASET_BLACKLIST_KEY) && !Strings.isNullOrEmpty(props.getString(DATASET_BLACKLIST_KEY))) {
-      this.blacklist = Optional.of(Pattern.compile(props.getString(DATASET_BLACKLIST_KEY)));
+    if (props.containsKey(DATASET_BLACKLIST_KEY) && !Strings.isNullOrEmpty(props.getProperty(DATASET_BLACKLIST_KEY))) {
+      this.blacklist = Optional.of(Pattern.compile(props.getProperty(DATASET_BLACKLIST_KEY)));
     } else {
       this.blacklist = Optional.absent();
     }
-    this.datasetPattern = new Path(props.getString(DATASET_PATTERN_KEY));
+    this.datasetPattern = new Path(props.getProperty(DATASET_PATTERN_KEY));
     this.fs = fs;
     this.props = props;
   }
 
   /**
    * List of required properties for subclasses of this dataset. The constructor will check that the input
-   * {@link azkaban.utils.Props} contain all properties returned.
-   * @return List of all required property keys in the constructor {@link azkaban.utils.Props}.
+   * {@link java.util.Properties} contain all properties returned.
+   * @return List of all required property keys in the constructor {@link java.util.Properties}.
    */
   public List<String> requiredProperties() {
     return Lists.newArrayList(DATASET_PATTERN_KEY);
@@ -84,8 +85,9 @@ public class ConfigurableGlobDatasetFinder implements DatasetFinder {
   @Override
   public List<Dataset> findDatasets() throws IOException {
     List<Dataset> datasets = Lists.newArrayList();
-    for(FileStatus fileStatus : this.fs.globStatus(datasetPattern)) {
-      if(this.blacklist.isPresent() && this.blacklist.get().matcher(fileStatus.getPath().toString()).matches()) {
+    for (FileStatus fileStatus : this.fs.globStatus(datasetPattern)) {
+      Path pathToMatch = PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath());
+      if (this.blacklist.isPresent() && this.blacklist.get().matcher(pathToMatch.toString()).matches()) {
         continue;
       }
       LOG.info("Found dataset at " + fileStatus.getPath());

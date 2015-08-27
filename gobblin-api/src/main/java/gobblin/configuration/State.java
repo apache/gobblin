@@ -289,6 +289,17 @@ public class State implements Writable {
   }
 
   /**
+   * Get the value of a property as a short.
+   *
+   * @param key property key
+   * @param radix radix used to parse the value
+   * @return short value associated with the key
+   */
+  public short getPropAsShortWithRadix(String key, int radix) {
+    return Short.parseShort(getProperty(key), radix);
+  }
+
+  /**
    * Get the value of a property as an short, using the given default value if the property is not set.
    *
    * @param key property key
@@ -297,6 +308,18 @@ public class State implements Writable {
    */
   public short getPropAsShort(String key, short def) {
     return Short.parseShort(getProperty(key, String.valueOf(def)));
+  }
+
+  /**
+   * Get the value of a property as an short, using the given default value if the property is not set.
+   *
+   * @param key property key
+   * @param def default value
+   * @param radix radix used to parse the value
+   * @return short value associated with the key or the default value if the property is not set
+   */
+  public short getPropAsShortWithRadix(String key, short def, int radix) {
+    return contains(key) ? Short.parseShort(getProperty(key), radix) : def;
   }
 
   /**
@@ -341,10 +364,18 @@ public class State implements Writable {
     return Boolean.parseBoolean(getProperty(key, String.valueOf(def)));
   }
 
+  /**
+   * @deprecated Use {@link #getProp(String)}
+   */
+  @Deprecated
   protected String getProperty(String key) {
     return this.properties.getProperty(key);
   }
 
+  /**
+   * @deprecated Use {@link #getProp(String, String)}
+   */
+  @Deprecated
   protected String getProperty(String key, String def) {
     return this.properties.getProperty(key, def);
   }
@@ -405,8 +436,8 @@ public class State implements Writable {
     }
 
     State other = (State) object;
-    return ((this.id == null && other.id == null) || (this.id != null && this.id.equals(other.id))) &&
-        this.properties.equals(other.properties);
+    return ((this.id == null && other.id == null) || (this.id != null && this.id.equals(other.id)))
+        && this.properties.equals(other.properties);
   }
 
   @Override

@@ -78,6 +78,14 @@ public class TaskState extends WorkUnitState {
     this.setId(this.taskId);
   }
 
+  public TaskState(TaskState taskState) {
+    super(taskState.getWorkunit());
+    addAll(taskState);
+    this.jobId = taskState.getProp(ConfigurationKeys.JOB_ID_KEY);
+    this.taskId = taskState.getProp(ConfigurationKeys.TASK_ID_KEY);
+    this.setId(this.taskId);
+  }
+
   /**
    * Get the ID of the job this {@link TaskState} is for.
    *
@@ -166,6 +174,16 @@ public class TaskState extends WorkUnitState {
    */
   public void setTaskDuration(long duration) {
     this.duration = duration;
+  }
+
+  /**
+   * Return whether the task has completed running or not.
+   *
+   * @return {@code true} if the task has completed or {@code false} otherwise
+   */
+  public boolean isCompleted() {
+    WorkingState state = getWorkingState();
+    return state == WorkingState.SUCCESSFUL || state == WorkingState.COMMITTED || state == WorkingState.FAILED;
   }
 
   /**

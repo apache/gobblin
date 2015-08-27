@@ -1,16 +1,27 @@
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.data.management.retention.version.finder;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Properties;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.collect.Lists;
-
-import azkaban.utils.Props;
 
 import gobblin.data.management.retention.dataset.Dataset;
 import gobblin.data.management.retention.version.DatasetVersion;
@@ -20,7 +31,7 @@ import gobblin.data.management.util.PathUtils;
 /**
  * Class to find dataset versions in the file system.
  *
- * Concrete subclasses should implement a ({@link org.apache.hadoop.fs.FileSystem}, {@link azkaban.utils.Props})
+ * Concrete subclasses should implement a ({@link org.apache.hadoop.fs.FileSystem}, {@link java.util.Properties})
  * constructor to be instantiated by {@link gobblin.data.management.retention.DatasetCleaner}.
  *
  * @param <T> Type of {@link gobblin.data.management.retention.version.DatasetVersion} expected from this class.
@@ -29,7 +40,7 @@ public abstract class DatasetVersionFinder<T extends DatasetVersion> implements 
 
   FileSystem fs;
 
-  public DatasetVersionFinder(FileSystem fs, Props props) {
+  public DatasetVersionFinder(FileSystem fs, Properties props) {
     this.fs = fs;
   }
 

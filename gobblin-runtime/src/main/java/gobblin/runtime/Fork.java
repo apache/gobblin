@@ -14,6 +14,7 @@ package gobblin.runtime;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -23,6 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -31,11 +33,14 @@ import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
 import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.Tag;
+import gobblin.instrumented.Instrumented;
 import gobblin.instrumented.writer.InstrumentedDataWriterDecorator;
 import gobblin.publisher.TaskPublisher;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
 import gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
+import gobblin.runtime.util.TaskMetrics;
 import gobblin.util.FinalState;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.writer.DataWriter;
@@ -102,33 +107,35 @@ public class Fork implements Closeable, Runnable, FinalState {
   // An AtomicReference is still used here for the compareAntSet operation.
   private final AtomicReference<ForkState> forkState;
 
+  private final GobblinMetrics forkMetrics;
+
+  private static final String FORK_METRICS_BRANCH_NAME_KEY = "forkBranchName";
+
   public Fork(TaskContext taskContext, TaskState taskState, Object schema, int branches, int index,
-      CountDownLatch countDownLatch)
-      throws Exception {
+      CountDownLatch countDownLatch) throws Exception {
 
     this.logger = LoggerFactory.getLogger(Fork.class.getName() + "-" + index);
 
     this.taskContext = taskContext;
     this.taskState = taskState;
-    this.taskId = taskState.getTaskId();
+    this.taskId = this.taskState.getTaskId();
 
     this.branches = branches;
     this.index = index;
 
     this.converter = this.closer.register(new MultiConverter(this.taskContext.getConverters(this.index)));
     this.convertedSchema = Optional.fromNullable(this.converter.convertSchema(schema, this.taskState));
-    this.rowLevelPolicyChecker =
-        this.closer.register(this.taskContext.getRowLevelPolicyChecker(this.taskState, this.index));
+    this.rowLevelPolicyChecker = this.closer.register(this.taskContext.getRowLevelPolicyChecker(this.index));
     this.rowLevelPolicyCheckingResult = new RowLevelPolicyCheckResults();
 
     this.recordQueue = BoundedBlockingRecordQueue.newBuilder()
-        .hasCapacity(taskState.getPropAsInt(
+        .hasCapacity(this.taskState.getPropAsInt(
             ConfigurationKeys.FORK_RECORD_QUEUE_CAPACITY_KEY,
             ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_CAPACITY))
-        .useTimeout(taskState.getPropAsLong(
+        .useTimeout(this.taskState.getPropAsLong(
             ConfigurationKeys.FORK_RECORD_QUEUE_TIMEOUT_KEY,
             ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_TIMEOUT))
-        .useTimeoutTimeUnit(TimeUnit.valueOf(taskState.getProp(
+        .useTimeoutTimeUnit(TimeUnit.valueOf(this.taskState.getProp(
             ConfigurationKeys.FORK_RECORD_QUEUE_TIMEOUT_UNIT_KEY,
             ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_TIMEOUT_UNIT)))
         .collectStats()
@@ -137,6 +144,16 @@ public class Fork implements Closeable, Runnable, FinalState {
     this.countDownLatch = countDownLatch;
 
     this.forkState = new AtomicReference<ForkState>(ForkState.PENDING);
+
+    /**
+     * Create a {@link GobblinMetrics} for this {@link Fork} instance so that all new {@link MetricContext}s returned by
+     * {@link Instrumented#setMetricContextName(State, String)} will be children of the forkMetrics.
+     */
+    this.forkMetrics = GobblinMetrics.get(getForkMetricsName(taskContext.getTaskMetrics(), this.taskState, index),
+        taskContext.getTaskMetrics().getMetricContext(), getForkMetricsTags(this.taskState, index));
+    this.closer.register(this.forkMetrics.getMetricContext());
+
+    Instrumented.setMetricContextName(this.taskState, this.forkMetrics.getMetricContext().getName());
   }
 
   @Override
@@ -240,7 +257,7 @@ public class Fork implements Closeable, Runnable, FinalState {
    *
    * @throws Exception if there is anything wrong committing the data
    */
-  public void commit() throws Exception {
+  public boolean commit() throws Exception {
     try {
       if (checkDataQuality(this.convertedSchema)) {
         // Commit data if all quality checkers pass. Again, not to catch the exception
@@ -248,14 +265,17 @@ public class Fork implements Closeable, Runnable, FinalState {
         this.logger.info(String.format("Committing data for fork %d of task %s", this.index, this.taskId));
         commitData();
         compareAndSetForkState(ForkState.SUCCEEDED, ForkState.COMMITTED);
+        return true;
       } else {
         this.logger.error(String.format("Fork %d of task %s failed to pass quality checking", this.index, this.taskId));
         compareAndSetForkState(ForkState.SUCCEEDED, ForkState.FAILED);
+        return false;
       }
     } catch (Throwable t) {
       this.logger.error(String.format("Fork %d of task %s failed to commit data", this.index, this.taskId), t);
       this.forkState.set(ForkState.FAILED);
       Throwables.propagate(t);
+      return false;
     }
   }
 
@@ -452,5 +472,30 @@ public class Fork implements Closeable, Runnable, FinalState {
       throw new IllegalStateException(String
           .format("Expected fork state %s; actual fork state %s", expectedState.name(), this.forkState.get().name()));
     }
+  }
+
+  /**
+   * Creates a {@link List} of {@link Tag}s for a {@link Fork} instance. The {@link Tag}s are purely based on the
+   * index and the branch name.
+   */
+  private static List<Tag<?>> getForkMetricsTags(State state, int index) {
+    return ImmutableList.<Tag<?>>of(new Tag<String>(FORK_METRICS_BRANCH_NAME_KEY, getForkMetricsId(state, index)));
+  }
+
+  /**
+   * Creates a {@link String} that is a concatenation of the {@link TaskMetrics#getName()} and
+   * {@link #getForkMetricsId(State, int)}.
+   */
+  private static String getForkMetricsName(TaskMetrics taskMetrics, State state, int index) {
+    return taskMetrics.getName() + "." + getForkMetricsId(state, index);
+  }
+
+  /**
+   * Creates a unique {@link String} representing this branch.
+   */
+  private static String getForkMetricsId(State state, int index) {
+    return state.getProp(
+        ConfigurationKeys.FORK_BRANCH_NAME_KEY + "." + index, ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME
+            + index);
   }
 }

@@ -101,6 +101,10 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
   private final Set<KafkaPartition> partitionsToBeProcessed = Sets.newHashSet();
 
+  private int failToGetOffsetCount = 0;
+  private int offsetTooEarlyCount = 0;
+  private int offsetTooLateCount = 0;
+
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
     Map<String, List<WorkUnit>> workUnits = Maps.newHashMap();
@@ -429,6 +433,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
     if (failedToGetKafkaOffsets) {
 
+      // Increment counts, which will be reported as job metrics
+      this.failToGetOffsetCount++;
+
       // When unable to get earliest/latest offsets from Kafka, skip the partition and create an empty workunit,
       // so that previousOffset is persisted.
       LOG.warn(String.format(
@@ -460,6 +467,13 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       try {
         offsets.startAt(previousOffset);
       } catch (StartOffsetOutOfRangeException e) {
+
+        // Increment counts, which will be reported as job metrics
+        if (offsets.getStartOffset() <= offsets.getLatestOffset()) {
+          this.offsetTooEarlyCount++;
+        } else {
+          this.offsetTooLateCount++;
+        }
 
         // When previous offset is out of range, either start at earliest, latest or nearest offset, or skip the
         // partition. If skipping, need to create an empty workunit so that previousOffset is persisted.
@@ -523,8 +537,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         }
       } else {
         List<KafkaPartition> partitions = KafkaUtils.getPartitions(workUnitState);
-
-        MultiLongWatermark watermark = GSON.fromJson(workUnitState.getActualHighWatermark(), MultiLongWatermark.class);
+        MultiLongWatermark watermark = getWatermark(workUnitState);
         Preconditions.checkArgument(partitions.size() == watermark.size(), String.format(
                 "Num of partitions doesn't match number of watermarks: partitions=%s, watermarks=%s", partitions, watermark));
         for (int i = 0; i < partitions.size(); i++) {
@@ -533,6 +546,16 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         }
       }
     }
+  }
+
+  private MultiLongWatermark getWatermark(WorkUnitState workUnitState) {
+    if (workUnitState.getActualHighWatermark() != null) {
+      return GSON.fromJson(workUnitState.getActualHighWatermark(), MultiLongWatermark.class);
+    } else if (workUnitState.getWorkunit().getLowWatermark() != null) {
+      return GSON.fromJson(workUnitState.getWorkunit().getLowWatermark(), MultiLongWatermark.class);
+    }
+    throw new IllegalArgumentException(
+        String.format("workUnitState %s doesn't have either actual high watermark or low watermark", workUnitState));
   }
 
   /**
@@ -568,7 +591,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     workUnit.setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, offsets.getStartOffset());
     workUnit.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, offsets.getLatestOffset());
     LOG.info(String.format("Created workunit for partition %s: lowWatermark=%d, highWatermark=%d", partition,
-        offsets.getStartOffset(), offsets.getLatestOffset()));
+            offsets.getStartOffset(), offsets.getLatestOffset()));
     return workUnit;
   }
 
@@ -603,6 +626,13 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   private static List<Pattern> getWhitelist(State state) {
     List<String> list = state.getPropAsList(TOPIC_WHITELIST, StringUtils.EMPTY);
     return DatasetFilterUtils.getPatternsFromStrings(list);
+  }
+
+  @Override
+  public void shutdown(SourceState state) {
+    state.setProp(ConfigurationKeys.OFFSET_TOO_EARLY_COUNT, this.offsetTooEarlyCount);
+    state.setProp(ConfigurationKeys.OFFSET_TOO_LATE_COUNT, this.offsetTooLateCount);
+    state.setProp(ConfigurationKeys.FAIL_TO_GET_OFFSET_COUNT, this.failToGetOffsetCount);
   }
 
   /**

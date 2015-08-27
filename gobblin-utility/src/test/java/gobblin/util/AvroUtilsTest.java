@@ -15,6 +15,7 @@ package gobblin.util;
 import java.io.IOException;
 
 import org.apache.avro.Schema;
+import org.apache.avro.SchemaBuilder;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
@@ -160,5 +161,25 @@ public class AvroUtilsTest {
 
     Schema expectedOutputSchema = newSchema;
     Assert.assertEquals(expectedOutputSchema, AvroUtils.nullifyFieldsForSchemaMerge(oldSchema, newSchema));
+  }
+
+  @Test
+  public void testSwitchName() {
+    String originalName = "originalName";
+    String newName = "newName";
+    Schema schema = SchemaBuilder.record(originalName).fields().
+        requiredDouble("double").optionalFloat("float").endRecord();
+
+    Schema newSchema = AvroUtils.switchName(schema, newName);
+
+    Assert.assertEquals(newSchema.getName(), newName);
+    for(Schema.Field field : newSchema.getFields()) {
+      Assert.assertEquals(field, schema.getField(field.name()));
+    }
+
+    Assert.assertEquals(newName, AvroUtils.switchName(schema, newName).getName());
+    Assert.assertEquals(schema,
+        AvroUtils.switchName(AvroUtils.switchName(schema, newName), schema.getName()));
+
   }
 }

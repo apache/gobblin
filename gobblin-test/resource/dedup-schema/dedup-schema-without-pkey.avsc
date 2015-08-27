@@ -1,0 +1,180 @@
+{
+  "type" : "record",
+  "name" : "GobblinCompactionTestEvent",
+  "namespace" : "gobblin.compaction.test.events",
+  "fields" : [ {
+    "name" : "header",
+    "type" : {
+      "type" : "record",
+      "name" : "EventHeader",
+      "fields" : [ {
+        "name" : "memberId",
+        "type" : "int",
+        "doc" : "The member id of the user initiating the action."
+      }, {
+        "name" : "viewerUrn",
+        "type" : [ "null", "string" ],
+        "doc" : "Urn of the user initiating the action",
+        "default" : null
+      }, {
+        "name" : "time",
+        "type" : [ "null", "long" ],
+        "doc" : "The time of the event"
+      }, {
+        "name" : "server",
+        "type" : "string",
+        "doc" : "The name of the server"
+      }, {
+        "name" : "service",
+        "type" : "string",
+        "doc" : "The name of the service"
+      }, {
+        "name" : "environment",
+        "type" : [ "string", "null" ],
+        "doc" : "The environment the service is running in",
+        "default" : ""
+      }, {
+        "name" : "guid",
+        "type" : {
+          "type" : "fixed",
+          "name" : "Guid",
+          "size" : 16
+        },
+        "doc" : "A unique identifier for the message"
+      }, {
+        "name" : "treeId",
+        "type" : [ "null", {
+          "type" : "fixed",
+          "name" : "fixed_16",
+          "size" : 16
+        } ],
+        "doc" : "Service call tree uuid",
+        "default" : null
+      }, {
+        "name" : "requestId",
+        "type" : [ "null", "int" ],
+        "doc" : "Service call request id",
+        "default" : null
+      }, {
+        "name" : "impersonatorId",
+        "type" : [ "null", "string" ],
+        "doc" : "this is the ID of the CS Agent or Application acting on the users behalf",
+        "default" : null
+      } ]
+    }
+  }, {
+    "name" : "requestHeader",
+    "type" : {
+      "type" : "record",
+      "name" : "UserRequestHeader",
+      "fields" : [ {
+        "name" : "browserId",
+        "type" : [ "string", "null" ],
+        "doc" : "The contents of the user's bcookie."
+      }, {
+        "name" : "sessionId",
+        "type" : [ "string", "null" ],
+        "doc" : "The tomcat jsessionid."
+      }, {
+        "name" : "ip",
+        "type" : [ "string", "null" ],
+        "doc" : "The user's IPv4 address in string representation. For IPv6 users, this field is null."
+      }, {
+        "name" : "pageKey",
+        "type" : [ "string", "null" ],
+        "doc" : "The page key of the page being viewed."
+      }, {
+        "name" : "path",
+        "type" : [ "string", "null" ],
+        "doc" : "The path of the http request"
+      }, {
+        "name" : "locale",
+        "type" : [ "string", "null" ],
+        "doc" : "The locale the user's browser sent to the server, as specified by the Accept-Language HTTP request header."
+      }, {
+        "name" : "interfaceLocale",
+        "type" : [ "null", "string" ],
+        "doc" : "The user's interface locale, which is not necessarily the same as the browser provided locale.  If this is a logged in user then it will be the last interface locale persisted in the DB.  For more information see: https://iwww.corp.linkedin.com/wiki/cf/display/ENGS/International+Engineering+FAQ",
+        "default" : null
+      }, {
+        "name" : "trackingCode",
+        "type" : [ "null", "string" ],
+        "doc" : "A key for the LinkedIn page that referred this view",
+        "default" : null
+      }, {
+        "name" : "referer",
+        "type" : [ "string", "null" ],
+        "doc" : "The referer URL (sic) of the request."
+      }, {
+        "name" : "userAgent",
+        "type" : [ "string", "null" ],
+        "doc" : "The user agent on the request."
+      }, {
+        "name" : "ipAsBytes",
+        "type" : [ "null", {
+          "type" : "fixed",
+          "name" : "IPAddress",
+          "size" : 16
+        } ],
+        "doc" : "A 16-byte array representing the IPv6 address. If the client uses IPv4, this field is the IPv4-mapped IPv6 address",
+        "default" : null
+      } ]
+    }
+  }, {
+    "name" : "mobileHeader",
+    "type" : [ "null", {
+      "type" : "record",
+      "name" : "MobileHeader",
+      "fields" : [ {
+        "name" : "osName",
+        "type" : [ "null", "string" ],
+        "doc" : "The name of the operating system.",
+        "default" : null
+      }, {
+        "name" : "osVersion",
+        "type" : [ "null", "string" ],
+        "doc" : "The version of the operating system.",
+        "default" : null
+      }, {
+        "name" : "deviceModel",
+        "type" : [ "null", "string" ],
+        "doc" : "The model of the device.",
+        "default" : null
+      }, {
+        "name" : "appVersion",
+        "type" : [ "null", "string" ],
+        "doc" : "The application version.",
+        "default" : null
+      } ]
+    } ],
+    "doc" : "Optional mobile header to track mobile usage.",
+    "default" : null
+  }, {
+    "name" : "pageType",
+    "type" : {
+      "type" : "enum",
+      "name" : "PageType",
+      "symbols" : [ "full", "ajax", "iframe", "redirect", "api", "form", "router", "error" ]
+    },
+    "doc" : "A flag which specifies what type of page this is."
+  }, {
+    "name" : "errorMessageKey",
+    "type" : [ "string", "null" ],
+    "doc" : "A unique identifier for the error message shown."
+  }, {
+    "name" : "trackingCode",
+    "type" : [ "string", "null" ],
+    "doc" : "A key for the linkedin page that referred this view"
+  }, {
+    "name" : "trackingInfo",
+    "type" : {
+      "type" : "map",
+      "values" : "string"
+    },
+    "doc" : "Misc fields supplied by the page"
+  }, {
+    "name" : "totalTime",
+    "type" : "int",
+    "doc" : "The total server-side time required to render the page in ms"
+  } ]
+}

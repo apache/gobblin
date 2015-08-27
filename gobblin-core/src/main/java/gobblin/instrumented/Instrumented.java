@@ -268,6 +268,13 @@ public class Instrumented implements Instrumentable, Closeable {
     });
   }
 
+  /**
+   * Sets the key {@link #METRIC_CONTEXT_NAME_KEY} to the specified name, in the given {@link State}.
+   */
+  public static void setMetricContextName(State state, String name) {
+    state.setProp(Instrumented.METRIC_CONTEXT_NAME_KEY, name);
+  }
+
   @SuppressWarnings("unchecked")
   public Instrumented(State state, Class<?> klazz) {
     this(state, klazz, ImmutableList.<Tag<?>>of());

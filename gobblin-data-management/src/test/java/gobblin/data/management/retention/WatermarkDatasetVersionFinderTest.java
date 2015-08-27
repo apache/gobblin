@@ -12,11 +12,11 @@
 
 package gobblin.data.management.retention;
 
+import java.util.Properties;
+
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import azkaban.utils.Props;
 
 import gobblin.data.management.retention.version.StringDatasetVersion;
 import gobblin.data.management.retention.version.finder.WatermarkDatasetVersionFinder;
@@ -26,7 +26,7 @@ public class WatermarkDatasetVersionFinderTest {
 
   @Test
   public void testVersionParser() {
-    Props props = new Props();
+    Properties props = new Properties();
 
     WatermarkDatasetVersionFinder parser = new WatermarkDatasetVersionFinder(null, props);
 
@@ -40,7 +40,7 @@ public class WatermarkDatasetVersionFinderTest {
 
   @Test
   public void testRegex() {
-    Props props = new Props();
+    Properties props = new Properties();
     props.put(WatermarkDatasetVersionFinder.WATERMARK_REGEX_KEY, "watermark-([A-Za-z]*)-[a-z]*");
 
     WatermarkDatasetVersionFinder parser = new WatermarkDatasetVersionFinder(null, props);

@@ -1,22 +1,28 @@
+/*
+* Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+*
+* Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+* this file except in compliance with the License. You may obtain a copy of the
+* License at  http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software distributed
+* under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+* CONDITIONS OF ANY KIND, either express or implied.
+*/
+
 package gobblin.data.management.retention;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
+import java.util.Properties;
+
+import com.google.common.base.Preconditions;
 
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import azkaban.utils.Props;
 
 import gobblin.data.management.retention.dataset.Dataset;
 import gobblin.data.management.retention.dataset.finder.DatasetFinder;
-import gobblin.data.management.retention.policy.RetentionPolicy;
-import gobblin.data.management.retention.version.finder.DatasetVersionFinder;
-import gobblin.data.management.retention.version.finder.VersionFinder;
-import gobblin.data.management.trash.Trash;
 
 
 /**
@@ -24,25 +30,27 @@ import gobblin.data.management.trash.Trash;
  */
 public class DatasetCleaner {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(DatasetCleaner.class);
-
   public static final String CONFIGURATION_KEY_PREFIX = "gobblin.retention.";
   public static final String DATASET_PROFILE_CLASS_KEY = CONFIGURATION_KEY_PREFIX + "dataset.profile.class";
 
   private final DatasetFinder datasetFinder;
 
-  public DatasetCleaner(FileSystem fs, Props props) throws IOException {
+  public DatasetCleaner(FileSystem fs, Properties props) throws IOException {
 
-    try{
-      this.datasetFinder = (DatasetFinder) props.getClass(DATASET_PROFILE_CLASS_KEY).
-          getConstructor(FileSystem.class, Props.class).newInstance(fs, props);
-    } catch(NoSuchMethodException exception) {
+    Preconditions.checkArgument(props.containsKey(DATASET_PROFILE_CLASS_KEY));
+    try {
+      Class<?> datasetFinderClass = Class.forName(props.getProperty(DATASET_PROFILE_CLASS_KEY));
+      this.datasetFinder =
+          (DatasetFinder) datasetFinderClass.getConstructor(FileSystem.class, Properties.class).newInstance(fs, props);
+    } catch (ClassNotFoundException exception) {
       throw new IOException(exception);
-    } catch(InstantiationException exception) {
+    } catch (NoSuchMethodException exception) {
       throw new IOException(exception);
-    } catch(IllegalAccessException exception) {
+    } catch (InstantiationException exception) {
       throw new IOException(exception);
-    } catch(InvocationTargetException exception) {
+    } catch (IllegalAccessException exception) {
+      throw new IOException(exception);
+    } catch (InvocationTargetException exception) {
       throw new IOException(exception);
     }
   }
@@ -54,10 +62,8 @@ public class DatasetCleaner {
   public void clean() throws IOException {
     List<Dataset> dataSets = this.datasetFinder.findDatasets();
 
-    for(Dataset dataset: dataSets) {
+    for (Dataset dataset : dataSets) {
       dataset.clean();
     }
-
   }
-
 }

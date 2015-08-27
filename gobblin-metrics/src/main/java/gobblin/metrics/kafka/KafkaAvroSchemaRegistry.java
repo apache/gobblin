@@ -18,6 +18,7 @@ import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import gobblin.util.AvroUtils;
 import org.apache.avro.Schema;
 import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HttpClient;
@@ -35,6 +36,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Maps;
+
 
 /**
  * A schema registry class that provides two services: get the latest schema of a topic, and register a schema.
@@ -71,18 +73,17 @@ public class KafkaAvroSchemaRegistry {
    * "kafka.schema.registry.cache.expire.after.write.min" (default = 10).
    */
   public KafkaAvroSchemaRegistry(Properties properties) {
-    Preconditions.checkArgument(properties.containsKey(KAFKA_SCHEMA_REGISTRY_URL), "Schema registry URL not provided.");
+    Preconditions.checkArgument(properties.containsKey(KAFKA_SCHEMA_REGISTRY_URL),
+        String.format("Property %s not provided.", KAFKA_SCHEMA_REGISTRY_URL));
 
     this.url = properties.getProperty(KAFKA_SCHEMA_REGISTRY_URL);
-    int maxCacheSize =
-        Integer.parseInt(
-            properties.getProperty(KAFKA_SCHEMA_REGISTRY_MAX_CACHE_SIZE, DEFAULT_KAFKA_SCHEMA_REGISTRY_MAX_CACHE_SIZE));
-    int expireAfterWriteMin = Integer.parseInt(properties
-        .getProperty(KAFKA_SCHEMA_REGISTRY_CACHE_EXPIRE_AFTER_WRITE_MIN,
+    int maxCacheSize = Integer.parseInt(
+        properties.getProperty(KAFKA_SCHEMA_REGISTRY_MAX_CACHE_SIZE, DEFAULT_KAFKA_SCHEMA_REGISTRY_MAX_CACHE_SIZE));
+    int expireAfterWriteMin =
+        Integer.parseInt(properties.getProperty(KAFKA_SCHEMA_REGISTRY_CACHE_EXPIRE_AFTER_WRITE_MIN,
             DEFAULT_KAFKA_SCHEMA_REGISTRY_CACHE_EXPIRE_AFTER_WRITE_MIN));
-    this.cachedSchemasById =
-        CacheBuilder.newBuilder().maximumSize(maxCacheSize).expireAfterWrite(expireAfterWriteMin, TimeUnit.MINUTES)
-            .build(new KafkaSchemaCacheLoader());
+    this.cachedSchemasById = CacheBuilder.newBuilder().maximumSize(maxCacheSize)
+        .expireAfterWrite(expireAfterWriteMin, TimeUnit.MINUTES).build(new KafkaSchemaCacheLoader());
     this.httpClient = new HttpClient(new MultiThreadedHttpConnectionManager());
   }
 
@@ -144,6 +145,22 @@ public class KafkaAvroSchemaRegistry {
     }
 
     return schema;
+  }
+
+  /**
+   * Register a schema to the Kafka schema registry under the provided input name. This method will change the name
+   * of the schema to the provided name. This is useful because certain services (like Gobblin kafka adaptor and
+   * Camus) get the schema for a topic by querying for the latest schema with the topic name, requiring the topic
+   * name and schema name to match for all topics. This method registers the schema to the schema registry in such a
+   * way that any schema can be written to any topic.
+   *
+   * @param schema {@link org.apache.avro.Schema} to register.
+   * @param overrideName Name of the schema when registerd to the schema registry. This name should match the name
+   *                     of the topic where instances will be published.
+   * @return schema ID of the registered schema.
+   */
+  public String register(Schema schema, String overrideName) {
+    return register(AvroUtils.switchName(schema, overrideName));
   }
 
   /**
@@ -255,8 +272,8 @@ public class KafkaAvroSchemaRegistry {
       }
 
       if (statusCode != HttpStatus.SC_OK) {
-        throw new SchemaNotFoundException(String.format("Schema with ID = %s cannot be retrieved, statusCode = %d", id,
-            statusCode));
+        throw new SchemaNotFoundException(
+            String.format("Schema with ID = %s cannot be retrieved, statusCode = %d", id, statusCode));
       }
 
       Schema schema;
@@ -267,8 +284,8 @@ public class KafkaAvroSchemaRegistry {
           throw new SchemaNotFoundException(String.format("Schema with ID = %s cannot be parsed", id), e);
         }
       } else {
-        throw new SchemaNotFoundException(String.format(
-            "Schema with ID = %s cannot be parsed: schema should start with '{'", id));
+        throw new SchemaNotFoundException(
+            String.format("Schema with ID = %s cannot be parsed: schema should start with '{'", id));
       }
 
       return schema;
