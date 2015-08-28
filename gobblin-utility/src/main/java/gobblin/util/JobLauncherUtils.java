@@ -166,10 +166,10 @@ public class JobLauncherUtils {
           state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI,
               numBranches, branchId), ConfigurationKeys.LOCAL_FS_URI);
       FileSystem fs = getFsWithProxy(state, writerFsUri);
-
       ParallelRunner parallelRunner = getParallelRunner(fs, closer, parallelRunnerThreads, parallelRunners);
 
       Path stagingPath = WriterUtils.getWriterStagingDir(state, numBranches, branchId);
+
       if (fs.exists(stagingPath)) {
         logger.info("Cleaning up staging directory " + stagingPath.toUri().getPath());
         parallelRunner.deletePath(stagingPath, true);
@@ -212,10 +212,10 @@ public class JobLauncherUtils {
 
   private static ParallelRunner getParallelRunner(FileSystem fs, Closer closer, int parallelRunnerThreads,
       Map<String, ParallelRunner> parallelRunners) {
-    String uri = fs.getUri().toString();
-    if (!parallelRunners.containsKey(uri)) {
-      parallelRunners.put(uri, closer.register(new ParallelRunner(parallelRunnerThreads, fs)));
+    String uriAndHomeDir = new Path(new Path(fs.getUri()), fs.getHomeDirectory()).toString();
+    if (!parallelRunners.containsKey(uriAndHomeDir)) {
+      parallelRunners.put(uriAndHomeDir, closer.register(new ParallelRunner(parallelRunnerThreads, fs)));
     }
-    return parallelRunners.get(uri);
+    return parallelRunners.get(uriAndHomeDir);
   }
 }

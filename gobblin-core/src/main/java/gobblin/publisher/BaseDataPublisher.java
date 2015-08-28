@@ -23,6 +23,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,6 +61,7 @@ public class BaseDataPublisher extends DataPublisher {
   protected final int numBranches;
   protected final List<FileSystem> fileSystemByBranches;
   protected final List<Optional<String>> publisherFinalDirOwnerGroupsByBranches;
+  protected final List<FsPermission> permissions;
   protected final Closer closer;
   protected final int parallelRunnerThreads;
   protected final Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
@@ -78,6 +80,7 @@ public class BaseDataPublisher extends DataPublisher {
 
     this.fileSystemByBranches = Lists.newArrayListWithCapacity(this.numBranches);
     this.publisherFinalDirOwnerGroupsByBranches = Lists.newArrayListWithCapacity(this.numBranches);
+    this.permissions = Lists.newArrayListWithCapacity(this.numBranches);
 
     // Get a FileSystem instance for each branch
     for (int i = 0; i < this.numBranches; i++) {
@@ -89,6 +92,13 @@ public class BaseDataPublisher extends DataPublisher {
       // The group(s) will be applied to the final publisher output directory(ies)
       this.publisherFinalDirOwnerGroupsByBranches.add(Optional.fromNullable(this.getState().getProp(ForkOperatorUtils
           .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR_GROUP, this.numBranches, i))));
+
+      // The permission(s) will be applied to all directories created by the publisher,
+      // which do NOT include directories created by the writer and moved by the publisher.
+      // The permissions of those directories are controlled by writer.file.permissions and writer.dir.permissions.
+      this.permissions.add(new FsPermission(state.getPropAsShortWithRadix(
+          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_PERMISSIONS, numBranches, i),
+          FsPermission.getDefault().toShort(), ConfigurationKeys.PERMISSION_PARSING_RADIX)));
     }
 
     this.parallelRunnerThreads =
@@ -160,9 +170,9 @@ public class BaseDataPublisher extends DataPublisher {
       // Delete the final output directory if it is configured to be replaced
       this.fileSystemByBranches.get(branchId).delete(publisherOutputDir, true);
     } else {
-      Path parentDir = publisherOutputDir.getParent();
       // Create the parent directory of the final output directory if it does not exist
-      this.fileSystemByBranches.get(branchId).mkdirs(parentDir);
+      WriterUtils.mkdirsWithRecursivePermission(this.fileSystemByBranches.get(branchId), publisherOutputDir.getParent(),
+          this.permissions.get(branchId));
     }
 
     LOG.info(String.format("Moving %s to %s", writerOutputDir, publisherOutputDir));

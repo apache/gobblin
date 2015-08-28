@@ -69,9 +69,9 @@ public class JobState extends SourceState {
   private String jobId;
   private long startTime = 0;
   private long endTime = 0;
-  private long duration;
+  private long duration = 0;
   private RunningState state = RunningState.PENDING;
-  private int tasks;
+  private int taskCount = 0;
   private final Map<String, TaskState> taskStates = Maps.newLinkedHashMap();
 
   // Necessary for serialization/deserialization
@@ -205,24 +205,24 @@ public class JobState extends SourceState {
    *
    * @return number of tasks this job consists of
    */
-  public int getTasks() {
-    return this.tasks;
+  public int getTaskCount() {
+    return this.taskCount;
   }
 
   /**
    * Set the number of tasks this job consists of.
    *
-   * @param tasks number of tasks this job consists of
+   * @param taskCount number of tasks this job consists of
    */
-  public void setTasks(int tasks) {
-    this.tasks = tasks;
+  public void setTaskCount(int taskCount) {
+    this.taskCount = taskCount;
   }
 
   /**
    * Increment the number of tasks by 1.
    */
-  public void addTask() {
-    this.tasks++;
+  public void incrementTaskCount() {
+    this.taskCount++;
   }
 
   /**
@@ -251,7 +251,14 @@ public class JobState extends SourceState {
    * @return number of completed tasks
    */
   public int getCompletedTasks() {
-    return this.taskStates.size();
+    int completedTasks = 0;
+    for (TaskState taskState : this.taskStates.values()) {
+      if (taskState.isCompleted()) {
+        completedTasks++;
+      }
+    }
+
+    return completedTasks;
   }
 
   /**
@@ -286,7 +293,7 @@ public class JobState extends SourceState {
         datasetStatesByUrns.put(datasetUrn, datasetState);
       }
 
-      datasetStatesByUrns.get(datasetUrn).addTask();
+      datasetStatesByUrns.get(datasetUrn).incrementTaskCount();
       datasetStatesByUrns.get(datasetUrn).addTaskState(taskState);
     }
 
@@ -324,7 +331,7 @@ public class JobState extends SourceState {
     this.duration = in.readLong();
     text.readFields(in);
     this.state = RunningState.valueOf(text.toString());
-    this.tasks = in.readInt();
+    this.taskCount = in.readInt();
     int numTaskStates = in.readInt();
     for (int i = 0; i < numTaskStates; i++) {
       TaskState taskState = new TaskState();
@@ -347,7 +354,7 @@ public class JobState extends SourceState {
     out.writeLong(this.duration);
     text.set(this.state.name());
     text.write(out);
-    out.writeInt(this.tasks);
+    out.writeInt(this.taskCount);
     out.writeInt(this.taskStates.size());
     for (TaskState taskState : this.taskStates.values()) {
       taskState.write(out);
@@ -369,7 +376,7 @@ public class JobState extends SourceState {
 
     jsonWriter.name("job name").value(this.getJobName()).name("job id").value(this.getJobId()).name("job state")
         .value(this.getState().name()).name("start time").value(this.getStartTime()).name("end time")
-        .value(this.getEndTime()).name("duration").value(this.getDuration()).name("tasks").value(this.getTasks())
+        .value(this.getEndTime()).name("duration").value(this.getDuration()).name("tasks").value(this.getTaskCount())
         .name("completed tasks").value(this.getCompletedTasks());
 
     jsonWriter.name("task states");
@@ -441,7 +448,7 @@ public class JobState extends SourceState {
     }
     jobExecutionInfo.setDuration(this.duration);
     jobExecutionInfo.setState(JobStateEnum.valueOf(this.state.name()));
-    jobExecutionInfo.setLaunchedTasks(this.tasks);
+    jobExecutionInfo.setLaunchedTasks(this.taskCount);
     jobExecutionInfo.setCompletedTasks(this.getCompletedTasks());
     jobExecutionInfo.setLauncherType(LauncherTypeEnum.valueOf(this.getProp(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY,
         JobLauncherFactory.JobLauncherType.LOCAL.name())));
@@ -515,7 +522,7 @@ public class JobState extends SourceState {
     datasetState.addAll(this);
     if (fullCopy) {
       datasetState.setState(this.state);
-      datasetState.setTasks(this.tasks);
+      datasetState.setTaskCount(this.taskCount);
       datasetState.addTaskStates(this.taskStates.values());
     }
     return datasetState;

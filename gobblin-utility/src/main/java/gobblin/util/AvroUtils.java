@@ -12,6 +12,9 @@
 
 package gobblin.util;
 
+import static org.apache.avro.SchemaCompatibility.checkReaderWriterCompatibility;
+import static org.apache.avro.SchemaCompatibility.SchemaCompatibilityType.COMPATIBLE;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -52,9 +55,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.primitives.Longs;
-
-import static org.apache.avro.SchemaCompatibility.SchemaCompatibilityType.COMPATIBLE;
-import static org.apache.avro.SchemaCompatibility.checkReaderWriterCompatibility;
 
 
 /**
@@ -357,7 +357,7 @@ public class AvroUtils {
   private static Optional<Schema> removeUncomparableFieldsFromRecord(Schema record) {
     Preconditions.checkArgument(record.getType() == Schema.Type.RECORD);
 
-    List<Field> fields = new ArrayList<Schema.Field>();
+    List<Field> fields = Lists.newArrayList();
     for (Field field : record.getFields()) {
       Optional<Schema> newFieldSchema = removeUncomparableFields(field.schema());
       if (newFieldSchema.isPresent()) {
@@ -405,6 +405,10 @@ public class AvroUtils {
     List<Field> fields = schema.getFields();
     Iterable<Field> fieldsNew = Iterables.transform(fields, new Function<Field, Field>() {
       @Override public Schema.Field apply(Field input) {
+        //this should never happen but the API has marked input as Nullable
+        if (null == input) {
+          return null;
+        }
         Field field = new Field(input.name(), input.schema(), input.doc(), input.defaultValue(), input.order());
         return field;
       }

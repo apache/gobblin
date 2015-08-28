@@ -54,7 +54,8 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
   protected final int bufferSize;
   protected final short replicationFactor;
   protected final long blockSize;
-  protected final FsPermission permission;
+  protected final FsPermission filePermission;
+  protected final FsPermission dirPermission;
   protected final Optional<String> group;
   protected final OutputStream stagingFileOutputStream;
   protected final Closer closer = Closer.create();
@@ -74,8 +75,8 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
         ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
       // Initialize file system as a proxy user.
       try {
-        this.fs = new ProxiedFileSystemWrapper()
-            .getProxiedFileSystem(properties, ProxiedFileSystemWrapper.AuthType.TOKEN,
+        this.fs =
+            new ProxiedFileSystemWrapper().getProxiedFileSystem(properties, ProxiedFileSystemWrapper.AuthType.TOKEN,
                 properties.getProp(ConfigurationKeys.FS_PROXY_AS_USER_TOKEN_FILE), uri);
       } catch (InterruptedException e) {
         throw new IOException(e);
@@ -90,9 +91,9 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
     // Initialize staging/output directory
     this.stagingFile = new Path(WriterUtils.getWriterStagingDir(properties, numBranches, branchId), fileName);
     this.outputFile = new Path(WriterUtils.getWriterOutputDir(properties, numBranches, branchId), fileName);
-    this.properties
-        .setProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, branchId),
-            this.outputFile.toString());
+    this.properties.setProp(
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, branchId),
+        this.outputFile.toString());
 
     // Deleting the staging file if it already exists, which can happen if the
     // task failed and the staging file didn't get cleaned up for some reason.
@@ -102,34 +103,36 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
       HadoopUtils.deletePath(this.fs, this.stagingFile, false);
     }
 
-    // Create the parent directory of the output file if it does not exist
-    if (!this.fs.exists(this.outputFile.getParent())) {
-      this.fs.mkdirs(this.outputFile.getParent());
-    }
-
     this.bufferSize = Integer.parseInt(properties.getProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUFFER_SIZE, numBranches, branchId),
         ConfigurationKeys.DEFAULT_BUFFER_SIZE));
 
     this.replicationFactor = properties.getPropAsShort(ForkOperatorUtils
-            .getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_REPLICATION_FACTOR, numBranches, branchId),
+        .getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_REPLICATION_FACTOR, numBranches, branchId),
         this.fs.getDefaultReplication(this.outputFile));
 
     this.blockSize = properties.getPropAsLong(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_BLOCK_SIZE, numBranches, branchId),
         this.fs.getDefaultBlockSize(this.outputFile));
 
-    this.permission = new FsPermission(properties.getPropAsShort(
+    this.filePermission = new FsPermission(properties.getPropAsShortWithRadix(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PERMISSIONS, numBranches, branchId),
-        FsPermission.getDefault().toShort()));
+        FsPermission.getDefault().toShort(), ConfigurationKeys.PERMISSION_PARSING_RADIX));
 
-    this.stagingFileOutputStream = this.closer.register(this.fs.create(this.stagingFile, this.permission, true,
+    this.dirPermission = new FsPermission(properties.getPropAsShortWithRadix(
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DIR_PERMISSIONS, numBranches, branchId),
+        FsPermission.getDefault().toShort(), ConfigurationKeys.PERMISSION_PARSING_RADIX));
+
+    this.stagingFileOutputStream = this.closer.register(this.fs.create(this.stagingFile, this.filePermission, true,
         this.bufferSize, this.replicationFactor, this.blockSize, null));
 
     this.group = Optional.fromNullable(properties.getProp(ConfigurationKeys.WRITER_GROUP_NAME));
     if (this.group.isPresent()) {
       HadoopUtils.setGroup(this.fs, this.stagingFile, this.group.get());
     }
+
+    // Create the parent directory of the output file if it does not exist
+    WriterUtils.mkdirsWithRecursivePermission(this.fs, this.outputFile.getParent(), this.dirPermission);
   }
 
   /**
@@ -148,6 +151,11 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
 
     if (!this.fs.exists(this.stagingFile)) {
       throw new IOException(String.format("File %s does not exist", this.stagingFile));
+    }
+
+    // Double check permission of staging file
+    if (!this.fs.getFileStatus(this.stagingFile).getPermission().equals(this.filePermission)) {
+      this.fs.setPermission(this.stagingFile, this.filePermission);
     }
 
     LOG.info(String.format("Moving data from %s to %s", this.stagingFile, this.outputFile));
@@ -190,7 +198,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
     state.setProp("RecordsWritten", recordsWritten());
     try {
       state.setProp("BytesWritten", bytesWritten());
-    } catch(Exception exception) {
+    } catch (Exception exception) {
       // If Writer fails to return bytesWritten, it might not be implemented, or implemented incorrectly.
       // Omit property instead of failing.
     }

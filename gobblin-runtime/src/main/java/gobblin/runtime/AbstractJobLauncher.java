@@ -275,7 +275,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       jobCommitTimer.stop();
     } catch (Throwable t) {
       jobState.setState(JobState.RunningState.FAILED);
-      throw new JobException("Failed to launch and run job " + jobId, t);
+      String errMsg = "Failed to launch and run job " + jobId;
+      LOG.error(errMsg + ": " + t, t);
     } finally {
       long endTime = System.currentTimeMillis();
       jobState.setEndTime(endTime);
@@ -299,16 +300,20 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       unlockJob();
     }
 
+    for (JobState.DatasetState datasetState : this.jobContext.getDatasetStatesByUrns().values()) {
+      // Set the overall job state to FAILED if the job failed to process any dataset
+      if (datasetState.getState() == JobState.RunningState.FAILED) {
+        jobState.setState(JobState.RunningState.FAILED);
+        break;
+      }
+    }
+
     if (jobListener != null) {
       jobListener.onJobCompletion(jobState);
     }
 
-    for (JobState.DatasetState datasetState : this.jobContext.getDatasetStatesByUrns().values()) {
-      // Throw an exception at the end if the job failed to process any dataset
-      if (datasetState.getState() == JobState.RunningState.FAILED) {
-        jobState.setState(JobState.RunningState.FAILED);
-        throw new JobException(String.format("Job %s failed", jobId));
-      }
+    if (jobState.getState() == JobState.RunningState.FAILED) {
+      throw new JobException(String.format("Job %s failed", jobId));
     }
   }
 
@@ -316,7 +321,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * Subclasses can override this method to do whatever processing on the {@link TaskState}s,
    * e.g., aggregate task-level metrics into job-level metrics.
    */
-  protected void postProcessTaskStates(List<TaskState> taskStates) {
+  protected void postProcessTaskStates(@SuppressWarnings("unused") List<TaskState> taskStates) {
     // Do nothing
   }
 
@@ -409,7 +414,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       String taskId = JobLauncherUtils.newTaskId(this.jobContext.getJobId(), taskIdSequence++);
       workUnit.setId(taskId);
       workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
-      jobState.addTask();
+      jobState.incrementTaskCount();
       // Pre-add a task state so if the task fails and no task state is written out,
       // there is still task state for the task when job/task states are persisted.
       jobState.addTaskState(new TaskState(new WorkUnitState(workUnit)));

@@ -60,7 +60,7 @@ public class JobStateTest {
     this.jobState.setEndTime(this.startTime + 1000);
     this.jobState.setDuration(1000);
     this.jobState.setState(JobState.RunningState.COMMITTED);
-    this.jobState.setTasks(3);
+    this.jobState.setTaskCount(3);
     this.jobState.setProp("foo", "bar");
     for (int i = 0; i < 3; i++) {
       WorkUnitState workUnitState = new WorkUnitState();
@@ -111,7 +111,7 @@ public class JobStateTest {
     Assert.assertEquals(jobState.getEndTime(), this.startTime + 1000);
     Assert.assertEquals(jobState.getDuration(), 1000);
     Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
-    Assert.assertEquals(jobState.getTasks(), 3);
+    Assert.assertEquals(jobState.getTaskCount(), 3);
     Assert.assertEquals(jobState.getProp("foo"), "bar");
 
     if (!considerTaskStates) {

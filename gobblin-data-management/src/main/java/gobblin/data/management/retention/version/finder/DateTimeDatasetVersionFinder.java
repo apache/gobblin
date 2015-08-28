@@ -27,8 +27,9 @@ import gobblin.data.management.retention.version.TimestampedDatasetVersion;
 
 
 /**
- * {@link gobblin.data.management.retention.version.finder.DatasetVersionFinder} for timestamped datasets. Uses a datetime pattern
- * to find dataset versions and parse the {@link org.joda.time.DateTime} representing the version.
+ * {@link gobblin.data.management.retention.version.finder.DatasetVersionFinder} for datasets based on path timestamps.
+ * Uses a datetime pattern to find dataset versions from the dataset path
+ * and parse the {@link org.joda.time.DateTime} representing the version.
  */
 public class DateTimeDatasetVersionFinder extends DatasetVersionFinder<TimestampedDatasetVersion> {
 
@@ -66,10 +67,11 @@ public class DateTimeDatasetVersionFinder extends DatasetVersionFinder<Timestamp
   @Override
   public TimestampedDatasetVersion getDatasetVersion(Path pathRelativeToDatasetRoot, Path fullPath) {
     try {
-      return new TimestampedDatasetVersion(this.formatter.parseDateTime(pathRelativeToDatasetRoot.toString()), fullPath);
-    } catch(IllegalArgumentException exception) {
-      LOGGER.warn("Candidate dataset version at " + pathRelativeToDatasetRoot
-          + " does not match expected pattern. Ignoring.");
+      return new TimestampedDatasetVersion(this.formatter.parseDateTime(pathRelativeToDatasetRoot.toString()),
+          fullPath);
+    } catch (IllegalArgumentException exception) {
+      LOGGER.warn(
+          "Candidate dataset version at " + pathRelativeToDatasetRoot + " does not match expected pattern. Ignoring.");
       return null;
     }
   }

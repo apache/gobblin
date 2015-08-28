@@ -517,7 +517,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     this.previousOffsets.clear();
     for (WorkUnitState workUnitState : state.getPreviousWorkUnitStates()) {
       List<KafkaPartition> partitions = KafkaUtils.getPartitions(workUnitState);
-      MultiLongWatermark watermark = GSON.fromJson(workUnitState.getActualHighWatermark(), MultiLongWatermark.class);
+      MultiLongWatermark watermark = getWatermark(workUnitState);
       Preconditions.checkArgument(partitions.size() == watermark.size(), String.format(
           "Num of partitions doesn't match number of watermarks: partitions=%s, watermarks=%s", partitions, watermark));
       for (int i = 0; i < partitions.size(); i++) {
@@ -525,6 +525,16 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
           this.previousOffsets.put(partitions.get(i), watermark.get(i));
       }
     }
+  }
+
+  private MultiLongWatermark getWatermark(WorkUnitState workUnitState) {
+    if (workUnitState.getActualHighWatermark() != null) {
+      return GSON.fromJson(workUnitState.getActualHighWatermark(), MultiLongWatermark.class);
+    } else if (workUnitState.getWorkunit().getLowWatermark() != null) {
+      return GSON.fromJson(workUnitState.getWorkunit().getLowWatermark(), MultiLongWatermark.class);
+    }
+    throw new IllegalArgumentException(
+        String.format("workUnitState %s doesn't have either actual high watermark or low watermark", workUnitState));
   }
 
   /**

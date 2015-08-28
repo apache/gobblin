@@ -118,7 +118,6 @@ public class ConfigurationKeys {
   public static final String JOB_FAILURES_KEY = "job.failures";
   public static final String JOB_TRACKING_URL_KEY = "job.tracking.url";
   public static final String FORK_STATE_KEY = "fork.state";
-  public static final String METRIC_CONTEXT_NAME_KEY = "metrics.context.name";
   public static final String JOB_STATE_FILE_PATH_KEY = "job.state.file.path";
 
   /**
@@ -216,11 +215,16 @@ public class ConfigurationKeys {
   public static final String WRITER_FILE_REPLICATION_FACTOR = WRITER_PREFIX + ".file.replication.factor";
   public static final String WRITER_FILE_BLOCK_SIZE = WRITER_PREFIX + ".file.block.size";
   public static final String WRITER_FILE_PERMISSIONS = WRITER_PREFIX + ".file.permissions";
+  public static final String WRITER_DIR_PERMISSIONS = WRITER_PREFIX + ".dir.permissions";
   public static final String WRITER_BUFFER_SIZE = WRITER_PREFIX + ".buffer.size";
   public static final String WRITER_PRESERVE_FILE_NAME = WRITER_PREFIX + ".preserve.file.name";
   public static final String WRITER_DEFLATE_LEVEL = WRITER_PREFIX + ".deflate.level";
   public static final String WRITER_CODEC_TYPE = WRITER_PREFIX + ".codec.type";
+
+  // Deprecated. Use WRITER_PARTITION_COLUMNS
+  @Deprecated
   public static final String WRITER_PARTITION_COLUMN_NAME = WRITER_PREFIX + ".partition.column.name";
+  public static final String WRITER_PARTITION_COLUMNS = WRITER_PREFIX + ".partition.columns";
   public static final String WRITER_PARTITION_LEVEL = WRITER_PREFIX + ".partition.level";
   public static final String WRITER_PARTITION_PATTERN = WRITER_PREFIX + ".partition.pattern";
   public static final String WRITER_PARTITION_TIMEZONE = WRITER_PREFIX + ".partition.timezone";
@@ -279,6 +283,7 @@ public class ConfigurationKeys {
   public static final String DATA_PUBLISHER_FINAL_NAME = DATA_PUBLISHER_PREFIX + ".final.name";
   // This property is used to specify the owner group of the data publisher final output directory
   public static final String DATA_PUBLISHER_FINAL_DIR_GROUP = DATA_PUBLISHER_PREFIX + ".final.dir.group";
+  public static final String DATA_PUBLISHER_PERMISSIONS = DATA_PUBLISHER_PREFIX + ".permissions";
 
   /**
    * Configuration properties used by the extractor.
@@ -448,8 +453,7 @@ public class ConfigurationKeys {
   public static final String COMPACTION_MAPRED_MIN_SPLIT_SIZE = COMPACTION_PREFIX + "mapred.min.split.size";
   public static final long DEFAULT_COMPACTION_MAPRED_MIN_SPLIT_SIZE = 268435456;
   public static final String COMPACTION_AVRO_KEY_SCHEMA_LOC = COMPACTION_PREFIX + "avro.key.schema.loc";
-  public static final String COMPACTION_USE_ALL_ATTRIBUTES = COMPACTION_PREFIX + "use.all.attributes";
-  public static final boolean DEFAULT_COMPACTION_USE_ALL_ATTRIBUTES = false;
+  public static final String COMPACTION_DEDUP_KEY = COMPACTION_PREFIX + "dedup.key";
   public static final String COMPACTION_JOB_RUNNER_CLASS = COMPACTION_PREFIX + "job.runner.class";
   public static final String DEFAULT_COMPACTION_JOB_RUNNER_CLASS =
       "gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner";
@@ -555,4 +559,5 @@ public class ConfigurationKeys {
    */
   public static final Charset DEFAULT_CHARSET_ENCODING = Charsets.UTF_8;
   public static final String TEST_HARNESS_LAUNCHER_IMPL = "gobblin.testharness.launcher.impl";
+  public static final int PERMISSION_PARSING_RADIX = 8;
 }
