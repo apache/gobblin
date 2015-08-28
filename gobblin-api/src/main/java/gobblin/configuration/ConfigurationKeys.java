@@ -555,6 +555,12 @@ public class ConfigurationKeys {
   public static final String SUPER_USER_KEY_TAB_LOCATION = "super.user.key.tab.location";
 
   /**
+   * Azkaban properties.
+   */
+  public static final String AZKABAN_EXECUTION_TIME_RANGE = "azkaban.execution.time.range";
+  public static final String AZKABAN_EXECUTION_DAYS_LIST = "azkaban.execution.days.list";
+
+  /**
    * Other configuration properties.
    */
   public static final Charset DEFAULT_CHARSET_ENCODING = Charsets.UTF_8;
