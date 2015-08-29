@@ -111,7 +111,7 @@ ext.externalDependency = [
   "lombok":"org.projectlombok:lombok:1.16.4",
   "mockRunnerJdbc":"com.mockrunner:mockrunner-jdbc:1.0.8",
   "xerces":"xercesImpl:2.11.0",
-  "helixCore": "org.apache.helix:helix-core:0.7.1",
+  "helixCore": "org.apache.helix:helix-core:0.7.2-SNAPSHOT",
   "typesafeConfig": "com.typesafe:config:1.3.0",
   "byteman": "org.jboss.byteman:byteman:"+bytemanVersion,
   "bytemanBmunit": "org.jboss.byteman:byteman-bmunit:"+bytemanVersion,

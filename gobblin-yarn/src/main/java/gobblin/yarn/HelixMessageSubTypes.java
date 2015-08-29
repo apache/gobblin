@@ -8,12 +8,12 @@ package gobblin.yarn;
 public enum HelixMessageSubTypes {
 
   /**
-   * This type is for messages sent when the ApplicationMaster is to be shutdown.
+   * This type is for messages sent when the {@link GobblinApplicationMaster} is to be shutdown.
    */
   APPLICATION_MASTER_SHUTDOWN,
 
   /**
-   * This type is for messages sent when the containers are to be shutdown.
+   * This type is for messages sent when the {@link GobblinWorkUnitRunner}s are to be shutdown.
    */
-  CONTAINER_SHUTDOWN
+  WORK_UNIT_RUNNER_SHUTDOWN
 }

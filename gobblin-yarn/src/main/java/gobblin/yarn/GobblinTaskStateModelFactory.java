@@ -17,6 +17,7 @@ import java.util.Map;
 import org.apache.helix.HelixManager;
 import org.apache.helix.api.StateTransitionHandlerFactory;
 import org.apache.helix.api.id.PartitionId;
+import org.apache.helix.api.id.ResourceId;
 import org.apache.helix.task.TaskFactory;
 import org.apache.helix.task.TaskStateModel;
 import org.apache.helix.task.TaskStateModelFactory;
@@ -44,7 +45,7 @@ public class GobblinTaskStateModelFactory extends TaskStateModelFactory {
   }
 
   @Override
-  public TaskStateModel createStateTransitionHandler(PartitionId partitionId) {
+  public TaskStateModel createStateTransitionHandler(ResourceId resourceId, PartitionId partitionId) {
     return new GobblinTaskStateModel(this.helixManager, this.taskFactoryRegistry, this.taskExecutor);
   }
 }

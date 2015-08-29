@@ -251,8 +251,6 @@ public class YarnService extends AbstractIdleService {
   }
 
   private ContainerLaunchContext newContainerLaunchContext(Container container) throws IOException {
-    ContainerLaunchContext containerLaunchContext = Records.newRecord(ContainerLaunchContext.class);
-
     Map<String, LocalResource> resourceMap = Maps.newHashMap();
     Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(this.fs, this.applicationName, this.applicationId);
     Path containerWorkDir = new Path(appWorkDir, ConfigurationConstants.CONTAINER_WORK_DIR_NAME);
@@ -263,6 +261,7 @@ public class YarnService extends AbstractIdleService {
       addRemoteAppFiles(this.config.getString(ConfigurationConstants.CONTAINER_FILES_REMOTE_KEY), resourceMap);
     }
 
+    ContainerLaunchContext containerLaunchContext = Records.newRecord(ContainerLaunchContext.class);
     containerLaunchContext.setLocalResources(resourceMap);
     containerLaunchContext.setEnvironment(getEnvironmentVariables());
     containerLaunchContext.setCommands(Lists.newArrayList(buildContainerCommand(container)));

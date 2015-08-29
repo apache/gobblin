@@ -15,6 +15,8 @@ package gobblin.yarn;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -30,14 +32,17 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.util.ConverterUtils;
+import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
+import org.apache.helix.HelixProperty;
 import org.apache.helix.InstanceType;
-import org.apache.helix.MessageListener;
 import org.apache.helix.NotificationContext;
 import org.apache.helix.api.id.StateModelDefId;
+import org.apache.helix.messaging.handling.HelixTaskResult;
+import org.apache.helix.messaging.handling.MessageHandler;
+import org.apache.helix.messaging.handling.MessageHandlerFactory;
 import org.apache.helix.model.Message;
-import org.apache.helix.participant.StateMachineEngine;
 import org.apache.helix.task.TaskFactory;
 import org.apache.helix.task.TaskStateModelFactory;
 import org.slf4j.Logger;
@@ -54,6 +59,7 @@ import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
 
@@ -86,11 +92,15 @@ public class GobblinWorkUnitRunner {
 
   private final HelixManager helixManager;
 
+  private final TaskStateModelFactory taskStateModelFactory;
+
   private final MetricRegistry metricRegistry = new MetricRegistry();
   private final JmxReporter jmxReporter = JmxReporter.forRegistry(this.metricRegistry)
       .convertRatesTo(TimeUnit.SECONDS)
       .convertDurationsTo(TimeUnit.MILLISECONDS)
       .build();
+
+  private volatile boolean isStopped = false;
 
   public GobblinWorkUnitRunner(String applicationName, Config config) throws Exception {
     this.containerId =
@@ -103,8 +113,6 @@ public class GobblinWorkUnitRunner {
             .getString(ConfigurationConstants.HELIX_CLUSTER_NAME_KEY) : applicationName,
         YarnHelixUtils.getParticipantIdStr(YarnHelixUtils.getHostname(), this.containerId), InstanceType.PARTICIPANT,
         zkConnectionString);
-    this.helixManager.addMessageListener(new GobblinParticipantMessageListener(),
-        YarnHelixUtils.getParticipantIdStr(YarnHelixUtils.getHostname(), this.containerId));
 
     Properties properties = YarnHelixUtils.configToProperties(config);
     TaskExecutor taskExecutor = new TaskExecutor(properties);
@@ -119,14 +127,14 @@ public class GobblinWorkUnitRunner {
     this.serviceManager = new ServiceManager(services);
 
     // Register task factory for the Helix task state model
-    StateMachineEngine stateMachineEngine = this.helixManager.getStateMachineEngine();
     Map<String, TaskFactory> taskFactoryMap = Maps.newHashMap();
     Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(
         fs, applicationName, containerId.getApplicationAttemptId().getApplicationId());
     taskFactoryMap.put(GOBBLIN_TASK_FACTORY_NAME,
         new GobblinHelixTaskFactory(taskExecutor, taskStateTracker, fs, appWorkDir));
-    stateMachineEngine.registerStateModelFactory(StateModelDefId.from("Task"),
-        new TaskStateModelFactory(this.helixManager, taskFactoryMap));
+    this.taskStateModelFactory = new TaskStateModelFactory(this.helixManager, taskFactoryMap);
+    this.helixManager.getStateMachineEngine().registerStateModelFactory(StateModelDefId.from("Task"),
+        this.taskStateModelFactory);
   }
 
   /**
@@ -141,6 +149,8 @@ public class GobblinWorkUnitRunner {
 
     try {
       this.helixManager.connect();
+      this.helixManager.getMessagingService().registerMessageHandlerFactory(Message.MessageType.SHUTDOWN.toString(),
+          new ParticipantShutdownMessageHandlerFactory());
     } catch (Exception e) {
       throw new RuntimeException("The HelixManager failed to connect", e);
     }
@@ -155,21 +165,30 @@ public class GobblinWorkUnitRunner {
   }
 
   public void stop() {
+    if (this.isStopped) {
+      return;
+    }
+
     LOGGER.info("Shutting down the Gobblin Yarn WorkUnit runner");
 
     try {
+      // Stop metric reporting
+      this.jmxReporter.stop();
+
       // Give the services 5 minutes to stop to ensure that we are responsive to shutdown requests
       this.serviceManager.stopAsync().awaitStopped(5, TimeUnit.MINUTES);
     } catch (TimeoutException te) {
       LOGGER.error("Timeout in stopping the service manager", te);
     } finally {
-      // Stop metric reporting
-      this.jmxReporter.stop();
+      this.taskStateModelFactory.shutdown();
 
       if (this.helixManager.isConnected()) {
+        this.helixManager.getStateMachineEngine().removeStateModelFactory(StateModelDefId.from("Task"));
         this.helixManager.disconnect();
       }
     }
+
+    this.isStopped = true;
   }
 
   private void addShutdownHook() {
@@ -192,6 +211,72 @@ public class GobblinWorkUnitRunner {
   private void registerMetricSetWithPrefix(String prefix, MetricSet metricSet) {
     for (Map.Entry<String, Metric> entry : metricSet.getMetrics().entrySet()) {
       this.metricRegistry.register(MetricRegistry.name(prefix, entry.getKey()), entry.getValue());
+    }
+  }
+
+  private class ParticipantShutdownMessageHandlerFactory implements MessageHandlerFactory {
+
+    @Override
+    public MessageHandler createHandler(Message message, NotificationContext context) {
+      return new ParticipantShutdownMessageHandler(message, context);
+    }
+
+    @Override
+    public String getMessageType() {
+      return Message.MessageType.SHUTDOWN.toString();
+    }
+
+    @Override
+    public void reset() {
+
+    }
+
+    private class ParticipantShutdownMessageHandler extends MessageHandler {
+
+      private final ScheduledExecutorService shutdownMessageHandlingCompletionWatcher =
+          MoreExecutors.getExitingScheduledExecutorService(new ScheduledThreadPoolExecutor(1));
+
+      public ParticipantShutdownMessageHandler(Message message, NotificationContext context) {
+        super(message, context);
+      }
+
+      @Override
+      public HelixTaskResult handleMessage() throws InterruptedException {
+        String messageSubType = this._message.getMsgSubType();
+
+        if (messageSubType.equalsIgnoreCase(HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString())) {
+          LOGGER.info("Handling message " + HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString());
+
+          // Schedule the task for watching on the removal of the shutdown message, which indicates that
+          // the message has been successfully processed and it's safe to disconnect the HelixManager.
+          this.shutdownMessageHandlingCompletionWatcher.scheduleAtFixedRate(new Runnable() {
+            @Override
+            public void run() {
+              HelixManager helixManager = _notificationContext.getManager();
+              HelixDataAccessor helixDataAccessor = helixManager.getHelixDataAccessor();
+              HelixProperty helixProperty = helixDataAccessor.getProperty(
+                  _message.getKey(helixDataAccessor.keyBuilder(), helixManager.getInstanceName()));
+              // The absence of the shutdown message indicates it has been removed
+              if (helixProperty == null) {
+                GobblinWorkUnitRunner.this.stop();
+              }
+            }
+          }, 0, 1, TimeUnit.SECONDS);
+
+          HelixTaskResult result = new HelixTaskResult();
+          result.setSuccess(true);
+          return result;
+        }
+
+        throw new RuntimeException(
+            String.format("Unknown %s message subtype: %s", Message.MessageType.SHUTDOWN.toString(), messageSubType));
+      }
+
+      @Override
+      public void onError(Exception e, ErrorCode code, ErrorType type) {
+        LOGGER.error(
+            String.format("Failed to handle message with exception %s, error code %s, error type %s", e, code, type));
+      }
     }
   }
 
@@ -224,26 +309,6 @@ public class GobblinWorkUnitRunner {
     } catch (ParseException pe) {
       printUsage(options);
       System.exit(1);
-    }
-  }
-
-  /**
-   * A custom implementation of {@link MessageListener} that handles application-defined messages for the participants.
-   */
-  private class GobblinParticipantMessageListener implements MessageListener {
-
-    @Override
-    public void onMessage(String instanceName, List<Message> messages, NotificationContext changeContext) {
-      for (Message message : messages) {
-        if (message.getMsgType().equalsIgnoreCase(Message.MessageType.USER_DEFINE_MSG.toString())) {
-          if (message.getMsgSubType().equalsIgnoreCase(HelixMessageSubTypes.CONTAINER_SHUTDOWN.toString())) {
-            LOGGER.info("Received SHUTDOWN message, stopping the WorkUnitRunner");
-            GobblinWorkUnitRunner.this.stop();
-            message.setMsgState(Message.MessageState.READ);
-            break;
-          }
-        }
-      }
     }
   }
 }
