@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.locks.Lock;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -36,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
+import com.google.common.util.concurrent.Striped;
 
 import gobblin.configuration.State;
 import gobblin.util.ExecutorsUtils;
@@ -82,6 +84,8 @@ public class ParallelRunner implements Closeable {
   private final FileSystem fs;
 
   private final List<Future<?>> futures = Lists.newArrayList();
+
+  private final Striped<Lock> locks = Striped.lazyWeakLock(Integer.MAX_VALUE);
 
   public ParallelRunner(int threads, FileSystem fs) {
     this.executor = Executors.newFixedThreadPool(threads,
@@ -209,8 +213,14 @@ public class ParallelRunner implements Closeable {
     this.futures.add(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
-        HadoopUtils.deletePath(fs, path, recursive);
-        return null;
+        Lock lock = locks.get(path.toString());
+        lock.lock();
+        try {
+          HadoopUtils.deletePath(fs, path, recursive);
+          return null;
+        } finally {
+          lock.unlock();
+        }
       }
     }));
   }
@@ -231,11 +241,19 @@ public class ParallelRunner implements Closeable {
     this.futures.add(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
-        HadoopUtils.renamePath(fs, src, dst);
-        if (group.isPresent()) {
-          HadoopUtils.setGroup(fs, dst, group.get());
+        Lock lock = locks.get(src.toString());
+        lock.lock();
+        try {
+          if (fs.exists(src)) {
+            HadoopUtils.renamePath(fs, src, dst);
+            if (group.isPresent()) {
+              HadoopUtils.setGroup(fs, dst, group.get());
+            }
+          }
+          return null;
+        } finally {
+          lock.unlock();
         }
-        return null;
       }
     }));
   }
