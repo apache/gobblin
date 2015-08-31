@@ -70,7 +70,7 @@ public class HadoopUtils {
    * @throws IOException if the deletion fails
    */
   public static void deletePath(FileSystem fs, Path f, boolean recursive) throws IOException {
-    if (!fs.delete(f, recursive)) {
+    if (fs.exists(f) && !fs.delete(f, recursive)) {
       throw new IOException("Failed to delete: " + f);
     }
   }
@@ -175,7 +175,8 @@ public class HadoopUtils {
    * Given a {@link FsPermission} objects, set a key, value pair in the given {@link State} for the writer to
    * use when creating files. This method should be used in conjunction with {@link #deserializeWriterFilePermissions(State, int, int)}.
    */
-  public static void serializeWriterFilePermissions(State state, int numBranches, int branchId, FsPermission fsPermissions) {
+  public static void serializeWriterFilePermissions(State state, int numBranches, int branchId,
+      FsPermission fsPermissions) {
     serializeFsPermissions(state,
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PERMISSIONS, numBranches, branchId),
         fsPermissions);
@@ -185,7 +186,8 @@ public class HadoopUtils {
    * Given a {@link FsPermission} objects, set a key, value pair in the given {@link State} for the writer to
    * use when creating files. This method should be used in conjunction with {@link #deserializeWriterDirPermissions(State, int, int)}.
    */
-  public static void serializeWriterDirPermissions(State state, int numBranches, int branchId, FsPermission fsPermissions) {
+  public static void serializeWriterDirPermissions(State state, int numBranches, int branchId,
+      FsPermission fsPermissions) {
     serializeFsPermissions(state,
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DIR_PERMISSIONS, numBranches, branchId),
         fsPermissions);
@@ -202,7 +204,8 @@ public class HadoopUtils {
    * Given a {@link String} in octal notation, set a key, value pair in the given {@link State} for the writer to
    * use when creating files. This method should be used in conjunction with {@link #deserializeWriterFilePermissions(State, int, int)}.
    */
-  public static void setWriterFileOctalPermissions(State state, int numBranches, int branchId, String octalPermissions) {
+  public static void setWriterFileOctalPermissions(State state, int numBranches, int branchId,
+      String octalPermissions) {
     state.setProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PERMISSIONS, numBranches, branchId),
         octalPermissions);
@@ -234,5 +237,20 @@ public class HadoopUtils {
     return new FsPermission(state.getPropAsShortWithRadix(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DIR_PERMISSIONS, numBranches, branchId),
         FsPermission.getDefault().toShort(), ConfigurationKeys.PERMISSION_PARSING_RADIX));
+  }
+
+  /**
+   * Get {@link FsPermission} from a {@link State} object.
+   *
+   * @param props A {@link State} containing properties.
+   * @param propName The property name for the permission. If not contained in the given state,
+   * defaultPermission will be used.
+   * @param defaultPermission default permission if propName is not contained in props.
+   * @return An {@link FsPermission} object.
+   */
+  public static FsPermission deserializeFsPermission(State props, String propName, FsPermission defaultPermission) {
+    short mode = props.getPropAsShortWithRadix(propName, defaultPermission.toShort(),
+        ConfigurationKeys.PERMISSION_PARSING_RADIX);
+    return new FsPermission(mode);
   }
 }

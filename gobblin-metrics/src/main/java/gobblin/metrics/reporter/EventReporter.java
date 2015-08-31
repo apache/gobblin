@@ -13,6 +13,7 @@
 package gobblin.metrics.reporter;
 
 import java.io.Closeable;
+import java.util.Map;
 import java.util.Queue;
 import java.util.SortedMap;
 import java.util.concurrent.ExecutorService;
@@ -32,6 +33,7 @@ import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -57,6 +59,7 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
 
   private static final Logger LOGGER = LoggerFactory.getLogger(EventReporter.class);
   private static final int QUEUE_CAPACITY = 100;
+  private static final String NULL_STRING = "null";
 
   private final Queue<GobblinTrackingEvent> reportingQueue;
   private final ExecutorService immediateReportExecutor;
@@ -101,7 +104,7 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
     if(this.reportingQueue.size() > QUEUE_CAPACITY * 2 / 3) {
       immediatelyScheduleReport();
     }
-    this.reportingQueue.add(event);
+    this.reportingQueue.add(sanitizeEvent(event));
   }
 
   /**
@@ -168,5 +171,15 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
     } finally {
       super.close();
     }
+  }
+
+  private GobblinTrackingEvent sanitizeEvent(GobblinTrackingEvent event) {
+    Map<String, String> newMetadata = Maps.newHashMap();
+    for(Map.Entry<String, String> metadata : event.getMetadata().entrySet()) {
+      newMetadata.put(metadata.getKey() == null ? NULL_STRING : metadata.getKey(),
+          metadata.getValue() == null ? NULL_STRING : metadata.getValue());
+    }
+    event.setMetadata(newMetadata);
+    return event;
   }
 }
