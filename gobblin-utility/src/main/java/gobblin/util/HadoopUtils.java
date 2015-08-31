@@ -68,7 +68,7 @@ public class HadoopUtils {
    * @throws IOException if the deletion fails
    */
   public static void deletePath(FileSystem fs, Path f, boolean recursive) throws IOException {
-    if (!fs.delete(f, recursive)) {
+    if (fs.exists(f) && !fs.delete(f, recursive)) {
       throw new IOException("Failed to delete: " + f);
     }
   }
