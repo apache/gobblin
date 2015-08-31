@@ -23,6 +23,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.util.ReflectionUtils;
 
@@ -30,6 +31,7 @@ import com.google.common.collect.Lists;
 import com.google.common.io.BaseEncoding;
 import com.google.common.io.Closer;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 
 
@@ -167,5 +169,70 @@ public class HadoopUtils {
     } finally {
       closer.close();
     }
+  }
+
+  /**
+   * Given a {@link FsPermission} objects, set a key, value pair in the given {@link State} for the writer to
+   * use when creating files. This method should be used in conjunction with {@link #deserializeWriterFilePermissions(State, int, int)}.
+   */
+  public static void serializeWriterFilePermissions(State state, int numBranches, int branchId, FsPermission fsPermissions) {
+    serializeFsPermissions(state,
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PERMISSIONS, numBranches, branchId),
+        fsPermissions);
+  }
+
+  /**
+   * Given a {@link FsPermission} objects, set a key, value pair in the given {@link State} for the writer to
+   * use when creating files. This method should be used in conjunction with {@link #deserializeWriterDirPermissions(State, int, int)}.
+   */
+  public static void serializeWriterDirPermissions(State state, int numBranches, int branchId, FsPermission fsPermissions) {
+    serializeFsPermissions(state,
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DIR_PERMISSIONS, numBranches, branchId),
+        fsPermissions);
+  }
+
+  /**
+   * Helper method that serializes a {@link FsPermission} object.
+   */
+  private static void serializeFsPermissions(State state, String key, FsPermission fsPermissions) {
+    state.setProp(key, String.format("%04o", fsPermissions.toShort()));
+  }
+
+  /**
+   * Given a {@link String} in octal notation, set a key, value pair in the given {@link State} for the writer to
+   * use when creating files. This method should be used in conjunction with {@link #deserializeWriterFilePermissions(State, int, int)}.
+   */
+  public static void setWriterFileOctalPermissions(State state, int numBranches, int branchId, String octalPermissions) {
+    state.setProp(
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PERMISSIONS, numBranches, branchId),
+        octalPermissions);
+  }
+
+  /**
+   * Given a {@link String} in octal notation, set a key, value pair in the given {@link State} for the writer to
+   * use when creating directories. This method should be used in conjunction with {@link #deserializeWriterDirPermissions(State, int, int)}.
+   */
+  public static void setWriterDirOctalPermissions(State state, int numBranches, int branchId, String octalPermissions) {
+    state.setProp(
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DIR_PERMISSIONS, numBranches, branchId),
+        octalPermissions);
+  }
+
+  /**
+   * Deserializes a {@link FsPermission}s object that should be used when a {@link DataWriter} is writing a file.
+   */
+  public static FsPermission deserializeWriterFilePermissions(State state, int numBranches, int branchId) {
+    return new FsPermission(state.getPropAsShortWithRadix(
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PERMISSIONS, numBranches, branchId),
+        FsPermission.getDefault().toShort(), ConfigurationKeys.PERMISSION_PARSING_RADIX));
+  }
+
+  /**
+   * Deserializes a {@link FsPermission}s object that should be used when a {@link DataWriter} is creating directories.
+   */
+  public static FsPermission deserializeWriterDirPermissions(State state, int numBranches, int branchId) {
+    return new FsPermission(state.getPropAsShortWithRadix(
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DIR_PERMISSIONS, numBranches, branchId),
+        FsPermission.getDefault().toShort(), ConfigurationKeys.PERMISSION_PARSING_RADIX));
   }
 }
