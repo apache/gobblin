@@ -13,6 +13,7 @@ package gobblin.util;
 import com.google.common.collect.Lists;
 
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -23,7 +24,8 @@ public class TimeRangeCheckerTest {
 
   @Test
   public void testTimeRangeChecker() {
-    DateTime dateTime = new DateTime(2015, 1, 1, 0, 0, 0); // January 1st, 2015 (a Thursday)
+    // January 1st, 2015 (a Thursday)
+    DateTime dateTime = new DateTime(2015, 1, 1, 0, 0, 0, DateTimeZone.forID("America/Los_Angeles"));
 
     // Positive Tests
 
