@@ -220,7 +220,11 @@ public class ConfigurationKeys {
   public static final String WRITER_PRESERVE_FILE_NAME = WRITER_PREFIX + ".preserve.file.name";
   public static final String WRITER_DEFLATE_LEVEL = WRITER_PREFIX + ".deflate.level";
   public static final String WRITER_CODEC_TYPE = WRITER_PREFIX + ".codec.type";
+
+  // Deprecated. Use WRITER_PARTITION_COLUMNS
+  @Deprecated
   public static final String WRITER_PARTITION_COLUMN_NAME = WRITER_PREFIX + ".partition.column.name";
+  public static final String WRITER_PARTITION_COLUMNS = WRITER_PREFIX + ".partition.columns";
   public static final String WRITER_PARTITION_LEVEL = WRITER_PREFIX + ".partition.level";
   public static final String WRITER_PARTITION_PATTERN = WRITER_PREFIX + ".partition.pattern";
   public static final String WRITER_PARTITION_TIMEZONE = WRITER_PREFIX + ".partition.timezone";
@@ -549,6 +553,12 @@ public class ConfigurationKeys {
   public static final String FS_PROXY_AS_USER_TOKEN_FILE = "fs.proxy.as.user.token.file";
   public static final String SUPER_USER_NAME_TO_PROXY_AS_OTHERS = "super.user.name.to.proxy.as.others";
   public static final String SUPER_USER_KEY_TAB_LOCATION = "super.user.key.tab.location";
+
+  /**
+   * Azkaban properties.
+   */
+  public static final String AZKABAN_EXECUTION_TIME_RANGE = "azkaban.execution.time.range";
+  public static final String AZKABAN_EXECUTION_DAYS_LIST = "azkaban.execution.days.list";
 
   /**
    * Other configuration properties.

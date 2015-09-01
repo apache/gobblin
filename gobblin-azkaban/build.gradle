@@ -18,11 +18,13 @@ dependencies {
   compile project(":gobblin-metastore")
   compile project(":gobblin-core")
   compile project(":gobblin-metrics")
+  compile project(":gobblin-utility")
 
   compile externalDependency.azkaban
   compile externalDependency.log4j
   compile externalDependency.guava
   compile externalDependency.commonsLang
+  compile externalDependency.jodaTime
 }
 
 configurations {

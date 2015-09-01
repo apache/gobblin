@@ -212,17 +212,6 @@ public class JobContext {
       this.jobState.setProp(ConfigurationKeys.FORK_BRANCHES_KEY,
           taskState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1));
     }
-
-    if (this.jobState.getState() == JobState.RunningState.SUCCESSFUL) {
-      // Reset the failure count if the job successfully completed
-      this.jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY, 0);
-    }
-
-    if (this.jobState.getState() == JobState.RunningState.FAILED) {
-      // Increment the failure count by 1 if the job failed
-      int failures = this.jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY, 0) + 1;
-      this.jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY, failures);
-    }
   }
 
   /**
@@ -230,32 +219,44 @@ public class JobContext {
    */
   void commit() throws IOException {
     this.datasetStatesByUrns = Optional.of(this.jobState.createDatasetStatesByUrns());
+    boolean allDatasetsCommit = true;
+
     for (Map.Entry<String, JobState.DatasetState> entry : this.datasetStatesByUrns.get().entrySet()) {
       String datasetUrn = entry.getKey();
       JobState.DatasetState datasetState = entry.getValue();
       finalizeDatasetStateBeforeCommit(datasetState);
-      if (canCommitDataset(datasetState)) {
-        boolean allDatasetsCommit = true;
+
+      if (!canCommitDataset(datasetState)) {
+        this.logger.warn(String.format("Not committing dataset %s of job %s with commit policy %s and state %s",
+            datasetUrn, this.jobId, this.jobCommitPolicy, datasetState.getState()));
+        allDatasetsCommit = false;
+        continue;
+      }
+
+      try {
+        this.logger.info(String.format("Committing dataset %s of job %s with commit policy %s and state %s",
+            datasetUrn, this.jobId, this.jobCommitPolicy, datasetState.getState()));
+        commitDataset(datasetState);
+      } catch (IOException ioe) {
+        this.logger.error(
+            String.format("Failed to commit dataset state for dataset %s of job %s", datasetUrn, this.jobId), ioe);
+        allDatasetsCommit = false;
+      } finally {
         try {
-          commitDataset(datasetState);
+          persistDatasetState(datasetUrn, datasetState);
         } catch (IOException ioe) {
           this.logger.error(
-              String.format("Failed to commit dataset state for dataset %s of job %s", datasetUrn, this.jobId), ioe);
+              String.format("Failed to persist dataset state for dataset %s of job %s", datasetUrn, this.jobId), ioe);
           allDatasetsCommit = false;
-        } finally {
-          try {
-            persistDatasetState(datasetUrn, datasetState);
-          } catch (IOException ioe) {
-            this.logger.error(
-                String.format("Failed to persist dataset state for dataset %s of job %s", datasetUrn, this.jobId), ioe);
-            allDatasetsCommit = false;
-          }
-        }
-
-        if (!allDatasetsCommit) {
-          throw new IOException("Failed to commit dataset state for some dataset(s) of job " + this.jobId);
         }
       }
+    }
+
+    if (!allDatasetsCommit) {
+      this.jobState.setState(JobState.RunningState.FAILED);
+      throw new IOException("Failed to commit dataset state for some dataset(s) of job " + this.jobId);
+    } else {
+      this.jobState.setState(JobState.RunningState.COMMITTED);
     }
   }
 
@@ -268,11 +269,14 @@ public class JobContext {
           this.jobCommitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
         // The dataset state is set to FAILED if any task failed and COMMIT_ON_FULL_SUCCESS is used
         datasetState.setState(JobState.RunningState.FAILED);
+        datasetState.setProp(ConfigurationKeys.JOB_FAILURES_KEY,
+            datasetState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY, 0) + 1);
         return;
       }
     }
 
     datasetState.setState(JobState.RunningState.SUCCESSFUL);
+    datasetState.setProp(ConfigurationKeys.JOB_FAILURES_KEY, 0);
   }
 
   /**
@@ -291,10 +295,6 @@ public class JobContext {
    */
   @SuppressWarnings("unchecked")
   private void commitDataset(JobState.DatasetState datasetState) throws IOException {
-    String datasetUrn = datasetState.getDatasetUrn();
-    this.logger.info(String.format("Publishing dataset %s of job %s with commit policy %s",
-        datasetUrn, this.jobId, this.jobCommitPolicy.name()));
-
     Closer closer = Closer.create();
     try {
       Class<? extends DataPublisher> dataPublisherClass = (Class<? extends DataPublisher>) Class.forName(

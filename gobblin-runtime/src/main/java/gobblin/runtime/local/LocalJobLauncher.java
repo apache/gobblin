@@ -145,7 +145,6 @@ public class LocalJobLauncher extends AbstractJobLauncher {
       jobState.addTaskState(task.getTaskState());
       if (task.getTaskState().getWorkingState() == WorkUnitState.WorkingState.FAILED) {
         this.eventSubmitter.submit(gobblin.metrics.event.EventNames.TASK_FAILED, "taskId", task.getTaskId());
-        jobState.setState(JobState.RunningState.FAILED);
       }
     }
   }

@@ -212,7 +212,7 @@ public class JobLauncherUtils {
 
   private static ParallelRunner getParallelRunner(FileSystem fs, Closer closer, int parallelRunnerThreads,
       Map<String, ParallelRunner> parallelRunners) {
-    String uriAndHomeDir = fs.getUri().toString() + fs.getHomeDirectory();
+    String uriAndHomeDir = new Path(new Path(fs.getUri()), fs.getHomeDirectory()).toString();
     if (!parallelRunners.containsKey(uriAndHomeDir)) {
       parallelRunners.put(uriAndHomeDir, closer.register(new ParallelRunner(parallelRunnerThreads, fs)));
     }
