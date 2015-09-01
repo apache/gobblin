@@ -122,9 +122,14 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
     this.stagingFileOutputStream = this.closer.register(this.fs.create(this.stagingFile, this.filePermission, true,
         this.bufferSize, this.replicationFactor, this.blockSize, null));
 
-    this.group = Optional.fromNullable(properties.getProp(ConfigurationKeys.WRITER_GROUP_NAME));
+    this.group =
+        Optional.fromNullable(properties.getProp(ForkOperatorUtils.getPropertyNameForBranch(
+            ConfigurationKeys.WRITER_GROUP_NAME, numBranches, branchId)));
+
     if (this.group.isPresent()) {
       HadoopUtils.setGroup(this.fs, this.stagingFile, this.group.get());
+    } else {
+      LOG.warn("No group found for " + this.stagingFile);
     }
 
     // Create the parent directory of the output file if it does not exist
