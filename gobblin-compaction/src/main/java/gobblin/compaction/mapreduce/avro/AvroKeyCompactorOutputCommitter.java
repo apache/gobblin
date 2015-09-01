@@ -39,10 +39,13 @@ import org.slf4j.LoggerFactory;
 public class AvroKeyCompactorOutputCommitter extends FileOutputCommitter {
 
   private static final Logger LOG = LoggerFactory.getLogger(AvroKeyCompactorOutputCommitter.class);
+
+  private static final String MR_OUTPUT_FILE_PREFIX = "part-r-";
+  private static final String M_OUTPUT_FILE_PREFIX = "part-m-";
+
   private static final Random RANDOM = new Random();
 
-  public AvroKeyCompactorOutputCommitter(Path output, TaskAttemptContext context)
-      throws IOException {
+  public AvroKeyCompactorOutputCommitter(Path output, TaskAttemptContext context) throws IOException {
     super(output, context);
   }
 
@@ -55,13 +58,22 @@ public class AvroKeyCompactorOutputCommitter extends FileOutputCommitter {
    */
   @Override
   public void commitTask(TaskAttemptContext context) throws IOException {
-
     Path workPath = getWorkPath();
     FileSystem fs = workPath.getFileSystem(context.getConfiguration());
 
     if (fs.exists(workPath)) {
-      long recordCount = getRecordCountCounter(context);
-      String fileName = "part-r-" + recordCount + "." + System.currentTimeMillis() + "."
+      long recordCount = getRecordCountFromCounter(context, AvroKeyDedupReducer.EVENT_COUNTER.RECORD_COUNT);
+      String fileNamePrefix;
+      if (recordCount == 0) {
+
+        // recordCount == 0 indicates that it is a map-only, non-dedup job, and thus record count should
+        // be obtained from mapper counter.
+        fileNamePrefix = M_OUTPUT_FILE_PREFIX;
+        recordCount = getRecordCountFromCounter(context, AvroKeyMapper.EVENT_COUNTER.RECORD_COUNT);
+      } else {
+        fileNamePrefix = MR_OUTPUT_FILE_PREFIX;
+      }
+      String fileName = fileNamePrefix + recordCount + "." + System.currentTimeMillis() + "."
           + RANDOM.nextInt(Integer.MAX_VALUE) + ".avro";
 
       for (FileStatus status : fs.listStatus(workPath, new PathFilter() {
@@ -79,17 +91,16 @@ public class AvroKeyCompactorOutputCommitter extends FileOutputCommitter {
     super.commitTask(context);
   }
 
-  private long getRecordCountCounter(TaskAttemptContext context) {
+  private long getRecordCountFromCounter(TaskAttemptContext context, Enum<?> counterName) {
     try {
       //In Hadoop 2, TaskAttemptContext.getCounter() is available
       Method getCounterMethod = context.getClass().getMethod("getCounter", Enum.class);
-      return ((Counter) getCounterMethod.invoke(context, AvroKeyDedupReducer.EVENT_COUNTER.RECORD_COUNT)).getValue();
+      return ((Counter) getCounterMethod.invoke(context, counterName)).getValue();
     } catch (NoSuchMethodException e) {
       //In Hadoop 1, TaskAttemptContext.getCounter() is not available
       //Have to cast context to TaskAttemptContext in the mapred package, then get a StatusReporter instance
       org.apache.hadoop.mapred.TaskAttemptContext mapredContext = (org.apache.hadoop.mapred.TaskAttemptContext) context;
-      return ((StatusReporter) mapredContext.getProgressible())
-          .getCounter(AvroKeyDedupReducer.EVENT_COUNTER.RECORD_COUNT).getValue();
+      return ((StatusReporter) mapredContext.getProgressible()).getCounter(counterName).getValue();
     } catch (Exception e) {
       throw new RuntimeException("Error reading record count counter", e);
     }

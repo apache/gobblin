@@ -90,9 +90,8 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
 
   private void configureSchema(Job job) throws IOException {
     Schema newestSchema = getNewestSchemaFromSource(job);
-    Schema keySchema = getKeySchema(job, newestSchema);
     AvroJob.setInputKeySchema(job, newestSchema);
-    AvroJob.setMapOutputKeySchema(job, keySchema);
+    AvroJob.setMapOutputKeySchema(job, this.deduplicate ? getKeySchema(job, newestSchema) : newestSchema);
     AvroJob.setMapOutputValueSchema(job, newestSchema);
     AvroJob.setOutputKeySchema(job, newestSchema);
   }
