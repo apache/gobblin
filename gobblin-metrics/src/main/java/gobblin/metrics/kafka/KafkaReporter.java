@@ -40,7 +40,7 @@ public class KafkaReporter extends MetricReportReporter {
   private static final Logger LOGGER = LoggerFactory.getLogger(KafkaReporter.class);
 
   protected final AvroSerializer<MetricReport> serializer;
-  private final KafkaPusher kafkaPusher;
+  protected final KafkaPusher kafkaPusher;
 
   protected KafkaReporter(Builder<?> builder) throws IOException {
     super(builder);
