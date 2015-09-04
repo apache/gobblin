@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
-import gobblin.data.management.retention.dataset.Dataset;
+import gobblin.data.management.retention.dataset.CleanableDataset;
 import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.TimestampedDatasetVersion;
 import gobblin.util.FileListUtils;
@@ -52,7 +52,7 @@ public class FileLevelTimestampVersionFinder implements VersionFinder<Timestampe
   }
 
   @Override
-  public Collection<TimestampedDatasetVersion> findDatasetVersions(Dataset dataset) {
+  public Collection<TimestampedDatasetVersion> findDatasetVersions(CleanableDataset dataset) {
     try {
       List<TimestampedDatasetVersion> timestampedVersions = Lists.newArrayList();
       for (FileStatus fileStatus : FileListUtils.listFilesRecursively(this.fs, dataset.datasetRoot())) {

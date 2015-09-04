@@ -1,0 +1,26 @@
+package gobblin.data.management.copy;
+
+import gobblin.data.management.dataset.Dataset;
+import gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
+
+import java.io.IOException;
+import java.util.Properties;
+
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+
+
+/**
+ * {@link gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder} that returns datasets of type
+ * {@link gobblin.data.management.copy.RecursiveCopyableDataset}.
+ */
+public class CopyableDatasetFinder extends ConfigurableGlobDatasetFinder {
+
+  public CopyableDatasetFinder(FileSystem fs, Properties props) throws IOException {
+    super(fs, props);
+  }
+
+  @Override public Dataset datasetAtPath(Path path) throws IOException {
+    return new RecursiveCopyableDataset(this.fs, path, this.props);
+  }
+}
