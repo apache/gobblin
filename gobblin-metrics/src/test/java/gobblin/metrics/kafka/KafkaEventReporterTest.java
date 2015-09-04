@@ -56,7 +56,10 @@ public class KafkaEventReporterTest {
     GobblinTrackingEvent event = new GobblinTrackingEvent();
     event.setName(eventName);
     event.setNamespace(namespace);
-    event.setMetadata(Maps.<String, String>newHashMap());
+    Map<String, String> metadata = Maps.newHashMap();
+    metadata.put("m1", "v1");
+    metadata.put("m2", null);
+    event.setMetadata(metadata);
     context.submitEvent(event);
 
     try {
@@ -76,7 +79,7 @@ public class KafkaEventReporterTest {
     GobblinTrackingEvent retrievedEvent = nextEvent(pusher.messageIterator());
     Assert.assertEquals(retrievedEvent.getNamespace(), namespace);
     Assert.assertEquals(retrievedEvent.getName(), eventName);
-    Assert.assertEquals(retrievedEvent.getMetadata().size(), 1);
+    Assert.assertEquals(retrievedEvent.getMetadata().size(), 3);
 
   }
 
