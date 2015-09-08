@@ -220,6 +220,8 @@ public class ConfigurationKeys {
   public static final String WRITER_PRESERVE_FILE_NAME = WRITER_PREFIX + ".preserve.file.name";
   public static final String WRITER_DEFLATE_LEVEL = WRITER_PREFIX + ".deflate.level";
   public static final String WRITER_CODEC_TYPE = WRITER_PREFIX + ".codec.type";
+  public static final String WRITER_EAGER_INITIALIZATION_KEY = WRITER_PREFIX + ".eager.initialization";
+  public static final boolean DEFAULT_EAGER_WRITER_INITIALIZATION = false;
 
   // Deprecated. Use WRITER_PARTITION_COLUMNS
   @Deprecated
