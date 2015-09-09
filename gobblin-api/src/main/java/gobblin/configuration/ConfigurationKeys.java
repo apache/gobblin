@@ -220,6 +220,8 @@ public class ConfigurationKeys {
   public static final String WRITER_PRESERVE_FILE_NAME = WRITER_PREFIX + ".preserve.file.name";
   public static final String WRITER_DEFLATE_LEVEL = WRITER_PREFIX + ".deflate.level";
   public static final String WRITER_CODEC_TYPE = WRITER_PREFIX + ".codec.type";
+  public static final String WRITER_EAGER_INITIALIZATION_KEY = WRITER_PREFIX + ".eager.initialization";
+  public static final boolean DEFAULT_EAGER_WRITER_INITIALIZATION = false;
 
   // Deprecated. Use WRITER_PARTITION_COLUMNS
   @Deprecated
@@ -442,8 +444,7 @@ public class ConfigurationKeys {
   public static final String COMPACTION_TIMEBASED_MIN_TIME_AGO = COMPACTION_PREFIX + "timebased.min.time.ago";
   public static final String DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO = "1d";
   public static final String COMPACTION_TOPIC = COMPACTION_PREFIX + "topic";
-  public static final String COMPACTION_OUTPUT_PERMISSION = COMPACTION_PREFIX + "output.permission";
-  public static final int DEFAULT_COMPACTION_OUTPUT_PERMISSION = 0755;
+  public static final String COMPACTION_OUTPUT_DIR_PERMISSION = COMPACTION_PREFIX + "output.dir.permission";
   public static final String COMPACTION_TARGET_OUTPUT_FILE_SIZE = COMPACTION_PREFIX + "target.output.file.size";
   public static final long DEFAULT_COMPACTION_TARGET_OUTPUT_FILE_SIZE = 268435456;
   public static final String COMPACTION_MAX_NUM_REDUCERS = COMPACTION_PREFIX + "max.num.reducers";
@@ -553,6 +554,12 @@ public class ConfigurationKeys {
   public static final String FS_PROXY_AS_USER_TOKEN_FILE = "fs.proxy.as.user.token.file";
   public static final String SUPER_USER_NAME_TO_PROXY_AS_OTHERS = "super.user.name.to.proxy.as.others";
   public static final String SUPER_USER_KEY_TAB_LOCATION = "super.user.key.tab.location";
+
+  /**
+   * Azkaban properties.
+   */
+  public static final String AZKABAN_EXECUTION_TIME_RANGE = "azkaban.execution.time.range";
+  public static final String AZKABAN_EXECUTION_DAYS_LIST = "azkaban.execution.days.list";
 
   /**
    * Other configuration properties.

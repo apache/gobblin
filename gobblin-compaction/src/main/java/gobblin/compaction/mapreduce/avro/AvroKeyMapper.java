@@ -37,6 +37,10 @@ import org.apache.hadoop.mapreduce.Mapper;
  */
 public class AvroKeyMapper extends Mapper<AvroKey<GenericRecord>, NullWritable, AvroKey<GenericRecord>, Object> {
 
+  public enum EVENT_COUNTER {
+    RECORD_COUNT
+  }
+
   private AvroKey<GenericRecord> outKey;
   private AvroValue<GenericRecord> outValue;
   private Schema keySchema;
@@ -59,6 +63,7 @@ public class AvroKeyMapper extends Mapper<AvroKey<GenericRecord>, NullWritable, 
       outValue.datum(key.datum());
       context.write(outKey, outValue);
     }
+    context.getCounter(EVENT_COUNTER.RECORD_COUNT).increment(1);
   }
 
   /**

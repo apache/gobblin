@@ -19,9 +19,13 @@ import java.util.Properties;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.log4j.Logger;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 
 import azkaban.jobExecutor.AbstractJob;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -34,6 +38,7 @@ import gobblin.runtime.JobLauncher;
 import gobblin.runtime.JobLauncherFactory;
 import gobblin.runtime.JobListener;
 import gobblin.runtime.util.JobMetrics;
+import gobblin.util.TimeRangeChecker;
 
 
 /**
@@ -67,48 +72,50 @@ public class AzkabanJobLauncher extends AbstractJob {
   private final Closer closer = Closer.create();
   private final JobLauncher jobLauncher;
   private final JobListener jobListener = new EmailNotificationJobListener();
+  private final Properties props;
 
   public AzkabanJobLauncher(String jobId, Properties props)
       throws Exception {
     super(jobId, LOG);
 
-    Properties properties = new Properties();
-    properties.putAll(props);
+    this.props = new Properties();
+    this.props.putAll(props);
+
     Configuration conf = new Configuration();
 
     String fsUri = conf.get(HADOOP_FS_DEFAULT_NAME);
     if (!Strings.isNullOrEmpty(fsUri)) {
-      if (!properties.containsKey(ConfigurationKeys.FS_URI_KEY)) {
-        properties.setProperty(ConfigurationKeys.FS_URI_KEY, fsUri);
+      if (!this.props.containsKey(ConfigurationKeys.FS_URI_KEY)) {
+        this.props.setProperty(ConfigurationKeys.FS_URI_KEY, fsUri);
       }
-      if (!properties.containsKey(ConfigurationKeys.STATE_STORE_FS_URI_KEY)) {
-        properties.setProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, fsUri);
+      if (!this.props.containsKey(ConfigurationKeys.STATE_STORE_FS_URI_KEY)) {
+        this.props.setProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, fsUri);
       }
     }
 
     // Set the job tracking URL to point to the Azkaban job execution link URL
-    properties.setProperty(
+    this.props.setProperty(
         ConfigurationKeys.JOB_TRACKING_URL_KEY, Strings.nullToEmpty(conf.get(AZKABAN_LINK_JOBEXEC_URL)));
 
     // Necessary for compatibility with Azkaban's hadoopJava job type
     // http://azkaban.github.io/azkaban/docs/2.5/#hadoopjava-type
     if (System.getenv(HADOOP_TOKEN_FILE_LOCATION) != null) {
-      properties.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, System.getenv(HADOOP_TOKEN_FILE_LOCATION));
+      this.props.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, System.getenv(HADOOP_TOKEN_FILE_LOCATION));
     }
 
-    JobMetrics.addCustomTagsToProperties(properties, getAzkabanTags());
+    JobMetrics.addCustomTagsToProperties(this.props, getAzkabanTags());
 
     // If the job launcher type is not specified in the job configuration,
     // override the default to use the MAPREDUCE launcher.
-    if (!properties.containsKey(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY)) {
-      properties.setProperty(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY,
+    if (!this.props.containsKey(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY)) {
+      this.props.setProperty(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY,
           JobLauncherFactory.JobLauncherType.MAPREDUCE.toString());
     }
 
     // Create a JobLauncher instance depending on the configuration. The same properties object is
     // used for both system and job configuration properties because Azkaban puts configuration
     // properties in the .job file and in the .properties file into the same Properties object.
-    this.jobLauncher = this.closer.register(JobLauncherFactory.newJobLauncher(properties, properties));
+    this.jobLauncher = this.closer.register(JobLauncherFactory.newJobLauncher(this.props, this.props));
   }
 
   private List<Tag<?>> getAzkabanTags() {
@@ -130,7 +137,9 @@ public class AzkabanJobLauncher extends AbstractJob {
   public void run()
       throws Exception {
     try {
-      this.jobLauncher.launchJob(this.jobListener);
+      if (isCurrentTimeInRange()) {
+        this.jobLauncher.launchJob(this.jobListener);
+      }
     } finally {
       this.closer.close();
     }
@@ -144,5 +153,32 @@ public class AzkabanJobLauncher extends AbstractJob {
     } finally {
       this.closer.close();
     }
+  }
+
+  /**
+   * Uses the properties {@link ConfigurationKeys#AZKABAN_EXECUTION_DAYS_LIST},
+   * {@link ConfigurationKeys#AZKABAN_EXECUTION_TIME_RANGE}, and
+   * {@link TimeRangeChecker#isTimeInRange(List, String, String, DateTime)} to determine if the current job should
+   * continue its execution based on the extra scheduled parameters defined in the config.
+   *
+   * @return true if this job should be launched, false otherwise.
+   */
+  private boolean isCurrentTimeInRange() {
+    Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
+
+    if (this.props.contains(ConfigurationKeys.AZKABAN_EXECUTION_DAYS_LIST)
+        && this.props.contains(ConfigurationKeys.AZKABAN_EXECUTION_TIME_RANGE)) {
+
+      List<String> executionTimeRange =
+          splitter.splitToList(this.props.getProperty(ConfigurationKeys.AZKABAN_EXECUTION_TIME_RANGE));
+      List<String> executionDays =
+          splitter.splitToList(this.props.getProperty(ConfigurationKeys.AZKABAN_EXECUTION_DAYS_LIST));
+      Preconditions.checkArgument(executionTimeRange.size() == 2, "The property "
+          + ConfigurationKeys.AZKABAN_EXECUTION_DAYS_LIST + " should be a comma separated list of two entries");
+
+      return TimeRangeChecker.isTimeInRange(executionDays, executionTimeRange.get(0), executionTimeRange.get(1),
+          new DateTime(DateTimeZone.forID("America/Los_Angeles")));
+    }
+    return true;
   }
 }

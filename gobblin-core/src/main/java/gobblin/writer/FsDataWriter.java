@@ -115,20 +115,21 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_BLOCK_SIZE, numBranches, branchId),
         this.fs.getDefaultBlockSize(this.outputFile));
 
-    this.filePermission = new FsPermission(properties.getPropAsShortWithRadix(
-        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_PERMISSIONS, numBranches, branchId),
-        FsPermission.getDefault().toShort(), ConfigurationKeys.PERMISSION_PARSING_RADIX));
+    this.filePermission = HadoopUtils.deserializeWriterFilePermissions(properties, numBranches, branchId);
 
-    this.dirPermission = new FsPermission(properties.getPropAsShortWithRadix(
-        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DIR_PERMISSIONS, numBranches, branchId),
-        FsPermission.getDefault().toShort(), ConfigurationKeys.PERMISSION_PARSING_RADIX));
+    this.dirPermission = HadoopUtils.deserializeWriterDirPermissions(properties, numBranches, branchId);
 
     this.stagingFileOutputStream = this.closer.register(this.fs.create(this.stagingFile, this.filePermission, true,
         this.bufferSize, this.replicationFactor, this.blockSize, null));
 
-    this.group = Optional.fromNullable(properties.getProp(ConfigurationKeys.WRITER_GROUP_NAME));
+    this.group =
+        Optional.fromNullable(properties.getProp(ForkOperatorUtils.getPropertyNameForBranch(
+            ConfigurationKeys.WRITER_GROUP_NAME, numBranches, branchId)));
+
     if (this.group.isPresent()) {
       HadoopUtils.setGroup(this.fs, this.stagingFile, this.group.get());
+    } else {
+      LOG.warn("No group found for " + this.stagingFile);
     }
 
     // Create the parent directory of the output file if it does not exist
