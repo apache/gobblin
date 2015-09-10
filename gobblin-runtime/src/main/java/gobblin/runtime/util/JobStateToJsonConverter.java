@@ -12,6 +12,7 @@
 
 package gobblin.runtime.util;
 
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
@@ -32,6 +33,7 @@ import com.google.gson.stream.JsonWriter;
 
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
+import gobblin.runtime.FsDatasetStateStore;
 import gobblin.runtime.JobState;
 
 
@@ -47,12 +49,12 @@ public class JobStateToJsonConverter {
 
   private static final String JOB_STATE_STORE_TABLE_SUFFIX = ".jst";
 
-  private final StateStore<JobState> jobStateStore;
+  private final StateStore<? extends JobState> jobStateStore;
   private final boolean keepConfig;
 
   public JobStateToJsonConverter(String storeUrl, boolean keepConfig)
       throws IOException {
-    this.jobStateStore = new FsStateStore<JobState>(storeUrl, JobState.class);
+    this.jobStateStore = new FsDatasetStateStore(storeUrl);
     this.keepConfig = keepConfig;
   }
 
@@ -67,8 +69,8 @@ public class JobStateToJsonConverter {
   @SuppressWarnings("unchecked")
   public void convert(String jobName, String jobId, Writer writer)
       throws IOException {
-    List<JobState> jobStates =
-        (List<JobState>) this.jobStateStore.getAll(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX);
+    List<? extends JobState> jobStates =
+        (List<? extends JobState>) this.jobStateStore.getAll(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX);
     if (jobStates.isEmpty()) {
       LOGGER.warn(String.format("No job state found for job with name %s and id %s", jobName, jobId));
       return;
@@ -106,7 +108,7 @@ public class JobStateToJsonConverter {
   @SuppressWarnings("unchecked")
   public void convertAll(String jobName, Writer writer)
       throws IOException {
-    List<JobState> jobStates = (List<JobState>) this.jobStateStore.getAll(jobName);
+    List<? extends JobState> jobStates = (List<? extends JobState>) this.jobStateStore.getAll(jobName);
     if (jobStates.isEmpty()) {
       LOGGER.warn(String.format("No job state found for job with name %s", jobName));
       return;
@@ -140,7 +142,7 @@ public class JobStateToJsonConverter {
    * @param jobStates list of {@link JobState}s to write to json document
    * @throws IOException
    */
-  private void writeJobStates(JsonWriter jsonWriter, List<JobState> jobStates)
+  private void writeJobStates(JsonWriter jsonWriter, List<? extends JobState> jobStates)
       throws IOException {
     jsonWriter.beginArray();
     for (JobState jobState : jobStates) {
@@ -180,6 +182,12 @@ public class JobStateToJsonConverter {
         .withDescription("Whether to keep all configuration properties")
         .withLongOpt("keepConfig")
         .create("kc");
+    Option outputToFile = OptionBuilder
+        .withArgName("Output file name")
+        .withDescription("Whether to write the output to a file")
+        .withLongOpt("toFile")
+        .hasArgs()
+        .create("t");
 
     Options options = new Options();
     options.addOption(storeUrlOption);
@@ -187,6 +195,7 @@ public class JobStateToJsonConverter {
     options.addOption(jobIdOption);
     options.addOption(convertAllOption);
     options.addOption(keepConfigOption);
+    options.addOption(outputToFile);
 
     CommandLine cmd = null;
     try {
@@ -210,6 +219,12 @@ public class JobStateToJsonConverter {
       }
     }
 
-    System.out.println(stringWriter.toString());
+    if (cmd.hasOption('t')) {
+      FileWriter fw = new FileWriter(cmd.getOptionValue('t'));
+      fw.write(stringWriter.toString());
+      fw.close();
+    } else {
+      System.out.println(stringWriter.toString());
+    }
   }
 }
