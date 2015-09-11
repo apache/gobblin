@@ -29,6 +29,7 @@ import org.apache.commons.cli.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.io.Closer;
 import com.google.gson.stream.JsonWriter;
 
 import gobblin.metastore.FsStateStore;
@@ -183,8 +184,8 @@ public class JobStateToJsonConverter {
         .withLongOpt("keepConfig")
         .create("kc");
     Option outputToFile = OptionBuilder
-        .withArgName("Output file name")
-        .withDescription("Whether to write the output to a file")
+        .withArgName("output file name")
+        .withDescription("Output file name")
         .withLongOpt("toFile")
         .hasArgs()
         .create("t");
@@ -220,9 +221,13 @@ public class JobStateToJsonConverter {
     }
 
     if (cmd.hasOption('t')) {
-      FileWriter fw = new FileWriter(cmd.getOptionValue('t'));
-      fw.write(stringWriter.toString());
-      fw.close();
+      Closer closer = Closer.create();
+      try {
+        FileWriter fw = closer.register(new FileWriter(cmd.getOptionValue('t')));
+        fw.write(stringWriter.toString());
+      } finally {
+        closer.close();
+      }
     } else {
       System.out.println(stringWriter.toString());
     }
