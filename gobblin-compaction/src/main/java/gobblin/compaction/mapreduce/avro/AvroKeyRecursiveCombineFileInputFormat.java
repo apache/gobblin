@@ -12,7 +12,6 @@
 
 package gobblin.compaction.mapreduce.avro;
 
-import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.HadoopUtils;
 
 import java.io.FileNotFoundException;
@@ -49,6 +48,17 @@ import com.google.common.collect.Lists;
  */
 public class AvroKeyRecursiveCombineFileInputFormat
     extends CombineFileInputFormat<AvroKey<GenericRecord>, NullWritable> {
+
+  private static final String COMPACTION_JOB_PREFIX = "compaction.job.";
+
+  /**
+   * Properties related to the input format of the compaction job of a dataset.
+   */
+  private static final String COMPACTION_JOB_MAPRED_MAX_SPLIT_SIZE = COMPACTION_JOB_PREFIX + "mapred.max.split.size";
+  private static final long DEFAULT_COMPACTION_JOB_MAPRED_MAX_SPLIT_SIZE = 268435456;
+  private static final String COMPACTION_JOB_MAPRED_MIN_SPLIT_SIZE = COMPACTION_JOB_PREFIX + "mapred.min.split.size";
+  private static final long DEFAULT_COMPACTION_JOB_MAPRED_MIN_SPLIT_SIZE = 268435456;
+
   private static final long GET_SPLIT_NUM_FILES_TRHESHOLD = 5000;
   private static final int SPLIT_MAX_NUM_LOCATIONS = 10;
   private static final String AVRO = "avro";
@@ -61,10 +71,10 @@ public class AvroKeyRecursiveCombineFileInputFormat
   }
 
   private void setSplitSize(JobContext cx) {
-    super.setMaxSplitSize(cx.getConfiguration().getLong(ConfigurationKeys.COMPACTION_MAPRED_MAX_SPLIT_SIZE,
-        ConfigurationKeys.DEFAULT_COMPACTION_MAPRED_MAX_SPLIT_SIZE));
-    super.setMinSplitSizeNode(cx.getConfiguration().getLong(ConfigurationKeys.COMPACTION_MAPRED_MIN_SPLIT_SIZE,
-        ConfigurationKeys.DEFAULT_COMPACTION_MAPRED_MIN_SPLIT_SIZE));
+    super.setMaxSplitSize(cx.getConfiguration().getLong(COMPACTION_JOB_MAPRED_MAX_SPLIT_SIZE,
+        DEFAULT_COMPACTION_JOB_MAPRED_MAX_SPLIT_SIZE));
+    super.setMinSplitSizeNode(cx.getConfiguration().getLong(COMPACTION_JOB_MAPRED_MIN_SPLIT_SIZE,
+        DEFAULT_COMPACTION_JOB_MAPRED_MIN_SPLIT_SIZE));
   }
 
   private List<InputSplit> getSplits(JobContext cx, List<Path> dirs) throws FileNotFoundException, IOException {

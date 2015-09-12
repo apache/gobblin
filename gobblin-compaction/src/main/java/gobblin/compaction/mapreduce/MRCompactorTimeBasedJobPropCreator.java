@@ -33,7 +33,6 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
-import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.util.HadoopUtils;
 
@@ -55,6 +54,22 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
 
   private static final Logger LOG = LoggerFactory.getLogger(MRCompactorTimeBasedJobPropCreator.class);
 
+  private static final String COMPACTION_TIMEBASED_PREFIX = "compaction.timebased.";
+
+  /**
+   * Configuration properties related to time based compaction jobs.
+   */
+  private static final String COMPACTION_TIMEBASED_FOLDER_PATTERN = COMPACTION_TIMEBASED_PREFIX + "folder.pattern";
+  private static final String DEFAULT_COMPACTION_TIMEBASED_FOLDER_PATTERN = "YYYY/MM/dd";
+
+  // The earliest dataset timestamp to be processed. Format = ?m?d?h.
+  private static final String COMPACTION_TIMEBASED_MAX_TIME_AGO = COMPACTION_TIMEBASED_PREFIX + "max.time.ago";
+  private static final String DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO = "3d";
+
+  // The latest dataset timestamp to be processed. Format = ?m?d?h.
+  private static final String COMPACTION_TIMEBASED_MIN_TIME_AGO = COMPACTION_TIMEBASED_PREFIX + "min.time.ago";
+  private static final String DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO = "1d";
+
   private final String folderTimePattern;
   private final DateTimeZone timeZone;
   private final DateTimeFormatter timeFormatter;
@@ -69,8 +84,8 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
   MRCompactorTimeBasedJobPropCreator(Builder builder) {
     super(builder);
     this.folderTimePattern = getFolderPattern();
-    this.timeZone = DateTimeZone.forID(
-        this.state.getProp(ConfigurationKeys.COMPACTION_TIMEZONE, ConfigurationKeys.DEFAULT_COMPACTION_TIMEZONE));
+    this.timeZone = DateTimeZone
+        .forID(this.state.getProp(MRCompactor.COMPACTION_TIMEZONE, MRCompactor.DEFAULT_COMPACTION_TIMEZONE));
     this.timeFormatter = DateTimeFormat.forPattern(this.folderTimePattern).withZone(this.timeZone);
   }
 
@@ -116,8 +131,8 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
   }
 
   private String getFolderPattern() {
-    String folderPattern = this.state.getProp(ConfigurationKeys.COMPACTION_TIMEBASED_FOLDER_PATTERN,
-        ConfigurationKeys.DEFAULT_COMPACTION_TIMEBASED_FOLDER_PATTERN);
+    String folderPattern =
+        this.state.getProp(COMPACTION_TIMEBASED_FOLDER_PATTERN, DEFAULT_COMPACTION_TIMEBASED_FOLDER_PATTERN);
     LOG.info("Compaction folder pattern: " + folderPattern);
     return folderPattern;
   }
@@ -156,15 +171,15 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
    */
   private State createJobPropsForLateData(Path jobInputDir, Path jobOutputDir, Path jobTmpDir, List<Path> newDataFiles)
       throws IOException {
-    if (this.state.getPropAsBoolean(ConfigurationKeys.COMPACTION_RECOMPACT_FOR_LATE_DATA,
-        ConfigurationKeys.DEFAULT_COMPACTION_RECOMPACT_FOR_LATE_DATA)) {
+    if (this.state.getPropAsBoolean(MRCompactor.COMPACTION_RECOMPACT_FOR_LATE_DATA,
+        MRCompactor.DEFAULT_COMPACTION_RECOMPACT_FOR_LATE_DATA)) {
       LOG.info(String.format("Will recompact for %s.", jobOutputDir));
       return createJobProps(jobInputDir, jobOutputDir, jobTmpDir, this.deduplicate);
     } else {
       LOG.info(String.format("Will copy %d new data files to %s", newDataFiles.size(), jobOutputDir));
       State jobProps = createJobProps(jobInputDir, jobOutputDir, jobTmpDir, this.deduplicate);
-      jobProps.setProp(ConfigurationKeys.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, true);
-      jobProps.setProp(ConfigurationKeys.COMPACTION_JOB_LATE_DATA_FILES, Joiner.on(",").join(newDataFiles));
+      jobProps.setProp(MRCompactor.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, true);
+      jobProps.setProp(MRCompactor.COMPACTION_JOB_LATE_DATA_FILES, Joiner.on(",").join(newDataFiles));
       return jobProps;
     }
   }
@@ -175,21 +190,21 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
   }
 
   private DateTime getEarliestAllowedFolderTime(DateTime currentTime, PeriodFormatter periodFormatter) {
-    String maxTimeAgoStr = this.state.getProp(ConfigurationKeys.COMPACTION_TIMEBASED_MAX_TIME_AGO,
-        ConfigurationKeys.DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO);
+    String maxTimeAgoStr =
+        this.state.getProp(COMPACTION_TIMEBASED_MAX_TIME_AGO, DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO);
     Period maxTimeAgo = periodFormatter.parsePeriod(maxTimeAgoStr);
     return currentTime.minus(maxTimeAgo);
   }
 
   private DateTime getLatestAllowedFolderTime(DateTime currentTime, PeriodFormatter periodFormatter) {
-    String minTimeAgoStr = this.state.getProp(ConfigurationKeys.COMPACTION_TIMEBASED_MIN_TIME_AGO,
-        ConfigurationKeys.DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO);
+    String minTimeAgoStr =
+        this.state.getProp(COMPACTION_TIMEBASED_MIN_TIME_AGO, DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO);
     Period minTimeAgo = periodFormatter.parsePeriod(minTimeAgoStr);
     return currentTime.minus(minTimeAgo);
   }
 
   private boolean folderAlreadyCompacted(Path outputFolder) {
-    Path filePath = new Path(outputFolder, ConfigurationKeys.COMPACTION_COMPLETE_FILE_NAME);
+    Path filePath = new Path(outputFolder, MRCompactor.COMPACTION_COMPLETE_FILE_NAME);
     try {
       return this.fs.exists(filePath);
     } catch (IOException e) {
@@ -206,7 +221,7 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
   private List<Path> getNewDataInFolder(Path inputFolder, Path outputFolder) throws IOException {
     List<Path> newFiles = Lists.newArrayList();
 
-    Path filePath = new Path(outputFolder, ConfigurationKeys.COMPACTION_COMPLETE_FILE_NAME);
+    Path filePath = new Path(outputFolder, MRCompactor.COMPACTION_COMPLETE_FILE_NAME);
     Closer closer = Closer.create();
     try {
       FSDataInputStream completionFileStream = closer.register(this.fs.open(filePath));
@@ -230,5 +245,4 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
     }
     return newFiles;
   }
-
 }

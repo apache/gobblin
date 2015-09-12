@@ -13,8 +13,8 @@
 package gobblin.azkaban;
 
 import gobblin.compaction.Compactor;
-import gobblin.configuration.ConfigurationKeys;
 
+import java.io.IOException;
 import java.util.Properties;
 
 import org.apache.log4j.Logger;
@@ -31,26 +31,45 @@ public class AzkabanCompactionJobLauncher extends AbstractJob {
 
   private static final Logger LOG = Logger.getLogger(AzkabanCompactionJobLauncher.class);
 
+  private static final String COMPACTION_COMPACTOR_CLASS = "compaction.compactor.class";
+  private static final String DEFAULT_COMPACTION_COMPACTOR_CLASS = "gobblin.compaction.mapreduce.MRCompactor";
+
   private final Properties properties;
+  private final Compactor compactor;
 
   public AzkabanCompactionJobLauncher(String jobId, Properties props) {
     super(jobId, LOG);
     this.properties = new Properties();
     this.properties.putAll(props);
+    this.compactor = getCompactor();
+  }
+
+  private Compactor getCompactor() {
+    try {
+      Class<? extends Compactor> compactorClass = getCompactorClass();
+      Compactor compactor = compactorClass.getDeclaredConstructor(Properties.class).newInstance(this.properties);
+      return compactor;
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to instantiate compactor", e);
+    }
   }
 
   @Override
   public void run() throws Exception {
-    Class<? extends Compactor> compactorClass = getCompactorClass();
-    compactorClass.getDeclaredConstructor(Properties.class).newInstance(this.properties).compact();
+
+    this.compactor.compact();
   }
 
   @SuppressWarnings("unchecked")
   private Class<? extends Compactor> getCompactorClass() throws ClassNotFoundException {
     String compactorClassName =
-        this.properties.getProperty(ConfigurationKeys.COMPACTION_COMPACTOR_CLASS,
-            ConfigurationKeys.DEFAULT_COMPACTION_COMPACTOR_CLASS);
+        this.properties.getProperty(COMPACTION_COMPACTOR_CLASS, DEFAULT_COMPACTION_COMPACTOR_CLASS);
     return (Class<? extends Compactor>) Class.forName(compactorClassName);
+  }
+
+  @Override
+  public void cancel() throws IOException {
+    this.compactor.cancel();
   }
 
 }

@@ -18,7 +18,6 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.charset.Charset;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -58,7 +57,7 @@ public class CompactionRunner {
   static Properties properties = new Properties();
   static Properties jobProperties = new Properties();
 
-  public static void main(String[] args) throws ConfigurationException, IOException, SQLException {
+  public static void main(String[] args) throws IOException, ConfigurationException {
 
     if (args.length != 1) {
       LOG.info("Proper usage: java -jar compaction.jar <global-config-file>\n" + "or\n"
@@ -84,9 +83,8 @@ public class CompactionRunner {
       }
     }
     LOG.info("Found " + numOfJobs + " compaction tasks.");
-    PrintWriter pw = new PrintWriter(
-        new OutputStreamWriter(new FileOutputStream(properties.getProperty(TIMING_FILE, TIMING_FILE_DEFAULT)),
-            Charset.forName("UTF-8")));
+    PrintWriter pw = new PrintWriter(new OutputStreamWriter(
+        new FileOutputStream(properties.getProperty(TIMING_FILE, TIMING_FILE_DEFAULT)), Charset.forName("UTF-8")));
 
     for (File file : listOfFiles) {
       if (file.isFile() && !file.getName().startsWith(".")) {
@@ -104,12 +102,11 @@ public class CompactionRunner {
     pw.close();
   }
 
-  private static void compact() throws IOException, SQLException {
+  private static void compact() throws IOException {
 
-    SerialCompactor sc =
-        new SerialCompactor.Builder().withSnapshot(buildSnapshotTable()).withDeltas(buildDeltaTables())
-            .withOutputTableName(jobProperties.getProperty(OUTPUT + NAME))
-            .withOutputDataLocationInHdfs(jobProperties.getProperty(OUTPUT + DATALOCATION)).build();
+    SerialCompactor sc = new SerialCompactor.Builder().withSnapshot(buildSnapshotTable()).withDeltas(buildDeltaTables())
+        .withOutputTableName(jobProperties.getProperty(OUTPUT + NAME))
+        .withOutputDataLocationInHdfs(jobProperties.getProperty(OUTPUT + DATALOCATION)).build();
     sc.compact();
   }
 
