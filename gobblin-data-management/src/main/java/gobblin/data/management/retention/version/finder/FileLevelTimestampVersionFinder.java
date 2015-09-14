@@ -61,9 +61,9 @@ public class FileLevelTimestampVersionFinder implements VersionFinder<Timestampe
       }
       return timestampedVersions;
     } catch (IOException e) {
-      LOGGER.warn("Failed to get ModifiedTimStamp for candidate dataset version at " + dataset.datasetRoot()
+      LOGGER.warn("Failed to get ModifiedTimeStamp for candidate dataset version at " + dataset.datasetRoot()
           + ". Ignoring.");
-      return null;
+      return Lists.newArrayList();
     }
   }
 
