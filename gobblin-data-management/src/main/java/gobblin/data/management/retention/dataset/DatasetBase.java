@@ -176,6 +176,12 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Dataset {
     this.log.info("Cleaning dataset " + this);
 
     List<T> versions = Lists.newArrayList(getVersionFinder().findDatasetVersions(this));
+
+    if (versions.isEmpty()) {
+      this.log.warn("No dataset version can be found. Ignoring.");
+      return;
+    }
+    
     Collections.sort(versions, Collections.reverseOrder());
 
     Collection<T> deletableVersions =
