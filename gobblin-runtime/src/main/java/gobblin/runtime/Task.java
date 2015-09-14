@@ -218,7 +218,7 @@ public class Task implements Runnable {
     } catch (Throwable t) {
       LOG.error(String.format("Task %s failed", this.taskId), t);
       this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-      this.taskState.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, ExceptionUtils.getFullStackTrace(t));
+      this.taskState.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, ExceptionUtils.getStackTrace(t));
     } finally {
       try {
         closer.close();
