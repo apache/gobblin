@@ -24,8 +24,6 @@ import org.apache.avro.mapreduce.AvroJob;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Mapper;
 
-import gobblin.compaction.mapreduce.avro.AvroKeyDedupReducer.EVENT_COUNTER;
-
 
 /**
  * Mapper class for compaction MR job for Avro data.
