@@ -84,27 +84,48 @@ public class ExecutorsUtils {
    * </p>
    *
    * @param executorService the {@link ExecutorService} to shutdown
+   * @param logger an {@link Optional} wrapping the {@link Logger} that is used to log metadata of the executorService
+   *               if it cannot shutdown all its threads
    * @param timeout the maximum time to wait for the {@code ExecutorService} to terminate
    * @param unit the time unit of the timeout argument
    */
-  public static void shutdownExecutorService(ExecutorService executorService, long timeout, TimeUnit unit) {
+  public static void shutdownExecutorService(ExecutorService executorService, Optional<Logger> logger, long timeout,
+      TimeUnit unit) {
     Preconditions.checkNotNull(unit);
     // Disable new tasks from being submitted
     executorService.shutdown();
+
+    if (logger.isPresent()) {
+      logger.get().info("Attempting to shutdown ExecutorSerivce: " + executorService);
+    }
+
     try {
       long halfTimeoutNanos = TimeUnit.NANOSECONDS.convert(timeout, unit) / 2;
       // Wait for half the duration of the timeout for existing tasks to terminate
       if (!executorService.awaitTermination(halfTimeoutNanos, TimeUnit.NANOSECONDS)) {
         // Cancel currently executing tasks
         executorService.shutdownNow();
+
+        if (logger.isPresent()) {
+          logger.get().info("Shutdown un-successful, attempting shutdownNow of ExecutorService: " + executorService);
+        }
+
         // Wait the other half of the timeout for tasks to respond to being cancelled
-        executorService.awaitTermination(halfTimeoutNanos, TimeUnit.NANOSECONDS);
+        if (!executorService.awaitTermination(halfTimeoutNanos, TimeUnit.NANOSECONDS) && logger.isPresent()) {
+          logger.get().error("Could not shutdown all threads in ExecutorService: " + executorService);
+        }
+      } else if (logger.isPresent()) {
+        logger.get().info("Successfully shutdown ExecutorService: " + executorService);
       }
     } catch (InterruptedException ie) {
       // Preserve interrupt status
       Thread.currentThread().interrupt();
       // (Re-)Cancel if current thread also interrupted
       executorService.shutdownNow();
+
+      if (logger.isPresent()) {
+        logger.get().info("Attempting to shutdownNow ExecutorSerivce: " + executorService);
+      }
     }
   }
 
@@ -119,9 +140,10 @@ public class ExecutorsUtils {
    * </p>
    *
    * @param executorService the {@link ExecutorService} to shutdown
+   * @param logger an {@link Optional} wrapping a {@link Logger} to be used during shutdown
    */
-  public static void shutdownExecutorService(ExecutorService executorService) {
-    shutdownExecutorService(executorService, EXECUTOR_SERVICE_SHUTDOWN_TIMEOUT,
+  public static void shutdownExecutorService(ExecutorService executorService, Optional<Logger> logger) {
+    shutdownExecutorService(executorService, logger, EXECUTOR_SERVICE_SHUTDOWN_TIMEOUT,
         EXECUTOR_SERVICE_SHUTDOWN_TIMEOUT_TIMEUNIT);
   }
 }

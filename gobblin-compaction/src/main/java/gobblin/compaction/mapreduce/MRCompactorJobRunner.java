@@ -62,6 +62,7 @@ import gobblin.util.HadoopUtils;
 public abstract class MRCompactorJobRunner implements Callable<Void> {
 
   private static final Logger LOG = LoggerFactory.getLogger(MRCompactorJobRunner.class);
+  private static final String HADOOP_JOB_NAME = "Gobblin MR Compaction";
 
   protected final State jobProps;
   protected final String topic;
@@ -70,6 +71,7 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
   protected final Path outputPath;
   protected final FileSystem fs;
   protected final FsPermission perm;
+  protected final boolean deduplicate;
 
   protected MRCompactorJobRunner(State jobProps, FileSystem fs) {
     this.jobProps = jobProps;
@@ -78,22 +80,17 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
     this.outputPath = new Path(jobProps.getProp(ConfigurationKeys.COMPACTION_JOB_DEST_DIR));
     this.tmpPath = new Path(jobProps.getProp(ConfigurationKeys.COMPACTION_JOB_TMP_DIR));
     this.fs = fs;
-    this.perm = getOutputPermission();
-  }
-
-  private FsPermission getOutputPermission() {
-    short mode = (short) this.jobProps.getPropAsInt(ConfigurationKeys.COMPACTION_OUTPUT_PERMISSION,
-        ConfigurationKeys.DEFAULT_COMPACTION_OUTPUT_PERMISSION);
-    return new FsPermission(mode);
+    this.perm = HadoopUtils.deserializeFsPermission(this.jobProps, ConfigurationKeys.COMPACTION_OUTPUT_DIR_PERMISSION,
+        FsPermission.getDefault());
+    this.deduplicate = this.jobProps.getPropAsBoolean(ConfigurationKeys.COMPACTION_DEDUPLICATE,
+        ConfigurationKeys.DEFAULT_COMPACTION_DEDUPLICATE);
   }
 
   @Override
   public Void call() throws IOException, ClassNotFoundException, InterruptedException {
     Configuration conf = HadoopUtils.getConfFromState(this.jobProps);
-    DateTime jobStartTime = new DateTime(DateTimeZone.forID(this.jobProps.getProp(
-        ConfigurationKeys.COMPACTION_TIMEZONE, ConfigurationKeys.DEFAULT_COMPACTION_TIMEZONE)));
-    boolean deduplicate = this.jobProps.getPropAsBoolean(ConfigurationKeys.COMPACTION_DEDUPLICATE,
-        ConfigurationKeys.DEFAULT_COMPACTION_DEDUPLICATE);
+    DateTime jobStartTime = new DateTime(DateTimeZone.forID(
+        this.jobProps.getProp(ConfigurationKeys.COMPACTION_TIMEZONE, ConfigurationKeys.DEFAULT_COMPACTION_TIMEZONE)));
 
     if (this.jobProps.getPropAsBoolean(ConfigurationKeys.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, false)) {
       List<Path> lateFilePaths = Lists.newArrayList();
@@ -102,44 +99,32 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
           lateFilePaths.add(new Path(filePathString));
         }
       }
-      Path lateDataOutputPath = deduplicate ? this.outputPath :
-          new Path(this.outputPath, ConfigurationKeys.COMPACTION_LATE_FILES_DIRECTORY);
+      Path lateDataOutputPath = this.deduplicate ? this.outputPath
+          : new Path(this.outputPath, ConfigurationKeys.COMPACTION_LATE_FILES_DIRECTORY);
       this.copyDataFiles(lateDataOutputPath, lateFilePaths, conf);
     } else {
       if (this.fs.exists(this.outputPath) && !canOverwriteOutputDir()) {
         LOG.warn(String.format("Output path %s exists. Will not compact %s.", this.outputPath, this.inputPath));
         return null;
       }
-      if (deduplicate) {
-        addJars(conf);
-        Job job = Job.getInstance(conf);
-        this.configureJob(job);
-        this.submit(job);
-      } else {
-        this.fs.mkdirs(this.tmpPath);
-        List<Path> filePaths = Lists.newArrayList();
-        for (FileStatus status : HadoopUtils.listStatusRecursive(this.fs, this.inputPath)) {
-          if (FilenameUtils.isExtension(status.getPath().getName(), getApplicableFileExtensions())) {
-            filePaths.add(status.getPath());
-          }
-        }
-        this.copyDataFiles(this.tmpPath, filePaths, conf);
-      }
+      addJars(conf);
+      Job job = Job.getInstance(conf);
+      this.configureJob(job);
+      this.submitAndWait(job);
       this.moveTmpPathToOutputPath();
     }
     this.markOutputDirAsCompleted(jobStartTime);
     return null;
   }
 
-  private void copyDataFiles(Path outputDirectory, List<Path> inputFilePaths, Configuration conf)
-      throws IOException {
+  private void copyDataFiles(Path outputDirectory, List<Path> inputFilePaths, Configuration conf) throws IOException {
     for (Path filePath : inputFilePaths) {
       String fileName = filePath.getName();
       Path outPath;
       int fileSuffix = 0;
       do {
-        outPath = new Path(outputDirectory, String.format("%s.%d.%s",
-            FilenameUtils.getBaseName(fileName), fileSuffix++, FilenameUtils.getExtension(fileName)));
+        outPath = new Path(outputDirectory, String.format("%s.%d.%s", FilenameUtils.getBaseName(fileName), fileSuffix++,
+            FilenameUtils.getExtension(fileName)));
       } while (this.fs.exists(outPath));
 
       if (FileUtil.copy(this.fs, filePath, this.fs, outPath, false, conf)) {
@@ -166,9 +151,13 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
   }
 
   protected void configureJob(Job job) throws IOException {
+    job.setJobName(HADOOP_JOB_NAME);
     configureInputAndOutputPaths(job);
     configureMapper(job);
     configureReducer(job);
+    if (!this.deduplicate) {
+      job.setNumReduceTasks(0);
+    }
   }
 
   private void configureInputAndOutputPaths(Job job) throws IOException {
@@ -240,7 +229,7 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
         ConfigurationKeys.DEFAULT_COMPACTION_MAX_NUM_REDUCERS);
   }
 
-  private void submit(Job job) throws ClassNotFoundException, IOException, InterruptedException {
+  private void submitAndWait(Job job) throws ClassNotFoundException, IOException, InterruptedException {
     job.submit();
     MRCompactor.addRunningHadoopJob(job);
     LOG.info(String.format("MR job submitted for topic %s, input %s, url: %s", this.topic, this.inputPath,
