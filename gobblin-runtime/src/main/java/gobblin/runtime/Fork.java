@@ -32,10 +32,10 @@ import gobblin.configuration.State;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.Tag;
 import gobblin.instrumented.Instrumented;
 import gobblin.instrumented.writer.InstrumentedDataWriterDecorator;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.Tag;
 import gobblin.publisher.TaskPublisher;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
@@ -355,10 +355,25 @@ public class Fork implements Closeable, Runnable, FinalState {
     return new InstrumentedDataWriterDecorator<Object>(writer, this.taskState);
   }
 
+  private void buildWriterIfNotPresent() throws IOException {
+    if (!this.writer.isPresent()) {
+      try {
+        this.writer = Optional.of(this.closer.register(buildWriter()));
+      } catch (SchemaConversionException sce) {
+        throw new IOException("Failed to build writer for fork " + this.index, sce);
+      }
+    }
+  }
+
   /**
    * Get new records off the record queue and process them.
    */
   private void processRecords() throws IOException, DataConversionException {
+
+    if (this.taskState.getPropAsBoolean(ConfigurationKeys.WRITER_EAGER_INITIALIZATION_KEY, ConfigurationKeys.DEFAULT_EAGER_WRITER_INITIALIZATION)) {
+      buildWriterIfNotPresent();
+    }
+
     while (true) {
       try {
         Object record = this.recordQueue.get();
@@ -368,13 +383,7 @@ public class Fork implements Closeable, Runnable, FinalState {
             return;
           }
         } else {
-          if (!this.writer.isPresent()) {
-            try {
-              this.writer = Optional.of(this.closer.register(buildWriter()));
-            } catch (SchemaConversionException sce) {
-              throw new IOException("Failed to build writer for fork " + this.index, sce);
-            }
-          }
+          buildWriterIfNotPresent();
           // Convert the record, check its data quality, and finally write it out if quality checking passes.
           for (Object convertedRecord : this.converter.convertRecord(this.convertedSchema, record, this.taskState)) {
             if (this.rowLevelPolicyChecker.executePolicies(convertedRecord, this.rowLevelPolicyCheckingResult)) {

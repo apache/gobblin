@@ -122,10 +122,9 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
         filesToPull.size() / numPartitions : filesToPull.size() / numPartitions + 1;
 
     int workUnitCount = 0;
-    int fileOffset = 0;
 
     // Distribute the files across the workunits
-    for (int i = 0; i < numPartitions; i++) {
+    for (int fileOffset = 0; fileOffset < filesToPull.size(); fileOffset += filesPerPartition) {
       SourceState partitionState = new SourceState();
       partitionState.addAll(state);
 
@@ -148,7 +147,6 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
       Extract extract = partitionState.createExtract(tableType, nameSpaceName, extractTableName);
       workUnits.add(partitionState.createWorkUnit(extract));
       workUnitCount++;
-      fileOffset += filesPerPartition;
     }
 
     log.info("Total number of work units for the current run: " + workUnitCount);

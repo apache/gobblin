@@ -134,12 +134,12 @@ public class TaskExecutor extends AbstractIdleService {
       throws Exception {
     LOG.info("Stopping the task executor");
     try {
-      ExecutorsUtils.shutdownExecutorService(this.taskExecutor);
+      ExecutorsUtils.shutdownExecutorService(this.taskExecutor, Optional.of(LOG));
     } finally {
       try {
-        ExecutorsUtils.shutdownExecutorService(this.taskRetryExecutor);
+        ExecutorsUtils.shutdownExecutorService(this.taskRetryExecutor, Optional.of(LOG));
       } finally {
-        ExecutorsUtils.shutdownExecutorService(this.forkExecutor);
+        ExecutorsUtils.shutdownExecutorService(this.forkExecutor, Optional.of(LOG));
       }
     }
   }
