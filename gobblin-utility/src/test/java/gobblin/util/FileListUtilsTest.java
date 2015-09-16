@@ -101,4 +101,44 @@ public class FileListUtilsTest {
       localFs.delete(baseDir, true);
     }
   }
+
+  @Test
+  public void testListMostNestedPathRecursively() throws IOException {
+    FileSystem localFs = FileSystem.getLocal(new Configuration());
+    Path baseDir = new Path(FILE_UTILS_TEST_DIR, "fileListTestDir3");
+    String emptyDir1 = "emptyDir1";
+    String emptyDir2 = "emptyDir2";
+    try {
+      if (localFs.exists(baseDir)) {
+        localFs.delete(baseDir, true);
+      }
+      localFs.mkdirs(baseDir);
+      localFs.create(new Path(baseDir, TEST_FILE_NAME1));
+      localFs.mkdirs(new Path(baseDir, emptyDir1));
+      Path subDir = new Path(baseDir, "subDir");
+      localFs.mkdirs(subDir);
+      localFs.create(new Path(subDir, TEST_FILE_NAME2));
+      localFs.mkdirs(new Path(subDir, emptyDir2));
+
+      List<FileStatus> testFiles = FileListUtils.listMostNestedPathRecursively(localFs, baseDir);
+
+      Assert.assertEquals(4, testFiles.size());
+
+      Set<String> fileNames = Sets.newHashSet();
+      for (FileStatus testFileStatus : testFiles) {
+        fileNames.add(testFileStatus.getPath().getName());
+      }
+
+      Set<String> expectedFileNames = Sets.newHashSet();
+      expectedFileNames.add(emptyDir1);
+      expectedFileNames.add(emptyDir2);
+      expectedFileNames.add(TEST_FILE_NAME1);
+      expectedFileNames.add(TEST_FILE_NAME2);
+
+      Assert.assertEquals(fileNames, expectedFileNames);
+    } finally {
+      localFs.delete(baseDir, true);
+    }
+  }
+
 }

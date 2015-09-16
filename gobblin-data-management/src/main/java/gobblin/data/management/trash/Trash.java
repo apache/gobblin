@@ -108,7 +108,6 @@ public class Trash {
   }
 
   protected void ensureTrashLocationExists(FileSystem fs, Path trashLocation) throws IOException {
-
     if(fs.exists(trashLocation)) {
       if(!fs.isDirectory(trashLocation)) {
         throw new IOException(String.format("Trash location %s is not a directory.", trashLocation));
@@ -222,6 +221,7 @@ public class Trash {
     if(fs.exists(snapshotDir)) {
       throw new IOException("New snapshot directory " + snapshotDir.toString() + " already exists.");
     }
+
     if(!fs.mkdirs(snapshotDir, PERM)) {
       throw new IOException("Failed to create new snapshot directory at " + snapshotDir.toString());
     }

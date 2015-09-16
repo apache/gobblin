@@ -10,12 +10,13 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.runtime;
+package gobblin.util.limiter;
 
 /**
- * @deprecated This class has been moved to {@link gobblin.util.limiter.BaseLimiterType}.
+ * An enumeration of types of {@link Limiter}s supported out-of-the-box.
+ *
+ * @author ynli
  */
-@Deprecated
 public enum BaseLimiterType {
 
   /**

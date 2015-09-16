@@ -12,44 +12,12 @@
 
 package gobblin.runtime;
 
-import java.io.Closeable;
-
 
 /**
- * An interface for classes that implement some logic limiting on the occurrences of some events,
- * e.g., data record extraction using an {@link gobblin.source.extractor.Extractor}.
+ * {@inheritDoc}
  *
- * @author ynli
+ * @deprecated This class has been moved to {@link gobblin.util.limiter.Limiter}.
  */
-public interface Limiter {
-
-  /**
-   * Start the {@link Limiter}.
-   *
-   * See {@link #stop()}
-   */
-  public void start();
-
-  /**
-   * Acquire a given number of permits.
-   *
-   * <p>
-   *   Depending on the implementation, the caller of this method may be blocked.
-   *   It is also up to the caller to decide how to deal with the return value.
-   * </p>
-   *
-   * @param permits number of permits to get
-   * @return a {@link Closeable} instance if the requested permits have been successfully acquired,
-   *         or {@code null} if otherwise; in the former case, calling {@link Closeable#close()} on
-   *         the returned {@link Closeable} instance will release the acquired permits.
-   * @throws InterruptedException if the caller is interrupted while being blocked
-   */
-  public Closeable acquirePermits(long permits) throws InterruptedException;
-
-  /**
-   * Stop the {@link Limiter}.
-   *
-   * See {@link #start()}
-   */
-  public void stop();
+@Deprecated
+public interface Limiter extends gobblin.util.limiter.Limiter {
 }

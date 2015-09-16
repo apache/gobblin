@@ -12,74 +12,21 @@
 
 package gobblin.runtime;
 
-import java.io.Closeable;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Optional;
-
-import gobblin.util.ExecutorsUtils;
 
 
 /**
- * An implementation of {@link Limiter} that limits the time elapsed for some events.
+ * {@inheritDoc}
  *
- * <p>
- *   This implementation uses a task scheduled in a {@link ScheduledThreadPoolExecutor} that will
- *   fire once after a given amount of time has elapsed. The task once fired, will flip a boolean
- *   flag that tells if permits should be issued. The flag is initially set to {@code true}. Thus,
- *   no permits are issued once the flag is flipped after the given amount of time has elapsed.
- * </p>
- *
- * <p>
- *   {@link #acquirePermits(long)} will return {@code false} once the time limit is reached. Permit
- *   refills are not supported in this implementation.
- * </p>
- *
- * @author ynli
+ * @deprecated This class has been moved to {@link gobblin.util.limiter.TimeBasedLimiter}.
  */
-public class TimeBasedLimiter extends NonRefillableLimiter {
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(TimeBasedLimiter.class);
-
-  private final long timeLimit;
-  private final TimeUnit timeUnit;
-  private final ScheduledThreadPoolExecutor flagFlippingExecutor;
-  // A flag telling if a permit is allowed to be issued
-  private volatile boolean canIssuePermit = true;
-
+@Deprecated
+public class TimeBasedLimiter extends gobblin.util.limiter.TimeBasedLimiter {
   public TimeBasedLimiter(long timeLimit) {
-    this(timeLimit, TimeUnit.SECONDS);
+    super(timeLimit);
   }
 
   public TimeBasedLimiter(long timeLimit, TimeUnit timeUnit) {
-    this.timeLimit = timeLimit;
-    this.timeUnit = timeUnit;
-    this.flagFlippingExecutor = new ScheduledThreadPoolExecutor(
-        1, ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("TimeBasedThrottler")));
-  }
-
-  @Override
-  public void start() {
-    this.flagFlippingExecutor.schedule(new Runnable() {
-      @Override
-      public void run() {
-        // Flip the flag once the scheduled time is reached
-        canIssuePermit = false;
-      }
-    }, this.timeLimit, this.timeUnit);
-  }
-
-  @Override
-  public Closeable acquirePermits(long permits) throws InterruptedException {
-    return this.canIssuePermit ? NO_OP_CLOSEABLE : null;
-  }
-
-  @Override
-  public void stop() {
-    this.flagFlippingExecutor.shutdownNow();
+    super(timeLimit, timeUnit);
   }
 }

@@ -10,54 +10,55 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.runtime;
+package gobblin.util;
 
+import java.io.IOException;
 import java.util.Random;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutionException;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.codahale.metrics.Meter;
-
 import com.google.common.math.DoubleMath;
 
 
 /**
- * Unit tests for {@link RateBasedLimiter}.
- *
- * @author ynli
+ * Unit tests for {@link RatedControlledFileSystem}.
  */
-@Test(groups = {"gobblin.runtime"})
-public class RateBasedLimiterTest {
+@Test(groups = { "gobblin.util" })
+public class RatedControlledFileSystemTest {
 
   private static final Random RANDOM = new Random();
 
-  private Limiter limiter;
+  private RateControlledFileSystem rateControlledFs;
 
   @BeforeClass
-  public void setUp() {
-    this.limiter = new RateBasedLimiter(20, TimeUnit.SECONDS);
-    this.limiter.start();
+  public void setUp() throws IOException, ExecutionException {
+    this.rateControlledFs = new RateControlledFileSystem(FileSystem.getLocal(new Configuration()), 20);
+    this.rateControlledFs.startRateControl();
   }
 
   @Test
-  public void testThrottling() throws InterruptedException {
+  public void testFsOperation() throws IOException, InterruptedException {
     Meter meter = new Meter();
+    Path fakePath = new Path("fakePath");
     for (int i = 0; i < 1000; i++) {
-      Assert.assertTrue(this.limiter.acquirePermits(1) != null);
+      Assert.assertFalse(this.rateControlledFs.exists(fakePath));
       meter.mark();
       Thread.sleep((RANDOM.nextInt() & Integer.MAX_VALUE) % 10);
     }
-
     // Assert a fuzzy equal with 5% of tolerance
     Assert.assertTrue(DoubleMath.fuzzyEquals(meter.getMeanRate(), 20d, 20d * 0.05));
   }
 
   @AfterClass
-  public void tearDown() {
-    this.limiter.stop();
+  public void tearDown() throws IOException {
+    this.rateControlledFs.close();
   }
 }

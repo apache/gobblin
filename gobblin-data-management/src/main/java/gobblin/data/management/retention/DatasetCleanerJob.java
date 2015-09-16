@@ -47,16 +47,14 @@ public class DatasetCleanerJob extends AbstractJob implements Tool {
   }
 
   @Override
-  public void run()
-      throws Exception {
-    if(this.datasetCleaner != null) {
-      this.datasetCleaner.clean();
+  public void run() throws Exception {
+    if (this.datasetCleaner != null) {
+        this.datasetCleaner.clean();
     }
   }
 
   @Override
-  public int run(String[] args)
-      throws Exception {
+  public int run(String[] args) throws Exception {
     if (args.length < 1) {
       System.out.println("Must provide properties file as first argument.");
       return 1;

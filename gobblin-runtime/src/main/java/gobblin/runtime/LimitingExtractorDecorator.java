@@ -19,6 +19,7 @@ import com.google.common.io.Closer;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.util.Decorator;
+import gobblin.util.limiter.Limiter;
 
 
 /**
