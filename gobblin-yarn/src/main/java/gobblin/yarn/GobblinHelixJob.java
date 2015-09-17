@@ -37,6 +37,7 @@ public class GobblinHelixJob implements Job {
   @Override
   public void execute(JobExecutionContext context) throws JobExecutionException {
     JobDataMap dataMap = context.getJobDetail().getJobDataMap();
+
     JobScheduler jobScheduler = (JobScheduler) dataMap.get(JobScheduler.JOB_SCHEDULER_KEY);
     Properties jobProps = (Properties) dataMap.get(JobScheduler.PROPERTIES_KEY);
     JobListener jobListener = (JobListener) dataMap.get(JobScheduler.JOB_LISTENER_KEY);

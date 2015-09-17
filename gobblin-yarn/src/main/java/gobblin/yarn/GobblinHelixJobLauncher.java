@@ -116,7 +116,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
   @Override
   protected void executeCancellation() {
-
+    // Currently not supported yet
   }
 
   /**

@@ -19,6 +19,10 @@ import org.apache.hadoop.fs.Path;
 import org.apache.helix.task.Task;
 import org.apache.helix.task.TaskCallbackContext;
 import org.apache.helix.task.TaskFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Throwables;
 
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskStateTracker;
@@ -30,6 +34,8 @@ import gobblin.runtime.TaskStateTracker;
  * @author ynli
  */
 public class GobblinHelixTaskFactory implements TaskFactory {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(GobblinHelixTaskFactory.class);
 
   private final TaskExecutor taskExecutor;
   private final TaskStateTracker taskStateTracker;
@@ -49,7 +55,8 @@ public class GobblinHelixTaskFactory implements TaskFactory {
     try {
       return new GobblinHelixTask(context, this.taskExecutor, this.taskStateTracker, this.fs, this.appWorkDir);
     } catch (IOException ioe) {
-      throw new RuntimeException("Failed to create a new GobblinHelixTask", ioe);
+      LOGGER.error("Failed to create a new GobblinHelixTask", ioe);
+      throw Throwables.propagate(ioe);
     }
   }
 }

@@ -24,6 +24,11 @@ import gobblin.runtime.TaskExecutor;
 /**
  * A state model for a Gobblin task that implements all supported state transitions.
  *
+ * <p>
+ *   This class is currently not used but may get used in the future if we decide to plugin our own
+ *   custom {@link TaskStateModel}. So currently this is like a place holder class.
+ * </p>
+ *
  * @author ynli
  */
 public class GobblinTaskStateModel extends TaskStateModel {

@@ -29,7 +29,7 @@ import gobblin.runtime.JobException;
 import gobblin.runtime.JobLauncher;
 import gobblin.runtime.JobListener;
 import gobblin.scheduler.JobScheduler;
-import gobblin.yarn.event.NewJobConfigArrival;
+import gobblin.yarn.event.NewJobConfigArrivalEvent;
 
 
 /**
@@ -83,7 +83,7 @@ public class GobblinHelixJobScheduler extends JobScheduler {
 
   @SuppressWarnings("unused")
   @Subscribe
-  public void handleNewJobConfigArrival(NewJobConfigArrival newJobArrival) {
+  public void handleNewJobConfigArrival(NewJobConfigArrivalEvent newJobArrival) {
     LOGGER.info("Received new job configuration of job " + newJobArrival.getJobName());
     try {
       Properties jobConfig = new Properties();

@@ -274,6 +274,7 @@ public class YarnService extends AbstractIdleService {
 
   private void addContainerLocalResources(Path destDir, Map<String, LocalResource> resourceMap) throws IOException {
     if (!this.fs.exists(destDir)) {
+      LOGGER.warn(String.format("Path %s does not exist so no container LocalResource to add", destDir));
       return;
     }
 
@@ -299,7 +300,7 @@ public class YarnService extends AbstractIdleService {
     fileResource.setVisibility(LocalResourceVisibility.APPLICATION);
     fileResource.setSize(status.getLen());
     fileResource.setTimestamp(status.getModificationTime());
-    LOGGER.info("Created a LocalResource for file: " + fileResource.getResource());
+    LOGGER.debug("Created a LocalResource for file: " + fileResource.getResource());
     resourceMap.put(status.getPath().getName(), fileResource);
   }
 

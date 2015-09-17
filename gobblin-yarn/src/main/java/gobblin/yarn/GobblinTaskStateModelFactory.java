@@ -28,6 +28,11 @@ import gobblin.runtime.TaskExecutor;
 /**
  * A {@link StateTransitionHandlerFactory} for {@link GobblinTaskStateModel}s.
  *
+ * <p>
+ *   This class is currently not used but may get used in the future if we decide to plugin our own
+ *   custom {@link TaskStateModel}. So currently this is like a place holder class.
+ * </p>
+ *
  * @author ynli
  */
 public class GobblinTaskStateModelFactory extends TaskStateModelFactory {

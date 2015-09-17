@@ -13,6 +13,7 @@
 package gobblin.yarn;
 
 import java.io.IOException;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -26,11 +27,17 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
+import org.apache.helix.Criteria;
+import org.apache.helix.HelixManager;
+import org.apache.helix.InstanceType;
+import org.apache.helix.api.id.ResourceId;
+import org.apache.helix.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import com.typesafe.config.Config;
@@ -55,27 +62,28 @@ public class ControllerSecurityManager extends AbstractIdleService {
 
   private final Config config;
 
-  private final long loginIntervalInHours;
-  private final long tokenRenewIntervalInHours;
-
+  private final HelixManager helixManager;
   private final FileSystem fs;
   private final Path tokenFilePath;
   private UserGroupInformation currentUser;
   private Token<? extends TokenIdentifier> token;
 
+  private final long loginIntervalInHours;
+  private final long tokenRenewIntervalInHours;
+
   private final ScheduledExecutorService loginExecutor;
   private final ScheduledExecutorService tokenRenewExecutor;
   private ScheduledFuture<?> scheduledTokenRenewTask;
 
-  public ControllerSecurityManager(Config config, FileSystem fs) throws IOException {
+  public ControllerSecurityManager(Config config, HelixManager helixManager, FileSystem fs) throws IOException {
     this.config = config;
-
-    this.loginIntervalInHours = config.getLong(ConfigurationConstants.LOGIN_INTERVAL_IN_HOURS);
-    this.tokenRenewIntervalInHours = config.getLong(ConfigurationConstants.TOKEN_RENEW_INTERVAL_IN_HOURS);
-
+    this.helixManager = helixManager;
     this.fs = fs;
+
     this.tokenFilePath = new Path(config.getString(ConfigurationConstants.TOKEN_FILE_PATH));
     this.fs.makeQualified(tokenFilePath);
+    this.loginIntervalInHours = config.getLong(ConfigurationConstants.LOGIN_INTERVAL_IN_HOURS);
+    this.tokenRenewIntervalInHours = config.getLong(ConfigurationConstants.TOKEN_RENEW_INTERVAL_IN_HOURS);
 
     this.loginExecutor = Executors.newSingleThreadScheduledExecutor(
             ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("KeytabReLoginExecutor")));
@@ -105,7 +113,7 @@ public class ControllerSecurityManager extends AbstractIdleService {
           // Re-schedule the token renew task after re-login
           scheduleTokenRenewTask();
         } catch (IOException ioe) {
-          throw new RuntimeException(ioe);
+          throw Throwables.propagate(ioe);
         }
       }
     }, this.loginIntervalInHours, this.loginIntervalInHours, TimeUnit.HOURS);
@@ -158,9 +166,10 @@ public class ControllerSecurityManager extends AbstractIdleService {
         try {
           renewDelegationToken();
         } catch (IOException ioe) {
-          throw new RuntimeException(ioe);
+          throw Throwables.propagate(ioe);
         } catch (InterruptedException ie) {
-          throw new RuntimeException(ie);
+          LOGGER.error("Token renew task has been interrupted");
+          Thread.currentThread().interrupt();
         }
       }
     }, this.tokenRenewIntervalInHours, this.tokenRenewIntervalInHours, TimeUnit.HOURS);
@@ -227,5 +236,30 @@ public class ControllerSecurityManager extends AbstractIdleService {
     YarnHelixUtils.writeTokenToFile(this.token, this.tokenFilePath, this.fs.getConf());
     // Only grand access to the token file to the login user
     this.fs.setPermission(this.tokenFilePath, new FsPermission(FsAction.READ_WRITE, FsAction.NONE, FsAction.NONE));
+
+    // Send a message to all the participants
+    sendTokenFileUpdatedMessage();
+  }
+
+  private void sendTokenFileUpdatedMessage() {
+    Criteria criteria = new Criteria();
+    criteria.setInstanceName("%");
+    criteria.setResource("%");
+    criteria.setPartition("%");
+    criteria.setPartitionState("%");
+    criteria.setRecipientInstanceType(InstanceType.PARTICIPANT);
+    criteria.setDataSource(Criteria.DataSource.LIVEINSTANCES);
+    criteria.setSessionSpecific(true);
+
+    Message tokenFileUpdatedMessage = new Message(Message.MessageType.USER_DEFINE_MSG, UUID.randomUUID().toString());
+    tokenFileUpdatedMessage.setMsgSubType(HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString());
+    tokenFileUpdatedMessage.setMsgState(Message.MessageState.NEW);
+    tokenFileUpdatedMessage.setResourceId(ResourceId.from(this.tokenFilePath.toString()));
+
+    int messagesSent = this.helixManager.getMessagingService().send(criteria, tokenFileUpdatedMessage);
+    if (messagesSent == 0) {
+      LOGGER.error(String.format("Failed to send the %s message to the participants",
+          tokenFileUpdatedMessage.getMsgSubType()));
+    }
   }
 }

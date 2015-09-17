@@ -10,27 +10,28 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.yarn;
+package gobblin.yarn.event;
+
 
 /**
- * An enumeration of Helix message sub types.
+ * A type of events fired when the delegation token has been updated by the controller.
  *
  * @author ynli
  */
-public enum HelixMessageSubTypes {
+public class DelegationTokenUpdatedEvent {
+
+  private final String tokenFilePath;
+
+  public DelegationTokenUpdatedEvent(String tokenFilePath) {
+    this.tokenFilePath = tokenFilePath;
+  }
 
   /**
-   * This type is for messages sent when the {@link GobblinApplicationMaster} is to be shutdown.
+   * Get the token file path.
+   *
+   * @return the token file path.
    */
-  APPLICATION_MASTER_SHUTDOWN,
-
-  /**
-   * This type is for messages sent when the {@link GobblinWorkUnitRunner}s are to be shutdown.
-   */
-  WORK_UNIT_RUNNER_SHUTDOWN,
-
-  /**
-   * This type is for messages sent when the file storing the delegation token has been updated.
-   */
-  TOKEN_FILE_UPDATED
+  public String getTokenFilePath() {
+    return this.tokenFilePath;
+  }
 }

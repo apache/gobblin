@@ -59,6 +59,7 @@ import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
@@ -76,8 +77,10 @@ import gobblin.yarn.event.ApplicationMasterShutdownRequest;
  * The Yarn ApplicationMaster class for Gobblin.
  *
  * <p>
- *   The Yarn ApplicationMaster runs the {@link GobblinHelixJobScheduler} for scheduling and running
- *   Gobblin jobs, and the {@link YarnService} for all Yarn-related stuffs.
+ *   This class runs the {@link GobblinHelixJobScheduler} for scheduling and running Gobblin jobs,
+ *   and the {@link YarnService} for all Yarn-related stuffs like ApplicationMaster registration
+ *   and un-registration and Yarn container provisioning. This class serves as the Helix controller
+ *   and it uses a {@link HelixManager} to work with Helix.
  * </p>
  *
  * @author ynli
@@ -125,7 +128,7 @@ public class GobblinApplicationMaster {
     List<Service> services = Lists.newArrayList();
     if (UserGroupInformation.isSecurityEnabled()) {
       LOGGER.info("Adding YarnAMSecurityManager since security is enabled");
-      services.add(new ControllerSecurityManager(config, fs));
+      services.add(new ControllerSecurityManager(config, this.helixManager, fs));
     }
     services.add(new YarnService(config, applicationName, applicationAttemptIdId.getApplicationId(), this.eventBus));
     services.add(
@@ -153,7 +156,8 @@ public class GobblinApplicationMaster {
       this.helixManager.getMessagingService().registerMessageHandlerFactory(
           Message.MessageType.SHUTDOWN.toString(), new ControllerShutdownMessageHandlerFactory());
     } catch (Exception e) {
-      throw new RuntimeException("The HelixManager failed to connect", e);
+      LOGGER.error("HelixManager failed to connect", e);
+      throw Throwables.propagate(e);
     }
 
     // Register JVM metrics to collect and report
@@ -259,6 +263,10 @@ public class GobblinApplicationMaster {
     }
   }
 
+  /**
+   * A custom {@link MessageHandlerFactory} for {@link MessageHandler}s that handle messages of type
+   * {@link org.apache.helix.model.Message.MessageType#SHUTDOWN} for shutting down the controller.
+   */
   private class ControllerShutdownMessageHandlerFactory implements MessageHandlerFactory {
 
     @Override
@@ -276,6 +284,10 @@ public class GobblinApplicationMaster {
 
     }
 
+    /**
+     * A custom {@link MessageHandler} for handling messages of sub type
+     * {@link HelixMessageSubTypes#APPLICATION_MASTER_SHUTDOWN}.
+     */
     private class ControllerShutdownMessageHandler extends MessageHandler {
 
       private final ScheduledExecutorService shutdownMessageHandlingCompletionWatcher =

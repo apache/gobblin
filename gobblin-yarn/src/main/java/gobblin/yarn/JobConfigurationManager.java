@@ -25,12 +25,24 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.yarn.event.NewJobConfigArrival;
+import gobblin.yarn.event.NewJobConfigArrivalEvent;
 import gobblin.util.SchedulerUtils;
 
 
 /**
  * A class for managing Gobblin job configurations.
+ *
+ * <p>
+ *   Currently this class reads all-at-once at startup all the job configuration files found
+ *   in the directory uncompressed from the job configuration file package and have them all
+ *   scheduled by the {@link GobblinHelixJobScheduler} by posting a
+ *   {@link NewJobConfigArrivalEvent} for each job configuration file.
+ * </p>
+ *
+ * <p>
+ *   In the future, we may add the ability to accept new job configuration files or updates
+ *   to existing configuration files at runtime to this class.
+ * </p>
  *
  * @author ynli
  */
@@ -68,10 +80,10 @@ public class JobConfigurationManager extends AbstractIdleService {
 
   @Override
   protected void shutDown() throws Exception {
-
+    // Nothing to do
   }
 
   private void postNewJobConfigArrival(String jobName, Properties jobConfig) {
-    this.eventBus.post(new NewJobConfigArrival(jobName, jobConfig));
+    this.eventBus.post(new NewJobConfigArrivalEvent(jobName, jobConfig));
   }
 }

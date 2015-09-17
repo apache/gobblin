@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.base.Throwables;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -108,12 +109,14 @@ public class GobblinHelixTask implements Task {
           throw new IllegalStateException("Unexpected result WorkUnit state: " + workingState);
       }
     } catch (IOException ioe) {
-      LOGGER.error("Failed to deserialize WorkUnit", ioe);
-      throw new RuntimeException("Failed to run WorkUnit " + this.taskId, ioe);
+      LOGGER.error("Failed to deserialize WorkUnit " + this.taskId, ioe);
+      throw Throwables.propagate(ioe);
     } catch (ExecutionException ee) {
-      throw new RuntimeException("Failed to run WorkUnit " + this.taskId, ee);
+      LOGGER.error("Failed to run WorkUnit " + this.taskId, ee);
+      throw Throwables.propagate(ee);
     } catch (InterruptedException ie) {
-      throw new RuntimeException("Failed to run WorkUnit " + this.taskId, ie);
+      LOGGER.error("Failed to run WorkUnit " + this.taskId, ie);
+      throw Throwables.propagate(ie);
     }
   }
 

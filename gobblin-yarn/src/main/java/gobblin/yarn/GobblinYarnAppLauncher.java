@@ -22,8 +22,8 @@ import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
 import javax.annotation.Nonnull;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -68,6 +68,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
@@ -153,7 +154,8 @@ public class GobblinYarnAppLauncher implements Closeable {
     try {
       this.helixManager.connect();
     } catch (Exception e) {
-      throw new RuntimeException("The HelixManager failed to connect", e);
+      LOGGER.error("HelixManager failed to connect", e);
+      throw Throwables.propagate(e);
     }
 
     this.yarnClient.start();
@@ -450,7 +452,7 @@ public class GobblinYarnAppLauncher implements Closeable {
     fileResource.setTimestamp(fileStatus.getModificationTime());
     fileResource.setType(resourceType);
     fileResource.setVisibility(LocalResourceVisibility.APPLICATION);
-    LOGGER.info(String.format("Created a LocalResource for file %s of type %s",
+    LOGGER.debug(String.format("Created a LocalResource for file %s of type %s",
         fileResource.getResource(), resourceType));
     resourceMap.put(destFilePath.getName(), fileResource);
   }

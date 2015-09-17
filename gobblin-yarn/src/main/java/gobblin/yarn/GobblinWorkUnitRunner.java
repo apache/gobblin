@@ -57,8 +57,10 @@ import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
@@ -68,6 +70,7 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskStateTracker;
+import gobblin.yarn.event.DelegationTokenUpdatedEvent;
 
 
 /**
@@ -75,7 +78,9 @@ import gobblin.runtime.TaskStateTracker;
  * {@link gobblin.source.workunit.WorkUnit}s.
  *
  * <p>
- *   This class registers as a Helix participant upon startup.
+ *   This class serves as a Helix participant and it uses a {@link HelixManager} to work with Helix.
+ *   This class also uses the Helix task execution framework and {@link GobblinHelixTaskFactory} class
+ *   for creating {@link GobblinHelixTask}s that Helix manages to run Gobblin data ingestion tasks.
  * </p>
  *
  * @author ynli
@@ -88,9 +93,11 @@ public class GobblinWorkUnitRunner {
 
   private final ContainerId containerId;
 
+  private final HelixManager helixManager;
+
   private final ServiceManager serviceManager;
 
-  private final HelixManager helixManager;
+  private final EventBus eventBus;
 
   private final TaskStateModelFactory taskStateModelFactory;
 
@@ -115,12 +122,15 @@ public class GobblinWorkUnitRunner {
         zkConnectionString);
 
     Properties properties = YarnHelixUtils.configToProperties(config);
+
+    this.eventBus = new EventBus();
+
     TaskExecutor taskExecutor = new TaskExecutor(properties);
     TaskStateTracker taskStateTracker = new GobblinHelixTaskStateTracker(properties, this.helixManager);
 
     List<Service> services = Lists.newArrayList();
     if (UserGroupInformation.isSecurityEnabled()) {
-      services.add(new ParticipantSecurityManager(config, fs));
+      services.add(new ParticipantSecurityManager(fs, this.eventBus));
     }
     services.add(taskExecutor);
     services.add(taskStateTracker);
@@ -151,8 +161,11 @@ public class GobblinWorkUnitRunner {
       this.helixManager.connect();
       this.helixManager.getMessagingService().registerMessageHandlerFactory(Message.MessageType.SHUTDOWN.toString(),
           new ParticipantShutdownMessageHandlerFactory());
+      this.helixManager.getMessagingService().registerMessageHandlerFactory(
+          Message.MessageType.USER_DEFINE_MSG.toString(), new ParticipantUserDefinedMessageHandlerFactory());
     } catch (Exception e) {
-      throw new RuntimeException("The HelixManager failed to connect", e);
+      LOGGER.error("HelixManager failed to connect", e);
+      throw Throwables.propagate(e);
     }
 
     // Register JVM metrics to collect and report
@@ -214,6 +227,10 @@ public class GobblinWorkUnitRunner {
     }
   }
 
+  /**
+   * A custom {@link MessageHandlerFactory} for {@link ParticipantShutdownMessageHandler}s that handle messages
+   * of type {@link org.apache.helix.model.Message.MessageType#SHUTDOWN} for shutting down the participants.
+   */
   private class ParticipantShutdownMessageHandlerFactory implements MessageHandlerFactory {
 
     @Override
@@ -231,6 +248,10 @@ public class GobblinWorkUnitRunner {
 
     }
 
+    /**
+     * A custom {@link MessageHandler} for handling messages of sub type
+     * {@link HelixMessageSubTypes#WORK_UNIT_RUNNER_SHUTDOWN}.
+     */
     private class ParticipantShutdownMessageHandler extends MessageHandler {
 
       private final ScheduledExecutorService shutdownMessageHandlingCompletionWatcher =
@@ -276,6 +297,66 @@ public class GobblinWorkUnitRunner {
       public void onError(Exception e, ErrorCode code, ErrorType type) {
         LOGGER.error(
             String.format("Failed to handle message with exception %s, error code %s, error type %s", e, code, type));
+      }
+    }
+  }
+
+  /**
+   * A custom {@link MessageHandlerFactory} for {@link ParticipantUserDefinedMessageHandler}s that
+   * handle messages of type {@link org.apache.helix.model.Message.MessageType#USER_DEFINE_MSG}.
+   */
+  private class ParticipantUserDefinedMessageHandlerFactory implements MessageHandlerFactory {
+
+    @Override
+    public MessageHandler createHandler(Message message, NotificationContext context) {
+      return new ParticipantUserDefinedMessageHandler(message, context);
+    }
+
+    @Override
+    public String getMessageType() {
+      return Message.MessageType.USER_DEFINE_MSG.toString();
+    }
+
+    @Override
+    public void reset() {
+
+    }
+
+    /**
+     * A custom {@link MessageHandler} for handling user-defined messages to the participants.
+     *
+     * <p>
+     *   Currently it handles the following sub types of messages:
+     *
+     *   <ul>
+     *     <li>{@link HelixMessageSubTypes#TOKEN_FILE_UPDATED}</li>
+     *   </ul>
+     * </p>
+     */
+    private class ParticipantUserDefinedMessageHandler extends MessageHandler {
+
+      public ParticipantUserDefinedMessageHandler(Message message, NotificationContext context) {
+        super(message, context);
+      }
+
+      @Override
+      public HelixTaskResult handleMessage() throws InterruptedException {
+        String messageSubType = this._message.getMsgSubType();
+
+        if (HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString().equalsIgnoreCase(messageSubType)) {
+          eventBus.post(new DelegationTokenUpdatedEvent(this._message.getResourceId().stringify()));
+          HelixTaskResult helixTaskResult = new HelixTaskResult();
+          helixTaskResult.setSuccess(true);
+          return helixTaskResult;
+        }
+
+        throw new RuntimeException(String.format("Unknown %s message subtype: %s",
+            Message.MessageType.USER_DEFINE_MSG.toString(), messageSubType));
+      }
+
+      @Override
+      public void onError(Exception e, ErrorCode code, ErrorType type) {
+
       }
     }
   }

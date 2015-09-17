@@ -21,12 +21,12 @@ import java.util.Properties;
  *
  * @author ynli
  */
-public class NewJobConfigArrival {
+public class NewJobConfigArrivalEvent {
 
   private final String jobName;
   private final Properties jobConfig;
 
-  public NewJobConfigArrival(String jobName, Properties jobConfig) {
+  public NewJobConfigArrivalEvent(String jobName, Properties jobConfig) {
     this.jobName = jobName;
     this.jobConfig = new Properties();
     this.jobConfig.putAll(jobConfig);
