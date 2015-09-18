@@ -154,7 +154,7 @@ public class JobScheduler extends AbstractIdleService {
     }
 
     try {
-      ExecutorsUtils.shutdownExecutorService(this.jobExecutor);
+      ExecutorsUtils.shutdownExecutorService(this.jobExecutor, Optional.of(LOG));
     } finally {
       this.scheduler.shutdown(true);
     }

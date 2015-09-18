@@ -51,9 +51,9 @@ public class ConfigurationConstants {
   public static final int DEFAULT_CONTAINER_MEMORY_MBS = 256;
   public static final String CONTAINER_CORES_KEY = GOBBLIN_YARN_PREFIX + "container.cores";
   public static final int DEFAULT_CONTAINER_CORES = 1;
-  public static final String CONTAINER_JARS_KEY = GOBBLIN_YARN_PREFIX + "app.master.jars";
-  public static final String CONTAINER_FILES_LOCAL_KEY = GOBBLIN_YARN_PREFIX + "app.master.files.local";
-  public static final String CONTAINER_FILES_REMOTE_KEY = GOBBLIN_YARN_PREFIX + "app.master.files.remote";
+  public static final String CONTAINER_JARS_KEY = GOBBLIN_YARN_PREFIX + "container.jars";
+  public static final String CONTAINER_FILES_LOCAL_KEY = GOBBLIN_YARN_PREFIX + "container.files.local";
+  public static final String CONTAINER_FILES_REMOTE_KEY = GOBBLIN_YARN_PREFIX + "container.files.remote";
   public static final String CONTAINER_WORK_DIR_NAME = "container";
 
   /**

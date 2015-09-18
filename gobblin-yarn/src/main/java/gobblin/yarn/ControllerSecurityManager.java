@@ -51,7 +51,8 @@ import gobblin.util.ExecutorsUtils;
  * <p>
  *   This class uses a scheduled task to do Kerberos re-login to renew the Kerberos ticket on a
  *   configurable schedule if login is from a keytab file. It also uses a second scheduled task
- *   to renew the delegation token after each login.
+ *   to renew the delegation token after each login. Both the re-login interval and the token
+ *   renewing interval are configurable.
  * </p>
  *
  * @author ynli

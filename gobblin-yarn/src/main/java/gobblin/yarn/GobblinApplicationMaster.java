@@ -12,6 +12,7 @@
 
 package gobblin.yarn;
 
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -70,6 +71,7 @@ import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.yarn.event.ApplicationMasterShutdownRequest;
 
 
@@ -122,7 +124,9 @@ public class GobblinApplicationMaster {
         YarnHelixUtils.getParticipantIdStr(YarnHelixUtils.getHostname(), containerId), InstanceType.CONTROLLER,
         zkConnectionString);
 
-    FileSystem fs = FileSystem.get(new Configuration());
+    FileSystem fs = config.hasPath(ConfigurationKeys.FS_URI_KEY) ?
+        FileSystem.get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), new Configuration()) :
+        FileSystem.get(new Configuration());
     Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(fs, applicationName, applicationAttemptIdId.getApplicationId());
 
     List<Service> services = Lists.newArrayList();

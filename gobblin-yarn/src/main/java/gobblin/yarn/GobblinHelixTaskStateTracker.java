@@ -30,7 +30,11 @@ import gobblin.runtime.Task;
 
 
 /**
- * A concrete extension to {@link AbstractTaskStateTracker} for Yarn-based runtime.
+ * A concrete extension to {@link AbstractTaskStateTracker} for Gobblin on Yarn.
+ *
+ * <p>
+ *   This class is currently still primitive and will be enhanced once we add more monitoring in place.
+ * </p>
  *
  * @author ynli
  */

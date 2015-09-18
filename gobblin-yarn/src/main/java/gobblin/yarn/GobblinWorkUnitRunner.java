@@ -12,6 +12,8 @@
 
 package gobblin.yarn;
 
+import gobblin.configuration.ConfigurationKeys;
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -112,7 +114,9 @@ public class GobblinWorkUnitRunner {
   public GobblinWorkUnitRunner(String applicationName, Config config) throws Exception {
     this.containerId =
         ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
-    FileSystem fs = FileSystem.get(new Configuration());
+    FileSystem fs = config.hasPath(ConfigurationKeys.FS_URI_KEY) ?
+        FileSystem.get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), new Configuration()) :
+        FileSystem.get(new Configuration());
 
     String zkConnectionString = config.getString(ConfigurationConstants.ZK_CONNECTION_STRING_KEY);
     this.helixManager = HelixManagerFactory.getZKHelixManager(

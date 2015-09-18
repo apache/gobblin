@@ -86,10 +86,13 @@ import gobblin.util.ExecutorsUtils;
 
 
 /**
- * A client driver to launch Gobblin on Yarn.
+ * A client driver to launch Gobblin as a Yarn application.
  *
  * <p>
- *   This class starts the {@link GobblinApplicationMaster}.
+ *   This class starts the {@link GobblinApplicationMaster}. Once the application is launched, this class
+ *   periodically polls the status of the application through a {@link ListeningExecutorService}. If a
+ *   shutdown signal is received, it sends a Helix {@link org.apache.helix.model.Message.MessageType#SCHEDULER_MSG}
+ *   to the {@link GobblinApplicationMaster} asking it to shutdown and release all the allocated containers.
  * </p>
  *
  * @author ynli
@@ -224,7 +227,7 @@ public class GobblinYarnAppLauncher implements Closeable {
     LOGGER.info("Stopping the " + GobblinYarnAppLauncher.class.getSimpleName());
 
     try {
-      ExecutorsUtils.shutdownExecutorService(this.applicationStatusMonitor, Optional.of(LOGGER));
+      ExecutorsUtils.shutdownExecutorService(this.applicationStatusMonitor, Optional.of(LOGGER), 5, TimeUnit.MINUTES);
 
       if (this.applicationId.isPresent()) {
         // Only send shutdown request to the ApplicationMaster if the application has been successfully submitted

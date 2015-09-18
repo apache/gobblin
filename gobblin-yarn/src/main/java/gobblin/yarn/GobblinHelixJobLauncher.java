@@ -56,7 +56,22 @@ import gobblin.util.ParallelRunner;
  * An implementation of {@link JobLauncher} that launches a Gobblin job on Yarn using the Helix task framework.
  *
  * <p>
- *   This class runs in the Yarn ApplicationMaster. The actual task execution happens in the Yarn containers.
+ *   This class uses the Helix task execution framework to run tasks of Gobblin jobs. It creates one Helix
+ *   {@link JobQueue} per job and submits every scheduled runs of a job to its {@link JobQueue}, where Helix
+ *   picks up them and submit them for execution. After submitting the job run to its {@link JobQueue}, it
+ *   waits for the job to complete and collects the output {@link TaskState}(s) upon completion.
+ * </p>
+ *
+ * <p>
+ *   Each {@link WorkUnit} of the job is persisted to the {@link FileSystem} of choice and the path to the file
+ *   storing the serialized {@link WorkUnit} is passed to the Helix task running the {@link WorkUnit} as a
+ *   user-defined property {@link ConfigurationConstants#WORK_UNIT_FILE_PATH}. Upon startup, the Helix task reads
+ *   the property for the file path and de-serializes the {@link WorkUnit} from the file.
+ * </p>
+ *
+ * <p>
+ *   This class runs in the {@link GobblinApplicationMaster}. The actual task execution happens in the Yarn
+ *   containers and is managed by the {@link GobblinWorkUnitRunner}.
  * </p>
  *
  * @author ynli

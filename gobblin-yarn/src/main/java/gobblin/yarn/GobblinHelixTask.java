@@ -47,7 +47,17 @@ import gobblin.source.workunit.WorkUnit;
 
 
 /**
- * An implementation of Helix's {@link Task} that wraps and runs a Gobblin {@link gobblin.runtime.Task}.
+ * An implementation of Helix's {@link org.apache.helix.task.Task} that wraps and runs a Gobblin
+ * {@link gobblin.runtime.Task}.
+ *
+ * <p>
+ *   Upon startup, a {@link GobblinHelixTask} reads the property {@link ConfigurationConstants#WORK_UNIT_FILE_PATH}
+ *   for the path of the file storing a serialized {@link WorkUnit} on the {@link FileSystem} of choice and
+ *   de-serializes the {@link WorkUnit}. It then creates a Gobblin {@link gobblin.runtime.Task} to run the
+ *   {@link WorkUnit} and waits for the Gobblin {@link gobblin.runtime.Task} to finish. Upon completion of the
+ *   Gobblin {@link gobblin.runtime.Task}, it persists the {@link TaskState} to a file that will be collected by
+ *   the {@link GobblinHelixJobLauncher} later upon completion of the job.
+ * </p>
  *
  * @author ynli
  */
