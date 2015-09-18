@@ -17,10 +17,13 @@ import java.util.Map.Entry;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.io.Files;
+
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.ForkOperatorUtils;
 import gobblin.util.HadoopUtils;
-import gobblin.util.WriterUtils;
 
 
 /**
@@ -39,6 +42,8 @@ import gobblin.util.WriterUtils;
  */
 public class AvroHdfsTimePartitionedWithRecordCountsWriter extends AvroHdfsTimePartitionedWriter {
 
+  private static final Logger LOG = LoggerFactory.getLogger(AvroHdfsTimePartitionedWithRecordCountsWriter.class);
+
   public AvroHdfsTimePartitionedWithRecordCountsWriter(Destination destination, String writerId, Schema schema,
       WriterOutputFormat writerOutputFormat, int numBranches, int branch) {
     super(destination, writerId, schema, writerOutputFormat, numBranches, branch);
@@ -48,21 +53,22 @@ public class AvroHdfsTimePartitionedWithRecordCountsWriter extends AvroHdfsTimeP
   public void close() throws IOException {
     super.close();
 
-    String fileName = WriterUtils.getWriterFileName(this.properties, this.numBranches, this.branch, this.writerId,
-        this.writerOutputFormat.getExtension());
+    // Rewrite property writer.final.output.file.paths due to renaming output files.
+    this.properties.removeProp(ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS);
 
-    Path writerOutputDir = new Path(this.properties.getProp(ForkOperatorUtils
-        .getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR, this.numBranches, this.branch)));
+    for (Entry<Path, FsDataWriter<GenericRecord>> entry : this.pathToWriterMap.entrySet()) {
 
-    for (Entry<Path, DataWriter<GenericRecord>> entry : this.pathToWriterMap.entrySet()) {
+      String filePathOld = entry.getValue().getOutputFilePath();
 
-      String filePathOld = new Path(entry.getKey(), fileName).toString();
+      String filePathNew =
+          new Path(new Path(filePathOld).getParent(), Files.getNameWithoutExtension(filePathOld)).toString() + "."
+              + entry.getValue().recordsWritten() + "." + Files.getFileExtension(filePathOld);
 
-      String filePathNew = filePathOld.substring(0, filePathOld.lastIndexOf(".")) + "."
-          + entry.getValue().recordsWritten() + filePathOld.substring(filePathOld.lastIndexOf("."));
+      this.properties.appendToListProp(ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS, filePathNew);
 
-      HadoopUtils.renamePath(((AvroHdfsDataWriter) entry.getValue()).getFileSystem(),
-          new Path(writerOutputDir, filePathOld), new Path(writerOutputDir, filePathNew));
+      LOG.info("Renaming " + filePathOld + " to " + filePathNew);
+      HadoopUtils.renamePath(((AvroHdfsDataWriter) entry.getValue()).getFileSystem(), new Path(filePathOld),
+          new Path(filePathNew));
     }
   }
 }

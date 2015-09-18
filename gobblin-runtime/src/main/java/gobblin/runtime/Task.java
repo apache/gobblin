@@ -35,9 +35,11 @@ import gobblin.fork.Copyable;
 import gobblin.fork.ForkOperator;
 import gobblin.instrumented.extractor.InstrumentedExtractorBase;
 import gobblin.instrumented.extractor.InstrumentedExtractorDecorator;
+import gobblin.publisher.DataPublisher;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
 import gobblin.runtime.util.RuntimeConstructs;
+import gobblin.source.extractor.JobCommitPolicy;
 
 
 /**
@@ -116,8 +118,8 @@ public class Task implements Runnable {
 
     Closer closer = Closer.create();
     try {
-      InstrumentedExtractorBase extractor = closer.register(new InstrumentedExtractorDecorator(this.taskState,
-          this.taskContext.getExtractor()));
+      InstrumentedExtractorBase extractor =
+          closer.register(new InstrumentedExtractorDecorator(this.taskState, this.taskContext.getExtractor()));
 
       Converter converter = closer.register(new MultiConverter(this.taskContext.getConverters()));
 
@@ -146,15 +148,13 @@ public class Task implements Runnable {
       // Create one fork for each forked branch
       for (int i = 0; i < branches; i++) {
         if (forkedSchemas.get(i)) {
-          Fork fork = closer.register(
-              new Fork(this.taskContext, this.taskState,
-                  schema instanceof Copyable ? ((Copyable) schema).copy() : schema,
-                  branches, i, forkCountDownLatch));
+          Fork fork = closer.register(new Fork(this.taskContext, this.taskState,
+              schema instanceof Copyable ? ((Copyable) schema).copy() : schema, branches, i, forkCountDownLatch));
           // Schedule the fork to run
           this.taskExecutor.submit(fork);
           this.forks.add(Optional.of(fork));
         } else {
-          this.forks.add(Optional.<Fork>absent());
+          this.forks.add(Optional.<Fork> absent());
         }
       }
 
@@ -205,6 +205,7 @@ public class Task implements Runnable {
       }
 
       if (allForksSucceeded) {
+
         // Set the task state to SUCCESSFUL. The state is not set to COMMITTED
         // as the data publisher will do that upon successful data publishing.
         this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
@@ -216,9 +217,7 @@ public class Task implements Runnable {
       addConstructsFinalStateToTaskState(extractor, converter);
 
     } catch (Throwable t) {
-      LOG.error(String.format("Task %s failed", this.taskId), t);
-      this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-      this.taskState.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, ExceptionUtils.getStackTrace(t));
+      failTask(t);
     } finally {
       try {
         closer.close();
@@ -226,10 +225,68 @@ public class Task implements Runnable {
         LOG.error("Failed to close all open resources", t);
       }
 
+      try {
+        if (shouldPublishDataInTask()) {
+
+          // If data should be published by the task, publish the data and set the task state to COMMITTED.
+          // Task data can only be published after all forks have been closed by closer.close().
+          publishTaskData();
+          this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+        }
+      } catch (Throwable t) {
+        failTask(t);
+      }
+
       long endTime = System.currentTimeMillis();
       this.taskState.setEndTime(endTime);
       this.taskState.setTaskDuration(endTime - startTime);
       this.taskStateTracker.onTaskCompletion(this);
+    }
+  }
+
+  private void failTask(Throwable t) {
+    LOG.error(String.format("Task %s failed", this.taskId), t);
+    this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+    this.taskState.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, ExceptionUtils.getStackTrace(t));
+  }
+
+  /**
+   * Whether the task should directly publish data to the final publisher output dir.
+   * The task should publish data if {@link ConfigurationKeys#JOB_COMMIT_POLICY_KEY} is set to "partial", and
+   * {@link ConfigurationKeys#PUBLISH_DATA_AT_JOB_LEVEL} is set to false.
+   */
+  private boolean shouldPublishDataInTask() {
+    boolean jobCommitPolicyIsPartial =
+        JobCommitPolicy.getCommitPolicy(this.taskState.getProperties()) == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS;
+    boolean publishDataAtJobLevel = this.taskState.getPropAsBoolean(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL,
+        ConfigurationKeys.DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL);
+
+    if (publishDataAtJobLevel) {
+      LOG.info(String.format("%s is true. Will publish data in driver.", ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL));
+      return false;
+    } else if (!jobCommitPolicyIsPartial) {
+      LOG.info(
+          String.format("%s is set to full. Will publish data in driver.", ConfigurationKeys.JOB_COMMIT_POLICY_KEY));
+      return false;
+    }
+
+    return true;
+  }
+
+  private void publishTaskData() throws IOException {
+    Closer closer = Closer.create();
+    try {
+      @SuppressWarnings("unchecked")
+      Class<? extends DataPublisher> dataPublisherClass = (Class<? extends DataPublisher>) Class.forName(
+          this.taskState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE, ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
+      DataPublisher publisher = closer.register(DataPublisher.getInstance(dataPublisherClass, this.taskState));
+
+      LOG.info("Publishing data from task " + this.taskId);
+      publisher.publish(this.taskState);
+    } catch (Throwable t) {
+      throw closer.rethrow(t);
+    } finally {
+      closer.close();
     }
   }
 
@@ -343,8 +400,7 @@ public class Task implements Runnable {
    */
   @SuppressWarnings("unchecked")
   private void processRecord(Object convertedRecord, ForkOperator forkOperator, RowLevelPolicyChecker rowChecker,
-      RowLevelPolicyCheckResults rowResults, int branches)
-      throws Exception {
+      RowLevelPolicyCheckResults rowResults, int branches) throws Exception {
     // Skip the record if quality checking fails
     if (!rowChecker.executePolicies(convertedRecord, rowResults)) {
       return;
@@ -352,9 +408,9 @@ public class Task implements Runnable {
 
     List<Boolean> forkedRecords = forkOperator.forkDataRecord(this.taskState, convertedRecord);
     if (forkedRecords.size() != branches) {
-      throw new ForkBranchMismatchException(String
-          .format("Number of forked data records [%d] is not equal to number of branches [%d]", forkedRecords.size(),
-              branches));
+      throw new ForkBranchMismatchException(
+          String.format("Number of forked data records [%d] is not equal to number of branches [%d]",
+              forkedRecords.size(), branches));
     }
 
     if (inMultipleBranches(forkedRecords) && !(convertedRecord instanceof Copyable)) {
@@ -375,8 +431,8 @@ public class Task implements Runnable {
           continue;
         }
         if (this.forks.get(i).isPresent() && forkedRecords.get(i)) {
-          boolean succeeded = this.forks.get(i).get().putRecord(
-              convertedRecord instanceof Copyable ? ((Copyable) convertedRecord).copy() : convertedRecord);
+          boolean succeeded = this.forks.get(i).get()
+              .putRecord(convertedRecord instanceof Copyable ? ((Copyable) convertedRecord).copy() : convertedRecord);
           succeededPuts[i] = succeeded;
           if (!succeeded) {
             allPutsSucceeded = false;
@@ -411,8 +467,8 @@ public class Task implements Runnable {
     this.taskState.addFinalConstructState(Constructs.EXTRACTOR.toString().toLowerCase(), extractor.getFinalState());
     this.taskState.addFinalConstructState(Constructs.CONVERTER.toString().toLowerCase(), converter.getFinalState());
     int forkIdx = 0;
-    for(Optional<Fork> fork : this.forks) {
-      if(fork.isPresent()) {
+    for (Optional<Fork> fork : this.forks) {
+      if (fork.isPresent()) {
         this.taskState.addFinalConstructState(RuntimeConstructs.FORK.toString().toLowerCase() + "." + forkIdx,
             fork.get().getFinalState());
       }

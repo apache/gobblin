@@ -204,7 +204,7 @@ public class ConfigurationKeys {
   public static final String WRITER_STAGING_DIR = WRITER_PREFIX + ".staging.dir";
   public static final String WRITER_OUTPUT_DIR = WRITER_PREFIX + ".output.dir";
   // WRITER_FINAL_OUTPUT_PATH is used for internal purposes only to pass the absolute writer path to the publisher
-  public static final String WRITER_FINAL_OUTPUT_PATH = WRITER_PREFIX + ".final.output.path";
+  public static final String WRITER_FINAL_OUTPUT_FILE_PATHS = WRITER_PREFIX + ".final.output.file.paths";
   public static final String WRITER_BUILDER_CLASS = WRITER_PREFIX + ".builder.class";
   public static final String DEFAULT_WRITER_BUILDER_CLASS = "gobblin.writer.AvroDataWriterBuilder";
   public static final String WRITER_FILE_NAME = WRITER_PREFIX + ".file.name";
@@ -286,6 +286,8 @@ public class ConfigurationKeys {
   // This property is used to specify the owner group of the data publisher final output directory
   public static final String DATA_PUBLISHER_FINAL_DIR_GROUP = DATA_PUBLISHER_PREFIX + ".final.dir.group";
   public static final String DATA_PUBLISHER_PERMISSIONS = DATA_PUBLISHER_PREFIX + ".permissions";
+  public static final String PUBLISH_DATA_AT_JOB_LEVEL = "publish.data.at.job.level";
+  public static final boolean DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL = true;
 
   /**
    * Configuration properties used by the extractor.

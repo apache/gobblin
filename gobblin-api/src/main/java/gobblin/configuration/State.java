@@ -365,6 +365,15 @@ public class State implements Writable {
   }
 
   /**
+   * Remove a property if it exists.
+   *
+   * @param key property key
+   */
+  public void removeProp(String key) {
+    this.properties.remove(key);
+  }
+
+  /**
    * @deprecated Use {@link #getProp(String)}
    */
   @Deprecated
