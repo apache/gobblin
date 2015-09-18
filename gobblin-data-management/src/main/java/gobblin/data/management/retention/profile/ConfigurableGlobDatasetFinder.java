@@ -87,7 +87,7 @@ public class ConfigurableGlobDatasetFinder implements DatasetFinder {
     List<Dataset> datasets = Lists.newArrayList();
     for (FileStatus fileStatus : this.fs.globStatus(datasetPattern)) {
       Path pathToMatch = PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath());
-      if (this.blacklist.isPresent() && this.blacklist.get().matcher(pathToMatch.toString()).matches()) {
+      if (this.blacklist.isPresent() && this.blacklist.get().matcher(pathToMatch.toString()).find()) {
         continue;
       }
       LOG.info("Found dataset at " + fileStatus.getPath());

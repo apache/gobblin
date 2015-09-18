@@ -268,7 +268,7 @@ public class ParallelRunner implements Closeable {
     } catch (ExecutionException ee) {
       throw new IOException(ee);
     } finally {
-      ExecutorsUtils.shutdownExecutorService(this.executor);
+      ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(LOGGER));
     }
   }
 }

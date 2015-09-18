@@ -121,8 +121,8 @@ public class ControllerSecurityManager extends AbstractIdleService {
 
   @Override
   protected void shutDown() throws Exception {
-    ExecutorsUtils.shutdownExecutorService(this.loginExecutor);
-    ExecutorsUtils.shutdownExecutorService(this.tokenRenewExecutor);
+    ExecutorsUtils.shutdownExecutorService(this.loginExecutor, Optional.of(LOGGER));
+    ExecutorsUtils.shutdownExecutorService(this.tokenRenewExecutor, Optional.of(LOGGER));
   }
 
   /**

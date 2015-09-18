@@ -224,7 +224,7 @@ public class GobblinYarnAppLauncher implements Closeable {
     LOGGER.info("Stopping the " + GobblinYarnAppLauncher.class.getSimpleName());
 
     try {
-      ExecutorsUtils.shutdownExecutorService(this.applicationStatusMonitor);
+      ExecutorsUtils.shutdownExecutorService(this.applicationStatusMonitor, Optional.of(LOGGER));
 
       if (this.applicationId.isPresent()) {
         // Only send shutdown request to the ApplicationMaster if the application has been successfully submitted

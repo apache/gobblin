@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.AbstractIdleService;
 
@@ -83,7 +84,7 @@ public class LocalTaskStateTracker extends AbstractIdleService implements TaskSt
   @Override
   protected void shutDown() throws Exception {
     LOG.info("Stopping the local task state tracker");
-    ExecutorsUtils.shutdownExecutorService(this.reporterExecutor);
+    ExecutorsUtils.shutdownExecutorService(this.reporterExecutor, Optional.of(LOG));
   }
 
   @Override

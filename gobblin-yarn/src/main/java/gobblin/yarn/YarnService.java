@@ -208,7 +208,7 @@ public class YarnService extends AbstractIdleService {
     LOGGER.info("Stopping the YarnService");
 
     try {
-      ExecutorsUtils.shutdownExecutorService(this.containerLaunchExecutor);
+      ExecutorsUtils.shutdownExecutorService(this.containerLaunchExecutor, Optional.of(LOGGER));
 
       // Stop the running containers
       for (Container container : this.containerMap.values()) {
