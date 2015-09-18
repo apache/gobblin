@@ -12,6 +12,10 @@
 
 package gobblin.metrics.event;
 
+import java.util.Map;
+
+import com.google.common.collect.Maps;
+
 /**
  * Event to time actions in the program. Automatically reports start time, end time, and duration from the time
  * the {@link gobblin.metrics.event.TimingEvent} was created to the time {@link #stop} is called.
@@ -36,16 +40,33 @@ public class TimingEvent {
   }
 
   /**
-   * Stop the timer and submit the event. If timer was already stopped before, this is a no-op.
+   * Stop the timer and submit the event. If the timer was already stopped before, this is a no-op.
    */
   public void stop() {
-    if(this.stopped) {
+    stop(Maps.<String, String> newHashMap());
+  }
+
+  /**
+   * Stop the timer and submit the event, along with the additional metadata specified. If the timer was already stopped
+   * before, this is a no-op.
+   *
+   * @param additionalMetadata a {@link Map} of additional metadata that should be submitted along with this event
+   */
+  public void stop(Map<String, String> additionalMetadata) {
+    if (this.stopped) {
       return;
     }
     this.stopped = true;
     long endTime = System.currentTimeMillis();
     long duration = endTime - this.startTime;
-    this.submitter.submit(this.name, EventSubmitter.EVENT_TYPE, TIMING_EVENT, START_TIME, Long.toString(this.startTime),
-        END_TIME, Long.toString(endTime), DURATION, Long.toString(duration));
+
+    Map<String, String> finalMetadata = Maps.newHashMap();
+    finalMetadata.putAll(additionalMetadata);
+    finalMetadata.put(EventSubmitter.EVENT_TYPE, TIMING_EVENT);
+    finalMetadata.put(START_TIME, Long.toString(this.startTime));
+    finalMetadata.put(END_TIME, Long.toString(endTime));
+    finalMetadata.put(DURATION, Long.toString(duration));
+
+    this.submitter.submit(this.name, finalMetadata);
   }
 }
