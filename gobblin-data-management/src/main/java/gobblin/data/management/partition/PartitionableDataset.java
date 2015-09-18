@@ -10,18 +10,20 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.data.management.dataset;
+package gobblin.data.management.partition;
 
-import org.apache.hadoop.fs.Path;
+import gobblin.data.management.dataset.Dataset;
+
+import java.util.Collection;
 
 
 /**
- * Interface representing a dataset.
+ * A {@link Dataset} that allows partitioning of files in the dataset.
  */
-public interface Dataset {
-  /**
-   * Deepest {@link org.apache.hadoop.fs.Path} that contains all files in the dataset.
-   */
-  public Path datasetRoot();
+public interface PartitionableDataset<T extends File> extends Dataset {
+
+  public Collection<Partition<T>> partitionFiles(Collection<? extends T> files);
+
+  public Class<?> fileClass();
 
 }

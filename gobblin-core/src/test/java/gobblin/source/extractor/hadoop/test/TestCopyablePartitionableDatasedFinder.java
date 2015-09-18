@@ -10,29 +10,27 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.data.management.copy;
+package gobblin.source.extractor.hadoop.test;
 
 import gobblin.data.management.dataset.Dataset;
-import gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
+import gobblin.data.management.retention.dataset.finder.DatasetFinder;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Properties;
 
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
+
+import com.google.common.collect.Lists;
 
 
-/**
- * {@link gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder} that returns datasets of type
- * {@link gobblin.data.management.copy.RecursiveCopyableDataset}.N
- */
-public class CopyableDatasetFinder extends ConfigurableGlobDatasetFinder {
+public class TestCopyablePartitionableDatasedFinder implements DatasetFinder {
 
-  public CopyableDatasetFinder(FileSystem fs, Properties props) throws IOException {
-    super(fs, props);
+  public TestCopyablePartitionableDatasedFinder(FileSystem fs, Properties props) {
   }
 
-  @Override public Dataset datasetAtPath(Path path) throws IOException {
-    return new RecursiveCopyableDataset(this.fs, path, this.props);
+  @Override public List<Dataset> findDatasets() throws IOException {
+    return Lists.<Dataset>newArrayList(new TestCopyablePartitionableDataset());
   }
+
 }

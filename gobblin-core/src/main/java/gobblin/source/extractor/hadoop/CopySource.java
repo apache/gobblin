@@ -1,3 +1,15 @@
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.source.extractor.hadoop;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -8,6 +20,8 @@ import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.dataset.Dataset;
 import gobblin.data.management.dataset.DatasetUtils;
+import gobblin.data.management.partition.Partition;
+import gobblin.data.management.partition.PartitionableDataset;
 import gobblin.data.management.retention.dataset.finder.DatasetFinder;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.AbstractSource;
@@ -25,6 +39,7 @@ import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.List;
 
+import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -44,8 +59,8 @@ public class CopySource extends AbstractSource<String, byte[]> {
   private static final Logger LOG = LoggerFactory.getLogger(CopySource.class);
 
   private static final String CONFIG_PREFIX = "gobblin.copy.source.";
-  private static final String SERIALIZED_COPYABLE_FILE = CONFIG_PREFIX + "serialized.copyable.file";
-  private static final String COPYABLE_FILE_PATH = CONFIG_PREFIX + "copyable.file.path";
+  static final String SERIALIZED_COPYABLE_FILE = CONFIG_PREFIX + "serialized.copyable.file";
+  static final String COPYABLE_FILE_PATH = CONFIG_PREFIX + "copyable.file.path";
 
   /**
    * Parses origin path for a work unit representing a {@link gobblin.data.management.copy.CopyableFile}.
@@ -88,9 +103,23 @@ public class CopySource extends AbstractSource<String, byte[]> {
       Collection<Dataset> datasets = datasetFinder.findDatasets();
 
       for (Dataset dataset : datasets) {
-        if(dataset instanceof CopyableDataset) {
-          for (CopyableFile copyableFile : ((CopyableDataset) dataset).getCopyableFiles(targetFs)) {
-            Extract extract = new Extract(null, "gobblin.copy", copyableFile.getOrigin().toString());
+
+        Collection<Partition<CopyableFile>> partitions;
+        if(dataset instanceof CopyableDataset && dataset instanceof PartitionableDataset &&
+            CopyableFile.class.isAssignableFrom(((PartitionableDataset) dataset).fileClass())) {
+          partitions = Lists.<Partition<CopyableFile>>newArrayList(
+              ((PartitionableDataset) dataset).partitionFiles(((CopyableDataset) dataset).getCopyableFiles(targetFs)));
+        } else if(dataset instanceof CopyableDataset) {
+          partitions = Lists.newArrayList(
+              new Partition.Builder<CopyableFile>(dataset.datasetRoot().toString()).
+                  add(((CopyableDataset) dataset).getCopyableFiles(originFs)).build());
+        } else {
+          partitions = Lists.newArrayList();
+        }
+
+        for(Partition<CopyableFile> partition : partitions) {
+          Extract extract = new Extract(Extract.TableType.SNAPSHOT_ONLY, "gobblin.copy", partition.getName());
+          for(CopyableFile copyableFile : partition.getFiles()) {
             WorkUnit workUnit = new WorkUnit(extract);
             workUnit.addAll(state);
 
@@ -98,7 +127,7 @@ public class CopySource extends AbstractSource<String, byte[]> {
             workUnit.setProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_NAME, 0, 0),
                 copyableFile.getDestination().getName());
             workUnit.setProp(ForkOperatorUtils
-                .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, 0, 0),
+                    .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, 0, 0),
                 copyableFile.getDestination().getParent().toString());
             try {
               workUnit.setProp(SERIALIZED_COPYABLE_FILE, serializeCopyableFile(copyableFile));
@@ -109,6 +138,7 @@ public class CopySource extends AbstractSource<String, byte[]> {
             workUnits.add(workUnit);
           }
         }
+
       }
     } catch (IOException ioe) {
       LOG.error("Failed to fetch work units.", ioe);
@@ -132,7 +162,7 @@ public class CopySource extends AbstractSource<String, byte[]> {
 
   }
 
-  private static String serializeCopyableFile(CopyableFile copyableFile) throws IOException {
+  static String serializeCopyableFile(CopyableFile copyableFile) throws IOException {
 
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     copyableFile.write(new DataOutputStream(os));
@@ -144,11 +174,16 @@ public class CopySource extends AbstractSource<String, byte[]> {
 
   private static CopyableFile deserializeCopyableFile(String string) throws IOException {
 
-    ByteArrayInputStream is = new ByteArrayInputStream(string.getBytes());
-    CopyableFile copyableFile = CopyableFile.read(new DataInputStream(is));
-    is.close();
+    try {
+      byte[] actualBytes = Hex.decodeHex(string.toCharArray());
+      ByteArrayInputStream is = new ByteArrayInputStream(actualBytes);
+      CopyableFile copyableFile = CopyableFile.read(new DataInputStream(is));
+      is.close();
 
-    return copyableFile;
+      return copyableFile;
+    } catch(DecoderException de) {
+      throw new IOException(de);
+    }
 
   }
 

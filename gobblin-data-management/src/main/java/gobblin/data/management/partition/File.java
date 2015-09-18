@@ -10,18 +10,16 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.data.management.dataset;
+package gobblin.data.management.partition;
 
-import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.FileStatus;
 
 
 /**
- * Interface representing a dataset.
+ * Interface representing a File.
  */
-public interface Dataset {
-  /**
-   * Deepest {@link org.apache.hadoop.fs.Path} that contains all files in the dataset.
-   */
-  public Path datasetRoot();
+public interface File {
+
+  public FileStatus getFileStatus();
 
 }

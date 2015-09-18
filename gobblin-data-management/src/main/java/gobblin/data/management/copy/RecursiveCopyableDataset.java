@@ -1,3 +1,15 @@
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.data.management.copy;
 
 import gobblin.data.management.util.PathUtils;
@@ -40,7 +52,7 @@ public class RecursiveCopyableDataset implements CopyableDataset {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(properties.getProperty(TARGET_DIRECTORY)),
         "Missing property " + TARGET_DIRECTORY);
 
-    this.rootPath = rootPath;
+    this.rootPath = PathUtils.getPathWithoutSchemeAndAuthority(rootPath);
     this._fs = fs;
     this.targetDirectory = new Path(properties.getProperty(TARGET_DIRECTORY));
     this.properties = properties;
@@ -57,7 +69,10 @@ public class RecursiveCopyableDataset implements CopyableDataset {
     List<CopyableFile> copyableFiles = Lists.newArrayList();
 
     for(FileStatus file : files) {
-      Path outputPath = new Path(this.targetDirectory, PathUtils.relativizePath(file.getPath(), datasetRoot()));
+      Path outputPath = new Path(this.targetDirectory, PathUtils.relativizePath(
+          PathUtils.getPathWithoutSchemeAndAuthority(file.getPath()),
+          PathUtils.getPathWithoutSchemeAndAuthority(datasetRoot()))
+      );
       if(targetFileSystem.exists(outputPath)) {
         continue;
       }
@@ -66,8 +81,8 @@ public class RecursiveCopyableDataset implements CopyableDataset {
           new OwnerAndPermission(file.getOwner(), file.getGroup(), file.getPermission());
       List<OwnerAndPermission> ancestorOwnerAndPermissions = Lists.newArrayList();
       try {
-        Path currentPath = file.getPath();
-        while(!currentPath.getParent().equals(this.rootPath)) {
+        Path currentPath = PathUtils.getPathWithoutSchemeAndAuthority(file.getPath());
+        while(currentPath != null && !currentPath.getParent().equals(this.rootPath)) {
           currentPath = currentPath.getParent();
           ancestorOwnerAndPermissions.add(this.ownerAndPermissionCache.get(currentPath));
         }

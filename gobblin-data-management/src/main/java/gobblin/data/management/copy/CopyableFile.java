@@ -1,7 +1,21 @@
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.data.management.copy;
 
+import gobblin.data.management.partition.File;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -9,10 +23,10 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.List;
-import java.util.Queue;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
 import com.google.common.collect.Lists;
@@ -24,7 +38,8 @@ import com.google.common.collect.Lists;
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
-public class CopyableFile implements Writable {
+@EqualsAndHashCode
+public class CopyableFile implements File, Writable {
 
   /** {@link FileStatus} of the existing origin file. */
   private FileStatus origin;
@@ -51,9 +66,13 @@ public class CopyableFile implements Writable {
   /** Checksum of the origin file. */
   private byte[] checksum;
 
+  @Override public FileStatus getFileStatus() {
+    return this.origin;
+  }
+
   @Override public void write(DataOutput dataOutput) throws IOException {
     this.origin.write(dataOutput);
-    dataOutput.writeUTF(this.destination.toString());
+    Text.writeString(dataOutput, this.destination.toString());
     this.destinationOwnerAndPermission.write(dataOutput);
     dataOutput.writeInt(this.ancestorsOwnerAndPermission.size());
     for(OwnerAndPermission oap : this.ancestorsOwnerAndPermission) {
@@ -66,7 +85,7 @@ public class CopyableFile implements Writable {
   @Override public void readFields(DataInput dataInput) throws IOException {
     this.origin = new FileStatus();
     this.origin.readFields(dataInput);
-    this.destination = new Path(dataInput.readUTF());
+    this.destination = new Path(Text.readString(dataInput));
     this.destinationOwnerAndPermission = OwnerAndPermission.read(dataInput);
     int ancestors = dataInput.readInt();
     this.ancestorsOwnerAndPermission = Lists.newArrayList();
