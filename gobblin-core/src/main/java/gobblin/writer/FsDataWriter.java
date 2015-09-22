@@ -51,6 +51,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
   protected final FileSystem fs;
   protected final Path stagingFile;
   protected final Path outputFile;
+  protected final String outputFilePropName;
   protected final int bufferSize;
   protected final short replicationFactor;
   protected final long blockSize;
@@ -91,9 +92,9 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
     // Initialize staging/output directory
     this.stagingFile = new Path(WriterUtils.getWriterStagingDir(properties, numBranches, branchId), fileName);
     this.outputFile = new Path(WriterUtils.getWriterOutputDir(properties, numBranches, branchId), fileName);
-    this.properties.setProp(
-        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, branchId),
-        this.outputFile.toString());
+    this.outputFilePropName =
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS, numBranches, branchId);
+    this.properties.setProp(this.outputFilePropName, this.outputFile.toString());
 
     // Deleting the staging file if it already exists, which can happen if the
     // task failed and the staging file didn't get cleaned up for some reason.
@@ -122,9 +123,8 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
     this.stagingFileOutputStream = this.closer.register(this.fs.create(this.stagingFile, this.filePermission, true,
         this.bufferSize, this.replicationFactor, this.blockSize, null));
 
-    this.group =
-        Optional.fromNullable(properties.getProp(ForkOperatorUtils.getPropertyNameForBranch(
-            ConfigurationKeys.WRITER_GROUP_NAME, numBranches, branchId)));
+    this.group = Optional.fromNullable(properties.getProp(
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_GROUP_NAME, numBranches, branchId)));
 
     if (this.group.isPresent()) {
       HadoopUtils.setGroup(this.fs, this.stagingFile, this.group.get());
@@ -205,5 +205,9 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
     }
 
     return state;
+  }
+
+  public String getOutputFilePath() {
+    return this.fs.makeQualified(new Path(this.properties.getProp(this.outputFilePropName))).toString();
   }
 }

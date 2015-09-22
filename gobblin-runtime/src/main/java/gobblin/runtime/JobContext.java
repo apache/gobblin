@@ -13,7 +13,6 @@
 package gobblin.runtime;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.util.Map;
 import java.util.Properties;
@@ -77,23 +76,23 @@ public class JobContext {
         "A job must have a job name specified by job.name");
 
     this.jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    this.jobId = jobProps.containsKey(ConfigurationKeys.JOB_ID_KEY) ?
-        jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY) : JobLauncherUtils.newJobId(this.jobName);
+    this.jobId = jobProps.containsKey(ConfigurationKeys.JOB_ID_KEY) ? jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY)
+        : JobLauncherUtils.newJobId(this.jobName);
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, this.jobId);
 
     this.jobCommitPolicy = JobCommitPolicy.getCommitPolicy(jobProps);
 
-    this.jobLockEnabled = Boolean.valueOf(
-        jobProps.getProperty(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, Boolean.TRUE.toString()));
+    this.jobLockEnabled =
+        Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, Boolean.TRUE.toString()));
 
-    String stateStoreFsUri = jobProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY,
-        ConfigurationKeys.LOCAL_FS_URI);
+    String stateStoreFsUri =
+        jobProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI);
     FileSystem stateStoreFs = FileSystem.get(URI.create(stateStoreFsUri), new Configuration());
     String stateStoreRootDir = jobProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY);
     this.datasetStateStore = new FsDatasetStateStore(stateStoreFs, stateStoreRootDir);
 
-    boolean jobHistoryStoreEnabled = Boolean.valueOf(
-        jobProps.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, Boolean.FALSE.toString()));
+    boolean jobHistoryStoreEnabled = Boolean
+        .valueOf(jobProps.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, Boolean.FALSE.toString()));
     if (jobHistoryStoreEnabled) {
       Injector injector = Guice.createInjector(new MetaStoreModule(jobProps));
       this.jobHistoryStoreOptional = Optional.of(injector.getInstance(JobHistoryStore.class));
@@ -220,6 +219,10 @@ public class JobContext {
   void commit() throws IOException {
     this.datasetStatesByUrns = Optional.of(this.jobState.createDatasetStatesByUrns());
     boolean allDatasetsCommit = true;
+    boolean shouldCommitDataInJob = shouldCommitDataInJob();
+    if (!shouldCommitDataInJob) {
+      this.logger.info("Job will not commit data since data are committed by tasks.");
+    }
 
     for (Map.Entry<String, JobState.DatasetState> entry : this.datasetStatesByUrns.get().entrySet()) {
       String datasetUrn = entry.getKey();
@@ -234,9 +237,11 @@ public class JobContext {
       }
 
       try {
-        this.logger.info(String.format("Committing dataset %s of job %s with commit policy %s and state %s",
-            datasetUrn, this.jobId, this.jobCommitPolicy, datasetState.getState()));
-        commitDataset(datasetState);
+        if (shouldCommitDataInJob) {
+          this.logger.info(String.format("Committing dataset %s of job %s with commit policy %s and state %s",
+              datasetUrn, this.jobId, this.jobCommitPolicy, datasetState.getState()));
+          commitDataset(datasetState);
+        }
       } catch (IOException ioe) {
         this.logger.error(
             String.format("Failed to commit dataset state for dataset %s of job %s", datasetUrn, this.jobId), ioe);
@@ -261,12 +266,25 @@ public class JobContext {
   }
 
   /**
+   * Whether data should be committed by the job (as opposed to being commited by the tasks).
+   * Data should be committed by the job if either {@link ConfigurationKeys#JOB_COMMIT_POLICY_KEY} is set to "full",
+   * or {@link ConfigurationKeys#PUBLISH_DATA_AT_JOB_LEVEL} is set to true.
+   */
+  private boolean shouldCommitDataInJob() {
+    boolean jobCommitPolicyIsFull =
+        JobCommitPolicy.getCommitPolicy(this.jobState.getProperties()) == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS;
+    boolean publishDataAtJobLevel = this.jobState.getPropAsBoolean(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL,
+        ConfigurationKeys.DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL);
+    return jobCommitPolicyIsFull || publishDataAtJobLevel;
+  }
+
+  /**
    * Finalize a given {@link JobState.DatasetState} before committing the dataset.
    */
   private void finalizeDatasetStateBeforeCommit(JobState.DatasetState datasetState) {
     for (TaskState taskState : datasetState.getTaskStates()) {
-      if (taskState.getWorkingState() != WorkUnitState.WorkingState.SUCCESSFUL &&
-          this.jobCommitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
+      if (taskState.getWorkingState() != WorkUnitState.WorkingState.SUCCESSFUL
+          && this.jobCommitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
         // The dataset state is set to FAILED if any task failed and COMMIT_ON_FULL_SUCCESS is used
         datasetState.setState(JobState.RunningState.FAILED);
         datasetState.setProp(ConfigurationKeys.JOB_FAILURES_KEY,
@@ -287,7 +305,7 @@ public class JobContext {
     // COMMIT_ON_FULL_SUCCESS is used and all of the tasks of the dataset have succeeded.
     return this.jobCommitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS
         || (this.jobCommitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS
-        && datasetState.getState() == JobState.RunningState.SUCCESSFUL);
+            && datasetState.getState() == JobState.RunningState.SUCCESSFUL);
   }
 
   /**
@@ -299,9 +317,7 @@ public class JobContext {
     try {
       Class<? extends DataPublisher> dataPublisherClass = (Class<? extends DataPublisher>) Class.forName(
           datasetState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE, ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
-      Constructor<? extends DataPublisher> dataPublisherConstructor = dataPublisherClass.getConstructor(State.class);
-      DataPublisher publisher = closer.register(dataPublisherConstructor.newInstance(datasetState));
-      publisher.initialize();
+      DataPublisher publisher = closer.register(DataPublisher.getInstance(dataPublisherClass, datasetState));
       publisher.publish(datasetState.getTaskStates());
     } catch (Throwable t) {
       throw closer.rethrow(t);

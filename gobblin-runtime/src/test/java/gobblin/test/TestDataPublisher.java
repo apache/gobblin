@@ -35,24 +35,32 @@ public class TestDataPublisher extends DataPublisher {
   }
 
   @Override
-  public void initialize()
-      throws IOException {
+  public void initialize() throws IOException {
     // Do nothing
   }
 
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     // Do nothing
   }
 
   @Override
-  public void publishData(Collection<? extends WorkUnitState> tasks)
-      throws IOException {
+  public void publishData(Collection<? extends WorkUnitState> tasks) throws IOException {
+    // Do nothing
   }
 
   @Override
-  public void publishMetadata(Collection<? extends WorkUnitState> tasks)
-      throws IOException {
+  public void publishMetadata(Collection<? extends WorkUnitState> tasks) throws IOException {
+    // Do nothing
+  }
+
+  @Override
+  public void publishData(WorkUnitState state) throws IOException {
+    // Do nothing
+  }
+
+  @Override
+  public void publishMetadata(WorkUnitState state) throws IOException {
+    // Do nothing
   }
 }
