@@ -132,13 +132,13 @@ public class MRTaskStateTracker extends AbstractTaskStateTracker {
     JOB() {
       @Override
       public String getGroupName() {
-        return MetricGroup.JOB.name();
+        return MetricGroup.JOB.toString();
       }
     },
     TASK() {
       @Override
       public String getGroupName() {
-        return MetricGroup.TASK.name();
+        return MetricGroup.TASK.toString();
       }
     };
 
