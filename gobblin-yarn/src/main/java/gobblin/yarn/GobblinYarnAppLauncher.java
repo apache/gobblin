@@ -68,6 +68,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -113,21 +114,20 @@ public class GobblinYarnAppLauncher implements Closeable {
   private final ListeningExecutorService applicationStatusMonitor;
   private final FileSystem fs;
 
+  private final String appMasterJvmArgs;
+
   // Yarn application ID
   private volatile Optional<ApplicationId> applicationId = Optional.absent();
 
   public GobblinYarnAppLauncher(Config config) throws IOException {
-    this.appName = config.hasPath(ConfigurationConstants.APPLICATION_NAME_KEY) ?
-        config.getString(ConfigurationConstants.APPLICATION_NAME_KEY) :
-        ConfigurationConstants.DEFAULT_APPLICATION_NAME;
-    this.appQueueName = config.hasPath(ConfigurationConstants.APP_QUEUE_KEY) ?
-        config.getString(ConfigurationConstants.APP_QUEUE_KEY) : ConfigurationConstants.DEFAULT_APP_QUEUE;
-
     this.config = config;
 
-    String zkConnectionString = config.hasPath(ConfigurationConstants.ZK_CONNECTION_STRING_KEY) ?
-        config.getString(ConfigurationConstants.ZK_CONNECTION_STRING_KEY) :
-        ConfigurationConstants.DEFAULT_ZK_CONNECTION_STRING;
+    this.appName = config.getString(ConfigurationConstants.APPLICATION_NAME_KEY);
+    this.appQueueName = config.getString(ConfigurationConstants.APP_QUEUE_KEY);
+
+    String zkConnectionString = config.getString(ConfigurationConstants.ZK_CONNECTION_STRING_KEY);
+    LOGGER.info("Using ZooKeeper connection string: " + zkConnectionString);
+
     this.helixManager = HelixManagerFactory.getZKHelixManager(
         config.getString(ConfigurationConstants.HELIX_CLUSTER_NAME_KEY), YarnHelixUtils.getHostname(),
         InstanceType.SPECTATOR, zkConnectionString);
@@ -140,6 +140,8 @@ public class GobblinYarnAppLauncher implements Closeable {
     this.fs = config.hasPath(ConfigurationKeys.FS_URI_KEY) ?
         FileSystem.get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), this.yarnConfiguration) :
         FileSystem.get(this.yarnConfiguration);
+
+    this.appMasterJvmArgs = Strings.nullToEmpty(config.getString(ConfigurationConstants.APP_MASTER_JVM_ARGS_KEY));
 
     this.applicationStatusMonitor = MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("GobblinYarnAppStatusMonitor"))));
@@ -199,18 +201,16 @@ public class GobblinYarnAppLauncher implements Closeable {
               applicationReport.getDiagnostics());
         }
 
-        if (applicationId.isPresent()) {
-          try {
-            cleanUpAppWorkDirectory(applicationId.get());
-          } catch (IOException ioe) {
-            LOGGER.error("Failed to cleanup working directory for application " + applicationId.get());
-          }
-        }
+        cleanupAndExit(0);
       }
 
       @Override
       public void onFailure(@Nonnull Throwable t) {
         LOGGER.error("Failed to get ApplicationReport due to: " + t);
+        cleanupAndExit(1);
+      }
+
+      private void cleanupAndExit(int exitCode) {
         if (applicationId.isPresent()) {
           try {
             cleanUpAppWorkDirectory(applicationId.get());
@@ -218,6 +218,11 @@ public class GobblinYarnAppLauncher implements Closeable {
             LOGGER.error("Failed to cleanup working directory for application " + applicationId.get());
           }
         }
+
+        // Clear the Yarn application ID so close() won't send a shutdown message to the ApplicationMaster
+        applicationId = Optional.absent();
+        // This will trigger the shutdown hook that will close this GobblinYarnAppLauncher instance
+        System.exit(exitCode);
       }
     });
   }
@@ -321,9 +326,7 @@ public class GobblinYarnAppLauncher implements Closeable {
   }
 
   private Resource prepareContainerResource(GetNewApplicationResponse newApplicationResponse) {
-    int memoryMbs = this.config.hasPath(ConfigurationConstants.APP_MASTER_MEMORY_MBS_KEY) ?
-        this.config.getInt(ConfigurationConstants.APP_MASTER_MEMORY_MBS_KEY) :
-        ConfigurationConstants.DEFAULT_APP_MASTER_MEMORY_MBS;
+    int memoryMbs = this.config.getInt(ConfigurationConstants.APP_MASTER_MEMORY_MBS_KEY);
     int maximumMemoryCapacity = newApplicationResponse.getMaximumResourceCapability().getMemory();
     if (memoryMbs > maximumMemoryCapacity) {
       LOGGER.info(String.format("Specified AM memory [%d] is above the maximum memory capacity [%d] of the "
@@ -331,8 +334,7 @@ public class GobblinYarnAppLauncher implements Closeable {
       memoryMbs = maximumMemoryCapacity;
     }
 
-    int vCores = this.config.hasPath(ConfigurationConstants.APP_MASTER_CORES_KEY) ? this.config
-        .getInt(ConfigurationConstants.APP_MASTER_CORES_KEY) : ConfigurationConstants.DEFAULT_APP_MASTER_CORES;
+    int vCores = this.config.getInt(ConfigurationConstants.APP_MASTER_CORES_KEY);
     int maximumVirtualCoreCapacity = newApplicationResponse.getMaximumResourceCapability().getVirtualCores();
     if (vCores > maximumVirtualCoreCapacity) {
       LOGGER.info(String.format("Specified AM vcores [%d] is above the maximum vcore capacity [%d] of the "
@@ -466,7 +468,9 @@ public class GobblinYarnAppLauncher implements Closeable {
     Apps.addToEnvironment(environmentVariableMap, ApplicationConstants.Environment.JAVA_HOME.key(),
         System.getenv(ApplicationConstants.Environment.JAVA_HOME.key()));
 
-    // Add jars/files in the working directory of the ApplicationMaster to the CLASSPATH first
+    // Add jars/files in the working directory of the ApplicationMaster to the CLASSPATH
+    Apps.addToEnvironment(environmentVariableMap, ApplicationConstants.Environment.CLASSPATH.key(),
+        ApplicationConstants.Environment.PWD.$());
     Apps.addToEnvironment(environmentVariableMap, ApplicationConstants.Environment.CLASSPATH.key(),
         ApplicationConstants.Environment.PWD.$() + File.separator + "*");
 
@@ -485,13 +489,14 @@ public class GobblinYarnAppLauncher implements Closeable {
   private String buildApplicationMasterCommand(int memoryMbs) {
     String appMasterClassName = GobblinApplicationMaster.class.getSimpleName();
     return String.format(
-        "%s/bin/java -Xmx%dM %s" +
+        "%s/bin/java -Xmx%dM %s %s" +
         " --%s %s" +
         " 1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + File.separator + "%s.%s" +
         " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + File.separator + "%s.%s",
-        ApplicationConstants.Environment.JAVA_HOME.$(), memoryMbs, GobblinApplicationMaster.class.getName(),
-        ConfigurationConstants.APPLICATION_NAME_OPTION_NAME, this.appName, appMasterClassName,
-        ApplicationConstants.STDOUT, appMasterClassName, ApplicationConstants.STDERR);
+        ApplicationConstants.Environment.JAVA_HOME.$(), memoryMbs, this.appMasterJvmArgs,
+        GobblinApplicationMaster.class.getName(), ConfigurationConstants.APPLICATION_NAME_OPTION_NAME,
+        this.appName, appMasterClassName, ApplicationConstants.STDOUT, appMasterClassName,
+        ApplicationConstants.STDERR);
   }
 
   private void setupSecurityTokens(ContainerLaunchContext containerLaunchContext) throws IOException {

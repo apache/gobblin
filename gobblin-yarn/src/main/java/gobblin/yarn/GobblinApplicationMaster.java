@@ -60,6 +60,7 @@ import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
@@ -114,9 +115,8 @@ public class GobblinApplicationMaster {
         ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
     ApplicationAttemptId applicationAttemptIdId = containerId.getApplicationAttemptId();
 
-    String zkConnectionString = config.hasPath(ConfigurationConstants.ZK_CONNECTION_STRING_KEY) ?
-        config.getString(ConfigurationConstants.ZK_CONNECTION_STRING_KEY) :
-        ConfigurationConstants.DEFAULT_ZK_CONNECTION_STRING;
+    String zkConnectionString = config.getString(ConfigurationConstants.ZK_CONNECTION_STRING_KEY);
+    LOGGER.info("Using ZooKeeper connection string: " + zkConnectionString);
 
     // This will create and register a Helix controller in ZooKeeper
     this.helixManager = HelixManagerFactory.getZKHelixManager(
@@ -132,9 +132,11 @@ public class GobblinApplicationMaster {
     List<Service> services = Lists.newArrayList();
     if (UserGroupInformation.isSecurityEnabled()) {
       LOGGER.info("Adding YarnAMSecurityManager since security is enabled");
-      services.add(new ControllerSecurityManager(config, this.helixManager, fs));
+      services.add(new ControllerSecurityManager(config, this.helixManager, appWorkDir, fs));
     }
-    services.add(new YarnService(config, applicationName, applicationAttemptIdId.getApplicationId(), this.eventBus));
+    services.add(
+        new YarnService(config, applicationName, applicationAttemptIdId.getApplicationId(), fs, this.eventBus,
+            Strings.nullToEmpty(config.getString(ConfigurationConstants.CONTAINER_JVM_ARGS_KEY))));
     services.add(
         new GobblinHelixJobScheduler(YarnHelixUtils.configToProperties(config), this.helixManager, this.eventBus,
             appWorkDir));
@@ -229,6 +231,7 @@ public class GobblinApplicationMaster {
 
       @Override
       public void run() {
+        LOGGER.info("Running the shutdown hook");
         GobblinApplicationMaster.this.stop();
       }
     });

@@ -76,23 +76,28 @@ public class ControllerSecurityManager extends AbstractIdleService {
   private final ScheduledExecutorService tokenRenewExecutor;
   private ScheduledFuture<?> scheduledTokenRenewTask;
 
-  public ControllerSecurityManager(Config config, HelixManager helixManager, FileSystem fs) throws IOException {
+  public ControllerSecurityManager(Config config, HelixManager helixManager, Path appWorkDir, FileSystem fs)
+      throws IOException {
     this.config = config;
     this.helixManager = helixManager;
     this.fs = fs;
 
-    this.tokenFilePath = new Path(config.getString(ConfigurationConstants.TOKEN_FILE_PATH));
+    this.tokenFilePath = config.hasPath(ConfigurationConstants.TOKEN_FILE_PATH) ?
+        new Path(config.getString(ConfigurationConstants.TOKEN_FILE_PATH)) :
+        new Path(appWorkDir, ConfigurationConstants.TOKEN_FILE_EXTENSION);
     this.fs.makeQualified(tokenFilePath);
+    this.currentUser = UserGroupInformation.getCurrentUser();
     this.loginIntervalInHours = config.getLong(ConfigurationConstants.LOGIN_INTERVAL_IN_HOURS);
     this.tokenRenewIntervalInHours = config.getLong(ConfigurationConstants.TOKEN_RENEW_INTERVAL_IN_HOURS);
 
     this.loginExecutor = Executors.newSingleThreadScheduledExecutor(
-            ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("KeytabReLoginExecutor")));
+        ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("KeytabReLoginExecutor")));
     this.tokenRenewExecutor = Executors.newSingleThreadScheduledExecutor(
-            ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("TokenRenewExecutor")));
+        ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("TokenRenewExecutor")));
 
     // Initial login
     login();
+
     // Schedule the token renew task
     scheduleTokenRenewTask();
   }
@@ -134,13 +139,7 @@ public class ControllerSecurityManager extends AbstractIdleService {
       // It is assumed that the presence of the configuration property for the
       // keytab file path indicates the login should happen through a keytab.
       loginFromKeytab();
-    } else {
-      // Otherwise, it is assumed that the user has already logged-in and only
-      // a new delegation token needs to be acquired.
-      getNewDelegationTokenForLoginUser();
     }
-
-    writeDelegationTokenToFile();
   }
 
   /**
@@ -150,12 +149,7 @@ public class ControllerSecurityManager extends AbstractIdleService {
     if (this.currentUser.isFromKeytab()) {
       // Re-login from the keytab if the initial login is from a keytab
       reLoginFromKeytab();
-    } else {
-      // Otherwise, simply acquire a new delegation token.
-      getNewDelegationTokenForLoginUser();
     }
-
-    writeDelegationTokenToFile();
   }
 
   private void scheduleTokenRenewTask() {
@@ -213,7 +207,9 @@ public class ControllerSecurityManager extends AbstractIdleService {
     LOGGER.info(String.format("Logged in from keytab file %s using principal %s", keyTabFilePath, principal));
 
     this.currentUser = UserGroupInformation.getCurrentUser();
+
     getNewDelegationTokenForLoginUser();
+    writeDelegationTokenToFile();
   }
 
   /**
@@ -222,6 +218,7 @@ public class ControllerSecurityManager extends AbstractIdleService {
   private void reLoginFromKeytab() throws IOException {
     this.currentUser.reloginFromKeytab();
     getNewDelegationTokenForLoginUser();
+    writeDelegationTokenToFile();
   }
 
   /**

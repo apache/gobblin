@@ -12,7 +12,6 @@
 
 package gobblin.yarn;
 
-import gobblin.configuration.ConfigurationKeys;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -70,6 +69,7 @@ import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskStateTracker;
 import gobblin.yarn.event.DelegationTokenUpdatedEvent;
@@ -119,11 +119,12 @@ public class GobblinWorkUnitRunner {
         FileSystem.get(new Configuration());
 
     String zkConnectionString = config.getString(ConfigurationConstants.ZK_CONNECTION_STRING_KEY);
-    this.helixManager = HelixManagerFactory.getZKHelixManager(
-        config.hasPath(ConfigurationConstants.HELIX_CLUSTER_NAME_KEY) ? config
-            .getString(ConfigurationConstants.HELIX_CLUSTER_NAME_KEY) : applicationName,
-        YarnHelixUtils.getParticipantIdStr(YarnHelixUtils.getHostname(), this.containerId), InstanceType.PARTICIPANT,
-        zkConnectionString);
+    LOGGER.info("Using ZooKeeper connection string: " + zkConnectionString);
+
+    this.helixManager = HelixManagerFactory
+        .getZKHelixManager(config.getString(ConfigurationConstants.HELIX_CLUSTER_NAME_KEY),
+            YarnHelixUtils.getParticipantIdStr(YarnHelixUtils.getHostname(), this.containerId),
+            InstanceType.PARTICIPANT, zkConnectionString);
 
     Properties properties = YarnHelixUtils.configToProperties(config);
 
@@ -213,6 +214,7 @@ public class GobblinWorkUnitRunner {
 
       @Override
       public void run() {
+        LOGGER.info("Running the shutdown hook");
         GobblinWorkUnitRunner.this.stop();
       }
     });

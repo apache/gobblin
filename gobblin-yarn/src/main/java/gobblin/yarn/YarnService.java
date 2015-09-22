@@ -107,6 +107,8 @@ public class YarnService extends AbstractIdleService {
   private final int requestedContainerMemoryMbs;
   private final int requestedContainerCores;
 
+  private final String containerJvmArgs;
+
   // Security tokens for accessing HDFS
   private final ByteBuffer tokens;
 
@@ -116,8 +118,8 @@ public class YarnService extends AbstractIdleService {
 
   private volatile Optional<Resource> maxResourceCapacity =Optional.absent();
 
-  public YarnService(Config config, String applicationName, ApplicationId applicationId, EventBus eventBus)
-      throws Exception {
+  public YarnService(Config config, String applicationName, ApplicationId applicationId, FileSystem fs,
+      EventBus eventBus, String containerJvmArgs) throws Exception {
     this.applicationName = applicationName;
     this.applicationId = applicationId;
 
@@ -133,21 +135,15 @@ public class YarnService extends AbstractIdleService {
     this.containerLaunchExecutor = Executors.newFixedThreadPool(10,
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("ContainerLaunchExecutor")));
 
-    this.fs = FileSystem.get(new Configuration());
+    this.fs = fs;
 
     this.eventBus = eventBus;
 
-    this.initialContainers = config.hasPath(ConfigurationConstants.INITIAL_CONTAINERS_KEY) ?
-        config.getInt(ConfigurationConstants.INITIAL_CONTAINERS_KEY) :
-        ConfigurationConstants.DEFAULT_INITIAL_CONTAINERS;
+    this.initialContainers = config.getInt(ConfigurationConstants.INITIAL_CONTAINERS_KEY);
+    this.requestedContainerMemoryMbs = config.getInt(ConfigurationConstants.CONTAINER_MEMORY_MBS_KEY);
+    this.requestedContainerCores = config.getInt(ConfigurationConstants.CONTAINER_CORES_KEY);
 
-    this.requestedContainerMemoryMbs = config.hasPath(ConfigurationConstants.CONTAINER_MEMORY_MBS_KEY) ?
-        config.getInt(ConfigurationConstants.CONTAINER_MEMORY_MBS_KEY) :
-        ConfigurationConstants.DEFAULT_CONTAINER_MEMORY_MBS;
-
-    this.requestedContainerCores = config.hasPath(ConfigurationConstants.CONTAINER_CORES_KEY) ?
-        config.getInt(ConfigurationConstants.CONTAINER_CORES_KEY) :
-        ConfigurationConstants.DEFAULT_CONTAINER_CORES;
+    this.containerJvmArgs = containerJvmArgs;
 
     this.tokens = getSecurityTokens();
 
@@ -216,9 +212,12 @@ public class YarnService extends AbstractIdleService {
         this.nmClientAsync.stopContainerAsync(container.getId(), container.getNodeId());
       }
 
-      synchronized (this.allContainersStopped) {
-        this.allContainersStopped.wait();
-        LOGGER.info("All of the containers have been stopped");
+      if (!this.containerMap.isEmpty()) {
+        synchronized (this.allContainersStopped) {
+          // Wait 5 minutes for the containers to stop
+          this.allContainersStopped.wait(5 * 60 * 1000);
+          LOGGER.info("All of the containers have been stopped");
+        }
       }
 
       this.amrmClientAsync.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, null, null);
@@ -334,7 +333,9 @@ public class YarnService extends AbstractIdleService {
     Apps.addToEnvironment(environmentVariableMap, ApplicationConstants.Environment.JAVA_HOME.key(),
         System.getenv(ApplicationConstants.Environment.JAVA_HOME.key()));
 
-    // Add jars/files in the working directory of the container to the CLASSPATH first
+    // Add jars/files in the working directory of the container to the CLASSPATH
+    Apps.addToEnvironment(environmentVariableMap, ApplicationConstants.Environment.CLASSPATH.key(),
+        ApplicationConstants.Environment.PWD.$());
     Apps.addToEnvironment(environmentVariableMap, ApplicationConstants.Environment.CLASSPATH.key(),
         ApplicationConstants.Environment.PWD.$() + File.separator + "*");
 
@@ -358,14 +359,14 @@ public class YarnService extends AbstractIdleService {
   private String buildContainerCommand(Container container) {
     String containerProcessName = GobblinWorkUnitRunner.class.getSimpleName();
     return String.format(
-        "%s/bin/java -Xmx%dM %s" +
+        "%s/bin/java -Xmx%dM %s %s" +
         " --%s %s" +
         " 1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + File.separator + "%s.%s" +
         " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + File.separator + "%s.%s",
         ApplicationConstants.Environment.JAVA_HOME.$(), container.getResource().getMemory(),
-        GobblinWorkUnitRunner.class.getName(), ConfigurationConstants.APPLICATION_NAME_OPTION_NAME,
-        this.applicationName, containerProcessName, ApplicationConstants.STDOUT, containerProcessName,
-        ApplicationConstants.STDERR);
+        this.containerJvmArgs, GobblinWorkUnitRunner.class.getName(),
+        ConfigurationConstants.APPLICATION_NAME_OPTION_NAME, this.applicationName, containerProcessName,
+        ApplicationConstants.STDOUT, containerProcessName, ApplicationConstants.STDERR);
   }
 
   /**
@@ -416,7 +417,7 @@ public class YarnService extends AbstractIdleService {
     @Override
     public void onNodesUpdated(List<NodeReport> updatedNodes) {
       for (NodeReport nodeReport : updatedNodes) {
-        LOGGER.info("Received node update report: " + nodeReport.getHealthReport());
+        LOGGER.info("Received node update report: " + nodeReport);
       }
     }
 
@@ -426,8 +427,8 @@ public class YarnService extends AbstractIdleService {
     }
 
     @Override
-    public void onError(Throwable e) {
-      LOGGER.error("Received error: " + e, e);
+    public void onError(Throwable t) {
+      LOGGER.error("Received error: " + t, t);
       this.done = true;
       eventBus.post(new ApplicationMasterShutdownRequest());
     }
@@ -445,11 +446,16 @@ public class YarnService extends AbstractIdleService {
 
     @Override
     public void onContainerStatusReceived(ContainerId containerId, ContainerStatus containerStatus) {
-      LOGGER.info("Received container status for container " + containerId);
+      LOGGER.info(String.format("Received container status for container %s: %s", containerId, containerStatus));
       if (containerStatus.getState() == ContainerState.COMPLETE) {
         LOGGER.info(String.format("Container %s completed", containerId));
         containerMap.remove(containerId);
         containerToParticipantMap.remove(containerId);
+        if (containerMap.isEmpty()) {
+          synchronized (allContainersStopped) {
+            allContainersStopped.notify();
+          }
+        }
       }
     }
 
