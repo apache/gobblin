@@ -13,6 +13,8 @@
 package gobblin.rest;
 
 import java.io.File;
+import java.io.IOException;
+import java.net.ServerSocket;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -20,6 +22,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+
 import javax.sql.DataSource;
 
 import org.testng.Assert;
@@ -32,6 +35,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.io.Closer;
 import com.google.common.io.Files;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -69,11 +73,15 @@ public class JobExecutionInfoServerTest {
     Properties properties = new Properties();
     properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY, "org.apache.derby.jdbc.EmbeddedDriver");
     properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY, "jdbc:derby:memory:gobblin;create=true");
+    
+    String randomPort = chooseRandomPort();
+    properties.setProperty(ConfigurationKeys.REST_SERVER_PORT_KEY, randomPort);
+    
     prepareJobHistoryStoreDatabase(properties);
     Injector injector = Guice.createInjector(new MetaStoreModule(properties));
     this.jobHistoryStore = injector.getInstance(JobHistoryStore.class);
 
-    this.client = new JobExecutionInfoClient("http://localhost:8080/");
+    this.client = new JobExecutionInfoClient(String.format("%s:%s/", "http://localhost", randomPort));
     this.server = new JobExecutionInfoServer(properties);
     this.server.startUp();
 
@@ -150,6 +158,19 @@ public class JobExecutionInfoServerTest {
     }
   }
 
+  private String chooseRandomPort() throws IOException {
+    Closer closer = Closer.create();
+    try {
+      ServerSocket socket = new ServerSocket(0);
+      closer.register(socket);
+      return socket.getLocalPort() + "";
+    } catch (Throwable e) {
+      throw closer.rethrow(e);
+    } finally {
+      closer.close();
+    }
+  }
+  
   private void prepareJobHistoryStoreDatabase(Properties properties)
       throws Exception {
     // Read the DDL statements
