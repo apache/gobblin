@@ -81,7 +81,7 @@ public class JobExecutionInfoServerTest {
     Injector injector = Guice.createInjector(new MetaStoreModule(properties));
     this.jobHistoryStore = injector.getInstance(JobHistoryStore.class);
 
-    this.client = new JobExecutionInfoClient(String.format("%s:%s/", "http://localhost", randomPort));
+    this.client = new JobExecutionInfoClient(String.format("http://%s:%s/", "localhost", randomPort));
     this.server = new JobExecutionInfoServer(properties);
     this.server.startUp();
 
