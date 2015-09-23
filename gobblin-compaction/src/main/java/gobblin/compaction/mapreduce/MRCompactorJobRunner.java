@@ -99,8 +99,8 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
           lateFilePaths.add(new Path(filePathString));
         }
       }
-      Path lateDataOutputPath = this.deduplicate ? this.outputPath
-          : new Path(this.outputPath, ConfigurationKeys.COMPACTION_LATE_FILES_DIRECTORY);
+      Path lateDataOutputPath = this.deduplicate
+          ? new Path(this.outputPath, ConfigurationKeys.COMPACTION_LATE_FILES_DIRECTORY) : this.outputPath;
       this.copyDataFiles(lateDataOutputPath, lateFilePaths, conf);
     } else {
       if (this.fs.exists(this.outputPath) && !canOverwriteOutputDir()) {
