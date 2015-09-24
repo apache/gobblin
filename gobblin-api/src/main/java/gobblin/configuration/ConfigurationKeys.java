@@ -427,6 +427,7 @@ public class ConfigurationKeys {
   public static final String COMPACTION_DEST_SUBDIR = COMPACTION_PREFIX + "dest.subdir";
   public static final String DEFAULT_COMPACTION_DEST_SUBDIR = "daily";
   public static final String COMPACTION_JOB_DEST_DIR = COMPACTION_PREFIX + "job.dest.dir";
+  public static final String COMPACTION_JOB_DEST_PARTITION = COMPACTION_PREFIX + "job.dest.partition";
   public static final String COMPACTION_TMP_DIR = COMPACTION_PREFIX + "tmp.dir";
   public static final String DEFAULT_COMPACTION_TMP_DIR = "/tmp";
   public static final String COMPACTION_JOB_TMP_DIR = COMPACTION_PREFIX + "job.tmp.dir";
@@ -477,6 +478,7 @@ public class ConfigurationKeys {
   public static final String COMPACTION_OVERWRITE_OUTPUT_DIR = COMPACTION_PREFIX + "overwrite.output.dir";
   public static final boolean DEFAULT_COMPACTION_OVERWRITE_OUTPUT_DIR = false;
   public static final String COMPACTION_JARS = COMPACTION_PREFIX + "jars";
+  public static final String COMPACTION_TRACKING_EVENTS_NAMESPACE = COMPACTION_PREFIX + "tracking.events";
 
   /**
    * Common metrics configuration properties.

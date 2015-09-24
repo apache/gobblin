@@ -134,4 +134,13 @@ public class MRCompactorJobPropCreator {
     return jobProps;
   }
 
+  /**
+   * Create MR job properties for a specific input folder ,output folder and partition
+   */
+  protected State createJobProps(Path jobInputDir, Path jobOutputDir, Path jobTmpDir, boolean deduplicate, String partition)
+      throws IOException {
+    State jobProps = createJobProps(jobInputDir, jobOutputDir, jobTmpDir, deduplicate);
+    jobProps.setProp(ConfigurationKeys.COMPACTION_JOB_DEST_PARTITION, partition);
+    return jobProps;
+  }
 }
