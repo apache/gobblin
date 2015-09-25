@@ -32,7 +32,8 @@ import gobblin.yarn.event.DelegationTokenUpdatedEvent;
 
 
 /**
- * A class for managing token renewing in the Participants.
+ * A class for managing token renewing in the containers including the container for the
+ * {@link GobblinApplicationMaster}.
  *
  * <p>
  *   This class implements a simple monitor for modifications on the token file and reloads tokens
@@ -42,13 +43,13 @@ import gobblin.yarn.event.DelegationTokenUpdatedEvent;
  *
  * @author ynli
  */
-public class ParticipantSecurityManager extends AbstractIdleService {
+public class YarnContainerSecurityManager extends AbstractIdleService {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(ParticipantSecurityManager.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(YarnContainerSecurityManager.class);
 
   private final FileSystem fs;
 
-  public ParticipantSecurityManager(FileSystem fs, EventBus eventBus) {
+  public YarnContainerSecurityManager(FileSystem fs, EventBus eventBus) {
     this.fs = fs;
     eventBus.register(this);
   }
@@ -77,6 +78,7 @@ public class ParticipantSecurityManager extends AbstractIdleService {
    * Read the {@link Token}s stored in the token file and add them for the login user.
    */
   private void readAndAddDelegationTokens(Path tokenFilePath) throws IOException {
+    LOGGER.info("Reading updated token from token file: " + tokenFilePath);
     Collection<Token<? extends TokenIdentifier>> tokens =
         YarnHelixUtils.readTokensFromFile(tokenFilePath, this.fs.getConf());
     for (Token<? extends TokenIdentifier> token : tokens) {

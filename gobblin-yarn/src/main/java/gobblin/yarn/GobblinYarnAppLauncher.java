@@ -12,11 +12,11 @@
 
 package gobblin.yarn;
 
-import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -78,6 +78,8 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.Service;
+import com.google.common.util.concurrent.ServiceManager;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -98,7 +100,7 @@ import gobblin.util.ExecutorsUtils;
  *
  * @author ynli
  */
-public class GobblinYarnAppLauncher implements Closeable {
+public class GobblinYarnAppLauncher {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinYarnAppLauncher.class);
 
@@ -108,16 +110,27 @@ public class GobblinYarnAppLauncher implements Closeable {
   private final String appQueueName;
 
   private final Config config;
+
   private final HelixManager helixManager;
+
+  private final ServiceManager serviceManager;
+
   private final Configuration yarnConfiguration;
   private final YarnClient yarnClient;
-  private final ListeningExecutorService applicationStatusMonitor;
   private final FileSystem fs;
+
+  private final ListeningExecutorService applicationStatusMonitor;
 
   private final String appMasterJvmArgs;
 
   // Yarn application ID
   private volatile Optional<ApplicationId> applicationId = Optional.absent();
+
+  // This flag tells if the Yarn application has already completed. This is used to
+  // tell if it is necessary to send a shutdown message to the ApplicationMaster.
+  private volatile boolean applicationCompleted = false;
+
+  private volatile boolean stopped = false;
 
   public GobblinYarnAppLauncher(Config config) throws IOException {
     this.config = config;
@@ -141,10 +154,17 @@ public class GobblinYarnAppLauncher implements Closeable {
         FileSystem.get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), this.yarnConfiguration) :
         FileSystem.get(this.yarnConfiguration);
 
-    this.appMasterJvmArgs = Strings.nullToEmpty(config.getString(ConfigurationConstants.APP_MASTER_JVM_ARGS_KEY));
+    List<Service> services = Lists.newArrayList();
+    if (UserGroupInformation.isSecurityEnabled()) {
+      LOGGER.info("Adding YarnAppSecurityManager since security is enabled");
+      services.add(new YarnAppSecurityManager(config, this.helixManager, this.fs));
+    }
+    this.serviceManager = new ServiceManager(services);
 
     this.applicationStatusMonitor = MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("GobblinYarnAppStatusMonitor"))));
+
+    this.appMasterJvmArgs = Strings.nullToEmpty(config.getString(ConfigurationConstants.APP_MASTER_JVM_ARGS_KEY));
   }
 
   /**
@@ -163,6 +183,9 @@ public class GobblinYarnAppLauncher implements Closeable {
       throw Throwables.propagate(e);
     }
 
+    // Start all the services running in the ApplicationMaster
+    this.serviceManager.startAsync();
+
     this.yarnClient.start();
     this.applicationId = Optional.of(setupAndSubmitApplication());
 
@@ -170,7 +193,8 @@ public class GobblinYarnAppLauncher implements Closeable {
         this.applicationStatusMonitor.submit(new Callable<ApplicationReport>() {
 
           @Override
-          public ApplicationReport call() throws IOException, YarnException {
+          public ApplicationReport call()
+              throws IOException, YarnException {
             while (true) {
               try {
                 ApplicationReport appReport = yarnClient.getApplicationReport(applicationId.get());
@@ -178,6 +202,7 @@ public class GobblinYarnAppLauncher implements Closeable {
                 if (appState == YarnApplicationState.FINISHED ||
                     appState == YarnApplicationState.FAILED ||
                     appState == YarnApplicationState.KILLED) {
+                  applicationCompleted = true;
                   return appReport;
                 }
 
@@ -197,47 +222,43 @@ public class GobblinYarnAppLauncher implements Closeable {
         LOGGER.info("Gobblin Yarn application finished with final status: " +
             applicationReport.getFinalApplicationStatus().toString());
         if (applicationReport.getFinalApplicationStatus() == FinalApplicationStatus.FAILED) {
-          LOGGER.error("Gobblin Yarn application failed for the following reason: " +
-              applicationReport.getDiagnostics());
+          LOGGER.error(
+              "Gobblin Yarn application failed for the following reason: " + applicationReport.getDiagnostics());
         }
 
-        cleanupAndExit(0);
+        try {
+          GobblinYarnAppLauncher.this.stop();
+        } catch (IOException ioe) {
+          LOGGER.error("Failed to close the " + GobblinYarnAppLauncher.class.getSimpleName(), ioe);
+        }
       }
 
       @Override
       public void onFailure(@Nonnull Throwable t) {
         LOGGER.error("Failed to get ApplicationReport due to: " + t);
-        cleanupAndExit(1);
-      }
-
-      private void cleanupAndExit(int exitCode) {
-        if (applicationId.isPresent()) {
-          try {
-            cleanUpAppWorkDirectory(applicationId.get());
-          } catch (IOException ioe) {
-            LOGGER.error("Failed to cleanup working directory for application " + applicationId.get());
-          }
+        try {
+          GobblinYarnAppLauncher.this.stop();
+        } catch (IOException ioe) {
+          LOGGER.error("Failed to close the " + GobblinYarnAppLauncher.class.getSimpleName(), ioe);
         }
-
-        // Clear the Yarn application ID so close() won't send a shutdown message to the ApplicationMaster
-        applicationId = Optional.absent();
-        // This will trigger the shutdown hook that will close this GobblinYarnAppLauncher instance
-        System.exit(exitCode);
       }
     });
   }
 
-  @Override
-  public void close() throws IOException {
+  public synchronized void stop() throws IOException {
+    if (this.stopped) {
+      return;
+    }
+
     LOGGER.info("Stopping the " + GobblinYarnAppLauncher.class.getSimpleName());
 
     try {
-      ExecutorsUtils.shutdownExecutorService(this.applicationStatusMonitor, Optional.of(LOGGER), 5, TimeUnit.MINUTES);
-
-      if (this.applicationId.isPresent()) {
-        // Only send shutdown request to the ApplicationMaster if the application has been successfully submitted
+      if (this.applicationId.isPresent() && !this.applicationCompleted) {
+        // Only send the shutdown message if the application has been successfully submitted and is still running
         sendShutdownRequest();
       }
+
+      ExecutorsUtils.shutdownExecutorService(this.applicationStatusMonitor, Optional.of(LOGGER), 5, TimeUnit.MINUTES);
 
       this.yarnClient.stop();
 
@@ -253,6 +274,8 @@ public class GobblinYarnAppLauncher implements Closeable {
         this.fs.close();
       }
     }
+
+    this.stopped = true;
   }
 
   /**
@@ -536,7 +559,8 @@ public class GobblinYarnAppLauncher implements Closeable {
     criteria.setRecipientInstanceType(InstanceType.CONTROLLER);
     criteria.setSessionSpecific(true);
 
-    Message shutdownRequest = new Message(Message.MessageType.SHUTDOWN, UUID.randomUUID().toString());
+    Message shutdownRequest = new Message(Message.MessageType.SHUTDOWN,
+        HelixMessageSubTypes.APPLICATION_MASTER_SHUTDOWN.toString().toLowerCase() + UUID.randomUUID().toString());
     shutdownRequest.setMsgSubType(HelixMessageSubTypes.APPLICATION_MASTER_SHUTDOWN.toString());
     shutdownRequest.setMsgState(Message.MessageState.NEW);
     shutdownRequest.setTgtSessionId("*");
@@ -562,7 +586,7 @@ public class GobblinYarnAppLauncher implements Closeable {
       @Override
       public void run() {
         try {
-          gobblinYarnAppLauncher.close();
+          gobblinYarnAppLauncher.stop();
         } catch (IOException ioe) {
           LOGGER.error("Failed to shutdown the " + GobblinYarnAppLauncher.class.getSimpleName(), ioe);
         }

@@ -109,6 +109,7 @@ public class GobblinWorkUnitRunner {
       .convertDurationsTo(TimeUnit.MILLISECONDS)
       .build();
 
+  private volatile boolean stopInProgress = false;
   private volatile boolean isStopped = false;
 
   public GobblinWorkUnitRunner(String applicationName, Config config) throws Exception {
@@ -135,7 +136,8 @@ public class GobblinWorkUnitRunner {
 
     List<Service> services = Lists.newArrayList();
     if (UserGroupInformation.isSecurityEnabled()) {
-      services.add(new ParticipantSecurityManager(fs, this.eventBus));
+      LOGGER.info("Adding YarnContainerSecurityManager since security is enabled");
+      services.add(new YarnContainerSecurityManager(fs, this.eventBus));
     }
     services.add(taskExecutor);
     services.add(taskStateTracker);
@@ -164,8 +166,8 @@ public class GobblinWorkUnitRunner {
 
     try {
       this.helixManager.connect();
-      this.helixManager.getMessagingService().registerMessageHandlerFactory(Message.MessageType.SHUTDOWN.toString(),
-          new ParticipantShutdownMessageHandlerFactory());
+      this.helixManager.getMessagingService().registerMessageHandlerFactory(
+          Message.MessageType.SHUTDOWN.toString(), new ParticipantShutdownMessageHandlerFactory());
       this.helixManager.getMessagingService().registerMessageHandlerFactory(
           Message.MessageType.USER_DEFINE_MSG.toString(), new ParticipantUserDefinedMessageHandlerFactory());
     } catch (Exception e) {
@@ -182,12 +184,14 @@ public class GobblinWorkUnitRunner {
     this.serviceManager.awaitStopped();
   }
 
-  public void stop() {
-    if (this.isStopped) {
+  public synchronized void stop() {
+    if (this.isStopped || this.stopInProgress) {
       return;
     }
 
-    LOGGER.info("Shutting down the Gobblin Yarn WorkUnit runner");
+    this.stopInProgress = true;
+
+    LOGGER.info("Stopping the Gobblin Yarn WorkUnit runner");
 
     try {
       // Stop metric reporting
@@ -260,9 +264,6 @@ public class GobblinWorkUnitRunner {
      */
     private class ParticipantShutdownMessageHandler extends MessageHandler {
 
-      private final ScheduledExecutorService shutdownMessageHandlingCompletionWatcher =
-          MoreExecutors.getExitingScheduledExecutorService(new ScheduledThreadPoolExecutor(1));
-
       public ParticipantShutdownMessageHandler(Message message, NotificationContext context) {
         super(message, context);
       }
@@ -271,12 +272,21 @@ public class GobblinWorkUnitRunner {
       public HelixTaskResult handleMessage() throws InterruptedException {
         String messageSubType = this._message.getMsgSubType();
 
+        HelixTaskResult result = new HelixTaskResult();
+
         if (messageSubType.equalsIgnoreCase(HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString())) {
+          if (stopInProgress) {
+            result.setSuccess(true);
+            return result;
+          }
+
           LOGGER.info("Handling message " + HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString());
 
+          ScheduledExecutorService shutdownMessageHandlingCompletionWatcher =
+              MoreExecutors.getExitingScheduledExecutorService(new ScheduledThreadPoolExecutor(1));
           // Schedule the task for watching on the removal of the shutdown message, which indicates that
           // the message has been successfully processed and it's safe to disconnect the HelixManager.
-          this.shutdownMessageHandlingCompletionWatcher.scheduleAtFixedRate(new Runnable() {
+          shutdownMessageHandlingCompletionWatcher.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
               HelixManager helixManager = _notificationContext.getManager();
@@ -290,7 +300,6 @@ public class GobblinWorkUnitRunner {
             }
           }, 0, 1, TimeUnit.SECONDS);
 
-          HelixTaskResult result = new HelixTaskResult();
           result.setSuccess(true);
           return result;
         }
@@ -349,7 +358,9 @@ public class GobblinWorkUnitRunner {
       public HelixTaskResult handleMessage() throws InterruptedException {
         String messageSubType = this._message.getMsgSubType();
 
-        if (HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString().equalsIgnoreCase(messageSubType)) {
+        if (messageSubType.equalsIgnoreCase(HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString())) {
+          LOGGER.info("Handling message " + HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString());
+
           eventBus.post(new DelegationTokenUpdatedEvent(this._message.getResourceId().stringify()));
           HelixTaskResult helixTaskResult = new HelixTaskResult();
           helixTaskResult.setSuccess(true);
@@ -362,7 +373,8 @@ public class GobblinWorkUnitRunner {
 
       @Override
       public void onError(Exception e, ErrorCode code, ErrorType type) {
-
+        LOGGER.error(
+            String.format("Failed to handle message with exception %s, error code %s, error type %s", e, code, type));
       }
     }
   }

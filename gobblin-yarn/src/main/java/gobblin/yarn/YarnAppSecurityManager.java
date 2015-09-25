@@ -12,6 +12,7 @@
 
 package gobblin.yarn;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -46,7 +47,17 @@ import gobblin.util.ExecutorsUtils;
 
 
 /**
- * A class for managing Kerberos login and token renewing in the Controller.
+ * A class for managing Kerberos login and token renewing on the client side that has access to
+ * the keytab file.
+ *
+ * <p>
+ *   This class works with {@link YarnContainerSecurityManager} to manage renewing of delegation
+ *   tokens across the application. This class is responsible for login through a Kerberos keytab,
+ *   renewing the delegation token, and storing the token to a token file on HDFS. It sends a
+ *   Helix message to the controller and all the participants upon writing the token to the token
+ *   file, which rely on the {@link YarnContainerSecurityManager} to read the token in the file
+ *   upon receiving the message.
+ * </p>
  *
  * <p>
  *   This class uses a scheduled task to do Kerberos re-login to renew the Kerberos ticket on a
@@ -57,9 +68,9 @@ import gobblin.util.ExecutorsUtils;
  *
  * @author ynli
  */
-public class ControllerSecurityManager extends AbstractIdleService {
+public class YarnAppSecurityManager extends AbstractIdleService {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(ControllerSecurityManager.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(YarnAppSecurityManager.class);
 
   private final Config config;
 
@@ -76,15 +87,14 @@ public class ControllerSecurityManager extends AbstractIdleService {
   private final ScheduledExecutorService tokenRenewExecutor;
   private ScheduledFuture<?> scheduledTokenRenewTask;
 
-  public ControllerSecurityManager(Config config, HelixManager helixManager, Path appWorkDir, FileSystem fs)
-      throws IOException {
+  private volatile boolean firstLogin = true;
+
+  public YarnAppSecurityManager(Config config, HelixManager helixManager, FileSystem fs) throws IOException {
     this.config = config;
     this.helixManager = helixManager;
     this.fs = fs;
 
-    this.tokenFilePath = config.hasPath(ConfigurationConstants.TOKEN_FILE_PATH) ?
-        new Path(config.getString(ConfigurationConstants.TOKEN_FILE_PATH)) :
-        new Path(appWorkDir, ConfigurationConstants.TOKEN_FILE_EXTENSION);
+    this.tokenFilePath = new Path(config.getString(ConfigurationConstants.TOKEN_FILE_PATH));
     this.fs.makeQualified(tokenFilePath);
     this.currentUser = UserGroupInformation.getCurrentUser();
     this.loginIntervalInHours = config.getLong(ConfigurationConstants.LOGIN_INTERVAL_IN_HOURS);
@@ -94,17 +104,11 @@ public class ControllerSecurityManager extends AbstractIdleService {
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("KeytabReLoginExecutor")));
     this.tokenRenewExecutor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("TokenRenewExecutor")));
-
-    // Initial login
-    login();
-
-    // Schedule the token renew task
-    scheduleTokenRenewTask();
   }
 
   @Override
   protected void startUp() throws Exception {
-    LOGGER.info("Scheduling the Kerberos keytab login task");
+    LOGGER.info("Scheduling the login task");
 
     // Schedule the Kerberos re-login task
     this.loginExecutor.scheduleAtFixedRate(new Runnable() {
@@ -115,7 +119,14 @@ public class ControllerSecurityManager extends AbstractIdleService {
           if (scheduledTokenRenewTask.cancel(true)) {
             LOGGER.info("Cancelled the token renew task");
           }
-          reLogin();
+
+          if (firstLogin) {
+            login();
+            firstLogin = false;
+          } else {
+            reLogin();
+          }
+
           // Re-schedule the token renew task after re-login
           scheduleTokenRenewTask();
         } catch (IOException ioe) {
@@ -194,6 +205,10 @@ public class ControllerSecurityManager extends AbstractIdleService {
       throw new IOException("Keytab file path is not defined for Kerberos login");
     }
 
+    if (!new File(keyTabFilePath).exists()) {
+      throw new IOException("Keytab file not found at: " + keyTabFilePath);
+    }
+
     String principal = this.config.getString(ConfigurationConstants.KEYTAB_PRINCIPAL_NAME);
     if (Strings.isNullOrEmpty(principal)) {
       principal = this.currentUser.getShortUserName() + "/localhost@LOCALHOST";
@@ -235,29 +250,28 @@ public class ControllerSecurityManager extends AbstractIdleService {
     // Only grand access to the token file to the login user
     this.fs.setPermission(this.tokenFilePath, new FsPermission(FsAction.READ_WRITE, FsAction.NONE, FsAction.NONE));
 
-    // Send a message to all the participants
-    sendTokenFileUpdatedMessage();
+    // Send a message to the controller and all the participants
+    sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
+    sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT);
   }
 
-  private void sendTokenFileUpdatedMessage() {
+  private void sendTokenFileUpdatedMessage(InstanceType instanceType) {
     Criteria criteria = new Criteria();
     criteria.setInstanceName("%");
     criteria.setResource("%");
     criteria.setPartition("%");
     criteria.setPartitionState("%");
-    criteria.setRecipientInstanceType(InstanceType.PARTICIPANT);
+    criteria.setRecipientInstanceType(instanceType);
     criteria.setDataSource(Criteria.DataSource.LIVEINSTANCES);
     criteria.setSessionSpecific(true);
 
-    Message tokenFileUpdatedMessage = new Message(Message.MessageType.USER_DEFINE_MSG, UUID.randomUUID().toString());
+    Message tokenFileUpdatedMessage = new Message(Message.MessageType.USER_DEFINE_MSG,
+        HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString().toLowerCase() + UUID.randomUUID().toString());
     tokenFileUpdatedMessage.setMsgSubType(HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString());
     tokenFileUpdatedMessage.setMsgState(Message.MessageState.NEW);
     tokenFileUpdatedMessage.setResourceId(ResourceId.from(this.tokenFilePath.toString()));
 
     int messagesSent = this.helixManager.getMessagingService().send(criteria, tokenFileUpdatedMessage);
-    if (messagesSent == 0) {
-      LOGGER.error(String.format("Failed to send the %s message to the participants",
-          tokenFileUpdatedMessage.getMsgSubType()));
-    }
+    LOGGER.info(String.format("Sent %d token file updated message(s) to the %s", messagesSent, instanceType));
   }
 }

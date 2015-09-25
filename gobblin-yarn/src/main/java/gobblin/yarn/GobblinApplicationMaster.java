@@ -74,6 +74,7 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.yarn.event.ApplicationMasterShutdownRequest;
+import gobblin.yarn.event.DelegationTokenUpdatedEvent;
 
 
 /**
@@ -104,6 +105,7 @@ public class GobblinApplicationMaster {
       .convertDurationsTo(TimeUnit.MILLISECONDS)
       .build();
 
+  private volatile boolean stopInProgress = false;
   private volatile boolean isStopped = false;
 
   public GobblinApplicationMaster(String applicationName, Config config) throws Exception {
@@ -131,8 +133,8 @@ public class GobblinApplicationMaster {
 
     List<Service> services = Lists.newArrayList();
     if (UserGroupInformation.isSecurityEnabled()) {
-      LOGGER.info("Adding YarnAMSecurityManager since security is enabled");
-      services.add(new ControllerSecurityManager(config, this.helixManager, appWorkDir, fs));
+      LOGGER.info("Adding YarnContainerSecurityManager since security is enabled");
+      services.add(new YarnContainerSecurityManager(fs, this.eventBus));
     }
     services.add(
         new YarnService(config, applicationName, applicationAttemptIdId.getApplicationId(), fs, this.eventBus,
@@ -161,6 +163,9 @@ public class GobblinApplicationMaster {
       this.helixManager.addLiveInstanceChangeListener(new GobblinLiveInstanceChangeListener());
       this.helixManager.getMessagingService().registerMessageHandlerFactory(
           Message.MessageType.SHUTDOWN.toString(), new ControllerShutdownMessageHandlerFactory());
+      this.helixManager.getMessagingService().registerMessageHandlerFactory(
+          Message.MessageType.USER_DEFINE_MSG.toString(), new ControllerUserDefinedMessageHandlerFactory()
+      );
     } catch (Exception e) {
       LOGGER.error("HelixManager failed to connect", e);
       throw Throwables.propagate(e);
@@ -181,13 +186,15 @@ public class GobblinApplicationMaster {
    * Stop the ApplicationMaster.
    */
   public synchronized void stop() {
-    if (this.isStopped) {
+    if (this.isStopped || this.stopInProgress) {
       return;
     }
 
-    LOGGER.info("Shutting down the Gobblin Yarn ApplicationMaster");
+    this.stopInProgress = true;
 
-    // Send a shutdown request to the containers
+    LOGGER.info("Stopping the Gobblin Yarn ApplicationMaster");
+
+    // Send a shutdown request to the containers as a second guard in case Yarn could not stop the containers
     sendShutdownRequest();
 
     try {
@@ -231,7 +238,6 @@ public class GobblinApplicationMaster {
 
       @Override
       public void run() {
-        LOGGER.info("Running the shutdown hook");
         GobblinApplicationMaster.this.stop();
       }
     });
@@ -247,7 +253,8 @@ public class GobblinApplicationMaster {
     criteria.setDataSource(Criteria.DataSource.LIVEINSTANCES);
     criteria.setSessionSpecific(true);
 
-    Message shutdownRequest = new Message(Message.MessageType.SHUTDOWN, UUID.randomUUID().toString());
+    Message shutdownRequest = new Message(Message.MessageType.SHUTDOWN,
+        HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString().toLowerCase() + UUID.randomUUID().toString());
     shutdownRequest.setMsgSubType(HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString());
     shutdownRequest.setMsgState(Message.MessageState.NEW);
 
@@ -297,9 +304,6 @@ public class GobblinApplicationMaster {
      */
     private class ControllerShutdownMessageHandler extends MessageHandler {
 
-      private final ScheduledExecutorService shutdownMessageHandlingCompletionWatcher =
-          MoreExecutors.getExitingScheduledExecutorService(new ScheduledThreadPoolExecutor(1));
-
       public ControllerShutdownMessageHandler(Message message, NotificationContext context) {
         super(message, context);
       }
@@ -308,18 +312,27 @@ public class GobblinApplicationMaster {
       public HelixTaskResult handleMessage() throws InterruptedException {
         String messageSubType = this._message.getMsgSubType();
 
+        HelixTaskResult result = new HelixTaskResult();
+
         if (messageSubType.equalsIgnoreCase(HelixMessageSubTypes.APPLICATION_MASTER_SHUTDOWN.toString())) {
+          if (stopInProgress) {
+            result.setSuccess(true);
+            return result;
+          }
+
           LOGGER.info("Handling message " + HelixMessageSubTypes.APPLICATION_MASTER_SHUTDOWN.toString());
 
+          ScheduledExecutorService shutdownMessageHandlingCompletionWatcher =
+              MoreExecutors.getExitingScheduledExecutorService(new ScheduledThreadPoolExecutor(1));
           // Schedule the task for watching on the removal of the shutdown message, which indicates that
           // the message has been successfully processed and it's safe to disconnect the HelixManager.
-          this.shutdownMessageHandlingCompletionWatcher.scheduleAtFixedRate(new Runnable() {
+          shutdownMessageHandlingCompletionWatcher.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
               HelixManager helixManager = _notificationContext.getManager();
               HelixDataAccessor helixDataAccessor = helixManager.getHelixDataAccessor();
-              HelixProperty helixProperty = helixDataAccessor.getProperty(
-                  _message.getKey(helixDataAccessor.keyBuilder(), helixManager.getInstanceName()));
+              HelixProperty helixProperty = helixDataAccessor
+                  .getProperty(_message.getKey(helixDataAccessor.keyBuilder(), helixManager.getInstanceName()));
               // The absence of the shutdown message indicates it has been removed
               if (helixProperty == null) {
                 eventBus.post(new ApplicationMasterShutdownRequest());
@@ -327,13 +340,75 @@ public class GobblinApplicationMaster {
             }
           }, 0, 1, TimeUnit.SECONDS);
 
-          HelixTaskResult result = new HelixTaskResult();
           result.setSuccess(true);
           return result;
         }
 
         throw new RuntimeException(
             String.format("Unknown %s message subtype: %s", Message.MessageType.SHUTDOWN.toString(), messageSubType));
+      }
+
+      @Override
+      public void onError(Exception e, ErrorCode code, ErrorType type) {
+        LOGGER.error(
+            String.format("Failed to handle message with exception %s, error code %s, error type %s", e, code, type));
+      }
+    }
+  }
+
+  /**
+   * A custom {@link MessageHandlerFactory} for {@link ControllerUserDefinedMessageHandler}s that
+   * handle messages of type {@link org.apache.helix.model.Message.MessageType#USER_DEFINE_MSG}.
+   */
+  private class ControllerUserDefinedMessageHandlerFactory implements MessageHandlerFactory {
+
+    @Override
+    public MessageHandler createHandler(Message message, NotificationContext context) {
+      return new ControllerUserDefinedMessageHandler(message, context);
+    }
+
+    @Override
+    public String getMessageType() {
+      return Message.MessageType.USER_DEFINE_MSG.toString();
+    }
+
+    @Override
+    public void reset() {
+
+    }
+
+    /**
+     * A custom {@link MessageHandler} for handling user-defined messages to the controller.
+     *
+     * <p>
+     *   Currently it handles the following sub types of messages:
+     *
+     *   <ul>
+     *     <li>{@link HelixMessageSubTypes#TOKEN_FILE_UPDATED}</li>
+     *   </ul>
+     * </p>
+     */
+    private class ControllerUserDefinedMessageHandler extends MessageHandler {
+
+      public ControllerUserDefinedMessageHandler(Message message, NotificationContext context) {
+        super(message, context);
+      }
+
+      @Override
+      public HelixTaskResult handleMessage() throws InterruptedException {
+        String messageSubType = this._message.getMsgSubType();
+
+        if (messageSubType.equalsIgnoreCase(HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString())) {
+          LOGGER.info("Handling message " + HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString());
+
+          eventBus.post(new DelegationTokenUpdatedEvent(this._message.getResourceId().stringify()));
+          HelixTaskResult helixTaskResult = new HelixTaskResult();
+          helixTaskResult.setSuccess(true);
+          return helixTaskResult;
+        }
+
+        throw new RuntimeException(String.format("Unknown %s message subtype: %s",
+            Message.MessageType.USER_DEFINE_MSG.toString(), messageSubType));
       }
 
       @Override
