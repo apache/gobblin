@@ -20,8 +20,11 @@ import java.util.Properties;
 import com.google.common.base.Preconditions;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import gobblin.data.management.retention.dataset.Dataset;
+import gobblin.data.management.dataset.Dataset;
+import gobblin.data.management.retention.dataset.CleanableDataset;
 import gobblin.data.management.retention.dataset.finder.DatasetFinder;
 
 
@@ -29,6 +32,8 @@ import gobblin.data.management.retention.dataset.finder.DatasetFinder;
  * Finds existing versions of datasets and cleans old or deprecated versions.
  */
 public class DatasetCleaner {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(DatasetCleaner.class);
 
   public static final String CONFIGURATION_KEY_PREFIX = "gobblin.retention.";
   public static final String DATASET_PROFILE_CLASS_KEY = CONFIGURATION_KEY_PREFIX + "dataset.profile.class";
@@ -63,7 +68,11 @@ public class DatasetCleaner {
     List<Dataset> dataSets = this.datasetFinder.findDatasets();
 
     for (Dataset dataset : dataSets) {
-      dataset.clean();
+      if(dataset instanceof CleanableDataset) {
+        ((CleanableDataset) dataset).clean();
+      } else {
+        LOGGER.error(String.format("Dataset %s is not cleanable. Skipping.", dataset));
+      }
     }
   }
 }

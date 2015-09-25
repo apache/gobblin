@@ -10,7 +10,7 @@ import org.joda.time.DateTime;
 
 import com.google.common.collect.Lists;
 
-import gobblin.data.management.retention.dataset.Dataset;
+import gobblin.data.management.retention.dataset.CleanableDataset;
 import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.TimestampedDatasetVersion;
 
@@ -32,7 +32,7 @@ public class ModDateTimeDatasetVersionFinder implements VersionFinder<Timestampe
   }
 
   @Override
-  public Collection<TimestampedDatasetVersion> findDatasetVersions(Dataset dataset) throws IOException {
+  public Collection<TimestampedDatasetVersion> findDatasetVersions(CleanableDataset dataset) throws IOException {
     FileStatus status = this.fs.getFileStatus(dataset.datasetRoot());
     return Lists
         .newArrayList(new TimestampedDatasetVersion(new DateTime(status.getModificationTime()), dataset.datasetRoot()));
