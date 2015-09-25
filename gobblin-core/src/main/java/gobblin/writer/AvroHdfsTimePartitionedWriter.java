@@ -329,7 +329,7 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
 
     return (FsDataWriter<GenericRecord>) new AvroDataWriterBuilder()
         .writeTo(Destination.of(this.destination.getType(), state)).writeInFormat(this.writerOutputFormat)
-        .withWriterId(this.writerId).withSchema(this.schema).forBranch(this.branch).build();
+        .withWriterId(this.writerId).withSchema(this.schema).withBranches(numBranches).forBranch(this.branch).build();
   }
 
   /**
