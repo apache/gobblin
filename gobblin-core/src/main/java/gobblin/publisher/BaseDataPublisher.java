@@ -29,7 +29,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -236,9 +235,11 @@ public class BaseDataPublisher extends DataPublisher {
 
   protected void addSingleTaskWriterOutputToExistingDir(Path writerOutputDir, Path publisherOutputDir,
       WorkUnitState workUnitState, int branchId, ParallelRunner parallelRunner) throws IOException {
-    Preconditions.checkArgument(workUnitState.contains(ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS),
-        "Missing property " + ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS
-            + ", which is needed for publishing data of a single task");
+    if (!workUnitState.contains(ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS)) {
+      LOG.warn("Missing property " + ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS
+          + ". This task may have pulled no data.");
+      return;
+    }
 
     Iterable<String> taskOutputFiles = workUnitState.getPropAsList(ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS);
 
