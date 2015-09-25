@@ -17,21 +17,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.hadoop.fs.Path;
-
-import org.joda.time.DateTimeZone;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
+
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.hadoop.fs.Path;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -329,7 +327,7 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
 
     return (FsDataWriter<GenericRecord>) new AvroDataWriterBuilder()
         .writeTo(Destination.of(this.destination.getType(), state)).writeInFormat(this.writerOutputFormat)
-        .withWriterId(this.writerId).withSchema(this.schema).forBranch(this.branch).build();
+        .withWriterId(this.writerId).withSchema(this.schema).withBranches(numBranches).forBranch(this.branch).build();
   }
 
   /**
