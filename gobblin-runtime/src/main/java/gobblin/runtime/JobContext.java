@@ -19,8 +19,9 @@ import java.util.Properties;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
-
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -50,6 +51,11 @@ import gobblin.util.JobLauncherUtils;
  * @author ynli
  */
 public class JobContext {
+
+  private static final Logger LOG = LoggerFactory.getLogger(JobContext.class);
+
+  private static final String TASK_STAGING_DIR_NAME = "task-staging";
+  private static final String TASK_OUTPUT_DIR_NAME = "task-output";
 
   private final String jobName;
   private final String jobId;
@@ -104,6 +110,8 @@ public class JobContext {
     jobPropsState.addAll(jobProps);
     this.jobState = new JobState(jobPropsState, this.datasetStateStore.getLatestDatasetStatesByUrns(this.jobName),
         this.jobName, this.jobId);
+
+    setTaskStagingAndOutputDirs();
 
     if (GobblinMetrics.isEnabled(jobProps)) {
       this.jobMetricsOptional = Optional.of(JobMetrics.get(this.jobState));
@@ -171,6 +179,59 @@ public class JobContext {
    */
   boolean isJobLockEnabled() {
     return this.jobLockEnabled;
+  }
+
+  private void setTaskStagingAndOutputDirs() {
+    if (this.jobState.contains(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY)) {
+
+      // Add jobId to task data root dir
+      String taskDataRootDirWithJobId =
+          new Path(this.jobState.getProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY), jobId).toString();
+      this.jobState.setProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY, taskDataRootDirWithJobId);
+
+      setTaskStagingDir();
+      setTaskOutputDir();
+    } else {
+      LOG.warn("Property " + ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY + " is missing.");
+    }
+  }
+
+  /**
+   * If {@link ConfigurationKeys#WRITER_STAGING_DIR} (which is deprecated) is specified, use its value.
+   *
+   * Otherwise, if {@link ConfigurationKeys#TASK_DATA_ROOT_DIR_KEY} is specified, use its value
+   * plus {@link #TASK_STAGING_DIR_NAME}.
+   */
+  private void setTaskStagingDir() {
+    if (this.jobState.contains(ConfigurationKeys.WRITER_STAGING_DIR)) {
+      LOG.warn(String.format("Property %s is deprecated. No need to use it if %s is specified.",
+          ConfigurationKeys.WRITER_STAGING_DIR, ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY));
+    } else {
+      String workingDir = this.jobState.getProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY);
+      this.jobState.setProp(ConfigurationKeys.WRITER_STAGING_DIR,
+          new Path(workingDir, TASK_STAGING_DIR_NAME).toString());
+    }
+  }
+
+  /**
+   * If {@link ConfigurationKeys#WRITER_OUTPUT_DIR} (which is deprecated) is specified, use its value.
+   *
+   * Otherwise, if {@link ConfigurationKeys#TASK_DATA_ROOT_DIR_KEY} is specified, use its value
+   * plus {@link #TASK_OUTPUT_DIR_NAME}.
+   */
+  private void setTaskOutputDir() {
+    if (this.jobState.contains(ConfigurationKeys.WRITER_OUTPUT_DIR)) {
+      LOG.warn(String.format("Property %s is deprecated. No need to use it if %s is specified.",
+          ConfigurationKeys.WRITER_OUTPUT_DIR, ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY));
+    } else {
+      String workingDir = this.jobState.getProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY);
+      this.jobState.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(workingDir, TASK_OUTPUT_DIR_NAME).toString());
+    }
+  }
+
+  public boolean shouldCleanupStagingDataPerTask() {
+    return this.jobState.getPropAsBoolean(ConfigurationKeys.CLEANUP_STAGING_DATA_PER_TASK,
+        ConfigurationKeys.DEFAULT_CLEANUP_STAGING_DATA_PER_TASK);
   }
 
   /**
