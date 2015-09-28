@@ -42,7 +42,6 @@ dependencies {
   compile externalDependency.guice
   compile externalDependency.javaxInject
   compile externalDependency.findBugs
-  compile externalDependency.helixCore
   compile externalDependency.typesafeConfig
   compile externalDependency.hadoopCommon
   compile externalDependency.hadoopYarnApi
@@ -58,6 +57,8 @@ dependencies {
   testCompile externalDependency.byteman
   testCompile externalDependency.bytemanBmunit
   testRuntime externalDependency.derby
+
+  compile files('./src/main/resources/helix-core-0.7.2-SNAPSHOT.jar')
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {
