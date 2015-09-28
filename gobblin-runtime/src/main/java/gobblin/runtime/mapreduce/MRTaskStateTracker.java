@@ -23,6 +23,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Counter;
+import com.codahale.metrics.Metric;
+import com.codahale.metrics.MetricFilter;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.GobblinMetrics;
@@ -70,10 +72,7 @@ public class MRTaskStateTracker extends AbstractTaskStateTracker {
 
         if (workUnit.getPropAsBoolean(ConfigurationKeys.MR_REPORT_METRICS_AS_COUNTERS_KEY,
             ConfigurationKeys.DEFAULT_MR_REPORT_METRICS_AS_COUNTERS)) {
-          Map<String, Counter> counters = JobMetrics.get(null, task.getJobId()).getMetricContext().getCounters();
-          for (Map.Entry<String, Counter> entry : counters.entrySet()) {
-            this.context.getCounter(MetricGroup.JOB.name(), entry.getKey()).setValue(entry.getValue().getCount());
-          }
+          updateCounters(task);
         }
       }
     } finally {
@@ -106,15 +105,48 @@ public class MRTaskStateTracker extends AbstractTaskStateTracker {
       if (GobblinMetrics.isEnabled(workUnit)) {
         if (workUnit.getPropAsBoolean(ConfigurationKeys.MR_REPORT_METRICS_AS_COUNTERS_KEY,
             ConfigurationKeys.DEFAULT_MR_REPORT_METRICS_AS_COUNTERS)) {
-          Map<String, Counter> counters = JobMetrics.get(null, task.getJobId()).getMetricContext().getCounters();
-          for (Map.Entry<String, Counter> entry : counters.entrySet()) {
-            this.context.getCounter(MetricGroup.JOB.name(), entry.getKey()).setValue(entry.getValue().getCount());
-          }
+          updateCounters(this.task);
         }
       }
 
       // Tell the TaskTracker it's making progress
       this.context.progress();
     }
+  }
+  
+  private void updateCounters(Task task) {
+    updateCounters(task, MetricGroupFilter.JOB);
+    updateCounters(task, MetricGroupFilter.TASK);
+  }
+  
+  private void updateCounters(Task task, MetricGroupFilter filter) {
+    Map<String, Counter> counters = JobMetrics.get(null, task.getJobId()).getMetricContext().getCounters(filter);
+    if (counters != null) {
+      for (Map.Entry<String, Counter> entry : counters.entrySet()) {
+        this.context.getCounter(filter.getGroupName(), entry.getKey()).setValue(entry.getValue().getCount());
+      }
+    }
+  }
+  
+  private enum MetricGroupFilter implements MetricFilter {
+    JOB() {
+      @Override
+      public String getGroupName() {
+        return MetricGroup.JOB.toString();
+      }
+    },
+    TASK() {
+      @Override
+      public String getGroupName() {
+        return MetricGroup.TASK.toString();
+      }
+    };
+
+    @Override
+    public boolean matches(String name, Metric metric) {
+      return name.startsWith(this.toString()) ? true : false;
+    }
+
+    public abstract String getGroupName();
   }
 }

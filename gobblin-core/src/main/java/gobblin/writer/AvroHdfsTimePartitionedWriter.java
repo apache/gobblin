@@ -109,9 +109,9 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
   private final DateTimeFormatter timestampToPathFormatter;
 
   /**
-   * Maps a {@link Path} to the the {@link DataWriter} that is writing data to the Path.
+   * Maps a {@link Path} to the {@link DataWriter} that is writing data to the Path.
    */
-  protected final Map<Path, DataWriter<GenericRecord>> pathToWriterMap = Maps.newHashMap();
+  protected final Map<Path, FsDataWriter<GenericRecord>> pathToWriterMap = Maps.newHashMap();
 
   // Variables needed to build DataWriters
   private final Destination destination;
@@ -203,7 +203,7 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
 
       LOG.info("Creating a new DataWriter for path: " + writerOutputPath);
 
-      DataWriter<GenericRecord> avroHdfsDataWriter = createAvroHdfsDataWriterForPath(writerOutputPath);
+      FsDataWriter<GenericRecord> avroHdfsDataWriter = createAvroHdfsDataWriterForPath(writerOutputPath);
 
       this.pathToWriterMap.put(writerOutputPath, avroHdfsDataWriter);
     }
@@ -216,7 +216,7 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
   @Override
   public void commit() throws IOException {
     boolean commitFailed = false;
-    for (Entry<Path, DataWriter<GenericRecord>> entry : this.pathToWriterMap.entrySet()) {
+    for (Entry<Path, FsDataWriter<GenericRecord>> entry : this.pathToWriterMap.entrySet()) {
       try {
         entry.getValue().commit();
       } catch (IOException e) {
@@ -233,7 +233,7 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
   @Override
   public void cleanup() throws IOException {
     boolean cleanupFailed = false;
-    for (Entry<Path, DataWriter<GenericRecord>> entry : this.pathToWriterMap.entrySet()) {
+    for (Entry<Path, FsDataWriter<GenericRecord>> entry : this.pathToWriterMap.entrySet()) {
       try {
         entry.getValue().cleanup();
       } catch (IOException e) {
@@ -261,7 +261,7 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
     long bytesWritten = 0;
     boolean getBytesWritten = false;
 
-    for (Entry<Path, DataWriter<GenericRecord>> entry : this.pathToWriterMap.entrySet()) {
+    for (Entry<Path, FsDataWriter<GenericRecord>> entry : this.pathToWriterMap.entrySet()) {
       try {
         bytesWritten += entry.getValue().bytesWritten();
       } catch (IOException e) {
@@ -290,8 +290,12 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
 
     // Close all writers
     boolean closeFailed = false;
-    for (Entry<Path, DataWriter<GenericRecord>> entry : this.pathToWriterMap.entrySet()) {
+    for (Entry<Path, FsDataWriter<GenericRecord>> entry : this.pathToWriterMap.entrySet()) {
       try {
+
+        // Add output path to property writer.final.output.file.paths
+        this.properties.appendToListProp(ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS,
+            entry.getValue().getOutputFilePath());
         entry.getValue().close();
       } catch (IOException e) {
         closeFailed = true;
@@ -312,7 +316,7 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
    * @return a new {@link DataWriter} configured to write to the specified path.
    * @throws IOException if there is an problem creating the new {@link DataWriter}.
    */
-  private DataWriter<GenericRecord> createAvroHdfsDataWriterForPath(Path path) throws IOException {
+  private FsDataWriter<GenericRecord> createAvroHdfsDataWriterForPath(Path path) throws IOException {
 
     // Create a copy of the properties object
     State state = new State();
@@ -323,9 +327,9 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
     // Set the output path that the DataWriter will write to
     state.setProp(getWriterFilePath(), path.toString());
 
-    return new AvroDataWriterBuilder().writeTo(Destination.of(this.destination.getType(), state))
-        .writeInFormat(this.writerOutputFormat).withWriterId(this.writerId).withSchema(this.schema)
-        .forBranch(this.branch).build();
+    return (FsDataWriter<GenericRecord>) new AvroDataWriterBuilder()
+        .writeTo(Destination.of(this.destination.getType(), state)).writeInFormat(this.writerOutputFormat)
+        .withWriterId(this.writerId).withSchema(this.schema).withBranches(numBranches).forBranch(this.branch).build();
   }
 
   /**

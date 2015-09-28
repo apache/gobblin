@@ -13,6 +13,8 @@
 package gobblin.rest;
 
 import java.io.File;
+import java.io.IOException;
+import java.net.ServerSocket;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -20,6 +22,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+
 import javax.sql.DataSource;
 
 import org.testng.Assert;
@@ -32,6 +35,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.io.Closer;
 import com.google.common.io.Files;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -55,7 +59,7 @@ import gobblin.metastore.MetaStoreModule;
  *
  * @author ynli
  */
-@Test(groups = {"gobblin.rest"})
+@Test(groups = { "gobblin.rest" })
 public class JobExecutionInfoServerTest {
   private JobHistoryStore jobHistoryStore;
   private JobExecutionInfoClient client;
@@ -64,16 +68,19 @@ public class JobExecutionInfoServerTest {
   private JobExecutionInfo expected2;
 
   @BeforeClass
-  public void setUp()
-      throws Exception {
+  public void setUp() throws Exception {
     Properties properties = new Properties();
     properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY, "org.apache.derby.jdbc.EmbeddedDriver");
     properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY, "jdbc:derby:memory:gobblin;create=true");
+
+    String randomPort = chooseRandomPort();
+    properties.setProperty(ConfigurationKeys.REST_SERVER_PORT_KEY, randomPort);
+
     prepareJobHistoryStoreDatabase(properties);
     Injector injector = Guice.createInjector(new MetaStoreModule(properties));
     this.jobHistoryStore = injector.getInstance(JobHistoryStore.class);
 
-    this.client = new JobExecutionInfoClient("http://localhost:8080/");
+    this.client = new JobExecutionInfoClient(String.format("http://%s:%s/", "localhost", randomPort));
     this.server = new JobExecutionInfoServer(properties);
     this.server.startUp();
 
@@ -85,8 +92,7 @@ public class JobExecutionInfoServerTest {
   }
 
   @Test
-  public void testGet()
-      throws Exception {
+  public void testGet() throws Exception {
     JobExecutionQuery queryByJobId = new JobExecutionQuery();
     queryByJobId.setIdType(QueryIdTypeEnum.JOB_ID);
     queryByJobId.setId(JobExecutionQuery.Id.create(this.expected1.getJobId()));
@@ -99,8 +105,7 @@ public class JobExecutionInfoServerTest {
   }
 
   @Test
-  public void testBadGet()
-      throws Exception {
+  public void testBadGet() throws Exception {
     JobExecutionQuery queryByJobId = new JobExecutionQuery();
     queryByJobId.setIdType(QueryIdTypeEnum.JOB_ID);
     queryByJobId.setId(JobExecutionQuery.Id.create(this.expected1.getJobId() + "1"));
@@ -110,8 +115,7 @@ public class JobExecutionInfoServerTest {
   }
 
   @Test
-  public void testBatchGet()
-      throws Exception {
+  public void testBatchGet() throws Exception {
     JobExecutionQuery queryByJobId1 = new JobExecutionQuery();
     queryByJobId1.setIdType(QueryIdTypeEnum.JOB_ID);
     queryByJobId1.setId(JobExecutionQuery.Id.create(this.expected1.getJobId()));
@@ -138,8 +142,7 @@ public class JobExecutionInfoServerTest {
   }
 
   @AfterClass
-  public void tearDown()
-      throws Exception {
+  public void tearDown() throws Exception {
     this.client.close();
     this.server.shutDown();
     this.jobHistoryStore.close();
@@ -150,12 +153,22 @@ public class JobExecutionInfoServerTest {
     }
   }
 
-  private void prepareJobHistoryStoreDatabase(Properties properties)
-      throws Exception {
+  private String chooseRandomPort() throws IOException {
+    ServerSocket socket = null;
+    try {
+      socket = new ServerSocket(0);
+      return socket.getLocalPort() + "";
+    } finally {
+      if (socket != null) {
+        socket.close();
+      }
+    }
+  }
+
+  private void prepareJobHistoryStoreDatabase(Properties properties) throws Exception {
     // Read the DDL statements
     List<String> statementLines = Lists.newArrayList();
-    List<String> lines = Files.readLines(
-        new File("gobblin-metastore/src/test/resources/gobblin_job_history_store.sql"),
+    List<String> lines = Files.readLines(new File("gobblin-metastore/src/test/resources/gobblin_job_history_store.sql"),
         ConfigurationKeys.DEFAULT_CHARSET_ENCODING);
     for (String line : lines) {
       // Skip a comment line

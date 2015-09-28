@@ -456,7 +456,6 @@ public class Fork implements Closeable, Runnable, FinalState {
    */
   private void commitData() throws IOException {
     if (this.writer.isPresent()) {
-      this.logger.info(String.format("Committing data of fork %d of task %s", this.index, this.taskId));
       // Not to catch the exception this may throw so it gets propagated
       this.writer.get().commit();
     }

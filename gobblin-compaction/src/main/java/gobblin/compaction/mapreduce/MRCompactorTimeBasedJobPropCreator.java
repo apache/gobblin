@@ -153,15 +153,14 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
    * Return job properties for a job to handle the appearance of data within jobInputDir which is
    * more recent than the time of the last compaction.
    */
-  private State createJobPropsForLateData(Path jobInputDir, Path jobOutputDir, Path jobTmpDir,
-      List<Path> newDataFiles) throws IOException {
+  private State createJobPropsForLateData(Path jobInputDir, Path jobOutputDir, Path jobTmpDir, List<Path> newDataFiles)
+      throws IOException {
     if (this.state.getPropAsBoolean(ConfigurationKeys.COMPACTION_RECOMPACT_FOR_LATE_DATA,
         ConfigurationKeys.DEFAULT_COMPACTION_RECOMPACT_FOR_LATE_DATA)) {
-      LOG.info(String.format("Recompacting folder at %s.", jobOutputDir));
+      LOG.info(String.format("Will recompact for %s.", jobOutputDir));
       return createJobProps(jobInputDir, jobOutputDir, jobTmpDir, this.deduplicate);
     } else {
-      LOG.info(String.format("Moving %d new data files from %s to %s", newDataFiles.size(), jobInputDir,
-          new Path(jobOutputDir, ConfigurationKeys.COMPACTION_LATE_FILES_DIRECTORY)));
+      LOG.info(String.format("Will copy %d new data files to %s", newDataFiles.size(), jobOutputDir));
       State jobProps = createJobProps(jobInputDir, jobOutputDir, jobTmpDir, this.deduplicate);
       jobProps.setProp(ConfigurationKeys.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, true);
       jobProps.setProp(ConfigurationKeys.COMPACTION_JOB_LATE_DATA_FILES, Joiner.on(",").join(newDataFiles));

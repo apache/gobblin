@@ -161,7 +161,7 @@ public class MRCompactor implements Compactor {
       return;
     }
     LocalFileSystem lfs = FileSystem.getLocal(this.conf);
-    Path tmpJarFileDir = new Path(this.inputDir, "_tmpjars");
+    Path tmpJarFileDir = new Path(this.inputDir, "_gobblin_compaction_jars");
     this.state.setProp(ConfigurationKeys.COMPACTION_JARS, tmpJarFileDir.toString());
     this.fs.delete(tmpJarFileDir, true);
     for (String jarFile : this.state.getPropAsList(ConfigurationKeys.JOB_JAR_FILES_KEY)) {

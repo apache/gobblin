@@ -98,7 +98,7 @@ public class SimpleDataWriterTest {
     Assert.assertEquals(writer.recordsWritten(), 3);
     Assert.assertEquals(writer.bytesWritten(), rec1.length + rec2.length + rec3.length);
 
-    String pathKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, 0);
+    String pathKey = ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS;
     Assert.assertTrue(properties.contains(pathKey));
     File outputFile = new File(properties.getProp(pathKey));
     InputStream is = new FileInputStream(outputFile);
@@ -141,7 +141,7 @@ public class SimpleDataWriterTest {
     Assert.assertEquals(writer.recordsWritten(), 3);
     Assert.assertEquals(writer.bytesWritten(), rec1.length + rec2.length + rec3.length + (Long.SIZE / 8 * 3));
 
-    String pathKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, 0);
+    String pathKey = ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS;
     Assert.assertTrue(properties.contains(pathKey));
     File outputFile = new File(properties.getProp(pathKey));
     DataInputStream dis = new DataInputStream(new FileInputStream(outputFile));
@@ -181,7 +181,7 @@ public class SimpleDataWriterTest {
     Assert.assertEquals(writer.recordsWritten(), 3);
     Assert.assertEquals(writer.bytesWritten(), rec1.length + rec2.length + rec3.length + 3); // 3 bytes for newline character
 
-    String pathKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, 0);
+    String pathKey = ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS;
     Assert.assertTrue(properties.contains(pathKey));
     File outputFile = new File(properties.getProp(pathKey));
     InputStream is = new FileInputStream(outputFile);
@@ -224,7 +224,7 @@ public class SimpleDataWriterTest {
     Assert.assertEquals(writer.recordsWritten(), 3);
     Assert.assertEquals(writer.bytesWritten(), rec1.length + rec2.length + rec3.length + (Long.SIZE / 8 * 3) + 3);
 
-    String pathKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, 0);
+    String pathKey = ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS;
     Assert.assertTrue(properties.contains(pathKey));
     File outputFile = new File(properties.getProp(pathKey));
     DataInputStream dis = new DataInputStream(new FileInputStream(outputFile));
@@ -265,7 +265,7 @@ public class SimpleDataWriterTest {
     Assert.assertEquals(writer.recordsWritten(), 3);
     Assert.assertEquals(writer.bytesWritten(), totalBytes);
 
-    String pathKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, 0);
+    String pathKey = ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS;
     Assert.assertTrue(properties.contains(pathKey));
     File outputFile = new File(properties.getProp(pathKey));
     BufferedReader br = new BufferedReader(new FileReader(outputFile));
@@ -313,7 +313,7 @@ public class SimpleDataWriterTest {
     Assert.assertEquals(writer.recordsWritten(), 1);
     Assert.assertEquals(writer.bytesWritten(), randomBytesWrite.length + 1);
 
-    String pathKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_PATH, 0);
+    String pathKey = ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS;
     Assert.assertTrue(properties.contains(pathKey));
     File writeFile = new File(properties.getProp(pathKey));
     int c, i = 0;
