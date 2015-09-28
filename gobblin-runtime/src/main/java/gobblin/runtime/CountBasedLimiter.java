@@ -12,48 +12,16 @@
 
 package gobblin.runtime;
 
-import java.io.Closeable;
-
 
 /**
- * An implementation of {@link Limiter} that limits the number of permits allowed to be issued.
+ * {@inheritDoc}
  *
- * <p>
- *   {@link #acquirePermits(long)} will return {@code false} once if there's not enough permits
- *   available to satisfy the request. Permit refills are not supported in this implementation.
- * </p>
- * </p>
- *
- * @author ynli
+ * @deprecated This class has been moved to {@link gobblin.util.limiter.CountBasedLimiter}.
  */
-public class CountBasedLimiter extends NonRefillableLimiter {
-
-  private final long countLimit;
-  private long count;
+@Deprecated
+public class CountBasedLimiter extends gobblin.util.limiter.CountBasedLimiter {
 
   public CountBasedLimiter(long countLimit) {
-    this.countLimit = countLimit;
-    this.count = 0;
-  }
-
-  @Override
-  public void start() {
-    // Nothing to do
-  }
-
-  @Override
-  public synchronized Closeable acquirePermits(long permits)
-      throws InterruptedException {
-    // Check if the request can be satisfied
-    if (this.count + permits <= this.countLimit) {
-      this.count += permits;
-      return NO_OP_CLOSEABLE;
-    }
-    return null;
-  }
-
-  @Override
-  public void stop() {
-    // Nothing to do
+    super(countLimit);
   }
 }

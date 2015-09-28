@@ -12,28 +12,12 @@
 
 package gobblin.runtime;
 
-import java.io.Closeable;
-import java.io.IOException;
-
 
 /**
- * A type of {@link Limiter}s that do not support permit refills by returning a no-op
- * {@link Closeable} in {@link #acquirePermits(long)}.
+ * {@inheritDoc}
  *
- * @author ynli
+ * @deprecated This class has been moved to {@link gobblin.util.limiter.NonRefillableLimiter}.
  */
-public abstract class NonRefillableLimiter implements Limiter {
-
-  protected static final Closeable NO_OP_CLOSEABLE = new Closeable() {
-    @Override
-    public void close()
-        throws IOException {
-      // Nothing to do
-    }
-  };
-
-  @Override
-  public Closeable acquirePermits(long permits) throws InterruptedException {
-    return NO_OP_CLOSEABLE;
-  }
+@Deprecated
+public abstract class NonRefillableLimiter extends gobblin.util.limiter.NonRefillableLimiter {
 }

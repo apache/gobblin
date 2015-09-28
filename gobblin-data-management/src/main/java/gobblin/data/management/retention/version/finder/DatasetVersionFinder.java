@@ -57,7 +57,6 @@ public abstract class DatasetVersionFinder<T extends DatasetVersion> implements 
   @Override
   public Collection<T> findDatasetVersions(Dataset dataset) throws IOException {
     Path versionGlobStatus = new Path(dataset.datasetRoot(), globVersionPattern());
-
     FileStatus[] dataSetVersionPaths = this.fs.globStatus(versionGlobStatus);
 
     List<T> dataSetVersions = Lists.newArrayList();
