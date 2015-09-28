@@ -25,16 +25,12 @@ import static org.mockito.Mockito.*;
 public class AsyncTrashTest {
   @Test public void testAsyncTrash() throws Exception {
 
-    long delay = 500;
-
     Properties properties = TestTrash.propertiesForTestTrash();
-    TestTrash.simulateDelay(properties, delay);
+    TestTrash.simulateDelay(properties, 2);
 
     FileSystem fs = mock(FileSystem.class);
 
     AsyncTrash trash = new AsyncTrash(fs, properties);
-
-    long startTime = System.currentTimeMillis();
 
     for(int i = 0; i < 5; i++) {
       trash.moveToTrash(new Path("file" + i));
@@ -44,11 +40,11 @@ public class AsyncTrashTest {
       trash.moveToTrashAsUser(new Path("file" + i), "user" + i);
     }
 
-    Assert.assertTrue(System.currentTimeMillis() - startTime < delay);
+    Assert.assertTrue(((TestTrash) trash.getDecoratedObject()).getDeleteOperations().isEmpty());
+    ((TestTrash) trash.getDecoratedObject()).tick();
     Assert.assertTrue(((TestTrash) trash.getDecoratedObject()).getDeleteOperations().isEmpty());
 
-    Thread.sleep(2 * delay);
-
+    ((TestTrash) trash.getDecoratedObject()).tick();
     Assert.assertEquals(((TestTrash) trash.getDecoratedObject()).getDeleteOperations().size(), 10);
 
   }
