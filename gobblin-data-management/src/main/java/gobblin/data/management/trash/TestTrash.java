@@ -32,6 +32,8 @@ import lombok.Getter;
  */
 public class TestTrash extends MockTrash {
 
+  private static final String DELAY_MILLIS_KEY = "gobblin.trash.test.delays.millis";
+
   /**
    * Creates {@link java.util.Properties} that will generate a {@link gobblin.data.management.trash.TestTrash} when
    * using {@link gobblin.data.management.trash.TrashFactory}.
@@ -40,6 +42,16 @@ public class TestTrash extends MockTrash {
     Properties properties = new Properties();
     properties.setProperty(TrashFactory.TRASH_TEST, Boolean.toString(true));
     return properties;
+  }
+
+  /**
+   * Mutates properties so that creating a TestTrash with this properties object will simulate delay in the
+   * filesystem.
+   * @param properties {@link Properties} used for building a test trash.
+   * @param delay All calls to {@link TestTrash} involving file system will simulate a delay of this many milliseconds.
+   */
+  public static void simulateDelay(Properties properties, long delay) {
+    properties.setProperty(DELAY_MILLIS_KEY, Long.toString(delay));
   }
 
   /**
@@ -55,6 +67,7 @@ public class TestTrash extends MockTrash {
   @Getter
   private final List<DeleteOperation> deleteOperations;
   private final String user;
+  private final long delay;
 
   @Getter
   private final boolean simulate;
@@ -70,26 +83,49 @@ public class TestTrash extends MockTrash {
         Boolean.parseBoolean(props.getProperty(TrashFactory.SIMULATE));
     this.skipTrash = props.containsKey(TrashFactory.SKIP_TRASH) &&
         Boolean.parseBoolean(props.getProperty(TrashFactory.SKIP_TRASH));
+    if(props.containsKey(DELAY_MILLIS_KEY)) {
+      this.delay = Long.parseLong(props.getProperty(DELAY_MILLIS_KEY));
+    } else {
+      this.delay = 0;
+    }
   }
 
   @Override
   public boolean moveToTrash(Path path)
       throws IOException {
-    this.deleteOperations.add(new DeleteOperation(path, null));
+    waitForMillis(this.delay);
+    addDeleteOperation(new DeleteOperation(path, null));
     return true;
   }
 
   @Override
   public boolean moveToTrashAsUser(Path path, String user)
       throws IOException {
-    this.deleteOperations.add(new DeleteOperation(path, user));
+    waitForMillis(this.delay);
+    addDeleteOperation(new DeleteOperation(path, user));
     return true;
   }
 
   @Override
   public boolean moveToTrashAsOwner(Path path)
       throws IOException {
+    waitForMillis(this.delay);
     return moveToTrashAsUser(path, this.user);
+  }
+
+  private synchronized void addDeleteOperation(DeleteOperation dop) {
+    this.deleteOperations.add(dop);
+  }
+
+  private void waitForMillis(long millis) {
+    if(millis <= 0) {
+      return;
+    }
+    try {
+      Thread.sleep(millis);
+    } catch (InterruptedException ie) {
+      // return
+    }
   }
 
   private static Properties propertiesForConstruction(Properties properties) {
