@@ -155,8 +155,8 @@ public class GobblinYarnAppLauncher {
         FileSystem.get(this.yarnConfiguration);
 
     List<Service> services = Lists.newArrayList();
-    if (UserGroupInformation.isSecurityEnabled()) {
-      LOGGER.info("Adding YarnAppSecurityManager since security is enabled");
+    if (config.hasPath(ConfigurationConstants.TOKEN_FILE_PATH)) {
+      LOGGER.info("Adding YarnAppSecurityManager since login is keytab based");
       services.add(new YarnAppSecurityManager(config, this.helixManager, this.fs));
     }
     this.serviceManager = new ServiceManager(services);
@@ -315,7 +315,7 @@ public class GobblinYarnAppLauncher {
     ApplicationSubmissionContext appSubmissionContext = gobblinYarnApp.getApplicationSubmissionContext();
     ApplicationId applicationId = appSubmissionContext.getApplicationId();
 
-    GetNewApplicationResponse newApplicationResponse =gobblinYarnApp.getNewApplicationResponse();
+    GetNewApplicationResponse newApplicationResponse = gobblinYarnApp.getNewApplicationResponse();
     // Set up resource type requirements for ApplicationMaster
     Resource resource = prepareContainerResource(newApplicationResponse);
 

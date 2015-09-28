@@ -14,24 +14,10 @@ package gobblin.yarn.event;
 
 
 /**
- * A type of events fired when the delegation token has been updated by the controller.
+ * A dummy class representing a type of events fired when the delegation token has been updated by the controller.
  *
  * @author ynli
  */
 public class DelegationTokenUpdatedEvent {
 
-  private final String tokenFilePath;
-
-  public DelegationTokenUpdatedEvent(String tokenFilePath) {
-    this.tokenFilePath = tokenFilePath;
-  }
-
-  /**
-   * Get the token file path.
-   *
-   * @return the token file path.
-   */
-  public String getTokenFilePath() {
-    return this.tokenFilePath;
-  }
 }

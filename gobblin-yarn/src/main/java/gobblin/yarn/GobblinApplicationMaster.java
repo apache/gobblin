@@ -134,7 +134,7 @@ public class GobblinApplicationMaster {
     List<Service> services = Lists.newArrayList();
     if (UserGroupInformation.isSecurityEnabled()) {
       LOGGER.info("Adding YarnContainerSecurityManager since security is enabled");
-      services.add(new YarnContainerSecurityManager(fs, this.eventBus));
+      services.add(new YarnContainerSecurityManager(config, fs, this.eventBus));
     }
     services.add(
         new YarnService(config, applicationName, applicationAttemptIdId.getApplicationId(), fs, this.eventBus,
@@ -401,7 +401,7 @@ public class GobblinApplicationMaster {
         if (messageSubType.equalsIgnoreCase(HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString())) {
           LOGGER.info("Handling message " + HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString());
 
-          eventBus.post(new DelegationTokenUpdatedEvent(this._message.getResourceId().stringify()));
+          eventBus.post(new DelegationTokenUpdatedEvent());
           HelixTaskResult helixTaskResult = new HelixTaskResult();
           helixTaskResult.setSuccess(true);
           return helixTaskResult;

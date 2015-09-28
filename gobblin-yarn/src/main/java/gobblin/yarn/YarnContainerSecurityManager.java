@@ -23,6 +23,8 @@ import org.apache.hadoop.security.token.TokenIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.typesafe.config.Config;
+
 import com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
@@ -48,9 +50,11 @@ public class YarnContainerSecurityManager extends AbstractIdleService {
   private static final Logger LOGGER = LoggerFactory.getLogger(YarnContainerSecurityManager.class);
 
   private final FileSystem fs;
+  private final Path tokenFilePath;
 
-  public YarnContainerSecurityManager(FileSystem fs, EventBus eventBus) {
+  public YarnContainerSecurityManager(Config config, FileSystem fs, EventBus eventBus) {
     this.fs = fs;
+    this.tokenFilePath = new Path(config.getString(GobblinYarnConfigurationKeys.TOKEN_FILE_PATH));
     eventBus.register(this);
   }
 
@@ -58,7 +62,7 @@ public class YarnContainerSecurityManager extends AbstractIdleService {
   @Subscribe
   public void handleTokenFileUpdatedEvent(DelegationTokenUpdatedEvent delegationTokenUpdatedEvent) {
     try {
-      readAndAddDelegationTokens(new Path(delegationTokenUpdatedEvent.getTokenFilePath()));
+      readAndAddDelegationTokens(this.tokenFilePath);
     } catch (IOException ioe) {
       throw Throwables.propagate(ioe);
     }

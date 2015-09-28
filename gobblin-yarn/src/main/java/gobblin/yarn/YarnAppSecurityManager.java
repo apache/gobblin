@@ -31,7 +31,6 @@ import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.helix.Criteria;
 import org.apache.helix.HelixManager;
 import org.apache.helix.InstanceType;
-import org.apache.helix.api.id.ResourceId;
 import org.apache.helix.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,16 +76,19 @@ public class YarnAppSecurityManager extends AbstractIdleService {
   private final HelixManager helixManager;
   private final FileSystem fs;
   private final Path tokenFilePath;
-  private UserGroupInformation currentUser;
+  private UserGroupInformation loginUser;
   private Token<? extends TokenIdentifier> token;
 
-  private final long loginIntervalInHours;
-  private final long tokenRenewIntervalInHours;
+  private final long loginIntervalInMinutes;
+  private final long tokenRenewIntervalInMinutes;
 
   private final ScheduledExecutorService loginExecutor;
   private final ScheduledExecutorService tokenRenewExecutor;
-  private ScheduledFuture<?> scheduledTokenRenewTask;
+  private Optional<ScheduledFuture<?>> scheduledTokenRenewTask = Optional.absent();
 
+  // This flag is used to tell if this is the first login. If yes, no token updated message will be
+  // sent to the controller and the participants as they may not be up running yet. The first login
+  // happens after this class starts up so the token gets regularly refreshed before the next login.
   private volatile boolean firstLogin = true;
 
   public YarnAppSecurityManager(Config config, HelixManager helixManager, FileSystem fs) throws IOException {
@@ -94,11 +96,11 @@ public class YarnAppSecurityManager extends AbstractIdleService {
     this.helixManager = helixManager;
     this.fs = fs;
 
-    this.tokenFilePath = new Path(config.getString(ConfigurationConstants.TOKEN_FILE_PATH));
+    this.tokenFilePath = new Path(config.getString(GobblinYarnConfigurationKeys.TOKEN_FILE_PATH));
     this.fs.makeQualified(tokenFilePath);
-    this.currentUser = UserGroupInformation.getCurrentUser();
-    this.loginIntervalInHours = config.getLong(ConfigurationConstants.LOGIN_INTERVAL_IN_HOURS);
-    this.tokenRenewIntervalInHours = config.getLong(ConfigurationConstants.TOKEN_RENEW_INTERVAL_IN_HOURS);
+    this.loginUser = UserGroupInformation.getLoginUser();
+    this.loginIntervalInMinutes = config.getLong(GobblinYarnConfigurationKeys.LOGIN_INTERVAL_IN_MINUTES);
+    this.tokenRenewIntervalInMinutes = config.getLong(GobblinYarnConfigurationKeys.TOKEN_RENEW_INTERVAL_IN_MINUTES);
 
     this.loginExecutor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("KeytabReLoginExecutor")));
@@ -108,7 +110,10 @@ public class YarnAppSecurityManager extends AbstractIdleService {
 
   @Override
   protected void startUp() throws Exception {
-    LOGGER.info("Scheduling the login task");
+    LOGGER.info("Starting the " + YarnAppSecurityManager.class.getSimpleName());
+
+    LOGGER.info(
+        String.format("Scheduling the login task with an interval of %d minute(s)", this.loginIntervalInMinutes));
 
     // Schedule the Kerberos re-login task
     this.loginExecutor.scheduleAtFixedRate(new Runnable() {
@@ -116,69 +121,55 @@ public class YarnAppSecurityManager extends AbstractIdleService {
       public void run() {
         try {
           // Cancel the currently scheduled token renew task
-          if (scheduledTokenRenewTask.cancel(true)) {
+          if (scheduledTokenRenewTask.isPresent() && scheduledTokenRenewTask.get().cancel(true)) {
             LOGGER.info("Cancelled the token renew task");
           }
 
+          loginFromKeytab();
           if (firstLogin) {
-            login();
             firstLogin = false;
-          } else {
-            reLogin();
           }
 
           // Re-schedule the token renew task after re-login
           scheduleTokenRenewTask();
         } catch (IOException ioe) {
+          LOGGER.error("Failed to login from keytab", ioe);
           throw Throwables.propagate(ioe);
         }
       }
-    }, this.loginIntervalInHours, this.loginIntervalInHours, TimeUnit.HOURS);
+    }, 0, this.loginIntervalInMinutes, TimeUnit.MINUTES);
   }
 
   @Override
   protected void shutDown() throws Exception {
+    LOGGER.info("Stopping the " + YarnAppSecurityManager.class.getSimpleName());
+
+    if (this.scheduledTokenRenewTask.isPresent()) {
+      this.scheduledTokenRenewTask.get().cancel(true);
+    }
     ExecutorsUtils.shutdownExecutorService(this.loginExecutor, Optional.of(LOGGER));
     ExecutorsUtils.shutdownExecutorService(this.tokenRenewExecutor, Optional.of(LOGGER));
   }
 
-  /**
-   * Login the user initially.
-   */
-  private void login() throws IOException {
-    if (this.config.hasPath(ConfigurationConstants.KEYTAB_FILE_PATH)) {
-      // It is assumed that the presence of the configuration property for the
-      // keytab file path indicates the login should happen through a keytab.
-      loginFromKeytab();
-    }
-  }
-
-  /**
-   * Re-login the current logged-in user.
-   */
-  private void reLogin() throws IOException {
-    if (this.currentUser.isFromKeytab()) {
-      // Re-login from the keytab if the initial login is from a keytab
-      reLoginFromKeytab();
-    }
-  }
-
   private void scheduleTokenRenewTask() {
-    LOGGER.info("Scheduling the token renew task");
+    LOGGER.info(String.format("Scheduling the token renew task with an interval of %d minute(s)",
+        this.tokenRenewIntervalInMinutes));
 
-    this.scheduledTokenRenewTask = this.tokenRenewExecutor.scheduleAtFixedRate(new Runnable() {
-      @Override
-      public void run() {
-        try {
-          renewDelegationToken();
-        } catch (IOException ioe) {
-          throw Throwables.propagate(ioe);
-        } catch (InterruptedException ie) {
-          LOGGER.error("Token renew task has been interrupted");
-          Thread.currentThread().interrupt();
-        }
-      }
-    }, this.tokenRenewIntervalInHours, this.tokenRenewIntervalInHours, TimeUnit.HOURS);
+    this.scheduledTokenRenewTask = Optional.<ScheduledFuture<?>>of(
+        this.tokenRenewExecutor.scheduleAtFixedRate(new Runnable() {
+          @Override
+          public void run() {
+            try {
+              renewDelegationToken();
+            } catch (IOException ioe) {
+              LOGGER.error("Failed to renew delegation token", ioe);
+              throw Throwables.propagate(ioe);
+            } catch (InterruptedException ie) {
+              LOGGER.error("Token renew task has been interrupted");
+              Thread.currentThread().interrupt();
+            }
+          }
+        }, this.tokenRenewIntervalInMinutes, this.tokenRenewIntervalInMinutes, TimeUnit.MINUTES));
   }
 
   /**
@@ -187,20 +178,26 @@ public class YarnAppSecurityManager extends AbstractIdleService {
   private synchronized void renewDelegationToken() throws IOException, InterruptedException {
     this.token.renew(this.fs.getConf());
     writeDelegationTokenToFile();
+
+    if (!this.firstLogin) {
+      // Send a message to the controller and all the participants if this is not the first login
+      sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
+      sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT);
+    }
   }
 
   /**
    * Get a new delegation token for the current logged-in user.
    */
   private synchronized void getNewDelegationTokenForLoginUser() throws IOException {
-    this.token = this.fs.getDelegationToken(this.currentUser.getShortUserName());
+    this.token = this.fs.getDelegationToken(this.loginUser.getShortUserName());
   }
 
   /**
    * Login the user from a given keytab file.
    */
   private void loginFromKeytab() throws IOException {
-    String keyTabFilePath = this.config.getString(ConfigurationConstants.KEYTAB_FILE_PATH);
+    String keyTabFilePath = this.config.getString(GobblinYarnConfigurationKeys.KEYTAB_FILE_PATH);
     if (Strings.isNullOrEmpty(keyTabFilePath)) {
       throw new IOException("Keytab file path is not defined for Kerberos login");
     }
@@ -209,9 +206,9 @@ public class YarnAppSecurityManager extends AbstractIdleService {
       throw new IOException("Keytab file not found at: " + keyTabFilePath);
     }
 
-    String principal = this.config.getString(ConfigurationConstants.KEYTAB_PRINCIPAL_NAME);
+    String principal = this.config.getString(GobblinYarnConfigurationKeys.KEYTAB_PRINCIPAL_NAME);
     if (Strings.isNullOrEmpty(principal)) {
-      principal = this.currentUser.getShortUserName() + "/localhost@LOCALHOST";
+      principal = this.loginUser.getShortUserName() + "/localhost@LOCALHOST";
     }
 
     Configuration conf = new Configuration();
@@ -221,19 +218,16 @@ public class YarnAppSecurityManager extends AbstractIdleService {
     UserGroupInformation.loginUserFromKeytab(principal, keyTabFilePath);
     LOGGER.info(String.format("Logged in from keytab file %s using principal %s", keyTabFilePath, principal));
 
-    this.currentUser = UserGroupInformation.getCurrentUser();
+    this.loginUser = UserGroupInformation.getLoginUser();
 
     getNewDelegationTokenForLoginUser();
     writeDelegationTokenToFile();
-  }
 
-  /**
-   * Re-login the current login user from the keytab file used for the initial login.
-   */
-  private void reLoginFromKeytab() throws IOException {
-    this.currentUser.reloginFromKeytab();
-    getNewDelegationTokenForLoginUser();
-    writeDelegationTokenToFile();
+    if (!this.firstLogin) {
+      // Send a message to the controller and all the participants
+      sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
+      sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT);
+    }
   }
 
   /**
@@ -249,10 +243,6 @@ public class YarnAppSecurityManager extends AbstractIdleService {
     YarnHelixUtils.writeTokenToFile(this.token, this.tokenFilePath, this.fs.getConf());
     // Only grand access to the token file to the login user
     this.fs.setPermission(this.tokenFilePath, new FsPermission(FsAction.READ_WRITE, FsAction.NONE, FsAction.NONE));
-
-    // Send a message to the controller and all the participants
-    sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
-    sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT);
   }
 
   private void sendTokenFileUpdatedMessage(InstanceType instanceType) {
@@ -262,14 +252,18 @@ public class YarnAppSecurityManager extends AbstractIdleService {
     criteria.setPartition("%");
     criteria.setPartitionState("%");
     criteria.setRecipientInstanceType(instanceType);
-    criteria.setDataSource(Criteria.DataSource.LIVEINSTANCES);
+    if (instanceType == InstanceType.PARTICIPANT) {
+      criteria.setDataSource(Criteria.DataSource.LIVEINSTANCES);
+    }
     criteria.setSessionSpecific(true);
 
     Message tokenFileUpdatedMessage = new Message(Message.MessageType.USER_DEFINE_MSG,
         HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString().toLowerCase() + UUID.randomUUID().toString());
     tokenFileUpdatedMessage.setMsgSubType(HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString());
     tokenFileUpdatedMessage.setMsgState(Message.MessageState.NEW);
-    tokenFileUpdatedMessage.setResourceId(ResourceId.from(this.tokenFilePath.toString()));
+    if (instanceType == InstanceType.CONTROLLER) {
+      tokenFileUpdatedMessage.setTgtSessionId("*");
+    }
 
     int messagesSent = this.helixManager.getMessagingService().send(criteria, tokenFileUpdatedMessage);
     LOGGER.info(String.format("Sent %d token file updated message(s) to the %s", messagesSent, instanceType));

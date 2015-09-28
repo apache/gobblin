@@ -135,9 +135,9 @@ public class GobblinWorkUnitRunner {
     TaskStateTracker taskStateTracker = new GobblinHelixTaskStateTracker(properties, this.helixManager);
 
     List<Service> services = Lists.newArrayList();
-    if (UserGroupInformation.isSecurityEnabled()) {
-      LOGGER.info("Adding YarnContainerSecurityManager since security is enabled");
-      services.add(new YarnContainerSecurityManager(fs, this.eventBus));
+    if (config.hasPath(ConfigurationConstants.TOKEN_FILE_PATH)) {
+      LOGGER.info("Adding YarnContainerSecurityManager since login is keytab based");
+      services.add(new YarnContainerSecurityManager(config, fs, this.eventBus));
     }
     services.add(taskExecutor);
     services.add(taskStateTracker);
@@ -361,7 +361,7 @@ public class GobblinWorkUnitRunner {
         if (messageSubType.equalsIgnoreCase(HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString())) {
           LOGGER.info("Handling message " + HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString());
 
-          eventBus.post(new DelegationTokenUpdatedEvent(this._message.getResourceId().stringify()));
+          eventBus.post(new DelegationTokenUpdatedEvent());
           HelixTaskResult helixTaskResult = new HelixTaskResult();
           helixTaskResult.setSuccess(true);
           return helixTaskResult;
