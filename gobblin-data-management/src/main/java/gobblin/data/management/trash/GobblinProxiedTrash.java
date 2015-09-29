@@ -31,12 +31,4 @@ public interface GobblinProxiedTrash extends GobblinTrash {
    */
   public boolean moveToTrashAsUser(Path path, final String user) throws IOException;
 
-  /**
-   * Move the path to trash as the owner of the path.
-   * @param path {@link org.apache.hadoop.fs.Path} to move.
-   * @return true if the move succeeded.
-   * @throws IOException
-   */
-  public boolean moveToTrashAsOwner(Path path) throws IOException;
-
 }

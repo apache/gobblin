@@ -54,6 +54,7 @@ public class ProxiedTrash extends Trash implements GobblinProxiedTrash {
    * @return true if the move succeeded.
    * @throws IOException
    */
+  @Override
   public boolean moveToTrashAsUser(Path path, final String user) throws IOException {
     return getUserTrash(user).moveToTrash(path);
   }
