@@ -14,15 +14,14 @@ package gobblin.data.management.trash;
 
 import gobblin.util.Decorator;
 import gobblin.util.ExecutorsUtils;
+import gobblin.util.executors.ScalingThreadPoolExecutor;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -71,8 +70,9 @@ public class AsyncTrash implements GobblinProxiedTrash, Closeable, Decorator {
       maxDeletingThreads = Integer.parseInt(properties.getProperty(MAX_DELETING_THREADS_KEY));
     }
     this.innerTrash = TrashFactory.createProxiedTrash(fs, properties, user);
-    this.executor = MoreExecutors.getExitingExecutorService((ThreadPoolExecutor)
-        Executors.newFixedThreadPool(maxDeletingThreads, ExecutorsUtils.newThreadFactory(Optional.of(LOGGER),
+    this.executor = MoreExecutors.getExitingExecutorService(
+        ScalingThreadPoolExecutor.newScalingThreadPool(0, maxDeletingThreads, 100,
+        ExecutorsUtils.newThreadFactory(Optional.of(LOGGER),
         Optional.of("Async-trash-delete-pool-%d"))));
 
   }

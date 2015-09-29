@@ -15,6 +15,7 @@ package gobblin.data.management.trash;
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -100,8 +101,10 @@ public class TestTrash extends MockTrash {
   private final Lock lock;
   private final Condition clockStateUpdated;
   private final Condition signalReceived;
-  private long callsAwaitingSignal;
-  private long callsReceivedSignal;
+
+  private final AtomicLong callsReceivedSignal;
+  private final AtomicLong operationsWaiting;
+  private final AtomicLong operationsReceived;
 
   @Getter
   private final boolean simulate;
@@ -118,12 +121,14 @@ public class TestTrash extends MockTrash {
     this.skipTrash = props.containsKey(TrashFactory.SKIP_TRASH) &&
         Boolean.parseBoolean(props.getProperty(TrashFactory.SKIP_TRASH));
 
+    this.operationsReceived = new AtomicLong();
+
     this.lock = new ReentrantLock();
     this.clockStateUpdated = lock.newCondition();
     this.signalReceived = lock.newCondition();
     this.clockState = 0;
-    this.callsAwaitingSignal = 0;
-    this.callsReceivedSignal = 0;
+    this.operationsWaiting = new AtomicLong();
+    this.callsReceivedSignal = new AtomicLong();
     if(props.containsKey(DELAY_TICKS_KEY)) {
       this.delay = Long.parseLong(props.getProperty(DELAY_TICKS_KEY));
     } else {
@@ -134,6 +139,7 @@ public class TestTrash extends MockTrash {
   @Override
   public boolean moveToTrash(Path path)
       throws IOException {
+    this.operationsReceived.incrementAndGet();
     addDeleteOperation(new DeleteOperation(path, null));
     return true;
   }
@@ -141,6 +147,7 @@ public class TestTrash extends MockTrash {
   @Override
   public boolean moveToTrashAsUser(Path path, String user)
       throws IOException {
+    this.operationsReceived.incrementAndGet();
     addDeleteOperation(new DeleteOperation(path, user));
     return true;
   }
@@ -151,25 +158,35 @@ public class TestTrash extends MockTrash {
     return moveToTrashAsUser(path, this.user);
   }
 
+  public long getOperationsReceived() {
+    return this.operationsReceived.get();
+  }
+
+  public long getOperationsWaiting() {
+    return this.operationsWaiting.get();
+  }
+
   /**
    * Advance the internal clock by one tick. The call will block until all appropriate threads finish adding their
    * {@link DeleteOperation}s to the list.
    */
   public void tick() {
+
+    this.lock.lock();
+
     // Advance clock
     this.clockState++;
 
     // Acquire lock, register how many threads are waiting for signal
-    this.lock.lock();
-    long callsAwaitingSignalOld = this.callsAwaitingSignal;
-    this.callsReceivedSignal = 0;
-    this.callsAwaitingSignal = 0;
+    long callsAwaitingSignalOld = this.operationsWaiting.get();
+    this.callsReceivedSignal.set(0);
+    this.operationsWaiting.set(0);
 
     // Send signal
     this.clockStateUpdated.signalAll();
 
     try {
-      while(this.callsReceivedSignal < callsAwaitingSignalOld) {
+      while(this.callsReceivedSignal.get() < callsAwaitingSignalOld) {
         // this will release the lock, and it will periodically compare the number of threads that were awaiting
         // signal against the number of threads that have already received the signal. Therefore, this statement
         // will block until all threads have acked signal.
@@ -185,12 +202,13 @@ public class TestTrash extends MockTrash {
 
   private void addDeleteOperation(DeleteOperation dop) {
 
+    // Acquire lock
+    this.lock.lock();
+
     // Figure out when the operation can return
     long executeAt = this.clockState + this.delay;
     boolean firstLoop = true;
 
-    // Acquire lock
-    this.lock.lock();
     try {
       // If delay is 0, this continues immediately.
       while(this.clockState < executeAt) {
@@ -198,12 +216,12 @@ public class TestTrash extends MockTrash {
         // appropriate clock state. Ack the receive (this is done here because if it is ready to "delete", it should
         // only ack after actually adding the DeleteOperation to the list).
         if(!firstLoop) {
-          this.callsReceivedSignal++;
-          this.signalReceived.signal();
+          this.callsReceivedSignal.incrementAndGet();
+          this.signalReceived.signalAll();
         }
         firstLoop = false;
         // Add itself to the list of calls awaiting signal
-        this.callsAwaitingSignal++;
+        this.operationsWaiting.incrementAndGet();
         // Await for signal that the clock has been updated
         this.clockStateUpdated.await();
       }
@@ -211,7 +229,7 @@ public class TestTrash extends MockTrash {
       this.deleteOperations.add(dop);
 
       // Ack receipt of signal
-      this.callsReceivedSignal++;
+      this.callsReceivedSignal.incrementAndGet();
       this.signalReceived.signal();
     } catch (InterruptedException ie) {
       // Interrupted

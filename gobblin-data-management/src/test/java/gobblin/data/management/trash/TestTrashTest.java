@@ -72,19 +72,19 @@ public class TestTrashTest {
       }
     });
 
-    Assert.assertFalse(future1.isDone());
-    Assert.assertEquals(trash.getDeleteOperations().size(), 0);
-    trash.tick();
-    Assert.assertFalse(future1.isDone());
-    Assert.assertEquals(trash.getDeleteOperations().size(), 0);
-    trash.tick();
-    Assert.assertFalse(future1.isDone());
-    Assert.assertEquals(trash.getDeleteOperations().size(), 0);
-    trash.tick();
+    while(trash.getOperationsReceived() < 1) {
+      // Wait until confirm that operation was received by trash.
+    }
 
-    Thread.sleep(100);
-
-    Assert.assertTrue(future1.isDone());
+    Assert.assertFalse(future1.isDone());
+    Assert.assertEquals(trash.getDeleteOperations().size(), 0);
+    trash.tick();
+    Assert.assertFalse(future1.isDone());
+    Assert.assertEquals(trash.getDeleteOperations().size(), 0);
+    trash.tick();
+    Assert.assertFalse(future1.isDone());
+    Assert.assertEquals(trash.getDeleteOperations().size(), 0);
+    trash.tick();
 
     Assert.assertEquals(trash.getDeleteOperations().size(), 1);
     Assert.assertTrue(future1.get());

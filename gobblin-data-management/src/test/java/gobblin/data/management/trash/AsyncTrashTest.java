@@ -34,10 +34,19 @@ public class AsyncTrashTest {
 
     for(int i = 0; i < 5; i++) {
       trash.moveToTrash(new Path("file" + i));
+      Thread.sleep(10);
     }
 
     for(int i = 0; i < 5; i++) {
       trash.moveToTrashAsUser(new Path("file" + i), "user" + i);
+      Thread.sleep(10);
+    }
+
+    int maxWaits = 5;
+    while(maxWaits > 0 && ((TestTrash) trash.getDecoratedObject()).getOperationsWaiting() < 10) {
+      Thread.sleep(100);
+      maxWaits--;
+      //wait
     }
 
     Assert.assertTrue(((TestTrash) trash.getDecoratedObject()).getDeleteOperations().isEmpty());
@@ -45,6 +54,19 @@ public class AsyncTrashTest {
     Assert.assertTrue(((TestTrash) trash.getDecoratedObject()).getDeleteOperations().isEmpty());
 
     ((TestTrash) trash.getDecoratedObject()).tick();
+    // There is a race condition in the ScalingThreadPoolExecutor that can cause fewer threads than calls even before
+    // reaching the max number of threads. This is somewhat rare, and if # calls > max threads, the effect is
+    // essentially gone, so there is no issue for the application. However, the test would be sensitive to this issue,
+    // so we check that at least 8 delete operations were scheduled, giving a tolerance of 2 unscheduled threads.
+    // (These threads would be resolved after a few more ticks).
+    Assert.assertTrue(((TestTrash) trash.getDecoratedObject()).getDeleteOperations().size() > 8);
+
+    ((TestTrash) trash.getDecoratedObject()).tick();
+    ((TestTrash) trash.getDecoratedObject()).tick();
+    ((TestTrash) trash.getDecoratedObject()).tick();
+    ((TestTrash) trash.getDecoratedObject()).tick();
+
+    // Now we should see all 10 delete operations.
     Assert.assertEquals(((TestTrash) trash.getDecoratedObject()).getDeleteOperations().size(), 10);
 
   }
