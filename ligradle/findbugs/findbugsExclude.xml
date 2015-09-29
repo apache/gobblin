@@ -6,11 +6,13 @@
   <Match>
     <Bug code="EI, EI2"/>
   </Match>
-   <Match>
+  <Match>
      <!-- Ignore "UrF: Unread public/protected field (URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD)" since it is mostly false positives  -->
       <Bug code="UrF" />
+  </Match>
+  <Match>
      <!-- Ignore "NM_SAME_SIMPLE_NAME_AS_SUPERCLASS: shadows the simple name of the superclass" -->
      <Bug pattern="NM_SAME_SIMPLE_NAME_AS_SUPERCLASS" />
-   </Match>
+  </Match>
 </FindBugsFilter>
 
