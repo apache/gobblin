@@ -43,6 +43,7 @@ import com.google.common.collect.Sets;
 import gobblin.compaction.Compactor;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.util.DatasetFilterUtils;
 import gobblin.util.HadoopUtils;
 
@@ -67,6 +68,7 @@ public class MRCompactor implements Compactor {
   private final FileSystem fs;
   private final ExecutorService executorService;
   private final List<Future<?>> futures;
+  private final GobblinMetrics gobblinMetrics;
 
   public MRCompactor(Properties props) throws IOException {
     this.state = new State();
@@ -80,6 +82,7 @@ public class MRCompactor implements Compactor {
     this.fs = getFileSystem();
     this.executorService = createExecutorService();
     this.futures = Lists.newArrayList();
+    this.gobblinMetrics = initializeMetrics();
   }
 
   private String getInputDir() {
@@ -143,6 +146,9 @@ public class MRCompactor implements Compactor {
           // will be eaten.
           future.get();
         }
+
+        gobblinMetrics.stopMetricReporting();
+
       } catch (InterruptedException e) {
         LOG.warn("Interrupted while waiting for Hadoop jobs to complete", e);
         throw new RuntimeException(e);
@@ -151,6 +157,12 @@ public class MRCompactor implements Compactor {
         throw new RuntimeException(e);
       }
     }
+  }
+
+  private GobblinMetrics initializeMetrics() {
+    GobblinMetrics gobblinMetrics = GobblinMetrics.get(state.getProp(ConfigurationKeys.JOB_NAME_KEY));
+    gobblinMetrics.startMetricReporting(state.getProperties());
+    return gobblinMetrics;
   }
 
   /**

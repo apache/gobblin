@@ -38,10 +38,13 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.primitives.Ints;
 
+import gobblin.compaction.event.CompactionSlaEventHelper;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.event.EventSubmitter;
+import gobblin.metrics.event.sla.SlaEventSubmitter;
 import gobblin.util.HadoopUtils;
-
 
 /**
  * This class is responsible for configuring and running a single MR job.
@@ -72,6 +75,7 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
   protected final FileSystem fs;
   protected final FsPermission perm;
   protected final boolean deduplicate;
+  protected final EventSubmitter eventSubmitter;
 
   protected MRCompactorJobRunner(State jobProps, FileSystem fs) {
     this.jobProps = jobProps;
@@ -84,10 +88,14 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
         FsPermission.getDefault());
     this.deduplicate = this.jobProps.getPropAsBoolean(ConfigurationKeys.COMPACTION_DEDUPLICATE,
         ConfigurationKeys.DEFAULT_COMPACTION_DEDUPLICATE);
+    this.eventSubmitter =
+        new EventSubmitter.Builder(GobblinMetrics.get(this.jobProps.getProp(ConfigurationKeys.JOB_NAME_KEY))
+            .getMetricContext(), ConfigurationKeys.COMPACTION_TRACKING_EVENTS_NAMESPACE).build();
   }
 
   @Override
   public Void call() throws IOException, ClassNotFoundException, InterruptedException {
+
     Configuration conf = HadoopUtils.getConfFromState(this.jobProps);
     DateTime jobStartTime = new DateTime(DateTimeZone.forID(
         this.jobProps.getProp(ConfigurationKeys.COMPACTION_TIMEZONE, ConfigurationKeys.DEFAULT_COMPACTION_TIMEZONE)));
@@ -112,8 +120,11 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
       this.configureJob(job);
       this.submitAndWait(job);
       this.moveTmpPathToOutputPath();
+      this.submitSlaEvent(job);
+
     }
     this.markOutputDirAsCompleted(jobStartTime);
+
     return null;
   }
 
@@ -261,5 +272,12 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
     if (!this.fs.rename(this.tmpPath, this.outputPath)) {
       throw new IOException(String.format("Unable to move %s to %s", this.tmpPath, this.outputPath));
     }
+  }
+
+  private void submitSlaEvent(Job job) {
+
+    CompactionSlaEventHelper.populateState(jobProps, job, fs);
+    new SlaEventSubmitter(eventSubmitter, "CompactionCompleted", jobProps.getProperties()).submit();
+
   }
 }
