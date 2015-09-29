@@ -14,5 +14,9 @@
      <!-- Ignore "NM_SAME_SIMPLE_NAME_AS_SUPERCLASS: shadows the simple name of the superclass" -->
      <Bug pattern="NM_SAME_SIMPLE_NAME_AS_SUPERCLASS" />
   </Match>
+  <Match>
+     <!-- Ignore "NM_SAME_SIMPLE_NAME_AS_INTERFACE: shadows the simple name of implemented interface" -->
+     <Bug pattern="NM_SAME_SIMPLE_NAME_AS_INTERFACE" />
+  </Match>
 </FindBugsFilter>
 
