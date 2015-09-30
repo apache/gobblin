@@ -15,6 +15,7 @@ dependencies {
 
   compile externalDependency.commonsCli
   compile externalDependency.commonsConfiguration
+  compile externalDependency.commonsDbcp
   compile externalDependency.commonsEmail
   compile externalDependency.commonsIo
   compile externalDependency.commonsLang
