@@ -12,6 +12,7 @@
 
 package gobblin.yarn;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -20,17 +21,29 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
+import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.api.records.LocalResource;
+import org.apache.hadoop.yarn.api.records.LocalResourceType;
+import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.util.Apps;
+import org.apache.hadoop.yarn.util.ConverterUtils;
+import org.apache.hadoop.yarn.util.Records;
 import org.apache.helix.api.id.ParticipantId;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValue;
+
+import com.google.common.collect.Maps;
 
 
 /**
@@ -121,5 +134,64 @@ public class YarnHelixUtils {
   public static Collection<Token<? extends TokenIdentifier>> readTokensFromFile(Path tokenFilePath,
       Configuration configuration) throws IOException {
     return Credentials.readTokenStorageFile(tokenFilePath, configuration).getAllTokens();
+  }
+
+  /**
+   * Add a file as a Yarn {@link org.apache.hadoop.yarn.api.records.LocalResource}.
+   *
+   * @param fs a {@link FileSystem} instance
+   * @param destFilePath the destination file path
+   * @param resourceType the {@link org.apache.hadoop.yarn.api.records.LocalResourceType} of the file
+   * @param resourceMap a {@link Map} of file names to their corresponding
+   *                    {@link org.apache.hadoop.yarn.api.records.LocalResource}s
+   * @throws IOException if there's something wrong adding the file as a
+   *                     {@link org.apache.hadoop.yarn.api.records.LocalResource}
+   */
+  public static void addFileAsLocalResource(FileSystem fs, Path destFilePath, LocalResourceType resourceType,
+      Map<String, LocalResource> resourceMap) throws IOException {
+    LocalResource fileResource = Records.newRecord(LocalResource.class);
+    FileStatus fileStatus = fs.getFileStatus(destFilePath);
+    fileResource.setResource(ConverterUtils.getYarnUrlFromPath(destFilePath));
+    fileResource.setSize(fileStatus.getLen());
+    fileResource.setTimestamp(fileStatus.getModificationTime());
+    fileResource.setType(resourceType);
+    fileResource.setVisibility(LocalResourceVisibility.APPLICATION);
+    resourceMap.put(destFilePath.getName(), fileResource);
+  }
+
+  /**
+   * Get environment variables in a {@link java.util.Map} used when launching a Yarn container.
+   *
+   * @param yarnConfiguration a Hadoop {@link Configuration} object carrying Hadoop/Yarn configuration properties
+   * @param config a {@link Config} object carrying Gobblin Yarn application configuration properties
+   * @return a {@link java.util.Map} storing environment variables used when launching a Yarn container
+   */
+  public static Map<String, String> getEnvironmentVariables(Configuration yarnConfiguration, Config config) {
+    Map<String, String> environmentVariableMap = Maps.newHashMap();
+
+    Apps.addToEnvironment(environmentVariableMap, ApplicationConstants.Environment.JAVA_HOME.key(),
+        System.getenv(ApplicationConstants.Environment.JAVA_HOME.key()));
+
+    // Add jars/files in the working directory of the ApplicationMaster to the CLASSPATH
+    Apps.addToEnvironment(environmentVariableMap, ApplicationConstants.Environment.CLASSPATH.key(),
+        ApplicationConstants.Environment.PWD.$());
+    Apps.addToEnvironment(environmentVariableMap, ApplicationConstants.Environment.CLASSPATH.key(),
+        ApplicationConstants.Environment.PWD.$() + File.separator + "*");
+
+    String[] classpaths = yarnConfiguration.getStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH,
+        YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH);
+    if (classpaths != null) {
+      for (String classpath : classpaths) {
+        Apps.addToEnvironment(
+            environmentVariableMap, ApplicationConstants.Environment.CLASSPATH.key(), classpath.trim());
+      }
+    }
+
+    if (UserGroupInformation.isSecurityEnabled()) {
+      Apps.addToEnvironment(environmentVariableMap, "HADOOP_TOKEN_FILE_LOCATION",
+          config.getString(GobblinYarnConfigurationKeys.TOKEN_FILE_PATH));
+    }
+
+    return environmentVariableMap;
   }
 }

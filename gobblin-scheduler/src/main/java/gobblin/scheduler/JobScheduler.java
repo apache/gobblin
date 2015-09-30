@@ -199,6 +199,11 @@ public class JobScheduler extends AbstractIdleService {
         "A job must have a job name specified by job.name");
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
 
+    if (this.scheduledJobs.containsKey(jobName)) {
+      LOG.warn("Job " + jobName + " has already been scheduled");
+      return;
+    }
+
     // Check if the job has been disabled
     boolean disabled = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_DISABLED_KEY, "false"));
     if (disabled) {

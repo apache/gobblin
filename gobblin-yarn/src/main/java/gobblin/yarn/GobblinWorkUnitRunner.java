@@ -29,7 +29,6 @@ import org.apache.commons.cli.ParseException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.util.ConverterUtils;
@@ -119,11 +118,11 @@ public class GobblinWorkUnitRunner {
         FileSystem.get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), new Configuration()) :
         FileSystem.get(new Configuration());
 
-    String zkConnectionString = config.getString(ConfigurationConstants.ZK_CONNECTION_STRING_KEY);
+    String zkConnectionString = config.getString(GobblinYarnConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     LOGGER.info("Using ZooKeeper connection string: " + zkConnectionString);
 
     this.helixManager = HelixManagerFactory
-        .getZKHelixManager(config.getString(ConfigurationConstants.HELIX_CLUSTER_NAME_KEY),
+        .getZKHelixManager(config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY),
             YarnHelixUtils.getParticipantIdStr(YarnHelixUtils.getHostname(), this.containerId),
             InstanceType.PARTICIPANT, zkConnectionString);
 
@@ -135,7 +134,7 @@ public class GobblinWorkUnitRunner {
     TaskStateTracker taskStateTracker = new GobblinHelixTaskStateTracker(properties, this.helixManager);
 
     List<Service> services = Lists.newArrayList();
-    if (config.hasPath(ConfigurationConstants.TOKEN_FILE_PATH)) {
+    if (config.hasPath(GobblinYarnConfigurationKeys.TOKEN_FILE_PATH)) {
       LOGGER.info("Adding YarnContainerSecurityManager since login is keytab based");
       services.add(new YarnContainerSecurityManager(config, fs, this.eventBus));
     }
@@ -284,6 +283,7 @@ public class GobblinWorkUnitRunner {
 
           ScheduledExecutorService shutdownMessageHandlingCompletionWatcher =
               MoreExecutors.getExitingScheduledExecutorService(new ScheduledThreadPoolExecutor(1));
+
           // Schedule the task for watching on the removal of the shutdown message, which indicates that
           // the message has been successfully processed and it's safe to disconnect the HelixManager.
           shutdownMessageHandlingCompletionWatcher.scheduleAtFixedRate(new Runnable() {
@@ -291,6 +291,7 @@ public class GobblinWorkUnitRunner {
             public void run() {
               HelixManager helixManager = _notificationContext.getManager();
               HelixDataAccessor helixDataAccessor = helixManager.getHelixDataAccessor();
+
               HelixProperty helixProperty = helixDataAccessor.getProperty(
                   _message.getKey(helixDataAccessor.keyBuilder(), helixManager.getInstanceName()));
               // The absence of the shutdown message indicates it has been removed
@@ -381,7 +382,7 @@ public class GobblinWorkUnitRunner {
 
   private static Options buildOptions() {
     Options options = new Options();
-    options.addOption("a", ConfigurationConstants.APPLICATION_NAME_OPTION_NAME, true, "Yarn application name");
+    options.addOption("a", GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME, true, "Yarn application name");
     return options;
   }
 
@@ -394,7 +395,7 @@ public class GobblinWorkUnitRunner {
     Options options = buildOptions();
     try {
       CommandLine cmd = new DefaultParser().parse(options, args);
-      if (!cmd.hasOption(ConfigurationConstants.APPLICATION_NAME_OPTION_NAME)) {
+      if (!cmd.hasOption(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME)) {
         printUsage(options);
         System.exit(1);
       }
@@ -403,7 +404,7 @@ public class GobblinWorkUnitRunner {
           GobblinWorkUnitRunner.class, Log4jConfigurationHelper.LOG4J_CONFIGURATION_FILE_NAME);
 
       GobblinWorkUnitRunner gobblinWorkUnitRunner = new GobblinWorkUnitRunner(
-          cmd.getOptionValue(ConfigurationConstants.APPLICATION_NAME_OPTION_NAME), ConfigFactory.load());
+          cmd.getOptionValue(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME), ConfigFactory.load());
       gobblinWorkUnitRunner.start();
     } catch (ParseException pe) {
       printUsage(options);

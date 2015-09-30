@@ -41,7 +41,6 @@ import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
-import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.api.records.NodeReport;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
@@ -51,8 +50,6 @@ import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
-import org.apache.hadoop.yarn.util.Apps;
-import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
 import org.apache.helix.api.id.ParticipantId;
 import org.slf4j.Logger;
@@ -139,9 +136,9 @@ public class YarnService extends AbstractIdleService {
 
     this.eventBus = eventBus;
 
-    this.initialContainers = config.getInt(ConfigurationConstants.INITIAL_CONTAINERS_KEY);
-    this.requestedContainerMemoryMbs = config.getInt(ConfigurationConstants.CONTAINER_MEMORY_MBS_KEY);
-    this.requestedContainerCores = config.getInt(ConfigurationConstants.CONTAINER_CORES_KEY);
+    this.initialContainers = config.getInt(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY);
+    this.requestedContainerMemoryMbs = config.getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
+    this.requestedContainerCores = config.getInt(GobblinYarnConfigurationKeys.CONTAINER_CORES_KEY);
 
     this.containerJvmArgs = containerJvmArgs;
 
@@ -250,20 +247,25 @@ public class YarnService extends AbstractIdleService {
   }
 
   private ContainerLaunchContext newContainerLaunchContext(Container container) throws IOException {
-    Map<String, LocalResource> resourceMap = Maps.newHashMap();
     Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(this.fs, this.applicationName, this.applicationId);
-    Path containerWorkDir = new Path(appWorkDir, ConfigurationConstants.CONTAINER_WORK_DIR_NAME);
-    addContainerLocalResources(new Path(appWorkDir, ConfigurationConstants.LIB_JARS_DIR_NAME), resourceMap);
-    addContainerLocalResources(new Path(containerWorkDir, ConfigurationConstants.APP_JARS_DIR_NAME), resourceMap);
-    addContainerLocalResources(new Path(containerWorkDir, ConfigurationConstants.APP_FILES_DIR_NAME), resourceMap);
-    if (this.config.hasPath(ConfigurationConstants.CONTAINER_FILES_REMOTE_KEY)) {
-      addRemoteAppFiles(this.config.getString(ConfigurationConstants.CONTAINER_FILES_REMOTE_KEY), resourceMap);
+    Path containerWorkDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.CONTAINER_WORK_DIR_NAME);
+
+    Map<String, LocalResource> resourceMap = Maps.newHashMap();
+
+    addContainerLocalResources(new Path(appWorkDir, GobblinYarnConfigurationKeys.LIB_JARS_DIR_NAME), resourceMap);
+    addContainerLocalResources(new Path(containerWorkDir, GobblinYarnConfigurationKeys.APP_JARS_DIR_NAME), resourceMap);
+    addContainerLocalResources(
+        new Path(containerWorkDir, GobblinYarnConfigurationKeys.APP_FILES_DIR_NAME), resourceMap);
+
+    if (this.config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_FILES_REMOTE_KEY)) {
+      addRemoteAppFiles(this.config.getString(GobblinYarnConfigurationKeys.CONTAINER_FILES_REMOTE_KEY), resourceMap);
     }
 
     ContainerLaunchContext containerLaunchContext = Records.newRecord(ContainerLaunchContext.class);
     containerLaunchContext.setLocalResources(resourceMap);
-    containerLaunchContext.setEnvironment(getEnvironmentVariables());
+    containerLaunchContext.setEnvironment(YarnHelixUtils.getEnvironmentVariables(this.yarnConfiguration, this.config));
     containerLaunchContext.setCommands(Lists.newArrayList(buildContainerCommand(container)));
+
     if (UserGroupInformation.isSecurityEnabled()) {
       containerLaunchContext.setTokens(this.tokens.duplicate());
     }
@@ -280,7 +282,7 @@ public class YarnService extends AbstractIdleService {
     FileStatus[] statuses = this.fs.listStatus(destDir);
     if (statuses != null) {
       for (FileStatus status : statuses) {
-        addFileAsLocalResource(status, resourceMap);
+        YarnHelixUtils.addFileAsLocalResource(this.fs, status.getPath(), LocalResourceType.FILE, resourceMap);
       }
     }
   }
@@ -288,19 +290,9 @@ public class YarnService extends AbstractIdleService {
   private void addRemoteAppFiles(String hdfsFileList, Map<String, LocalResource> resourceMap) throws IOException {
     for (String hdfsFilePath : SPLITTER.split(hdfsFileList)) {
       Path srcFilePath = new Path(hdfsFilePath);
-      addFileAsLocalResource(srcFilePath.getFileSystem(this.yarnConfiguration).getFileStatus(srcFilePath), resourceMap);
+      YarnHelixUtils.addFileAsLocalResource(
+          srcFilePath.getFileSystem(this.yarnConfiguration), srcFilePath, LocalResourceType.FILE, resourceMap);
     }
-  }
-
-  private void addFileAsLocalResource(FileStatus status, Map<String, LocalResource> resourceMap) throws IOException {
-    LocalResource fileResource = Records.newRecord(LocalResource.class);
-    fileResource.setResource(ConverterUtils.getYarnUrlFromPath(status.getPath()));
-    fileResource.setType(LocalResourceType.FILE);
-    fileResource.setVisibility(LocalResourceVisibility.APPLICATION);
-    fileResource.setSize(status.getLen());
-    fileResource.setTimestamp(status.getModificationTime());
-    LOGGER.debug("Created a LocalResource for file: " + fileResource.getResource());
-    resourceMap.put(status.getPath().getName(), fileResource);
   }
 
   private ByteBuffer getSecurityTokens() throws IOException {
@@ -327,46 +319,20 @@ public class YarnService extends AbstractIdleService {
     }
   }
 
-  private Map<String, String> getEnvironmentVariables() {
-    Map<String, String> environmentVariableMap = Maps.newHashMap();
-
-    Apps.addToEnvironment(environmentVariableMap, ApplicationConstants.Environment.JAVA_HOME.key(),
-        System.getenv(ApplicationConstants.Environment.JAVA_HOME.key()));
-
-    // Add jars/files in the working directory of the container to the CLASSPATH
-    Apps.addToEnvironment(environmentVariableMap, ApplicationConstants.Environment.CLASSPATH.key(),
-        ApplicationConstants.Environment.PWD.$());
-    Apps.addToEnvironment(environmentVariableMap, ApplicationConstants.Environment.CLASSPATH.key(),
-        ApplicationConstants.Environment.PWD.$() + File.separator + "*");
-
-    String[] classpaths = this.yarnConfiguration.getStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH,
-        YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH);
-    if (classpaths != null) {
-      for (String classpath : classpaths) {
-        Apps.addToEnvironment(environmentVariableMap, ApplicationConstants.Environment.CLASSPATH.key(),
-            classpath.trim());
-      }
-    }
-
-    if (UserGroupInformation.isSecurityEnabled()) {
-      Apps.addToEnvironment(environmentVariableMap, "HADOOP_TOKEN_FILE_LOCATION",
-          this.config.getString(ConfigurationConstants.TOKEN_FILE_PATH));
-    }
-
-    return environmentVariableMap;
-  }
-
   private String buildContainerCommand(Container container) {
     String containerProcessName = GobblinWorkUnitRunner.class.getSimpleName();
-    return String.format(
-        "%s/bin/java -Xmx%dM %s %s" +
-        " --%s %s" +
-        " 1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + File.separator + "%s.%s" +
-        " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + File.separator + "%s.%s",
-        ApplicationConstants.Environment.JAVA_HOME.$(), container.getResource().getMemory(),
-        this.containerJvmArgs, GobblinWorkUnitRunner.class.getName(),
-        ConfigurationConstants.APPLICATION_NAME_OPTION_NAME, this.applicationName, containerProcessName,
-        ApplicationConstants.STDOUT, containerProcessName, ApplicationConstants.STDERR);
+    return new StringBuilder()
+        .append(ApplicationConstants.Environment.JAVA_HOME.$()).append("/bin/java")
+        .append(" -Xmx").append(container.getResource().getMemory()).append("M")
+        .append(" ").append(this.containerJvmArgs)
+        .append(" ").append(GobblinWorkUnitRunner.class.getName())
+        .append(" --").append(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
+        .append(" ").append(this.applicationName)
+        .append(" 1>").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR).append(File.separator).append(
+          containerProcessName).append(".").append(ApplicationConstants.STDOUT)
+        .append(" 2>").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR).append(File.separator).append(
+          containerProcessName).append(".").append(ApplicationConstants.STDERR)
+        .toString();
   }
 
   /**

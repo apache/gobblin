@@ -77,4 +77,9 @@ public class GobblinYarnConfigurationKeys {
   public static final String APP_FILES_DIR_NAME = "_appfiles";
   public static final String INPUT_WORK_UNIT_DIR_NAME = "_workunits";
   public static final String OUTPUT_TASK_STATE_DIR_NAME = "_taskstates";
+
+  /**
+   * Other misc configuration properties.
+   */
+  public static final String TASK_SUCCESS_OPTIONAL_KEY = "TASK_SUCCESS_OPTIONAL";
 }

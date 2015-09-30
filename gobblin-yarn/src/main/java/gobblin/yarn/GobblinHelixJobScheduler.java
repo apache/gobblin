@@ -100,6 +100,9 @@ public class GobblinHelixJobScheduler extends JobScheduler {
     }
   }
 
+  /**
+   * This class is responsible for running non-scheduled jobs.
+   */
   class NonScheduledJobRunner implements Runnable {
 
     private final Properties jobConfig;

@@ -106,7 +106,6 @@ public class GobblinApplicationMaster {
       .build();
 
   private volatile boolean stopInProgress = false;
-  private volatile boolean isStopped = false;
 
   public GobblinApplicationMaster(String applicationName, Config config) throws Exception {
     // An EventBus used for communications between services running in the ApplicationMaster
@@ -115,21 +114,21 @@ public class GobblinApplicationMaster {
 
     ContainerId containerId =
         ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
-    ApplicationAttemptId applicationAttemptIdId = containerId.getApplicationAttemptId();
+    ApplicationAttemptId applicationAttemptId = containerId.getApplicationAttemptId();
 
-    String zkConnectionString = config.getString(ConfigurationConstants.ZK_CONNECTION_STRING_KEY);
+    String zkConnectionString = config.getString(GobblinYarnConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     LOGGER.info("Using ZooKeeper connection string: " + zkConnectionString);
 
     // This will create and register a Helix controller in ZooKeeper
     this.helixManager = HelixManagerFactory.getZKHelixManager(
-        config.getString(ConfigurationConstants.HELIX_CLUSTER_NAME_KEY),
+        config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY),
         YarnHelixUtils.getParticipantIdStr(YarnHelixUtils.getHostname(), containerId), InstanceType.CONTROLLER,
         zkConnectionString);
 
     FileSystem fs = config.hasPath(ConfigurationKeys.FS_URI_KEY) ?
         FileSystem.get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), new Configuration()) :
         FileSystem.get(new Configuration());
-    Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(fs, applicationName, applicationAttemptIdId.getApplicationId());
+    Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(fs, applicationName, applicationAttemptId.getApplicationId());
 
     List<Service> services = Lists.newArrayList();
     if (UserGroupInformation.isSecurityEnabled()) {
@@ -137,14 +136,14 @@ public class GobblinApplicationMaster {
       services.add(new YarnContainerSecurityManager(config, fs, this.eventBus));
     }
     services.add(
-        new YarnService(config, applicationName, applicationAttemptIdId.getApplicationId(), fs, this.eventBus,
-            Strings.nullToEmpty(config.getString(ConfigurationConstants.CONTAINER_JVM_ARGS_KEY))));
+        new YarnService(config, applicationName, applicationAttemptId.getApplicationId(), fs, this.eventBus,
+            Strings.nullToEmpty(config.getString(GobblinYarnConfigurationKeys.CONTAINER_JVM_ARGS_KEY))));
     services.add(
         new GobblinHelixJobScheduler(YarnHelixUtils.configToProperties(config), this.helixManager, this.eventBus,
             appWorkDir));
     services.add(new JobConfigurationManager(this.eventBus,
-        config.hasPath(ConfigurationConstants.JOB_CONF_PACKAGE_PATH_KEY) ? Optional
-            .of(config.getString(ConfigurationConstants.JOB_CONF_PACKAGE_PATH_KEY)) : Optional.<String>absent()));
+        config.hasPath(GobblinYarnConfigurationKeys.JOB_CONF_PACKAGE_PATH_KEY) ? Optional
+            .of(config.getString(GobblinYarnConfigurationKeys.JOB_CONF_PACKAGE_PATH_KEY)) : Optional.<String>absent()));
 
     this.serviceManager = new ServiceManager(services);
   }
@@ -186,7 +185,7 @@ public class GobblinApplicationMaster {
    * Stop the ApplicationMaster.
    */
   public synchronized void stop() {
-    if (this.isStopped || this.stopInProgress) {
+    if (this.stopInProgress) {
       return;
     }
 
@@ -210,8 +209,6 @@ public class GobblinApplicationMaster {
         this.helixManager.disconnect();
       }
     }
-
-    this.isStopped = true;
   }
 
   @SuppressWarnings("unused")
@@ -324,6 +321,7 @@ public class GobblinApplicationMaster {
 
           ScheduledExecutorService shutdownMessageHandlingCompletionWatcher =
               MoreExecutors.getExitingScheduledExecutorService(new ScheduledThreadPoolExecutor(1));
+
           // Schedule the task for watching on the removal of the shutdown message, which indicates that
           // the message has been successfully processed and it's safe to disconnect the HelixManager.
           shutdownMessageHandlingCompletionWatcher.scheduleAtFixedRate(new Runnable() {
@@ -331,6 +329,7 @@ public class GobblinApplicationMaster {
             public void run() {
               HelixManager helixManager = _notificationContext.getManager();
               HelixDataAccessor helixDataAccessor = helixManager.getHelixDataAccessor();
+
               HelixProperty helixProperty = helixDataAccessor
                   .getProperty(_message.getKey(helixDataAccessor.keyBuilder(), helixManager.getInstanceName()));
               // The absence of the shutdown message indicates it has been removed
@@ -421,7 +420,7 @@ public class GobblinApplicationMaster {
 
   private static Options buildOptions() {
     Options options = new Options();
-    options.addOption("a", ConfigurationConstants.APPLICATION_NAME_OPTION_NAME, true, "Yarn application name");
+    options.addOption("a", GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME, true, "Yarn application name");
     return options;
   }
 
@@ -434,7 +433,7 @@ public class GobblinApplicationMaster {
     Options options = buildOptions();
     try {
       CommandLine cmd = new DefaultParser().parse(options, args);
-      if (!cmd.hasOption(ConfigurationConstants.APPLICATION_NAME_OPTION_NAME)) {
+      if (!cmd.hasOption(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME)) {
         printUsage(options);
         System.exit(1);
       }
@@ -443,7 +442,7 @@ public class GobblinApplicationMaster {
           GobblinApplicationMaster.class, Log4jConfigurationHelper.LOG4J_CONFIGURATION_FILE_NAME);
 
       GobblinApplicationMaster applicationMaster = new GobblinApplicationMaster(
-          cmd.getOptionValue(ConfigurationConstants.APPLICATION_NAME_OPTION_NAME), ConfigFactory.load());
+          cmd.getOptionValue(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME), ConfigFactory.load());
       applicationMaster.start();
     } catch (ParseException pe) {
       printUsage(options);

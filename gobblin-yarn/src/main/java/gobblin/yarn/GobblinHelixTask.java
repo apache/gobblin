@@ -51,7 +51,7 @@ import gobblin.source.workunit.WorkUnit;
  * {@link gobblin.runtime.Task}.
  *
  * <p>
- *   Upon startup, a {@link GobblinHelixTask} reads the property {@link ConfigurationConstants#WORK_UNIT_FILE_PATH}
+ *   Upon startup, a {@link GobblinHelixTask} reads the property {@link GobblinYarnConfigurationKeys#WORK_UNIT_FILE_PATH}
  *   for the path of the file storing a serialized {@link WorkUnit} on the {@link FileSystem} of choice and
  *   de-serializes the {@link WorkUnit}. It then creates a Gobblin {@link gobblin.runtime.Task} to run the
  *   {@link WorkUnit} and waits for the Gobblin {@link gobblin.runtime.Task} to finish. Upon completion of the
@@ -87,7 +87,7 @@ public class GobblinHelixTask implements Task {
     this.taskId = this.taskConfig.getConfigMap().get(ConfigurationKeys.TASK_ID_KEY);
 
     this.fs = fs;
-    Path taskStateOutputDir = new Path(appWorkDir, ConfigurationConstants.OUTPUT_TASK_STATE_DIR_NAME);
+    Path taskStateOutputDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME);
     this.taskStateStore = new FsStateStore<TaskState>(this.fs, taskStateOutputDir.toString(), TaskState.class);
   }
 
@@ -144,7 +144,7 @@ public class GobblinHelixTask implements Task {
 
   private gobblin.runtime.Task buildTask() throws IOException {
     WorkUnitState workUnitState = new WorkUnitState(deserializeWorkUnit(
-        this.taskConfig.getConfigMap().get(ConfigurationConstants.WORK_UNIT_FILE_PATH)));
+        this.taskConfig.getConfigMap().get(GobblinYarnConfigurationKeys.WORK_UNIT_FILE_PATH)));
     workUnitState.setId(this.taskId);
     workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, this.jobId);
     workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, this.taskId);
