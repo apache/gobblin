@@ -41,7 +41,7 @@ import gobblin.data.management.util.PathUtils;
 /**
  * Flexible implementation of Trash similar to Hadoop trash. Allows for injecting cleanup policies for snapshots.
  */
-public class Trash {
+public class Trash implements GobblinTrash {
 
   private static final Logger LOG = LoggerFactory.getLogger(Trash.class);
   private static final FsPermission PERM =

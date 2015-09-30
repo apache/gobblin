@@ -50,6 +50,7 @@ import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.RateControlledFileSystem;
+import gobblin.util.executors.ScalingThreadPoolExecutor;
 
 
 /**
@@ -109,8 +110,10 @@ public class DatasetCleaner implements Instrumentable, Closeable {
       throw new IOException(exception);
     }
     ExecutorService executor =
-        new ThreadPoolExecutor(0, Integer.parseInt(props.getProperty(MAX_CONCURRENT_DATASETS_CLEANED,
-            DEFAULT_MAX_CONCURRENT_DATASETS_CLEANED)), 0, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
+        ScalingThreadPoolExecutor.newScalingThreadPool(0, Integer
+            .parseInt(props.getProperty(MAX_CONCURRENT_DATASETS_CLEANED, DEFAULT_MAX_CONCURRENT_DATASETS_CLEANED)), 100,
+            ExecutorsUtils.newThreadFactory(Optional.of(LOG),
+            Optional.of("Dataset-cleaner-pool-%d")));
     this.service = MoreExecutors.listeningDecorator(executor);
 
     // TODO -- Remove the dependency on gobblin-core after new Gobblin Metrics does not depend on gobblin-core.
