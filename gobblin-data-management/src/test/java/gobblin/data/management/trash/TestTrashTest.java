@@ -15,6 +15,10 @@ package gobblin.data.management.trash;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Properties;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -46,6 +50,46 @@ public class TestTrashTest {
     Assert.assertTrue(trash.getDeleteOperations().get(1).getPath().equals(path2));
     Assert.assertTrue(trash.getDeleteOperations().get(1).getUser().equals("user"));
 
+  }
+
+  @Test
+  public void testDelay() throws Exception {
+
+    ExecutorService executorService = Executors.newFixedThreadPool(5);
+
+    FileSystem fs = mock(FileSystem.class);
+
+    Properties properties = new Properties();
+    TestTrash.simulateDelay(properties, 3);
+
+    final TestTrash trash = new TestTrash(fs, properties, "user");
+
+    final Path path1 = new Path("/some/path");
+
+    Future<Boolean> future1 = executorService.submit(new Callable<Boolean>() {
+      @Override public Boolean call() throws Exception {
+        return trash.moveToTrash(path1);
+      }
+    });
+
+    while(trash.getOperationsReceived() < 1) {
+      // Wait until confirm that operation was received by trash.
+    }
+
+    Assert.assertFalse(future1.isDone());
+    Assert.assertEquals(trash.getDeleteOperations().size(), 0);
+    trash.tick();
+    Assert.assertFalse(future1.isDone());
+    Assert.assertEquals(trash.getDeleteOperations().size(), 0);
+    trash.tick();
+    Assert.assertFalse(future1.isDone());
+    Assert.assertEquals(trash.getDeleteOperations().size(), 0);
+    trash.tick();
+
+    Assert.assertEquals(trash.getDeleteOperations().size(), 1);
+    Assert.assertTrue(future1.get());
+    Assert.assertNull(trash.getDeleteOperations().get(0).getUser());
+    Assert.assertTrue(trash.getDeleteOperations().get(0).getPath().equals(path1));
   }
 
 }

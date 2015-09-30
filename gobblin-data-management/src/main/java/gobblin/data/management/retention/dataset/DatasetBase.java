@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 
 import com.google.common.collect.Lists;
 
+import gobblin.data.management.retention.DatasetCleaner;
 import gobblin.data.management.retention.policy.RetentionPolicy;
 import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.finder.VersionFinder;
@@ -118,13 +119,10 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Dataset {
   public abstract RetentionPolicy<T> getRetentionPolicy();
 
   public DatasetBase(final FileSystem fs, final Properties props, Logger log) throws IOException {
-    this(fs,
-        props,
-        Boolean.valueOf(props.getProperty(SIMULATE_KEY, SIMULATE_DEFAULT)),
-        Boolean.valueOf(props.getProperty(SKIP_TRASH_KEY, SKIP_TRASH_DEFAULT)),
-        Boolean.valueOf(props.getProperty(DELETE_EMPTY_DIRECTORIES_KEY, DELETE_EMPTY_DIRECTORIES_DEFAULT)),
-        Boolean.valueOf(props.getProperty(DELETE_AS_OWNER_KEY, DELETE_AS_OWNER_DEFAULT)),
-        log);
+    this(fs, props, Boolean.valueOf(props.getProperty(SIMULATE_KEY, SIMULATE_DEFAULT)), Boolean.valueOf(props
+        .getProperty(SKIP_TRASH_KEY, SKIP_TRASH_DEFAULT)), Boolean.valueOf(props.getProperty(
+        DELETE_EMPTY_DIRECTORIES_KEY, DELETE_EMPTY_DIRECTORIES_DEFAULT)), Boolean.valueOf(props.getProperty(
+        DELETE_AS_OWNER_KEY, DELETE_AS_OWNER_DEFAULT)), log);
   }
 
   /**
@@ -138,9 +136,8 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Dataset {
    * @param log logger to use.
    * @throws IOException
    */
-  public DatasetBase(FileSystem fs, Properties properties, boolean simulate,
-      boolean skipTrash, boolean deleteEmptyDirectories, boolean deleteAsOwner, Logger log)
-      throws IOException {
+  public DatasetBase(FileSystem fs, Properties properties, boolean simulate, boolean skipTrash,
+      boolean deleteEmptyDirectories, boolean deleteAsOwner, Logger log) throws IOException {
     this.log = log;
     this.fs = fs;
     this.simulate = simulate;
@@ -148,10 +145,10 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Dataset {
     this.deleteEmptyDirectories = deleteEmptyDirectories;
     Properties thisProperties = new Properties();
     thisProperties.putAll(properties);
-    if(this.simulate) {
+    if (this.simulate) {
       thisProperties.setProperty(TrashFactory.SIMULATE, Boolean.toString(true));
     }
-    if(this.skipTrash) {
+    if (this.skipTrash) {
       thisProperties.setProperty(TrashFactory.SKIP_TRASH, Boolean.toString(true));
     }
     this.trash = TrashFactory.createProxiedTrash(this.fs, thisProperties);
@@ -169,7 +166,7 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Dataset {
     RetentionPolicy<T> retentionPolicy = getRetentionPolicy();
     VersionFinder<? extends T> versionFinder = getVersionFinder();
 
-    if(!retentionPolicy.versionClass().isAssignableFrom(versionFinder.versionClass())) {
+    if (!retentionPolicy.versionClass().isAssignableFrom(versionFinder.versionClass())) {
       throw new IOException("Incompatible dataset version classes.");
     }
 
@@ -181,15 +178,19 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Dataset {
       this.log.warn("No dataset version can be found. Ignoring.");
       return;
     }
-    
+
     Collections.sort(versions, Collections.reverseOrder());
 
-    Collection<T> deletableVersions =
-        getRetentionPolicy().listDeletableVersions(versions);
+    Collection<T> deletableVersions = getRetentionPolicy().listDeletableVersions(versions);
+
+    if (deletableVersions.isEmpty()) {
+      this.log.warn("No deletable dataset version can be found. Ignoring.");
+      return;
+    }
 
     Set<Path> possiblyEmptyDirectories = new HashSet<Path>();
 
-    for(DatasetVersion versionToDelete : deletableVersions) {
+    for (DatasetVersion versionToDelete : deletableVersions) {
       this.log.info("Deleting dataset version " + versionToDelete);
 
       Set<Path> pathsToDelete = versionToDelete.getPathsToDelete();
@@ -197,10 +198,14 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Dataset {
 
       boolean deletedAllPaths = true;
 
-      for(Path path: pathsToDelete) {
-        boolean successfullyDeleted = this.deleteAsOwner ?
-            this.trash.moveToTrashAsOwner(path) :
-            this.trash.moveToTrash(path);
+      for (Path path : pathsToDelete) {
+        if (path.equals(datasetRoot())) {
+          this.log.info("Not deleting dataset root path: " + path);
+          continue;
+        }
+
+        boolean successfullyDeleted =
+            this.deleteAsOwner ? this.trash.moveToTrashAsOwner(path) : this.trash.moveToTrash(path);
 
         if (successfullyDeleted) {
           possiblyEmptyDirectories.add(path.getParent());
@@ -210,13 +215,13 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Dataset {
         }
       }
 
-      if(!deletedAllPaths) {
+      if (!deletedAllPaths) {
         this.log.error("Failed to delete some paths in dataset version " + versionToDelete);
       }
 
     }
 
-    if(this.deleteEmptyDirectories) {
+    if (this.deleteEmptyDirectories) {
       for (Path parentDirectory : possiblyEmptyDirectories) {
         deleteEmptyParentDirectories(datasetRoot(), parentDirectory);
       }
@@ -224,7 +229,7 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Dataset {
   }
 
   private void deleteEmptyParentDirectories(Path datasetRoot, Path parent) throws IOException {
-    if(!parent.equals(datasetRoot) && this.fs.listStatus(parent).length == 0) {
+    if (!parent.equals(datasetRoot) && this.fs.listStatus(parent).length == 0) {
       this.fs.delete(parent, false);
       deleteEmptyParentDirectories(datasetRoot, parent.getParent());
     }

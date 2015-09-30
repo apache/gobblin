@@ -25,6 +25,7 @@ dependencies {
   compile externalDependency.jacksonCore
   compile externalDependency.jasypt
   compile externalDependency.lombok
+  compile externalDependency.metricsCore
 
   if (project.hasProperty('useHadoop2')) {
     compile externalDependency.avroMapredH2

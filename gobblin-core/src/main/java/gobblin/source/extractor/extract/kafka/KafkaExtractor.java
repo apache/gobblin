@@ -18,6 +18,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import kafka.message.MessageAndOffset;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -42,7 +44,7 @@ import gobblin.source.extractor.extract.EventBasedExtractor;
 
 
 /**
- * An implementation of {@link Extractor} from Apache Kafka. Each extractor processes
+ * An implementation of {@link Extractor} for Apache Kafka. Each {@link KafkaExtractor} processes
  * one or more partitions of the same topic.
  *
  * @author ziliu
@@ -51,6 +53,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaExtractor.class);
 
+  protected static final int INITIAL_PARTITION_IDX = -1;
   protected static final Gson GSON = new Gson();
   protected static final Integer MAX_LOG_DECODING_ERRORS = 5;
 
@@ -62,18 +65,20 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   protected final MultiLongWatermark nextWatermark;
   protected final Closer closer;
   protected final KafkaWrapper kafkaWrapper;
+  protected final Stopwatch stopwatch;
 
   protected final Map<KafkaPartition, Integer> decodingErrorCount;
-  protected final Map<KafkaPartition, Long> totalEventSizes;
-  protected final Map<KafkaPartition, Integer> eventCounts;
-  protected final Map<KafkaPartition, Long> avgEventSizes;
+  private final Map<KafkaPartition, Double> avgMillisPerRecord;
+  private final Map<KafkaPartition, Long> avgRecordSizes;
 
   private final Set<Integer> errorPartitions;
   private int invalidSchemaIdCount = 0;
   private int undecodableMessageCount = 0;
 
-  protected Iterator<MessageAndOffset> messageIterator = null;
-  protected int currentPartitionIdx = 0;
+  private Iterator<MessageAndOffset> messageIterator = null;
+  private int currentPartitionIdx = INITIAL_PARTITION_IDX;
+  private long currentPartitionRecordCount = 0;
+  private long currentPartitionTotalSize = 0;
 
   public KafkaExtractor(WorkUnitState state) {
     super(state);
@@ -85,15 +90,13 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     this.nextWatermark = new MultiLongWatermark(this.lowWatermark);
     this.closer = Closer.create();
     this.kafkaWrapper = closer.register(KafkaWrapper.create(state));
+    this.stopwatch = Stopwatch.createUnstarted();
 
     this.decodingErrorCount = Maps.newHashMap();
-    this.totalEventSizes = Maps.newHashMapWithExpectedSize(this.partitions.size());
-    this.eventCounts = Maps.newHashMapWithExpectedSize(this.partitions.size());
-    this.avgEventSizes = Maps.newHashMapWithExpectedSize(this.partitions.size());
+    this.avgMillisPerRecord = Maps.newHashMapWithExpectedSize(this.partitions.size());
+    this.avgRecordSizes = Maps.newHashMapWithExpectedSize(this.partitions.size());
 
     this.errorPartitions = Sets.newHashSet();
-
-    switchMetricContextToCurrentPartition();
 
     // The actual high watermark starts with the low watermark
     this.workUnitState.setActualHighWatermark(this.lowWatermark);
@@ -107,8 +110,8 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   }
 
   /**
-   * Return the next decodable event from the current partition. If the current partition has no more
-   * decodable event, move on to the next partition. If all partitions have been processed, return null.
+   * Return the next decodable record from the current partition. If the current partition has no more
+   * decodable record, move on to the next partition. If all partitions have been processed, return null.
    */
   @Override
   public D readRecordImpl(D reuse) throws DataRecordException, IOException {
@@ -148,14 +151,15 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
         this.nextWatermark.set(this.currentPartitionIdx, nextValidMessage.nextOffset());
         try {
           D record = decodeRecord(nextValidMessage);
-          this.maintainStats(nextValidMessage);
+          this.currentPartitionRecordCount++;
+          this.currentPartitionTotalSize += nextValidMessage.message().payloadSize();
           return record;
         } catch (SchemaNotFoundException e) {
           this.errorPartitions.add(this.currentPartitionIdx);
           this.invalidSchemaIdCount++;
           if (shouldLogError()) {
             LOG.error(
-                String.format("An event from partition %s has a schema ID that doesn't exist in the schema registry.",
+                String.format("A record from partition %s has a schema ID that doesn't exist in the schema registry.",
                     getCurrentPartition()),
                 e);
             incrementErrorCount();
@@ -164,29 +168,63 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
           this.errorPartitions.add(this.currentPartitionIdx);
           this.undecodableMessageCount++;
           if (shouldLogError()) {
-            LOG.error(String.format("An event from partition %s cannot be decoded.", getCurrentPartition()), e);
+            LOG.error(String.format("A record from partition %s cannot be decoded.", getCurrentPartition()), e);
             incrementErrorCount();
           }
         }
       }
     }
+    LOG.info("Finished pulling topic " + this.topicName);
     return null;
   }
 
   private boolean allPartitionsFinished() {
-    return this.currentPartitionIdx >= this.highWatermark.size();
+    return this.currentPartitionIdx != INITIAL_PARTITION_IDX && this.currentPartitionIdx >= this.highWatermark.size();
   }
 
   private boolean currentPartitionFinished() {
-    return this.nextWatermark.get(this.currentPartitionIdx) >= this.highWatermark.get(this.currentPartitionIdx);
+    if (this.currentPartitionIdx == INITIAL_PARTITION_IDX) {
+      return true;
+    } else if (this.nextWatermark.get(this.currentPartitionIdx) >= this.highWatermark.get(this.currentPartitionIdx)) {
+      LOG.info("Finished pulling partition " + this.getCurrentPartition());
+      return true;
+    } else {
+      return false;
+    }
   }
 
+  /**
+   * Record the avg time per record for the current partition, then increment this.currentPartitionIdx,
+   * and switch metric context to the new partition.
+   */
   private void moveToNextPartition() {
-    this.currentPartitionIdx++;
+    if (this.currentPartitionIdx == INITIAL_PARTITION_IDX) {
+      LOG.info("Pulling topic " + this.topicName);
+      this.currentPartitionIdx = 0;
+    } else {
+      this.stopwatch.stop();
+      if (this.currentPartitionRecordCount != 0) {
+        double avgMillisForCurrentPartition =
+            (double) this.stopwatch.elapsed(TimeUnit.MILLISECONDS) / (double) this.currentPartitionRecordCount;
+        this.avgMillisPerRecord.put(this.getCurrentPartition(), avgMillisForCurrentPartition);
+
+        long avgRecordSize = this.currentPartitionTotalSize / this.currentPartitionRecordCount;
+        this.avgRecordSizes.put(this.getCurrentPartition(), avgRecordSize);
+      }
+      this.currentPartitionIdx++;
+      this.currentPartitionRecordCount = 0;
+      this.currentPartitionTotalSize = 0;
+      this.stopwatch.reset();
+    }
+
     this.messageIterator = null;
     if (this.currentPartitionIdx < this.partitions.size()) {
+      LOG.info(String.format("Pulling partition %s from offset %d to %d, range=%d", this.getCurrentPartition(),
+          this.nextWatermark.get(this.currentPartitionIdx), this.highWatermark.get(this.currentPartitionIdx),
+          this.highWatermark.get(this.currentPartitionIdx) - this.nextWatermark.get(this.currentPartitionIdx)));
       switchMetricContextToCurrentPartition();
     }
+    this.stopwatch.start();
   }
 
   private void switchMetricContextToCurrentPartition() {
@@ -221,32 +259,6 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     return this.partitions.get(this.currentPartitionIdx);
   }
 
-  /**
-   * Given the message/event just pulled, maintain the average event size of the partition.
-   */
-  private void maintainStats(MessageAndOffset messageJustPulled) {
-    increaseTotalEventSize(getCurrentPartition(), messageJustPulled.message().payloadSize());
-    incrementEventCount(getCurrentPartition());
-    this.avgEventSizes.put(getCurrentPartition(),
-        this.totalEventSizes.get(getCurrentPartition()) / this.eventCounts.get(getCurrentPartition()));
-  }
-
-  private void increaseTotalEventSize(KafkaPartition partition, long size) {
-    if (this.totalEventSizes.containsKey(partition)) {
-      this.totalEventSizes.put(partition, this.totalEventSizes.get(partition) + size);
-    } else {
-      this.totalEventSizes.put(partition, size);
-    }
-  }
-
-  private void incrementEventCount(KafkaPartition partition) {
-    if (this.eventCounts.containsKey(partition)) {
-      this.eventCounts.put(partition, this.eventCounts.get(partition) + 1);
-    } else {
-      this.eventCounts.put(partition, 1);
-    }
-  }
-
   protected abstract D decodeRecord(MessageAndOffset messageAndOffset) throws SchemaNotFoundException, IOException;
 
   @Override
@@ -262,24 +274,21 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     this.workUnitState.setProp(ConfigurationKeys.ERROR_MESSAGE_INVALID_SCHEMA_ID_COUNT, this.invalidSchemaIdCount);
     this.workUnitState.setProp(ConfigurationKeys.ERROR_MESSAGE_UNDECODABLE_COUNT, this.undecodableMessageCount);
 
-    // Commit watermark
+    // Commit actual high watermark for each partition
     for (int i = 0; i < this.partitions.size(); i++) {
-      LOG.info(String.format("Last offset pulled for partition %s = %d", this.partitions.get(i),
-          this.nextWatermark.get(i) - 1));
+      LOG.info(String.format("Actual high watermark for partition %s=%d, expected=%d", this.partitions.get(i),
+          this.nextWatermark.get(i), this.highWatermark.get(i)));
     }
     this.workUnitState.setActualHighWatermark(this.nextWatermark);
 
-    // Commit avg event size
+    // Commit avg time to pull a record for each partition
     for (KafkaPartition partition : this.partitions) {
-      if (this.avgEventSizes.containsKey(partition)) {
-        long avgSize = this.avgEventSizes.get(partition);
-        LOG.info(String.format("Avg event size pulled for partition %s = %d", partition, avgSize));
-        KafkaUtils.setPartitionAvgEventSize(this.workUnitState, partition, avgSize);
+      if (this.avgMillisPerRecord.containsKey(partition)) {
+        double avgMillis = this.avgMillisPerRecord.get(partition);
+        LOG.info(String.format("Avg time to pull a record for partition %s = %f milliseconds", partition, avgMillis));
+        KafkaUtils.setPartitionAvgRecordMillis(this.workUnitState, partition, avgMillis);
       } else {
-        LOG.info(String.format("Partition %s not pulled", partition));
-        long previousAvgRecordSize =
-            KafkaUtils.getPartitionAvgEventSize(this.workUnitState, partition, KafkaSource.DEFAULT_AVG_EVENT_SIZE);
-        KafkaUtils.setPartitionAvgEventSize(this.workUnitState, partition, previousAvgRecordSize);
+        LOG.info(String.format("Avg time to pull a record for partition %s not recorded", partition));
       }
     }
     this.closer.close();

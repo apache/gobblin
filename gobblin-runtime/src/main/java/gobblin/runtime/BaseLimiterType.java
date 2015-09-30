@@ -13,10 +13,9 @@
 package gobblin.runtime;
 
 /**
- * An enumeration of types of {@link Limiter}s supported out-of-the-box.
- *
- * @author ynli
+ * @deprecated This class has been moved to {@link gobblin.util.limiter.BaseLimiterType}.
  */
+@Deprecated
 public enum BaseLimiterType {
 
   /**

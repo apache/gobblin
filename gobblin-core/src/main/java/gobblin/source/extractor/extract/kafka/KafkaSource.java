@@ -13,11 +13,8 @@
 package gobblin.source.extractor.extract.kafka;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -27,25 +24,19 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.MinMaxPriorityQueue;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
-import com.google.common.primitives.Longs;
 import com.google.gson.Gson;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.Tag;
-import gobblin.source.extractor.WatermarkInterval;
 import gobblin.source.extractor.extract.EventBasedSource;
+import gobblin.source.extractor.extract.kafka.workunit.packer.KafkaWorkUnitPacker;
 import gobblin.source.workunit.Extract;
-import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.DatasetFilterUtils;
 
@@ -77,27 +68,11 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   public static final Extract.TableType DEFAULT_TABLE_TYPE = Extract.TableType.APPEND_ONLY;
   public static final String DEFAULT_NAMESPACE_NAME = "KAFKA";
   public static final String ALL_TOPICS = "all";
-  public static final String AVG_EVENT_SIZE = "avg.event.size";
-  public static final long DEFAULT_AVG_EVENT_SIZE = 1024;
-  public static final String ESTIMATED_DATA_SIZE = "estimated.data.size";
-
-  private static final Comparator<WorkUnit> SIZE_ASC_COMPARATOR = new Comparator<WorkUnit>() {
-    @Override
-    public int compare(WorkUnit w1, WorkUnit w2) {
-      return Longs.compare(getWorkUnitEstSize(w1), getWorkUnitEstSize(w2));
-    }
-  };
-
-  private static final Comparator<WorkUnit> SIZE_DESC_COMPARATOR = new Comparator<WorkUnit>() {
-    @Override
-    public int compare(WorkUnit w1, WorkUnit w2) {
-      return Longs.compare(getWorkUnitEstSize(w2), getWorkUnitEstSize(w1));
-    }
-  };
+  public static final String AVG_RECORD_SIZE = "avg.record.size";
+  public static final String AVG_RECORD_MILLIS = "avg.record.millis";
 
   private final Set<String> moveToLatestTopics = Sets.newTreeSet(String.CASE_INSENSITIVE_ORDER);
   private final Map<KafkaPartition, Long> previousOffsets = Maps.newHashMap();
-  private final Map<KafkaPartition, Long> previousAvgSizes = Maps.newHashMap();
 
   private final Set<KafkaPartition> partitionsToBeProcessed = Sets.newHashSet();
 
@@ -122,8 +97,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
       int numOfMultiWorkunits =
           state.getPropAsInt(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, ConfigurationKeys.DEFAULT_MR_JOB_MAX_MAPPERS);
-      this.getAllPreviousAvgSizes(state);
-      return ImmutableList.copyOf(getMultiWorkunits(workUnits, numOfMultiWorkunits, state));
+      return KafkaWorkUnitPacker.getInstance(this, state).pack(workUnits, numOfMultiWorkunits);
     } finally {
       try {
         closer.close();
@@ -153,261 +127,39 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     }
   }
 
-  /**
-   * Group workUnits into multiWorkUnits. Each input workUnit corresponds to a (topic, partition).
-   *
-   * There are two levels of grouping. In the first level, some workunits corresponding to partitions
-   * of the same topic are grouped together into a single workunit. This reduces the number of small
-   * output files since these partitions will share output files, rather than each creating individual
-   * output files. The number of grouped workunits is approximately 3 * numOfMultiWorkunits, since the
-   * worst-fit-decreasing algorithm (used by the second level) should work well if the number of items
-   * is more than 3 times the number of bins.
-   *
-   * In the second level, these grouped workunits are assembled into multiWorkunits using worst-fit-decreasing.
-   *
-   * @param workUnits A two-dimensional list of workunits, each corresponding to a single Kafka partition, grouped
-   * by topics.
-   * @param numOfMultiWorkunits Desired number of MultiWorkUnits.
-   * @param state
-   * @return A list of MultiWorkUnits.
-   */
-  private List<WorkUnit> getMultiWorkunits(Map<String, List<WorkUnit>> workUnits, int numOfMultiWorkunits,
-      SourceState state) {
-    Preconditions.checkArgument(numOfMultiWorkunits >= 1);
-
-    long totalEstDataSize = 0;
-    for (List<WorkUnit> workUnitsForTopic : workUnits.values()) {
-      for (WorkUnit workUnit : workUnitsForTopic) {
-        setWorkUnitEstSize(workUnit);
-        totalEstDataSize += getWorkUnitEstSize(workUnit);
-      }
-    }
-    long avgGroupSize = (long) ((double) totalEstDataSize / (double) numOfMultiWorkunits / 3.0);
-
-    List<MultiWorkUnit> mwuGroups = Lists.newArrayList();
-    for (List<WorkUnit> workUnitsForTopic : workUnits.values()) {
-      long estimatedDataSizeForTopic = calcTotalEstSizeForTopic(workUnitsForTopic);
-      if (estimatedDataSizeForTopic < avgGroupSize) {
-
-        // If the total estimated size of a topic is smaller than group size, put all partitions of this
-        // topic in a single group.
-        MultiWorkUnit mwuGroup = new MultiWorkUnit();
-        addWorkUnitsToMultiWorkUnit(workUnitsForTopic, mwuGroup);
-        mwuGroups.add(mwuGroup);
-      } else {
-
-        // Use best-fit-decreasing to group workunits for a topic into multiple groups.
-        mwuGroups.addAll(bestFitDecreasingBinPacking(workUnitsForTopic, avgGroupSize));
-      }
-    }
-
-    List<WorkUnit> groups = squeezeMultiWorkUnits(mwuGroups, state);
-
-    return worstFitDecreasingBinPacking(groups, numOfMultiWorkunits);
-  }
-
-  private void setWorkUnitEstSize(WorkUnit workUnit) {
-    long avgSize = this.getPreviousAvgSizeForPartition(KafkaUtils.getPartition(workUnit));
-    long numOfEvents = workUnit.getPropAsLong(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY)
-        - workUnit.getPropAsLong(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY);
-    workUnit.setProp(ESTIMATED_DATA_SIZE, avgSize * numOfEvents);
-  }
-
-  private static void setWorkUnitEstSize(WorkUnit workUnit, long estSize) {
-    workUnit.setProp(ESTIMATED_DATA_SIZE, estSize);
-  }
-
-  private static long getWorkUnitEstSize(WorkUnit workUnit) {
-    Preconditions.checkArgument(workUnit.contains(ESTIMATED_DATA_SIZE));
-    return workUnit.getPropAsLong(ESTIMATED_DATA_SIZE);
-  }
-
-  /**
-   * For each input MultiWorkUnit, combine all workunits in it into a single workunit.
-   */
-  private List<WorkUnit> squeezeMultiWorkUnits(List<MultiWorkUnit> multiWorkUnits, SourceState state) {
-    List<WorkUnit> workUnits = Lists.newArrayList();
-    for (MultiWorkUnit multiWorkUnit : multiWorkUnits) {
-      workUnits.add(squeezeMultiWorkUnit(multiWorkUnit, state));
-    }
-    return workUnits;
-  }
-
-  /**
-   * Combine all workunits in the multiWorkUnit into a single workunit.
-   */
-  private WorkUnit squeezeMultiWorkUnit(MultiWorkUnit multiWorkUnit, SourceState state) {
-    WatermarkInterval interval = getWatermarkIntervalFromMultiWorkUnit(multiWorkUnit);
-    List<KafkaPartition> partitions = getPartitionsFromMultiWorkUnit(multiWorkUnit);
-    Preconditions.checkArgument(!partitions.isEmpty(), "There must be at least one partition in the multiWorkUnit");
-    Extract extract = this.createExtract(DEFAULT_TABLE_TYPE, DEFAULT_NAMESPACE_NAME, partitions.get(0).getTopicName());
-    WorkUnit workUnit = WorkUnit.create(extract, interval);
-    populateMultiPartitionWorkUnit(partitions, workUnit);
-    workUnit.setProp(ESTIMATED_DATA_SIZE, multiWorkUnit.getProp(ESTIMATED_DATA_SIZE));
-    LOG.info(String.format("Created workunit for partitions %s", partitions));
-    return workUnit;
-  }
-
-  @SuppressWarnings("deprecation")
-  private static WatermarkInterval getWatermarkIntervalFromMultiWorkUnit(MultiWorkUnit multiWorkUnit) {
-    List<Long> lowWatermarkValues = Lists.newArrayList();
-    List<Long> expectedHighWatermarkValues = Lists.newArrayList();
-    for (WorkUnit workUnit : multiWorkUnit.getWorkUnits()) {
-      lowWatermarkValues.add(workUnit.getLowWaterMark());
-      expectedHighWatermarkValues.add(workUnit.getHighWaterMark());
-    }
-    return new WatermarkInterval(new MultiLongWatermark(lowWatermarkValues),
-        new MultiLongWatermark(expectedHighWatermarkValues));
-  }
-
-  private static List<KafkaPartition> getPartitionsFromMultiWorkUnit(MultiWorkUnit multiWorkUnit) {
-    List<KafkaPartition> partitions = Lists.newArrayList();
-
-    for (WorkUnit workUnit : multiWorkUnit.getWorkUnits()) {
-      partitions.add(KafkaUtils.getPartition(workUnit));
-    }
-
-    return partitions;
-  }
-
-  /**
-   * Pack a list of WorkUnits into a smaller number of MultiWorkUnits, using the worst-fit-decreasing algorithm.
-   *
-   * Each WorkUnit is assigned to the MultiWorkUnit with the smallest load.
-   */
-  private List<WorkUnit> worstFitDecreasingBinPacking(List<WorkUnit> groups, int numOfMultiWorkUnits) {
-
-    // Sort workunit groups by data size desc
-    Collections.sort(groups, SIZE_DESC_COMPARATOR);
-
-    MinMaxPriorityQueue<MultiWorkUnit> pQueue =
-        MinMaxPriorityQueue.orderedBy(SIZE_ASC_COMPARATOR).expectedSize(numOfMultiWorkUnits).create();
-    for (int i = 0; i < numOfMultiWorkUnits; i++) {
-      MultiWorkUnit multiWorkUnit = new MultiWorkUnit();
-      setWorkUnitEstSize(multiWorkUnit, 0);
-      pQueue.add(multiWorkUnit);
-    }
-
-    for (WorkUnit group : groups) {
-      MultiWorkUnit lightestMultiWorkUnit = pQueue.poll();
-      addWorkUnitToMultiWorkUnit(group, lightestMultiWorkUnit);
-      pQueue.add(lightestMultiWorkUnit);
-    }
-
-    long minLoad = getWorkUnitEstSize(pQueue.peekFirst());
-    long maxLoad = getWorkUnitEstSize(pQueue.peekLast());
-    LOG.info(String.format("Min data size of multiWorkUnit = %d; Max data size of multiWorkUnit = %d; Diff = %f%%",
-        minLoad, maxLoad, (double) (maxLoad - minLoad) / (double) maxLoad * 100.0));
-
-    List<WorkUnit> multiWorkUnits = Lists.newArrayList();
-    multiWorkUnits.addAll(pQueue);
-    return multiWorkUnits;
-  }
-
-  /**
-   * Group workUnits into groups. Each group is a MultiWorkUnit. Each group has a capacity of avgGroupSize.
-   * If there's a single workUnit whose size is larger than avgGroupSize, it forms a group itself.
-   */
-  private List<MultiWorkUnit> bestFitDecreasingBinPacking(List<WorkUnit> workUnits, long avgGroupSize) {
-
-    // Sort workunits by data size desc
-    Collections.sort(workUnits, SIZE_DESC_COMPARATOR);
-
-    PriorityQueue<MultiWorkUnit> pQueue = new PriorityQueue<MultiWorkUnit>(workUnits.size(), SIZE_DESC_COMPARATOR);
-    for (WorkUnit workUnit : workUnits) {
-      MultiWorkUnit bestGroup = findAndPopBestFitGroup(workUnit, pQueue, avgGroupSize);
-      if (bestGroup != null) {
-        addWorkUnitToMultiWorkUnit(workUnit, bestGroup);
-      } else {
-        bestGroup = new MultiWorkUnit();
-        addWorkUnitToMultiWorkUnit(workUnit, bestGroup);
-      }
-      pQueue.add(bestGroup);
-    }
-    return Lists.newArrayList(pQueue);
-  }
-
-  private static void addWorkUnitToMultiWorkUnit(WorkUnit workUnit, MultiWorkUnit multiWorkUnit) {
-    multiWorkUnit.addWorkUnit(workUnit);
-    long size = multiWorkUnit.getPropAsLong(ESTIMATED_DATA_SIZE, 0);
-    multiWorkUnit.setProp(ESTIMATED_DATA_SIZE, size + getWorkUnitEstSize(workUnit));
-  }
-
-  private static void addWorkUnitsToMultiWorkUnit(List<WorkUnit> workUnits, MultiWorkUnit multiWorkUnit) {
-    for (WorkUnit workUnit : workUnits) {
-      addWorkUnitToMultiWorkUnit(workUnit, multiWorkUnit);
-    }
-  }
-
-  /**
-   * Find the best group using the best-fit-decreasing algorithm.
-   * The best group is the fullest group that has enough capacity for the new workunit.
-   * If no existing group has enough capacity for the new workUnit, return null.
-   */
-  private MultiWorkUnit findAndPopBestFitGroup(WorkUnit workUnit, PriorityQueue<MultiWorkUnit> pQueue,
-      long avgGroupSize) {
-
-    List<MultiWorkUnit> fullWorkUnits = Lists.newArrayList();
-    MultiWorkUnit bestFit = null;
-
-    while (!pQueue.isEmpty()) {
-      MultiWorkUnit candidate = pQueue.poll();
-      if (getWorkUnitEstSize(candidate) + getWorkUnitEstSize(workUnit) <= avgGroupSize) {
-        bestFit = candidate;
-        break;
-      } else {
-        fullWorkUnits.add(candidate);
-      }
-    }
-
-    for (MultiWorkUnit fullWorkUnit : fullWorkUnits) {
-      pQueue.add(fullWorkUnit);
-    }
-
-    return bestFit;
-  }
-
-  private static long calcTotalEstSizeForTopic(List<WorkUnit> workUnitsForTopic) {
-    long totalSize = 0;
-    for (WorkUnit w : workUnitsForTopic) {
-      totalSize += getWorkUnitEstSize(w);
-    }
-    return totalSize;
-  }
-
-  private long getPreviousAvgSizeForPartition(KafkaPartition partition) {
-    if (this.previousAvgSizes.containsKey(partition)) {
-      LOG.info(String.format("Estimated avg event size for partition %s is %d", partition,
-          this.previousAvgSizes.get(partition)));
-      return this.previousAvgSizes.get(partition);
-    } else {
-      LOG.warn(String.format("Avg event size for partition %s not available, using default size %d", partition,
-          DEFAULT_AVG_EVENT_SIZE));
-      return DEFAULT_AVG_EVENT_SIZE;
-    }
-  }
-
-  private void getAllPreviousAvgSizes(SourceState state) {
-    this.previousAvgSizes.clear();
-    for (WorkUnitState workUnitState : state.getPreviousWorkUnitStates()) {
-      List<KafkaPartition> partitions = KafkaUtils.getPartitions(workUnitState);
-      for (KafkaPartition partition : partitions) {
-        long previousAvgSize = KafkaUtils.getPartitionAvgEventSize(workUnitState, partition, DEFAULT_AVG_EVENT_SIZE);
-        this.previousAvgSizes.put(partition, previousAvgSize);
-      }
-    }
-  }
-
   private List<WorkUnit> getWorkUnitsForTopic(KafkaWrapper kafkaWrapper, KafkaTopic topic, SourceState state) {
+    boolean topicQualified = isTopicQualified(topic);
+
     List<WorkUnit> workUnits = Lists.newArrayList();
     for (KafkaPartition partition : topic.getPartitions()) {
       WorkUnit workUnit = getWorkUnitForTopicPartition(kafkaWrapper, partition, state);
       this.partitionsToBeProcessed.add(partition);
       if (workUnit != null) {
+
+        // For disqualified topics, for each of its workunits set the high watermark to be the same
+        // as the low watermark, so that it will be skipped.
+        if (!topicQualified) {
+          skipWorkUnit(workUnit);
+        }
         workUnits.add(workUnit);
       }
     }
     return workUnits;
+  }
+
+  /**
+   * Whether a {@link KafkaTopic} is qualified to be pulled.
+   *
+   * This method can be overridden by subclasses for verifying topic eligibility, e.g., one may want to
+   * skip a topic if its schema cannot be found in the schema registry.
+   */
+  protected boolean isTopicQualified(KafkaTopic topic) {
+    return true;
+  }
+
+  @SuppressWarnings("deprecation")
+  private void skipWorkUnit(WorkUnit workUnit) {
+    workUnit.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, workUnit.getLowWaterMark());
   }
 
   private WorkUnit getWorkUnitForTopicPartition(KafkaWrapper kafkaWrapper, KafkaPartition partition,
@@ -538,7 +290,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   }
 
   /**
-   * A topic can be configured to move to the latest offset in topics.move.to.latest.offset
+   * A topic can be configured to move to the latest offset in {@link #TOPICS_MOVE_TO_LATEST_OFFSET}.
    */
   private boolean shouldMoveToLatestOffset(KafkaPartition partition, SourceState state) {
     if (!state.contains(TOPICS_MOVE_TO_LATEST_OFFSET)) {
@@ -569,26 +321,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     workUnit.setProp(LEADER_HOSTANDPORT, partition.getLeader().getHostAndPort().toString());
     workUnit.setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, offsets.getStartOffset());
     workUnit.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, offsets.getLatestOffset());
-    LOG.info(String.format("Created workunit for partition %s: lowWatermark=%d, highWatermark=%d", partition,
-        offsets.getStartOffset(), offsets.getLatestOffset()));
+    LOG.info(String.format("Created workunit for partition %s: lowWatermark=%d, highWatermark=%d, range=%d", partition,
+        offsets.getStartOffset(), offsets.getLatestOffset(), offsets.getLatestOffset() - offsets.getStartOffset()));
     return workUnit;
-  }
-
-  /**
-   * Add a list of partitions of the same topic to a workUnit.
-   */
-  private static void populateMultiPartitionWorkUnit(List<KafkaPartition> partitions, WorkUnit workUnit) {
-    Preconditions.checkArgument(!partitions.isEmpty(), "There should be at least one partition");
-    workUnit.setProp(TOPIC_NAME, partitions.get(0).getTopicName());
-    GobblinMetrics.addCustomTagToState(workUnit, new Tag<String>("kafkaTopic", partitions.get(0).getTopicName()));
-    workUnit.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, partitions.get(0).getTopicName());
-    for (int i = 0; i < partitions.size(); i++) {
-      workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, i), partitions.get(i).getId());
-      workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_ID, i),
-          partitions.get(i).getLeader().getId());
-      workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_HOSTANDPORT, i),
-          partitions.get(i).getLeader().getHostAndPort());
-    }
   }
 
   private List<KafkaTopic> getFilteredTopics(KafkaWrapper kafkaWrapper, SourceState state) {

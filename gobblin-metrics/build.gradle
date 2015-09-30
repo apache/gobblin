@@ -31,6 +31,7 @@ dependencies {
   compile externalDependency.metricsCore
   compile externalDependency.metricsGraphite
   compile externalDependency.slf4j
+  compile externalDependency.lombok
   compile(externalDependency.kafka){
     exclude group: "com.sun.jmx", module: "jmxri"
     exclude group: "com.sun.jdmk", module: "jmxtools"
@@ -44,6 +45,7 @@ dependencies {
   compile externalDependency.findBugs
   compile externalDependency.commonsHttpClient
   compile externalDependency.commonsCodec
+  compile externalDependency.commonsLang
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito

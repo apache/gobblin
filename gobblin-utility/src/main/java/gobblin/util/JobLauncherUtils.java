@@ -114,6 +114,39 @@ public class JobLauncherUtils {
   }
 
   /**
+   * Cleanup staging data of all tasks of a job.
+   *
+   * @param state job state
+   */
+  public static void cleanJobStagingData(State state, Logger logger) throws IOException {
+    Preconditions.checkArgument(state.contains(ConfigurationKeys.WRITER_STAGING_DIR),
+        "Missing required property " + ConfigurationKeys.WRITER_STAGING_DIR);
+    Preconditions.checkArgument(state.contains(ConfigurationKeys.WRITER_OUTPUT_DIR),
+        "Missing required property " + ConfigurationKeys.WRITER_OUTPUT_DIR);
+
+    String writerFsUri = state.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigurationKeys.LOCAL_FS_URI);
+    FileSystem fs = getFsWithProxy(state, writerFsUri);
+
+    Path jobStagingPath = new Path(state.getProp(ConfigurationKeys.WRITER_STAGING_DIR));
+    logger.info("Cleaning up staging directory " + jobStagingPath);
+    HadoopUtils.deletePath(fs, jobStagingPath, true);
+
+    if (fs.exists(jobStagingPath.getParent()) && fs.listStatus(jobStagingPath.getParent()).length == 0) {
+      logger.info("Deleting directory " + jobStagingPath.getParent());
+      HadoopUtils.deletePath(fs, jobStagingPath.getParent(), true);
+    }
+
+    Path jobOutputPath = new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR));
+    logger.info("Cleaning up output directory " + jobOutputPath);
+    HadoopUtils.deletePath(fs, jobOutputPath, true);
+
+    if (fs.exists(jobOutputPath.getParent()) && fs.listStatus(jobOutputPath.getParent()).length == 0) {
+      logger.info("Deleting directory " + jobOutputPath.getParent());
+      HadoopUtils.deletePath(fs, jobOutputPath.getParent(), true);
+    }
+  }
+
+  /**
    * Cleanup staging data of a Gobblin task.
    *
    * @param state workunit state
@@ -122,9 +155,9 @@ public class JobLauncherUtils {
     int numBranches = state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
 
     for (int branchId = 0; branchId < numBranches; branchId++) {
-      String writerFsUri =
-          state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI,
-              numBranches, branchId), ConfigurationKeys.LOCAL_FS_URI);
+      String writerFsUri = state.getProp(
+          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
+          ConfigurationKeys.LOCAL_FS_URI);
       FileSystem fs = getFsWithProxy(state, writerFsUri);
 
       Path stagingPath = WriterUtils.getWriterStagingDir(state, numBranches, branchId);
@@ -162,9 +195,9 @@ public class JobLauncherUtils {
         state.getPropAsInt(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY, ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS);
 
     for (int branchId = 0; branchId < numBranches; branchId++) {
-      String writerFsUri =
-          state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI,
-              numBranches, branchId), ConfigurationKeys.LOCAL_FS_URI);
+      String writerFsUri = state.getProp(
+          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
+          ConfigurationKeys.LOCAL_FS_URI);
       FileSystem fs = getFsWithProxy(state, writerFsUri);
       ParallelRunner parallelRunner = getParallelRunner(fs, closer, parallelRunnerThreads, parallelRunners);
 
@@ -183,8 +216,7 @@ public class JobLauncherUtils {
     }
   }
 
-  private static FileSystem getFsWithProxy(State state, String writerFsUri)
-      throws IOException {
+  private static FileSystem getFsWithProxy(State state, String writerFsUri) throws IOException {
     if (!state.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
         ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
       return FileSystem.get(URI.create(writerFsUri), new Configuration());
@@ -198,7 +230,7 @@ public class JobLauncherUtils {
         try {
           FileSystem proxiedFs =
               new ProxiedFileSystemWrapper().getProxiedFileSystem(state, ProxiedFileSystemWrapper.AuthType.KEYTAB,
-              state.getProp(ConfigurationKeys.SUPER_USER_KEY_TAB_LOCATION), writerFsUri);
+                  state.getProp(ConfigurationKeys.SUPER_USER_KEY_TAB_LOCATION), writerFsUri);
           ownerAndFs.put(owner, proxiedFs);
           return proxiedFs;
         } catch (InterruptedException e) {

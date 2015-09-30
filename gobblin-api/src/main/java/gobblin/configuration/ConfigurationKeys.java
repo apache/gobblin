@@ -47,6 +47,9 @@ public class ConfigurationKeys {
   // File system URI for file-system-based task store
   public static final String STATE_STORE_FS_URI_KEY = "state.store.fs.uri";
 
+  //Directory that stores task staging data and task output data.
+  public static final String TASK_DATA_ROOT_DIR_KEY = "task.data.root.dir";
+
   // Directory where job lock files are stored
   public static final String JOB_LOCK_DIR_KEY = "job.lock.dir";
 
@@ -106,6 +109,8 @@ public class ConfigurationKeys {
   public static final long DEFAULT_TASK_RETRY_INTERVAL_IN_SEC = 300;
   public static final String OVERWRITE_CONFIGS_IN_STATESTORE = "overwrite.configs.in.statestore";
   public static final boolean DEFAULT_OVERWRITE_CONFIGS_IN_STATESTORE = false;
+  public static final String CLEANUP_STAGING_DATA_PER_TASK = "cleanup.staging.data.per.task";
+  public static final boolean DEFAULT_CLEANUP_STAGING_DATA_PER_TASK = true;
 
   /**
    * Configuration properties used internally.
@@ -427,6 +432,7 @@ public class ConfigurationKeys {
   public static final String COMPACTION_DEST_SUBDIR = COMPACTION_PREFIX + "dest.subdir";
   public static final String DEFAULT_COMPACTION_DEST_SUBDIR = "daily";
   public static final String COMPACTION_JOB_DEST_DIR = COMPACTION_PREFIX + "job.dest.dir";
+  public static final String COMPACTION_JOB_DEST_PARTITION = COMPACTION_PREFIX + "job.dest.partition";
   public static final String COMPACTION_TMP_DIR = COMPACTION_PREFIX + "tmp.dir";
   public static final String DEFAULT_COMPACTION_TMP_DIR = "/tmp";
   public static final String COMPACTION_JOB_TMP_DIR = COMPACTION_PREFIX + "job.tmp.dir";
@@ -477,6 +483,7 @@ public class ConfigurationKeys {
   public static final String COMPACTION_OVERWRITE_OUTPUT_DIR = COMPACTION_PREFIX + "overwrite.output.dir";
   public static final boolean DEFAULT_COMPACTION_OVERWRITE_OUTPUT_DIR = false;
   public static final String COMPACTION_JARS = COMPACTION_PREFIX + "jars";
+  public static final String COMPACTION_TRACKING_EVENTS_NAMESPACE = COMPACTION_PREFIX + "tracking.events";
 
   /**
    * Common metrics configuration properties.

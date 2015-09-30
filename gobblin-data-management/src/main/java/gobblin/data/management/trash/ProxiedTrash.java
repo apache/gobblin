@@ -36,7 +36,7 @@ import gobblin.util.ProxiedFileSystemCache;
  * An implementation of {@link gobblin.data.management.trash.Trash} that allows deleting files as different users.
  * Uses {@link gobblin.util.ProxiedFileSystemCache} to proxy as different users.
  */
-public class ProxiedTrash extends Trash {
+public class ProxiedTrash extends Trash implements GobblinProxiedTrash {
 
   private final Cache<String, Trash> trashCache = CacheBuilder.newBuilder().maximumSize(100).build();
   private final Properties properties;
@@ -54,6 +54,7 @@ public class ProxiedTrash extends Trash {
    * @return true if the move succeeded.
    * @throws IOException
    */
+  @Override
   public boolean moveToTrashAsUser(Path path, final String user) throws IOException {
     return getUserTrash(user).moveToTrash(path);
   }

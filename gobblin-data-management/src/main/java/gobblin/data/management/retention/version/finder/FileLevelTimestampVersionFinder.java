@@ -32,9 +32,10 @@ import gobblin.util.FileListUtils;
 
 
 /**
- * {@link gobblin.data.management.retention.version.finder.VersionFinder} that uses the file level modifiedTimestamp 
- * under the datasetRoot path to find {@link gobblin.data.management.retention.version.DatasetVersion}s, and represents
- * each version as {@link gobblin.data.management.retention.version.TimestampedDatasetVersion} using the file level path 
+ * {@link gobblin.data.management.retention.version.finder.VersionFinder} that uses the most nested file,
+ * or directory if no file exists, level modifiedTimestamp under the datasetRoot path to find
+ * {@link gobblin.data.management.retention.version.DatasetVersion}s, and represents each version as
+ * {@link gobblin.data.management.retention.version.TimestampedDatasetVersion} using the file level path
  * and modifiedTimestamp.
  */
 public class FileLevelTimestampVersionFinder implements VersionFinder<TimestampedDatasetVersion> {
@@ -55,7 +56,7 @@ public class FileLevelTimestampVersionFinder implements VersionFinder<Timestampe
   public Collection<TimestampedDatasetVersion> findDatasetVersions(Dataset dataset) {
     try {
       List<TimestampedDatasetVersion> timestampedVersions = Lists.newArrayList();
-      for (FileStatus fileStatus : FileListUtils.listFilesRecursively(this.fs, dataset.datasetRoot())) {
+      for (FileStatus fileStatus : FileListUtils.listMostNestedPathRecursively(this.fs, dataset.datasetRoot())) {
         timestampedVersions.add(new TimestampedDatasetVersion(new DateTime(fileStatus.getModificationTime()),
             fileStatus.getPath()));
       }

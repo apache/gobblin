@@ -14,6 +14,8 @@ apply plugin: 'eclipse'
 dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-utility")
+  compile project(":gobblin-metrics")
+  compile project(":gobblin-core")
   compile externalDependency.avro
   compile externalDependency.commonsLang
   compile externalDependency.hiveExec

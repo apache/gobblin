@@ -22,15 +22,17 @@ import org.apache.hadoop.fs.Path;
 import com.google.common.base.Preconditions;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.data.management.retention.DatasetCleaner;
 import gobblin.data.management.retention.dataset.ConfigurableDataset;
 import gobblin.data.management.retention.dataset.Dataset;
 import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.util.ProxiedFileSystemCache;
+import gobblin.util.RateControlledFileSystem;
 
 
 /**
  * A wrapper of {@link gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder} that looks for
- * {@link gobblin.data.management.retention.dataset.Dataset}s with {@link org.apache.hadoop.fs.FileSystem}s 
+ * {@link gobblin.data.management.retention.dataset.Dataset}s with {@link org.apache.hadoop.fs.FileSystem}s
  * proxied as the owner of each dataset.
  */
 public class ProxyableDatasetProfile extends ConfigurableGlobDatasetFinder {
@@ -47,14 +49,22 @@ public class ProxyableDatasetProfile extends ConfigurableGlobDatasetFinder {
   public FileSystem getFsForDataset(Path path) throws IOException {
     Preconditions.checkArgument(this.props.containsKey(ConfigurationKeys.SUPER_USER_NAME_TO_PROXY_AS_OTHERS));
     Preconditions.checkArgument(this.props.containsKey(ConfigurationKeys.SUPER_USER_KEY_TAB_LOCATION));
-
+    FileSystem proxiedFileSystem = fs;
     try {
-      return ProxiedFileSystemCache.getProxiedFileSystemUsingKeytab(this.fs.getFileStatus(path).getOwner(),
-          this.props.getProperty(ConfigurationKeys.SUPER_USER_NAME_TO_PROXY_AS_OTHERS),
-          new Path(this.props.getProperty(ConfigurationKeys.SUPER_USER_KEY_TAB_LOCATION)), this.fs.getUri(),
-          this.fs.getConf());
+      proxiedFileSystem =
+          ProxiedFileSystemCache.getProxiedFileSystemUsingKeytab(this.fs.getFileStatus(path).getOwner(),
+              this.props.getProperty(ConfigurationKeys.SUPER_USER_NAME_TO_PROXY_AS_OTHERS),
+              new Path(this.props.getProperty(ConfigurationKeys.SUPER_USER_KEY_TAB_LOCATION)), this.fs.getUri(),
+              this.fs.getConf());
     } catch (ExecutionException e) {
-      throw new IOException("Cannot get proxied filesystem at Path: " + path);
+      throw new IOException("Cannot get proxied filesystem at Path: " + path, e);
+    }
+
+    if (props.contains(DatasetCleaner.DATASET_CLEAN_HDFS_CALLS_PER_SECOND_LIMIT)) {
+      return new RateControlledFileSystem(proxiedFileSystem, Long.parseLong(props
+          .getProperty(DatasetCleaner.DATASET_CLEAN_HDFS_CALLS_PER_SECOND_LIMIT)));
+    } else {
+      return proxiedFileSystem;
     }
   }
 }

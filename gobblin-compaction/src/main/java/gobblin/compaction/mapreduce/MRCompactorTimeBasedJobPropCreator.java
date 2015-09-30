@@ -95,7 +95,8 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
       Path jobTmpDir = new Path(this.topicTmpDir, folderTime.toString(this.timeFormatter));
       if (folderWithinAllowedPeriod(status.getPath(), folderTime)) {
         if (!folderAlreadyCompacted(jobOutputDir)) {
-          allJobProps.add(createJobProps(status.getPath(), jobOutputDir, jobTmpDir, this.deduplicate));
+          allJobProps.add(createJobProps(status.getPath(), jobOutputDir, jobTmpDir, this.deduplicate,
+              folderTime.toString(this.timeFormatter)));
         } else {
           List<Path> newDataFiles = getNewDataInFolder(status.getPath(), jobOutputDir);
           if (newDataFiles.isEmpty()) {

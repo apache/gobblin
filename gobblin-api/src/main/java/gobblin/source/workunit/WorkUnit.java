@@ -209,10 +209,17 @@ public class WorkUnit extends State {
   }
 
   /**
+   * Set {@link WatermarkInterval} for a {@link WorkUnit}.
+   */
+  public void setWatermarkInterval(WatermarkInterval watermarkInterval) {
+    setProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY, watermarkInterval.toJson().toString());
+  }
+
+  /**
    * Set the high watermark of this {@link WorkUnit}.
    *
    * @param highWaterMark high watermark
-   * @deprecated watermarks should be set using the {@link #WorkUnit(SourceState, Extract, WatermarkInterval)} constructor.
+   * @deprecated use {@link #setWatermarkInterval(WatermarkInterval)}.
    */
   @Deprecated
   public void setHighWaterMark(long highWaterMark) {
@@ -234,7 +241,7 @@ public class WorkUnit extends State {
    * Set the low watermark of this {@link WorkUnit}.
    *
    * @param lowWaterMark low watermark
-   * @deprecated watermarks should be set using the {@link #WorkUnit(SourceState, Extract, WatermarkInterval)} constructor.
+   * @deprecated use {@link #setWatermarkInterval(WatermarkInterval)}.
    */
   @Deprecated
   public void setLowWaterMark(long lowWaterMark) {
@@ -260,8 +267,8 @@ public class WorkUnit extends State {
     }
 
     WorkUnit other = (WorkUnit) object;
-    return ((this.extract == null && other.extract == null) ||
-        (this.extract != null && this.extract.equals(other.extract))) && super.equals(other);
+    return ((this.extract == null && other.extract == null)
+        || (this.extract != null && this.extract.equals(other.extract))) && super.equals(other);
   }
 
   @Override

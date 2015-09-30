@@ -17,6 +17,7 @@ dependencies {
 
   compile externalDependency.commonsCodec
   compile externalDependency.commonsDbcp
+  compile externalDependency.commonsMath
   compile externalDependency.commonsHttpClient
   compile externalDependency.avro
   compile externalDependency.guava
