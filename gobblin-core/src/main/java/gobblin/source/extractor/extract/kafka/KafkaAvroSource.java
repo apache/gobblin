@@ -12,13 +12,23 @@
 
 package gobblin.source.extractor.extract.kafka;
 
+import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
+import gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
+import gobblin.metrics.kafka.SchemaNotFoundException;
 import gobblin.source.extractor.Extractor;
+import gobblin.source.workunit.WorkUnit;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 
 
 /**
@@ -27,8 +37,38 @@ import org.apache.avro.generic.GenericRecord;
  * @author ziliu
  */
 public class KafkaAvroSource extends KafkaSource<Schema, GenericRecord> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(KafkaAvroSource.class);
+
+  private Optional<KafkaAvroSchemaRegistry> schemaRegistry = Optional.absent();
+
   @Override
   public Extractor<Schema, GenericRecord> getExtractor(WorkUnitState state) throws IOException {
     return new KafkaAvroExtractor(state);
+  }
+
+  @Override
+  public List<WorkUnit> getWorkunits(SourceState state) {
+    if (!this.schemaRegistry.isPresent()) {
+      this.schemaRegistry = Optional.of(new KafkaAvroSchemaRegistry(state.getProperties()));
+    }
+    return super.getWorkunits(state);
+  }
+
+  /**
+   * A {@link KafkaTopic} is qualified if its schema exists in the schema registry.
+   */
+  @Override
+  protected boolean isTopicQualified(KafkaTopic topic) {
+    Preconditions.checkState(this.schemaRegistry.isPresent(),
+        "Schema registry not found. Unable to verify topic schema");
+
+    try {
+      this.schemaRegistry.get().getLatestSchemaByTopic(topic.getName());
+      return true;
+    } catch (SchemaNotFoundException e) {
+      LOG.error(String.format("Cannot find latest schema for topic %s. This topic will be skipped", topic.getName()));
+      return false;
+    }
   }
 }

@@ -19,14 +19,15 @@ import java.util.List;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
+
 /**
  * A Utils class for Kafka.
  */
 public class KafkaUtils {
 
   /**
-   * Get topic name from a state object. The state should contain property
-   * "topic.name".
+   * Get topic name from a {@link State} object. The {@link State} should contain property
+   * {@link KafkaSource#TOPIC_NAME}.
    */
   public static String getTopicName(State state) {
     Preconditions.checkArgument(state.contains(KafkaSource.TOPIC_NAME));
@@ -35,16 +36,15 @@ public class KafkaUtils {
   }
 
   /**
-   * Get kafka partition from a state object. The state should contain properties
-   * "topic.name", "partition.id", and may optionally contain "leader.id" and
-   * "leader.hostandport".
+   * Get {@link KafkaPartition} from a {@link State} object. The {@link State} should contain properties
+   * {@link KafkaSource#TOPIC_NAME}, {@link KafkaSource#PARTITION_ID}, and may optionally contain
+   * {@link KafkaSource#LEADER_ID} and {@link KafkaSource#LEADER_HOSTANDPORT}.
    */
   public static KafkaPartition getPartition(State state) {
     Preconditions.checkArgument(state.contains(KafkaSource.TOPIC_NAME) && state.contains(KafkaSource.PARTITION_ID));
 
-    KafkaPartition.Builder builder =
-        new KafkaPartition.Builder().withTopicName(state.getProp(KafkaSource.TOPIC_NAME)).withId(
-            state.getPropAsInt(KafkaSource.PARTITION_ID));
+    KafkaPartition.Builder builder = new KafkaPartition.Builder().withTopicName(state.getProp(KafkaSource.TOPIC_NAME))
+        .withId(state.getPropAsInt(KafkaSource.PARTITION_ID));
     if (state.contains(KafkaSource.LEADER_ID)) {
       builder = builder.withLeaderId(state.getPropAsInt(KafkaSource.LEADER_ID));
     }
@@ -55,10 +55,14 @@ public class KafkaUtils {
   }
 
   /**
-   * Get a list of Kafka partitions from a state object. The state should contain properties
-   * "topic.name", "partition.id.i", "leader.id.i" and "leader.hostandport.i", i = 0,1,2,...
+   * Get a list of {@link KafkaPartition}s from a {@link State} object. The given {@link State} should contain property
+   * {@link KafkaSource#TOPIC_NAME}. If there are multiple partitions in the {@link State}, all partitions should have
+   * the same topic name.
    *
-   * All partitions should have the same topic name.
+   * It first checks whether the given {@link State} contains "partition.id.i", "leader.id.i" and
+   * "leader.hostandport.i", i = 0,1,2,...
+   *
+   * Otherwise it will call {@link #getPartition(State)}.
    */
   public static List<KafkaPartition> getPartitions(State state) {
     List<KafkaPartition> partitions = Lists.newArrayList();
@@ -67,39 +71,76 @@ public class KafkaUtils {
       if (!state.contains(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, i))) {
         break;
       }
-      KafkaPartition partition =
-          new KafkaPartition.Builder().withTopicName(topicName)
-              .withId(state.getPropAsInt(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, i)))
-              .withLeaderId(state.getPropAsInt(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_ID, i)))
-              .withLeaderHostAndPort(state.getProp(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_HOSTANDPORT, i)))
-              .build();
+      KafkaPartition partition = new KafkaPartition.Builder().withTopicName(topicName)
+          .withId(state.getPropAsInt(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, i)))
+          .withLeaderId(state.getPropAsInt(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_ID, i)))
+          .withLeaderHostAndPort(state.getProp(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_HOSTANDPORT, i)))
+          .build();
       partitions.add(partition);
+    }
+    if (partitions.isEmpty()) {
+      partitions.add(getPartition(state));
     }
     return partitions;
   }
 
   /**
-   * This method returns baseName + '.' + idx.
+   * This method returns topicName + '.' + partitionId.
    */
-  public static String getPartitionPropName(String baseName, int idx) {
-    return baseName + "." + idx;
+  public static String getPartitionPropName(String topicName, int partitionId) {
+    return topicName + "." + partitionId;
   }
 
   /**
-   * Get the average event size of a partition, which is stored in property "[topicname].[partitionid].avg.event.size".
+   * Determines whether the given {@link State} contains "[topicname].[partitionid].avg.record.size".
+   */
+  public static boolean containsPartitionAvgRecordSize(State state, KafkaPartition partition) {
+    return state.contains(
+        getPartitionPropName(partition.getTopicName(), partition.getId()) + "." + KafkaSource.AVG_RECORD_SIZE);
+  }
+
+  /**
+   * Get the average record size of a partition, which is stored in property "[topicname].[partitionid].avg.record.size".
    * If state doesn't contain this property, it returns defaultSize.
    */
-  public static long getPartitionAvgEventSize(State state, KafkaPartition partition, long defaultSize) {
-    return state.getPropAsLong(KafkaSource.TOPIC_NAME + "." + KafkaSource.PARTITION_ID + "."
-        + KafkaSource.AVG_EVENT_SIZE, defaultSize);
+  public static long getPartitionAvgRecordSize(State state, KafkaPartition partition) {
+    return state.getPropAsLong(
+        getPartitionPropName(partition.getTopicName(), partition.getId()) + "." + KafkaSource.AVG_RECORD_SIZE);
   }
 
   /**
-   * Set the average event size of a partition, which will be stored in property
-   * "[topicname].[partitionid].avg.event.size".
+   * Set the average record size of a partition, which will be stored in property
+   * "[topicname].[partitionid].avg.record.size".
    */
-  public static void setPartitionAvgEventSize(State state, KafkaPartition partition, long size) {
-    state.setProp(KafkaSource.TOPIC_NAME + "." + KafkaSource.PARTITION_ID + "." + KafkaSource.AVG_EVENT_SIZE, size);
+  public static void setPartitionAvgRecordSize(State state, KafkaPartition partition, long size) {
+    state.setProp(getPartitionPropName(partition.getTopicName(), partition.getId()) + "." + KafkaSource.AVG_RECORD_SIZE,
+        size);
   }
 
+  /**
+   * Determines whether the given {@link State} contains "[topicname].[partitionid].avg.record.millis".
+   */
+  public static boolean containsPartitionAvgRecordMillis(State state, KafkaPartition partition) {
+    return state.contains(
+        getPartitionPropName(partition.getTopicName(), partition.getId()) + "." + KafkaSource.AVG_RECORD_MILLIS);
+  }
+
+  /**
+   * Get the average time to pull a record of a partition, which is stored in property
+   * "[topicname].[partitionid].avg.record.millis". If state doesn't contain this property, it returns defaultValue.
+   */
+  public static double getPartitionAvgRecordMillis(State state, KafkaPartition partition) {
+    return state.getPropAsDouble(
+        getPartitionPropName(partition.getTopicName(), partition.getId()) + "." + KafkaSource.AVG_RECORD_MILLIS);
+  }
+
+  /**
+   * Set the average time in milliseconds to pull a record of a partition, which will be stored in property
+   * "[topicname].[partitionid].avg.record.millis".
+   */
+  public static void setPartitionAvgRecordMillis(State state, KafkaPartition partition, double millis) {
+    state.setProp(
+        getPartitionPropName(partition.getTopicName(), partition.getId()) + "." + KafkaSource.AVG_RECORD_MILLIS,
+        millis);
+  }
 }
