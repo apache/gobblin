@@ -14,6 +14,7 @@ package gobblin.util;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
@@ -27,6 +28,7 @@ import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.util.Progressable;
 
+import com.google.common.base.Optional;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
@@ -56,10 +58,32 @@ public class RateControlledFileSystem extends FileSystem implements Decorator {
       .maximumSize(DEFAULT_MAX_CACHE_SIZE).build();
 
   private final FileSystem fs;
+  private final long limitPerSecond;
   private final Callable<Limiter> callableLimiter;
+
+  /**
+   * Determines whether the file system is rate controlled, and if so, returns the allowed rate in operations per
+   * second.
+   * @param fs {@link FileSystem} to check for rate control.
+   * @return {@link Optional#absent} if file system is not rate controlled, otherwise, the rate in operations per second.
+   */
+  public static Optional<Long> getRateIfRateControlled(FileSystem fs) {
+    if(fs instanceof Decorator) {
+      List<Object> lineage = DecoratorUtils.getDecoratorLineage(fs);
+      for(Object obj : lineage) {
+        if(obj instanceof RateControlledFileSystem) {
+          return Optional.of(((RateControlledFileSystem) obj).limitPerSecond);
+        }
+      }
+      return Optional.absent();
+    } else {
+      return Optional.absent();
+    }
+  }
 
   public RateControlledFileSystem(FileSystem fs, final long limitPerSecond) {
     this.fs = fs;
+    this.limitPerSecond = limitPerSecond;
     this.callableLimiter = new Callable<Limiter>() {
       @Override
       public Limiter call() throws Exception {
