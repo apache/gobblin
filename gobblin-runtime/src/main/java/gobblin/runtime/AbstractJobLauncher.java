@@ -319,7 +319,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * Subclasses can override this method to do whatever processing on the {@link TaskState}s,
    * e.g., aggregate task-level metrics into job-level metrics.
    */
-  protected void postProcessTaskStates(@SuppressWarnings("unused") List<TaskState> taskStates) {
+  protected void postProcessTaskStates(List<TaskState> taskStates) {
     // Do nothing
   }
 
@@ -453,8 +453,19 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * and data is successfully committed because the staging data has already been moved
    * to the job output directory. But in case the job fails and data is not committed,
    * we want the staging data to be cleaned up.
+   *
+   * Property {@link ConfigurationKeys#CLEANUP_STAGING_DATA_PER_TASK} controls whether to cleanup
+   * staging data per task, or to cleanup entire job's staging data at once.
    */
   private void cleanupStagingData(JobState jobState) {
+    if (this.jobContext.shouldCleanupStagingDataPerTask()) {
+      cleanupStagingDataPerTask(jobState);
+    } else {
+      cleanupStagingDataForEntireJob(jobState);
+    }
+  }
+
+  private static void cleanupStagingDataPerTask(JobState jobState) {
     Closer closer = Closer.create();
     Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
     try {
@@ -471,6 +482,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       } catch (IOException e) {
         LOG.error("Failed to clean staging data", e);
       }
+    }
+  }
+
+  private static void cleanupStagingDataForEntireJob(JobState jobState) {
+    try {
+      JobLauncherUtils.cleanJobStagingData(jobState, LOG);
+    } catch (IOException e) {
+      LOG.error("Failed to clean staging data for job " + jobState.getJobId(), e);
     }
   }
 }

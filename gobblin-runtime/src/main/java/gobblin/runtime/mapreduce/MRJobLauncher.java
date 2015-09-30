@@ -189,11 +189,16 @@ public class MRJobLauncher extends AbstractJobLauncher {
     try {
       TimingEvent stagingDataCleanTimer =
           this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.MR_STAGING_DATA_CLEAN);
+
       // Delete any staging directories that already exist before the Hadoop MR job starts
-      for (WorkUnit workUnit : JobLauncherUtils.flattenWorkUnits(workUnits)) {
-        WorkUnit fatWorkUnit = WorkUnit.copyOf(workUnit);
-        fatWorkUnit.addAllIfNotExist(jobState);
-        JobLauncherUtils.cleanStagingData(fatWorkUnit, LOG);
+      if (this.jobContext.shouldCleanupStagingDataPerTask()) {
+        for (WorkUnit workUnit : JobLauncherUtils.flattenWorkUnits(workUnits)) {
+          WorkUnit fatWorkUnit = WorkUnit.copyOf(workUnit);
+          fatWorkUnit.addAllIfNotExist(jobState);
+          JobLauncherUtils.cleanStagingData(fatWorkUnit, LOG);
+        }
+      } else {
+        JobLauncherUtils.cleanJobStagingData(jobState, LOG);
       }
       stagingDataCleanTimer.stop();
 
@@ -723,8 +728,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
       }
 
       if (hasTaskFailure) {
-        throw new IOException(String.format("Not all tasks running in mapper %s completed successfully",
-            context.getTaskAttemptID()));
+        throw new IOException(
+            String.format("Not all tasks running in mapper %s completed successfully", context.getTaskAttemptID()));
       }
     }
   }
