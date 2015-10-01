@@ -13,6 +13,7 @@ import org.apache.commons.lang.StringUtils;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 
@@ -73,7 +74,7 @@ public class SlaEventSubmitter {
   public void submit() {
     try {
 
-      Preconditions.checkNotNull(eventSubmitter, "EventSubmitter needs to be set");
+      Preconditions.checkArgument(Predicates.notNull().apply(eventSubmitter), "EventSubmitter needs to be set");
       Preconditions.checkArgument(NOT_NULL_OR_EMPTY_PREDICATE.apply(eventName), "Eventname is required");
       Preconditions.checkArgument(NOT_NULL_OR_EMPTY_PREDICATE.apply(datasetUrn), "DatasetUrn is required");
       Preconditions.checkArgument(NOT_NULL_OR_EMPTY_PREDICATE.apply(partition), "Partition is required");
@@ -81,7 +82,7 @@ public class SlaEventSubmitter {
       eventSubmitter.submit(eventName, buildEventMap());
 
     } catch (IllegalArgumentException e) {
-      log.info("Required arguments to submit an SLA event is not available. No Sla event will be submitted", e.toString());
+      log.info("Required arguments to submit an SLA event is not available. No Sla event will be submitted. " +  e.toString());
     }
   }
 
