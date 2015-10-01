@@ -174,18 +174,18 @@ public class TestTrash extends MockTrash {
 
     this.lock.lock();
 
-    // Advance clock
-    this.clockState++;
-
-    // Acquire lock, register how many threads are waiting for signal
-    long callsAwaitingSignalOld = this.operationsWaiting.get();
-    this.callsReceivedSignal.set(0);
-    this.operationsWaiting.set(0);
-
-    // Send signal
-    this.clockStateUpdated.signalAll();
-
     try {
+      // Advance clock
+      this.clockState++;
+
+      // Acquire lock, register how many threads are waiting for signal
+      long callsAwaitingSignalOld = this.operationsWaiting.get();
+      this.callsReceivedSignal.set(0);
+      this.operationsWaiting.set(0);
+
+      // Send signal
+      this.clockStateUpdated.signalAll();
+
       while(this.callsReceivedSignal.get() < callsAwaitingSignalOld) {
         // this will release the lock, and it will periodically compare the number of threads that were awaiting
         // signal against the number of threads that have already received the signal. Therefore, this statement

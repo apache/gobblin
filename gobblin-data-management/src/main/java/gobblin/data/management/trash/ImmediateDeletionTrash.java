@@ -36,7 +36,8 @@ public class ImmediateDeletionTrash extends ProxiedTrash {
   protected Trash createNewTrashForUser(FileSystem fs, Properties properties, String user)
       throws IOException {
     return new ImmediateDeletionTrash(
-        ProxiedFileSystemCache.getProxiedFileSystem(user, properties, fs.getUri()), properties, user);
+        ProxiedFileSystemCache.fromProperties().userNameToProxyAs(user).properties(properties).referenceFS(fs).build(),
+        properties, user);
   }
 
   @Override

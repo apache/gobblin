@@ -18,13 +18,13 @@ import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * Implementation of {@link LinkedBlockingQueue} that is aware of a {@link ThreadPoolExecutor} and rejects insertions
- * if there are no threads available.
+ * if there are no threads available. Used for {@link ScalingThreadPoolExecutor}.
  */
-public class ScalingQueue extends LinkedBlockingQueue<Runnable> {
+class ScalingQueue extends LinkedBlockingQueue<Runnable> {
   /**
    * The executor this Queue belongs to
    */
-  private ThreadPoolExecutor executor;
+  private transient ThreadPoolExecutor executor;
 
   /**
    * Creates a TaskQueue with a capacity of {@link Integer#MAX_VALUE}.
@@ -44,7 +44,7 @@ public class ScalingQueue extends LinkedBlockingQueue<Runnable> {
   /**
    * Sets the executor this queue belongs to.
    */
-  public void setThreadPoolExecutor(ThreadPoolExecutor executor) {
+  public synchronized void setThreadPoolExecutor(ThreadPoolExecutor executor) {
     this.executor = executor;
   }
 
