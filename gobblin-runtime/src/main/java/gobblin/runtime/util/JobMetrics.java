@@ -22,7 +22,6 @@ import org.apache.hadoop.conf.Configuration;
 import com.google.common.collect.Lists;
 
 import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.metrics.Tag;
 import gobblin.runtime.JobState;
 import gobblin.runtime.TaskState;
@@ -72,13 +71,8 @@ public class JobMetrics extends GobblinMetrics {
    * @param jobState the given {@link JobState} instance
    * @return a {@link JobMetrics} instance
    */
-  public static synchronized JobMetrics get(JobState jobState) {
-    GobblinMetricsRegistry registry = GobblinMetricsRegistry.getInstance();
-    String name = name(jobState);
-    if (!registry.containsKey(name)) {
-      registry.putIfAbsent(name, new JobMetrics(jobState));
-    }
-    return (JobMetrics) registry.get(name);
+  public static JobMetrics get(JobState jobState) {
+    return (JobMetrics) GOBBLIN_METRICS_REGISTRY.getOrDefault(name(jobState), new JobMetrics(jobState));
   }
 
   /**
@@ -90,7 +84,7 @@ public class JobMetrics extends GobblinMetrics {
    * </p>
    * @param jobState the given {@link JobState} instance
    */
-  public synchronized static void remove(JobState jobState) {
+  public static void remove(JobState jobState) {
     remove(name(jobState));
     for (TaskState taskState : jobState.getTaskStates()) {
       TaskMetrics.remove(taskState);

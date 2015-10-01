@@ -174,14 +174,13 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
   }
 
   /**
-   * Add a child {@link MetricContext}.
+   * Add a {@link MetricContext} as a child of this {@link MetricContext} if it is not currently a child.
    *
+   * @param childContextName the name of the child {@link MetricContext}
    * @param childContext the child {@link MetricContext} to add
    */
   public void addChildContext(String childContextName, MetricContext childContext) {
-    if(this.children.asMap().putIfAbsent(childContextName, childContext) != null) {
-      throw new IllegalArgumentException("A child context named " + childContextName + " already exists");
-    }
+    this.children.asMap().putIfAbsent(childContextName, childContext);
   }
 
   /**
@@ -421,7 +420,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    *
    * <p>
    *   This method does not support registering {@link com.codahale.metrics.MetricSet}s.
-   *   See{@link #registerAll(com.codahale.metrics.MetricSet}.
+   *   See{@link #registerAll(com.codahale.metrics.MetricSet)}.
    * </p>
    *
    * <p>

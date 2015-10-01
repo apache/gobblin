@@ -57,6 +57,8 @@ public class GobblinMetrics {
 
   public static final String METRICS_STATE_CUSTOM_TAGS = "metrics.state.custom.tags";
 
+  protected static final GobblinMetricsRegistry GOBBLIN_METRICS_REGISTRY = GobblinMetricsRegistry.getInstance();
+
   /**
    * Enumeration of metric types.
    */
@@ -94,7 +96,7 @@ public class GobblinMetrics {
    * @param id the given {@link GobblinMetrics} ID
    * @return a {@link GobblinMetrics} instance
    */
-  public synchronized static GobblinMetrics get(String id) {
+  public static GobblinMetrics get(String id) {
     return get(id, null);
   }
 
@@ -105,7 +107,7 @@ public class GobblinMetrics {
    * @param parentContext the given parent {@link MetricContext}
    * @return a {@link GobblinMetrics} instance
    */
-  public synchronized static GobblinMetrics get(String id, MetricContext parentContext) {
+  public static GobblinMetrics get(String id, MetricContext parentContext) {
     return get(id, parentContext, Lists.<Tag<?>>newArrayList());
   }
 
@@ -118,12 +120,17 @@ public class GobblinMetrics {
    * @param tags the given list of {@link Tag}s
    * @return a {@link GobblinMetrics} instance
    */
-  public synchronized static GobblinMetrics get(String id, MetricContext parentContext, List<Tag<?>> tags) {
-    GobblinMetricsRegistry registry = GobblinMetricsRegistry.getInstance();
-    if (!registry.containsKey(id)) {
-      registry.putIfAbsent(id, new GobblinMetrics(id, parentContext, tags));
-    }
-    return registry.get(id);
+  public static GobblinMetrics get(String id, MetricContext parentContext, List<Tag<?>> tags) {
+    return GOBBLIN_METRICS_REGISTRY.getOrDefault(id, new GobblinMetrics(id, parentContext, tags));
+  }
+
+  /**
+   * Remove the {@link GobblinMetrics} instance associated with the given ID.
+   *
+   * @param id the given {@link GobblinMetrics} ID
+   */
+  public static void remove(String id) {
+    GOBBLIN_METRICS_REGISTRY.remove(id);
   }
 
   /**
@@ -193,15 +200,6 @@ public class GobblinMetrics {
       }
     }
     return tags;
-  }
-
-  /**
-   * Remove the {@link GobblinMetrics} instance with the given ID.
-   *
-   * @param id the given {@link GobblinMetrics} ID
-   */
-  public synchronized static void remove(String id) {
-    GobblinMetricsRegistry.getInstance().remove(id);
   }
 
   protected final String id;
