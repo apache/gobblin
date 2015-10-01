@@ -19,10 +19,18 @@ import java.util.concurrent.ThreadPoolExecutor;
 /**
  * Implementation of {@link LinkedBlockingQueue} that is aware of a {@link ThreadPoolExecutor} and rejects insertions
  * if there are no threads available. Used for {@link ScalingThreadPoolExecutor}.
+ *
+ * <p>
+ *   Although this class is {@link java.io.Serializable} because it inherits from {@link LinkedBlockingQueue}, it
+ *   is not intended to be serialized (e.g. executor is transient, so will not deserialize correctly).
+ * </p>
  */
 class ScalingQueue extends LinkedBlockingQueue<Runnable> {
+
+  private static final long serialVersionUID = -4522307109241425248L;
+
   /**
-   * The executor this Queue belongs to
+   * The executor this Queue belongs to.
    */
   private transient ThreadPoolExecutor executor;
 
