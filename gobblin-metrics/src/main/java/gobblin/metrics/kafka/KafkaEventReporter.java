@@ -59,7 +59,10 @@ public class KafkaEventReporter extends EventReporter {
       events.add(this.serializer.serializeRecord(nextEvent));
     }
 
-    this.kafkaPusher.pushMessages(events);
+    if (!events.isEmpty()) {
+      this.kafkaPusher.pushMessages(events);
+    }
+
   }
 
   protected AvroSerializer<GobblinTrackingEvent> createSerializer(SchemaVersionWriter schemaVersionWriter) throws IOException {
