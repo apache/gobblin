@@ -366,10 +366,6 @@ public class GobblinMetrics {
       this.jmxReporter.get().stop();
     }
 
-    for (ScheduledReporter reporter : this.scheduledReporters) {
-      reporter.close();
-    }
-
     try {
       this.closer.close();
     } catch (IOException ioe) {
@@ -511,7 +507,7 @@ public class GobblinMetrics {
       try {
         ScheduledReporter reporter = ((CustomReporterFactory) Class.forName(reporterClass)
             .getConstructor().newInstance()).newScheduledReporter(this.metricContext, properties);
-        this.scheduledReporters.add(reporter);
+        this.scheduledReporters.add(this.closer.register(reporter));
       } catch(ClassNotFoundException exception) {
         LOGGER.warn(
             String.format("Failed to create metric reporter: requested CustomReporterFactory %s not found.",

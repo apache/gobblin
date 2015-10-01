@@ -21,6 +21,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import javax.annotation.Nullable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,8 +39,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.MoreExecutors;
-
-import javax.annotation.Nullable;
 
 import gobblin.metrics.GobblinTrackingEvent;
 import gobblin.metrics.MetricContext;
@@ -165,6 +165,7 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
   @Override
   public void close() {
     try {
+      this.report();
       this.closer.close();
     } catch(Exception e) {
       LOGGER.warn("Exception when closing KafkaReporter", e);
