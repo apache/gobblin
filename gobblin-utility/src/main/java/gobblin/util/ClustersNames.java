@@ -119,8 +119,20 @@ public class ClustersNames {
 
   /**
    *
-   * Returns the cluster name on which the application is running. Uses hadoop {@link Configuration} to get the url of
-   * the resourceManager or jobtracker. The URL is then translated into a human readable cluster name using
+   * Returns the cluster name on which the application is running. Uses default hadoop {@link Configuration} to get the
+   * url of the resourceManager or jobtracker. The URL is then translated into a human readable cluster name using
+   * {@link #getClusterName(String)}
+   *
+   * @see #getClusterName(Configuration)
+   *
+   */
+  public String getClusterName() {
+    return getClusterName(HADOOP_CONFIGURATION);
+  }
+
+  /**
+   * Returns the cluster name on which the application is running. Uses Hadoop configuration passed in to get the
+   * url of the resourceManager or jobtracker. The URL is then translated into a human readable cluster name using
    * {@link #getClusterName(String)}
    *
    * <p>
@@ -137,15 +149,16 @@ public class ClustersNames {
    * Use {@link #getClusterName(String)} if you already have the cluster URL
    * </p>
    *
+   * @see #getClusterName()
+   * @param conf Hadoop configuration to use to get resourceManager or jobTracker URLs
    */
-  public String getClusterName() {
-
+  public String getClusterName(Configuration conf) {
     // ResourceManager address in Hadoop2
-    String clusterIdentifier = HADOOP_CONFIGURATION.get("yarn.resourcemanager.address");
+    String clusterIdentifier = conf.get("yarn.resourcemanager.address");
 
     // If job is running on Hadoop1 use jobtracker address
     if (clusterIdentifier == null) {
-      clusterIdentifier = HADOOP_CONFIGURATION.get("mapreduce.jobtracker.address");
+      clusterIdentifier = conf.get("mapreduce.jobtracker.address");
     }
 
     clusterIdentifier = getClusterName(clusterIdentifier);
