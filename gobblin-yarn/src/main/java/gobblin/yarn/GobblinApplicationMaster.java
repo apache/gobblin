@@ -344,6 +344,8 @@ public class GobblinApplicationMaster {
 
         // Schedule the task for watching on the removal of the shutdown message, which indicates that
         // the message has been successfully processed and it's safe to disconnect the HelixManager.
+        // This is a hacky way of watching for the completion of processing the shutdown message and
+        // should be replaced by a fix to https://issues.apache.org/jira/browse/HELIX-611.
         shutdownMessageHandlingCompletionWatcher.scheduleAtFixedRate(new Runnable() {
           @Override
           public void run() {
