@@ -14,11 +14,15 @@ package gobblin.util;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.util.Properties;
 
+import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +45,7 @@ public class ClustersNames {
 
   public static final String URL_TO_NAME_MAP_RESOURCE_NAME = "GobblinClustersNames.properties";
   private static final Logger LOG = LoggerFactory.getLogger(ClustersNames.class);
+  private static final Configuration HADOOP_CONFIGURATION = new Configuration();
 
   private static ClustersNames THE_INSTANCE;
 
@@ -108,6 +113,67 @@ public class ClustersNames {
   } catch (URISyntaxException e) {
     //leave ID as is
   }
+
+    return clusterIdentifier;
+  }
+
+  /**
+   *
+   * Returns the cluster name on which the application is running. Uses default hadoop {@link Configuration} to get the
+   * url of the resourceManager or jobtracker. The URL is then translated into a human readable cluster name using
+   * {@link #getClusterName(String)}
+   *
+   * @see #getClusterName(Configuration)
+   *
+   */
+  public String getClusterName() {
+    return getClusterName(HADOOP_CONFIGURATION);
+  }
+
+  /**
+   * Returns the cluster name on which the application is running. Uses Hadoop configuration passed in to get the
+   * url of the resourceManager or jobtracker. The URL is then translated into a human readable cluster name using
+   * {@link #getClusterName(String)}
+   *
+   * <p>
+   * <b>MapReduce mode</b> Uses the value for "yarn.resourcemanager.address" from {@link Configuration} excluding the
+   * port number. If "yarn.resourcemanager.address" is not set, (possible in Hadoop1), falls back to
+   * "mapreduce.jobtracker.address"
+   * </p>
+   *
+   * <p>
+   * <b>Standalone mode (outside of hadoop)</b> Uses the Hostname of {@link InetAddress#getLocalHost()}
+   * </p>
+   *
+   * <p>
+   * Use {@link #getClusterName(String)} if you already have the cluster URL
+   * </p>
+   *
+   * @see #getClusterName()
+   * @param conf Hadoop configuration to use to get resourceManager or jobTracker URLs
+   */
+  public String getClusterName(Configuration conf) {
+    // ResourceManager address in Hadoop2
+    String clusterIdentifier = conf.get("yarn.resourcemanager.address");
+
+    // If job is running on Hadoop1 use jobtracker address
+    if (clusterIdentifier == null) {
+      clusterIdentifier = conf.get("mapreduce.jobtracker.address");
+    }
+
+    clusterIdentifier = getClusterName(clusterIdentifier);
+
+    // If job is running outside of Hadoop (Standalone) use hostname
+    // If clusterIdentifier is localhost or 0.0.0.0 use hostname
+    if (clusterIdentifier == null
+        || StringUtils.startsWithIgnoreCase(clusterIdentifier, "localhost")
+        || StringUtils.startsWithIgnoreCase(clusterIdentifier, "0.0.0.0")) {
+      try {
+        clusterIdentifier = InetAddress.getLocalHost().getHostName();
+      } catch (UnknownHostException e) {
+        // Do nothing. Tag will not be generated
+      }
+    }
 
     return clusterIdentifier;
   }

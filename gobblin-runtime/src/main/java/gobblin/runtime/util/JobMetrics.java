@@ -12,8 +12,6 @@
 
 package gobblin.runtime.util;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
@@ -25,6 +23,7 @@ import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.Tag;
 import gobblin.runtime.JobState;
 import gobblin.runtime.TaskState;
+import gobblin.util.ClustersNames;
 
 
 /**
@@ -110,43 +109,11 @@ public class JobMetrics extends GobblinMetrics {
   }
 
   /**
-   *
-   * Builds the clusterIdentifier tag.
-   *
-   * <p><b>MapReduce mode</b>
-   * Gets the value for "yarn.resourcemanager.address" from {@link Configuration} excluding the port number.
-   * If "yarn.resourcemanager.address" is not set, (possible in Hadoop1), falls back to "mapreduce.jobtracker.address"</p>
-   *
-   *<p><b>Standalone mode (outside of hadoop)</b>
-   * returns the Hostname of {@link InetAddress#getLocalHost()}</p>
-   *
+   * @deprecated
+   * Use {@link ClustersNames#getInstance()#getClusterName()}
    */
   public static String getClusterIdentifierTag() {
-
-    // ResourceManager address in Hadoop2
-    String clusterIdentifier = HADOOP_CONFIGURATION.get("yarn.resourcemanager.address");
-
-    // If job is running on Hadoop1 use jobtracker address
-    if (clusterIdentifier == null) {
-      clusterIdentifier = HADOOP_CONFIGURATION.get("mapreduce.jobtracker.address");
-    }
-
-    clusterIdentifier = ClustersNames.getInstance().getClusterName(clusterIdentifier);
-
-    // If job is running outside of Hadoop (Standalone) use hostname
-    // If clusterIdentifier is localhost or 0.0.0.0 use hostname
-    if (clusterIdentifier == null
-        || StringUtils.startsWithIgnoreCase(clusterIdentifier, "localhost")
-        || StringUtils.startsWithIgnoreCase(clusterIdentifier, "0.0.0.0")) {
-      try {
-        clusterIdentifier = InetAddress.getLocalHost().getHostName();
-      } catch (UnknownHostException e) {
-        // Do nothing. Tag will not be generated
-      }
-    }
-
-    return clusterIdentifier;
-
+    return ClustersNames.getInstance().getClusterName();
   }
 
 }

@@ -44,6 +44,8 @@ import gobblin.compaction.Compactor;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.Tag;
+import gobblin.util.ClustersNames;
 import gobblin.util.DatasetFilterUtils;
 import gobblin.util.HadoopUtils;
 
@@ -160,7 +162,12 @@ public class MRCompactor implements Compactor {
   }
 
   private GobblinMetrics initializeMetrics() {
-    GobblinMetrics gobblinMetrics = GobblinMetrics.get(state.getProp(ConfigurationKeys.JOB_NAME_KEY));
+    List<Tag<?>> tags = Lists.newArrayList();
+    String clusterIdentifierTag = ClustersNames.getInstance().getClusterName();
+    if (StringUtils.isNotBlank(clusterIdentifierTag)) {
+      tags.add(new Tag<String>("clusterIdentifier", clusterIdentifierTag));
+    }
+    GobblinMetrics gobblinMetrics = GobblinMetrics.get(state.getProp(ConfigurationKeys.JOB_NAME_KEY), null, tags);
     gobblinMetrics.startMetricReporting(state.getProperties());
     return gobblinMetrics;
   }
