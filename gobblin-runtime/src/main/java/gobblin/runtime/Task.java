@@ -36,6 +36,7 @@ import gobblin.fork.ForkOperator;
 import gobblin.instrumented.extractor.InstrumentedExtractorBase;
 import gobblin.instrumented.extractor.InstrumentedExtractorDecorator;
 import gobblin.publisher.DataPublisher;
+import gobblin.publisher.SingleTaskDataPublisher;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
 import gobblin.runtime.util.RuntimeConstructs;
@@ -279,11 +280,16 @@ public class Task implements Runnable {
       @SuppressWarnings("unchecked")
       Class<? extends DataPublisher> dataPublisherClass = (Class<? extends DataPublisher>) Class.forName(
           this.taskState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE, ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
-      DataPublisher publisher = closer.register(DataPublisher.getInstance(dataPublisherClass, this.taskState));
+      SingleTaskDataPublisher publisher =
+          closer.register(SingleTaskDataPublisher.getInstance(dataPublisherClass, this.taskState));
 
       LOG.info("Publishing data from task " + this.taskId);
       publisher.publish(this.taskState);
+    } catch (IOException e) {
+      throw closer.rethrow(e);
     } catch (Throwable t) {
+      LOG.error(String.format("To publish data in task, the publisher class (%s) must extend %s",
+          ConfigurationKeys.DATA_PUBLISHER_TYPE, SingleTaskDataPublisher.class.getSimpleName()), t);
       throw closer.rethrow(t);
     } finally {
       closer.close();

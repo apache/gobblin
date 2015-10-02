@@ -43,8 +43,8 @@ import gobblin.util.WriterUtils;
 
 
 /**
- * A basic implementation of {@link DataPublisher} that publishes the data from the writer output directory to
- * the final output directory.
+ * A basic implementation of {@link SingleTaskDataPublisher} that publishes the data from the writer output directory
+ * to the final output directory.
  *
  * <p>
  *
@@ -55,7 +55,7 @@ import gobblin.util.WriterUtils;
  * {@link ConfigurationKeys#WRITER_FILE_PATH} is not specified, a default one is assigned. The default path is
  * constructed in the {@link gobblin.source.workunit.Extract#getOutputFilePath()} method.
  */
-public class BaseDataPublisher extends DataPublisher {
+public class BaseDataPublisher extends SingleTaskDataPublisher {
 
   private static final Logger LOG = LoggerFactory.getLogger(BaseDataPublisher.class);
 
@@ -256,7 +256,7 @@ public class BaseDataPublisher extends DataPublisher {
           publisherOutputPath.getParent(), this.permissions.get(branchId));
 
       LOG.info(String.format("Moving %s to %s", taskOutputFile, publisherOutputPath));
-      parallelRunner.renamePath(taskOutputPath, publisherOutputPath, Optional.<String>absent());
+      parallelRunner.renamePath(taskOutputPath, publisherOutputPath, Optional.<String> absent());
     }
   }
 
@@ -277,7 +277,7 @@ public class BaseDataPublisher extends DataPublisher {
           : new Path(publisherOutputDir, status.getPath().getName());
 
       LOG.info(String.format("Moving %s to %s", status.getPath(), finalOutputPath));
-      parallelRunner.renamePath(status.getPath(), finalOutputPath, Optional.<String>absent());
+      parallelRunner.renamePath(status.getPath(), finalOutputPath, Optional.<String> absent());
     }
   }
 
