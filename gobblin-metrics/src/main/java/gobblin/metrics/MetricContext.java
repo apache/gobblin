@@ -17,11 +17,10 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Random;
 import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.UUID;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -53,7 +52,6 @@ import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.MoreExecutors;
 
@@ -84,6 +82,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
   private static final Logger LOG = LoggerFactory.getLogger(MetricContext.class);
 
   public static final String METRIC_CONTEXT_ID_TAG_NAME = "metricContextID";
+  public static final String GOBBLIN_METRICS_NOTIFICATIONS_TIMER_NAME = "gobblin.metrics.notifications.timer";
 
   // Name of this context
   private final String name;
@@ -114,7 +113,8 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
   private final Closer closer = Closer.create();
 
   // Targets for notifications.
-  private final Set<Function<Notification, Void>> notificationTargets;
+  private final Map<UUID, Function<Notification, Void>> notificationTargets;
+  private final ContextAwareTimer notificationTimer;
 
   private Optional<ExecutorService> executorServiceOptional;
 
@@ -128,7 +128,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
     this.tagged = new Tagged(tags);
     this.tagged.addTag(new Tag<String>(METRIC_CONTEXT_ID_TAG_NAME, UUID.randomUUID().toString()));
     this.reportFullyQualifiedNames = reportFullyQualifiedNames;
-    this.notificationTargets = Sets.newConcurrentHashSet();
+    this.notificationTargets = Maps.newConcurrentMap();
     this.executorServiceOptional = Optional.absent();
     this.includeTagKeys = includeTagKeys;
 
@@ -140,6 +140,8 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
     for (Map.Entry<String, ContextAwareScheduledReporter.Builder> entry : builders.entrySet()) {
       this.contextAwareScheduledReporters.put(entry.getKey(), entry.getValue().build(this));
     }
+
+    this.notificationTimer = this.contextAwareTimer(GOBBLIN_METRICS_NOTIFICATIONS_TIMER_NAME);
   }
 
   private synchronized ExecutorService getExecutorService() {
@@ -663,9 +665,25 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    * Add a target for {@link gobblin.metrics.notification.Notification}s.
    * @param target A {@link com.google.common.base.Function} that will be run every time
    *               there is a new {@link gobblin.metrics.notification.Notification} in this context.
+   * @return a key for this notification target. Can be used to remove the notification target later.
    */
-  public void addNotificationTarget(Function<Notification, Void> target) {
-    this.notificationTargets.add(target);
+  public UUID addNotificationTarget(Function<Notification, Void> target) {
+
+    UUID uuid = UUID.randomUUID();
+    if(this.notificationTargets.putIfAbsent(uuid, target) == null) {
+      return uuid;
+    }
+
+    throw new RuntimeException("Failed to create notification target.");
+
+  }
+
+  /**
+   * Remove notification target identified by the given key.
+   * @param key key for the notification target to remove.
+   */
+  public void removeNotificationTarget(UUID key) {
+    this.notificationTargets.remove(key);
   }
 
   /**
@@ -673,19 +691,18 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    * @param notification {@link gobblin.metrics.notification.Notification} to send.
    */
   public void sendNotification(final Notification notification) {
-    for(final Function<Notification, Void> target : this.notificationTargets) {
-      getExecutorService().submit(new Callable<Void>() {
-        @Override
-        public Void call()
-            throws Exception {
-          target.apply(notification);
-          return null;
-        }
-      });
+
+    ContextAwareTimer.Context timer = this.notificationTimer.time();
+    if(!this.notificationTargets.isEmpty()) {
+      for (final Map.Entry<UUID, Function<Notification, Void>> entry : this.notificationTargets.entrySet()) {
+        entry.getValue().apply(notification);
+      }
     }
+
     if(this.parent.isPresent()) {
       this.parent.get().sendNotification(notification);
     }
+    timer.stop();
   }
 
   private SortedSet<String> getSimpleNames() {
