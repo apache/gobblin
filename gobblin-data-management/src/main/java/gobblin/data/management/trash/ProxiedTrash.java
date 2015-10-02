@@ -156,6 +156,8 @@ public class ProxiedTrash extends Trash implements GobblinProxiedTrash {
   }
 
   protected Trash createNewTrashForUser(FileSystem fs, Properties properties, String user) throws IOException {
-    return new Trash(ProxiedFileSystemCache.getProxiedFileSystem(user, properties, fs.getUri()), properties, user);
+    return new Trash(
+        ProxiedFileSystemCache.fromProperties().referenceFS(fs).properties(properties).userNameToProxyAs(user).build(),
+        properties, user);
   }
 }

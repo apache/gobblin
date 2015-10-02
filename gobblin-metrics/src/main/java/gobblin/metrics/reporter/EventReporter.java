@@ -16,10 +16,13 @@ import java.io.Closeable;
 import java.util.Map;
 import java.util.Queue;
 import java.util.SortedMap;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+
+import javax.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,8 +40,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.MoreExecutors;
-
-import javax.annotation.Nullable;
 
 import gobblin.metrics.GobblinTrackingEvent;
 import gobblin.metrics.MetricContext;
@@ -61,8 +62,10 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
   private static final int QUEUE_CAPACITY = 100;
   private static final String NULL_STRING = "null";
 
+  private final MetricContext metricContext;
   private final Queue<GobblinTrackingEvent> reportingQueue;
   private final ExecutorService immediateReportExecutor;
+  private final UUID notificationTargetKey;
   protected final Closer closer;
 
   public EventReporter(Builder builder) {
@@ -74,7 +77,8 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
             ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("EventReporter-" + builder.name + "-%d"))),
             5, TimeUnit.MINUTES);
 
-    builder.context.addNotificationTarget(new Function<Notification, Void>() {
+    this.metricContext = builder.context;
+    this.notificationTargetKey = builder.context.addNotificationTarget(new Function<Notification, Void>() {
       @Nullable
       @Override
       public Void apply(Notification notification) {
@@ -165,9 +169,11 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
   @Override
   public void close() {
     try {
+      this.metricContext.removeNotificationTarget(this.notificationTargetKey);
+      report();
       this.closer.close();
     } catch(Exception e) {
-      LOGGER.warn("Exception when closing KafkaReporter", e);
+      LOGGER.warn("Exception when closing EventReporter", e);
     } finally {
       super.close();
     }
