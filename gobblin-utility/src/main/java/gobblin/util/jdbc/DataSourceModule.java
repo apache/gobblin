@@ -28,7 +28,8 @@ public class DataSourceModule extends AbstractModule {
   private final Properties properties;
 
   public DataSourceModule(Properties properties) {
-    this.properties = properties;
+    this.properties = new Properties();
+    this.properties.putAll(properties);
   }
 
   @Override

@@ -27,7 +27,6 @@ public class JobHistoryDataSourceProvider extends gobblin.util.jdbc.DataSourcePr
 
   @Inject
   public JobHistoryDataSourceProvider(@Named("dataSourceProperties") Properties properties) {
-    super();
     basicDataSource.setDriverClassName(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY,
         ConfigurationKeys.DEFAULT_JOB_HISTORY_STORE_JDBC_DRIVER));
     basicDataSource.setUrl(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY));
