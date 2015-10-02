@@ -8,7 +8,7 @@ function print_usage(){
   echo "  --logdir <log dir>                             Gobblin's log directory: if not set, taken from \${GOBBLIN_LOG_DIR}"
   echo "  --jars <comma-separated list of job jars>      Job jar(s): if not set, "$FWDIR_LIB" is examined"
   echo "  --conf <directory of job configuration files>  Directory of job configuration files: if not set, taken from ${GOBBLIN_JOB_CONFIG_DIR}"
-  echo "  --conffile <custom config file>                Custom config file: if not set, is ignored. Overwrites properties in "$FWDIR_LIB/gobblin-standalone.properties
+  echo "  --conffile <custom config file>                Custom config file: if not set, is ignored. Overwrites properties in "$FWDIR_CONF/gobblin-standalone.properties
   echo "  --jvmflags <string of jvm flags>               String containing any additional JVM flags to include"
   echo "  --help                                         Display this help and exit"
 }
