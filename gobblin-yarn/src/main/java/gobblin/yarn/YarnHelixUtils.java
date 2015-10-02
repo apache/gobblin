@@ -65,18 +65,17 @@ public class YarnHelixUtils {
    * @return a Helix {@link ParticipantId}
    */
   public static ParticipantId getParticipantId(String hostName, ContainerId containerId) {
-    return ParticipantId.from(getParticipantIdStr(hostName, containerId));
+    return ParticipantId.from(getHelixInstanceName(hostName, containerId));
   }
 
   /**
-   * Get the string form of a Helix {@link ParticipantId} from a given host name and a given Yarn
-   * {@link ContainerId}.
+   * Get a Helix instance name from a given host name and a given Yarn {@link ContainerId}.
    *
    * @param hostName the given host name
    * @param containerId the given {@link ContainerId}
-   * @return the string form of a Helix {@link ParticipantId}
+   * @return a Helix instance name
    */
-  public static String getParticipantIdStr(String hostName, ContainerId containerId) {
+  public static String getHelixInstanceName(String hostName, ContainerId containerId) {
     return hostName + "_" + containerId.toString();
   }
 

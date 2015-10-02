@@ -12,7 +12,6 @@
 
 package gobblin.yarn;
 
-import com.google.common.base.Preconditions;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -61,8 +60,10 @@ import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
@@ -74,6 +75,8 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.Tag;
 import gobblin.yarn.event.ApplicationMasterShutdownRequest;
 import gobblin.yarn.event.DelegationTokenUpdatedEvent;
 
@@ -100,11 +103,9 @@ public class GobblinApplicationMaster {
 
   private final HelixManager helixManager;
 
-  private final MetricRegistry metricRegistry = new MetricRegistry();
-  private final JmxReporter jmxReporter = JmxReporter.forRegistry(this.metricRegistry)
-      .convertRatesTo(TimeUnit.SECONDS)
-      .convertDurationsTo(TimeUnit.MILLISECONDS)
-      .build();
+  private final MetricContext metricContext;
+
+  private final JmxReporter jmxReporter;
 
   private volatile boolean stopInProgress = false;
 
@@ -120,11 +121,11 @@ public class GobblinApplicationMaster {
     String zkConnectionString = config.getString(GobblinYarnConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     LOGGER.info("Using ZooKeeper connection string: " + zkConnectionString);
 
+    String helixInstanceName = YarnHelixUtils.getHelixInstanceName(YarnHelixUtils.getHostname(), containerId);
     // This will create and register a Helix controller in ZooKeeper
     this.helixManager = HelixManagerFactory.getZKHelixManager(
-        config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY),
-        YarnHelixUtils.getParticipantIdStr(YarnHelixUtils.getHostname(), containerId), InstanceType.CONTROLLER,
-        zkConnectionString);
+        config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY), helixInstanceName,
+        InstanceType.CONTROLLER, zkConnectionString);
 
     FileSystem fs = config.hasPath(ConfigurationKeys.FS_URI_KEY) ?
         FileSystem.get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), new Configuration()) :
@@ -147,6 +148,22 @@ public class GobblinApplicationMaster {
             .of(config.getString(GobblinYarnConfigurationKeys.JOB_CONF_PACKAGE_PATH_KEY)) : Optional.<String>absent()));
 
     this.serviceManager = new ServiceManager(services);
+
+    List<Tag<?>> tags = ImmutableList.<Tag<?>>builder()
+        .add(new Tag<String>(GobblinYarnMetricTagNames.YARN_APPLICATION_NAME, applicationName))
+        .add(new Tag<String>(GobblinYarnMetricTagNames.YARN_APPLICATION_ID,
+            applicationAttemptId.getApplicationId().toString()))
+        .add(new Tag<String>(GobblinYarnMetricTagNames.CONTAINER_ID, containerId.toString()))
+        .add(new Tag<String>(GobblinYarnMetricTagNames.HELIX_INSTANCE_NAME, helixInstanceName))
+        .build();
+    this.metricContext = MetricContext.builder(GobblinApplicationMaster.class.getSimpleName())
+        .addTags(tags)
+        .build();
+
+    this.jmxReporter = JmxReporter.forRegistry(this.metricContext)
+        .convertRatesTo(TimeUnit.SECONDS)
+        .convertDurationsTo(TimeUnit.MILLISECONDS)
+        .build();
   }
 
   /**
@@ -222,12 +239,12 @@ public class GobblinApplicationMaster {
     registerMetricSetWithPrefix("jvm.gc", new GarbageCollectorMetricSet());
     registerMetricSetWithPrefix("jvm.memory", new MemoryUsageGaugeSet());
     registerMetricSetWithPrefix("jvm.threads", new ThreadStatesGaugeSet());
-    this.metricRegistry.register("jvm.fileDescriptorRatio", new FileDescriptorRatioGauge());
+    this.metricContext.register("jvm.fileDescriptorRatio", new FileDescriptorRatioGauge());
   }
 
   private void registerMetricSetWithPrefix(String prefix, MetricSet metricSet) {
     for (Map.Entry<String, Metric> entry : metricSet.getMetrics().entrySet()) {
-      this.metricRegistry.register(MetricRegistry.name(prefix, entry.getKey()), entry.getValue());
+      this.metricContext.register(MetricRegistry.name(prefix, entry.getKey()), entry.getValue());
     }
   }
 
