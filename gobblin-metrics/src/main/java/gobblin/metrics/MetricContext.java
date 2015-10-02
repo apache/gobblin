@@ -670,11 +670,12 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
   public UUID addNotificationTarget(Function<Notification, Void> target) {
 
     UUID uuid = UUID.randomUUID();
-    if(this.notificationTargets.putIfAbsent(uuid, target) == null) {
-      return uuid;
+    if(this.notificationTargets.containsKey(uuid)) {
+      throw new RuntimeException("Failed to create notification target.");
     }
 
-    throw new RuntimeException("Failed to create notification target.");
+    this.notificationTargets.put(uuid, target);
+    return uuid;
 
   }
 
