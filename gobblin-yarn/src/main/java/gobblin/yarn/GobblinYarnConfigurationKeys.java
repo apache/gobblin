@@ -27,6 +27,7 @@ public class GobblinYarnConfigurationKeys {
   public static final String APPLICATION_NAME_KEY = GOBBLIN_YARN_PREFIX + "app.name";
   public static final String APPLICATION_NAME_OPTION_NAME = "app_name";
   public static final String APP_QUEUE_KEY = GOBBLIN_YARN_PREFIX + "app.queue";
+  public static final String APP_REPORT_INTERVAL_MINUTES_KEY = GOBBLIN_YARN_PREFIX + "app.report.interval.minutes";
 
   /**
    * Gobblin Yarn ApplicationMaster configuration properties.

@@ -19,10 +19,9 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nonnull;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -69,12 +68,10 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.eventbus.EventBus;
+import com.google.common.eventbus.Subscribe;
 import com.google.common.io.Closer;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
 
@@ -83,6 +80,7 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.ExecutorsUtils;
+import gobblin.yarn.event.ApplicationReportArrivalEvent;
 
 
 /**
@@ -116,7 +114,10 @@ public class GobblinYarnAppLauncher {
   private final YarnClient yarnClient;
   private final FileSystem fs;
 
-  private final ListeningExecutorService applicationStatusMonitor;
+  private final EventBus eventBus = new EventBus();
+
+  private final ScheduledExecutorService applicationStatusMonitor;
+  private final long appReportIntervalMinutes;
 
   private final String appMasterJvmArgs;
 
@@ -158,8 +159,11 @@ public class GobblinYarnAppLauncher {
     }
     this.serviceManager = new ServiceManager(services);
 
-    this.applicationStatusMonitor = MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor(
-        ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("GobblinYarnAppStatusMonitor"))));
+    this.eventBus.register(this);
+
+    this.applicationStatusMonitor = Executors.newSingleThreadScheduledExecutor(
+        ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("GobblinYarnAppStatusMonitor")));
+    this.appReportIntervalMinutes = config.getLong(GobblinYarnConfigurationKeys.APP_REPORT_INTERVAL_MINUTES_KEY);
 
     this.appMasterJvmArgs = Strings.nullToEmpty(config.getString(GobblinYarnConfigurationKeys.APP_MASTER_JVM_ARGS_KEY));
   }
@@ -186,62 +190,25 @@ public class GobblinYarnAppLauncher {
     this.yarnClient.start();
     this.applicationId = Optional.of(setupAndSubmitApplication());
 
-    ListenableFuture<ApplicationReport> appReportFuture =
-        this.applicationStatusMonitor.submit(new Callable<ApplicationReport>() {
-
-          @Override
-          public ApplicationReport call()
-              throws IOException, YarnException {
-            while (true) {
-              try {
-                ApplicationReport appReport = yarnClient.getApplicationReport(applicationId.get());
-                YarnApplicationState appState = appReport.getYarnApplicationState();
-                if (appState == YarnApplicationState.FINISHED ||
-                    appState == YarnApplicationState.FAILED ||
-                    appState == YarnApplicationState.KILLED) {
-                  applicationCompleted = true;
-                  return appReport;
-                }
-
-                LOGGER.info("Gobblin Yarn application state: " + appState.toString());
-
-                Thread.sleep(TimeUnit.SECONDS.toMillis(60));
-              } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-              }
-            }
-          }
-        });
-
-    Futures.addCallback(appReportFuture, new FutureCallback<ApplicationReport>() {
+    this.applicationStatusMonitor.scheduleAtFixedRate(new Runnable() {
       @Override
-      public void onSuccess(ApplicationReport applicationReport) {
-        LOGGER.info("Gobblin Yarn application finished with final status: " +
-            applicationReport.getFinalApplicationStatus().toString());
-        if (applicationReport.getFinalApplicationStatus() == FinalApplicationStatus.FAILED) {
-          LOGGER.error(
-              "Gobblin Yarn application failed for the following reason: " + applicationReport.getDiagnostics());
-        }
-
+      public void run() {
         try {
-          GobblinYarnAppLauncher.this.stop();
+          eventBus.post(new ApplicationReportArrivalEvent(yarnClient.getApplicationReport(applicationId.get())));
+        } catch (YarnException ye) {
+          LOGGER.error("Failed to get application report for Gobblin Yarn application " + applicationId.get(), ye);
         } catch (IOException ioe) {
-          LOGGER.error("Failed to close the " + GobblinYarnAppLauncher.class.getSimpleName(), ioe);
+          LOGGER.error("Failed to get application report for Gobblin Yarn application " + applicationId.get(), ioe);
         }
       }
-
-      @Override
-      public void onFailure(@Nonnull Throwable t) {
-        LOGGER.error("Failed to get ApplicationReport due to: " + t);
-        try {
-          GobblinYarnAppLauncher.this.stop();
-        } catch (IOException ioe) {
-          LOGGER.error("Failed to close the " + GobblinYarnAppLauncher.class.getSimpleName(), ioe);
-        }
-      }
-    });
+    }, 0, this.appReportIntervalMinutes, TimeUnit.MINUTES);
   }
 
+  /**
+   * Stop this {@link GobblinYarnAppLauncher} instance.
+   *
+   * @throws IOException if this {@link GobblinYarnAppLauncher} instance fails to clean up its working directory.
+   */
   public synchronized void stop() throws IOException {
     if (this.stopped) {
       return;
@@ -273,6 +240,35 @@ public class GobblinYarnAppLauncher {
     }
 
     this.stopped = true;
+  }
+
+  @Subscribe
+  @SuppressWarnings("unused")
+  public void handleApplicationReportArrivalEvent(ApplicationReportArrivalEvent applicationReportArrivalEvent) {
+    ApplicationReport applicationReport = applicationReportArrivalEvent.getApplicationReport();
+
+    YarnApplicationState appState = applicationReport.getYarnApplicationState();
+    LOGGER.info("Gobblin Yarn application state: " + appState.toString());
+
+    if (appState == YarnApplicationState.FINISHED ||
+        appState == YarnApplicationState.FAILED ||
+        appState == YarnApplicationState.KILLED) {
+
+      applicationCompleted = true;
+
+      LOGGER.info("Gobblin Yarn application finished with final status: " +
+          applicationReport.getFinalApplicationStatus().toString());
+      if (applicationReport.getFinalApplicationStatus() == FinalApplicationStatus.FAILED) {
+        LOGGER.error(
+            "Gobblin Yarn application failed for the following reason: " + applicationReport.getDiagnostics());
+      }
+
+      try {
+        GobblinYarnAppLauncher.this.stop();
+      } catch (IOException ioe) {
+        LOGGER.error("Failed to close the " + GobblinYarnAppLauncher.class.getSimpleName(), ioe);
+      }
+    }
   }
 
   /**

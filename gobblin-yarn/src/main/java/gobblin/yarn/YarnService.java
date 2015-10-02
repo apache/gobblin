@@ -15,6 +15,7 @@ package gobblin.yarn;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.AbstractMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -84,8 +85,7 @@ public class YarnService extends AbstractIdleService {
 
   private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
 
-  private final ConcurrentMap<ContainerId, Container> containerMap = Maps.newConcurrentMap();
-  private final ConcurrentMap<ContainerId, ParticipantId> containerToParticipantMap = Maps.newConcurrentMap();
+  private final ConcurrentMap<ContainerId, Map.Entry<Container, ParticipantId>> containerMap = Maps.newConcurrentMap();
 
   private final ApplicationId applicationId;
   private final String applicationName;
@@ -153,12 +153,15 @@ public class YarnService extends AbstractIdleService {
   public void handleNewContainerRequest(NewContainerRequest newContainerRequest) {
     int newContainersRequested = newContainerRequest.getNewContainersRequested();
     if (newContainersRequested <= 0) {
-      LOGGER.error("Invalid number of new containers requested: " + newContainersRequested);
+      LOGGER.error("Number of containers requested me be positive");
       return;
     }
 
     if (!this.maxResourceCapacity.isPresent()) {
-      LOGGER.error("Unable to handle new container request as maximum resource capacity is not available");
+      LOGGER.error(String.format(
+          "Unable to handle new container request as maximum resource capacity is not available: "
+          + "[containers requested = %d, memory (MBs) requested = %d, vcores requested = %d]",
+          newContainersRequested, this.requestedContainerMemoryMbs, this.requestedContainerCores));
       return;
     }
 
@@ -204,9 +207,10 @@ public class YarnService extends AbstractIdleService {
       ExecutorsUtils.shutdownExecutorService(this.containerLaunchExecutor, Optional.of(LOGGER));
 
       // Stop the running containers
-      for (Container container : this.containerMap.values()) {
-        LOGGER.info("Stopping container " + container.getId());
-        this.nmClientAsync.stopContainerAsync(container.getId(), container.getNodeId());
+      for (Map.Entry<Container, ParticipantId> entry : this.containerMap.values()) {
+        LOGGER.info(String.format("Stopping container %s running participant %s", entry.getKey().getId(),
+            entry.getValue().stringify()));
+        this.nmClientAsync.stopContainerAsync(entry.getKey().getId(), entry.getKey().getNodeId());
       }
 
       if (!this.containerMap.isEmpty()) {
@@ -345,10 +349,9 @@ public class YarnService extends AbstractIdleService {
     @Override
     public void onContainersCompleted(List<ContainerStatus> statuses) {
       for (ContainerStatus containerStatus : statuses) {
-        LOGGER.info(String.format("Container %s has completed with exit status %d",
-            containerStatus.getContainerId(), containerStatus.getExitStatus()));
+        LOGGER.info(String.format("Container %s has completed with exit status %d", containerStatus.getContainerId(),
+            containerStatus.getExitStatus()));
         containerMap.remove(containerStatus.getContainerId());
-        containerToParticipantMap.remove(containerStatus.getContainerId());
       }
     }
 
@@ -356,9 +359,12 @@ public class YarnService extends AbstractIdleService {
     public void onContainersAllocated(List<Container> containers) {
       for (final Container container : containers) {
         LOGGER.info(String.format("Container %s has been allocated", container.getId()));
-        containerMap.put(container.getId(), container);
-        containerToParticipantMap.put(container.getId(),
-            YarnHelixUtils.getParticipantId(container.getNodeId().getHost(), container.getId()));
+
+        Map.Entry<Container, ParticipantId> containerParticipantPair =
+            new AbstractMap.SimpleImmutableEntry<Container, ParticipantId>(container,
+                YarnHelixUtils.getParticipantId(container.getNodeId().getHost(), container.getId()));
+        containerMap.put(container.getId(), containerParticipantPair);
+
         containerLaunchExecutor.submit(new Runnable() {
           @Override
           public void run() {
@@ -416,7 +422,6 @@ public class YarnService extends AbstractIdleService {
       if (containerStatus.getState() == ContainerState.COMPLETE) {
         LOGGER.info(String.format("Container %s completed", containerId));
         containerMap.remove(containerId);
-        containerToParticipantMap.remove(containerId);
         if (containerMap.isEmpty()) {
           synchronized (allContainersStopped) {
             allContainersStopped.notify();
@@ -429,7 +434,6 @@ public class YarnService extends AbstractIdleService {
     public void onContainerStopped(ContainerId containerId) {
       LOGGER.info(String.format("Container %s has been stopped", containerId));
       containerMap.remove(containerId);
-      containerToParticipantMap.remove(containerId);
       if (containerMap.isEmpty()) {
         synchronized (allContainersStopped) {
           allContainersStopped.notify();
@@ -441,7 +445,6 @@ public class YarnService extends AbstractIdleService {
     public void onStartContainerError(ContainerId containerId, Throwable t) {
       LOGGER.error(String.format("Failed to start container %s due to error %s", containerId, t));
       containerMap.remove(containerId);
-      containerToParticipantMap.remove(containerId);
     }
 
     @Override

@@ -12,6 +12,7 @@
 
 package gobblin.yarn;
 
+import com.google.common.base.Preconditions;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -270,43 +271,41 @@ public class GobblinWorkUnitRunner {
       @Override
       public HelixTaskResult handleMessage() throws InterruptedException {
         String messageSubType = this._message.getMsgSubType();
+        Preconditions.checkArgument(
+            messageSubType.equalsIgnoreCase(HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString()),
+            String.format("Unknown %s message subtype: %s", Message.MessageType.SHUTDOWN.toString(), messageSubType));
 
         HelixTaskResult result = new HelixTaskResult();
 
-        if (messageSubType.equalsIgnoreCase(HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString())) {
-          if (stopInProgress) {
-            result.setSuccess(true);
-            return result;
-          }
-
-          LOGGER.info("Handling message " + HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString());
-
-          ScheduledExecutorService shutdownMessageHandlingCompletionWatcher =
-              MoreExecutors.getExitingScheduledExecutorService(new ScheduledThreadPoolExecutor(1));
-
-          // Schedule the task for watching on the removal of the shutdown message, which indicates that
-          // the message has been successfully processed and it's safe to disconnect the HelixManager.
-          shutdownMessageHandlingCompletionWatcher.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-              HelixManager helixManager = _notificationContext.getManager();
-              HelixDataAccessor helixDataAccessor = helixManager.getHelixDataAccessor();
-
-              HelixProperty helixProperty = helixDataAccessor.getProperty(
-                  _message.getKey(helixDataAccessor.keyBuilder(), helixManager.getInstanceName()));
-              // The absence of the shutdown message indicates it has been removed
-              if (helixProperty == null) {
-                GobblinWorkUnitRunner.this.stop();
-              }
-            }
-          }, 0, 1, TimeUnit.SECONDS);
-
+        if (stopInProgress) {
           result.setSuccess(true);
           return result;
         }
 
-        throw new RuntimeException(
-            String.format("Unknown %s message subtype: %s", Message.MessageType.SHUTDOWN.toString(), messageSubType));
+        LOGGER.info("Handling message " + HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString());
+
+        ScheduledExecutorService shutdownMessageHandlingCompletionWatcher =
+            MoreExecutors.getExitingScheduledExecutorService(new ScheduledThreadPoolExecutor(1));
+
+        // Schedule the task for watching on the removal of the shutdown message, which indicates that
+        // the message has been successfully processed and it's safe to disconnect the HelixManager.
+        shutdownMessageHandlingCompletionWatcher.scheduleAtFixedRate(new Runnable() {
+          @Override
+          public void run() {
+            HelixManager helixManager = _notificationContext.getManager();
+            HelixDataAccessor helixDataAccessor = helixManager.getHelixDataAccessor();
+
+            HelixProperty helixProperty = helixDataAccessor
+                .getProperty(_message.getKey(helixDataAccessor.keyBuilder(), helixManager.getInstanceName()));
+            // The absence of the shutdown message indicates it has been removed
+            if (helixProperty == null) {
+              GobblinWorkUnitRunner.this.stop();
+            }
+          }
+        }, 0, 1, TimeUnit.SECONDS);
+
+        result.setSuccess(true);
+        return result;
       }
 
       @Override
@@ -368,7 +367,7 @@ public class GobblinWorkUnitRunner {
           return helixTaskResult;
         }
 
-        throw new RuntimeException(String.format("Unknown %s message subtype: %s",
+        throw new IllegalArgumentException(String.format("Unknown %s message subtype: %s",
             Message.MessageType.USER_DEFINE_MSG.toString(), messageSubType));
       }
 
