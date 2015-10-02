@@ -18,6 +18,7 @@ import java.util.Collection;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.publisher.DataPublisher;
+import gobblin.publisher.SingleTaskDataPublisher;
 
 
 /**
@@ -28,7 +29,7 @@ import gobblin.publisher.DataPublisher;
  *     integration test work.
  * </p>
  */
-public class TestDataPublisher extends DataPublisher {
+public class TestDataPublisher extends SingleTaskDataPublisher {
 
   public TestDataPublisher(State state) {
     super(state);
