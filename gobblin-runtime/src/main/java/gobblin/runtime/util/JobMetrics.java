@@ -14,7 +14,6 @@ package gobblin.runtime.util;
 
 import java.util.List;
 
-import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 
 import com.google.common.collect.Lists;
@@ -98,11 +97,6 @@ public class JobMetrics extends GobblinMetrics {
     List<Tag<?>> tags = Lists.newArrayList();
     tags.add(new Tag<String>("jobName", jobState.getJobName() == null ? "" : jobState.getJobName()));
     tags.add(new Tag<String>("jobId", jobState.getJobId()));
-
-    String clusterIdentifierTag = getClusterIdentifierTag();
-    if (StringUtils.isNotBlank(clusterIdentifierTag)) {
-      tags.add(new Tag<String>("clusterIdentifier", clusterIdentifierTag));
-    }
 
     tags.addAll(getCustomTagsFromState(jobState));
     return tags;
