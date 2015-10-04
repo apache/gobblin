@@ -520,6 +520,9 @@ public class JobState extends SourceState {
   public DatasetState newDatasetState(boolean fullCopy) {
     DatasetState datasetState = new DatasetState(this.jobName, this.jobId);
     datasetState.addAll(this);
+    datasetState.setStartTime(this.startTime);
+    datasetState.setEndTime(this.endTime);
+    datasetState.setDuration(this.duration);
     if (fullCopy) {
       datasetState.setState(this.state);
       datasetState.setTaskCount(this.taskCount);

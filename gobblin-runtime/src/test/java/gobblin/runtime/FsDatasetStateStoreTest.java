@@ -44,7 +44,8 @@ public class FsDatasetStateStoreTest {
 
   private StateStore<JobState> fsJobStateStore;
   private FsDatasetStateStore fsDatasetStateStore;
-
+  private long startTime = System.currentTimeMillis();
+  
   @BeforeClass
   public void setUp() throws IOException {
     this.fsJobStateStore = new FsStateStore<JobState>(ConfigurationKeys.LOCAL_FS_URI,
@@ -59,6 +60,9 @@ public class FsDatasetStateStoreTest {
     jobState.setId(TEST_JOB_ID);
     jobState.setProp("foo", "bar");
     jobState.setState(JobState.RunningState.COMMITTED);
+    jobState.setStartTime(this.startTime);
+    jobState.setEndTime(this.startTime + 1000);
+    jobState.setDuration(1000);    
 
     for (int i = 0; i < 3; i++) {
       TaskState taskState = new TaskState();
@@ -84,7 +88,10 @@ public class FsDatasetStateStoreTest {
     Assert.assertEquals(jobState.getJobId(), TEST_JOB_ID);
     Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
     Assert.assertEquals(jobState.getProp("foo"), "bar");
-
+    Assert.assertEquals(jobState.getStartTime(), this.startTime);
+    Assert.assertEquals(jobState.getEndTime(), this.startTime + 1000);
+    Assert.assertEquals(jobState.getDuration(), 1000);
+       
     Assert.assertEquals(jobState.getCompletedTasks(), 3);
     for (int i = 0; i < jobState.getCompletedTasks(); i++) {
       TaskState taskState = jobState.getTaskStates().get(i);
@@ -103,7 +110,10 @@ public class FsDatasetStateStoreTest {
     datasetState.setProp("foo", "bar");
     datasetState.setState(JobState.RunningState.COMMITTED);
     datasetState.setId(TEST_DATASET_URN);
-
+    datasetState.setStartTime(this.startTime);
+    datasetState.setEndTime(this.startTime + 1000);
+    datasetState.setDuration(1000);   
+    
     for (int i = 0; i < 3; i++) {
       TaskState taskState = new TaskState();
       taskState.setJobId(TEST_JOB_ID);
@@ -126,7 +136,10 @@ public class FsDatasetStateStoreTest {
     Assert.assertEquals(datasetState.getJobId(), TEST_JOB_ID);
     Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
     Assert.assertEquals(datasetState.getProp("foo"), "bar");
-
+    Assert.assertEquals(datasetState.getStartTime(), this.startTime);
+    Assert.assertEquals(datasetState.getEndTime(), this.startTime + 1000);
+    Assert.assertEquals(datasetState.getDuration(), 1000);
+    
     Assert.assertEquals(datasetState.getCompletedTasks(), 3);
     for (int i = 0; i < datasetState.getCompletedTasks(); i++) {
       TaskState taskState = datasetState.getTaskStates().get(i);
@@ -149,6 +162,9 @@ public class FsDatasetStateStoreTest {
     Assert.assertEquals(datasetState.getJobId(), TEST_JOB_ID);
     Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
     Assert.assertEquals(datasetState.getProp("foo"), "bar");
+    Assert.assertEquals(datasetState.getStartTime(), this.startTime);
+    Assert.assertEquals(datasetState.getEndTime(), this.startTime + 1000);
+    Assert.assertEquals(datasetState.getDuration(), 1000);
   }
 
   @AfterClass
