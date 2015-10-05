@@ -13,10 +13,8 @@
 package gobblin.azkaban;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 
-import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
@@ -27,7 +25,6 @@ import azkaban.jobExecutor.AbstractJob;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
@@ -38,6 +35,7 @@ import gobblin.runtime.JobLauncher;
 import gobblin.runtime.JobLauncherFactory;
 import gobblin.runtime.JobListener;
 import gobblin.runtime.util.JobMetrics;
+import gobblin.util.TagUtils;
 import gobblin.util.TimeRangeChecker;
 
 
@@ -60,14 +58,6 @@ public class AzkabanJobLauncher extends AbstractJob {
   private static final String AZKABAN_LINK_JOBEXEC_URL = "azkaban.link.jobexec.url";
   private static final String HADOOP_TOKEN_FILE_LOCATION = "HADOOP_TOKEN_FILE_LOCATION";
   private static final String MAPREDUCE_JOB_CREDENTIALS_BINARY = "mapreduce.job.credentials.binary";
-
-  private static final ImmutableMap<String, String> PROPERTIES_TO_TAGS_MAP =
-      new ImmutableMap.Builder<String, String>()
-          .put("azkaban.flow.projectname", "azkabanProjectName")
-          .put("azkaban.flow.flowid", "azkabanFlowId")
-          .put("azkaban.job.id", "azkabanJobId")
-          .put("azkaban.flow.execid", "azkabanExecId")
-          .build();
 
   private final Closer closer = Closer.create();
   private final JobLauncher jobLauncher;
@@ -103,7 +93,9 @@ public class AzkabanJobLauncher extends AbstractJob {
       this.props.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, System.getenv(HADOOP_TOKEN_FILE_LOCATION));
     }
 
-    JobMetrics.addCustomTagsToProperties(this.props, getAzkabanTags());
+    List<Tag<?>> tags = Lists.newArrayList();
+    tags.addAll(Tag.fromMap(TagUtils.getRuntimeTags()));
+    JobMetrics.addCustomTagsToProperties(this.props, tags);
 
     // If the job launcher type is not specified in the job configuration,
     // override the default to use the MAPREDUCE launcher.
@@ -116,21 +108,6 @@ public class AzkabanJobLauncher extends AbstractJob {
     // used for both system and job configuration properties because Azkaban puts configuration
     // properties in the .job file and in the .properties file into the same Properties object.
     this.jobLauncher = this.closer.register(JobLauncherFactory.newJobLauncher(this.props, this.props));
-  }
-
-  private List<Tag<?>> getAzkabanTags() {
-    Configuration conf = new Configuration();
-    List<Tag<?>> tags = Lists.newArrayList();
-
-    for (Map.Entry<String, String> entry : PROPERTIES_TO_TAGS_MAP.entrySet()) {
-      if (StringUtils.isNotBlank(conf.get(entry.getKey()))) {
-        tags.add(new Tag<String>(entry.getValue(), conf.get(entry.getKey())));
-      } else {
-        LOG.warn(String.format("No config value found for azkaban config %s. Metrics will not have tag %s",
-            entry.getKey(), entry.getValue()));
-      }
-    }
-    return tags;
   }
 
   @Override
