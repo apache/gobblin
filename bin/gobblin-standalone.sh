@@ -113,7 +113,12 @@ fi
 
 # User defined JVM flags overrides $GOBBLIN_JVM_FLAGS (if any)
 if [ -n "$JVM_FLAGS" ]; then
-  export GOBBLIN_JVM_FLAGS="JVM_FLAGS"
+  export GOBBLIN_JVM_FLAGS="$JVM_FLAGS"
+fi
+
+# User defined configuration file overrides $GOBBLIN_CUSTOM_CONFIG_FILE
+if [ -n "$CUSTOM_CONFIG_FILE" ]; then
+  export GOBBLIN_CUSTOM_CONFIG_FILE="$CUSTOM_CONFIG_FILE"
 fi
 
 DEFAULT_CONFIG_FILE=$FWDIR_CONF/gobblin-standalone.properties
@@ -176,7 +181,7 @@ start() {
   COMMAND+="-cp $CLASSPATH "
   COMMAND+="-Dorg.quartz.properties=$FWDIR_CONF/quartz.properties "
   COMMAND+="$GOBBLIN_JVM_FLAGS "
-  COMMAND+="gobblin.scheduler.SchedulerDaemon $DEFAULT_CONFIG_FILE $CUSTOM_CONFIG_FILE"
+  COMMAND+="gobblin.scheduler.SchedulerDaemon $DEFAULT_CONFIG_FILE $GOBBLIN_CUSTOM_CONFIG_FILE"
   echo "Running command:"
   echo "$COMMAND"
   nohup $COMMAND & echo $! > $PID
