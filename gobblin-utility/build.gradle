@@ -15,6 +15,7 @@ dependencies {
 
   compile externalDependency.commonsCli
   compile externalDependency.commonsConfiguration
+  compile externalDependency.commonsDbcp
   compile externalDependency.commonsEmail
   compile externalDependency.commonsIo
   compile externalDependency.commonsLang
@@ -26,6 +27,7 @@ dependencies {
   compile externalDependency.jasypt
   compile externalDependency.lombok
   compile externalDependency.metricsCore
+  compile externalDependency.guice
 
   if (project.hasProperty('useHadoop2')) {
     compile externalDependency.avroMapredH2

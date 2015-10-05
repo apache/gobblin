@@ -12,42 +12,28 @@
 
 package gobblin.metastore;
 
-import javax.sql.DataSource;
 import java.util.Properties;
 
-import org.apache.commons.dbcp.BasicDataSource;
-
 import com.google.inject.Inject;
-import com.google.inject.Provider;
 import com.google.inject.name.Named;
 
 import gobblin.configuration.ConfigurationKeys;
 
 
 /**
- * A provider class for {@link javax.sql.DataSource}s.
- *
- * @author ynli
+ * This class extends {@link gobblin.util.jdbc.DataSourceProvider} with its own property keys.
  */
-public class DataSourceProvider implements Provider<DataSource> {
-
-  private final BasicDataSource basicDataSource;
+public class JobHistoryDataSourceProvider extends gobblin.util.jdbc.DataSourceProvider {
 
   @Inject
-  public DataSourceProvider(@Named("dataSourceProperties") Properties properties) {
-    this.basicDataSource = new BasicDataSource();
+  public JobHistoryDataSourceProvider(@Named("dataSourceProperties") Properties properties) {
     basicDataSource.setDriverClassName(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY,
-            ConfigurationKeys.DEFAULT_JOB_HISTORY_STORE_JDBC_DRIVER));
+        ConfigurationKeys.DEFAULT_JOB_HISTORY_STORE_JDBC_DRIVER));
     basicDataSource.setUrl(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY));
-    if (properties.containsKey(ConfigurationKeys.JOB_HISTORY_STORE_USER_KEY) && properties
-        .containsKey(ConfigurationKeys.JOB_HISTORY_STORE_PASSWORD_KEY)) {
+    if (properties.containsKey(ConfigurationKeys.JOB_HISTORY_STORE_USER_KEY)
+        && properties.containsKey(ConfigurationKeys.JOB_HISTORY_STORE_PASSWORD_KEY)) {
       basicDataSource.setUsername(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_USER_KEY));
       basicDataSource.setPassword(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_PASSWORD_KEY));
     }
-  }
-
-  @Override
-  public DataSource get() {
-    return this.basicDataSource;
   }
 }
