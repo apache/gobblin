@@ -19,12 +19,17 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.Writable;
-
 import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSortedSet;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.Writable;
 
 
 /**
@@ -37,6 +42,7 @@ public class State implements Writable {
   private String id;
 
   private final Properties properties;
+  private final JsonParser jsonParser = new JsonParser();
 
   public State() {
     this.properties = new Properties();
@@ -362,6 +368,19 @@ public class State implements Writable {
    */
   public boolean getPropAsBoolean(String key, boolean def) {
     return Boolean.parseBoolean(getProperty(key, String.valueOf(def)));
+  }
+
+  /**
+   * Get the value of a property as a {@link JsonArray}.
+   *
+   * @param key property key
+   * @return {@link JsonArray} value associated with the key
+   */
+  public JsonArray getPropAsJsonArray(String key) {
+    JsonElement jsonElement = this.jsonParser.parse(getProp(key));
+    Preconditions.checkArgument(jsonElement.isJsonArray(),
+        "Value for key " + key + " is malformed, it must be a JsonArray: " + jsonElement);
+    return jsonElement.getAsJsonArray();
   }
 
   /**
