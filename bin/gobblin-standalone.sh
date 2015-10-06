@@ -8,6 +8,8 @@ function print_usage(){
   echo "  --logdir <log dir>                             Gobblin's log directory: if not set, taken from \${GOBBLIN_LOG_DIR}"
   echo "  --jars <comma-separated list of job jars>      Job jar(s): if not set, "$FWDIR_LIB" is examined"
   echo "  --conf <directory of job configuration files>  Directory of job configuration files: if not set, taken from ${GOBBLIN_JOB_CONFIG_DIR}"
+  echo "  --conffile <custom config file>                Custom config file: if not set, is ignored. Overwrites properties in "$FWDIR_CONF/gobblin-standalone.properties
+  echo "  --jvmflags <string of jvm flags>               String containing any additional JVM flags to include"
   echo "  --help                                         Display this help and exit"
 }
 
@@ -42,6 +44,14 @@ do
       ;;
     --conf)
       JOB_CONFIG_DIR="$2"
+      shift
+      ;;
+    --conffile)
+      CUSTOM_CONFIG_FILE="$2"
+      shift
+      ;;
+    --jvmflags)
+      JVM_FLAGS="$2"
       shift
       ;;
     --help)
@@ -101,7 +111,17 @@ if [ -z "$GOBBLIN_LOG_DIR" ] && [ "$check" == true ]; then
   LOG_DIR="$GOBBLIN_FWDIR/logs"
 fi
 
-CONFIG_FILE=$FWDIR_CONF/gobblin-standalone.properties
+# User defined JVM flags overrides $GOBBLIN_JVM_FLAGS (if any)
+if [ -n "$JVM_FLAGS" ]; then
+  export GOBBLIN_JVM_FLAGS="$JVM_FLAGS"
+fi
+
+# User defined configuration file overrides $GOBBLIN_CUSTOM_CONFIG_FILE
+if [ -n "$CUSTOM_CONFIG_FILE" ]; then
+  export GOBBLIN_CUSTOM_CONFIG_FILE="$CUSTOM_CONFIG_FILE"
+fi
+
+DEFAULT_CONFIG_FILE=$FWDIR_CONF/gobblin-standalone.properties
 
 PID="$GOBBLIN_WORK_DIR/.gobblin-pid"
 
@@ -160,7 +180,8 @@ start() {
   COMMAND+="-Dlog4j.configuration=file://$FWDIR_CONF/log4j-standalone.xml "
   COMMAND+="-cp $CLASSPATH "
   COMMAND+="-Dorg.quartz.properties=$FWDIR_CONF/quartz.properties "
-  COMMAND+="gobblin.scheduler.SchedulerDaemon $CONFIG_FILE"
+  COMMAND+="$GOBBLIN_JVM_FLAGS "
+  COMMAND+="gobblin.scheduler.SchedulerDaemon $DEFAULT_CONFIG_FILE $GOBBLIN_CUSTOM_CONFIG_FILE"
   echo "Running command:"
   echo "$COMMAND"
   nohup $COMMAND & echo $! > $PID

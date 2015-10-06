@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.base.Splitter;
+import com.google.common.collect.Lists;
 
 
 /**
@@ -28,6 +29,7 @@ import com.google.common.base.Splitter;
  */
 public class Tag<T> extends AbstractMap.SimpleEntry<String, T> {
 
+  private static final long serialVersionUID = -5083709915031933607L;
   private static final char KEY_VALUE_SEPARATOR = ':';
 
   /**
@@ -56,6 +58,14 @@ public class Tag<T> extends AbstractMap.SimpleEntry<String, T> {
 
   public Tag(Map.Entry<? extends String, ? extends T> entry) {
     super(entry);
+  }
+
+  public static <T> List<Tag<T>> fromMap(Map<? extends String, T> tagsMap) {
+    List<Tag<T>> tags = Lists.newArrayList();
+    for(Map.Entry<? extends String, T> entry : tagsMap.entrySet()) {
+      tags.add(new Tag<T>(entry));
+    }
+    return tags;
   }
 
   @Override

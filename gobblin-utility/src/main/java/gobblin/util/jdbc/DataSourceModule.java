@@ -10,9 +10,10 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metastore;
+package gobblin.util.jdbc;
 
 import java.util.Properties;
+
 import javax.sql.DataSource;
 
 import com.google.inject.AbstractModule;
@@ -20,22 +21,20 @@ import com.google.inject.name.Names;
 
 
 /**
- * A Guice module defining the dependencies used by the metastore module.
- *
- * @author ynli
+ * A Guice module defining the dependencies used by the jdbc data source.
  */
-public class MetaStoreModule extends AbstractModule {
+public class DataSourceModule extends AbstractModule {
 
   private final Properties properties;
 
-  public MetaStoreModule(Properties properties) {
-    this.properties = properties;
+  public DataSourceModule(Properties properties) {
+    this.properties = new Properties();
+    this.properties.putAll(properties);
   }
 
   @Override
   protected void configure() {
     bind(Properties.class).annotatedWith(Names.named("dataSourceProperties")).toInstance(this.properties);
-    bind(DataSource.class).toProvider(JobHistoryDataSourceProvider.class);
-    bind(JobHistoryStore.class).to(DatabaseJobHistoryStore.class);
+    bind(DataSource.class).toProvider(DataSourceProvider.class);
   }
 }

@@ -13,8 +13,6 @@
 
 package gobblin.runtime.util;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -48,7 +46,7 @@ public class JobMetricsTest {
     Map<String, ?> tagMap = jobMetrics.getMetricContext().getTagMap();
     String contextId = tagMap.get(MetricContext.METRIC_CONTEXT_ID_TAG_NAME).toString();
 
-    Assert.assertEquals(tagMap.size(), 4);
+    Assert.assertEquals(tagMap.size(), 3);
     Assert.assertEquals(tagMap.get("jobId"), jobId);
     Assert.assertEquals(tagMap.get("jobName"), jobName);
     Assert.assertEquals(tagMap.get(MetricContext.METRIC_CONTEXT_ID_TAG_NAME), contextId);
@@ -58,7 +56,7 @@ public class JobMetricsTest {
     Assert.assertNotNull(jobMetrics1.getMetricContext());
 
     tagMap = jobMetrics1.getMetricContext().getTagMap();
-    Assert.assertEquals(tags.size(), 4);
+    Assert.assertEquals(tags.size(), 3);
     Assert.assertEquals(tagMap.get(MetricContext.METRIC_CONTEXT_ID_TAG_NAME), contextId);
 
     // remove original jobMetrics, should create a new one
@@ -67,24 +65,8 @@ public class JobMetricsTest {
     Assert.assertNotNull(jobMetrics2.getMetricContext());
 
     tagMap = jobMetrics2.getMetricContext().getTagMap();
-    Assert.assertEquals(tags.size(), 4);
+    Assert.assertEquals(tags.size(), 3);
     Assert.assertNotEquals(tagMap.get(MetricContext.METRIC_CONTEXT_ID_TAG_NAME), contextId);
-  }
-
-  @Test
-  public void testClusterIdentifierTags() {
-    try {
-
-      String expectedClusterIdentifier  = InetAddress.getLocalHost().getHostName();
-      JobMetrics jobMetrics = buildTestJobMetrics();
-
-      Assert.assertNotNull(jobMetrics.getMetricContext());
-
-      Map<String, ?> tagMap = jobMetrics.getMetricContext().getTagMap();
-      Assert.assertEquals(tagMap.get("clusterIdentifier"), expectedClusterIdentifier);
-    } catch (UnknownHostException e) {
-      //Ignore test
-    }
   }
 
   @Test
@@ -107,12 +89,4 @@ public class JobMetricsTest {
 
   }
 
-  private JobMetrics buildTestJobMetrics() {
-    String jobName = "testJob";
-    String jobId = "job_123";
-
-    JobState jobState = new JobState(jobName, jobId);
-    return JobMetrics.get(jobState);
-
-  }
 }
