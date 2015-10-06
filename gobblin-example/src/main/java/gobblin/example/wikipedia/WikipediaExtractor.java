@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.io.Closer;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -169,9 +170,14 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
       }
     }
 
+    if (Strings.isNullOrEmpty(sb.toString())) {
+      LOG.warn("Received empty response for query: " + urlStr);
+      return retrievedRevisions;
+    }
+
     JsonElement jsonElement = GSON.fromJson(sb.toString(), JsonElement.class);
 
-    if (!jsonElement.isJsonObject()) {
+    if (jsonElement == null || !jsonElement.isJsonObject()) {
       return retrievedRevisions;
     }
 

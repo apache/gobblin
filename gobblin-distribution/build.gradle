@@ -25,6 +25,9 @@ dependencies {
   compile project(":gobblin-rest-service:gobblin-rest-api")
   compile project(":gobblin-rest-service:gobblin-rest-client")
   compile project(":gobblin-rest-service:gobblin-rest-server")
+  if (project.hasProperty('useHadoop2')) {
+    compile project(':gobblin-yarn')
+  }
 }
 
 task build(type: Tar, overwrite: true) {
