@@ -51,11 +51,12 @@ public class YarnContainerSecurityManager extends AbstractIdleService {
 
   private final FileSystem fs;
   private final Path tokenFilePath;
+  private final EventBus eventBus;
 
   public YarnContainerSecurityManager(Config config, FileSystem fs, EventBus eventBus) {
     this.fs = fs;
     this.tokenFilePath = new Path(config.getString(GobblinYarnConfigurationKeys.TOKEN_FILE_PATH));
-    eventBus.register(this);
+    this.eventBus = eventBus;
   }
 
   @SuppressWarnings("unused")
@@ -70,7 +71,7 @@ public class YarnContainerSecurityManager extends AbstractIdleService {
 
   @Override
   protected void startUp() throws Exception {
-    // Nothing to do
+    this.eventBus.register(this);
   }
 
   @Override

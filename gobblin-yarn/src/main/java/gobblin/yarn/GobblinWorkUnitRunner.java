@@ -102,7 +102,7 @@ public class GobblinWorkUnitRunner {
 
   private final ServiceManager serviceManager;
 
-  private final EventBus eventBus;
+  private final EventBus eventBus = new EventBus(GobblinWorkUnitRunner.class.getSimpleName());
 
   private final TaskStateModelFactory taskStateModelFactory;
 
@@ -129,8 +129,6 @@ public class GobblinWorkUnitRunner {
         InstanceType.PARTICIPANT, zkConnectionString);
 
     Properties properties = YarnHelixUtils.configToProperties(config);
-
-    this.eventBus = new EventBus();
 
     TaskExecutor taskExecutor = new TaskExecutor(properties);
     TaskStateTracker taskStateTracker = new GobblinHelixTaskStateTracker(properties, this.helixManager);

@@ -47,6 +47,7 @@ public class GobblinHelixJobScheduler extends JobScheduler {
 
   private final Properties properties;
   private final HelixManager helixManager;
+  private final EventBus eventBus;
   private final Path appWorkDir;
 
   public GobblinHelixJobScheduler(Properties properties, HelixManager helixManager, EventBus eventBus,
@@ -54,8 +55,14 @@ public class GobblinHelixJobScheduler extends JobScheduler {
     super(properties);
     this.properties = properties;
     this.helixManager = helixManager;
+    this.eventBus = eventBus;
     this.appWorkDir = appWorkDir;
-    eventBus.register(this);
+  }
+
+  @Override
+  protected void startUp() throws Exception {
+    this.eventBus.register(this);
+    super.startUp();
   }
 
   @Override

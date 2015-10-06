@@ -99,7 +99,8 @@ public class GobblinApplicationMaster {
 
   private final ServiceManager serviceManager;
 
-  private final EventBus eventBus;
+  // An EventBus used for communications between services running in the ApplicationMaster
+  private final EventBus eventBus = new EventBus(GobblinApplicationMaster.class.getSimpleName());
 
   private final HelixManager helixManager;
 
@@ -110,10 +111,6 @@ public class GobblinApplicationMaster {
   private volatile boolean stopInProgress = false;
 
   public GobblinApplicationMaster(String applicationName, Config config) throws Exception {
-    // An EventBus used for communications between services running in the ApplicationMaster
-    this.eventBus = new EventBus(GobblinApplicationMaster.class.getSimpleName());
-    this.eventBus.register(this);
-
     ContainerId containerId =
         ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
     ApplicationAttemptId applicationAttemptId = containerId.getApplicationAttemptId();
@@ -174,6 +171,8 @@ public class GobblinApplicationMaster {
 
     // Add a shutdown hook so the task scheduler gets properly shutdown
     addShutdownHook();
+
+    this.eventBus.register(this);
 
     try {
       this.helixManager.connect();

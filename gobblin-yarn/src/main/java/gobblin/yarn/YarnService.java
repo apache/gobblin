@@ -143,9 +143,6 @@ public class YarnService extends AbstractIdleService {
     this.containerJvmArgs = containerJvmArgs;
 
     this.tokens = getSecurityTokens();
-
-    // Register itself with the EventBus for container-related requests
-    this.eventBus.register(this);
   }
 
   @SuppressWarnings("unused")
@@ -186,6 +183,10 @@ public class YarnService extends AbstractIdleService {
   @Override
   protected void startUp() throws Exception {
     LOGGER.info("Starting the YarnService");
+
+    // Register itself with the EventBus for container-related requests
+    this.eventBus.register(this);
+
     this.amrmClientAsync.start();
     this.nmClientAsync.start();
 
