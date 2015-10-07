@@ -12,9 +12,11 @@
 
 package gobblin.compaction.mapreduce;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 
 import org.apache.commons.io.FilenameUtils;
@@ -25,6 +27,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
@@ -35,16 +38,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 import com.google.common.primitives.Ints;
 
+import gobblin.compaction.count.HdfsEventCountProvider;
 import gobblin.compaction.event.CompactionSlaEventHelper;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.event.EventSubmitter;
 import gobblin.metrics.event.sla.SlaEventSubmitter;
+import gobblin.util.FileListUtils;
 import gobblin.util.HadoopUtils;
+
 
 /**
  * This class is responsible for configuring and running a single MR job.
@@ -84,10 +91,12 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
     this.outputPath = new Path(jobProps.getProp(ConfigurationKeys.COMPACTION_JOB_DEST_DIR));
     this.tmpPath = new Path(jobProps.getProp(ConfigurationKeys.COMPACTION_JOB_TMP_DIR));
     this.fs = fs;
-    this.perm = HadoopUtils.deserializeFsPermission(this.jobProps, ConfigurationKeys.COMPACTION_OUTPUT_DIR_PERMISSION,
-        FsPermission.getDefault());
-    this.deduplicate = this.jobProps.getPropAsBoolean(ConfigurationKeys.COMPACTION_DEDUPLICATE,
-        ConfigurationKeys.DEFAULT_COMPACTION_DEDUPLICATE);
+    this.perm =
+        HadoopUtils.deserializeFsPermission(this.jobProps, ConfigurationKeys.COMPACTION_OUTPUT_DIR_PERMISSION,
+            FsPermission.getDefault());
+    this.deduplicate =
+        this.jobProps.getPropAsBoolean(ConfigurationKeys.COMPACTION_DEDUPLICATE,
+            ConfigurationKeys.DEFAULT_COMPACTION_DEDUPLICATE);
     this.eventSubmitter =
         new EventSubmitter.Builder(GobblinMetrics.get(this.jobProps.getProp(ConfigurationKeys.JOB_NAME_KEY))
             .getMetricContext(), ConfigurationKeys.COMPACTION_TRACKING_EVENTS_NAMESPACE).build();
@@ -97,8 +106,9 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
   public Void call() throws IOException, ClassNotFoundException, InterruptedException {
 
     Configuration conf = HadoopUtils.getConfFromState(this.jobProps);
-    DateTime jobStartTime = new DateTime(DateTimeZone.forID(
-        this.jobProps.getProp(ConfigurationKeys.COMPACTION_TIMEZONE, ConfigurationKeys.DEFAULT_COMPACTION_TIMEZONE)));
+    DateTime jobStartTime =
+        new DateTime(DateTimeZone.forID(this.jobProps.getProp(ConfigurationKeys.COMPACTION_TIMEZONE,
+            ConfigurationKeys.DEFAULT_COMPACTION_TIMEZONE)));
 
     if (this.jobProps.getPropAsBoolean(ConfigurationKeys.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, false)) {
       List<Path> lateFilePaths = Lists.newArrayList();
@@ -107,9 +117,18 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
           lateFilePaths.add(new Path(filePathString));
         }
       }
-      Path lateDataOutputPath = this.deduplicate
-          ? new Path(this.outputPath, ConfigurationKeys.COMPACTION_LATE_FILES_DIRECTORY) : this.outputPath;
+      Path lateDataOutputPath = this.outputPath;
+      if (this.deduplicate) {
+        lateDataOutputPath = new Path(this.jobProps.getProp(ConfigurationKeys.COMPACTION_JOB_DEST_LATE_DIR));
+        LOG.info(String.format("Will copy to late path %s since deduplication has been done. ", lateDataOutputPath));
+        if (!fs.exists(lateDataOutputPath)) {
+          fs.mkdirs(lateDataOutputPath);
+        }
+        this.submitLateEvent(lateFilePaths, lateDataOutputPath);
+      }
+
       this.copyDataFiles(lateDataOutputPath, lateFilePaths, conf);
+
     } else {
       if (this.fs.exists(this.outputPath) && !canOverwriteOutputDir()) {
         LOG.warn(String.format("Output path %s exists. Will not compact %s.", this.outputPath, this.inputPath));
@@ -134,8 +153,9 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
       Path outPath;
       int fileSuffix = 0;
       do {
-        outPath = new Path(outputDirectory, String.format("%s.%d.%s", FilenameUtils.getBaseName(fileName), fileSuffix++,
-            FilenameUtils.getExtension(fileName)));
+        outPath =
+            new Path(outputDirectory, String.format("%s.%d.%s", FilenameUtils.getBaseName(fileName), fileSuffix++,
+                FilenameUtils.getExtension(fileName)));
       } while (this.fs.exists(outPath));
 
       if (FileUtil.copy(this.fs, filePath, this.fs, outPath, false, conf)) {
@@ -275,9 +295,79 @@ public abstract class MRCompactorJobRunner implements Callable<Void> {
   }
 
   private void submitSlaEvent(Job job) {
-
     CompactionSlaEventHelper.populateState(jobProps, job, fs);
     new SlaEventSubmitter(eventSubmitter, "CompactionCompleted", jobProps.getProperties()).submit();
+  }
 
+  private long getNewLateEventCount(List<Path> lateFilePaths) throws IOException {
+    long fileSize = 0;
+    for (Path path : lateFilePaths) {
+      String[] parts = path.getName().split("\\.");
+      fileSize += Long.parseLong(parts[parts.length - 2]);
+    }
+    return fileSize;
+  }
+
+  private long getCurLateEventCount(Path lateDataPath) throws FileNotFoundException, IOException {
+    long fileSize = 0;
+    for (FileStatus fileStatus : FileListUtils.listFilesRecursively(fs, lateDataPath, new PathFilter() {
+      @Override
+      public boolean accept(Path path) {
+        for (String validExtention : getApplicableFileExtensions()) {
+          if (path.getName().endsWith(validExtention)) {
+            return true;
+          }
+        }
+        return false;
+      }
+    })) {
+      String[] parts = fileStatus.getPath().getName().split("\\.");
+      fileSize += Long.parseLong(parts[parts.length - 2]);
+    }
+    return fileSize;
+  }
+
+  private List<Path> getCurLateEventPath(Path lateDataPath) throws FileNotFoundException, IOException {
+    List<Path> paths = Lists.newArrayList();
+    for (FileStatus fileStatus : FileListUtils.listFilesRecursively(fs, lateDataPath, new PathFilter() {
+      @Override
+      public boolean accept(Path path) {
+        for (String validExtention : getApplicableFileExtensions()) {
+          if (path.getName().endsWith(validExtention)) {
+            return true;
+          }
+        }
+        return false;
+      }
+    })) {
+      paths.add(fileStatus.getPath());
+    }
+    return paths;
+  }
+
+  /**
+   * Submit an event reporting new and cumulative late event counts.
+   */
+  private void submitLateEvent(List<Path> lateFilePaths, Path lateDataPath) {
+    if (this.jobProps.contains(ConfigurationKeys.COMPACTION_HDFS_EVENT_COUNT_PROVIDER)) {
+      HdfsEventCountProvider eventCountProvider;
+      try {
+        eventCountProvider =
+            (HdfsEventCountProvider) Class.forName(
+                this.jobProps.getProp(ConfigurationKeys.COMPACTION_HDFS_EVENT_COUNT_PROVIDER)).newInstance();
+
+        Map<String, String> eventMetadataMap = Maps.newHashMap();
+        long newLateEventCount = eventCountProvider.getEventCount(fs, lateFilePaths);
+        eventMetadataMap.put("newLateEvent", Long.toString(newLateEventCount));
+        eventMetadataMap.put(
+            "cumulativeLateEvent",
+            Long.toString(newLateEventCount
+                + eventCountProvider.getEventCount(fs, this.getCurLateEventPath(lateDataPath))));
+        LOG.info("late event submitted: " + eventMetadataMap);
+        this.eventSubmitter.submit("LateEvent", eventMetadataMap);
+      } catch (Exception e) {
+        LOG.error("Failed to submit late event count:" + e, e);
+      }
+    }
   }
 }

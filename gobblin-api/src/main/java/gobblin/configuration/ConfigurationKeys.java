@@ -431,7 +431,11 @@ public class ConfigurationKeys {
   public static final String COMPACTION_DEST_DIR = COMPACTION_PREFIX + "dest.dir";
   public static final String COMPACTION_DEST_SUBDIR = COMPACTION_PREFIX + "dest.subdir";
   public static final String DEFAULT_COMPACTION_DEST_SUBDIR = "daily";
+  public static final String COMPACTION_DEST_LATE_SUBDIR = COMPACTION_PREFIX + "dest.late.subdir";
+  public static final String DEFAULT_COMPACTION_DEST_LATE_SUBDIR = "daily_late";
   public static final String COMPACTION_JOB_DEST_DIR = COMPACTION_PREFIX + "job.dest.dir";
+  public static final String COMPACTION_JOB_DEST_BASE_DIR = COMPACTION_PREFIX + "job.dest.base.dir";
+  public static final String COMPACTION_JOB_DEST_LATE_DIR = COMPACTION_PREFIX + "job.dest.late.dir";
   public static final String COMPACTION_JOB_DEST_PARTITION = COMPACTION_PREFIX + "job.dest.partition";
   public static final String COMPACTION_TMP_DIR = COMPACTION_PREFIX + "tmp.dir";
   public static final String DEFAULT_COMPACTION_TMP_DIR = "/tmp";
@@ -443,6 +447,7 @@ public class ConfigurationKeys {
   public static final String COMPACTION_JOBPROPS_CREATOR_CLASS = COMPACTION_PREFIX + "jobprops.creator.class";
   public static final String DEFAULT_COMPACTION_JOBPROPS_CREATOR_CLASS =
       "gobblin.compaction.mapreduce.MRCompactorTimeBasedJobPropCreator";
+  public static final String COMPACTION_HDFS_EVENT_COUNT_PROVIDER = COMPACTION_PREFIX + "hdfs.count.provider";
   public static final String COMPACTION_TIMEBASED_FOLDER_PATTERN = COMPACTION_PREFIX + "timebased.folder.pattern";
   public static final String DEFAULT_COMPACTION_TIMEBASED_FOLDER_PATTERN = "YYYY/MM/dd";
   public static final String COMPACTION_TIMEZONE = COMPACTION_PREFIX + "timezone";
@@ -478,6 +483,7 @@ public class ConfigurationKeys {
   public static final String COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK = COMPACTION_PREFIX + "job.late.data.movement.task";
   public static final String COMPACTION_JOB_LATE_DATA_FILES = COMPACTION_PREFIX + "job.late.data.files";
   public static final String COMPACTION_COMPLETE_FILE_NAME = "_COMPACTION_COMPLETE";
+  @Deprecated
   public static final String COMPACTION_LATE_FILES_DIRECTORY = "late";
   public static final String COMPACTION_ENABLE_SUCCESS_FILE = "mapreduce.fileoutputcommitter.marksuccessfuljobs";
   public static final String COMPACTION_OVERWRITE_OUTPUT_DIR = COMPACTION_PREFIX + "overwrite.output.dir";

@@ -69,8 +69,9 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
   MRCompactorTimeBasedJobPropCreator(Builder builder) {
     super(builder);
     this.folderTimePattern = getFolderPattern();
-    this.timeZone = DateTimeZone.forID(
-        this.state.getProp(ConfigurationKeys.COMPACTION_TIMEZONE, ConfigurationKeys.DEFAULT_COMPACTION_TIMEZONE));
+    this.timeZone =
+        DateTimeZone.forID(this.state.getProp(ConfigurationKeys.COMPACTION_TIMEZONE,
+            ConfigurationKeys.DEFAULT_COMPACTION_TIMEZONE));
     this.timeFormatter = DateTimeFormat.forPattern(this.folderTimePattern).withZone(this.timeZone);
   }
 
@@ -102,7 +103,12 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
           if (newDataFiles.isEmpty()) {
             LOG.info(String.format("Folder %s already compacted. Skipping", jobOutputDir));
           } else {
-            allJobProps.add(createJobPropsForLateData(status.getPath(), jobOutputDir, jobTmpDir, newDataFiles));
+            Path jobOutputLateDir =
+                new Path(this.topicOutputBaseDir, new Path(this.state.getProp(
+                    ConfigurationKeys.COMPACTION_DEST_LATE_SUBDIR,
+                    ConfigurationKeys.DEFAULT_COMPACTION_DEST_LATE_SUBDIR), folderTime.toString(this.timeFormatter)));
+            allJobProps.add(createJobPropsForLateData(status.getPath(), jobOutputDir, jobOutputLateDir, jobTmpDir,
+                newDataFiles));
           }
         }
       }
@@ -116,8 +122,9 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
   }
 
   private String getFolderPattern() {
-    String folderPattern = this.state.getProp(ConfigurationKeys.COMPACTION_TIMEBASED_FOLDER_PATTERN,
-        ConfigurationKeys.DEFAULT_COMPACTION_TIMEBASED_FOLDER_PATTERN);
+    String folderPattern =
+        this.state.getProp(ConfigurationKeys.COMPACTION_TIMEBASED_FOLDER_PATTERN,
+            ConfigurationKeys.DEFAULT_COMPACTION_TIMEBASED_FOLDER_PATTERN);
     LOG.info("Compaction folder pattern: " + folderPattern);
     return folderPattern;
   }
@@ -154,8 +161,8 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
    * Return job properties for a job to handle the appearance of data within jobInputDir which is
    * more recent than the time of the last compaction.
    */
-  private State createJobPropsForLateData(Path jobInputDir, Path jobOutputDir, Path jobTmpDir, List<Path> newDataFiles)
-      throws IOException {
+  private State createJobPropsForLateData(Path jobInputDir, Path jobOutputDir, Path jobOutputLateDir, Path jobTmpDir,
+      List<Path> newDataFiles) throws IOException {
     if (this.state.getPropAsBoolean(ConfigurationKeys.COMPACTION_RECOMPACT_FOR_LATE_DATA,
         ConfigurationKeys.DEFAULT_COMPACTION_RECOMPACT_FOR_LATE_DATA)) {
       LOG.info(String.format("Will recompact for %s.", jobOutputDir));
@@ -165,6 +172,7 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
       State jobProps = createJobProps(jobInputDir, jobOutputDir, jobTmpDir, this.deduplicate);
       jobProps.setProp(ConfigurationKeys.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, true);
       jobProps.setProp(ConfigurationKeys.COMPACTION_JOB_LATE_DATA_FILES, Joiner.on(",").join(newDataFiles));
+      jobProps.setProp(ConfigurationKeys.COMPACTION_JOB_DEST_LATE_DIR, jobOutputLateDir);
       return jobProps;
     }
   }
@@ -175,15 +183,17 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
   }
 
   private DateTime getEarliestAllowedFolderTime(DateTime currentTime, PeriodFormatter periodFormatter) {
-    String maxTimeAgoStr = this.state.getProp(ConfigurationKeys.COMPACTION_TIMEBASED_MAX_TIME_AGO,
-        ConfigurationKeys.DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO);
+    String maxTimeAgoStr =
+        this.state.getProp(ConfigurationKeys.COMPACTION_TIMEBASED_MAX_TIME_AGO,
+            ConfigurationKeys.DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO);
     Period maxTimeAgo = periodFormatter.parsePeriod(maxTimeAgoStr);
     return currentTime.minus(maxTimeAgo);
   }
 
   private DateTime getLatestAllowedFolderTime(DateTime currentTime, PeriodFormatter periodFormatter) {
-    String minTimeAgoStr = this.state.getProp(ConfigurationKeys.COMPACTION_TIMEBASED_MIN_TIME_AGO,
-        ConfigurationKeys.DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO);
+    String minTimeAgoStr =
+        this.state.getProp(ConfigurationKeys.COMPACTION_TIMEBASED_MIN_TIME_AGO,
+            ConfigurationKeys.DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO);
     Period minTimeAgo = periodFormatter.parsePeriod(minTimeAgoStr);
     return currentTime.minus(minTimeAgo);
   }

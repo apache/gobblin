@@ -45,9 +45,9 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.Tag;
-import gobblin.util.TagUtils;
 import gobblin.util.DatasetFilterUtils;
 import gobblin.util.HadoopUtils;
+import gobblin.util.TagUtils;
 
 
 /**
@@ -266,10 +266,7 @@ public class MRCompactor implements Compactor {
 
   private void processTopic(String topic) throws IOException {
     LOG.info("Creating MR jobs for topic " + topic);
-    Path topicSourcePath = new Path(this.inputDir, new Path(topic, this.inputSubDir));
-    Path topicDestPath = new Path(this.destDir, new Path(topic, this.destSubDir));
-    Path topicTmpPath = new Path(this.tmpDir, new Path(topic, this.destSubDir));
-    MRCompactorJobPropCreator jobPropCreator = getJobPropCreator(topic, topicSourcePath, topicDestPath, topicTmpPath);
+    MRCompactorJobPropCreator jobPropCreator = getJobPropCreator(topic);
     List<State> allJobProps = jobPropCreator.createJobProps();
     for (State jobProps : allJobProps) {
       processJob(jobProps);
@@ -279,7 +276,7 @@ public class MRCompactor implements Compactor {
   /**
    * Get an instance of MRCompactorJobPropCreator, e.g., MRCompactorTimeBasedJobPropCreator for time-based compaction.
    */
-  MRCompactorJobPropCreator getJobPropCreator(String topic, Path topicInputDir, Path topicOutputDir, Path topicTmpDir) {
+  private MRCompactorJobPropCreator getJobPropCreator(String topic) {
     String builderClassName = this.state.getProp(ConfigurationKeys.COMPACTION_JOBPROPS_CREATOR_CLASS,
         ConfigurationKeys.DEFAULT_COMPACTION_JOBPROPS_CREATOR_CLASS) + "$Builder";
     boolean deduplicate = this.state.getPropAsBoolean(ConfigurationKeys.COMPACTION_DEDUPLICATE,
@@ -287,7 +284,10 @@ public class MRCompactor implements Compactor {
 
     try {
       return ((MRCompactorJobPropCreator.Builder<?>) Class.forName(builderClassName).newInstance()).withTopic(topic)
-          .withTopicInputDir(topicInputDir).withTopicOutputDir(topicOutputDir).withTopicTmpDir(topicTmpDir)
+          .withTopicInputDir(new Path(this.inputDir, new Path(topic, this.inputSubDir)))
+          .withTopicOutputDir(new Path(this.destDir, new Path(topic, this.destSubDir)))
+          .withTopicOutputBaseDir(new Path(this.destDir, topic))
+          .withTopicTmpDir( new Path(this.tmpDir, new Path(topic, this.destSubDir)))
           .withFileSystem(this.fs).withDeduplicate(deduplicate).withState(this.state).build();
     } catch (Exception e) {
       throw new RuntimeException(e);
