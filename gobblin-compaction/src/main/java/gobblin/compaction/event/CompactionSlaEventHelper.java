@@ -47,7 +47,10 @@ public class CompactionSlaEventHelper {
     if (job.isPresent()) {
       setRecordCount(state, job.get());
     }
-    setUpstreamTimeStamp(state, fs);
+  }
+
+  public static void setUpstreamTimeStamp(State state, long time) {
+    state.setProp(SlaEventKeys.UPSTREAM_TS_IN_MILLI_SECS_KEY, Long.toString(time));
   }
 
   private static void setDatasetUrn(State state) {
@@ -58,17 +61,6 @@ public class CompactionSlaEventHelper {
 
   private static void setPartition(State state) {
     state.setProp(SlaEventKeys.PARTITION_KEY, state.getProp(MRCompactor.COMPACTION_JOB_DEST_PARTITION));
-  }
-
-  private static void setUpstreamTimeStamp(State state, FileSystem fs) {
-
-    String inputDirectory = state.getProp(MRCompactor.COMPACTION_JOB_INPUT_DIR);
-    try {
-      FileStatus fileStatus = fs.getFileStatus(new Path(inputDirectory));
-      state.setProp(SlaEventKeys.UPSTREAM_TS_IN_MILLI_SECS_KEY, Long.toString(fileStatus.getModificationTime()));
-    } catch (IOException e) {
-      LOG.debug("Failed to get upstream time.", e);
-    }
   }
 
   private static void setPreviousPublishTime(State state, FileSystem fs) {
