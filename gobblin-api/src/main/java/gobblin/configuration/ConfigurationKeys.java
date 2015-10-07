@@ -226,7 +226,7 @@ public class ConfigurationKeys {
   public static final String WRITER_DEFLATE_LEVEL = WRITER_PREFIX + ".deflate.level";
   public static final String WRITER_CODEC_TYPE = WRITER_PREFIX + ".codec.type";
   public static final String WRITER_EAGER_INITIALIZATION_KEY = WRITER_PREFIX + ".eager.initialization";
-  public static final boolean DEFAULT_EAGER_WRITER_INITIALIZATION = false;
+  public static final boolean DEFAULT_WRITER_EAGER_INITIALIZATION = false;
 
   // Deprecated. Use WRITER_PARTITION_COLUMNS
   @Deprecated
@@ -417,79 +417,6 @@ public class ConfigurationKeys {
   public static final String EMAIL_PASSWORD_KEY = "email.password";
   public static final String EMAIL_FROM_KEY = "email.from";
   public static final String EMAIL_TOS_KEY = "email.tos";
-
-  /**
-   * Configuration properties for compaction.
-   */
-  public static final String COMPACTION_PREFIX = "compaction.";
-  public static final String COMPACTION_THREAD_POOL_SIZE = COMPACTION_PREFIX + "thread.pool.size";
-  public static final int DEFAULT_COMPACTION_THREAD_POOL_SIZE = 20;
-  public static final String COMPACTION_INPUT_DIR = COMPACTION_PREFIX + "input.dir";
-  public static final String COMPACTION_INPUT_SUBDIR = COMPACTION_PREFIX + "input.subdir";
-  public static final String DEFAULT_COMPACTION_INPUT_SUBDIR = "hourly";
-  public static final String COMPACTION_JOB_INPUT_DIR = COMPACTION_PREFIX + "job.input.dir";
-  public static final String COMPACTION_DEST_DIR = COMPACTION_PREFIX + "dest.dir";
-  public static final String COMPACTION_DEST_SUBDIR = COMPACTION_PREFIX + "dest.subdir";
-  public static final String DEFAULT_COMPACTION_DEST_SUBDIR = "daily";
-  public static final String COMPACTION_DEST_LATE_SUBDIR = COMPACTION_PREFIX + "dest.late.subdir";
-  public static final String DEFAULT_COMPACTION_DEST_LATE_SUBDIR = "daily_late";
-  public static final String COMPACTION_JOB_DEST_DIR = COMPACTION_PREFIX + "job.dest.dir";
-  public static final String COMPACTION_JOB_DEST_BASE_DIR = COMPACTION_PREFIX + "job.dest.base.dir";
-  public static final String COMPACTION_JOB_DEST_LATE_DIR = COMPACTION_PREFIX + "job.dest.late.dir";
-  public static final String COMPACTION_JOB_DEST_PARTITION = COMPACTION_PREFIX + "job.dest.partition";
-  public static final String COMPACTION_TMP_DIR = COMPACTION_PREFIX + "tmp.dir";
-  public static final String DEFAULT_COMPACTION_TMP_DIR = "/tmp";
-  public static final String COMPACTION_JOB_TMP_DIR = COMPACTION_PREFIX + "job.tmp.dir";
-  public static final String COMPACTION_BLACKLIST = COMPACTION_PREFIX + "blacklist";
-  public static final String COMPACTION_WHITELIST = COMPACTION_PREFIX + "whitelist";
-  public static final String COMPACTION_HIGH_PRIORITY_TOPICS = COMPACTION_PREFIX + "high.priority.topics";
-  public static final String COMPACTION_NORMAL_PRIORITY_TOPICS = COMPACTION_PREFIX + "normal.priority.topics";
-  public static final String COMPACTION_JOBPROPS_CREATOR_CLASS = COMPACTION_PREFIX + "jobprops.creator.class";
-  public static final String DEFAULT_COMPACTION_JOBPROPS_CREATOR_CLASS =
-      "gobblin.compaction.mapreduce.MRCompactorTimeBasedJobPropCreator";
-  public static final String COMPACTION_HDFS_EVENT_COUNT_PROVIDER = COMPACTION_PREFIX + "hdfs.count.provider";
-  public static final String COMPACTION_TIMEBASED_FOLDER_PATTERN = COMPACTION_PREFIX + "timebased.folder.pattern";
-  public static final String DEFAULT_COMPACTION_TIMEBASED_FOLDER_PATTERN = "YYYY/MM/dd";
-  public static final String COMPACTION_TIMEZONE = COMPACTION_PREFIX + "timezone";
-  public static final String DEFAULT_COMPACTION_TIMEZONE = "America/Los_Angeles";
-  public static final String COMPACTION_TIMEBASED_MAX_TIME_AGO = COMPACTION_PREFIX + "timebased.max.time.ago";
-  public static final String DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO = "3d";
-  public static final String COMPACTION_TIMEBASED_MIN_TIME_AGO = COMPACTION_PREFIX + "timebased.min.time.ago";
-  public static final String DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO = "1d";
-  public static final String COMPACTION_TOPIC = COMPACTION_PREFIX + "topic";
-  public static final String COMPACTION_OUTPUT_DIR_PERMISSION = COMPACTION_PREFIX + "output.dir.permission";
-  public static final String COMPACTION_TARGET_OUTPUT_FILE_SIZE = COMPACTION_PREFIX + "target.output.file.size";
-  public static final long DEFAULT_COMPACTION_TARGET_OUTPUT_FILE_SIZE = 268435456;
-  public static final String COMPACTION_MAX_NUM_REDUCERS = COMPACTION_PREFIX + "max.num.reducers";
-  public static final int DEFAULT_COMPACTION_MAX_NUM_REDUCERS = 900;
-  public static final String COMPACTION_MAPRED_MAX_SPLIT_SIZE = COMPACTION_PREFIX + "mapred.max.split.size";
-  public static final long DEFAULT_COMPACTION_MAPRED_MAX_SPLIT_SIZE = 268435456;
-  public static final String COMPACTION_MAPRED_MIN_SPLIT_SIZE = COMPACTION_PREFIX + "mapred.min.split.size";
-  public static final long DEFAULT_COMPACTION_MAPRED_MIN_SPLIT_SIZE = 268435456;
-  public static final String COMPACTION_AVRO_KEY_SCHEMA_LOC = COMPACTION_PREFIX + "avro.key.schema.loc";
-  public static final String COMPACTION_DEDUP_KEY = COMPACTION_PREFIX + "dedup.key";
-  public static final String COMPACTION_JOB_RUNNER_CLASS = COMPACTION_PREFIX + "job.runner.class";
-  public static final String DEFAULT_COMPACTION_JOB_RUNNER_CLASS =
-      "gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner";
-  public static final String COMPACTION_COMPACTOR_CLASS = COMPACTION_PREFIX + "compactor.class";
-  public static final String DEFAULT_COMPACTION_COMPACTOR_CLASS = "gobblin.compaction.mapreduce.MRCompactor";
-  public static final String COMPACTION_FILE_SYSTEM_URI = COMPACTION_PREFIX + "file.system.uri";
-  public static final String COMPACTION_MR_JOB_TIMEOUT_MINUTES = COMPACTION_PREFIX + "mr.job.timeout.minutes";
-  public static final int DEFAULT_COMPACTION_MR_JOB_TIMEOUT_MINUTES = Integer.MAX_VALUE;
-  public static final String COMPACTION_RECOMPACT_FOR_LATE_DATA = COMPACTION_PREFIX + "recompact.for.late.data";
-  public static final boolean DEFAULT_COMPACTION_RECOMPACT_FOR_LATE_DATA = false;
-  public static final String COMPACTION_DEDUPLICATE = COMPACTION_PREFIX + "deduplicate";
-  public static final boolean DEFAULT_COMPACTION_DEDUPLICATE = true;
-  public static final String COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK = COMPACTION_PREFIX + "job.late.data.movement.task";
-  public static final String COMPACTION_JOB_LATE_DATA_FILES = COMPACTION_PREFIX + "job.late.data.files";
-  public static final String COMPACTION_COMPLETE_FILE_NAME = "_COMPACTION_COMPLETE";
-  @Deprecated
-  public static final String COMPACTION_LATE_FILES_DIRECTORY = "late";
-  public static final String COMPACTION_ENABLE_SUCCESS_FILE = "mapreduce.fileoutputcommitter.marksuccessfuljobs";
-  public static final String COMPACTION_OVERWRITE_OUTPUT_DIR = COMPACTION_PREFIX + "overwrite.output.dir";
-  public static final boolean DEFAULT_COMPACTION_OVERWRITE_OUTPUT_DIR = false;
-  public static final String COMPACTION_JARS = COMPACTION_PREFIX + "jars";
-  public static final String COMPACTION_TRACKING_EVENTS_NAMESPACE = COMPACTION_PREFIX + "tracking.events";
 
   /**
    * Common metrics configuration properties.

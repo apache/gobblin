@@ -134,7 +134,7 @@ public class ExecutorsUtils {
    * later cancelling existing tasks.
    *
    * <p>
-   *   This method calls {@link #shutdownExecutorService(ExecutorService, long, TimeUnit)}
+   *   This method calls {@link #shutdownExecutorService(ExecutorService, Optional, long, TimeUnit)}
    *   with default timeout time {@link #EXECUTOR_SERVICE_SHUTDOWN_TIMEOUT} and time unit
    *   {@link #EXECUTOR_SERVICE_SHUTDOWN_TIMEOUT_TIMEUNIT}.
    * </p>

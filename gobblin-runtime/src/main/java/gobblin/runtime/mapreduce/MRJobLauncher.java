@@ -109,8 +109,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
   private static final String WORK_UNIT_FILE_EXTENSION = ".wu";
   private static final String MULTI_WORK_UNIT_FILE_EXTENSION = ".mwu";
 
-  private static final String TASK_STATE_STORE_TABLE_SUFFIX = ".tst";
-
   private static final String JOB_STATE_FILE_NAME = "job.state";
 
   private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();

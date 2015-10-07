@@ -108,7 +108,7 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
     if(this.reportingQueue.size() > QUEUE_CAPACITY * 2 / 3) {
       immediatelyScheduleReport();
     }
-    this.reportingQueue.add(sanitizeEvent(event));
+    this.reportingQueue.offer(sanitizeEvent(event));
   }
 
   /**

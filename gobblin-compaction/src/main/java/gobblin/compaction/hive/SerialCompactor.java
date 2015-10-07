@@ -106,8 +106,7 @@ public class SerialCompactor implements Compactor {
     Closer closer = Closer.create();
 
     try {
-      this.conn =
-          closer.register(HiveJdbcConnector.newConnectorWithProps(CompactionRunner.properties));
+      this.conn = closer.register(HiveJdbcConnector.newConnectorWithProps(CompactionRunner.properties));
 
       setHiveParameters();
       createTables();
@@ -135,9 +134,8 @@ public class SerialCompactor implements Compactor {
   private void checkSchemaCompatibility() {
     for (int i = 0; i < deltas.size(); i++) {
       if (!this.snapshot.hasSamePrimaryKey(this.deltas.get(i))) {
-        String message =
-            "Schema incompatible: the snapshot table and delta table #" + (i + 1)
-                + " do not have the same primary key.";
+        String message = "Schema incompatible: the snapshot table and delta table #" + (i + 1)
+            + " do not have the same primary key.";
         LOG.error(message);
         throw new RuntimeException(message);
       }
@@ -175,8 +173,8 @@ public class SerialCompactor implements Compactor {
   private void setHiveInputSplitSize() throws SQLException {
     boolean splitSizeSpecified = CompactionRunner.jobProperties.containsKey(HIVE_INPUT_SPLIT_SIZE);
     if (splitSizeSpecified) {
-      this.conn.executeStatements("set " + MAPRED_MIN_SPLIT_SIZE + "="
-          + CompactionRunner.jobProperties.getProperty(HIVE_INPUT_SPLIT_SIZE));
+      this.conn.executeStatements(
+          "set " + MAPRED_MIN_SPLIT_SIZE + "=" + CompactionRunner.jobProperties.getProperty(HIVE_INPUT_SPLIT_SIZE));
     }
   }
 
@@ -218,9 +216,8 @@ public class SerialCompactor implements Compactor {
   }
 
   private void insertFirstDeltaIntoMergedDelta(HiveManagedTable mergedDelta) throws SQLException {
-    String insertStmt =
-        "INSERT OVERWRITE TABLE " + mergedDelta.getNameWithJobId(this.jobId) + " SELECT * FROM "
-            + this.deltas.get(0).getNameWithJobId(this.jobId);
+    String insertStmt = "INSERT OVERWRITE TABLE " + mergedDelta.getNameWithJobId(this.jobId) + " SELECT * FROM "
+        + this.deltas.get(0).getNameWithJobId(this.jobId);
     this.conn.executeStatements(insertStmt);
   }
 
@@ -231,16 +228,14 @@ public class SerialCompactor implements Compactor {
     HiveTable notUpdatedWithNewSchema = notUpdated.addNewColumnsInSchema(this.conn, this.latestTable, this.jobId);
     HiveTable nextDeltaWithNewSchema = nextDelta.addNewColumnsInSchema(this.conn, this.latestTable, this.jobId);
 
-    mergedDelta =
-        new HiveManagedTable.Builder().withName(mergedDelta.getName()).withAttributes(this.latestTable.getAttributes())
-            .withPrimaryKeys(this.latestTable.getPrimaryKeys()).build();
+    mergedDelta = new HiveManagedTable.Builder().withName(mergedDelta.getName())
+        .withAttributes(this.latestTable.getAttributes()).withPrimaryKeys(this.latestTable.getPrimaryKeys()).build();
 
     mergedDelta.createTable(this.conn, this.jobId);
 
-    String unionStmt =
-        "INSERT OVERWRITE TABLE " + mergedDelta.getNameWithJobId(this.jobId) + " SELECT " + getAttributesInNewSchema()
-            + " FROM " + notUpdatedWithNewSchema.getNameWithJobId(this.jobId) + " UNION ALL " + "SELECT "
-            + getAttributesInNewSchema() + " FROM " + nextDeltaWithNewSchema.getNameWithJobId(this.jobId);
+    String unionStmt = "INSERT OVERWRITE TABLE " + mergedDelta.getNameWithJobId(this.jobId) + " SELECT "
+        + getAttributesInNewSchema() + " FROM " + notUpdatedWithNewSchema.getNameWithJobId(this.jobId) + " UNION ALL "
+        + "SELECT " + getAttributesInNewSchema() + " FROM " + nextDeltaWithNewSchema.getNameWithJobId(this.jobId);
     conn.executeStatements(unionStmt);
 
     nextDelta.dropTable(this.conn, this.jobId);
@@ -263,16 +258,14 @@ public class SerialCompactor implements Compactor {
     LOG.info("Getting records in table " + oldTable.getNameWithJobId(this.jobId) + " but not in table "
         + newTable.getNameWithJobId(this.jobId));
 
-    HiveManagedTable notUpdated =
-        new HiveManagedTable.Builder().withName("not_updated").withPrimaryKeys(oldTable.getPrimaryKeys())
-            .withAttributes(oldTable.getAttributes()).build();
+    HiveManagedTable notUpdated = new HiveManagedTable.Builder().withName("not_updated")
+        .withPrimaryKeys(oldTable.getPrimaryKeys()).withAttributes(oldTable.getAttributes()).build();
 
     notUpdated.createTable(this.conn, this.jobId);
-    String leftOuterJoinStmt =
-        "INSERT OVERWRITE TABLE " + notUpdated.getNameWithJobId(this.jobId) + " SELECT "
-            + oldTable.getNameWithJobId(this.jobId) + ".* FROM " + oldTable.getNameWithJobId(this.jobId)
-            + " LEFT OUTER JOIN " + newTable.getNameWithJobId(this.jobId) + " ON "
-            + getJoinCondition(oldTable, newTable) + " WHERE " + getKeyIsNullPredicate(newTable);
+    String leftOuterJoinStmt = "INSERT OVERWRITE TABLE " + notUpdated.getNameWithJobId(this.jobId) + " SELECT "
+        + oldTable.getNameWithJobId(this.jobId) + ".* FROM " + oldTable.getNameWithJobId(this.jobId)
+        + " LEFT OUTER JOIN " + newTable.getNameWithJobId(this.jobId) + " ON " + getJoinCondition(oldTable, newTable)
+        + " WHERE " + getKeyIsNullPredicate(newTable);
 
     this.conn.executeStatements(leftOuterJoinStmt);
 
@@ -326,17 +319,15 @@ public class SerialCompactor implements Compactor {
     HiveTable notUpdatedWithNewSchema = notUpdated.addNewColumnsInSchema(this.conn, this.latestTable, this.jobId);
     HiveTable mergedDeltaWithNewSchema = mergedDelta.addNewColumnsInSchema(this.conn, this.latestTable, this.jobId);
 
-    AvroExternalTable outputTable =
-        new AvroExternalTable.Builder().withName(this.outputTableName)
-            .withPrimaryKeys(this.latestTable.getPrimaryKeys())
-            .withSchemaLocation(this.latestTable.getSchemaLocationInHdfs())
-            .withDataLocation(this.outputDataLocationInHdfs).build();
+    AvroExternalTable outputTable = new AvroExternalTable.Builder().withName(this.outputTableName)
+        .withPrimaryKeys(this.latestTable.getPrimaryKeys())
+        .withSchemaLocation(this.latestTable.getSchemaLocationInHdfs()).withDataLocation(this.outputDataLocationInHdfs)
+        .build();
     outputTable.createTable(this.conn, this.jobId);
 
-    String unionStmt =
-        "INSERT OVERWRITE TABLE " + outputTable.getNameWithJobId(this.jobId) + " SELECT " + getAttributesInNewSchema()
-            + " FROM " + notUpdatedWithNewSchema.getNameWithJobId(this.jobId) + " UNION ALL " + "SELECT "
-            + getAttributesInNewSchema() + " FROM " + mergedDeltaWithNewSchema.getNameWithJobId(this.jobId);
+    String unionStmt = "INSERT OVERWRITE TABLE " + outputTable.getNameWithJobId(this.jobId) + " SELECT "
+        + getAttributesInNewSchema() + " FROM " + notUpdatedWithNewSchema.getNameWithJobId(this.jobId) + " UNION ALL "
+        + "SELECT " + getAttributesInNewSchema() + " FROM " + mergedDeltaWithNewSchema.getNameWithJobId(this.jobId);
     this.conn.executeStatements(unionStmt);
 
     notUpdatedWithNewSchema.dropTable(this.conn, this.jobId);
@@ -350,5 +341,10 @@ public class SerialCompactor implements Compactor {
     for (AvroExternalTable delta : this.deltas) {
       delta.deleteTmpFilesIfNeeded();
     }
+  }
+
+  @Override
+  public void cancel() throws IOException {
+    // Do nothing
   }
 }

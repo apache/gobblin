@@ -42,9 +42,8 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
+import gobblin.compaction.Dataset;
 import gobblin.compaction.mapreduce.MRCompactorJobRunner;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
 import gobblin.util.AvroUtils;
 
 
@@ -60,6 +59,15 @@ import gobblin.util.AvroUtils;
 public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
 
   private static final Logger LOG = LoggerFactory.getLogger(MRCompactorAvroKeyDedupJobRunner.class);
+
+  private static final String COMPACTION_JOB_PREFIX = "compaction.job.";
+
+  /**
+   * Properties related to the avro dedup compaction job of a dataset.
+   */
+  private static final String COMPACTION_JOB_AVRO_KEY_SCHEMA_LOC = COMPACTION_JOB_PREFIX + "avro.key.schema.loc";
+  private static final String COMPACTION_JOB_DEDUP_KEY = COMPACTION_JOB_PREFIX + "dedup.key";
+
   private static final String AVRO = "avro";
   private static final String SCHEMA_DEDUP_FIELD_ANNOTATOR = "primarykey";
 
@@ -78,8 +86,8 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
 
   private static final DedupKeyOption DEFAULT_DEDUP_KEY_OPTION = DedupKeyOption.KEY;
 
-  public MRCompactorAvroKeyDedupJobRunner(State jobProps, FileSystem fs) {
-    super(jobProps, fs);
+  public MRCompactorAvroKeyDedupJobRunner(Dataset dataset, FileSystem fs, Double priority) {
+    super(dataset, fs, priority);
   }
 
   @Override
@@ -128,7 +136,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
         keySchema = AvroUtils.removeUncomparableFields(getKeySchema(topicSchema)).get();
       }
     } else {
-      LOG.info("Property " + ConfigurationKeys.COMPACTION_AVRO_KEY_SCHEMA_LOC
+      LOG.info("Property " + COMPACTION_JOB_AVRO_KEY_SCHEMA_LOC
           + " not provided. Using key attributes in the schema for compaction");
       keySchema = AvroUtils.removeUncomparableFields(getKeySchema(topicSchema)).get();
     }
@@ -158,7 +166,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
       case RECORD:
         return getKeySchemaFromRecord(field.schema());
       default:
-        if (field.doc().toLowerCase().endsWith(SCHEMA_DEDUP_FIELD_ANNOTATOR)) {
+        if (field.doc() != null && field.doc().toLowerCase().endsWith(SCHEMA_DEDUP_FIELD_ANNOTATOR)) {
           return Optional.of(field.schema());
         } else {
           return Optional.absent();
@@ -230,20 +238,20 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
   }
 
   private DedupKeyOption getDedupKeyOption() {
-    if (!this.jobProps.contains(ConfigurationKeys.COMPACTION_DEDUP_KEY)) {
+    if (!this.jobProps.contains(COMPACTION_JOB_DEDUP_KEY)) {
       return DEFAULT_DEDUP_KEY_OPTION;
     }
-    Optional<DedupKeyOption> option = Enums.getIfPresent(DedupKeyOption.class,
-        this.jobProps.getProp(ConfigurationKeys.COMPACTION_DEDUP_KEY).toUpperCase());
+    Optional<DedupKeyOption> option =
+        Enums.getIfPresent(DedupKeyOption.class, this.jobProps.getProp(COMPACTION_JOB_DEDUP_KEY).toUpperCase());
     return option.isPresent() ? option.get() : DEFAULT_DEDUP_KEY_OPTION;
   }
 
   private boolean keySchemaFileSpecified() {
-    return this.jobProps.contains(ConfigurationKeys.COMPACTION_AVRO_KEY_SCHEMA_LOC);
+    return this.jobProps.contains(COMPACTION_JOB_AVRO_KEY_SCHEMA_LOC);
   }
 
   private Path getKeySchemaFile() {
-    return new Path(this.jobProps.getProp(ConfigurationKeys.COMPACTION_AVRO_KEY_SCHEMA_LOC));
+    return new Path(this.jobProps.getProp(COMPACTION_JOB_AVRO_KEY_SCHEMA_LOC));
   }
 
   @Override

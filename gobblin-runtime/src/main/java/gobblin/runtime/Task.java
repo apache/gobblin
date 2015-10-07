@@ -151,8 +151,8 @@ public class Task implements Runnable {
         if (forkedSchemas.get(i)) {
           Fork fork = closer.register(new Fork(this.taskContext, this.taskState,
               schema instanceof Copyable ? ((Copyable) schema).copy() : schema, branches, i, forkCountDownLatch));
-          // Schedule the fork to run
-          this.taskExecutor.submit(fork);
+          // Run the Fork
+          this.taskExecutor.execute(fork);
           this.forks.add(Optional.of(fork));
         } else {
           this.forks.add(Optional.<Fork> absent());

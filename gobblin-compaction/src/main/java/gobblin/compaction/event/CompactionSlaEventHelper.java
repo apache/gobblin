@@ -1,3 +1,16 @@
+/*
+ *
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.compaction.event;
 
 import java.io.IOException;
@@ -11,10 +24,13 @@ import org.apache.hadoop.mapreduce.Job;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
+
+import gobblin.compaction.mapreduce.MRCompactor;
 import gobblin.compaction.mapreduce.avro.AvroKeyDedupReducer;
-import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.metrics.event.sla.SlaEventKeys;
+
 
 /**
  * Helper class to populate sla event metadata in state.
@@ -23,27 +39,30 @@ public class CompactionSlaEventHelper {
 
   private static final Logger LOG = LoggerFactory.getLogger(CompactionSlaEventHelper.class);
 
-  public static void populateState(State state , Job job, FileSystem fs) {
+  public static void populateState(State state, Optional<Job> job, FileSystem fs) {
     setDatasetUrn(state);
     setPartition(state);
     setDedupeStatus(state);
     setPreviousPublishTime(state, fs);
-    setRecordCount(state, job);
+    if (job.isPresent()) {
+      setRecordCount(state, job.get());
+    }
     setUpstreamTimeStamp(state, fs);
   }
 
   private static void setDatasetUrn(State state) {
-    state.setProp(SlaEventKeys.DATASET_URN_KEY, new Path(state.getProp(ConfigurationKeys.COMPACTION_DEST_DIR),
-        state.getProp(ConfigurationKeys.COMPACTION_TOPIC)).toString());
+    state.setProp(SlaEventKeys.DATASET_URN_KEY,
+        new Path(state.getProp(MRCompactor.COMPACTION_DEST_DIR), state.getProp(MRCompactor.COMPACTION_TOPIC))
+            .toString());
   }
 
   private static void setPartition(State state) {
-    state.setProp(SlaEventKeys.PARTITION_KEY, state.getProp(ConfigurationKeys.COMPACTION_JOB_DEST_PARTITION));
+    state.setProp(SlaEventKeys.PARTITION_KEY, state.getProp(MRCompactor.COMPACTION_JOB_DEST_PARTITION));
   }
 
   private static void setUpstreamTimeStamp(State state, FileSystem fs) {
 
-    String inputDirectory = state.getProp(ConfigurationKeys.COMPACTION_JOB_INPUT_DIR);
+    String inputDirectory = state.getProp(MRCompactor.COMPACTION_JOB_INPUT_DIR);
     try {
       FileStatus fileStatus = fs.getFileStatus(new Path(inputDirectory));
       state.setProp(SlaEventKeys.UPSTREAM_TS_IN_MILLI_SECS_KEY, Long.toString(fileStatus.getModificationTime()));
@@ -55,20 +74,19 @@ public class CompactionSlaEventHelper {
   private static void setPreviousPublishTime(State state, FileSystem fs) {
 
     Path compactionCompletePath =
-        new Path(state.getProp(ConfigurationKeys.COMPACTION_JOB_DEST_DIR),
-            ConfigurationKeys.COMPACTION_COMPLETE_FILE_NAME);
+        new Path(state.getProp(MRCompactor.COMPACTION_JOB_DEST_DIR), MRCompactor.COMPACTION_COMPLETE_FILE_NAME);
 
     try {
       FileStatus fileStatus = fs.getFileStatus(compactionCompletePath);
-      state.setProp(SlaEventKeys.PREVIOUS_PUBLISH_TS_IN_MILLI_SECS_KEY, Long.toString(fileStatus.getModificationTime()));
+      state.setProp(SlaEventKeys.PREVIOUS_PUBLISH_TS_IN_MILLI_SECS_KEY,
+          Long.toString(fileStatus.getModificationTime()));
     } catch (IOException e) {
       LOG.debug("Failed to get previous publish time.", e);
     }
   }
 
   private static void setDedupeStatus(State state) {
-    if (state.getPropAsBoolean(ConfigurationKeys.COMPACTION_DEDUPLICATE,
-        ConfigurationKeys.DEFAULT_COMPACTION_DEDUPLICATE)) {
+    if (state.getPropAsBoolean(MRCompactor.COMPACTION_DEDUPLICATE, MRCompactor.DEFAULT_COMPACTION_DEDUPLICATE)) {
       state.setProp(SlaEventKeys.DEDUPE_STATUS_KEY, DedupeStatus.DEDUPED);
 
     } else {

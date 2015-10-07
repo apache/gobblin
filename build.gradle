@@ -69,6 +69,9 @@ ext.externalDependency = [
   "hadoopClientCommon": "org.apache.hadoop:hadoop-mapreduce-client-common:"+hadoopVersion,
   "hadoopHdfs": "org.apache.hadoop:hadoop-hdfs:"+hadoopVersion,
   "hadoopAuth": "org.apache.hadoop:hadoop-auth:"+hadoopVersion,
+  "hadoopYarnApi": "org.apache.hadoop:hadoop-yarn-api:"+hadoopVersion,
+  "hadoopYarnCommon": "org.apache.hadoop:hadoop-yarn-common:"+hadoopVersion,
+  "hadoopYarnClient": "org.apache.hadoop:hadoop-yarn-client:"+hadoopVersion,
   "hadoopAnnotations": "org.apache.hadoop:hadoop-annotations:"+hadoopVersion,
   "hadoopAws": "org.apache.hadoop:hadoop-aws:2.6.0",
   "hiveService": "org.apache.hive:hive-service:"+hiveVersion,
@@ -109,6 +112,7 @@ ext.externalDependency = [
   "lombok":"org.projectlombok:lombok:1.16.4",
   "mockRunnerJdbc":"com.mockrunner:mockrunner-jdbc:1.0.8",
   "xerces":"xercesImpl:2.11.0",
+  "typesafeConfig": "com.typesafe:config:1.3.0",
   "byteman": "org.jboss.byteman:byteman:"+bytemanVersion,
   "bytemanBmunit": "org.jboss.byteman:byteman-bmunit:"+bytemanVersion,
   "pegasus" : [

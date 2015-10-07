@@ -52,7 +52,7 @@ public class TestTrashTest {
 
   }
 
-  @Test
+  @Test(enabled=false)
   public void testDelay() throws Exception {
 
     ExecutorService executorService = Executors.newFixedThreadPool(5);

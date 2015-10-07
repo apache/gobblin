@@ -56,6 +56,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
   private static final Logger LOG = LoggerFactory.getLogger(AbstractJobLauncher.class);
 
+  public static final String TASK_STATE_STORE_TABLE_SUFFIX = ".tst";
+
   // Job configuration properties
   protected final Properties jobProps;
 
@@ -142,8 +144,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       Task task = new Task(new TaskContext(workUnitState), stateTracker, taskExecutor, Optional.of(countDownLatch));
       stateTracker.registerNewTask(task);
       tasks.add(task);
-      LOG.info(String.format("Submitting task %s to run", taskId));
-      taskExecutor.submit(task);
+      taskExecutor.execute(task);
     }
 
     new EventSubmitter.Builder(JobMetrics.get(jobId).getMetricContext(), "gobblin.runtime").build()

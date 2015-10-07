@@ -40,8 +40,6 @@ import com.google.common.io.Closer;
 import com.google.common.util.concurrent.Striped;
 
 import gobblin.configuration.State;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.HadoopUtils;
 
 
 /**

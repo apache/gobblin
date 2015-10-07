@@ -24,7 +24,6 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
-import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 
 
@@ -121,8 +120,8 @@ public class MRCompactorJobPropCreator {
       LOG.warn("Input folder " + this.topicInputDir + " does not exist. Skipping topic " + this.topic);
       return emptyJobProps;
     }
-    return Collections.singletonList(
-        createJobProps(this.topicInputDir, this.topicOutputDir, this.topicTmpDir, this.deduplicate));
+    return Collections
+        .singletonList(createJobProps(this.topicInputDir, this.topicOutputDir, this.topicTmpDir, this.deduplicate));
   }
 
   /**
@@ -132,23 +131,23 @@ public class MRCompactorJobPropCreator {
       throws IOException {
     State jobProps = new State();
     jobProps.addAll(this.state);
-    jobProps.setProp(ConfigurationKeys.COMPACTION_TOPIC, this.topic);
-    jobProps.setProp(ConfigurationKeys.COMPACTION_JOB_INPUT_DIR, jobInputDir);
-    jobProps.setProp(ConfigurationKeys.COMPACTION_JOB_DEST_DIR, jobOutputDir);
-    jobProps.setProp(ConfigurationKeys.COMPACTION_JOB_TMP_DIR, jobTmpDir);
-    jobProps.setProp(ConfigurationKeys.COMPACTION_ENABLE_SUCCESS_FILE, false);
-    jobProps.setProp(ConfigurationKeys.COMPACTION_DEDUPLICATE, deduplicate);
+    jobProps.setProp(MRCompactor.COMPACTION_TOPIC, this.topic);
+    jobProps.setProp(MRCompactor.COMPACTION_JOB_INPUT_DIR, jobInputDir);
+    jobProps.setProp(MRCompactor.COMPACTION_JOB_DEST_DIR, jobOutputDir);
+    jobProps.setProp(MRCompactor.COMPACTION_JOB_TMP_DIR, jobTmpDir);
+    jobProps.setProp(MRCompactor.COMPACTION_ENABLE_SUCCESS_FILE, false);
+    jobProps.setProp(MRCompactor.COMPACTION_DEDUPLICATE, deduplicate);
     LOG.info(String.format("Created MR job properties for input %s and output %s.", jobInputDir, jobOutputDir));
     return jobProps;
   }
 
   /**
-   * Create MR job properties for a specific input folder ,output folder and partition
+   * Create MR job properties for a specific input folder, output folder and partition
    */
-  protected State createJobProps(Path jobInputDir, Path jobOutputDir, Path jobTmpDir, boolean deduplicate, String partition)
-      throws IOException {
+  protected State createJobProps(Path jobInputDir, Path jobOutputDir, Path jobTmpDir, boolean deduplicate,
+      String partition) throws IOException {
     State jobProps = createJobProps(jobInputDir, jobOutputDir, jobTmpDir, deduplicate);
-    jobProps.setProp(ConfigurationKeys.COMPACTION_JOB_DEST_PARTITION, partition);
+    jobProps.setProp(MRCompactor.COMPACTION_JOB_DEST_PARTITION, partition);
     return jobProps;
   }
 }

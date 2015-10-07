@@ -27,4 +27,10 @@ public interface Compactor {
    * @throws IOException
    */
   public void compact() throws IOException;
+
+  /**
+   * Cancel the compaction
+   * @throws IOException
+   */
+  public void cancel() throws IOException;
 }
