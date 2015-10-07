@@ -57,4 +57,4 @@ test {
   maxParallelForks = 1
 }
 
-classification="library"
+ext.classification="library"

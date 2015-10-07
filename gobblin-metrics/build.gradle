@@ -91,4 +91,4 @@ sourceSets {
   }
 }
 
-classification="library"
+ext.classification="library"

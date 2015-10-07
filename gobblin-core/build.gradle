@@ -57,4 +57,4 @@ test {
   useTestNG () { excludeGroups 'ignore' }
 }
 
-classification="library"
+ext.classification="library"

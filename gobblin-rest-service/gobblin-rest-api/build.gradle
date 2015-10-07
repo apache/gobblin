@@ -26,6 +26,6 @@ buildscript {
     }
 
     dependencies {
-        classpath group: 'com.linkedin.pegasus', name: 'gradle-plugins', version: '1.15.9'
+        classpath group: 'com.linkedin.pegasus', name: 'gradle-plugins', version: pegasusVersion
     }
 }

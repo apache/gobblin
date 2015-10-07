@@ -19,19 +19,18 @@ import java.util.Collections;
 import java.util.Set;
 
 import com.google.common.collect.Sets;
-
 import com.linkedin.common.callback.FutureCallback;
 import com.linkedin.common.util.None;
 import com.linkedin.r2.RemoteInvocationException;
 import com.linkedin.r2.transport.common.Client;
 import com.linkedin.r2.transport.common.bridge.client.TransportClientAdapter;
 import com.linkedin.r2.transport.http.client.HttpClientFactory;
-import com.linkedin.restli.client.BatchGetRequest;
+import com.linkedin.restli.client.BatchGetKVRequest;
 import com.linkedin.restli.client.ErrorHandlingBehavior;
 import com.linkedin.restli.client.GetRequest;
 import com.linkedin.restli.client.Response;
 import com.linkedin.restli.client.RestClient;
-import com.linkedin.restli.common.BatchResponse;
+import com.linkedin.restli.client.response.BatchKVResponse;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 
@@ -89,11 +88,13 @@ public class JobExecutionInfoClient implements Closeable {
       ids.add(new ComplexResourceKey<JobExecutionQuery, EmptyRecord>(query, new EmptyRecord()));
     }
 
-    BatchGetRequest<JobExecutionQueryResult> batchGetRequest = new JobExecutionsBuilders().batchGet().ids(ids).build();
+    BatchGetKVRequest<ComplexResourceKey<JobExecutionQuery, EmptyRecord>, JobExecutionQueryResult>
+        batchGetRequest = new JobExecutionsBuilders().batchGet().ids(ids).buildKV();
 
-    BatchResponse<JobExecutionQueryResult> response =
-        this.restClient.sendRequest(batchGetRequest, ErrorHandlingBehavior.TREAT_SERVER_ERROR_AS_SUCCESS)
-            .getResponseEntity();
+    BatchKVResponse<ComplexResourceKey<JobExecutionQuery, EmptyRecord>, JobExecutionQueryResult>
+        response = this.restClient.sendRequest(batchGetRequest,
+                                               ErrorHandlingBehavior.TREAT_SERVER_ERROR_AS_SUCCESS)
+                                  .getResponseEntity();
     return response.getResults().values();
   }
 
