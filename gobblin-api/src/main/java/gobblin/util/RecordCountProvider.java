@@ -10,16 +10,13 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.compaction.count;
+package gobblin.util;
 
-import java.util.List;
-
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 /**
- * Get event count from HDFS, using given {@link FileSystem} and {@link List} of {@link Path}s.
+ * Get record count from a given {@link Path}.
  */
-public interface HdfsEventCountProvider {
-  public abstract long getEventCount(FileSystem fs, List<Path> paths);
+public interface RecordCountProvider {
+  public long getRecordCount(Path path);
 }

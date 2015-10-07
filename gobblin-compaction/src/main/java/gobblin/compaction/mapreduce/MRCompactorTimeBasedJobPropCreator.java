@@ -84,8 +84,9 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
   MRCompactorTimeBasedJobPropCreator(Builder builder) {
     super(builder);
     this.folderTimePattern = getFolderPattern();
-    this.timeZone = DateTimeZone
-        .forID(this.state.getProp(MRCompactor.COMPACTION_TIMEZONE, MRCompactor.DEFAULT_COMPACTION_TIMEZONE));
+    this.timeZone =
+        DateTimeZone
+            .forID(this.state.getProp(MRCompactor.COMPACTION_TIMEZONE, MRCompactor.DEFAULT_COMPACTION_TIMEZONE));
     this.timeFormatter = DateTimeFormat.forPattern(this.folderTimePattern).withZone(this.timeZone);
   }
 
@@ -117,10 +118,7 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
           if (newDataFiles.isEmpty()) {
             LOG.info(String.format("Folder %s already compacted. Skipping", jobOutputDir));
           } else {
-            Path jobOutputLateDir =
-                new Path(this.topicOutputBaseDir, new Path(this.state.getProp(
-                    MRCompactor.COMPACTION_DEST_LATE_SUBDIR,
-                    MRCompactor.DEFAULT_COMPACTION_DEST_LATE_SUBDIR), folderTime.toString(this.timeFormatter)));
+            Path jobOutputLateDir = new Path(this.topicOutputLateDir, folderTime.toString(this.timeFormatter));
             allJobProps.add(createJobPropsForLateData(status.getPath(), jobOutputDir, jobOutputLateDir, jobTmpDir,
                 newDataFiles));
           }
@@ -174,8 +172,8 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
    * Return job properties for a job to handle the appearance of data within jobInputDir which is
    * more recent than the time of the last compaction.
    */
-  private State createJobPropsForLateData(Path jobInputDir, Path jobOutputDir, Path jobOutputLateDir, Path jobTmpDir, List<Path> newDataFiles)
-      throws IOException {
+  private State createJobPropsForLateData(Path jobInputDir, Path jobOutputDir, Path jobOutputLateDir, Path jobTmpDir,
+      List<Path> newDataFiles) throws IOException {
     if (this.state.getPropAsBoolean(MRCompactor.COMPACTION_RECOMPACT_FOR_LATE_DATA,
         MRCompactor.DEFAULT_COMPACTION_RECOMPACT_FOR_LATE_DATA)) {
       LOG.info(String.format("Will recompact for %s.", jobOutputDir));

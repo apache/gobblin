@@ -37,6 +37,8 @@ dependencies {
   runtime externalDependency.jdo2
   runtime externalDependency.datanucleusCore
   runtime externalDependency.datanucleusRdbms
+
+  testCompile externalDependency.testng
 }
 
 
