@@ -114,7 +114,7 @@ public class GobblinYarnAppLauncher {
   private final YarnClient yarnClient;
   private final FileSystem fs;
 
-  private final EventBus eventBus = new EventBus();
+  private final EventBus eventBus = new EventBus(GobblinYarnAppLauncher.class.getSimpleName());
 
   private final ScheduledExecutorService applicationStatusMonitor;
   private final long appReportIntervalMinutes;
@@ -159,8 +159,6 @@ public class GobblinYarnAppLauncher {
     }
     this.serviceManager = new ServiceManager(services);
 
-    this.eventBus.register(this);
-
     this.applicationStatusMonitor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("GobblinYarnAppStatusMonitor")));
     this.appReportIntervalMinutes = config.getLong(GobblinYarnConfigurationKeys.APP_REPORT_INTERVAL_MINUTES_KEY);
@@ -175,6 +173,8 @@ public class GobblinYarnAppLauncher {
    * @throws YarnException if there's something wrong launching the application
    */
   public void launch() throws IOException, YarnException {
+    this.eventBus.register(this);
+
     createGobblinYarnHelixCluster();
 
     try {

@@ -99,7 +99,8 @@ public class GobblinApplicationMaster {
 
   private final ServiceManager serviceManager;
 
-  private final EventBus eventBus;
+  // An EventBus used for communications between services running in the ApplicationMaster
+  private final EventBus eventBus = new EventBus(GobblinApplicationMaster.class.getSimpleName());
 
   private final HelixManager helixManager;
 
@@ -110,10 +111,6 @@ public class GobblinApplicationMaster {
   private volatile boolean stopInProgress = false;
 
   public GobblinApplicationMaster(String applicationName, Config config) throws Exception {
-    // An EventBus used for communications between services running in the ApplicationMaster
-    this.eventBus = new EventBus(GobblinApplicationMaster.class.getSimpleName());
-    this.eventBus.register(this);
-
     ContainerId containerId =
         ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
     ApplicationAttemptId applicationAttemptId = containerId.getApplicationAttemptId();
@@ -174,6 +171,8 @@ public class GobblinApplicationMaster {
 
     // Add a shutdown hook so the task scheduler gets properly shutdown
     addShutdownHook();
+
+    this.eventBus.register(this);
 
     try {
       this.helixManager.connect();
@@ -344,6 +343,8 @@ public class GobblinApplicationMaster {
 
         // Schedule the task for watching on the removal of the shutdown message, which indicates that
         // the message has been successfully processed and it's safe to disconnect the HelixManager.
+        // This is a hacky way of watching for the completion of processing the shutdown message and
+        // should be replaced by a fix to https://issues.apache.org/jira/browse/HELIX-611.
         shutdownMessageHandlingCompletionWatcher.scheduleAtFixedRate(new Runnable() {
           @Override
           public void run() {

@@ -94,6 +94,8 @@ public class Fork implements Closeable, Runnable, FinalState {
 
   private final Closer closer = Closer.create();
 
+  private final boolean useEagerWriterInitialization;
+
   // The writer will be lazily created when the first data record arrives
   private Optional<InstrumentedDataWriterDecorator<Object>> writer = Optional.absent();
 
@@ -127,6 +129,9 @@ public class Fork implements Closeable, Runnable, FinalState {
     this.convertedSchema = Optional.fromNullable(this.converter.convertSchema(schema, this.taskState));
     this.rowLevelPolicyChecker = this.closer.register(this.taskContext.getRowLevelPolicyChecker(this.index));
     this.rowLevelPolicyCheckingResult = new RowLevelPolicyCheckResults();
+
+    this.useEagerWriterInitialization = this.taskState.getPropAsBoolean(
+        ConfigurationKeys.WRITER_EAGER_INITIALIZATION_KEY, ConfigurationKeys.DEFAULT_WRITER_EAGER_INITIALIZATION);
 
     this.recordQueue = BoundedBlockingRecordQueue.newBuilder()
         .hasCapacity(this.taskState.getPropAsInt(
@@ -369,8 +374,7 @@ public class Fork implements Closeable, Runnable, FinalState {
    * Get new records off the record queue and process them.
    */
   private void processRecords() throws IOException, DataConversionException {
-
-    if (this.taskState.getPropAsBoolean(ConfigurationKeys.WRITER_EAGER_INITIALIZATION_KEY, ConfigurationKeys.DEFAULT_EAGER_WRITER_INITIALIZATION)) {
+    if (this.useEagerWriterInitialization) {
       buildWriterIfNotPresent();
     }
 

@@ -102,7 +102,7 @@ public class GobblinWorkUnitRunner {
 
   private final ServiceManager serviceManager;
 
-  private final EventBus eventBus;
+  private final EventBus eventBus = new EventBus(GobblinWorkUnitRunner.class.getSimpleName());
 
   private final TaskStateModelFactory taskStateModelFactory;
 
@@ -129,8 +129,6 @@ public class GobblinWorkUnitRunner {
         InstanceType.PARTICIPANT, zkConnectionString);
 
     Properties properties = YarnHelixUtils.configToProperties(config);
-
-    this.eventBus = new EventBus();
 
     TaskExecutor taskExecutor = new TaskExecutor(properties);
     TaskStateTracker taskStateTracker = new GobblinHelixTaskStateTracker(properties, this.helixManager);
@@ -306,6 +304,8 @@ public class GobblinWorkUnitRunner {
 
         // Schedule the task for watching on the removal of the shutdown message, which indicates that
         // the message has been successfully processed and it's safe to disconnect the HelixManager.
+        // This is a hacky way of watching for the completion of processing the shutdown message and
+        // should be replaced by a fix to https://issues.apache.org/jira/browse/HELIX-611.
         shutdownMessageHandlingCompletionWatcher.scheduleAtFixedRate(new Runnable() {
           @Override
           public void run() {
