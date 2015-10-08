@@ -205,7 +205,7 @@ public class GobblinYarnAppLauncher {
     }, 0, this.appReportIntervalMinutes, TimeUnit.MINUTES);
 
     List<Service> services = Lists.newArrayList();
-    if (config.hasPath(GobblinYarnConfigurationKeys.TOKEN_FILE_PATH)) {
+    if (config.hasPath(GobblinYarnConfigurationKeys.KEYTAB_FILE_PATH)) {
       LOGGER.info("Adding YarnAppSecurityManager since login is keytab based");
       services.add(new YarnAppSecurityManager(config, this.helixManager, this.fs));
     }

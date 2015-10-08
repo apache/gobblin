@@ -55,7 +55,9 @@ public class YarnContainerSecurityManager extends AbstractIdleService {
 
   public YarnContainerSecurityManager(Config config, FileSystem fs, EventBus eventBus) {
     this.fs = fs;
-    this.tokenFilePath = new Path(config.getString(GobblinYarnConfigurationKeys.TOKEN_FILE_PATH));
+    this.tokenFilePath = new Path(this.fs.getHomeDirectory(),
+        config.getString(GobblinYarnConfigurationKeys.APPLICATION_NAME_KEY) + Path.SEPARATOR
+            + GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
     this.eventBus = eventBus;
   }
 

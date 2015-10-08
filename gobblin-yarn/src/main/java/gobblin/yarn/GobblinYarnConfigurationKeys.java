@@ -64,7 +64,7 @@ public class GobblinYarnConfigurationKeys {
    */
   public static final String KEYTAB_FILE_PATH = GOBBLIN_YARN_PREFIX + "keytab.file.path";
   public static final String KEYTAB_PRINCIPAL_NAME = GOBBLIN_YARN_PREFIX + "keytab.principal.name";
-  public static final String TOKEN_FILE_PATH = GOBBLIN_YARN_PREFIX + "token.file.path";
+  public static final String TOKEN_FILE_NAME = ".token";
   public static final String LOGIN_INTERVAL_IN_MINUTES = GOBBLIN_YARN_PREFIX + "login.interval.minutes";
   public static final String TOKEN_RENEW_INTERVAL_IN_MINUTES = GOBBLIN_YARN_PREFIX + "token.renew.interval.minutes";
 

@@ -137,7 +137,7 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
     TaskStateTracker taskStateTracker = new GobblinHelixTaskStateTracker(properties, this.helixManager);
 
     List<Service> services = Lists.newArrayList();
-    if (config.hasPath(GobblinYarnConfigurationKeys.TOKEN_FILE_PATH)) {
+    if (config.hasPath(GobblinYarnConfigurationKeys.KEYTAB_FILE_PATH)) {
       LOGGER.info("Adding YarnContainerSecurityManager since login is keytab based");
       services.add(new YarnContainerSecurityManager(config, fs, this.eventBus));
     }

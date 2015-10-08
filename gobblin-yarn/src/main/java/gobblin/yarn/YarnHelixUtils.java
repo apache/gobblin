@@ -25,7 +25,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.Credentials;
-import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
@@ -162,10 +161,9 @@ public class YarnHelixUtils {
    * Get environment variables in a {@link java.util.Map} used when launching a Yarn container.
    *
    * @param yarnConfiguration a Hadoop {@link Configuration} object carrying Hadoop/Yarn configuration properties
-   * @param config a {@link Config} object carrying Gobblin Yarn application configuration properties
    * @return a {@link java.util.Map} storing environment variables used when launching a Yarn container
    */
-  public static Map<String, String> getEnvironmentVariables(Configuration yarnConfiguration, Config config) {
+  public static Map<String, String> getEnvironmentVariables(Configuration yarnConfiguration) {
     Map<String, String> environmentVariableMap = Maps.newHashMap();
 
     Apps.addToEnvironment(environmentVariableMap, ApplicationConstants.Environment.JAVA_HOME.key(),
@@ -184,11 +182,6 @@ public class YarnHelixUtils {
         Apps.addToEnvironment(
             environmentVariableMap, ApplicationConstants.Environment.CLASSPATH.key(), classpath.trim());
       }
-    }
-
-    if (UserGroupInformation.isSecurityEnabled()) {
-      Apps.addToEnvironment(environmentVariableMap, "HADOOP_TOKEN_FILE_LOCATION",
-          config.getString(GobblinYarnConfigurationKeys.TOKEN_FILE_PATH));
     }
 
     return environmentVariableMap;
