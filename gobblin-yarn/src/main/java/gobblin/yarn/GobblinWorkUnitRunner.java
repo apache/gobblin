@@ -30,6 +30,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
+import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.helix.HelixDataAccessor;
@@ -90,7 +91,7 @@ import gobblin.yarn.event.DelegationTokenUpdatedEvent;
  *
  * @author ynli
  */
-public class GobblinWorkUnitRunner {
+public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinWorkUnitRunner.class);
 
@@ -116,6 +117,8 @@ public class GobblinWorkUnitRunner {
   public GobblinWorkUnitRunner(String applicationName, Config config) throws Exception {
     this.containerId =
         ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
+    ApplicationAttemptId applicationAttemptId = this.containerId.getApplicationAttemptId();
+
     FileSystem fs = config.hasPath(ConfigurationKeys.FS_URI_KEY) ?
         FileSystem.get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), new Configuration()) :
         FileSystem.get(new Configuration());
@@ -140,6 +143,8 @@ public class GobblinWorkUnitRunner {
     }
     services.add(taskExecutor);
     services.add(taskStateTracker);
+    services.add(buildLogCopier(this.containerId, fs, YarnHelixUtils.getAppWorkDirPath(fs, applicationName,
+        applicationAttemptId.getApplicationId())));
     this.serviceManager = new ServiceManager(services);
 
     // Register task factory for the Helix task state model

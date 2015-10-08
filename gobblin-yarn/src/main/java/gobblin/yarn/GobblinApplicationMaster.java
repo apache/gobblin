@@ -93,14 +93,14 @@ import gobblin.yarn.event.DelegationTokenUpdatedEvent;
  *
  * @author ynli
  */
-public class GobblinApplicationMaster {
+public class GobblinApplicationMaster extends GobblinYarnLogSource {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinApplicationMaster.class);
 
-  private final ServiceManager serviceManager;
-
   // An EventBus used for communications between services running in the ApplicationMaster
   private final EventBus eventBus = new EventBus(GobblinApplicationMaster.class.getSimpleName());
+
+  private final ServiceManager serviceManager;
 
   private final HelixManager helixManager;
 
@@ -143,6 +143,7 @@ public class GobblinApplicationMaster {
     services.add(new JobConfigurationManager(this.eventBus,
         config.hasPath(GobblinYarnConfigurationKeys.JOB_CONF_PACKAGE_PATH_KEY) ? Optional
             .of(config.getString(GobblinYarnConfigurationKeys.JOB_CONF_PACKAGE_PATH_KEY)) : Optional.<String>absent()));
+    services.add(buildLogCopier(containerId, fs, appWorkDir));
 
     this.serviceManager = new ServiceManager(services);
 
