@@ -46,6 +46,7 @@ import com.google.common.io.Closer;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.AbstractScheduledService;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.DatasetFilterUtils;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.FileListUtils;
@@ -444,11 +445,12 @@ public class LogCopier extends AbstractScheduledService {
         // Seek to the the most recent position if it is available
         LOGGER.debug(String.format("Reading log file %s from position %d", srcFile, this.currentPos));
         fsDataInputStream.seek(this.currentPos);
-        BufferedReader srcLogFileReader = closer.register(new BufferedReader(new InputStreamReader(fsDataInputStream)));
+        BufferedReader srcLogFileReader = closer.register(
+            new BufferedReader(new InputStreamReader(fsDataInputStream, ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
 
-        FSDataOutputStream outputStream = destFs.exists(destFile) ?
-            destFs.append(destFile) : destFs.create(destFile);
-        BufferedWriter destLogFileWriter = closer.register(new BufferedWriter(new OutputStreamWriter(outputStream)));
+        FSDataOutputStream outputStream = destFs.exists(destFile) ? destFs.append(destFile) : destFs.create(destFile);
+        BufferedWriter destLogFileWriter = closer.register(
+            new BufferedWriter(new OutputStreamWriter(outputStream, ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
 
         String line;
         int linesProcessed = 0;
