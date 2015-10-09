@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
@@ -36,6 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
@@ -44,6 +46,7 @@ import com.google.common.io.Closer;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.AbstractScheduledService;
 
+import gobblin.util.DatasetFilterUtils;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.FileListUtils;
 
@@ -109,7 +112,8 @@ public class LogCopier extends AbstractScheduledService {
 
   private final Set<String> logFileExtensions;
 
-  private final Optional<Pattern> filterRegexPattern;
+  private final Optional<List<Pattern>> includingRegexPatterns;
+  private final Optional<List<Pattern>> excludingRegexPatterns;
 
   private final Optional<String> logFileNamePrefix;
 
@@ -117,11 +121,10 @@ public class LogCopier extends AbstractScheduledService {
 
   private final ScheduledExecutorService logCopyExecutor;
 
-  // A set of current source log files being copied
-  private final Set<Path> srcLogFiles = Sets.newHashSet();
-
-  // A map from source log file paths to the most recent positions the copier have copied to
-  private final Map<Path, Long> currentPosMap = Maps.newHashMap();
+  // A map from source log file paths to an entry that stores the ScheduledFuture of the copy
+  // task for the log file and the current position to which the copier has copied to. This
+  // is accessed by a single thread so no synchronization is needed.
+  private final Map<Path, ScheduledFuture<?>> logCopyTaskMap = Maps.newHashMap();
 
   private LogCopier(Builder builder) {
     this.srcFs = builder.srcFs;
@@ -136,7 +139,8 @@ public class LogCopier extends AbstractScheduledService {
 
     this.logFileExtensions = builder.logFileExtensions;
 
-    this.filterRegexPattern = Optional.fromNullable(builder.filterRegexPattern);
+    this.includingRegexPatterns = Optional.fromNullable(builder.includingRegexPatterns);
+    this.excludingRegexPatterns = Optional.fromNullable(builder.excludingRegexPatterns);
 
     this.logFileNamePrefix = Optional.fromNullable(builder.logFileNamePrefix);
 
@@ -177,94 +181,31 @@ public class LogCopier extends AbstractScheduledService {
       return;
     }
 
-    Set<Path> currentSrcLogFiles = Sets.newHashSet();
+    Set<Path> newLogFiles = Sets.newHashSet();
     for (FileStatus srcLogFile : srcLogFiles) {
-      currentSrcLogFiles.add(srcLogFile.getPath());
+      newLogFiles.add(srcLogFile.getPath());
     }
 
-    Set<Path> newLogFiles = Sets.newHashSet(currentSrcLogFiles);
-    synchronized (this.srcLogFiles) {
-      // Compute the set of new log files since the last check
-      newLogFiles.removeAll(this.srcLogFiles);
-      this.srcLogFiles.addAll(newLogFiles);
-    }
+    Set<Path> deletedLogFiles = Sets.newHashSet(this.logCopyTaskMap.keySet());
+    // Compute the set of deleted log files since the last check
+    deletedLogFiles.removeAll(newLogFiles);
+    // Compute the set of new log files since the last check
+    newLogFiles.removeAll(this.logCopyTaskMap.keySet());
 
+    // Schedule a copy task for each new log file
     for (final Path srcLogFile : newLogFiles) {
       String destLogFileName = this.logFileNamePrefix.isPresent() ?
           this.logFileNamePrefix.get() + "." + srcLogFile.getName() : srcLogFile.getName();
       final Path destLogFile = new Path(this.destLogDir, destLogFileName);
 
-      // Submit one copy task per new source log file
-      this.logCopyExecutor.scheduleAtFixedRate(new Runnable() {
-        @Override
-        public void run() {
-          try {
-            LOGGER.debug(String.format("Copying changes from %s to %s", srcLogFile, destLogFile));
-            copyChangesOfLogFile(srcFs.makeQualified(srcLogFile), destFs.makeQualified(destLogFile));
-          } catch (IOException ioe) {
-            LOGGER.error(String.format("Failed while copying logs from %s to %s", srcLogFile, destLogFile), ioe);
-          }
-        }
-      }, 0, this.copyInterval, this.timeUnit);
-    }
-  }
-
-  /**
-   * Copy changes for a single log file.
-   */
-  private void copyChangesOfLogFile(Path srcFile, Path destFile) throws IOException {
-    if (!this.srcFs.exists(srcFile)) {
-      LOGGER.warn("Source log file not found: " + srcFile);
-      return;
+      ScheduledFuture<?> copyFuture = this.logCopyExecutor.scheduleAtFixedRate(
+          new LogCopyTask(srcLogFile, destLogFile), 0, this.copyInterval, this.timeUnit);
+      this.logCopyTaskMap.put(srcLogFile, copyFuture);
     }
 
-    Closer closer = Closer.create();
-    // We need to use fsDataInputStream in the finally clause so it has to be defined outside try-catch-finally
-    FSDataInputStream fsDataInputStream = null;
-
-    try {
-      fsDataInputStream = closer.register(this.srcFs.open(srcFile));
-      synchronized (this.currentPosMap) {
-        // Seek to the the most recent position if it is available
-        if (this.currentPosMap.containsKey(srcFile)) {
-          long previousPos = this.currentPosMap.get(srcFile);
-          LOGGER.debug(String.format("Reading log file %s from position %d", srcFile, previousPos));
-          fsDataInputStream.seek(previousPos);
-        }
-      }
-      BufferedReader srcLogFileReader = closer.register(new BufferedReader(new InputStreamReader(fsDataInputStream)));
-
-      FSDataOutputStream outputStream = this.destFs.exists(destFile) ?
-          this.destFs.append(destFile) : this.destFs.create(destFile);
-      BufferedWriter destLogFileWriter = closer.register(new BufferedWriter(new OutputStreamWriter(outputStream)));
-
-      String line;
-      int linesProcessed = 0;
-      while (!Thread.currentThread().isInterrupted() && (line = srcLogFileReader.readLine()) != null) {
-        if (this.filterRegexPattern.isPresent() && !this.filterRegexPattern.get().matcher(line).matches()) {
-          continue;
-        }
-
-        destLogFileWriter.write(line);
-        destLogFileWriter.newLine();
-        linesProcessed++;
-        if (linesProcessed % this.linesWrittenBeforeFlush == 0) {
-          destLogFileWriter.flush();
-        }
-      }
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      try {
-        closer.close();
-      } finally {
-        if (fsDataInputStream != null) {
-          synchronized (this.currentPosMap) {
-            // Remember the current input log file position
-            this.currentPosMap.put(srcFile, fsDataInputStream.getPos());
-          }
-        }
-      }
+    // Cancel the copy task for each deleted log file
+    for (Path deletedLogFile : deletedLogFiles) {
+      this.logCopyTaskMap.remove(deletedLogFile).cancel(true);
     }
   }
 
@@ -282,6 +223,8 @@ public class LogCopier extends AbstractScheduledService {
    */
   public static class Builder {
 
+    private static final Splitter COMMA_SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
+
     private FileSystem srcFs;
     private Path srcLogDir;
     private FileSystem destFs;
@@ -293,7 +236,8 @@ public class LogCopier extends AbstractScheduledService {
 
     private Set<String> logFileExtensions;
 
-    private Pattern filterRegexPattern;
+    private List<Pattern> includingRegexPatterns;
+    private List<Pattern> excludingRegexPatterns;
 
     private String logFileNamePrefix;
 
@@ -349,14 +293,26 @@ public class LogCopier extends AbstractScheduledService {
     }
 
     /**
-     * Set the log filter regex pattern used to filter logs.
+     * Set the regex patterns used to filter logs that should be copied.
      *
-     * @param regex the log filter regex pattern used to filter logs
+     * @param regexList a comma-separated list of regex patterns
      * @return this {@link LogCopier.Builder} instance
      */
-    public Builder useFilterRegexPattern(String regex) {
-      Preconditions.checkNotNull(regex);
-      this.filterRegexPattern = Pattern.compile(regex);
+    public Builder useIncludingRegexPatterns(String regexList) {
+      Preconditions.checkNotNull(regexList);
+      this.includingRegexPatterns = DatasetFilterUtils.getPatternsFromStrings(COMMA_SPLITTER.splitToList(regexList));
+      return this;
+    }
+
+    /**
+     * Set the regex patterns used to filter logs that should not be copied.
+     *
+     * @param regexList a comma-separated list of regex patterns
+     * @return this {@link LogCopier.Builder} instance
+     */
+    public Builder useExcludingRegexPatterns(String regexList) {
+      Preconditions.checkNotNull(regexList);
+      this.excludingRegexPatterns = DatasetFilterUtils.getPatternsFromStrings(COMMA_SPLITTER.splitToList(regexList));
       return this;
     }
 
@@ -441,6 +397,111 @@ public class LogCopier extends AbstractScheduledService {
      */
     public LogCopier build() {
       return new LogCopier(this);
+    }
+  }
+
+  /**
+   * A log copy task that manages the current source log file position itself.
+   */
+  private class LogCopyTask implements Runnable {
+
+    private final Path srcLogFile;
+    private final Path destLogFile;
+
+    // The task maintains the current source log file position itself
+    private long currentPos = 0;
+
+    LogCopyTask(Path srcLogFile, Path destLogFile) {
+      this.srcLogFile = srcLogFile;
+      this.destLogFile = destLogFile;
+    }
+
+    @Override
+    public void run() {
+      try {
+        LOGGER.debug(String.format("Copying changes from %s to %s", this.srcLogFile, this.destLogFile));
+        copyChangesOfLogFile(srcFs.makeQualified(this.srcLogFile), destFs.makeQualified(this.destLogFile));
+      } catch (IOException ioe) {
+        LOGGER.error(String.format("Failed while copying logs from %s to %s", this.srcLogFile, this.destLogFile), ioe);
+      }
+    }
+
+    /**
+     * Copy changes for a single log file.
+     */
+    private void copyChangesOfLogFile(Path srcFile, Path destFile) throws IOException {
+      if (!srcFs.exists(srcFile)) {
+        LOGGER.warn("Source log file not found: " + srcFile);
+        return;
+      }
+
+      Closer closer = Closer.create();
+      // We need to use fsDataInputStream in the finally clause so it has to be defined outside try-catch-finally
+      FSDataInputStream fsDataInputStream = null;
+
+      try {
+        fsDataInputStream = closer.register(srcFs.open(srcFile));
+        // Seek to the the most recent position if it is available
+        LOGGER.debug(String.format("Reading log file %s from position %d", srcFile, this.currentPos));
+        fsDataInputStream.seek(this.currentPos);
+        BufferedReader srcLogFileReader = closer.register(new BufferedReader(new InputStreamReader(fsDataInputStream)));
+
+        FSDataOutputStream outputStream = destFs.exists(destFile) ?
+            destFs.append(destFile) : destFs.create(destFile);
+        BufferedWriter destLogFileWriter = closer.register(new BufferedWriter(new OutputStreamWriter(outputStream)));
+
+        String line;
+        int linesProcessed = 0;
+        while (!Thread.currentThread().isInterrupted() && (line = srcLogFileReader.readLine()) != null) {
+          if (!shouldCopyLine(line)) {
+            continue;
+          }
+
+          destLogFileWriter.write(line);
+          destLogFileWriter.newLine();
+          linesProcessed++;
+          if (linesProcessed % linesWrittenBeforeFlush == 0) {
+            destLogFileWriter.flush();
+          }
+        }
+      } catch (Throwable t) {
+        throw closer.rethrow(t);
+      } finally {
+        try {
+          closer.close();
+        } finally {
+          if (fsDataInputStream != null) {
+            this.currentPos = fsDataInputStream.getPos();
+          }
+        }
+      }
+    }
+
+    /**
+     * Check if a log line should be copied.
+     *
+     * <p>
+     *   A line should be copied if and only if all of the following conditions satisfy:
+     *
+     *   <ul>
+     *     <li>
+     *       It doesn't match any of the excluding regex patterns. If there's no excluding regex patterns,
+     *       this condition is considered satisfied.
+     *     </li>
+     *     <li>
+     *       It matches at least one of the including regex patterns. If there's no including regex patterns,
+     *       this condition is considered satisfied.
+     *     </li>
+     *   </ul>
+     * </p>
+     */
+    private boolean shouldCopyLine(String line) {
+      boolean including = !includingRegexPatterns.isPresent() ||
+          DatasetFilterUtils.stringInPatterns(line, includingRegexPatterns.get());
+      boolean excluding = excludingRegexPatterns.isPresent() &&
+          DatasetFilterUtils.stringInPatterns(line, excludingRegexPatterns.get());
+
+      return !excluding && including;
     }
   }
 }

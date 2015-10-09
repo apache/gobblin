@@ -337,7 +337,7 @@ public class GobblinYarnAppLauncher {
 
     ContainerLaunchContext amContainerLaunchContext = Records.newRecord(ContainerLaunchContext.class);
     amContainerLaunchContext.setLocalResources(appMasterLocalResources);
-    amContainerLaunchContext.setEnvironment(YarnHelixUtils.getEnvironmentVariables(this.yarnConfiguration, this.config));
+    amContainerLaunchContext.setEnvironment(YarnHelixUtils.getEnvironmentVariables(this.yarnConfiguration));
     amContainerLaunchContext.setCommands(Lists.newArrayList(buildApplicationMasterCommand(resource.getMemory())));
     if (UserGroupInformation.isSecurityEnabled()) {
       setupSecurityTokens(amContainerLaunchContext);

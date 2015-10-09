@@ -268,7 +268,7 @@ public class YarnService extends AbstractIdleService {
 
     ContainerLaunchContext containerLaunchContext = Records.newRecord(ContainerLaunchContext.class);
     containerLaunchContext.setLocalResources(resourceMap);
-    containerLaunchContext.setEnvironment(YarnHelixUtils.getEnvironmentVariables(this.yarnConfiguration, this.config));
+    containerLaunchContext.setEnvironment(YarnHelixUtils.getEnvironmentVariables(this.yarnConfiguration));
     containerLaunchContext.setCommands(Lists.newArrayList(buildContainerCommand(container)));
 
     if (UserGroupInformation.isSecurityEnabled()) {
