@@ -64,7 +64,7 @@ public class GobblinYarnConfigurationKeys {
    */
   public static final String KEYTAB_FILE_PATH = GOBBLIN_YARN_PREFIX + "keytab.file.path";
   public static final String KEYTAB_PRINCIPAL_NAME = GOBBLIN_YARN_PREFIX + "keytab.principal.name";
-  public static final String TOKEN_FILE_PATH = GOBBLIN_YARN_PREFIX + "token.file.path";
+  public static final String TOKEN_FILE_NAME = ".token";
   public static final String LOGIN_INTERVAL_IN_MINUTES = GOBBLIN_YARN_PREFIX + "login.interval.minutes";
   public static final String TOKEN_RENEW_INTERVAL_IN_MINUTES = GOBBLIN_YARN_PREFIX + "token.renew.interval.minutes";
 
@@ -73,11 +73,13 @@ public class GobblinYarnConfigurationKeys {
    */
   public static final String LIB_JARS_DIR_KEY = GOBBLIN_YARN_PREFIX + "lib.jars.dir";
   public static final String JOB_CONF_PACKAGE_PATH_KEY = GOBBLIN_YARN_PREFIX + "job.conf.package.path";
+  public static final String LOGS_SINK_ROOT_DIR_KEY = GOBBLIN_YARN_PREFIX + "logs.sink.root.dir";
   public static final String LIB_JARS_DIR_NAME = "_libjars";
   public static final String APP_JARS_DIR_NAME = "_appjars";
   public static final String APP_FILES_DIR_NAME = "_appfiles";
   public static final String INPUT_WORK_UNIT_DIR_NAME = "_workunits";
   public static final String OUTPUT_TASK_STATE_DIR_NAME = "_taskstates";
+  public static final String APP_LOGS_DIR_NAME = "_applogs";
 
   /**
    * Other misc configuration properties.

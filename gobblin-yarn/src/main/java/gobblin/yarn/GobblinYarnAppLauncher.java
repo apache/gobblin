@@ -22,11 +22,13 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RawLocalFileSystem;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -66,6 +68,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
@@ -80,6 +83,7 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.ExecutorsUtils;
+import gobblin.util.logs.LogCopier;
 import gobblin.yarn.event.ApplicationReportArrivalEvent;
 
 
@@ -108,8 +112,6 @@ public class GobblinYarnAppLauncher {
 
   private final HelixManager helixManager;
 
-  private final ServiceManager serviceManager;
-
   private final Configuration yarnConfiguration;
   private final YarnClient yarnClient;
   private final FileSystem fs;
@@ -121,8 +123,14 @@ public class GobblinYarnAppLauncher {
 
   private final String appMasterJvmArgs;
 
+  private final Path sinkLogRootDir;
+
+  private final Closer fsCloser = Closer.create();
+
   // Yarn application ID
   private volatile Optional<ApplicationId> applicationId = Optional.absent();
+
+  private volatile Optional<ServiceManager> serviceManager = Optional.absent();
 
   // This flag tells if the Yarn application has already completed. This is used to
   // tell if it is necessary to send a shutdown message to the ApplicationMaster.
@@ -151,19 +159,15 @@ public class GobblinYarnAppLauncher {
     this.fs = config.hasPath(ConfigurationKeys.FS_URI_KEY) ?
         FileSystem.get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), this.yarnConfiguration) :
         FileSystem.get(this.yarnConfiguration);
-
-    List<Service> services = Lists.newArrayList();
-    if (config.hasPath(GobblinYarnConfigurationKeys.TOKEN_FILE_PATH)) {
-      LOGGER.info("Adding YarnAppSecurityManager since login is keytab based");
-      services.add(new YarnAppSecurityManager(config, this.helixManager, this.fs));
-    }
-    this.serviceManager = new ServiceManager(services);
+    this.fsCloser.register(this.fs);
 
     this.applicationStatusMonitor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("GobblinYarnAppStatusMonitor")));
     this.appReportIntervalMinutes = config.getLong(GobblinYarnConfigurationKeys.APP_REPORT_INTERVAL_MINUTES_KEY);
 
     this.appMasterJvmArgs = Strings.nullToEmpty(config.getString(GobblinYarnConfigurationKeys.APP_MASTER_JVM_ARGS_KEY));
+
+    this.sinkLogRootDir = new Path(config.getString(GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY));
   }
 
   /**
@@ -184,9 +188,6 @@ public class GobblinYarnAppLauncher {
       throw Throwables.propagate(e);
     }
 
-    // Start all the services running in the ApplicationMaster
-    this.serviceManager.startAsync();
-
     this.yarnClient.start();
     this.applicationId = Optional.of(setupAndSubmitApplication());
 
@@ -202,6 +203,19 @@ public class GobblinYarnAppLauncher {
         }
       }
     }, 0, this.appReportIntervalMinutes, TimeUnit.MINUTES);
+
+    List<Service> services = Lists.newArrayList();
+    if (config.hasPath(GobblinYarnConfigurationKeys.KEYTAB_FILE_PATH)) {
+      LOGGER.info("Adding YarnAppSecurityManager since login is keytab based");
+      services.add(new YarnAppSecurityManager(config, this.helixManager, this.fs));
+    }
+    services.add(buildLogCopier(
+        new Path(this.sinkLogRootDir, this.applicationName + Path.SEPARATOR + this.applicationId.get().toString()),
+        YarnHelixUtils.getAppWorkDirPath(this.fs, this.applicationName, this.applicationId.get())));
+
+    this.serviceManager = Optional.of(new ServiceManager(services));
+    // Start all the services running in the ApplicationMaster
+    this.serviceManager.get().startAsync();
   }
 
   /**
@@ -209,7 +223,7 @@ public class GobblinYarnAppLauncher {
    *
    * @throws IOException if this {@link GobblinYarnAppLauncher} instance fails to clean up its working directory.
    */
-  public synchronized void stop() throws IOException {
+  public synchronized void stop() throws IOException, TimeoutException {
     if (this.stopped) {
       return;
     }
@@ -220,6 +234,10 @@ public class GobblinYarnAppLauncher {
       if (this.applicationId.isPresent() && !this.applicationCompleted) {
         // Only send the shutdown message if the application has been successfully submitted and is still running
         sendShutdownRequest();
+      }
+
+      if (this.serviceManager.isPresent()) {
+        this.serviceManager.get().stopAsync().awaitStopped(5, TimeUnit.MINUTES);
       }
 
       ExecutorsUtils.shutdownExecutorService(this.applicationStatusMonitor, Optional.of(LOGGER), 5, TimeUnit.MINUTES);
@@ -235,7 +253,7 @@ public class GobblinYarnAppLauncher {
           cleanUpAppWorkDirectory(this.applicationId.get());
         }
       } finally {
-        this.fs.close();
+        this.fsCloser.close();
       }
     }
 
@@ -267,6 +285,8 @@ public class GobblinYarnAppLauncher {
         GobblinYarnAppLauncher.this.stop();
       } catch (IOException ioe) {
         LOGGER.error("Failed to close the " + GobblinYarnAppLauncher.class.getSimpleName(), ioe);
+      } catch (TimeoutException te) {
+        LOGGER.error("Timeout in stopping the service manager", te);
       }
     }
   }
@@ -317,7 +337,7 @@ public class GobblinYarnAppLauncher {
 
     ContainerLaunchContext amContainerLaunchContext = Records.newRecord(ContainerLaunchContext.class);
     amContainerLaunchContext.setLocalResources(appMasterLocalResources);
-    amContainerLaunchContext.setEnvironment(YarnHelixUtils.getEnvironmentVariables(this.yarnConfiguration, this.config));
+    amContainerLaunchContext.setEnvironment(YarnHelixUtils.getEnvironmentVariables(this.yarnConfiguration));
     amContainerLaunchContext.setCommands(Lists.newArrayList(buildApplicationMasterCommand(resource.getMemory())));
     if (UserGroupInformation.isSecurityEnabled()) {
       setupSecurityTokens(amContainerLaunchContext);
@@ -511,6 +531,28 @@ public class GobblinYarnAppLauncher {
     }
   }
 
+  private LogCopier buildLogCopier(Path sinkLogDir, Path appWorkDir) throws IOException {
+    FileSystem rawLocalFs = this.fsCloser.register(new RawLocalFileSystem());
+    rawLocalFs.initialize(URI.create(ConfigurationKeys.LOCAL_FS_URI), new Configuration());
+
+    return LogCopier.newBuilder()
+        .useSrcFileSystem(this.fs)
+        .useDestFileSystem(rawLocalFs)
+        .readFrom(getHdfsLogDir(appWorkDir))
+        .writeTo(sinkLogDir)
+        .acceptsLogFileExtensions(ImmutableSet.of(ApplicationConstants.STDOUT, ApplicationConstants.STDERR))
+        .build();
+  }
+
+  private Path getHdfsLogDir(Path appWorkDir) throws IOException {
+    Path logRootDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.APP_LOGS_DIR_NAME);
+    if (!this.fs.exists(logRootDir)) {
+      this.fs.mkdirs(logRootDir);
+    }
+
+    return logRootDir;
+  }
+
   private void sendShutdownRequest() {
     Criteria criteria = new Criteria();
     criteria.setInstanceName("%");
@@ -550,6 +592,8 @@ public class GobblinYarnAppLauncher {
           gobblinYarnAppLauncher.stop();
         } catch (IOException ioe) {
           LOGGER.error("Failed to shutdown the " + GobblinYarnAppLauncher.class.getSimpleName(), ioe);
+        } catch (TimeoutException te) {
+          LOGGER.error("Timeout in stopping the service manager", te);
         }
       }
     });

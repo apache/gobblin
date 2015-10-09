@@ -100,10 +100,11 @@ public class GobblinHelixJobScheduler extends JobScheduler {
         LOGGER.info("Scheduling new job " + newJobArrival.getJobName());
         scheduleJob(newJobArrival.getJobConfig(), null);
       } else {
-        this.jobExecutor.submit(new NonScheduledJobRunner(jobConfig, null));
+        LOGGER.info("No job schedule found, so running new job " + newJobArrival.getJobName());
+        this.jobExecutor.execute(new NonScheduledJobRunner(jobConfig, null));
       }
     } catch (JobException je) {
-      LOGGER.error("Failed to schedule job " + newJobArrival.getJobName());
+      LOGGER.error("Failed to schedule or run job " + newJobArrival.getJobName());
     }
   }
 

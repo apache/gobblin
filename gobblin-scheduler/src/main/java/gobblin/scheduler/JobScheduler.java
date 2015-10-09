@@ -215,7 +215,7 @@ public class JobScheduler extends AbstractIdleService {
       // A job without a cron schedule is considered a one-time job
       jobProps.setProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "true");
       // Submit the job to run
-      this.jobExecutor.submit(new NonScheduledJobRunner(jobProps, jobListener));
+      this.jobExecutor.execute(new NonScheduledJobRunner(jobProps, jobListener));
       return;
     }
 

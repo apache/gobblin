@@ -96,7 +96,9 @@ public class YarnAppSecurityManager extends AbstractIdleService {
     this.helixManager = helixManager;
     this.fs = fs;
 
-    this.tokenFilePath = new Path(config.getString(GobblinYarnConfigurationKeys.TOKEN_FILE_PATH));
+    this.tokenFilePath = new Path(this.fs.getHomeDirectory(),
+        config.getString(GobblinYarnConfigurationKeys.APPLICATION_NAME_KEY) + Path.SEPARATOR
+            + GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
     this.fs.makeQualified(tokenFilePath);
     this.loginUser = UserGroupInformation.getLoginUser();
     this.loginIntervalInMinutes = config.getLong(GobblinYarnConfigurationKeys.LOGIN_INTERVAL_IN_MINUTES);
