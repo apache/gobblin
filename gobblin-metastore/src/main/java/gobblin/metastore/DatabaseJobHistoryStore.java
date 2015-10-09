@@ -22,9 +22,12 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.AbstractMap;
+import java.util.Arrays;
 import java.util.Calendar;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TimeZone;
 
 import javax.sql.DataSource;
@@ -48,6 +51,7 @@ import gobblin.rest.LauncherTypeEnum;
 import gobblin.rest.Metric;
 import gobblin.rest.MetricArray;
 import gobblin.rest.MetricTypeEnum;
+import gobblin.rest.QueryListType;
 import gobblin.rest.Table;
 import gobblin.rest.TableTypeEnum;
 import gobblin.rest.TaskExecutionInfo;
@@ -114,6 +118,14 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
   private static final String TASK_PROPERTY_UPDATE_STATEMENT_TEMPLATE =
       "UPDATE gobblin_task_properties SET property_value=? WHERE task_id=? AND property_key=?";
 
+  private static final String LIST_DISTINCT_JOB_EXECUTION_QUERY_TEMPLATE =
+      "SELECT j.job_id FROM gobblin_job_executions j, "
+          + "(SELECT MAX(last_modified_ts) AS most_recent_ts, job_name "
+          + "FROM gobblin_job_executions GROUP BY job_name) max_results "
+          + "WHERE j.job_name = max_results.job_name AND j.last_modified_ts = max_results.most_recent_ts";
+  private static final String LIST_RECENT_JOB_EXECUTION_QUERY_TEMPLATE =
+      "SELECT job_id FROM gobblin_job_executions";
+
   private static final String JOB_NAME_QUERY_BY_TABLE_STATEMENT_TEMPLATE =
       "SELECT j.job_name FROM gobblin_job_executions j, gobblin_task_executions t "
           + "WHERE j.job_id=t.job_id AND %s GROUP BY j.job_name";
@@ -155,6 +167,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
       "SELECT property_key, property_value FROM gobblin_task_properties WHERE task_id=?";
 
   private static final Timestamp DEFAULT_TIMESTAMP = new Timestamp(1000L);
+  private static final int DEFAULT_VALIDATION_TIMEOUT = 5;
 
   private final DataSource dataSource;
 
@@ -271,7 +284,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
         case JOB_ID:
           List<JobExecutionInfo> jobExecutionInfos = Lists.newArrayList();
           JobExecutionInfo jobExecutionInfo =
-              processQueryById(connection, query.getId().getString(), Optional.<String>absent());
+              processQueryById(connection, query.getId().getString(), query, Optional.<String>absent());
           if (jobExecutionInfo != null) {
             jobExecutionInfos.add(jobExecutionInfo);
           }
@@ -280,6 +293,8 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
           return processQueryByJobName(connection, query.getId().getString(), query, Optional.<String>absent());
         case TABLE:
           return processQueryByTable(connection, query);
+        case LIST_TYPE:
+          return processListQuery(connection, query);
         default:
           throw new IOException("Unsupported query ID type: " + query.getIdType().name());
       }
@@ -304,7 +319,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
   }
 
   private Connection getConnection()
-      throws SQLException {
+          throws SQLException {
     return this.dataSource.getConnection();
   }
 
@@ -328,8 +343,8 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     insertStatement.setString(++index, info.getJobId());
     insertStatement.setTimestamp(++index,
         info.hasStartTime() ? new Timestamp(info.getStartTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
-    insertStatement.setTimestamp(++index,
-        info.hasEndTime() ? new Timestamp(info.getEndTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
+    insertStatement.setTimestamp(++index, info.hasEndTime() ? new Timestamp(info.getEndTime()) : DEFAULT_TIMESTAMP,
+        getCalendarUTCInstance());
     insertStatement.setLong(++index, info.hasDuration() ? info.getDuration() : -1);
     insertStatement.setString(++index, info.hasState() ? info.getState().name() : null);
     insertStatement.setInt(++index, info.hasLaunchedTasks() ? info.getLaunchedTasks() : -1);
@@ -345,8 +360,8 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
 
     PreparedStatement updateStatement = connection.prepareStatement(JOB_EXECUTION_UPDATE_STATEMENT_TEMPLATE);
     int index = 0;
-    updateStatement.setTimestamp(++index,
-        info.hasStartTime() ? new Timestamp(info.getStartTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
+    updateStatement.setTimestamp(++index, info.hasStartTime() ? new Timestamp(info.getStartTime()) : DEFAULT_TIMESTAMP,
+        getCalendarUTCInstance());
     updateStatement.setTimestamp(++index,
         info.hasEndTime() ? new Timestamp(info.getEndTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
     updateStatement.setLong(++index, info.hasDuration() ? info.getDuration() : -1);
@@ -386,11 +401,11 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     insertStatement.setString(++index, info.hasFailureException() ? info.getFailureException() : null);
     insertStatement.setLong(++index, info.hasLowWatermark() ? info.getLowWatermark() : -1);
     insertStatement.setLong(++index, info.hasHighWatermark() ? info.getHighWatermark() : -1);
-    insertStatement
-        .setString(++index, info.hasTable() && info.getTable().hasNamespace() ? info.getTable().getNamespace() : null);
+    insertStatement.setString(++index,
+        info.hasTable() && info.getTable().hasNamespace() ? info.getTable().getNamespace() : null);
     insertStatement.setString(++index, info.hasTable() && info.getTable().hasName() ? info.getTable().getName() : null);
-    insertStatement
-        .setString(++index, info.hasTable() && info.getTable().hasType() ? info.getTable().getType().name() : null);
+    insertStatement.setString(++index,
+        info.hasTable() && info.getTable().hasType() ? info.getTable().getType().name() : null);
     insertStatement.executeUpdate();
   }
 
@@ -409,11 +424,11 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     updateStatement.setString(++index, info.hasFailureException() ? info.getFailureException() : null);
     updateStatement.setLong(++index, info.hasLowWatermark() ? info.getLowWatermark() : -1);
     updateStatement.setLong(++index, info.hasHighWatermark() ? info.getHighWatermark() : -1);
-    updateStatement
-        .setString(++index, info.hasTable() && info.getTable().hasNamespace() ? info.getTable().getNamespace() : null);
+    updateStatement.setString(++index,
+        info.hasTable() && info.getTable().hasNamespace() ? info.getTable().getNamespace() : null);
     updateStatement.setString(++index, info.hasTable() && info.getTable().hasName() ? info.getTable().getName() : null);
-    updateStatement
-        .setString(++index, info.hasTable() && info.getTable().hasType() ? info.getTable().getType().name() : null);
+    updateStatement.setString(++index,
+        info.hasTable() && info.getTable().hasType() ? info.getTable().getType().name() : null);
     updateStatement.setString(++index, info.getTaskId());
     updateStatement.executeUpdate();
   }
@@ -493,8 +508,8 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     updateStatement.executeUpdate();
   }
 
-  private JobExecutionInfo processQueryById(Connection connection, String jobId, Optional<String> tableFilter)
-      throws SQLException {
+  private JobExecutionInfo processQueryById(Connection connection, String jobId, JobExecutionQuery query,
+      Optional<String> tableFilter) throws SQLException {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(jobId));
 
     // Query job execution information
@@ -509,68 +524,88 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     JobExecutionInfo jobExecutionInfo = resultSetToJobExecutionInfo(jobRs);
 
     // Query job metrics
-    PreparedStatement jobMetricQueryStatement = connection.prepareStatement(JOB_METRIC_QUERY_STATEMENT_TEMPLATE);
-    jobMetricQueryStatement.setString(1, jobRs.getString(2));
-    ResultSet jobMetricRs = jobMetricQueryStatement.executeQuery();
-    MetricArray jobMetrics = new MetricArray();
-    while (jobMetricRs.next()) {
-      jobMetrics.add(resultSetToMetric(jobMetricRs));
+    if (query.isIncludeJobMetrics()) {
+      PreparedStatement jobMetricQueryStatement = connection.prepareStatement(JOB_METRIC_QUERY_STATEMENT_TEMPLATE);
+      jobMetricQueryStatement.setString(1, jobRs.getString(2));
+      ResultSet jobMetricRs = jobMetricQueryStatement.executeQuery();
+      MetricArray jobMetrics = new MetricArray();
+      while (jobMetricRs.next()) {
+        jobMetrics.add(resultSetToMetric(jobMetricRs));
+      }
+      // Add job metrics
+      jobExecutionInfo.setMetrics(jobMetrics);
     }
-    // Add job metrics
-    jobExecutionInfo.setMetrics(jobMetrics);
 
     // Query job properties
+    Set<String> requestedJobPropertyKeys = null;
+    if (query.hasJobProperties()) {
+      requestedJobPropertyKeys = new HashSet<String>(Arrays.asList(query.getJobProperties().split(",")));
+    }
     PreparedStatement jobPropertiesQueryStatement = connection.prepareStatement(JOB_PROPERTY_QUERY_STATEMENT_TEMPLATE);
     jobPropertiesQueryStatement.setString(1, jobExecutionInfo.getJobId());
     ResultSet jobPropertiesRs = jobPropertiesQueryStatement.executeQuery();
     Map<String, String> jobProperties = Maps.newHashMap();
     while (jobPropertiesRs.next()) {
       Map.Entry<String, String> property = resultSetToProperty(jobPropertiesRs);
-      jobProperties.put(property.getKey(), property.getValue());
+      if (requestedJobPropertyKeys == null || requestedJobPropertyKeys.contains(property.getKey())) {
+        jobProperties.put(property.getKey(), property.getValue());
+      }
     }
     // Add job properties
     jobExecutionInfo.setJobProperties(new StringMap(jobProperties));
 
     // Query task execution information
-    TaskExecutionInfoArray taskExecutionInfos = new TaskExecutionInfoArray();
-    String taskExecutionQuery = TASK_EXECUTION_QUERY_STATEMENT_TEMPLATE;
-    // Add table filter if applicable
-    if (tableFilter.isPresent() && !Strings.isNullOrEmpty(tableFilter.get())) {
-      taskExecutionQuery += " AND " + tableFilter.get();
-    }
-    PreparedStatement taskExecutionQueryStatement = connection.prepareStatement(taskExecutionQuery);
-    taskExecutionQueryStatement.setString(1, jobId);
-    ResultSet taskRs = taskExecutionQueryStatement.executeQuery();
-    while (taskRs.next()) {
-      TaskExecutionInfo taskExecutionInfo = resultSetToTaskExecutionInfo(taskRs);
-      // Query task metrics for each task execution record
-      PreparedStatement taskMetricQueryStatement = connection.prepareStatement(TASK_METRIC_QUERY_STATEMENT_TEMPLATE);
-      taskMetricQueryStatement.setString(1, taskExecutionInfo.getTaskId());
-      ResultSet taskMetricRs = taskMetricQueryStatement.executeQuery();
-      MetricArray taskMetrics = new MetricArray();
-      while (taskMetricRs.next()) {
-        taskMetrics.add(resultSetToMetric(taskMetricRs));
+    if (query.isIncludeTaskExecutions()) {
+      TaskExecutionInfoArray taskExecutionInfos = new TaskExecutionInfoArray();
+      String taskExecutionQuery = TASK_EXECUTION_QUERY_STATEMENT_TEMPLATE;
+      // Add table filter if applicable
+      if (tableFilter.isPresent() && !Strings.isNullOrEmpty(tableFilter.get())) {
+        taskExecutionQuery += " AND " + tableFilter.get();
       }
-      // Add task metrics
-      taskExecutionInfo.setMetrics(taskMetrics);
-      taskExecutionInfos.add(taskExecutionInfo);
+      PreparedStatement taskExecutionQueryStatement = connection.prepareStatement(taskExecutionQuery);
+      taskExecutionQueryStatement.setString(1, jobId);
+      ResultSet taskRs = taskExecutionQueryStatement.executeQuery();
+      while (taskRs.next()) {
+        TaskExecutionInfo taskExecutionInfo = resultSetToTaskExecutionInfo(taskRs);
 
-      // Query task properties
-      PreparedStatement taskPropertiesQueryStatement =
-          connection.prepareStatement(TASK_PROPERTY_QUERY_STATEMENT_TEMPLATE);
-      taskPropertiesQueryStatement.setString(1, taskExecutionInfo.getTaskId());
-      ResultSet taskPropertiesRs = taskPropertiesQueryStatement.executeQuery();
-      Map<String, String> taskProperties = Maps.newHashMap();
-      while (taskPropertiesRs.next()) {
-        Map.Entry<String, String> property = resultSetToProperty(taskPropertiesRs);
-        taskProperties.put(property.getKey(), property.getValue());
+        // Query task metrics for each task execution record
+        if (query.isIncludeTaskMetrics()) {
+          PreparedStatement taskMetricQueryStatement = connection.prepareStatement(TASK_METRIC_QUERY_STATEMENT_TEMPLATE);
+          taskMetricQueryStatement.setString(1, taskExecutionInfo.getTaskId());
+          ResultSet taskMetricRs = taskMetricQueryStatement.executeQuery();
+          MetricArray taskMetrics = new MetricArray();
+          while (taskMetricRs.next()) {
+            taskMetrics.add(resultSetToMetric(taskMetricRs));
+          }
+          // Add task metrics
+          taskExecutionInfo.setMetrics(taskMetrics);
+        }
+
+        taskExecutionInfos.add(taskExecutionInfo);
+
+        // Query task properties
+        Set<String> queryTaskPropertyKeys = null;
+        if (query.hasTaskProperties()) {
+          queryTaskPropertyKeys = new HashSet<String>(Arrays.asList(query.getTaskProperties().split(",")));
+        }
+        PreparedStatement taskPropertiesQueryStatement =
+            connection.prepareStatement(TASK_PROPERTY_QUERY_STATEMENT_TEMPLATE);
+        taskPropertiesQueryStatement.setString(1, taskExecutionInfo.getTaskId());
+        ResultSet taskPropertiesRs = taskPropertiesQueryStatement.executeQuery();
+        Map<String, String> taskProperties = Maps.newHashMap();
+        while (taskPropertiesRs.next()) {
+          Map.Entry<String, String> property = resultSetToProperty(taskPropertiesRs);
+          if (queryTaskPropertyKeys == null || queryTaskPropertyKeys.contains(property.getKey())) {
+            taskProperties.put(property.getKey(), property.getValue());
+          }
+        }
+        // Add job properties
+        taskExecutionInfo.setTaskProperties(new StringMap(taskProperties));
+        // Add task properties
       }
-      // Add job properties
-      taskExecutionInfo.setTaskProperties(new StringMap(taskProperties));
-      // Add task properties
+      // Add task execution information
+      jobExecutionInfo.setTaskExecutions(taskExecutionInfos);
     }
-    // Add task execution information
-    jobExecutionInfo.setTaskExecutions(taskExecutionInfos);
 
     return jobExecutionInfo;
   }
@@ -602,14 +637,13 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     // Query job IDs by the given job name
     PreparedStatement queryStatement = connection.prepareStatement(jobIdByNameQuery);
     int limit = query.getLimit();
-    // Add LIMIT if applicable
     if (limit > 0) {
       queryStatement.setMaxRows(limit);
     }
     queryStatement.setString(1, jobName);
     ResultSet rs = queryStatement.executeQuery();
     while (rs.next()) {
-      jobExecutionInfos.add(processQueryById(connection, rs.getString(1), tableFilter));
+      jobExecutionInfos.add(processQueryById(connection, rs.getString(1), query, tableFilter));
     }
 
     return jobExecutionInfos;
@@ -630,6 +664,45 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     ResultSet rs = queryStatement.executeQuery();
     while (rs.next()) {
       jobExecutionInfos.addAll(processQueryByJobName(connection, rs.getString(1), query, Optional.of(tableFilter)));
+    }
+
+    return jobExecutionInfos;
+  }
+
+  private List<JobExecutionInfo> processListQuery(Connection connection, JobExecutionQuery query)
+      throws SQLException {
+    Preconditions.checkArgument(query.getId().isQueryListType());
+
+    QueryListType queryType = query.getId().getQueryListType();
+    String listJobExecutionsQuery = "";
+    if (queryType == QueryListType.DISTINCT) {
+      listJobExecutionsQuery = LIST_DISTINCT_JOB_EXECUTION_QUERY_TEMPLATE;
+      if (query.hasTimeRange()) {
+        try {
+          String timeRangeFilter = constructTimeRangeFilter(query.getTimeRange());
+          if (!Strings.isNullOrEmpty(timeRangeFilter)) {
+            listJobExecutionsQuery += " AND " + timeRangeFilter;
+          }
+        } catch (ParseException pe) {
+          LOGGER.error("Failed to parse the query time range", pe);
+          throw new SQLException(pe);
+        }
+      }
+    } else {
+      listJobExecutionsQuery = LIST_RECENT_JOB_EXECUTION_QUERY_TEMPLATE;
+    }
+    listJobExecutionsQuery += " ORDER BY last_modified_ts DESC";
+
+    PreparedStatement queryStatement = connection.prepareStatement(listJobExecutionsQuery);
+    int limit = query.getLimit();
+    if (limit > 0) {
+      queryStatement.setMaxRows(limit);
+    }
+
+    ResultSet rs = queryStatement.executeQuery();
+    List<JobExecutionInfo> jobExecutionInfos = Lists.newArrayList();
+    while (rs.next()) {
+      jobExecutionInfos.add(processQueryById(connection, rs.getString(1), query, Optional.<String>absent()));
     }
 
     return jobExecutionInfos;

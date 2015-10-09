@@ -8,16 +8,22 @@
           "name": "id",
           "type": [
               "string",
-              "Table"
+              "Table",
+              {
+                "name": "QueryListType",
+                "type": "enum",
+                "symbols" : [ "DISTINCT", "RECENT" ],
+                "doc": "Listing distinct jobs fetches the most recent execution info for each job name in the database. Listing recent jobs fetches the most recent job executions, regardless of job name."
+              }
           ],
-          "doc": "Query ID (a job ID, job name, or table definition)"
+          "doc": "Query ID (a job ID, job name, table definition, or list type)"
       },
       {
           "name": "idType",
           "type": {
               "name": "QueryIdTypeEnum",
               "type": "enum",
-              "symbols" : [ "JOB_NAME", "JOB_ID", "TABLE" ]
+              "symbols" : [ "JOB_NAME", "JOB_ID", "TABLE", "LIST_TYPE" ]
           },
           "doc": "Query ID type"
       },
@@ -45,6 +51,27 @@
           "type": "string",
           "optional": true,
           "doc": "Comma-separated list of task properties to include in the query result"
+      },
+      {
+          "name": "includeJobMetrics",
+          "type": "boolean",
+          "optional": true,
+          "default": true,
+          "doc": "true/false if the response should include job metrics (default: true)"
+      },
+      {
+          "name": "includeTaskMetrics",
+          "type": "boolean",
+          "optional": true,
+          "default": true,
+          "doc": "true/false if the response should include task metrics (default: true)"
+      },
+      {
+          "name": "includeTaskExecutions",
+          "type": "boolean",
+          "optional": true,
+          "default": true,
+          "doc": "true/false if the response should include task executions (default: true)"
       }
     ]
 }
