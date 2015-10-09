@@ -1,8 +1,8 @@
 language: java
 
 script:
-  - ./gradlew clean check
-  - ./gradlew clean check -PuseHadoop2
+  - ./gradlew clean check -i
+  - ./gradlew clean check -PuseHadoop2 -i
 
 jdk:
   - oraclejdk8
