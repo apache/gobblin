@@ -21,13 +21,13 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 
 import com.google.common.collect.Lists;
 
-import gobblin.data.management.retention.DatasetCleaner;
 import gobblin.data.management.retention.policy.RetentionPolicy;
 import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.finder.VersionFinder;
@@ -199,11 +199,6 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Dataset {
       boolean deletedAllPaths = true;
 
       for (Path path : pathsToDelete) {
-        if (path.equals(datasetRoot())) {
-          this.log.info("Not deleting dataset root path: " + path);
-          continue;
-        }
-
         boolean successfullyDeleted =
             this.deleteAsOwner ? this.trash.moveToTrashAsOwner(path) : this.trash.moveToTrash(path);
 
@@ -229,7 +224,7 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Dataset {
   }
 
   private void deleteEmptyParentDirectories(Path datasetRoot, Path parent) throws IOException {
-    if (!parent.equals(datasetRoot) && this.fs.listStatus(parent).length == 0) {
+    if (!StringUtils.startsWith(datasetRoot.toString(), parent.toString()) && this.fs.listStatus(parent).length == 0) {
       this.fs.delete(parent, false);
       deleteEmptyParentDirectories(datasetRoot, parent.getParent());
     }
