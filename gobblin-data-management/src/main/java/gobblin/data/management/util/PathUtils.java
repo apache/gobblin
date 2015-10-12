@@ -27,6 +27,16 @@ public class PathUtils {
   }
 
   /**
+   * Checks whether possibleAncestor is an ancestor of fullPath.
+   * @param possibleAncestor Possible ancestor of fullPath.
+   * @param fullPath path to check.
+   * @return true if possibleAncestor is an ancestor of fullPath.
+   */
+  public static boolean isAncestor(Path possibleAncestor, Path fullPath) {
+    return !relativizePath(fullPath, possibleAncestor).equals(fullPath);
+  }
+
+  /**
    * Removes the Scheme and Authority from a Path.
    *
    * @see {@link Path}, {@link URI}
