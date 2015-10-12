@@ -1,5 +1,6 @@
 /*
- * (c) 2014 LinkedIn Corp. All rights reserved.
+ *
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -19,6 +20,8 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+
+import javax.annotation.Nonnull;
 
 import org.apache.commons.lang.StringUtils;
 
@@ -44,7 +47,6 @@ import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
 import gobblin.qualitychecker.row.RowLevelPolicy;
 import gobblin.source.extractor.Extractor;
-import gobblin.util.Decorator;
 import gobblin.util.DecoratorUtils;
 import gobblin.writer.DataWriter;
 
@@ -164,7 +166,7 @@ public class Instrumented implements Instrumentable, Closeable {
       String oldName = context.getName();
       List<String> splitName = Strings.isNullOrEmpty(oldName) ?
           Lists.<String>newArrayList() :
-          Splitter.on(".").splitToList(oldName);
+          Lists.newArrayList(Splitter.on(".").splitToList(oldName));
       if (splitName.size() > 0 && StringUtils.startsWith(Iterables.getLast(splitName), randomIdPrefix)) {
         splitName.set(splitName.size() - 1, String.format("%s%s", randomIdPrefix, uuid.toString()));
       } else {
@@ -207,7 +209,7 @@ public class Instrumented implements Instrumentable, Closeable {
   public static Optional<Timer.Context> timerContext(Optional<MetricContext> context, final String name) {
     return context.transform(new Function<MetricContext, Timer.Context>() {
       @Override
-      public Timer.Context apply(MetricContext input) {
+      public Timer.Context apply(@Nonnull MetricContext input) {
         return input.timer(name).time();
       }
     });
@@ -220,7 +222,7 @@ public class Instrumented implements Instrumentable, Closeable {
   public static void endTimer(Optional<Timer.Context> timer) {
     timer.transform(new Function<Timer.Context, Timer.Context>() {
       @Override
-      public Timer.Context apply(Timer.Context input) {
+      public Timer.Context apply(@Nonnull Timer.Context input) {
         input.close();
         return input;
       }
@@ -236,7 +238,7 @@ public class Instrumented implements Instrumentable, Closeable {
   public static void updateTimer(Optional<Timer> timer, final long duration, final TimeUnit unit) {
     timer.transform(new Function<Timer, Timer>() {
       @Override
-      public Timer apply(Timer input) {
+      public Timer apply(@Nonnull Timer input) {
         input.update(duration, unit);
         return input;
       }
@@ -259,11 +261,18 @@ public class Instrumented implements Instrumentable, Closeable {
   public static void markMeter(Optional<Meter> meter, final int value) {
     meter.transform(new Function<Meter, Meter>() {
       @Override
-      public Meter apply(Meter input) {
+      public Meter apply(@Nonnull Meter input) {
         input.mark(value);
         return input;
       }
     });
+  }
+
+  /**
+   * Sets the key {@link #METRIC_CONTEXT_NAME_KEY} to the specified name, in the given {@link State}.
+   */
+  public static void setMetricContextName(State state, String name) {
+    state.setProp(Instrumented.METRIC_CONTEXT_NAME_KEY, name);
   }
 
   @SuppressWarnings("unchecked")

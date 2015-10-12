@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -43,8 +44,8 @@ public abstract class AbstractTaskStateTracker extends AbstractIdleService imple
 
   public AbstractTaskStateTracker(int coreThreadPoolSize, Logger logger) {
     Preconditions.checkArgument(coreThreadPoolSize > 0, "Thread pool size should be positive");
-    this.taskMetricsUpdaterExecutor = new ScheduledThreadPoolExecutor(
-        coreThreadPoolSize, ExecutorsUtils.newThreadFactory(Optional.of(logger), Optional.of("TaskStateTracker-%d")));
+    this.taskMetricsUpdaterExecutor = new ScheduledThreadPoolExecutor(coreThreadPoolSize,
+        ExecutorsUtils.newThreadFactory(Optional.of(logger), Optional.of("TaskStateTracker-%d")));
     this.logger = logger;
   }
 
@@ -59,16 +60,14 @@ public abstract class AbstractTaskStateTracker extends AbstractIdleService imple
   }
 
   @Override
-  protected void startUp()
-      throws Exception {
+  protected void startUp() throws Exception {
     this.logger.info("Starting the task state tracker");
   }
 
   @Override
-  protected void shutDown()
-      throws Exception {
+  protected void shutDown() throws Exception {
     this.logger.info("Stopping the task state tracker");
-    ExecutorsUtils.shutdownExecutorService(this.taskMetricsUpdaterExecutor);
+    ExecutorsUtils.shutdownExecutorService(this.taskMetricsUpdaterExecutor, Optional.of(this.logger));
   }
 
   /**
@@ -79,9 +78,9 @@ public abstract class AbstractTaskStateTracker extends AbstractIdleService imple
    * @return a {@link java.util.concurrent.ScheduledFuture} corresponding to the scheduled {@link TaskMetricsUpdater}
    */
   protected ScheduledFuture<?> scheduleTaskMetricsUpdater(Runnable taskMetricsUpdater, Task task) {
-    return this.taskMetricsUpdaterExecutor
-        .scheduleAtFixedRate(taskMetricsUpdater, task.getTaskContext().getStatusReportingInterval(),
-            task.getTaskContext().getStatusReportingInterval(), TimeUnit.MILLISECONDS);
+    return this.taskMetricsUpdaterExecutor.scheduleAtFixedRate(taskMetricsUpdater,
+        task.getTaskContext().getStatusReportingInterval(), task.getTaskContext().getStatusReportingInterval(),
+        TimeUnit.MILLISECONDS);
   }
 
   /**
@@ -99,11 +98,11 @@ public abstract class AbstractTaskStateTracker extends AbstractIdleService imple
     public void run() {
       updateTaskMetrics();
       // Log record queue stats/metrics of each fork
-      for (Optional<Fork> fork : task.getForks()) {
+      for (Optional<Fork> fork : this.task.getForks()) {
         if (fork.isPresent() && fork.get().queueStats().isPresent()) {
-          logger.info(String.format(
-              "Queue stats of fork %d of task %s: %s", fork.get().getIndex(), this.task.getTaskId(),
-              fork.get().queueStats().get().toString()));
+          logger.debug(String
+              .format("Queue stats of fork %d of task %s: %s", fork.get().getIndex(), this.task.getTaskId(),
+                  fork.get().queueStats().get().toString()));
         }
       }
     }

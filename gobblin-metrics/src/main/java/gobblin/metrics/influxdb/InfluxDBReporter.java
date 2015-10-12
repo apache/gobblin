@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -33,13 +34,13 @@ import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
-import gobblin.metrics.ContextAwareScheduledReporter;
+import gobblin.metrics.reporter.ContextAwareScheduledReporter;
 import gobblin.metrics.Measurements;
 import gobblin.metrics.MetricContext;
 
 
 /**
- * An implementation of {@link gobblin.metrics.ContextAwareScheduledReporter} that reports
+ * An implementation of {@link gobblin.metrics.reporter.ContextAwareScheduledReporter} that reports
  * metrics to InfluxDB.
  *
  * @see <a href="http://influxdb.com/">InfluxDB</a>.

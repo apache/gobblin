@@ -1,5 +1,6 @@
 /*
- * (c) 2014 LinkedIn Corp. All rights reserved.
+ *
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -16,14 +17,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import junit.framework.Assert;
 
 import gobblin.Constructs;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.configuration.State;
+import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
 import gobblin.instrumented.extractor.InstrumentedExtractor;
 
@@ -44,13 +45,14 @@ public class InstrumentedTest {
     Assert.assertTrue(instrumented.getMetricContext().getParent().isPresent());
     Assert.assertEquals(instrumented.getMetricContext().getParent().get(), gobblinMetrics.getMetricContext());
 
-    List<Tag<?>> tags = instrumented.getMetricContext().getTags();
+    Map<String, ?> tags = instrumented.getMetricContext().getTagMap();
     Map<String, String> expectedTags = new HashMap<String, String>();
     expectedTags.put("construct", Constructs.EXTRACTOR.toString());
     expectedTags.put("class", InstrumentedExtractor.class.getCanonicalName());
+    expectedTags.put(MetricContext.METRIC_CONTEXT_ID_TAG_NAME, tags.get(MetricContext.METRIC_CONTEXT_ID_TAG_NAME).toString());
 
     Assert.assertEquals(tags.size(), expectedTags.size());
-    for(Tag<?> tag : tags) {
+    for(Map.Entry<String, ?> tag : tags.entrySet()) {
       Assert.assertTrue(expectedTags.containsKey(tag.getKey()));
       Assert.assertEquals(expectedTags.get(tag.getKey()), tag.getValue().toString());
     }

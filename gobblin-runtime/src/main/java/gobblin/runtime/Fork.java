@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -13,6 +14,7 @@ package gobblin.runtime;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -22,18 +24,24 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
-import gobblin.metrics.GobblinMetrics;
+import gobblin.instrumented.Instrumented;
 import gobblin.instrumented.writer.InstrumentedDataWriterDecorator;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.Tag;
 import gobblin.publisher.TaskPublisher;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
 import gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
+import gobblin.runtime.util.TaskMetrics;
+import gobblin.util.FinalState;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.writer.DataWriter;
 import gobblin.writer.Destination;
@@ -57,7 +65,7 @@ import gobblin.writer.Destination;
  * @author ynli
  */
 @SuppressWarnings("unchecked")
-public class Fork implements Closeable, Runnable {
+public class Fork implements Closeable, Runnable, FinalState {
 
   // Possible state of a fork
   enum ForkState {
@@ -74,10 +82,9 @@ public class Fork implements Closeable, Runnable {
   private final int index;
 
   private final Converter converter;
-  private final Object convertedSchema;
+  private final Optional<Object> convertedSchema;
   private final RowLevelPolicyChecker rowLevelPolicyChecker;
   private final RowLevelPolicyCheckResults rowLevelPolicyCheckingResult;
-  private final DataWriter<Object> writer;
 
   // This is used to signal the parent task of the completion of this fork
   private final CountDownLatch countDownLatch;
@@ -86,6 +93,11 @@ public class Fork implements Closeable, Runnable {
   private final BoundedBlockingRecordQueue<Object> recordQueue;
 
   private final Closer closer = Closer.create();
+
+  private final boolean useEagerWriterInitialization;
+
+  // The writer will be lazily created when the first data record arrives
+  private Optional<InstrumentedDataWriterDecorator<Object>> writer = Optional.absent();
 
   // This is used by the parent task to signal that it has done pulling records and this fork
   // should not expect any new incoming data records. This is written by the parent task and
@@ -97,33 +109,38 @@ public class Fork implements Closeable, Runnable {
   // An AtomicReference is still used here for the compareAntSet operation.
   private final AtomicReference<ForkState> forkState;
 
+  private final GobblinMetrics forkMetrics;
+
+  private static final String FORK_METRICS_BRANCH_NAME_KEY = "forkBranchName";
+
   public Fork(TaskContext taskContext, TaskState taskState, Object schema, int branches, int index,
-      CountDownLatch countDownLatch)
-      throws Exception {
+      CountDownLatch countDownLatch) throws Exception {
 
     this.logger = LoggerFactory.getLogger(Fork.class.getName() + "-" + index);
 
     this.taskContext = taskContext;
     this.taskState = taskState;
-    this.taskId = taskState.getTaskId();
+    this.taskId = this.taskState.getTaskId();
 
     this.branches = branches;
     this.index = index;
 
-    this.converter = new MultiConverter(this.taskContext.getConverters(this.index));
-    this.convertedSchema = this.converter.convertSchema(schema, this.taskState);
-    this.rowLevelPolicyChecker = this.taskContext.getRowLevelPolicyChecker(this.taskState, this.index);
+    this.converter = this.closer.register(new MultiConverter(this.taskContext.getConverters(this.index)));
+    this.convertedSchema = Optional.fromNullable(this.converter.convertSchema(schema, this.taskState));
+    this.rowLevelPolicyChecker = this.closer.register(this.taskContext.getRowLevelPolicyChecker(this.index));
     this.rowLevelPolicyCheckingResult = new RowLevelPolicyCheckResults();
-    this.writer = buildWriter();
+
+    this.useEagerWriterInitialization = this.taskState.getPropAsBoolean(
+        ConfigurationKeys.WRITER_EAGER_INITIALIZATION_KEY, ConfigurationKeys.DEFAULT_WRITER_EAGER_INITIALIZATION);
 
     this.recordQueue = BoundedBlockingRecordQueue.newBuilder()
-        .hasCapacity(taskState.getPropAsInt(
+        .hasCapacity(this.taskState.getPropAsInt(
             ConfigurationKeys.FORK_RECORD_QUEUE_CAPACITY_KEY,
             ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_CAPACITY))
-        .useTimeout(taskState.getPropAsLong(
+        .useTimeout(this.taskState.getPropAsLong(
             ConfigurationKeys.FORK_RECORD_QUEUE_TIMEOUT_KEY,
             ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_TIMEOUT))
-        .useTimeoutTimeUnit(TimeUnit.valueOf(taskState.getProp(
+        .useTimeoutTimeUnit(TimeUnit.valueOf(this.taskState.getProp(
             ConfigurationKeys.FORK_RECORD_QUEUE_TIMEOUT_UNIT_KEY,
             ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_TIMEOUT_UNIT)))
         .collectStats()
@@ -131,10 +148,17 @@ public class Fork implements Closeable, Runnable {
 
     this.countDownLatch = countDownLatch;
 
-    this.closer.register(this.rowLevelPolicyChecker);
-    this.closer.register(this.writer);
-
     this.forkState = new AtomicReference<ForkState>(ForkState.PENDING);
+
+    /**
+     * Create a {@link GobblinMetrics} for this {@link Fork} instance so that all new {@link MetricContext}s returned by
+     * {@link Instrumented#setMetricContextName(State, String)} will be children of the forkMetrics.
+     */
+    this.forkMetrics = GobblinMetrics.get(getForkMetricsName(taskContext.getTaskMetrics(), this.taskState, index),
+        taskContext.getTaskMetrics().getMetricContext(), getForkMetricsTags(this.taskState, index));
+    this.closer.register(this.forkMetrics.getMetricContext());
+
+    Instrumented.setMetricContextName(this.taskState, this.forkMetrics.getMetricContext().getName());
   }
 
   @Override
@@ -162,6 +186,22 @@ public class Fork implements Closeable, Runnable {
       this.recordQueue.clear();
       this.countDownLatch.countDown();
     }
+  }
+
+  /**
+   * {@inheritDoc}.
+   *
+   * @return a {@link gobblin.configuration.State} object storing merged final states of constructs
+   *         used in this {@link Fork}
+   */
+  @Override
+  public State getFinalState() {
+    State state = this.converter.getFinalState();
+    state.addAll(this.rowLevelPolicyChecker.getFinalState());
+    if (this.writer.isPresent()) {
+      state.addAll(this.writer.get().getFinalState());
+    }
+    return state;
   }
 
   /**
@@ -199,7 +239,9 @@ public class Fork implements Closeable, Runnable {
    * Update record-level metrics.
    */
   public void updateRecordMetrics() {
-    this.taskState.updateRecordMetrics(this.writer.recordsWritten(), this.index);
+    if (this.writer.isPresent()) {
+      this.taskState.updateRecordMetrics(this.writer.get().recordsWritten(), this.index);
+    }
   }
 
   /**
@@ -209,9 +251,10 @@ public class Fork implements Closeable, Runnable {
    *     This method is only supposed to be called after the writer commits.
    * </p>
    */
-  public void updateByteMetrics()
-      throws IOException {
-    this.taskState.updateByteMetrics(this.writer.bytesWritten(), this.index);
+  public void updateByteMetrics() throws IOException {
+    if (this.writer.isPresent()) {
+      this.taskState.updateByteMetrics(this.writer.get().bytesWritten(), this.index);
+    }
   }
 
   /**
@@ -219,8 +262,7 @@ public class Fork implements Closeable, Runnable {
    *
    * @throws Exception if there is anything wrong committing the data
    */
-  public void commit()
-      throws Exception {
+  public boolean commit() throws Exception {
     try {
       if (checkDataQuality(this.convertedSchema)) {
         // Commit data if all quality checkers pass. Again, not to catch the exception
@@ -228,14 +270,17 @@ public class Fork implements Closeable, Runnable {
         this.logger.info(String.format("Committing data for fork %d of task %s", this.index, this.taskId));
         commitData();
         compareAndSetForkState(ForkState.SUCCEEDED, ForkState.COMMITTED);
+        return true;
       } else {
         this.logger.error(String.format("Fork %d of task %s failed to pass quality checking", this.index, this.taskId));
         compareAndSetForkState(ForkState.SUCCEEDED, ForkState.FAILED);
+        return false;
       }
     } catch (Throwable t) {
       this.logger.error(String.format("Fork %d of task %s failed to commit data", this.index, this.taskId), t);
       this.forkState.set(ForkState.FAILED);
       Throwables.propagate(t);
+      return false;
     }
   }
 
@@ -279,8 +324,7 @@ public class Fork implements Closeable, Runnable {
   }
 
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     // Tell this fork that the parent task is done. This is a second chance call if the parent
     // task failed and didn't do so through the normal way of calling markParentTaskDone().
     this.parentTaskDone = true;
@@ -289,10 +333,13 @@ public class Fork implements Closeable, Runnable {
     this.taskState.setProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.FORK_STATE_KEY, this.branches, this.index),
         this.forkState.get().name());
+
     try {
       this.closer.close();
     } finally {
-      this.writer.cleanup();
+      if (this.writer.isPresent()) {
+        this.writer.get().cleanup();
+      }
     }
   }
 
@@ -300,23 +347,37 @@ public class Fork implements Closeable, Runnable {
    * Build a {@link gobblin.writer.DataWriter} for writing fetched data records.
    */
   @SuppressWarnings("unchecked")
-  private DataWriter<Object> buildWriter()
+  private InstrumentedDataWriterDecorator<Object> buildWriter()
       throws IOException, SchemaConversionException {
     DataWriter<Object> writer = this.taskContext.getDataWriterBuilder(this.branches, this.index)
         .writeTo(Destination.of(this.taskContext.getDestinationType(this.branches, this.index), this.taskState))
         .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index))
         .withWriterId(this.taskId)
-        .withSchema(this.convertedSchema)
+        .withSchema(this.convertedSchema.orNull())
         .withBranches(this.branches)
         .forBranch(this.index)
         .build();
     return new InstrumentedDataWriterDecorator<Object>(writer, this.taskState);
   }
 
+  private void buildWriterIfNotPresent() throws IOException {
+    if (!this.writer.isPresent()) {
+      try {
+        this.writer = Optional.of(this.closer.register(buildWriter()));
+      } catch (SchemaConversionException sce) {
+        throw new IOException("Failed to build writer for fork " + this.index, sce);
+      }
+    }
+  }
+
   /**
    * Get new records off the record queue and process them.
    */
   private void processRecords() throws IOException, DataConversionException {
+    if (this.useEagerWriterInitialization) {
+      buildWriterIfNotPresent();
+    }
+
     while (true) {
       try {
         Object record = this.recordQueue.get();
@@ -326,10 +387,11 @@ public class Fork implements Closeable, Runnable {
             return;
           }
         } else {
+          buildWriterIfNotPresent();
           // Convert the record, check its data quality, and finally write it out if quality checking passes.
           for (Object convertedRecord : this.converter.convertRecord(this.convertedSchema, record, this.taskState)) {
             if (this.rowLevelPolicyChecker.executePolicies(convertedRecord, this.rowLevelPolicyCheckingResult)) {
-              this.writer.write(convertedRecord);
+              this.writer.get().write(convertedRecord);
             }
           }
         }
@@ -345,7 +407,7 @@ public class Fork implements Closeable, Runnable {
    *
    * @return whether data publishing is successful and data should be committed
    */
-  private boolean checkDataQuality(Object schema)
+  private boolean checkDataQuality(Optional<Object> schema)
       throws Exception {
     TaskState taskStateForFork = this.taskState;
     if (this.branches > 1) {
@@ -353,8 +415,15 @@ public class Fork implements Closeable, Runnable {
       taskStateForFork = new TaskState(this.taskState);
     }
 
-    taskStateForFork.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, this.writer.recordsWritten());
-    taskStateForFork.setProp(ConfigurationKeys.EXTRACT_SCHEMA, schema.toString());
+    if (this.writer.isPresent()) {
+      taskStateForFork.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, this.writer.get().recordsWritten());
+    } else {
+      taskStateForFork.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, 0l);
+    }
+
+    if (schema.isPresent()) {
+      taskStateForFork.setProp(ConfigurationKeys.EXTRACT_SCHEMA, schema.get().toString());
+    }
 
     try {
       // Do task-level quality checking
@@ -389,11 +458,11 @@ public class Fork implements Closeable, Runnable {
   /**
    * Commit task data.
    */
-  private void commitData()
-      throws IOException {
-    this.logger.info(String.format("Committing data of fork %d of task %s", this.index, this.taskId));
-    // Not to catch the exception this may throw so it gets propagated
-    this.writer.commit();
+  private void commitData() throws IOException {
+    if (this.writer.isPresent()) {
+      // Not to catch the exception this may throw so it gets propagated
+      this.writer.get().commit();
+    }
 
     try {
       if (GobblinMetrics.isEnabled(this.taskState.getWorkunit())) {
@@ -415,5 +484,30 @@ public class Fork implements Closeable, Runnable {
       throw new IllegalStateException(String
           .format("Expected fork state %s; actual fork state %s", expectedState.name(), this.forkState.get().name()));
     }
+  }
+
+  /**
+   * Creates a {@link List} of {@link Tag}s for a {@link Fork} instance. The {@link Tag}s are purely based on the
+   * index and the branch name.
+   */
+  private static List<Tag<?>> getForkMetricsTags(State state, int index) {
+    return ImmutableList.<Tag<?>>of(new Tag<String>(FORK_METRICS_BRANCH_NAME_KEY, getForkMetricsId(state, index)));
+  }
+
+  /**
+   * Creates a {@link String} that is a concatenation of the {@link TaskMetrics#getName()} and
+   * {@link #getForkMetricsId(State, int)}.
+   */
+  private static String getForkMetricsName(TaskMetrics taskMetrics, State state, int index) {
+    return taskMetrics.getName() + "." + getForkMetricsId(state, index);
+  }
+
+  /**
+   * Creates a unique {@link String} representing this branch.
+   */
+  private static String getForkMetricsId(State state, int index) {
+    return state.getProp(
+        ConfigurationKeys.FORK_BRANCH_NAME_KEY + "." + index, ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME
+            + index);
   }
 }

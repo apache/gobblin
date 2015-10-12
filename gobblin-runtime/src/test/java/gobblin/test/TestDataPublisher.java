@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -17,6 +18,7 @@ import java.util.Collection;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.publisher.DataPublisher;
+import gobblin.publisher.SingleTaskDataPublisher;
 
 
 /**
@@ -27,31 +29,39 @@ import gobblin.publisher.DataPublisher;
  *     integration test work.
  * </p>
  */
-public class TestDataPublisher extends DataPublisher {
+public class TestDataPublisher extends SingleTaskDataPublisher {
 
   public TestDataPublisher(State state) {
     super(state);
   }
 
   @Override
-  public void initialize()
-      throws IOException {
+  public void initialize() throws IOException {
     // Do nothing
   }
 
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     // Do nothing
   }
 
   @Override
-  public void publishData(Collection<? extends WorkUnitState> tasks)
-      throws IOException {
+  public void publishData(Collection<? extends WorkUnitState> tasks) throws IOException {
+    // Do nothing
   }
 
   @Override
-  public void publishMetadata(Collection<? extends WorkUnitState> tasks)
-      throws IOException {
+  public void publishMetadata(Collection<? extends WorkUnitState> tasks) throws IOException {
+    // Do nothing
+  }
+
+  @Override
+  public void publishData(WorkUnitState state) throws IOException {
+    // Do nothing
+  }
+
+  @Override
+  public void publishMetadata(WorkUnitState state) throws IOException {
+    // Do nothing
   }
 }

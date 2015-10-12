@@ -1,5 +1,5 @@
 /*
- * (c) 2014 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -12,8 +12,9 @@
 
 package gobblin.instrumented.converter;
 
-import java.util.List;
+import java.io.IOException;
 
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
@@ -71,6 +72,17 @@ public class InstrumentedConverterDecorator<SI, SO, DI, DO> extends Instrumented
   public SO convertSchema(SI inputSchema, WorkUnitState workUnit)
       throws SchemaConversionException {
     return this.embeddedConverter.convertSchema(inputSchema, workUnit);
+  }
+
+  @Override
+  public void close()
+      throws IOException {
+    this.embeddedConverter.close();
+  }
+
+  @Override
+  public State getFinalState() {
+    return this.embeddedConverter.getFinalState();
   }
 
   @Override

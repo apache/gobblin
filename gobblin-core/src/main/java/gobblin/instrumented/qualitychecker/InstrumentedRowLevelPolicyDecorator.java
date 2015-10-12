@@ -1,5 +1,5 @@
 /*
- * (c) 2014 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -12,10 +12,11 @@
 
 package gobblin.instrumented.qualitychecker;
 
-import java.util.List;
+import java.io.IOException;
 
 import com.google.common.base.Optional;
 
+import gobblin.configuration.State;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
 import gobblin.qualitychecker.row.RowLevelPolicy;
@@ -60,7 +61,18 @@ public class InstrumentedRowLevelPolicyDecorator extends InstrumentedRowLevelPol
   }
 
   @Override
+  public void close()
+      throws IOException {
+    this.embeddedPolicy.close();
+  }
+
+  @Override
   public Object getDecoratedObject() {
     return this.embeddedPolicy;
+  }
+
+  @Override
+  public State getFinalState() {
+    return this.embeddedPolicy.getFinalState();
   }
 }

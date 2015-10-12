@@ -1,5 +1,5 @@
 /*
- * (c) 2014 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -18,7 +18,6 @@ import com.google.common.collect.Lists;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
 import gobblin.runtime.TaskState;
@@ -44,13 +43,8 @@ public class TaskMetrics extends GobblinMetrics {
    * @param taskState the given {@link TaskState} instance
    * @return a {@link TaskMetrics} instance
    */
-  public synchronized static TaskMetrics get(TaskState taskState) {
-    GobblinMetricsRegistry registry = GobblinMetricsRegistry.getInstance();
-    String name = name(taskState);
-    if (!registry.containsKey(name)) {
-      registry.putIfAbsent(name, new TaskMetrics(taskState));
-    }
-    return (TaskMetrics) registry.get(name);
+  public static TaskMetrics get(TaskState taskState) {
+    return (TaskMetrics) GOBBLIN_METRICS_REGISTRY.getOrDefault(name(taskState), new TaskMetrics(taskState));
   }
 
   /**
@@ -58,7 +52,7 @@ public class TaskMetrics extends GobblinMetrics {
    *
    * @param taskState the given {@link TaskState} instance
    */
-  public synchronized static void remove(TaskState taskState) {
+  public static void remove(TaskState taskState) {
     remove(name(taskState));
   }
 
@@ -66,9 +60,10 @@ public class TaskMetrics extends GobblinMetrics {
     return "gobblin.metrics." + taskState.getJobId() + "." + taskState.getTaskId();
   }
 
-  private static List<Tag<?>> tagsForTask(TaskState taskState) {
+  protected static List<Tag<?>> tagsForTask(TaskState taskState) {
     List<Tag<?>> tags = Lists.newArrayList();
     tags.add(new Tag<String>("taskId", taskState.getTaskId()));
+    tags.addAll(getCustomTagsFromState(taskState));
     return tags;
   }
 

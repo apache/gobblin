@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -45,6 +46,9 @@ public class ConfigurationKeys {
 
   // File system URI for file-system-based task store
   public static final String STATE_STORE_FS_URI_KEY = "state.store.fs.uri";
+
+  //Directory that stores task staging data and task output data.
+  public static final String TASK_DATA_ROOT_DIR_KEY = "task.data.root.dir";
 
   // Directory where job lock files are stored
   public static final String JOB_LOCK_DIR_KEY = "job.lock.dir";
@@ -105,6 +109,8 @@ public class ConfigurationKeys {
   public static final long DEFAULT_TASK_RETRY_INTERVAL_IN_SEC = 300;
   public static final String OVERWRITE_CONFIGS_IN_STATESTORE = "overwrite.configs.in.statestore";
   public static final boolean DEFAULT_OVERWRITE_CONFIGS_IN_STATESTORE = false;
+  public static final String CLEANUP_STAGING_DATA_PER_TASK = "cleanup.staging.data.per.task";
+  public static final boolean DEFAULT_CLEANUP_STAGING_DATA_PER_TASK = true;
 
   /**
    * Configuration properties used internally.
@@ -117,7 +123,14 @@ public class ConfigurationKeys {
   public static final String JOB_FAILURES_KEY = "job.failures";
   public static final String JOB_TRACKING_URL_KEY = "job.tracking.url";
   public static final String FORK_STATE_KEY = "fork.state";
-  public static final String METRIC_CONTEXT_NAME_KEY = "metrics.context.name";
+  public static final String JOB_STATE_FILE_PATH_KEY = "job.state.file.path";
+
+  /**
+   * Dataset-related configuration properties;
+   */
+  // This property is used to specify the URN of a dataset a job or WorkUnit extracts data for
+  public static final String DATASET_URN_KEY = "dataset.urn";
+  public static final String DEFAULT_DATASET_URN = "";
 
   /**
    * Work unit related configuration properties.
@@ -195,6 +208,8 @@ public class ConfigurationKeys {
   public static final String WRITER_FILE_SYSTEM_URI = WRITER_PREFIX + ".fs.uri";
   public static final String WRITER_STAGING_DIR = WRITER_PREFIX + ".staging.dir";
   public static final String WRITER_OUTPUT_DIR = WRITER_PREFIX + ".output.dir";
+  // WRITER_FINAL_OUTPUT_PATH is used for internal purposes only to pass the absolute writer path to the publisher
+  public static final String WRITER_FINAL_OUTPUT_FILE_PATHS = WRITER_PREFIX + ".final.output.file.paths";
   public static final String WRITER_BUILDER_CLASS = WRITER_PREFIX + ".builder.class";
   public static final String DEFAULT_WRITER_BUILDER_CLASS = "gobblin.writer.AvroDataWriterBuilder";
   public static final String WRITER_FILE_NAME = WRITER_PREFIX + ".file.name";
@@ -203,22 +218,42 @@ public class ConfigurationKeys {
   public static final String WRITER_FILE_OWNER = WRITER_PREFIX + ".file.owner";
   public static final String WRITER_FILE_GROUP = WRITER_PREFIX + ".file.group";
   public static final String WRITER_FILE_REPLICATION_FACTOR = WRITER_PREFIX + ".file.replication.factor";
+  public static final String WRITER_FILE_BLOCK_SIZE = WRITER_PREFIX + ".file.block.size";
   public static final String WRITER_FILE_PERMISSIONS = WRITER_PREFIX + ".file.permissions";
+  public static final String WRITER_DIR_PERMISSIONS = WRITER_PREFIX + ".dir.permissions";
   public static final String WRITER_BUFFER_SIZE = WRITER_PREFIX + ".buffer.size";
   public static final String WRITER_PRESERVE_FILE_NAME = WRITER_PREFIX + ".preserve.file.name";
   public static final String WRITER_DEFLATE_LEVEL = WRITER_PREFIX + ".deflate.level";
   public static final String WRITER_CODEC_TYPE = WRITER_PREFIX + ".codec.type";
+  public static final String WRITER_EAGER_INITIALIZATION_KEY = WRITER_PREFIX + ".eager.initialization";
+  public static final boolean DEFAULT_WRITER_EAGER_INITIALIZATION = false;
+
+  // Deprecated. Use WRITER_PARTITION_COLUMNS
+  @Deprecated
   public static final String WRITER_PARTITION_COLUMN_NAME = WRITER_PREFIX + ".partition.column.name";
+  public static final String WRITER_PARTITION_COLUMNS = WRITER_PREFIX + ".partition.columns";
   public static final String WRITER_PARTITION_LEVEL = WRITER_PREFIX + ".partition.level";
   public static final String WRITER_PARTITION_PATTERN = WRITER_PREFIX + ".partition.pattern";
   public static final String WRITER_PARTITION_TIMEZONE = WRITER_PREFIX + ".partition.timezone";
+  public static final String WRITER_GROUP_NAME = WRITER_PREFIX + ".group.name";
   public static final String DEFAULT_WRITER_FILE_BASE_NAME = "part";
-  public static final String DEFAULT_DEFLATE_LEVEL = "9";
+  public static final int DEFAULT_DEFLATE_LEVEL = 9;
   public static final String DEFAULT_BUFFER_SIZE = "4096";
   public static final String DEFAULT_WRITER_PARTITION_LEVEL = "daily";
   public static final String DEFAULT_WRITER_PARTITION_PATTERN = "yyyy/MM/dd";
   public static final String DEFAULT_WRITER_PARTITION_TIMEZONE = "America/Los_Angeles";
   public static final String DEFAULT_WRITER_FILE_PATH_TYPE = "default";
+
+  public static final String SIMPLE_WRITER_DELIMITER = "simple.writer.delimiter";
+  public static final String SIMPLE_WRITER_PREPEND_SIZE = "simple.writer.prepend.size";
+
+  /**
+   * Writer configuration properties used internally.
+   */
+  public static final String WRITER_RECORDS_WRITTEN = WRITER_PREFIX + ".records.written";
+  public static final String WRITER_BYTES_WRITTEN = WRITER_PREFIX + ".bytes.written";
+  public static final String WRITER_EARLIEST_TIMESTAMP = WRITER_PREFIX + ".earliest.timestamp";
+  public static final String WRITER_AVERAGE_TIMESTAMP = WRITER_PREFIX + ".average.timestamp";
 
   /**
    * Configuration properties used by the quality checker.
@@ -253,6 +288,11 @@ public class ConfigurationKeys {
   public static final String DATA_PUBLISHER_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".final.dir";
   public static final String DATA_PUBLISHER_REPLACE_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".replace.final.dir";
   public static final String DATA_PUBLISHER_FINAL_NAME = DATA_PUBLISHER_PREFIX + ".final.name";
+  // This property is used to specify the owner group of the data publisher final output directory
+  public static final String DATA_PUBLISHER_FINAL_DIR_GROUP = DATA_PUBLISHER_PREFIX + ".final.dir.group";
+  public static final String DATA_PUBLISHER_PERMISSIONS = DATA_PUBLISHER_PREFIX + ".permissions";
+  public static final String PUBLISH_DATA_AT_JOB_LEVEL = "publish.data.at.job.level";
+  public static final boolean DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL = true;
 
   /**
    * Configuration properties used by the extractor.
@@ -301,6 +341,20 @@ public class ConfigurationKeys {
   public static final String SOURCE_FILEBASED_PRESERVE_FILE_NAME = "source.filebased.preserve.file.name";
 
   /**
+   * Configuration properties used internally by the KafkaSource.
+   */
+  public static final String OFFSET_TOO_EARLY_COUNT = "offset.too.early.count";
+  public static final String OFFSET_TOO_LATE_COUNT = "offset.too.late.count";
+  public static final String FAIL_TO_GET_OFFSET_COUNT = "fail.to.get.offset.count";
+
+  /**
+   * Configuration properties used internally by the KafkaExtractor.
+   */
+  public static final String ERROR_PARTITION_COUNT = "error.partition.count";
+  public static final String ERROR_MESSAGE_INVALID_SCHEMA_ID_COUNT = "error.message.invalid.schema.id.count";
+  public static final String ERROR_MESSAGE_UNDECODABLE_COUNT = "error.message.undecodable.count";
+
+  /**
    * Configuration properties for source connection.
    */
   public static final String SOURCE_CONN_USE_AUTHENTICATION = "source.conn.use.authentication";
@@ -347,8 +401,8 @@ public class ConfigurationKeys {
    */
   public static final String MR_JOB_ROOT_DIR_KEY = "mr.job.root.dir";
   public static final String MR_JOB_MAX_MAPPERS_KEY = "mr.job.max.mappers";
-  public static final String MR_INCLUDE_TASK_COUNTERS_KEY = "mr.include.task.counters";
-  public static final boolean DEFAULT_MR_INCLUDE_TASK_COUNTERS = Boolean.FALSE;
+  public static final String MR_REPORT_METRICS_AS_COUNTERS_KEY = "mr.report.metrics.as.counters";
+  public static final boolean DEFAULT_MR_REPORT_METRICS_AS_COUNTERS = false;
   public static final int DEFAULT_MR_JOB_MAX_MAPPERS = 100;
 
   /**
@@ -367,21 +421,39 @@ public class ConfigurationKeys {
   /**
    * Common metrics configuration properties.
    */
-  public static final String METRICS_LOG_DIR_KEY = "metrics.log.dir";
-  public static final String METRICS_ENABLED_KEY = "metrics.enabled";
-  public static final String DEFAULT_METRICS_ENABLED = Boolean.toString(false);
-  public static final String METRICS_REPORTING_FILE_ENABLED_KEY = "metrics.reporting.file.enabled";
-  public static final String DEFAULT_METRICS_REPORTING_FILE_ENABLED = Boolean.toString(true);
-  public static final String METRICS_REPORTING_JMX_ENABLED_KEY = "metrics.reporting.jmx.enabled";
+  public static final String METRICS_CONFIGURATIONS_PREFIX = "metrics.";
+  public static final String METRICS_LOG_DIR_KEY = METRICS_CONFIGURATIONS_PREFIX + "log.dir";
+  public static final String METRICS_ENABLED_KEY = METRICS_CONFIGURATIONS_PREFIX + "enabled";
+  public static final String DEFAULT_METRICS_ENABLED = Boolean.toString(true);
+  public static final String METRICS_FILE_SUFFIX = METRICS_CONFIGURATIONS_PREFIX + "reporting.file.suffix";
+  public static final String DEFAULT_METRICS_FILE_SUFFIX = "";
+  public static final String METRICS_REPORTING_FILE_ENABLED_KEY =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.file.enabled";
+  public static final String DEFAULT_METRICS_REPORTING_FILE_ENABLED = Boolean.toString(false);
+  public static final String METRICS_REPORTING_JMX_ENABLED_KEY =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.jmx.enabled";
   public static final String DEFAULT_METRICS_REPORTING_JMX_ENABLED = Boolean.toString(false);
-  public static final String METRICS_REPORTING_KAFKA_ENABLED_KEY = "metrics.reporting.kafka.enabled";
+  public static final String METRICS_REPORTING_KAFKA_ENABLED_KEY =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.enabled";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_ENABLED = Boolean.toString(false);
-  public static final String METRICS_REPORTING_KAFKA_FORMAT = "metrics.reporting.kafka.format";
+  public static final String METRICS_REPORTING_KAFKA_FORMAT = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.format";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_FORMAT = "json";
-  public static final String METRICS_KAFKA_BROKERS = "metrics.reporting.kafka.brokers";
-  public static final String METRICS_KAFKA_TOPIC = "metrics.reporting.kafka.topic";
-  public static final String METRICS_REPORT_INTERVAL_KEY = "metrics.report.interval";
-  public static final String DEFAULT_METRICS_REPORT_INTERVAL = "30000";
+  public static final String METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.avro.use.schema.registry";
+  public static final String DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY = Boolean.toString(false);
+  public static final String METRICS_KAFKA_BROKERS = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.brokers";
+  // Topic used for both event and metric reporting.
+  // Can be overriden by METRICS_KAFKA_TOPIC_METRICS and METRICS_KAFKA_TOPIC_EVENTS.
+  public static final String METRICS_KAFKA_TOPIC = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic";
+  // Topic used only for metric reporting.
+  public static final String METRICS_KAFKA_TOPIC_METRICS =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic.metrics";
+  // Topic used only for event reporting.
+  public static final String METRICS_KAFKA_TOPIC_EVENTS =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic.events";
+  public static final String METRICS_CUSTOM_BUILDERS = METRICS_CONFIGURATIONS_PREFIX + "reporting.custom.builders";
+  public static final String METRICS_REPORT_INTERVAL_KEY = METRICS_CONFIGURATIONS_PREFIX + "report.interval";
+  public static final String DEFAULT_METRICS_REPORT_INTERVAL = Long.toString(TimeUnit.SECONDS.toMillis(30));
 
   /**
    * Rest server configuration properties.
@@ -390,6 +462,11 @@ public class ConfigurationKeys {
   public static final String DEFAULT_REST_SERVER_HOST = "localhost";
   public static final String REST_SERVER_PORT_KEY = "rest.server.port";
   public static final String DEFAULT_REST_SERVER_PORT = "8080";
+
+  /**
+   * Kafka job configurations.
+   */
+  public static final String KAFKA_BROKERS = "kafka.brokers";
 
   /**
    * MySQL job history store configuration properties.
@@ -404,7 +481,32 @@ public class ConfigurationKeys {
   public static final String DEFAULT_JOB_HISTORY_STORE_PASSWORD = "gobblin";
 
   /**
+   * Password encryption and decryption properties.
+   */
+  public static final String ENCRYPT_KEY_LOC = "encrypt.key.loc";
+  public static final String ENCRYPT_USE_STRONG_ENCRYPTOR = "encrypt.use.strong.encryptor";
+  public static final boolean DEFAULT_ENCRYPT_USE_STRONG_ENCRYPTOR = false;
+
+  /**
+   * Proxy Filesystem operation properties.
+   */
+  public static final String SHOULD_FS_PROXY_AS_USER = "should.fs.proxy.as.user";
+  public static final boolean DEFAULT_SHOULD_FS_PROXY_AS_USER = false;
+  public static final String FS_PROXY_AS_USER_NAME = "fs.proxy.as.user.name";
+  public static final String FS_PROXY_AS_USER_TOKEN_FILE = "fs.proxy.as.user.token.file";
+  public static final String SUPER_USER_NAME_TO_PROXY_AS_OTHERS = "super.user.name.to.proxy.as.others";
+  public static final String SUPER_USER_KEY_TAB_LOCATION = "super.user.key.tab.location";
+
+  /**
+   * Azkaban properties.
+   */
+  public static final String AZKABAN_EXECUTION_TIME_RANGE = "azkaban.execution.time.range";
+  public static final String AZKABAN_EXECUTION_DAYS_LIST = "azkaban.execution.days.list";
+
+  /**
    * Other configuration properties.
    */
   public static final Charset DEFAULT_CHARSET_ENCODING = Charsets.UTF_8;
+  public static final String TEST_HARNESS_LAUNCHER_IMPL = "gobblin.testharness.launcher.impl";
+  public static final int PERMISSION_PARSING_RADIX = 8;
 }

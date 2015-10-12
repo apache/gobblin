@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -13,6 +14,8 @@ package gobblin.publisher;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 
 import gobblin.configuration.State;
@@ -24,43 +27,56 @@ import gobblin.configuration.WorkUnitState;
  */
 public abstract class DataPublisher implements Closeable {
 
-  private final State state;
+  protected final State state;
 
   public DataPublisher(State state) {
     this.state = state;
   }
 
-  public abstract void initialize()
-      throws IOException;
+  /**
+   * @deprecated {@link DataPublisher} initialization should be done in the constructor.
+   */
+  @Deprecated
+  public abstract void initialize() throws IOException;
 
   /**
-   * Returns true if it successfully publishes the data, false otherwise.
+   * Publish the data for the given tasks.
    */
-  public abstract void publishData(Collection<? extends WorkUnitState> tasks)
-      throws IOException;
+  public abstract void publishData(Collection<? extends WorkUnitState> states) throws IOException;
 
   /**
-   * Returns true if it successfully publishes the metadata, false otherwise. Examples of publishing metadata include
-   * writing offset files, checkpoint files, etc.
+   * Publish the metadata (e.g., schema) for the given tasks. Checkpoints should not be published as part of metadata.
+   * They are published by Gobblin runtime after the metadata and data are published.
    */
-  public abstract void publishMetadata(Collection<? extends WorkUnitState> tasks)
-      throws IOException;
+  public abstract void publishMetadata(Collection<? extends WorkUnitState> states) throws IOException;
 
   /**
    * First publish the metadata via {@link DataPublisher#publishMetadata(Collection)}, and then publish the output data
    * via the {@link DataPublisher#publishData(Collection)} method.
    *
-   * @param states is a {@link Collection} of {@link WorkUnitState}s. Each {@link WorkUnitState} contains a
-   * {@link WorkUnit} that was scheduled to run, along with all the runtime information specific to the {@link WorkUnit}.
+   * @param states is a {@link Collection} of {@link WorkUnitState}s.
    * @throws IOException if there is a problem with publishing the metadata or the data.
    */
-  public void publish(Collection<? extends WorkUnitState> states)
-      throws IOException {
+  public void publish(Collection<? extends WorkUnitState> states) throws IOException {
     publishMetadata(states);
     publishData(states);
   }
 
   public State getState() {
     return this.state;
+  }
+
+  /**
+   * Get an instance of {@link DataPublisher}.
+   *
+   * @param dataPublisherClass A concrete class that extends {@link DataPublisher}.
+   * @param state A {@link State} used to instantiate the {@link DataPublisher}.
+   * @return A {@link DataPublisher} instance.
+   */
+  public static DataPublisher getInstance(Class<? extends DataPublisher> dataPublisherClass, State state)
+      throws NoSuchMethodException, SecurityException, InstantiationException, IllegalAccessException,
+      IllegalArgumentException, InvocationTargetException {
+    Constructor<? extends DataPublisher> dataPublisherConstructor = dataPublisherClass.getConstructor(State.class);
+    return dataPublisherConstructor.newInstance(state);
   }
 }

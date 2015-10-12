@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -17,17 +18,18 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.apache.commons.io.IOUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.instrumented.extractor.InstrumentedExtractor;
+import gobblin.metrics.Counters;
 import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.WorkUnit;
 
 
@@ -41,13 +43,13 @@ import gobblin.source.workunit.WorkUnit;
  * @param <D>
  *            type of data record
  */
-public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
+public abstract class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(FileBasedExtractor.class);
+  private static final Logger LOG = LoggerFactory.getLogger(FileBasedExtractor.class);
 
   protected final WorkUnit workUnit;
   protected final WorkUnitState workUnitState;
-  protected final FileBasedHelper fsHelper;
+  protected final SizeAwareFileBasedHelper fsHelper;
   protected final List<String> filesToPull;
 
   protected final Closer closer = Closer.create();
@@ -57,21 +59,39 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
 
   private Iterator<D> currentFileItr;
   private String currentFile;
-  private boolean readRecordStart;
+  private boolean hasNext = false;
+  private final boolean shouldSkipFirstRecord;
+
+  protected enum CounterNames {
+    FileBytesRead;
+  }
+
+  protected Counters<CounterNames> counters = new Counters<CounterNames>();
 
   public FileBasedExtractor(WorkUnitState workUnitState, FileBasedHelper fsHelper) {
+    super(workUnitState);
     this.workUnitState = workUnitState;
     this.workUnit = workUnitState.getWorkunit();
     this.filesToPull =
         Lists.newArrayList(workUnitState.getPropAsList(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, ""));
-    this.statusCount = this.workUnit.getPropAsInt(ConfigurationKeys.FILEBASED_REPORT_STATUS_ON_COUNT,
-        ConfigurationKeys.DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT);
-    this.fsHelper = fsHelper;
+    this.statusCount =
+        this.workUnit.getPropAsInt(ConfigurationKeys.FILEBASED_REPORT_STATUS_ON_COUNT,
+            ConfigurationKeys.DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT);
+    this.shouldSkipFirstRecord = this.workUnitState.getPropAsBoolean(ConfigurationKeys.SOURCE_SKIP_FIRST_RECORD, false);
+
+    if (fsHelper instanceof SizeAwareFileBasedHelper) {
+      this.fsHelper = (SizeAwareFileBasedHelper) fsHelper;
+    } else {
+      this.fsHelper = new SizeAwareFileBasedHelperDecorator(fsHelper);
+    }
+
     try {
       this.fsHelper.connect();
     } catch (FileBasedHelperException e) {
-      Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
+
+    this.counters.initialize(getMetricContext(), CounterNames.class, this.getClass());
   }
 
   /**
@@ -81,39 +101,49 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
    * file
    */
   @Override
-  public D readRecord(@Deprecated D reuse) throws DataRecordException, IOException {
+  public D readRecordImpl(@Deprecated D reuse) throws DataRecordException, IOException {
     this.totalRecordCount++;
 
     if (this.statusCount > 0 && this.totalRecordCount % this.statusCount == 0) {
-      LOGGER.info("Total number of records processed so far: " + this.totalRecordCount);
+      LOG.info("Total number of records processed so far: " + this.totalRecordCount);
     }
 
-    if (!readRecordStart) {
-      LOGGER.info("Starting to read records");
-      if (!filesToPull.isEmpty()) {
-        currentFile = filesToPull.remove(0);
-        currentFileItr = downloadFile(currentFile);
-        LOGGER.info("Will start downloading file: " + currentFile);
-      } else {
-        LOGGER.info("Finished reading records from all files");
-        return null;
+    // If records have been read, check the hasNext value, if not then get the next file to process
+    if (this.currentFile != null && this.currentFileItr != null) {
+      this.hasNext = this.currentFileItr.hasNext();
+
+      // If the current file is done, move to the next one
+      if (!this.hasNext) {
+        getNextFileToRead();
       }
-      readRecordStart = true;
-    }
-
-    while (!currentFileItr.hasNext() && !filesToPull.isEmpty()) {
-      LOGGER.info("Finished downloading file: " + currentFile);
-      closeCurrentFile();
-      currentFile = filesToPull.remove(0);
-      currentFileItr = downloadFile(currentFile);
-      LOGGER.info("Will start downloading file: " + currentFile);
-    }
-
-    if (currentFileItr.hasNext()) {
-      return currentFileItr.next();
     } else {
-      LOGGER.info("Finished reading records from all files");
-      return null;
+      // If no records have been read yet, get the first file to process
+      getNextFileToRead();
+    }
+
+    if (this.hasNext) {
+      return this.currentFileItr.next();
+    }
+
+    LOG.info("Finished reading records from all files");
+    return null;
+  }
+
+  /**
+   * If a previous file has been read, first close that file. Then search through {@link #filesToPull} to find the first
+   * non-empty file.
+   */
+  private void getNextFileToRead() throws IOException {
+    if (this.currentFile != null && this.currentFileItr != null) {
+      closeCurrentFile();
+      incrementBytesReadCounter();
+    }
+
+    while (!this.hasNext && !this.filesToPull.isEmpty()) {
+      this.currentFile = this.filesToPull.remove(0);
+      this.currentFileItr = downloadFile(this.currentFile);
+      this.hasNext = this.currentFileItr == null ? false : this.currentFileItr.hasNext();
+      LOG.info("Will start downloading file: " + this.currentFile);
     }
   }
 
@@ -142,7 +172,7 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
    */
   @Override
   public long getHighWatermark() {
-    LOGGER.info("High Watermark is -1 for file based extractors");
+    LOG.info("High Watermark is -1 for file based extractors");
     return -1;
   }
 
@@ -156,12 +186,12 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
    */
   @SuppressWarnings("unchecked")
   public Iterator<D> downloadFile(String file) throws IOException {
-    LOGGER.info("Beginning to download file: " + file);
+    LOG.info("Beginning to download file: " + file);
 
     try {
       InputStream inputStream = this.closer.register(this.fsHelper.getFileStream(file));
       Iterator<D> fileItr = (Iterator<D>) IOUtils.lineIterator(inputStream, ConfigurationKeys.DEFAULT_CHARSET_ENCODING);
-      if (workUnitState.getPropAsBoolean(ConfigurationKeys.SOURCE_SKIP_FIRST_RECORD, false) && fileItr.hasNext()) {
+      if (this.shouldSkipFirstRecord && fileItr.hasNext()) {
         fileItr.next();
       }
       return fileItr;
@@ -178,7 +208,7 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
       this.closer.close();
     } catch (IOException e) {
       if (this.currentFile != null) {
-        LOGGER.error("Failed to close file: " + this.currentFile, e);
+        LOG.error("Failed to close file: " + this.currentFile, e);
       }
     }
   }
@@ -188,7 +218,19 @@ public abstract class FileBasedExtractor<S, D> implements Extractor<S, D> {
     try {
       this.fsHelper.close();
     } catch (FileBasedHelperException e) {
-      LOGGER.error("Could not successfully close file system helper due to error: " + e.getMessage(), e);
+      LOG.error("Could not successfully close file system helper due to error: " + e.getMessage(), e);
+    }
+  }
+
+  private void incrementBytesReadCounter() {
+    try {
+      this.counters.inc(CounterNames.FileBytesRead, fsHelper.getFileSize(currentFile));
+    } catch (FileBasedHelperException e) {
+      LOG.info("Unable to get file size. Will skip increment to bytes counter " + e.getMessage());
+      LOG.debug(e.getMessage(), e);
+    } catch (UnsupportedOperationException e) {
+      LOG.info("Unable to get file size. Will skip increment to bytes counter " + e.getMessage());
+      LOG.debug(e.getMessage(), e);
     }
   }
 }

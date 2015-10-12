@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -45,7 +46,10 @@ public class WorkUnit extends State {
 
   /**
    * Default constructor.
+   *
+   * @deprecated Use {@link #createEmpty()}
    */
+  @Deprecated
   public WorkUnit() {
     this(null, null);
   }
@@ -55,11 +59,15 @@ public class WorkUnit extends State {
    *
    * @param state a {@link SourceState} the properties of which will be copied into this {@link WorkUnit} instance
    * @param extract an {@link Extract}
+   *
+   * @deprecated Properties in {@link SourceState} should not be added to a {@link WorkUnit}. Having each 
+   * {@link WorkUnit} contain a copy of {@link SourceState} is a waste of memory. Use {@link #create(Extract)}.
    */
+  @Deprecated
   public WorkUnit(SourceState state, Extract extract) {
     // Values should only be null for deserialization
     if (state != null) {
-      this.addAll(state);
+      super.addAll(state);
     }
 
     if (extract != null) {
@@ -75,7 +83,11 @@ public class WorkUnit extends State {
    * @param state a {@link gobblin.configuration.SourceState} the properties of which will be copied into this {@link WorkUnit} instance.
    * @param extract an {@link Extract}.
    * @param watermarkInterval a {@link WatermarkInterval} which defines the range of data this {@link WorkUnit} will process.
+   *
+   * @deprecated Properties in {@link SourceState} should not be added to a {@link WorkUnit}. Having each 
+   * {@link WorkUnit} contain a copy of {@link SourceState} is a waste of memory. Use {@link #create(Extract, WatermarkInterval)}.
    */
+  @Deprecated
   public WorkUnit(SourceState state, Extract extract, WatermarkInterval watermarkInterval) {
     this(state, extract);
 
@@ -91,13 +103,65 @@ public class WorkUnit extends State {
   }
 
   /**
+   * Constructor.
+   *
+   * @param extract a {@link Extract} object
+   */
+  public WorkUnit(Extract extract) {
+    this.extract = extract;
+  }
+
+  /**
    * Copy constructor.
    *
    * @param other the other {@link WorkUnit} instance
+   *
+   * @deprecated Use {@link #copyOf(WorkUnit)}
    */
+  @Deprecated
   public WorkUnit(WorkUnit other) {
-    addAll(other);
+    super.addAll(other);
     this.extract = other.getExtract();
+  }
+
+  /**
+   * Facotry method.
+   *
+   * @return An empty {@link WorkUnit}.
+   */
+  public static WorkUnit createEmpty() {
+    return new WorkUnit();
+  }
+
+  /**
+   * Facotry method.
+   *
+   * @param extract {@link Extract}
+   * @return A {@link WorkUnit} with the given {@link Extract}
+   */
+  public static WorkUnit create(Extract extract) {
+    return new WorkUnit(null, extract);
+  }
+
+  /**
+   * Facotry method.
+   *
+   * @param extract {@link Extract}
+   * @param watermarkInterval {@link WatermarkInterval}
+   * @return A {@link WorkUnit} with the given {@link Extract} and {@link WatermarkInterval}
+   */
+  public static WorkUnit create(Extract extract, WatermarkInterval watermarkInterval) {
+    return new WorkUnit(null, extract, watermarkInterval);
+  }
+
+  /**
+   * Facotry method.
+   *
+   * @param workUnit a {@link WorkUnit} instance
+   * @return A copy of the given {@link WorkUnit} instance
+   */
+  public static WorkUnit copyOf(WorkUnit other) {
+    return new WorkUnit(other);
   }
 
   /**
@@ -106,15 +170,19 @@ public class WorkUnit extends State {
    * @return the {@link Extract} associated with this {@link WorkUnit}
    */
   public Extract getExtract() {
-    return this.extract;
+    return new ImmutableExtract(this.extract);
   }
 
   /**
    * Get the low {@link Watermark} as a {@link JsonElement}.
    *
-   * @return a {@link JsonElement} representing the low {@link Watermark}.
+   * @return a {@link JsonElement} representing the low {@link Watermark} or
+   *         {@code null} if the low {@link Watermark} is not set.
    */
   public JsonElement getLowWatermark() {
+    if (!contains(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY)) {
+      return null;
+    }
     return JSON_PARSER.parse(getProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY)).getAsJsonObject()
         .get(WatermarkInterval.LOW_WATERMARK_TO_JSON_KEY);
   }
@@ -141,10 +209,17 @@ public class WorkUnit extends State {
   }
 
   /**
+   * Set {@link WatermarkInterval} for a {@link WorkUnit}.
+   */
+  public void setWatermarkInterval(WatermarkInterval watermarkInterval) {
+    setProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY, watermarkInterval.toJson().toString());
+  }
+
+  /**
    * Set the high watermark of this {@link WorkUnit}.
    *
    * @param highWaterMark high watermark
-   * @deprecated watermarks should be set using the {@link #WorkUnit(SourceState, Extract, WatermarkInterval)} constructor.
+   * @deprecated use {@link #setWatermarkInterval(WatermarkInterval)}.
    */
   @Deprecated
   public void setHighWaterMark(long highWaterMark) {
@@ -166,7 +241,7 @@ public class WorkUnit extends State {
    * Set the low watermark of this {@link WorkUnit}.
    *
    * @param lowWaterMark low watermark
-   * @deprecated watermarks should be set using the {@link #WorkUnit(SourceState, Extract, WatermarkInterval)} constructor.
+   * @deprecated use {@link #setWatermarkInterval(WatermarkInterval)}.
    */
   @Deprecated
   public void setLowWaterMark(long lowWaterMark) {
@@ -174,17 +249,26 @@ public class WorkUnit extends State {
   }
 
   @Override
-  public void readFields(DataInput in)
-      throws IOException {
+  public void readFields(DataInput in) throws IOException {
     super.readFields(in);
     this.extract.readFields(in);
   }
 
   @Override
-  public void write(DataOutput out)
-      throws IOException {
+  public void write(DataOutput out) throws IOException {
     super.write(out);
     this.extract.write(out);
+  }
+
+  @Override
+  public boolean equals(Object object) {
+    if (!(object instanceof WorkUnit)) {
+      return false;
+    }
+
+    WorkUnit other = (WorkUnit) object;
+    return ((this.extract == null && other.extract == null)
+        || (this.extract != null && this.extract.equals(other.extract))) && super.equals(other);
   }
 
   @Override

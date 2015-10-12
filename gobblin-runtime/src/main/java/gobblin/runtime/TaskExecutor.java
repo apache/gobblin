@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -58,9 +59,8 @@ public class TaskExecutor extends AbstractIdleService {
    * Constructor used internally.
    */
   private TaskExecutor(int taskExecutorThreadPoolSize, int coreRetryThreadPoolSize, long retryIntervalInSeconds) {
-    Preconditions.checkArgument(taskExecutorThreadPoolSize > 0, "Thread pool size should be positive");
-    Preconditions.checkArgument(coreRetryThreadPoolSize > 0, "Thread pool size should be positive");
-    Preconditions.checkArgument(retryIntervalInSeconds > 0, "Retry interval should be positive");
+    Preconditions.checkArgument(taskExecutorThreadPoolSize > 0, "Task executor thread pool size should be positive");
+    Preconditions.checkArgument(retryIntervalInSeconds > 0, "Task retry interval should be positive");
 
     // Currently a fixed-size thread pool is used to execute tasks. We probably need to revisit this later.
     this.taskExecutor = Executors.newFixedThreadPool(
@@ -134,12 +134,12 @@ public class TaskExecutor extends AbstractIdleService {
       throws Exception {
     LOG.info("Stopping the task executor");
     try {
-      ExecutorsUtils.shutdownExecutorService(this.taskExecutor);
+      ExecutorsUtils.shutdownExecutorService(this.taskExecutor, Optional.of(LOG));
     } finally {
       try {
-        ExecutorsUtils.shutdownExecutorService(this.taskRetryExecutor);
+        ExecutorsUtils.shutdownExecutorService(this.taskRetryExecutor, Optional.of(LOG));
       } finally {
-        ExecutorsUtils.shutdownExecutorService(this.forkExecutor);
+        ExecutorsUtils.shutdownExecutorService(this.forkExecutor, Optional.of(LOG));
       }
     }
   }
@@ -192,7 +192,8 @@ public class TaskExecutor extends AbstractIdleService {
    * @param task failed {@link Task} to be retried
    */
   public void retry(Task task) {
-    if (GobblinMetrics.isEnabled(task.getTaskState().getWorkunit())) {
+    if (GobblinMetrics.isEnabled(task.getTaskState().getWorkunit()) &&
+        task.getTaskState().contains(ConfigurationKeys.FORK_BRANCHES_KEY)) {
       // Adjust metrics to clean up numbers from the failed task
       task.getTaskState()
           .adjustJobMetricsOnRetry(task.getTaskState().getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY));

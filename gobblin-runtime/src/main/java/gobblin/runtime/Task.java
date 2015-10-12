@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -14,7 +15,9 @@ package gobblin.runtime;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,16 +26,21 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
+import gobblin.Constructs;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.fork.CopyNotSupportedException;
 import gobblin.fork.Copyable;
 import gobblin.fork.ForkOperator;
+import gobblin.instrumented.extractor.InstrumentedExtractorBase;
 import gobblin.instrumented.extractor.InstrumentedExtractorDecorator;
+import gobblin.publisher.DataPublisher;
+import gobblin.publisher.SingleTaskDataPublisher;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
-import gobblin.source.extractor.Extractor;
+import gobblin.runtime.util.RuntimeConstructs;
+import gobblin.source.extractor.JobCommitPolicy;
 
 
 /**
@@ -78,7 +86,7 @@ public class Task implements Runnable {
   private final List<Optional<Fork>> forks = Lists.newArrayList();
 
   // Number of task retries
-  private volatile int retryCount = 0;
+  private final AtomicInteger retryCount = new AtomicInteger();
 
   /**
    * Instantiate a new {@link Task}.
@@ -88,7 +96,6 @@ public class Task implements Runnable {
    * @param taskExecutor a {@link TaskExecutor} for executing the {@link Task} and its {@link Fork}s
    * @param countDownLatch an optional {@link java.util.concurrent.CountDownLatch} used to signal the task completion
    */
-  @SuppressWarnings("unchecked")
   public Task(TaskContext context, TaskStateTracker taskStateTracker, TaskExecutor taskExecutor,
       Optional<CountDownLatch> countDownLatch) {
     this.taskContext = context;
@@ -112,11 +119,10 @@ public class Task implements Runnable {
 
     Closer closer = Closer.create();
     try {
-      // Build the extractor for extracting source schema and data records
-      Extractor extractor = closer.register(new InstrumentedExtractorDecorator(this.taskState,
-          this.taskContext.getExtractor()));
+      InstrumentedExtractorBase extractor =
+          closer.register(new InstrumentedExtractorDecorator(this.taskState, this.taskContext.getExtractor()));
 
-      Converter converter = new MultiConverter(this.taskContext.getConverters());
+      Converter converter = closer.register(new MultiConverter(this.taskContext.getConverters()));
 
       // Get the fork operator. By default IdentityForkOperator is used with a single branch.
       ForkOperator forkOperator = closer.register(this.taskContext.getForkOperator());
@@ -143,20 +149,18 @@ public class Task implements Runnable {
       // Create one fork for each forked branch
       for (int i = 0; i < branches; i++) {
         if (forkedSchemas.get(i)) {
-          Fork fork = closer.register(
-              new Fork(this.taskContext, this.taskState,
-                  schema instanceof Copyable ? ((Copyable) schema).copy() : schema,
-                  branches, i, forkCountDownLatch));
-          // Schedule the fork to run
-          this.taskExecutor.submit(fork);
+          Fork fork = closer.register(new Fork(this.taskContext, this.taskState,
+              schema instanceof Copyable ? ((Copyable) schema).copy() : schema, branches, i, forkCountDownLatch));
+          // Run the Fork
+          this.taskExecutor.execute(fork);
           this.forks.add(Optional.of(fork));
         } else {
-          this.forks.add(Optional.<Fork>absent());
+          this.forks.add(Optional.<Fork> absent());
         }
       }
 
       // Build the row-level quality checker
-      RowLevelPolicyChecker rowChecker = closer.register(this.taskContext.getRowLevelPolicyChecker(this.taskState));
+      RowLevelPolicyChecker rowChecker = closer.register(this.taskContext.getRowLevelPolicyChecker());
       RowLevelPolicyCheckResults rowResults = new RowLevelPolicyCheckResults();
 
       long recordsPulled = 0;
@@ -192,7 +196,9 @@ public class Task implements Runnable {
       for (Optional<Fork> fork : this.forks) {
         if (fork.isPresent()) {
           if (fork.get().isSucceeded()) {
-            fork.get().commit();
+            if (!fork.get().commit()) {
+              allForksSucceeded = false;
+            }
           } else {
             allForksSucceeded = false;
           }
@@ -200,6 +206,7 @@ public class Task implements Runnable {
       }
 
       if (allForksSucceeded) {
+
         // Set the task state to SUCCESSFUL. The state is not set to COMMITTED
         // as the data publisher will do that upon successful data publishing.
         this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
@@ -207,10 +214,11 @@ public class Task implements Runnable {
         LOG.error(String.format("Not all forks of task %s succeeded", this.taskId));
         this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
       }
+
+      addConstructsFinalStateToTaskState(extractor, converter);
+
     } catch (Throwable t) {
-      LOG.error(String.format("Task %s failed", this.taskId), t);
-      this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-      this.taskState.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, t.toString());
+      failTask(t);
     } finally {
       try {
         closer.close();
@@ -218,10 +226,73 @@ public class Task implements Runnable {
         LOG.error("Failed to close all open resources", t);
       }
 
+      try {
+        if (shouldPublishDataInTask()) {
+
+          // If data should be published by the task, publish the data and set the task state to COMMITTED.
+          // Task data can only be published after all forks have been closed by closer.close().
+          publishTaskData();
+          this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+        }
+      } catch (Throwable t) {
+        failTask(t);
+      }
+
       long endTime = System.currentTimeMillis();
       this.taskState.setEndTime(endTime);
       this.taskState.setTaskDuration(endTime - startTime);
       this.taskStateTracker.onTaskCompletion(this);
+    }
+  }
+
+  private void failTask(Throwable t) {
+    LOG.error(String.format("Task %s failed", this.taskId), t);
+    this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+    this.taskState.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, ExceptionUtils.getStackTrace(t));
+  }
+
+  /**
+   * Whether the task should directly publish data to the final publisher output dir.
+   * The task should publish data if {@link ConfigurationKeys#JOB_COMMIT_POLICY_KEY} is set to "partial", and
+   * {@link ConfigurationKeys#PUBLISH_DATA_AT_JOB_LEVEL} is set to false.
+   */
+  private boolean shouldPublishDataInTask() {
+    boolean jobCommitPolicyIsPartial =
+        JobCommitPolicy.getCommitPolicy(this.taskState.getProperties()) == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS;
+    boolean publishDataAtJobLevel = this.taskState.getPropAsBoolean(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL,
+        ConfigurationKeys.DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL);
+
+    if (publishDataAtJobLevel) {
+      LOG.info(String.format("%s is true. Will publish data in driver.", ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL));
+      return false;
+    } else if (!jobCommitPolicyIsPartial) {
+      LOG.info(
+          String.format("%s is set to full. Will publish data in driver.", ConfigurationKeys.JOB_COMMIT_POLICY_KEY));
+      return false;
+    }
+
+    return true;
+  }
+
+  private void publishTaskData() throws IOException {
+    Closer closer = Closer.create();
+    try {
+      @SuppressWarnings("unchecked")
+      Class<? extends DataPublisher> dataPublisherClass = (Class<? extends DataPublisher>) Class.forName(
+          this.taskState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE, ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
+      SingleTaskDataPublisher publisher =
+          closer.register(SingleTaskDataPublisher.getInstance(dataPublisherClass, this.taskState));
+
+      LOG.info("Publishing data from task " + this.taskId);
+      publisher.publish(this.taskState);
+    } catch (IOException e) {
+      throw closer.rethrow(e);
+    } catch (Throwable t) {
+      LOG.error(String.format("To publish data in task, the publisher class (%s) must extend %s",
+          ConfigurationKeys.DATA_PUBLISHER_TYPE, SingleTaskDataPublisher.class.getSimpleName()), t);
+      throw closer.rethrow(t);
+    } finally {
+      closer.close();
     }
   }
 
@@ -303,7 +374,7 @@ public class Task implements Runnable {
    * Increment the retry count of this task.
    */
   public void incrementRetryCount() {
-    this.retryCount++;
+    this.retryCount.incrementAndGet();
   }
 
   /**
@@ -312,7 +383,7 @@ public class Task implements Runnable {
    * @return number of times this task has been retried
    */
   public int getRetryCount() {
-    return this.retryCount;
+    return this.retryCount.get();
   }
 
   /**
@@ -322,7 +393,7 @@ public class Task implements Runnable {
     if (this.countDownLatch.isPresent()) {
       this.countDownLatch.get().countDown();
     }
-    this.taskState.setProp(ConfigurationKeys.TASK_RETRIES_KEY, this.retryCount);
+    this.taskState.setProp(ConfigurationKeys.TASK_RETRIES_KEY, this.retryCount.get());
   }
 
   @Override
@@ -335,8 +406,7 @@ public class Task implements Runnable {
    */
   @SuppressWarnings("unchecked")
   private void processRecord(Object convertedRecord, ForkOperator forkOperator, RowLevelPolicyChecker rowChecker,
-      RowLevelPolicyCheckResults rowResults, int branches)
-      throws Exception {
+      RowLevelPolicyCheckResults rowResults, int branches) throws Exception {
     // Skip the record if quality checking fails
     if (!rowChecker.executePolicies(convertedRecord, rowResults)) {
       return;
@@ -344,9 +414,9 @@ public class Task implements Runnable {
 
     List<Boolean> forkedRecords = forkOperator.forkDataRecord(this.taskState, convertedRecord);
     if (forkedRecords.size() != branches) {
-      throw new ForkBranchMismatchException(String
-          .format("Number of forked data records [%d] is not equal to number of branches [%d]", forkedRecords.size(),
-              branches));
+      throw new ForkBranchMismatchException(
+          String.format("Number of forked data records [%d] is not equal to number of branches [%d]",
+              forkedRecords.size(), branches));
     }
 
     if (inMultipleBranches(forkedRecords) && !(convertedRecord instanceof Copyable)) {
@@ -367,8 +437,8 @@ public class Task implements Runnable {
           continue;
         }
         if (this.forks.get(i).isPresent() && forkedRecords.get(i)) {
-          boolean succeeded = this.forks.get(i).get().putRecord(
-              convertedRecord instanceof Copyable ? ((Copyable) convertedRecord).copy() : convertedRecord);
+          boolean succeeded = this.forks.get(i).get()
+              .putRecord(convertedRecord instanceof Copyable ? ((Copyable) convertedRecord).copy() : convertedRecord);
           succeededPuts[i] = succeeded;
           if (!succeeded) {
             allPutsSucceeded = false;
@@ -391,5 +461,24 @@ public class Task implements Runnable {
       }
     }
     return inBranches > 1;
+  }
+
+  /**
+   * Get the final state of each construct used by this task and add it to the {@link gobblin.runtime.TaskState}.
+   * @param extractor {@link gobblin.instrumented.extractor.InstrumentedExtractorBase} used by this task.
+   * @param converter {@link gobblin.converter.Converter} used by this task.
+   */
+  private void addConstructsFinalStateToTaskState(InstrumentedExtractorBase<?, ?> extractor,
+      Converter<?, ?, ?, ?> converter) {
+    this.taskState.addFinalConstructState(Constructs.EXTRACTOR.toString().toLowerCase(), extractor.getFinalState());
+    this.taskState.addFinalConstructState(Constructs.CONVERTER.toString().toLowerCase(), converter.getFinalState());
+    int forkIdx = 0;
+    for (Optional<Fork> fork : this.forks) {
+      if (fork.isPresent()) {
+        this.taskState.addFinalConstructState(RuntimeConstructs.FORK.toString().toLowerCase() + "." + forkIdx,
+            fork.get().getFinalState());
+      }
+      forkIdx++;
+    }
   }
 }

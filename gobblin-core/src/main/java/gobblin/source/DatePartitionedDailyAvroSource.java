@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -289,7 +290,7 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
    * Gets the LWM for this job runs. The new LWM is the HWM of the previous run + 1 day. If there was no previous
    * execution then it is set to the given lowWaterMark + 1 day.
    */
-  private long getLowWaterMark(List<WorkUnitState> previousStates, String lowWaterMark) {
+  private long getLowWaterMark(Iterable<WorkUnitState> previousStates, String lowWaterMark) {
 
     long lowWaterMarkValue = DAILY_FOLDER_FORMATTER.parseMillis(lowWaterMark);
 

@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -11,11 +12,6 @@
 
 package gobblin.source.extractor.extract;
 
-import gobblin.source.extractor.JobCommitPolicy;
-import gobblin.source.extractor.partition.Partitioner;
-import gobblin.source.extractor.utils.Utils;
-import gobblin.source.extractor.watermark.WatermarkPredicate;
-import gobblin.source.extractor.watermark.WatermarkType;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -29,10 +25,16 @@ import org.slf4j.MDC;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.WorkUnitState.WorkingState;
+import gobblin.source.extractor.JobCommitPolicy;
+import gobblin.source.extractor.partition.Partitioner;
+import gobblin.source.extractor.utils.Utils;
+import gobblin.source.extractor.watermark.WatermarkPredicate;
+import gobblin.source.extractor.watermark.WatermarkType;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.Extract.TableType;
 import gobblin.source.workunit.WorkUnit;
@@ -103,10 +105,10 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
    * @return latest water mark (high water mark)
    */
   private long getLatestWatermarkFromMetadata(SourceState state) {
-    LOG.debug("Get latest watermark from the previou run");
+    LOG.debug("Get latest watermark from the previous run");
     long latestWaterMark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
 
-    List<WorkUnitState> previousWorkUnitStates = state.getPreviousWorkUnitStates();
+    List<WorkUnitState> previousWorkUnitStates = Lists.newArrayList(state.getPreviousWorkUnitStates());
     List<Long> previousWorkUnitStateHighWatermarks = Lists.newArrayList();
     List<Long> previousWorkUnitLowWatermarks = Lists.newArrayList();
 

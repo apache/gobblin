@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -21,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.AbstractIdleService;
 
@@ -82,7 +84,7 @@ public class LocalTaskStateTracker extends AbstractIdleService implements TaskSt
   @Override
   protected void shutDown() throws Exception {
     LOG.info("Stopping the local task state tracker");
-    ExecutorsUtils.shutdownExecutorService(this.reporterExecutor);
+    ExecutorsUtils.shutdownExecutorService(this.reporterExecutor, Optional.of(LOG));
   }
 
   @Override

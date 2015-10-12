@@ -1,15 +1,15 @@
 #!/bin/bash
 
-FWDIR="$(cd `dirname $0`/..; pwd)"
-FWDIR_LIB=$FWDIR/lib
-FWDIR_CONF=$FWDIR/conf
-
 function print_usage(){
   echo "gobblin-standalone.sh <start | status | restart | stop> [OPTION]"
   echo "Where OPTION can be:"
   echo "  --workdir <job work dir>                       Gobblin's base work directory: if not set, taken from \${GOBBLIN_WORK_DIR}"
+  echo "  --fwdir <fwd dir>                              Gobblin's dist directory: if not set, taken from \${GOBBLIN_FWDIR}"
+  echo "  --logdir <log dir>                             Gobblin's log directory: if not set, taken from \${GOBBLIN_LOG_DIR}"
   echo "  --jars <comma-separated list of job jars>      Job jar(s): if not set, "$FWDIR_LIB" is examined"
   echo "  --conf <directory of job configuration files>  Directory of job configuration files: if not set, taken from ${GOBBLIN_JOB_CONFIG_DIR}"
+  echo "  --conffile <custom config file>                Custom config file: if not set, is ignored. Overwrites properties in "$FWDIR_CONF/gobblin-standalone.properties
+  echo "  --jvmflags <string of jvm flags>               String containing any additional JVM flags to include"
   echo "  --help                                         Display this help and exit"
 }
 
@@ -30,12 +30,28 @@ do
       WORK_DIR="$2"
       shift
       ;;
+    --fwdir)
+      FWDIR="$2"
+      shift
+      ;;
+    --logdir)
+      LOG_DIR="$2"
+      shift
+      ;;
     --jars)
       JARS="$2"
       shift
       ;;
     --conf)
       JOB_CONFIG_DIR="$2"
+      shift
+      ;;
+    --conffile)
+      CUSTOM_CONFIG_FILE="$2"
+      shift
+      ;;
+    --jvmflags)
+      JVM_FLAGS="$2"
       shift
       ;;
     --help)
@@ -57,6 +73,17 @@ if [ "$ACTION" == "start" ] || [ "$ACTION" == "restart" ]; then
   check=true
 fi
 
+if [ -n "$FWDIR" ]; then
+  export GOBBLIN_FWDIR="$FWDIR"
+fi
+
+if [ -z "$GOBBLIN_FWDIR" ] && [ "$check" == true ]; then
+  GOBBLIN_FWDIR="$(cd `dirname $0`/..; pwd)"
+fi
+
+FWDIR_LIB=$GOBBLIN_FWDIR/lib
+FWDIR_CONF=$GOBBLIN_FWDIR/conf
+
 # User defined job configuration directory overrides $GOBBLIN_JOB_CONFIG_DIR
 if [ -n "$JOB_CONFIG_DIR" ]; then
   export GOBBLIN_JOB_CONFIG_DIR="$JOB_CONFIG_DIR"
@@ -75,9 +102,26 @@ if [ -z "$GOBBLIN_WORK_DIR" ] && [ "$check" == true ]; then
   die "GOBBLIN_WORK_DIR is not set!"
 fi
 
-. $FWDIR_CONF/gobblin-env.sh
+# User defined log directory overrides $GOBBLIN_LOG_DIR
+if [ -n "$LOG_DIR" ]; then
+  export GOBBLIN_LOG_DIR="$LOG_DIR"
+fi
 
-CONFIG_FILE=$FWDIR_CONF/gobblin-standalone.properties
+if [ -z "$GOBBLIN_LOG_DIR" ] && [ "$check" == true ]; then
+  LOG_DIR="$GOBBLIN_FWDIR/logs"
+fi
+
+# User defined JVM flags overrides $GOBBLIN_JVM_FLAGS (if any)
+if [ -n "$JVM_FLAGS" ]; then
+  export GOBBLIN_JVM_FLAGS="$JVM_FLAGS"
+fi
+
+# User defined configuration file overrides $GOBBLIN_CUSTOM_CONFIG_FILE
+if [ -n "$CUSTOM_CONFIG_FILE" ]; then
+  export GOBBLIN_CUSTOM_CONFIG_FILE="$CUSTOM_CONFIG_FILE"
+fi
+
+DEFAULT_CONFIG_FILE=$FWDIR_CONF/gobblin-standalone.properties
 
 PID="$GOBBLIN_WORK_DIR/.gobblin-pid"
 
@@ -87,8 +131,8 @@ else
   PID_VALUE=""
 fi
 
-if [ ! -d "$FWDIR/logs" ]; then
-  mkdir "$FWDIR/logs"
+if [ ! -d "$GOBBLIN_LOG_DIR" ]; then
+  mkdir "$GOBBLIN_LOG_DIR"
 fi
 
 set_user_jars(){
@@ -130,13 +174,14 @@ start() {
   COMMAND+="-XX:+UseConcMarkSweepGC -XX:+UseParNewGC "
   COMMAND+="-XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintTenuringDistribution "
   COMMAND+="-XX:+UseCompressedOops "
-  COMMAND+="-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$FWDIR/logs/ "
-  COMMAND+="-Xloggc:$FWDIR/logs/gobblin-gc.log "
-  COMMAND+="-Dgobblin.logs.dir=$FWDIR/logs "
+  COMMAND+="-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$GOBBLIN_LOG_DIR/ "
+  COMMAND+="-Xloggc:$GOBBLIN_LOG_DIR/gobblin-gc.log "
+  COMMAND+="-Dgobblin.logs.dir=$GOBBLIN_LOG_DIR "
   COMMAND+="-Dlog4j.configuration=file://$FWDIR_CONF/log4j-standalone.xml "
   COMMAND+="-cp $CLASSPATH "
   COMMAND+="-Dorg.quartz.properties=$FWDIR_CONF/quartz.properties "
-  COMMAND+="gobblin.scheduler.SchedulerDaemon $CONFIG_FILE"
+  COMMAND+="$GOBBLIN_JVM_FLAGS "
+  COMMAND+="gobblin.scheduler.SchedulerDaemon $DEFAULT_CONFIG_FILE $GOBBLIN_CUSTOM_CONFIG_FILE"
   echo "Running command:"
   echo "$COMMAND"
   nohup $COMMAND & echo $! > $PID
@@ -169,9 +214,11 @@ status() {
       ps -ef | grep -v grep | grep $PID_VALUE
     else
       echo "Gobblin standalone daemon is not running"
+      exit 1
     fi
   else
     echo "No pid file found"
+    exit 1
   fi
 }
 

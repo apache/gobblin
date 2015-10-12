@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -59,8 +60,8 @@ public class TaskState extends WorkUnitState {
 
   private String jobId;
   private String taskId;
-  private long startTime;
-  private long endTime;
+  private long startTime = 0;
+  private long endTime = 0;
   private long duration;
 
   // Needed for serialization/deserialization
@@ -74,6 +75,14 @@ public class TaskState extends WorkUnitState {
     addAll(workUnitState);
     this.jobId = workUnitState.getProp(ConfigurationKeys.JOB_ID_KEY);
     this.taskId = workUnitState.getProp(ConfigurationKeys.TASK_ID_KEY);
+    this.setId(this.taskId);
+  }
+
+  public TaskState(TaskState taskState) {
+    super(taskState.getWorkunit());
+    addAll(taskState);
+    this.jobId = taskState.getProp(ConfigurationKeys.JOB_ID_KEY);
+    this.taskId = taskState.getProp(ConfigurationKeys.TASK_ID_KEY);
     this.setId(this.taskId);
   }
 
@@ -168,6 +177,16 @@ public class TaskState extends WorkUnitState {
   }
 
   /**
+   * Return whether the task has completed running or not.
+   *
+   * @return {@code true} if the task has completed or {@code false} otherwise
+   */
+  public boolean isCompleted() {
+    WorkingState state = getWorkingState();
+    return state == WorkingState.SUCCESSFUL || state == WorkingState.COMMITTED || state == WorkingState.FAILED;
+  }
+
+  /**
    * Update record-level metrics.
    *
    * @param recordsWritten number of records written by the writer
@@ -254,6 +273,25 @@ public class TaskState extends WorkUnitState {
     super.write(out);
   }
 
+  @Override
+  public boolean equals(Object object) {
+    if (!(object instanceof TaskState)) {
+      return false;
+    }
+
+    TaskState other = (TaskState) object;
+    return super.equals(other) && this.jobId.equals(other.jobId) && this.taskId.equals(other.taskId);
+  }
+
+  @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = super.hashCode();
+    result = prime * result + this.jobId.hashCode();
+    result = prime * result + this.taskId.hashCode();
+    return result;
+  }
+
   /**
    * Convert this {@link TaskState} to a json document.
    *
@@ -300,8 +338,12 @@ public class TaskState extends WorkUnitState {
 
     taskExecutionInfo.setJobId(this.jobId);
     taskExecutionInfo.setTaskId(this.taskId);
-    taskExecutionInfo.setStartTime(this.startTime);
-    taskExecutionInfo.setEndTime(this.endTime);
+    if (this.startTime > 0) {
+      taskExecutionInfo.setStartTime(this.startTime);
+    }
+    if (this.endTime > 0) {
+      taskExecutionInfo.setEndTime(this.endTime);
+    }
     taskExecutionInfo.setDuration(this.duration);
     taskExecutionInfo.setState(TaskStateEnum.valueOf(getWorkingState().name()));
     if (this.contains(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)) {

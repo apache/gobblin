@@ -1,8 +1,25 @@
+// Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+// this file except in compliance with the License. You may obtain a copy of the
+// License at  http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied.
+
 apply plugin: 'java'
 apply plugin: 'eclipse'
 
 dependencies {
+  compile project(":gobblin-api")
+  compile project(":gobblin-utility")
+  compile project(":gobblin-metrics")
+  compile project(":gobblin-core")
+  compile externalDependency.avro
+  compile externalDependency.commonsLang
   compile externalDependency.hiveExec
+
   if (project.hasProperty('useHadoop2')) {
     runtime externalDependency.hadoopCommon
     runtime externalDependency.hadoopClientCore
@@ -11,7 +28,7 @@ dependencies {
   } else {
     runtime externalDependency.hadoop
   }
-  runtime externalDependency.commonsLang
+
   runtime externalDependency.hiveService
   runtime externalDependency.hiveJdbc
   runtime externalDependency.hiveMetastore
@@ -20,6 +37,8 @@ dependencies {
   runtime externalDependency.jdo2
   runtime externalDependency.datanucleusCore
   runtime externalDependency.datanucleusRdbms
+
+  testCompile externalDependency.testng
 }
 
 

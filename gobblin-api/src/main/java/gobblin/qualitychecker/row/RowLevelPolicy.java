@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -11,15 +12,19 @@
 
 package gobblin.qualitychecker.row;
 
+import java.io.Closeable;
+import java.io.IOException;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.util.FinalState;
 
 /**
  * A policy that operates on each row
  * and executes a given check
  * @author stakiar
  */
-public abstract class RowLevelPolicy {
+public abstract class RowLevelPolicy implements Closeable, FinalState {
   private final State state;
   private final Type type;
 
@@ -43,6 +48,10 @@ public abstract class RowLevelPolicy {
     this.type = type;
   }
 
+  @Override
+  public void close() throws IOException {
+  }
+
   public State getTaskState() {
     return state;
   }
@@ -60,5 +69,15 @@ public abstract class RowLevelPolicy {
   @Override
   public String toString() {
     return this.getClass().getName();
+  }
+
+  /**
+   * Get final state for this object. By default this returns an empty {@link gobblin.configuration.State}, but
+   * concrete subclasses can add information that will be added to the task state.
+   * @return Empty {@link gobblin.configuration.State}.
+   */
+  @Override
+  public State getFinalState() {
+    return new State();
   }
 }

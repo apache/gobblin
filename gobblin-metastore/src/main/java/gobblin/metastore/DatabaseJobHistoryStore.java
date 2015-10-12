@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -21,8 +22,11 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.AbstractMap;
+import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
+
 import javax.sql.DataSource;
 
 import org.slf4j.Logger;
@@ -150,7 +154,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
   private static final String TASK_PROPERTY_QUERY_STATEMENT_TEMPLATE =
       "SELECT property_key, property_value FROM gobblin_task_properties WHERE task_id=?";
 
-  private static final String DEFAULT_TIMESTAMP = "1970-01-01 00:00:00";
+  private static final Timestamp DEFAULT_TIMESTAMP = new Timestamp(1000L);
 
   private final DataSource dataSource;
 
@@ -323,9 +327,9 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     insertStatement.setString(++index, info.getJobName());
     insertStatement.setString(++index, info.getJobId());
     insertStatement.setTimestamp(++index,
-        info.hasStartTime() ? new Timestamp(info.getStartTime()) : Timestamp.valueOf(DEFAULT_TIMESTAMP));
+        info.hasStartTime() ? new Timestamp(info.getStartTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
     insertStatement.setTimestamp(++index,
-        info.hasEndTime() ? new Timestamp(info.getEndTime()) : Timestamp.valueOf(DEFAULT_TIMESTAMP));
+        info.hasEndTime() ? new Timestamp(info.getEndTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
     insertStatement.setLong(++index, info.hasDuration() ? info.getDuration() : -1);
     insertStatement.setString(++index, info.hasState() ? info.getState().name() : null);
     insertStatement.setInt(++index, info.hasLaunchedTasks() ? info.getLaunchedTasks() : -1);
@@ -342,9 +346,9 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     PreparedStatement updateStatement = connection.prepareStatement(JOB_EXECUTION_UPDATE_STATEMENT_TEMPLATE);
     int index = 0;
     updateStatement.setTimestamp(++index,
-        info.hasStartTime() ? new Timestamp(info.getStartTime()) : Timestamp.valueOf(DEFAULT_TIMESTAMP));
+        info.hasStartTime() ? new Timestamp(info.getStartTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
     updateStatement.setTimestamp(++index,
-        info.hasEndTime() ? new Timestamp(info.getEndTime()) : Timestamp.valueOf(DEFAULT_TIMESTAMP));
+        info.hasEndTime() ? new Timestamp(info.getEndTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
     updateStatement.setLong(++index, info.hasDuration() ? info.getDuration() : -1);
     updateStatement.setString(++index, info.hasState() ? info.getState().name() : null);
     updateStatement.setInt(++index, info.hasLaunchedTasks() ? info.getLaunchedTasks() : -1);
@@ -374,9 +378,9 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     insertStatement.setString(++index, info.getTaskId());
     insertStatement.setString(++index, info.getJobId());
     insertStatement.setTimestamp(++index,
-        info.hasStartTime() ? new Timestamp(info.getStartTime()) : Timestamp.valueOf(DEFAULT_TIMESTAMP));
+        info.hasStartTime() ? new Timestamp(info.getStartTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
     insertStatement.setTimestamp(++index,
-        info.hasEndTime() ? new Timestamp(info.getEndTime()) : Timestamp.valueOf(DEFAULT_TIMESTAMP));
+        info.hasEndTime() ? new Timestamp(info.getEndTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
     insertStatement.setLong(++index, info.hasDuration() ? info.getDuration() : -1);
     insertStatement.setString(++index, info.hasState() ? info.getState().name() : null);
     insertStatement.setString(++index, info.hasFailureException() ? info.getFailureException() : null);
@@ -397,9 +401,9 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     PreparedStatement updateStatement = connection.prepareStatement(TASK_EXECUTION_UPDATE_STATEMENT_TEMPLATE);
     int index = 0;
     updateStatement.setTimestamp(++index,
-        info.hasStartTime() ? new Timestamp(info.getStartTime()) : Timestamp.valueOf(DEFAULT_TIMESTAMP));
+        info.hasStartTime() ? new Timestamp(info.getStartTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
     updateStatement.setTimestamp(++index,
-        info.hasEndTime() ? new Timestamp(info.getEndTime()) : Timestamp.valueOf(DEFAULT_TIMESTAMP));
+        info.hasEndTime() ? new Timestamp(info.getEndTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
     updateStatement.setLong(++index, info.hasDuration() ? info.getDuration() : -1);
     updateStatement.setString(++index, info.hasState() ? info.getState().name() : null);
     updateStatement.setString(++index, info.hasFailureException() ? info.getFailureException() : null);
@@ -416,7 +420,6 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
 
   private boolean existsMetric(Connection connection, String template, String id, Metric metric)
       throws SQLException {
-
     Preconditions.checkArgument(!Strings.isNullOrEmpty(id));
     Preconditions.checkArgument(metric.hasGroup());
     Preconditions.checkArgument(metric.hasName());
@@ -433,7 +436,6 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
 
   private void updateMetric(Connection connection, String template, String id, Metric metric, boolean insert)
       throws SQLException {
-
     Preconditions.checkArgument(!Strings.isNullOrEmpty(id));
     Preconditions.checkArgument(metric.hasGroup());
     Preconditions.checkArgument(metric.hasName());
@@ -460,7 +462,6 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
 
   private boolean existsProperty(Connection connection, String template, String id, String key)
       throws SQLException {
-
     Preconditions.checkArgument(!Strings.isNullOrEmpty(id));
     Preconditions.checkArgument(!Strings.isNullOrEmpty(key));
 
@@ -474,7 +475,6 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
   private void updateProperty(Connection connection, String template, String id, String key, String value,
       boolean insert)
       throws SQLException {
-
     Preconditions.checkArgument(!Strings.isNullOrEmpty(id));
     Preconditions.checkArgument(!Strings.isNullOrEmpty(key));
     Preconditions.checkArgument(!Strings.isNullOrEmpty(value));
@@ -495,7 +495,6 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
 
   private JobExecutionInfo processQueryById(Connection connection, String jobId, Optional<String> tableFilter)
       throws SQLException {
-
     Preconditions.checkArgument(!Strings.isNullOrEmpty(jobId));
 
     // Query job execution information
@@ -579,7 +578,6 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
   private List<JobExecutionInfo> processQueryByJobName(Connection connection, String jobName, JobExecutionQuery query,
       Optional<String> tableFilter)
       throws SQLException {
-
     Preconditions.checkArgument(!Strings.isNullOrEmpty(jobName));
 
     // Construct the query for job IDs by a given job name
@@ -619,7 +617,6 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
 
   private List<JobExecutionInfo> processQueryByTable(Connection connection, JobExecutionQuery query)
       throws SQLException {
-
     Preconditions.checkArgument(query.getId().isTable());
 
     String tableFilter = constructTableFilter(query.getId().getTable());
@@ -731,7 +728,6 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
 
   private AbstractMap.SimpleEntry<String, String> resultSetToProperty(ResultSet rs)
       throws SQLException {
-
     return new AbstractMap.SimpleEntry<String, String>(rs.getString(1), rs.getString(2));
   }
 
@@ -787,5 +783,9 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     }
 
     return sb.toString();
+  }
+  
+  private static Calendar getCalendarUTCInstance() {
+    return Calendar.getInstance(TimeZone.getTimeZone("UTC"));
   }
 }

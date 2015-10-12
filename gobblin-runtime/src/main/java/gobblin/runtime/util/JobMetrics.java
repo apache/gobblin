@@ -1,5 +1,5 @@
 /*
- * (c) 2014 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -14,13 +14,15 @@ package gobblin.runtime.util;
 
 import java.util.List;
 
+import org.apache.hadoop.conf.Configuration;
+
 import com.google.common.collect.Lists;
 
 import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.metrics.Tag;
 import gobblin.runtime.JobState;
 import gobblin.runtime.TaskState;
+import gobblin.util.ClustersNames;
 
 
 /**
@@ -32,9 +34,12 @@ public class JobMetrics extends GobblinMetrics {
 
   protected final String jobName;
 
+  private static final Configuration HADOOP_CONFIGURATION = new Configuration();
+
   protected JobMetrics(JobState job) {
     super(name(job), null, tagsForJob(job));
     this.jobName = job.getJobName();
+
   }
 
   /**
@@ -49,18 +54,23 @@ public class JobMetrics extends GobblinMetrics {
   }
 
   /**
+   * Get a new {@link GobblinMetrics} instance for a given job.
+   *
+   * @param jobId job ID
+   * @return a new {@link GobblinMetrics} instance for the given job
+   */
+  public static JobMetrics get(String jobId) {
+    return get(null, jobId);
+  }
+
+  /**
    * Get a {@link JobMetrics} instance for the job with the given {@link JobState} instance.
    *
    * @param jobState the given {@link JobState} instance
    * @return a {@link JobMetrics} instance
    */
-  public static synchronized JobMetrics get(JobState jobState) {
-    GobblinMetricsRegistry registry = GobblinMetricsRegistry.getInstance();
-    String name = name(jobState);
-    if (!registry.containsKey(name)) {
-      registry.putIfAbsent(name, new JobMetrics(jobState));
-    }
-    return (JobMetrics) registry.get(name);
+  public static JobMetrics get(JobState jobState) {
+    return (JobMetrics) GOBBLIN_METRICS_REGISTRY.getOrDefault(name(jobState), new JobMetrics(jobState));
   }
 
   /**
@@ -72,7 +82,7 @@ public class JobMetrics extends GobblinMetrics {
    * </p>
    * @param jobState the given {@link JobState} instance
    */
-  public synchronized static void remove(JobState jobState) {
+  public static void remove(JobState jobState) {
     remove(name(jobState));
     for (TaskState taskState : jobState.getTaskStates()) {
       TaskMetrics.remove(taskState);
@@ -87,6 +97,17 @@ public class JobMetrics extends GobblinMetrics {
     List<Tag<?>> tags = Lists.newArrayList();
     tags.add(new Tag<String>("jobName", jobState.getJobName() == null ? "" : jobState.getJobName()));
     tags.add(new Tag<String>("jobId", jobState.getJobId()));
+
+    tags.addAll(getCustomTagsFromState(jobState));
     return tags;
   }
+
+  /**
+   * @deprecated
+   * Use {@link ClustersNames#getInstance()#getClusterName()}
+   */
+  public static String getClusterIdentifierTag() {
+    return ClustersNames.getInstance().getClusterName();
+  }
+
 }

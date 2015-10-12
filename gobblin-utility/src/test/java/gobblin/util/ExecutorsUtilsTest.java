@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -11,13 +12,20 @@
 
 package gobblin.util;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 
 import org.mockito.Mockito;
 import org.slf4j.Logger;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 
 
 /**
@@ -45,5 +53,75 @@ public class ExecutorsUtilsTest {
     Mockito.doThrow(runtimeException).when(logger).error(errorMessage, runtimeException);
 
     thread.run();
+  }
+
+  /**
+   * Test to verify that {@link ExecutorsUtils#parallelize(List, Function, int, int, Optional)} returns the result in
+   * the same order as the input
+   *
+   */
+  @Test
+  public void testParallelize() throws Exception {
+    List<Integer> nums = ImmutableList.of(3, 5, 10, 5, 20);
+    final int factor = 5;
+
+    Function<Integer, String> multiply = new Function<Integer, String>() {
+      @Override
+      public String apply(Integer input) {
+        return Integer.toString(input * factor);
+      }
+    };
+
+    List<String> result = ExecutorsUtils.parallelize(nums, multiply, 2, 60, Optional.<Logger> absent());
+    Assert.assertEquals(Arrays.asList("15", "25", "50", "25", "100"), result);
+  }
+
+  /**
+   * Test to verify that {@link ExecutorsUtils#parallelize(List, Function, int, int, Optional)} throws
+   * {@link ExecutionException} when any of the threads throw and exception
+   */
+  @Test(expectedExceptions = ExecutionException.class)
+  public void testParallelizeException() throws Exception {
+    List<Integer> nums = ImmutableList.of(3, 5);
+    final int factor = 5;
+
+    Function<Integer, String> exceptionFunction = new Function<Integer, String>() {
+      @Override
+      public String apply(Integer input) {
+        if (input == 3) {
+          throw new RuntimeException("testParallelizeException thrown for testing");
+        }
+        return Integer.toString(input * factor);
+      }
+    };
+
+    ExecutorsUtils.parallelize(nums, exceptionFunction, 2, 1, Optional.<Logger> absent());
+
+  }
+
+  /**
+   * Test to verify that {@link ExecutorsUtils#parallelize(List, Function, int, int, Optional)} throws
+   * {@link ExecutionException} when any of the threads timesout.
+   */
+  @Test(expectedExceptions = ExecutionException.class)
+  public void testParallelizeTimeout() throws Exception {
+    List<Integer> nums = ImmutableList.of(3, 5);
+    final int factor = 5;
+
+    Function<Integer, String> sleepAndMultiply = new Function<Integer, String>() {
+      @Override
+      public String apply(Integer input) {
+        try {
+          if (input == 5) {
+            TimeUnit.SECONDS.sleep(2);
+          }
+        } catch (InterruptedException e) {
+          throw new RuntimeException(e);
+        }
+        return Integer.toString(input * factor);
+      }
+    };
+
+    ExecutorsUtils.parallelize(nums, sleepAndMultiply, 2, 1, Optional.<Logger> absent());
   }
 }

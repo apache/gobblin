@@ -1,5 +1,6 @@
 /*
- * (c) 2014 LinkedIn Corp. All rights reserved.
+ *
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -13,7 +14,6 @@
 package gobblin.instrumented.writer;
 
 import java.io.IOException;
-import java.util.List;
 
 import com.google.common.base.Optional;
 
@@ -22,6 +22,7 @@ import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
 import gobblin.util.Decorator;
 import gobblin.util.DecoratorUtils;
+import gobblin.util.FinalState;
 import gobblin.writer.DataWriter;
 
 
@@ -85,6 +86,15 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   public long bytesWritten()
       throws IOException {
     return this.embeddedWriter.bytesWritten();
+  }
+
+  @Override
+  public State getFinalState() {
+    if(this.embeddedWriter instanceof FinalState) {
+      return ((FinalState) this.embeddedWriter).getFinalState();
+    } else {
+      return super.getFinalState();
+    }
   }
 
   @Override

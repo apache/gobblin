@@ -1,4 +1,5 @@
-/* (c) 2015 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -17,17 +18,22 @@ import java.util.Arrays;
 import kafka.message.MessageAndOffset;
 
 import org.apache.avro.Schema;
+import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData.Record;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
+
 import gobblin.configuration.WorkUnitState;
+import gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
+import gobblin.metrics.kafka.SchemaNotFoundException;
+import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.util.AvroUtils;
 
@@ -40,13 +46,13 @@ import gobblin.util.AvroUtils;
 public class KafkaAvroExtractor extends KafkaExtractor<Schema, GenericRecord> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaAvroExtractor.class);
+  private static final Schema DEFAULT_SCHEMA = SchemaBuilder.record("DefaultSchema").fields().name("header")
+      .type(SchemaBuilder.record("header").fields().name("time").type("long").withDefault(0).endRecord()).noDefault()
+      .endRecord();
 
-  public static final int SCHEMA_ID_LENGTH_BYTE = 16;
-  private static final byte MAGIC_BYTE = 0x0;
-
-  private final Schema schema;
+  private final Optional<Schema> schema;
   private final KafkaAvroSchemaRegistry schemaRegistry;
-  private final DatumReader<Record> reader;
+  private final Optional<GenericDatumReader<Record>> reader;
 
   /**
    * @param state state should contain property "kafka.schema.registry.url", and optionally
@@ -55,41 +61,58 @@ public class KafkaAvroExtractor extends KafkaExtractor<Schema, GenericRecord> {
    * @throws SchemaNotFoundException if the latest schema of the topic cannot be retrieved
    * from the schema registry.
    */
-  public KafkaAvroExtractor(WorkUnitState state) throws SchemaNotFoundException {
+  public KafkaAvroExtractor(WorkUnitState state) {
     super(state);
-    this.schemaRegistry = new KafkaAvroSchemaRegistry(state);
-    this.schema = getLatestSchemaByTopic();
-    this.reader = new GenericDatumReader<Record>(this.schema);
+    this.schemaRegistry = new KafkaAvroSchemaRegistry(state.getProperties());
+    this.schema = Optional.fromNullable(getLatestSchemaByTopic());
+    if (this.schema.isPresent()) {
+      this.reader = Optional.of(new GenericDatumReader<Record>(this.schema.get()));
+    } else {
+      this.reader = Optional.absent();
+    }
   }
 
-  private Schema getLatestSchemaByTopic() throws SchemaNotFoundException {
-    return this.schemaRegistry.getLatestSchemaByTopic(this.topicName);
+  private Schema getLatestSchemaByTopic() {
+    try {
+      return this.schemaRegistry.getLatestSchemaByTopic(this.topicName);
+    } catch (SchemaNotFoundException e) {
+      LOG.error(String.format("Cannot find latest schema for topic %s. This topic will be skipped", this.topicName), e);
+      return null;
+    }
+  }
+
+  @Override
+  public GenericRecord readRecordImpl(GenericRecord reuse) throws DataRecordException, IOException {
+    if (!this.schema.isPresent()) {
+      return null;
+    }
+    return super.readRecordImpl(reuse);
   }
 
   @Override
   public Schema getSchema() {
-    return this.schema;
+    return this.schema.or(DEFAULT_SCHEMA);
   }
 
   @Override
   protected GenericRecord decodeRecord(MessageAndOffset messageAndOffset) throws SchemaNotFoundException, IOException {
     byte[] payload = getBytes(messageAndOffset.message().payload());
-    if (payload[0] != MAGIC_BYTE) {
+    if (payload[0] != KafkaAvroSchemaRegistry.MAGIC_BYTE) {
       throw new RuntimeException(String.format("Unknown magic byte for partition %s", this.getCurrentPartition()));
     }
 
-    byte[] schemaIdByteArray = Arrays.copyOfRange(payload, 1, 1 + SCHEMA_ID_LENGTH_BYTE);
+    byte[] schemaIdByteArray = Arrays.copyOfRange(payload, 1, 1 + KafkaAvroSchemaRegistry.SCHEMA_ID_LENGTH_BYTE);
     String schemaId = Hex.encodeHexString(schemaIdByteArray);
     Schema schema = null;
     schema = this.schemaRegistry.getSchemaById(schemaId);
-    reader.setSchema(schema);
+    reader.get().setSchema(schema);
     Decoder binaryDecoder =
-        DecoderFactory.get().binaryDecoder(payload, 1 + SCHEMA_ID_LENGTH_BYTE,
-            payload.length - 1 - SCHEMA_ID_LENGTH_BYTE, null);
+        DecoderFactory.get().binaryDecoder(payload, 1 + KafkaAvroSchemaRegistry.SCHEMA_ID_LENGTH_BYTE,
+            payload.length - 1 - KafkaAvroSchemaRegistry.SCHEMA_ID_LENGTH_BYTE, null);
     try {
-      GenericRecord record = reader.read(null, binaryDecoder);
-      if (!record.getSchema().equals(this.schema)) {
-        record = AvroUtils.convertRecordSchema(record, this.schema);
+      GenericRecord record = reader.get().read(null, binaryDecoder);
+      if (!record.getSchema().equals(this.schema.get())) {
+        record = AvroUtils.convertRecordSchema(record, this.schema.get());
       }
       return record;
     } catch (IOException e) {

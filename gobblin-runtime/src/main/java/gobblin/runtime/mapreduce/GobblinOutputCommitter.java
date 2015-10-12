@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -75,7 +76,7 @@ public class GobblinOutputCommitter extends OutputCommitter {
 
         // If the file ends with ".wu" de-serialize it into a WorkUnit
         if (status.getPath().getName().endsWith(".wu")) {
-          WorkUnit wu = new WorkUnit();
+          WorkUnit wu = WorkUnit.createEmpty();
           try {
             wu.readFields(workUnitFileCloser.register(new DataInputStream(fs.open(status.getPath()))));
           } finally {

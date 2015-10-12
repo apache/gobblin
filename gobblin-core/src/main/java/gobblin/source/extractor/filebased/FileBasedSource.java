@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -88,7 +89,7 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
     }
 
     TableType tableType = TableType.valueOf(state.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY).toUpperCase());
-    List<WorkUnitState> previousWorkunits = state.getPreviousWorkUnitStates();
+    List<WorkUnitState> previousWorkunits = Lists.newArrayList(state.getPreviousWorkUnitStates());
     List<String> prevFsSnapshot = Lists.newArrayList();
 
     // Get list of files seen in the previous run
@@ -121,10 +122,9 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
         filesToPull.size() / numPartitions : filesToPull.size() / numPartitions + 1;
 
     int workUnitCount = 0;
-    int fileOffset = 0;
 
     // Distribute the files across the workunits
-    for (int i = 0; i < numPartitions; i++) {
+    for (int fileOffset = 0; fileOffset < filesToPull.size(); fileOffset += filesPerPartition) {
       SourceState partitionState = new SourceState();
       partitionState.addAll(state);
 
@@ -147,7 +147,6 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
       Extract extract = partitionState.createExtract(tableType, nameSpaceName, extractTableName);
       workUnits.add(partitionState.createWorkUnit(extract));
       workUnitCount++;
-      fileOffset += filesPerPartition;
     }
 
     log.info("Total number of work units for the current run: " + workUnitCount);

@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -41,7 +42,7 @@ import gobblin.runtime.WorkUnitManager;
  * @author ynli
  */
 @Deprecated
-@Test(groups = {"gobblin.test"})
+@Test(groups = { "ignore" })
 public class LocalJobManagerTest {
 
   private static final String SOURCE_FILE_LIST_KEY = "source.files";
@@ -76,7 +77,8 @@ public class LocalJobManagerTest {
     Properties jobProps = new Properties();
     jobProps.load(new FileReader("gobblin-test/resource/job-conf/GobblinTest1.pull"));
     jobProps.putAll(this.properties);
-    jobProps.setProperty(SOURCE_FILE_LIST_KEY, "gobblin-test/resource/source/test.avro.2,gobblin-test/resource/source/test.avro.3");
+    jobProps.setProperty(SOURCE_FILE_LIST_KEY,
+        "gobblin-test/resource/source/test.avro.2,gobblin-test/resource/source/test.avro.3");
     jobProps.setProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "true");
 
     CountDownLatch latch = new CountDownLatch(1);
@@ -90,7 +92,8 @@ public class LocalJobManagerTest {
     Properties jobProps = new Properties();
     jobProps.load(new FileReader("gobblin-test/resource/job-conf/GobblinTest2.pull"));
     jobProps.putAll(this.properties);
-    jobProps.setProperty(SOURCE_FILE_LIST_KEY, "gobblin-test/resource/source/test.avro.2,gobblin-test/resource/source/test.avro.3");
+    jobProps.setProperty(SOURCE_FILE_LIST_KEY,
+        "gobblin-test/resource/source/test.avro.2,gobblin-test/resource/source/test.avro.3");
     jobProps.setProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "true");
 
     CountDownLatch latch = new CountDownLatch(1);

@@ -1,4 +1,5 @@
-/* (c) 2015 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -13,8 +14,6 @@ package gobblin.source.extractor.extract;
 
 import gobblin.configuration.SourceState;
 
-import java.util.Set;
-
 
 /**
  * A base implementation of {@link gobblin.source.Source} for
@@ -23,14 +22,6 @@ import java.util.Set;
  * @author ziliu
  */
 public abstract class EventBasedSource<S, D> extends AbstractSource<S, D> {
-  public static boolean survived(String candidate, Set<String> blacklist, Set<String> whitelist) {
-    if (!whitelist.isEmpty()) {
-      return whitelist.contains(candidate);
-    } else {
-      return !blacklist.contains(candidate);
-    }
-  }
-
   @Override
   public void shutdown(SourceState state) {
   }

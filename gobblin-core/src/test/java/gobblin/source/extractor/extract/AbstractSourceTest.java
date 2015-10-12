@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -27,26 +28,27 @@ import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.WorkUnitState.WorkingState;
 import gobblin.source.extractor.Extractor;
+import gobblin.source.workunit.WorkUnit;
 
 
 @Test(groups = { "gobblin.source.extractor.extract" })
 public class AbstractSourceTest {
 
-  private TestSource testSource;
+  private TestSource<String, String> testSource;
   private List<WorkUnitState> previousWorkUnitStates;
   private List<WorkUnitState> expectedPreviousWorkUnitStates;
 
   @BeforeClass
   public void setUpBeforeClass() {
-    this.testSource = new TestSource();
-    
+    this.testSource = new TestSource<String, String>();
+
     WorkUnitState committedWorkUnitState = new WorkUnitState();
     committedWorkUnitState.setWorkingState(WorkingState.COMMITTED);
     WorkUnitState successfulWorkUnitState = new WorkUnitState();
     successfulWorkUnitState.setWorkingState(WorkingState.SUCCESSFUL);
     WorkUnitState failedWorkUnitState = new WorkUnitState();
     failedWorkUnitState.setWorkingState(WorkingState.FAILED);
-    
+
     this.previousWorkUnitStates =
         Lists.newArrayList(committedWorkUnitState, successfulWorkUnitState, failedWorkUnitState);
     this.expectedPreviousWorkUnitStates = Lists.newArrayList(successfulWorkUnitState, failedWorkUnitState);
@@ -131,7 +133,7 @@ public class AbstractSourceTest {
    * Test the always-retry policy, with WORK_UNIT_RETRY_ENABLED_KEY enabled.
    */
   @Test
-  public void testGetPreviousWorkUnitStatesEabledRetry() {
+  public void testGetPreviousWorkUnitStatesEnabledRetry() {
     SourceState sourceState = new SourceState(new State(), this.previousWorkUnitStates);
     sourceState.setProp(ConfigurationKeys.WORK_UNIT_RETRY_ENABLED_KEY, Boolean.TRUE);
 
@@ -141,11 +143,15 @@ public class AbstractSourceTest {
   }
 
   /**
-   * Test under always-retry policy, the overrite_configs_in_statestore enabled.
+   * Test under always-retry policy, the overwrite_configs_in_statestore enabled.
    * The previous workUnitState should be reset with the config in the current source.
    */
   @Test
   public void testGetPreviousWorkUnitStatesWithConfigOverWrittenEnabled() {
+    for (WorkUnitState workUnitState : this.previousWorkUnitStates) {
+      workUnitState.setProp("a", "3");
+      workUnitState.setProp("b", "4");
+    }
     SourceState sourceState = new SourceState(new State(), this.previousWorkUnitStates);
     sourceState.setProp(ConfigurationKeys.WORK_UNIT_RETRY_POLICY_KEY, "always");
     sourceState.setProp(ConfigurationKeys.OVERWRITE_CONFIGS_IN_STATESTORE, Boolean.TRUE);
@@ -156,8 +162,6 @@ public class AbstractSourceTest {
 
     List<WorkUnitState> returnedWorkUnitStates = this.testSource.getPreviousWorkUnitStatesForRetry(sourceState);
 
-    Assert.assertEquals(returnedWorkUnitStates, this.expectedPreviousWorkUnitStates);
-
     for (WorkUnitState workUnitState : returnedWorkUnitStates) {
       Assert.assertEquals(workUnitState.getProp("a"), "1");
       Assert.assertEquals(workUnitState.getProp("b"), "2");
@@ -165,7 +169,7 @@ public class AbstractSourceTest {
   }
 
   /**
-   * Test under always-retry policy, the overrite_configs_in_statestore disabled (default).
+   * Test under always-retry policy, the overwrite_configs_in_statestore disabled (default).
    * The previous workUnitState would not be reset with the config in the current source.
    */
   @Test
@@ -188,15 +192,15 @@ public class AbstractSourceTest {
   }
 
   // Class for test AbstractSource
-  public class TestSource extends AbstractSource {
+  public class TestSource<S, D> extends AbstractSource<S, D> {
 
     @Override
-    public List getWorkunits(SourceState state) {
+    public List<WorkUnit> getWorkunits(SourceState state) {
       return null;
     }
 
     @Override
-    public Extractor getExtractor(WorkUnitState state) throws IOException {
+    public Extractor<S, D> getExtractor(WorkUnitState state) throws IOException {
       return null;
     }
 

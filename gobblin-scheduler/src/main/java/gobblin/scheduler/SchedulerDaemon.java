@@ -1,4 +1,5 @@
-/* (c) 2014 LinkedIn Corp. All rights reserved.
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -59,6 +60,15 @@ public class SchedulerDaemon {
 
   public SchedulerDaemon(Properties properties)
       throws Exception {
+    this(properties, new Properties());
+  }
+
+  public SchedulerDaemon(Properties defaultProperties, Properties customProperties)
+      throws Exception {
+    Properties properties = new Properties();
+    properties.putAll(defaultProperties);
+    properties.putAll(customProperties);
+
     List<Service> services = Lists.<Service>newArrayList(new JobScheduler(properties));
     boolean jobExecInfoServerEnabled = Boolean
         .valueOf(properties.getProperty(ConfigurationKeys.JOB_EXECINFO_SERVER_ENABLED_KEY, Boolean.FALSE.toString()));
@@ -114,14 +124,22 @@ public class SchedulerDaemon {
 
   public static void main(String[] args)
       throws Exception {
-    if (args.length != 1) {
-      System.err.println("Usage: SchedulerDaemon <configuration properties file>");
+    if (args.length < 1 || args.length > 2) {
+      System.err.println(
+          "Usage: SchedulerDaemon <default configuration properties file> [custom configuration properties file]");
       System.exit(1);
     }
 
-    // Load framework configuration properties
-    Configuration config = new PropertiesConfiguration(args[0]);
+    // Load default framework configuration properties
+    Properties defaultProperties = ConfigurationConverter.getProperties(new PropertiesConfiguration(args[0]));
+
+    // Load custom framework configuration properties (if any)
+    Properties customProperties = new Properties();
+    if (args.length == 2) {
+      customProperties.putAll(ConfigurationConverter.getProperties(new PropertiesConfiguration(args[1])));
+    }
+
     // Start the scheduler daemon
-    new SchedulerDaemon(ConfigurationConverter.getProperties(config)).start();
+    new SchedulerDaemon(defaultProperties, customProperties).start();
   }
 }
