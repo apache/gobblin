@@ -12,7 +12,7 @@
 
 package gobblin.compaction.mapreduce.avro;
 
-import gobblin.util.HadoopUtils;
+import gobblin.util.FileListUtils;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -115,7 +115,7 @@ public class AvroKeyRecursiveCombineFileInputFormat
     List<Path> files = Lists.newArrayList();
 
     for (Path dir : dirs) {
-      for (FileStatus status : HadoopUtils.listStatusRecursive(fs, dir)) {
+      for (FileStatus status : FileListUtils.listFilesRecursively(fs, dir)) {
         if (FilenameUtils.isExtension(status.getPath().getName(), AVRO)) {
           files.add(status.getPath());
         }
