@@ -12,14 +12,23 @@
 
 package gobblin.util;
 
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 
@@ -145,5 +154,74 @@ public class ExecutorsUtils {
   public static void shutdownExecutorService(ExecutorService executorService, Optional<Logger> logger) {
     shutdownExecutorService(executorService, logger, EXECUTOR_SERVICE_SHUTDOWN_TIMEOUT,
         EXECUTOR_SERVICE_SHUTDOWN_TIMEOUT_TIMEUNIT);
+  }
+
+  /**
+   * A utility method to parallelize loops. Applies the {@link Function} to every element in the {@link List} in
+   * parallel by spawning threads. A list containing the result obtained by applying the function is returned. The
+   * method is a blocking call and will wait for all the elements in the list to be processed or timeoutInSecs which
+   * ever is earlier.
+   * <p>
+   * <b>NOTE: The method is an all or none implementation. Meaning, if any of the thread fails, the method will throw an
+   * {@link ExecutionException} even if other threads completed successfully</b>
+   * </p>
+   *
+   * <ul>
+   * <li>Uses a Fixed thread pool of size threadCount.
+   * <li>Uses {@link #shutdownExecutorService(ExecutorService, Optional, long, TimeUnit)} to shutdown the executor
+   * service
+   * <li>All threads are daemon threads
+   * </ul>
+   *
+   * @param list input list on which the function is applied in parallel
+   * @param function to be applied on every element of the list
+   * @param threadCount to be used to process the list
+   * @param timeoutInSecs to wait for all the threads to complete
+   * @param logger an {@link Optional} wrapping a {@link Logger} to be used during shutdown
+   *
+   * @return a list containing the result obtained by applying the function on each element of the input list in the
+   *         same order
+   *
+   * @throws IllegalArgumentException if input list or function is null
+   * @throws ExecutionException <ul>
+   *           <li>if any computation threw an exception
+   *           <li>if any computation was cancelled
+   *           <li>if any thread was interrupted while waiting
+   *           <ul>
+   */
+  public static <F, T> List<T> parallelize(final List<F> list, final Function<F, T> function, int threadCount,
+      int timeoutInSecs, Optional<Logger> logger) throws ExecutionException {
+
+    Preconditions.checkArgument(list != null, "Input list can not be null");
+    Preconditions.checkArgument(function != null, "Function can not be null");
+
+    final List<T> results = Lists.newArrayListWithCapacity(list.size());
+    List<Future<T>> futures = Lists.newArrayListWithCapacity(list.size());
+
+    ExecutorService executorService =
+        MoreExecutors.getExitingExecutorService(
+            (ThreadPoolExecutor) Executors.newFixedThreadPool(threadCount, ExecutorsUtils.newThreadFactory(logger)), 2,
+            TimeUnit.MINUTES);
+
+    for (final F l : list) {
+      futures.add(executorService.submit(new Callable<T>() {
+        @Override
+        public T call() throws Exception {
+          return function.apply(l);
+        }
+      }));
+    }
+
+    ExecutorsUtils.shutdownExecutorService(executorService, logger, timeoutInSecs, TimeUnit.SECONDS);
+
+    for (Future<T> future : futures) {
+      try {
+        results.add(future.get());
+      } catch (InterruptedException e) {
+        throw new ExecutionException("Thread interrupted", e);
+      }
+    }
+
+    return results;
   }
 }
