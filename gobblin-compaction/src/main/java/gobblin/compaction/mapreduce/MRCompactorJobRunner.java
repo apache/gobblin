@@ -12,9 +12,13 @@
 
 package gobblin.compaction.mapreduce;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.regex.Pattern;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -24,6 +28,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
@@ -36,8 +41,11 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 import com.google.common.primitives.Ints;
+
+import lombok.AllArgsConstructor;
 
 import gobblin.compaction.Dataset;
 import gobblin.compaction.event.CompactionSlaEventHelper;
@@ -46,7 +54,9 @@ import gobblin.configuration.State;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.event.EventSubmitter;
 import gobblin.metrics.event.sla.SlaEventSubmitter;
+import gobblin.util.FileListUtils;
 import gobblin.util.HadoopUtils;
+import gobblin.util.RecordCountProvider;
 
 
 /**
@@ -71,12 +81,16 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
 
   private static final String COMPACTION_JOB_PREFIX = "compaction.job.";
 
+  private static final String LATE_RECORD_COUNTS_EVENT = "LateRecordCounts";
+  private static final String NEW_LATE_RECORD_COUNTS = "newLateRecordCounts";
+  private static final String CUMULATIVE_LATE_RECORD_COUNTS = "cumulativeLateRecordCounts";
+
   /**
    * Properties related to the compaction job of a dataset.
    */
   private static final String COMPACTION_JOB_OUTPUT_DIR_PERMISSION = COMPACTION_JOB_PREFIX + "output.dir.permission";
-  private static final String COMPACTION_JOB_TARGET_OUTPUT_FILE_SIZE =
-      COMPACTION_JOB_PREFIX + "target.output.file.size";
+  private static final String COMPACTION_JOB_TARGET_OUTPUT_FILE_SIZE = COMPACTION_JOB_PREFIX
+      + "target.output.file.size";
   private static final long DEFAULT_COMPACTION_JOB_TARGET_OUTPUT_FILE_SIZE = 268435456;
   private static final String COMPACTION_JOB_MAX_NUM_REDUCERS = COMPACTION_JOB_PREFIX + "max.num.reducers";
   private static final int DEFAULT_COMPACTION_JOB_MAX_NUM_REDUCERS = 900;
@@ -117,6 +131,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   protected final boolean deduplicate;
   protected final double priority;
   protected final EventSubmitter eventSubmitter;
+  private final LateFileRecordCountProvider recordCountProvider;
 
   private volatile Policy policy = Policy.DO_NOT_PUBLISH_DATA;
   private volatile Status status = Status.RUNNING;
@@ -129,34 +144,56 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     this.outputPath = new Path(jobProps.getProp(MRCompactor.COMPACTION_JOB_DEST_DIR));
     this.tmpPath = new Path(jobProps.getProp(MRCompactor.COMPACTION_JOB_TMP_DIR));
     this.fs = fs;
-    this.perm = HadoopUtils.deserializeFsPermission(this.jobProps, COMPACTION_JOB_OUTPUT_DIR_PERMISSION,
-        FsPermission.getDefault());
+    this.perm =
+        HadoopUtils.deserializeFsPermission(this.jobProps, COMPACTION_JOB_OUTPUT_DIR_PERMISSION,
+            FsPermission.getDefault());
     this.deduplicate =
         this.jobProps.getPropAsBoolean(MRCompactor.COMPACTION_DEDUPLICATE, MRCompactor.DEFAULT_COMPACTION_DEDUPLICATE);
     this.priority = priority;
-    this.eventSubmitter = new EventSubmitter.Builder(
-        GobblinMetrics.get(this.jobProps.getProp(ConfigurationKeys.JOB_NAME_KEY)).getMetricContext(),
-        MRCompactor.COMPACTION_TRACKING_EVENTS_NAMESPACE).build();
+    this.eventSubmitter =
+        new EventSubmitter.Builder(GobblinMetrics.get(this.jobProps.getProp(ConfigurationKeys.JOB_NAME_KEY))
+            .getMetricContext(), MRCompactor.COMPACTION_TRACKING_EVENTS_NAMESPACE).build();
+
+    try {
+      this.recordCountProvider =
+          new LateFileRecordCountProvider((RecordCountProvider) Class.forName(
+              this.jobProps.getProp(MRCompactor.COMPACTION_RECORD_COUNT_PROVIDER,
+                  MRCompactor.DEFAULT_COMPACTION_RECORD_COUNT_PROVIDER)).newInstance());
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to instantiate record count provider: " + e, e);
+    }
   }
 
   @Override
   public void run() {
-
     Configuration conf = HadoopUtils.getConfFromState(this.jobProps);
-    DateTime jobStartTime = new DateTime(DateTimeZone
-        .forID(this.jobProps.getProp(MRCompactor.COMPACTION_TIMEZONE, MRCompactor.DEFAULT_COMPACTION_TIMEZONE)));
-
+    DateTime jobStartTime =
+        new DateTime(DateTimeZone.forID(this.jobProps.getProp(MRCompactor.COMPACTION_TIMEZONE,
+            MRCompactor.DEFAULT_COMPACTION_TIMEZONE)));
     try {
       if (this.jobProps.getPropAsBoolean(MRCompactor.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, false)) {
-        List<Path> lateFilePaths = Lists.newArrayList();
+        List<Path> newLateFilePaths = Lists.newArrayList();
         for (String filePathString : this.jobProps.getPropAsList(MRCompactor.COMPACTION_JOB_LATE_DATA_FILES)) {
           if (FilenameUtils.isExtension(filePathString, getApplicableFileExtensions())) {
-            lateFilePaths.add(new Path(filePathString));
+            newLateFilePaths.add(new Path(filePathString));
           }
         }
-        Path lateDataOutputPath =
-            this.deduplicate ? new Path(this.outputPath, MRCompactor.COMPACTION_LATE_FILES_DIRECTORY) : this.outputPath;
-        this.copyDataFiles(lateDataOutputPath, lateFilePaths, conf);
+        Path lateDataOutputPath = this.outputPath;
+        Path lateDataDir = new Path(this.jobProps.getProp(MRCompactor.COMPACTION_JOB_DEST_LATE_DIR));
+        if (this.deduplicate) {
+          // Update the late data output path.
+          lateDataOutputPath = lateDataDir;
+          LOG.info(String.format("Will copy to late path %s since deduplication has been done. ", lateDataOutputPath));
+          if (!fs.exists(lateDataOutputPath)) {
+            if (!fs.mkdirs(lateDataOutputPath)) {
+              throw new RuntimeException(String.format("Failed to create late data output directory: %s.",
+                  lateDataOutputPath.toString()));
+            }
+          }
+        }
+        this.submitLateRecordCountsEvent(newLateFilePaths, lateDataDir);
+        this.copyDataFiles(lateDataOutputPath, newLateFilePaths, conf);
+        this.status = Status.COMMITTED;
       } else {
         if (this.fs.exists(this.outputPath) && !canOverwriteOutputDir()) {
           LOG.warn(String.format("Output path %s exists. Will not compact %s.", this.outputPath, this.inputPath));
@@ -188,10 +225,8 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     for (Path filePath : inputFilePaths) {
       String fileName = filePath.getName();
       Path outPath;
-      int fileSuffix = 0;
       do {
-        outPath = new Path(outputDirectory, String.format("%s.%d.%s", FilenameUtils.getBaseName(fileName), fileSuffix++,
-            FilenameUtils.getExtension(fileName)));
+        outPath = this.recordCountProvider.constructLateFilePath(fileName, this.fs, outputDirectory);
       } while (this.fs.exists(outPath));
 
       if (FileUtil.copy(this.fs, filePath, this.fs, outPath, false, conf)) {
@@ -306,9 +341,8 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         job.getTrackingURL()));
     while (!job.isComplete()) {
       if (this.policy == Policy.ABORT_ASAP) {
-        LOG.info(String.format(
-            "MR job for topic %s, input %s killed due to input data incompleteness." + " Will try again later",
-            this.topic, this.inputPath));
+        LOG.info(String.format("MR job for topic %s, input %s killed due to input data incompleteness."
+            + " Will try again later", this.topic, this.inputPath));
         job.killJob();
         return;
       }
@@ -328,8 +362,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     if (this.policy != Policy.DO_PUBLISH_DATA) {
       return false;
     }
-    if (!this.jobProps.getPropAsBoolean(COMPACTION_JOB_ABORT_UPON_NEW_DATA,
-        DEFAULT_COMPACTION_JOB_ABORT_UPON_NEW_DATA)) {
+    if (!this.jobProps.getPropAsBoolean(COMPACTION_JOB_ABORT_UPON_NEW_DATA, DEFAULT_COMPACTION_JOB_ABORT_UPON_NEW_DATA)) {
       return true;
     }
     return !findNewDataSinceCompactionStarted(jobStartTime);
@@ -396,5 +429,90 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   @Override
   public int compareTo(MRCompactorJobRunner o) {
     return Double.compare(o.priority, this.priority);
+  }
+
+  private List<Path> getCumulativeLateFilePaths(Path lateDataDir) throws FileNotFoundException, IOException {
+    if (!this.fs.exists(lateDataDir)) {
+      return Lists.newArrayList();
+    }
+    List<Path> paths = Lists.newArrayList();
+    for (FileStatus fileStatus : FileListUtils.listFilesRecursively(fs, lateDataDir, new PathFilter() {
+      @Override
+      public boolean accept(Path path) {
+        for (String validExtention : getApplicableFileExtensions()) {
+          if (path.getName().endsWith(validExtention)) {
+            return true;
+          }
+        }
+        return false;
+      }
+    })) {
+      paths.add(fileStatus.getPath());
+    }
+    return paths;
+  }
+
+  /**
+   * Submit an event reporting new and cumulative late record counts.
+   */
+  private void submitLateRecordCountsEvent(List<Path> newLateFilePaths, Path lateDataDir) {
+    try {
+      Map<String, String> eventMetadataMap = Maps.newHashMap();
+      long newLateRecordCount = this.recordCountProvider.getRecordCount(newLateFilePaths);
+      eventMetadataMap.put(NEW_LATE_RECORD_COUNTS, Long.toString(newLateRecordCount));
+      eventMetadataMap.put(
+          CUMULATIVE_LATE_RECORD_COUNTS,
+          Long.toString(newLateRecordCount
+              + this.recordCountProvider.getRecordCount(this.getCumulativeLateFilePaths(lateDataDir))));
+
+      LOG.info("Submitting late event counts: " + eventMetadataMap);
+      this.eventSubmitter.submit(LATE_RECORD_COUNTS_EVENT, eventMetadataMap);
+    } catch (Exception e) {
+      LOG.error("Failed to submit late event count:" + e, e);
+    }
+  }
+
+  @AllArgsConstructor
+  public static class LateFileRecordCountProvider implements RecordCountProvider {
+    private static final String SEPARATOR = ".";
+    private static final String LATE_COMPONENT = ".late";
+    private static final String EMPTY_STRING = "";
+
+    private RecordCountProvider recordCountProviderWithoutSuffix;
+
+    /**
+     * Construct filename for a late file. If the file does not exists in the output dir, retain the original name.
+     * Otherwise, append a LATE_COMPONENT{RandomInteger} to the original file name.
+     * For example, if file "part1.123.avro" exists in dir "/a/b/", the returned path will be "/a/b/part1.123.late12345.avro".
+     */
+    public Path constructLateFilePath(String originalFilename, FileSystem fs, Path outputDir) throws IOException {
+      if (!fs.exists(new Path(outputDir, originalFilename))) {
+        return new Path(outputDir, originalFilename);
+      } else {
+        return constructLateFilePath(
+            FilenameUtils.getBaseName(originalFilename) + LATE_COMPONENT + new Random().nextInt(Integer.MAX_VALUE)
+                + SEPARATOR + FilenameUtils.getExtension(originalFilename), fs, outputDir);
+      }
+    }
+
+    /**
+     * Get record count from a given filename (possibly having LATE_COMPONENT{RandomInteger}), using the original {@link FileNameWithRecordCountFormat}.
+     */
+    @Override
+    public long getRecordCount(Path filepath) {
+      return this.recordCountProviderWithoutSuffix.getRecordCount(new Path(filepath.getName().replaceAll(
+          Pattern.quote(LATE_COMPONENT) + "[\\d]*", EMPTY_STRING)));
+    }
+
+    /**
+     * Get record count for a list of paths.
+     */
+    public long getRecordCount(Collection<Path> paths) {
+      long count = 0;
+      for (Path path : paths) {
+        count += getRecordCount(path);
+      }
+      return count;
+    }
   }
 }

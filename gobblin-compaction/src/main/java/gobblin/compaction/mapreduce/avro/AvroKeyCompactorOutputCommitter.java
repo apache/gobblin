@@ -15,6 +15,7 @@ package gobblin.compaction.mapreduce.avro;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.Random;
+import java.util.regex.Pattern;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.hadoop.fs.FileStatus;
@@ -27,6 +28,10 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Preconditions;
+
+import gobblin.util.RecordCountProvider;
 
 
 /**
@@ -73,8 +78,8 @@ public class AvroKeyCompactorOutputCommitter extends FileOutputCommitter {
       } else {
         fileNamePrefix = MR_OUTPUT_FILE_PREFIX;
       }
-      String fileName = fileNamePrefix + recordCount + "." + System.currentTimeMillis() + "."
-          + RANDOM.nextInt(Integer.MAX_VALUE) + ".avro";
+      String fileName =
+          new FilenameRecordCountProvider().constructFileName(fileNamePrefix, recordCount);
 
       for (FileStatus status : fs.listStatus(workPath, new PathFilter() {
         @Override
@@ -103,6 +108,54 @@ public class AvroKeyCompactorOutputCommitter extends FileOutputCommitter {
       return ((StatusReporter) mapredContext.getProgressible()).getCounter(counterName).getValue();
     } catch (Exception e) {
       throw new RuntimeException("Error reading record count counter", e);
+    }
+  }
+
+  /**
+   * Implementation of {@link RecordCountProvider}, which provides record count from file path.
+   * The file name should follow the pattern: {Prefix}{RecordCount}.{SystemCurrentTimeInMills}.{RandomInteger}{SUFFIX}.
+   * The prefix should be either {@link AvroKeyCompactorOutputCommitter#M_OUTPUT_FILE_PREFIX} or {@link AvroKeyCompactorOutputCommitter#MR_OUTPUT_FILE_PREFIX}.
+   * For example, given a file path: "/a/b/c/part-m-123.1444437036.12345.avro", the record count will be 123.
+   */
+  public static class FilenameRecordCountProvider implements RecordCountProvider {
+    private static final String SEPARATOR = ".";
+    private static final String SUFFIX = ".avro";
+
+    /**
+     * Construct the file name as {filenamePrefix}{recordCount}.{SystemCurrentTimeInMills}.{RandomInteger}{SUFFIX}.
+     */
+    public String constructFileName(String filenamePrefix, long recordCount) {
+      Preconditions.checkArgument(
+          filenamePrefix.equals(M_OUTPUT_FILE_PREFIX) || filenamePrefix.equals(MR_OUTPUT_FILE_PREFIX), String.format(
+              "%s is not a supported prefix, which should be %s, or %s.", filenamePrefix, M_OUTPUT_FILE_PREFIX,
+              MR_OUTPUT_FILE_PREFIX));
+      StringBuilder sb = new StringBuilder();
+      sb.append(filenamePrefix);
+      sb.append(Long.toString(recordCount));
+      sb.append(SEPARATOR);
+      sb.append(Long.toString(System.currentTimeMillis()));
+      sb.append(SEPARATOR);
+      sb.append(Integer.toString(RANDOM.nextInt(Integer.MAX_VALUE)));
+      sb.append(SUFFIX);
+      return sb.toString();
+    }
+
+    /**
+     * Get the record count through filename.
+     */
+    @Override
+    public long getRecordCount(Path filepath) {
+      String filename = filepath.getName();
+      Preconditions.checkArgument(
+          filename.startsWith(M_OUTPUT_FILE_PREFIX) || filename.startsWith(MR_OUTPUT_FILE_PREFIX), String.format(
+              "%s is not a supported filename, which should start with %s, or %s.", filename, M_OUTPUT_FILE_PREFIX,
+              MR_OUTPUT_FILE_PREFIX));
+      String prefixWithCounts = filename.split(Pattern.quote(SEPARATOR))[0];
+      if (filename.startsWith(M_OUTPUT_FILE_PREFIX)) {
+        return Long.parseLong(prefixWithCounts.substring(M_OUTPUT_FILE_PREFIX.length()));
+      } else {
+        return Long.parseLong(prefixWithCounts.substring(MR_OUTPUT_FILE_PREFIX.length()));
+      }
     }
   }
 }

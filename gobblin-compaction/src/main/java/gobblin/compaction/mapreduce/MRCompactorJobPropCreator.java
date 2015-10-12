@@ -42,6 +42,7 @@ public class MRCompactorJobPropCreator {
     String topic;
     Path topicInputDir;
     Path topicOutputDir;
+    Path topicOutputLateDir;
     Path topicTmpDir;
     FileSystem fs;
     boolean deduplicate;
@@ -59,6 +60,11 @@ public class MRCompactorJobPropCreator {
 
     T withTopicOutputDir(Path topicOutputDir) {
       this.topicOutputDir = topicOutputDir;
+      return (T) this;
+    }
+
+    T withTopicOutputLateDir(Path topicOutputLateDir) {
+      this.topicOutputLateDir = topicOutputLateDir;
       return (T) this;
     }
 
@@ -91,6 +97,7 @@ public class MRCompactorJobPropCreator {
   protected final String topic;
   protected final Path topicInputDir;
   protected final Path topicOutputDir;
+  protected final Path topicOutputLateDir;
   protected final Path topicTmpDir;
   protected final FileSystem fs;
   protected final boolean deduplicate;
@@ -100,6 +107,7 @@ public class MRCompactorJobPropCreator {
     this.topic = builder.topic;
     this.topicInputDir = builder.topicInputDir;
     this.topicOutputDir = builder.topicOutputDir;
+    this.topicOutputLateDir = builder.topicOutputLateDir;
     this.topicTmpDir = builder.topicTmpDir;
     this.fs = builder.fs;
     this.deduplicate = builder.deduplicate;
