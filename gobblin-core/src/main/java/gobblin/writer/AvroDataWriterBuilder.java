@@ -16,13 +16,13 @@ import java.io.IOException;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
-import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
-import gobblin.util.ForkOperatorUtils;
+import gobblin.util.AvroUtils;
 import gobblin.util.WriterUtils;
 
 
@@ -32,7 +32,11 @@ import gobblin.util.WriterUtils;
  * @author ynli
  */
 @SuppressWarnings("unused")
-public class AvroDataWriterBuilder extends DataWriterBuilder<Schema, GenericRecord> {
+public class AvroDataWriterBuilder extends PartitionAwareDataWriterBuilder<Schema, GenericRecord> {
+
+  @Override public boolean validatePartitionSchema(Schema partitionSchema) {
+    return true;
+  }
 
   @Override
   public DataWriter<GenericRecord> build()
@@ -48,6 +52,10 @@ public class AvroDataWriterBuilder extends DataWriterBuilder<Schema, GenericReco
 
         String fileName = WriterUtils
             .getWriterFileName(properties, this.branches, this.branch, this.writerId, this.format.getExtension());
+
+        if(this.partition != null) {
+          fileName = new Path(AvroUtils.serializeAsPath(this.partition, true).toString(),fileName).toString();
+        }
 
         return new AvroHdfsDataWriter(properties, fileName, this.schema, this.branches, this.branch);
       case KAFKA:

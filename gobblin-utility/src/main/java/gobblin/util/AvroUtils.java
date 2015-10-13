@@ -47,6 +47,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
@@ -416,5 +417,31 @@ public class AvroUtils {
 
     newSchema.setFields(Lists.newArrayList(fieldsNew));
     return newSchema;
+  }
+
+  /**
+   * Serialize a generic record as a relative {@link Path}. Useful for converting {@link GenericRecord} type keys
+   * into file system locations. For example {field1=v1, field2=v2} returns field1=v1/field2=v2 if includeFieldNames
+   * is true, or v1/v2 if it is false.
+   * @param record {@link GenericRecord} to serialize.
+   * @param includeFieldNames If true, each token in the path will be of the form key=value, otherwise, only the value
+   *                          will be included.
+   * @return A relative path where each level is a field in the input record.
+   */
+  public static Path serializeAsPath(GenericRecord record, boolean includeFieldNames) {
+    if(record == null) {
+      return new Path("");
+    }
+    List<String> tokens = Lists.newArrayList();
+    for(Schema.Field field : record.getSchema().getFields()) {
+      String sanitizedName = field.name().replaceAll("[\\s/]","_");
+      String sanitizedValue = record.get(field.name()).toString().replaceAll("[\\s/]","_");
+      if(includeFieldNames) {
+        tokens.add(String.format("%s=%s", field.name(), sanitizedValue));
+      } else {
+        tokens.add(sanitizedValue);
+      }
+    }
+    return new Path(Joiner.on(Path.SEPARATOR).join(tokens));
   }
 }
