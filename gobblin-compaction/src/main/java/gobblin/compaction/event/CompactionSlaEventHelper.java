@@ -28,6 +28,7 @@ import com.google.common.base.Optional;
 
 import gobblin.compaction.mapreduce.MRCompactor;
 import gobblin.compaction.mapreduce.avro.AvroKeyDedupReducer;
+import gobblin.compaction.mapreduce.avro.AvroKeyMapper;
 import gobblin.configuration.State;
 import gobblin.metrics.event.sla.SlaEventKeys;
 
@@ -92,16 +93,26 @@ public class CompactionSlaEventHelper {
     try {
       counters = job.getCounters();
     } catch (IOException e) {
-      LOG.debug("Failed to get job counters. Record count will not be set. ", e);
+      LOG.info("Failed to get job counters. Record count will not be set. ", e);
       return;
     }
 
-    if (counters != null) {
-      Counter recordCounter = counters.findCounter(AvroKeyDedupReducer.EVENT_COUNTER.RECORD_COUNT);
-      if (recordCounter != null) {
-        state.setProp(SlaEventKeys.RECORD_COUNT_KEY, Long.toString(recordCounter.getValue()));
-      }
+    Counter recordCounter = counters.findCounter(AvroKeyDedupReducer.EVENT_COUNTER.RECORD_COUNT);
+
+    if (recordCounter != null & recordCounter.getValue() != 0) {
+      state.setProp(SlaEventKeys.RECORD_COUNT_KEY, Long.toString(recordCounter.getValue()));
+      return;
     }
+
+    recordCounter = counters.findCounter(AvroKeyMapper.EVENT_COUNTER.RECORD_COUNT);
+
+    if (recordCounter != null & recordCounter.getValue() != 0) {
+      state.setProp(SlaEventKeys.RECORD_COUNT_KEY, Long.toString(recordCounter.getValue()));
+      return;
+    }
+
+    LOG.info("Not found non zero record count in both mapper and reducer counters");
+
   }
 
 }
