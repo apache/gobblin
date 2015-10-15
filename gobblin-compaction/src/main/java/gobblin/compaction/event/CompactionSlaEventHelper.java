@@ -111,7 +111,7 @@ public class CompactionSlaEventHelper {
       return;
     }
 
-    LOG.info("Not found non zero record count in both mapper and reducer counters");
+    LOG.info("Non zero record count not found in both mapper and reducer counters");
 
   }
 
