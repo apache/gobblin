@@ -33,6 +33,7 @@ import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
@@ -68,19 +69,20 @@ import gobblin.util.DatasetFilterUtils;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.TagUtils;
-import gobblin.writer.AvroHdfsTimePartitionedWithRecordCountsWriter;
+import gobblin.util.recordcount.CompactionRecordCountProvider;
+import gobblin.util.recordcount.IngestionRecordCountProvider;
 
 
 /**
  * MapReduce-based {@link gobblin.compaction.Compactor}. Compaction will run on each qualified {@link Dataset}
- * under {@link ConfigurationKeys#COMPACTION_INPUT_DIR}.
+ * under {@link #COMPACTION_INPUT_DIR}.
  *
- * Each subfolder in {@link ConfigurationKeys#COMPACTION_INPUT_DIR} is considered a topic, if it satisfies
- * {@link ConfigurationKeys#COMPACTION_BLACKLIST} and {@link ConfigurationKeys#COMPACTION_WHITELIST}.
+ * Each subfolder in {@link #COMPACTION_INPUT_DIR} is considered a topic, if it satisfies
+ * {@link #COMPACTION_BLACKLIST} and {@link #COMPACTION_WHITELIST}.
  * It is up to the {@link MRCompactorJobPropCreator} to determine what is a {@link Dataset}. For example,
  * a {@link Dataset} may be a topic, or a partition of the topic.
  *
- * For example, suppose {@link ConfigurationKeys#COMPACTION_INPUT_DIR} is '/inputdata', and a topic is
+ * For example, suppose {@link #COMPACTION_INPUT_DIR} is '/inputdata', and a topic is
  * '/inputdata/mytopic'. If this topic is considered a {@link Dataset}, all data under this folder will be compacted.
  * If a particular day's data of this topic is considered a {@link Dataset}, e.g.,
  * '/inputdata/mytopic/daily/2015/08/09', then data under this folder will be compacted.
@@ -104,6 +106,7 @@ public class MRCompactor implements Compactor {
   // The subdir name of input dataset paths, e.g., "hourly" in "/data/input/PasswordChangeEvent/hourly/2015/09/06".
   public static final String COMPACTION_INPUT_SUBDIR = COMPACTION_PREFIX + "input.subdir";
   public static final String DEFAULT_COMPACTION_INPUT_SUBDIR = "hourly";
+
   public static final String COMPACTION_DEST_DIR = COMPACTION_PREFIX + "dest.dir";
 
   // The subdir name of output dataset paths, e.g., "daily" in "/data/input/PasswordChangeEvent/daily/2015/09/06".
@@ -111,8 +114,11 @@ public class MRCompactor implements Compactor {
   public static final String DEFAULT_COMPACTION_DEST_SUBDIR = "daily";
 
   // The output dir for compaction MR job, which will be moved to the final output dir for data publishing.
-  public static final String COMPACTION_TMP_DIR = COMPACTION_PREFIX + "tmp.dir";
-  public static final String DEFAULT_COMPACTION_TMP_DIR = "/tmp/gobblin-compaction";
+  public static final String COMPACTION_TMP_DEST_DIR = COMPACTION_PREFIX + "tmp.dest.dir";
+  public static final String DEFAULT_COMPACTION_TMP_DEST_DIR = "/tmp/gobblin-compaction";
+
+  public static final String COMPACTION_LATE_DIR_SUFFIX = "_late";
+
   public static final String COMPACTION_BLACKLIST = COMPACTION_PREFIX + "blacklist";
   public static final String COMPACTION_WHITELIST = COMPACTION_PREFIX + "whitelist";
   public static final String COMPACTION_HIGH_PRIORITY_TOPICS = COMPACTION_PREFIX + "high.priority.topics";
@@ -129,19 +135,31 @@ public class MRCompactor implements Compactor {
   public static final String COMPACTION_MR_JOB_TIMEOUT_MINUTES = COMPACTION_PREFIX + "mr.job.timeout.minutes";
   public static final long DEFAULT_COMPACTION_MR_JOB_TIMEOUT_MINUTES = Long.MAX_VALUE;
 
-  //The provider that provides event counts of given paths on HDFS.
-  public static final String COMPACTION_RECORD_COUNT_PROVIDER = COMPACTION_PREFIX + "record.count.provider";
-  public static final String DEFAULT_COMPACTION_RECORD_COUNT_PROVIDER = AvroHdfsTimePartitionedWithRecordCountsWriter.FilenameRecordCountProvider.class.getName();
+  //The provider that provides event counts for the compaction input files.
+  public static final String COMPACTION_INPUT_RECORD_COUNT_PROVIDER = COMPACTION_PREFIX + "input.record.count.provider";
+  public static final String DEFAULT_COMPACTION_INPUT_RECORD_COUNT_PROVIDER =
+      IngestionRecordCountProvider.class.getName();
+
+  //The provider that provides event counts for the compaction output files.
+  public static final String COMPACTION_OUTPUT_RECORD_COUNT_PROVIDER =
+      COMPACTION_PREFIX + "output.record.count.provider";
+  public static final String DEFAULT_COMPACTION_OUTPUT_RECORD_COUNT_PROVIDER =
+      CompactionRecordCountProvider.class.getName();
 
   // If a dataset has already been compacted and new (late) data is found, whether recompact this dataset.
-  public static final String COMPACTION_RECOMPACT_FOR_LATE_DATA = COMPACTION_PREFIX + "recompact.for.late.data";
-  public static final boolean DEFAULT_COMPACTION_RECOMPACT_FOR_LATE_DATA = false;
+  public static final String COMPACTION_RECOMPACT_FROM_INPUT_FOR_LATE_DATA =
+      COMPACTION_PREFIX + "recompact.from.input.for.late.data";
+  public static final boolean DEFAULT_COMPACTION_RECOMPACT_FROM_INPUT_FOR_LATE_DATA = false;
 
   // Whether to deduplicate the datasets.
   public static final String COMPACTION_DEDUPLICATE = COMPACTION_PREFIX + "deduplicate";
   public static final boolean DEFAULT_COMPACTION_DEDUPLICATE = true;
 
-  public static final String COMPACTION_COMPLETENESS_VERIFICATION_PREFIX = "compaction.completeness.verification.";
+  public static final String COMPACTION_COMPLETENESS_VERIFICATION_PREFIX =
+      COMPACTION_PREFIX + "completeness.verification.";
+
+  public static final String COMPACTION_RECOMPACT_FROM_DEST_PATHS = COMPACTION_PREFIX + "recompact.from.dest.paths";
+  public static final boolean DEFAULT_COMPACTION_RECOMPACT_FROM_DEST_PATHS = false;
 
   /**
    * Configuration properties related to data completeness verification.
@@ -150,11 +168,11 @@ public class MRCompactor implements Compactor {
       COMPACTION_COMPLETENESS_VERIFICATION_PREFIX + "blacklist";
   public static final String COMPACTION_COMPLETENESS_VERIFICATION_WHITELIST =
       COMPACTION_COMPLETENESS_VERIFICATION_PREFIX + "whitelist";
-  public static final String COMPACTION_VERIFICATION_TIMEOUT_MINUTES = COMPACTION_COMPLETENESS_VERIFICATION_PREFIX
-      + "timeout.minutes";
+  public static final String COMPACTION_VERIFICATION_TIMEOUT_MINUTES =
+      COMPACTION_COMPLETENESS_VERIFICATION_PREFIX + "timeout.minutes";
   public static final long DEFAULT_COMPACTION_VERIFICATION_TIMEOUT_MINUTES = Long.MAX_VALUE;
-  public static final String COMPACTION_COMPLETENESS_VERIFICATION_ENABLED = COMPACTION_COMPLETENESS_VERIFICATION_PREFIX
-      + "enabled";
+  public static final String COMPACTION_COMPLETENESS_VERIFICATION_ENABLED =
+      COMPACTION_COMPLETENESS_VERIFICATION_PREFIX + "enabled";
   public static final boolean DEFAULT_COMPACTION_COMPLETENESS_VERIFICATION_ENABLED = false;
 
   // Number of datasets to be passed to DataCompletenessVerifier together. By passing multiple datasets together,
@@ -171,15 +189,9 @@ public class MRCompactor implements Compactor {
   /**
    * Compaction configuration properties used internally.
    */
-  public static final String COMPACTION_TOPIC = COMPACTION_PREFIX + "topic";
-  public static final String COMPACTION_JOB_INPUT_DIR = COMPACTION_PREFIX + "job.input.dir";
-  public static final String COMPACTION_JOB_DEST_DIR = COMPACTION_PREFIX + "job.dest.dir";
-  public static final String COMPACTION_JOB_DEST_BASE_DIR = COMPACTION_PREFIX + "job.dest.base.dir";
-  public static final String COMPACTION_JOB_DEST_LATE_DIR = COMPACTION_PREFIX + "job.dest.late.dir";
   public static final String COMPACTION_JOB_DEST_PARTITION = COMPACTION_PREFIX + "job.dest.partition";
-  public static final String COMPACTION_JOB_TMP_DIR = COMPACTION_PREFIX + "job.tmp.dir";
-  public static final String COMPACTION_ENABLE_SUCCESS_FILE = COMPACTION_PREFIX
-      + "fileoutputcommitter.marksuccessfuljobs";
+  public static final String COMPACTION_ENABLE_SUCCESS_FILE =
+      COMPACTION_PREFIX + "fileoutputcommitter.marksuccessfuljobs";
   public static final String COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK = COMPACTION_PREFIX + "job.late.data.movement.task";
   public static final String COMPACTION_JOB_LATE_DATA_FILES = COMPACTION_PREFIX + "job.late.data.files";
   public static final String COMPACTION_COMPLETE_FILE_NAME = "_COMPACTION_COMPLETE";
@@ -197,16 +209,17 @@ public class MRCompactor implements Compactor {
   private final Configuration conf;
   private final String inputDir;
   private final String inputSubDir;
+  private final String inputLateSubDir;
   private final String destDir;
   private final String destSubDir;
   private final String destLateSubDir;
-  private final String tmpDir;
+  private final String tmpOutputDir;
   private final FileSystem fs;
   private final JobRunnerExecutor jobExecutor;
   private final Set<Dataset> datasets;
   private final Map<Dataset, MRCompactorJobRunner> jobRunnables;
   private final Closer closer;
-  private final DataCompletenessVerifier verifier;
+  private final Optional<DataCompletenessVerifier> verifier;
   private final Stopwatch stopwatch;
   private final GobblinMetrics gobblinMetrics;
   private final EventSubmitter eventSubmitter;
@@ -222,31 +235,34 @@ public class MRCompactor implements Compactor {
     this.conf = HadoopUtils.getConfFromState(state);
     this.inputDir = getInputDir();
     this.inputSubDir = getInputSubDir();
+    this.inputLateSubDir = getInputLateSubDir();
     this.destDir = getDestDir();
     this.destSubDir = getDestSubDir();
     this.destLateSubDir = getDestLateSubDir();
-    this.tmpDir = getTmpDir();
+    this.tmpOutputDir = getTmpOutputDir();
     this.fs = getFileSystem();
     this.datasets = Sets.newHashSet();
     this.jobExecutor = createJobExecutor();
     this.jobRunnables = Maps.newConcurrentMap();
     this.closer = Closer.create();
-    this.verifier = this.closer.register(new DataCompletenessVerifier(this.state));
     this.stopwatch = Stopwatch.createStarted();
     this.gobblinMetrics = initializeMetrics();
-    this.eventSubmitter =
-        new EventSubmitter.Builder(GobblinMetrics.get(this.state.getProp(ConfigurationKeys.JOB_NAME_KEY))
-            .getMetricContext(), MRCompactor.COMPACTION_TRACKING_EVENTS_NAMESPACE).build();
+    this.eventSubmitter = new EventSubmitter.Builder(
+        GobblinMetrics.get(this.state.getProp(ConfigurationKeys.JOB_NAME_KEY)).getMetricContext(),
+        MRCompactor.COMPACTION_TRACKING_EVENTS_NAMESPACE).build();
 
     this.dataVerifTimeoutMinutes = getDataVerifTimeoutMinutes();
     this.compactionTimeoutMinutes = getCompactionTimeoutMinutes();
     this.shouldVerifDataCompl = shouldVerifyDataCompleteness();
+    this.verifier =
+        this.shouldVerifDataCompl ? Optional.of(this.closer.register(new DataCompletenessVerifier(this.state)))
+            : Optional.<DataCompletenessVerifier> absent();
     this.shouldPublishDataIfCannotVerifyCompl = shouldPublishDataIfCannotVerifyCompl();
   }
 
   private String getInputDir() {
-    Preconditions.checkArgument(this.state.contains(COMPACTION_INPUT_DIR), "Missing required property "
-        + COMPACTION_INPUT_DIR);
+    Preconditions.checkArgument(this.state.contains(COMPACTION_INPUT_DIR),
+        "Missing required property " + COMPACTION_INPUT_DIR);
     return this.state.getProp(COMPACTION_INPUT_DIR);
   }
 
@@ -254,22 +270,26 @@ public class MRCompactor implements Compactor {
     return this.state.getProp(COMPACTION_INPUT_SUBDIR, DEFAULT_COMPACTION_INPUT_SUBDIR);
   }
 
+  private String getInputLateSubDir() {
+    return this.state.getProp(COMPACTION_INPUT_SUBDIR, DEFAULT_COMPACTION_INPUT_SUBDIR) + COMPACTION_LATE_DIR_SUFFIX;
+  }
+
   private String getDestDir() {
-    Preconditions.checkArgument(this.state.contains(COMPACTION_DEST_DIR), "Missing required property "
-        + COMPACTION_DEST_DIR);
+    Preconditions.checkArgument(this.state.contains(COMPACTION_DEST_DIR),
+        "Missing required property " + COMPACTION_DEST_DIR);
     return this.state.getProp(COMPACTION_DEST_DIR);
   }
 
   private String getDestLateSubDir() {
-    return this.state.getProp(COMPACTION_DEST_SUBDIR, DEFAULT_COMPACTION_DEST_SUBDIR) + "_late";
+    return this.state.getProp(COMPACTION_DEST_SUBDIR, DEFAULT_COMPACTION_DEST_SUBDIR) + COMPACTION_LATE_DIR_SUFFIX;
   }
 
   private String getDestSubDir() {
     return this.state.getProp(COMPACTION_DEST_SUBDIR, DEFAULT_COMPACTION_DEST_SUBDIR);
   }
 
-  private String getTmpDir() {
-    return this.state.getProp(COMPACTION_TMP_DIR, DEFAULT_COMPACTION_TMP_DIR);
+  private String getTmpOutputDir() {
+    return this.state.getProp(COMPACTION_TMP_DEST_DIR, DEFAULT_COMPACTION_TMP_DEST_DIR);
   }
 
   private FileSystem getFileSystem() throws IOException {
@@ -430,11 +450,8 @@ public class MRCompactor implements Compactor {
    */
   private void createJobPropsForTopic(String topic, double priority) throws IOException {
     LOG.info("Creating compaction jobs for topic " + topic + " with priority " + priority);
-    MRCompactorJobPropCreator jobPropCreator = getJobPropCreator(topic);
-    List<State> allJobProps = jobPropCreator.createJobProps();
-    for (State jobProps : allJobProps) {
-      this.datasets.add(new Dataset(new Path(getJobInputPath(jobProps)), jobProps, priority));
-    }
+    MRCompactorJobPropCreator jobPropCreator = getJobPropCreator(topic, priority);
+    this.datasets.addAll(jobPropCreator.createJobProps());
   }
 
   /**
@@ -442,18 +459,18 @@ public class MRCompactor implements Compactor {
    * for time-based compaction.
    */
 
-  MRCompactorJobPropCreator getJobPropCreator(String topic) {
+  MRCompactorJobPropCreator getJobPropCreator(String topic, double priority) {
     String builderClassName =
         this.state.getProp(COMPACTION_JOBPROPS_CREATOR_CLASS, DEFAULT_COMPACTION_JOBPROPS_CREATOR_CLASS) + "$Builder";
-    boolean deduplicate = this.state.getPropAsBoolean(COMPACTION_DEDUPLICATE, DEFAULT_COMPACTION_DEDUPLICATE);
 
     try {
       return ((MRCompactorJobPropCreator.Builder<?>) Class.forName(builderClassName).newInstance()).withTopic(topic)
-          .withTopicInputDir(new Path(this.inputDir, new Path(topic, this.inputSubDir)))
+          .withPriority(priority).withTopicInputDir(new Path(this.inputDir, new Path(topic, this.inputSubDir)))
+          .withTopicInputLateDir(new Path(this.inputDir, new Path(topic, this.inputLateSubDir)))
           .withTopicOutputDir(new Path(this.destDir, new Path(topic, this.destSubDir)))
           .withTopicOutputLateDir(new Path(this.destDir, new Path(topic, this.destLateSubDir)))
-          .withTopicTmpDir(new Path(this.tmpDir, new Path(topic, this.destSubDir))).withFileSystem(this.fs)
-          .withDeduplicate(deduplicate).withState(this.state).build();
+          .withTopicTmpOutputDir(new Path(this.tmpOutputDir, new Path(topic, this.destSubDir))).withFileSystem(this.fs)
+          .withState(this.state).build();
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -480,16 +497,53 @@ public class MRCompactor implements Compactor {
     int numDatasetsVerifiedTogether = getNumDatasetsVerifiedTogether();
     List<Dataset> datasetsToBeVerified = Lists.newArrayList();
     for (Dataset dataset : this.datasets) {
-      if (DatasetFilterUtils.survived(getTopic(dataset.jobProps()), blacklist, whitelist)) {
+      if (shouldVerifyCompletenessForDataset(dataset, blacklist, whitelist)) {
         datasetsToBeVerified.add(dataset);
         if (datasetsToBeVerified.size() >= numDatasetsVerifiedTogether) {
-          ListenableFuture<Results> future = this.verifier.verify(datasetsToBeVerified);
+          ListenableFuture<Results> future = this.verifier.get().verify(datasetsToBeVerified);
           addCallback(datasetsToBeVerified, future);
           datasetsToBeVerified = Lists.newArrayList();
         }
       } else {
         dataset.setState(VERIFIED);
       }
+    }
+  }
+
+  /**
+   * A {@link Dataset} should be verified if its not already compacted, and it satisfies the blacklist and whitelist.
+   */
+  private boolean shouldVerifyCompletenessForDataset(Dataset dataset, List<Pattern> blacklist,
+      List<Pattern> whitelist) {
+    return !datasetAlreadyCompacted(this.fs, dataset)
+        && DatasetFilterUtils.survived(dataset.topic(), blacklist, whitelist);
+  }
+
+  /**
+   * A {@link Dataset} is considered already compacted if there is a file named
+   * {@link MRCompactor#COMPACTION_COMPLETE_FILE_NAME} in its {@link Dataset#outputPath()}.
+   */
+  public static boolean datasetAlreadyCompacted(FileSystem fs, Dataset dataset) {
+    Path filePath = new Path(dataset.outputPath(), MRCompactor.COMPACTION_COMPLETE_FILE_NAME);
+    try {
+      return fs.exists(filePath);
+    } catch (IOException e) {
+      LOG.error("Failed to verify the existence of file " + filePath, e);
+      return false;
+    }
+  }
+
+  public static long readCompactionTimestamp(FileSystem fs, Path compactionOutputPath) throws IOException {
+    Closer closer = Closer.create();
+    Path completionFilePath = new Path(compactionOutputPath, COMPACTION_COMPLETE_FILE_NAME);
+    try {
+      FSDataInputStream completionFileStream = closer.register(fs.open(completionFilePath));
+      return completionFileStream.readLong();
+    } catch (Throwable t) {
+      LOG.error("Failed to read compaction timestamp from " + compactionOutputPath, t);
+      throw closer.rethrow(t);
+    } finally {
+      closer.close();
     }
   }
 
@@ -529,7 +583,7 @@ public class MRCompactor implements Compactor {
         }
 
         if (!datasetsToBeVerifiedAgain.isEmpty()) {
-          ListenableFuture<Results> future2 = MRCompactor.this.verifier.verify(datasetsToBeVerifiedAgain);
+          ListenableFuture<Results> future2 = MRCompactor.this.verifier.get().verify(datasetsToBeVerifiedAgain);
           addCallback(datasetsToBeVerifiedAgain, future2);
         }
       }
@@ -547,7 +601,7 @@ public class MRCompactor implements Compactor {
             dataset.setState(GIVEN_UP);
           }
         } else {
-          ListenableFuture<Results> future2 = MRCompactor.this.verifier.verify(datasetsToBeVerified);
+          ListenableFuture<Results> future2 = MRCompactor.this.verifier.get().verify(datasetsToBeVerified);
           addCallback(datasetsToBeVerified, future2);
         }
       }
@@ -561,23 +615,6 @@ public class MRCompactor implements Compactor {
   private int getNumDatasetsVerifiedTogether() {
     return this.state.getPropAsInt(COMPACTION_COMPLETENESS_VERIFICATION_NUM_DATASETS_VERIFIED_TOGETHER,
         DEFAULT_COMPACTION_COMPLETENESS_VERIFICATION_NUM_DATASETS_VERIFIED_TOGETHER);
-  }
-
-  /**
-   * Get topic from the job properties of a compaction job.
-   */
-  private String getTopic(State jobProps) {
-    Preconditions.checkArgument(jobProps.contains(COMPACTION_TOPIC), "Missing required property " + COMPACTION_TOPIC);
-    return jobProps.getProp(COMPACTION_TOPIC);
-  }
-
-  /**
-   * Get input path from the job properties of a compaction job.
-   */
-  private String getJobInputPath(State jobProps) {
-    Preconditions.checkArgument(jobProps.contains(COMPACTION_JOB_INPUT_DIR), "missing required property "
-        + COMPACTION_JOB_INPUT_DIR + " in jobProps");
-    return jobProps.getProp(COMPACTION_JOB_INPUT_DIR);
   }
 
   private void setAllDatasetStatesToVerified() {
@@ -630,11 +667,11 @@ public class MRCompactor implements Compactor {
         }
       }
 
-      if (shouldGiveUpVerification()) {
+      if (this.verifier.isPresent() && shouldGiveUpVerification()) {
 
         // Data completeness verification timed out. Kill verification jobs and mark all UNVERIFIED datasets
         // as GIVEN_UP.
-        this.verifier.close();
+        this.verifier.get().close();
 
         for (Dataset dataset : this.datasets) {
           if (dataset.state() == UNVERIFIED) {
@@ -688,9 +725,8 @@ public class MRCompactor implements Compactor {
   private MRCompactorJobRunner getMRCompactorJobRunner(Dataset dataset, double priority) {
     try {
       @SuppressWarnings("unchecked")
-      Class<? extends MRCompactorJobRunner> cls =
-          (Class<? extends MRCompactorJobRunner>) Class.forName(this.state.getProp(COMPACTION_JOB_RUNNER_CLASS,
-              DEFAULT_COMPACTION_JOB_RUNNER_CLASS));
+      Class<? extends MRCompactorJobRunner> cls = (Class<? extends MRCompactorJobRunner>) Class
+          .forName(this.state.getProp(COMPACTION_JOB_RUNNER_CLASS, DEFAULT_COMPACTION_JOB_RUNNER_CLASS));
       return cls.getDeclaredConstructor(Dataset.class, FileSystem.class, Double.class).newInstance(dataset, this.fs,
           priority);
     } catch (Exception e) {
@@ -730,7 +766,7 @@ public class MRCompactor implements Compactor {
   }
 
   private void submitSlaEvent(Dataset dataset, String eventName) {
-    CompactionSlaEventHelper.populateState(dataset.jobProps(), Optional.<Job> absent(), this.fs);
+    CompactionSlaEventHelper.populateState(dataset, Optional.<Job> absent(), this.fs);
     new SlaEventSubmitter(this.eventSubmitter, eventName, dataset.jobProps().getProperties()).submit();
   }
 
@@ -766,7 +802,7 @@ public class MRCompactor implements Compactor {
       try {
         ExecutorsUtils.shutdownExecutorService(this.jobExecutor, Optional.of(LOG), 0, TimeUnit.NANOSECONDS);
       } finally {
-        this.verifier.closeNow();
+        this.verifier.get().closeNow();
       }
     }
   }
@@ -792,9 +828,9 @@ public class MRCompactor implements Compactor {
      */
     @Override
     protected void afterExecute(Runnable r, Throwable t) {
-      Preconditions.checkArgument(r instanceof MRCompactorJobRunner, String.format(
-          "Runnable expected to be instance of %s, actual %s", MRCompactorJobRunner.class.getSimpleName(), r.getClass()
-              .getSimpleName()));
+      Preconditions.checkArgument(r instanceof MRCompactorJobRunner,
+          String.format("Runnable expected to be instance of %s, actual %s", MRCompactorJobRunner.class.getSimpleName(),
+              r.getClass().getSimpleName()));
 
       MRCompactorJobRunner jobRunner = (MRCompactorJobRunner) r;
       MRCompactor.this.jobRunnables.remove(jobRunner.getDataset());
@@ -802,9 +838,9 @@ public class MRCompactor implements Compactor {
         if (jobRunner.status() == COMMITTED) {
 
           // Compaction job of a dataset is successful.
-          LOG.info(String.format("Compacted data for %s successfully published", jobRunner.getDataset()));
           jobRunner.getDataset().setState(COMPACTION_COMPLETE);
-        } else if (jobRunner.getDataset().state() == GIVEN_UP && !MRCompactor.this.shouldPublishDataIfCannotVerifyCompl) {
+        } else
+          if (jobRunner.getDataset().state() == GIVEN_UP && !MRCompactor.this.shouldPublishDataIfCannotVerifyCompl) {
 
           // Compaction job of a dataset has aborted, and data completeness verification has given up.
           // This dataset will not be compacted.

@@ -22,6 +22,7 @@ import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.Writable;
@@ -57,6 +58,10 @@ public class HadoopUtils {
     return conf;
   }
 
+  /**
+   * @deprecated Use {@link FileListUtils#listFilesRecursively(FileSystem, Path)}.
+   */
+  @Deprecated
   public static List<FileStatus> listStatusRecursive(FileSystem fileSystem, Path path) throws IOException {
     List<FileStatus> results = Lists.newArrayList();
     walk(results, fileSystem, path);
@@ -64,10 +69,8 @@ public class HadoopUtils {
   }
 
   /**
-   * A wrapper around this.fs.delete which throws IOException if this.fs.delete returns False.
-   * @param f path to be deleted
-   * @param recursive whether to do delete sub-directories under the given path (if any) recursively
-   * @throws IOException if the deletion fails
+   * A wrapper around {@link FileSystem#delete(Path, boolean)} which throws {@link IOException} if the given
+   * {@link Path} exists, and {@link FileSystem#delete(Path, boolean)} returns False.
    */
   public static void deletePath(FileSystem fs, Path f, boolean recursive) throws IOException {
     if (fs.exists(f) && !fs.delete(f, recursive)) {
@@ -75,12 +78,41 @@ public class HadoopUtils {
     }
   }
 
-  public static void renamePath(FileSystem fs, Path oldName, Path newName) throws IOException {
-    if (!fs.rename(oldName, newName)) {
-      throw new IOException(String.format("Failed to rename %s to %s", oldName.toString(), newName.toString()));
+  public static void deletePathAndEmptyAncestors(FileSystem fs, Path f, boolean recursive) throws IOException {
+    deletePath(fs, f, recursive);
+    Path parent = f.getParent();
+    while (parent != null) {
+      if (fs.exists(parent) && fs.listStatus(parent).length == 0) {
+        deletePath(fs, parent, true);
+        parent = parent.getParent();
+      } else {
+        break;
+      }
     }
   }
 
+  /**
+   * A wrapper around {@link FileSystem#rename(Path, Path)} which throws {@link IOException} if
+   * {@link FileSystem#rename(Path, Path)} returns False.
+   */
+  public static void renamePath(FileSystem fs, Path oldName, Path newName) throws IOException {
+    if (!fs.rename(oldName, newName)) {
+      throw new IOException(String.format("Failed to rename %s to %s", oldName, newName));
+    }
+  }
+
+  /**
+   * A wrapper around {@link FileUtil#copy(FileSystem, Path, FileSystem, Path, boolean, Configuration)}
+   * which throws {@link IOException}
+   * if {@link FileUtil#copy(FileSystem, Path, FileSystem, Path, boolean, Configuration)} returns false.
+   */
+  public static void copyPath(FileSystem fs, Path src, Path dst) throws IOException {
+    if (!FileUtil.copy(fs, src, fs, dst, false, fs.getConf())) {
+      throw new IOException(String.format("Failed to copy %s to %s", src, dst));
+    }
+  }
+
+  @SuppressWarnings("deprecation")
   private static void walk(List<FileStatus> results, FileSystem fileSystem, Path path) throws IOException {
     for (FileStatus status : fileSystem.listStatus(path)) {
       if (!status.isDir()) {

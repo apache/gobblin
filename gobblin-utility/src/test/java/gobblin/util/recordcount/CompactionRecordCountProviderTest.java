@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.compaction.mapreduce.avro;
+package gobblin.util.recordcount;
 
 import java.util.regex.Pattern;
 
@@ -20,14 +20,13 @@ import org.testng.annotations.Test;
 
 
 /**
- * Tests for {@link AvroKeyCompactorOutputCommitter.FilenameRecordCountProvider}.
+ * Tests for {@link CompactionRecordCountProvider}.
  */
-@Test(groups = { "gobblin.compaction.mapreduce.avro" })
-public class AvroKeyCompactorOutputCommitterFileNameRecordCountProviderTest {
+@Test(groups = { "gobblin.util.recordcount" })
+public class CompactionRecordCountProviderTest {
   @Test
   public void testFileNameRecordCountProvider() {
-    AvroKeyCompactorOutputCommitter.FilenameRecordCountProvider filenameRecordCountProvider =
-        new AvroKeyCompactorOutputCommitter.FilenameRecordCountProvider();
+    CompactionRecordCountProvider filenameRecordCountProvider = new CompactionRecordCountProvider();
 
     Pattern pattern = Pattern.compile("part\\-r\\-123\\.[\\d]*\\.[\\d]*\\.avro");
     Assert.assertTrue(pattern.matcher(filenameRecordCountProvider.constructFileName("part-r-", 123)).matches());

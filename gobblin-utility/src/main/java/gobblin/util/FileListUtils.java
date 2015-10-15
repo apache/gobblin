@@ -29,9 +29,18 @@ public class FileListUtils {
     }
   };
 
-  public static List<FileStatus> listFilesRecursively(FileSystem fs, Path path) throws FileNotFoundException,
-      IOException {
+  public static List<FileStatus> listFilesRecursively(FileSystem fs, Path path)
+      throws FileNotFoundException, IOException {
     return listFilesRecursively(fs, path, NO_OP_PATH_FILTER);
+  }
+
+  public static List<FileStatus> listFilesRecursively(FileSystem fs, Iterable<Path> paths)
+      throws FileNotFoundException, IOException {
+    List<FileStatus> results = Lists.newArrayList();
+    for (Path path : paths) {
+      results.addAll(listFilesRecursively(fs, path));
+    }
+    return results;
   }
 
   /**
@@ -43,6 +52,7 @@ public class FileListUtils {
     return listFilesRecursivelyHelper(fs, Lists.<FileStatus> newArrayList(), fs.getFileStatus(path), fileFilter);
   }
 
+  @SuppressWarnings("deprecation")
   private static List<FileStatus> listFilesRecursivelyHelper(FileSystem fs, List<FileStatus> files,
       FileStatus fileStatus, PathFilter fileFilter) throws FileNotFoundException, IOException {
     if (fileStatus.isDir()) {
@@ -58,8 +68,8 @@ public class FileListUtils {
   /**
    * Method to list out all files, or directory if no file exists, under a specified path.
    */
-  public static List<FileStatus> listMostNestedPathRecursively(FileSystem fs, Path path) throws FileNotFoundException,
-      IOException {
+  public static List<FileStatus> listMostNestedPathRecursively(FileSystem fs, Path path)
+      throws FileNotFoundException, IOException {
     return listMostNestedPathRecursively(fs, path, NO_OP_PATH_FILTER);
   }
 
@@ -73,6 +83,7 @@ public class FileListUtils {
         fileFilter);
   }
 
+  @SuppressWarnings("deprecation")
   private static List<FileStatus> listMostNestedPathRecursivelyHelper(FileSystem fs, List<FileStatus> files,
       FileStatus fileStatus, PathFilter fileFilter) throws FileNotFoundException, IOException {
     if (fileStatus.isDir()) {
@@ -99,6 +110,7 @@ public class FileListUtils {
     return listPathsRecursivelyHelper(fs, Lists.<FileStatus> newArrayList(), fs.getFileStatus(path), fileFilter);
   }
 
+  @SuppressWarnings("deprecation")
   private static List<FileStatus> listPathsRecursivelyHelper(FileSystem fs, List<FileStatus> files,
       FileStatus fileStatus, PathFilter fileFilter) {
     if (fileFilter.accept(fileStatus.getPath())) {
