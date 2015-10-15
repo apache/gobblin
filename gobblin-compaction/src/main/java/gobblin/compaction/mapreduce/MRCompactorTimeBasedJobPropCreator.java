@@ -114,7 +114,8 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
         if (!folderAlreadyCompacted(jobOutputDir)) {
           State state = createJobProps(status.getPath(), jobOutputDir, jobTmpDir, this.deduplicate,
               folderTime.toString(this.timeFormatter));
-          CompactionSlaEventHelper.setUpstreamTimeStamp(state, folderTime.getMillis());
+          // Set the upstream time to partition + 1 day. E.g. for 2015/10/13 the upstream time is midnight of 2015/10/14
+          CompactionSlaEventHelper.setUpstreamTimeStamp(state, folderTime.plusDays(1).getMillis());
           allJobProps.add(state);
         } else {
           List<Path> newDataFiles = getNewDataInFolder(status.getPath(), jobOutputDir);
