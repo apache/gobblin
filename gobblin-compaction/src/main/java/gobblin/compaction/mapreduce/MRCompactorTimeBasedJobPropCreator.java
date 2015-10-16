@@ -68,6 +68,9 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
   private static final String COMPACTION_TIMEBASED_MIN_TIME_AGO = COMPACTION_TIMEBASED_PREFIX + "min.time.ago";
   private static final String DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO = "1d";
 
+  // Properties used internally
+  public static final String COMPACTION_TIMEBASED_INPUT_PATH_TIME = COMPACTION_TIMEBASED_PREFIX + "input.path.time";
+
   private final String folderTimePattern;
   private final DateTimeZone timeZone;
   private final DateTimeFormatter timeFormatter;
@@ -120,6 +123,7 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
 
         Optional<Dataset> datasetWithJobProps = createJobProps(dataset, folderTime.toString(this.timeFormatter));
         if (datasetWithJobProps.isPresent()) {
+          datasetWithJobProps.get().jobProps().setProp(COMPACTION_TIMEBASED_INPUT_PATH_TIME, folderTime.getMillis());
           datasets.add(datasetWithJobProps.get());
           if (this.recompactFromOutputPaths || !MRCompactor.datasetAlreadyCompacted(this.fs, dataset)) {
 
