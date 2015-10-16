@@ -31,10 +31,11 @@ import gobblin.configuration.ConfigurationKeys;
  */
 
 public class InputStreamCSVReader {
-  private StreamTokenizer parser;
-  private char separator;
+
+  private final StreamTokenizer parser;
+  private final char separator;
   private int maxFieldCount;
-  boolean atEOF;
+  private boolean atEOF;
 
   public InputStreamCSVReader(Reader input) {
     this(new BufferedReader(input));
@@ -49,8 +50,8 @@ public class InputStreamCSVReader {
   }
 
   public InputStreamCSVReader(String input) {
-    this(new InputStreamReader(
-        new ByteArrayInputStream(input.getBytes()), ConfigurationKeys.DEFAULT_CHARSET_ENCODING), ',', '\"');
+    this(new InputStreamReader(new ByteArrayInputStream(input.getBytes()), ConfigurationKeys.DEFAULT_CHARSET_ENCODING),
+        ',', '\"');
   }
 
   public InputStreamCSVReader(Reader input, char customizedSeparator) {
@@ -66,8 +67,7 @@ public class InputStreamCSVReader {
   }
 
   public InputStreamCSVReader(String input, char customizedSeparator) {
-    this(new InputStreamReader(
-        new ByteArrayInputStream(input.getBytes()), ConfigurationKeys.DEFAULT_CHARSET_ENCODING),
+    this(new InputStreamReader(new ByteArrayInputStream(input.getBytes()), ConfigurationKeys.DEFAULT_CHARSET_ENCODING),
         customizedSeparator, '\"');
   }
 
@@ -80,8 +80,7 @@ public class InputStreamCSVReader {
   }
 
   public InputStreamCSVReader(String input, char customizedSeparator, char enclosedChar) {
-    this(new InputStreamReader(
-        new ByteArrayInputStream(input.getBytes()), ConfigurationKeys.DEFAULT_CHARSET_ENCODING),
+    this(new InputStreamReader(new ByteArrayInputStream(input.getBytes()), ConfigurationKeys.DEFAULT_CHARSET_ENCODING),
         customizedSeparator, enclosedChar);
   }
 
