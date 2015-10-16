@@ -115,7 +115,8 @@ public class MRCompactorJobPropCreator {
   protected final Path topicTmpOutputDir;
   protected final FileSystem fs;
   protected final State state;
-  protected final boolean deduplicate;
+  protected final boolean inputDeduplicated;
+  protected final boolean outputDeduplicated;
 
   // Whether we should recompact the input folders if new data files are found in the input folders.
   protected final boolean recompactFromInputPaths;
@@ -135,8 +136,10 @@ public class MRCompactorJobPropCreator {
     this.topicTmpOutputDir = builder.topicTmpOutputDir;
     this.fs = builder.fs;
     this.state = builder.state;
-    this.deduplicate =
-        this.state.getPropAsBoolean(MRCompactor.COMPACTION_DEDUPLICATE, MRCompactor.DEFAULT_COMPACTION_DEDUPLICATE);
+    this.inputDeduplicated = this.state.getPropAsBoolean(MRCompactor.COMPACTION_INPUT_DEDUPLICATED,
+        MRCompactor.DEFAULT_COMPACTION_INPUT_DEDUPLICATED);
+    this.outputDeduplicated = this.state.getPropAsBoolean(MRCompactor.COMPACTION_OUTPUT_DEDUPLICATED,
+        MRCompactor.DEFAULT_COMPACTION_OUTPUT_DEDUPLICATED);
     this.recompactFromInputPaths =
         this.state.getPropAsBoolean(MRCompactor.COMPACTION_RECOMPACT_FROM_INPUT_FOR_LATE_DATA,
             MRCompactor.DEFAULT_COMPACTION_RECOMPACT_FROM_INPUT_FOR_LATE_DATA);
@@ -178,7 +181,9 @@ public class MRCompactorJobPropCreator {
     State jobProps = new State();
     jobProps.addAll(this.state);
     jobProps.setProp(MRCompactor.COMPACTION_ENABLE_SUCCESS_FILE, false);
-    jobProps.setProp(MRCompactor.COMPACTION_DEDUPLICATE, this.deduplicate);
+    jobProps.setProp(MRCompactor.COMPACTION_INPUT_DEDUPLICATED, this.inputDeduplicated);
+    jobProps.setProp(MRCompactor.COMPACTION_OUTPUT_DEDUPLICATED, this.outputDeduplicated);
+    jobProps.setProp(MRCompactor.COMPACTION_SHOULD_DEDUPLICATE, !this.inputDeduplicated && this.outputDeduplicated);
 
     if (this.recompactFromOutputPaths || !MRCompactor.datasetAlreadyCompacted(this.fs, dataset)) {
       addInputLateFilesForFirstTimeCompaction(jobProps, dataset);
@@ -200,7 +205,12 @@ public class MRCompactorJobPropCreator {
   private void addInputLateFilesForFirstTimeCompaction(State jobProps, Dataset dataset) throws IOException {
     if (this.fs.exists(dataset.inputLatePath()) && this.fs.listStatus(dataset.inputLatePath()).length > 0) {
       dataset.addAdditionalInputPath(dataset.inputLatePath());
-      jobProps.setProp(MRCompactor.COMPACTION_DEDUPLICATE, true);
+      if (this.outputDeduplicated) {
+
+        // If input contains late data (i.e., input data is not deduplicated) and output data should be deduplicated,
+        // run a deduping compaction instead of non-deduping compaction.
+        jobProps.setProp(MRCompactor.COMPACTION_SHOULD_DEDUPLICATE, true);
+      }
     }
   }
 
