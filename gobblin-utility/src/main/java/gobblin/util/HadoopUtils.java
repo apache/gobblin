@@ -16,10 +16,12 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
@@ -96,6 +98,13 @@ public class HadoopUtils {
    * {@link FileSystem#rename(Path, Path)} returns False.
    */
   public static void renamePath(FileSystem fs, Path oldName, Path newName) throws IOException {
+    if (!fs.exists(oldName)) {
+      throw new FileNotFoundException(String.format("Failed to rename %s to %s: src not found", oldName, newName));
+    }
+    if (fs.exists(newName)) {
+      throw new FileAlreadyExistsException(
+          String.format("Failed to rename %s to %s: dst already exists", oldName, newName));
+    }
     if (!fs.rename(oldName, newName)) {
       throw new IOException(String.format("Failed to rename %s to %s", oldName, newName));
     }
