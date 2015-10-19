@@ -27,6 +27,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.locks.Lock;
 
+import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.SequenceFile;
@@ -248,6 +249,9 @@ public class ParallelRunner implements Closeable {
               HadoopUtils.setGroup(fs, dst, group.get());
             }
           }
+          return null;
+        } catch (FileAlreadyExistsException e) {
+          LOGGER.warn(String.format("Failed to rename %s to %s: dst already exists"), e);
           return null;
         } finally {
           lock.unlock();
