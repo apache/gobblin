@@ -36,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -118,7 +119,8 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   protected final Dataset dataset;
   protected final FileSystem fs;
   protected final FsPermission perm;
-  protected final boolean deduplicate;
+  protected final boolean shouldDeduplicate;
+  protected final boolean outputDeduplicated;
   protected final boolean recompactFromDestPaths;
   protected final EventSubmitter eventSubmitter;
   private final RecordCountProvider inputRecordCountProvider;
@@ -136,8 +138,14 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         FsPermission.getDefault());
     this.recompactFromDestPaths = this.dataset.jobProps().getPropAsBoolean(
         MRCompactor.COMPACTION_RECOMPACT_FROM_DEST_PATHS, MRCompactor.DEFAULT_COMPACTION_RECOMPACT_FROM_DEST_PATHS);
-    this.deduplicate = this.dataset.jobProps().getPropAsBoolean(MRCompactor.COMPACTION_DEDUPLICATE,
-        MRCompactor.DEFAULT_COMPACTION_DEDUPLICATE);
+
+    Preconditions.checkArgument(this.dataset.jobProps().contains(MRCompactor.COMPACTION_SHOULD_DEDUPLICATE),
+        String.format("Missing property %s for dataset %s", MRCompactor.COMPACTION_SHOULD_DEDUPLICATE, this.dataset));
+    this.shouldDeduplicate = this.dataset.jobProps().getPropAsBoolean(MRCompactor.COMPACTION_SHOULD_DEDUPLICATE);
+
+    this.outputDeduplicated = this.dataset.jobProps().getPropAsBoolean(MRCompactor.COMPACTION_OUTPUT_DEDUPLICATED,
+        MRCompactor.DEFAULT_COMPACTION_OUTPUT_DEDUPLICATED);
+
     this.eventSubmitter = new EventSubmitter.Builder(
         GobblinMetrics.get(this.dataset.jobProps().getProp(ConfigurationKeys.JOB_NAME_KEY)).getMetricContext(),
         MRCompactor.COMPACTION_TRACKING_EVENTS_NAMESPACE).build();
@@ -173,9 +181,9 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
           }
         }
 
-        Path lateDataOutputPath = this.deduplicate ? this.dataset.outputLatePath() : this.dataset.outputPath();
+        Path lateDataOutputPath = this.outputDeduplicated ? this.dataset.outputLatePath() : this.dataset.outputPath();
         LOG.info(String.format("Copying %d late data files to %s", newLateFilePaths.size(), lateDataOutputPath));
-        if (this.deduplicate) {
+        if (this.outputDeduplicated) {
           if (!fs.exists(lateDataOutputPath)) {
             if (!fs.mkdirs(lateDataOutputPath)) {
               throw new RuntimeException(
@@ -273,7 +281,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     configureInputAndOutputPaths(job);
     configureMapper(job);
     configureReducer(job);
-    if (!this.deduplicate) {
+    if (!this.shouldDeduplicate) {
       job.setNumReduceTasks(0);
     }
   }

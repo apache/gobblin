@@ -44,7 +44,7 @@ public class CompactionSlaEventHelper {
   public static void populateState(Dataset dataset, Optional<Job> job, FileSystem fs) {
     setDatasetUrn(dataset);
     setPartition(dataset);
-    setDedupeStatus(dataset.jobProps());
+    setOutputDedupeStatus(dataset.jobProps());
     setPreviousPublishTime(dataset, fs);
     if (job.isPresent()) {
       setRecordCount(dataset.jobProps(), job.get());
@@ -78,8 +78,9 @@ public class CompactionSlaEventHelper {
     }
   }
 
-  private static void setDedupeStatus(State state) {
-    if (state.getPropAsBoolean(MRCompactor.COMPACTION_DEDUPLICATE, MRCompactor.DEFAULT_COMPACTION_DEDUPLICATE)) {
+  private static void setOutputDedupeStatus(State state) {
+    if (state.getPropAsBoolean(MRCompactor.COMPACTION_OUTPUT_DEDUPLICATED,
+        MRCompactor.DEFAULT_COMPACTION_OUTPUT_DEDUPLICATED)) {
       state.setProp(SlaEventKeys.DEDUPE_STATUS_KEY, DedupeStatus.DEDUPED);
 
     } else {

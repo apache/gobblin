@@ -18,7 +18,6 @@ import static org.apache.avro.SchemaCompatibility.SchemaCompatibilityType.COMPAT
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -365,7 +364,7 @@ public class AvroUtils {
       }
     }
 
-    Schema newSchema = Schema.createRecord(record.getName(), record.getDoc(), record.getName(), false);
+    Schema newSchema = Schema.createRecord(record.getName(), record.getDoc(), record.getNamespace(), false);
     newSchema.setFields(fields);
     return Optional.of(newSchema);
   }

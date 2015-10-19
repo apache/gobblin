@@ -151,9 +151,13 @@ public class MRCompactor implements Compactor {
       COMPACTION_PREFIX + "recompact.from.input.for.late.data";
   public static final boolean DEFAULT_COMPACTION_RECOMPACT_FROM_INPUT_FOR_LATE_DATA = false;
 
-  // Whether to deduplicate the datasets.
-  public static final String COMPACTION_DEDUPLICATE = COMPACTION_PREFIX + "deduplicate";
-  public static final boolean DEFAULT_COMPACTION_DEDUPLICATE = true;
+  // Whether the input data for the compaction is deduplicated.
+  public static final String COMPACTION_INPUT_DEDUPLICATED = COMPACTION_PREFIX + "input.deduplicated";
+  public static final boolean DEFAULT_COMPACTION_INPUT_DEDUPLICATED = false;
+
+  // Whether the output of the compaction should be deduplicated.
+  public static final String COMPACTION_OUTPUT_DEDUPLICATED = COMPACTION_PREFIX + "output.deduplicated";
+  public static final boolean DEFAULT_COMPACTION_OUTPUT_DEDUPLICATED = true;
 
   public static final String COMPACTION_COMPLETENESS_VERIFICATION_PREFIX =
       COMPACTION_PREFIX + "completeness.verification.";
@@ -189,6 +193,7 @@ public class MRCompactor implements Compactor {
   /**
    * Compaction configuration properties used internally.
    */
+  public static final String COMPACTION_SHOULD_DEDUPLICATE = COMPACTION_PREFIX + "should.deduplicate";
   public static final String COMPACTION_JOB_DEST_PARTITION = COMPACTION_PREFIX + "job.dest.partition";
   public static final String COMPACTION_ENABLE_SUCCESS_FILE =
       COMPACTION_PREFIX + "fileoutputcommitter.marksuccessfuljobs";
@@ -508,6 +513,11 @@ public class MRCompactor implements Compactor {
         dataset.setState(VERIFIED);
       }
     }
+
+    if (!datasetsToBeVerified.isEmpty()) {
+      ListenableFuture<Results> future = this.verifier.get().verify(datasetsToBeVerified);
+      addCallback(datasetsToBeVerified, future);
+    }
   }
 
   /**
@@ -572,11 +582,15 @@ public class MRCompactor implements Compactor {
               }
               break;
             case FAILED:
-              if (result.dataset().state() != GIVEN_UP) {
-                LOG.info("Completeness verification for dataset " + result.dataset() + " failed.");
-                datasetsToBeVerifiedAgain.add(result.dataset());
+              if (shouldGiveUpVerification()) {
+                LOG.info("Completeness verification for dataset " + result.dataset() + " has timed out.");
+                submitSlaEvent(result.dataset(), "CompletenessCannotBeVerified");
+                result.dataset().setState(GIVEN_UP);
+                result.dataset().addThrowable(new RuntimeException(
+                    String.format("Completeness verification for dataset %s failed or timed out.", result.dataset())));
               } else {
-                LOG.info("Completeness verification for dataset " + result.dataset() + " has given up.");
+                LOG.info("Completeness verification for dataset " + result.dataset() + " failed. Will verify again.");
+                datasetsToBeVerifiedAgain.add(result.dataset());
               }
               break;
           }
@@ -597,8 +611,11 @@ public class MRCompactor implements Compactor {
 
         if (shouldGiveUpVerification()) {
           for (Dataset dataset : datasetsToBeVerified) {
+            LOG.warn(String.format("Completeness verification for dataset %s has timed out.", dataset));
             submitSlaEvent(dataset, "CompletenessCannotBeVerified");
             dataset.setState(GIVEN_UP);
+            dataset.addThrowable(new RuntimeException(
+                String.format("Completeness verification for dataset %s failed or timed out.", dataset)));
           }
         } else {
           ListenableFuture<Results> future2 = MRCompactor.this.verifier.get().verify(datasetsToBeVerified);
@@ -663,20 +680,6 @@ public class MRCompactor implements Compactor {
             if (jobRunner != null) {
               jobRunner.abort();
             }
-          }
-        }
-      }
-
-      if (this.verifier.isPresent() && shouldGiveUpVerification()) {
-
-        // Data completeness verification timed out. Kill verification jobs and mark all UNVERIFIED datasets
-        // as GIVEN_UP.
-        this.verifier.get().close();
-
-        for (Dataset dataset : this.datasets) {
-          if (dataset.state() == UNVERIFIED) {
-            submitSlaEvent(dataset, "CompletenessCannotBeVerified");
-            dataset.setState(GIVEN_UP);
           }
         }
       }
