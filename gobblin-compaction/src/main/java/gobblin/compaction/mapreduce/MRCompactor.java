@@ -100,7 +100,7 @@ public class MRCompactor implements Compactor {
    * Basic compaction properties.
    */
   public static final String COMPACTION_THREAD_POOL_SIZE = COMPACTION_PREFIX + "thread.pool.size";
-  public static final int DEFAULT_COMPACTION_THREAD_POOL_SIZE = 20;
+  public static final int DEFAULT_COMPACTION_THREAD_POOL_SIZE = 30;
   public static final String COMPACTION_INPUT_DIR = COMPACTION_PREFIX + "input.dir";
 
   // The subdir name of input dataset paths, e.g., "hourly" in "/data/input/PasswordChangeEvent/hourly/2015/09/06".
@@ -174,7 +174,7 @@ public class MRCompactor implements Compactor {
       COMPACTION_COMPLETENESS_VERIFICATION_PREFIX + "whitelist";
   public static final String COMPACTION_VERIFICATION_TIMEOUT_MINUTES =
       COMPACTION_COMPLETENESS_VERIFICATION_PREFIX + "timeout.minutes";
-  public static final long DEFAULT_COMPACTION_VERIFICATION_TIMEOUT_MINUTES = Long.MAX_VALUE;
+  public static final long DEFAULT_COMPACTION_VERIFICATION_TIMEOUT_MINUTES = 30;
   public static final String COMPACTION_COMPLETENESS_VERIFICATION_ENABLED =
       COMPACTION_COMPLETENESS_VERIFICATION_PREFIX + "enabled";
   public static final boolean DEFAULT_COMPACTION_COMPLETENESS_VERIFICATION_ENABLED = false;
