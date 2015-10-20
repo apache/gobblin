@@ -12,7 +12,7 @@ do
 done
 
 export HADOOP_USER_CLASSPATH_FIRST=true
-CLASSPATH=${FWDIR_CONF}:${YARN_CONF_DIR}:${GOBBLIN_JARS}
+CLASSPATH=${FWDIR_CONF}:${GOBBLIN_JARS}:${YARN_CONF_DIR}:${HADOOP_YARN_HOME}/lib
 
 COMMAND="${JAVA_HOME}/bin/java -cp ${CLASSPATH} -Xmx2g -Xms1g gobblin.yarn.GobblinYarnAppLauncher"
 
