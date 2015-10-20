@@ -8,7 +8,7 @@ public interface ConfigNode {
 
   public Config getConfig();
   
-  public ConfigNode getParent();
+  public String getParentId();
   
   public boolean isTagable();
   
