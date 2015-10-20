@@ -53,15 +53,25 @@ public class DatasetUtils {
   }
 
   public static final boolean isValidUrn(String urn) {
+    return isValidTag(urn) || isValidDataset(urn);
+  }
+  
+  public static final boolean isValidTag(String urn){
     if (urn == null)
       return false;
 
-    if (urn.equals(DATASETS_PREFIX) || urn.equals(TAGS_PREFIX))
+    if (urn.equals(TAGS_PREFIX) || urn.startsWith(TAGS_PREFIX + ID_DELEMETER))
       return true;
 
-    if (urn.startsWith(DATASETS_PREFIX + ID_DELEMETER) || urn.startsWith(TAGS_PREFIX + ID_DELEMETER)) {
+    return false;
+  }
+  
+  public static final boolean isValidDataset(String urn){
+    if (urn == null)
+      return false;
+
+    if (urn.equals(DATASETS_PREFIX) || urn.startsWith(DATASETS_PREFIX + ID_DELEMETER))
       return true;
-    }
 
     return false;
   }

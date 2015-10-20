@@ -25,6 +25,9 @@ public class RawConfigMapping {
         String parentId = DatasetUtils.getParentId(entry.getKey());
         String propertyName = DatasetUtils.getPropertyName(entry.getKey());
         Object value = entry.getValue().unwrapped();
+        
+        // check import-tags are valid entry
+        checkAssociatedTags(propertyName, value);
 
         Map<String, Object> submap = configMap.get(parentId);
         if (submap == null) {
@@ -35,10 +38,30 @@ public class RawConfigMapping {
       }
       // invalid urn
       else {
-        LOG.error("Invalid urn " + entry.getKey());
+        throw new IllegalArgumentException("Invalid urn " + entry.getKey());
       }
     }
-
+  }
+  
+  private void checkAssociatedTags(String key, Object value){
+    if(!key.equals(DatasetUtils.IMPORTED_TAGS)) return;
+    
+    if(value instanceof String){
+      String tag = (String)value;
+      if( !DatasetUtils.isValidTag( tag ) ) {
+        throw new RuntimeException("Invalid tag: " + tag);
+      }
+    }
+    
+    if(value instanceof List){
+      @SuppressWarnings("unchecked")
+      List<String> tags = (List<String>) value;
+      for(String tag: tags){
+        if( !DatasetUtils.isValidTag( tag ) ) {
+          throw new RuntimeException("Invalid tag: " + tag);
+        }
+      }
+    }
   }
 
   // return the closest urn which is specified in the config
@@ -64,8 +87,9 @@ public class RawConfigMapping {
     Map<String, Object> res = configMap.get(adjustedUrn);
     
     if(res == null){
-      return new HashMap<String, Object>();
+      return Collections.emptyMap();
     }
+    // need to return deep copy
     return new HashMap<String, Object>(res);
   }
 
@@ -74,33 +98,85 @@ public class RawConfigMapping {
     Map<String, Object> self = getRawProperty(urn);
     Object tags = self.get(DatasetUtils.IMPORTED_TAGS);
 
-    if(tags!=null)
-      System.out.println(tags.getClass());
-
     List<String> res=new ArrayList<String>();
+    if(tags == null) return res;
+    
     if(tags instanceof String){
       res.add((String)tags);
     }
     else {
-      res.addAll((List<String>)tags);
+      // need to return deep copy
+      // and added it in reverse order
+      List<String> tmp = (List<String>)tags;
+      for(int i=tmp.size()-1; i>=0; i--){
+        res.add(tmp.get(i));
+      }
+    }
+    
+    // tag refer to self
+    for(String s:res){
+      if(s.equals(urn)){
+        throw new RuntimeException("Tag associated with self " + s);
+      }
     }
 
-
-    for(String tag: res){
-      if(!DatasetUtils.isValidUrn(tag)){
-        throw new RuntimeException("Invalid urn: " + tag);
+    return res;
+  }
+  
+  public List<String> getAssociatedTags(String urn){
+    if(urn.equals(DatasetUtils.ROOT)){
+      return Collections.emptyList();
+    }
+    return this.getAssociatedTagsWithCheck(urn, new HashSet<String>());
+  }
+  
+  private List<String> getAssociatedTagsWithCheck(String urn, Set<String> previousTags){
+    List<String> self = getRawTags(urn);
+    
+    List<List<String>> others = new ArrayList<List<String>>();
+    for(String s: self){
+      if(previousTags.contains(s)) {
+        throw new RuntimeException("Circular dependence for tag " + s);
       }
-
-      if(!tag.startsWith(DatasetUtils.TAGS_PREFIX)){
-        throw new RuntimeException("Invalid tag: " + tag);
+      Set<String> combined = new HashSet<String>(previousTags);
+      combined.add(s);
+      
+      others.add(getAssociatedTagsWithCheck(s, combined));
+    }
+    
+    for(List<String> o: others){
+      self.addAll(o);
+    }
+    
+    List<String> ancestorTags = getAssociatedTags(DatasetUtils.getParentId(getAdjustedUrn(urn)));
+    self.addAll(ancestorTags);
+    
+    return dedup(self);
+  }
+  
+  private List<String> dedup(List<String> input){
+    Set<String> processed = new HashSet<String> ();
+    List<String> res = new ArrayList<String> ();
+    for(String s: input){
+      if(processed.contains(s)){
+        continue;
       }
+      
+      res.add(s);
+      processed.add(s);
     }
     return res;
   }
 
   // get resolved property: self union ancestor union tags
   public Map<String, Object> getResolvedProperty(String urn){
+    // self is deep copy
     Map<String, Object> self = getRawProperty(urn);
+    
+    List<String> tags = getAssociatedTags(urn);
+    for(String t: tags){
+      DatasetUtils.MergeTwoMaps(self, getResolvedProperty(t));
+    }
 
     String parentId = DatasetUtils.getParentId(getAdjustedUrn(urn));
     Map<String, Object> ancestor = null;
@@ -110,11 +186,12 @@ public class RawConfigMapping {
     else {
       ancestor = this.getResolvedProperty(parentId);
     }
+    
 
     Map<String, Object> res = DatasetUtils.MergeTwoMaps(self, ancestor);
-    if(res!=null){
-      res.remove(DatasetUtils.IMPORTED_TAGS);
-    }
+//    if(res!=null){
+//      res.remove(DatasetUtils.IMPORTED_TAGS);
+//    }
     return res;
   }
 }

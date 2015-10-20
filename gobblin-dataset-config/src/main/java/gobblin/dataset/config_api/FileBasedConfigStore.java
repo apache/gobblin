@@ -92,7 +92,7 @@ public class FileBasedConfigStore implements ConfigStore {
 
   @Override
   public List<String> getAssociatedTags(String urn, String version) {
-    return this.rawConfigs.getRawTags(urn);
+    return this.rawConfigs.getAssociatedTags(urn);
   }
 
 }

@@ -40,7 +40,7 @@ public class PlayGround {
 
     FileBasedConfigStore cs = new FileBasedConfigStore("/Users/mitu/AAA", "test");
     cs.loadConfigs();
-    Config c = cs.getConfig("config-ds.nertz.tracking.foo.bar.big-event");
+    Config c = cs.getConfig("config-ds.nertz.tracking.big-event");
     for(Map.Entry<String, ConfigValue> entry: c.entrySet()){
       System.out.println("app key: " +entry.getKey() + " ,value:" + entry.getValue());
 
