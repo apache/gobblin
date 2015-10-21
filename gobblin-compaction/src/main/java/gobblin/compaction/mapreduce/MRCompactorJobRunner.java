@@ -170,6 +170,11 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   public void run() {
     Configuration conf = HadoopUtils.getConfFromState(this.dataset.jobProps());
 
+    // Turn on mapreduce output compression by default
+    if (conf.get("mapreduce.output.fileoutputformat.compress") == null && conf.get("mapred.output.compress") == null) {
+      conf.setBoolean("mapreduce.output.fileoutputformat.compress", true);
+    }
+
     try {
       DateTime compactionTimestamp = getCompactionTimestamp();
       if (this.dataset.jobProps().getPropAsBoolean(MRCompactor.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, false)) {
