@@ -11,7 +11,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.dataset.config_api;
+package gobblin.dataset.config;
 
 import java.io.*;
 import java.util.*;
@@ -40,7 +40,10 @@ public class PlayGround {
 
     FileBasedConfigStore cs = new FileBasedConfigStore("/Users/mitu/AAA", "test");
     cs.loadConfigs();
-    Config c = cs.getConfig("config-ds.nertz.tracking.big-event");
+    String urn = "config-ds.nertz.tracking.big-event";
+    Config c = cs.getConfig(urn);
+    
+    System.out.println("Urn is " + urn);
     for(Map.Entry<String, ConfigValue> entry: c.entrySet()){
       System.out.println("app key: " +entry.getKey() + " ,value:" + entry.getValue());
 

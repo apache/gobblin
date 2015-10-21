@@ -1,4 +1,4 @@
-package gobblin.dataset.config_api;
+package gobblin.dataset.config;
 
 import java.util.*;
 
@@ -132,26 +132,24 @@ public class RawConfigMapping {
   
   private List<String> getAssociatedTagsWithCheck(String urn, Set<String> previousTags){
     List<String> self = getRawTags(urn);
+    List<String> res = new ArrayList<String>();
     
-    List<List<String>> others = new ArrayList<List<String>>();
     for(String s: self){
       if(previousTags.contains(s)) {
         throw new RuntimeException("Circular dependence for tag " + s);
       }
+      
+      res.add(s);
       Set<String> combined = new HashSet<String>(previousTags);
       combined.add(s);
       
-      others.add(getAssociatedTagsWithCheck(s, combined));
-    }
-    
-    for(List<String> o: others){
-      self.addAll(o);
+      res.addAll(getAssociatedTagsWithCheck(s, combined));
     }
     
     List<String> ancestorTags = getAssociatedTags(DatasetUtils.getParentId(getAdjustedUrn(urn)));
-    self.addAll(ancestorTags);
+    res.addAll(ancestorTags);
     
-    return dedup(self);
+    return dedup(res);
   }
   
   private List<String> dedup(List<String> input){

@@ -1,4 +1,4 @@
-package gobblin.dataset.config_api;
+package gobblin.dataset.config;
 
 import java.util.List;
 import java.util.Map;
@@ -24,7 +24,7 @@ public class FileBasedConfigStore implements ConfigStore {
     this.scheme = scheme;
 
     // TODO
-    this.latestVersion = "v1.0";
+    this.latestVersion = "v2.0";
   }
 
   @Override

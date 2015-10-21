@@ -1,4 +1,4 @@
-package gobblin.dataset.config_api;
+package gobblin.dataset.config;
 
 import java.util.*;
 
