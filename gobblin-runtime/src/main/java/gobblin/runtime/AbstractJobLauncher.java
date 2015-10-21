@@ -58,6 +58,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
   public static final String TASK_STATE_STORE_TABLE_SUFFIX = ".tst";
 
+  public static final String JOB_STATE_FILE_NAME = "job.state";
+
   // Job configuration properties
   protected final Properties jobProps;
 
@@ -319,7 +321,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   /**
    * Subclasses can override this method to do whatever processing on the {@link TaskState}s,
    * e.g., aggregate task-level metrics into job-level metrics.
-   * 
+   *
    * @deprecated Use {@link #postProcessJobState(JobState)
    */
   @Deprecated

@@ -13,11 +13,7 @@
 package gobblin.util;
 
 import java.io.Closeable;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -110,17 +106,7 @@ public class ParallelRunner implements Closeable {
 
       @Override
       public Void call() throws Exception {
-        Closer closer = Closer.create();
-        try {
-          OutputStream outputStream = closer.register(fs.create(outputFilePath));
-          DataOutputStream dataOutputStream = closer.register(new DataOutputStream(outputStream));
-          state.write(dataOutputStream);
-        } catch (Throwable t) {
-          throw closer.rethrow(t);
-        } finally {
-          closer.close();
-        }
-
+        SerializationUtils.serializeState(fs, outputFilePath, state);
         return null;
       }
     }));
@@ -143,17 +129,7 @@ public class ParallelRunner implements Closeable {
 
       @Override
       public Void call() throws Exception {
-        Closer closer = Closer.create();
-        try {
-          InputStream inputStream = closer.register(fs.open(inputFilePath));
-          DataInputStream dataInputStream = closer.register(new DataInputStream(inputStream));
-          state.readFields(dataInputStream);
-        } catch (Throwable t) {
-          throw closer.rethrow(t);
-        } finally {
-          closer.close();
-        }
-
+        SerializationUtils.deserializeState(fs, inputFilePath, state);
         return null;
       }
     }));
@@ -251,7 +227,7 @@ public class ParallelRunner implements Closeable {
           }
           return null;
         } catch (FileAlreadyExistsException e) {
-          LOGGER.warn(String.format("Failed to rename %s to %s: dst already exists"), e);
+          LOGGER.warn(String.format("Failed to rename %s to %s: dst already exists", src, dst), e);
           return null;
         } finally {
           lock.unlock();

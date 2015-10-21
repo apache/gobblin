@@ -50,6 +50,7 @@ import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.JobLauncherUtils;
 import gobblin.util.ParallelRunner;
+import gobblin.util.SerializationUtils;
 
 
 /**
@@ -153,6 +154,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
           addWorkUnit(workUnit, stateSerDeRunner, taskConfigMap);
         }
       }
+
+      Path jobStateFilePath = new Path(this.appWorkDir, this.jobContext.getJobId() + "." + JOB_STATE_FILE_NAME);
+      SerializationUtils.serializeState(this.fs, jobStateFilePath, this.jobContext.getJobState());
     } catch (Throwable t) {
       throw closer.rethrow(t);
     } finally {
