@@ -15,7 +15,7 @@ package gobblin.data.management.retention.version.finder;
 import java.io.IOException;
 import java.util.Collection;
 
-import gobblin.data.management.retention.dataset.Dataset;
+import gobblin.data.management.retention.dataset.CleanableDataset;
 import gobblin.data.management.retention.version.DatasetVersion;
 
 
@@ -41,5 +41,5 @@ public interface VersionFinder<T extends DatasetVersion> {
    *        for each dataset version found.
    * @throws IOException
    */
-  public Collection<T> findDatasetVersions(Dataset dataset) throws IOException;
+  public Collection<T> findDatasetVersions(CleanableDataset dataset) throws IOException;
 }

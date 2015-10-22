@@ -12,6 +12,11 @@
 
 package gobblin.data.management.retention.profile;
 
+import gobblin.data.management.dataset.Dataset;
+import gobblin.data.management.retention.DatasetCleaner;
+import gobblin.data.management.retention.dataset.finder.DatasetFinder;
+import gobblin.data.management.util.PathUtils;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
@@ -28,19 +33,12 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 
-import gobblin.data.management.retention.DatasetCleaner;
-import gobblin.data.management.retention.dataset.ConfigurableDataset;
-import gobblin.data.management.retention.dataset.Dataset;
-import gobblin.data.management.retention.dataset.finder.DatasetFinder;
-import gobblin.data.management.retention.version.DatasetVersion;
-import gobblin.data.management.util.PathUtils;
-
 
 /**
  * A configurable {@link gobblin.data.management.retention.dataset.finder.DatasetFinder} that looks for
- * {@link gobblin.data.management.retention.dataset.Dataset}s using a glob pattern.
+ * {@link gobblin.data.management.retention.dataset.CleanableDataset}s using a glob pattern.
  */
-public class ConfigurableGlobDatasetFinder implements DatasetFinder {
+public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implements DatasetFinder<T> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConfigurableGlobDatasetFinder.class);
 
@@ -76,14 +74,14 @@ public class ConfigurableGlobDatasetFinder implements DatasetFinder {
   }
 
   /**
-   * Finds all directories satisfying the input glob pattern, and creates a {@link gobblin.data.management.retention.dataset.Dataset}
+   * Finds all directories satisfying the input glob pattern, and creates a {@link gobblin.data.management.retention.dataset.CleanableDataset}
    * for each one using {@link #datasetAtPath}.
-   * @return List of {@link gobblin.data.management.retention.dataset.Dataset}s in the file system.
+   * @return List of {@link gobblin.data.management.retention.dataset.CleanableDataset}s in the file system.
    * @throws IOException
    */
   @Override
-  public List<Dataset> findDatasets() throws IOException {
-    List<Dataset> datasets = Lists.newArrayList();
+  public List<T> findDatasets() throws IOException {
+    List<T> datasets = Lists.newArrayList();
     for (FileStatus fileStatus : this.fs.globStatus(datasetPattern)) {
       Path pathToMatch = PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath());
       if (this.blacklist.isPresent() && this.blacklist.get().matcher(pathToMatch.toString()).find()) {
@@ -96,13 +94,11 @@ public class ConfigurableGlobDatasetFinder implements DatasetFinder {
   }
 
   /**
-   * Creates a {@link gobblin.data.management.retention.dataset.Dataset} from a path. The default implementation
+   * Creates a {@link gobblin.data.management.retention.dataset.CleanableDataset} from a path. The default implementation
    * creates a {@link gobblin.data.management.retention.dataset.ConfigurableDataset}.
    * @param path {@link org.apache.hadoop.fs.Path} where dataset is located.
-   * @return {@link gobblin.data.management.retention.dataset.Dataset} at that path.
+   * @return {@link gobblin.data.management.retention.dataset.CleanableDataset} at that path.
    * @throws IOException
    */
-  public Dataset datasetAtPath(Path path) throws IOException {
-    return new ConfigurableDataset<DatasetVersion>(this.fs, this.props, path);
-  }
+  public abstract T datasetAtPath(Path path) throws IOException;
 }

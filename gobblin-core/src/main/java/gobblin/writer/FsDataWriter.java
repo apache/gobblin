@@ -58,7 +58,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
   protected final FsPermission filePermission;
   protected final FsPermission dirPermission;
   protected final Optional<String> group;
-  protected final OutputStream stagingFileOutputStream;
+  protected OutputStream stagingFileOutputStream;
   protected final Closer closer = Closer.create();
 
   public FsDataWriter(State properties, String fileName, int numBranches, int branchId) throws IOException {
@@ -120,9 +120,10 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
 
     this.dirPermission = HadoopUtils.deserializeWriterDirPermissions(properties, numBranches, branchId);
 
+    /*
     this.stagingFileOutputStream = this.closer.register(this.fs.create(this.stagingFile, this.filePermission, true,
         this.bufferSize, this.replicationFactor, this.blockSize, null));
-
+     */
     this.group = Optional.fromNullable(properties.getProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_GROUP_NAME, numBranches, branchId)));
 
@@ -209,5 +210,11 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
 
   public String getOutputFilePath() {
     return this.fs.makeQualified(new Path(this.properties.getProp(this.outputFilePropName))).toString();
+  }
+
+  public static void main(String[] args) {
+    Path p = new Path("/tmp");
+    Path p2 = new Path(p, "./");
+    System.out.println(p2);
   }
 }
