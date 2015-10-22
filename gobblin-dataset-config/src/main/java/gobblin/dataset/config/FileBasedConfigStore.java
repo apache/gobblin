@@ -1,8 +1,8 @@
 package gobblin.dataset.config;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
 import java.io.*;
 
 import com.typesafe.config.*;
@@ -23,8 +23,22 @@ public class FileBasedConfigStore implements ConfigStore {
     this.configLocation = location;
     this.scheme = scheme;
 
-    // TODO
-    this.latestVersion = "v2.0";
+    File[] subfiles = new File(this.configLocation).listFiles();
+    List<String> subdirs = new ArrayList<String>();
+    for(File f: subfiles){
+      if(f.isDirectory()){
+        subdirs.add(f.getName());
+      }
+    }
+    
+    latestVersion = VersionPattern.getLatestVersion(subdirs);
+    if(latestVersion==null){
+      throw new RuntimeException("Can not find any valid version in " + this.configLocation);
+    }
+  }
+  
+  public FileBasedConfigStore(File file, String scheme) {
+    this(file.getAbsolutePath(), scheme);
   }
 
   @Override
@@ -44,19 +58,14 @@ public class FileBasedConfigStore implements ConfigStore {
 
   @Override
   public synchronized void loadConfigs(String version) {
-    Config config = ConfigFactory.parseFile(new File(this.configLocation + "/" + version + "/" + CONF_FILE));
+    //System.out.println("Abs path is " + (this.configLocation + "/" + version + "/" + CONF_FILE));
+    Config config = ConfigFactory.parseFile(new File(this.configLocation + "/" + version + "/" + CONF_FILE)).resolve();
     rawConfigs = new RawConfigMapping(config);
     this.loadedConfigVersion = version;
     initialized = true;
   }
 
-  @Override
-  public Config getConfig(String urn) {
-    return this.getConfig(urn, this.loadedConfigVersion);
-  }
-
-  @Override
-  public Config getConfig(String urn, String version) {
+  private void initialCheck(String version) {
     if (!this.initialized) {
       this.loadConfigs(version);
     }
@@ -65,11 +74,15 @@ public class FileBasedConfigStore implements ConfigStore {
       throw new ConfigVersionMissMatchException(String.format("Version loaded is %s, version to query is %s",
           this.loadedConfigVersion, version));
     }
-    
-    if (!DatasetUtils.isValidUrn(urn)){
-      throw new IllegalArgumentException("Invalid urn: " + urn);
-    }
-    
+  }
+  @Override
+  public Config getConfig(String urn) {
+    return this.getConfig(urn, this.loadedConfigVersion);
+  }
+
+  @Override
+  public Config getConfig(String urn, String version) {
+    initialCheck(version);
     Map<String, Object> raw = this.rawConfigs.getResolvedProperty(urn);
     return ConfigFactory.parseMap(raw);
   }
@@ -92,6 +105,7 @@ public class FileBasedConfigStore implements ConfigStore {
 
   @Override
   public List<String> getAssociatedTags(String urn, String version) {
+    initialCheck(version);
     return this.rawConfigs.getAssociatedTags(urn);
   }
 

@@ -12,7 +12,7 @@ public class ConfigAccessor {
     return configStore.getConfig(urn, configVersion);
   }
   
-  public Map<String, Config > getTaggedConfig(String urn){
+  public Map<String, Config> getTaggedConfig(String urn){
     return this.configStore.getTaggedConfig(urn, configVersion);
   }
   

@@ -4,12 +4,11 @@ import java.util.*;
 
 import com.typesafe.config.*;
 
-import org.apache.log4j.Logger;
 
 
 public class RawConfigMapping {
 
-  private static final Logger LOG = Logger.getLogger(RawConfigMapping.class);
+  //private static final Logger LOG = Logger.getLogger(RawConfigMapping.class);
   private final Map<String, Map<String, Object>> configMap = new HashMap<String, Map<String, Object>>();
   private final Config allConfigs;
 
@@ -20,6 +19,11 @@ public class RawConfigMapping {
 
   private void initialMapping() {
     for (Map.Entry<String, ConfigValue> entry : allConfigs.entrySet()) {
+      // constant variables should be resolved already
+      if(entry.getKey().startsWith(DatasetUtils.CONSTS_PREFIX+DatasetUtils.ID_DELEMETER)){
+        continue;
+      }
+      
       if (DatasetUtils.isValidUrn(entry.getKey())) {
 
         String parentId = DatasetUtils.getParentId(entry.getKey());
@@ -190,6 +194,24 @@ public class RawConfigMapping {
 //    if(res!=null){
 //      res.remove(DatasetUtils.IMPORTED_TAGS);
 //    }
+    return res;
+  }
+  
+  public Map<String, Config> getTaggedConfig(String inputTag){
+    if(!DatasetUtils.isValidTag(inputTag)) return null;
+    
+    Map<String, Config> res = new HashMap<String, Config>();
+    
+    for(String urnKey: this.configMap.keySet()){
+      List<String> rawTags = this.getRawTags(urnKey);
+      if(rawTags!=null){
+        for(String tag: rawTags){
+          if(tag.equals(inputTag)){
+            res.put(urnKey, ConfigFactory.parseMap(this.getResolvedProperty(urnKey)));
+          }
+        }
+      }
+    }
     return res;
   }
 }

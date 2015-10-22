@@ -7,6 +7,7 @@ public class DatasetUtils {
   public static final String ID_DELEMETER = ".";
   public static final String DATASETS_PREFIX = "config-ds";
   public static final String TAGS_PREFIX = "config-tag";
+  public static final String CONSTS_PREFIX = "config-const";
   public static final String ROOT = "root";
   public static final String IMPORTED_TAGS = "imported-tags";
 
