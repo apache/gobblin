@@ -12,8 +12,7 @@
 
 package gobblin.compaction;
 
-import static gobblin.compaction.Dataset.DatasetState.*;
-
+import java.util.Collection;
 import java.util.List;
 
 import org.apache.hadoop.fs.Path;
@@ -30,8 +29,8 @@ import gobblin.configuration.State;
  */
 public class Dataset implements Comparable<Dataset> {
 
-  private static final double DEFAULT_PRIORITY = 1.0;
-  private static final double DEFAULT_PRIORITY_REDUCTION_FACTOR = 1.0 / 3.0;
+  public static final double DEFAULT_PRIORITY = 1.0;
+  public static final double DEFAULT_PRIORITY_REDUCTION_FACTOR = 1.0 / 3.0;
 
   public enum DatasetState {
 
@@ -49,34 +48,151 @@ public class Dataset implements Comparable<Dataset> {
     COMPACTION_COMPLETE
   }
 
-  private final Path path;
-  private final State jobProps;
+  public static class Builder {
+    private String topic;
+    private Path inputPath;
+    private Path inputLatePath;
+    private Path outputPath;
+    private Path outputLatePath;
+    private Path outputTmpPath;
+    private double priority = DEFAULT_PRIORITY;
+
+    public Builder withTopic(String topic) {
+      this.topic = topic;
+      return this;
+    }
+
+    public Builder withInputPath(Path inputPath) {
+      this.inputPath = inputPath;
+      return this;
+    }
+
+    public Builder withInputLatePath(Path inputLatePath) {
+      this.inputLatePath = inputLatePath;
+      return this;
+    }
+
+    public Builder withOutputPath(Path outputPath) {
+      this.outputPath = outputPath;
+      return this;
+    }
+
+    public Builder withOutputLatePath(Path outputLatePath) {
+      this.outputLatePath = outputLatePath;
+      return this;
+    }
+
+    public Builder withOutputTmpPath(Path outputTmpPath) {
+      this.outputTmpPath = outputTmpPath;
+      return this;
+    }
+
+    public Builder withPriority(double priority) {
+      this.priority = priority;
+      return this;
+    }
+
+    public Dataset build() {
+      return new Dataset(this);
+    }
+  }
+
+  private final String topic;
+  private final Path inputPath;
+  private final Path inputLatePath;
+  private final Path outputPath;
+  private final Path outputLatePath;
+  private final Path outputTmpPath;
+  private final List<Path> additionalInputPaths;
   private final List<Throwable> throwables;
+
+  private State jobProps;
   private double priority;
   private DatasetState state;
 
-  public Dataset(Path path, State jobProps) {
-    this(path, jobProps, DEFAULT_PRIORITY);
-  }
-
-  public Dataset(Path path, State jobProps, double priority) {
-    this.path = path;
-    this.jobProps = jobProps;
+  private Dataset(Builder builder) {
+    this.topic = builder.topic;
+    this.inputPath = builder.inputPath;
+    this.inputLatePath = builder.inputLatePath;
+    this.outputPath = builder.outputPath;
+    this.outputLatePath = builder.outputLatePath;
+    this.outputTmpPath = builder.outputTmpPath;
+    this.additionalInputPaths = Lists.newArrayList();
     this.throwables = Lists.newArrayList();
-    this.priority = priority;
-    this.state = UNVERIFIED;
+
+    this.priority = builder.priority;
+    this.state = DatasetState.UNVERIFIED;
   }
 
-  public Dataset(Dataset other) {
-    this.path = other.path;
-    this.jobProps = other.jobProps;
-    this.throwables = other.throwables;
-    this.priority = other.priority;
-    this.state = other.state;
+  /**
+   * Name of the topic represented by this {@link Dataset}.
+   */
+  public String topic() {
+    return this.topic;
   }
 
-  public Path path() {
-    return this.path;
+  /**
+   * Input path that contains the data of this {@link Dataset} to be compacted.
+   */
+  public Path inputPath() {
+    return this.inputPath;
+  }
+
+  /**
+   * Path that contains the late data of this {@link Dataset} to be compacted.
+   * Late input data may be generated if the input data is obtained from another compaction,
+   * e.g., if we run hourly compaction and daily compaction on a topic where the compacted hourly
+   * data is the input to the daily compaction.
+   *
+   * If this path contains any data and this {@link Dataset} is not already compacted, deduplication
+   * will be applied to this {@link Dataset}.
+   */
+  public Path inputLatePath() {
+    return this.inputLatePath;
+  }
+
+  /**
+   * Output path for the compacted data.
+   */
+  public Path outputPath() {
+    return this.outputPath;
+  }
+
+  /**
+   * If {@link #outputPath()} is already compacted and new input data is found, those data can be copied
+   * to this path.
+   */
+  public Path outputLatePath() {
+    return this.outputLatePath;
+  }
+
+  /**
+   * The path where the MR job writes output to. Data will be published to {@link #outputPath()} if the compaction
+   * is successful.
+   */
+  public Path outputTmpPath() {
+    return this.outputTmpPath;
+  }
+
+  /**
+   * Additional paths of this {@link Dataset} besides {@link #inputPath()} that contain data to be compacted.
+   */
+  public List<Path> additionalInputPaths() {
+    return this.additionalInputPaths;
+  }
+
+  /**
+   * Add an additional input path for this {@link Dataset}.
+   */
+  public void addAdditionalInputPath(Path path) {
+    this.additionalInputPaths.add(path);
+  }
+
+  /**
+   * Add additional input paths for this {@link Dataset}.
+   */
+  public void addAdditionalInputPaths(Collection<Path> paths) {
+    this.additionalInputPaths.addAll(paths);
   }
 
   public double priority() {
@@ -113,6 +229,10 @@ public class Dataset implements Comparable<Dataset> {
     return this.jobProps;
   }
 
+  public void setJobProps(State jobProps) {
+    this.jobProps = jobProps;
+  }
+
   public List<Throwable> throwables() {
     return this.throwables;
   }
@@ -130,7 +250,7 @@ public class Dataset implements Comparable<Dataset> {
   public int hashCode() {
     final int prime = 31;
     int result = 1;
-    result = prime * result + ((path == null) ? 0 : path.hashCode());
+    result = prime * result + ((inputPath == null) ? 0 : inputPath.hashCode());
     return result;
   }
 
@@ -143,11 +263,11 @@ public class Dataset implements Comparable<Dataset> {
       return false;
     }
     Dataset other = (Dataset) obj;
-    if (path == null) {
-      if (other.path != null) {
+    if (inputPath == null) {
+      if (other.inputPath != null) {
         return false;
       }
-    } else if (!path.equals(other.path)) {
+    } else if (!inputPath.equals(other.inputPath)) {
       return false;
     }
     return true;
@@ -158,6 +278,6 @@ public class Dataset implements Comparable<Dataset> {
    */
   @Override
   public String toString() {
-    return this.path.toString();
+    return this.inputPath.toString();
   }
 }

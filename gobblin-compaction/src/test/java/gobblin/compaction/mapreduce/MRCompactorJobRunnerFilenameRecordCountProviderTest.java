@@ -24,7 +24,8 @@ import org.testng.annotations.Test;
 import com.google.common.io.Files;
 
 import gobblin.util.RecordCountProvider;
-import gobblin.writer.AvroHdfsTimePartitionedWithRecordCountsWriter;
+import gobblin.util.recordcount.IngestionRecordCountProvider;
+import gobblin.util.recordcount.LateFileRecordCountProvider;
 
 
 /**
@@ -36,7 +37,7 @@ public class MRCompactorJobRunnerFilenameRecordCountProviderTest {
   @Test
   public void testFileNameRecordCountProvider() throws IOException {
     String originalFilename = "test.123.avro";
-    String suffixPattern = Pattern.quote(".late")+"[\\d]*";
+    String suffixPattern = Pattern.quote(".late") + "[\\d]*";
 
     Path testDir = new Path("gobblin-compaction/src/test/resources/compactorFilenameRecordCountProviderTest");
     FileSystem fs = FileSystem.getLocal(new Configuration());
@@ -46,11 +47,9 @@ public class MRCompactorJobRunnerFilenameRecordCountProviderTest {
       }
       fs.mkdirs(testDir);
 
-      RecordCountProvider originFileNameFormat =
-          new AvroHdfsTimePartitionedWithRecordCountsWriter.FilenameRecordCountProvider();
+      RecordCountProvider originFileNameFormat = new IngestionRecordCountProvider();
 
-      MRCompactorJobRunner.LateFileRecordCountProvider lateFileRecordCountProvider =
-          new MRCompactorJobRunner.LateFileRecordCountProvider(originFileNameFormat);
+      LateFileRecordCountProvider lateFileRecordCountProvider = new LateFileRecordCountProvider(originFileNameFormat);
 
       Path firstOutput = lateFileRecordCountProvider.constructLateFilePath(originalFilename, fs, testDir);
 
@@ -58,14 +57,16 @@ public class MRCompactorJobRunnerFilenameRecordCountProviderTest {
       Assert.assertEquals(123, lateFileRecordCountProvider.getRecordCount(firstOutput));
 
       fs.create(firstOutput);
-      Pattern pattern1 = Pattern.compile(Pattern.quote(Files.getNameWithoutExtension(originalFilename))+suffixPattern+"\\.avro");
+      Pattern pattern1 =
+          Pattern.compile(Pattern.quote(Files.getNameWithoutExtension(originalFilename)) + suffixPattern + "\\.avro");
       Path secondOutput = lateFileRecordCountProvider.constructLateFilePath(firstOutput.getName(), fs, testDir);
       Assert.assertEquals(testDir, secondOutput.getParent());
       Assert.assertTrue(pattern1.matcher(secondOutput.getName()).matches());
       Assert.assertEquals(123, lateFileRecordCountProvider.getRecordCount(secondOutput));
 
       fs.create(secondOutput);
-      Pattern pattern2 = Pattern.compile(Files.getNameWithoutExtension(originalFilename)+suffixPattern+suffixPattern+"\\.avro");
+      Pattern pattern2 =
+          Pattern.compile(Files.getNameWithoutExtension(originalFilename) + suffixPattern + suffixPattern + "\\.avro");
       Path thirdOutput = lateFileRecordCountProvider.constructLateFilePath(secondOutput.getName(), fs, testDir);
       Assert.assertEquals(testDir, thirdOutput.getParent());
       Assert.assertTrue(pattern2.matcher(thirdOutput.getName()).matches());

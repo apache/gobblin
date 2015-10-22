@@ -13,10 +13,7 @@
 package gobblin.runtime.mapreduce;
 
 import java.io.BufferedWriter;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
@@ -50,7 +47,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
@@ -84,6 +80,7 @@ import gobblin.source.workunit.WorkUnit;
 import gobblin.util.JobConfigurationUtils;
 import gobblin.util.JobLauncherUtils;
 import gobblin.util.ParallelRunner;
+import gobblin.util.SerializationUtils;
 
 
 /**
@@ -108,8 +105,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
   private static final String WORK_UNIT_FILE_EXTENSION = ".wu";
   private static final String MULTI_WORK_UNIT_FILE_EXTENSION = ".mwu";
-
-  private static final String JOB_STATE_FILE_NAME = "job.state";
 
   private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
 
@@ -327,9 +322,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
     SequenceFileOutputFormat.setOutputPath(this.job, jobOutputPath);
 
     // Serialize source state to a file which will be picked up by the mappers
-    Path jobStateFile = new Path(this.mrJobDir, JOB_STATE_FILE_NAME);
-    serializeJobState(jobStateFile, this.jobContext.getJobState());
-    job.getConfiguration().set(ConfigurationKeys.JOB_STATE_FILE_PATH_KEY, jobStateFile.toString());
+    Path jobStateFilePath = new Path(this.mrJobDir, JOB_STATE_FILE_NAME);
+    SerializationUtils.serializeState(this.fs, jobStateFilePath, this.jobContext.getJobState());
+    job.getConfiguration().set(ConfigurationKeys.JOB_STATE_FILE_PATH_KEY, jobStateFilePath.toString());
 
     if (this.jobProps.containsKey(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY)) {
       // When there is a limit on the number of mappers, each mapper may run
@@ -446,19 +441,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
     return jobInputFile;
   }
 
-  private void serializeJobState(Path jobStateFile, JobState jobState) throws IOException {
-    Closer closer = Closer.create();
-    try {
-      OutputStream os = closer.register(this.fs.create(jobStateFile));
-      DataOutputStream dataOutputStream = closer.register(new DataOutputStream(os));
-      jobState.write(dataOutputStream);
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
-    }
-  }
-
   /**
    * Collect the output {@link TaskState}s of the job as a list.
    */
@@ -562,7 +544,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
         this.fs = FileSystem.get(context.getConfiguration());
         this.taskStateStore = new FsStateStore<TaskState>(this.fs,
             SequenceFileOutputFormat.getOutputPath(context).toUri().getPath(), TaskState.class);
-        readJobState(context);
+
+        Path jobStateFilePath = new Path(context.getConfiguration().get(ConfigurationKeys.JOB_STATE_FILE_PATH_KEY));
+        SerializationUtils.deserializeState(this.fs, jobStateFilePath, this.jobState);
       } catch (IOException ioe) {
         throw new RuntimeException("Failed to setup the mapper task", ioe);
       }
@@ -597,23 +581,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
       }
     }
 
-    private void readJobState(Context context) throws IOException {
-      Preconditions.checkNotNull(context.getConfiguration().get(ConfigurationKeys.JOB_STATE_FILE_PATH_KEY),
-          ConfigurationKeys.JOB_STATE_FILE_PATH_KEY + " not found in Hadoop job conf");
-
-      Path jobStateFile = new Path(context.getConfiguration().get(ConfigurationKeys.JOB_STATE_FILE_PATH_KEY));
-      Closer closer = Closer.create();
-      try {
-        InputStream is = closer.register(this.fs.open(jobStateFile));
-        DataInputStream dis = closer.register((new DataInputStream(is)));
-        this.jobState.readFields(dis);
-      } catch (Throwable t) {
-        throw closer.rethrow(t);
-      } finally {
-        closer.close();
-      }
-    }
-
     @Override
     public void run(Context context) throws IOException, InterruptedException {
       this.setup(context);
@@ -634,18 +601,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
       WorkUnit workUnit =
           (value.toString().endsWith(MULTI_WORK_UNIT_FILE_EXTENSION) ? new MultiWorkUnit() : WorkUnit.createEmpty());
-      Closer closer = Closer.create();
-      // Deserialize the work unit of the assigned task
-      try {
-        InputStream is = closer.register(this.fs.open(new Path(value.toString())));
-        DataInputStream dis = closer.register((new DataInputStream(is)));
-        workUnit.readFields(dis);
-
-      } catch (Throwable t) {
-        throw closer.rethrow(t);
-      } finally {
-        closer.close();
-      }
+      SerializationUtils.deserializeState(this.fs, new Path(value.toString()), workUnit);
 
       if (workUnit instanceof MultiWorkUnit) {
         List<WorkUnit> flattenedWorkUnits =

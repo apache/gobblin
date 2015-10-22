@@ -36,7 +36,7 @@ import gobblin.configuration.State;
  * r := &gt;long&lt;&gt;record&lt;
  * file := empty | r file
  * <li>{@link ConfigurationKeys#SIMPLE_WRITER_DELIMITER} accepts a byte value. If specified, this byte will be used
- * as a seperator between records. If unspecified, no delimter will be used between records.
+ * as a separator between records. If unspecified, no delimiter will be used between records.
  * </ul>
  * @author akshay@nerdwallet.com
  */
@@ -54,7 +54,7 @@ public class SimpleDataWriter extends FsDataWriter<byte[]> {
     if ((delim = properties.getProp(ConfigurationKeys.SIMPLE_WRITER_DELIMITER, null)) == null || delim.length() == 0) {
       this.recordDelimiter = Optional.absent();
     } else {
-      this.recordDelimiter = Optional.of(delim.getBytes()[0]);
+      this.recordDelimiter = Optional.of(delim.getBytes(ConfigurationKeys.DEFAULT_CHARSET_ENCODING)[0]);
     }
 
     this.prependSize = properties.getPropAsBoolean(ConfigurationKeys.SIMPLE_WRITER_PREPEND_SIZE, true);

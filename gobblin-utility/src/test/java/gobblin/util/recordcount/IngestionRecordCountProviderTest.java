@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.writer;
+package gobblin.util.recordcount;
 
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
@@ -18,15 +18,16 @@ import org.testng.annotations.Test;
 
 
 /**
- * Tests for {@link AvroHdfsTimePartitionedWithRecordCountsWriter.FilenameRecordCountProvider}.
+ * Tests for {@link IngestionRecordCountProvider}.
  */
-@Test(groups = { "gobblin.writer" })
-public class AvroHdfsTimePartitionedWithRecordCountsWriterFileNameFormatTest {
+@Test(groups = { "gobblin.util.recordcount" })
+public class IngestionRecordCountProviderTest {
+
   @Test
   public void testFileNameFormat() {
-    AvroHdfsTimePartitionedWithRecordCountsWriter.FilenameRecordCountProvider filenameRecordCountProvider =
-        new AvroHdfsTimePartitionedWithRecordCountsWriter.FilenameRecordCountProvider();
-   Assert.assertEquals(filenameRecordCountProvider.constructFilePath("/a/b/c.avro", 123), "/a/b/c.123.avro");
-   Assert.assertEquals(filenameRecordCountProvider.getRecordCount(new Path("/a/b/c.123.avro")), 123);
+    IngestionRecordCountProvider filenameRecordCountProvider = new IngestionRecordCountProvider();
+    Assert.assertEquals(filenameRecordCountProvider.constructFilePath("/a/b/c.avro", 123), "/a/b/c.123.avro");
+    Assert.assertEquals(filenameRecordCountProvider.getRecordCount(new Path("/a/b/c.123.avro")), 123);
   }
+
 }

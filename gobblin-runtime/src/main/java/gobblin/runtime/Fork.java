@@ -76,6 +76,8 @@ public class Fork implements Closeable, Runnable, FinalState {
 
   private final TaskContext taskContext;
   private final TaskState taskState;
+  // A TaskState instance specific to this Fork
+  private final TaskState forkTaskState;
   private final String taskId;
 
   private final int branches;
@@ -109,23 +111,24 @@ public class Fork implements Closeable, Runnable, FinalState {
   // An AtomicReference is still used here for the compareAntSet operation.
   private final AtomicReference<ForkState> forkState;
 
-  private final GobblinMetrics forkMetrics;
-
   private static final String FORK_METRICS_BRANCH_NAME_KEY = "forkBranchName";
 
-  public Fork(TaskContext taskContext, TaskState taskState, Object schema, int branches, int index,
-      CountDownLatch countDownLatch) throws Exception {
+  public Fork(TaskContext taskContext, Object schema, int branches, int index, CountDownLatch countDownLatch)
+      throws Exception {
 
     this.logger = LoggerFactory.getLogger(Fork.class.getName() + "-" + index);
 
     this.taskContext = taskContext;
-    this.taskState = taskState;
+    this.taskState = this.taskContext.getTaskState();
+    // Make a copy if there are more than one branches
+    this.forkTaskState = branches > 1 ? new TaskState(this.taskState) : this.taskState;
     this.taskId = this.taskState.getTaskId();
 
     this.branches = branches;
     this.index = index;
 
-    this.converter = this.closer.register(new MultiConverter(this.taskContext.getConverters(this.index)));
+    this.converter =
+        this.closer.register(new MultiConverter(this.taskContext.getConverters(this.index, this.forkTaskState)));
     this.convertedSchema = Optional.fromNullable(this.converter.convertSchema(schema, this.taskState));
     this.rowLevelPolicyChecker = this.closer.register(this.taskContext.getRowLevelPolicyChecker(this.index));
     this.rowLevelPolicyCheckingResult = new RowLevelPolicyCheckResults();
@@ -154,11 +157,12 @@ public class Fork implements Closeable, Runnable, FinalState {
      * Create a {@link GobblinMetrics} for this {@link Fork} instance so that all new {@link MetricContext}s returned by
      * {@link Instrumented#setMetricContextName(State, String)} will be children of the forkMetrics.
      */
-    this.forkMetrics = GobblinMetrics.get(getForkMetricsName(taskContext.getTaskMetrics(), this.taskState, index),
-        taskContext.getTaskMetrics().getMetricContext(), getForkMetricsTags(this.taskState, index));
-    this.closer.register(this.forkMetrics.getMetricContext());
+    GobblinMetrics forkMetrics = GobblinMetrics
+        .get(getForkMetricsName(taskContext.getTaskMetrics(), this.taskState, index),
+            taskContext.getTaskMetrics().getMetricContext(), getForkMetricsTags(this.taskState, index));
+    this.closer.register(forkMetrics.getMetricContext());
 
-    Instrumented.setMetricContextName(this.taskState, this.forkMetrics.getMetricContext().getName());
+    Instrumented.setMetricContextName(this.taskState, forkMetrics.getMetricContext().getName());
   }
 
   @Override
@@ -407,31 +411,31 @@ public class Fork implements Closeable, Runnable, FinalState {
    *
    * @return whether data publishing is successful and data should be committed
    */
-  private boolean checkDataQuality(Optional<Object> schema)
-      throws Exception {
-    TaskState taskStateForFork = this.taskState;
+  private boolean checkDataQuality(Optional<Object> schema) throws Exception {
     if (this.branches > 1) {
-      // Make a copy if there are more than one fork
-      taskStateForFork = new TaskState(this.taskState);
+      this.forkTaskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED,
+          this.taskState.getProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED));
+      this.forkTaskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXTRACTED,
+          this.taskState.getProp(ConfigurationKeys.EXTRACTOR_ROWS_EXTRACTED));
     }
 
     if (this.writer.isPresent()) {
-      taskStateForFork.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, this.writer.get().recordsWritten());
+      this.forkTaskState.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, this.writer.get().recordsWritten());
     } else {
-      taskStateForFork.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, 0l);
+      this.forkTaskState.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, 0l);
     }
 
     if (schema.isPresent()) {
-      taskStateForFork.setProp(ConfigurationKeys.EXTRACT_SCHEMA, schema.get().toString());
+      this.forkTaskState.setProp(ConfigurationKeys.EXTRACT_SCHEMA, schema.get().toString());
     }
 
     try {
       // Do task-level quality checking
       TaskLevelPolicyCheckResults taskResults =
-          this.taskContext.getTaskLevelPolicyChecker(taskStateForFork, this.branches > 1 ? this.index : -1)
+          this.taskContext.getTaskLevelPolicyChecker(this.forkTaskState, this.branches > 1 ? this.index : -1)
               .executePolicies();
       TaskPublisher publisher =
-          this.taskContext.getTaskPublisher(taskStateForFork, taskResults, this.branches > 1 ? this.index : -1);
+          this.taskContext.getTaskPublisher(this.forkTaskState, taskResults, this.branches > 1 ? this.index : -1);
       switch (publisher.canPublish()) {
         case SUCCESS:
           return true;

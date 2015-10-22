@@ -12,8 +12,10 @@
 
 package gobblin.runtime.util;
 
-import java.io.FileWriter;
+import java.io.BufferedWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.util.List;
@@ -32,7 +34,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.io.Closer;
 import com.google.gson.stream.JsonWriter;
 
-import gobblin.metastore.FsStateStore;
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.StateStore;
 import gobblin.runtime.FsDatasetStateStore;
 import gobblin.runtime.JobState;
@@ -70,8 +72,7 @@ public class JobStateToJsonConverter {
   @SuppressWarnings("unchecked")
   public void convert(String jobName, String jobId, Writer writer)
       throws IOException {
-    List<? extends JobState> jobStates =
-        (List<? extends JobState>) this.jobStateStore.getAll(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX);
+    List<? extends JobState> jobStates = this.jobStateStore.getAll(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX);
     if (jobStates.isEmpty()) {
       LOGGER.warn(String.format("No job state found for job with name %s and id %s", jobName, jobId));
       return;
@@ -109,7 +110,7 @@ public class JobStateToJsonConverter {
   @SuppressWarnings("unchecked")
   public void convertAll(String jobName, Writer writer)
       throws IOException {
-    List<? extends JobState> jobStates = (List<? extends JobState>) this.jobStateStore.getAll(jobName);
+    List<? extends JobState> jobStates = this.jobStateStore.getAll(jobName);
     if (jobStates.isEmpty()) {
       LOGGER.warn(String.format("No job state found for job with name %s", jobName));
       return;
@@ -223,8 +224,13 @@ public class JobStateToJsonConverter {
     if (cmd.hasOption('t')) {
       Closer closer = Closer.create();
       try {
-        FileWriter fw = closer.register(new FileWriter(cmd.getOptionValue('t')));
-        fw.write(stringWriter.toString());
+        FileOutputStream fileOutputStream = closer.register(new FileOutputStream(cmd.getOptionValue('t')));
+        OutputStreamWriter outputStreamWriter =
+            closer.register(new OutputStreamWriter(fileOutputStream, ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
+        BufferedWriter bufferedWriter = closer.register(new BufferedWriter(outputStreamWriter));
+        bufferedWriter.write(stringWriter.toString());
+      } catch (Throwable t) {
+        throw closer.rethrow(t);
       } finally {
         closer.close();
       }

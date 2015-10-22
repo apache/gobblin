@@ -16,7 +16,6 @@ import java.io.IOException;
 import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTime;
@@ -29,13 +28,11 @@ import org.joda.time.format.PeriodFormatterBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
-import com.google.common.io.Closer;
 
+import gobblin.compaction.Dataset;
 import gobblin.compaction.event.CompactionSlaEventHelper;
-import gobblin.configuration.State;
-import gobblin.util.HadoopUtils;
 
 
 /**
@@ -71,6 +68,9 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
   private static final String COMPACTION_TIMEBASED_MIN_TIME_AGO = COMPACTION_TIMEBASED_PREFIX + "min.time.ago";
   private static final String DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO = "1d";
 
+  // Properties used internally
+  public static final String COMPACTION_TIMEBASED_INPUT_PATH_TIME = COMPACTION_TIMEBASED_PREFIX + "input.path.time";
+
   private final String folderTimePattern;
   private final DateTimeZone timeZone;
   private final DateTimeFormatter timeFormatter;
@@ -85,51 +85,56 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
   MRCompactorTimeBasedJobPropCreator(Builder builder) {
     super(builder);
     this.folderTimePattern = getFolderPattern();
-    this.timeZone =
-        DateTimeZone
-            .forID(this.state.getProp(MRCompactor.COMPACTION_TIMEZONE, MRCompactor.DEFAULT_COMPACTION_TIMEZONE));
+    this.timeZone = DateTimeZone
+        .forID(this.state.getProp(MRCompactor.COMPACTION_TIMEZONE, MRCompactor.DEFAULT_COMPACTION_TIMEZONE));
     this.timeFormatter = DateTimeFormat.forPattern(this.folderTimePattern).withZone(this.timeZone);
   }
 
   @Override
-  protected List<State> createJobProps() throws IOException {
-    List<State> allJobProps = Lists.newArrayList();
+  protected List<Dataset> createJobProps() throws IOException {
+    List<Dataset> datasets = Lists.newArrayList();
     if (!fs.exists(this.topicInputDir)) {
       LOG.warn("Input folder " + this.topicInputDir + " does not exist. Skipping topic " + topic);
-      return allJobProps;
+      return datasets;
     }
 
     String folderStructure = getFolderStructure();
     for (FileStatus status : this.fs.globStatus(new Path(this.topicInputDir, folderStructure))) {
+      Path jobInputPath = status.getPath();
       DateTime folderTime = null;
       try {
-        folderTime = getFolderTime(status.getPath());
+        folderTime = getFolderTime(jobInputPath);
       } catch (RuntimeException e) {
-        LOG.warn(status.getPath() + " is not a valid folder. Will be skipped.");
+        LOG.warn(jobInputPath + " is not a valid folder. Will be skipped.");
         continue;
       }
-      Path jobOutputDir = new Path(this.topicOutputDir, folderTime.toString(this.timeFormatter));
-      Path jobTmpDir = new Path(this.topicTmpDir, folderTime.toString(this.timeFormatter));
-      if (folderWithinAllowedPeriod(status.getPath(), folderTime)) {
-        if (!folderAlreadyCompacted(jobOutputDir)) {
-          State state = createJobProps(status.getPath(), jobOutputDir, jobTmpDir, this.deduplicate,
-              folderTime.toString(this.timeFormatter));
-          CompactionSlaEventHelper.setUpstreamTimeStamp(state, folderTime.getMillis());
-          allJobProps.add(state);
-        } else {
-          List<Path> newDataFiles = getNewDataInFolder(status.getPath(), jobOutputDir);
-          if (newDataFiles.isEmpty()) {
-            LOG.info(String.format("Folder %s already compacted. Skipping", jobOutputDir));
-          } else {
-            Path jobOutputLateDir = new Path(this.topicOutputLateDir, folderTime.toString(this.timeFormatter));
-            allJobProps.add(createJobPropsForLateData(status.getPath(), jobOutputDir, jobOutputLateDir, jobTmpDir,
-                newDataFiles));
+
+      if (folderWithinAllowedPeriod(jobInputPath, folderTime)) {
+        Path jobInputLatePath = appendFolderTime(this.topicInputLateDir, folderTime);
+        Path jobOutputPath = appendFolderTime(this.topicOutputDir, folderTime);
+        Path jobOutputLatePath = appendFolderTime(this.topicOutputLateDir, folderTime);
+        Path jobOutputTmpPath = appendFolderTime(this.topicTmpOutputDir, folderTime);
+
+        Dataset dataset = new Dataset.Builder().withTopic(this.topic).withPriority(this.priority)
+            .withInputPath(this.recompactFromOutputPaths ? jobOutputPath : jobInputPath)
+            .withInputLatePath(this.recompactFromOutputPaths ? jobOutputLatePath : jobInputLatePath)
+            .withOutputPath(jobOutputPath).withOutputLatePath(jobOutputLatePath).withOutputTmpPath(jobOutputTmpPath)
+            .build();
+
+        Optional<Dataset> datasetWithJobProps = createJobProps(dataset, folderTime.toString(this.timeFormatter));
+        if (datasetWithJobProps.isPresent()) {
+          datasetWithJobProps.get().jobProps().setProp(COMPACTION_TIMEBASED_INPUT_PATH_TIME, folderTime.getMillis());
+          datasets.add(datasetWithJobProps.get());
+          if (this.recompactFromOutputPaths || !MRCompactor.datasetAlreadyCompacted(this.fs, dataset)) {
+
+            // Set the upstream time to partition + 1 day. E.g. for 2015/10/13 the upstream time is midnight of 2015/10/14
+            CompactionSlaEventHelper.setUpstreamTimeStamp(state, folderTime.plusDays(1).getMillis());
           }
         }
       }
     }
 
-    return allJobProps;
+    return datasets;
   }
 
   private String getFolderStructure() {
@@ -171,26 +176,6 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
     }
   }
 
-  /**
-   * Return job properties for a job to handle the appearance of data within jobInputDir which is
-   * more recent than the time of the last compaction.
-   */
-  private State createJobPropsForLateData(Path jobInputDir, Path jobOutputDir, Path jobOutputLateDir, Path jobTmpDir,
-      List<Path> newDataFiles) throws IOException {
-    if (this.state.getPropAsBoolean(MRCompactor.COMPACTION_RECOMPACT_FOR_LATE_DATA,
-        MRCompactor.DEFAULT_COMPACTION_RECOMPACT_FOR_LATE_DATA)) {
-      LOG.info(String.format("Will recompact for %s.", jobOutputDir));
-      return createJobProps(jobInputDir, jobOutputDir, jobTmpDir, this.deduplicate);
-    } else {
-      LOG.info(String.format("Will copy %d new data files to %s", newDataFiles.size(), jobOutputDir));
-      State jobProps = createJobProps(jobInputDir, jobOutputDir, jobTmpDir, this.deduplicate);
-      jobProps.setProp(MRCompactor.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, true);
-      jobProps.setProp(MRCompactor.COMPACTION_JOB_LATE_DATA_FILES, Joiner.on(",").join(newDataFiles));
-      jobProps.setProp(MRCompactor.COMPACTION_JOB_DEST_LATE_DIR, jobOutputLateDir);
-      return jobProps;
-    }
-  }
-
   private PeriodFormatter getPeriodFormatter() {
     return new PeriodFormatterBuilder().appendMonths().appendSuffix("m").appendDays().appendSuffix("d").appendHours()
         .appendSuffix("h").toFormatter();
@@ -210,46 +195,7 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
     return currentTime.minus(minTimeAgo);
   }
 
-  private boolean folderAlreadyCompacted(Path outputFolder) {
-    Path filePath = new Path(outputFolder, MRCompactor.COMPACTION_COMPLETE_FILE_NAME);
-    try {
-      return this.fs.exists(filePath);
-    } catch (IOException e) {
-      LOG.error("Failed to verify the existence of file " + filePath, e);
-      return false;
-    }
-  }
-
-  /**
-   * Check if inputFolder contains any files which have modification times which are more
-   * recent than the last compaction time as stored within outputFolder; return any files
-   * which do. An empty list will be returned if all files are older than the last compaction time.
-   */
-  private List<Path> getNewDataInFolder(Path inputFolder, Path outputFolder) throws IOException {
-    List<Path> newFiles = Lists.newArrayList();
-
-    Path filePath = new Path(outputFolder, MRCompactor.COMPACTION_COMPLETE_FILE_NAME);
-    Closer closer = Closer.create();
-    try {
-      FSDataInputStream completionFileStream = closer.register(this.fs.open(filePath));
-      DateTime lastCompactionTime = new DateTime(completionFileStream.readLong(), this.timeZone);
-      for (FileStatus fstat : HadoopUtils.listStatusRecursive(this.fs, inputFolder)) {
-        DateTime fileModificationTime = new DateTime(fstat.getModificationTime(), this.timeZone);
-        if (fileModificationTime.isAfter(lastCompactionTime)) {
-          newFiles.add(fstat.getPath());
-        }
-      }
-      if (!newFiles.isEmpty()) {
-        LOG.info(String.format("Found %d new files within folder %s which are more recent than the previous "
-            + "compaction start time of %s.", newFiles.size(), inputFolder, lastCompactionTime));
-      }
-    } catch (IOException e) {
-      LOG.error("Failed to check for new data within folder: " + inputFolder, e);
-    } catch (Throwable e) {
-      throw closer.rethrow(e);
-    } finally {
-      closer.close();
-    }
-    return newFiles;
+  private Path appendFolderTime(Path path, DateTime folderTime) {
+    return new Path(path, folderTime.toString(this.timeFormatter));
   }
 }

@@ -29,7 +29,7 @@ public class DatasetFilterUtils {
   public static List<Pattern> getPatternsFromStrings(List<String> strings) {
     List<Pattern> patterns = Lists.newArrayList();
     for (String s : strings) {
-      patterns.add(Pattern.compile(s, Pattern.CASE_INSENSITIVE));
+      patterns.add(Pattern.compile(s));
     }
     return patterns;
   }
