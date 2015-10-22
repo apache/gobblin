@@ -12,9 +12,7 @@
 
 package gobblin.yarn;
 
-import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -32,18 +30,19 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
-import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
 import gobblin.runtime.AbstractJobLauncher;
+import gobblin.runtime.JobState;
 import gobblin.runtime.TaskContext;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskState;
 import gobblin.runtime.TaskStateTracker;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.SerializationUtils;
 
 
 /**
@@ -70,6 +69,7 @@ public class GobblinHelixTask implements Task {
   private final TaskStateTracker taskStateTracker;
 
   private final TaskConfig taskConfig;
+  private final JobState jobState = new JobState();
   private final String jobId;
   private final String taskId;
 
@@ -90,6 +90,9 @@ public class GobblinHelixTask implements Task {
     this.fs = fs;
     Path taskStateOutputDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME);
     this.taskStateStore = new FsStateStore<TaskState>(this.fs, taskStateOutputDir.toString(), TaskState.class);
+
+    Path jobStateFilePath = new Path(appWorkDir, this.jobId + "." + AbstractJobLauncher.JOB_STATE_FILE_NAME);
+    SerializationUtils.deserializeState(this.fs, jobStateFilePath, this.jobState);
   }
 
   @Override
@@ -144,8 +147,13 @@ public class GobblinHelixTask implements Task {
   }
 
   private gobblin.runtime.Task buildTask() throws IOException {
-    WorkUnitState workUnitState = new WorkUnitState(deserializeWorkUnit(
-        this.taskConfig.getConfigMap().get(GobblinYarnConfigurationKeys.WORK_UNIT_FILE_PATH)));
+    WorkUnit workUnit = WorkUnit.createEmpty();
+    Path workUnitFilePath =
+        new Path(this.taskConfig.getConfigMap().get(GobblinYarnConfigurationKeys.WORK_UNIT_FILE_PATH));
+    SerializationUtils.deserializeState(this.fs, workUnitFilePath, workUnit);
+    workUnit.addAllIfNotExist(this.jobState);
+
+    WorkUnitState workUnitState = new WorkUnitState(workUnit);
     workUnitState.setId(this.taskId);
     workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, this.jobId);
     workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, this.taskId);
@@ -153,24 +161,6 @@ public class GobblinHelixTask implements Task {
     // Create a new task from the work unit and submit the task to run
     return new gobblin.runtime.Task(new TaskContext(workUnitState), this.taskStateTracker,
         this.taskExecutor, Optional.<CountDownLatch>absent());
-  }
-
-  private WorkUnit deserializeWorkUnit(String workUnitFile) throws IOException {
-    WorkUnit workUnit = WorkUnit.createEmpty();
-
-    Closer closer = Closer.create();
-    try {
-      Path workUnitFilePath = new Path(workUnitFile);
-      InputStream is = closer.register(this.fs.open(workUnitFilePath));
-      DataInputStream dis = closer.register((new DataInputStream(is)));
-      workUnit.readFields(dis);
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
-    }
-
-    return workUnit;
   }
 
   private void persistTaskState(TaskState taskState) throws IOException {

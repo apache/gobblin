@@ -59,12 +59,12 @@ public class ParallelRunnerTest {
     try {
       ParallelRunner parallelRunner = closer.register(new ParallelRunner(2, this.fs));
 
-      WorkUnit workUnit1 = new WorkUnit();
+      WorkUnit workUnit1 = WorkUnit.createEmpty();
       workUnit1.setProp("foo", "bar");
       workUnit1.setProp("a", 10);
       parallelRunner.serializeToFile(workUnit1, new Path(this.outputPath, "wu1"));
 
-      WorkUnit workUnit2 = new WorkUnit();
+      WorkUnit workUnit2 = WorkUnit.createEmpty();
       workUnit2.setProp("foo", "baz");
       workUnit2.setProp("b", 20);
       parallelRunner.serializeToFile(workUnit2, new Path(this.outputPath, "wu2"));
@@ -78,8 +78,8 @@ public class ParallelRunnerTest {
 
   @Test(dependsOnMethods = "testSerializeToFile")
   public void testDeserializeFromFile() throws IOException {
-    WorkUnit workUnit1 = new WorkUnit();
-    WorkUnit workUnit2 = new WorkUnit();
+    WorkUnit workUnit1 = WorkUnit.createEmpty();
+    WorkUnit workUnit2 = WorkUnit.createEmpty();
 
     Closer closer = Closer.create();
     try {
