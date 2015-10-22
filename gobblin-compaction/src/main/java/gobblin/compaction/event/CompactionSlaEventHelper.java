@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 
+import gobblin.compaction.Dataset;
 import gobblin.compaction.mapreduce.MRCompactor;
 import gobblin.compaction.mapreduce.avro.AvroKeyDedupReducer;
 import gobblin.compaction.mapreduce.avro.AvroKeyMapper;
@@ -40,13 +41,13 @@ public class CompactionSlaEventHelper {
 
   private static final Logger LOG = LoggerFactory.getLogger(CompactionSlaEventHelper.class);
 
-  public static void populateState(State state, Optional<Job> job, FileSystem fs) {
-    setDatasetUrn(state);
-    setPartition(state);
-    setDedupeStatus(state);
-    setPreviousPublishTime(state, fs);
+  public static void populateState(Dataset dataset, Optional<Job> job, FileSystem fs) {
+    setDatasetUrn(dataset);
+    setPartition(dataset);
+    setOutputDedupeStatus(dataset.jobProps());
+    setPreviousPublishTime(dataset, fs);
     if (job.isPresent()) {
-      setRecordCount(state, job.get());
+      setRecordCount(dataset.jobProps(), job.get());
     }
   }
 
@@ -54,32 +55,32 @@ public class CompactionSlaEventHelper {
     state.setProp(SlaEventKeys.UPSTREAM_TS_IN_MILLI_SECS_KEY, Long.toString(time));
   }
 
-  private static void setDatasetUrn(State state) {
-    state.setProp(SlaEventKeys.DATASET_URN_KEY,
-        new Path(state.getProp(MRCompactor.COMPACTION_DEST_DIR), state.getProp(MRCompactor.COMPACTION_TOPIC))
-            .toString());
+  private static void setDatasetUrn(Dataset dataset) {
+    dataset.jobProps().setProp(SlaEventKeys.DATASET_URN_KEY,
+        new Path(dataset.jobProps().getProp(MRCompactor.COMPACTION_DEST_DIR), dataset.topic()).toString());
   }
 
-  private static void setPartition(State state) {
-    state.setProp(SlaEventKeys.PARTITION_KEY, state.getProp(MRCompactor.COMPACTION_JOB_DEST_PARTITION));
+  private static void setPartition(Dataset dataset) {
+    dataset.jobProps().setProp(SlaEventKeys.PARTITION_KEY,
+        dataset.jobProps().getProp(MRCompactor.COMPACTION_JOB_DEST_PARTITION, ""));
   }
 
-  private static void setPreviousPublishTime(State state, FileSystem fs) {
+  private static void setPreviousPublishTime(Dataset dataset, FileSystem fs) {
 
-    Path compactionCompletePath =
-        new Path(state.getProp(MRCompactor.COMPACTION_JOB_DEST_DIR), MRCompactor.COMPACTION_COMPLETE_FILE_NAME);
+    Path compactionCompletePath = new Path(dataset.outputPath(), MRCompactor.COMPACTION_COMPLETE_FILE_NAME);
 
     try {
       FileStatus fileStatus = fs.getFileStatus(compactionCompletePath);
-      state.setProp(SlaEventKeys.PREVIOUS_PUBLISH_TS_IN_MILLI_SECS_KEY,
+      dataset.jobProps().setProp(SlaEventKeys.PREVIOUS_PUBLISH_TS_IN_MILLI_SECS_KEY,
           Long.toString(fileStatus.getModificationTime()));
     } catch (IOException e) {
       LOG.debug("Failed to get previous publish time.", e);
     }
   }
 
-  private static void setDedupeStatus(State state) {
-    if (state.getPropAsBoolean(MRCompactor.COMPACTION_DEDUPLICATE, MRCompactor.DEFAULT_COMPACTION_DEDUPLICATE)) {
+  private static void setOutputDedupeStatus(State state) {
+    if (state.getPropAsBoolean(MRCompactor.COMPACTION_OUTPUT_DEDUPLICATED,
+        MRCompactor.DEFAULT_COMPACTION_OUTPUT_DEDUPLICATED)) {
       state.setProp(SlaEventKeys.DEDUPE_STATUS_KEY, DedupeStatus.DEDUPED);
 
     } else {

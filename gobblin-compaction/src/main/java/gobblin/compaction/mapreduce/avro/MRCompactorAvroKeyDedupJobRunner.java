@@ -99,7 +99,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
   private void configureSchema(Job job) throws IOException {
     Schema newestSchema = getNewestSchemaFromSource(job);
     AvroJob.setInputKeySchema(job, newestSchema);
-    AvroJob.setMapOutputKeySchema(job, this.deduplicate ? getKeySchema(job, newestSchema) : newestSchema);
+    AvroJob.setMapOutputKeySchema(job, this.shouldDeduplicate ? getKeySchema(job, newestSchema) : newestSchema);
     AvroJob.setMapOutputValueSchema(job, newestSchema);
     AvroJob.setOutputKeySchema(job, newestSchema);
   }
@@ -238,20 +238,20 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
   }
 
   private DedupKeyOption getDedupKeyOption() {
-    if (!this.jobProps.contains(COMPACTION_JOB_DEDUP_KEY)) {
+    if (!this.dataset.jobProps().contains(COMPACTION_JOB_DEDUP_KEY)) {
       return DEFAULT_DEDUP_KEY_OPTION;
     }
-    Optional<DedupKeyOption> option =
-        Enums.getIfPresent(DedupKeyOption.class, this.jobProps.getProp(COMPACTION_JOB_DEDUP_KEY).toUpperCase());
+    Optional<DedupKeyOption> option = Enums.getIfPresent(DedupKeyOption.class,
+        this.dataset.jobProps().getProp(COMPACTION_JOB_DEDUP_KEY).toUpperCase());
     return option.isPresent() ? option.get() : DEFAULT_DEDUP_KEY_OPTION;
   }
 
   private boolean keySchemaFileSpecified() {
-    return this.jobProps.contains(COMPACTION_JOB_AVRO_KEY_SCHEMA_LOC);
+    return this.dataset.jobProps().contains(COMPACTION_JOB_AVRO_KEY_SCHEMA_LOC);
   }
 
   private Path getKeySchemaFile() {
-    return new Path(this.jobProps.getProp(COMPACTION_JOB_AVRO_KEY_SCHEMA_LOC));
+    return new Path(this.dataset.jobProps().getProp(COMPACTION_JOB_AVRO_KEY_SCHEMA_LOC));
   }
 
   @Override

@@ -14,21 +14,16 @@ package gobblin.writer;
 
 import java.io.IOException;
 import java.util.Map.Entry;
-import java.util.regex.Pattern;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Preconditions;
-import com.google.common.io.Files;
-
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.HadoopUtils;
-import gobblin.util.RecordCountProvider;
+import gobblin.util.recordcount.IngestionRecordCountProvider;
 
 
 /**
@@ -65,43 +60,14 @@ public class AvroHdfsTimePartitionedWithRecordCountsWriter extends AvroHdfsTimeP
 
       String filePathOld = entry.getValue().getOutputFilePath();
 
-      String filePathNew = new FilenameRecordCountProvider().constructFilePath(filePathOld, entry.getValue().recordsWritten());
+      String filePathNew =
+          new IngestionRecordCountProvider().constructFilePath(filePathOld, entry.getValue().recordsWritten());
 
       this.properties.appendToListProp(ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS, filePathNew);
 
       LOG.info("Renaming " + filePathOld + " to " + filePathNew);
-      HadoopUtils.renamePath(((AvroHdfsDataWriter) entry.getValue()).getFileSystem(), new Path(filePathOld), new Path(
-          filePathNew));
-    }
-  }
-
-  /**
-   * Implementation of {@link RecordCountProvider}, which provides record count from file path.
-   * The file path should follow the pattern: {Filename}.{RecordCount}.{Extension}.
-   * For example, given a file path: "/a/b/c/file.123.avro", the record count will be 123.
-   */
-  public static class FilenameRecordCountProvider implements RecordCountProvider {
-    private static final String SEPARATOR = ".";
-
-    /**
-     * Construct a new file path by appending record count to the filename of the given file path, separated by SEPARATOR.
-     * For example, given path: "/a/b/c/file.avro" and record count: 123,
-     * the new path returned will be: "/a/b/c/file.123.avro"
-     */
-    public String constructFilePath(String oldFilePath, long recordCounts) {
-      return new Path(new Path(oldFilePath).getParent(), Files.getNameWithoutExtension(oldFilePath).toString()
-          + SEPARATOR + recordCounts + SEPARATOR + Files.getFileExtension(oldFilePath)).toString();
-    }
-
-    /**
-     * The record count should be the last component before the filename extension.
-     */
-    @Override
-    public long getRecordCount(Path filepath) {
-      String[] components = filepath.getName().split(Pattern.quote(SEPARATOR));
-      Preconditions.checkArgument(components.length >= 2 && StringUtils.isNumeric(components[components.length - 2]),
-          String.format("Filename %s does not follow the pattern: FILENAME.RECORDCOUNT.EXTENSION", filepath));
-      return Long.parseLong(components[components.length - 2]);
+      HadoopUtils.renamePath(((AvroHdfsDataWriter) entry.getValue()).getFileSystem(), new Path(filePathOld),
+          new Path(filePathNew));
     }
   }
 }

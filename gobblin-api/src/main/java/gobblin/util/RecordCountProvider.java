@@ -12,11 +12,34 @@
 
 package gobblin.util;
 
+import org.apache.commons.lang.NotImplementedException;
 import org.apache.hadoop.fs.Path;
 
+
 /**
- * Get record count from a given {@link Path}.
+ * A class for obtaining record counts from data.
  */
-public interface RecordCountProvider {
-  public long getRecordCount(Path path);
+public abstract class RecordCountProvider {
+
+  /**
+   * Get record count from a given {@link Path}.
+   */
+  public abstract long getRecordCount(Path path);
+
+  /**
+   * Convert a {@link Path} from another {@link RecordCountProvider} so that it can be used
+   * in {@link #getRecordCount(Path)} of this {@link RecordCountProvider}.
+   */
+  public Path convertPath(Path path, RecordCountProvider src) {
+    if (this.getClass().equals(src.getClass())) {
+      return path;
+    } else {
+      throw getNotImplementedException(src);
+    }
+  }
+
+  protected NotImplementedException getNotImplementedException(RecordCountProvider src) {
+    return new NotImplementedException(String.format("converting from %s to %s is not implemented",
+        src.getClass().getName(), this.getClass().getName()));
+  }
 }

@@ -18,10 +18,10 @@ import static org.apache.avro.SchemaCompatibility.SchemaCompatibilityType.COMPAT
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
@@ -53,6 +53,7 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.google.common.primitives.Longs;
 
@@ -157,6 +158,10 @@ public class AvroUtils {
    * @throws IOException if conversion failed.
    */
   public static GenericRecord convertRecordSchema(GenericRecord record, Schema newSchema) throws IOException {
+    if (record.getSchema().equals(newSchema)) {
+      return record;
+    }
+
     if (checkReaderWriterCompatibility(newSchema, record.getSchema()).getType() != COMPATIBLE) {
       LOG.debug("Record schema not compatible with writer schema. Converting record schema to writer schema may fail.");
     }
@@ -338,11 +343,15 @@ public class AvroUtils {
    * MapReduce job.
    */
   public static Optional<Schema> removeUncomparableFields(Schema schema) {
+    return removeUncomparableFields(schema, Sets.<Schema> newHashSet());
+  }
+
+  private static Optional<Schema> removeUncomparableFields(Schema schema, Set<Schema> processed) {
     switch (schema.getType()) {
       case RECORD:
-        return removeUncomparableFieldsFromRecord(schema);
+        return removeUncomparableFieldsFromRecord(schema, processed);
       case UNION:
-        return removeUncomparableFieldsFromUnion(schema);
+        return removeUncomparableFieldsFromUnion(schema, processed);
       case MAP:
         return Optional.absent();
       case ARRAY:
@@ -354,28 +363,38 @@ public class AvroUtils {
     }
   }
 
-  private static Optional<Schema> removeUncomparableFieldsFromRecord(Schema record) {
+  private static Optional<Schema> removeUncomparableFieldsFromRecord(Schema record, Set<Schema> processed) {
     Preconditions.checkArgument(record.getType() == Schema.Type.RECORD);
+
+    if (processed.contains(record)) {
+      return Optional.absent();
+    }
+    processed.add(record);
 
     List<Field> fields = Lists.newArrayList();
     for (Field field : record.getFields()) {
-      Optional<Schema> newFieldSchema = removeUncomparableFields(field.schema());
+      Optional<Schema> newFieldSchema = removeUncomparableFields(field.schema(), processed);
       if (newFieldSchema.isPresent()) {
         fields.add(new Field(field.name(), newFieldSchema.get(), field.doc(), field.defaultValue()));
       }
     }
 
-    Schema newSchema = Schema.createRecord(record.getName(), record.getDoc(), record.getName(), false);
+    Schema newSchema = Schema.createRecord(record.getName(), record.getDoc(), record.getNamespace(), false);
     newSchema.setFields(fields);
     return Optional.of(newSchema);
   }
 
-  private static Optional<Schema> removeUncomparableFieldsFromUnion(Schema union) {
+  private static Optional<Schema> removeUncomparableFieldsFromUnion(Schema union, Set<Schema> processed) {
     Preconditions.checkArgument(union.getType() == Schema.Type.UNION);
+
+    if (processed.contains(union)) {
+      return Optional.absent();
+    }
+    processed.add(union);
 
     List<Schema> newUnion = Lists.newArrayList();
     for (Schema unionType : union.getTypes()) {
-      Optional<Schema> newType = removeUncomparableFields(unionType);
+      Optional<Schema> newType = removeUncomparableFields(unionType, processed);
       if (newType.isPresent()) {
         newUnion.add(newType.get());
       }
@@ -396,7 +415,7 @@ public class AvroUtils {
    * @return A {@link org.apache.avro.Schema} that is a copy of schema, but has the name newName.
    */
   public static Schema switchName(Schema schema, String newName) {
-    if(schema.getName().equals(newName)) {
+    if (schema.getName().equals(newName)) {
       return schema;
     }
 
@@ -404,7 +423,8 @@ public class AvroUtils {
 
     List<Field> fields = schema.getFields();
     Iterable<Field> fieldsNew = Iterables.transform(fields, new Function<Field, Field>() {
-      @Override public Schema.Field apply(Field input) {
+      @Override
+      public Schema.Field apply(Field input) {
         //this should never happen but the API has marked input as Nullable
         if (null == input) {
           return null;
