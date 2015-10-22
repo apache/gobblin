@@ -123,10 +123,10 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     this.kafkaWrapper = this.closer.register(KafkaWrapper.create(state));
 
     List<KafkaTopic> topics = getFilteredTopics(state);
-    Map<KafkaTopic, State> topicSpecificStateMap = getTopicSpecificState(topics, state);
+    Map<String, State> topicSpecificStateMap = getTopicSpecificState(topics, state);
     for (KafkaTopic topic : topics) {
       workUnits.put(topic.getName(),
-          getWorkUnitsForTopic(topic, state, Optional.fromNullable(topicSpecificStateMap.get(topic))));
+          getWorkUnitsForTopic(topic, state, Optional.fromNullable(topicSpecificStateMap.get(topic.getName()))));
     }
 
     // Create empty WorkUnits for skipped partitions (i.e., partitions that have previous offsets,
@@ -143,9 +143,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
    * configuration information specified in the state via the key {@link #KAFKA_TOPIC_SPECIFIC_STATE}.
    */
   @VisibleForTesting
-  Map<KafkaTopic, State> getTopicSpecificState(List<KafkaTopic> topics, SourceState state) {
+  Map<String, State> getTopicSpecificState(List<KafkaTopic> topics, SourceState state) {
     if (!Strings.isNullOrEmpty(state.getProp(KAFKA_TOPIC_SPECIFIC_STATE))) {
-      Map<KafkaTopic, State> topicSpecificConfigMap = Maps.newHashMap();
+      Map<String, State> topicSpecificConfigMap = Maps.newHashMap();
 
       // Iterate over the entire JsonArray specified by the config key
       for (JsonElement topicElement : state.getPropAsJsonArray(KAFKA_TOPIC_SPECIFIC_STATE)) {
@@ -158,19 +158,18 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         // Only process JsonObjects that have a topic name
         if (object.has(TOPIC_NAME)) {
           JsonElement topicNameElement = object.get(TOPIC_NAME);
-          Preconditions.checkArgument(topicNameElement.isJsonPrimitive(),
-              "The value for property " + KAFKA_TOPIC_SPECIFIC_STATE + " is malformed, the " + TOPIC_NAME
-                  + " field must be a string");
+          Preconditions.checkArgument(topicNameElement.isJsonPrimitive(), "The value for property "
+              + KAFKA_TOPIC_SPECIFIC_STATE + " is malformed, the " + TOPIC_NAME + " field must be a string");
 
           // Iterate through each topic that matches the value of the JsonObjects TOPIC_NAME field
-          for (KafkaTopic topic : Iterables
-              .filter(topics, new KafkaTopicNamePredicate(topicNameElement.getAsString()))) {
+          for (KafkaTopic topic : Iterables.filter(topics,
+              new KafkaTopicNamePredicate(topicNameElement.getAsString()))) {
 
             // If an entry already exists for a topic, add it to the current state, else create a new state
             if (topicSpecificConfigMap.containsKey(topic)) {
               topicSpecificConfigMap.get(topic).addAll(StateUtils.jsonObjectToState(object, TOPIC_NAME));
             } else {
-              topicSpecificConfigMap.put(topic, StateUtils.jsonObjectToState(object, TOPIC_NAME));
+              topicSpecificConfigMap.put(topic.getName(), StateUtils.jsonObjectToState(object, TOPIC_NAME));
             }
           }
         } else {
@@ -184,7 +183,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   }
 
   private void createEmptyWorkUnitsForSkippedPartitions(Map<String, List<WorkUnit>> workUnits,
-      Map<KafkaTopic, State> topicSpecificStateMap) {
+      Map<String, State> topicSpecificStateMap) {
 
     // For each partition that has a previous offset, create an empty WorkUnit for it if
     // it is not in this.partitionsToBeProcessed.
@@ -268,9 +267,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
       // When unable to get earliest/latest offsets from Kafka, skip the partition and create an empty workunit,
       // so that previousOffset is persisted.
-      LOG.warn(String
-          .format("Failed to retrieve earliest and/or latest offset for partition %s. This partition will be skipped.",
-              partition));
+      LOG.warn(String.format(
+          "Failed to retrieve earliest and/or latest offset for partition %s. This partition will be skipped.",
+          partition));
       return previousOffsetNotFound ? null : createEmptyWorkUnit(partition, previousOffset, topicSpecificState);
     }
 
@@ -312,14 +311,14 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
             partition, offsets.getStartOffset(), offsets.getEarliestOffset(), offsets.getLatestOffset());
         String offsetOption =
             state.getProp(RESET_ON_OFFSET_OUT_OF_RANGE, DEFAULT_RESET_ON_OFFSET_OUT_OF_RANGE).toLowerCase();
-        if (offsetOption.equals(LATEST_OFFSET) || (offsetOption.equals(NEAREST_OFFSET)
-            && offsets.getStartOffset() >= offsets.getLatestOffset())) {
+        if (offsetOption.equals(LATEST_OFFSET)
+            || (offsetOption.equals(NEAREST_OFFSET) && offsets.getStartOffset() >= offsets.getLatestOffset())) {
           LOG.warn(
               offsetOutOfRangeMsg + "This partition will start from the latest offset: " + offsets.getLatestOffset());
           offsets.startAtLatestOffset();
         } else if (offsetOption.equals(EARLIEST_OFFSET) || offsetOption.equals(NEAREST_OFFSET)) {
-          LOG.warn(offsetOutOfRangeMsg + "This partition will start from the earliest offset: " + offsets
-              .getEarliestOffset());
+          LOG.warn(offsetOutOfRangeMsg + "This partition will start from the earliest offset: "
+              + offsets.getEarliestOffset());
           offsets.startAtEarliestOffset();
         } else {
           LOG.warn(offsetOutOfRangeMsg + "This partition will be skipped.");
@@ -339,8 +338,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     if (this.previousOffsets.containsKey(partition)) {
       return this.previousOffsets.get(partition);
     }
-    throw new PreviousOffsetNotFoundException(String
-        .format("Previous offset for topic %s, partition %s not found.", partition.getTopicName(), partition.getId()));
+    throw new PreviousOffsetNotFoundException(String.format("Previous offset for topic %s, partition %s not found.",
+        partition.getTopicName(), partition.getId()));
   }
 
   private void getAllPreviousOffsets(SourceState state) {
@@ -348,9 +347,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     for (WorkUnitState workUnitState : state.getPreviousWorkUnitStates()) {
       List<KafkaPartition> partitions = KafkaUtils.getPartitions(workUnitState);
       MultiLongWatermark watermark = getWatermark(workUnitState);
-      Preconditions.checkArgument(partitions.size() == watermark.size(), String
-          .format("Num of partitions doesn't match number of watermarks: partitions=%s, watermarks=%s", partitions,
-              watermark));
+      Preconditions.checkArgument(partitions.size() == watermark.size(), String.format(
+          "Num of partitions doesn't match number of watermarks: partitions=%s, watermarks=%s", partitions, watermark));
       for (int i = 0; i < partitions.size(); i++) {
         if (watermark.get(i) != ConfigurationKeys.DEFAULT_WATERMARK_VALUE) {
           this.previousOffsets.put(partitions.get(i), watermark.get(i));
@@ -456,11 +454,10 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     @Setter
     private long latestOffset = 0;
 
-    private void startAt(long offset)
-        throws StartOffsetOutOfRangeException {
+    private void startAt(long offset) throws StartOffsetOutOfRangeException {
       if (offset < this.earliestOffset || offset > this.latestOffset + 1) {
-        throw new StartOffsetOutOfRangeException(String
-            .format("start offset = %d, earliest offset = %d, latest offset = %d", offset, this.earliestOffset,
+        throw new StartOffsetOutOfRangeException(
+            String.format("start offset = %d, earliest offset = %d, latest offset = %d", offset, this.earliestOffset,
                 this.latestOffset));
       }
       this.startOffset = offset;
