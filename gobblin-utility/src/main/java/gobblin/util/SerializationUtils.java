@@ -47,6 +47,7 @@ public class SerializationUtils {
    *
    * @param obj A {@link Serializable} object
    * @return A String representing the input object
+   * @throws IOException if it fails to serialize the object
    */
   public static <T extends Serializable> String serialize(T obj) throws IOException {
     return serialize(obj, DEFAULT_ENCODING);
@@ -59,7 +60,7 @@ public class SerializationUtils {
    * @param obj A {@link Serializable} object
    * @param enc The {@link BaseEncoding} used to encode a byte array.
    * @return A String representing the input object
-   * @throws IOException
+   * @throws IOException if it fails to serialize the object
    */
   public static <T extends Serializable> String serialize(T obj, BaseEncoding enc) throws IOException {
     Closer closer = Closer.create();
@@ -83,6 +84,7 @@ public class SerializationUtils {
    * @param serialized The serialized String
    * @param clazz The class the deserialized object should be cast to.
    * @return The deserialized object
+   * @throws IOException if it fails to deserialize the object
    */
   public static <T extends Serializable> T deserialize(String serialized, Class<T> clazz) throws IOException {
     return deserialize(serialized, clazz, DEFAULT_ENCODING);
@@ -90,13 +92,13 @@ public class SerializationUtils {
 
   /**
    * Deserialize a String obtained via {@link #serialize(Serializable)} into an object, using the
-   * given {@BaseEncoding}, which must be the same {@BaseEncoding} used to serialize the object.
+   * given {@link BaseEncoding}, which must be the same {@link BaseEncoding} used to serialize the object.
    *
    * @param serialized The serialized String
    * @param clazz The class the deserialized object should be cast to.
    * @param enc The {@link BaseEncoding} used to decode the String.
    * @return The deserialized object
-   * @throws IOException
+   * @throws IOException if it fails to deserialize the object
    */
   public static <T extends Serializable> T deserialize(String serialized, Class<T> clazz, BaseEncoding enc)
       throws IOException {
