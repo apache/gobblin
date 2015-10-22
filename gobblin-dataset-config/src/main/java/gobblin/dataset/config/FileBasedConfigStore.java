@@ -59,7 +59,11 @@ public class FileBasedConfigStore implements ConfigStore {
   @Override
   public synchronized void loadConfigs(String version) {
     //System.out.println("Abs path is " + (this.configLocation + "/" + version + "/" + CONF_FILE));
-    Config config = ConfigFactory.parseFile(new File(this.configLocation + "/" + version + "/" + CONF_FILE)).resolve();
+    File configToLoad = new File(this.configLocation + "/" + version + "/" + CONF_FILE);
+    if(!configToLoad.isFile() || !configToLoad.canRead()){
+      throw new IllegalArgumentException("File does not exists : " + configToLoad.getAbsolutePath());
+    }
+    Config config = ConfigFactory.parseFile(configToLoad).resolve();
     rawConfigs = new RawConfigMapping(config);
     this.loadedConfigVersion = version;
     initialized = true;

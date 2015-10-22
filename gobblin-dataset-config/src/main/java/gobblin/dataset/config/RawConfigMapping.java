@@ -140,7 +140,7 @@ public class RawConfigMapping {
     
     for(String s: self){
       if(previousTags.contains(s)) {
-        throw new RuntimeException("Circular dependence for tag " + s);
+        throw new TagCircularDependencyException("Circular dependence for tag " + s);
       }
       
       res.add(s);
