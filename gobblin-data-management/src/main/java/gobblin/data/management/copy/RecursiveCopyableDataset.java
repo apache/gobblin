@@ -12,17 +12,13 @@
 
 package gobblin.data.management.copy;
 
-import gobblin.data.management.partition.Partition;
 import gobblin.data.management.util.PathUtils;
 import gobblin.util.FileListUtils;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
-
-import lombok.ToString;
 
 import org.apache.hadoop.fs.FileChecksum;
 import org.apache.hadoop.fs.FileStatus;
@@ -42,8 +38,7 @@ import com.google.common.collect.Lists;
  * Implementation of {@link CopyableDataset} that creates a {@link CopyableFile} for every file that is a descendant
  * if the root directory.
  */
-@ToString
-public class RecursiveCopyableDataset implements CopyableDataset {
+public class RecursiveCopyableDataset extends  SinglePartitionCopyableDataset {
 
   public static final String TARGET_DIRECTORY = "gobblin.copyable.dataset.target.directory";
 
@@ -85,10 +80,6 @@ public class RecursiveCopyableDataset implements CopyableDataset {
     List<CopyableFile> copyableFiles = Lists.newArrayList();
 
     for(FileStatus file : files) {
-      Path outputPath = new Path(this.targetDirectory, PathUtils.relativizePath(
-          PathUtils.getPathWithoutSchemeAndAuthority(file.getPath()),
-          PathUtils.getPathWithoutSchemeAndAuthority(datasetRoot()))
-      );
 
       OwnerAndPermission ownerAndPermission =
           new OwnerAndPermission(file.getOwner(), file.getGroup(), file.getPermission());
@@ -113,22 +104,5 @@ public class RecursiveCopyableDataset implements CopyableDataset {
 
   @Override public Path datasetRoot() {
     return this.rootPath;
-  }
-
-  @SuppressWarnings("unchecked")
-  @Override
-  public Collection<Partition<CopyableFile>> partitionFiles(Collection<? extends CopyableFile> files) {
-
-    List<CopyableFile> copyableFiles = Lists.newArrayListWithCapacity(files.size());
-    for (CopyableFile file : files) {
-      copyableFiles.add(file);
-    }
-    return Lists.newArrayList(new Partition.Builder<CopyableFile>(datasetRoot().toString()).add(copyableFiles).build());
-
-  }
-
-  @Override
-  public Class<?> fileClass() {
-    return CopyableFile.class;
   }
 }

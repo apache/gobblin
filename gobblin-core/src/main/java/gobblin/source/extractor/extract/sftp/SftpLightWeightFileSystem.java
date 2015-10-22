@@ -1,7 +1,18 @@
-package gobblin.data.management.filesystem.lightweight;
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
+package gobblin.source.extractor.extract.sftp;
 
 import gobblin.configuration.State;
-import gobblin.source.extractor.extract.sftp.SftpFsHelper;
 import gobblin.source.extractor.filebased.FileBasedHelperException;
 import gobblin.util.HadoopUtils;
 
@@ -27,7 +38,10 @@ import com.google.common.collect.Lists;
 import com.jcraft.jsch.SftpATTRS;
 import com.jcraft.jsch.SftpException;
 
-
+/**
+ * A {@link FileSystem} implementation that provides the {@link FileSystem} interface for an SFTP server.
+ * Uses {@link SftpFsHelper} internally to connect to the SFPT server.
+ */
 public class SftpLightWeightFileSystem extends FileSystem {
 
   private static final URI NAME = URI.create("sftp:///");

@@ -60,7 +60,7 @@ public class HadoopUtils {
     }
 
     // Add a new custom filesystem mapping
-    conf.set("fs.sftp.impl", "gobblin.data.management.filesystem.lightweight.SftpLightWeightFileSystem");
+    conf.set("fs.sftp.impl", "gobblin.source.extractor.extract.sftp.SftpLightWeightFileSystem");
     return conf;
   }
 

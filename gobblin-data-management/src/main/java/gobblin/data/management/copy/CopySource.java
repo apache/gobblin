@@ -16,12 +16,12 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.data.management.copy.extractor.InputStreamExtractor;
 import gobblin.data.management.dataset.Dataset;
 import gobblin.data.management.partition.Partition;
 import gobblin.data.management.retention.dataset.finder.DatasetFinder;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.AbstractSource;
-import gobblin.source.extractor.hadoop.InputStreamExtractor;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.ForkOperatorUtils;
@@ -46,22 +46,14 @@ import com.google.common.collect.Lists;
 public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
   /**
-   * Parses a {@link gobblin.data.management.copy.CopyableFile} from a work unit containing a serialized
-   * {@link gobblin.data.management.copy.CopyableFile}.
-   * @param state work unit state.
-   * @return Deserialized {@link gobblin.data.management.copy.CopyableFile}.
-   * @throws IOException
-   */
-  public static CopyableFile getCopyableFile(WorkUnitState state) throws IOException {
-    return CopyableFile.deserializeCopyableFile(state.getProperties());
-  }
-
-  /**
+   * <ul>
    * Does the following:
-   *  1. Instantiate a {@link DatasetFinder}.
-   *  2. Find all {@link Dataset} using {@link DatasetFinder}.
-   *  3. For each {@link CopyableDataset} get all {@link CopyableFile}s.
-   *  4. Create a {@link WorkUnit} per {@link CopyableFile}.
+   * <li>Instantiate a {@link DatasetFinder}.
+   * <li>Find all {@link Dataset} using {@link DatasetFinder}.
+   * <li>For each {@link CopyableDataset} get all {@link CopyableFile}s.
+   * <li>Create a {@link WorkUnit} per {@link CopyableFile}.
+   * </ul>
+   *
    * @param state see {@link gobblin.configuration.SourceState}
    * @return Work units for copying files.
    */
@@ -103,7 +95,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   }
 
   /**
-   * @param state a {@link gobblin.configuration.WorkUnitState} carrying properties needed by the returned {@link Extractor}
+   * @param state a {@link gobblin.configuration.WorkUnitState} carrying properties needed by the returned
+   *          {@link Extractor}
    * @return a {@link InputStreamExtractor}.
    * @throws IOException
    */

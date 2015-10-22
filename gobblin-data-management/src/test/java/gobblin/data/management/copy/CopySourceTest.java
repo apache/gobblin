@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.source.extractor.hadoop;
+package gobblin.data.management.copy;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
@@ -18,11 +18,6 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.OwnerAndPermission;
-import gobblin.data.management.dataset.DatasetUtils;
-import gobblin.source.extractor.hadoop.test.TestCopyableDataset;
-import gobblin.source.extractor.hadoop.test.TestCopyableDatasetFinder;
-import gobblin.source.extractor.hadoop.test.TestCopyablePartitionableDatasedFinder;
-import gobblin.source.extractor.hadoop.test.TestCopyablePartitionableDataset;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.ForkOperatorUtils;
@@ -40,13 +35,14 @@ import com.beust.jcommander.internal.Lists;
 
 public class CopySourceTest {
 
-  @Test public void testCopySource() throws Exception {
+  @Test
+  public void testCopySource() throws Exception {
 
     SourceState state = new SourceState();
 
     state.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, "file:///");
     state.setProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, "file:///");
-    state.setProp(DatasetUtils.DATASET_PROFILE_CLASS_KEY, TestCopyableDatasetFinder.class.getCanonicalName());
+    //state.setProp(DatasetUtils.DATASET_PROFILE_CLASS_KEY, TestCopyableDatasetFinder.class.getCanonicalName());
 
     CopySource source = new CopySource();
 
@@ -56,26 +52,29 @@ public class CopySourceTest {
 
     Extract extract = workunits.get(0).getExtract();
 
-    for(WorkUnit workUnit : workunits) {
+    for (WorkUnit workUnit : workunits) {
       WorkUnitState workUnitState = new WorkUnitState(workUnit);
-      Assert.assertTrue(CopySource.getOriginPath(workUnitState).toString().startsWith(TestCopyableDataset.ORIGIN_PREFIX));
+
+      Assert.assertTrue(CopyableFile.deserializeCopyableFile(workUnit.getProperties()).getOrigin().getPath().toString()
+          .startsWith(TestCopyableDataset.ORIGIN_PREFIX));
       Assert.assertTrue(workUnitState.getProp(
-          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, 0, 0)).
-          startsWith(TestCopyableDataset.DESTINATION_PREFIX));
-      Assert.assertEquals(CopySource.getCopyableFile(workUnitState).getDestinationOwnerAndPermission(),
+          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, 0, 0)).startsWith(
+          TestCopyableDataset.DESTINATION_PREFIX));
+      Assert.assertEquals(CopyableFile.deserializeCopyableFile(workUnitState.getProperties()).getDestinationOwnerAndPermission(),
           TestCopyableDataset.OWNER_AND_PERMISSION);
       Assert.assertEquals(workUnit.getExtract(), extract);
     }
 
   }
 
-  @Test public void testPartitionableDataset() throws Exception {
+  @Test
+  public void testPartitionableDataset() throws Exception {
 
     SourceState state = new SourceState();
 
     state.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, "file:///");
     state.setProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, "file:///");
-    state.setProp(DatasetUtils.DATASET_PROFILE_CLASS_KEY, TestCopyablePartitionableDatasedFinder.class.getCanonicalName());
+    //state.setProp(DatasetUtils.DATASET_PROFILE_CLASS_KEY, TestCopyablePartitionableDatasedFinder.class.getCanonicalName());
 
     CopySource source = new CopySource();
 
@@ -86,24 +85,25 @@ public class CopySourceTest {
     Extract extractAbove = null;
     Extract extractBelow = null;
 
-    for(WorkUnit workUnit : workunits) {
+    for (WorkUnit workUnit : workunits) {
       WorkUnitState workUnitState = new WorkUnitState(workUnit);
-      Assert.assertTrue(CopySource.getOriginPath(workUnitState).toString().startsWith(TestCopyableDataset.ORIGIN_PREFIX));
+      Assert.assertTrue(CopyableFile.deserializeCopyableFile(workUnit.getProperties()).getOrigin().getPath().toString()
+          .startsWith(TestCopyableDataset.ORIGIN_PREFIX));
       Assert.assertTrue(workUnitState.getProp(
-          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, 0, 0)).
-          startsWith(TestCopyableDataset.DESTINATION_PREFIX));
-      Assert.assertEquals(CopySource.getCopyableFile(workUnitState).getDestinationOwnerAndPermission(),
+          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, 0, 0)).startsWith(
+          TestCopyableDataset.DESTINATION_PREFIX));
+      Assert.assertEquals(CopyableFile.deserializeCopyableFile(workUnitState.getProperties()).getDestinationOwnerAndPermission(),
           TestCopyableDataset.OWNER_AND_PERMISSION);
-      if(Integer.parseInt(CopySource.getOriginPath(workUnitState).getName()) <
-          TestCopyablePartitionableDataset.THRESHOLD) {
+      if (Integer.parseInt(CopyableFile.deserializeCopyableFile(workUnit.getProperties()).getOrigin().getPath()
+          .getName()) < TestCopyablePartitionableDataset.THRESHOLD) {
         // should be in extractBelow
-        if(extractBelow == null) {
+        if (extractBelow == null) {
           extractBelow = workUnit.getExtract();
         }
         Assert.assertEquals(workUnit.getExtract(), extractBelow);
       } else {
         // should be in extractAbove
-        if(extractAbove == null) {
+        if (extractAbove == null) {
           extractAbove = workUnit.getExtract();
         }
         Assert.assertEquals(workUnit.getExtract(), extractAbove);
@@ -116,18 +116,19 @@ public class CopySourceTest {
 
   }
 
-  @Test public void testCopyableFileSerialization() throws Exception {
+  @Test
+  public void testCopyableFileSerialization() throws Exception {
 
     WorkUnitState state = new WorkUnitState();
     FileStatus origin = new FileStatus(10, false, 1, 56, 0, new Path("/some/path"));
-    CopyableFile copyableFile = new CopyableFile(origin, new Path("/destination/path"),
-        new OwnerAndPermission("owner", "group", FsPermission.getDefault()),
-        Lists.newArrayList(new OwnerAndPermission("owner2", "group2", FsPermission.getDefault())),
-        "checksum".getBytes());
+    CopyableFile copyableFile =
+        new CopyableFile(origin, new Path("/destination/path"), new OwnerAndPermission("owner", "group",
+            FsPermission.getDefault()), Lists.newArrayList(new OwnerAndPermission("owner2", "group2", FsPermission
+            .getDefault())), "checksum".getBytes());
 
-    state.setProp(CopySource.SERIALIZED_COPYABLE_FILE, CopySource.serializeCopyableFile(copyableFile));
+    state.setProp(CopyableFile.SERIALIZED_COPYABLE_FILE, CopyableFile.serializeCopyableFile(copyableFile));
 
-    CopyableFile output = CopySource.getCopyableFile(state);
+    CopyableFile output = CopyableFile.deserializeCopyableFile(state.getProperties());
 
     Assert.assertEquals(copyableFile, output);
 

@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.source.extractor.hadoop.test;
+package gobblin.data.management.copy;
 
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.partition.Partition;

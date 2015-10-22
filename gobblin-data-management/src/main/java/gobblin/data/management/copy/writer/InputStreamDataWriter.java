@@ -1,4 +1,4 @@
-package gobblin.writer;
+package gobblin.data.management.copy.writer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -7,6 +7,7 @@ import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.WriterUtils;
+import gobblin.writer.DataWriter;
 
 import java.io.IOException;
 import java.net.URI;

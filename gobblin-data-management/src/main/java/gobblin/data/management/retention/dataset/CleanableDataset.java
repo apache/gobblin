@@ -16,8 +16,6 @@ import gobblin.data.management.dataset.Dataset;
 
 import java.io.IOException;
 
-import org.apache.hadoop.fs.Path;
-
 
 /**
  * An abstraction for a set of files where a simple {@link gobblin.data.management.retention.policy.RetentionPolicy}

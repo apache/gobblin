@@ -10,11 +10,12 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.source.extractor.hadoop.test;
+package gobblin.data.management.copy;
 
 import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.OwnerAndPermission;
+import gobblin.data.management.copy.SinglePartitionCopyableDataset;
 
 import java.io.IOException;
 import java.util.List;
@@ -30,7 +31,7 @@ import com.google.common.collect.Lists;
 /**
  * Implementation of {@link CopyableDataset} for testing.
  */
-public class TestCopyableDataset implements CopyableDataset {
+public class TestCopyableDataset extends SinglePartitionCopyableDataset {
 
   public static final int FILE_COUNT = 10;
   public static final String ORIGIN_PREFIX = "/test";

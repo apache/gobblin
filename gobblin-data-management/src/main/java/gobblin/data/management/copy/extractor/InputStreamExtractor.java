@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.source.extractor.hadoop;
+package gobblin.data.management.copy.extractor;
 
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.FileAwareInputStream;
@@ -18,22 +18,30 @@ import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Iterator;
 
 import org.apache.hadoop.fs.FileSystem;
 
-import com.google.common.io.Closer;
 
-
+/**
+ * An implementation of {@link Extractor} that extracts {@link InputStream}s. This extractor is suitable for copy jobs
+ * where files from any source to a sink. The extractor extracts a {@link FileAwareInputStream} which encompasses an
+ * {@link InputStream} and a {@link CopyableFile} for every file that needs to be copied.
+ *
+ * <p>
+ * In Gobblin {@link Extractor} terms, each {@link FileAwareInputStream} is a record. i.e one record per copyable file.
+ * The extractor is capable of extracting multiple files
+ * <p>
+ */
 public class InputStreamExtractor implements Extractor<String, FileAwareInputStream> {
 
   private final FileSystem fs;
   private Iterator<CopyableFile> fileIterator;
-  private Closer closer;
 
   public InputStreamExtractor(FileSystem fs, Iterator<CopyableFile> fileIterator) throws IOException {
-    this.closer = Closer.create();
-    this.fs = closer.register(fs);
+
+    this.fs = fs;
     this.fileIterator = fileIterator;
   }
 
@@ -70,6 +78,5 @@ public class InputStreamExtractor implements Extractor<String, FileAwareInputStr
 
   @Override
   public void close() throws IOException {
-    //closer.close();
   }
 }
