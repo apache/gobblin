@@ -122,7 +122,7 @@ public class ReporterExampleBase {
     this.executor.execute(task);
   }
 
-  private class Task implements Runnable {
+  private static class Task implements Runnable {
 
     private final MetricContext context;
     private final int taskIndex;
