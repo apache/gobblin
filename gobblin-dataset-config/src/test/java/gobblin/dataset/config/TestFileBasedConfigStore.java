@@ -26,9 +26,9 @@ public class TestFileBasedConfigStore {
     String urn = "config-ds.a1.a2.a3";
     Config c = cs.getConfig(urn);
     
-    for(Map.Entry<String, ConfigValue> entry: c.entrySet()){
-      System.out.println("app key: " +entry.getKey() + " ,value:" + entry.getValue());
-    }
+//    for(Map.Entry<String, ConfigValue> entry: c.entrySet()){
+//      System.out.println("app key: " +entry.getKey() + " ,value:" + entry.getValue());
+//    }
 
     Assert.assertTrue(c.getString("testsubs").equals("foobar20"));
     Assert.assertTrue(c.getBoolean("deleteTarget"));
@@ -39,8 +39,18 @@ public class TestFileBasedConfigStore {
     
     //List<String> tags = cs.getAssociatedTags("config-tag.tag1.tag2");
     List<String> tags = cs.getAssociatedTags(urn);
-    for(String s: tags){
-      System.out.println("tags is " +s );
+//    for(String s: tags){
+//      System.out.println("AAA " + s);
+//    }
+    Assert.assertTrue(tags.size()==3);
+    Assert.assertTrue(tags.get(0).equals("config-tag.tag1.tag2.tag3"));
+    Assert.assertTrue(tags.get(1).equals("config-tag.l1.l2.l3"));
+    Assert.assertTrue(tags.get(2).equals("config-tag.t1.t2.t3"));
+    
+    String inputTag = "config-tag.l1.l2.l3";
+    Map<String, Config> urnConfigMap = cs.getTaggedConfig(inputTag);
+    for(String s:urnConfigMap.keySet()){
+      System.out.println("AAA urn is " + s);
     }
   }
 }

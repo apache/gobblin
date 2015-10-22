@@ -94,8 +94,7 @@ public class FileBasedConfigStore implements ConfigStore {
 
   @Override
   public Map<String, Config> getTaggedConfig(String urn, String version) {
-    // TODO Auto-generated method stub
-    return null;
+    return this.rawConfigs.getTaggedConfig(urn);
   }
 
   @Override
