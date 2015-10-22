@@ -3,12 +3,14 @@ job.group=Test
 job.description=Test Gobblin job 1
 job.schedule=0 0/2 * * * ?
 
+source.class=gobblin.test.TestSource
+converter.classes=gobblin.test.TestConverter
 
 extract.namespace=gobblin.test1
 
-#writer.destination.type=HDFS
+writer.destination.type=HDFS
+writer.output.format=AVRO
 writer.fs.uri=file://localhost/
-source.filebased.fs.uri=sftp:///
 
 source.files=gobblin-test/resource/source/test.avro.0,gobblin-test/resource/source/test.avro.1
 
@@ -19,22 +21,4 @@ qualitychecker.row.policies=gobblin.policies.schema.SchemaRowCheckPolicy
 qualitychecker.row.policy.types=OPTIONAL
 qualitychecker.row.err.file=gobblin-test/jobOutput
 
-data.publisher.type=gobblin.publisher.CopyDataPublisher
-
-source.class=gobblin.data.management.copy.CopySource
-
-writer.builder.class=gobblin.writer.InputStreamDataWriterBuilder
-
-gobblin.retention.dataset.pattern=/export/content/sftp/lyndasftp/backup/
-gobblin.copyable.dataset.target.directory=/tmp/gobblin2
-
-converter.classes=gobblin.converter.DecryptConverter,gobblin.converter.UnArchiveConverter
-
-task.maxretries=0
-workunit.retry.enabled-false
-
-source.conn.private.key=/Users/pcadabam/etl/Lynda/id_rsa_lynda
-source.conn.known.hosts=/Users/pcadabam/.ssh/known_hosts
-source.conn.username=lyndasftp
-source.conn.host=dropbox01.corp.linkedin.com
-source.conn.port=2222
+data.publisher.type=gobblin.publisher.BaseDataPublisher

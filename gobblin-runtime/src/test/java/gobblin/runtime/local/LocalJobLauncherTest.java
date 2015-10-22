@@ -56,14 +56,13 @@ public class LocalJobLauncherTest {
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY,
         "jdbc:derby:memory:gobblin1;create=true");
 
-    /*
     StateStore<JobState.DatasetState> datasetStateStore = new FsStateStore<JobState.DatasetState>(
         this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
         this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
         JobState.DatasetState.class);
-*/
-    this.jobLauncherTestHelper = new JobLauncherTestHelper(this.launcherProps, null);
-    //this.jobLauncherTestHelper.prepareJobHistoryStoreDatabase(this.launcherProps);
+
+    this.jobLauncherTestHelper = new JobLauncherTestHelper(this.launcherProps, datasetStateStore);
+    this.jobLauncherTestHelper.prepareJobHistoryStoreDatabase(this.launcherProps);
   }
 
   @Test
@@ -74,11 +73,11 @@ public class LocalJobLauncherTest {
     try {
       this.jobLauncherTestHelper.runTest(jobProps);
     } finally {
-      //this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+      this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
     }
   }
 
-  @Test(enabled=false)
+  @Test
   public void testLaunchJobWithPullLimit() throws Exception {
     Properties jobProps = loadJobProps();
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) +
@@ -93,7 +92,7 @@ public class LocalJobLauncherTest {
     }
   }
 
-  @Test(enabled=false)
+  @Test
   public void testLaunchJobWithMultiWorkUnit() throws Exception {
     Properties jobProps = loadJobProps();
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) +
@@ -106,12 +105,12 @@ public class LocalJobLauncherTest {
     }
   }
 
-  @Test(enabled=false)
+  @Test(groups = { "ignore" })
   public void testCancelJob() throws Exception {
     this.jobLauncherTestHelper.runTestWithCancellation(loadJobProps());
   }
 
-  @Test(enabled=false)
+  @Test
   public void testLaunchJobWithFork() throws Exception {
     Properties jobProps = loadJobProps();
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) +
@@ -153,7 +152,7 @@ public class LocalJobLauncherTest {
     }
   }
 
-  @Test(enabled=false)
+  @Test
   public void testLaunchJobWithMultipleDatasets() throws Exception {
     Properties jobProps = loadJobProps();
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
@@ -165,7 +164,7 @@ public class LocalJobLauncherTest {
     }
   }
 
-  @Test(enabled=false)
+  @Test
   public void testLaunchJobWithMultipleDatasetsAndFaultyExtractor() throws Exception {
     Properties jobProps = loadJobProps();
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
@@ -177,7 +176,7 @@ public class LocalJobLauncherTest {
     }
   }
 
-  @Test(enabled=false)
+  @Test
   public void testLaunchJobWithMultipleDatasetsAndFaultyExtractorAndPartialCommitPolicy() throws Exception {
     Properties jobProps = loadJobProps();
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) +
