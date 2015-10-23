@@ -84,6 +84,18 @@ public class RawConfigMapping {
 
     return getAdjustedUrn(DatasetUtils.getParentId(urn));
   }
+  
+  private List<String> getUrnTillAdjustedUrn(String urn, String adjusted){
+    List<String> res = new ArrayList<String>();
+    res.add(urn);
+    
+    String parentId = DatasetUtils.getParentId(urn);
+    while(!parentId.equals(adjusted)){
+      res.add(parentId);
+      parentId = DatasetUtils.getParentId(parentId);
+    }
+    return res;
+  }
 
   // get own properties, not resolved yet
   public Map<String, Object> getRawProperty(String urn) {
@@ -118,11 +130,11 @@ public class RawConfigMapping {
     }
     
     // tag refer to self
-    for(String s:res){
-      if(s.equals(urn)){
-        throw new RuntimeException("Tag associated with self " + s);
-      }
-    }
+//    for(String s:res){
+//      if(s.equals(urn)){
+//        throw new RuntimeException("Tag associated with self " + s);
+//      }
+//    }
 
     return res;
   }
@@ -138,7 +150,11 @@ public class RawConfigMapping {
     List<String> self = getRawTags(urn);
     List<String> res = new ArrayList<String>();
     
+
     for(String s: self){
+      System.out.println("self tag is " + s);
+      
+      
       if(previousTags.contains(s)) {
         throw new TagCircularDependencyException("Circular dependence for tag " + s);
       }
@@ -150,8 +166,22 @@ public class RawConfigMapping {
       res.addAll(getAssociatedTagsWithCheck(s, combined));
     }
     
-    List<String> ancestorTags = getAssociatedTags(DatasetUtils.getParentId(getAdjustedUrn(urn)));
-    res.addAll(ancestorTags);
+    System.out.println("AAA " + DatasetUtils.getParentId(getAdjustedUrn(urn)));
+    System.out.println("AAA urn " + urn);
+    for(String p: previousTags){
+      System.out.println("previous tag is " + p + " size is " +previousTags.size());
+    }
+    String parentId = DatasetUtils.getParentId(getAdjustedUrn(urn));
+    if(!parentId.equals(DatasetUtils.ROOT)){
+      //List<String> ancestorTags = getAssociatedTags(DatasetUtils.getParentId(getAdjustedUrn(urn)));
+//      Set<String> selfChain = new HashSet<String>();
+//      selfChain.add(urn);
+      Set<String> selfChain = new HashSet<String>(getUrnTillAdjustedUrn(urn, parentId));
+      List<String> ancestorTags = getAssociatedTagsWithCheck(DatasetUtils.getParentId(getAdjustedUrn(urn)), selfChain);
+      res.addAll(ancestorTags);
+      
+      
+    }
     
     return dedup(res);
   }

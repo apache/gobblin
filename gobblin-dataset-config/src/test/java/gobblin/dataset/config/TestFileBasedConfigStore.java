@@ -23,13 +23,13 @@ public class TestFileBasedConfigStore {
 
   @Test public void testValid() throws Exception {
 
-    // testing dataset related functions
+    // testing data set related functions
     String urn = "config-ds.a1.a2.a3";
     Config c = cs.getConfig(urn);
 
-//        for(Map.Entry<String, ConfigValue> entry: c.entrySet()){
-//          System.out.println("app key: " +entry.getKey() + " ,value:" + entry.getValue());
-//        }
+    //        for(Map.Entry<String, ConfigValue> entry: c.entrySet()){
+    //          System.out.println("app key: " +entry.getKey() + " ,value:" + entry.getValue());
+    //        }
 
     Assert.assertTrue(c.getString("testsubs").equals("foobar20"));
     Assert.assertTrue(c.getBoolean("deleteTarget"));
@@ -37,10 +37,10 @@ public class TestFileBasedConfigStore {
 
     Assert.assertTrue(c.getString("keyInA1").equals("valueInA1"));
     Assert.assertTrue(c.getString("keyInA2").equals("valueInA2"));
-    
+
     Assert.assertTrue(c.getString("keyInT2").equals("valueInT2"));
     Assert.assertTrue(c.getString("keyInT3").equals("valueInT3"));
-    
+
     Assert.assertTrue(c.getString("keyInL3").equals("valueInL3"));
     Assert.assertTrue(c.getString("keyInTag1").equals("valueInTag1"));
 
@@ -49,14 +49,32 @@ public class TestFileBasedConfigStore {
     //      System.out.println("AAA " + s);
     //    }
     Assert.assertTrue(tags.size()==3);
-    Assert.assertTrue(tags.get(0).equals("config-tag.tag1.tag2.tag3"));
-    Assert.assertTrue(tags.get(1).equals("config-tag.l1.l2.l3"));
-    Assert.assertTrue(tags.get(2).equals("config-tag.t1.t2.t3"));
-    
+    Set<String> resSet = new HashSet<String>(tags);
+    Assert.assertTrue(resSet.contains("config-tag.tag1.tag2.tag3"));
+    Assert.assertTrue(resSet.contains("config-tag.l1.l2.l3"));
+    Assert.assertTrue(resSet.contains("config-tag.t1.t2.t3"));
+
     // testing tag related functions
 
-    String inputTag = "config-tag.l1.l2.l3";
-    Map<String, Config> urnConfigMap = cs.getTaggedConfig(inputTag);
+    String inputTag2 = "config-tag.t1.t2.t3";
+    tags = cs.getAssociatedTags(inputTag2);
+    Assert.assertTrue(tags.size()==1);
+    Assert.assertTrue(tags.get(0).equals("config-tag.l1.l2.l3"));
+
+    //    for(String s: tags){
+    //      System.out.println("AAABB " + s);
+    //    }
+
+    c = cs.getConfig(inputTag2);
+//    for(Map.Entry<String, ConfigValue> entry: c.entrySet()){
+//      System.out.println("BBB app key: " +entry.getKey() + " ,value:" + entry.getValue());
+//    }
+    Assert.assertTrue(c.getString("keyInT2").equals("valueInT2"));
+    Assert.assertTrue(c.getString("keyInT3").equals("valueInT3"));
+    Assert.assertTrue(c.getString("keyInL3").equals("valueInL3"));
+
+    String inputTag3 = "config-tag.l1.l2.l3";
+    Map<String, Config> urnConfigMap = cs.getTaggedConfig(inputTag3);
     //    for(String s:urnConfigMap.keySet()){
     //      System.out.println("AAA urn is " + s);
     //    }
@@ -75,24 +93,34 @@ public class TestFileBasedConfigStore {
     String urn = "config-ds.a1.a2.a3";
     csbad.getConfig(urn);
   }
-  
+
   @Test(expectedExceptions = TagCircularDependencyException.class)
   public void testCircularDependency2() {
     URL url = getClass().getResource("/filebasedConfig/");
     FileBasedConfigStore csbad = new FileBasedConfigStore(new File(url.getFile()), "test");
-    csbad.loadConfigs("v1.0.2");
+    csbad.loadConfigs("v1.0.2");  
 
     String urn = "config-tag.t1.t2.t3";
     csbad.getConfig(urn);
   }
+
+    @Test(expectedExceptions = TagCircularDependencyException.class)
+    public void testCircularDependency3() {
+      URL url = getClass().getResource("/filebasedConfig/");
+      FileBasedConfigStore csbad = new FileBasedConfigStore(new File(url.getFile()), "test");
+      csbad.loadConfigs("v1.0.3");
   
+      String urn = "config-tag.tag1.tag2";
+      csbad.getConfig(urn);
+    }
+
   @Test(expectedExceptions = IllegalArgumentException.class)
   public void testInvalidConfigVersion() {
     URL url = getClass().getResource("/filebasedConfig/");
     FileBasedConfigStore csbad = new FileBasedConfigStore(new File(url.getFile()), "test");
     csbad.loadConfigs("v1.0.9");
   }
-  
+
   @Test (expectedExceptions = ConfigVersionMissMatchException.class)
   public void testVersionMissmatch() {
     URL url = getClass().getResource("/filebasedConfig/");
