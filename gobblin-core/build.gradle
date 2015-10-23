@@ -55,6 +55,7 @@ configurations { compile { transitive = false } }
 
 test {
   useTestNG () { excludeGroups 'ignore' }
+  workingDir rootProject.rootDir
 }
 
 classification="library"
