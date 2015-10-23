@@ -130,11 +130,12 @@ public class RawConfigMapping {
     }
     
     // tag refer to self
-//    for(String s:res){
-//      if(s.equals(urn)){
-//        throw new RuntimeException("Tag associated with self " + s);
-//      }
-//    }
+    for(String s:res){
+      if(s.equals(urn)){
+        // may have circular dependency for children as well
+        throw new TagCircularDependencyException("Tag associated with self or children " + s);
+      }
+    }
 
     return res;
   }
@@ -152,9 +153,6 @@ public class RawConfigMapping {
     
 
     for(String s: self){
-      System.out.println("self tag is " + s);
-      
-      
       if(previousTags.contains(s)) {
         throw new TagCircularDependencyException("Circular dependence for tag " + s);
       }
@@ -166,21 +164,12 @@ public class RawConfigMapping {
       res.addAll(getAssociatedTagsWithCheck(s, combined));
     }
     
-    System.out.println("AAA " + DatasetUtils.getParentId(getAdjustedUrn(urn)));
-    System.out.println("AAA urn " + urn);
-    for(String p: previousTags){
-      System.out.println("previous tag is " + p + " size is " +previousTags.size());
-    }
     String parentId = DatasetUtils.getParentId(getAdjustedUrn(urn));
     if(!parentId.equals(DatasetUtils.ROOT)){
-      //List<String> ancestorTags = getAssociatedTags(DatasetUtils.getParentId(getAdjustedUrn(urn)));
-//      Set<String> selfChain = new HashSet<String>();
-//      selfChain.add(urn);
+      // check circular dependency for self chain
       Set<String> selfChain = new HashSet<String>(getUrnTillAdjustedUrn(urn, parentId));
       List<String> ancestorTags = getAssociatedTagsWithCheck(DatasetUtils.getParentId(getAdjustedUrn(urn)), selfChain);
       res.addAll(ancestorTags);
-      
-      
     }
     
     return dedup(res);
@@ -221,6 +210,7 @@ public class RawConfigMapping {
     
 
     Map<String, Object> res = DatasetUtils.MergeTwoMaps(self, ancestor);
+    // TODO
 //    if(res!=null){
 //      res.remove(DatasetUtils.IMPORTED_TAGS);
 //    }
