@@ -446,6 +446,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
    */
   private List<TaskState> collectOutputTaskStates(Path taskStatePath) throws IOException {
     if (!this.fs.exists(taskStatePath)) {
+      LOG.warn(String.format("Task state output path %s does not exist", taskStatePath));
       return ImmutableList.of();
     }
 
@@ -457,6 +458,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     });
 
     if (fileStatuses == null || fileStatuses.length == 0) {
+      LOG.warn("No task state files found in " + taskStatePath);
       return ImmutableList.of();
     }
 

@@ -274,12 +274,16 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     this.workUnitState.setProp(ConfigurationKeys.ERROR_MESSAGE_INVALID_SCHEMA_ID_COUNT, this.invalidSchemaIdCount);
     this.workUnitState.setProp(ConfigurationKeys.ERROR_MESSAGE_UNDECODABLE_COUNT, this.undecodableMessageCount);
 
-    // Commit actual high watermark for each partition
-    for (int i = 0; i < this.partitions.size(); i++) {
-      LOG.info(String.format("Actual high watermark for partition %s=%d, expected=%d", this.partitions.get(i),
-          this.nextWatermark.get(i), this.highWatermark.get(i)));
+    if (this.workUnitState.getWorkingState() == WorkUnitState.WorkingState.COMMITTED) {
+      // Commit actual high watermark for each partition
+      for (int i = 0; i < this.partitions.size(); i++) {
+        LOG.info(String.format("Actual high watermark for partition %s=%d, expected=%d", this.partitions.get(i),
+            this.nextWatermark.get(i), this.highWatermark.get(i)));
+      }
+      this.workUnitState.setActualHighWatermark(this.nextWatermark);
+    } else {
+      LOG.info("Not updating the actual high watermark as the WorkUnitState is: " + this.workUnitState.getWorkingState());
     }
-    this.workUnitState.setActualHighWatermark(this.nextWatermark);
 
     // Commit avg time to pull a record for each partition
     for (KafkaPartition partition : this.partitions) {

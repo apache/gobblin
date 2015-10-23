@@ -87,7 +87,6 @@ public class TaskExecutor extends AbstractIdleService {
         // The work queue is a SynchronousQueue. This essentially forces a new thread to be created for each fork.
         new SynchronousQueue<Runnable>(),
         ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of("ForkExecutor-%d")));
-
   }
 
   /**
@@ -205,5 +204,14 @@ public class TaskExecutor extends AbstractIdleService {
     this.taskRetryExecutor.schedule(task, interval, TimeUnit.SECONDS);
     LOG.info(String.format("Scheduled retry of failed task %s to run in %d seconds", task.getTaskId(), interval));
     task.incrementRetryCount();
+  }
+
+  /**
+   * Get the {@link ExecutorService} used to run {@link Fork}s.
+   *
+   * @return the {@link ExecutorService} used to run {@link Fork}s
+   */
+  ExecutorService getForkExecutor() {
+    return this.forkExecutor;
   }
 }
