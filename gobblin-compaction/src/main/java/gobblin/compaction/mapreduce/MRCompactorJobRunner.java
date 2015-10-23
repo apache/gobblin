@@ -175,6 +175,11 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
       conf.setBoolean("mapreduce.output.fileoutputformat.compress", true);
     }
 
+    // Disable delegation token cancellation by default
+    if (conf.get("mapreduce.job.complete.cancel.delegation.tokens") == null) {
+      conf.setBoolean("mapreduce.job.complete.cancel.delegation.tokens", false);
+    }
+
     try {
       DateTime compactionTimestamp = getCompactionTimestamp();
       if (this.dataset.jobProps().getPropAsBoolean(MRCompactor.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, false)) {
