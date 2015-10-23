@@ -34,21 +34,20 @@ public class AvroSchemaFieldRemover {
   private static final Splitter SPLITTER_ON_COMMA = Splitter.on(',').trimResults().omitEmptyStrings();
   private static final Splitter SPLITTER_ON_DOT = Splitter.on('.').trimResults().omitEmptyStrings();
 
-  private final Map<String, AvroSchemaFieldRemover> children;
-  private final Map<String, Schema> schemaMap;
+  private static final AvroSchemaFieldRemover DO_NOTHING_INSTANCE = new AvroSchemaFieldRemover();
+
+  private final Map<String, AvroSchemaFieldRemover> children = Maps.newHashMap();
 
   /**
    * @param fieldNames Field names to be removed from the Avro schema. Contains comma-separated fully-qualified
    * field names, e.g., "header.memberId,mobileHeader.osVersion".
    */
   public AvroSchemaFieldRemover(String fieldNames) {
-    this();
     this.addChildren(fieldNames);
   }
 
   private AvroSchemaFieldRemover() {
-    this.children = Maps.newHashMap();
-    this.schemaMap = Maps.newHashMap();
+    this("");
   }
 
   private void addChildren(String fieldNames) {
@@ -76,36 +75,40 @@ public class AvroSchemaFieldRemover {
    * @return A new Avro schema with the specified fields removed.
    */
   public Schema removeFields(Schema schema) {
+    return removeFields(schema, Maps.<String, Schema> newHashMap());
+  }
+
+  private Schema removeFields(Schema schema, Map<String, Schema> schemaMap) {
 
     switch (schema.getType()) {
       case RECORD:
-        if (this.schemaMap.containsKey(schema.getFullName())) {
-          return this.schemaMap.get(schema.getFullName());
+        if (schemaMap.containsKey(schema.getFullName())) {
+          return schemaMap.get(schema.getFullName());
         } else {
-          return this.removeFieldsFromRecords(schema);
+          return this.removeFieldsFromRecords(schema, schemaMap);
         }
       case UNION:
-        return this.removeFieldsFromUnion(schema);
+        return this.removeFieldsFromUnion(schema, schemaMap);
       case ARRAY:
-        return this.removeFieldsFromArray(schema);
+        return this.removeFieldsFromArray(schema, schemaMap);
       case MAP:
-        return this.removeFieldsFromMap(schema);
+        return this.removeFieldsFromMap(schema, schemaMap);
       default:
         return schema;
     }
   }
 
-  private Schema removeFieldsFromRecords(Schema schema) {
+  private Schema removeFieldsFromRecords(Schema schema, Map<String, Schema> schemaMap) {
     List<Field> newFields = Lists.newArrayList();
     for (Field field : schema.getFields()) {
       if (!this.shouldRemove(field)) {
         Field newField;
         if (this.children.containsKey(field.name())) {
-          newField =
-              new Field(field.name(), this.children.get(field.name()).removeFields(field.schema()), field.doc(),
-                  field.defaultValue());
+          newField = new Field(field.name(), this.children.get(field.name()).removeFields(field.schema(), schemaMap),
+              field.doc(), field.defaultValue());
         } else {
-          newField = new Field(field.name(), field.schema(), field.doc(), field.defaultValue());
+          newField = new Field(field.name(), DO_NOTHING_INSTANCE.removeFields(field.schema(), schemaMap), field.doc(),
+              field.defaultValue());
         }
         newFields.add(newField);
       }
@@ -113,7 +116,7 @@ public class AvroSchemaFieldRemover {
 
     Schema newRecord = Schema.createRecord(schema.getName(), schema.getDoc(), schema.getNamespace(), schema.isError());
     newRecord.setFields(newFields);
-    this.schemaMap.put(schema.getFullName(), newRecord);
+    schemaMap.put(schema.getFullName(), newRecord);
     return newRecord;
   }
 
@@ -124,20 +127,19 @@ public class AvroSchemaFieldRemover {
     return this.children.containsKey(field.name()) && this.children.get(field.name()).children.isEmpty();
   }
 
-  private Schema removeFieldsFromUnion(Schema schema) {
+  private Schema removeFieldsFromUnion(Schema schema, Map<String, Schema> schemaMap) {
     List<Schema> newUnion = Lists.newArrayList();
     for (Schema unionType : schema.getTypes()) {
-      newUnion.add(this.removeFields(unionType));
+      newUnion.add(this.removeFields(unionType, schemaMap));
     }
     return Schema.createUnion(newUnion);
   }
 
-  private Schema removeFieldsFromArray(Schema schema) {
-    return Schema.createArray(this.removeFields(schema.getElementType()));
+  private Schema removeFieldsFromArray(Schema schema, Map<String, Schema> schemaMap) {
+    return Schema.createArray(this.removeFields(schema.getElementType(), schemaMap));
   }
 
-  private Schema removeFieldsFromMap(Schema schema) {
-    return Schema.createMap(this.removeFields(schema.getValueType()));
+  private Schema removeFieldsFromMap(Schema schema, Map<String, Schema> schemaMap) {
+    return Schema.createMap(this.removeFields(schema.getValueType(), schemaMap));
   }
-
 }
