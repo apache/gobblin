@@ -12,6 +12,7 @@
 
 package gobblin.data.management.copy;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.data.management.util.PathUtils;
 
 import java.util.List;
@@ -29,36 +30,35 @@ import com.google.common.collect.Sets;
 
 public class RecursiveCopyableDatasetTest {
 
-  @Test public void testGetCopyableFiles() throws Exception {
+  @Test
+  public void testGetCopyableFiles() throws Exception {
 
-    Set<Path> paths = Sets.newHashSet(new Path("dir1/file2"), new Path("dir2/file1"));
+    Set<Path> paths = Sets.newHashSet(new Path("dir1/file2"), new Path("dir1/file1"), new Path("dir2/file1"));
 
     String baseDir = getClass().getClassLoader().getResource("copyableDatasetTest/source").getFile();
     String destinationDir = getClass().getClassLoader().getResource("copyableDatasetTest/destination").getFile();
 
     Properties properties = new Properties();
-    properties.setProperty(RecursiveCopyableDataset.TARGET_DIRECTORY, destinationDir);
+    properties.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, destinationDir);
 
-    RecursiveCopyableDataset  dataset =
-        new RecursiveCopyableDataset(FileSystem.getLocal(new Configuration()), new Path(baseDir), properties);
+    RecursiveCopyableDataset dataset = new RecursiveCopyableDataset(FileSystem.getLocal(new Configuration()), new Path(baseDir), properties);
 
     List<CopyableFile> files = dataset.getCopyableFiles(FileSystem.getLocal(new Configuration()));
 
-    Assert.assertEquals(files.size(), 2);
+    Assert.assertEquals(files.size(), 3);
 
-    for(CopyableFile copyableFile : files) {
-      Path originRelativePath = PathUtils
-          .relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(copyableFile.getOrigin().getPath()),
+    for (CopyableFile copyableFile : files) {
+      Path originRelativePath =
+          PathUtils.relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(copyableFile.getOrigin().getPath()),
               PathUtils.getPathWithoutSchemeAndAuthority(new Path(baseDir)));
-      Path targetRelativePath = PathUtils
-          .relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(copyableFile.getDestination()),
+      Path targetRelativePath =
+          PathUtils.relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(copyableFile.getDestination()),
               PathUtils.getPathWithoutSchemeAndAuthority(new Path(destinationDir)));
       Assert.assertTrue(paths.contains(originRelativePath));
       Assert.assertTrue(paths.contains(targetRelativePath));
       Assert.assertEquals(originRelativePath, targetRelativePath);
       Assert.assertEquals(copyableFile.getAncestorsOwnerAndPermission().size(), originRelativePath.depth() - 1);
     }
-
 
   }
 }

@@ -12,7 +12,6 @@
 
 package gobblin.data.management.copy;
 
-import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.retention.dataset.finder.DatasetFinder;
 
 import java.io.IOException;
@@ -26,10 +25,12 @@ import com.google.common.collect.Lists;
 
 public class TestCopyableDatasetFinder implements DatasetFinder<CopyableDataset> {
 
-  public TestCopyableDatasetFinder(FileSystem fs, Properties props) {
+  public TestCopyableDatasetFinder(FileSystem fs, Properties pros) throws IOException {
+    System.out.println("inside const");
   }
 
-  @Override public List<CopyableDataset> findDatasets() throws IOException {
-    return Lists.<CopyableDataset>newArrayList(new TestCopyableDataset());
+  @Override
+  public List<CopyableDataset> findDatasets() throws IOException {
+    return Lists.<CopyableDataset> newArrayList(new TestCopyableDataset());
   }
 }

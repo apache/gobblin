@@ -20,6 +20,7 @@ import gobblin.source.extractor.Extractor;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Iterator;
+import java.util.List;
 
 import org.apache.hadoop.fs.FileSystem;
 
@@ -39,10 +40,10 @@ public class InputStreamExtractor implements Extractor<String, FileAwareInputStr
   private final FileSystem fs;
   private Iterator<CopyableFile> fileIterator;
 
-  public InputStreamExtractor(FileSystem fs, Iterator<CopyableFile> fileIterator) throws IOException {
+  public InputStreamExtractor(FileSystem fs, Iterator<CopyableFile> filesIterator) throws IOException {
 
     this.fs = fs;
-    this.fileIterator = fileIterator;
+    this.fileIterator = filesIterator;
   }
 
   /**
@@ -60,6 +61,7 @@ public class InputStreamExtractor implements Extractor<String, FileAwareInputStr
 
     while (fileIterator.hasNext()) {
       CopyableFile file = fileIterator.next();
+      fileIterator.remove();
       return new FileAwareInputStream(file, fs.open(file.getFileStatus().getPath()));
     }
 

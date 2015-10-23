@@ -31,7 +31,7 @@ public class InputStreamDataWriter implements DataWriter<FileAwareInputStream> {
   protected final FileSystem fs;
   protected final Path stagingDir;
   protected final Path outputDir;
-  protected Closer closer = Closer.create() ;
+  protected Closer closer = Closer.create();
 
   public InputStreamDataWriter(State state, int numBranches, int branchId) throws IOException {
     this.state = state;
@@ -50,21 +50,23 @@ public class InputStreamDataWriter implements DataWriter<FileAwareInputStream> {
   @Override
   public void write(FileAwareInputStream fileAwareInputStream) throws IOException {
     closer.register(fileAwareInputStream.getInputStream());
-    this.fs.mkdirs(fileAwareInputStream.getFile().getDestination().getParent());
-    IOUtils.copyLarge(fileAwareInputStream.getInputStream(),
-        fs.create(fileAwareInputStream.getFile().getDestination(), true));
+    Path stagingFile = new Path(this.stagingDir, fileAwareInputStream.getFile().getRelativeDestination());
+    this.fs.mkdirs(stagingFile.getParent());
+    IOUtils.copyLarge(fileAwareInputStream.getInputStream(), fs.create(stagingFile, true));
     filesWritten++;
 
     this.commit(fileAwareInputStream.getFile());
   }
 
   protected void commit(CopyableFile file) throws IOException {
-    if (!this.fs.exists(file.getDestination())) {
-      throw new IOException(String.format("File %s does not exist", file.getDestination()));
+
+    Path stagingFile = new Path(this.stagingDir, file.getRelativeDestination());
+
+    if (!this.fs.exists(stagingFile)) {
+      throw new IOException(String.format("Staging file %s does not exist", stagingFile));
     }
 
-    Path stagingFile = new Path(this.stagingDir, file.getDestination().getName());
-    Path outputFile = new Path(this.outputDir, file.getDestination().getName());
+    Path outputFile = new Path(this.outputDir, file.getRelativeDestination());
 
     log.info(String.format("Moving data from %s to %s", stagingFile, outputFile));
 

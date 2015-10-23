@@ -43,8 +43,8 @@ public class ArchivedInputStreamDataWriter extends InputStreamDataWriter {
 
   /**
    * Untars the passed in {@link FileAwareInputStream} to the task's staging directory. Uses the name of the root
-   * {@link TarArchiveEntry} in the stream as the directory name for the untarred file. The method also commits the data by
-   * moving the file from staging to output directory.
+   * {@link TarArchiveEntry} in the stream as the directory name for the untarred file. The method also commits the data
+   * by moving the file from staging to output directory.
    *
    * @param fileAwareInputStream the inputStream to be written. The {@link CopyableFile} instance enclosed is used to
    *          derive output file permissions
@@ -61,25 +61,36 @@ public class ArchivedInputStreamDataWriter extends InputStreamDataWriter {
     TarArchiveInputStream tarIn = new TarArchiveInputStream(fileAwareInputStream.getInputStream());
     TarArchiveEntry tarEntry;
 
-    String unArchivedRootName = null;
+    boolean firstEntrySeen = false;
 
     try {
       while ((tarEntry = tarIn.getNextTarEntry()) != null) {
 
-        Path tarEntryPath = new Path(this.stagingDir, tarEntry.getName());
+        Path tarEntryRelativePath =
+            new Path(fileAwareInputStream.getFile().getRelativeDestination().getParent(), tarEntry.getName());
+        Path tarEntryStagingPath = new Path(this.stagingDir, tarEntryRelativePath);
 
-        if (unArchivedRootName == null) {
-          fileAwareInputStream.getFile().setDestination(tarEntryPath);
-          unArchivedRootName = tarEntry.getName();
+        /*
+         * If this is the first entry in the tar, reset the destination file name to the name of the first entry in the
+         * tar. It is required to change the name of the destination file because the untarred file/dir name is known to
+         * the source
+         */
+        if (!firstEntrySeen) {
+          String newFileName = tarEntryStagingPath.getName();
+          fileAwareInputStream.getFile().setDestination(
+              new Path(fileAwareInputStream.getFile().getDestination().getParent(), newFileName));
+          fileAwareInputStream.getFile().setRelativeDestination(
+              new Path(fileAwareInputStream.getFile().getRelativeDestination().getParent(), newFileName));
+          firstEntrySeen = true;
         }
 
-        log.info("Unarchiving " + tarEntryPath);
+        log.info("Unarchiving " + tarEntryStagingPath);
 
-        if (tarEntry.isDirectory() && !fs.exists(tarEntryPath)) {
-          fs.mkdirs(tarEntryPath);
+        if (tarEntry.isDirectory() && !fs.exists(tarEntryStagingPath)) {
+          fs.mkdirs(tarEntryStagingPath);
         } else {
 
-          FSDataOutputStream out = fs.create(tarEntryPath, true);
+          FSDataOutputStream out = fs.create(tarEntryStagingPath, true);
           byte[] btoRead = new byte[1024];
           try {
 

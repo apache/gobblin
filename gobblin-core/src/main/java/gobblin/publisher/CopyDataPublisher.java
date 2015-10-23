@@ -55,6 +55,10 @@ public class CopyDataPublisher extends BaseDataPublisher {
     for (FileStatus fileStatus : fs.listStatus(writerOutputDir)) {
       log.info(String.format("Publishing %s to %s", fileStatus.getPath(), new Path(publisherOutputDir,
           getNewFileName(fileStatus))));
+
+      if (fs.exists(new Path(publisherOutputDir, getNewFileName(fileStatus)))) {
+        fs.delete(new Path(publisherOutputDir, getNewFileName(fileStatus)), true);
+      }
       fs.rename(fileStatus.getPath(), new Path(publisherOutputDir, getNewFileName(fileStatus)));
     }
   }

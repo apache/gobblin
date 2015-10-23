@@ -84,9 +84,9 @@ public class SftpLightWeightFileSystem extends FileSystem {
 
     try {
       if (getFileStatus(path).isDir()) {
-        fsHelper.getSftpConnection().rmdir(path.toString());
+        fsHelper.getSftpChannel().rmdir(path.toString());
       } else {
-        fsHelper.getSftpConnection().rm(path.toString());
+        fsHelper.getSftpChannel().rm(path.toString());
       }
     } catch (SftpException e) {
       throw new IOException(e);
@@ -106,7 +106,7 @@ public class SftpLightWeightFileSystem extends FileSystem {
   public FileStatus getFileStatus(Path path) throws IOException {
 
     try {
-      SftpATTRS sftpAttrs = fsHelper.getSftpConnection().stat(path.toString());
+      SftpATTRS sftpAttrs = fsHelper.getSftpChannel().stat(path.toString());
       FsPermission permission = new FsPermission((short) sftpAttrs.getPermissions());
       FileStatus fs =
           new FileStatus(sftpAttrs.getSize(), sftpAttrs.isDir(), 1, 0l, (long) sftpAttrs.getMTime(),
@@ -128,7 +128,7 @@ public class SftpLightWeightFileSystem extends FileSystem {
   @Override
   public Path getWorkingDirectory() {
     try {
-      return new Path(fsHelper.getSftpConnection().pwd());
+      return new Path(fsHelper.getSftpChannel().pwd());
     } catch (SftpException e) {
       return null;
     }
@@ -155,8 +155,8 @@ public class SftpLightWeightFileSystem extends FileSystem {
   @Override
   public boolean mkdirs(Path path, FsPermission permission) throws IOException {
     try {
-      fsHelper.getSftpConnection().mkdir(path.toString());
-      fsHelper.getSftpConnection().chmod((int) permission.toShort(), path.toString());
+      fsHelper.getSftpChannel().mkdir(path.toString());
+      fsHelper.getSftpChannel().chmod((int) permission.toShort(), path.toString());
     } catch (SftpException e) {
       throw new IOException(e);
     }
@@ -181,7 +181,7 @@ public class SftpLightWeightFileSystem extends FileSystem {
   @Override
   public boolean rename(Path oldpath, Path newpath) throws IOException {
     try {
-      fsHelper.getSftpConnection().rename(oldpath.toString(), newpath.toString());
+      fsHelper.getSftpChannel().rename(oldpath.toString(), newpath.toString());
     } catch (SftpException e) {
       throw new IOException(e);
     }
@@ -191,7 +191,7 @@ public class SftpLightWeightFileSystem extends FileSystem {
   @Override
   public void setWorkingDirectory(Path path) {
     try {
-      fsHelper.getSftpConnection().lcd(path.toString());
+      fsHelper.getSftpChannel().lcd(path.toString());
     } catch (SftpException e) {
       throw new RuntimeException("Failed to set working directory", e);
     }

@@ -12,6 +12,7 @@
 
 package gobblin.data.management.copy;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.data.management.partition.File;
 
 import java.io.ByteArrayInputStream;
@@ -57,6 +58,8 @@ public class CopyableFile implements File, Writable {
   private FileStatus origin;
   /** Destination {@link Path} of the file. */
   private Path destination;
+  /** {@link Path} to the file relative to the final publish directory {@link ConfigurationKeys#DATA_PUBLISHER_FINAL_DIR} */
+  private Path relativeDestination;
   /** Desired {@link OwnerAndPermission} of the destination path. */
   private OwnerAndPermission destinationOwnerAndPermission;
   /**
@@ -86,6 +89,7 @@ public class CopyableFile implements File, Writable {
   public void write(DataOutput dataOutput) throws IOException {
     this.origin.write(dataOutput);
     Text.writeString(dataOutput, this.destination.toString());
+    Text.writeString(dataOutput, this.relativeDestination.toString());
     this.destinationOwnerAndPermission.write(dataOutput);
     dataOutput.writeInt(this.ancestorsOwnerAndPermission.size());
     for (OwnerAndPermission oap : this.ancestorsOwnerAndPermission) {
@@ -100,6 +104,7 @@ public class CopyableFile implements File, Writable {
     this.origin = new FileStatus();
     this.origin.readFields(dataInput);
     this.destination = new Path(Text.readString(dataInput));
+    this.relativeDestination = new Path(Text.readString(dataInput));
     this.destinationOwnerAndPermission = OwnerAndPermission.read(dataInput);
     int ancestors = dataInput.readInt();
     this.ancestorsOwnerAndPermission = Lists.newArrayList();
@@ -142,14 +147,13 @@ public class CopyableFile implements File, Writable {
   /**
    * Deserializes the string at {@link #SERIALIZED_COPYABLE_FILE} in the passed in {@link Properties}.
    *
-   * @param props that contains serialized {@link CopyableFile} at {@link #SERIALIZED_COPYABLE_FILE}
+   * @param serialized string
    * @return a new instance of {@link CopyableFile}
    */
-  public static CopyableFile deserializeCopyableFile(Properties props) throws IOException {
+  public static CopyableFile deserializeCopyableFile(String serialized) throws IOException {
 
     try {
-      String string = props.getProperty(SERIALIZED_COPYABLE_FILE);
-      byte[] actualBytes = Hex.decodeHex(string.toCharArray());
+      byte[] actualBytes = Hex.decodeHex(serialized.toCharArray());
       ByteArrayInputStream is = new ByteArrayInputStream(actualBytes);
       CopyableFile copyableFile = CopyableFile.read(new DataInputStream(is));
       is.close();
@@ -159,5 +163,4 @@ public class CopyableFile implements File, Writable {
       throw new IOException(de);
     }
   }
-
 }

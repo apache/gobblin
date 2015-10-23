@@ -23,7 +23,7 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.beust.jcommander.internal.Lists;
+import com.google.common.collect.Lists;
 
 
 public class CopyableFileTest {
@@ -31,7 +31,7 @@ public class CopyableFileTest {
   @Test public void testSerDe() throws Exception {
 
     CopyableFile copyableFile = new CopyableFile(new FileStatus(10, false, 12, 100, 12345, new Path("/path")),
-        new Path("/destination"), new OwnerAndPermission("owner", "group", FsPermission.getDefault()),
+        new Path("/destination"), new Path("/relative"),new OwnerAndPermission("owner", "group", FsPermission.getDefault()),
         Lists.newArrayList(new OwnerAndPermission("owner2", "group2", FsPermission.getDefault())),
         "checksum".getBytes());
 

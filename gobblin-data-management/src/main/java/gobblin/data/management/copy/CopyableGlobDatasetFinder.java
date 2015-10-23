@@ -25,13 +25,14 @@ import org.apache.hadoop.fs.Path;
  * {@link gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder} that returns datasets of type
  * {@link gobblin.data.management.copy.RecursiveCopyableDataset}.N
  */
-public class CopyableDatasetFinder extends ConfigurableGlobDatasetFinder<CopyableDataset> {
+public class CopyableGlobDatasetFinder extends ConfigurableGlobDatasetFinder<CopyableDataset> {
 
-  public CopyableDatasetFinder(FileSystem fs, Properties props) throws IOException {
+  public CopyableGlobDatasetFinder(FileSystem fs, Properties props) throws IOException {
     super(fs, props);
   }
 
-  @Override public CopyableDataset datasetAtPath(Path path) throws IOException {
+  @Override
+  public CopyableDataset datasetAtPath(Path path) throws IOException {
     return new RecursiveCopyableDataset(this.fs, path, this.props);
   }
 }

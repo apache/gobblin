@@ -18,24 +18,24 @@ import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.copy.extractor.InputStreamExtractor;
 import gobblin.data.management.dataset.Dataset;
+import gobblin.data.management.dataset.DatasetUtils;
 import gobblin.data.management.partition.Partition;
 import gobblin.data.management.retention.dataset.finder.DatasetFinder;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.AbstractSource;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
-import gobblin.util.ForkOperatorUtils;
 import gobblin.util.HadoopUtils;
 
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 
 
@@ -44,6 +44,8 @@ import com.google.common.collect.Lists;
  *
  */
 public class CopySource extends AbstractSource<String, FileAwareInputStream> {
+
+  public static final String DEFAULT_DATASET_PROFILE_CLASS_KEY = CopyableGlobDatasetFinder.class.getCanonicalName();
 
   /**
    * <ul>
@@ -54,6 +56,11 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
    * <li>Create a {@link WorkUnit} per {@link CopyableFile}.
    * </ul>
    *
+   * <p>
+   * In this implementation, one workunit is created for every {@link CopyableFile} found. But the
+   * extractor/converters and writers are built to support multiple {@link CopyableFile}s per workunit
+   * </p>
+   *
    * @param state see {@link gobblin.configuration.SourceState}
    * @return Work units for copying files.
    */
@@ -63,10 +70,11 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     List<WorkUnit> workUnits = Lists.newArrayList();
 
     try {
-      DatasetFinder<CopyableDataset> datasetFinder =
-          new CopyableDatasetFinder(getSourceFileSystem(state), state.getProperties());
-      List<CopyableDataset> copyableDatasets = datasetFinder.findDatasets();
 
+      DatasetFinder<CopyableDataset> datasetFinder =
+          DatasetUtils.instantiateDatasetFinder(state.getProperties(), getSourceFileSystem(state),
+              DEFAULT_DATASET_PROFILE_CLASS_KEY);
+      List<CopyableDataset> copyableDatasets = datasetFinder.findDatasets();
       for (CopyableDataset copyableDataset : copyableDatasets) {
 
         Collection<Partition<CopyableFile>> partitions =
@@ -77,14 +85,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
           for (CopyableFile copyableFile : partition.getFiles()) {
             WorkUnit workUnit = new WorkUnit(extract);
             workUnit.addAll(state);
-
-            workUnit.setProp(
-                ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, 0, 0),
-                copyableFile.getDestination().toString());
-            state.setProp(CopyableFile.SERIALIZED_COPYABLE_FILE, CopyableFile.serializeCopyableFile(copyableFile));
+            serializeCopyableFile(workUnit, Lists.newArrayList(copyableFile));
             workUnits.add(workUnit);
           }
-
         }
       }
     } catch (IOException e) {
@@ -102,8 +105,10 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
    */
   @Override
   public Extractor<String, FileAwareInputStream> getExtractor(WorkUnitState state) throws IOException {
-    CopyableFile copyableFile = CopyableFile.deserializeCopyableFile(state.getProperties());
-    return new InputStreamExtractor(getSourceFileSystem(state), Iterators.singletonIterator(copyableFile));
+
+    List<CopyableFile> copyableFiles = deSerializeCopyableFile(state);
+
+    return new InputStreamExtractor(getSourceFileSystem(state), copyableFiles.iterator());
   }
 
   @Override
@@ -123,5 +128,21 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     String uri = state.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigurationKeys.LOCAL_FS_URI);
     return FileSystem.get(URI.create(uri), conf);
 
+  }
+
+  public static void serializeCopyableFile(State state, List<CopyableFile> copyableFiles) throws IOException {
+    for (CopyableFile copyableFile : copyableFiles) {
+      state.appendToListProp(CopyableFile.SERIALIZED_COPYABLE_FILE, CopyableFile.serializeCopyableFile(copyableFile));
+    }
+  }
+
+  public static List<CopyableFile> deSerializeCopyableFile(State state) throws IOException {
+    List<String> copyableFileStrings = state.getPropAsList(CopyableFile.SERIALIZED_COPYABLE_FILE);
+    List<CopyableFile> copyableFiles = Lists.newArrayList();
+
+    for (String fileString : copyableFileStrings) {
+      copyableFiles.add(CopyableFile.deserializeCopyableFile(fileString));
+    }
+    return copyableFiles;
   }
 }
