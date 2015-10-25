@@ -29,6 +29,8 @@ dependencies {
   compile externalDependency.jsch
   compile externalDependency.commonsLang
   compile externalDependency.commonsIo
+  compile externalDependency.hiveExec
+  compile externalDependency.hiveSerDe
   compile externalDependency.httpclient
   compile externalDependency.httpcore
   compile externalDependency.metricsCore

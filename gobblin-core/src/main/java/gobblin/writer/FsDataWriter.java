@@ -58,7 +58,6 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
   protected final FsPermission filePermission;
   protected final FsPermission dirPermission;
   protected final Optional<String> group;
-  protected final OutputStream stagingFileOutputStream;
   protected final Closer closer = Closer.create();
 
   public FsDataWriter(State properties, String fileName, int numBranches, int branchId) throws IOException {
@@ -92,8 +91,8 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
     // Initialize staging/output directory
     this.stagingFile = new Path(WriterUtils.getWriterStagingDir(properties, numBranches, branchId), fileName);
     this.outputFile = new Path(WriterUtils.getWriterOutputDir(properties, numBranches, branchId), fileName);
-    this.outputFilePropName =
-        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS, numBranches, branchId);
+    this.outputFilePropName = ForkOperatorUtils
+        .getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS, numBranches, branchId);
     this.properties.setProp(this.outputFilePropName, this.outputFile.toString());
 
     // Deleting the staging file if it already exists, which can happen if the
@@ -120,9 +119,6 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
 
     this.dirPermission = HadoopUtils.deserializeWriterDirPermissions(properties, numBranches, branchId);
 
-    this.stagingFileOutputStream = this.closer.register(this.fs.create(this.stagingFile, this.filePermission, true,
-        this.bufferSize, this.replicationFactor, this.blockSize, null));
-
     this.group = Optional.fromNullable(properties.getProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_GROUP_NAME, numBranches, branchId)));
 
@@ -134,6 +130,11 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
 
     // Create the parent directory of the output file if it does not exist
     WriterUtils.mkdirsWithRecursivePermission(this.fs, this.outputFile.getParent(), this.dirPermission);
+  }
+
+  protected OutputStream createStagingFileOutputStream() throws IOException {
+    return this.closer.register(this.fs.create(this.stagingFile, this.filePermission, true, this.bufferSize,
+        this.replicationFactor, this.blockSize, null));
   }
 
   /**
