@@ -285,8 +285,7 @@ public class Task implements Runnable {
       return true;
     }
 
-    LOG.info(String.format("%s is set to full. Will publish data at the job level.",
-        ConfigurationKeys.JOB_COMMIT_POLICY_KEY));
+    LOG.info("Will publish data at the job level with job commit policy: " + jobCommitPolicy);
     return false;
   }
 

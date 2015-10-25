@@ -415,14 +415,14 @@ public class Fork implements Closeable, Runnable, FinalState {
           this.taskState.getProp(ConfigurationKeys.EXTRACTOR_ROWS_EXTRACTED));
     }
 
-    String writerRowsWrittenKey =
+    String writerRecordsWrittenKey =
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_RECORDS_WRITTEN, this.branches, this.index);
     if (this.writer.isPresent()) {
       this.forkTaskState.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, this.writer.get().recordsWritten());
-      this.taskState.setProp(writerRowsWrittenKey, this.writer.get().recordsWritten());
+      this.taskState.setProp(writerRecordsWrittenKey, this.writer.get().recordsWritten());
     } else {
       this.forkTaskState.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, 0l);
-      this.taskState.setProp(writerRowsWrittenKey, 0l);
+      this.taskState.setProp(writerRecordsWrittenKey, 0l);
     }
 
     if (schema.isPresent()) {
