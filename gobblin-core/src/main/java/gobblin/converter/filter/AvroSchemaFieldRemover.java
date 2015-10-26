@@ -99,6 +99,13 @@ public class AvroSchemaFieldRemover {
   }
 
   private Schema removeFieldsFromRecords(Schema schema, Map<String, Schema> schemaMap) {
+
+    Schema newRecord = Schema.createRecord(schema.getName(), schema.getDoc(), schema.getNamespace(), schema.isError());
+
+    // Put an incomplete schema into schemaMap to avoid re-processing a recursive field.
+    // The fields in the incomplete schema will be populated once the current schema is completely processed.
+    schemaMap.put(schema.getFullName(), newRecord);
+
     List<Field> newFields = Lists.newArrayList();
     for (Field field : schema.getFields()) {
       if (!this.shouldRemove(field)) {
@@ -114,9 +121,7 @@ public class AvroSchemaFieldRemover {
       }
     }
 
-    Schema newRecord = Schema.createRecord(schema.getName(), schema.getDoc(), schema.getNamespace(), schema.isError());
     newRecord.setFields(newFields);
-    schemaMap.put(schema.getFullName(), newRecord);
     return newRecord;
   }
 
