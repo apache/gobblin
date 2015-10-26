@@ -15,9 +15,11 @@ package gobblin.writer;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
+import com.google.common.base.Optional;
+
 
 /**
- * A {@link DataWriterBuilder} used with a partitioner. When provided with a partitioner, Gobblin will create a
+ * A {@link DataWriterBuilder} used with a {@link WriterPartitioner}. When provided with a partitioner, Gobblin will create a
  * {@link gobblin.writer.DataWriter} per partition. All partitions will be build with identical builders, except
  * that {@link #forPartition} will specify the partition.
  *
@@ -41,7 +43,7 @@ import org.apache.avro.generic.GenericRecord;
  */
 public abstract class PartitionAwareDataWriterBuilder<S, D> extends DataWriterBuilder<S, D> {
 
-  protected GenericRecord partition;
+  protected Optional<GenericRecord> partition = Optional.absent();
 
   /**
    * Sets the partition that the build {@link DataWriter} will handle.
@@ -49,7 +51,7 @@ public abstract class PartitionAwareDataWriterBuilder<S, D> extends DataWriterBu
    * @return A {@link PartitionAwareDataWriterBuilder}.
    */
   public PartitionAwareDataWriterBuilder<S, D> forPartition(GenericRecord partition) {
-    this.partition = partition;
+    this.partition = Optional.fromNullable(partition);
     return this;
   }
 

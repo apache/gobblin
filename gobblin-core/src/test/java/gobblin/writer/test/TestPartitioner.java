@@ -25,7 +25,8 @@ public class TestPartitioner implements WriterPartitioner<String> {
 
   public static final String PARTITION = "partition";
 
-  private static final Schema SCHEMA = SchemaBuilder.record("ArticleTitle").fields().name(PARTITION).
+  private static final Schema SCHEMA = SchemaBuilder.record("LetterPartition").namespace("gobblin.test").
+      fields().name(PARTITION).
       type(Schema.create(Schema.Type.STRING)).noDefault().endRecord();
 
   public TestPartitioner(State state) {

@@ -12,10 +12,7 @@
 
 package gobblin.writer;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.instrumented.writer.InstrumentedDataWriterDecorator;
-import gobblin.instrumented.writer.InstrumentedPartitionedDataWriterDecorator;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.util.Map;
@@ -31,11 +28,20 @@ import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.io.Closer;
+
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+import gobblin.instrumented.writer.InstrumentedDataWriterDecorator;
+import gobblin.instrumented.writer.InstrumentedPartitionedDataWriterDecorator;
 
 /**
  * {@link DataWriter} that partitions data using a partitioner, instantiates appropriate writers, and sends records to
  * the chosen writer.
+ * @param <S> schema type.
+ * @param <D> record type.
  */
+@Slf4j
 public class PartitionedDataWriter<S, D> implements DataWriter<D> {
 
   private static final GenericRecord NON_PARTITIONED_WRITER_KEY =
@@ -45,12 +51,15 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D> {
   private final LoadingCache<GenericRecord, DataWriter<D>> partitionWriters;
   private final Optional<PartitionAwareDataWriterBuilder> builder;
   private final boolean shouldPartition;
+  private final Closer closer;
 
   public PartitionedDataWriter(DataWriterBuilder<S, D> builder, final State state) throws IOException {
 
+    this.closer = Closer.create();
     this.partitionWriters = CacheBuilder.newBuilder().build(new CacheLoader<GenericRecord, DataWriter<D>>() {
       @Override public DataWriter<D> load(final GenericRecord key) throws Exception {
-        return new InstrumentedPartitionedDataWriterDecorator<D>(createPartitionWriter(key), state, key);
+        return closer
+            .register(new InstrumentedPartitionedDataWriterDecorator<D>(createPartitionWriter(key), state, key));
       }
     });
 
@@ -65,14 +74,19 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D> {
         this.partitioner = Optional.of(
             WriterPartitioner.class.cast(ConstructorUtils.invokeConstructor(
                     Class.forName(state.getProp(ConfigurationKeys.WRITER_PARTITIONER_CLASS)), state)));
-        this.builder.get().validatePartitionSchema(this.partitioner.get().partitionSchema());
+        Preconditions.checkArgument(
+            this.builder.get().validatePartitionSchema(this.partitioner.get().partitionSchema()),
+            String.format("Writer %s does not support schema from partitioner %s",
+                builder.getClass().getCanonicalName(), this.partitioner.getClass().getCanonicalName()));
       } catch(ReflectiveOperationException roe) {
         throw new IOException(roe);
       }
     } else {
       this.shouldPartition = false;
-      this.partitionWriters.put(NON_PARTITIONED_WRITER_KEY,
+      InstrumentedDataWriterDecorator<D> writer = this.closer.register(
           new InstrumentedDataWriterDecorator<D>(builder.build(), state));
+      this.partitionWriters.put(NON_PARTITIONED_WRITER_KEY,
+          writer);
       this.partitioner = Optional.absent();
       this.builder = Optional.absent();
     }
@@ -90,14 +104,32 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D> {
   }
 
   @Override public void commit() throws IOException {
+    int writersCommitted = 0;
     for(Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
-      entry.getValue().commit();
+      try {
+        entry.getValue().commit();
+        writersCommitted++;
+      } catch (Throwable throwable) {
+        log.error(String.format("Failed to commit writer for partition %s.", entry.getKey()), throwable);
+      }
+    }
+    if(writersCommitted < this.partitionWriters.asMap().size()) {
+      throw new IOException("Failed to commit all writers.");
     }
   }
 
   @Override public void cleanup() throws IOException {
+    int writersCleanedUp = 0;
     for(Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
-      entry.getValue().cleanup();
+      try {
+        entry.getValue().cleanup();
+        writersCleanedUp++;
+      } catch(Throwable throwable) {
+        log.error(String.format("Failed to cleanup writer for partition %s.", entry.getKey()));
+      }
+    }
+    if(writersCleanedUp < this.partitionWriters.asMap().size()) {
+      throw new IOException("Failed to clean up all writers.");
     }
   }
 
@@ -118,9 +150,7 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D> {
   }
 
   @Override public void close() throws IOException {
-    for(Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
-      entry.getValue().close();
-    }
+    this.closer.close();
   }
 
   private DataWriter<D> createPartitionWriter(GenericRecord partition) throws IOException {

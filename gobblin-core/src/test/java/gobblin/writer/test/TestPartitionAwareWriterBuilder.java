@@ -37,7 +37,7 @@ public class TestPartitionAwareWriterBuilder extends PartitionAwareDataWriterBui
   }
 
   @Override public DataWriter build() throws IOException {
-    String partition = this.partition.get(TestPartitioner.PARTITION).toString();
+    String partition = this.partition.get().get(TestPartitioner.PARTITION).toString();
     this.actions.add(new Action(Actions.BUILD, partition, null));
     return new TestDataWriter(partition);
   }

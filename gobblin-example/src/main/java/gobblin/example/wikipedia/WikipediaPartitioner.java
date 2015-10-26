@@ -28,7 +28,8 @@ public class WikipediaPartitioner implements WriterPartitioner<GenericRecord> {
 
   private static final String TITLE = "title";
 
-  private static final Schema SCHEMA = SchemaBuilder.record("ArticleTitle").fields().name(TITLE).
+  private static final Schema SCHEMA = SchemaBuilder.record("ArticleTitle").namespace("gobblin.example.wikipedia").
+      fields().name(TITLE).
       type(Schema.create(Schema.Type.STRING)).noDefault().endRecord();
 
   public WikipediaPartitioner(State state) {

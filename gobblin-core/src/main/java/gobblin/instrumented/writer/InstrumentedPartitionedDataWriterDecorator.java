@@ -12,14 +12,16 @@
 
 package gobblin.instrumented.writer;
 
-import gobblin.configuration.State;
-import gobblin.metrics.Tag;
-import gobblin.writer.DataWriter;
-
 import java.util.List;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
+
+import com.google.common.collect.ImmutableList;
+
+import gobblin.configuration.State;
+import gobblin.metrics.Tag;
+import gobblin.writer.DataWriter;
 
 
 /**
@@ -36,11 +38,11 @@ public class InstrumentedPartitionedDataWriterDecorator<D> extends InstrumentedD
   }
 
   @Override public List<Tag<?>> generateTags(State state) {
-    List<Tag<?>> tags = super.generateTags(state);
+    ImmutableList.Builder<Tag<?>> tags = ImmutableList.<Tag<?>>builder().addAll(super.generateTags(state));
     tags.add(new Tag<GenericRecord>(PARTITION, this.partition));
     for(Schema.Field field : this.partition.getSchema().getFields()) {
       tags.add(new Tag<Object>(field.name(), this.partition.get(field.name())));
     }
-    return tags;
+    return tags.build();
   }
 }

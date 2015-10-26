@@ -18,7 +18,6 @@ import static org.apache.avro.SchemaCompatibility.SchemaCompatibilityType.COMPAT
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -68,6 +67,7 @@ public class AvroUtils {
   private static final String FIELD_LOCATION_DELIMITER = ".";
 
   private static final String AVRO_SUFFIX = ".avro";
+  public static final String HDFS_ILLEGAL_TOKEN_REGEX = "[\\s/:\\\\]";
 
   /**
    * Given a GenericRecord, this method will return the schema of the field specified by the path parameter. The
@@ -434,10 +434,10 @@ public class AvroUtils {
     }
     List<String> tokens = Lists.newArrayList();
     for(Schema.Field field : record.getSchema().getFields()) {
-      String sanitizedName = field.name().replaceAll("[\\s/]","_");
-      String sanitizedValue = record.get(field.name()).toString().replaceAll("[\\s/]","_");
+      String sanitizedName = field.name().replaceAll(HDFS_ILLEGAL_TOKEN_REGEX, "_");
+      String sanitizedValue = record.get(field.name()).toString().replaceAll(HDFS_ILLEGAL_TOKEN_REGEX, "_");
       if(includeFieldNames) {
-        tokens.add(String.format("%s=%s", field.name(), sanitizedValue));
+        tokens.add(String.format("%s=%s", sanitizedName, sanitizedValue));
       } else {
         tokens.add(sanitizedValue);
       }

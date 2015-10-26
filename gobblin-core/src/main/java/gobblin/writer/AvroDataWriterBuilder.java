@@ -53,8 +53,8 @@ public class AvroDataWriterBuilder extends PartitionAwareDataWriterBuilder<Schem
         String fileName = WriterUtils
             .getWriterFileName(properties, this.branches, this.branch, this.writerId, this.format.getExtension());
 
-        if(this.partition != null) {
-          fileName = new Path(AvroUtils.serializeAsPath(this.partition, true).toString(),fileName).toString();
+        if(this.partition.isPresent()) {
+          fileName = new Path(AvroUtils.serializeAsPath(this.partition.get(), true).toString(), fileName).toString();
         }
 
         return new AvroHdfsDataWriter(properties, fileName, this.schema, this.branches, this.branch);
