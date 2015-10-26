@@ -36,7 +36,7 @@ import gobblin.data.management.util.PathUtils;
 
 
 /**
- * Implementation of a {@link gobblin.data.management.retention.dataset.Dataset} that uses a
+ * Implementation of a {@link CleanableDataset} that uses a
  * {@link gobblin.data.management.retention.version.finder.VersionFinder} to find dataset versions, a
  * {@link gobblin.data.management.retention.policy.RetentionPolicy} to figure out deletable versions, and then deletes
  * those files and newly empty parent directories.
@@ -85,9 +85,9 @@ import gobblin.data.management.util.PathUtils;
  * </p>
  *
  * @param <T> type of {@link gobblin.data.management.retention.version.DatasetVersion} supported by this
- *           {@link gobblin.data.management.retention.dataset.Dataset}.
+ *           {@link CleanableDataset}.
  */
-public abstract class DatasetBase<T extends DatasetVersion> implements Dataset {
+public abstract class DatasetBase<T extends DatasetVersion> implements CleanableDataset {
 
   public static final String CONFIGURATION_KEY_PREFIX = "gobblin.retention.";
   public static final String SIMULATE_KEY = CONFIGURATION_KEY_PREFIX + "simulate";

@@ -12,27 +12,22 @@
 
 package gobblin.data.management.retention.dataset;
 
-import java.io.IOException;
+import gobblin.data.management.dataset.Dataset;
 
-import org.apache.hadoop.fs.Path;
+import java.io.IOException;
 
 
 /**
  * An abstraction for a set of files where a simple {@link gobblin.data.management.retention.policy.RetentionPolicy}
  * can be applied.
  */
-public interface Dataset {
+public interface CleanableDataset extends Dataset {
 
   /**
-   * Cleans the {@link gobblin.data.management.retention.dataset.Dataset}. In general, this means to apply a
+   * Cleans the {@link CleanableDataset}. In general, this means to apply a
    * {@link gobblin.data.management.retention.policy.RetentionPolicy} and delete files and directories that need deleting.
    * @throws IOException
    */
   public void clean() throws IOException;
-
-  /**
-   * Deepest {@link org.apache.hadoop.fs.Path} that contains all files in the dataset.
-   */
-  public abstract Path datasetRoot();
 
 }

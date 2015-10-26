@@ -12,6 +12,10 @@
 
 package gobblin.util;
 
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+import gobblin.writer.DataWriter;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -19,6 +23,7 @@ import java.io.DataOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map.Entry;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
@@ -33,9 +38,6 @@ import org.apache.hadoop.util.ReflectionUtils;
 import com.google.common.collect.Lists;
 import com.google.common.io.BaseEncoding;
 import com.google.common.io.Closer;
-
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
 
 
 /**
@@ -57,6 +59,8 @@ public class HadoopUtils {
       conf.set("fs.s3n.awsSecretAccessKey", awsSecretAccessKey);
     }
 
+    // Add a new custom filesystem mapping
+    conf.set("fs.sftp.impl", "gobblin.source.extractor.extract.sftp.SftpLightWeightFileSystem");
     return conf;
   }
 
@@ -133,11 +137,19 @@ public class HadoopUtils {
   }
 
   public static Configuration getConfFromState(State state) {
-    Configuration conf = new Configuration();
+    Configuration conf = newConfiguration();
     for (String propName : state.getPropertyNames()) {
       conf.set(propName, state.getProp(propName));
     }
     return conf;
+  }
+
+  public static State getStateFromConf(Configuration conf) {
+    State state = new State();
+    for (Entry<String, String> entry : conf) {
+      state.setProp(entry.getKey(), entry.getValue());
+    }
+    return state;
   }
 
   /**

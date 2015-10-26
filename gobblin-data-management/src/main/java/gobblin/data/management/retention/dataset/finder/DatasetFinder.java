@@ -15,24 +15,24 @@ package gobblin.data.management.retention.dataset.finder;
 import java.io.IOException;
 import java.util.List;
 
-import gobblin.data.management.retention.dataset.Dataset;
+import gobblin.data.management.dataset.Dataset;
 
 
 /**
- * Finds {@link gobblin.data.management.retention.dataset.Dataset}s in the file system.
+ * Finds {@link gobblin.data.management.retention.dataset.CleanableDataset}s in the file system.
  *
  * <p>
  *   Concrete subclasses should have a constructor with signature
  *   ({@link org.apache.hadoop.fs.FileSystem}, {@link java.util.Properties}).
  * </p>
  */
-public interface DatasetFinder {
+public interface DatasetFinder <T extends Dataset>{
 
   /**
-   * Find all {@link gobblin.data.management.retention.dataset.Dataset}s in the file system.
-   * @return List of {@link gobblin.data.management.retention.dataset.Dataset}s in the file system.
+   * Find all {@link gobblin.data.management.retention.dataset.CleanableDataset}s in the file system.
+   * @return List of {@link gobblin.data.management.retention.dataset.CleanableDataset}s in the file system.
    * @throws IOException
    */
-  public List<Dataset> findDatasets() throws IOException;
+  public List<T> findDatasets() throws IOException;
 
 }

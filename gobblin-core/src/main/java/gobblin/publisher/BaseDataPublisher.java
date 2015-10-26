@@ -211,10 +211,14 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       }
 
       LOG.info(String.format("Moving %s to %s", writerOutputDir, publisherOutputDir));
-      parallelRunner.renamePath(writerOutputDir, publisherOutputDir,
-          this.publisherFinalDirOwnerGroupsByBranches.get(branchId));
+      rename(writerOutputDir, publisherOutputDir, branchId);
       writerOutputPathsMoved.add(writerOutputDir);
     }
+  }
+
+  protected void rename(Path writerOutputDir, Path publisherOutputDir, int branchId) throws IOException {
+    ParallelRunner parallelRunner = this.getParallelRunner(this.fileSystemByBranches.get(branchId));
+    parallelRunner.renamePath(writerOutputDir, publisherOutputDir,this.publisherFinalDirOwnerGroupsByBranches.get(branchId));
   }
 
   /**
@@ -281,7 +285,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     }
   }
 
-  private ParallelRunner getParallelRunner(FileSystem fs) {
+  protected ParallelRunner getParallelRunner(FileSystem fs) {
     String uri = fs.getUri().toString();
     if (!this.parallelRunners.containsKey(uri)) {
       this.parallelRunners.put(uri, this.closer.register(new ParallelRunner(this.parallelRunnerThreads, fs)));
