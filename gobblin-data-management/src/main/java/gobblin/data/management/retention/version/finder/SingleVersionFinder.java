@@ -22,14 +22,14 @@ import org.apache.hadoop.fs.FileSystem;
 
 import lombok.Getter;
 
-import gobblin.data.management.retention.dataset.Dataset;
+import gobblin.data.management.retention.dataset.CleanableDataset;
 import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.FileStatusDatasetVersion;
 import gobblin.data.management.retention.version.StringDatasetVersion;
 
 /**
  * Implementation of {@link VersionFinder} that uses a {@link StringDatasetVersion} and simply creates a single
- * {@link StringDatasetVersion} for the given {@link Dataset}.
+ * {@link StringDatasetVersion} for the given {@link gobblin.data.management.retention.dataset.CleanableDataset}.
  */
 public class SingleVersionFinder implements VersionFinder<FileStatusDatasetVersion> {
 
@@ -46,7 +46,7 @@ public class SingleVersionFinder implements VersionFinder<FileStatusDatasetVersi
   }
 
   @Override
-  public Collection<FileStatusDatasetVersion> findDatasetVersions(Dataset dataset) throws IOException {
+  public Collection<FileStatusDatasetVersion> findDatasetVersions(CleanableDataset dataset) throws IOException {
     return Lists.newArrayList(new FileStatusDatasetVersion(this.fs.getFileStatus(dataset.datasetRoot())));
   }
 }
