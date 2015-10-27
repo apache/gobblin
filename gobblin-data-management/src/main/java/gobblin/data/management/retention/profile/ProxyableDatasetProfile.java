@@ -22,9 +22,9 @@ import org.apache.hadoop.fs.Path;
 import com.google.common.base.Preconditions;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.data.management.dataset.Dataset;
 import gobblin.data.management.retention.DatasetCleaner;
 import gobblin.data.management.retention.dataset.ConfigurableDataset;
-import gobblin.data.management.retention.dataset.Dataset;
 import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.util.ProxiedFileSystemCache;
 import gobblin.util.RateControlledFileSystem;
@@ -32,7 +32,7 @@ import gobblin.util.RateControlledFileSystem;
 
 /**
  * A wrapper of {@link gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder} that looks for
- * {@link gobblin.data.management.retention.dataset.Dataset}s with {@link org.apache.hadoop.fs.FileSystem}s
+ * {@link gobblin.data.management.retention.dataset.CleanableDataset}s with {@link org.apache.hadoop.fs.FileSystem}s
  * proxied as the owner of each dataset.
  */
 public class ProxyableDatasetProfile extends ConfigurableGlobDatasetFinder {

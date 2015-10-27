@@ -40,8 +40,9 @@ import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gobblin.data.management.dataset.Dataset;
+import gobblin.data.management.retention.dataset.CleanableDataset;
 import gobblin.configuration.State;
-import gobblin.data.management.retention.dataset.Dataset;
 import gobblin.data.management.retention.dataset.finder.DatasetFinder;
 import gobblin.instrumented.Instrumentable;
 import gobblin.instrumented.Instrumented;
@@ -57,6 +58,8 @@ import gobblin.util.executors.ScalingThreadPoolExecutor;
  * Finds existing versions of datasets and cleans old or deprecated versions.
  */
 public class DatasetCleaner implements Instrumentable, Closeable {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(DatasetCleaner.class);
 
   public static final String CONFIGURATION_KEY_PREFIX = "gobblin.retention.";
   public static final String DATASET_PROFILE_CLASS_KEY = CONFIGURATION_KEY_PREFIX + "dataset.profile.class";
@@ -129,29 +132,31 @@ public class DatasetCleaner implements Instrumentable, Closeable {
     List<Dataset> dataSets = this.datasetFinder.findDatasets();
     finishCleanSignal = Optional.of(new CountDownLatch(dataSets.size()));
     for (final Dataset dataset : dataSets) {
-      ListenableFuture<Void> future = this.service.submit(new Callable<Void>() {
-        @Override
-        public Void call() throws Exception {
-          dataset.clean();
-          return null;
-        }
-      });
-      Futures.addCallback(future, new FutureCallback<Void>() {
-        @Override
-        public void onFailure(Throwable throwable) {
-          finishCleanSignal.get().countDown();
-          LOG.warn("Exception caught when cleaning " + dataset.datasetRoot() + ".", throwable);
-          Instrumented.markMeter(datasetsCleanFailureMeter);
-        }
+      if(dataset instanceof CleanableDataset) {
 
-        @Override
-        public void onSuccess(Void arg0) {
-          finishCleanSignal.get().countDown();
-          LOG.info("Successfully cleaned: " + dataset.datasetRoot());
-          Instrumented.markMeter(datasetsCleanSuccessMeter);
-        }
+        ListenableFuture<Void> future = this.service.submit(new Callable<Void>() {
+          @Override public Void call() throws Exception {
+            ((CleanableDataset) dataset).clean();
+            return null;
+          }
+        });
+        Futures.addCallback(future, new FutureCallback<Void>() {
+          @Override public void onFailure(Throwable throwable) {
+            finishCleanSignal.get().countDown();
+            LOG.warn("Exception caught when cleaning " + dataset.datasetRoot() + ".", throwable);
+            Instrumented.markMeter(datasetsCleanFailureMeter);
+          }
 
-      });
+          @Override public void onSuccess(Void arg0) {
+            finishCleanSignal.get().countDown();
+            LOG.info("Successfully cleaned: " + dataset.datasetRoot());
+            Instrumented.markMeter(datasetsCleanSuccessMeter);
+          }
+
+        });
+      } else {
+        LOGGER.error(String.format("Dataset %s is not cleanable. Skipping.", dataset));
+      }
     }
   }
 
