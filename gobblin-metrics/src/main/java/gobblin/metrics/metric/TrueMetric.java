@@ -10,31 +10,18 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics;
+package gobblin.metrics.metric;
 
 import com.codahale.metrics.Metric;
 
-import gobblin.metrics.metric.ProxyMetric;
+import gobblin.metrics.ContextAwareMetric;
 
 
 /**
- * An interface for a type of {@link com.codahale.metrics.Metric}s that are aware of their
- * {@link MetricContext} and can have associated {@link Tag}s.
- *
- * @author ynli
+ * Created by ibuenros on 10/30/15.
  */
-public interface ContextAwareMetric extends Metric, ProxyMetric {
+public interface TrueMetric extends Metric {
 
-  /**
-   * Get the name of the metric.
-   *
-   * @return the name of the metric
-   */
-  public String getName();
-
-  /**
-   * Get the {@link MetricContext} the metric is registered in.
-   */
-  public MetricContext getContext();
+  public ContextAwareMetric getContextAwareMetric();
 
 }

@@ -12,15 +12,18 @@
 
 package gobblin.metrics;
 
+import lombok.Getter;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -37,26 +40,23 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.MetricSet;
-import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Timer;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSortedMap;
-import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.MoreExecutors;
 
+import gobblin.metrics.context.NameConflictException;
+import gobblin.metrics.context.ReportableContext;
 import gobblin.metrics.notification.EventNotification;
 import gobblin.metrics.notification.Notification;
-import gobblin.metrics.reporter.ContextAwareScheduledReporter;
 import gobblin.util.ExecutorsUtils;
 
 
@@ -76,40 +76,17 @@ import gobblin.util.ExecutorsUtils;
  *
  * @author ynli
  */
-public class MetricContext extends MetricRegistry implements Taggable, Closeable {
+public class MetricContext extends MetricRegistry implements ReportableContext, Closeable {
+
+  protected Closer closer;
+
+  public static final String METRIC_CONTEXT_ID_TAG_NAME = "metricContextID";
+  @Getter
+  private final InnerMetricContext innerMetricContext;
 
   private static final Logger LOG = LoggerFactory.getLogger(MetricContext.class);
 
-  public static final String METRIC_CONTEXT_ID_TAG_NAME = "metricContextID";
   public static final String GOBBLIN_METRICS_NOTIFICATIONS_TIMER_NAME = "gobblin.metrics.notifications.timer";
-
-  // Name of this context
-  private final String name;
-
-  // A map from simple names to context-aware metrics. All metrics registered with this context (using
-  // their simple names) are also registered with the MetricRegistry using their fully-qualified names.
-  private final ConcurrentMap<String, Metric> contextAwareMetrics = Maps.newConcurrentMap();
-
-  // List of context-aware scheduled metric reporters associated with this context
-  private final Map<String, ContextAwareScheduledReporter> contextAwareScheduledReporters = Maps.newHashMap();
-
-  // Reference to the parent context wrapped in an Optional as there may be no parent context
-  private final Optional<MetricContext> parent;
-
-  // A map from child context names to child contexts
-  private final Cache<String, MetricContext> children = CacheBuilder.newBuilder().softValues().build();
-
-  // This is used to work on tags associated with this context
-  private final Tagged tagged;
-
-  // This flag tells if the context should report fully-qualified metric names (including the tags)
-  private final boolean reportFullyQualifiedNames;
-
-  // This flag tells if the fully-qualified metric names should include tag keys
-  private final boolean includeTagKeys;
-
-  // This is used to close all children context when this context is to be closed
-  private final Closer closer = Closer.create();
 
   // Targets for notifications.
   private final Map<UUID, Function<Notification, Void>> notificationTargets;
@@ -117,37 +94,39 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
 
   private Optional<ExecutorService> executorServiceOptional;
 
-  private MetricContext(String name, MetricContext parent, List<Tag<?>> tags,
-      Map<String, ContextAwareScheduledReporter.Builder> builders, boolean reportFullyQualifiedNames,
-      boolean includeTagKeys) {
+  // This set exists so that metrics that have no hard references in code don't get GCed while the MetricContext
+  // is alive.
+  private final Set<ContextAwareMetric> contextAwareMetricsSet;
+
+  protected MetricContext(String name, MetricContext parent, List<Tag<?>> tags, boolean isRoot) throws NameConflictException {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(name));
 
-    this.name = name;
-    this.parent = Optional.fromNullable(parent);
-    this.tagged = new Tagged(tags);
-    this.tagged.addTag(new Tag<String>(METRIC_CONTEXT_ID_TAG_NAME, UUID.randomUUID().toString()));
-    this.reportFullyQualifiedNames = reportFullyQualifiedNames;
+    this.closer = Closer.create();
+
+    try {
+      this.innerMetricContext = this.closer.register(new InnerMetricContext(this, name, parent, tags));
+    } catch(ExecutionException ee) {
+      throw new RuntimeException("Failed to create metric context.");
+    }
+
+    this.contextAwareMetricsSet = Sets.newConcurrentHashSet();
+
     this.notificationTargets = Maps.newConcurrentMap();
     this.executorServiceOptional = Optional.absent();
-    this.includeTagKeys = includeTagKeys;
 
-    // Add as a child to the parent context if a parent exists
-    if (this.parent.isPresent()) {
-      this.parent.get().addChildContext(name, this);
+    this.notificationTimer = new ContextAwareTimer(this, GOBBLIN_METRICS_NOTIFICATIONS_TIMER_NAME);
+    register(this.notificationTimer);
+
+    if(!isRoot) {
+      RootMetricContext.get().addMetricContext(this);
     }
-
-    for (Map.Entry<String, ContextAwareScheduledReporter.Builder> entry : builders.entrySet()) {
-      this.contextAwareScheduledReporters.put(entry.getKey(), entry.getValue().build(this));
-    }
-
-    this.notificationTimer = this.contextAwareTimer(GOBBLIN_METRICS_NOTIFICATIONS_TIMER_NAME);
   }
 
   private synchronized ExecutorService getExecutorService() {
     if(!this.executorServiceOptional.isPresent()) {
       this.executorServiceOptional = Optional.of(MoreExecutors.getExitingExecutorService(
           (ThreadPoolExecutor) Executors.newCachedThreadPool(ExecutorsUtils.newThreadFactory(Optional.of(LOG),
-              Optional.of("MetricContext-" + this.name + "-%d"))), 5,
+              Optional.of("MetricContext-" + getName() + "-%d"))), 5,
           TimeUnit.MINUTES));
     }
     return this.executorServiceOptional.get();
@@ -159,7 +138,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    * @return the name of this {@link MetricContext}
    */
   public String getName() {
-    return this.name;
+    return this.innerMetricContext.getName();
   }
 
   /**
@@ -171,17 +150,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    *         {@link com.google.common.base.Optional}
    */
   public Optional<MetricContext> getParent() {
-    return this.parent;
-  }
-
-  /**
-   * Add a {@link MetricContext} as a child of this {@link MetricContext} if it is not currently a child.
-   *
-   * @param childContextName the name of the child {@link MetricContext}
-   * @param childContext the child {@link MetricContext} to add
-   */
-  public void addChildContext(String childContextName, MetricContext childContext) {
-    this.children.asMap().putIfAbsent(childContextName, childContext);
+    return this.innerMetricContext.getParent();
   }
 
   /**
@@ -190,7 +159,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    *      child {@link gobblin.metrics.MetricContext}s keyed by their names.
    */
   public Map<String, MetricContext> getChildContextsAsMap() {
-    return ImmutableMap.copyOf(this.children.asMap());
+    return this.innerMetricContext.getChildContextsAsMap();
   }
 
   /**
@@ -203,7 +172,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    */
   @Override
   public SortedSet<String> getNames() {
-    return this.reportFullyQualifiedNames ? super.getNames() : getSimpleNames();
+    return this.innerMetricContext.getNames();
   }
 
   /**
@@ -241,7 +210,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    */
   @Override
   public Map<String, Metric> getMetrics() {
-    return this.reportFullyQualifiedNames ? super.getMetrics() : getSimplyNamedMetrics();
+    return this.innerMetricContext.getMetrics();
   }
 
   /**
@@ -254,8 +223,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    */
   @Override
   public SortedMap<String, Gauge> getGauges() {
-    return this.reportFullyQualifiedNames ?
-        super.getGauges() : getSimplyNamedMetrics(Gauge.class, Optional.<MetricFilter>absent());
+    return this.innerMetricContext.getGauges(MetricFilter.ALL);
   }
 
   /**
@@ -268,8 +236,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    */
   @Override
   public SortedMap<String, Gauge> getGauges(MetricFilter filter) {
-    return this.reportFullyQualifiedNames ?
-        super.getGauges(filter) : getSimplyNamedMetrics(Gauge.class, Optional.of(filter));
+    return this.innerMetricContext.getGauges(filter);
   }
 
   /**
@@ -282,8 +249,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    */
   @Override
   public SortedMap<String, Counter> getCounters() {
-    return this.reportFullyQualifiedNames ?
-        super.getCounters() : getSimplyNamedMetrics(Counter.class, Optional.<MetricFilter>absent());
+    return this.innerMetricContext.getCounters(MetricFilter.ALL);
   }
 
   /**
@@ -296,8 +262,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    */
   @Override
   public SortedMap<String, Counter> getCounters(MetricFilter filter) {
-    return this.reportFullyQualifiedNames ?
-        super.getCounters(filter) : getSimplyNamedMetrics(Counter.class, Optional.of(filter));
+    return this.innerMetricContext.getCounters(filter);
   }
 
   /**
@@ -310,8 +275,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    */
   @Override
   public SortedMap<String, Histogram> getHistograms() {
-    return this.reportFullyQualifiedNames ?
-        super.getHistograms() : getSimplyNamedMetrics(Histogram.class, Optional.<MetricFilter>absent());
+    return this.innerMetricContext.getHistograms(MetricFilter.ALL);
   }
 
   /**
@@ -324,8 +288,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    */
   @Override
   public SortedMap<String, Histogram> getHistograms(MetricFilter filter) {
-    return this.reportFullyQualifiedNames ?
-        super.getHistograms(filter) : getSimplyNamedMetrics(Histogram.class, Optional.of(filter));
+    return this.innerMetricContext.getHistograms(filter);
   }
 
   /**
@@ -338,8 +301,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    */
   @Override
   public SortedMap<String, Meter> getMeters() {
-    return this.reportFullyQualifiedNames ?
-        super.getMeters() : getSimplyNamedMetrics(Meter.class, Optional.<MetricFilter>absent());
+    return this.innerMetricContext.getMeters(MetricFilter.ALL);
   }
 
   /**
@@ -352,8 +314,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    */
   @Override
   public SortedMap<String, Meter> getMeters(MetricFilter filter) {
-    return this.reportFullyQualifiedNames ?
-        super.getMeters(filter) : getSimplyNamedMetrics(Meter.class, Optional.of(filter));
+    return this.innerMetricContext.getMeters(filter);
   }
 
   /**
@@ -366,8 +327,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    */
   @Override
   public SortedMap<String, Timer> getTimers() {
-    return this.reportFullyQualifiedNames ?
-        super.getTimers() : getSimplyNamedMetrics(Timer.class, Optional.<MetricFilter>absent());
+    return this.innerMetricContext.getTimers(MetricFilter.ALL);
   }
 
   /**
@@ -380,8 +340,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    */
   @Override
   public SortedMap<String, Timer> getTimers(MetricFilter filter) {
-    return this.reportFullyQualifiedNames ?
-        super.getTimers(filter) : getSimplyNamedMetrics(Timer.class, Optional.of(filter));
+    return this.innerMetricContext.getTimers(filter);
   }
 
   /**
@@ -431,14 +390,10 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
   @Override
   public synchronized <T extends Metric> T register(String name, T metric)
       throws IllegalArgumentException {
-    if (metric instanceof MetricSet) {
-      registerAll((MetricSet) metric);
+    if(!(metric instanceof ContextAwareMetric)) {
+      throw new UnsupportedOperationException("Can only register ContextAwareMetrics.");
     }
-    if (this.contextAwareMetrics.putIfAbsent(name, metric) != null) {
-      throw new IllegalArgumentException("A metric named " + name + " already exists");
-    }
-    // Also register the metric with the MetricRegistry using its fully-qualified name
-    return super.register(MetricRegistry.name(metricNamePrefix(this.includeTagKeys), name), metric);
+    return this.innerMetricContext.register(name, metric);
   }
 
   /**
@@ -446,12 +401,6 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    */
   public <T extends ContextAwareMetric> T register(T metric) throws IllegalArgumentException {
     return register(metric.getName(), metric);
-  }
-
-  @Override
-  public void registerAll(MetricSet metrics)
-      throws IllegalArgumentException {
-    throw new UnsupportedOperationException();
   }
 
   /**
@@ -472,7 +421,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    * @return the {@link ContextAwareCounter} with the given name
    */
   public ContextAwareCounter contextAwareCounter(String name, ContextAwareMetricFactory<ContextAwareCounter> factory) {
-    return getOrCreate(name, factory);
+    return this.innerMetricContext.getOrCreate(name, factory);
   }
 
   /**
@@ -493,7 +442,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    * @return the {@link ContextAwareMeter} with the given name
    */
   public ContextAwareMeter contextAwareMeter(String name, ContextAwareMetricFactory<ContextAwareMeter> factory) {
-    return getOrCreate(name, factory);
+    return this.innerMetricContext.getOrCreate(name, factory);
   }
 
   /**
@@ -515,7 +464,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    */
   public ContextAwareHistogram contextAwareHistogram(String name,
       ContextAwareMetricFactory<ContextAwareHistogram> factory) {
-    return getOrCreate(name, factory);
+    return this.innerMetricContext.getOrCreate(name, factory);
   }
 
   /**
@@ -536,7 +485,7 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    * @return the {@link ContextAwareTimer} with the given name
    */
   public ContextAwareTimer contextAwareTimer(String name, ContextAwareMetricFactory<ContextAwareTimer> factory) {
-    return getOrCreate(name, factory);
+    return this.innerMetricContext.getOrCreate(name, factory);
   }
 
   /**
@@ -564,79 +513,24 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    */
   @Override
   public synchronized boolean remove(String name) {
-    return this.contextAwareMetrics.remove(name) != null &&
-           super.remove(MetricRegistry.name(metricNamePrefix(this.includeTagKeys), name)) &&
-           removeChildrenMetrics(name);
+    return this.innerMetricContext.remove(name);
   }
 
   @Override
   public void removeMatching(MetricFilter filter) {
-    for (Map.Entry<String, Metric> entry : this.contextAwareMetrics.entrySet()) {
-      if (filter.matches(entry.getKey(), entry.getValue())) {
-        remove(entry.getKey());
-      }
-    }
+    this.innerMetricContext.removeMatching(filter);
   }
 
-  /**
-   * Start all the {@link com.codahale.metrics.ScheduledReporter}s associated with this {@link MetricContext}.
-   *
-   * @param period the amount of time between polls
-   * @param timeUnit the unit for {@code period}
-   */
-  public void startMetricReporting(long period, TimeUnit timeUnit) {
-    for (ScheduledReporter reporter : this.contextAwareScheduledReporters.values()) {
-      reporter.start(period, timeUnit);
-    }
-  }
-
-  /**
-   * Stop all the {@link com.codahale.metrics.ScheduledReporter}s associated with this {@link MetricContext}.
-   */
-  public void stopMetricReporting() {
-    for (ScheduledReporter reporter : this.contextAwareScheduledReporters.values()) {
-      reporter.stop();
-    }
-  }
-
-  /**
-   * Call the {@link com.codahale.metrics.ScheduledReporter#report} method of the
-   * {@link com.codahale.metrics.ScheduledReporter}s associated with this {@link MetricContext}.
-   */
-  public void reportMetrics() {
-    for (ScheduledReporter reporter : this.contextAwareScheduledReporters.values()) {
-      reporter.report();
-    }
-  }
-
-  @Override
-  public void addTag(Tag tag) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void addTags(Collection<Tag<?>> tags) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
   public List<Tag<?>> getTags() {
-    return this.tagged.getTags();
+    return this.innerMetricContext.getTags();
   }
 
   public Map<String, Object> getTagMap() {
-    return this.tagged.getTagMap();
-  }
-
-  @Override
-  public String metricNamePrefix(boolean includeTagKeys) {
-    return this.tagged.metricNamePrefix(includeTagKeys);
+    return this.innerMetricContext.getTagMap();
   }
 
   @Override
   public void close() throws IOException {
-    stopMetricReporting();
-    reportMetrics();
     this.closer.close();
   }
 
@@ -699,58 +593,28 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
       }
     }
 
-    if(this.parent.isPresent()) {
-      this.parent.get().sendNotification(notification);
+    if(getParent().isPresent()) {
+      getParent().get().sendNotification(notification);
     }
     timer.stop();
   }
 
-  private SortedSet<String> getSimpleNames() {
-    return ImmutableSortedSet.copyOf(this.contextAwareMetrics.keySet());
+  void addChildContext(String childContextName, MetricContext childContext) throws NameConflictException,
+      ExecutionException {
+    this.innerMetricContext.addChildContext(childContextName, childContext);
   }
 
-  private Map<String, Metric> getSimplyNamedMetrics() {
-    return ImmutableMap.copyOf(this.contextAwareMetrics);
+  void addToMetrics(ContextAwareMetric metric) {
+    this.contextAwareMetricsSet.add(metric);
   }
 
-  @SuppressWarnings("unchecked")
-  private <T extends Metric> SortedMap<String, T> getSimplyNamedMetrics(Class<T> mClass,
-      Optional<MetricFilter> filter) {
-    ImmutableSortedMap.Builder<String, T> builder = ImmutableSortedMap.naturalOrder();
-    for (Map.Entry<String, Metric> entry : this.contextAwareMetrics.entrySet()) {
-      if (mClass.isInstance(entry.getValue())) {
-        if (filter.isPresent() && !filter.get().matches(entry.getKey(), entry.getValue())) {
-          continue;
-        }
-        builder.put(entry.getKey(), (T) entry.getValue());
-      }
-    }
-    return builder.build();
+  void removeFromMetrics(ContextAwareMetric metric) {
+    this.contextAwareMetricsSet.remove(metric);
   }
 
-  @SuppressWarnings("unchecked")
-  private synchronized <T extends ContextAwareMetric> T getOrCreate(String name, ContextAwareMetricFactory<T> factory) {
-    Metric metric = this.contextAwareMetrics.get(name);
-    if (metric != null) {
-      if (factory.isInstance(metric)) {
-        return (T) metric;
-      }
-      throw new IllegalArgumentException(name + " is already used for a different type of metric");
-    }
-
-    T newMetric = factory.newMetric(this, name);
-    register(name, newMetric);
-    return newMetric;
-  }
-
-  private boolean removeChildrenMetrics(String name) {
-    boolean removed = true;
-    for (MetricContext child : this.children.asMap().values()) {
-      if (!child.remove(name)) {
-        removed = false;
-      }
-    }
-    return removed;
+  @VisibleForTesting
+  void clearNotificationTargets() {
+    this.notificationTargets.clear();
   }
 
   /**
@@ -758,12 +622,9 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
    */
   public static class Builder {
 
-    private final String name;
+    private String name;
     private MetricContext parent = null;
     private final List<Tag<?>> tags = Lists.newArrayList();
-    private final Map<String, ContextAwareScheduledReporter.Builder> contextAwareReporterBuilders = Maps.newHashMap();
-    private boolean reportFullyQualifiedNames = false;
-    private boolean includeTagKeys = false;
 
     public Builder(String name) {
       this.name = name;
@@ -809,41 +670,30 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
     }
 
     /**
-     * Add a {@link ContextAwareScheduledReporter}.
+     * Builder a new {@link MetricContext}.
      *
-     * @param builder a {@link ContextAwareScheduledReporter.Builder} used to build the
-     *                {@link ContextAwareScheduledReporter}
-     * @return {@code this}
-     */
-    public Builder addContextAwareScheduledReporter(ContextAwareScheduledReporter.Builder builder) {
-      this.contextAwareReporterBuilders.put(builder.getName(), builder);
-      return this;
-    }
-
-    /**
-     * Add a collection of {@link ContextAwareScheduledReporter}s.
+     * <p>
+     *   See {@link Taggable#metricNamePrefix(boolean)} for the semantic of {@code includeTagKeys}.
+     * </p>
      *
-     * @param builders a collection of {@link ContextAwareScheduledReporter.Builder}s used to
-     *                 build the collection of {@link ContextAwareScheduledReporter}s
-     * @return {@code this}
+     * <p>
+     *   Note this builder may change the name of the built {@link MetricContext} if the parent context already has a child with
+     *   that name. If this is unacceptable, use {@link #buildStrict} instead.
+     * </p>
+     *
+     * @return the newly built {@link MetricContext}
      */
-    public Builder addContextAwareScheduledReporters(Collection<ContextAwareScheduledReporter.Builder> builders) {
-      for (ContextAwareScheduledReporter.Builder builder : builders) {
-        addContextAwareScheduledReporter(builder);
+    public MetricContext build() {
+      try {
+        return buildStrict();
+      } catch (NameConflictException nce) {
+        this.name = this.name + "_" + UUID.randomUUID().toString();
+        try {
+          return buildStrict();
+        } catch (NameConflictException nce2) {
+          throw new RuntimeException("Failed to build metric context.", nce2);
+        }
       }
-      return this;
-    }
-
-    /**
-     * Configure the {@link MetricContext} to report fully-qualified metric names (including the tags).
-     *
-     * @param includeTagKeys whether to include tag keys in the metric name prefix
-     * @return {@code this}
-     */
-    public Builder reportFullyQualifiedNames(boolean includeTagKeys) {
-      this.reportFullyQualifiedNames = true;
-      this.includeTagKeys = includeTagKeys;
-      return this;
     }
 
     /**
@@ -854,10 +704,14 @@ public class MetricContext extends MetricRegistry implements Taggable, Closeable
      * </p>
      *
      * @return the newly built {@link MetricContext}
+     * @throws NameConflictException if the parent {@link MetricContext} already has a child with this name.
      */
-    public MetricContext build() {
-      return new MetricContext(this.name, this.parent, this.tags, this.contextAwareReporterBuilders,
-          this.reportFullyQualifiedNames, this.includeTagKeys);
+    public MetricContext buildStrict() throws NameConflictException {
+      if(this.parent == null) {
+        this.parent = RootMetricContext.get();
+      }
+      return new MetricContext(this.name, this.parent, this.tags, false);
     }
+
   }
 }

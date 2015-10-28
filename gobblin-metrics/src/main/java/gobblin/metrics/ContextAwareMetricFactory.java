@@ -12,7 +12,11 @@
 
 package gobblin.metrics;
 
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.Histogram;
+import com.codahale.metrics.Meter;
 import com.codahale.metrics.Metric;
+import com.codahale.metrics.Timer;
 
 
 /**
@@ -62,7 +66,7 @@ public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
 
     @Override
     public boolean isInstance(Metric metric) {
-      return ContextAwareCounter.class.isInstance(metric);
+      return Counter.class.isInstance(metric);
     }
   }
 
@@ -78,7 +82,7 @@ public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
 
     @Override
     public boolean isInstance(Metric metric) {
-      return ContextAwareMeter.class.isInstance(metric);
+      return Meter.class.isInstance(metric);
     }
   }
 
@@ -94,7 +98,7 @@ public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
 
     @Override
     public boolean isInstance(Metric metric) {
-      return ContextAwareHistogram.class.isInstance(metric);
+      return Histogram.class.isInstance(metric);
     }
   }
 
@@ -110,7 +114,7 @@ public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
 
     @Override
     public boolean isInstance(Metric metric) {
-      return ContextAwareTimer.class.isInstance(metric);
+      return Timer.class.isInstance(metric);
     }
   }
 }

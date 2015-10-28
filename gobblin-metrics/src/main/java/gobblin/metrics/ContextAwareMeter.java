@@ -12,6 +12,8 @@
 
 package gobblin.metrics;
 
+import lombok.experimental.Delegate;
+
 import java.util.Collection;
 import java.util.List;
 
@@ -19,6 +21,8 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 
 import com.google.common.base.Optional;
+
+import gobblin.metrics.metric.TrueMetric;
 
 
 /**
@@ -39,64 +43,22 @@ import com.google.common.base.Optional;
  */
 class ContextAwareMeter extends Meter implements ContextAwareMetric {
 
-  private final String name;
+  @Delegate
+  private final TrueMeter trueMeter;
   private final MetricContext context;
-  private final Tagged tagged;
-  private final Optional<ContextAwareMeter> parentMeter;
 
   ContextAwareMeter(MetricContext context, String name) {
-    this.name = name;
+    this.trueMeter = new TrueMeter(context, name, this);
     this.context = context;
-    this.tagged = new Tagged();
-
-    Optional<MetricContext> parentContext = context.getParent();
-    if (parentContext.isPresent()) {
-      this.parentMeter = Optional.fromNullable(parentContext.get().contextAwareMeter(name));
-    } else {
-      this.parentMeter = Optional.absent();
-    }
   }
 
-  @Override
-  public void mark(long n) {
-    super.mark(n);
-    if (this.parentMeter.isPresent()) {
-      this.parentMeter.get().mark(n);
-    }
-  }
-
-  @Override
-  public String getName() {
-    return this.name;
-  }
-
-  @Override
-  public String getFullyQualifiedName(boolean includeTagKeys) {
-    return MetricRegistry.name(metricNamePrefix(includeTagKeys), this.name);
-  }
 
   @Override
   public MetricContext getContext() {
     return this.context;
   }
 
-  @Override
-  public void addTag(Tag<?> tag) {
-    this.tagged.addTag(tag);
-  }
-
-  @Override
-  public void addTags(Collection<Tag<?>> tags) {
-    this.tagged.addTags(tags);
-  }
-
-  @Override
-  public List<Tag<?>> getTags() {
-    return this.tagged.getTags();
-  }
-
-  @Override
-  public String metricNamePrefix(boolean includeTagKeys) {
-    return this.tagged.metricNamePrefix(includeTagKeys);
+  @Override public TrueMetric getTrueMetric() {
+    return this.trueMeter;
   }
 }

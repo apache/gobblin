@@ -13,6 +13,7 @@
 package gobblin.metrics.hadoop;
 
 import java.util.SortedMap;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.mapred.Counters;
@@ -55,37 +56,40 @@ public class HadoopCounterReporterTest {
   private Counters.Counter queueSize;
 
   @BeforeClass
-  public void setUp() {
+  public void setUp() throws Exception {
+
+    String contextName = CONTEXT_NAME + "_" + UUID.randomUUID().toString();
+
     Reporter mockedReporter = Mockito.mock(Reporter.class);
 
     this.recordsProcessedCount = Mockito.mock(Counters.Counter.class);
     Mockito.when(mockedReporter.getCounter(
-        CONTEXT_NAME, MetricRegistry.name(RECORDS_PROCESSED, Measurements.COUNT.getName())))
+        contextName, MetricRegistry.name(RECORDS_PROCESSED, Measurements.COUNT.getName())))
         .thenReturn(this.recordsProcessedCount);
 
     this.recordProcessRateCount = Mockito.mock(Counters.Counter.class);
     Mockito.when(mockedReporter.getCounter(
-        CONTEXT_NAME, MetricRegistry.name(RECORD_PROCESS_RATE, Measurements.COUNT.getName())))
+        contextName, MetricRegistry.name(RECORD_PROCESS_RATE, Measurements.COUNT.getName())))
         .thenReturn(this.recordProcessRateCount);
 
     this.recordSizeDistributionCount = Mockito.mock(Counters.Counter.class);
     Mockito.when(mockedReporter.getCounter(
-        CONTEXT_NAME, MetricRegistry.name(RECORD_SIZE_DISTRIBUTION, Measurements.COUNT.getName())))
+        contextName, MetricRegistry.name(RECORD_SIZE_DISTRIBUTION, Measurements.COUNT.getName())))
         .thenReturn(this.recordSizeDistributionCount);
 
     this.totalDurationCount = Mockito.mock(Counters.Counter.class);
     Mockito.when(mockedReporter.getCounter(
-        CONTEXT_NAME, MetricRegistry.name(TOTAL_DURATION, Measurements.COUNT.getName())))
+        contextName, MetricRegistry.name(TOTAL_DURATION, Measurements.COUNT.getName())))
         .thenReturn(this.totalDurationCount);
 
     this.queueSize = Mockito.mock(Counters.Counter.class);
-    Mockito.when(mockedReporter.getCounter(CONTEXT_NAME, QUEUE_SIZE)).thenReturn(this.queueSize);
+    Mockito.when(mockedReporter.getCounter(contextName, QUEUE_SIZE)).thenReturn(this.queueSize);
 
     this.hadoopCounterReporter = HadoopCounterReporter.builder(mockedReporter)
         .convertRatesTo(TimeUnit.SECONDS)
         .convertDurationsTo(TimeUnit.SECONDS)
         .filter(MetricFilter.ALL)
-        .build(MetricContext.builder(CONTEXT_NAME).build());
+        .build(MetricContext.builder(contextName).buildStrict());
   }
 
   @Test

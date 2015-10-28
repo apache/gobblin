@@ -46,6 +46,7 @@ dependencies {
   compile externalDependency.commonsHttpClient
   compile externalDependency.commonsCodec
   compile externalDependency.commonsLang3
+  compile externalDependency.typesafeConfig
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito

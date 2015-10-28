@@ -79,7 +79,6 @@ public class ReporterExampleBase {
     this.context = MetricContext.builder("Job")
         .addTag(new Tag<String>(JOB_NAME_KEY, "ExampleJob"))
         .addTag(new Tag<String>(JOB_ID_KEY, JOB_NAME + "_" + System.currentTimeMillis()))
-        .addContextAwareScheduledReporter(reporterBuilder)
         .build();
 
     this.reporterBuilder = reporterBuilder;
@@ -93,7 +92,6 @@ public class ReporterExampleBase {
    */
   public void run() throws Exception {
     try {
-      this.context.startMetricReporting(1, TimeUnit.SECONDS);
 
       CountDownLatch countDownLatch = new CountDownLatch(this.tasks);
       for (int i = 0; i < this.tasks; i++) {
@@ -116,7 +114,6 @@ public class ReporterExampleBase {
     // Tags of the job (parent) context will be inherited automatically.
     MetricContext taskContext = this.context.childBuilder("Task" + taskIndex)
         .addTag(new Tag<String>(TASK_ID_KEY, TASK_ID_PREFIX + taskIndex))
-        .addContextAwareScheduledReporter(this.reporterBuilder)
         .build();
     Task task = new Task(taskContext, taskIndex, this.totalRecords, countDownLatch);
     this.executor.execute(task);
@@ -145,7 +142,6 @@ public class ReporterExampleBase {
       Histogram recordSizesHistogram = this.context.contextAwareHistogram(RECORD_SIZES);
 
       try {
-        this.context.startMetricReporting(1, TimeUnit.SECONDS);
 
         for (int i = 0; i < this.totalRecords; i++) {
           totalRecordsCounter.inc();
