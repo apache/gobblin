@@ -669,7 +669,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
       while (countDownLatch.getCount() > 0) {
         LOG.info(String.format("%d out of %d tasks of job %s are running in mapper %s", countDownLatch.getCount(),
             workUnits.size(), jobId, context.getTaskAttemptID()));
-        countDownLatch.await(10, TimeUnit.SECONDS);
+        if (countDownLatch.await(10, TimeUnit.SECONDS)) {
+          break;
+        }
       }
       LOG.info(String.format("All tasks of job %s have completed in mapper %s", jobId, context.getTaskAttemptID()));
 

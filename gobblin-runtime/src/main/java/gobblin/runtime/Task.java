@@ -153,7 +153,7 @@ public class Task implements Runnable {
           Fork fork = closer.register(new Fork(this.taskContext,
               schema instanceof Copyable ? ((Copyable) schema).copy() : schema, branches, i));
           // Run the Fork
-          this.forkCompletionService.submit(fork, null);
+          this.forkCompletionService.submit(fork, fork);
           this.forks.add(Optional.of(fork));
         } else {
           this.forks.add(Optional.<Fork> absent());
