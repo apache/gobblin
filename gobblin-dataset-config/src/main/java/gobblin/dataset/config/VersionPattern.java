@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 public class VersionPattern {
-
+  
   // {v1, V2 ... }
   public static final String VERSION_PATTERN1 = "[Vv]\\d+" ;
   public static final Pattern P1 = Pattern.compile(VERSION_PATTERN1);

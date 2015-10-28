@@ -33,6 +33,7 @@ public class TestVersionPattern {
     input.add("a1");
     
     input.add("V1.x");
+    input.add("V1.");
     
     input.add("v2.0.4.9");
     input.add("V1.1.2x");
