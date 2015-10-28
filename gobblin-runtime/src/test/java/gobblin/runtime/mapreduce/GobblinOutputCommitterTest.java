@@ -114,7 +114,7 @@ public class GobblinOutputCommitterTest {
    * @throws IOException
    */
   private WorkUnit createAndSetWorkUnit(String workUnitName) throws IOException {
-    WorkUnit wu = new WorkUnit();
+    WorkUnit wu = WorkUnit.createEmpty();
     wu.setProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.TASK_ID_KEY, 1, 0), System.nanoTime());
 
     Path wuStagingDir =

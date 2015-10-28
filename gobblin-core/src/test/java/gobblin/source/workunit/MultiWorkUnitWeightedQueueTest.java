@@ -22,7 +22,7 @@ public class MultiWorkUnitWeightedQueueTest {
     int weight = 1;
 
     MultiWorkUnitWeightedQueue multiWorkUnitWeightedQueue = new MultiWorkUnitWeightedQueue();
-    WorkUnit workUnit = new WorkUnit();
+    WorkUnit workUnit = WorkUnit.createEmpty();
 
     for (int i = 0; i < numWorkUnits; i++) {
       multiWorkUnitWeightedQueue.addWorkUnit(workUnit, weight);
@@ -50,7 +50,7 @@ public class MultiWorkUnitWeightedQueueTest {
     int weight = 1;
 
     MultiWorkUnitWeightedQueue multiWorkUnitWeightedQueue = new MultiWorkUnitWeightedQueue(maxMultiWorkUnits);
-    WorkUnit workUnit = new WorkUnit();
+    WorkUnit workUnit = WorkUnit.createEmpty();
 
     for (int i = 0; i < numWorkUnits; i++) {
       multiWorkUnitWeightedQueue.addWorkUnit(workUnit, weight);

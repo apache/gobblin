@@ -41,6 +41,7 @@ import gobblin.runtime.TaskContext;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskState;
 import gobblin.runtime.TaskStateTracker;
+import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.SerializationUtils;
 
@@ -147,9 +148,11 @@ public class GobblinHelixTask implements Task {
   }
 
   private gobblin.runtime.Task buildTask() throws IOException {
-    WorkUnit workUnit = WorkUnit.createEmpty();
     Path workUnitFilePath =
         new Path(this.taskConfig.getConfigMap().get(GobblinYarnConfigurationKeys.WORK_UNIT_FILE_PATH));
+
+    WorkUnit workUnit = workUnitFilePath.getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION) ?
+            MultiWorkUnit.createEmpty() : WorkUnit.createEmpty();
     SerializationUtils.deserializeState(this.fs, workUnitFilePath, workUnit);
     workUnit.addAllIfNotExist(this.jobState);
 

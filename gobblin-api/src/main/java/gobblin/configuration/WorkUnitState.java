@@ -72,7 +72,7 @@ public class WorkUnitState extends State {
    * Default constructor used for deserialization.
    */
   public WorkUnitState() {
-    this.workunit = new WorkUnit(null, null);
+    this.workunit = WorkUnit.createEmpty();
   }
 
   /**
