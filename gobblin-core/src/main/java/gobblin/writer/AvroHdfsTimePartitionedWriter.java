@@ -20,11 +20,13 @@ import java.util.Map.Entry;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.fs.Path;
-
+import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.joda.time.Period;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
-
+import org.joda.time.format.PeriodFormatter;
+import org.joda.time.format.PeriodFormatterBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,6 +81,8 @@ import gobblin.util.WriterUtils;
 public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> {
   private static final Logger LOG = LoggerFactory.getLogger(AvroHdfsTimePartitionedWriter.class);
 
+  public static final String TIME_PARTITIONED_WRITER_MAX_TIME_AGO = "time.partitioned.writer.max.time.ago";
+
   /**
    * This is the base file path that all data will be written to. By default, data will be written to
    * /datasetName/daily/[yyyy]/[MM]/[dd]/.
@@ -115,8 +119,11 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
 
   // Variables needed to build DataWriters
   private final Destination destination;
-  protected final String writerId;
+
   private final Schema schema;
+  private final DateTimeZone timeZone;
+  private final Optional<Long> earliestAllowedTimestamp;
+  protected final String writerId;
   protected final WriterOutputFormat writerOutputFormat;
   protected final State properties;
   protected final int numBranches;
@@ -150,14 +157,34 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
     this.partitionLevel =
         this.properties.getProp(getWriterPartitionLevel(), ConfigurationKeys.DEFAULT_WRITER_PARTITION_LEVEL);
 
+    this.timeZone = DateTimeZone.forID(this.properties.getProp(ConfigurationKeys.WRITER_PARTITION_TIMEZONE,
+        ConfigurationKeys.DEFAULT_WRITER_PARTITION_TIMEZONE));
+
     // Initialize the timestampToPathFormatter
     this.timestampToPathFormatter = DateTimeFormat
         .forPattern(
             this.properties.getProp(getWriterPartitionPattern(), ConfigurationKeys.DEFAULT_WRITER_PARTITION_PATTERN))
-        .withZone(DateTimeZone.forID(this.properties.getProp(ConfigurationKeys.WRITER_PARTITION_TIMEZONE,
-            ConfigurationKeys.DEFAULT_WRITER_PARTITION_TIMEZONE)));
+        .withZone(this.timeZone);
 
     this.partitionColumns = getWriterPartitionColumns();
+    this.earliestAllowedTimestamp = getEarliestAllowedTimestamp();
+  }
+
+  private Optional<Long> getEarliestAllowedTimestamp() {
+    if (!this.properties.contains(TIME_PARTITIONED_WRITER_MAX_TIME_AGO)) {
+      return Optional.<Long> absent();
+    } else {
+      DateTime currentTime = new DateTime(this.timeZone);
+      PeriodFormatter periodFormatter = getPeriodFormatter();
+      String maxTimeAgoStr = this.properties.getProp(TIME_PARTITIONED_WRITER_MAX_TIME_AGO);
+      Period maxTimeAgo = periodFormatter.parsePeriod(maxTimeAgoStr);
+      return Optional.of(currentTime.minus(maxTimeAgo).getMillis());
+    }
+  }
+
+  private PeriodFormatter getPeriodFormatter() {
+    return new PeriodFormatterBuilder().appendMonths().appendSuffix("m").appendDays().appendSuffix("d").appendHours()
+        .appendSuffix("h").toFormatter();
   }
 
   @Override
@@ -195,6 +222,10 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
   }
 
   protected void write(GenericRecord record, long recordTimestamp) throws IOException {
+    if (recordTooOld(recordTimestamp)) {
+      return;
+    }
+
     Path writerOutputPath = getPathForColumnValue(recordTimestamp);
 
     // If the path is not in pathToWriterMap, construct a new DataWriter, add it to the map, and write the record
@@ -211,6 +242,10 @@ public class AvroHdfsTimePartitionedWriter implements DataWriter<GenericRecord> 
     this.pathToWriterMap.get(writerOutputPath).write(record);
     this.earliestTimestampWritten = Math.min(this.earliestTimestampWritten, recordTimestamp);
     this.totalTimestampWritten += recordTimestamp;
+  }
+
+  private boolean recordTooOld(long recordTimestamp) {
+    return this.earliestAllowedTimestamp.isPresent() && recordTimestamp < this.earliestAllowedTimestamp.get();
   }
 
   @Override
