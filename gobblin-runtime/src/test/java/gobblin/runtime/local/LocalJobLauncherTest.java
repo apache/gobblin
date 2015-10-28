@@ -25,10 +25,10 @@ import org.testng.annotations.Test;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
-import gobblin.runtime.BaseLimiterType;
-import gobblin.runtime.DefaultLimiterFactory;
 import gobblin.runtime.JobLauncherTestHelper;
 import gobblin.runtime.JobState;
+import gobblin.util.limiter.BaseLimiterType;
+import gobblin.util.limiter.DefaultLimiterFactory;
 import gobblin.writer.Destination;
 import gobblin.writer.WriterOutputFormat;
 
@@ -159,6 +159,18 @@ public class LocalJobLauncherTest {
         jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithMultipleDatasets");
     try {
       this.jobLauncherTestHelper.runTestWithMultipleDatasets(jobProps);
+    } finally {
+      this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+    }
+  }
+
+  @Test
+  public void testLaunchJobWithCommitSuccessfulTasksPolicy() throws Exception {
+    Properties jobProps = loadJobProps();
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithCommitSuccessfulTasksPolicy");
+    try {
+      this.jobLauncherTestHelper.runTestWithCommitSuccessfulTasksPolicy(jobProps);
     } finally {
       this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
     }
