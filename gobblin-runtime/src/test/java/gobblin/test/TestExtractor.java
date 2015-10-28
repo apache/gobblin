@@ -54,7 +54,7 @@ public class TestExtractor implements Extractor<String, String> {
       " ]\n" +
       "}";
 
-  private static final int TOTAL_RECORDS = 1000;
+  public static final int TOTAL_RECORDS = 1000;
 
   private DataFileReader<GenericRecord> dataFileReader;
 

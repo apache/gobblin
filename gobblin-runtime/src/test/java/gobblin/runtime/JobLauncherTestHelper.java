@@ -46,6 +46,7 @@ import gobblin.source.workunit.WorkUnit;
 import gobblin.test.TestExtractor;
 import gobblin.test.TestSource;
 import gobblin.util.JobLauncherUtils;
+import gobblin.util.limiter.DefaultLimiterFactory;
 
 
 /**
@@ -87,6 +88,8 @@ public class JobLauncherTestHelper {
     Assert.assertEquals(jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY), 0);
     for (TaskState taskState : jobState.getTaskStates()) {
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
+      Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN),
+          TestExtractor.TOTAL_RECORDS);
     }
   }
 
@@ -187,11 +190,15 @@ public class JobLauncherTestHelper {
               .getOutputFilePath(), "fork_0"));
       Assert.assertTrue(lfs.exists(path));
       Assert.assertEquals(lfs.listStatus(path).length, 2);
-      path =
-          new Path(taskState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR), new Path(taskState.getExtract()
-              .getOutputFilePath(), "fork_1"));
+      Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN + ".0"),
+          TestExtractor.TOTAL_RECORDS);
+
+      path = new Path(taskState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
+          new Path(taskState.getExtract().getOutputFilePath(), "fork_1"));
       Assert.assertTrue(lfs.exists(path));
       Assert.assertEquals(lfs.listStatus(path).length, 2);
+      Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN + ".1"),
+          TestExtractor.TOTAL_RECORDS);
     }
   }
 
@@ -210,7 +217,8 @@ public class JobLauncherTestHelper {
     }
 
     for (int i = 0; i < 4; i++) {
-      List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, "Dataset" + i + "-current.jst");
+      List<JobState.DatasetState> datasetStateList =
+          this.datasetStateStore.getAll(jobName, "Dataset" + i + "-current.jst");
       JobState jobState = datasetStateList.get(0);
 
       Assert.assertEquals(jobState.getProp(ConfigurationKeys.DATASET_URN_KEY), "Dataset" + i);
@@ -220,6 +228,41 @@ public class JobLauncherTestHelper {
       for (TaskState taskState : jobState.getTaskStates()) {
         Assert.assertEquals(taskState.getProp(ConfigurationKeys.DATASET_URN_KEY), "Dataset" + i);
         Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
+        Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN),
+            TestExtractor.TOTAL_RECORDS);
+      }
+    }
+  }
+
+  public void runTestWithCommitSuccessfulTasksPolicy(Properties jobProps) throws Exception {
+    String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+    String jobId = JobLauncherUtils.newJobId(jobName);
+    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
+    jobProps.setProperty(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL, Boolean.FALSE.toString());
+    jobProps.setProperty(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "successful");
+    jobProps.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, TestSourceWithFaultyExtractor.class.getName());
+    jobProps.setProperty(ConfigurationKeys.MAX_TASK_RETRIES_KEY, "0");
+
+    Closer closer = Closer.create();
+    try {
+      JobLauncher jobLauncher = closer.register(JobLauncherFactory.newJobLauncher(this.launcherProps, jobProps));
+      jobLauncher.launchJob(null);
+    } finally {
+      closer.close();
+    }
+
+    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId + ".jst");
+    JobState jobState = datasetStateList.get(0);
+
+    Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
+    Assert.assertEquals(jobState.getCompletedTasks(), 4);
+    for (TaskState taskState : jobState.getTaskStates()) {
+      if (taskState.getTaskId().endsWith("0")) {
+        Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.FAILED);
+      } else {
+        Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
+        Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN),
+            TestExtractor.TOTAL_RECORDS);
       }
     }
   }
@@ -342,6 +385,18 @@ public class JobLauncherTestHelper {
     @Override
     public String readRecord(@Deprecated String reuse) throws IOException {
       throw new IOException();
+    }
+  }
+
+  public static class TestSourceWithFaultyExtractor extends TestSource {
+
+    @Override
+    public Extractor<String, String> getExtractor(WorkUnitState workUnitState) {
+      Extractor<String, String> extractor = super.getExtractor(workUnitState);
+      if (((TaskState) workUnitState).getTaskId().endsWith("0")) {
+        return new FaultyExtractor(workUnitState);
+      }
+      return extractor;
     }
   }
 }
