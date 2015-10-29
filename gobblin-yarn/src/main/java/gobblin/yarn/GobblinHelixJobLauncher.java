@@ -34,7 +34,7 @@ import org.apache.helix.task.WorkflowContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.io.Closer;
@@ -219,6 +219,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
           return;
         }
       }
+
       Thread.sleep(100);
     }
   }
@@ -234,7 +235,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       }
     });
     if (fileStatuses == null || fileStatuses.length == 0) {
-      return Lists.newArrayList();
+      return ImmutableList.of();
     }
 
     Queue<TaskState> taskStateQueue = Queues.newConcurrentLinkedQueue();
@@ -254,7 +255,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
     LOGGER.info(String.format("Collected task state of %d completed tasks", taskStateQueue.size()));
 
-    return Lists.newArrayList(taskStateQueue);
+    return ImmutableList.copyOf(taskStateQueue);
   }
 
   /**

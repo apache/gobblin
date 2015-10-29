@@ -52,6 +52,12 @@ import com.google.common.collect.Maps;
  */
 public class YarnHelixUtils {
 
+  /**
+   * Get the name of the current host.
+   *
+   * @return the name of the current host
+   * @throws UnknownHostException if the host name is unknown
+   */
   public static String getHostname() throws UnknownHostException {
     return InetAddress.getLocalHost().getHostName();
   }

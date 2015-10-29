@@ -66,7 +66,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     TimingEvent jobLocalSetupTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.JOB_LOCAL_SETUP);
 
     this.taskExecutor = new TaskExecutor(jobProps);
-    this.taskStateTracker = new LocalTaskStateTracker2(jobProps, this.taskExecutor);
+    this.taskStateTracker = new LocalTaskStateTracker(jobProps, this.taskExecutor);
 
     this.serviceManager = new ServiceManager(Lists.newArrayList(
         // The order matters due to dependencies between services
