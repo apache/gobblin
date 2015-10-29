@@ -74,7 +74,7 @@ public class WriterUtilsTest {
 
   @Test
   public void testGetWriterFilePath() {
-    WorkUnit state = new WorkUnit();
+    WorkUnit state = WorkUnit.createEmpty();
 
     state.setProp(ConfigurationKeys.WRITER_FILE_PATH, TEST_WRITER_FILE_PATH);
     Assert.assertEquals(WriterUtils.getWriterFilePath(state, 0, 0), TEST_WRITER_FILE_PATH);
@@ -89,7 +89,7 @@ public class WriterUtilsTest {
     String tableName = "test-table";
 
     SourceState sourceState = new SourceState();
-    WorkUnit state = new WorkUnit(sourceState, new Extract(sourceState, TableType.APPEND_ONLY, namespace, tableName));
+    WorkUnit state = WorkUnit.create(new Extract(sourceState, TableType.APPEND_ONLY, namespace, tableName));
 
     Assert.assertEquals(WriterUtils.getWriterFilePath(state, 0, 0), new Path(state.getExtract().getOutputFilePath()));
     Assert.assertEquals(WriterUtils.getWriterFilePath(state, 2, 0), new Path(state.getExtract().getOutputFilePath(),
@@ -102,8 +102,7 @@ public class WriterUtilsTest {
     String tableName = "test-table";
 
     SourceState sourceState = new SourceState();
-    WorkUnit workUnit =
-        new WorkUnit(sourceState, new Extract(sourceState, TableType.APPEND_ONLY, namespace, tableName));
+    WorkUnit workUnit = WorkUnit.create(new Extract(sourceState, TableType.APPEND_ONLY, namespace, tableName));
     WorkUnitState workUnitState = new WorkUnitState(workUnit);
 
     Assert.assertEquals(WriterUtils.getWriterFilePath(workUnitState, 0, 0), new Path(workUnitState.getExtract()

@@ -40,6 +40,14 @@ public class MultiWorkUnit extends WorkUnit {
   private final List<WorkUnit> workUnits = Lists.newArrayList();
 
   /**
+   * @deprecated Use {@link #createEmpty()} instead.
+   */
+  @Deprecated
+  public MultiWorkUnit() {
+    super();
+  }
+
+  /**
    * Get an immutable list of {@link WorkUnit}s wrapped by this {@link MultiWorkUnit}.
    *
    * @return immutable list of {@link WorkUnit}s wrapped by this {@link MultiWorkUnit}
@@ -96,7 +104,7 @@ public class MultiWorkUnit extends WorkUnit {
       throws IOException {
     int numWorkUnits = in.readInt();
     for (int i = 0; i < numWorkUnits; i++) {
-      WorkUnit workUnit = new WorkUnit(null, null);
+      WorkUnit workUnit = WorkUnit.createEmpty();
       workUnit.readFields(in);
       this.workUnits.add(workUnit);
     }
@@ -129,5 +137,14 @@ public class MultiWorkUnit extends WorkUnit {
     int result = super.hashCode();
     result = prime * result + ((this.workUnits == null) ? 0 : this.workUnits.hashCode());
     return result;
+  }
+
+  /**
+   * Create a new empty {@link MultiWorkUnit} instance.
+   *
+   * @return a new empty {@link MultiWorkUnit} instance
+   */
+  public static MultiWorkUnit createEmpty() {
+    return new MultiWorkUnit();
   }
 }

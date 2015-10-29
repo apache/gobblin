@@ -48,7 +48,6 @@ import gobblin.runtime.JobState;
 import gobblin.runtime.TaskState;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
-import gobblin.util.JobLauncherUtils;
 import gobblin.util.ParallelRunner;
 import gobblin.util.SerializationUtils;
 
@@ -145,14 +144,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       ParallelRunner stateSerDeRunner = closer.register(new ParallelRunner(this.stateSerDeRunnerThreads, this.fs));
 
       for (WorkUnit workUnit : workUnits) {
-        if (workUnit instanceof MultiWorkUnit) {
-          // Flatten the MultiWorkUnit and add each individual WorkUnit
-          for (WorkUnit innerWorkUnit : JobLauncherUtils.flattenWorkUnits(((MultiWorkUnit) workUnit).getWorkUnits())) {
-            addWorkUnit(innerWorkUnit, stateSerDeRunner, taskConfigMap);
-          }
-        } else {
-          addWorkUnit(workUnit, stateSerDeRunner, taskConfigMap);
-        }
+        addWorkUnit(workUnit, stateSerDeRunner, taskConfigMap);
       }
 
       Path jobStateFilePath = new Path(this.appWorkDir, this.jobContext.getJobId() + "." + JOB_STATE_FILE_NAME);
@@ -209,7 +201,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
    */
   private String persistWorkUnit(Path workUnitFileDir, WorkUnit workUnit, ParallelRunner stateSerDeRunner)
       throws IOException {
-    Path workUnitFile = new Path(workUnitFileDir, workUnit.getId() + WORK_UNIT_FILE_EXTENSION);
+    String workUnitFileName = workUnit.getId() + (workUnit instanceof MultiWorkUnit ?
+        MULTI_WORK_UNIT_FILE_EXTENSION : WORK_UNIT_FILE_EXTENSION);
+    Path workUnitFile = new Path(workUnitFileDir, workUnitFileName);
     stateSerDeRunner.serializeToFile(workUnit, workUnitFile);
     return workUnitFile.toString();
   }

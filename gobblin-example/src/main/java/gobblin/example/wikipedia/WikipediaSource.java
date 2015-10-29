@@ -46,7 +46,7 @@ public class WikipediaSource implements Source<String, JsonElement> {
             .createExtract(TableType.SNAPSHOT_ONLY, state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY),
                 "WikipediaOutput");
 
-    WorkUnit workUnit = new WorkUnit(state, extract);
+    WorkUnit workUnit = WorkUnit.create(extract);
     return Arrays.asList(workUnit);
   }
 

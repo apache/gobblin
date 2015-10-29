@@ -60,6 +60,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
   public static final String JOB_STATE_FILE_NAME = "job.state";
 
+  public static final String WORK_UNIT_FILE_EXTENSION = ".wu";
+  public static final String MULTI_WORK_UNIT_FILE_EXTENSION = ".mwu";
+
   // Job configuration properties
   protected final Properties jobProps;
 

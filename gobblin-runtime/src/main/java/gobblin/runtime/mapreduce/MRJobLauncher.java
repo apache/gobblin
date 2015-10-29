@@ -103,9 +103,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
   private static final String JOB_NAME_PREFIX = "Gobblin-";
 
-  private static final String WORK_UNIT_FILE_EXTENSION = ".wu";
-  private static final String MULTI_WORK_UNIT_FILE_EXTENSION = ".mwu";
-
   private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
 
   private final Configuration conf;
@@ -601,8 +598,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     @Override
     public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
-      WorkUnit workUnit =
-          (value.toString().endsWith(MULTI_WORK_UNIT_FILE_EXTENSION) ? new MultiWorkUnit() : WorkUnit.createEmpty());
+      WorkUnit workUnit = (value.toString().endsWith(MULTI_WORK_UNIT_FILE_EXTENSION) ?
+          MultiWorkUnit.createEmpty() : WorkUnit.createEmpty());
       SerializationUtils.deserializeState(this.fs, new Path(value.toString()), workUnit);
 
       if (workUnit instanceof MultiWorkUnit) {

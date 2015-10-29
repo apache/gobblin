@@ -57,7 +57,7 @@ public class SimpleJsonSource implements Source<String, String> {
     String filesToPull = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL);
     for (String file : Splitter.on(',').omitEmptyStrings().split(filesToPull)) {
       // Create one work unit for each file to pull
-      WorkUnit workUnit = new WorkUnit(state, extract);
+      WorkUnit workUnit = WorkUnit.create(extract);
       workUnit.setProp(SOURCE_FILE_KEY, file);
       workUnits.add(workUnit);
     }
