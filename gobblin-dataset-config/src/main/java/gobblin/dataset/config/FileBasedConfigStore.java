@@ -1,15 +1,35 @@
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.dataset.config;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.io.*;
 
-import com.typesafe.config.*;
+import org.apache.log4j.Logger;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
+/**
+ * This class is the implementation for the filed based config store. 
+ * @author mitu
+ *
+ */
 public class FileBasedConfigStore implements ConfigStore {
 
+  private static final Logger LOG = Logger.getLogger(FileBasedConfigStore.class);
   public static final String CONF_FILE = "application.conf";
   private final String configLocation;
   private final String scheme;
@@ -19,6 +39,10 @@ public class FileBasedConfigStore implements ConfigStore {
   private RawConfigMapping rawConfigs;
   private boolean initialized = false;
 
+  /**
+   * @param location configuration store location
+   * @param scheme the scheme name, example DAI-ETL, DALI, Espresso
+   */
   public FileBasedConfigStore(String location, String scheme) {
     this.configLocation = location;
     this.scheme = scheme;
@@ -58,8 +82,9 @@ public class FileBasedConfigStore implements ConfigStore {
 
   @Override
   public synchronized void loadConfigs(String version) {
-    //System.out.println("Abs path is " + (this.configLocation + "/" + version + "/" + CONF_FILE));
-    File configToLoad = new File(this.configLocation + "/" + version + "/" + CONF_FILE);
+    String configurationFile = this.configLocation + "/" + version + "/" + CONF_FILE;
+    LOG.info("Trying to load configuration file: " + configurationFile);
+    File configToLoad = new File(configurationFile);
     if(!configToLoad.isFile() || !configToLoad.canRead()){
       throw new IllegalArgumentException("File does not exists : " + configToLoad.getAbsolutePath());
     }
@@ -79,6 +104,7 @@ public class FileBasedConfigStore implements ConfigStore {
           this.loadedConfigVersion, version));
     }
   }
+  
   @Override
   public Config getConfig(String urn) {
     return this.getConfig(urn, this.loadedConfigVersion);
@@ -98,6 +124,7 @@ public class FileBasedConfigStore implements ConfigStore {
 
   @Override
   public Map<String, Config> getTaggedConfig(String urn, String version) {
+    initialCheck(version);
     return this.rawConfigs.getTaggedConfig(urn);
   }
 
