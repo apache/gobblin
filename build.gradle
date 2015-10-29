@@ -58,6 +58,7 @@ ext.externalDependency = [
   "commonsIo": "commons-io:commons-io:2.4",
   "commonsMath": "org.apache.commons:commons-math3:3.5",
   "commonsHttpClient": "commons-httpclient:commons-httpclient:3.1",
+  "commonsCompress":"org.apache.commons:commons-compress:1.10",
   "datanucleusCore": "org.datanucleus:datanucleus-core:4.1.2",
   "datanucleusRdbms": "org.datanucleus:datanucleus-rdbms:4.1.2",
   "guava": "com.google.guava:guava:15.0",
@@ -115,6 +116,8 @@ ext.externalDependency = [
   "typesafeConfig": "com.typesafe:config:1.2.1",
   "byteman": "org.jboss.byteman:byteman:"+bytemanVersion,
   "bytemanBmunit": "org.jboss.byteman:byteman-bmunit:"+bytemanVersion,
+  "bcpgJdk15on": "org.bouncycastle:bcpg-jdk15on:1.52",
+  "bcprovJdk15on": "org.bouncycastle:bcprov-jdk15on:1.52",
   "pegasus" : [
     "data" : "com.linkedin.pegasus:data:"+pegasusVersion,
     "generator" : "com.linkedin.pegasus:generator:"+pegasusVersion,

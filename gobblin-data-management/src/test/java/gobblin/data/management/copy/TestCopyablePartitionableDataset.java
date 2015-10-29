@@ -10,34 +10,33 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.source.extractor.hadoop.test;
+package gobblin.data.management.copy;
 
-import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.partition.Partition;
 import gobblin.data.management.partition.PartitionableDataset;
 
 import java.util.Collection;
 
-import com.beust.jcommander.internal.Lists;
+import com.google.common.collect.Lists;
 
 
 /**
- * Partitionable dataset that partitions files depending on whether their name, parsed as an
- * integer, is above or below a threshold.
+ * Partitionable dataset that partitions files depending on whether their name, parsed as an integer, is above or below
+ * a threshold.
  */
-public class TestCopyablePartitionableDataset extends TestCopyableDataset
-    implements PartitionableDataset<CopyableFile> {
+public class TestCopyablePartitionableDataset extends TestCopyableDataset implements PartitionableDataset<CopyableFile> {
 
   public static final String BELOW = "below";
   public static final String ABOVE = "above";
   public static final int THRESHOLD = TestCopyableDataset.FILE_COUNT / 2;
 
-  @Override public Collection<Partition<CopyableFile>> partitionFiles(Collection<? extends CopyableFile> files) {
+  @Override
+  public Collection<Partition<CopyableFile>> partitionFiles(Collection<? extends CopyableFile> files) {
     Partition.Builder<CopyableFile> belowThreshold = new Partition.Builder<CopyableFile>(BELOW);
     Partition.Builder<CopyableFile> aboveThreshold = new Partition.Builder<CopyableFile>(ABOVE);
 
-    for(CopyableFile file : files) {
-      if(Integer.parseInt(file.getOrigin().getPath().getName()) < THRESHOLD) {
+    for (CopyableFile file : files) {
+      if (Integer.parseInt(file.getOrigin().getPath().getName()) < THRESHOLD) {
         belowThreshold.add(file);
       } else {
         aboveThreshold.add(file);
@@ -47,7 +46,8 @@ public class TestCopyablePartitionableDataset extends TestCopyableDataset
     return Lists.newArrayList(belowThreshold.build(), aboveThreshold.build());
   }
 
-  @Override public Class<?> fileClass() {
+  @Override
+  public Class<?> fileClass() {
     return CopyableFile.class;
   }
 }

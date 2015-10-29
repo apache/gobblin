@@ -19,8 +19,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Properties;
 
 import org.apache.hadoop.fs.FileSystem;
-
-import com.google.common.base.Preconditions;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
 
 
 /**
@@ -30,21 +30,36 @@ public class DatasetUtils {
 
   public static final String CONFIGURATION_KEY_PREFIX = "gobblin.dataset.";
   public static final String DATASET_PROFILE_CLASS_KEY = CONFIGURATION_KEY_PREFIX + "profile.class";
+  private static final String PATH_FILTER_KEY = CONFIGURATION_KEY_PREFIX + "path.filter.class";
+
+  private static final PathFilter ACCEPT_ALL_FILTER = new PathFilter() {
+
+    @Override
+    public boolean accept(Path path) {
+      return true;
+    }
+  };
 
   /**
    * Instantiate a {@link DatasetFinder}. The class of the {@link DatasetFinder} is read from property
    * {@link #DATASET_PROFILE_CLASS_KEY}.
+   *
    * @param props Properties used for building {@link DatasetFinder}.
    * @param fs {@link FileSystem} where datasets are located.
    * @return A new instance of {@link DatasetFinder}.
    * @throws IOException
    */
-  public static DatasetFinder instantiateDatasetFinder(Properties props, FileSystem fs) throws IOException {
-    Preconditions.checkArgument(props.containsKey(DATASET_PROFILE_CLASS_KEY));
+  @SuppressWarnings("unchecked")
+  public static <T extends Dataset> DatasetFinder<T> instantiateDatasetFinder(Properties props, FileSystem fs,
+      String def) throws IOException {
+    String className = def;
+    if (props.containsKey(DATASET_PROFILE_CLASS_KEY)) {
+      className = props.getProperty(DATASET_PROFILE_CLASS_KEY);
+    }
     try {
-      Class<?> datasetFinderClass = Class.forName(props.getProperty(DATASET_PROFILE_CLASS_KEY));
-      return
-          (DatasetFinder) datasetFinderClass.getConstructor(FileSystem.class, Properties.class).newInstance(fs, props);
+      Class<?> datasetFinderClass = Class.forName(className);
+      return (DatasetFinder<T>) datasetFinderClass.getConstructor(FileSystem.class, Properties.class).newInstance(fs,
+          props);
     } catch (ClassNotFoundException exception) {
       throw new IOException(exception);
     } catch (NoSuchMethodException exception) {
@@ -59,4 +74,28 @@ public class DatasetUtils {
 
   }
 
+  /**
+   * Instantiate a {@link PathFilter} from the class name at key {@link #PATH_FILTER_KEY} in props passed. If key
+   * {@link #PATH_FILTER_KEY} is not set, a default {@link #ACCEPT_ALL_FILTER} is returned
+   *
+   * @param props that contain path filter classname at {@link #PATH_FILTER_KEY}
+   * @return a new instance of {@link PathFilter}. If not key is found, returns an {@link #ACCEPT_ALL_FILTER}
+   */
+  public static PathFilter instantiatePathFilter(Properties props) {
+
+    if (!props.containsKey(PATH_FILTER_KEY)) {
+      return ACCEPT_ALL_FILTER;
+    }
+
+    try {
+      Class<?> pathFilterClass = Class.forName(props.getProperty(PATH_FILTER_KEY));
+      return (PathFilter) pathFilterClass.newInstance();
+    } catch (ClassNotFoundException exception) {
+      throw new RuntimeException(exception);
+    } catch (InstantiationException exception) {
+      throw new RuntimeException(exception);
+    } catch (IllegalAccessException exception) {
+      throw new RuntimeException(exception);
+    }
+  }
 }

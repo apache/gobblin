@@ -12,10 +12,7 @@
 
 package gobblin.data.management.copy;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
+import java.util.List;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
@@ -23,26 +20,53 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.beust.jcommander.internal.Lists;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 
 public class CopyableFileTest {
 
-  @Test public void testSerDe() throws Exception {
+  @Test
+  public void testSerializeDeserialze() throws Exception {
 
-    CopyableFile copyableFile = new CopyableFile(new FileStatus(10, false, 12, 100, 12345, new Path("/path")),
-        new Path("/destination"), new OwnerAndPermission("owner", "group", FsPermission.getDefault()),
-        Lists.newArrayList(new OwnerAndPermission("owner2", "group2", FsPermission.getDefault())),
-        "checksum".getBytes());
+    CopyableFile copyableFile =
+        new CopyableFile(new FileStatus(10, false, 12, 100, 12345, new Path("/path")), new Path("/destination"),
+            new Path("/relative"), new OwnerAndPermission("owner", "group", FsPermission.getDefault()),
+            Lists.newArrayList(new OwnerAndPermission("owner2", "group2", FsPermission.getDefault())),
+            "checksum".getBytes());
 
-    ByteArrayOutputStream os = new ByteArrayOutputStream();
-    copyableFile.write(new DataOutputStream(os));
-    byte[] bytes = os.toByteArray();
+    String s = CopyableFile.serialize(copyableFile);
+    CopyableFile de = CopyableFile.deserialize(s);
 
-    ByteArrayInputStream is = new ByteArrayInputStream(bytes);
-    CopyableFile deserialized = CopyableFile.read(new DataInputStream(is));
+    Assert.assertEquals(de, copyableFile);
+  }
 
-    Assert.assertEquals(copyableFile, deserialized);
+  @Test
+  public void testSerializeDeserialzeNulls() throws Exception {
+
+    CopyableFile copyableFile =
+        new CopyableFile(null, null, new Path("/relative"), new OwnerAndPermission("owner", "group",
+            FsPermission.getDefault()), Lists.newArrayList(new OwnerAndPermission(null, "group2", FsPermission
+            .getDefault())), "checksum".getBytes());
+
+    String serialized = CopyableFile.serialize(copyableFile);
+    CopyableFile deserialized = CopyableFile.deserialize(serialized);
+
+    Assert.assertEquals(deserialized, copyableFile);
+
+  }
+
+  @Test
+  public void testSerializeDeserialzeList() throws Exception {
+
+    List<CopyableFile> copyableFiles =
+        ImmutableList.of(CopyableFileUtils.getTestCopyableFile(), CopyableFileUtils.getTestCopyableFile(),
+            CopyableFileUtils.getTestCopyableFile());
+
+    String serialized = CopyableFile.serializeList(copyableFiles);
+    List<CopyableFile> deserialized = CopyableFile.deserializeList(serialized);
+
+    Assert.assertEquals(deserialized, copyableFiles);
 
   }
 }

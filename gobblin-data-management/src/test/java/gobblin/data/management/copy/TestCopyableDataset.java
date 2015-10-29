@@ -10,17 +10,12 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.source.extractor.hadoop.test;
-
-import gobblin.data.management.copy.CopyableDataset;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.OwnerAndPermission;
+package gobblin.data.management.copy;
 
 import java.io.IOException;
 import java.util.List;
 
 import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 
@@ -30,31 +25,30 @@ import com.google.common.collect.Lists;
 /**
  * Implementation of {@link CopyableDataset} for testing.
  */
-public class TestCopyableDataset implements CopyableDataset {
+public class TestCopyableDataset extends SinglePartitionCopyableDataset {
 
   public static final int FILE_COUNT = 10;
   public static final String ORIGIN_PREFIX = "/test";
   public static final String DESTINATION_PREFIX = "/destination";
-  public static final OwnerAndPermission OWNER_AND_PERMISSION =
-      new OwnerAndPermission("owner", "group", FsPermission.getDefault());
+  public static final String RELATIVE_PREFIX = "/relative";
+  public static final OwnerAndPermission OWNER_AND_PERMISSION = new OwnerAndPermission("owner", "group",
+      FsPermission.getDefault());
 
-  @Override public List<CopyableFile> getCopyableFiles(FileSystem targetFileSystem) throws IOException {
+  @Override
+  public List<CopyableFile> getCopyableFiles() throws IOException {
     List<CopyableFile> files = Lists.newArrayList();
 
-    for(int i = 0; i < FILE_COUNT; i++) {
-      files.add(
-          new CopyableFile(new FileStatus(10, false, 0, 0, 0, new Path(ORIGIN_PREFIX, Integer.toString(i))),
-              new Path(DESTINATION_PREFIX, Integer.toString(i)),
-              OWNER_AND_PERMISSION,
-              Lists.newArrayList(OWNER_AND_PERMISSION),
-              "checksum".getBytes())
-      );
+    for (int i = 0; i < FILE_COUNT; i++) {
+      files.add(new CopyableFile(new FileStatus(10, false, 0, 0, 0, new Path(ORIGIN_PREFIX, Integer.toString(i))),
+          new Path(DESTINATION_PREFIX, Integer.toString(i)), new Path(RELATIVE_PREFIX, Integer.toString(i)),
+          OWNER_AND_PERMISSION, Lists.newArrayList(OWNER_AND_PERMISSION), "checksum".getBytes()));
     }
 
     return files;
   }
 
-  @Override public Path datasetRoot() {
+  @Override
+  public Path datasetRoot() {
     return new Path("/test");
   }
 }

@@ -12,6 +12,19 @@
 
 package gobblin.data.management.retention;
 
+import gobblin.configuration.State;
+import gobblin.data.management.dataset.Dataset;
+import gobblin.data.management.retention.dataset.CleanableDataset;
+import gobblin.data.management.retention.dataset.finder.DatasetFinder;
+import gobblin.instrumented.Instrumentable;
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.Tag;
+import gobblin.util.ExecutorsUtils;
+import gobblin.util.RateControlledFileSystem;
+import gobblin.util.executors.ScalingThreadPoolExecutor;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -21,9 +34,10 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+
+import org.apache.hadoop.fs.FileSystem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Meter;
 import com.google.common.base.Optional;
@@ -35,26 +49,6 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-
-import org.apache.hadoop.fs.FileSystem;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import gobblin.configuration.State;
-//import gobblin.data.management.retention.dataset.Dataset;
-
-import gobblin.data.management.dataset.Dataset;
-import gobblin.data.management.retention.dataset.CleanableDataset;
-
-import gobblin.data.management.retention.dataset.finder.DatasetFinder;
-import gobblin.instrumented.Instrumentable;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.RateControlledFileSystem;
-import gobblin.util.executors.ScalingThreadPoolExecutor;
 
 
 /**
@@ -138,7 +132,9 @@ public class DatasetCleaner implements Instrumentable, Closeable {
       ListenableFuture<Void> future = this.service.submit(new Callable<Void>() {
         @Override
         public Void call() throws Exception {
-          //dataset.clean();
+          if (dataset instanceof CleanableDataset) {
+            ((CleanableDataset) dataset).clean();
+          }
           return null;
         }
       });

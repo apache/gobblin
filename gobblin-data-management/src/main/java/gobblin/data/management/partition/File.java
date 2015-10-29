@@ -12,11 +12,17 @@
 
 package gobblin.data.management.partition;
 
+import gobblin.data.management.copy.CopyableFile;
+
 import org.apache.hadoop.fs.FileStatus;
 
 
 /**
  * Interface representing a File.
+ *
+ * This interface is implemented by file abstractions such as {@link CopyableFile}. This is also the abstraction
+ * {@link PartitionableDataset} uses.
+ *
  */
 public interface File {
 

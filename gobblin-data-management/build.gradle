@@ -26,6 +26,9 @@ dependencies {
   compile externalDependency.lombok
   compile externalDependency.metricsCore
   compile externalDependency.commonsCodec
+  compile externalDependency.commonsCompress
+  compile externalDependency.commonsIo
+  compile externalDependency.gson
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito

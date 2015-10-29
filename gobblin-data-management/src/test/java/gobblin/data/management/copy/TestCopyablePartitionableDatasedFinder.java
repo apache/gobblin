@@ -10,9 +10,9 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.source.extractor.hadoop.test;
+package gobblin.data.management.copy;
 
-import gobblin.data.management.dataset.Dataset;
+import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.retention.dataset.finder.DatasetFinder;
 
 import java.io.IOException;
@@ -24,12 +24,13 @@ import org.apache.hadoop.fs.FileSystem;
 import com.google.common.collect.Lists;
 
 
-public class TestCopyableDatasetFinder implements DatasetFinder {
+public class TestCopyablePartitionableDatasedFinder implements DatasetFinder<CopyableDataset> {
 
-  public TestCopyableDatasetFinder(FileSystem fs, Properties props) {
+  public TestCopyablePartitionableDatasedFinder(FileSystem fs, Properties props) {
   }
 
-  @Override public List<Dataset> findDatasets() throws IOException {
-    return Lists.<Dataset>newArrayList(new TestCopyableDataset());
+  @Override public List<CopyableDataset> findDatasets() throws IOException {
+    return Lists.<CopyableDataset>newArrayList(new TestCopyablePartitionableDataset());
   }
+
 }
