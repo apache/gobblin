@@ -10,7 +10,9 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.data.management.retention.profile;
+package gobblin.data.management.copy;
+
+import gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -18,28 +20,19 @@ import java.util.Properties;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import gobblin.data.management.dataset.Dataset;
-import gobblin.data.management.retention.dataset.SnapshotDataset;
-
 
 /**
- * {@link gobblin.data.management.retention.dataset.finder.DatasetFinder} for snapshot datasets.
- *
- * <p>
- *   Snapshot datasets are datasets where each version is a snapshot/full-dump of a dataset (e.g. a database).
- * </p>
+ * {@link gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder} that returns datasets of type
+ * {@link gobblin.data.management.copy.RecursiveCopyableDataset}.N
  */
-public class SnapshotDatasetProfile extends ConfigurableGlobDatasetFinder {
+public class CopyableGlobDatasetFinder extends ConfigurableGlobDatasetFinder<CopyableDataset> {
 
-  public SnapshotDatasetProfile(FileSystem fs, Properties props)
-      throws IOException {
+  public CopyableGlobDatasetFinder(FileSystem fs, Properties props) throws IOException {
     super(fs, props);
   }
 
   @Override
-  public Dataset datasetAtPath(Path path)
-      throws IOException {
-    return new SnapshotDataset(this.fs, this.props, path);
+  public CopyableDataset datasetAtPath(Path path) throws IOException {
+    return new RecursiveCopyableDataset(this.fs, path, this.props);
   }
-
 }
