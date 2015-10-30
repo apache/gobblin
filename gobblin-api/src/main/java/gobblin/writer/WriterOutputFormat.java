@@ -21,6 +21,7 @@ public enum WriterOutputFormat {
   AVRO("avro"),
   PARQUET("parquet"),
   PROTOBUF("protobuf"),
+  ORC("orc"),
   CSV("csv");
 
   /**

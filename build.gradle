@@ -33,7 +33,7 @@ if (!project.hasProperty('hadoopVersion')) {
 }
 
 if (!project.hasProperty('hiveVersion')) {
-  hiveVersion = '0.13.0'
+  hiveVersion = '0.13.1'
 }
 
 if (!project.hasProperty('pegasusVersion')) {
@@ -79,6 +79,7 @@ ext.externalDependency = [
   "hiveJdbc": "org.apache.hive:hive-jdbc:"+hiveVersion,
   "hiveMetastore": "org.apache.hive:hive-metastore:"+hiveVersion,
   "hiveExec": "org.apache.hive:hive-exec:"+hiveVersion,
+  "hiveSerDe": "org.apache.hive:hive-serde:"+hiveVersion,
   "httpclient": "org.apache.httpcomponents:httpclient:4.5",
   "httpcore": "org.apache.httpcomponents:httpcore:4.4.1",
   "kafka": "org.apache.kafka:kafka_2.11:0.8.2.1",
