@@ -12,6 +12,7 @@
 
 package gobblin.data.management.util;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;
 
 
@@ -43,5 +44,13 @@ public class PathUtils {
    */
   public static Path getPathWithoutSchemeAndAuthority(Path path) {
     return new Path(null, null, path.toUri().getPath());
+  }
+
+  /**
+   * Removes the leading slash if present.
+   *
+   */
+  public static Path withoutLeadingSeparator(Path path) {
+    return new Path(StringUtils.removeStart(path.toString(), Path.SEPARATOR));
   }
 }

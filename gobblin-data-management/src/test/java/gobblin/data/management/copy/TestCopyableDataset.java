@@ -49,6 +49,11 @@ public class TestCopyableDataset extends SinglePartitionCopyableDataset {
 
   @Override
   public Path datasetRoot() {
-    return new Path("/test");
+    return new Path(ORIGIN_PREFIX);
+  }
+
+  @Override
+  public Path datasetTargetRoot() {
+    return new Path(DESTINATION_PREFIX);
   }
 }

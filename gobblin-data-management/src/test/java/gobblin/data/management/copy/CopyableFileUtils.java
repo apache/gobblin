@@ -56,7 +56,7 @@ public class CopyableFileUtils {
 
     Path destinationRelativePath = new Path(relativePath);
 
-    return new CopyableFile(status, null, destinationRelativePath, ownerAndPermission, null, null);
+    return new CopyableFile(status, new Path(getRandomPath()), destinationRelativePath, ownerAndPermission, null, null);
   }
 
   private static String getRandomPath() {

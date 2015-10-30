@@ -110,4 +110,9 @@ public class RecursiveCopyableDataset extends SinglePartitionCopyableDataset {
   public Path datasetRoot() {
     return this.rootPath;
   }
+
+  @Override
+  public Path datasetTargetRoot() {
+    return this.targetDirectory;
+  }
 }
