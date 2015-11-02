@@ -43,7 +43,9 @@ import gobblin.runtime.util.TaskMetrics;
 import gobblin.util.FinalState;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.writer.DataWriter;
+import gobblin.writer.DataWriterBuilder;
 import gobblin.writer.Destination;
+import gobblin.writer.PartitionedDataWriter;
 
 
 /**
@@ -93,7 +95,7 @@ public class Fork implements Closeable, Runnable, FinalState {
   private final Closer closer = Closer.create();
 
   // The writer will be lazily created when the first data record arrives
-  private Optional<InstrumentedDataWriterDecorator<Object>> writer = Optional.absent();
+  private Optional<DataWriter<Object>> writer = Optional.absent();
 
   // This is used by the parent task to signal that it has done pulling records and this fork
   // should not expect any new incoming data records. This is written by the parent task and
@@ -194,8 +196,8 @@ public class Fork implements Closeable, Runnable, FinalState {
   public State getFinalState() {
     State state = this.converter.getFinalState();
     state.addAll(this.rowLevelPolicyChecker.getFinalState());
-    if (this.writer.isPresent()) {
-      state.addAll(this.writer.get().getFinalState());
+    if (this.writer.isPresent() && this.writer.get() instanceof FinalState) {
+      state.addAll(((FinalState) this.writer.get()).getFinalState());
     }
     return state;
   }
@@ -351,16 +353,18 @@ public class Fork implements Closeable, Runnable, FinalState {
   /**
    * Build a {@link gobblin.writer.DataWriter} for writing fetched data records.
    */
-  private InstrumentedDataWriterDecorator<Object> buildWriter() throws IOException, SchemaConversionException {
-    DataWriter<Object> writer = this.taskContext.getDataWriterBuilder(this.branches, this.index)
+  @SuppressWarnings("unchecked")
+  private DataWriter<Object> buildWriter()
+      throws IOException, SchemaConversionException {
+    DataWriterBuilder<Object, Object> builder = this.taskContext.getDataWriterBuilder(this.branches, this.index)
         .writeTo(Destination.of(this.taskContext.getDestinationType(this.branches, this.index), this.taskState))
         .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index))
         .withWriterId(this.taskId)
         .withSchema(this.convertedSchema.orNull())
         .withBranches(this.branches)
-        .forBranch(this.index)
-        .build();
-    return new InstrumentedDataWriterDecorator<Object>(writer, this.taskState);
+        .forBranch(this.index);
+
+    return new PartitionedDataWriter<Object, Object>(builder, this.taskContext.getTaskState());
   }
 
   private void buildWriterIfNotPresent() throws IOException {

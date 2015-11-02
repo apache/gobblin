@@ -226,6 +226,7 @@ public class ConfigurationKeys {
   public static final String WRITER_DEFLATE_LEVEL = WRITER_PREFIX + ".deflate.level";
   public static final String WRITER_CODEC_TYPE = WRITER_PREFIX + ".codec.type";
   public static final String WRITER_EAGER_INITIALIZATION_KEY = WRITER_PREFIX + ".eager.initialization";
+  public static final String WRITER_PARTITIONER_CLASS = WRITER_PREFIX + ".partitioner.class";
   public static final boolean DEFAULT_WRITER_EAGER_INITIALIZATION = false;
 
   // Deprecated. Use WRITER_PARTITION_COLUMNS
