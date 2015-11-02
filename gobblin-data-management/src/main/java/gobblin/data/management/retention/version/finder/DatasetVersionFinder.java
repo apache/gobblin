@@ -23,7 +23,7 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.collect.Lists;
 
-import gobblin.data.management.retention.dataset.Dataset;
+import gobblin.data.management.retention.dataset.CleanableDataset;
 import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.util.PathUtils;
 
@@ -55,7 +55,7 @@ public abstract class DatasetVersionFinder<T extends DatasetVersion> implements 
    * @throws IOException
    */
   @Override
-  public Collection<T> findDatasetVersions(Dataset dataset) throws IOException {
+  public Collection<T> findDatasetVersions(CleanableDataset dataset) throws IOException {
     Path versionGlobStatus = new Path(dataset.datasetRoot(), globVersionPattern());
     FileStatus[] dataSetVersionPaths = this.fs.globStatus(versionGlobStatus);
 

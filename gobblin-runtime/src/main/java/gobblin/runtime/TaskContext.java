@@ -168,28 +168,28 @@ public class TaskContext {
    * @return list (possibly empty) of {@link Converter}s
    */
   public List<Converter<?, ?, ?, ?>> getConverters() {
-    return getConverters(-1);
+    return getConverters(-1, this.taskState);
   }
 
   /**
    * Get the list of post-fork {@link Converter}s for a given branch.
    *
    * @param index branch index
+   * @param forkTaskState a {@link TaskState} instance specific to the fork identified by the branch index
    * @return list (possibly empty) of {@link Converter}s
    */
   @SuppressWarnings("unchecked")
-  public List<Converter<?, ?, ?, ?>> getConverters(int index) {
-    String converterClassKey = ForkOperatorUtils.getPropertyNameForBranch(
-        ConfigurationKeys.CONVERTER_CLASSES_KEY, index);
+  public List<Converter<?, ?, ?, ?>> getConverters(int index, TaskState forkTaskState) {
+    String converterClassKey =
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.CONVERTER_CLASSES_KEY, index);
 
     if (!this.workUnit.contains(converterClassKey)) {
       return Collections.emptyList();
     }
 
-    // Create a copy of the TaskState and set the branch id for that TaskState,
-    // then feed it to the Converter's init method.
-    TaskState converterTaskState = new TaskState(this.taskState);
-    converterTaskState.setProp(ConfigurationKeys.FORK_BRANCH_ID_KEY, index);
+    if (index >= 0) {
+      forkTaskState.setProp(ConfigurationKeys.FORK_BRANCH_ID_KEY, index);
+    }
 
     List<Converter<?, ?, ?, ?>> converters = Lists.newArrayList();
     for (String converterClass : Splitter.on(",").omitEmptyStrings().trimResults()
@@ -197,7 +197,7 @@ public class TaskContext {
       try {
         Converter<?, ?, ?, ?> converter = Converter.class.cast(Class.forName(converterClass).newInstance());
         InstrumentedConverterDecorator instrumentedConverter = new InstrumentedConverterDecorator(converter);
-        instrumentedConverter.init(converterTaskState);
+        instrumentedConverter.init(forkTaskState);
         converters.add(instrumentedConverter);
       } catch (ClassNotFoundException cnfe) {
         throw new RuntimeException(cnfe);

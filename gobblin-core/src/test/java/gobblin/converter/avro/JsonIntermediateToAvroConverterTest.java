@@ -45,7 +45,7 @@ import gobblin.source.workunit.Extract.TableType;
  *
  */
 @Test(groups = {"gobblin.converter"})
-public class TestJsonIntermediateToAvroConverter {
+public class JsonIntermediateToAvroConverterTest {
   private JsonArray jsonSchema;
   private JsonObject jsonRecord;
   private WorkUnitState state;

@@ -16,6 +16,7 @@ import java.util.Properties;
 
 import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -34,10 +35,32 @@ public class TimestampedDatasetVersionFinderTest {
 
     Assert.assertEquals(parser.versionClass(), TimestampedDatasetVersion.class);
     Assert.assertEquals(parser.globVersionPattern(), new Path("*/*/*/*/*"));
-    Assert.assertEquals(parser.getDatasetVersion(new Path("2015/06/01/10/12"), new Path("fullPath")).getDateTime(),
-        new DateTime(2015,6,1,10,12,0,0));
-    Assert.assertEquals(parser.getDatasetVersion(new Path("2015/06/01/10/12"), new Path("fullPath")).
-            getPathsToDelete().iterator().next(), new Path("fullPath"));
+    DateTime version = parser.getDatasetVersion(new Path("2015/06/01/10/12"), new Path("fullPath")).getDateTime();
+    Assert.assertEquals(version.getZone(), DateTimeZone.forID("America/Los_Angeles"));
+    Assert.assertEquals(version, new DateTime(2015, 6, 1, 10, 12, 0, 0, DateTimeZone.forID("America/Los_Angeles")));
+
+    Assert.assertEquals(parser.getDatasetVersion(new Path("2015/06/01/10/12"), new Path("fullPath")).getPathsToDelete()
+        .iterator().next(), new Path("fullPath"));
+
+  }
+
+  @Test
+  public void testVersionParserWithTimeZone() {
+
+    Properties props = new Properties();
+    props.put(DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_KEY, "yyyy/MM/dd/hh/mm");
+    props.put(DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_TIMEZONE_KEY, "UTC");
+
+    DateTimeDatasetVersionFinder parser = new DateTimeDatasetVersionFinder(null, props);
+
+    Assert.assertEquals(parser.versionClass(), TimestampedDatasetVersion.class);
+    Assert.assertEquals(parser.globVersionPattern(), new Path("*/*/*/*/*"));
+    DateTime version = parser.getDatasetVersion(new Path("2015/06/01/10/12"), new Path("fullPath")).getDateTime();
+    Assert.assertEquals(version.getZone(), DateTimeZone.forID("UTC"));
+    Assert.assertEquals(version,
+        new DateTime(2015, 6, 1, 10, 12, 0, 0, DateTimeZone.forID("UTC")));
+    Assert.assertEquals(parser.getDatasetVersion(new Path("2015/06/01/10/12"), new Path("fullPath")).getPathsToDelete()
+        .iterator().next(), new Path("fullPath"));
   }
 
 }

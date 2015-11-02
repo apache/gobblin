@@ -58,6 +58,11 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
   public static final String TASK_STATE_STORE_TABLE_SUFFIX = ".tst";
 
+  public static final String JOB_STATE_FILE_NAME = "job.state";
+
+  public static final String WORK_UNIT_FILE_EXTENSION = ".wu";
+  public static final String MULTI_WORK_UNIT_FILE_EXTENSION = ".mwu";
+
   // Job configuration properties
   protected final Properties jobProps;
 
@@ -270,7 +275,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       TimingEvent jobCommitTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.JOB_COMMIT);
       this.jobContext.finalizeJobStateBeforeCommit();
       this.jobContext.commit();
-      postProcessTaskStates(jobState.getTaskStates());
+      postProcessJobState(jobState);
       jobCommitTimer.stop();
     } catch (Throwable t) {
       jobState.setState(JobState.RunningState.FAILED);
@@ -319,9 +324,20 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   /**
    * Subclasses can override this method to do whatever processing on the {@link TaskState}s,
    * e.g., aggregate task-level metrics into job-level metrics.
+   *
+   * @deprecated Use {@link #postProcessJobState(JobState)
    */
+  @Deprecated
   protected void postProcessTaskStates(List<TaskState> taskStates) {
     // Do nothing
+  }
+
+  /**
+   * Subclasses can override this method to do whatever processing on the {@link JobState} and its
+   * associated {@link TaskState}s, e.g., aggregate task-level metrics into job-level metrics.
+   */
+  protected void postProcessJobState(JobState jobState) {
+    postProcessTaskStates(jobState.getTaskStates());
   }
 
   @Override

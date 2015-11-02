@@ -13,6 +13,7 @@
 package gobblin.compaction.mapreduce.avro;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -71,7 +72,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
   private static final String AVRO = "avro";
   private static final String SCHEMA_DEDUP_FIELD_ANNOTATOR = "primarykey";
 
-  private static enum DedupKeyOption {
+  private enum DedupKeyOption {
 
     // Use all fields in the topic schema
     ALL,
@@ -99,7 +100,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
   private void configureSchema(Job job) throws IOException {
     Schema newestSchema = getNewestSchemaFromSource(job);
     AvroJob.setInputKeySchema(job, newestSchema);
-    AvroJob.setMapOutputKeySchema(job, this.deduplicate ? getKeySchema(job, newestSchema) : newestSchema);
+    AvroJob.setMapOutputKeySchema(job, this.shouldDeduplicate ? getKeySchema(job, newestSchema) : newestSchema);
     AvroJob.setMapOutputValueSchema(job, newestSchema);
     AvroJob.setOutputKeySchema(job, newestSchema);
   }
@@ -111,7 +112,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
    * If compaction.dedup.key=custom, it reads the schema from compaction.avro.key.schema.loc.
    * If the read fails, or if the custom key schema is incompatible with topicSchema, option "key" will be used.
    */
-  Schema getKeySchema(Job job, Schema topicSchema) throws IOException {
+  private Schema getKeySchema(Job job, Schema topicSchema) throws IOException {
     Schema keySchema = null;
     DedupKeyOption dedupKeyOption = getDedupKeyOption();
     if (dedupKeyOption == DedupKeyOption.ALL) {
@@ -238,20 +239,20 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
   }
 
   private DedupKeyOption getDedupKeyOption() {
-    if (!this.jobProps.contains(COMPACTION_JOB_DEDUP_KEY)) {
+    if (!this.dataset.jobProps().contains(COMPACTION_JOB_DEDUP_KEY)) {
       return DEFAULT_DEDUP_KEY_OPTION;
     }
-    Optional<DedupKeyOption> option =
-        Enums.getIfPresent(DedupKeyOption.class, this.jobProps.getProp(COMPACTION_JOB_DEDUP_KEY).toUpperCase());
+    Optional<DedupKeyOption> option = Enums.getIfPresent(DedupKeyOption.class,
+        this.dataset.jobProps().getProp(COMPACTION_JOB_DEDUP_KEY).toUpperCase());
     return option.isPresent() ? option.get() : DEFAULT_DEDUP_KEY_OPTION;
   }
 
   private boolean keySchemaFileSpecified() {
-    return this.jobProps.contains(COMPACTION_JOB_AVRO_KEY_SCHEMA_LOC);
+    return this.dataset.jobProps().contains(COMPACTION_JOB_AVRO_KEY_SCHEMA_LOC);
   }
 
   private Path getKeySchemaFile() {
-    return new Path(this.jobProps.getProp(COMPACTION_JOB_AVRO_KEY_SCHEMA_LOC));
+    return new Path(this.dataset.jobProps().getProp(COMPACTION_JOB_AVRO_KEY_SCHEMA_LOC));
   }
 
   @Override
@@ -302,17 +303,17 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
   /**
    * A Comparator for reverse order comparison of modification time of two FileStatus.
    */
-  private static class LastModifiedDescComparator implements Comparator<FileStatus> {
+  private static class LastModifiedDescComparator implements Comparator<FileStatus>, Serializable {
 
     @Override
     public int compare(FileStatus fs1, FileStatus fs2) {
-      if (fs2.getModificationTime() < fs1.getModificationTime())
+      if (fs2.getModificationTime() < fs1.getModificationTime()) {
         return -1;
-      else if (fs2.getModificationTime() > fs1.getModificationTime())
+      } else if (fs2.getModificationTime() > fs1.getModificationTime()) {
         return 1;
-      else
+      } else {
         return 0;
+      }
     }
   }
-
 }

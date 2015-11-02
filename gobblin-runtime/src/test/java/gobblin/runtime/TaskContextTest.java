@@ -55,7 +55,7 @@ public class TaskContextTest {
   @BeforeClass
   public void setUp()
       throws Exception {
-    WorkUnit workUnit = new WorkUnit();
+    WorkUnit workUnit = WorkUnit.createEmpty();
     Properties properties = new Properties();
     properties.load(new StringReader(TEST_JOB_CONFIG));
     workUnit.addAll(properties);

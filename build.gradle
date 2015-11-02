@@ -33,7 +33,7 @@ if (!project.hasProperty('hadoopVersion')) {
 }
 
 if (!project.hasProperty('hiveVersion')) {
-  hiveVersion = '0.13.0'
+  hiveVersion = '0.13.1'
 }
 
 if (!project.hasProperty('pegasusVersion')) {
@@ -58,6 +58,7 @@ ext.externalDependency = [
   "commonsIo": "commons-io:commons-io:2.4",
   "commonsMath": "org.apache.commons:commons-math3:3.5",
   "commonsHttpClient": "commons-httpclient:commons-httpclient:3.1",
+  "commonsCompress":"org.apache.commons:commons-compress:1.10",
   "datanucleusCore": "org.datanucleus:datanucleus-core:4.1.2",
   "datanucleusRdbms": "org.datanucleus:datanucleus-rdbms:4.1.2",
   "guava": "com.google.guava:guava:15.0",
@@ -78,10 +79,11 @@ ext.externalDependency = [
   "hiveJdbc": "org.apache.hive:hive-jdbc:"+hiveVersion,
   "hiveMetastore": "org.apache.hive:hive-metastore:"+hiveVersion,
   "hiveExec": "org.apache.hive:hive-exec:"+hiveVersion,
+  "hiveSerDe": "org.apache.hive:hive-serde:"+hiveVersion,
   "httpclient": "org.apache.httpcomponents:httpclient:4.5",
   "httpcore": "org.apache.httpcomponents:httpcore:4.4.1",
-  "kafka": "org.apache.kafka:kafka_2.10:0.8.2.1",
-  "kafkaTest": "org.apache.kafka:kafka_2.10:0.8.2.1:test",
+  "kafka": "org.apache.kafka:kafka_2.11:0.8.2.1",
+  "kafkaTest": "org.apache.kafka:kafka_2.11:0.8.2.1:test",
   "kafkaClient": "org.apache.kafka:kafka-clients:0.8.2.1",
   "quartz": "org.quartz-scheduler:quartz:2.2.1",
   "testng": "org.testng:testng:6.9.6",
@@ -107,7 +109,7 @@ ext.externalDependency = [
   "mockito": "org.mockito:mockito-core:1.10.19",
   "salesforceWsc": "com.force.api:force-wsc:29.0.0",
   "salesforcePartner": "com.force.api:force-partner-api:29.0.0",
-  "scala": "org.scala-lang:scala-library:2.10.3",
+  "scala": "org.scala-lang:scala-library:2.11.6",
   "influxdbJava": "org.influxdb:influxdb-java:1.5",
   "lombok":"org.projectlombok:lombok:1.16.4",
   "mockRunnerJdbc":"com.mockrunner:mockrunner-jdbc:1.0.8",
@@ -115,6 +117,8 @@ ext.externalDependency = [
   "typesafeConfig": "com.typesafe:config:1.2.1",
   "byteman": "org.jboss.byteman:byteman:"+bytemanVersion,
   "bytemanBmunit": "org.jboss.byteman:byteman-bmunit:"+bytemanVersion,
+  "bcpgJdk15on": "org.bouncycastle:bcpg-jdk15on:1.52",
+  "bcprovJdk15on": "org.bouncycastle:bcprov-jdk15on:1.52",
   "pegasus" : [
     "data" : "com.linkedin.pegasus:data:"+pegasusVersion,
     "generator" : "com.linkedin.pegasus:generator:"+pegasusVersion,

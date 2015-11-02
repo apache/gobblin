@@ -14,7 +14,9 @@ package gobblin.runtime;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.CompletionService;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.lang.exception.ExceptionUtils;
@@ -80,10 +82,12 @@ public class Task implements Runnable {
   private final TaskContext taskContext;
   private final TaskState taskState;
   private final TaskStateTracker taskStateTracker;
-  private final TaskExecutor taskExecutor;
   private final Optional<CountDownLatch> countDownLatch;
 
   private final List<Optional<Fork>> forks = Lists.newArrayList();
+
+  // A CompletionService used to run the batch of Forks of this Task
+  private final CompletionService forkCompletionService;
 
   // Number of task retries
   private final AtomicInteger retryCount = new AtomicInteger();
@@ -103,7 +107,7 @@ public class Task implements Runnable {
     this.jobId = this.taskState.getJobId();
     this.taskId = this.taskState.getTaskId();
     this.taskStateTracker = taskStateTracker;
-    this.taskExecutor = taskExecutor;
+    this.forkCompletionService = new ExecutorCompletionService(taskExecutor.getForkExecutor());
     this.countDownLatch = countDownLatch;
   }
 
@@ -143,16 +147,13 @@ public class Task implements Runnable {
         throw new CopyNotSupportedException(schema + " is not copyable");
       }
 
-      // Used for the main branch to wait for all forks to finish
-      CountDownLatch forkCountDownLatch = new CountDownLatch(branches);
-
       // Create one fork for each forked branch
       for (int i = 0; i < branches; i++) {
         if (forkedSchemas.get(i)) {
-          Fork fork = closer.register(new Fork(this.taskContext, this.taskState,
-              schema instanceof Copyable ? ((Copyable) schema).copy() : schema, branches, i, forkCountDownLatch));
+          Fork fork = closer.register(new Fork(this.taskContext,
+              schema instanceof Copyable ? ((Copyable) schema).copy() : schema, branches, i));
           // Run the Fork
-          this.taskExecutor.execute(fork);
+          this.forkCompletionService.submit(fork, fork);
           this.forks.add(Optional.of(fork));
         } else {
           this.forks.add(Optional.<Fork> absent());
@@ -183,13 +184,14 @@ public class Task implements Runnable {
         if (fork.isPresent()) {
           // Tell the fork that the main branch is done and no new incoming data records should be expected
           fork.get().markParentTaskDone();
-        } else {
-          forkCountDownLatch.countDown();
         }
       }
 
-      // Wait for all forks to finish
-      forkCountDownLatch.await();
+      for (Optional<Fork> fork : this.forks) {
+        if (fork.isPresent()) {
+          this.forkCompletionService.take();
+        }
+      }
 
       // Check if all forks succeeded
       boolean allForksSucceeded = true;
@@ -206,7 +208,6 @@ public class Task implements Runnable {
       }
 
       if (allForksSucceeded) {
-
         // Set the task state to SUCCESSFUL. The state is not set to COMMITTED
         // as the data publisher will do that upon successful data publishing.
         this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
@@ -216,10 +217,11 @@ public class Task implements Runnable {
       }
 
       addConstructsFinalStateToTaskState(extractor, converter);
-
     } catch (Throwable t) {
       failTask(t);
     } finally {
+      this.taskState.setProp(ConfigurationKeys.WRITER_RECORDS_WRITTEN, getRecordsWritten());
+
       try {
         closer.close();
       } catch (Throwable t) {
@@ -228,20 +230,19 @@ public class Task implements Runnable {
 
       try {
         if (shouldPublishDataInTask()) {
-
           // If data should be published by the task, publish the data and set the task state to COMMITTED.
           // Task data can only be published after all forks have been closed by closer.close().
           publishTaskData();
           this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
         }
-      } catch (Throwable t) {
-        failTask(t);
+      } catch (IOException ioe) {
+        failTask(ioe);
+      } finally {
+        long endTime = System.currentTimeMillis();
+        this.taskState.setEndTime(endTime);
+        this.taskState.setTaskDuration(endTime - startTime);
+        this.taskStateTracker.onTaskCompletion(this);
       }
-
-      long endTime = System.currentTimeMillis();
-      this.taskState.setEndTime(endTime);
-      this.taskState.setTaskDuration(endTime - startTime);
-      this.taskStateTracker.onTaskCompletion(this);
     }
   }
 
@@ -252,26 +253,40 @@ public class Task implements Runnable {
   }
 
   /**
-   * Whether the task should directly publish data to the final publisher output dir.
-   * The task should publish data if {@link ConfigurationKeys#JOB_COMMIT_POLICY_KEY} is set to "partial", and
-   * {@link ConfigurationKeys#PUBLISH_DATA_AT_JOB_LEVEL} is set to false.
+   * Whether the task should directly publish its output data to the final publisher output directory.
+   *
+   * <p>
+   *   The task should publish its output data directly if {@link ConfigurationKeys#PUBLISH_DATA_AT_JOB_LEVEL}
+   *   is set to false AND any of the following conditions is satisfied:
+   *
+   *   <ul>
+   *     <li>The {@link JobCommitPolicy#COMMIT_ON_PARTIAL_SUCCESS} policy is used.</li>
+   *     <li>The {@link JobCommitPolicy#COMMIT_SUCCESSFUL_TASKS} policy is used. and all {@link Fork}s of this
+   *     {@link Task} succeeded.</li>
+   *   </ul>
+   * </p>
    */
   private boolean shouldPublishDataInTask() {
-    boolean jobCommitPolicyIsPartial =
-        JobCommitPolicy.getCommitPolicy(this.taskState.getProperties()) == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS;
     boolean publishDataAtJobLevel = this.taskState.getPropAsBoolean(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL,
         ConfigurationKeys.DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL);
-
     if (publishDataAtJobLevel) {
-      LOG.info(String.format("%s is true. Will publish data in driver.", ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL));
-      return false;
-    } else if (!jobCommitPolicyIsPartial) {
-      LOG.info(
-          String.format("%s is set to full. Will publish data in driver.", ConfigurationKeys.JOB_COMMIT_POLICY_KEY));
+      LOG.info(String.format("%s is true. Will publish data at the job level.",
+          ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL));
       return false;
     }
 
-    return true;
+    JobCommitPolicy jobCommitPolicy = JobCommitPolicy.getCommitPolicy(this.taskState);
+
+    if (jobCommitPolicy == JobCommitPolicy.COMMIT_SUCCESSFUL_TASKS) {
+      return this.taskState.getWorkingState() == WorkUnitState.WorkingState.SUCCESSFUL;
+    }
+
+    if (jobCommitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS) {
+      return true;
+    }
+
+    LOG.info("Will publish data at the job level with job commit policy: " + jobCommitPolicy);
+    return false;
   }
 
   private void publishTaskData() throws IOException {
@@ -461,6 +476,21 @@ public class Task implements Runnable {
       }
     }
     return inBranches > 1;
+  }
+
+  /**
+   * Get the total number of records written by every {@link Fork}s of this {@link Task}.
+   *
+   * @return the number of records written by every {@link Fork}s of this {@link Task}
+   */
+  private long getRecordsWritten() {
+    long recordsWritten = 0;
+    for (Optional<Fork> fork : this.forks) {
+      if (fork.isPresent()) {
+        recordsWritten += fork.get().getRecordsWritten();
+      }
+    }
+    return recordsWritten;
   }
 
   /**

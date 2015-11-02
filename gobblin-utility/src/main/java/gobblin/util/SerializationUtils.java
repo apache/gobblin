@@ -14,13 +14,22 @@ package gobblin.util;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
+
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
 import com.google.common.io.BaseEncoding;
 import com.google.common.io.Closer;
+
+import gobblin.configuration.State;
 
 
 /**
@@ -38,6 +47,7 @@ public class SerializationUtils {
    *
    * @param obj A {@link Serializable} object
    * @return A String representing the input object
+   * @throws IOException if it fails to serialize the object
    */
   public static <T extends Serializable> String serialize(T obj) throws IOException {
     return serialize(obj, DEFAULT_ENCODING);
@@ -50,7 +60,7 @@ public class SerializationUtils {
    * @param obj A {@link Serializable} object
    * @param enc The {@link BaseEncoding} used to encode a byte array.
    * @return A String representing the input object
-   * @throws IOException 
+   * @throws IOException if it fails to serialize the object
    */
   public static <T extends Serializable> String serialize(T obj, BaseEncoding enc) throws IOException {
     Closer closer = Closer.create();
@@ -74,6 +84,7 @@ public class SerializationUtils {
    * @param serialized The serialized String
    * @param clazz The class the deserialized object should be cast to.
    * @return The deserialized object
+   * @throws IOException if it fails to deserialize the object
    */
   public static <T extends Serializable> T deserialize(String serialized, Class<T> clazz) throws IOException {
     return deserialize(serialized, clazz, DEFAULT_ENCODING);
@@ -81,13 +92,13 @@ public class SerializationUtils {
 
   /**
    * Deserialize a String obtained via {@link #serialize(Serializable)} into an object, using the
-   * given {@BaseEncoding}, which must be the same {@BaseEncoding} used to serialize the object.
+   * given {@link BaseEncoding}, which must be the same {@link BaseEncoding} used to serialize the object.
    *
    * @param serialized The serialized String
    * @param clazz The class the deserialized object should be cast to.
    * @param enc The {@link BaseEncoding} used to decode the String.
    * @return The deserialized object
-   * @throws IOException
+   * @throws IOException if it fails to deserialize the object
    */
   public static <T extends Serializable> T deserialize(String serialized, Class<T> clazz, BaseEncoding enc)
       throws IOException {
@@ -98,6 +109,54 @@ public class SerializationUtils {
       return clazz.cast(ois.readObject());
     } catch (Throwable e) {
       throw closer.rethrow(e);
+    } finally {
+      closer.close();
+    }
+  }
+
+  /**
+   * Serialize a {@link State} instance to a file.
+   *
+   * @param fs the {@link FileSystem} instance for creating the file
+   * @param jobStateFilePath the path to the file
+   * @param state the {@link State} to serialize
+   * @param <T> the {@link State} object type
+   * @throws IOException if it fails to serialize the {@link State} instance
+   */
+  public static <T extends State> void serializeState(FileSystem fs, Path jobStateFilePath, T state)
+      throws IOException {
+    Closer closer = Closer.create();
+
+    try {
+      OutputStream os = closer.register(fs.create(jobStateFilePath));
+      DataOutputStream dataOutputStream = closer.register(new DataOutputStream(os));
+      state.write(dataOutputStream);
+    } catch (Throwable t) {
+      throw closer.rethrow(t);
+    } finally {
+      closer.close();
+    }
+  }
+
+  /**
+   * Deserialize/read a {@link State} instance from a file.
+   *
+   * @param fs the {@link FileSystem} instance for opening the file
+   * @param jobStateFilePath the path to the file
+   * @param state an empty {@link State} instance to deserialize into
+   * @param <T> the {@link State} object type
+   * @throws IOException if it fails to deserialize the {@link State} instance
+   */
+  public static <T extends State> void deserializeState(FileSystem fs, Path jobStateFilePath, T state)
+      throws IOException {
+    Closer closer = Closer.create();
+
+    try {
+      InputStream is = closer.register(fs.open(jobStateFilePath));
+      DataInputStream dis = closer.register((new DataInputStream(is)));
+      state.readFields(dis);
+    } catch (Throwable t) {
+      throw closer.rethrow(t);
     } finally {
       closer.close();
     }
