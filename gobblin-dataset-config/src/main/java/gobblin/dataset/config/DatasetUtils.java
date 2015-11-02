@@ -70,7 +70,7 @@ public class DatasetUtils {
    * @return the reference of input highProp which modified to contains all the key/value entries in lowProp map
    * If both key exists in highProp and lowProp, the value in highProp is Not changed
    */
-  public static final Map<String, Object> MergeTwoMaps(Map<String, Object> highProp, Map<String, Object> lowProp) {
+  public static final Map<String, Object> mergeTwoMaps(Map<String, Object> highProp, Map<String, Object> lowProp) {
     if (lowProp == null)
       return highProp;
 

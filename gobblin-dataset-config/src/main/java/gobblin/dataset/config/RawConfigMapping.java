@@ -289,7 +289,7 @@ public class RawConfigMapping {
     // get all property from tags
     List<String> tags = getAssociatedTags(urn);
     for (String t : tags) {
-      DatasetUtils.MergeTwoMaps(self, getResolvedProperty(t));
+      DatasetUtils.mergeTwoMaps(self, getResolvedProperty(t));
     }
 
     // get all property from parent
@@ -301,7 +301,7 @@ public class RawConfigMapping {
       ancestor = this.getResolvedProperty(parentId);
     }
 
-    Map<String, Object> res = DatasetUtils.MergeTwoMaps(self, ancestor);
+    Map<String, Object> res = DatasetUtils.mergeTwoMaps(self, ancestor);
 
     // as imported-tags will be overwrite or the order is not correct once the map got merged
     // do not return the imported-tags, instead, user should use getAssociatedTags(String urn) 
