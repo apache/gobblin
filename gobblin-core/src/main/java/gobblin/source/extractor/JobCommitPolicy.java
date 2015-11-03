@@ -19,27 +19,29 @@ import gobblin.configuration.State;
 
 
 /**
- * A enumeration of policies on how to commit a completed job.
+ * An enumeration of policies on how output data of jobs/tasks should be committed.
  *
  * @author ynli
  */
 public enum JobCommitPolicy {
 
   /**
-   * Commit a job if and only if all its tasks successfully complete and commit.
+   * Commit output data of a job if and only if all of its tasks successfully complete.
    */
   COMMIT_ON_FULL_SUCCESS("full"),
 
   /**
-   * Commit a job even if some of its tasks fail. It's up to the {@link gobblin.publisher.DataPublisher}
-   * to decide whether data of failed tasks of the job should be committed or not.
+   * Commit a job even if some of its tasks fail. It's up to the {@link gobblin.publisher.DataPublisher} to
+   * decide whether data of failed tasks of the job should be committed or not.
+   *
+   * @deprecated Use {@link #COMMIT_SUCCESSFUL_TASKS} instead, which provides a less confusing commit semantics,
+   *             and should cover most use cases when {@link #COMMIT_ON_FULL_SUCCESS} is not appropriate.
    */
+  @Deprecated
   COMMIT_ON_PARTIAL_SUCCESS("partial"),
 
   /**
-   * Commit output data of tasks whose state are {@link gobblin.configuration.WorkUnitState.WorkingState#SUCCESSFUL}.
-   * This is different from {@link #COMMIT_ON_PARTIAL_SUCCESS} in that this policy won't publish partial output data
-   * of a task if it has not succeeded, whereas {@link #COMMIT_ON_PARTIAL_SUCCESS} will.
+   * Commit output data of tasks that successfully complete.
    *
    * It is recommended to use this commit policy in conjunction with task-level data publishing (i.e., when
    * {@link ConfigurationKeys#PUBLISH_DATA_AT_JOB_LEVEL} is set to {@code false}).
