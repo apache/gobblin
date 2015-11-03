@@ -104,7 +104,8 @@ class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
    * @throws IOException if there is something wrong creating a new {@link DataFileWriter}
    */
   private DataFileWriter<GenericRecord> createDataFileWriter(CodecFactory codecFactory) throws IOException {
-    DataFileWriter<GenericRecord> writer = this.closer.register(new DataFileWriter<GenericRecord>(this.datumWriter));
+    @SuppressWarnings("resource")
+    DataFileWriter<GenericRecord> writer = new DataFileWriter<GenericRecord>(this.datumWriter);
     writer.setCodec(codecFactory);
 
     // Open the file and return the DataFileWriter
