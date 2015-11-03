@@ -19,6 +19,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import org.apache.log4j.Logger;
 
@@ -160,16 +161,27 @@ public class RawConfigMapping {
     return res;
   }
 
+  public Map<String, Object> getRawProperty(String urn) {
+    return this.getRawProperty(urn, UUID.randomUUID().toString());
+  }
+
   /**
    * @param urn input urn
    * @return the rawProperty of the input urn which do not include the property from ancestors or imported-tags
    */
-  public Map<String, Object> getRawProperty(String urn) {
+  private Map<String, Object> getRawProperty(String urn, String traceId) {
     String adjustedUrn = this.getAdjustedUrn(urn);
     Map<String, Object> res = configMap.get(adjustedUrn);
 
     if (res == null) {
       return Collections.emptyMap();
+    }
+
+    for (String key : res.keySet()) {
+      if (key.equals(DatasetUtils.IMPORTED_TAGS)) {
+        continue;
+      }
+      LOG.info(String.format("Trace id: %s, Raw property urn: %s, property: %s", traceId, adjustedUrn, key));
     }
     // need to return deep copy as the map object could be changed later
     return new HashMap<String, Object>(res);
@@ -182,7 +194,12 @@ public class RawConfigMapping {
    * The order in the result list determines the conflict resolution priority. The lower indexed one have higher priority.
    */
   public List<String> getRawTags(String urn) {
-    Map<String, Object> self = getRawProperty(urn);
+    String adjustedUrn = this.getAdjustedUrn(urn);
+    Map<String, Object> self = configMap.get(adjustedUrn);
+    if(self==null){
+      return Collections.emptyList();
+    }
+    
     Object tags = self.get(DatasetUtils.IMPORTED_TAGS);
 
     List<String> res = new ArrayList<String>();
@@ -283,25 +300,31 @@ public class RawConfigMapping {
    * @return the rawProperty of the input urn which does include the property from ancestors or imported-tags
    */
   public Map<String, Object> getResolvedProperty(String urn) {
+    String traceId = UUID.randomUUID().toString();
+    LOG.info(String.format("Getting resolved property for Urn: %s using trace id: %s", urn, traceId));
+    return this.getResolvedProperty(urn, traceId);
+  }
+
+  private Map<String, Object> getResolvedProperty(String urn, String traceId) {
     // self need to be deep copy as it will be changed
-    Map<String, Object> self = getRawProperty(urn);
+    Map<String, Object> self = getRawProperty(urn, traceId);
 
     // get all property from tags
     List<String> tags = getAssociatedTags(urn);
     for (String t : tags) {
-      DatasetUtils.mergeTwoMaps(self, getResolvedProperty(t));
+      mergeTwoMaps(self, urn, getResolvedProperty(t, traceId), t, traceId);
     }
 
     // get all property from parent
     String parentId = DatasetUtils.getParentId(getAdjustedUrn(urn));
     Map<String, Object> ancestor = null;
     if (parentId.equals(DatasetUtils.ROOT)) {
-      ancestor = this.getRawProperty(parentId);
+      ancestor = this.getRawProperty(parentId, traceId);
     } else {
-      ancestor = this.getResolvedProperty(parentId);
+      ancestor = this.getResolvedProperty(parentId, traceId);
     }
 
-    Map<String, Object> res = DatasetUtils.mergeTwoMaps(self, ancestor);
+    Map<String, Object> res = mergeTwoMaps(self, urn, ancestor, parentId, traceId);
 
     // as imported-tags will be overwrite or the order is not correct once the map got merged
     // do not return the imported-tags, instead, user should use getAssociatedTags(String urn) 
@@ -313,13 +336,50 @@ public class RawConfigMapping {
   }
 
   /**
+   * @param highProp : high property map
+   * @param lowProp  : low property map
+   * @return the reference of input highProp which modified to contains all the key/value entries in lowProp map
+   * If both key exists in highProp and lowProp, the value in highProp is Not changed
+   */
+  private Map<String, Object> mergeTwoMaps(Map<String, Object> highProp, String highPropUrn,
+      Map<String, Object> lowProp, String lowPropUrn, String traceId) {
+    if (lowProp == null) {
+      return highProp;
+    }
+
+    if (highProp == null) {
+      for (String key : lowProp.keySet()) {
+        LOG.info(String.format("Trace id: %s, origin urn: %s, Import property from urn: %s , property: %s", traceId,
+            highPropUrn, lowPropUrn, key));
+      }
+      return lowProp;
+    }
+
+    for (String key : lowProp.keySet()) {
+      // import property
+      if (!highProp.containsKey(key)) {
+        highProp.put(key, lowProp.get(key));
+        LOG.info(String.format("Trace id: %s, origin urn: %s, Import property from urn: %s , property: %s", traceId,
+            highPropUrn, lowPropUrn, key));
+      }
+      // overwrite property
+      else {
+        LOG.info(String.format("Trace id: %s, origin urn: %s, Overwrite property from urn: %s , property: %s", traceId,
+            highPropUrn, lowPropUrn, key));
+      }
+    }
+
+    return highProp;
+  }
+
+  /**
    * @param inputTag, input tag
    * @return the Map whose key is the dataset which has input tag associated, not include descendant datasets,
    *  value is resolved config for the corresponding key. If input is dataset, result is empty as dataset is not taggable
    */
   public Map<String, Config> getTaggedConfig(String inputTag) {
     if (!DatasetUtils.isValidTag(inputTag))
-      return null;
+      return Collections.emptyMap();
 
     Map<String, Config> res = new HashMap<String, Config>();
 

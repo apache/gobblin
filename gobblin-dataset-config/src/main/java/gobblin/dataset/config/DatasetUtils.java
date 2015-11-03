@@ -65,28 +65,6 @@ public class DatasetUtils {
   }
 
   /**
-   * @param highProp : high property map
-   * @param lowProp  : low property map
-   * @return the reference of input highProp which modified to contains all the key/value entries in lowProp map
-   * If both key exists in highProp and lowProp, the value in highProp is Not changed
-   */
-  public static final Map<String, Object> mergeTwoMaps(Map<String, Object> highProp, Map<String, Object> lowProp) {
-    if (lowProp == null)
-      return highProp;
-
-    if (highProp == null)
-      return lowProp;
-
-    for (String key : lowProp.keySet()) {
-      if (!highProp.containsKey(key)) {
-        highProp.put(key, lowProp.get(key));
-      }
-    }
-
-    return highProp;
-  }
-
-  /**
    * @param urn input urn
    * @return true iff the urn is valid. Starts with either {@link DatasetUtils#TAGS_PREFIX} or {@link DatasetUtils#DATASETS_PREFIX}
    */
