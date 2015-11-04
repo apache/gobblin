@@ -75,12 +75,10 @@ public class FileBasedConfigStore implements ConfigStore {
     return this.scheme;
   }
 
-  @Override
   public synchronized void loadConfigs() {
     loadConfigs(this.getLatestVersion());
   }
 
-  @Override
   public synchronized void loadConfigs(String version) {
     String configurationFile = this.configLocation + "/" + version + "/" + CONF_FILE;
     LOG.info("Trying to load configuration file: " + configurationFile);
@@ -105,7 +103,6 @@ public class FileBasedConfigStore implements ConfigStore {
     }
   }
   
-  @Override
   public Config getConfig(String urn) {
     return this.getConfig(urn, this.loadedConfigVersion);
   }
@@ -117,7 +114,6 @@ public class FileBasedConfigStore implements ConfigStore {
     return ConfigFactory.parseMap(raw);
   }
 
-  @Override
   public Map<String, Config> getTaggedConfig(String urn) {
     return this.getTaggedConfig(urn, this.loadedConfigVersion);
   }
@@ -128,7 +124,6 @@ public class FileBasedConfigStore implements ConfigStore {
     return this.rawConfigs.getTaggedConfig(urn);
   }
 
-  @Override
   public List<String> getAssociatedTags(String urn) {
     return this.getAssociatedTags(urn, this.loadedConfigVersion);
   }
