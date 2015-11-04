@@ -22,42 +22,49 @@ import com.typesafe.config.*;
 public class PlayGround {
   public static void main(String[] args){
 
-    //    //Config tagConf = ConfigFactory.load("tags22.conf");
+    //Config tagConf = ConfigFactory.load("tags22.conf");
+
+    Config a3Conf = ConfigFactory.parseFile(new File("/Users/mitu/AAA/datasets/a1/a2/a3/main.conf"));
+    Config a2Conf = ConfigFactory.parseFile(new File("/Users/mitu/AAA/datasets/a1/a2/main.conf"));
+    
+    Config merged = a2Conf.withFallback(a3Conf);
+    
+    for(Map.Entry<String, ConfigValue> entry: merged.entrySet()){
+      System.out.println("reference key: " +entry.getKey() + " ,value:" + entry.getValue());
+
+    }
+    
+    String key = "foobar";
+    System.out.println("value is " + merged.getConfig(key));
+
+//    Config appConf = ConfigFactory.load();
+//    for(Map.Entry<String, ConfigValue> entry: appConf.entrySet()){
+//      System.out.println("app key: " +entry.getKey() + " ,value:" + entry.getValue());
+//
+//    }
+
+    System.out.println("done");
+
+    //    FileBasedConfigStore cs = new FileBasedConfigStore("/Users/mitu/AAA", "test");
+    //    cs.loadConfigs();
+    //    String urn = "config-ds.nertz.tracking.big-event";
+    //    Config c = cs.getConfig(urn);
     //    
-    //    Config tagConf = ConfigFactory.defaultReference();
-    //    for(Map.Entry<String, ConfigValue> entry: tagConf.entrySet()){
-    //      System.out.println("reference key: " +entry.getKey() + " ,value:" + entry.getValue());
-    //      
-    //    }
-    //    
-    //    Config appConf = ConfigFactory.load();
-    //    for(Map.Entry<String, ConfigValue> entry: appConf.entrySet()){
+    //    System.out.println("Urn is " + urn);
+    //    for(Map.Entry<String, ConfigValue> entry: c.entrySet()){
     //      System.out.println("app key: " +entry.getKey() + " ,value:" + entry.getValue());
-    //      
+    //
+    //    }
+    //
+    //    List<String> tags = cs.getAssociatedTags("config-ds.nertz.tracking");
+    //    if(tags!=null){
+    //      for(String t: tags){
+    //        System.out.println("tags is " + t);
+    //      }
+    //    }
+    //    else {
+    //      System.out.println("No associated tags");
     //    }
     //    
-    //    System.out.println("done");
-
-    FileBasedConfigStore cs = new FileBasedConfigStore("/Users/mitu/AAA", "test");
-    cs.loadConfigs();
-    String urn = "config-ds.nertz.tracking.big-event";
-    Config c = cs.getConfig(urn);
-    
-    System.out.println("Urn is " + urn);
-    for(Map.Entry<String, ConfigValue> entry: c.entrySet()){
-      System.out.println("app key: " +entry.getKey() + " ,value:" + entry.getValue());
-
-    }
-
-    List<String> tags = cs.getAssociatedTags("config-ds.nertz.tracking");
-    if(tags!=null){
-      for(String t: tags){
-        System.out.println("tags is " + t);
-      }
-    }
-    else {
-      System.out.println("No associated tags");
-    }
-    
   }
 }
