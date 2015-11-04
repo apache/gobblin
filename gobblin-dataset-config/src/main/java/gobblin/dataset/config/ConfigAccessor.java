@@ -35,7 +35,7 @@ public class ConfigAccessor {
   }
   
   /**
-   * @param urn - the urn which need to get the configuration
+   * @param urn - the urn which need to get the configuration. This urn could be either dataset or tag.
    * @return the resolved Config of input urn in configStore for the configVersion
    */
   public Config getConfig(String urn){
