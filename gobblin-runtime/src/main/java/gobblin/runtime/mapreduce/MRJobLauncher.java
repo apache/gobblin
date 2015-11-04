@@ -190,6 +190,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
       } else {
         JobLauncherUtils.cleanJobStagingData(jobState, LOG);
       }
+
       stagingDataCleanTimer.stop();
 
       Path jobOutputPath = prepareHadoopJob(workUnits);

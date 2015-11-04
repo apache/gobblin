@@ -13,6 +13,7 @@
 package gobblin.yarn;
 
 import java.io.IOException;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -29,7 +30,6 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
-import com.google.common.base.Throwables;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
@@ -98,13 +98,13 @@ public class GobblinHelixTask implements Task {
 
   @Override
   public TaskResult run() {
-    LOGGER.info(String.format("Running WorkUnit %s of job %s", taskId, jobId));
+    LOGGER.info(String.format("Running task %s of job %s", taskId, jobId));
 
     try {
       // Create a new task from the work unit and submit the task to run
       gobblin.runtime.Task task = buildTask();
       this.taskStateTracker.registerNewTask(task);
-      LOGGER.info(String.format("Submitting WorkUnit %s to run", this.taskId));
+      LOGGER.info(String.format("Submitting Task %s to run", this.taskId));
       this.futureOptional = Optional.<Future<?>>of(this.taskExecutor.submit(task));
       this.futureOptional.get().get();
 
@@ -112,7 +112,8 @@ public class GobblinHelixTask implements Task {
       persistTaskState(task.getTaskState());
 
       WorkUnitState.WorkingState workingState = task.getTaskState().getWorkingState();
-      LOGGER.info(String.format("WorkUnit %s completed with state %s", this.taskId, workingState));
+      LOGGER.info(String.format("Task %s completed with state %s", this.taskId, workingState));
+
       switch (workingState) {
         case SUCCESSFUL:
           return new TaskResult(TaskResult.Status.COMPLETED, "task id: " + this.taskId);
@@ -121,28 +122,34 @@ public class GobblinHelixTask implements Task {
         case CANCELLED:
           return new TaskResult(TaskResult.Status.CANCELED, "task id: " + this.taskId);
         default:
-          throw new IllegalStateException("Unexpected result WorkUnit state: " + workingState);
+          throw new IllegalStateException("Unexpected result task state: " + workingState);
       }
     } catch (IOException ioe) {
-      LOGGER.error("Failed to deserialize WorkUnit " + this.taskId, ioe);
-      throw Throwables.propagate(ioe);
+      LOGGER.error("Failed to build task " + this.taskId, ioe);
+      return new TaskResult(TaskResult.Status.ERROR, "task id: " + this.taskId);
     } catch (ExecutionException ee) {
-      LOGGER.error("Failed to run WorkUnit " + this.taskId, ee);
-      throw Throwables.propagate(ee);
+      LOGGER.error("Failed to run task " + this.taskId, ee);
+      return new TaskResult(TaskResult.Status.ERROR, "task id: " + this.taskId);
     } catch (InterruptedException ie) {
-      LOGGER.error("Failed to run WorkUnit " + this.taskId, ie);
-      throw Throwables.propagate(ie);
+      cancel();
+      Thread.currentThread().interrupt();
+      return new TaskResult(TaskResult.Status.CANCELED, "task id: " + this.taskId);
+    } catch (CancellationException ce) {
+      return new TaskResult(TaskResult.Status.CANCELED, "task id: " + this.taskId);
+    } catch (Throwable t) {
+      LOGGER.error("Failed to run task " + this.taskId, t);
+      return new TaskResult(TaskResult.Status.ERROR, "task id: " + this.taskId);
     }
   }
 
   @Override
   public void cancel() {
-    LOGGER.info(String.format("Cancelling WorkUnit %s of job %s", this.taskId, this.jobId));
+    LOGGER.info(String.format("Cancelling task %s of job %s", this.taskId, this.jobId));
     this.futureOptional.transform(new Function<Future<?>, Object>() {
       @Nullable
       @Override
       public Object apply(Future<?> input) {
-        return input.cancel(true);
+        return input.cancel(false);
       }
     });
   }

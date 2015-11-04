@@ -58,7 +58,7 @@ dependencies {
   testCompile externalDependency.bytemanBmunit
   testRuntime externalDependency.derby
 
-  compile files('./src/main/resources/helix-core-0.7.2-SNAPSHOT.jar')
+  compile files('./src/main/resources/helix-core-0.6.6-SNAPSHOT.jar')
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {

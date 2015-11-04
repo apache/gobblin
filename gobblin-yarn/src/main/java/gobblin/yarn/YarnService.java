@@ -52,11 +52,11 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.util.Records;
-import org.apache.helix.api.id.ParticipantId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -85,7 +85,7 @@ public class YarnService extends AbstractIdleService {
 
   private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
 
-  private final ConcurrentMap<ContainerId, Map.Entry<Container, ParticipantId>> containerMap = Maps.newConcurrentMap();
+  private final ConcurrentMap<ContainerId, Map.Entry<Container, String>> containerMap = Maps.newConcurrentMap();
 
   private final ApplicationId applicationId;
   private final String applicationName;
@@ -208,9 +208,9 @@ public class YarnService extends AbstractIdleService {
       ExecutorsUtils.shutdownExecutorService(this.containerLaunchExecutor, Optional.of(LOGGER));
 
       // Stop the running containers
-      for (Map.Entry<Container, ParticipantId> entry : this.containerMap.values()) {
+      for (Map.Entry<Container, String> entry : this.containerMap.values()) {
         LOGGER.info(String.format("Stopping container %s running participant %s", entry.getKey().getId(),
-            entry.getValue().stringify()));
+            entry.getValue()));
         this.nmClientAsync.stopContainerAsync(entry.getKey().getId(), entry.getKey().getNodeId());
       }
 
@@ -352,6 +352,10 @@ public class YarnService extends AbstractIdleService {
       for (ContainerStatus containerStatus : statuses) {
         LOGGER.info(String.format("Container %s has completed with exit status %d", containerStatus.getContainerId(),
             containerStatus.getExitStatus()));
+        if (!Strings.isNullOrEmpty(containerStatus.getDiagnostics())) {
+          LOGGER.info(String.format("Received the following diagnostics information for container %s: %s",
+              containerStatus.getContainerId(), containerStatus.getDiagnostics()));
+        }
         containerMap.remove(containerStatus.getContainerId());
       }
     }
@@ -361,8 +365,8 @@ public class YarnService extends AbstractIdleService {
       for (final Container container : containers) {
         LOGGER.info(String.format("Container %s has been allocated", container.getId()));
 
-        Map.Entry<Container, ParticipantId> containerParticipantPair =
-            new AbstractMap.SimpleImmutableEntry<Container, ParticipantId>(container,
+        Map.Entry<Container, String> containerParticipantPair =
+            new AbstractMap.SimpleImmutableEntry<Container, String>(container,
                 YarnHelixUtils.getParticipantId(container.getNodeId().getHost(), container.getId()));
         containerMap.put(container.getId(), containerParticipantPair);
 

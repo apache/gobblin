@@ -487,8 +487,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
     try {
       for (TaskState taskState : jobState.getTaskStates()) {
+        TaskState fatTaskState = new TaskState(taskState);
+        fatTaskState.addAllIfNotExist(jobState);
         try {
-          JobLauncherUtils.cleanStagingData(taskState, LOG, closer, parallelRunners);
+          JobLauncherUtils.cleanStagingData(fatTaskState, LOG, closer, parallelRunners);
         } catch (IOException e) {
           LOG.error(String.format("Failed to clean staging data for task %s: %s", taskState.getTaskId(), e), e);
         }
