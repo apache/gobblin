@@ -116,9 +116,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   @Override
   public void close() throws IOException {
     try {
-      if (this.jobSubmitted && !this.jobComplete) {
-        this.helixTaskDriver.deleteJob(this.helixQueueName, this.jobContext.getJobId());
-      }
+      executeCancellation();
     } finally {
       super.close();
     }

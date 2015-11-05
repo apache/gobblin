@@ -82,7 +82,7 @@ public class GobblinOutputCommitter extends OutputCommitter {
           } finally {
             workUnitFileCloser.close();
           }
-          JobLauncherUtils.cleanStagingData(new WorkUnitState(wu), LOG);
+          JobLauncherUtils.cleanTaskStagingData(new WorkUnitState(wu), LOG);
         }
 
         // If the file ends with ".mwu" de-serialize it into a MultiWorkUnit
@@ -94,7 +94,7 @@ public class GobblinOutputCommitter extends OutputCommitter {
             workUnitFileCloser.close();
           }
           for (WorkUnit wu : mwu.getWorkUnits()) {
-            JobLauncherUtils.cleanStagingData(new WorkUnitState(wu), LOG);
+            JobLauncherUtils.cleanTaskStagingData(new WorkUnitState(wu), LOG);
           }
         }
       }

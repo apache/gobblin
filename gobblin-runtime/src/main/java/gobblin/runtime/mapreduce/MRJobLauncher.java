@@ -177,22 +177,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
     JobState jobState = this.jobContext.getJobState();
 
     try {
-      TimingEvent stagingDataCleanTimer =
-          this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.MR_STAGING_DATA_CLEAN);
-
-      // Delete any staging directories that already exist before the Hadoop MR job starts
-      if (this.jobContext.shouldCleanupStagingDataPerTask()) {
-        for (WorkUnit workUnit : JobLauncherUtils.flattenWorkUnits(workUnits)) {
-          WorkUnit fatWorkUnit = WorkUnit.copyOf(workUnit);
-          fatWorkUnit.addAllIfNotExist(jobState);
-          JobLauncherUtils.cleanStagingData(fatWorkUnit, LOG);
-        }
-      } else {
-        JobLauncherUtils.cleanJobStagingData(jobState, LOG);
-      }
-
-      stagingDataCleanTimer.stop();
-
       Path jobOutputPath = prepareHadoopJob(workUnits);
       LOG.info("Launching Hadoop MR job " + this.job.getJobName());
       this.job.submit();

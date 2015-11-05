@@ -149,7 +149,7 @@ public class GobblinHelixTask implements Task {
       @Nullable
       @Override
       public Object apply(Future<?> input) {
-        return input.cancel(false);
+        return input.cancel(true);
       }
     });
   }
