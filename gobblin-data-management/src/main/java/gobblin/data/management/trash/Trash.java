@@ -200,6 +200,8 @@ public class Trash implements GobblinTrash {
 
     if(!this.fs.exists(targetPathInTrash.getParent())) {
       this.fs.mkdirs(targetPathInTrash.getParent());
+    } else if(this.fs.exists(targetPathInTrash)) {
+      targetPathInTrash = targetPathInTrash.suffix("_" + System.currentTimeMillis());
     }
 
     return this.fs.rename(fullyResolvedPath, targetPathInTrash);
