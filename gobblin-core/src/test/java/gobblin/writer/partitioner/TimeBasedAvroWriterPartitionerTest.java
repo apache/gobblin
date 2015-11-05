@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.writer;
+package gobblin.writer.partitioner;
 
 import java.io.File;
 import java.io.IOException;
@@ -28,15 +28,23 @@ import org.testng.annotations.Test;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.writer.AvroDataWriterBuilder;
+import gobblin.writer.DataWriter;
+import gobblin.writer.DataWriterBuilder;
+import gobblin.writer.Destination;
+import gobblin.writer.PartitionedDataWriter;
+import gobblin.writer.WriterOutputFormat;
+import gobblin.writer.partitioner.TimeBasedAvroWriterPartitioner;
+import gobblin.writer.partitioner.TimeBasedWriterPartitioner;
 
 
 /**
- * Tests for {@link AvroHdfsTimePartitionedWriterTest}.
+ * Tests for {@link TimeBasedAvroWriterPartitioner}.
  */
-@Test(groups = { "gobblin.writer" })
-public class AvroHdfsTimePartitionedWriterTest {
+@Test(groups = { "gobblin.writer.partitioner" })
+public class TimeBasedAvroWriterPartitionerTest {
 
-  private static final String SIMPLE_CLASS_NAME = AvroHdfsTimePartitionedWriterTest.class.getSimpleName();
+  private static final String SIMPLE_CLASS_NAME = TimeBasedAvroWriterPartitionerTest.class.getSimpleName();
 
   private static final String TEST_ROOT_DIR = SIMPLE_CLASS_NAME + "-test";
   private static final String STAGING_DIR = TEST_ROOT_DIR + Path.SEPARATOR + "staging";
@@ -47,15 +55,8 @@ public class AvroHdfsTimePartitionedWriterTest {
   private static final String WRITER_ID = "writer-1";
 
   private static final String AVRO_SCHEMA =
-      "{" +
-          "\"type\" : \"record\"," +
-          "\"name\" : \"User\"," +
-          "\"namespace\" : \"example.avro\"," +
-          "\"fields\" : [ {" +
-            "\"name\" : \"" + PARTITION_COLUMN_NAME + "\"," +
-            "\"type\" : \"long\"" +
-          "} ]" +
-      "}";
+      "{" + "\"type\" : \"record\"," + "\"name\" : \"User\"," + "\"namespace\" : \"example.avro\"," + "\"fields\" : [ {"
+          + "\"name\" : \"" + PARTITION_COLUMN_NAME + "\"," + "\"type\" : \"long\"" + "} ]" + "}";
 
   private Schema schema;
   private DataWriter<GenericRecord> writer;
@@ -80,19 +81,21 @@ public class AvroHdfsTimePartitionedWriterTest {
     this.schema = new Schema.Parser().parse(AVRO_SCHEMA);
 
     State properties = new State();
-    properties.setProp(ConfigurationKeys.WRITER_PARTITION_COLUMN_NAME, PARTITION_COLUMN_NAME);
+    properties.setProp(TimeBasedAvroWriterPartitioner.WRITER_PARTITION_COLUMNS, PARTITION_COLUMN_NAME);
     properties.setProp(ConfigurationKeys.WRITER_BUFFER_SIZE, ConfigurationKeys.DEFAULT_BUFFER_SIZE);
     properties.setProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigurationKeys.LOCAL_FS_URI);
     properties.setProp(ConfigurationKeys.WRITER_STAGING_DIR, STAGING_DIR);
     properties.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, OUTPUT_DIR);
     properties.setProp(ConfigurationKeys.WRITER_FILE_PATH, BASE_FILE_PATH);
     properties.setProp(ConfigurationKeys.WRITER_FILE_NAME, FILE_NAME);
+    properties.setProp(TimeBasedWriterPartitioner.WRITER_PARTITION_PATTERN, "yyyy/MM/dd");
+    properties.setProp(ConfigurationKeys.WRITER_PARTITIONER_CLASS, TimeBasedAvroWriterPartitioner.class.getName());
 
     // Build a writer to write test records
-    this.writer =
-        new AvroTimePartitionedWriterBuilder().writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
-            .writeInFormat(WriterOutputFormat.AVRO).withWriterId(WRITER_ID).withSchema(this.schema).withBranches(1)
-            .forBranch(0).build();
+    DataWriterBuilder<Schema, GenericRecord> builder = new AvroDataWriterBuilder()
+        .writeTo(Destination.of(Destination.DestinationType.HDFS, properties)).writeInFormat(WriterOutputFormat.AVRO)
+        .withWriterId(WRITER_ID).withSchema(this.schema).withBranches(1).forBranch(0);
+    this.writer = new PartitionedDataWriter<Schema, GenericRecord>(builder, properties);
   }
 
   @Test
@@ -123,8 +126,7 @@ public class AvroHdfsTimePartitionedWriterTest {
     Assert.assertEquals(FileUtils.listFiles(new File(TEST_ROOT_DIR), new String[] { "avro" }, true).size(), 3);
 
     // Check if each file exists, and in the correct location
-    File baseOutputDir =
-        new File(OUTPUT_DIR, BASE_FILE_PATH + Path.SEPARATOR + ConfigurationKeys.DEFAULT_WRITER_PARTITION_LEVEL);
+    File baseOutputDir = new File(OUTPUT_DIR, BASE_FILE_PATH);
     Assert.assertTrue(baseOutputDir.exists());
 
     File outputDir20150101 =

@@ -53,18 +53,16 @@ class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
   // Number of records successfully written
   protected final AtomicLong count = new AtomicLong(0);
 
-  public AvroHdfsDataWriter(State properties, String fileName, Schema schema, int numBranches, int branchId)
-      throws IOException {
-    super(properties, fileName, numBranches, branchId);
+  public AvroHdfsDataWriter(FsDataWriterBuilder<Schema, GenericRecord> builder, State state) throws IOException {
+    super(builder, state);
 
-    CodecFactory codecFactory =
-        WriterUtils.getCodecFactory(
-            Optional.fromNullable(properties.getProp(ForkOperatorUtils
-                .getPropertyNameForBranch(ConfigurationKeys.WRITER_CODEC_TYPE, numBranches, branchId))),
+    CodecFactory codecFactory = WriterUtils.getCodecFactory(
         Optional.fromNullable(properties.getProp(ForkOperatorUtils
-            .getPropertyNameForBranch(ConfigurationKeys.WRITER_DEFLATE_LEVEL, numBranches, branchId))));
+            .getPropertyNameForBranch(ConfigurationKeys.WRITER_CODEC_TYPE, this.numBranches, this.branchId))),
+        Optional.fromNullable(properties.getProp(ForkOperatorUtils
+            .getPropertyNameForBranch(ConfigurationKeys.WRITER_DEFLATE_LEVEL, this.numBranches, this.branchId))));
 
-    this.schema = schema;
+    this.schema = builder.getSchema();
     this.stagingFileOutputStream = createStagingFileOutputStream();
     this.datumWriter = new GenericDatumWriter<GenericRecord>();
     this.writer = this.closer.register(createDataFileWriter(codecFactory));

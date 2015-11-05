@@ -14,6 +14,8 @@ package gobblin.writer;
 
 import java.io.IOException;
 
+import lombok.Getter;
+
 
 /**
  * A builder class for {@link DataWriter}.
@@ -23,6 +25,7 @@ import java.io.IOException;
  *
  * @author ynli
  */
+@Getter
 public abstract class DataWriterBuilder<S, D> {
 
   protected Destination destination;
@@ -104,7 +107,5 @@ public abstract class DataWriterBuilder<S, D> {
    * @throws IOException if there is anything wrong building the writer
    * @return the built {@link DataWriter}
    */
-  @SuppressWarnings("unchecked")
-  public abstract DataWriter<D> build()
-      throws IOException;
+  public abstract DataWriter<D> build() throws IOException;
 }

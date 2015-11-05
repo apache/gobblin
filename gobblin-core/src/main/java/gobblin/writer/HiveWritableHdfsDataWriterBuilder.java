@@ -14,6 +14,7 @@ package gobblin.writer;
 
 import java.io.IOException;
 
+import org.apache.avro.Schema;
 import org.apache.hadoop.io.Writable;
 
 import com.google.common.base.Preconditions;
@@ -21,25 +22,22 @@ import com.google.common.base.Strings;
 
 import gobblin.configuration.State;
 import gobblin.serde.HiveSerDeWrapper;
-import gobblin.util.WriterUtils;
 
 
 /**
  * A {@link DataWriterBuilder} for building {@link HiveWritableHdfsDataWriter}.
  *
- * If properties {@link #WRITER_WRITABLE_CLASS}, {@link #WRITER_OUTPUT_FORMAT_CLASS} and
- * {@link #WRITER_OUTPUT_FILE_EXTENSION} are all specified, their values will be used to create
- * {@link HiveWritableHdfsDataWriter}. Otherwise, property {@link HiveSerDeWrapper#SERDE_SERIALIZER_TYPE} is required,
- * which will be used to create a {@link HiveSerDeWrapper} that contains the information needed to create
- * {@link HiveWritableHdfsDataWriter}.
+ * If properties {@link #WRITER_WRITABLE_CLASS}, {@link #WRITER_OUTPUT_FORMAT_CLASS} are both specified, their values
+ * will be used to create {@link HiveWritableHdfsDataWriter}. Otherwise, property 
+ * {@link HiveSerDeWrapper#SERDE_SERIALIZER_TYPE} is required, which will be used to create a 
+ * {@link HiveSerDeWrapper} that contains the information needed to create {@link HiveWritableHdfsDataWriter}.
  *
  * @author ziliu
  */
-public class HiveWritableHdfsDataWriterBuilder extends DataWriterBuilder<Object, Writable> {
+public class HiveWritableHdfsDataWriterBuilder<S> extends FsDataWriterBuilder<S, Writable> {
 
   public static final String WRITER_WRITABLE_CLASS = "writer.writable.class";
   public static final String WRITER_OUTPUT_FORMAT_CLASS = "writer.output.format.class";
-  public static final String WRITER_OUTPUT_FILE_EXTENSION = "writer.output.file.extension";
 
   @SuppressWarnings("deprecation")
   @Override
@@ -49,18 +47,17 @@ public class HiveWritableHdfsDataWriterBuilder extends DataWriterBuilder<Object,
 
     State properties = this.destination.getProperties();
 
-    if (!properties.contains(WRITER_WRITABLE_CLASS) || !properties.contains(WRITER_OUTPUT_FORMAT_CLASS)
-        || !properties.contains(WRITER_OUTPUT_FILE_EXTENSION)) {
+    if (!properties.contains(WRITER_WRITABLE_CLASS) || !properties.contains(WRITER_OUTPUT_FORMAT_CLASS)) {
       HiveSerDeWrapper serializer = HiveSerDeWrapper.getSerializer(properties);
       properties.setProp(WRITER_WRITABLE_CLASS, serializer.getSerDe().getSerializedClass().getName());
       properties.setProp(WRITER_OUTPUT_FORMAT_CLASS, serializer.getOutputFormatClassName());
-      properties.setProp(WRITER_OUTPUT_FILE_EXTENSION, serializer.getExtension());
     }
 
-    String fileName = WriterUtils.getWriterFileName(properties, this.branches, this.branch, this.writerId,
-        properties.getProp(WRITER_OUTPUT_FILE_EXTENSION));
+    return new HiveWritableHdfsDataWriter(this, properties);
+  }
 
-    return new HiveWritableHdfsDataWriter(properties, fileName, this.branches, this.branch);
-
+  @Override
+  public boolean validatePartitionSchema(Schema partitionSchema) {
+    return true;
   }
 }

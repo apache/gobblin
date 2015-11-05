@@ -52,8 +52,8 @@ public class SimpleDataWriter extends FsDataWriter<byte[]> {
 
   private final OutputStream stagingFileOutputStream;
 
-  public SimpleDataWriter(State properties, String fileName, int numBranches, int branchId) throws IOException {
-    super(properties, fileName, numBranches, branchId);
+  public SimpleDataWriter(SimpleDataWriterBuilder builder, State properties) throws IOException {
+    super(builder, properties);
     String delim;
     if ((delim = properties.getProp(ConfigurationKeys.SIMPLE_WRITER_DELIMITER, null)) == null || delim.length() == 0) {
       this.recordDelimiter = Optional.absent();

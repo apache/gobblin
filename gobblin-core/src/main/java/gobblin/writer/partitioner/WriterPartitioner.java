@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.writer;
+package gobblin.writer.partitioner;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;

@@ -235,14 +235,15 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
 
   protected void addSingleTaskWriterOutputToExistingDir(Path writerOutputDir, Path publisherOutputDir,
       WorkUnitState workUnitState, int branchId, ParallelRunner parallelRunner) throws IOException {
-    if (!workUnitState.contains(ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS)) {
-      LOG.warn("Missing property " + ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS
-          + ". This task may have pulled no data.");
+    String outputFilePropName = ForkOperatorUtils
+        .getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS, this.numBranches, branchId);
+
+    if (!workUnitState.contains(outputFilePropName)) {
+      LOG.warn("Missing property " + outputFilePropName + ". This task may have pulled no data.");
       return;
     }
 
-    Iterable<String> taskOutputFiles = workUnitState.getPropAsList(ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS);
-
+    Iterable<String> taskOutputFiles = workUnitState.getPropAsList(outputFilePropName);
     for (String taskOutputFile : taskOutputFiles) {
       Path taskOutputPath = new Path(taskOutputFile);
       if (!this.fileSystemByBranches.get(branchId).exists(taskOutputPath)) {

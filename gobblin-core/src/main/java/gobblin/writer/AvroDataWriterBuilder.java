@@ -16,14 +16,9 @@ import java.io.IOException;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-
-import gobblin.configuration.State;
-import gobblin.util.AvroUtils;
-import gobblin.util.WriterUtils;
 
 
 /**
@@ -31,16 +26,10 @@ import gobblin.util.WriterUtils;
  *
  * @author ynli
  */
-@SuppressWarnings("unused")
-public class AvroDataWriterBuilder extends PartitionAwareDataWriterBuilder<Schema, GenericRecord> {
-
-  @Override public boolean validatePartitionSchema(Schema partitionSchema) {
-    return true;
-  }
+public class AvroDataWriterBuilder extends FsDataWriterBuilder<Schema, GenericRecord> {
 
   @Override
-  public DataWriter<GenericRecord> build()
-      throws IOException {
+  public DataWriter<GenericRecord> build() throws IOException {
     Preconditions.checkNotNull(this.destination);
     Preconditions.checkArgument(!Strings.isNullOrEmpty(this.writerId));
     Preconditions.checkNotNull(this.schema);
@@ -48,16 +37,7 @@ public class AvroDataWriterBuilder extends PartitionAwareDataWriterBuilder<Schem
 
     switch (this.destination.getType()) {
       case HDFS:
-        State properties = this.destination.getProperties();
-
-        String fileName = WriterUtils
-            .getWriterFileName(properties, this.branches, this.branch, this.writerId, this.format.getExtension());
-
-        if(this.partition.isPresent()) {
-          fileName = new Path(AvroUtils.serializeAsPath(this.partition.get(), true).toString(), fileName).toString();
-        }
-
-        return new AvroHdfsDataWriter(properties, fileName, this.schema, this.branches, this.branch);
+        return new AvroHdfsDataWriter(this, this.destination.getProperties());
       case KAFKA:
         return new AvroKafkaDataWriter();
       default:
