@@ -12,7 +12,6 @@
 
 package gobblin.converter.string;
 
-import org.apache.avro.Schema;
 import org.apache.hadoop.io.Text;
 
 import gobblin.configuration.WorkUnitState;
@@ -28,22 +27,22 @@ import gobblin.converter.SingleRecordIterable;
  * @author ynli
  */
 @SuppressWarnings("unused")
-public class TextToStringConverter extends Converter<Schema, Schema, Text, String> {
+public class TextToStringConverter extends Converter<Object, Object, Text, String> {
 
   @Override
-  public Converter<Schema, Schema, Text, String> init(WorkUnitState workUnit) {
+  public Converter<Object, Object, Text, String> init(WorkUnitState workUnit) {
     super.init(workUnit);
     return this;
   }
 
   @Override
-  public Schema convertSchema(Schema inputSchema, WorkUnitState workUnit)
+  public Object convertSchema(Object inputSchema, WorkUnitState workUnit)
       throws SchemaConversionException {
     return inputSchema;
   }
 
   @Override
-  public Iterable<String> convertRecord(Schema outputSchema, Text inputRecord, WorkUnitState workUnit)
+  public Iterable<String> convertRecord(Object outputSchema, Text inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
     return new SingleRecordIterable<String>(inputRecord.toString());
   }
