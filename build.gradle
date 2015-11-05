@@ -154,7 +154,7 @@ subprojects {
 // Disabling the FindBugs plugin for now because FindBugs 2.x is not compatible with Java8
 //  apply plugin: 'findbugs'
 
-  sourceCompatibility = JavaVersion.VERSION_1_6
+  sourceCompatibility = JavaVersion.VERSION_1_7
 
 /*  findbugs {
     ignoreFailures = true
