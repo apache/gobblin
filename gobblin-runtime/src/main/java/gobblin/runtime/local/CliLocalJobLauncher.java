@@ -32,7 +32,7 @@ public class CliLocalJobLauncher {
     try {
 
       Properties jobProperties = CliOptions.parseArgs(CliLocalJobLauncher.class, args);
-      LOG.debug(String.format("Running job with properties:\n%s", jobProperties));
+      LOG.debug(String.format("Running job with properties:%n%s", jobProperties));
       new LocalJobLauncher(jobProperties).launchJob(null);
 
     } catch (Exception exception) {

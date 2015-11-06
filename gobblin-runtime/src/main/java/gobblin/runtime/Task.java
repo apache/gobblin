@@ -156,7 +156,7 @@ public class Task implements Runnable {
           this.forkCompletionService.submit(fork, fork);
           this.forks.add(Optional.of(fork));
         } else {
-          this.forks.add(Optional.<Fork> absent());
+          this.forks.add(Optional.<Fork>absent());
         }
       }
 
@@ -189,7 +189,11 @@ public class Task implements Runnable {
 
       for (Optional<Fork> fork : this.forks) {
         if (fork.isPresent()) {
-          this.forkCompletionService.take();
+          try {
+            this.forkCompletionService.take();
+          } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+          }
         }
       }
 
@@ -381,7 +385,7 @@ public class Task implements Runnable {
         }
       }
     } catch (IOException ioe) {
-      LOG.error("Failed to update byte-level metrics for task " + this.taskId);
+      LOG.error("Failed to update byte-level metrics for task " + this.taskId, ioe);
     }
   }
 
@@ -440,8 +444,10 @@ public class Task implements Runnable {
 
     // If the record has been successfully put into the queues of every forks
     boolean allPutsSucceeded = false;
+
     // Use an array of primitive boolean type to avoid unnecessary boxing/unboxing
     boolean[] succeededPuts = new boolean[branches];
+
     // Put the record into the record queue of each fork. A put may timeout and return a false, in which
     // case the put needs to be retried in the next iteration along with other failed puts. This goes on
     // until all puts succeed, at which point the task moves to the next record.
