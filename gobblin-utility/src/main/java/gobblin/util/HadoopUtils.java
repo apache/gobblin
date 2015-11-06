@@ -12,6 +12,10 @@
 
 package gobblin.util;
 
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+import gobblin.writer.DataWriter;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -19,7 +23,11 @@ import java.io.DataOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map.Entry;
 
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileStatus;
@@ -34,13 +42,11 @@ import com.google.common.collect.Lists;
 import com.google.common.io.BaseEncoding;
 import com.google.common.io.Closer;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-
 
 /**
  * A utility class for working with Hadoop.
  */
+@Slf4j
 public class HadoopUtils {
 
   public static Configuration newConfiguration() {
@@ -57,6 +63,8 @@ public class HadoopUtils {
       conf.set("fs.s3n.awsSecretAccessKey", awsSecretAccessKey);
     }
 
+    // Add a new custom filesystem mapping
+    conf.set("fs.sftp.impl", "gobblin.source.extractor.extract.sftp.SftpLightWeightFileSystem");
     return conf;
   }
 
@@ -132,12 +140,97 @@ public class HadoopUtils {
     }
   }
 
+  /**
+   * This method is an additive implementation of the {@link FileSystem#rename(Path, Path)} method. It moves all the
+   * files/directories under 'from' path to the 'to' path without overwriting existing directories in the 'to' path.
+   *
+   * <p>
+   * The rename operation happens at the first non-existent sub-directory. If a directory at destination path already
+   * exists, it recursively tries to move for sub-directories. If all the sub-directories also exist at the destination,
+   * a file level copy is done
+   * </p>
+   *
+   * <p>
+   * If the contents of destination 'to' path is expected to be modified concurrently, use
+   * {@link #safeRenameRecursively(FileSystem, Path, Path)}
+   * </p>
+   *
+   * @param fileSystem on which the data needs to be moved
+   * @param from path of the data to be moved
+   * @param to path of the data to be moved
+   */
+  public static void renameRecursively(FileSystem fileSystem, Path from, Path to) throws IOException {
+
+    for (FileStatus fromFile : fileSystem.listStatus(from)) {
+
+      Path relativeFilePath =
+          new Path(StringUtils.substringAfter(fromFile.getPath().toString(), from.toString() + Path.SEPARATOR));
+
+      Path toFilePath = new Path(to, relativeFilePath);
+
+      if (!fileSystem.exists(toFilePath)) {
+        if (!fileSystem.rename(fromFile.getPath(), toFilePath)) {
+          throw new IOException(String.format("Failed to rename %s to %s.", fromFile.getPath(), toFilePath));
+        } else {
+          log.info(String.format("Renamed %s to %s", fromFile.getPath(), toFilePath));
+        }
+      } else if (fromFile.isDir()) {
+        renameRecursively(fileSystem, fromFile.getPath(), toFilePath);
+      } else {
+        log.info(String.format("File already exists %s. Will not rewrite", toFilePath));
+      }
+    }
+  }
+
+  /**
+   * A thread safe variation of {@link #renamePath(FileSystem, Path, Path)} which can be used in
+   * multi-threaded/multi-mapper environment. The rename operation always happens at file level hence directories are
+   * not overwritten under the 'to' path.
+   *
+   * <p>
+   * If the contents of destination 'to' path is not expected to be modified concurrently, use
+   * {@link #renamePath(FileSystem, Path, Path)} which is faster and more optimized
+   * </p>
+   *
+   * @param fileSystem on which the data needs to be moved
+   * @param from path of the data to be moved
+   * @param to path of the data to be moved
+   */
+  public static void safeRenameRecursively(FileSystem fileSystem, Path from, Path to) throws IOException {
+
+    for (FileStatus fromFile : FileListUtils.listFilesRecursively(fileSystem, from)) {
+
+      Path relativeFilePath =
+          new Path(StringUtils.substringAfter(fromFile.getPath().toString(), from.toString() + Path.SEPARATOR));
+
+      Path toFilePath = new Path(to, relativeFilePath);
+
+      if (!fileSystem.exists(toFilePath)) {
+        if (!fileSystem.rename(fromFile.getPath(), toFilePath)) {
+          throw new IOException(String.format("Failed to rename %s to %s.", fromFile.getPath(), toFilePath));
+        } else {
+          log.info(String.format("Renamed %s to %s", fromFile.getPath(), toFilePath));
+        }
+      } else {
+        log.info(String.format("File already exists %s. Will not rewrite", toFilePath));
+      }
+    }
+  }
+
   public static Configuration getConfFromState(State state) {
-    Configuration conf = new Configuration();
+    Configuration conf = newConfiguration();
     for (String propName : state.getPropertyNames()) {
       conf.set(propName, state.getProp(propName));
     }
     return conf;
+  }
+
+  public static State getStateFromConf(Configuration conf) {
+    State state = new State();
+    for (Entry<String, String> entry : conf) {
+      state.setProp(entry.getKey(), entry.getValue());
+    }
+    return state;
   }
 
   /**
