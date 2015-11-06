@@ -35,8 +35,6 @@ public class TaskPublisher {
     COMPONENTS_NOT_FINISHED  // All components did not complete, no data committed
   }
 
-  ;
-
   public TaskPublisher(WorkUnitState workUnitState, TaskLevelPolicyCheckResults results)
       throws Exception {
 

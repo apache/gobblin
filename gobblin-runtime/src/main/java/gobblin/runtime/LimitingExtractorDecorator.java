@@ -55,14 +55,12 @@ public class LimitingExtractorDecorator<S, D> implements Extractor<S, D>, Decora
   }
 
   @Override
-  public S getSchema()
-      throws IOException {
+  public S getSchema() throws IOException {
     return this.extractor.getSchema();
   }
 
   @Override
-  public D readRecord(@Deprecated D reuse)
-      throws DataRecordException, IOException {
+  public D readRecord(@Deprecated D reuse) throws DataRecordException, IOException {
     Closer closer = Closer.create();
     try {
       if (closer.register(this.limiter.acquirePermits(1)) != null) {
@@ -84,14 +82,14 @@ public class LimitingExtractorDecorator<S, D> implements Extractor<S, D>, Decora
     return this.extractor.getExpectedRecordCount();
   }
 
+  @Deprecated
   @Override
   public long getHighWatermark() {
     return this.extractor.getHighWatermark();
   }
 
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     try {
       this.extractor.close();
     } finally {
