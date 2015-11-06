@@ -1,4 +1,4 @@
-package gobblin.dataset.configstore;
+package gobblin.config.configstore;
 
 import java.net.URI;
 

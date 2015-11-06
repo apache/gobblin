@@ -10,8 +10,9 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.dataset.configstore;
+package gobblin.config.configstore;
 
+import java.io.Serializable;
 import java.net.URI;
 import java.util.Collection;
 
@@ -22,12 +23,14 @@ import com.typesafe.config.Config;
  * @author mitu
  *
  */
-public interface ConfigStore {
+public interface ConfigStore extends Serializable{
 
   /**
    * @return the configuration store scheme, example DAI-ETL, DALI or Espresso
    */
   public String getScheme();
+  
+  public String getCurrentVersion();
   
   public URI getParent(URI uri);
   
