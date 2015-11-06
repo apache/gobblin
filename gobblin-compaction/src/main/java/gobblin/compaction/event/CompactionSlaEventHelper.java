@@ -100,14 +100,14 @@ public class CompactionSlaEventHelper {
 
     Counter recordCounter = counters.findCounter(AvroKeyDedupReducer.EVENT_COUNTER.RECORD_COUNT);
 
-    if (recordCounter != null & recordCounter.getValue() != 0) {
+    if (recordCounter != null && recordCounter.getValue() != 0) {
       state.setProp(SlaEventKeys.RECORD_COUNT_KEY, Long.toString(recordCounter.getValue()));
       return;
     }
 
     recordCounter = counters.findCounter(AvroKeyMapper.EVENT_COUNTER.RECORD_COUNT);
 
-    if (recordCounter != null & recordCounter.getValue() != 0) {
+    if (recordCounter != null && recordCounter.getValue() != 0) {
       state.setProp(SlaEventKeys.RECORD_COUNT_KEY, Long.toString(recordCounter.getValue()));
       return;
     }

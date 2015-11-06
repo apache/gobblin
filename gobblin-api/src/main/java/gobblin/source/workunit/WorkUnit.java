@@ -60,7 +60,7 @@ public class WorkUnit extends State {
    * @param state a {@link SourceState} the properties of which will be copied into this {@link WorkUnit} instance
    * @param extract an {@link Extract}
    *
-   * @deprecated Properties in {@link SourceState} should not be added to a {@link WorkUnit}. Having each 
+   * @deprecated Properties in {@link SourceState} should not be added to a {@link WorkUnit}. Having each
    * {@link WorkUnit} contain a copy of {@link SourceState} is a waste of memory. Use {@link #create(Extract)}.
    */
   @Deprecated
@@ -84,7 +84,7 @@ public class WorkUnit extends State {
    * @param extract an {@link Extract}.
    * @param watermarkInterval a {@link WatermarkInterval} which defines the range of data this {@link WorkUnit} will process.
    *
-   * @deprecated Properties in {@link SourceState} should not be added to a {@link WorkUnit}. Having each 
+   * @deprecated Properties in {@link SourceState} should not be added to a {@link WorkUnit}. Having each
    * {@link WorkUnit} contain a copy of {@link SourceState} is a waste of memory. Use {@link #create(Extract, WatermarkInterval)}.
    */
   @Deprecated
@@ -125,7 +125,7 @@ public class WorkUnit extends State {
   }
 
   /**
-   * Facotry method.
+   * Factory method.
    *
    * @return An empty {@link WorkUnit}.
    */
@@ -134,7 +134,7 @@ public class WorkUnit extends State {
   }
 
   /**
-   * Facotry method.
+   * Factory method.
    *
    * @param extract {@link Extract}
    * @return A {@link WorkUnit} with the given {@link Extract}
@@ -144,7 +144,7 @@ public class WorkUnit extends State {
   }
 
   /**
-   * Facotry method.
+   * Factory method.
    *
    * @param extract {@link Extract}
    * @param watermarkInterval {@link WatermarkInterval}
@@ -155,9 +155,9 @@ public class WorkUnit extends State {
   }
 
   /**
-   * Facotry method.
+   * Factory method.
    *
-   * @param workUnit a {@link WorkUnit} instance
+   * @param other a {@link WorkUnit} instance
    * @return A copy of the given {@link WorkUnit} instance
    */
   public static WorkUnit copyOf(WorkUnit other) {

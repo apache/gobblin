@@ -1,0 +1,65 @@
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+package gobblin.data.management.copy;
+
+import org.apache.commons.lang.RandomStringUtils;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.Path;
+
+/**
+ * Utils class to generate dummy {@link CopyableFile}s for testing.
+ * Random strings are generated for null paths.
+ */
+public class CopyableFileUtils {
+
+  public static CopyableFile getTestCopyableFile() {
+    return getTestCopyableFile(null, null);
+  }
+
+  public static CopyableFile getTestCopyableFile(String resourcePath) {
+    return getTestCopyableFile(resourcePath, null);
+  }
+
+  public static CopyableFile getTestCopyableFile(OwnerAndPermission ownerAndPermission) {
+    return getTestCopyableFile(null, null, ownerAndPermission);
+  }
+
+  public static CopyableFile getTestCopyableFile(String resourcePath, OwnerAndPermission ownerAndPermission) {
+    return getTestCopyableFile(resourcePath, null, ownerAndPermission);
+  }
+
+  public static CopyableFile getTestCopyableFile(String resourcePath, String relativePath,
+      OwnerAndPermission ownerAndPermission) {
+
+    FileStatus status = null;
+
+    if (resourcePath == null) {
+      resourcePath = getRandomPath();
+      status = new FileStatus(0l, false, 0, 0l, 0l, new Path(resourcePath));
+    } else {
+      String filePath = CopyableFileUtils.class.getClassLoader().getResource(resourcePath).getFile();
+      status = new FileStatus(0l, false, 0, 0l, 0l, new Path(filePath));
+    }
+
+    if (relativePath == null) {
+      relativePath = getRandomPath();
+    }
+
+    Path destinationRelativePath = new Path(relativePath);
+
+    return new CopyableFile(status, new Path(getRandomPath()), destinationRelativePath, ownerAndPermission, null, null);
+  }
+
+  private static String getRandomPath() {
+    return new Path(RandomStringUtils.randomAlphabetic(6), RandomStringUtils.randomAlphabetic(6)).toString();
+  }
+}

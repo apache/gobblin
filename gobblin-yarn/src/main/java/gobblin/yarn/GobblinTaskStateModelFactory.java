@@ -15,9 +15,6 @@ package gobblin.yarn;
 import java.util.Map;
 
 import org.apache.helix.HelixManager;
-import org.apache.helix.api.StateTransitionHandlerFactory;
-import org.apache.helix.api.id.PartitionId;
-import org.apache.helix.api.id.ResourceId;
 import org.apache.helix.task.TaskFactory;
 import org.apache.helix.task.TaskStateModel;
 import org.apache.helix.task.TaskStateModelFactory;
@@ -26,7 +23,7 @@ import gobblin.runtime.TaskExecutor;
 
 
 /**
- * A {@link StateTransitionHandlerFactory} for {@link GobblinTaskStateModel}s.
+ * A {@link TaskStateModelFactory} for {@link GobblinTaskStateModel}s.
  *
  * <p>
  *   This class is currently not used but may get used in the future if we decide to plugin our own
@@ -50,7 +47,7 @@ public class GobblinTaskStateModelFactory extends TaskStateModelFactory {
   }
 
   @Override
-  public TaskStateModel createStateTransitionHandler(ResourceId resourceId, PartitionId partitionId) {
+  public TaskStateModel createNewStateModel(String resourceName, String partitionKey) {
     return new GobblinTaskStateModel(this.helixManager, this.taskFactoryRegistry, this.taskExecutor);
   }
 }

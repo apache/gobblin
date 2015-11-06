@@ -13,6 +13,7 @@
 package gobblin.writer;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.avro.Schema;
@@ -21,7 +22,6 @@ import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
-
 import org.apache.hadoop.fs.FileSystem;
 
 import com.google.common.base.Optional;
@@ -46,6 +46,7 @@ import gobblin.util.WriterUtils;
 class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
 
   private final Schema schema;
+  private final OutputStream stagingFileOutputStream;
   private final DatumWriter<GenericRecord> datumWriter;
   private final DataFileWriter<GenericRecord> writer;
 
@@ -57,12 +58,14 @@ class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
     super(properties, fileName, numBranches, branchId);
 
     CodecFactory codecFactory =
-        WriterUtils.getCodecFactory(Optional.fromNullable(properties.getProp(
-            ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_CODEC_TYPE, numBranches, branchId))),
+        WriterUtils.getCodecFactory(
             Optional.fromNullable(properties.getProp(ForkOperatorUtils
-                .getPropertyNameForBranch(ConfigurationKeys.WRITER_DEFLATE_LEVEL, numBranches, branchId))));
+                .getPropertyNameForBranch(ConfigurationKeys.WRITER_CODEC_TYPE, numBranches, branchId))),
+        Optional.fromNullable(properties.getProp(ForkOperatorUtils
+            .getPropertyNameForBranch(ConfigurationKeys.WRITER_DEFLATE_LEVEL, numBranches, branchId))));
 
     this.schema = schema;
+    this.stagingFileOutputStream = createStagingFileOutputStream();
     this.datumWriter = new GenericDatumWriter<GenericRecord>();
     this.writer = this.closer.register(createDataFileWriter(codecFactory));
   }
@@ -101,6 +104,7 @@ class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
    * @throws IOException if there is something wrong creating a new {@link DataFileWriter}
    */
   private DataFileWriter<GenericRecord> createDataFileWriter(CodecFactory codecFactory) throws IOException {
+    @SuppressWarnings("resource")
     DataFileWriter<GenericRecord> writer = new DataFileWriter<GenericRecord>(this.datumWriter);
     writer.setCodec(codecFactory);
 

@@ -41,13 +41,13 @@ public class MultiWorkUnitTest {
   public void setUp() {
     this.multiWorkUnit = new MultiWorkUnit();
 
-    WorkUnit workUnit1 = new WorkUnit();
+    WorkUnit workUnit1 = WorkUnit.createEmpty();
     workUnit1.setHighWaterMark(1000);
     workUnit1.setLowWaterMark(0);
     workUnit1.setProp("k1", "v1");
     this.multiWorkUnit.addWorkUnit(workUnit1);
 
-    WorkUnit workUnit2 = new WorkUnit();
+    WorkUnit workUnit2 = WorkUnit.createEmpty();
     workUnit2.setHighWaterMark(2000);
     workUnit2.setLowWaterMark(1001);
     workUnit2.setProp("k2", "v2");

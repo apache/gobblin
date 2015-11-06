@@ -22,7 +22,7 @@ import com.google.common.collect.Lists;
  */
 public class FileListUtils {
   private static final Logger LOG = LoggerFactory.getLogger(FileListUtils.class);
-  private static final PathFilter NO_OP_PATH_FILTER = new PathFilter() {
+  public static final PathFilter NO_OP_PATH_FILTER = new PathFilter() {
     @Override
     public boolean accept(Path path) {
       return true;

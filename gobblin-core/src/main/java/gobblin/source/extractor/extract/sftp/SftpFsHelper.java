@@ -12,6 +12,9 @@
 
 package gobblin.source.extractor.extract.sftp;
 
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+import gobblin.password.PasswordManager;
 import gobblin.source.extractor.filebased.FileBasedHelperException;
 import gobblin.source.extractor.filebased.SizeAwareFileBasedHelper;
 
@@ -23,6 +26,7 @@ import java.util.Vector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.ChannelSftp.LsEntry;
 import com.jcraft.jsch.JSch;
@@ -33,9 +37,6 @@ import com.jcraft.jsch.SftpException;
 import com.jcraft.jsch.SftpProgressMonitor;
 import com.jcraft.jsch.UserInfo;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-
 
 /**
  * Connects to a source via SFTP and executes a given list of SFTP commands
@@ -43,16 +44,68 @@ import gobblin.configuration.State;
  */
 public class SftpFsHelper implements SizeAwareFileBasedHelper {
   private static Logger log = LoggerFactory.getLogger(SftpFsHelper.class);
-  private ChannelSftp channelSftp;
   private Session session;
   private State state;
 
   public SftpFsHelper(State state) {
+
     this.state = state;
   }
 
+  /**
+   * The method returns a new {@link ChannelSftp} without throwing an exception. Returns a null if any exception occurs
+   * trying to get a new channel. The method exists for backward compatibility
+   *
+   * @deprecated use {@link #getSftpChannel()} instead.
+   *
+   * @return
+   */
+  @Deprecated
   public ChannelSftp getSftpConnection() {
-    return this.channelSftp;
+    try {
+      return this.getSftpChannel();
+    } catch (SftpException e) {
+      log.error("Failed to get new sftp channel", e);
+      return null;
+    }
+  }
+
+  /**
+   * Create new channel every time a command needs to be executed. This is required to support execution of multiple
+   * commands in parallel. All created channels are cleaned up when the session is closed.
+   *
+   *
+   * @return a new {@link ChannelSftp}
+   * @throws SftpException
+   */
+  public ChannelSftp getSftpChannel() throws SftpException {
+
+    try {
+      ChannelSftp channelSftp = (ChannelSftp) session.openChannel("sftp");
+      channelSftp.connect();
+      return channelSftp;
+    } catch (JSchException e) {
+      throw new SftpException(0, "Cannot open a channel to SFTP server", e);
+    }
+  }
+
+  /**
+   * Create a new sftp channel to execute commands.
+   *
+   * @param command to execute on the remote machine
+   * @return a new execution channel
+   * @throws SftpException if a channel could not be opened
+   */
+  public ChannelExec getExecChannel(String command) throws SftpException {
+    ChannelExec channelExec;
+    try {
+      channelExec = (ChannelExec) session.openChannel("exec");
+      channelExec.setCommand(command);
+      channelExec.connect();
+      return channelExec;
+    } catch (JSchException e) {
+      throw new SftpException(0, "Cannot open a channel to SFTP server", e);
+    }
   }
 
   /**
@@ -64,7 +117,9 @@ public class SftpFsHelper implements SizeAwareFileBasedHelper {
   @Override
   public void connect()
       throws FileBasedHelperException {
-    String privateKey = state.getProp(ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY);
+
+    String privateKey =
+        PasswordManager.getInstance(state).readPassword(state.getProp(ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY));
     String knownHosts = state.getProp(ConfigurationKeys.SOURCE_CONN_KNOWN_HOSTS);
 
     String userName = state.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME);
@@ -96,15 +151,10 @@ public class SftpFsHelper implements SizeAwareFileBasedHelper {
 
       session.connect();
 
-      channelSftp = (ChannelSftp) session.openChannel("sftp");
-      channelSftp.connect();
       log.info("Finished connecting to source");
     } catch (JSchException e) {
       if (session != null) {
         session.disconnect();
-      }
-      if (channelSftp != null) {
-        channelSftp.disconnect();
       }
       log.error(e.getMessage(), e);
       throw new FileBasedHelperException("Cannot connect to SFTP source", e);
@@ -121,7 +171,7 @@ public class SftpFsHelper implements SizeAwareFileBasedHelper {
       throws FileBasedHelperException {
     SftpGetMonitor monitor = new SftpGetMonitor();
     try {
-      return this.channelSftp.get(file, monitor);
+      return getSftpChannel().get(file, monitor);
     } catch (SftpException e) {
       throw new FileBasedHelperException("Cannot download file " + file + " due to " + e.getMessage(), e);
     }
@@ -133,10 +183,12 @@ public class SftpFsHelper implements SizeAwareFileBasedHelper {
       throws FileBasedHelperException {
     try {
       List<String> list = new ArrayList<String>();
-      Vector<LsEntry> vector = this.channelSftp.ls(path);
+      ChannelSftp channel = getSftpChannel();
+      Vector<LsEntry> vector = channel.ls(path);
       for (LsEntry entry : vector) {
         list.add(entry.getFilename());
       }
+      channel.disconnect();
       return list;
     } catch (SftpException e) {
       throw new FileBasedHelperException("Cannot execute ls command on sftp connection", e);
@@ -148,16 +200,16 @@ public class SftpFsHelper implements SizeAwareFileBasedHelper {
     if (session != null) {
       session.disconnect();
     }
-    if (channelSftp != null) {
-      channelSftp.disconnect();
-    }
   }
 
 
   @Override
   public long getFileSize(String filePath) throws FileBasedHelperException {
     try {
-      return channelSftp.lstat(filePath).getSize();
+      ChannelSftp channelSftp = getSftpChannel();
+      long fileSize = channelSftp.lstat(filePath).getSize();
+      channelSftp.disconnect();
+      return fileSize;
     } catch (SftpException e) {
       throw new FileBasedHelperException(String.format("Failed to get size for file at path %s due to error %s",
           filePath, e.getMessage()), e);
@@ -169,7 +221,7 @@ public class SftpFsHelper implements SizeAwareFileBasedHelper {
    * methods
    * @author stakiar
    */
-  private static class SftpGetMonitor implements SftpProgressMonitor {
+  public static class SftpGetMonitor implements SftpProgressMonitor {
 
     private int op;
     private String src;

@@ -51,15 +51,15 @@ public class KafkaSourceTest {
             + "\"}, {\"topic.name\" : \"" + topicName2 + "\", \"" + testKey1 + "\" : \"" + testValue1 + "\"}]");
 
     KafkaSource<?, ?> dummyKafkaSource = new KafkaDummySource();
-    Map<KafkaTopic, State> topicSpecificStateMap =
+    Map<String, State> topicSpecificStateMap =
         dummyKafkaSource.getTopicSpecificState(Lists.newArrayList(topic1, topic3), state);
 
     State topic1ExpectedState = new State();
     topic1ExpectedState.setProp(testKey1, testValue1);
 
-    Assert.assertEquals(topicSpecificStateMap.get(topic1), topic1ExpectedState);
-    Assert.assertNull(topicSpecificStateMap.get(topic2));
-    Assert.assertNull(topicSpecificStateMap.get(topic3));
+    Assert.assertEquals(topicSpecificStateMap.get(topic1.getName()), topic1ExpectedState);
+    Assert.assertNull(topicSpecificStateMap.get(topic2.getName()));
+    Assert.assertNull(topicSpecificStateMap.get(topic3.getName()));
   }
 
   @Test
@@ -77,11 +77,10 @@ public class KafkaSourceTest {
 
     SourceState state = new SourceState();
     state.setProp(KafkaSource.KAFKA_TOPIC_SPECIFIC_STATE,
-        "[{\"topic.name\" : \"testTopic.*\", \"" + testKey1 + "\" : \"" + testValue1
-            + "\"}]");
+        "[{\"topic.name\" : \"testTopic.*\", \"" + testKey1 + "\" : \"" + testValue1 + "\"}]");
 
     KafkaSource<?, ?> dummyKafkaSource = new KafkaDummySource();
-    Map<KafkaTopic, State> topicSpecificStateMap =
+    Map<String, State> topicSpecificStateMap =
         dummyKafkaSource.getTopicSpecificState(Lists.newArrayList(topic1, topic2, topic3), state);
 
     State topic1ExpectedState = new State();
@@ -90,19 +89,14 @@ public class KafkaSourceTest {
     State topic2ExpectedState = new State();
     topic2ExpectedState.setProp(testKey1, testValue1);
 
-    Assert.assertEquals(topicSpecificStateMap.get(topic1), topic1ExpectedState);
-    Assert.assertEquals(topicSpecificStateMap.get(topic2), topic2ExpectedState);
-    Assert.assertNull(topicSpecificStateMap.get(topic3));
+    Assert.assertEquals(topicSpecificStateMap.get(topic1.getName()), topic1ExpectedState);
+    Assert.assertEquals(topicSpecificStateMap.get(topic2.getName()), topic2ExpectedState);
+    Assert.assertNull(topicSpecificStateMap.get(topic3.getName()));
   }
 
   private KafkaTopic createDummyKafkaTopic(String topicName) {
-    KafkaPartition partition =
-        new KafkaPartition.Builder()
-            .withTopicName(topicName)
-            .withId(1)
-            .withLeaderHostAndPort("testHost", 1)
-            .withLeaderId(1)
-            .build();
+    KafkaPartition partition = new KafkaPartition.Builder().withTopicName(topicName).withId(1)
+        .withLeaderHostAndPort("testHost", 1).withLeaderId(1).build();
 
     return new KafkaTopic(topicName, Lists.newArrayList(partition));
   }

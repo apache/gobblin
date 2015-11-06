@@ -33,10 +33,10 @@ import org.testng.annotations.Test;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
-import gobblin.runtime.BaseLimiterType;
-import gobblin.runtime.DefaultLimiterFactory;
 import gobblin.runtime.JobLauncherTestHelper;
 import gobblin.runtime.JobState;
+import gobblin.util.limiter.BaseLimiterType;
+import gobblin.util.limiter.DefaultLimiterFactory;
 import gobblin.writer.Destination;
 import gobblin.writer.WriterOutputFormat;
 
@@ -226,7 +226,21 @@ public class MRJobLauncherTest extends BMNGRunner {
    * to be deleted in {@link GobblinOutputCommitter}, which further fails this test since all the output
    * {@link gobblin.runtime.TaskState}s are deleted. It works fine in Hadoop1 though by setting
    * mapred.max.map.failures.percent=100. There may be a bug in Hadoop2's LocalJobRunner.
+   *
+   * Also applicable to the two tests below.
    */
+  @Test(groups = { "Hadoop1Only" })
+  public void testLaunchJobWithCommitSuccessfulTasksPolicy() throws Exception {
+    Properties jobProps = loadJobProps();
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithCommitSuccessfulTasksPolicy");
+    try {
+      this.jobLauncherTestHelper.runTestWithCommitSuccessfulTasksPolicy(jobProps);
+    } finally {
+      this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+    }
+  }
+
   @Test(groups = { "Hadoop1Only" })
   public void testLaunchJobWithMultipleDatasetsAndFaultyExtractor() throws Exception {
     Properties jobProps = loadJobProps();

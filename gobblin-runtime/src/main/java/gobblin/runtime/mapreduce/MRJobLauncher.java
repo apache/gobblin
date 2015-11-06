@@ -103,8 +103,11 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
   private static final String JOB_NAME_PREFIX = "Gobblin-";
 
-  private static final String WORK_UNIT_FILE_EXTENSION = ".wu";
-  private static final String MULTI_WORK_UNIT_FILE_EXTENSION = ".mwu";
+  private static final String JARS_DIR_NAME = "_jars";
+  private static final String FILES_DIR_NAME = "_files";
+  static final String INPUT_DIR_NAME = "input";
+  private static final String OUTPUT_DIR_NAME = "output";
+  private static final String WORK_UNIT_LIST_FILE_EXTENSION = ".wulist";
 
   private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
 
@@ -180,21 +183,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
     JobState jobState = this.jobContext.getJobState();
 
     try {
-      TimingEvent stagingDataCleanTimer =
-          this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.MR_STAGING_DATA_CLEAN);
-
-      // Delete any staging directories that already exist before the Hadoop MR job starts
-      if (this.jobContext.shouldCleanupStagingDataPerTask()) {
-        for (WorkUnit workUnit : JobLauncherUtils.flattenWorkUnits(workUnits)) {
-          WorkUnit fatWorkUnit = WorkUnit.copyOf(workUnit);
-          fatWorkUnit.addAllIfNotExist(jobState);
-          JobLauncherUtils.cleanStagingData(fatWorkUnit, LOG);
-        }
-      } else {
-        JobLauncherUtils.cleanJobStagingData(jobState, LOG);
-      }
-      stagingDataCleanTimer.stop();
-
       Path jobOutputPath = prepareHadoopJob(workUnits);
       LOG.info("Launching Hadoop MR job " + this.job.getJobName());
       this.job.submit();
@@ -265,7 +253,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     TimingEvent distributedCacheSetupTimer =
         this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.MR_DISTRIBUTED_CACHE_SETUP);
 
-    Path jarFileDir = new Path(this.mrJobDir, "_jars");
+    Path jarFileDir = new Path(this.mrJobDir, JARS_DIR_NAME);
 
     // Add framework jars to the classpath for the mappers/reducer
     if (jobProps.containsKey(ConfigurationKeys.FRAMEWORK_JAR_FILES_KEY)) {
@@ -279,7 +267,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     // Add other files (if any) the job depends on to DistributedCache
     if (jobProps.containsKey(ConfigurationKeys.JOB_LOCAL_FILES_KEY)) {
-      addLocalFiles(new Path(this.mrJobDir, "_files"), jobProps.getProperty(ConfigurationKeys.JOB_LOCAL_FILES_KEY));
+      addLocalFiles(new Path(this.mrJobDir, FILES_DIR_NAME),
+          jobProps.getProperty(ConfigurationKeys.JOB_LOCAL_FILES_KEY));
     }
 
     // Add files (if any) already on HDFS that the job depends on to DistributedCache
@@ -311,14 +300,14 @@ public class MRJobLauncher extends AbstractJobLauncher {
     this.job.setSpeculativeExecution(false);
 
     // Job input path is where input work unit files are stored
-    Path jobInputPath = new Path(this.mrJobDir, "input");
+    Path jobInputPath = new Path(this.mrJobDir, INPUT_DIR_NAME);
 
     // Prepare job input
     Path jobInputFile = prepareJobInput(jobInputPath, workUnits);
     NLineInputFormat.addInputPath(this.job, jobInputFile);
 
     // Job output path is where serialized task states are stored
-    Path jobOutputPath = new Path(this.mrJobDir, "output");
+    Path jobOutputPath = new Path(this.mrJobDir, OUTPUT_DIR_NAME);
     SequenceFileOutputFormat.setOutputPath(this.job, jobOutputPath);
 
     // Serialize source state to a file which will be picked up by the mappers
@@ -403,7 +392,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
    */
   private Path prepareJobInput(Path jobInputPath, List<WorkUnit> workUnits) throws IOException {
     // The job input is a file named after the job ID listing all work unit file paths
-    Path jobInputFile = new Path(jobInputPath, this.jobContext.getJobId() + ".wulist");
+    Path jobInputFile = new Path(jobInputPath, this.jobContext.getJobId() + WORK_UNIT_LIST_FILE_EXTENSION);
 
     Closer closer = Closer.create();
     try {
@@ -446,6 +435,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
    */
   private List<TaskState> collectOutputTaskStates(Path taskStatePath) throws IOException {
     if (!this.fs.exists(taskStatePath)) {
+      LOG.warn(String.format("Task state output path %s does not exist", taskStatePath));
       return ImmutableList.of();
     }
 
@@ -457,6 +447,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     });
 
     if (fileStatuses == null || fileStatuses.length == 0) {
+      LOG.warn("No task state files found in " + taskStatePath);
       return ImmutableList.of();
     }
 
@@ -599,8 +590,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     @Override
     public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
-      WorkUnit workUnit =
-          (value.toString().endsWith(MULTI_WORK_UNIT_FILE_EXTENSION) ? new MultiWorkUnit() : WorkUnit.createEmpty());
+      WorkUnit workUnit = (value.toString().endsWith(MULTI_WORK_UNIT_FILE_EXTENSION) ?
+          MultiWorkUnit.createEmpty() : WorkUnit.createEmpty());
       SerializationUtils.deserializeState(this.fs, new Path(value.toString()), workUnit);
 
       if (workUnit instanceof MultiWorkUnit) {
@@ -667,7 +658,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
       while (countDownLatch.getCount() > 0) {
         LOG.info(String.format("%d out of %d tasks of job %s are running in mapper %s", countDownLatch.getCount(),
             workUnits.size(), jobId, context.getTaskAttemptID()));
-        countDownLatch.await(10, TimeUnit.SECONDS);
+        if (countDownLatch.await(10, TimeUnit.SECONDS)) {
+          break;
+        }
       }
       LOG.info(String.format("All tasks of job %s have completed in mapper %s", jobId, context.getTaskAttemptID()));
 
@@ -682,6 +675,12 @@ public class MRJobLauncher extends AbstractJobLauncher {
       }
 
       if (hasTaskFailure) {
+        for (Task task : tasks) {
+          if (task.getTaskState().contains(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)) {
+            LOG.error(String.format("Task %s failed due to exception: %s", task.getTaskId(),
+                task.getTaskState().getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)));
+          }
+        }
         throw new IOException(
             String.format("Not all tasks running in mapper %s completed successfully", context.getTaskAttemptID()));
       }

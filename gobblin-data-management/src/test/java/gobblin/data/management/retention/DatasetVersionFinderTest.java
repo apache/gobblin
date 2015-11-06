@@ -27,7 +27,7 @@ import com.beust.jcommander.internal.Lists;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import gobblin.data.management.retention.dataset.Dataset;
+import gobblin.data.management.retention.dataset.CleanableDataset;
 import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.StringDatasetVersion;
 import gobblin.data.management.retention.version.finder.DatasetVersionFinder;
@@ -84,7 +84,7 @@ public class DatasetVersionFinderTest {
     }
   }
 
-  public static class MockDataset implements Dataset {
+  public static class MockDataset implements CleanableDataset {
     private final Path datasetRoot;
 
     public MockDataset(Path datasetRoot) {

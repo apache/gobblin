@@ -15,5 +15,6 @@ extract.namespace=gobblin.example.wikipedia
 
 writer.destination.type=HDFS
 writer.output.format=AVRO
+writer.partitioner.class=gobblin.example.wikipedia.WikipediaPartitioner
 
 data.publisher.type=gobblin.publisher.BaseDataPublisher

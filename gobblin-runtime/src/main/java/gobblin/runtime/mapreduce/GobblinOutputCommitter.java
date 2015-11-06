@@ -33,6 +33,7 @@ import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.runtime.AbstractJobLauncher;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.JobLauncherUtils;
@@ -61,10 +62,10 @@ public class GobblinOutputCommitter extends OutputCommitter {
     FileSystem fs = FileSystem.get(fsUri, conf);
 
     Path mrJobDir = new Path(conf.get(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY), conf.get(ConfigurationKeys.JOB_NAME_KEY));
-    Path jobInputDir = new Path(mrJobDir, "input");
+    Path jobInputDir = new Path(mrJobDir, MRJobLauncher.INPUT_DIR_NAME);
 
-    if (!fs.exists(jobInputDir) || !fs.getFileStatus(jobInputDir).isDir()) {
-      LOG.warn("Folder " + jobInputDir + " containing serialized WorkUnits doesn't exist. No data will cleaned up.");
+    if (!fs.exists(jobInputDir) || !fs.isDirectory(jobInputDir)) {
+      LOG.warn(String.format("%s either does not exist or is not a directory. No data to cleanup.", jobInputDir));
       return;
     }
 
@@ -75,26 +76,26 @@ public class GobblinOutputCommitter extends OutputCommitter {
         Closer workUnitFileCloser = Closer.create();
 
         // If the file ends with ".wu" de-serialize it into a WorkUnit
-        if (status.getPath().getName().endsWith(".wu")) {
+        if (status.getPath().getName().endsWith(AbstractJobLauncher.WORK_UNIT_FILE_EXTENSION)) {
           WorkUnit wu = WorkUnit.createEmpty();
           try {
             wu.readFields(workUnitFileCloser.register(new DataInputStream(fs.open(status.getPath()))));
           } finally {
             workUnitFileCloser.close();
           }
-          JobLauncherUtils.cleanStagingData(new WorkUnitState(wu), LOG);
+          JobLauncherUtils.cleanTaskStagingData(new WorkUnitState(wu), LOG);
         }
 
         // If the file ends with ".mwu" de-serialize it into a MultiWorkUnit
-        if (status.getPath().getName().endsWith(".mwu")) {
-          MultiWorkUnit mwu = new MultiWorkUnit();
+        if (status.getPath().getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION)) {
+          MultiWorkUnit mwu = MultiWorkUnit.createEmpty();
           try {
             mwu.readFields(workUnitFileCloser.register(new DataInputStream(fs.open(status.getPath()))));
           } finally {
             workUnitFileCloser.close();
           }
           for (WorkUnit wu : mwu.getWorkUnits()) {
-            JobLauncherUtils.cleanStagingData(new WorkUnitState(wu), LOG);
+            JobLauncherUtils.cleanTaskStagingData(new WorkUnitState(wu), LOG);
           }
         }
       }
@@ -157,7 +158,8 @@ public class GobblinOutputCommitter extends OutputCommitter {
   private static class WorkUnitFilter implements PathFilter {
     @Override
     public boolean accept(Path path) {
-      return path.getName().endsWith(".wu") || path.getName().endsWith(".mwu");
+      return path.getName().endsWith(AbstractJobLauncher.WORK_UNIT_FILE_EXTENSION) ||
+          path.getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION);
     }
   }
 }

@@ -1,3 +1,4 @@
+
 package gobblin.converter.string;
 
 import java.util.Iterator;
@@ -9,10 +10,11 @@ import gobblin.converter.SchemaConversionException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+
 /**
  * Tests for {@link ObjectToStringConverter}.
  */
-@Test(groups = {"gobblin.converter.string"})
+@Test(groups = { "gobblin.converter.string" })
 public class ObjectToStringConverterTest {
 
   /**

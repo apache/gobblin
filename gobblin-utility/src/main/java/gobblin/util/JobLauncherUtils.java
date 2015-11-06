@@ -103,20 +103,21 @@ public class JobLauncherUtils {
 
   /**
    * Cleanup the staging data for a list of Gobblin tasks. This method calls the
-   * {@link #cleanStagingData(State, Logger)} method.
+   * {@link #cleanTaskStagingData(State, Logger)} method.
    *
    * @param states a {@link List} of {@link State}s that need their staging data cleaned
    */
   public static void cleanStagingData(List<? extends State> states, Logger logger) throws IOException {
     for (State state : states) {
-      JobLauncherUtils.cleanStagingData(state, logger);
+      JobLauncherUtils.cleanTaskStagingData(state, logger);
     }
   }
 
   /**
    * Cleanup staging data of all tasks of a job.
    *
-   * @param state job state
+   * @param state a {@link State} instance storing job configuration properties
+   * @param logger a {@link Logger} used for logging
    */
   public static void cleanJobStagingData(State state, Logger logger) throws IOException {
     Preconditions.checkArgument(state.contains(ConfigurationKeys.WRITER_STAGING_DIR),
@@ -149,9 +150,10 @@ public class JobLauncherUtils {
   /**
    * Cleanup staging data of a Gobblin task.
    *
-   * @param state workunit state
+   * @param state a {@link State} instance storing task configuration properties
+   * @param logger a {@link Logger} used for logging
    */
-  public static void cleanStagingData(State state, Logger logger) throws IOException {
+  public static void cleanTaskStagingData(State state, Logger logger) throws IOException {
     int numBranches = state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
 
     for (int branchId = 0; branchId < numBranches; branchId++) {
@@ -179,15 +181,16 @@ public class JobLauncherUtils {
   }
 
   /**
-   * Cleanup staging data of a Gobblin task using a {@link ParallelRunner}
+   * Cleanup staging data of a Gobblin task using a {@link ParallelRunner}.
    *
-   * @param state workunit state
+   * @param state workunit state.
+   * @param logger a {@link Logger} used for logging.
    * @param closer a closer that registers the given map of ParallelRunners. The caller is responsible
    * for closing the closer after the cleaning is done.
    * @param parallelRunners a map from FileSystem URI to ParallelRunner.
-   * @throws IOException
+   * @throws IOException if it fails to cleanup the task staging data.
    */
-  public static void cleanStagingData(State state, Logger logger, Closer closer,
+  public static void cleanTaskStagingData(State state, Logger logger, Closer closer,
       Map<String, ParallelRunner> parallelRunners) throws IOException {
     int numBranches = state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
 
@@ -202,7 +205,6 @@ public class JobLauncherUtils {
       ParallelRunner parallelRunner = getParallelRunner(fs, closer, parallelRunnerThreads, parallelRunners);
 
       Path stagingPath = WriterUtils.getWriterStagingDir(state, numBranches, branchId);
-
       if (fs.exists(stagingPath)) {
         logger.info("Cleaning up staging directory " + stagingPath.toUri().getPath());
         parallelRunner.deletePath(stagingPath, true);

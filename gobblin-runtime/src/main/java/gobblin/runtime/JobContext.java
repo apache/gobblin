@@ -302,6 +302,10 @@ public class JobContext {
           this.logger.info(String.format("Committing dataset %s of job %s with commit policy %s and state %s",
               datasetUrn, this.jobId, this.jobCommitPolicy, datasetState.getState()));
           commitDataset(datasetState);
+        } else {
+          if (datasetState.getState() == JobState.RunningState.SUCCESSFUL) {
+            datasetState.setState(JobState.RunningState.COMMITTED);
+          }
         }
       } catch (IOException ioe) {
         this.logger.error(
@@ -360,13 +364,24 @@ public class JobContext {
 
   /**
    * Check if it is OK to commit the output data of a dataset.
+   *
+   * <p>
+   *   A dataset can be committed if and only if any of the following conditions is satisfied:
+   *
+   *   <ul>
+   *     <li>The {@link JobCommitPolicy#COMMIT_ON_PARTIAL_SUCCESS} policy is used.</li>
+   *     <li>The {@link JobCommitPolicy#COMMIT_SUCCESSFUL_TASKS} policy is used.</li>
+   *     <li>The {@link JobCommitPolicy#COMMIT_ON_FULL_SUCCESS} policy is used and all of the tasks succeed.</li>
+   *   </ul>
+   * </p>
    */
   private boolean canCommitDataset(JobState.DatasetState datasetState) {
     // Only commit a dataset if 1) COMMIT_ON_PARTIAL_SUCCESS is used, or 2)
     // COMMIT_ON_FULL_SUCCESS is used and all of the tasks of the dataset have succeeded.
-    return this.jobCommitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS
-        || (this.jobCommitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS
-            && datasetState.getState() == JobState.RunningState.SUCCESSFUL);
+    return this.jobCommitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS ||
+        this.jobCommitPolicy == JobCommitPolicy.COMMIT_SUCCESSFUL_TASKS ||
+        (this.jobCommitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS &&
+            datasetState.getState() == JobState.RunningState.SUCCESSFUL);
   }
 
   /**
@@ -400,10 +415,10 @@ public class JobContext {
         taskState.backoffActualHighWatermark();
         if (this.jobCommitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
           // Determine the final dataset state based on the task states (post commit) and the job commit policy.
-          // 1. If COMMIT_ON_FULL_SUCCESS is used, the processing of the dataset is considered failed
-          //    if any task for the dataset failed to be committed.
-          // 2. On the other hand, if COMMIT_ON_PARTIAL_SUCCESS is used, the processing of the dataset
-          //    is considered successful even if some tasks for the dataset failed to be committed.
+          // 1. If COMMIT_ON_FULL_SUCCESS is used, the processing of the dataset is considered failed if any
+          //    task for the dataset failed to be committed.
+          // 2. Otherwise, the processing of the dataset is considered successful even if some tasks for the
+          //    dataset failed to be committed.
           datasetState.setState(JobState.RunningState.FAILED);
         }
       }

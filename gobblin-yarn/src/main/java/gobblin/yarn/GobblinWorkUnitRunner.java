@@ -39,7 +39,6 @@ import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.HelixProperty;
 import org.apache.helix.InstanceType;
 import org.apache.helix.NotificationContext;
-import org.apache.helix.api.id.StateModelDefId;
 import org.apache.helix.messaging.handling.HelixTaskResult;
 import org.apache.helix.messaging.handling.MessageHandler;
 import org.apache.helix.messaging.handling.MessageHandlerFactory;
@@ -137,14 +136,15 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
     TaskStateTracker taskStateTracker = new GobblinHelixTaskStateTracker(properties, this.helixManager);
 
     List<Service> services = Lists.newArrayList();
+    services.add(buildLogCopier(this.containerId, fs, YarnHelixUtils.getAppWorkDirPath(fs, applicationName,
+        applicationAttemptId.getApplicationId())));
+    services.add(taskExecutor);
+    services.add(taskStateTracker);
     if (config.hasPath(GobblinYarnConfigurationKeys.KEYTAB_FILE_PATH)) {
       LOGGER.info("Adding YarnContainerSecurityManager since login is keytab based");
       services.add(new YarnContainerSecurityManager(config, fs, this.eventBus));
     }
-    services.add(taskExecutor);
-    services.add(taskStateTracker);
-    services.add(buildLogCopier(this.containerId, fs, YarnHelixUtils.getAppWorkDirPath(fs, applicationName,
-        applicationAttemptId.getApplicationId())));
+
     this.serviceManager = new ServiceManager(services);
 
     // Register task factory for the Helix task state model
@@ -154,8 +154,7 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
     taskFactoryMap.put(GOBBLIN_TASK_FACTORY_NAME,
         new GobblinHelixTaskFactory(taskExecutor, taskStateTracker, fs, appWorkDir));
     this.taskStateModelFactory = new TaskStateModelFactory(this.helixManager, taskFactoryMap);
-    this.helixManager.getStateMachineEngine().registerStateModelFactory(StateModelDefId.from("Task"),
-        this.taskStateModelFactory);
+    this.helixManager.getStateMachineEngine().registerStateModelFactory("Task", this.taskStateModelFactory);
 
     List<Tag<?>> tags = ImmutableList.<Tag<?>>builder()
         .add(new Tag<String>(GobblinYarnMetricTagNames.YARN_APPLICATION_NAME, applicationName))
@@ -225,7 +224,7 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
       this.taskStateModelFactory.shutdown();
 
       if (this.helixManager.isConnected()) {
-        this.helixManager.getStateMachineEngine().removeStateModelFactory(StateModelDefId.from("Task"));
+        this.helixManager.getStateMachineEngine().removeStateModelFactory("Task", this.taskStateModelFactory);
         this.helixManager.disconnect();
       }
     }

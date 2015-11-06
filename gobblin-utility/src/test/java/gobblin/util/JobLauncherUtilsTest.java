@@ -26,7 +26,6 @@ import org.testng.annotations.Test;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.Extract.TableType;
@@ -66,18 +65,19 @@ public class JobLauncherUtilsTest {
 
   @Test
   public void testFlattenWorkUnits() {
-    List<WorkUnit> workUnitsOnly = Arrays.asList(new WorkUnit(), new WorkUnit(), new WorkUnit());
+    List<WorkUnit> workUnitsOnly =
+        Arrays.asList(WorkUnit.createEmpty(), WorkUnit.createEmpty(), WorkUnit.createEmpty());
 
     Assert.assertEquals(JobLauncherUtils.flattenWorkUnits(workUnitsOnly).size(), 3);
 
     MultiWorkUnit multiWorkUnit1 = new MultiWorkUnit();
-    multiWorkUnit1.addWorkUnits(Arrays.asList(new WorkUnit(), new WorkUnit(), new WorkUnit()));
+    multiWorkUnit1.addWorkUnits(Arrays.asList(WorkUnit.createEmpty(), WorkUnit.createEmpty(), WorkUnit.createEmpty()));
 
     MultiWorkUnit multiWorkUnit2 = new MultiWorkUnit();
-    multiWorkUnit1.addWorkUnits(Arrays.asList(new WorkUnit(), new WorkUnit(), new WorkUnit()));
+    multiWorkUnit1.addWorkUnits(Arrays.asList(WorkUnit.createEmpty(), WorkUnit.createEmpty(), WorkUnit.createEmpty()));
 
-    List<WorkUnit> workUnitsAndMultiWorkUnits =
-        Arrays.asList(new WorkUnit(), new WorkUnit(), new WorkUnit(), multiWorkUnit1, multiWorkUnit2);
+    List<WorkUnit> workUnitsAndMultiWorkUnits = Arrays.asList(WorkUnit.createEmpty(), WorkUnit.createEmpty(),
+        WorkUnit.createEmpty(), multiWorkUnit1, multiWorkUnit2);
 
     Assert.assertEquals(JobLauncherUtils.flattenWorkUnits(workUnitsAndMultiWorkUnits).size(), 9);
   }
@@ -122,7 +122,7 @@ public class JobLauncherUtilsTest {
       Path writerOutputPath1 = new Path(writerOutputDir1, writerPath1);
       fs.mkdirs(writerOutputPath1);
 
-      JobLauncherUtils.cleanStagingData(state, LoggerFactory.getLogger(JobLauncherUtilsTest.class));
+      JobLauncherUtils.cleanTaskStagingData(state, LoggerFactory.getLogger(JobLauncherUtilsTest.class));
 
       Assert.assertFalse(fs.exists(writerStagingPath0));
       Assert.assertFalse(fs.exists(writerStagingPath1));
@@ -153,12 +153,13 @@ public class JobLauncherUtilsTest {
     try {
       SourceState sourceState = new SourceState();
       WorkUnitState state =
-          new WorkUnitState(new WorkUnit(sourceState, new Extract(sourceState, TableType.APPEND_ONLY, namespace,
-              tableName)));
+          new WorkUnitState(WorkUnit.create(new Extract(sourceState, TableType.APPEND_ONLY, namespace, tableName)));
 
       state.setProp(ConfigurationKeys.FORK_BRANCHES_KEY, "2");
-      state.setProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.FORK_BRANCH_NAME_KEY, 2, 0), branchName0);
-      state.setProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.FORK_BRANCH_NAME_KEY, 2, 1), branchName1);
+      state.setProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.FORK_BRANCH_NAME_KEY, 2, 0),
+          branchName0);
+      state.setProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.FORK_BRANCH_NAME_KEY, 2, 1),
+          branchName1);
 
       state.setProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, 2, 0),
           ConfigurationKeys.LOCAL_FS_URI);
@@ -193,7 +194,7 @@ public class JobLauncherUtilsTest {
               2, 1));
       fs.mkdirs(writerOutputPath1);
 
-      JobLauncherUtils.cleanStagingData(state, LoggerFactory.getLogger(JobLauncherUtilsTest.class));
+      JobLauncherUtils.cleanTaskStagingData(state, LoggerFactory.getLogger(JobLauncherUtilsTest.class));
 
       Assert.assertFalse(fs.exists(writerStagingPath0));
       Assert.assertFalse(fs.exists(writerStagingPath1));

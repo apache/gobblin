@@ -16,6 +16,8 @@ import java.io.IOException;
 
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
@@ -125,10 +127,8 @@ public class AvroUtilsTest {
 
     Schema oldSchema =
         new Schema.Parser()
-            .parse("{\"type\":\"record\", \"name\":\"test\", "
-                + "\"fields\":["
-                + "{\"name\": \"name\", \"type\": \"string\"}, "
-                + "{\"name\": \"color\", \"type\": \"string\"}, "
+            .parse("{\"type\":\"record\", \"name\":\"test\", " + "\"fields\":["
+                + "{\"name\": \"name\", \"type\": \"string\"}, " + "{\"name\": \"color\", \"type\": \"string\"}, "
                 + "{\"name\": \"number\", \"type\": [{\"type\": \"string\"}, {\"type\": \"array\", \"items\": \"string\"}]}"
                 + "]}");
 
@@ -180,6 +180,21 @@ public class AvroUtilsTest {
     Assert.assertEquals(newName, AvroUtils.switchName(schema, newName).getName());
     Assert.assertEquals(schema,
         AvroUtils.switchName(AvroUtils.switchName(schema, newName), schema.getName()));
+
+  }
+
+  @Test public void testSerializeAsPath() throws Exception {
+
+    Schema schema =
+        new Schema.Parser().parse("{\"type\":\"record\", \"name\":\"test\", " + "\"fields\":["
+            + "{\"name\": \"name\", \"type\": \"string\"}, " + "{\"name\": \"title\", \"type\": \"string\"}" + "]}");
+
+    GenericRecord partition = new GenericData.Record(schema);
+    partition.put("name", "a/b:c\\d e");
+    partition.put("title", "title");
+
+    Assert.assertEquals(AvroUtils.serializeAsPath(partition, true), new Path("name=a_b_c_d_e/title=title"));
+    Assert.assertEquals(AvroUtils.serializeAsPath(partition, false), new Path("a_b_c_d_e/title"));
 
   }
 }

@@ -34,7 +34,7 @@ import org.apache.helix.task.WorkflowContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.io.Closer;
@@ -48,7 +48,6 @@ import gobblin.runtime.JobState;
 import gobblin.runtime.TaskState;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
-import gobblin.util.JobLauncherUtils;
 import gobblin.util.ParallelRunner;
 import gobblin.util.SerializationUtils;
 
@@ -94,6 +93,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
   private final int stateSerDeRunnerThreads;
 
+  private volatile boolean jobSubmitted = false;
+  private volatile boolean jobComplete = false;
+
   public GobblinHelixJobLauncher(Properties jobProps, HelixManager helixManager, Path appWorkDir) throws Exception {
     super(jobProps);
 
@@ -112,12 +114,33 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   }
 
   @Override
+  public void close() throws IOException {
+    try {
+      executeCancellation();
+    } finally {
+      super.close();
+    }
+  }
+
+  @Override
   protected void runWorkUnits(List<WorkUnit> workUnits) throws Exception {
     try {
       submitJobToHelix(createJob(workUnits));
+      LOGGER.info(String.format("Submitted job %s to Helix", this.jobContext.getJobId()));
+      this.jobSubmitted = true;
+
       waitForJobCompletion();
-      this.jobContext.getJobState().setState(JobState.RunningState.SUCCESSFUL);
-      this.jobContext.getJobState().addTaskStates(collectOutputTaskStates());
+      LOGGER.info(String.format("Job %s completed", this.jobContext.getJobId()));
+      this.jobComplete = true;
+
+      List<TaskState> outputTaskStates = collectOutputTaskStates();
+      if (outputTaskStates.size() < this.jobContext.getJobState().getTaskCount()) {
+        // If the number of collected task states is less than the number of tasks in the job
+        LOGGER.error(String.format("Collected %d task states while expecting %d task states", outputTaskStates.size(),
+            this.jobContext.getJobState().getTaskCount()));
+        this.jobContext.getJobState().setState(JobState.RunningState.FAILED);
+      }
+      this.jobContext.getJobState().addTaskStates(outputTaskStates);
     } finally {
       deletePersistedWorkUnitsForJob();
     }
@@ -131,7 +154,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
   @Override
   protected void executeCancellation() {
-    // Currently not supported yet
+    if (this.jobSubmitted && !this.jobComplete) {
+      this.helixTaskDriver.deleteJob(this.helixQueueName, this.jobContext.getJobId());
+    }
   }
 
   /**
@@ -145,14 +170,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       ParallelRunner stateSerDeRunner = closer.register(new ParallelRunner(this.stateSerDeRunnerThreads, this.fs));
 
       for (WorkUnit workUnit : workUnits) {
-        if (workUnit instanceof MultiWorkUnit) {
-          // Flatten the MultiWorkUnit and add each individual WorkUnit
-          for (WorkUnit innerWorkUnit : JobLauncherUtils.flattenWorkUnits(((MultiWorkUnit) workUnit).getWorkUnits())) {
-            addWorkUnit(innerWorkUnit, stateSerDeRunner, taskConfigMap);
-          }
-        } else {
-          addWorkUnit(workUnit, stateSerDeRunner, taskConfigMap);
-        }
+        addWorkUnit(workUnit, stateSerDeRunner, taskConfigMap);
       }
 
       Path jobStateFilePath = new Path(this.appWorkDir, this.jobContext.getJobId() + "." + JOB_STATE_FILE_NAME);
@@ -164,6 +182,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     }
 
     JobConfig.Builder jobConfigBuilder = new JobConfig.Builder();
+    jobConfigBuilder.setMaxAttemptsPerTask(this.jobContext.getJobState().getPropAsInt(
+        ConfigurationKeys.MAX_TASK_RETRIES_KEY, ConfigurationKeys.DEFAULT_MAX_TASK_RETRIES));
+    jobConfigBuilder.setFailureThreshold(workUnits.size());
     jobConfigBuilder.addTaskConfigMap(taskConfigMap).setCommand(GobblinWorkUnitRunner.GOBBLIN_TASK_FACTORY_NAME);
 
     return jobConfigBuilder;
@@ -174,7 +195,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
    */
   private void submitJobToHelix(JobConfig.Builder jobConfigBuilder) throws Exception {
     // Create one queue for each job with the job name being the queue name
-    JobQueue jobQueue = new JobQueue.Builder(this.jobContext.getJobName()).build();
+    JobQueue jobQueue = new JobQueue.Builder(this.helixQueueName).build();
     try {
       this.helixTaskDriver.createQueue(jobQueue);
     } catch (IllegalArgumentException iae) {
@@ -200,7 +221,6 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     rawConfigMap.put(ConfigurationKeys.TASK_ID_KEY, workUnit.getId());
     rawConfigMap.put(GobblinYarnConfigurationKeys.TASK_SUCCESS_OPTIONAL_KEY, "true");
 
-    LOGGER.info("Adding WorkUnit " + workUnit.getId());
     taskConfigMap.put(workUnit.getId(), TaskConfig.from(rawConfigMap));
   }
 
@@ -209,7 +229,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
    */
   private String persistWorkUnit(Path workUnitFileDir, WorkUnit workUnit, ParallelRunner stateSerDeRunner)
       throws IOException {
-    Path workUnitFile = new Path(workUnitFileDir, workUnit.getId() + WORK_UNIT_FILE_EXTENSION);
+    String workUnitFileName = workUnit.getId() + (workUnit instanceof MultiWorkUnit ?
+        MULTI_WORK_UNIT_FILE_EXTENSION : WORK_UNIT_FILE_EXTENSION);
+    Path workUnitFile = new Path(workUnitFileDir, workUnitFileName);
     stateSerDeRunner.serializeToFile(workUnit, workUnitFile);
     return workUnitFile.toString();
   }
@@ -219,13 +241,16 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       WorkflowContext workflowContext = TaskUtil.getWorkflowContext(this.helixManager, this.helixQueueName);
       if (workflowContext != null) {
         org.apache.helix.task.TaskState helixJobState = workflowContext.getJobState(this.jobResourceName);
-        if (helixJobState == org.apache.helix.task.TaskState.COMPLETED) {
+        if (helixJobState == org.apache.helix.task.TaskState.COMPLETED ||
+            helixJobState == org.apache.helix.task.TaskState.FAILED ||
+            helixJobState == org.apache.helix.task.TaskState.STOPPED) {
           this.jobContext.getJobState().setStartTime(workflowContext.getStartTime());
           this.jobContext.getJobState().setEndTime(workflowContext.getFinishTime());
           return;
         }
       }
-      Thread.sleep(100);
+
+      Thread.sleep(1000);
     }
   }
 
@@ -240,7 +265,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       }
     });
     if (fileStatuses == null || fileStatuses.length == 0) {
-      return Lists.newArrayList();
+      return ImmutableList.of();
     }
 
     Queue<TaskState> taskStateQueue = Queues.newConcurrentLinkedQueue();
@@ -260,7 +285,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
     LOGGER.info(String.format("Collected task state of %d completed tasks", taskStateQueue.size()));
 
-    return Lists.newArrayList(taskStateQueue);
+    return ImmutableList.copyOf(taskStateQueue);
   }
 
   /**

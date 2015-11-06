@@ -10,8 +10,22 @@
 
 apply plugin: 'java'
 
+dependencies {
+  testCompile project(":gobblin-api")
+  testCompile project(":gobblin-core")
+  testCompile project(":gobblin-runtime")
+  testCompile project(":gobblin-data-management")
+
+  testCompile externalDependency.testng
+}
 
 configurations { compile { transitive = false } }
 
+test {
+  useTestNG () {
+      excludeGroups 'ignore'
+  }
+  workingDir rootProject.rootDir
+}
 
 classification="library"

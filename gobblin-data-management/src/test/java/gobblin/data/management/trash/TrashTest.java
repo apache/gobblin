@@ -16,6 +16,7 @@ package gobblin.data.management.trash;
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
+import java.util.regex.Pattern;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
@@ -101,13 +102,48 @@ public class TrashTest {
       }
     });
 
-    trash.trash.moveToTrash(pathToDelete);
+    Assert.assertTrue(trash.trash.moveToTrash(pathToDelete));
 
     verify(trash.fs, times(1)).mkdirs(any(Path.class));
 
     Assert.assertEquals(movedPaths.size(), 1);
     Assert.assertTrue(movedPaths.get(0).first().equals(pathToDelete));
     Assert.assertTrue(movedPaths.get(0).second().toString().endsWith(pathToDelete.toString()));
+    Assert.assertTrue(movedPaths.get(0).second().getParent().getParent().getParent().equals(trash.trash.getTrashLocation()));
+
+  }
+
+  @Test
+  public void testMoveToTrashExistingFile() throws IOException {
+
+    TrashTestBase trash = new TrashTestBase(new Properties());
+
+    String fileName = "delete";
+
+    Path pathToDelete = new Path("/path/to", fileName);
+    Pattern expectedNamePattern = Pattern.compile("^" + fileName + "_[0-9]+$");
+
+    final List<Pair<Path, Path>> movedPaths = Lists.newArrayList();
+
+    when(trash.fs.exists(any(Path.class))).thenReturn(true);
+    when(trash.fs.rename(any(Path.class), any(Path.class))).thenAnswer(new Answer<Boolean>() {
+      @Override
+      public Boolean answer(InvocationOnMock invocation)
+          throws Throwable {
+        Object[] args = invocation.getArguments();
+        movedPaths.add(new Pair<Path, Path>((Path) args[0], (Path) args[1]));
+        return true;
+      }
+    });
+
+    Assert.assertTrue(trash.trash.moveToTrash(pathToDelete));
+
+    verify(trash.fs, times(0)).mkdirs(any(Path.class));
+
+    Assert.assertEquals(movedPaths.size(), 1);
+    Assert.assertTrue(movedPaths.get(0).first().equals(pathToDelete));
+    Assert.assertTrue(movedPaths.get(0).second().getParent().toString().endsWith(pathToDelete.getParent().toString()));
+    Assert.assertTrue(expectedNamePattern.matcher(movedPaths.get(0).second().getName()).matches());
     Assert.assertTrue(movedPaths.get(0).second().getParent().getParent().getParent().equals(trash.trash.getTrashLocation()));
 
   }
