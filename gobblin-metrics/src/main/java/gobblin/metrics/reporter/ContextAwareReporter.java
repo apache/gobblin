@@ -94,9 +94,8 @@ public class ContextAwareReporter implements Reporter, Closeable {
   /**
    * Actual logic for starting the {@link ContextAwareReporter}. This is a separate method from {@link #start()} to
    * allow {@link ContextAwareReporter} to handle the started / non-started state.
-   * @throws java.lang.Exception if reporter did not start correctly.
    */
-  protected void startImpl() throws Exception {
+  protected void startImpl() {
   }
 
   /**
@@ -120,9 +119,8 @@ public class ContextAwareReporter implements Reporter, Closeable {
   /**
    * Actual logic for stopping the {@link ContextAwareReporter}. This is a separate method from {@link #stop()} to
    * allow {@link ContextAwareReporter} to handle the started / non-started state.
-   * @throws java.lang.Exception if reporter did not stop correctly.
    */
-  protected void stopImpl() throws Exception {
+  protected void stopImpl() {
   }
 
   /**

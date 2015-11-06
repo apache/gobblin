@@ -16,6 +16,8 @@ import javax.annotation.Nullable;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.joda.time.format.PeriodFormatter;
+import org.joda.time.format.PeriodFormatterBuilder;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -36,9 +38,28 @@ import gobblin.metrics.context.filter.ContextFilterFactory;
 public class ScheduledReporterTest {
 
   @Test
+  public void testPeriodParser() {
+
+    Assert.assertEquals(ScheduledReporter.parsePeriodToSeconds("1s"), 1);
+    Assert.assertEquals(ScheduledReporter.parsePeriodToSeconds("2m"), 120);
+    Assert.assertEquals(ScheduledReporter.parsePeriodToSeconds("3h"), 3 * 3600);
+    Assert.assertEquals(ScheduledReporter.parsePeriodToSeconds("1m2s"), 62);
+    Assert.assertEquals(ScheduledReporter.parsePeriodToSeconds("1h1s"), 3601);
+    Assert.assertEquals(ScheduledReporter.parsePeriodToSeconds("1h2m3s"), 3600 + 120 + 3);
+
+    Assert.assertThrows(RuntimeException.class, new Assert.ThrowingRunnable() {
+      @Override public void run() throws Throwable {
+        ScheduledReporter.parsePeriodToSeconds("1000000h");
+      }
+    });
+
+
+  }
+
+  @Test
   public void testScheduledReporter() throws Exception {
 
-    long reportingIntervalMillis = 400;
+    long reportingIntervalMillis = 1000;
 
     String context1Name = ScheduledReporterTest.class.getSimpleName() + "_1";
     String context2Name = ScheduledReporterTest.class.getSimpleName() + "_2";

@@ -29,7 +29,14 @@ import java.util.concurrent.ExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.codahale.metrics.*;
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Histogram;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricFilter;
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.MetricSet;
+import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -42,7 +49,7 @@ import com.google.common.io.Closer;
 import gobblin.metrics.context.ContextWeakReference;
 import gobblin.metrics.context.NameConflictException;
 import gobblin.metrics.context.ReportableContext;
-import gobblin.metrics.metric.TrueMetric;
+import gobblin.metrics.metric.InnerMetric;
 
 
 /**
@@ -62,7 +69,7 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
 
   // A map from simple names to context-aware metrics. All metrics registered with this context (using
   // their simple names) are also registered with the MetricRegistry using their fully-qualified names.
-  private final ConcurrentMap<String, TrueMetric> contextAwareMetrics = Maps.newConcurrentMap();
+  private final ConcurrentMap<String, InnerMetric> contextAwareMetrics = Maps.newConcurrentMap();
 
   // This is used to work on tags associated with this context
   private final Tagged tagged;
@@ -249,7 +256,7 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
     if(!(metric instanceof ContextAwareMetric)) {
       throw new UnsupportedOperationException("Can only register ContextAwareMetrics");
     }
-    if (this.contextAwareMetrics.putIfAbsent(name, ((ContextAwareMetric) metric).getTrueMetric()) != null) {
+    if (this.contextAwareMetrics.putIfAbsent(name, ((ContextAwareMetric) metric).getInnerMetric()) != null) {
       throw new IllegalArgumentException("A metric named " + name + " already exists");
     }
     MetricContext metricContext = this.metricContext.get();
@@ -296,7 +303,7 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
 
   @Override
   public void removeMatching(MetricFilter filter) {
-    for (Map.Entry<String, TrueMetric> entry : this.contextAwareMetrics.entrySet()) {
+    for (Map.Entry<String, InnerMetric> entry : this.contextAwareMetrics.entrySet()) {
       if (filter.matches(entry.getKey(), entry.getValue().getContextAwareMetric())) {
         remove(entry.getKey());
       }
@@ -328,7 +335,7 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
   private <T extends com.codahale.metrics.Metric> SortedMap<String, T> getSimplyNamedMetrics(Class<T> mClass,
       Optional<MetricFilter> filter) {
     ImmutableSortedMap.Builder<String, T> builder = ImmutableSortedMap.naturalOrder();
-    for (Map.Entry<String, TrueMetric> entry : this.contextAwareMetrics.entrySet()) {
+    for (Map.Entry<String, InnerMetric> entry : this.contextAwareMetrics.entrySet()) {
       if (mClass.isInstance(entry.getValue())) {
         if (filter.isPresent() && !filter.get().matches(entry.getKey(), entry.getValue().getContextAwareMetric())) {
           continue;
@@ -341,7 +348,7 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
 
   @SuppressWarnings("unchecked")
   protected synchronized <T extends ContextAwareMetric> T getOrCreate(String name, ContextAwareMetricFactory<T> factory) {
-    TrueMetric metric = this.contextAwareMetrics.get(name);
+    InnerMetric metric = this.contextAwareMetrics.get(name);
     if (metric != null) {
       if (factory.isInstance(metric)) {
         return (T) metric.getContextAwareMetric();
@@ -363,6 +370,5 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
     }
     return removed;
   }
-
 
 }

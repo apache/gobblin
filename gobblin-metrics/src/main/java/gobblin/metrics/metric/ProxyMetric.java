@@ -16,10 +16,13 @@ import com.codahale.metrics.Metric;
 
 
 /**
- * Created by ibuenros on 10/30/15.
+ * Interface for {@link Metric}s that proxy a {@link InnerMetric}.
  */
-public interface ProxyMetric {
+public interface ProxyMetric extends Metric {
 
-  public TrueMetric getTrueMetric();
+  /**
+   * @return associated {@link InnerMetric}.
+   */
+  public InnerMetric getInnerMetric();
 
 }

@@ -14,16 +14,10 @@ package gobblin.metrics;
 
 import lombok.experimental.Delegate;
 
-import java.util.Collection;
-import java.util.List;
-
 import com.codahale.metrics.ExponentiallyDecayingReservoir;
 import com.codahale.metrics.Histogram;
-import com.codahale.metrics.MetricRegistry;
 
-import com.google.common.base.Optional;
-
-import gobblin.metrics.metric.TrueMetric;
+import gobblin.metrics.metric.InnerMetric;
 
 
 /**
@@ -45,13 +39,13 @@ import gobblin.metrics.metric.TrueMetric;
 class ContextAwareHistogram extends Histogram implements ContextAwareMetric {
 
   @Delegate
-  private final TrueHistogram histogram;
+  private final InnerHistogram innerHistogram;
 
   private final MetricContext context;
 
   ContextAwareHistogram(MetricContext context, String name) {
     super(new ExponentiallyDecayingReservoir());
-    this.histogram = new TrueHistogram(context, name, this);
+    this.innerHistogram = new InnerHistogram(context, name, this);
     this.context = context;
 
   }
@@ -61,7 +55,7 @@ class ContextAwareHistogram extends Histogram implements ContextAwareMetric {
     return this.context;
   }
 
-  @Override public TrueMetric getTrueMetric() {
-    return this.histogram;
+  @Override public InnerMetric getInnerMetric() {
+    return this.innerHistogram;
   }
 }

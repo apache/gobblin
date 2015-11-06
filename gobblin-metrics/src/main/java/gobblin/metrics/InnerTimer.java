@@ -13,39 +13,40 @@
 package gobblin.metrics;
 
 import java.lang.ref.WeakReference;
+import java.util.concurrent.TimeUnit;
 
-import com.codahale.metrics.Meter;
+import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 
-import gobblin.metrics.metric.TrueMetric;
+import gobblin.metrics.metric.InnerMetric;
 
 
 /**
- * Created by ibuenros on 10/30/15.
+ * Implementation of {@link InnerMetric} for {@link Timer}.
  */
-public class TrueMeter extends Meter implements TrueMetric {
+public class InnerTimer extends Timer implements InnerMetric {
 
   private final String name;
-  private final Optional<ContextAwareMeter> parentMeter;
-  private final WeakReference<ContextAwareMeter> contextAwareMeter;
+  private final Optional<ContextAwareTimer> parentTimer;
+  private final WeakReference<ContextAwareTimer> timer;
 
-  TrueMeter(MetricContext context, String name, ContextAwareMeter contextAwareMeter) {
+  InnerTimer(MetricContext context, String name, ContextAwareTimer contextAwareTimer) {
     this.name = name;
 
     Optional<MetricContext> parentContext = context.getParent();
     if (parentContext.isPresent()) {
-      this.parentMeter = Optional.fromNullable(parentContext.get().contextAwareMeter(name));
+      this.parentTimer = Optional.fromNullable(parentContext.get().contextAwareTimer(name));
     } else {
-      this.parentMeter = Optional.absent();
+      this.parentTimer = Optional.absent();
     }
-    this.contextAwareMeter = new WeakReference<ContextAwareMeter>(contextAwareMeter);
+    this.timer = new WeakReference<ContextAwareTimer>(contextAwareTimer);
   }
 
   @Override
-  public void mark(long n) {
-    super.mark(n);
-    if (this.parentMeter.isPresent()) {
-      this.parentMeter.get().mark(n);
+  public void update(long duration, TimeUnit unit) {
+    super.update(duration, unit);
+    if (this.parentTimer.isPresent()) {
+      this.parentTimer.get().update(duration, unit);
     }
   }
 
@@ -54,6 +55,6 @@ public class TrueMeter extends Meter implements TrueMetric {
   }
 
   @Override public ContextAwareMetric getContextAwareMetric() {
-    return this.contextAwareMeter.get();
+    return this.timer.get();
   }
 }

@@ -47,6 +47,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -78,7 +79,7 @@ import gobblin.util.ExecutorsUtils;
  */
 public class MetricContext extends MetricRegistry implements ReportableContext, Closeable {
 
-  protected Closer closer;
+  protected final Closer closer;
 
   public static final String METRIC_CONTEXT_ID_TAG_NAME = "metricContextID";
   @Getter
@@ -106,7 +107,7 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
     try {
       this.innerMetricContext = this.closer.register(new InnerMetricContext(this, name, parent, tags));
     } catch(ExecutionException ee) {
-      throw new RuntimeException("Failed to create metric context.");
+      throw Throwables.propagate(ee);
     }
 
     this.contextAwareMetricsSet = Sets.newConcurrentHashSet();
@@ -588,9 +589,13 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
 
     ContextAwareTimer.Context timer = this.notificationTimer.time();
     if(!this.notificationTargets.isEmpty()) {
-      for (final Map.Entry<UUID, Function<Notification, Void>> entry : this.notificationTargets.entrySet()) {
-        entry.getValue().apply(notification);
-      }
+        for (final Map.Entry<UUID, Function<Notification, Void>> entry : this.notificationTargets.entrySet()) {
+          try {
+            entry.getValue().apply(notification);
+          } catch (RuntimeException exception) {
+            LOG.warn("RuntimeException when running notification target. Skipping.", exception);
+          }
+        }
     }
 
     if(getParent().isPresent()) {
@@ -691,7 +696,7 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
         try {
           return buildStrict();
         } catch (NameConflictException nce2) {
-          throw new RuntimeException("Failed to build metric context.", nce2);
+          throw Throwables.propagate(nce2);
         }
       }
     }

@@ -53,7 +53,7 @@ public class RootMetricContext extends MetricContext {
 
   private final Set<ContextAwareReporter> reporters;
 
-  private boolean reportingStarted;
+  private volatile boolean reportingStarted;
 
   private RootMetricContext(List<Tag<?>> tags) throws NameConflictException {
     super(ROOT_METRIC_CONTEXT, null, tags, true);
@@ -106,6 +106,10 @@ public class RootMetricContext extends MetricContext {
     }
   }
 
+  /**
+   * Add a new {@link ContextAwareReporter} to the {@link RootMetricContext} for it to manage.
+   * @param reporter {@link ContextAwareReporter} to manage.
+   */
   public void addNewReporter(ContextAwareReporter reporter) {
     this.reporters.add(this.closer.register(reporter));
     if(this.reportingStarted) {
@@ -113,6 +117,10 @@ public class RootMetricContext extends MetricContext {
     }
   }
 
+  /**
+   * Remove {@link ContextAwareReporter} from the set of managed reporters.
+   * @param reporter {@link ContextAwareReporter} to remove.
+   */
   public void removeReporter(ContextAwareReporter reporter) {
     if(this.reporters.contains(reporter)) {
       reporter.stop();
@@ -120,17 +128,33 @@ public class RootMetricContext extends MetricContext {
     }
   }
 
+  /**
+   * Start all {@link ContextAwareReporter}s managed by the {@link RootMetricContext}.
+   */
   public void startReporting() {
     this.reportingStarted = true;
     for(ContextAwareReporter reporter : this.reporters) {
-      reporter.start();
+      try {
+        reporter.start();
+      } catch(Throwable throwable) {
+        log.error(String.format("Failed to start reporter with class %s", reporter.getClass().getCanonicalName()),
+            throwable);
+      }
     }
   }
 
+  /**
+   * Stop all {@link ContextAwareReporter}s managed by the {@link RootMetricContext}.
+   */
   public void stopReporting() {
     this.reportingStarted = false;
     for(ContextAwareReporter reporter : this.reporters) {
-      reporter.stop();
+      try {
+        reporter.stop();
+      } catch(Throwable throwable) {
+        log.error(String.format("Failed to stop reporter with class %s", reporter.getClass().getCanonicalName()),
+            throwable);
+      }
     }
   }
 

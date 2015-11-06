@@ -18,10 +18,14 @@ import gobblin.metrics.ContextAwareMetric;
 
 
 /**
- * Created by ibuenros on 10/30/15.
+ * Inner {@link Metric} used for reporting metrics one last time even after the user-facing wrapper has been
+ * garbage collected.
  */
-public interface TrueMetric extends Metric {
+public interface InnerMetric extends Metric {
 
+  /**
+   * @return the associated {@link ContextAwareMetric}.
+   */
   public ContextAwareMetric getContextAwareMetric();
 
 }

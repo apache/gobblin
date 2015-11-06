@@ -16,7 +16,7 @@ import lombok.experimental.Delegate;
 import com.codahale.metrics.Counter;
 
 import gobblin.metrics.metric.ProxyMetric;
-import gobblin.metrics.metric.TrueMetric;
+import gobblin.metrics.metric.InnerMetric;
 
 
 /**
@@ -39,10 +39,10 @@ class ContextAwareCounter extends Counter implements ProxyMetric, ContextAwareMe
 
   private final MetricContext metricContext;
   @Delegate
-  private final TrueCounter trueCounter;
+  private final InnerCounter innerCounter;
 
   ContextAwareCounter(MetricContext context, String name) {
-    this.trueCounter = new TrueCounter(context, name, this);
+    this.innerCounter = new InnerCounter(context, name, this);
     this.metricContext = context;
   }
 
@@ -50,7 +50,7 @@ class ContextAwareCounter extends Counter implements ProxyMetric, ContextAwareMe
     return this.metricContext;
   }
 
-  @Override public TrueMetric getTrueMetric() {
-    return this.trueCounter;
+  @Override public InnerMetric getInnerMetric() {
+    return this.innerCounter;
   }
 }

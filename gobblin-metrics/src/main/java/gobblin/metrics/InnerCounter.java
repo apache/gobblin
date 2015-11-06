@@ -17,19 +17,19 @@ import java.lang.ref.WeakReference;
 import com.codahale.metrics.Counter;
 import com.google.common.base.Optional;
 
-import gobblin.metrics.metric.TrueMetric;
+import gobblin.metrics.metric.InnerMetric;
 
 
 /**
- * Created by ibuenros on 10/30/15.
+ * Implementation of {@link InnerMetric} for {@link Counter}.
  */
-public class TrueCounter extends Counter implements TrueMetric {
+public class InnerCounter extends Counter implements InnerMetric {
   protected final String name;
   protected final Tagged tagged;
   protected final Optional<ContextAwareCounter> parentCounter;
   private final WeakReference<ContextAwareCounter> contextAwareCounter;
 
-  public TrueCounter(MetricContext context, String name, ContextAwareCounter counter) {
+  public InnerCounter(MetricContext context, String name, ContextAwareCounter counter) {
     this.tagged = new Tagged();
     this.name = name;
 

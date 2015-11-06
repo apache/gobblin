@@ -14,18 +14,9 @@ package gobblin.metrics;
 
 import lombok.experimental.Delegate;
 
-import java.lang.ref.WeakReference;
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 
-import com.google.common.base.Optional;
-
-import gobblin.metrics.metric.TrueMetric;
-import gobblin.util.Either;
+import gobblin.metrics.metric.InnerMetric;
 
 
 /**
@@ -47,11 +38,11 @@ import gobblin.util.Either;
 class ContextAwareTimer extends Timer implements ContextAwareMetric {
 
   @Delegate
-  private final TrueTimer trueTimer;
+  private final InnerTimer innerTimer;
   private final MetricContext context;
 
   ContextAwareTimer(MetricContext context, String name) {
-    this.trueTimer = new TrueTimer(context, name, this);
+    this.innerTimer = new InnerTimer(context, name, this);
     this.context = context;
   }
 
@@ -60,7 +51,7 @@ class ContextAwareTimer extends Timer implements ContextAwareMetric {
     return this.context;
   }
 
-  @Override public TrueMetric getTrueMetric() {
-    return this.trueTimer;
+  @Override public InnerMetric getInnerMetric() {
+    return this.innerTimer;
   }
 }

@@ -30,10 +30,7 @@ import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricFilter;
-import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
-
-import com.google.common.collect.Lists;
 
 import static gobblin.metrics.TestConstants.*;
 
@@ -105,7 +102,7 @@ public class MetricContextTest {
   public void testContextAwareCounter() {
     ContextAwareCounter jobRecordsProcessed = this.context.contextAwareCounter(RECORDS_PROCESSED);
     Assert.assertEquals(this.context.getCounters().get(jobRecordsProcessed.getName()),
-        jobRecordsProcessed.getTrueMetric());
+        jobRecordsProcessed.getInnerMetric());
     Assert.assertEquals(jobRecordsProcessed.getContext(), this.context);
     Assert.assertEquals(jobRecordsProcessed.getName(), RECORDS_PROCESSED);
 
@@ -121,7 +118,7 @@ public class MetricContextTest {
     ContextAwareCounter taskRecordsProcessed = this.childContext.contextAwareCounter(RECORDS_PROCESSED);
     Assert.assertEquals(this.childContext.getCounters()
             .get(taskRecordsProcessed.getName()),
-        taskRecordsProcessed.getTrueMetric());
+        taskRecordsProcessed.getInnerMetric());
     Assert.assertEquals(taskRecordsProcessed.getContext(), this.childContext);
     Assert.assertEquals(taskRecordsProcessed.getName(), RECORDS_PROCESSED);
 
@@ -141,7 +138,7 @@ public class MetricContextTest {
     ContextAwareMeter jobRecordsProcessRate = this.context.contextAwareMeter(RECORD_PROCESS_RATE);
     Assert.assertEquals(this.context.getMeters()
             .get(jobRecordsProcessRate.getName()),
-        jobRecordsProcessRate.getTrueMetric());
+        jobRecordsProcessRate.getInnerMetric());
     Assert.assertEquals(jobRecordsProcessRate.getContext(), this.context);
     Assert.assertEquals(jobRecordsProcessRate.getName(), RECORD_PROCESS_RATE);
 
@@ -152,7 +149,7 @@ public class MetricContextTest {
     ContextAwareMeter taskRecordsProcessRate = this.childContext.contextAwareMeter(RECORD_PROCESS_RATE);
     Assert.assertEquals(this.childContext.getMeters()
             .get(taskRecordsProcessRate.getName()),
-        taskRecordsProcessRate.getTrueMetric());
+        taskRecordsProcessRate.getInnerMetric());
     Assert.assertEquals(taskRecordsProcessRate.getContext(), this.childContext);
     Assert.assertEquals(taskRecordsProcessRate.getName(), RECORD_PROCESS_RATE);
 
@@ -170,7 +167,7 @@ public class MetricContextTest {
     Assert.assertEquals(
         this.context.getHistograms().get(
             jobRecordSizeDist.getName()),
-        jobRecordSizeDist.getTrueMetric());
+        jobRecordSizeDist.getInnerMetric());
     Assert.assertEquals(jobRecordSizeDist.getContext(), this.context);
     Assert.assertEquals(jobRecordSizeDist.getName(), RECORD_SIZE_DISTRIBUTION);
 
@@ -183,7 +180,7 @@ public class MetricContextTest {
 
     ContextAwareHistogram taskRecordSizeDist = this.childContext.contextAwareHistogram(RECORD_SIZE_DISTRIBUTION);
     Assert.assertEquals(this.childContext.getHistograms().get(taskRecordSizeDist.getName()),
-        taskRecordSizeDist.getTrueMetric());
+        taskRecordSizeDist.getInnerMetric());
     Assert.assertEquals(taskRecordSizeDist.getContext(), this.childContext);
     Assert.assertEquals(taskRecordSizeDist.getName(), RECORD_SIZE_DISTRIBUTION);
 
@@ -201,7 +198,7 @@ public class MetricContextTest {
   @Test
   public void testContextAwareTimer() {
     ContextAwareTimer jobTotalDuration = this.context.contextAwareTimer(TOTAL_DURATION);
-    Assert.assertEquals(this.context.getTimers().get(jobTotalDuration.getName()), jobTotalDuration.getTrueMetric());
+    Assert.assertEquals(this.context.getTimers().get(jobTotalDuration.getName()), jobTotalDuration.getInnerMetric());
     Assert.assertEquals(jobTotalDuration.getContext(), this.context);
     Assert.assertEquals(jobTotalDuration.getName(), TOTAL_DURATION);
 
@@ -231,7 +228,7 @@ public class MetricContextTest {
 
     Assert.assertEquals(
         this.context.getGauges().get(queueSize.getName()),
-        queueSize.getTrueMetric());
+        queueSize.getInnerMetric());
     Assert.assertEquals(queueSize.getContext(), this.context);
     Assert.assertEquals(queueSize.getName(), QUEUE_SIZE);
 

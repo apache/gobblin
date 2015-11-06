@@ -14,13 +14,9 @@ package gobblin.metrics;
 
 import lombok.experimental.Delegate;
 
-import java.util.Collection;
-import java.util.List;
-
 import com.codahale.metrics.Gauge;
-import com.codahale.metrics.MetricRegistry;
 
-import gobblin.metrics.metric.TrueMetric;
+import gobblin.metrics.metric.InnerMetric;
 
 
 /**
@@ -39,11 +35,11 @@ import gobblin.metrics.metric.TrueMetric;
 public class ContextAwareGauge<T> implements Gauge<T>, ContextAwareMetric {
 
   @Delegate
-  private final TrueGauge<T> trueGauge;
+  private final InnerGauge<T> innerGauge;
   private final MetricContext context;
 
   ContextAwareGauge(MetricContext context, String name, Gauge<T> gauge) {
-    this.trueGauge = new TrueGauge<T>(context, name, gauge, this);
+    this.innerGauge = new InnerGauge<T>(context, name, gauge, this);
     this.context = context;
   }
 
@@ -52,7 +48,7 @@ public class ContextAwareGauge<T> implements Gauge<T>, ContextAwareMetric {
     return this.context;
   }
 
-  @Override public TrueMetric getTrueMetric() {
-    return this.trueGauge;
+  @Override public InnerMetric getInnerMetric() {
+    return this.innerGauge;
   }
 }

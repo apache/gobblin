@@ -16,19 +16,19 @@ import java.lang.ref.WeakReference;
 
 import com.codahale.metrics.Gauge;
 
-import gobblin.metrics.metric.TrueMetric;
+import gobblin.metrics.metric.InnerMetric;
 
 
 /**
- * Created by ibuenros on 10/30/15.
+ * Implementation of {@link InnerMetric} for {@link Gauge}.
  */
-public class TrueGauge<T> implements TrueMetric, Gauge<T> {
+public class InnerGauge<T> implements InnerMetric, Gauge<T> {
 
   private final String name;
   private final Gauge<T> gauge;
   private final WeakReference<ContextAwareGauge<T>> contextAwareGauge;
 
-  TrueGauge(MetricContext context, String name, Gauge<T> gauge, ContextAwareGauge<T> contextAwareGauge) {
+  InnerGauge(MetricContext context, String name, Gauge<T> gauge, ContextAwareGauge<T> contextAwareGauge) {
     this.name = name;
     this.gauge = gauge;
     this.contextAwareGauge = new WeakReference<ContextAwareGauge<T>>(contextAwareGauge);

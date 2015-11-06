@@ -14,15 +14,9 @@ package gobblin.metrics;
 
 import lombok.experimental.Delegate;
 
-import java.util.Collection;
-import java.util.List;
-
 import com.codahale.metrics.Meter;
-import com.codahale.metrics.MetricRegistry;
 
-import com.google.common.base.Optional;
-
-import gobblin.metrics.metric.TrueMetric;
+import gobblin.metrics.metric.InnerMetric;
 
 
 /**
@@ -44,11 +38,11 @@ import gobblin.metrics.metric.TrueMetric;
 class ContextAwareMeter extends Meter implements ContextAwareMetric {
 
   @Delegate
-  private final TrueMeter trueMeter;
+  private final InnerMeter innerMeter;
   private final MetricContext context;
 
   ContextAwareMeter(MetricContext context, String name) {
-    this.trueMeter = new TrueMeter(context, name, this);
+    this.innerMeter = new InnerMeter(context, name, this);
     this.context = context;
   }
 
@@ -58,7 +52,7 @@ class ContextAwareMeter extends Meter implements ContextAwareMetric {
     return this.context;
   }
 
-  @Override public TrueMetric getTrueMetric() {
-    return this.trueMeter;
+  @Override public InnerMetric getInnerMetric() {
+    return this.innerMeter;
   }
 }

@@ -18,19 +18,19 @@ import com.codahale.metrics.ExponentiallyDecayingReservoir;
 import com.codahale.metrics.Histogram;
 import com.google.common.base.Optional;
 
-import gobblin.metrics.metric.TrueMetric;
+import gobblin.metrics.metric.InnerMetric;
 
 
 /**
- * Created by ibuenros on 10/30/15.
+ * Implementation of {@link InnerMetric} for {@link Histogram}.
  */
-public class TrueHistogram extends Histogram implements TrueMetric {
+public class InnerHistogram extends Histogram implements InnerMetric {
 
   private final String name;
   private final Optional<ContextAwareHistogram> parentHistogram;
   private final WeakReference<ContextAwareHistogram> contextAwareHistogram;
 
-  TrueHistogram(MetricContext context, String name, ContextAwareHistogram contextAwareHistogram) {
+  InnerHistogram(MetricContext context, String name, ContextAwareHistogram contextAwareHistogram) {
     super(new ExponentiallyDecayingReservoir());
 
     this.name = name;

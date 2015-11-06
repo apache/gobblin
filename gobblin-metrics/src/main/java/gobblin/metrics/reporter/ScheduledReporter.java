@@ -22,12 +22,17 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+import org.joda.time.Period;
+import org.joda.time.format.PeriodFormatter;
+import org.joda.time.format.PeriodFormatterBuilder;
+
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.Timer;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
@@ -43,30 +48,45 @@ import gobblin.util.ExecutorsUtils;
 @Slf4j
 public abstract class ScheduledReporter extends ContextAwareReporter {
 
-  public static final String REPORTING_INTERVAL_PERIOD = "reporting.interval.period";
-  public static final long DEFAULT_REPORTING_INTERVAL_PERIOD = 1;
-  public static final String REPORTING_INTERVAL_UNIT = "reporting.interval.unit";
-  public static final String DEFAULT_REPORTING_INTERVAL_UNIT = "MINUTES";
+  /**
+   * Interval at which metrics are reported.
+   * Format: hours, minutes, seconds. Examples: 1h, 1m, 10s, 1h30m, 2m30s, ...
+   */
+  public static final String REPORTING_INTERVAL = "reporting.interval";
+  public static final String DEFAULT_REPORTING_INTERVAL_PERIOD = "1M";
+
+  public static final PeriodFormatter PERIOD_FORMATTER = new PeriodFormatterBuilder().
+      appendHours().appendSuffix("H").
+      appendMinutes().appendSuffix("M").
+      appendSeconds().appendSuffix("S").toFormatter();
+
+  @VisibleForTesting
+  public static int parsePeriodToSeconds(String periodStr) {
+    try {
+      return Period.parse(periodStr.toUpperCase(), PERIOD_FORMATTER).toStandardSeconds().getSeconds();
+    } catch(ArithmeticException ae) {
+      throw new RuntimeException(String.format("Reporting interval is too long. Max: %d seconds.", Integer.MAX_VALUE));
+    }
+  }
 
   public static Config setReportingInterval(Config config, long reportingInterval, TimeUnit reportingIntervalUnit) {
-    return config.withValue(REPORTING_INTERVAL_PERIOD, ConfigValueFactory.fromAnyRef(reportingInterval)).
-        withValue(REPORTING_INTERVAL_UNIT, ConfigValueFactory.fromAnyRef(reportingIntervalUnit.toString()));
+    long seconds = TimeUnit.SECONDS.convert(reportingInterval, reportingIntervalUnit);
+    if (seconds > Integer.MAX_VALUE) {
+      throw new RuntimeException(String.format("Reporting interval is too long. Max: %d seconds.", Integer.MAX_VALUE));
+    }
+    return config.withValue(REPORTING_INTERVAL, ConfigValueFactory.fromAnyRef(seconds + "S"));
   }
 
   private final ScheduledExecutorService executor;
   private Optional<ScheduledFuture> scheduledTask;
-  private long reportingInterval;
-  private TimeUnit reportingIntervalUnit;
+  private int reportingPeriodSeconds;
 
   public ScheduledReporter(String name, Config config) {
     super(name, config);
     this.executor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("metrics-" + name + "-scheduler")));
-    this.reportingInterval = config.hasPath(REPORTING_INTERVAL_PERIOD) ? config.getLong(REPORTING_INTERVAL_PERIOD) :
-        DEFAULT_REPORTING_INTERVAL_PERIOD;
-    this.reportingIntervalUnit = TimeUnit.valueOf(
-        config.hasPath(REPORTING_INTERVAL_UNIT) ? config.getString(REPORTING_INTERVAL_UNIT).toUpperCase() :
-        DEFAULT_REPORTING_INTERVAL_UNIT);
+    this.reportingPeriodSeconds = parsePeriodToSeconds(
+        config.hasPath(REPORTING_INTERVAL) ? config.getString(REPORTING_INTERVAL) : DEFAULT_REPORTING_INTERVAL_PERIOD);
   }
 
   @Override public void startImpl() {
@@ -74,7 +94,7 @@ public abstract class ScheduledReporter extends ContextAwareReporter {
       @Override public void run() {
         report();
       }
-    }, 0, this.reportingInterval, this.reportingIntervalUnit));
+    }, 0, this.reportingPeriodSeconds, TimeUnit.SECONDS));
   }
 
   @Override public void stopImpl() {
