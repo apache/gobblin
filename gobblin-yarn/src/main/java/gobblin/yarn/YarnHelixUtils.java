@@ -37,7 +37,6 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.Apps;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
-import org.apache.helix.api.id.ParticipantId;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValue;
@@ -63,14 +62,14 @@ public class YarnHelixUtils {
   }
 
   /**
-   * Get a Helix {@link ParticipantId} from a given host name and a given Yarn {@link ContainerId}.
+   * Get a Helix partition ID from a given host name and a given Yarn {@link ContainerId}.
    *
    * @param hostName the given host name
    * @param containerId the given {@link ContainerId}
-   * @return a Helix {@link ParticipantId}
+   * @return a Helix partition ID
    */
-  public static ParticipantId getParticipantId(String hostName, ContainerId containerId) {
-    return ParticipantId.from(getHelixInstanceName(hostName, containerId));
+  public static String getParticipantId(String hostName, ContainerId containerId) {
+    return getHelixInstanceName(hostName, containerId);
   }
 
   /**

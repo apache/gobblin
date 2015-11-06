@@ -130,10 +130,7 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
     Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(fs, applicationName, applicationAttemptId.getApplicationId());
 
     List<Service> services = Lists.newArrayList();
-    if (UserGroupInformation.isSecurityEnabled()) {
-      LOGGER.info("Adding YarnContainerSecurityManager since security is enabled");
-      services.add(new YarnContainerSecurityManager(config, fs, this.eventBus));
-    }
+    services.add(buildLogCopier(containerId, fs, appWorkDir));
     services.add(
         new YarnService(config, applicationName, applicationAttemptId.getApplicationId(), fs, this.eventBus,
             Strings.nullToEmpty(config.getString(GobblinYarnConfigurationKeys.CONTAINER_JVM_ARGS_KEY))));
@@ -143,7 +140,10 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
     services.add(new JobConfigurationManager(this.eventBus,
         config.hasPath(GobblinYarnConfigurationKeys.JOB_CONF_PACKAGE_PATH_KEY) ? Optional
             .of(config.getString(GobblinYarnConfigurationKeys.JOB_CONF_PACKAGE_PATH_KEY)) : Optional.<String>absent()));
-    services.add(buildLogCopier(containerId, fs, appWorkDir));
+    if (UserGroupInformation.isSecurityEnabled()) {
+      LOGGER.info("Adding YarnContainerSecurityManager since security is enabled");
+      services.add(new YarnContainerSecurityManager(config, fs, this.eventBus));
+    }
 
     this.serviceManager = new ServiceManager(services);
 

@@ -51,16 +51,13 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Records;
 import org.apache.helix.Criteria;
-import org.apache.helix.HelixConnection;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
-import org.apache.helix.api.config.ClusterConfig;
-import org.apache.helix.api.id.ClusterId;
-import org.apache.helix.manager.zk.ZkHelixConnection;
+import org.apache.helix.manager.zk.ZKHelixManager;
+import org.apache.helix.model.HelixConfigScope;
 import org.apache.helix.model.Message;
-import org.apache.helix.model.StateModelDefinition;
-import org.apache.helix.tools.StateModelConfigGenerator;
+import org.apache.helix.tools.ClusterSetup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -296,25 +293,15 @@ public class GobblinYarnAppLauncher {
    * {@link GobblinYarnConfigurationKeys#HELIX_CLUSTER_NAME_KEY} if it does not exist.
    */
   private void createGobblinYarnHelixCluster() {
-    HelixConnection helixConnection =
-        new ZkHelixConnection(this.config.getString(GobblinYarnConfigurationKeys.ZK_CONNECTION_STRING_KEY));
-    helixConnection.connect();
-    try {
-      ClusterId clusterId = ClusterId.from(this.config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY));
-      ClusterConfig clusterConfig = new ClusterConfig.Builder(clusterId)
-          .addStateModelDefinition(
-              new StateModelDefinition(StateModelConfigGenerator.generateConfigForTaskStateModel()))
-          .autoJoin(true)
-          .build();
-      boolean clusterCreated = helixConnection.createClusterAccessor(clusterId).createCluster(clusterConfig);
-      if (clusterCreated) {
-        LOGGER.info("Created Helix cluster " + clusterId.stringify());
-      } else {
-        LOGGER.info("Helix cluster " + clusterId.stringify() + " already exists");
-      }
-    } finally {
-      helixConnection.disconnect();
-    }
+    ClusterSetup clusterSetup =
+        new ClusterSetup(this.config.getString(GobblinYarnConfigurationKeys.ZK_CONNECTION_STRING_KEY));
+    String clusterName = this.config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+    // Create the cluster and overwrite if it already exists
+    clusterSetup.addCluster(clusterName, true);
+    // Helix 0.6.x requires a configuration property to have the form key=value.
+    String autoJoinConfig = ZKHelixManager.ALLOW_PARTICIPANT_AUTO_JOIN + "=true";
+    clusterSetup.setConfig(HelixConfigScope.ConfigScopeProperty.CLUSTER, clusterName, autoJoinConfig);
+    LOGGER.info("Created Helix cluster " + clusterName);
   }
 
   /**

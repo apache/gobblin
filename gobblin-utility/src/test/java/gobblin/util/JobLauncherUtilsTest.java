@@ -26,7 +26,6 @@ import org.testng.annotations.Test;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.Extract.TableType;
@@ -123,7 +122,7 @@ public class JobLauncherUtilsTest {
       Path writerOutputPath1 = new Path(writerOutputDir1, writerPath1);
       fs.mkdirs(writerOutputPath1);
 
-      JobLauncherUtils.cleanStagingData(state, LoggerFactory.getLogger(JobLauncherUtilsTest.class));
+      JobLauncherUtils.cleanTaskStagingData(state, LoggerFactory.getLogger(JobLauncherUtilsTest.class));
 
       Assert.assertFalse(fs.exists(writerStagingPath0));
       Assert.assertFalse(fs.exists(writerStagingPath1));
@@ -195,7 +194,7 @@ public class JobLauncherUtilsTest {
               2, 1));
       fs.mkdirs(writerOutputPath1);
 
-      JobLauncherUtils.cleanStagingData(state, LoggerFactory.getLogger(JobLauncherUtilsTest.class));
+      JobLauncherUtils.cleanTaskStagingData(state, LoggerFactory.getLogger(JobLauncherUtilsTest.class));
 
       Assert.assertFalse(fs.exists(writerStagingPath0));
       Assert.assertFalse(fs.exists(writerStagingPath1));

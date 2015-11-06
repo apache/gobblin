@@ -245,6 +245,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         return;
       }
 
+      TimingEvent stagingDataCleanTimer =
+          this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.MR_STAGING_DATA_CLEAN);
+      // Cleanup left-over staging data possibly from the previous run. This is particularly
+      // important if the current batch of WorkUnits include failed WorkUnits from the previous
+      // run which may still have left-over staging data not cleaned up yet.
+      cleanLeftoverStagingData(workUnits.get(), jobState);
+      stagingDataCleanTimer.stop();
+
       long startTime = System.currentTimeMillis();
       jobState.setStartTime(startTime);
       jobState.setState(JobState.RunningState.RUNNING);
@@ -282,26 +290,27 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       String errMsg = "Failed to launch and run job " + jobId;
       LOG.error(errMsg + ": " + t, t);
     } finally {
-      long endTime = System.currentTimeMillis();
-      jobState.setEndTime(endTime);
-      jobState.setDuration(endTime - jobState.getStartTime());
+      try {
+        long endTime = System.currentTimeMillis();
+        jobState.setEndTime(endTime);
+        jobState.setDuration(endTime - jobState.getStartTime());
 
-      TimingEvent jobCleanupTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.JOB_CLEANUP);
-      cleanupStagingData(jobState);
-      jobCleanupTimer.stop();
+        TimingEvent jobCleanupTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.JOB_CLEANUP);
+        cleanupStagingData(jobState);
+        jobCleanupTimer.stop();
 
-      // Write job execution info to the job history store upon job termination
-      this.jobContext.storeJobExecutionInfo();
+        // Write job execution info to the job history store upon job termination
+        this.jobContext.storeJobExecutionInfo();
 
-      launchJobTimer.stop();
-
-      if (this.jobContext.getJobMetricsOptional().isPresent()) {
-        this.jobContext.getJobMetricsOptional().get().triggerMetricReporting();
-        this.jobContext.getJobMetricsOptional().get().stopMetricReporting();
-        JobMetrics.remove(jobState);
+        if (this.jobContext.getJobMetricsOptional().isPresent()) {
+          this.jobContext.getJobMetricsOptional().get().triggerMetricReporting();
+          this.jobContext.getJobMetricsOptional().get().stopMetricReporting();
+          JobMetrics.remove(jobState);
+        }
+      } finally {
+        launchJobTimer.stop();
+        unlockJob();
       }
-
-      unlockJob();
     }
 
     for (JobState.DatasetState datasetState : this.jobContext.getDatasetStatesByUrns().values()) {
@@ -466,6 +475,35 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   }
 
   /**
+   * Cleanup the left-over staging data possibly from the previous run of the job that may have failed
+   * and not cleaned up its staging data.
+   */
+  private void cleanLeftoverStagingData(List<WorkUnit> workUnits, JobState jobState) {
+    try {
+      if (this.jobContext.shouldCleanupStagingDataPerTask()) {
+        Closer closer = Closer.create();
+        Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
+        try {
+          for (WorkUnit workUnit : JobLauncherUtils.flattenWorkUnits(workUnits)) {
+            WorkUnit fatWorkUnit = WorkUnit.copyOf(workUnit);
+            fatWorkUnit.addAllIfNotExist(jobState);
+            JobLauncherUtils.cleanTaskStagingData(fatWorkUnit, LOG, closer, parallelRunners);
+          }
+        } catch (Throwable t) {
+          throw closer.rethrow(t);
+        } finally {
+          closer.close();
+        }
+      } else {
+        JobLauncherUtils.cleanJobStagingData(jobState, LOG);
+      }
+    } catch (Throwable t) {
+      // Catch Throwable instead of just IOException to make sure failure of this won't affect the current run
+      LOG.error("Failed to clean leftover staging data", t);
+    }
+  }
+
+  /**
    * Cleanup the job's task staging data. This is not doing anything in case job succeeds
    * and data is successfully committed because the staging data has already been moved
    * to the job output directory. But in case the job fails and data is not committed,
@@ -487,8 +525,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
     try {
       for (TaskState taskState : jobState.getTaskStates()) {
+        TaskState fatTaskState = new TaskState(taskState);
+        fatTaskState.addAllIfNotExist(jobState);
         try {
-          JobLauncherUtils.cleanStagingData(taskState, LOG, closer, parallelRunners);
+          JobLauncherUtils.cleanTaskStagingData(fatTaskState, LOG, closer, parallelRunners);
         } catch (IOException e) {
           LOG.error(String.format("Failed to clean staging data for task %s: %s", taskState.getTaskId(), e), e);
         }
