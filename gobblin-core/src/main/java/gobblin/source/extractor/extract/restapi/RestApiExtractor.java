@@ -13,17 +13,19 @@
 package gobblin.source.extractor.extract.restapi;
 
 import gobblin.source.extractor.DataRecordException;
+
+import com.google.common.collect.ImmutableList;
+
 import gobblin.source.extractor.exception.RestApiConnectionException;
 import gobblin.source.extractor.exception.RestApiProcessingException;
 import gobblin.source.extractor.utils.Utils;
+
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
@@ -37,11 +39,11 @@ import org.apache.http.util.EntityUtils;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
-
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.common.base.Splitter;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
@@ -64,7 +66,8 @@ import gobblin.source.workunit.WorkUnit;
  * @param <D> type of data record
  * @param <S> type of schema
  */
-public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, JsonElement> implements SourceSpecificLayer<JsonArray, JsonElement>, RestApiSpecificLayer {
+public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, JsonElement> implements
+    SourceSpecificLayer<JsonArray, JsonElement>, RestApiSpecificLayer {
   private static final Gson gson = new Gson();
   private HttpClient httpClient = null;
   private boolean autoEstablishAuthToken = false;
@@ -91,12 +94,13 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
     if (httpClient == null) {
       httpClient = new DefaultHttpClient();
 
-      if (super.workUnitState.contains(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL) && !super.workUnitState
-          .getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL).isEmpty()) {
+      if (super.workUnitState.contains(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL)
+          && !super.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL).isEmpty()) {
         log.info("Connecting via proxy: " + super.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL));
 
-        HttpHost proxy = new HttpHost(super.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL),
-            super.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT));
+        HttpHost proxy =
+            new HttpHost(super.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL),
+                super.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT));
         httpClient.getParams().setParameter(ConnRoutePNames.DEFAULT_PROXY, proxy);
       }
     }
@@ -104,8 +108,7 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
   }
 
   @Override
-  public void extractMetadata(String schema, String entity, WorkUnit workUnit)
-      throws SchemaException {
+  public void extractMetadata(String schema, String entity, WorkUnit workUnit) throws SchemaException {
     this.log.info("Extract Metadata using Rest Api");
     JsonArray columnArray = new JsonArray();
     String inputQuery = workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_QUERY);
@@ -113,6 +116,14 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
     JsonArray array = null;
     if (!Strings.isNullOrEmpty(inputQuery)) {
       columnListInQuery = Utils.getColumnListFromQuery(inputQuery);
+    }
+
+    String excludedColumns = workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_EXCLUDED_COLUMNS);
+    List<String> columnListExcluded = ImmutableList.<String> of();
+
+    if (Strings.isNullOrEmpty(inputQuery) && !Strings.isNullOrEmpty(excludedColumns)) {
+      Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
+      columnListExcluded = splitter.splitToList(excludedColumns);
     }
 
     try {
@@ -145,11 +156,13 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
 
           // If input query is null or provided '*' in the query select all columns.
           // Else, consider only the columns mentioned in the column list
-          if (inputQuery == null || columnListInQuery == null || (columnListInQuery.size() == 1 && columnListInQuery
-              .get(0).equals("*")) || (columnListInQuery.size() >= 1 && this
-              .isMetadataColumn(columnName, columnListInQuery))) {
-            this.columnList.add(columnName);
-            columnArray.add(jsonObject);
+          if (inputQuery == null || columnListInQuery == null
+              || (columnListInQuery.size() == 1 && columnListInQuery.get(0).equals("*"))
+              || (columnListInQuery.size() >= 1 && this.isMetadataColumn(columnName, columnListInQuery))) {
+            if (!columnListExcluded.contains(columnName.trim().toLowerCase())) {
+              this.columnList.add(columnName);
+              columnArray.add(jsonObject);
+            }
           }
         }
 
@@ -180,8 +193,7 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
 
   @Override
   public long getMaxWatermark(String schema, String entity, String watermarkColumn, List<Predicate> predicateList,
-      String watermarkSourceFormat)
-      throws HighWatermarkException {
+      String watermarkSourceFormat) throws HighWatermarkException {
     this.log.info("Get high watermark using Rest Api");
     long CalculatedHighWatermark = -1;
     try {
@@ -225,8 +237,7 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
 
   @Override
   public Iterator<JsonElement> getRecordSet(String schema, String entity, WorkUnit workUnit,
-      List<Predicate> predicateList)
-      throws DataRecordException {
+      List<Predicate> predicateList) throws DataRecordException {
     this.log.debug("Get data records using Rest Api");
     Iterator<JsonElement> rs = null;
     List<Command> cmds;
@@ -267,8 +278,7 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
    * Connect to rest api
    * @return true if it is success else false
    */
-  private boolean getConnection()
-      throws RestApiConnectionException {
+  private boolean getConnection() throws RestApiConnectionException {
     this.log.debug("Connecting to the source using Rest Api");
     return this.connect();
   }
@@ -277,8 +287,7 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
    * Check if connection is closed
    * @return true if the connection is closed else false
    */
-  private boolean isConnectionClosed()
-      throws Exception {
+  private boolean isConnectionClosed() throws Exception {
     if (this.httpClient == null) {
       return true;
     }
@@ -289,8 +298,7 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
    * get http connection
    * @return true if the connection is success else false
    */
-  private boolean connect()
-      throws RestApiConnectionException {
+  private boolean connect() throws RestApiConnectionException {
     if (autoEstablishAuthToken) {
       if (authTokenTimeout <= 0) {
         return false;
@@ -306,15 +314,14 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
       if (httpEntity != null) {
         JsonElement json = gson.fromJson(EntityUtils.toString(httpEntity), JsonObject.class);
         if (json == null) {
-          throw new RestApiConnectionException(
-              "Failed on authentication with the following HTTP response received:\n" + EntityUtils
-                  .toString(httpEntity));
+          throw new RestApiConnectionException("Failed on authentication with the following HTTP response received:\n"
+              + EntityUtils.toString(httpEntity));
         }
 
         JsonObject jsonRet = json.getAsJsonObject();
         if (!this.hasId(jsonRet)) {
-          throw new RestApiConnectionException(
-              "Failed on authentication with the following HTTP response received:\n" + json);
+          throw new RestApiConnectionException("Failed on authentication with the following HTTP response received:\n"
+              + json);
         }
 
         this.instanceUrl = jsonRet.get("instance_url").getAsString();
@@ -347,8 +354,7 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
    * get http response in json format using url
    * @return json string with the response
    */
-  private CommandOutput<?, ?> getResponse(List<Command> cmds)
-      throws RestApiProcessingException {
+  private CommandOutput<?, ?> getResponse(List<Command> cmds) throws RestApiProcessingException {
     String url = cmds.get(0).getParams().get(0);
 
     this.log.info("URL: " + url);

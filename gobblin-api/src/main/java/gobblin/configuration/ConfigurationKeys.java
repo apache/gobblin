@@ -312,6 +312,7 @@ public class ConfigurationKeys {
   public static final String SOURCE_QUERYBASED_HOUR_COLUMN = "source.querybased.hour.column";
   public static final String SOURCE_QUERYBASED_SKIP_HIGH_WATERMARK_CALC = "source.querybased.skip.high.watermark.calc";
   public static final String SOURCE_QUERYBASED_QUERY = "source.querybased.query";
+  public static final String SOURCE_QUERYBASED_EXCLUDED_COLUMNS = "source.querybased.excluded.columns";
   public static final String SOURCE_QUERYBASED_IS_HOURLY_EXTRACT = "source.querybased.hourly.extract";
   public static final String SOURCE_QUERYBASED_EXTRACT_TYPE = "source.querybased.extract.type";
   public static final String SOURCE_QUERYBASED_PARTITION_INTERVAL = "source.querybased.partition.interval";
