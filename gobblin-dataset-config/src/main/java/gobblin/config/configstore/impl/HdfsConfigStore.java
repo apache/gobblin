@@ -22,6 +22,7 @@ import com.google.common.io.Closer;
 
 import gobblin.config.configstore.ConfigStore;
 import gobblin.config.configstore.VersionComparator;
+import gobblin.config.utils.PathUtils;
 
 
 public class HdfsConfigStore implements ConfigStore {
@@ -74,7 +75,7 @@ public class HdfsConfigStore implements ConfigStore {
       List<String> versions = new ArrayList<String>();
       for (FileStatus f : fileStatus) {
         // versions should be directory
-        if (f.isFile()) {
+        if (!f.isDir()) {
           continue;
         }
         versions.add(f.getPath().getName());
@@ -136,7 +137,7 @@ public class HdfsConfigStore implements ConfigStore {
       List<URI> res = new ArrayList<URI>();
       for (FileStatus f : fileStatus) {
         // valid node should be a directory
-        if (f.isFile()) {
+        if (!f.isDir()) {
           continue;
         }
         try {
@@ -149,7 +150,7 @@ public class HdfsConfigStore implements ConfigStore {
 
       return res;
     } catch (IOException ioe) {
-      LOG.error(String.format("Got error when find children for %s, exception %s", self, ioe.getMessage()), ioe);
+      LOG.error(String.format("Got error when find children for %s, exception %s", self, ioe.getMessage()));
       throw new RuntimeException(ioe);
     }
   }
@@ -190,12 +191,13 @@ public class HdfsConfigStore implements ConfigStore {
   }
 
   private String getRelativePath(Path p) {
-    String root = Path.getPathWithoutSchemeAndAuthority(this.currentVersionRoot).toString();
-    String input = Path.getPathWithoutSchemeAndAuthority(p).toString();
+    String root = PathUtils.getPathWithoutSchemeAndAuthority(this.currentVersionRoot).toString();
+    String input = PathUtils.getPathWithoutSchemeAndAuthority(p).toString();
+
 
     if (input.equals(root)) {
       return "";
     }
-    return input.substring(root.length() + 1);
+    return input.substring(root.length()+1);
   }
 }

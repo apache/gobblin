@@ -1,5 +1,6 @@
 package gobblin.config.configstore.impl;
 
+import java.io.File;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -8,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValue;
 
 import gobblin.config.configstore.VersionComparator;
@@ -52,6 +54,7 @@ public class TestHdfsConfigStore {
     Collection<URI> children = store.getChildren(new URI(tags));
     Assert.assertEquals(children.size(), 2);
     Iterator<URI> it = children.iterator();
+
     Assert.assertEquals(it.next().toString(), "tags/l1");
     Assert.assertEquals(it.next().toString(), "tags/t1");
     
