@@ -32,7 +32,6 @@ import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
 import gobblin.instrumented.Instrumented;
-import gobblin.instrumented.writer.InstrumentedDataWriterDecorator;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.Tag;
 import gobblin.publisher.TaskPublisher;
@@ -353,7 +352,6 @@ public class Fork implements Closeable, Runnable, FinalState {
   /**
    * Build a {@link gobblin.writer.DataWriter} for writing fetched data records.
    */
-  @SuppressWarnings("unchecked")
   private DataWriter<Object> buildWriter()
       throws IOException, SchemaConversionException {
     DataWriterBuilder<Object, Object> builder = this.taskContext.getDataWriterBuilder(this.branches, this.index)

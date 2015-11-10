@@ -17,6 +17,7 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 
+import gobblin.configuration.ConfigurationKeys;
 import lombok.AllArgsConstructor;
 
 import org.joda.time.DateTime;
@@ -32,7 +33,7 @@ import org.joda.time.format.DateTimeFormatter;
  */
 public class TimeRangeChecker {
 
-  private static final DateTimeZone DATE_TIME_ZONE = DateTimeZone.forID("America/Los_Angeles");
+  private static final DateTimeZone DATE_TIME_ZONE = DateTimeZone.forID(ConfigurationKeys.PST_TIMEZONE_NAME);
   private static final String HOUR_MINUTE_FORMAT = "HH-mm";
   private static final DateTimeFormatter HOUR_MINUTE_FORMATTER = DateTimeFormat.forPattern("HH-mm");
   private static final Map<Integer, String> DAYS_OF_WEEK = new ImmutableMap.Builder<Integer, String>()

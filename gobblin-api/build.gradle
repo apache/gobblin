@@ -15,9 +15,10 @@ dependencies {
     compile externalDependency.gson
     compile externalDependency.jasypt
     compile externalDependency.jodaTime
-    compile externalDependency.commonsLang
+    compile externalDependency.commonsLang3
     compile externalDependency.slf4j
     compile externalDependency.commonsCli
+    compile externalDependency.lombok
 
     testCompile externalDependency.testng
 }

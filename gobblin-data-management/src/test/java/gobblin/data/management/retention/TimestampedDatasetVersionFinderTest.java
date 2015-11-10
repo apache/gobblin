@@ -20,6 +20,7 @@ import org.joda.time.DateTimeZone;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.data.management.retention.version.TimestampedDatasetVersion;
 import gobblin.data.management.retention.version.finder.DateTimeDatasetVersionFinder;
 
@@ -36,8 +37,8 @@ public class TimestampedDatasetVersionFinderTest {
     Assert.assertEquals(parser.versionClass(), TimestampedDatasetVersion.class);
     Assert.assertEquals(parser.globVersionPattern(), new Path("*/*/*/*/*"));
     DateTime version = parser.getDatasetVersion(new Path("2015/06/01/10/12"), new Path("fullPath")).getDateTime();
-    Assert.assertEquals(version.getZone(), DateTimeZone.forID("America/Los_Angeles"));
-    Assert.assertEquals(version, new DateTime(2015, 6, 1, 10, 12, 0, 0, DateTimeZone.forID("America/Los_Angeles")));
+    Assert.assertEquals(version.getZone(), DateTimeZone.forID(ConfigurationKeys.PST_TIMEZONE_NAME));
+    Assert.assertEquals(version, new DateTime(2015, 6, 1, 10, 12, 0, 0, DateTimeZone.forID(ConfigurationKeys.PST_TIMEZONE_NAME)));
 
     Assert.assertEquals(parser.getDatasetVersion(new Path("2015/06/01/10/12"), new Path("fullPath")).getPathsToDelete()
         .iterator().next(), new Path("fullPath"));

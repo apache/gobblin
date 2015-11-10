@@ -45,6 +45,7 @@ import gobblin.writer.Destination;
 import gobblin.writer.Destination.DestinationType;
 import gobblin.writer.HiveWritableHdfsDataWriter;
 import gobblin.writer.HiveWritableHdfsDataWriterBuilder;
+import gobblin.writer.WriterOutputFormat;
 
 
 /**
@@ -86,8 +87,8 @@ public class HiveSerDeTest {
       OldApiWritableFileExtractor extractor = closer.register((OldApiWritableFileExtractor) source.getExtractor(wus));
       HiveSerDeConverter converter = closer.register(new HiveSerDeConverter());
       HiveWritableHdfsDataWriter writer =
-          closer.register((HiveWritableHdfsDataWriter) new HiveWritableHdfsDataWriterBuilder().withBranches(1)
-              .withWriterId("0").writeTo(Destination.of(DestinationType.HDFS, sourceState)).build());
+          closer.register((HiveWritableHdfsDataWriter) new HiveWritableHdfsDataWriterBuilder<Object>().withBranches(1)
+              .withWriterId("0").writeTo(Destination.of(DestinationType.HDFS, sourceState)).writeInFormat(WriterOutputFormat.ORC).build());
 
       converter.init(wus);
       Writable record = null;

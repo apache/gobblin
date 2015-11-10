@@ -54,6 +54,7 @@ ext.externalDependency = [
   "commonsDbcp": "commons-dbcp:commons-dbcp:1.4",
   "commonsEmail": "org.apache.commons:commons-email:1.4",
   "commonsLang": "commons-lang:commons-lang:2.6",
+  "commonsLang3": "org.apache.commons:commons-lang3:3.4",
   "commonsConfiguration": "commons-configuration:commons-configuration:1.10",
   "commonsIo": "commons-io:commons-io:2.4",
   "commonsMath": "org.apache.commons:commons-math3:3.5",

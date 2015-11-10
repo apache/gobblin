@@ -21,7 +21,7 @@ dependencies {
     compile externalDependency.jodaTime
     compile externalDependency.jacksonCore
     compile externalDependency.jacksonMapper
-    compile externalDependency.commonsLang
+    compile externalDependency.commonsLang3
     compile externalDependency.commonsIo
     compile externalDependency.httpclient
     compile externalDependency.httpcore

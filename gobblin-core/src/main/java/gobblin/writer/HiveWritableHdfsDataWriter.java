@@ -40,9 +40,8 @@ public class HiveWritableHdfsDataWriter extends FsDataWriter<Writable> {
   protected final RecordWriter writer;
   protected final AtomicLong count = new AtomicLong(0);
 
-  public HiveWritableHdfsDataWriter(State properties, String fileName, int numBranches, int branchId)
-      throws IOException {
-    super(properties, fileName, numBranches, branchId);
+  public HiveWritableHdfsDataWriter(HiveWritableHdfsDataWriterBuilder<?> builder, State properties) throws IOException {
+    super(builder, properties);
 
     Preconditions.checkArgument(this.properties.contains(HiveWritableHdfsDataWriterBuilder.WRITER_OUTPUT_FORMAT_CLASS));
     this.writer = getWriter();

@@ -12,6 +12,8 @@ package gobblin.util;
 
 import com.google.common.collect.Lists;
 
+import gobblin.configuration.ConfigurationKeys;
+
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
@@ -25,7 +27,7 @@ public class TimeRangeCheckerTest {
   @Test
   public void testTimeRangeChecker() {
     // January 1st, 2015 (a Thursday)
-    DateTime dateTime = new DateTime(2015, 1, 1, 0, 0, 0, DateTimeZone.forID("America/Los_Angeles"));
+    DateTime dateTime = new DateTime(2015, 1, 1, 0, 0, 0, DateTimeZone.forID(ConfigurationKeys.PST_TIMEZONE_NAME));
 
     // Positive Tests
 

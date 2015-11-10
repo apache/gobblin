@@ -13,7 +13,7 @@
 package gobblin.example.wikipedia;
 
 import gobblin.configuration.State;
-import gobblin.writer.WriterPartitioner;
+import gobblin.writer.partitioner.WriterPartitioner;
 
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
@@ -28,18 +28,19 @@ public class WikipediaPartitioner implements WriterPartitioner<GenericRecord> {
 
   private static final String TITLE = "title";
 
-  private static final Schema SCHEMA = SchemaBuilder.record("ArticleTitle").namespace("gobblin.example.wikipedia").
-      fields().name(TITLE).
-      type(Schema.create(Schema.Type.STRING)).noDefault().endRecord();
+  private static final Schema SCHEMA = SchemaBuilder.record("ArticleTitle").namespace("gobblin.example.wikipedia")
+      .fields().name(TITLE).type(Schema.create(Schema.Type.STRING)).noDefault().endRecord();
 
-  public WikipediaPartitioner(State state) {
+  public WikipediaPartitioner(State state, int numBranches, int branchId) {
   }
 
-  @Override public Schema partitionSchema() {
+  @Override
+  public Schema partitionSchema() {
     return SCHEMA;
   }
 
-  @Override public GenericRecord partitionForRecord(GenericRecord record) {
+  @Override
+  public GenericRecord partitionForRecord(GenericRecord record) {
     GenericRecord partition = new GenericData.Record(SCHEMA);
     partition.put(TITLE, record.get("title"));
     return partition;

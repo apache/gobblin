@@ -154,7 +154,7 @@ public class AzkabanJobLauncher extends AbstractJob {
           + ConfigurationKeys.AZKABAN_EXECUTION_DAYS_LIST + " should be a comma separated list of two entries");
 
       return TimeRangeChecker.isTimeInRange(executionDays, executionTimeRange.get(0), executionTimeRange.get(1),
-          new DateTime(DateTimeZone.forID("America/Los_Angeles")));
+          new DateTime(DateTimeZone.forID(ConfigurationKeys.PST_TIMEZONE_NAME)));
     }
     return true;
   }

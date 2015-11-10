@@ -130,7 +130,7 @@ public class MRCompactor implements Compactor {
   public static final String DEFAULT_COMPACTION_JOB_RUNNER_CLASS =
       "gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner";
   public static final String COMPACTION_TIMEZONE = COMPACTION_PREFIX + "timezone";
-  public static final String DEFAULT_COMPACTION_TIMEZONE = "America/Los_Angeles";
+  public static final String DEFAULT_COMPACTION_TIMEZONE = ConfigurationKeys.PST_TIMEZONE_NAME;
   public static final String COMPACTION_FILE_SYSTEM_URI = COMPACTION_PREFIX + "file.system.uri";
   public static final String COMPACTION_MR_JOB_TIMEOUT_MINUTES = COMPACTION_PREFIX + "mr.job.timeout.minutes";
   public static final long DEFAULT_COMPACTION_MR_JOB_TIMEOUT_MINUTES = Long.MAX_VALUE;

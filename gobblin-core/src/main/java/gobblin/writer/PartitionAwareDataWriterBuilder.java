@@ -17,6 +17,8 @@ import org.apache.avro.generic.GenericRecord;
 
 import com.google.common.base.Optional;
 
+import gobblin.writer.partitioner.WriterPartitioner;
+
 
 /**
  * A {@link DataWriterBuilder} used with a {@link WriterPartitioner}. When provided with a partitioner, Gobblin will create a
