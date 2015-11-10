@@ -13,11 +13,9 @@
 package gobblin.yarn;
 
 import java.io.IOException;
-import java.util.concurrent.CancellationException;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import javax.annotation.Nullable;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -28,8 +26,8 @@ import org.apache.helix.task.TaskResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
@@ -37,27 +35,28 @@ import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
 import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.JobState;
-import gobblin.runtime.TaskContext;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskState;
 import gobblin.runtime.TaskStateTracker;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.JobLauncherUtils;
 import gobblin.util.SerializationUtils;
 
 
 /**
- * An implementation of Helix's {@link org.apache.helix.task.Task} that wraps and runs a Gobblin
- * {@link gobblin.runtime.Task}.
+ * An implementation of Helix's {@link org.apache.helix.task.Task} that wraps and runs one or more Gobblin
+ * {@link gobblin.runtime.Task}s.
  *
  * <p>
  *   Upon startup, a {@link GobblinHelixTask} reads the property
  *   {@link GobblinYarnConfigurationKeys#WORK_UNIT_FILE_PATH} for the path of the file storing a serialized
- *   {@link WorkUnit} on the {@link FileSystem} of choice and de-serializes the {@link WorkUnit}. It then
- *   creates a Gobblin {@link gobblin.runtime.Task} to run the {@link WorkUnit} and waits for the Gobblin
- *   {@link gobblin.runtime.Task} to finish. Upon completion of the Gobblin {@link gobblin.runtime.Task},
- *   it persists the {@link TaskState} to a file that will be collected by the {@link GobblinHelixJobLauncher}
- *   later upon completion of the job.
+ *   {@link WorkUnit} on the {@link FileSystem} of choice and de-serializes the {@link WorkUnit}. Depending on
+ *   if the serialized {@link WorkUnit} is a {@link MultiWorkUnit}, it then creates one or more Gobblin
+ *   {@link gobblin.runtime.Task}s to run the {@link WorkUnit}(s) (possibly wrapped in the {@link MultiWorkUnit})
+ *   and waits for the Gobblin {@link gobblin.runtime.Task}(s) to finish. Upon completion of the Gobblin
+ *   {@link gobblin.runtime.Task}(s), it persists the {@link TaskState} of each {@link gobblin.runtime.Task} to
+ *   a file that will be collected by the {@link GobblinHelixJobLauncher} later upon completion of the job.
  * </p>
  *
  * @author ynli
@@ -72,12 +71,9 @@ public class GobblinHelixTask implements Task {
   private final TaskConfig taskConfig;
   private final JobState jobState = new JobState();
   private final String jobId;
-  private final String taskId;
 
   private final FileSystem fs;
   private final StateStore<TaskState> taskStateStore;
-
-  private volatile Optional<Future<?>> futureOptional = Optional.absent();
 
   public GobblinHelixTask(TaskCallbackContext taskCallbackContext, TaskExecutor taskExecutor,
       TaskStateTracker taskStateTracker, FileSystem fs, Path appWorkDir) throws IOException {
@@ -86,7 +82,6 @@ public class GobblinHelixTask implements Task {
 
     this.taskConfig = taskCallbackContext.getTaskConfig();
     this.jobId = this.taskConfig.getConfigMap().get(ConfigurationKeys.JOB_ID_KEY);
-    this.taskId = this.taskConfig.getConfigMap().get(ConfigurationKeys.TASK_ID_KEY);
 
     this.fs = fs;
     Path taskStateOutputDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME);
@@ -98,82 +93,97 @@ public class GobblinHelixTask implements Task {
 
   @Override
   public TaskResult run() {
-    LOGGER.info(String.format("Running task %s of job %s", taskId, jobId));
-
     try {
-      // Create a new task from the work unit and submit the task to run
-      gobblin.runtime.Task task = buildTask();
-      this.taskStateTracker.registerNewTask(task);
-      LOGGER.info(String.format("Submitting Task %s to run", this.taskId));
-      this.futureOptional = Optional.<Future<?>>of(this.taskExecutor.submit(task));
-      this.futureOptional.get().get();
+      Path workUnitFilePath =
+          new Path(this.taskConfig.getConfigMap().get(GobblinYarnConfigurationKeys.WORK_UNIT_FILE_PATH));
 
-      // Persist the task state so it is later collected by the job launcher
-      persistTaskState(task.getTaskState());
+      WorkUnit workUnit = workUnitFilePath.getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION) ?
+          MultiWorkUnit.createEmpty() : WorkUnit.createEmpty();
+      SerializationUtils.deserializeState(this.fs, workUnitFilePath, workUnit);
 
-      WorkUnitState.WorkingState workingState = task.getTaskState().getWorkingState();
-      LOGGER.info(String.format("Task %s completed with state %s", this.taskId, workingState));
+      // The list of individual WorkUnits (flattened) to run
+      List<WorkUnit> workUnits = Lists.newArrayList();
 
-      switch (workingState) {
-        case SUCCESSFUL:
-          return new TaskResult(TaskResult.Status.COMPLETED, "task id: " + this.taskId);
-        case FAILED:
-          return new TaskResult(TaskResult.Status.ERROR, "task id: " + this.taskId);
-        case CANCELLED:
-          return new TaskResult(TaskResult.Status.CANCELED, "task id: " + this.taskId);
-        default:
-          throw new IllegalStateException("Unexpected result task state: " + workingState);
+      if (workUnit instanceof MultiWorkUnit) {
+        // Flatten the MultiWorkUnit so the job configuration properties can be added to each individual WorkUnits
+        List<WorkUnit> flattenedWorkUnits =
+            JobLauncherUtils.flattenWorkUnits(((MultiWorkUnit) workUnit).getWorkUnits());
+        for (WorkUnit flattenedWorkUnit : flattenedWorkUnits) {
+          flattenedWorkUnit.addAllIfNotExist(this.jobState);
+        }
+        workUnits.addAll(flattenedWorkUnits);
+      } else {
+        workUnit.addAllIfNotExist(this.jobState);
+        workUnits.add(workUnit);
       }
+
+      runWorkUnits(workUnits);
+
+      return new TaskResult(TaskResult.Status.COMPLETED, String.format("completed tasks: %d", workUnits.size()));
     } catch (IOException ioe) {
-      LOGGER.error("Failed to build task " + this.taskId, ioe);
-      return new TaskResult(TaskResult.Status.ERROR, "task id: " + this.taskId);
-    } catch (ExecutionException ee) {
-      LOGGER.error("Failed to run task " + this.taskId, ee);
-      return new TaskResult(TaskResult.Status.ERROR, "task id: " + this.taskId);
+      return new TaskResult(TaskResult.Status.ERROR, Throwables.getStackTraceAsString(ioe));
     } catch (InterruptedException ie) {
-      cancel();
       Thread.currentThread().interrupt();
-      return new TaskResult(TaskResult.Status.CANCELED, "task id: " + this.taskId);
-    } catch (CancellationException ce) {
-      return new TaskResult(TaskResult.Status.CANCELED, "task id: " + this.taskId);
+      return new TaskResult(TaskResult.Status.CANCELED, "");
     } catch (Throwable t) {
-      LOGGER.error("Failed to run task " + this.taskId, t);
-      return new TaskResult(TaskResult.Status.ERROR, "task id: " + this.taskId);
+      return new TaskResult(TaskResult.Status.ERROR, Throwables.getStackTraceAsString(t));
     }
   }
 
   @Override
   public void cancel() {
-    LOGGER.info(String.format("Cancelling task %s of job %s", this.taskId, this.jobId));
-    this.futureOptional.transform(new Function<Future<?>, Object>() {
-      @Nullable
-      @Override
-      public Object apply(Future<?> input) {
-        return input.cancel(true);
+    // TODO: implementation cancellation.
+  }
+
+  private void runWorkUnits(List<WorkUnit> workUnits) throws IOException, InterruptedException {
+    if (workUnits.isEmpty()) {
+      LOGGER.warn("No work units to run");
+      return;
+    }
+
+    for (WorkUnit workUnit : workUnits) {
+      String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
+      // Delete the task state file for the task if it already exists.
+      // This usually happens if the task is retried upon failure.
+      if (this.taskStateStore.exists(this.jobId, taskId + AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX)) {
+        this.taskStateStore.delete(this.jobId, taskId + AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX);
       }
-    });
-  }
+    }
 
-  private gobblin.runtime.Task buildTask() throws IOException {
-    Path workUnitFilePath =
-        new Path(this.taskConfig.getConfigMap().get(GobblinYarnConfigurationKeys.WORK_UNIT_FILE_PATH));
+    CountDownLatch countDownLatch = new CountDownLatch(workUnits.size());
+    List<gobblin.runtime.Task> tasks = AbstractJobLauncher.submitWorkUnits(this.jobId, workUnits,
+        this.taskStateTracker, this.taskExecutor, countDownLatch);
 
-    WorkUnit workUnit = workUnitFilePath.getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION) ?
-            MultiWorkUnit.createEmpty() : WorkUnit.createEmpty();
-    SerializationUtils.deserializeState(this.fs, workUnitFilePath, workUnit);
-    workUnit.addAllIfNotExist(this.jobState);
+    LOGGER.info(String.format("Waiting for submitted tasks of job %s to complete...", this.jobId));
+    while (countDownLatch.getCount() > 0) {
+      LOGGER.info(String.format("%d out of %d tasks of job %s are running", countDownLatch.getCount(),
+          workUnits.size(), this.jobId));
+      if (countDownLatch.await(10, TimeUnit.SECONDS)) {
+        break;
+      }
+    }
+    LOGGER.info(String.format("All assigned tasks of job %s have completed", this.jobId));
 
-    WorkUnitState workUnitState = new WorkUnitState(workUnit);
-    workUnitState.setId(this.taskId);
-    workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, this.jobId);
-    workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, this.taskId);
+    boolean hasTaskFailure = false;
+    for (gobblin.runtime.Task task : tasks) {
+      LOGGER.info("Writing task state for task " + task.getTaskId());
+      this.taskStateStore.put(task.getJobId(), task.getTaskId() + AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX,
+          task.getTaskState());
 
-    // Create a new task from the work unit and submit the task to run
-    return new gobblin.runtime.Task(new TaskContext(workUnitState), this.taskStateTracker,
-        this.taskExecutor, Optional.<CountDownLatch>absent());
-  }
+      if (task.getTaskState().getWorkingState() == WorkUnitState.WorkingState.FAILED) {
+        hasTaskFailure = true;
+      }
+    }
 
-  private void persistTaskState(TaskState taskState) throws IOException {
-    this.taskStateStore.put(this.jobId, this.taskId + AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX, taskState);
+    if (hasTaskFailure) {
+      for (gobblin.runtime.Task task : tasks) {
+        if (task.getTaskState().contains(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)) {
+          LOGGER.error(String.format("Task %s failed due to exception: %s", task.getTaskId(),
+              task.getTaskState().getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)));
+        }
+      }
+
+      throw new IOException("Not all tasks completed successfully");
+    }
   }
 }

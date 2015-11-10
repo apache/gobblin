@@ -48,6 +48,7 @@ import gobblin.runtime.JobState;
 import gobblin.runtime.TaskState;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.JobLauncherUtils;
 import gobblin.util.ParallelRunner;
 import gobblin.util.SerializationUtils;
 
@@ -169,7 +170,11 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     try {
       ParallelRunner stateSerDeRunner = closer.register(new ParallelRunner(this.stateSerDeRunnerThreads, this.fs));
 
+      int multiTaskIdSequence = 0;
       for (WorkUnit workUnit : workUnits) {
+        if (workUnit instanceof MultiWorkUnit) {
+          workUnit.setId(JobLauncherUtils.newMultiTaskId(this.jobContext.getJobId(), multiTaskIdSequence++));
+        }
         addWorkUnit(workUnit, stateSerDeRunner, taskConfigMap);
       }
 
