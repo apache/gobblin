@@ -22,7 +22,6 @@ import gobblin.util.FileListUtils;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.WriterUtils;
-import gobblin.util.io.StreamUtils;
 import gobblin.writer.DataWriter;
 
 import java.io.IOException;
@@ -186,7 +185,9 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
    */
   @Override
   public void commit() throws IOException {
-    HadoopUtils.safeRenameRecursively(fs, stagingDir, outputDir);
+    log.info(String.format("Committing data from %s to %s", stagingDir, outputDir));
+    HadoopUtils.renameRecursively(fs, stagingDir, outputDir);
+    fs.delete(stagingDir, true);
   }
 
   @Override

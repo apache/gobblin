@@ -14,7 +14,7 @@ source.class=gobblin.data.management.copy.CopySource
 
 writer.builder.class=gobblin.data.management.copy.writer.TarArchiveInputStreamDataWriterBuilder
 
-gobblin.retention.dataset.pattern=gobblin-test-harness/resource/dataManagement/copy/data/
+gobblin.dataset.pattern=gobblin-test-harness/resource/dataManagement/copy/data/
 
 converter.classes=gobblin.data.management.copy.converter.UnGzipConverter
 

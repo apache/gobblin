@@ -19,6 +19,7 @@ import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.SerializableCopyableDataset;
+import gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder;
 import gobblin.data.management.util.PathUtils;
 import gobblin.publisher.DataPublisher;
 import gobblin.util.HadoopUtils;
@@ -61,6 +62,9 @@ public class CopyDataPublisher extends DataPublisher {
     String uri = this.state.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigurationKeys.LOCAL_FS_URI);
 
     this.fs = FileSystem.get(URI.create(uri), conf);
+
+    FileAwareInputStreamDataWriterBuilder.setJobSpecificOutputPaths(state);
+
     this.writerOutputDir = new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR));
   }
 
@@ -76,6 +80,8 @@ public class CopyDataPublisher extends DataPublisher {
     for (CopyableDataset copyableDataset : datasets.keySet()) {
       this.publishDataset(copyableDataset, datasets.get(copyableDataset));
     }
+
+    fs.delete(writerOutputDir, true);
 
   }
 
@@ -112,6 +118,8 @@ public class CopyDataPublisher extends DataPublisher {
 
     HadoopUtils.renameRecursively(fs, datasetWriterOutputPath, copyableDataset.datasetTargetRoot());
 
+    fs.delete(datasetWriterOutputPath, true);
+
     for (WorkUnitState wus : datasetWorkUnitStates) {
       wus.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
     }
@@ -127,10 +135,5 @@ public class CopyDataPublisher extends DataPublisher {
 
   @Override
   public void initialize() throws IOException {
-  }
-
-  public static void main(String[] args) throws Exception {
-    FileSystem fs = FileSystem.getLocal(new Configuration());
-    fs.rename(new Path("/tmp/Lynda/perm.txt"), new Path("/tmp/Lynda/Lynda2/perm2.txt"));
   }
 }
