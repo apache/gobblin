@@ -32,7 +32,7 @@ public class TestHdfsConfigStore {
   
   @Test public void testValid() throws Exception {
     VersionComparator<String> vc = new SimpleVersionComparator();
-    HdfsConfigStore store = new HdfsConfigStore("ETL_Local", "file:///Users/mitu/HdfsBasedConfigTest", vc);
+    HdfsConfigStoreWithOwnInclude store = new HdfsConfigStoreWithOwnInclude("ETL_Local", "file:///Users/mitu/HdfsBasedConfigTest", vc);
     Assert.assertEquals(store.getCurrentVersion(), "v3.0");
    
     String dataset = "datasets/a1/a2/a3";
