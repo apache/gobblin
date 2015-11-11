@@ -19,23 +19,17 @@ public class CircularDependencyChecker {
   }
 
   private static void checkAncestorCircularDependency(ConfigStore cs, URI initialURI, URI uri, List<URI> previous){
-//    System.out.println("uri is " + uri);
-//    for(URI p: previous){
-//      System.out.println("p is " + p);
-//      if(uri.equals(p)){
-//        throw new CircularDependencyException(getChain(initialURI, previous, uri));
-//      }
-//    }
-    
     URI parent = cs.getParent(uri);
+    if(parent==null) return;
+    
+    List<URI> current = new ArrayList<URI>();
+    current.addAll(previous);
+    current.add(uri);
     
     // TBD, should check parent
-    checkImportCircularDependency(cs, parent, parent, new ArrayList<URI>(previous));
+    checkImportCircularDependency(cs, parent, parent, current);
     
     if(parent!=null){
-      List<URI> current = new ArrayList<URI>();
-      current.addAll(previous);
-      current.add(uri);
       checkAncestorCircularDependency(cs, initialURI, parent, current);
     }
   }
@@ -47,7 +41,7 @@ public class CircularDependencyChecker {
       }
     }
     
-    Collection<URI> imported = cs.getImports(uri);
+    Collection<URI> imported = cs.getOwnImports(uri);
     Iterator<URI> it = imported.iterator();
     while(it.hasNext()){
       URI singleImport = it.next();

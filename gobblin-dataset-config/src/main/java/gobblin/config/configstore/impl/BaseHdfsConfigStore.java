@@ -1,7 +1,10 @@
 package gobblin.config.configstore.impl;
 
+import gobblin.config.configstore.ConfigStore;
+import gobblin.config.configstore.VersionComparator;
+import gobblin.config.utils.PathUtils;
+
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -10,21 +13,16 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Logger;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import com.google.common.io.Closer;
-
-import gobblin.config.configstore.ConfigStore;
-import gobblin.config.configstore.VersionComparator;
-import gobblin.config.utils.PathUtils;
-
-
+/**
+ * The BaseHdfsConfigStore implements basic functions from ConfigStore which is related to HDFS
+ * @author mitu
+ *
+ */
 public abstract class BaseHdfsConfigStore implements ConfigStore {
 
   /**

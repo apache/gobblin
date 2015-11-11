@@ -5,7 +5,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -13,6 +15,11 @@ import com.typesafe.config.ConfigFactory;
 import gobblin.config.configstore.ConfigStoreWithResolution;
 import gobblin.config.configstore.VersionComparator;
 
+/**
+ * ETLHdfsConfigStore is used for ETL configuration dataset management
+ * @author mitu
+ *
+ */
 public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements ConfigStoreWithResolution{
 
   public final static String DATASET_PREFIX = "datasets";
@@ -34,6 +41,8 @@ public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements
 
   @Override
   public Config getResolvedConfig(URI uri) {
+    CircularDependencyChecker.checkCircularDependency(this, uri);
+    
     Config self = this.getOwnConfig(uri);
     
     // root can not include anything, otherwise will have circular dependency 
@@ -41,7 +50,7 @@ public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements
       return self;
     }
     
-    Collection<URI> imported = this.getImports(uri);
+    Collection<URI> imported = this.getOwnImports(uri);
     Iterator<URI> it = imported.iterator();
     List<Config> importedConfigs = new ArrayList<Config>();
     while(it.hasNext()){
@@ -71,6 +80,33 @@ public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements
   }
   
   @Override
+  public Collection<URI> getResolvedImports(URI uri){
+    CircularDependencyChecker.checkCircularDependency(this, uri);
+   
+    Collection<URI> result = getOwnImports(uri);
+    // root can not include anything, otherwise will have circular dependency 
+    if(isRootURI(uri)){
+      return result;
+    }
+    
+    Collection<URI> imported = this.getOwnImports(uri);
+    Iterator<URI> it = imported.iterator();
+
+    while(it.hasNext()){
+      result.addAll(this.getResolvedImports(it.next()));
+    }
+    
+    result.addAll(this.getResolvedImports(getParent(uri)));
+    
+    return dedup(result);
+  }
+  
+  protected Collection<URI> dedup(Collection<URI> input){
+    Set<URI> set = new LinkedHashSet<URI>(input);
+    return set;
+  }
+  
+  @Override
   public URI getParent(URI uri){
     if(isValidURI(uri)){
       return super.getParent(uri);
@@ -87,12 +123,12 @@ public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements
   }
   
   @Override
-  public Collection<URI> getImports(URI uri){
+  public Collection<URI> getOwnImports(URI uri){
     if(!isValidURI(uri)){
       return Collections.emptyList();
     }
     
-    Collection<URI> superRes = super.getImports(uri);
+    Collection<URI> superRes = super.getOwnImports(uri);
     for(URI i: superRes){
       // can not import datasets
       if(isValidDataset(i)){

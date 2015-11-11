@@ -36,7 +36,7 @@ public interface ConfigStore extends Serializable{
   
   public Collection<URI> getChildren(URI uri);
   
-  public Collection<URI> getImports(URI uri);
+  public Collection<URI> getOwnImports(URI uri);
   
   public Config getOwnConfig(URI uri);
   

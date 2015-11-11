@@ -20,7 +20,12 @@ import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-
+/**
+ * HdfsConfigStoreWithOwnInclude extends BaseHdfsConfigStore and use it's own way
+ * to implements how configuration node includes other configuration nodes
+ * @author mitu
+ *
+ */
 public class HdfsConfigStoreWithOwnInclude extends BaseHdfsConfigStore {
 
   /**
@@ -41,7 +46,7 @@ public class HdfsConfigStoreWithOwnInclude extends BaseHdfsConfigStore {
 
   
   @Override
-  public Collection<URI> getImports(URI uri) {
+  public Collection<URI> getOwnImports(URI uri) {
     List<URI> result = new ArrayList<URI>();
 
     try {
