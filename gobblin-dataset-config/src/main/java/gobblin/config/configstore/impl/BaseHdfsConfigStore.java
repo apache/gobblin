@@ -123,7 +123,9 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
   public Collection<URI> getChildren(URI uri) {
     if (uri == null)
       return null;
-    Path self = new Path(this.currentVersionRoot, uri.toString());
+    
+    Path self = getPath(uri) ;
+    
     try {
       if (this.fs.isFile(self)) {
         return Collections.emptyList();
@@ -164,5 +166,22 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
       return "";
     }
     return input.substring(root.length()+1);
+  }
+  
+  public static final boolean isRootURI(URI uri) {
+    if (uri == null)
+      return false;
+
+    return uri.toString().length()==0;
+  }
+  
+  public final Path getPath(URI uri){
+    Path self ;
+    if(isRootURI(uri)){
+      self = this.currentVersionRoot;
+    }else{
+      self = new Path(this.currentVersionRoot, uri.toString());
+    }
+    return self;
   }
 }

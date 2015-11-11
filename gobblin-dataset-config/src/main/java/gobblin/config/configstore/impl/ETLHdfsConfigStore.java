@@ -1,8 +1,10 @@
 package gobblin.config.configstore.impl;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Collection;
+import java.util.List;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -27,8 +29,23 @@ public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements
 
   @Override
   public Config getResolvedConfig(URI uri) {
-    // TODO Auto-generated method stub
-    return null;
+    Config self = this.getOwnConfig(uri);
+    Config ancestor = this.getAncestorConfig(uri);
+    
+    return self.withFallback(ancestor);
+  }
+  
+  protected Config getAncestorConfig(URI uri){
+    URI parent = getParent(uri);
+    Config res = getOwnConfig(parent);
+    
+    parent = getParent(parent);
+    while(parent!=null){
+      res.withFallback(getOwnConfig(parent));
+      parent = getParent(parent);
+    }
+    
+    return res;
   }
   
   @Override
@@ -73,7 +90,7 @@ public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements
   }
   
   public static final boolean isValidURI(URI uri) {
-    return isValidTag(uri) || isValidDataset(uri);
+    return isRootURI(uri) || isValidTag(uri) || isValidDataset(uri);
   }
 
   public static final boolean isValidTag(URI uri) {

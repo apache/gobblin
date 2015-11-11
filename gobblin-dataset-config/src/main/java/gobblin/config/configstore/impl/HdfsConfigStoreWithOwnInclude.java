@@ -45,7 +45,7 @@ public class HdfsConfigStoreWithOwnInclude extends BaseHdfsConfigStore {
     List<URI> result = new ArrayList<URI>();
 
     try {
-      Path self = new Path(this.currentVersionRoot, uri.toString());
+      Path self = getPath(uri);
       Path includeFile = new Path(self, INCLUDE_FILE_NAME);
       List<String> imports = this.getImports(includeFile);
       for(String s: imports){
@@ -107,7 +107,7 @@ public class HdfsConfigStoreWithOwnInclude extends BaseHdfsConfigStore {
       return ConfigFactory.empty();
 
     Closer closer = Closer.create();
-    Path self = new Path(this.currentVersionRoot, uri.toString());
+    Path self = getPath(uri);
     Path configFile = new Path(self, CONFIG_FILE_NAME);
     try {
       if (!this.fs.isFile(configFile)) {

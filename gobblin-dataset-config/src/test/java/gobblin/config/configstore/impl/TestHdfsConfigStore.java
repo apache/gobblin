@@ -32,7 +32,7 @@ public class TestHdfsConfigStore {
   
   @Test public void testValid() throws Exception {
     VersionComparator<String> vc = new SimpleVersionComparator();
-    HdfsConfigStoreWithOwnInclude store = new HdfsConfigStoreWithOwnInclude("ETL_Local", "file:///Users/mitu/HdfsBasedConfigTest", vc);
+    ETLHdfsConfigStore store = new ETLHdfsConfigStore("ETL_Local", "file:///Users/mitu/HdfsBasedConfigTest", vc);
     Assert.assertEquals(store.getCurrentVersion(), "v3.0");
    
     String dataset = "datasets/a1/a2/a3";
@@ -73,5 +73,13 @@ public class TestHdfsConfigStore {
     Assert.assertEquals(imported.size(), 1);
     Assert.assertEquals(imported.iterator().next().toString(), "tags/t1/t2/t3");
 
+    Collection<URI> rootChildren = store.getChildren(new URI(""));
+    Assert.assertEquals(rootChildren.size(), 2);
+    it = rootChildren.iterator();
+    Assert.assertEquals(it.next().toString(), "datasets");
+    Assert.assertEquals(it.next().toString(), "tags");
+
+    c = store.getResolvedConfig(new URI(dataset));
+    printConfig(c , "resolved");
   }
 }
