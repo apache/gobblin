@@ -13,7 +13,9 @@
 package gobblin.compaction;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.hadoop.fs.Path;
 
@@ -104,11 +106,11 @@ public class Dataset implements Comparable<Dataset> {
   private final Path outputLatePath;
   private final Path outputTmpPath;
   private final List<Path> additionalInputPaths;
-  private final List<Throwable> throwables;
+  private final Collection<Throwable> throwables;
 
   private State jobProps;
   private double priority;
-  private DatasetState state;
+  private AtomicReference<DatasetState> state;
 
   private Dataset(Builder builder) {
     this.topic = builder.topic;
@@ -118,10 +120,10 @@ public class Dataset implements Comparable<Dataset> {
     this.outputLatePath = builder.outputLatePath;
     this.outputTmpPath = builder.outputTmpPath;
     this.additionalInputPaths = Lists.newArrayList();
-    this.throwables = Lists.newArrayList();
+    this.throwables = Collections.synchronizedCollection(Lists.<Throwable> newArrayList());
 
     this.priority = builder.priority;
-    this.state = DatasetState.UNVERIFIED;
+    this.state = new AtomicReference<>(DatasetState.UNVERIFIED);
   }
 
   /**
@@ -200,7 +202,7 @@ public class Dataset implements Comparable<Dataset> {
   }
 
   public DatasetState state() {
-    return this.state;
+    return this.state.get();
   }
 
   /**
@@ -222,7 +224,15 @@ public class Dataset implements Comparable<Dataset> {
   }
 
   public void setState(DatasetState state) {
-    this.state = state;
+    this.state.set(state);
+  }
+
+  /**
+   * Sets the {@link DatasetState} of the {@link Dataset} to the given updated value if the
+   * current value == the expected value.
+   */
+  public void compareAndSetState(DatasetState expect, DatasetState update) {
+    this.state.compareAndSet(expect, update);
   }
 
   public State jobProps() {
@@ -233,11 +243,23 @@ public class Dataset implements Comparable<Dataset> {
     this.jobProps = jobProps;
   }
 
-  public List<Throwable> throwables() {
+  public Collection<Throwable> throwables() {
     return this.throwables;
   }
 
-  public synchronized void addThrowable(Throwable t) {
+  /**
+   * Record a {@link Throwable} in a {@link Dataset}.
+   */
+  public void addThrowable(Throwable t) {
+    this.throwables.add(t);
+  }
+
+  /**
+   * Skip the {@link Dataset} by setting its {@link DatasetState} to {@link DatasetState#COMPACTION_COMPLETE},
+   * and record the given {@link Throwable} in the {@link Dataset}.
+   */
+  public void skip(Throwable t) {
+    this.setState(DatasetState.COMPACTION_COMPLETE);
     this.throwables.add(t);
   }
 

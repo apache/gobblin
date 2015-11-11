@@ -153,18 +153,21 @@ public class MRCompactorJobPropCreator {
       return ImmutableList.<Dataset> of();
     }
 
-    Dataset dataset = new Dataset.Builder().withTopic(this.topic).withPriority(this.priority)
-        .withInputPath(this.recompactFromOutputPaths ? this.topicOutputDir : this.topicInputDir)
-        .withInputLatePath(this.recompactFromOutputPaths ? this.topicOutputLateDir : this.topicInputLateDir)
-        .withOutputPath(this.topicOutputDir).withOutputLatePath(this.topicOutputLateDir)
-        .withOutputTmpPath(this.topicTmpOutputDir).build();
-
+    Dataset dataset = buildDataset();
     Optional<Dataset> datasetWithJobProps = createJobProps(dataset);
     if (datasetWithJobProps.isPresent()) {
       return ImmutableList.<Dataset> of(datasetWithJobProps.get());
     } else {
       return ImmutableList.<Dataset> of();
     }
+  }
+
+  private Dataset buildDataset() {
+    return new Dataset.Builder().withTopic(this.topic).withPriority(this.priority)
+        .withInputPath(this.recompactFromOutputPaths ? this.topicOutputDir : this.topicInputDir)
+        .withInputLatePath(this.recompactFromOutputPaths ? this.topicOutputLateDir : this.topicInputLateDir)
+        .withOutputPath(this.topicOutputDir).withOutputLatePath(this.topicOutputLateDir)
+        .withOutputTmpPath(this.topicTmpOutputDir).build();
   }
 
   /**
@@ -271,5 +274,17 @@ public class MRCompactorJobPropCreator {
     }
 
     return newFiles;
+  }
+
+  /**
+   * Create a {@link Dataset} with the given {@link Throwable}. This {@link Dataset} will be skipped by setting
+   * its state to {@link Dataset.DatasetState#COMPACTION_COMPLETE}, and the {@link Throwable} will be added to
+   * the {@link Dataset}.
+   */
+  public Dataset createFailedJobProps(Throwable t) {
+    Dataset dataset = buildDataset();
+    dataset.setJobProps(this.state);
+    dataset.skip(t);
+    return dataset;
   }
 }
