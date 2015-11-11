@@ -113,7 +113,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     TimingEvent workUnitsRunTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.WORK_UNITS_RUN);
 
     this.countDownLatch = new CountDownLatch(workUnitsToRun.size());
-    List<Task> tasks = AbstractJobLauncher.submitWorkUnits(this.jobContext.getJobId(), workUnitsToRun,
+    List<Task> tasks = AbstractJobLauncher.runWorkUnits(this.jobContext.getJobId(), workUnitsToRun,
         this.taskStateTracker, this.taskExecutor, this.countDownLatch);
 
     LOG.info(String.format("Waiting for submitted tasks of job %s to complete...", jobId));
