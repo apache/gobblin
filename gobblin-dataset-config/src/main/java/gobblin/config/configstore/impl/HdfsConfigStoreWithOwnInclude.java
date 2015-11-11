@@ -69,7 +69,6 @@ public class HdfsConfigStoreWithOwnInclude extends BaseHdfsConfigStore {
     List<String> allImports = Lists.newArrayList();
 
     if(!fs.exists(p) || !fs.isFile(p)) {
-      LOG.error("Include file " + p + " does not exist or is not a file.");
       return allImports;
     }
 

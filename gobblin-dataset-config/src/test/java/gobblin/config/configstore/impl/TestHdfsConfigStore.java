@@ -1,6 +1,7 @@
 package gobblin.config.configstore.impl;
 
-import java.io.File;
+import gobblin.config.configstore.VersionComparator;
+
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -8,14 +9,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValue;
-
-import gobblin.config.configstore.VersionComparator;
-
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValue;
 
 
 public class TestHdfsConfigStore {
@@ -81,5 +79,19 @@ public class TestHdfsConfigStore {
 
     c = store.getResolvedConfig(new URI(dataset));
     printConfig(c , "resolved");
+    
+    //////// 
+    ETLHdfsConfigStore circularStore = new ETLHdfsConfigStore("testSelfImportSelf", "file:///Users/mitu/CircularDependencyTest/selfImportSelf");
+    Assert.assertEquals(circularStore.getCurrentVersion(), "v1.0");
+    System.out.println("circular version "+ circularStore.getCurrentVersion());
+    
+    URI circularNode = new URI("tags/t_a_1");
+    CircularDependencyChecker.checkCircularDependency(circularStore, circularNode);
+    
+//    ETLHdfsConfigStore circularStore = new ETLHdfsConfigStore("ancestorImportChild", "file:///Users/mitu/CircularDependencyTest/ancestorImportChild");
+//    Assert.assertEquals(circularStore.getCurrentVersion(), "v1.0");
+//    
+//    URI circularNode = new URI("tags/t_a_1/t_a_2/t_a_3");
+//    CircularDependencyChecker.checkCircularDependency(circularStore, circularNode);
   }
 }

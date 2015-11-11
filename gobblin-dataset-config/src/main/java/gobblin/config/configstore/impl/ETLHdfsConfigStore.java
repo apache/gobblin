@@ -4,6 +4,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 
 import com.typesafe.config.Config;
@@ -18,10 +19,14 @@ public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements
   public final static String TAG_PREFIX = "tags";
   public final static String ID_DELEMETER = "/";
   
+  public ETLHdfsConfigStore(String scheme, String location) {
+    super(scheme, location);
+  }
+  
   public ETLHdfsConfigStore(String scheme, String location, VersionComparator<String> vc) {
     super(scheme, location, vc);
   }
-
+  
   /**
    * 
    */
@@ -30,18 +35,35 @@ public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements
   @Override
   public Config getResolvedConfig(URI uri) {
     Config self = this.getOwnConfig(uri);
-    Config ancestor = this.getAncestorConfig(uri);
     
+    // root can not include anything, otherwise will have circular dependency 
+    if(isRootURI(uri)){
+      return self;
+    }
+    
+    Collection<URI> imported = this.getImports(uri);
+    Iterator<URI> it = imported.iterator();
+    List<Config> importedConfigs = new ArrayList<Config>();
+    while(it.hasNext()){
+      importedConfigs.add(this.getResolvedConfig(it.next()));
+    }
+    
+    // apply the reverse order for imported
+    for(int i=importedConfigs.size()-1; i>=0; i--){
+      self = self.withFallback(importedConfigs.get(i));
+    }
+    
+    Config ancestor = this.getAncestorConfig(uri);
     return self.withFallback(ancestor);
   }
   
   protected Config getAncestorConfig(URI uri){
     URI parent = getParent(uri);
-    Config res = getOwnConfig(parent);
+    Config res = getResolvedConfig(parent);
     
     parent = getParent(parent);
     while(parent!=null){
-      res.withFallback(getOwnConfig(parent));
+      res.withFallback(getResolvedConfig(parent));
       parent = getParent(parent);
     }
     
