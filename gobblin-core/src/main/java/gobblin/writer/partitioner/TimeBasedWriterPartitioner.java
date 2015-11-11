@@ -185,7 +185,7 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
         SchemaBuilder.record("GenericRecordTimePartition").namespace("gobblin.writer.partitioner").fields();
 
     // Construct the fields in reverse order
-    if (!Strings.isNullOrEmpty(this.writerPartitionPrefix)) {
+    if (!Strings.isNullOrEmpty(this.writerPartitionSuffix)) {
       assembler = assembler.name(SUFFIX).type(Schema.create(Schema.Type.STRING)).noDefault();
     }
 
@@ -202,7 +202,7 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
         assembler = assembler.name(Granularity.YEAR.toString()).type(Schema.create(Schema.Type.STRING)).noDefault();
     }
 
-    if (!Strings.isNullOrEmpty(this.writerPartitionSuffix)) {
+    if (!Strings.isNullOrEmpty(this.writerPartitionPrefix)) {
       assembler = assembler.name(PREFIX).type(Schema.create(Schema.Type.STRING)).noDefault();
     }
 
