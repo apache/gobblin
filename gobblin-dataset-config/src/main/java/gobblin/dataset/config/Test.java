@@ -1,5 +1,4 @@
 package gobblin.dataset.config;
-import gobblin.config.configstore.impl.RawConfigIncluder;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,20 +33,14 @@ public class Test {
     //String fileName = "/Users/mitu/HdfsBasedConfigTest/v3.0/datasets/a1/a2/a3/main.conf";
     String fileName = "/Users/mitu/main.conf";
     
-    RawConfigIncluder raw = new RawConfigIncluder(null);
-    ConfigParseOptions co = ConfigParseOptions.defaults().setIncluder(raw);
-    Config c = ConfigFactory.parseFile(new File(fileName), co);
+
     
-    //Config c = ConfigFactory.parseFile(new File(fileName));
+    Config c = ConfigFactory.parseFile(new File(fileName));
     printConfig(c, "test ");
     
     System.out.println("----------------");
 
-    RawConfigIncluder foo = (RawConfigIncluder)co.getIncluder();
-    System.out.println("Equals ? " + (foo==raw));
-    for(String s: foo.getRawIncludes()){
-      System.out.println("Raw includes " + s);
-    }
+
     
   }
 

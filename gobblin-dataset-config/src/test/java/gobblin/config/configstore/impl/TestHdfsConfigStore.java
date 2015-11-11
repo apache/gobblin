@@ -61,12 +61,17 @@ public class TestHdfsConfigStore {
     Config c = store.getOwnConfig(new URI(dataset));
     printConfig(c, dataset);
     
-//    Assert.assertEquals(c.entrySet().size(), 5);
-//    Assert.assertEquals(c.getString("t1.t2.keyInT2"), "valueInT2");
-//    Assert.assertEquals(c.getInt("foobar.a"), 42);
-//    Assert.assertEquals(c.getString("propKey1"), "propKey2");
-//    Assert.assertEquals(c.getString("t1.t2.t3.keyInT3"),"valueInT3");
-//    Assert.assertEquals(c.getList("listExample").size(), 1);
-//    Assert.assertEquals(c.getList("listExample").get(0).render(), "\"element in a3\"" );
+    Assert.assertEquals(c.entrySet().size(), 5);
+    Assert.assertEquals(c.getString("t1.t2.keyInT2"), "valueInT2");
+    Assert.assertEquals(c.getInt("foobar.a"), 42);
+    Assert.assertEquals(c.getString("propKey1"), "propKey2");
+    Assert.assertEquals(c.getString("t1.t2.t3.keyInT3"),"valueInT3");
+    Assert.assertEquals(c.getList("listExample").size(), 1);
+    Assert.assertEquals(c.getList("listExample").get(0).render(), "\"element in a3\"" );
+    
+    Collection<URI> imported = store.getImports(new URI(dataset));
+    Assert.assertEquals(imported.size(), 1);
+    Assert.assertEquals(imported.iterator().next().toString(), "tags/t1/t2/t3");
+
   }
 }

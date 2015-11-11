@@ -1,5 +1,6 @@
 package gobblin.config.configstore.impl;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
@@ -18,6 +19,7 @@ import org.apache.log4j.Logger;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
 import gobblin.config.configstore.ConfigStore;
@@ -34,6 +36,7 @@ public class HdfsConfigStore implements ConfigStore {
 
   private static final Logger LOG = Logger.getLogger(HdfsConfigStore.class);
   public static final String CONFIG_FILE_NAME = "main.conf";
+  public static final String INCLUDE_FILE_NAME = "includes";
 
   private final String scheme;
   private final Path location;
@@ -157,8 +160,63 @@ public class HdfsConfigStore implements ConfigStore {
 
   @Override
   public Collection<URI> getImports(URI uri) {
-    // TODO Auto-generated method stub
-    return null;
+    List<URI> result = new ArrayList<URI>();
+
+    try {
+      Path self = new Path(this.currentVersionRoot, uri.toString());
+      Path includeFile = new Path(self, INCLUDE_FILE_NAME);
+      List<String> imports = this.getImports(includeFile);
+      for(String s: imports){
+        try {
+          result.add(new URI(s));
+        }
+        catch (URISyntaxException e) {
+          LOG.error("Could not parse  " + s + " as URI", e);
+        }
+      }
+      
+      return result;
+    }
+    catch(IOException ioe){
+      LOG.error("Could not find imports at path " + uri, ioe);
+      return result;
+    } 
+  }
+
+  private List<String> getImports(Path p) throws IOException{
+    List<String> allImports = Lists.newArrayList();
+
+    if(!fs.exists(p) || !fs.isFile(p)) {
+      LOG.error("Include file " + p + " does not exist or is not a file.");
+      return allImports;
+    }
+
+    Closer closer = Closer.create();
+
+    try {
+      FSDataInputStream fsDataInputStream = closer.register(fs.open(p));
+      InputStreamReader inputStreamReader = closer.register(new InputStreamReader(fsDataInputStream));
+      BufferedReader br = closer.register(new BufferedReader(inputStreamReader));
+      String line = br.readLine();
+      while (line != null) {
+        Path singleImport = new Path(this.currentVersionRoot, line);
+        if(this.fs.isDirectory(singleImport)){
+          allImports.add(line);
+        }
+        else {
+          LOG.error("Invalid imported for " + line);
+        }
+
+        line = br.readLine();
+      }
+    } catch(IOException exception) {
+      LOG.error("Could not find imports at path " + p, exception);
+      return Lists.newArrayList();
+    } finally {
+      closer.close();
+    }
+
+    return allImports;
   }
 
   @Override
