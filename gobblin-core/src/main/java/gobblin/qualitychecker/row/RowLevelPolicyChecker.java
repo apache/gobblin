@@ -18,6 +18,8 @@ import java.util.List;
 
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.io.Closer;
+
 import gobblin.configuration.State;
 import gobblin.util.FinalState;
 
@@ -26,32 +28,33 @@ public class RowLevelPolicyChecker implements Closeable, FinalState {
 
   private final List<RowLevelPolicy> list;
   private boolean errFileOpen;
+  private final Closer closer;
   private RowLevelErrFileWriter writer;
 
   public RowLevelPolicyChecker(List<RowLevelPolicy> list) {
     this.list = list;
     this.errFileOpen = false;
-    this.writer = new RowLevelErrFileWriter();
+    this.closer = Closer.create();
+    this.writer = this.closer.register(new RowLevelErrFileWriter());
   }
 
-  public boolean executePolicies(Object record, RowLevelPolicyCheckResults results)
-      throws IOException {
+  public boolean executePolicies(Object record, RowLevelPolicyCheckResults results) throws IOException {
     for (RowLevelPolicy p : this.list) {
       RowLevelPolicy.Result result = p.executePolicy(record);
       results.put(p, result);
 
-      if (p.getType().equals(RowLevelPolicy.Type.FAIL) && result.equals(RowLevelPolicy.Result.FAILED)) {
-        throw new RuntimeException("RowLevelPolicy " + p + " failed on record " + record);
-      }
-
-      if (p.getType().equals(RowLevelPolicy.Type.ERR_FILE)) {
-        if (!errFileOpen) {
-          this.writer.open(new Path(p.getErrFileLocation(), p.toString().replaceAll("\\.", "-") + ".err"));
-          this.writer.write(record);
-        } else {
-          this.writer.write(record);
+      if (result.equals(RowLevelPolicy.Result.FAILED)) {
+        if (p.getType().equals(RowLevelPolicy.Type.FAIL)) {
+          throw new RuntimeException("RowLevelPolicy " + p + " failed on record " + record);
+        } else if (p.getType().equals(RowLevelPolicy.Type.ERR_FILE)) {
+          if (!errFileOpen) {
+            this.writer.open(new Path(p.getErrFileLocation(), p.toString().replaceAll("\\.", "-") + ".err"));
+            this.writer.write(record);
+          } else {
+            this.writer.write(record);
+          }
+          errFileOpen = true;
         }
-        errFileOpen = true;
         return false;
       }
     }
@@ -59,10 +62,9 @@ public class RowLevelPolicyChecker implements Closeable, FinalState {
   }
 
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     if (errFileOpen) {
-      this.writer.close();
+      this.closer.close();
     }
   }
 
@@ -74,7 +76,7 @@ public class RowLevelPolicyChecker implements Closeable, FinalState {
    */
   public State getFinalState() {
     State state = new State();
-    for(RowLevelPolicy policy : this.list) {
+    for (RowLevelPolicy policy : this.list) {
       state.addAll(policy.getFinalState());
     }
     return state;
