@@ -20,6 +20,8 @@ import com.typesafe.config.Config;
 
 /**
  * A ConfigStore is the configuration store per scheme.
+ * 
+ * Each ConfigStore will have it's current version bundled 
  * @author mitu
  *
  */
