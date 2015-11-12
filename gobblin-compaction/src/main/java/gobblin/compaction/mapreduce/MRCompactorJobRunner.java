@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.math3.primes.Primes;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -87,13 +88,17 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   private static final String COMPACTION_JOB_OUTPUT_DIR_PERMISSION = COMPACTION_JOB_PREFIX + "output.dir.permission";
   private static final String COMPACTION_JOB_TARGET_OUTPUT_FILE_SIZE =
       COMPACTION_JOB_PREFIX + "target.output.file.size";
-  private static final long DEFAULT_COMPACTION_JOB_TARGET_OUTPUT_FILE_SIZE = 268435456;
+  private static final long DEFAULT_COMPACTION_JOB_TARGET_OUTPUT_FILE_SIZE = 536870912;
   private static final String COMPACTION_JOB_MAX_NUM_REDUCERS = COMPACTION_JOB_PREFIX + "max.num.reducers";
   private static final int DEFAULT_COMPACTION_JOB_MAX_NUM_REDUCERS = 900;
   private static final String COMPACTION_JOB_OVERWRITE_OUTPUT_DIR = COMPACTION_JOB_PREFIX + "overwrite.output.dir";
   private static final boolean DEFAULT_COMPACTION_JOB_OVERWRITE_OUTPUT_DIR = false;
   private static final String COMPACTION_JOB_ABORT_UPON_NEW_DATA = COMPACTION_JOB_PREFIX + "abort.upon.new.data";
   private static final boolean DEFAULT_COMPACTION_JOB_ABORT_UPON_NEW_DATA = false;
+
+  // If true, the MR job will use either 1 reducer or a prime number of reducers.
+  private static final String COMPACTION_JOB_USE_PRIME_REDUCERS = COMPACTION_JOB_PREFIX + "use.prime.reducers";
+  private static final boolean DEFAULT_COMPACTION_JOB_USE_PRIME_REDUCERS = true;
 
   private static final String HADOOP_JOB_NAME = "Gobblin MR Compaction";
   private static final long MR_JOB_CHECK_COMPLETE_INTERVAL_MS = 5000;
@@ -122,6 +127,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   protected final boolean shouldDeduplicate;
   protected final boolean outputDeduplicated;
   protected final boolean recompactFromDestPaths;
+  protected final boolean usePrimeReducers;
   protected final EventSubmitter eventSubmitter;
   private final RecordCountProvider inputRecordCountProvider;
   private final RecordCountProvider outputRecordCountProvider;
@@ -145,6 +151,9 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
 
     this.outputDeduplicated = this.dataset.jobProps().getPropAsBoolean(MRCompactor.COMPACTION_OUTPUT_DEDUPLICATED,
         MRCompactor.DEFAULT_COMPACTION_OUTPUT_DEDUPLICATED);
+
+    this.usePrimeReducers = this.dataset.jobProps().getPropAsBoolean(COMPACTION_JOB_USE_PRIME_REDUCERS,
+        DEFAULT_COMPACTION_JOB_USE_PRIME_REDUCERS);
 
     this.eventSubmitter = new EventSubmitter.Builder(
         GobblinMetrics.get(this.dataset.jobProps().getProp(ConfigurationKeys.JOB_NAME_KEY)).getMetricContext(),
@@ -352,7 +361,11 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   protected void setNumberOfReducers(Job job) throws IOException {
     long inputSize = getInputSize();
     long targetFileSize = getTargetFileSize();
-    job.setNumReduceTasks(Math.min(Ints.checkedCast(inputSize / targetFileSize) + 1, getMaxNumReducers()));
+    int numReducers = Math.min(Ints.checkedCast(inputSize / targetFileSize) + 1, getMaxNumReducers());
+    if (this.usePrimeReducers && numReducers != 1) {
+      numReducers = Primes.nextPrime(numReducers);
+    }
+    job.setNumReduceTasks(numReducers);
   }
 
   private long getInputSize() throws IOException {
