@@ -1,5 +1,7 @@
 package gobblin.config.configstore.impl;
 
+import gobblin.config.client.ConfigClient;
+import gobblin.config.configstore.ConfigStore;
 import gobblin.config.configstore.VersionComparator;
 
 import java.net.URI;
@@ -21,7 +23,7 @@ public class TestHdfsConfigStore {
   private boolean debug = true;
   private void printConfig(Config c, String urn) {
     if(!debug) return;
-    System.out.println("-----------------------------------");
+    System.out.println("--------------------------------");
     System.out.println("Config for " + urn);
     for (Map.Entry<String, ConfigValue> entry : c.entrySet()) {
       System.out.println("app key: " + entry.getKey() + " ,value:" + entry.getValue());
@@ -142,5 +144,13 @@ public class TestHdfsConfigStore {
 //
 //    URI circularNode = new URI("tags/t_a_1");
 //    CircularDependencyChecker.checkCircularDependency(circularStore, circularNode);
+    
+    ConfigStoreFactoryUsingProperty csf = new ConfigStoreFactoryUsingProperty("/Users/mitu/CircularDependencyTest/stores.conf");
+    Collection<String> schemes = csf.getConfigStoreSchemes();
+    ConfigStore cs1 = csf.getConfigStore(schemes.iterator().next());
+    ConfigClient client = new SimpleConfigClient();
+    c = client.getConfig(cs1, new URI(dataset));
+    printConfig(c , "from config client ");
+  
   }
 }
