@@ -18,6 +18,7 @@ dependencies {
   compile project(":gobblin-core")
   compile externalDependency.avro
   compile externalDependency.commonsLang
+  compile externalDependency.commonsMath
   compile externalDependency.hiveExec
 
   if (project.hasProperty('useHadoop2')) {
