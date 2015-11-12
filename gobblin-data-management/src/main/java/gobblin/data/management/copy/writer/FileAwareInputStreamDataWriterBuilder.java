@@ -19,14 +19,43 @@ import gobblin.writer.DataWriterBuilder;
 
 import java.io.IOException;
 
+import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.fs.Path;
+
+
 /**
  * A {@link DataWriterBuilder} for {@link FileAwareInputStreamDataWriter}
  */
 public class FileAwareInputStreamDataWriterBuilder extends DataWriterBuilder<String, FileAwareInputStream> {
   @Override
-  public DataWriter<FileAwareInputStream> build() throws IOException {
-    State properties = this.destination.getProperties();
-    properties.setProp(ConfigurationKeys.WRITER_FILE_PATH, this.writerId);
-    return new FileAwareInputStreamDataWriter(properties, this.branches, this.branch);
+  public final DataWriter<FileAwareInputStream> build() throws IOException {
+    setJobSpecificOutputPaths(this.destination.getProperties());
+    // Each writer/mapper gets its own task-staging directory
+    this.destination.getProperties().setProp(ConfigurationKeys.WRITER_FILE_PATH, this.writerId);
+    return buildWriter();
+  }
+
+  protected DataWriter<FileAwareInputStream> buildWriter() throws IOException {
+    return new FileAwareInputStreamDataWriter(this.destination.getProperties(), this.branches, this.branch);
+  }
+
+  /**
+   * Each job gets its own task-staging and task-output directory. Update the staging and output directories to
+   * contain job_id. This is to make sure uncleaned data from previous execution does not corrupt final published data
+   * produced by this execution.
+   */
+  public static void setJobSpecificOutputPaths(State state) {
+
+    // Other tasks may have set this already
+    if (!StringUtils.containsIgnoreCase(state.getProp(ConfigurationKeys.WRITER_STAGING_DIR),
+        state.getProp(ConfigurationKeys.JOB_ID_KEY))) {
+
+      state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(state.getProp(ConfigurationKeys.WRITER_STAGING_DIR),
+          state.getProp(ConfigurationKeys.JOB_ID_KEY)));
+      state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
+          state.getProp(ConfigurationKeys.JOB_ID_KEY)));
+
+    }
+
   }
 }

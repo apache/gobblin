@@ -32,6 +32,8 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
@@ -42,6 +44,7 @@ import com.google.common.collect.Lists;
  * {@link gobblin.source.Source} that generates work units from {@link gobblin.data.management.copy.CopyableDataset}s.
  *
  */
+@Slf4j
 public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
   public static final String DEFAULT_DATASET_PROFILE_CLASS_KEY = CopyableGlobDatasetFinder.class.getCanonicalName();
@@ -70,7 +73,6 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public List<WorkUnit> getWorkunits(SourceState state) {
 
     List<WorkUnit> workUnits = Lists.newArrayList();
-
     try {
 
       DatasetFinder<CopyableDataset> datasetFinder =
@@ -78,8 +80,6 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
               DEFAULT_DATASET_PROFILE_CLASS_KEY);
       List<CopyableDataset> copyableDatasets = datasetFinder.findDatasets();
       for (CopyableDataset copyableDataset : copyableDatasets) {
-
-        serializeCopyableDataset(state, copyableDataset);
 
         Collection<Partition<CopyableFile>> partitions =
             copyableDataset.partitionFiles(copyableDataset.getCopyableFiles());
@@ -90,6 +90,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
             WorkUnit workUnit = new WorkUnit(extract);
             workUnit.addAll(state);
             serializeCopyableFiles(workUnit, Lists.newArrayList(copyableFile));
+            serializeCopyableDataset(workUnit, copyableDataset);
             workUnits.add(workUnit);
           }
         }
@@ -97,6 +98,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+
+    log.info(String.format("Created %s workunits", workUnits.size()));
 
     return workUnits;
   }
@@ -119,7 +122,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public void shutdown(SourceState state) {
   }
 
-  private FileSystem getSourceFileSystem(State state) throws IOException {
+  protected FileSystem getSourceFileSystem(State state) throws IOException {
 
     Configuration conf = HadoopUtils.getConfFromState(state);
     String uri = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, ConfigurationKeys.LOCAL_FS_URI);

@@ -16,13 +16,9 @@ import gobblin.configuration.State;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.data.management.util.PathUtils;
-import gobblin.util.io.StreamUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.WritableByteChannel;
 import java.util.zip.GZIPInputStream;
 
 import lombok.extern.slf4j.Slf4j;

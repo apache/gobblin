@@ -18,14 +18,22 @@ import gobblin.password.PasswordManager;
 import gobblin.source.extractor.filebased.FileBasedHelperException;
 import gobblin.source.extractor.filebased.SizeAwareFileBasedHelper;
 
+import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.ImmutableList;
 import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.ChannelSftp.LsEntry;
@@ -118,8 +126,7 @@ public class SftpFsHelper implements SizeAwareFileBasedHelper {
   public void connect()
       throws FileBasedHelperException {
 
-    String privateKey =
-        PasswordManager.getInstance(state).readPassword(state.getProp(ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY));
+    String privateKey = PasswordManager.getInstance(state).readPassword(state.getProp(ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY));
     String knownHosts = state.getProp(ConfigurationKeys.SOURCE_CONN_KNOWN_HOSTS);
 
     String userName = state.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME);
@@ -136,11 +143,24 @@ public class SftpFsHelper implements SizeAwareFileBasedHelper {
         "Attempting to connect to source via SFTP with" + " privateKey: " + privateKey + " knownHosts: " + knownHosts
             + " userName: " + userName + " hostName: " + hostName + " port: " + port + " proxyHost: " + proxyHost
             + " proxyPort: " + proxyPort);
+
+
     try {
-      jsch.addIdentity(privateKey);
+
+      List<IdentityStrategy> identityStrategies =
+          ImmutableList.of(new LocalFileIdentityStrategy(), new DistributedCacheIdentityStrategy(),
+              new HDFSIdentityStrategy());
+
+      for (IdentityStrategy identityStrategy : identityStrategies) {
+        if (identityStrategy.setIdentity(privateKey, jsch)) {
+          break;
+        }
+      }
+
       jsch.setKnownHosts(knownHosts);
 
       session = jsch.getSession(userName, hostName, port);
+      session.setConfig("PreferredAuthentications","publickey");
 
       if (proxyHost != null && proxyPort >= 0) {
         session.setProxy(new ProxyHTTP(proxyHost, proxyPort));
@@ -148,7 +168,7 @@ public class SftpFsHelper implements SizeAwareFileBasedHelper {
 
       UserInfo ui = new MyUserInfo();
       session.setUserInfo(ui);
-
+      session.setDaemonThread(true);
       session.connect();
 
       log.info("Finished connecting to source");
@@ -202,7 +222,6 @@ public class SftpFsHelper implements SizeAwareFileBasedHelper {
     }
   }
 
-
   @Override
   public long getFileSize(String filePath) throws FileBasedHelperException {
     try {
@@ -227,28 +246,45 @@ public class SftpFsHelper implements SizeAwareFileBasedHelper {
     private String src;
     private String dest;
     private long totalCount;
+    private long logFrequency;
+    private long startime;
 
     @Override
     public void init(int op, String src, String dest, long max) {
       this.op = op;
       this.src = src;
       this.dest = dest;
+      this.startime = System.currentTimeMillis();
+      this.logFrequency = 0L;
       log.info(
-          "Operation GET (" + op + ") has started with src: " + src + " dest: " + dest + " and file length: " + max);
+          "Operation GET (" + op + ") has started with src: " + src + " dest: " + dest + " and file length: " + (max/ 1000000L) + " mb");
     }
 
     @Override
     public boolean count(long count) {
       this.totalCount += count;
-      log.info(
-          "Transfer is in progress for file: " + src + ". Finished transferring " + this.totalCount + " bytes " + System
-              .currentTimeMillis());
+
+      if (this.logFrequency == 0L) {
+        this.logFrequency = 1000L;
+        log.info("Transfer is in progress for file: " + src + ". Finished transferring " + this.totalCount + " bytes ");
+        long mb = totalCount / 1000000L;
+        log.info("Transferd " + mb + " Mb. Speed " + getMbps() + " Mbps");
+      }
+      this.logFrequency--;
       return true;
     }
 
     @Override
     public void end() {
-      log.info("Data transfer has finished for operation " + this.op + " src: " + this.src + " dest: " + this.dest);
+      long secs = (System.currentTimeMillis() - startime) / 1000L;
+      log.info("Transfer finished " + this.op + " src: " + this.src + " dest: " + this.dest + " in " + secs + " at " + getMbps());
+    }
+
+    private String getMbps() {
+      long mb = totalCount / 1000000L;
+      long secs = (System.currentTimeMillis() - startime) / 1000L;
+      double mbps = secs == 0L ? 0.0D : mb * 1.0D / secs;
+      return String.format("%.2f", new Object[] { Double.valueOf(mbps) });
     }
   }
 
@@ -334,6 +370,67 @@ public class SftpFsHelper implements SizeAwareFileBasedHelper {
     @Override
     public void showMessage(String message) {
       log.info(message);
+    }
+  }
+
+  /**
+   * Interface for multiple identity setter strategies
+   */
+  private interface IdentityStrategy {
+    public boolean setIdentity(String privateKey, JSch jsch);
+  }
+
+  /**
+   * Sets identity using a file on HDFS
+   */
+  private static class HDFSIdentityStrategy implements IdentityStrategy {
+    public boolean setIdentity(String privateKey, JSch jsch) {
+
+      FSDataInputStream privateKeyStream = null;
+      try {
+        FileSystem fs;
+        fs = FileSystem.get(new Configuration());
+        privateKeyStream = fs.open(new Path(privateKey));
+        byte[] bytes = IOUtils.toByteArray(privateKeyStream);
+        jsch.addIdentity("sftpIdentityKey", bytes, (byte[]) null, (byte[]) null);
+        log.info("Successfully set identity using HDFS file");
+        return true;
+      } catch (Exception e) {
+        log.warn("Failed to set identity using HDFS file. Will attempt next strategy. " + e.getMessage());
+      } finally {
+        try {
+          privateKeyStream.close();
+        } catch (IOException e) {
+          log.error("Failed to close input stream", e);
+        }
+      }
+
+      return false;
+    }
+  }
+
+  /**
+   * Sets identity using a local file
+   */
+  private static class LocalFileIdentityStrategy implements IdentityStrategy {
+    public boolean setIdentity(String privateKey, JSch jsch) {
+      try {
+        jsch.addIdentity(privateKey);
+        log.info("Successfully set identity using local file " + privateKey);
+        return true;
+      } catch (Exception e) {
+        log.warn("Failed to set identity using local file. Will attempt next strategy. " + e.getMessage());
+      }
+      return false;
+    }
+  }
+
+  /**
+   * Sets identity using a file on distributed cache
+   */
+  private static class DistributedCacheIdentityStrategy extends LocalFileIdentityStrategy {
+    public boolean setIdentity(String privateKey, JSch jsch) {
+      return super.setIdentity(new File(privateKey).getName(), jsch);
     }
   }
 }

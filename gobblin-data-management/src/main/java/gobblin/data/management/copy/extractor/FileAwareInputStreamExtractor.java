@@ -16,6 +16,7 @@ import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
+import gobblin.source.extractor.extract.sftp.SftpLightWeightFileSystem;
 
 import java.io.IOException;
 import java.io.InputStream;
