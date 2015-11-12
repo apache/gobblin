@@ -1,4 +1,4 @@
-package gobblin.config.configstore.impl;
+package gobblin.config.utils;
 
 public class CircularDependencyException extends RuntimeException{
 

@@ -1,6 +1,7 @@
-package gobblin.config.configstore.impl;
+package gobblin.config.client.impl;
 
 import java.net.URI;
+import java.util.Collection;
 
 import com.typesafe.config.Config;
 
@@ -17,6 +18,15 @@ public class SimpleConfigClient implements ConfigClient{
     }
     
     return cs.getOwnConfig(uri);
+  }
+
+  @Override
+  public Collection<URI> getImported(ConfigStore cs, URI uri) {
+    if(cs instanceof ConfigStoreWithResolution) {
+      return ((ConfigStoreWithResolution)cs).getResolvedImports(uri);
+    }
+    
+    return cs.getOwnImports(uri);
   }
 
 }

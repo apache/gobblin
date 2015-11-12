@@ -1,6 +1,7 @@
 package gobblin.config.client;
 
 import java.net.URI;
+import java.util.Collection;
 
 import com.typesafe.config.Config;
 
@@ -14,4 +15,6 @@ public interface ConfigClient {
    * @return
    */
   public Config getConfig(ConfigStore cs, URI uri);
+  
+  public Collection<URI> getImported(ConfigStore cs, URI uri);
 }

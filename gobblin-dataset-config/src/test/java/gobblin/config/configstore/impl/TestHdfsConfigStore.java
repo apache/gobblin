@@ -1,6 +1,7 @@
 package gobblin.config.configstore.impl;
 
 import gobblin.config.client.ConfigClient;
+import gobblin.config.client.impl.SimpleConfigClient;
 import gobblin.config.configstore.ConfigStore;
 import gobblin.config.configstore.VersionComparator;
 

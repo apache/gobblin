@@ -3,6 +3,8 @@ package gobblin.config.configstore.impl;
 import java.net.URI;
 
 import gobblin.config.configstore.VersionComparator;
+import gobblin.config.utils.CircularDependencyChecker;
+import gobblin.config.utils.CircularDependencyException;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;

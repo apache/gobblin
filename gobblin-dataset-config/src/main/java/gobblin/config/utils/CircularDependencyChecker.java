@@ -1,4 +1,4 @@
-package gobblin.config.configstore.impl;
+package gobblin.config.utils;
 
 import java.net.URI;
 import java.util.ArrayList;

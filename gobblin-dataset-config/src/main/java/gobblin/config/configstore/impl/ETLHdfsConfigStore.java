@@ -14,6 +14,7 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.config.configstore.ConfigStoreWithResolution;
 import gobblin.config.configstore.VersionComparator;
+import gobblin.config.utils.CircularDependencyChecker;
 
 /**
  * ETLHdfsConfigStore is used for ETL configuration dataset management
