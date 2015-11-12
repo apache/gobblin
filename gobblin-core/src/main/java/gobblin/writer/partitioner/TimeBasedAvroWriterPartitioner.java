@@ -41,10 +41,13 @@ public class TimeBasedAvroWriterPartitioner extends TimeBasedWriterPartitioner<G
 
   private final Optional<List<String>> partitionColumns;
 
+  public TimeBasedAvroWriterPartitioner(State state) {
+    this(state, 1, 0);
+  }
+
   public TimeBasedAvroWriterPartitioner(State state, int numBranches, int branchId) {
     super(state, numBranches, branchId);
     this.partitionColumns = getWriterPartitionColumns(state, numBranches, branchId);
-
   }
 
   private Optional<List<String>> getWriterPartitionColumns(State state, int numBranches, int branchId) {
@@ -53,7 +56,7 @@ public class TimeBasedAvroWriterPartitioner extends TimeBasedWriterPartitioner<G
   }
 
   @Override
-  protected long getRecordTimestamp(GenericRecord record) {
+  public long getRecordTimestamp(GenericRecord record) {
     return getRecordTimestamp(getWriterPartitionColumnValue(record));
   }
 
@@ -81,5 +84,4 @@ public class TimeBasedAvroWriterPartitioner extends TimeBasedWriterPartitioner<G
     }
     return Optional.absent();
   }
-
 }

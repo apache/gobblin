@@ -215,5 +215,5 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
     return this.timestampToPathFormatter.get().print(timestamp);
   }
 
-  protected abstract long getRecordTimestamp(D record);
+  public abstract long getRecordTimestamp(D record);
 }
