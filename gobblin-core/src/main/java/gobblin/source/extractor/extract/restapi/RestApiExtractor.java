@@ -123,7 +123,7 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
 
     if (Strings.isNullOrEmpty(inputQuery) && !Strings.isNullOrEmpty(excludedColumns)) {
       Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
-      columnListExcluded = splitter.splitToList(excludedColumns);
+      columnListExcluded = splitter.splitToList(excludedColumns.toLowerCase());
     }
 
     try {
