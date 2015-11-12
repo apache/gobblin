@@ -426,7 +426,7 @@ public class MRCompactor implements Compactor {
   /**
    * Identify {@link Dataset}s from topics, and create compaction job properties for each {@link Dataset}.
    */
-  private void createJobPropsForTopics(List<String> topics) throws IOException {
+  private void createJobPropsForTopics(List<String> topics) {
     List<Pattern> highPriorityTopicPatterns = getHighPriorityTopicPatterns();
     List<Pattern> normalPriorityTopicPatterns = getNormalPriorityTopicPatterns();
     for (String topic : topics) {
@@ -453,10 +453,17 @@ public class MRCompactor implements Compactor {
   /**
    * Identify {@link Dataset}s from a topic, and create compaction job properties for each {@link Dataset}.
    */
-  private void createJobPropsForTopic(String topic, double priority) throws IOException {
+  private void createJobPropsForTopic(String topic, double priority) {
     LOG.info("Creating compaction jobs for topic " + topic + " with priority " + priority);
     MRCompactorJobPropCreator jobPropCreator = getJobPropCreator(topic, priority);
-    this.datasets.addAll(jobPropCreator.createJobProps());
+    try {
+      this.datasets.addAll(jobPropCreator.createJobProps());
+    } catch (Throwable t) {
+
+      // If a throwable is caught when creating job properties for a topic, skip the topic and add the throwable
+      // to the dataset.
+      this.datasets.add(jobPropCreator.createFailedJobProps(t));
+    }
   }
 
   /**
@@ -502,6 +509,9 @@ public class MRCompactor implements Compactor {
     int numDatasetsVerifiedTogether = getNumDatasetsVerifiedTogether();
     List<Dataset> datasetsToBeVerified = Lists.newArrayList();
     for (Dataset dataset : this.datasets) {
+      if (dataset.state() != UNVERIFIED) {
+        continue;
+      }
       if (shouldVerifyCompletenessForDataset(dataset, blacklist, whitelist)) {
         datasetsToBeVerified.add(dataset);
         if (datasetsToBeVerified.size() >= numDatasetsVerifiedTogether) {
@@ -636,7 +646,7 @@ public class MRCompactor implements Compactor {
 
   private void setAllDatasetStatesToVerified() {
     for (Dataset dataset : this.datasets) {
-      dataset.setState(VERIFIED);
+      dataset.compareAndSetState(UNVERIFIED, VERIFIED);
     }
   }
 
@@ -714,12 +724,17 @@ public class MRCompactor implements Compactor {
    */
   private void runCompactionForDataset(Dataset dataset, boolean proceed) {
     LOG.info("Running compaction for dataset " + dataset);
-    MRCompactorJobRunner jobRunner = getMRCompactorJobRunner(dataset, dataset.priority());
-    this.jobRunnables.put(dataset, jobRunner);
-    if (proceed) {
-      jobRunner.proceed();
+
+    try {
+      MRCompactorJobRunner jobRunner = getMRCompactorJobRunner(dataset, dataset.priority());
+      this.jobRunnables.put(dataset, jobRunner);
+      if (proceed) {
+        jobRunner.proceed();
+      }
+      this.jobExecutor.execute(jobRunner);
+    } catch (Throwable t) {
+      dataset.skip(t);
     }
-    this.jobExecutor.execute(jobRunner);
   }
 
   /**
@@ -864,8 +879,7 @@ public class MRCompactor implements Compactor {
     }
 
     private void afterExecuteWithThrowable(MRCompactorJobRunner jobRunner, Throwable t) {
-      jobRunner.getDataset().setState(COMPACTION_COMPLETE);
-      jobRunner.getDataset().addThrowable(t);
+      jobRunner.getDataset().skip(t);
     }
   }
 }
