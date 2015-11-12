@@ -25,7 +25,7 @@ import gobblin.util.FinalState;
  * @author stakiar
  */
 public abstract class RowLevelPolicy implements Closeable, FinalState {
-  private final State state;
+  protected final State state;
   private final Type type;
 
   public enum Type {

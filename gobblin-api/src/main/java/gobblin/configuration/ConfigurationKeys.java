@@ -70,6 +70,8 @@ public class ConfigurationKeys {
   // Comma-separated list of framework jars to include
   public static final String FRAMEWORK_JAR_FILES_KEY = "framework.jars";
 
+  public static final String PST_TIMEZONE_NAME = "America/Los_Angeles";
+
   /**
    * Task executor and state tracker configuration properties.
    */
@@ -252,6 +254,8 @@ public class ConfigurationKeys {
   public static final String ROW_LEVEL_POLICY_LIST = QUALITY_CHECKER_PREFIX + ".row.policies";
   public static final String ROW_LEVEL_POLICY_LIST_TYPE = QUALITY_CHECKER_PREFIX + ".row.policy.types";
   public static final String ROW_LEVEL_ERR_FILE = QUALITY_CHECKER_PREFIX + ".row.err.file";
+  public static final String QUALITY_CHECKER_TIMEZONE = QUALITY_CHECKER_PREFIX + ".timezone";
+  public static final String DEFAULT_QUALITY_CHECKER_TIMEZONE = PST_TIMEZONE_NAME;
 
   /**
    * Configuration properties used by the row count policies.
@@ -383,7 +387,6 @@ public class ConfigurationKeys {
 
   public static final String FILEBASED_REPORT_STATUS_ON_COUNT = "filebased.report.status.on.count";
   public static final int DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT = 10000;
-  public static final String PST_TIMEZONE_NAME = "America/Los_Angeles";
   public static final String DEFAULT_SOURCE_TIMEZONE = PST_TIMEZONE_NAME;
 
   /**
