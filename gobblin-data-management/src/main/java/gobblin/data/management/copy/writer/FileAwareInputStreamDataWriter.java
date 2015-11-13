@@ -26,6 +26,7 @@ import gobblin.writer.DataWriter;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +37,7 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.IOUtils;
 
@@ -122,7 +124,7 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
     if (file.getAncestorsOwnerAndPermission() == null) {
       return;
     }
-    Path parentPath = file.getDestination().getParent();
+    Path parentPath = getStagingFilePath(file).getParent();
     for (OwnerAndPermission ownerAndPermission : file.getAncestorsOwnerAndPermission()) {
       if (parentPath == null) {
         log.info("Ancestor owner and permission may not be set correctly. Exhausted parent paths before ancestor permissions");
@@ -139,6 +141,7 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
    * Sets the {@link FsPermission}, owner, group for the path passed.
    */
   private void setPathPermission(Path path, OwnerAndPermission ownerAndPermission) throws IOException {
+
     fs.setPermission(path, ownerAndPermission.getFsPermission());
 
     if (StringUtils.isNotBlank(ownerAndPermission.getGroup()) && StringUtils.isNotBlank(ownerAndPermission.getOwner())) {
@@ -155,9 +158,39 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
   private void setRecursivePermission(Path path, OwnerAndPermission ownerAndPermission) throws IOException {
     List<FileStatus> files = FileListUtils.listPathsRecursively(fs, path, FileListUtils.NO_OP_PATH_FILTER);
 
+    // Set permissions bottom up. Permissions are set to files first and then directories
+    Collections.reverse(files);
+
     for (FileStatus file : files) {
-      setPathPermission(file.getPath(), ownerAndPermission);
+      setPathPermission(file.getPath(), addExecutePermissionsIfRequired(file, ownerAndPermission));
     }
+  }
+
+  /**
+   * The method makes sure it always grants execute permissions for an owner if the <code>file</code> passed is a
+   * directory. The publisher needs it to publish it to the final directory and list files under this directory.
+   */
+  private OwnerAndPermission addExecutePermissionsIfRequired(FileStatus file, OwnerAndPermission ownerAndPermission) {
+
+    if (!file.isDir()) {
+      return ownerAndPermission;
+    }
+    FsAction newOwnerAction = ownerAndPermission.getFsPermission().getUserAction();
+
+    if (ownerAndPermission.getFsPermission().getUserAction() == FsAction.READ) {
+      newOwnerAction = FsAction.READ_EXECUTE;
+    } else if (ownerAndPermission.getFsPermission().getUserAction() == FsAction.WRITE) {
+      newOwnerAction = FsAction.WRITE_EXECUTE;
+    } else if (ownerAndPermission.getFsPermission().getUserAction() == FsAction.READ_WRITE) {
+      newOwnerAction = FsAction.ALL;
+    }
+
+    FsPermission withExecute =
+        new FsPermission(newOwnerAction, ownerAndPermission.getFsPermission().getGroupAction(), ownerAndPermission
+            .getFsPermission().getOtherAction());
+
+    return new OwnerAndPermission(ownerAndPermission.getOwner(), ownerAndPermission.getGroup(), withExecute);
+
   }
 
   @Override
