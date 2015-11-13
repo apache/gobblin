@@ -14,10 +14,12 @@ package gobblin.runtime;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -352,8 +354,7 @@ public class Fork implements Closeable, Runnable, FinalState {
   /**
    * Build a {@link gobblin.writer.DataWriter} for writing fetched data records.
    */
-  private DataWriter<Object> buildWriter()
-      throws IOException, SchemaConversionException {
+  private DataWriter<Object> buildWriter() throws IOException, SchemaConversionException {
     DataWriterBuilder<Object, Object> builder = this.taskContext.getDataWriterBuilder(this.branches, this.index)
         .writeTo(Destination.of(this.taskContext.getDestinationType(this.branches, this.index), this.taskState))
         .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index))
@@ -362,7 +363,26 @@ public class Fork implements Closeable, Runnable, FinalState {
         .withBranches(this.branches)
         .forBranch(this.index);
 
-    return new PartitionedDataWriter<Object, Object>(builder, this.taskContext.getTaskState());
+    try {
+      return getPartitionedDataWriter(builder);
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
+        | ClassNotFoundException e) {
+      logger.error("Unable to instantiate " + PartitionedDataWriter.class, e);
+      throw Throwables.propagate(e);
+    }
+  }
+
+  private DataWriter<Object> getPartitionedDataWriter(DataWriterBuilder<Object, Object> builder)
+      throws IOException, NoSuchMethodException, IllegalAccessException, InvocationTargetException,
+      InstantiationException, ClassNotFoundException {
+    if (!this.taskState.contains(ConfigurationKeys.PARTITIONED_DATA_WRITER_CLASS)) {
+      return new PartitionedDataWriter<Object, Object>(builder, this.taskState);
+    } else {
+      Class<? extends PartitionedDataWriter<Object, Object>> clazz =
+          (Class<? extends PartitionedDataWriter<Object, Object>>) Class
+              .forName(this.taskState.getProp(ConfigurationKeys.PARTITIONED_DATA_WRITER_CLASS));
+      return ConstructorUtils.invokeConstructor(clazz, builder, this.taskState);
+    }
   }
 
   private void buildWriterIfNotPresent() throws IOException {
