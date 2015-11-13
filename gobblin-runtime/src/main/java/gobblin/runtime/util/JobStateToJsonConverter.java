@@ -67,7 +67,7 @@ public class JobStateToJsonConverter {
 
   public JobStateToJsonConverter(String storeUrl, boolean keepConfig)
       throws IOException {
-	this.storeUrl = storeUrl;
+	  this.storeUrl = storeUrl;
     this.jobStateStore = new FsDatasetStateStore(storeUrl);
     this.keepConfig = keepConfig;
   }
@@ -114,13 +114,13 @@ public class JobStateToJsonConverter {
     jobState.setProp(key, newValue);
     
     // Update the property in task state.
-	  for (TaskState taskState: jobState.getTaskStates()) {
-		  taskState.setProp(key, newValue);
-	  }
-	  
-	  this.replaceStateStore(jobName, jobId, jobState);
+    for (TaskState taskState: jobState.getTaskStates()) {
+      taskState.setProp(key, newValue);
+    }
+
+    this.replaceStateStore(jobName, jobId, jobState);
   }
-  
+
   /**
    * Modify the configuration value of the most recent job instance.
    */
@@ -326,6 +326,6 @@ public class JobStateToJsonConverter {
       }
     } else {
       System.out.println(stringWriter.toString());
-    }   
+    }
   }
 }
