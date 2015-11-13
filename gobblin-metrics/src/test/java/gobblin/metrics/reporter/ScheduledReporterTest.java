@@ -47,12 +47,12 @@ public class ScheduledReporterTest {
     Assert.assertEquals(ScheduledReporter.parsePeriodToSeconds("1h1s"), 3601);
     Assert.assertEquals(ScheduledReporter.parsePeriodToSeconds("1h2m3s"), 3600 + 120 + 3);
 
-    Assert.assertThrows(RuntimeException.class, new Assert.ThrowingRunnable() {
-      @Override public void run() throws Throwable {
-        ScheduledReporter.parsePeriodToSeconds("1000000h");
-      }
-    });
-
+    try {
+      ScheduledReporter.parsePeriodToSeconds("1000000h");
+      Assert.fail();
+    } catch (RuntimeException re) {
+      // fail unless exception is thrown
+    }
 
   }
 
