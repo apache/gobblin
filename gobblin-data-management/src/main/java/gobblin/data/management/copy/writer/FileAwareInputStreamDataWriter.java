@@ -177,12 +177,18 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
     }
     FsAction newOwnerAction = ownerAndPermission.getFsPermission().getUserAction();
 
-    if (ownerAndPermission.getFsPermission().getUserAction() == FsAction.READ) {
-      newOwnerAction = FsAction.READ_EXECUTE;
-    } else if (ownerAndPermission.getFsPermission().getUserAction() == FsAction.WRITE) {
-      newOwnerAction = FsAction.WRITE_EXECUTE;
-    } else if (ownerAndPermission.getFsPermission().getUserAction() == FsAction.READ_WRITE) {
-      newOwnerAction = FsAction.ALL;
+    switch (ownerAndPermission.getFsPermission().getUserAction()) {
+      case READ:
+        newOwnerAction = FsAction.READ_EXECUTE;
+        break;
+      case WRITE:
+        newOwnerAction = FsAction.WRITE_EXECUTE;
+        break;
+      case READ_WRITE:
+        newOwnerAction = FsAction.ALL;
+        break;
+      default:
+        break;
     }
 
     FsPermission withExecute =
