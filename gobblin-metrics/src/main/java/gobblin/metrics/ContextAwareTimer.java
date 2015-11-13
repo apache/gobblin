@@ -12,14 +12,11 @@
 
 package gobblin.metrics;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
+import lombok.experimental.Delegate;
 
-import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 
-import com.google.common.base.Optional;
+import gobblin.metrics.metric.InnerMetric;
 
 
 /**
@@ -40,40 +37,13 @@ import com.google.common.base.Optional;
  */
 class ContextAwareTimer extends Timer implements ContextAwareMetric {
 
-  private final String name;
+  @Delegate
+  private final InnerTimer innerTimer;
   private final MetricContext context;
-  private final Tagged tagged;
-  private final Optional<ContextAwareTimer> parentTimer;
 
   ContextAwareTimer(MetricContext context, String name) {
-    this.name = name;
+    this.innerTimer = new InnerTimer(context, name, this);
     this.context = context;
-    this.tagged = new Tagged();
-
-    Optional<MetricContext> parentContext = context.getParent();
-    if (parentContext.isPresent()) {
-      this.parentTimer = Optional.fromNullable(parentContext.get().contextAwareTimer(name));
-    } else {
-      this.parentTimer = Optional.absent();
-    }
-  }
-
-  @Override
-  public void update(long duration, TimeUnit unit) {
-    super.update(duration, unit);
-    if (this.parentTimer.isPresent()) {
-      this.parentTimer.get().update(duration, unit);
-    }
-  }
-
-  @Override
-  public String getName() {
-    return this.name;
-  }
-
-  @Override
-  public String getFullyQualifiedName(boolean includeTagKeys) {
-    return MetricRegistry.name(metricNamePrefix(includeTagKeys), this.name);
   }
 
   @Override
@@ -81,23 +51,7 @@ class ContextAwareTimer extends Timer implements ContextAwareMetric {
     return this.context;
   }
 
-  @Override
-  public void addTag(Tag<?> tag) {
-    this.tagged.addTag(tag);
-  }
-
-  @Override
-  public void addTags(Collection<Tag<?>> tags) {
-    this.tagged.addTags(tags);
-  }
-
-  @Override
-  public List<Tag<?>> getTags() {
-    return this.tagged.getTags();
-  }
-
-  @Override
-  public String metricNamePrefix(boolean includeTagKeys) {
-    return this.tagged.metricNamePrefix(includeTagKeys);
+  @Override public InnerMetric getInnerMetric() {
+    return this.innerTimer;
   }
 }

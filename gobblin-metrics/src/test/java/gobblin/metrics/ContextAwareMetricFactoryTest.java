@@ -47,16 +47,12 @@ public class ContextAwareMetricFactoryTest {
 
     this.counter = ContextAwareMetricFactory.DEFAULT_CONTEXT_AWARE_COUNTER_FACTORY.newMetric(
         this.context, RECORDS_PROCESSED);
-    this.counter.addTag(new Tag<String>(JOB_ID_KEY, JOB_ID));
     this.meter = ContextAwareMetricFactory.DEFAULT_CONTEXT_AWARE_METER_FACTORY.newMetric(
         this.context, RECORD_PROCESS_RATE);
-    this.meter.addTag(new Tag<String>(JOB_ID_KEY, JOB_ID));
     this.histogram = ContextAwareMetricFactory.DEFAULT_CONTEXT_AWARE_HISTOGRAM_FACTORY.newMetric(
         this.context, RECORD_SIZE_DISTRIBUTION);
-    this.histogram.addTag(new Tag<String>(JOB_ID_KEY, JOB_ID));
     this.timer = ContextAwareMetricFactory.DEFAULT_CONTEXT_AWARE_TIMER_FACTORY.newMetric(
         this.context, TOTAL_DURATION);
-    this.timer.addTag(new Tag<String>(JOB_ID_KEY, JOB_ID));
   }
 
   @Test
@@ -65,7 +61,6 @@ public class ContextAwareMetricFactoryTest {
     Assert.assertFalse(ContextAwareMetricFactory.DEFAULT_CONTEXT_AWARE_COUNTER_FACTORY.isInstance(this.meter));
     Assert.assertEquals(this.counter.getContext(), this.context);
     Assert.assertEquals(this.counter.getName(), RECORDS_PROCESSED);
-    Assert.assertEquals(this.counter.getFullyQualifiedName(false), MetricRegistry.name(JOB_ID, RECORDS_PROCESSED));
   }
 
   @Test
@@ -74,7 +69,6 @@ public class ContextAwareMetricFactoryTest {
     Assert.assertFalse(ContextAwareMetricFactory.DEFAULT_CONTEXT_AWARE_METER_FACTORY.isInstance(this.histogram));
     Assert.assertEquals(this.meter.getContext(), this.context);
     Assert.assertEquals(this.meter.getName(), RECORD_PROCESS_RATE);
-    Assert.assertEquals(this.meter.getFullyQualifiedName(false), MetricRegistry.name(JOB_ID, RECORD_PROCESS_RATE));
   }
 
   @Test
@@ -83,8 +77,6 @@ public class ContextAwareMetricFactoryTest {
     Assert.assertFalse(ContextAwareMetricFactory.DEFAULT_CONTEXT_AWARE_HISTOGRAM_FACTORY.isInstance(this.timer));
     Assert.assertEquals(this.histogram.getContext(), this.context);
     Assert.assertEquals(this.histogram.getName(), RECORD_SIZE_DISTRIBUTION);
-    Assert.assertEquals(
-        this.histogram.getFullyQualifiedName(false), MetricRegistry.name(JOB_ID, RECORD_SIZE_DISTRIBUTION));
   }
 
   @Test
@@ -93,7 +85,6 @@ public class ContextAwareMetricFactoryTest {
     Assert.assertFalse(ContextAwareMetricFactory.DEFAULT_CONTEXT_AWARE_TIMER_FACTORY.isInstance(this.counter));
     Assert.assertEquals(this.timer.getContext(), this.context);
     Assert.assertEquals(this.timer.getName(), TOTAL_DURATION);
-    Assert.assertEquals(this.timer.getFullyQualifiedName(false), MetricRegistry.name(JOB_ID, TOTAL_DURATION));
   }
 
   @AfterClass
