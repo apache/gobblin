@@ -11,8 +11,13 @@
  */
 package gobblin.data.management.copy;
 
+import gobblin.configuration.WorkUnitState;
+
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
 
 public class SerializableCopyableDatasetTest {
 
@@ -25,6 +30,25 @@ public class SerializableCopyableDatasetTest {
 
     Assert.assertEquals(copyableDataset.datasetRoot(), deserialized.datasetRoot());
     Assert.assertEquals(copyableDataset.datasetTargetRoot(), deserialized.datasetTargetRoot());
+  }
+
+  @Test
+  public void testHashCode() throws Exception {
+
+    CopyableDataset copyableDataset = new TestCopyableDataset();
+
+    String serialized = SerializableCopyableDataset.serialize(copyableDataset);
+
+    CopyableDataset deserialized = SerializableCopyableDataset.deserialize(serialized);
+    CopyableDataset deserialized2 = SerializableCopyableDataset.deserialize(serialized);
+
+    Multimap<CopyableDataset, WorkUnitState> datasetRoots = ArrayListMultimap.create();
+
+    datasetRoots.put(deserialized, new WorkUnitState());
+    datasetRoots.put(deserialized2, new WorkUnitState());
+
+    Assert.assertEquals(datasetRoots.keySet().size(), 1);
+
   }
 
 }
