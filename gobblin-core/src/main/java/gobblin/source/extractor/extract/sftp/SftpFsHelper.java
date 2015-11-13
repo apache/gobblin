@@ -157,10 +157,15 @@ public class SftpFsHelper implements SizeAwareFileBasedHelper {
         }
       }
 
-      jsch.setKnownHosts(knownHosts);
-
       session = jsch.getSession(userName, hostName, port);
       session.setConfig("PreferredAuthentications","publickey");
+
+      if (knownHosts == null) {
+        log.info("Known hosts path is not set, StrictHostKeyChecking will be turned off");
+        session.setConfig("StrictHostKeyChecking", "no");
+      } else {
+        jsch.setKnownHosts(knownHosts);
+      }
 
       if (proxyHost != null && proxyPort >= 0) {
         session.setProxy(new ProxyHTTP(proxyHost, proxyPort));
