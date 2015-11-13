@@ -49,7 +49,8 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D> {
   private static final GenericRecord NON_PARTITIONED_WRITER_KEY =
       new GenericData.Record(SchemaBuilder.record("Dummy").fields().endRecord());
 
-  private final Optional<WriterPartitioner> partitioner;
+  protected final State state;
+  protected final Optional<WriterPartitioner> partitioner;
   private final LoadingCache<GenericRecord, DataWriter<D>> partitionWriters;
   private final Optional<PartitionAwareDataWriterBuilder> builder;
   private final boolean shouldPartition;
@@ -57,6 +58,7 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D> {
 
   public PartitionedDataWriter(DataWriterBuilder<S, D> builder, final State state) throws IOException {
 
+    this.state = state;
     this.closer = Closer.create();
     this.partitionWriters = CacheBuilder.newBuilder().build(new CacheLoader<GenericRecord, DataWriter<D>>() {
       @Override
