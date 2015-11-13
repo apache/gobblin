@@ -15,6 +15,8 @@ package gobblin.data.management.copy;
 import java.io.IOException;
 import java.util.List;
 
+import lombok.EqualsAndHashCode;
+
 import org.apache.hadoop.fs.Path;
 
 import com.google.gson.Gson;
@@ -25,6 +27,7 @@ import com.google.gson.Gson;
  * implementations of {@link CopyableDataset} may contain additional fields that should not be serialized.
  * The class is a data object and does not carry any functionality
  */
+@EqualsAndHashCode(callSuper=false)
 public class SerializableCopyableDataset extends SinglePartitionCopyableDataset {
 
   private SerializableCopyableDataset(CopyableDataset copyableDataset) {
