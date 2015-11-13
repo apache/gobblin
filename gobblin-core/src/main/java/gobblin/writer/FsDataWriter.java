@@ -53,6 +53,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
       ConfigurationKeys.WRITER_PREFIX + ".include.record.count.in.file.names";
 
   protected final State properties;
+  protected final String id;
   protected final int numBranches;
   protected final int branchId;
   protected final String fileName;
@@ -71,6 +72,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
 
   public FsDataWriter(FsDataWriterBuilder<?, D> builder, State properties) throws IOException {
     this.properties = properties;
+    this.id = builder.getWriterId();
     this.numBranches = builder.getBranches();
     this.branchId = builder.getBranch();
     this.fileName = builder.getFileName(properties);
