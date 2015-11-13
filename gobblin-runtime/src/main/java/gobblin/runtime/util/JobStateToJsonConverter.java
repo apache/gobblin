@@ -28,9 +28,17 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.SequenceFile;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.compress.DefaultCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.io.Closer;
 import com.google.gson.stream.JsonWriter;
 
@@ -38,6 +46,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.StateStore;
 import gobblin.runtime.FsDatasetStateStore;
 import gobblin.runtime.JobState;
+import gobblin.runtime.TaskState;
 
 
 /**
@@ -52,11 +61,13 @@ public class JobStateToJsonConverter {
 
   private static final String JOB_STATE_STORE_TABLE_SUFFIX = ".jst";
 
+  private final String storeUrl;
   private final StateStore<? extends JobState> jobStateStore;
   private final boolean keepConfig;
 
   public JobStateToJsonConverter(String storeUrl, boolean keepConfig)
       throws IOException {
+	this.storeUrl = storeUrl;
     this.jobStateStore = new FsDatasetStateStore(storeUrl);
     this.keepConfig = keepConfig;
   }
@@ -86,6 +97,64 @@ public class JobStateToJsonConverter {
     } finally {
       jsonWriter.close();
     }
+  }
+  
+  /**
+   * Modify the configuration value of a given job instance.
+   */
+  public void modify(String jobName, String jobId, String key, String newValue) throws IOException {
+    List<? extends JobState> jobStates = this.jobStateStore.getAll(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX);
+    if (jobStates.isEmpty()) {
+      LOGGER.warn(String.format("No job state found for job with name %s and id %s", jobName, jobId));
+      return;
+    }
+    JobState jobState = jobStates.get(0);
+
+    // Update the property in job state.
+    jobState.setProp(key, newValue);
+    
+    // Update the property in task state.
+	  for (TaskState taskState: jobState.getTaskStates()) {
+		  taskState.setProp(key, newValue);
+	  }
+	  
+	  this.replaceStateStore(jobName, jobId, jobState);
+  }
+  
+  /**
+   * Modify the configuration value of the most recent job instance.
+   */
+  public void modify(String jobName, String key, String newValue) throws IOException {
+    this.modify(jobName, "current", key, newValue);
+  }
+  
+  /**
+   * Replace the original state file with a new state.
+   */
+  private void replaceStateStore(String jobName, String jobId, JobState newState) throws IOException {
+    Path storePath = new Path(storeUrl);
+    Path tablePath = new Path(new Path(storePath.toUri().getPath(), jobName), jobId + JOB_STATE_STORE_TABLE_SUFFIX);
+    FileSystem fs = storePath.getFileSystem(new Configuration());
+    Path tmpTablePath = new Path(tablePath.getParent(), "original"+ tablePath.getName());
+    if (!fs.rename(tablePath, tmpTablePath)) {
+      throw new IOException("Failed to make a copy of the orginal state file " + tablePath);
+    }
+
+    Closer closer = Closer.create();
+    try {
+	    fs.createNewFile(tablePath);
+	    SequenceFile.Writer writer =
+	        closer.register(SequenceFile.createWriter(fs, fs.getConf(), tablePath, Text.class, JobState.DatasetState.class,
+	            SequenceFile.CompressionType.BLOCK, new DefaultCodec()));
+	    writer.append(new Text(Strings.nullToEmpty(newState.getId())), newState);
+	    fs.delete(tmpTablePath, true);
+	  } catch (Throwable t) {
+	    LOGGER.error("Failed to write new state to " + tablePath + ". Will recover the previous state file");
+	    fs.rename(new Path(tablePath.getParent(), tmpTablePath), tablePath);
+	    throw closer.rethrow(t);
+	  } finally {
+	    closer.close();
+	  }
   }
 
   /**
@@ -190,6 +259,11 @@ public class JobStateToJsonConverter {
         .withLongOpt("toFile")
         .hasArgs()
         .create("t");
+    Option modifyPropertyOption = OptionBuilder
+    		.withDescription("Modify a property in state store using KEY=NEWVALUE. If KEY does not exist, it will be added to the state store.")
+            .withLongOpt("modifyProperty")
+            .hasArgs()
+            .create("mc");
 
     Options options = new Options();
     options.addOption(storeUrlOption);
@@ -198,6 +272,7 @@ public class JobStateToJsonConverter {
     options.addOption(convertAllOption);
     options.addOption(keepConfigOption);
     options.addOption(outputToFile);
+    options.addOption(modifyPropertyOption);
 
     CommandLine cmd = null;
     try {
@@ -210,6 +285,21 @@ public class JobStateToJsonConverter {
     }
 
     JobStateToJsonConverter converter = new JobStateToJsonConverter(cmd.getOptionValue('u'), cmd.hasOption("kc"));
+    
+    if (cmd.hasOption("mc")) {
+    	String keyValuePair = cmd.getOptionValue("mc");
+    	int separatorIndex = keyValuePair.indexOf('=');
+    	if (separatorIndex <= 0) {
+    		throw new RuntimeException("Option '-mc' must be followed by key value pair with the pattern Key=NewValue.");
+    	} else {
+    	  if (cmd.hasOption('i')) {
+    		  converter.modify(cmd.getOptionValue('n'), cmd.getOptionValue('i'), keyValuePair.substring(0, separatorIndex), keyValuePair.substring(separatorIndex+1));
+    	  } else {
+          converter.modify(cmd.getOptionValue('n'), keyValuePair.substring(0, separatorIndex), keyValuePair.substring(separatorIndex+1));
+    	  }
+    	}
+    }
+
     StringWriter stringWriter = new StringWriter();
     if (cmd.hasOption('i')) {
       converter.convert(cmd.getOptionValue('n'), cmd.getOptionValue('i'), stringWriter);
@@ -236,6 +326,6 @@ public class JobStateToJsonConverter {
       }
     } else {
       System.out.println(stringWriter.toString());
-    }
+    }   
   }
 }
