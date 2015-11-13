@@ -43,7 +43,7 @@ import gobblin.util.WriterUtils;
  *
  * @author ynli
  */
-class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
+public class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
 
   private final Schema schema;
   private final OutputStream stagingFileOutputStream;
