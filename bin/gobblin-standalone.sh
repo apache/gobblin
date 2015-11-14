@@ -35,7 +35,7 @@ do
       shift
       ;;
     --logdir)
-      LOG_DIR="$2"
+      GOBBLIN_LOG_DIR="$2"
       shift
       ;;
     --jars)
@@ -108,7 +108,7 @@ if [ -n "$LOG_DIR" ]; then
 fi
 
 if [ -z "$GOBBLIN_LOG_DIR" ] && [ "$check" == true ]; then
-  LOG_DIR="$GOBBLIN_FWDIR/logs"
+  GOBBLIN_LOG_DIR="$GOBBLIN_FWDIR/logs"
 fi
 
 # User defined JVM flags overrides $GOBBLIN_JVM_FLAGS (if any)
