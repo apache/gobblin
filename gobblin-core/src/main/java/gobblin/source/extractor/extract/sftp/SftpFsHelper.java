@@ -33,6 +33,7 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.ChannelSftp;
@@ -157,10 +158,15 @@ public class SftpFsHelper implements SizeAwareFileBasedHelper {
         }
       }
 
-      jsch.setKnownHosts(knownHosts);
-
       session = jsch.getSession(userName, hostName, port);
       session.setConfig("PreferredAuthentications","publickey");
+
+      if (Strings.isNullOrEmpty(knownHosts)) {
+        log.info("Known hosts path is not set, StrictHostKeyChecking will be turned off");
+        session.setConfig("StrictHostKeyChecking", "no");
+      } else {
+        jsch.setKnownHosts(knownHosts);
+      }
 
       if (proxyHost != null && proxyPort >= 0) {
         session.setProxy(new ProxyHTTP(proxyHost, proxyPort));
