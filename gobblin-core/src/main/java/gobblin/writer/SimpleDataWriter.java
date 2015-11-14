@@ -65,6 +65,8 @@ public class SimpleDataWriter extends FsDataWriter<byte[]> {
     this.recordsWritten = 0;
     this.bytesWritten = 0;
     this.stagingFileOutputStream = createStagingFileOutputStream();
+
+    setStagingFileGroup();
   }
 
   /**
