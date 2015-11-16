@@ -264,6 +264,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         // Write job execution info to the job history store upon job termination
         this.jobContext.storeJobExecutionInfo();
 
+        // Emit events about this job execution
+        this.jobContext.submitJobExecutionEvents();
+
         if (this.jobContext.getJobMetricsOptional().isPresent()) {
           this.jobContext.getJobMetricsOptional().get().triggerMetricReporting();
           this.jobContext.getJobMetricsOptional().get().stopMetricReporting();

@@ -14,12 +14,14 @@ package gobblin.runtime;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,6 +40,8 @@ import gobblin.instrumented.Instrumented;
 import gobblin.metastore.JobHistoryStore;
 import gobblin.metastore.MetaStoreModule;
 import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.event.EventSubmitter;
 import gobblin.publisher.DataPublisher;
 import gobblin.runtime.util.JobMetrics;
 import gobblin.source.Source;
@@ -63,6 +67,7 @@ public class JobContext {
   private final JobCommitPolicy jobCommitPolicy;
   private final boolean jobLockEnabled;
   private final Optional<JobMetrics> jobMetricsOptional;
+  private final Optional<JobExecutionEventSubmitter> jobExecutionEventSubmitter;
   private final Source<?, ?> source;
 
   // State store for persisting job states
@@ -116,8 +121,13 @@ public class JobContext {
     if (GobblinMetrics.isEnabled(jobProps)) {
       this.jobMetricsOptional = Optional.of(JobMetrics.get(this.jobState));
       this.jobState.setProp(Instrumented.METRIC_CONTEXT_NAME_KEY, this.jobMetricsOptional.get().getName());
+
+      MetricContext metricContext = this.jobMetricsOptional.get().getMetricContext();
+      EventSubmitter eventSubmitter = new EventSubmitter.Builder(metricContext, this.getClass().getName()).build();
+      this.jobExecutionEventSubmitter = Optional.of(new JobExecutionEventSubmitter(eventSubmitter));
     } else {
       this.jobMetricsOptional = Optional.absent();
+      this.jobExecutionEventSubmitter = Optional.absent();
     }
 
     this.source = new SourceDecorator(
@@ -208,8 +218,7 @@ public class JobContext {
           ConfigurationKeys.WRITER_STAGING_DIR, ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY));
     } else {
       String workingDir = this.jobState.getProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY);
-      this.jobState.setProp(ConfigurationKeys.WRITER_STAGING_DIR,
-          new Path(workingDir, TASK_STAGING_DIR_NAME).toString());
+      this.jobState.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(workingDir, TASK_STAGING_DIR_NAME).toString());
     }
   }
 
@@ -257,6 +266,18 @@ public class JobContext {
       } catch (IOException ioe) {
         this.logger.error("Failed to write job execution information to the job history store: " + ioe, ioe);
       }
+    }
+  }
+
+  /**
+   * If {@link GobblinMetrics#isEnabled(Properties)}, submits events using the {@link #jobExecutionEventSubmitter} about
+   * this {@link JobState}.
+   *
+   * @see JobExecutionEventSubmitter
+   */
+  void submitJobExecutionEvents() {
+    if (this.jobExecutionEventSubmitter.isPresent()) {
+        this.jobExecutionEventSubmitter.get().submitJobExecutionEvents(this.jobState);
     }
   }
 
@@ -396,6 +417,7 @@ public class JobContext {
       DataPublisher publisher = closer.register(DataPublisher.getInstance(dataPublisherClass, datasetState));
       publisher.publish(datasetState.getTaskStates());
     } catch (Throwable t) {
+      setTaskFailureException(datasetState.getTaskStates(), t);
       throw closer.rethrow(t);
     } finally {
       closer.close();
@@ -426,5 +448,15 @@ public class JobContext {
 
     datasetState.setId(datasetUrn);
     this.datasetStateStore.persistDatasetState(datasetUrn, datasetState);
+  }
+
+  /**
+   * Sets the {@link ConfigurationKeys#TASK_FAILURE_EXCEPTION_KEY} for each given {@link TaskState} to the given
+   * {@link Throwable}.
+   */
+  private void setTaskFailureException(List<TaskState> taskStates, Throwable t) {
+    for (TaskState taskState : taskStates) {
+      taskState.setTaskFailureException(t);
+    }
   }
 }
