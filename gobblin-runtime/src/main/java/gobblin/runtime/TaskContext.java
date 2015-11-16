@@ -16,6 +16,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
+import com.google.common.base.Enums;
+import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 
@@ -108,14 +110,13 @@ public class TaskContext {
   @SuppressWarnings("unchecked")
   public Extractor getExtractor() {
     try {
-      boolean throttlingEnabled = this.taskState.getPropAsBoolean(
-          ConfigurationKeys.EXTRACT_LIMIT_ENABLED_KEY, ConfigurationKeys.DEFAULT_EXTRACT_LIMIT_ENABLED);
+      boolean throttlingEnabled = this.taskState.getPropAsBoolean(ConfigurationKeys.EXTRACT_LIMIT_ENABLED_KEY,
+          ConfigurationKeys.DEFAULT_EXTRACT_LIMIT_ENABLED);
       if (throttlingEnabled) {
         Limiter limiter = DefaultLimiterFactory.newLimiter(this.taskState);
         if (!(limiter instanceof NonRefillableLimiter)) {
-          throw new IllegalArgumentException(
-              "The Limiter used with an Extractor should be an instance of " + NonRefillableLimiter.class
-                  .getSimpleName());
+          throw new IllegalArgumentException("The Limiter used with an Extractor should be an instance of "
+              + NonRefillableLimiter.class.getSimpleName());
         }
         return new LimitingExtractorDecorator(getSource().getExtractor(this.taskState), limiter);
       } else {
@@ -157,9 +158,12 @@ public class TaskContext {
    * @return output format of the writer
    */
   public WriterOutputFormat getWriterOutputFormat(int branches, int index) {
-    return WriterOutputFormat.valueOf(this.workUnit.getProp(
+    String writerOutputFormatValue = this.workUnit.getProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY, branches, index),
-        WriterOutputFormat.AVRO.name()));
+        WriterOutputFormat.OTHER.name());
+
+    return Enums.getIfPresent(WriterOutputFormat.class, writerOutputFormatValue.toUpperCase())
+        .or(WriterOutputFormat.OTHER);
   }
 
   /**
@@ -219,8 +223,8 @@ public class TaskContext {
   @SuppressWarnings("unchecked")
   public ForkOperator getForkOperator() {
     try {
-      ForkOperator fork = ForkOperator.class.cast(
-          Class.forName(this.workUnit.getProp(ConfigurationKeys.FORK_OPERATOR_CLASS_KEY,
+      ForkOperator fork =
+          ForkOperator.class.cast(Class.forName(this.workUnit.getProp(ConfigurationKeys.FORK_OPERATOR_CLASS_KEY,
               ConfigurationKeys.DEFAULT_FORK_OPERATOR_CLASS)).newInstance());
       return new InstrumentedForkOperatorDecorator(fork);
     } catch (ClassNotFoundException cnfe) {
@@ -238,8 +242,7 @@ public class TaskContext {
    *
    * @return a {@link RowLevelPolicyChecker}
    */
-  public RowLevelPolicyChecker getRowLevelPolicyChecker()
-      throws Exception {
+  public RowLevelPolicyChecker getRowLevelPolicyChecker() throws Exception {
     return getRowLevelPolicyChecker(-1);
   }
 
@@ -250,8 +253,7 @@ public class TaskContext {
    * @param index branch index
    * @return a {@link RowLevelPolicyChecker}
    */
-  public RowLevelPolicyChecker getRowLevelPolicyChecker(int index)
-      throws Exception {
+  public RowLevelPolicyChecker getRowLevelPolicyChecker(int index) throws Exception {
     return new RowLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(this.taskState, index).build();
   }
 
@@ -264,8 +266,7 @@ public class TaskContext {
    * @return a {@link TaskLevelPolicyChecker}
    * @throws Exception
    */
-  public TaskLevelPolicyChecker getTaskLevelPolicyChecker(TaskState taskState, int index)
-      throws Exception {
+  public TaskLevelPolicyChecker getTaskLevelPolicyChecker(TaskState taskState, int index) throws Exception {
     return new TaskLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(taskState, index).build();
   }
 
