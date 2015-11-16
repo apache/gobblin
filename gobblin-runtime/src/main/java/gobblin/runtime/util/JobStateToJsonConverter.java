@@ -31,14 +31,9 @@ import org.apache.commons.cli.ParseException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.SequenceFile;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.compress.DefaultCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.io.Closer;
 import com.google.gson.stream.JsonWriter;
 
@@ -118,7 +113,7 @@ public class JobStateToJsonConverter {
       taskState.setProp(key, newValue);
     }
 
-    this.replaceStateStore(jobName, jobId, jobState);
+    this.replaceStateStore(jobName, jobId, (JobState.DatasetState)jobState);
   }
 
   /**
@@ -129,9 +124,20 @@ public class JobStateToJsonConverter {
   }
   
   /**
+   * Modify all past {@link JobState}s of the given job.
+   */
+  public void modifyAll(String jobName, String key, String newValue) throws IOException {
+    List<? extends JobState> jobStates = this.jobStateStore.getAll(jobName);
+    for (JobState jobState : jobStates) {
+      LOGGER.info("Will modify job state " + jobState.getJobId());
+      this.modify(jobName, jobState.getJobId(), key, newValue);
+    }
+  }
+
+  /**
    * Replace the original state file with a new state.
    */
-  private void replaceStateStore(String jobName, String jobId, JobState newState) throws IOException {
+  private void replaceStateStore(String jobName, String jobId, JobState.DatasetState newState) throws IOException {
     Path storePath = new Path(storeUrl);
     Path tablePath = new Path(new Path(storePath.toUri().getPath(), jobName), jobId + JOB_STATE_STORE_TABLE_SUFFIX);
     FileSystem fs = storePath.getFileSystem(new Configuration());
@@ -139,21 +145,14 @@ public class JobStateToJsonConverter {
     if (!fs.rename(tablePath, tmpTablePath)) {
       throw new IOException("Failed to make a copy of the orginal state file " + tablePath);
     }
-
-    Closer closer = Closer.create();
+      
     try {
-	    fs.createNewFile(tablePath);
-	    SequenceFile.Writer writer =
-	        closer.register(SequenceFile.createWriter(fs, fs.getConf(), tablePath, Text.class, JobState.DatasetState.class,
-	            SequenceFile.CompressionType.BLOCK, new DefaultCodec()));
-	    writer.append(new Text(Strings.nullToEmpty(newState.getId())), newState);
+      ((FsDatasetStateStore)this.jobStateStore).put(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX, newState);
 	    fs.delete(tmpTablePath, true);
-	  } catch (Throwable t) {
+	  } catch (IOException e) {
 	    LOGGER.error("Failed to write new state to " + tablePath + ". Will recover the previous state file");
-	    fs.rename(new Path(tablePath.getParent(), tmpTablePath), tablePath);
-	    throw closer.rethrow(t);
-	  } finally {
-	    closer.close();
+	    fs.rename(tmpTablePath, tablePath);
+	    throw e;
 	  }
   }
 
@@ -246,7 +245,7 @@ public class JobStateToJsonConverter {
         .hasArgs()
         .create('i');
     Option convertAllOption = OptionBuilder
-        .withDescription("Whether to convert all past job states of the given job")
+        .withDescription("Whether to convert all past job states of the given job. Will modify all past job states if used with option '-mc'.")
         .withLongOpt("all")
         .create('a');
     Option keepConfigOption = OptionBuilder
@@ -294,6 +293,8 @@ public class JobStateToJsonConverter {
     	} else {
     	  if (cmd.hasOption('i')) {
     		  converter.modify(cmd.getOptionValue('n'), cmd.getOptionValue('i'), keyValuePair.substring(0, separatorIndex), keyValuePair.substring(separatorIndex+1));
+    	  } else if (cmd.hasOption('a')) {
+    	    converter.modifyAll(cmd.getOptionValue('n'), keyValuePair.substring(0, separatorIndex), keyValuePair.substring(separatorIndex+1));
     	  } else {
           converter.modify(cmd.getOptionValue('n'), keyValuePair.substring(0, separatorIndex), keyValuePair.substring(separatorIndex+1));
     	  }
