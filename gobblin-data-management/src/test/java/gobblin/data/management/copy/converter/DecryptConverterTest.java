@@ -14,6 +14,7 @@ package gobblin.data.management.copy.converter;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.data.management.copy.CopyableFileUtils;
 import gobblin.data.management.copy.FileAwareInputStream;
 
 import java.io.File;
@@ -48,7 +49,7 @@ public class DecryptConverterTest {
     FileSystem fs = FileSystem.getLocal(new Configuration());
 
     String gpgFilePath = getClass().getClassLoader().getResource("decryptConverterTest/decrypt-test.txt.gpg").getFile();
-    FileAwareInputStream fileAwareInputStream = new FileAwareInputStream(null, fs.open(new Path(gpgFilePath)));
+    FileAwareInputStream fileAwareInputStream = new FileAwareInputStream(CopyableFileUtils.getTestCopyableFile(), fs.open(new Path(gpgFilePath)));
 
     Iterable<FileAwareInputStream> iterable =
         converter.convertRecord("outputSchema", fileAwareInputStream, workUnitState);

@@ -17,7 +17,9 @@ import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
+import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.FileAwareInputStream;
+import gobblin.data.management.util.PathUtils;
 import gobblin.password.PasswordManager;
 import gobblin.util.GPGFileDecrypter;
 
@@ -30,11 +32,12 @@ import com.google.common.base.Preconditions;
 
 /**
  * {@link Converter} that decrypts an {@link InputStream}. Uses utilities in {@link GPGFileDecrypter} to do the actual
- * decryption.
+ * decryption. It also converts the destination file name by removing .gpg extensions.
  */
 public class DecryptConverter extends Converter<String, String, FileAwareInputStream, FileAwareInputStream> {
 
   private static final String DECRYPTION_PASSPHRASE_KEY = "converter.decrypt.passphrase";
+  private static final String GPG_EXTENSION = ".gpg";
   private String passphrase;
 
   @Override
@@ -55,6 +58,7 @@ public class DecryptConverter extends Converter<String, String, FileAwareInputSt
       WorkUnitState workUnit) throws DataConversionException {
 
     try {
+      removeExtensionAtDestination(fileAwareInputStream.getFile());
       FileAwareInputStream decryptedFileAwareInputStream =
           new FileAwareInputStream(fileAwareInputStream.getFile(), GPGFileDecrypter.decryptFile(
               fileAwareInputStream.getInputStream(), passphrase));
@@ -66,4 +70,12 @@ public class DecryptConverter extends Converter<String, String, FileAwareInputSt
     }
   }
 
+  /**
+   * Remove {@value #GPG_EXTENSION} from {@link CopyableFile#getDestination()} and
+   * {@link CopyableFile#getRelativeDestination()}
+   */
+  private void removeExtensionAtDestination(CopyableFile file) {
+    file.setDestination(PathUtils.removeExtention(file.getDestination(), GPG_EXTENSION));
+    file.setRelativeDestination(PathUtils.removeExtention(file.getRelativeDestination(), GPG_EXTENSION));
+  }
 }

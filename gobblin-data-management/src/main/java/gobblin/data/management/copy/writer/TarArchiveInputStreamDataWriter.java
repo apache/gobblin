@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -62,20 +63,27 @@ public class TarArchiveInputStreamDataWriter extends FileAwareInputStreamDataWri
 
     TarArchiveInputStream tarIn = new TarArchiveInputStream(fileAwareInputStream.getInputStream());
     TarArchiveEntry tarEntry;
-    boolean firstEntrySeen = false;
+
+    Path fileDestinationPath = fileAwareInputStream.getFile().getDestination();
+
+    // root entry in the tar compressed file
+    String tarEntryRootName = null;
 
     try {
       while ((tarEntry = tarIn.getNextTarEntry()) != null) {
 
-        Path tarEntryPath =
-            PathUtils.withoutLeadingSeparator(new Path(fileAwareInputStream.getFile().getDestination().getParent(),
-                tarEntry.getName()));
+        if (tarEntryRootName == null) {
+          tarEntryRootName = StringUtils.remove(tarEntry.getName(), Path.SEPARATOR);
+        }
 
-        Path tarEntryStagingPath = new Path(this.stagingDir, tarEntryPath);
+        // the API tarEntry.getName() is misleading, it is actually the path of the tarEntry in the tar file
+        String newTarEntryPath = tarEntry.getName().replace(tarEntryRootName, fileDestinationPath.getName());
+        Path tarEntryDestinationPath =
+            PathUtils.withoutLeadingSeparator(new Path(fileDestinationPath.getParent(), newTarEntryPath));
 
-        firstEntrySeen = updateName(fileAwareInputStream, firstEntrySeen, tarEntryStagingPath.getName());
+        Path tarEntryStagingPath = new Path(this.stagingDir, tarEntryDestinationPath);
 
-        log.info("Unarchiving " + tarEntryStagingPath);
+        log.info("Unarchiving at " + tarEntryStagingPath);
 
         if (tarEntry.isDirectory() && !fs.exists(tarEntryStagingPath)) {
           fs.mkdirs(tarEntryStagingPath);
@@ -94,21 +102,5 @@ public class TarArchiveInputStreamDataWriter extends FileAwareInputStreamDataWri
     }
 
     this.setFilePermissions(fileAwareInputStream.getFile());
-  }
-
-  /**
-   * If this is the first entry in the tar, reset the destination file name to the name of the first entry in the tar.
-   * It is required to change the name of the destination file because the untarred file/dir name is NOT known to the
-   * source
-   */
-  private boolean updateName(FileAwareInputStream fileAwareInputStream, boolean firstEntrySeen, String newFileName) {
-    if (!firstEntrySeen) {
-      fileAwareInputStream.getFile().setDestination(
-          new Path(fileAwareInputStream.getFile().getDestination().getParent(), newFileName));
-      fileAwareInputStream.getFile().setRelativeDestination(
-          new Path(fileAwareInputStream.getFile().getRelativeDestination().getParent(), newFileName));
-      firstEntrySeen = true;
-    }
-    return firstEntrySeen;
   }
 }
