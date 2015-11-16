@@ -13,6 +13,7 @@
 package gobblin.writer;
 
 import org.apache.avro.Schema;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -44,14 +45,19 @@ public abstract class FsDataWriterBuilder<S, D> extends PartitionAwareDataWriter
    */
   public String getFileName(State properties) {
 
-    String fileName = WriterUtils.getWriterFileName(properties, this.branches, this.branch, this.writerId,
-        this.format.getExtension());
+    String extension =
+        this.format.equals(WriterOutputFormat.OTHER) ? getExtension(properties) : this.format.getExtension();
+    String fileName = WriterUtils.getWriterFileName(properties, this.branches, this.branch, this.writerId, extension);
 
     if (this.partition.isPresent()) {
       fileName = getPartitionedFileName(properties, fileName);
     }
 
     return fileName;
+  }
+
+  private String getExtension(State properties) {
+    return properties.getProp(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY, StringUtils.EMPTY);
   }
 
   protected String getPartitionedFileName(State properties, String originalFileName) {
