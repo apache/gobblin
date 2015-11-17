@@ -88,6 +88,7 @@ public class ConfigClient {
    * @param uri - URI which must start with scheme name
    * @param recursive - indicate to get the imported URI recursively or not
    * @return The java.util.Collection which contains all the URI imported by input uri
+   * All the URIs must starts with scheme names
    */
   public Collection<URI> getImported(URI uri, boolean recursive){
     return null;

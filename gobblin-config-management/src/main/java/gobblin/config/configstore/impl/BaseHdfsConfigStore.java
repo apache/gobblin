@@ -5,6 +5,7 @@ import gobblin.config.configstore.VersionComparator;
 import gobblin.config.utils.PathUtils;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -13,10 +14,15 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Logger;
+
+import com.google.common.io.Closer;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 /**
  * The BaseHdfsConfigStore implements basic functions from ConfigStore which is related to HDFS
@@ -147,6 +153,35 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
     } catch (IOException ioe) {
       LOG.error(String.format("Got error when find children for %s, exception %s", self, ioe.getMessage()));
       throw new RuntimeException(ioe);
+    }
+  }
+  
+  @Override
+  public Config getOwnConfig(URI uri, String version) {
+    if (uri == null)
+      return ConfigFactory.empty();
+
+    Closer closer = Closer.create();
+    Path self = getPath(uri, version);
+    Path configFile = new Path(self, CONFIG_FILE_NAME);
+    try {
+      if (!this.fs.isFile(configFile)) {
+        return ConfigFactory.empty();
+      }
+
+      FSDataInputStream configFileStream = closer.register(this.fs.open(configFile));
+      return ConfigFactory.parseReader(new InputStreamReader(configFileStream)).resolve();
+    }
+    catch (IOException ioe) {
+      LOG.error(String.format("Got error when get own config for %s, exception %s", self, ioe.getMessage()), ioe);
+      throw new RuntimeException(ioe);
+    }
+    finally {
+      try {
+        closer.close();
+      } catch (IOException e) {
+        LOG.error("Failed to close FsInputStream: " + e, e);
+      }
     }
   }
 

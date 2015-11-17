@@ -2,6 +2,8 @@ package gobblin.config.utils;
 
 import java.net.URI;
 
+import org.apache.hadoop.fs.Path;
+
 public class URITest {
   
   public static void display(URI u, URI n){
@@ -35,6 +37,13 @@ public class URITest {
     test = new URI("user/mitu");
     n = new URI("user");
     display(test, n);
+    
+    Path p = new Path("j2se/1.3/docs/guide/index.html");
+    int i=1;
+    while(p!=null && i<10){
+      System.out.println("parent " + p.getParent().toUri());
+      p = p.getParent();
+    }
     
   }
 }
