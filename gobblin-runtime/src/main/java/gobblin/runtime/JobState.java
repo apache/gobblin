@@ -327,6 +327,13 @@ public class JobState extends SourceState {
   }
 
   /**
+   * Sets the {@link LauncherTypeEnum} for this {@link JobState}.
+   */
+  public void setJobLauncherType(LauncherTypeEnum jobLauncherType) {
+    this.setProp(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, jobLauncherType.name());
+  }
+
+  /**
    * Get the tracking URL for this {@link JobState}.
    */
   public Optional<String> getTrackingURL() {

@@ -40,6 +40,7 @@ import com.google.common.collect.Queues;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.rest.LauncherTypeEnum;
 import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.FileBasedJobLock;
 import gobblin.runtime.JobLauncher;
@@ -112,6 +113,8 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
     this.stateSerDeRunnerThreads = Integer.parseInt(jobProps.getProperty(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY,
         Integer.toString(ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS)));
+
+    this.jobContext.getJobState().setJobLauncherType(LauncherTypeEnum.YARN);
   }
 
   @Override
