@@ -11,15 +11,28 @@
  */
 package gobblin.data.management.copy;
 
+import java.io.IOException;
+
 import org.apache.commons.lang.RandomStringUtils;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+
 /**
- * Utils class to generate dummy {@link CopyableFile}s for testing.
- * Random strings are generated for null paths.
+ * Utils class to generate dummy {@link CopyableFile}s for testing. Random strings are generated for null paths.
  */
 public class CopyableFileUtils {
+
+  public static CopyableFile createTestCopyableFile(String resourcePath) throws IOException {
+    FileSystem fs = FileSystem.getLocal(new Configuration());
+    fs.create(new Path(resourcePath));
+
+    FileStatus status = new FileStatus(0l, false, 0, 0l, 0l, new Path(resourcePath));
+
+    return new CopyableFile(status, new Path(getRandomPath()), new Path(getRandomPath()), null, null, null);
+  }
 
   public static CopyableFile getTestCopyableFile() {
     return getTestCopyableFile(null, null);
