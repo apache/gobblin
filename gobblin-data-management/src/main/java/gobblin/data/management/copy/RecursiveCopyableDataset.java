@@ -79,9 +79,7 @@ public class RecursiveCopyableDataset extends SinglePartitionCopyableDataset {
 
     for (FileStatus file : files) {
 
-      Path relativeOutputPath =
-          PathUtils.relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(file.getPath()),
-              PathUtils.getPathWithoutSchemeAndAuthority(datasetRoot()));
+      Path relativeOutputPath = getRelativeOuptutPath(file);
 
       Path outputPath = new Path(this.targetDirectory, relativeOutputPath);
 
@@ -104,6 +102,18 @@ public class RecursiveCopyableDataset extends SinglePartitionCopyableDataset {
           ancestorOwnerAndPermissions, checksum == null ? new byte[0] : checksum.getBytes()));
     }
     return copyableFiles;
+  }
+
+  /**
+   * Get the expected output path of the file under {@link #datasetTargetRoot()}. Subclasses can override this method if
+   * the file name needs to be different at destination.
+   *
+   * @param file whose relative outputPath will be returned
+   * @return the relativeOutputPath
+   */
+  protected Path getRelativeOuptutPath(FileStatus file) {
+    return PathUtils.relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(file.getPath()),
+        PathUtils.getPathWithoutSchemeAndAuthority(datasetRoot()));
   }
 
   @Override

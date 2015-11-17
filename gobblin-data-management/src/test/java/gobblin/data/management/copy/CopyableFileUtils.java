@@ -39,6 +39,11 @@ public class CopyableFileUtils {
 
   public static CopyableFile getTestCopyableFile(String resourcePath, String relativePath,
       OwnerAndPermission ownerAndPermission) {
+    return getTestCopyableFile(resourcePath, getRandomPath(), relativePath, ownerAndPermission);
+  }
+
+  public static CopyableFile getTestCopyableFile(String resourcePath, String destinationPath, String relativePath,
+      OwnerAndPermission ownerAndPermission) {
 
     FileStatus status = null;
 
@@ -56,7 +61,7 @@ public class CopyableFileUtils {
 
     Path destinationRelativePath = new Path(relativePath);
 
-    return new CopyableFile(status, new Path(getRandomPath()), destinationRelativePath, ownerAndPermission, null, null);
+    return new CopyableFile(status, new Path(destinationPath), destinationRelativePath, ownerAndPermission, null, null);
   }
 
   private static String getRandomPath() {
