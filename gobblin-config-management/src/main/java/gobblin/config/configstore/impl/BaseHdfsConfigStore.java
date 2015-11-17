@@ -1,6 +1,5 @@
 package gobblin.config.configstore.impl;
 
-
 import gobblin.config.configstore.ConfigStore;
 import gobblin.config.configstore.VersionComparator;
 import gobblin.config.utils.PathUtils;
@@ -26,29 +25,23 @@ import org.apache.log4j.Logger;
  */
 public abstract class BaseHdfsConfigStore implements ConfigStore {
 
-  /**
-   * 
-   */
-  private static final long serialVersionUID = 4048170056813280775L;
-
   private static final Logger LOG = Logger.getLogger(BaseHdfsConfigStore.class);
   public static final String CONFIG_FILE_NAME = "main.conf";
 
-  private final String scheme;
+  private final URI storeURI;
   private final Path location;
   private final String currentVersion;
   protected final FileSystem fs;
   protected final VersionComparator<String> vc;
-  protected final Path currentVersionRoot;
 
-  public BaseHdfsConfigStore(String scheme, String location) {
-    this(scheme, location, new SimpleVersionComparator());
+  public BaseHdfsConfigStore(URI root) {
+    this(root, new SimpleVersionComparator());
   }
 
-  public BaseHdfsConfigStore(String scheme, String location, VersionComparator<String> vc) {
-    this.scheme = scheme;
-    this.location = new Path(location);
+  public BaseHdfsConfigStore(URI root, VersionComparator<String> vc) {
     try {
+      this.storeURI = root;
+      this.location = new Path(root.getPath());
       this.fs = this.location.getFileSystem(new Configuration());
     } catch (IOException ioe) {
       LOG.error("can not initial the file system " + ioe.getMessage(), ioe);
@@ -57,7 +50,6 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
 
     this.vc = vc;
     this.currentVersion = this.findCurrentVersion();
-    this.currentVersionRoot = new Path(this.location, this.currentVersion);
   }
 
   private String findCurrentVersion() {
@@ -93,37 +85,39 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
   }
 
   @Override
-  public String getScheme() {
-    return this.scheme;
-  }
-
-  @Override
   public String getCurrentVersion() {
     return this.currentVersion;
   }
-
+  
   @Override
-  public URI getParent(URI uri) {
-    if (uri == null || uri.toString().length() == 0)
-      return null;
-
-    Path self = new Path(this.currentVersionRoot, uri.toString());
-    Path parent = self.getParent();
-
+  public URI getStoreURI(){
+    return storeURI;
+  }
+  
+  @SuppressWarnings("deprecation")
+  protected Path getVersionRoot(String version){
+    Path versionRoot = new Path(this.location, version);
     try {
-      return new URI(getRelativePath(parent));
-    } catch (URISyntaxException e) {
-      LOG.error(String.format("Got error when create URI for %s, exception %s", parent, e.getMessage()), e);
-      throw new RuntimeException(e);
-    }
+      if(this.fs.isDirectory(versionRoot)){
+        return versionRoot;
+      }
+      else {
+        String errorMesg = "Specified version " + versionRoot + " is not valid directory";
+        LOG.error(errorMesg);
+        throw new VersionDoesNotExistException(errorMesg);
+      }
+    } catch (IOException ioe) {
+      LOG.error("can not find the version " + version + " error:  " + ioe.getMessage(), ioe);
+      throw new VersionDoesNotExistException(ioe.getMessage());
+    } 
   }
 
   @Override
-  public Collection<URI> getChildren(URI uri) {
+  public Collection<URI> getChildren(URI uri, String version) {
     if (uri == null)
       return null;
     
-    Path self = getPath(uri) ;
+    Path self = getPath(uri, version) ;
     
     try {
       if (this.fs.isFile(self)) {
@@ -142,7 +136,7 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
           continue;
         }
         try {
-          res.add(new URI(this.getRelativePath(f.getPath())));
+          res.add(new URI(this.getRelativePath(f.getPath(), version)));
         } catch (URISyntaxException e) {
           LOG.error(String.format("Got error when create URI for %s, exception %s", f.getPath(), e.getMessage()), e);
           throw new RuntimeException(e);
@@ -156,10 +150,9 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
     }
   }
 
-  protected String getRelativePath(Path p) {
-    String root = PathUtils.getPathWithoutSchemeAndAuthority(this.currentVersionRoot).toString();
+  protected String getRelativePath(Path p, String version) {
+    String root = PathUtils.getPathWithoutSchemeAndAuthority(this.getVersionRoot(version)).toString();
     String input = PathUtils.getPathWithoutSchemeAndAuthority(p).toString();
-
 
     if (input.equals(root)) {
       return "";
@@ -167,19 +160,19 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
     return input.substring(root.length()+1);
   }
   
-  public static final boolean isRootURI(URI uri) {
+  protected static final boolean isRootURI(URI uri) {
     if (uri == null)
       return false;
 
     return uri.toString().length()==0;
   }
   
-  public final Path getPath(URI uri){
+  protected final Path getPath(URI uri, String version){
     Path self ;
     if(isRootURI(uri)){
-      self = this.currentVersionRoot;
+      self = this.getVersionRoot(version);
     }else{
-      self = new Path(this.currentVersionRoot, uri.toString());
+      self = new Path(this.getVersionRoot(version), uri.toString());
     }
     return self;
   }

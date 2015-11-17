@@ -1,5 +1,7 @@
 package gobblin.config.utils;
 
+import java.net.URI;
+
 import org.apache.hadoop.fs.Path;
 
 /*
@@ -12,5 +14,12 @@ public class PathUtils {
     // the drive specification on Windows.
     Path newPath = path.isAbsolute() ? new Path(null, null, path.toUri().getPath()) : path;
     return newPath;
+  }
+  
+  public static Path getParent(URI uri){
+    if(uri == null) return null;
+    
+    Path p = new Path(uri.getPath());
+    return p.getParent();
   }
 }
