@@ -21,9 +21,11 @@ import org.apache.avro.Schema;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 
 import gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
+import gobblin.metrics.kafka.SchemaRegistryException;
 
 
 /**
@@ -44,24 +46,26 @@ public class SchemaRegistryVersionWriter implements SchemaVersionWriter {
   }
 
   @Override
-  public void writeSchemaVersioningInformation(Schema schema, DataOutputStream outputStream)
-      throws IOException {
-    if(!this.registrySchemaIds.containsKey(schema)) {
-      String schemaId = this.registry.register(schema, this.topic);
-      this.registrySchemaIds.put(schema, schemaId);
+  public void writeSchemaVersioningInformation(Schema schema, DataOutputStream outputStream) throws IOException {
+    if (!this.registrySchemaIds.containsKey(schema)) {
+      try {
+        String schemaId = this.registry.register(schema, this.topic);
+        this.registrySchemaIds.put(schema, schemaId);
+      } catch (SchemaRegistryException e) {
+        throw Throwables.propagate(e);
+      }
     }
     outputStream.writeByte(KafkaAvroSchemaRegistry.MAGIC_BYTE);
     try {
       outputStream.write(Hex.decodeHex(this.registrySchemaIds.get(schema).toCharArray()));
-    } catch(DecoderException exception) {
+    } catch (DecoderException exception) {
       throw new IOException(exception);
     }
   }
 
   @Override
-  public Object readSchemaVersioningInformation(DataInputStream inputStream)
-      throws IOException {
-    if(inputStream.readByte() != KafkaAvroSchemaRegistry.MAGIC_BYTE) {
+  public Object readSchemaVersioningInformation(DataInputStream inputStream) throws IOException {
+    if (inputStream.readByte() != KafkaAvroSchemaRegistry.MAGIC_BYTE) {
       throw new IOException("MAGIC_BYTE not found in Avro message.");
     }
     throw new UnsupportedOperationException("readSchemaVersioningInformation not implemented for schema registry.");

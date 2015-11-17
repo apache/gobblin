@@ -25,7 +25,6 @@ import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpException;
 import org.apache.commons.httpclient.HttpStatus;
 import org.apache.commons.httpclient.MultiThreadedHttpConnectionManager;
-import org.apache.commons.httpclient.URIException;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.slf4j.Logger;
@@ -43,7 +42,7 @@ import com.google.common.collect.Maps;
  *
  * @author ziliu
  */
-public class KafkaAvroSchemaRegistry {
+public class KafkaAvroSchemaRegistry implements KafkaSchemaRegistry<String, Schema> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaAvroSchemaRegistry.class);
 
@@ -88,17 +87,18 @@ public class KafkaAvroSchemaRegistry {
   }
 
   /**
-   * Get schema from schema registry by ID
+   * Get schema from schema registry by key
    *
-   * @param id Schema ID
-   * @return Schema with the corresponding ID
-   * @throws SchemaNotFoundException if ID not found
+   * @param key Schema key
+   * @return Schema with the corresponding key
+   * @throws SchemaRegistryException if failed to retrieve schema.
    */
-  public Schema getSchemaById(String id) throws SchemaNotFoundException {
+  @Override
+  public Schema getSchemaByKey(String key) throws SchemaRegistryException {
     try {
-      return cachedSchemasById.get(id);
+      return cachedSchemasById.get(key);
     } catch (ExecutionException e) {
-      throw new SchemaNotFoundException(e);
+      throw new SchemaRegistryException(String.format("Schema with key %s cannot be retrieved", key), e);
     }
   }
 
@@ -107,9 +107,10 @@ public class KafkaAvroSchemaRegistry {
    *
    * @param topic topic name
    * @return the latest schema
-   * @throws SchemaNotFoundException if topic name not found.
+   * @throws SchemaRegistryException if failed to retrieve schema.
    */
-  public synchronized Schema getLatestSchemaByTopic(String topic) throws SchemaNotFoundException {
+  @Override
+  public synchronized Schema getLatestSchemaByTopic(String topic) throws SchemaRegistryException {
     String schemaUrl = KafkaAvroSchemaRegistry.this.url + GET_RESOURCE_BY_TYPE + topic;
 
     LOG.debug("Fetching from URL : " + schemaUrl);
@@ -130,7 +131,8 @@ public class KafkaAvroSchemaRegistry {
     }
 
     if (statusCode != HttpStatus.SC_OK) {
-      throw new SchemaNotFoundException(String.format("Latest schema for topic %s cannot be retrieved", topic));
+      throw new SchemaRegistryException(
+          String.format("Latest schema for topic %s cannot be retrieved. Status code = %d", topic, statusCode));
     }
 
     Schema schema;
@@ -138,10 +140,11 @@ public class KafkaAvroSchemaRegistry {
       try {
         schema = new Schema.Parser().parse(schemaString);
       } catch (Exception e) {
-        throw new SchemaNotFoundException(String.format("Latest schema for topic %s cannot be retrieved", topic));
+        throw new SchemaRegistryException(String.format("Latest schema for topic %s cannot be retrieved", topic), e);
       }
     } else {
-      throw new SchemaNotFoundException(String.format("Latest schema for topic %s cannot be retrieved", topic));
+      throw new SchemaRegistryException(
+          String.format("Latest schema for topic %s cannot be retrieved: schema should start with '{'", topic));
     }
 
     return schema;
@@ -158,8 +161,10 @@ public class KafkaAvroSchemaRegistry {
    * @param overrideName Name of the schema when registerd to the schema registry. This name should match the name
    *                     of the topic where instances will be published.
    * @return schema ID of the registered schema.
+   * @throws SchemaRegistryException if registration failed
    */
-  public String register(Schema schema, String overrideName) {
+  @Override
+  public String register(Schema schema, String overrideName) throws SchemaRegistryException {
     return register(AvroUtils.switchName(schema, overrideName));
   }
 
@@ -168,8 +173,10 @@ public class KafkaAvroSchemaRegistry {
    *
    * @param schema
    * @return schema ID of the registered schema
+   * @throws SchemaRegistryException if registration failed
    */
-  public synchronized String register(Schema schema) {
+  @Override
+  public synchronized String register(Schema schema) throws SchemaRegistryException {
     LOG.info("Registering schema " + schema.toString());
 
     PostMethod post = new PostMethod(url);
@@ -178,8 +185,9 @@ public class KafkaAvroSchemaRegistry {
     try {
       LOG.debug("Loading: " + post.getURI());
       int statusCode = httpClient.executeMethod(post);
-      if (statusCode != HttpStatus.SC_CREATED)
-        LOG.error("Error occurred while trying to register schema: " + statusCode);
+      if (statusCode != HttpStatus.SC_CREATED) {
+        throw new SchemaRegistryException("Error occurred while trying to register schema: " + statusCode);
+      }
 
       String response;
       response = post.getResponseBodyAsString();
@@ -187,26 +195,22 @@ public class KafkaAvroSchemaRegistry {
         LOG.info("Received response " + response);
       }
 
-      String schemaId;
+      String schemaKey;
       Header[] headers = post.getResponseHeaders(SCHEMA_ID_HEADER_NAME);
       if (headers.length != 1) {
-        LOG.error("Error reading schemaId returned by registerSchema call");
-        throw new RuntimeException("Error reading schemaId returned by registerSchema call");
+        throw new SchemaRegistryException(
+            "Error reading schema id returned by registerSchema call: headers.length = " + headers.length);
       } else if (!headers[0].getValue().startsWith(SCHEMA_ID_HEADER_PREFIX)) {
-        LOG.error("Error parsing schemaId returned by registerSchema call");
-        throw new RuntimeException("Error parsing schemaId returned by registerSchema call");
+        throw new SchemaRegistryException(
+            "Error parsing schema id returned by registerSchema call: header = " + headers[0].getValue());
       } else {
         LOG.info("Registered schema successfully");
-        schemaId = headers[0].getValue().substring(SCHEMA_ID_HEADER_PREFIX.length());
+        schemaKey = headers[0].getValue().substring(SCHEMA_ID_HEADER_PREFIX.length());
       }
 
-      return schemaId;
-    } catch (URIException e) {
-      throw new RuntimeException(e);
-    } catch (HttpException e) {
-      throw new RuntimeException(e);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+      return schemaKey;
+    } catch (Throwable t) {
+      throw new SchemaRegistryException(t);
     } finally {
       post.releaseConnection();
     }
@@ -222,34 +226,34 @@ public class KafkaAvroSchemaRegistry {
     }
 
     @Override
-    public Schema load(String id) throws Exception {
-      if (shouldFetchFromSchemaRegistry(id)) {
+    public Schema load(String key) throws Exception {
+      if (shouldFetchFromSchemaRegistry(key)) {
         try {
-          return fetchSchemaByID(id);
-        } catch (SchemaNotFoundException e) {
-          addFetchToFailureHistory(id);
+          return fetchSchemaByKey(key);
+        } catch (SchemaRegistryException e) {
+          addFetchToFailureHistory(key);
           throw e;
         }
       }
 
       // Throw exception if we've just tried to fetch this id, or if we've tried too many times for this id.
-      throw new SchemaNotFoundException(String.format("Schema with ID = %s cannot be retrieved", id));
+      throw new SchemaRegistryException(String.format("Schema with key %s cannot be retrieved", key));
     }
 
     private void addFetchToFailureHistory(String id) {
-      if (!failedFetchHistories.containsKey(id)) {
-        failedFetchHistories.put(id, new FailedFetchHistory(1, System.nanoTime()));
+      if (!this.failedFetchHistories.containsKey(id)) {
+        this.failedFetchHistories.put(id, new FailedFetchHistory(1, System.nanoTime()));
       } else {
-        failedFetchHistories.get(id).incrementNumOfAttempts();
-        failedFetchHistories.get(id).setPreviousAttemptTime(System.nanoTime());
+        this.failedFetchHistories.get(id).incrementNumOfAttempts();
+        this.failedFetchHistories.get(id).setPreviousAttemptTime(System.nanoTime());
       }
     }
 
     private boolean shouldFetchFromSchemaRegistry(String id) {
-      if (!failedFetchHistories.containsKey(id)) {
+      if (!this.failedFetchHistories.containsKey(id)) {
         return true;
       }
-      FailedFetchHistory failedFetchHistory = failedFetchHistories.get(id);
+      FailedFetchHistory failedFetchHistory = this.failedFetchHistories.get(id);
       boolean maxTriesNotExceeded = failedFetchHistory.getNumOfAttempts() < GET_SCHEMA_BY_ID_MAX_TIRES;
       boolean minRetryIntervalSatisfied =
           System.nanoTime() - failedFetchHistory.getPreviousAttemptTime() >= TimeUnit.SECONDS
@@ -257,8 +261,8 @@ public class KafkaAvroSchemaRegistry {
       return maxTriesNotExceeded && minRetryIntervalSatisfied;
     }
 
-    private Schema fetchSchemaByID(String id) throws SchemaNotFoundException, HttpException, IOException {
-      String schemaUrl = KafkaAvroSchemaRegistry.this.url + GET_RESOURCE_BY_ID + id;
+    private Schema fetchSchemaByKey(String key) throws SchemaRegistryException, HttpException, IOException {
+      String schemaUrl = KafkaAvroSchemaRegistry.this.url + GET_RESOURCE_BY_ID + key;
 
       GetMethod get = new GetMethod(schemaUrl);
 
@@ -272,8 +276,8 @@ public class KafkaAvroSchemaRegistry {
       }
 
       if (statusCode != HttpStatus.SC_OK) {
-        throw new SchemaNotFoundException(
-            String.format("Schema with ID = %s cannot be retrieved, statusCode = %d", id, statusCode));
+        throw new SchemaRegistryException(
+            String.format("Schema with key %s cannot be retrieved, statusCode = %d", key, statusCode));
       }
 
       Schema schema;
@@ -281,11 +285,11 @@ public class KafkaAvroSchemaRegistry {
         try {
           schema = new Schema.Parser().parse(schemaString);
         } catch (Exception e) {
-          throw new SchemaNotFoundException(String.format("Schema with ID = %s cannot be parsed", id), e);
+          throw new SchemaRegistryException(String.format("Schema with ID = %s cannot be parsed", key), e);
         }
       } else {
-        throw new SchemaNotFoundException(
-            String.format("Schema with ID = %s cannot be parsed: schema should start with '{'", id));
+        throw new SchemaRegistryException(
+            String.format("Schema with key %s cannot be parsed: schema should start with '{'", key));
       }
 
       return schema;
@@ -317,5 +321,4 @@ public class KafkaAvroSchemaRegistry {
       }
     }
   }
-
 }
