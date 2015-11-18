@@ -25,16 +25,16 @@ File getEnvironmentScript()
 apply from: environmentScript
 
 if (!project.hasProperty('group') || project.group.length() == 0) {
-    project.group='gobblin'
+    project.group = 'gobblin'
 }
 
-if (!project.hasProperty('version') || project.version=='unspecified') {
-    def versionOut=new ByteArrayOutputStream()
+if (!project.hasProperty('version') || project.version == 'unspecified') {
+    def versionOut = new ByteArrayOutputStream()
     exec {
         commandLine 'git', 'describe', '--tags'
         standardOutput versionOut
     }
-    def tagStr=versionOut.toString().trim()
+    def tagStr = versionOut.toString().trim()
     println 'Using latest tag for version: ' + tagStr
     if (tagStr.startsWith("gobblin_")) {
         project.version = tagStr.substring(8)
