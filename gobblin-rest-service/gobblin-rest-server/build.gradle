@@ -9,6 +9,7 @@
 // CONDITIONS OF ANY KIND, either express or implied.
 
 apply plugin: 'pegasus'
+apply plugin: 'java'
 
 ext.apiProject = project(':gobblin-rest-service:gobblin-rest-api')
 

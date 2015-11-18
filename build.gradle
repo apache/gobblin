@@ -148,9 +148,9 @@ task wrapper(type: Wrapper) { gradleVersion = '1.12' }
 import javax.tools.ToolProvider
 
 subprojects {
-  apply plugin: 'java'
-  apply plugin: 'idea'
-  apply plugin: 'eclipse'
+plugins.withType(JavaPlugin) {
+  plugins.apply('idea')
+  plugins.apply('eclipse')
 // Disabling the FindBugs plugin for now because FindBugs 2.x is not compatible with Java8
 //  apply plugin: 'findbugs'
 
@@ -217,6 +217,16 @@ subprojects {
         dataTemplateCompile externalDependency.pegasus.data
         restClientCompile externalDependency.pegasus.restliClient,externalDependency.pegasus.restliCommon,externalDependency.pegasus.restliTools
       }
+    }
+  }
+}
+}
+
+//Turn off javadoc lint for Java 8+
+if (JavaVersion.current().isJava8Compatible()) {
+  allprojects {
+    tasks.withType(Javadoc) {
+      options.addStringOption('Xdoclint:none', '-quiet')
     }
   }
 }
