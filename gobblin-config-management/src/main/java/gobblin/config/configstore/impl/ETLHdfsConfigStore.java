@@ -76,14 +76,6 @@ public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements
   protected Config getAncestorConfig(URI uri, String version) {
     URI parent = getParent(uri);
     Config res = getResolvedConfig(parent, version);
-
-    // DO NOT need it
-//    parent = getParent(parent);
-//    while (parent != null) {
-//      res.withFallback(getResolvedConfig(parent, version));
-//      parent = getParent(parent);
-//    }
-
     return res;
   }
   
