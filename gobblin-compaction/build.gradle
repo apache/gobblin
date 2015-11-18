@@ -11,11 +11,21 @@
 apply plugin: 'java'
 apply plugin: 'eclipse'
 
+repositories {
+  mavenCentral()
+  maven {
+    url "http://conjars.org/repo"
+  }
+}
+
 dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-utility")
   compile project(":gobblin-metrics")
   compile project(":gobblin-core")
+  compile externalDependency.calciteCore
+  compile externalDependency.calciteAvatica
+  compile externalDependency.jhyde
   compile externalDependency.avro
   compile externalDependency.commonsLang
   compile externalDependency.commonsMath

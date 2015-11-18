@@ -10,6 +10,13 @@
 
 apply plugin: 'java'
 
+repositories {
+  mavenCentral()
+  maven {
+    url "http://conjars.org/repo"
+  }
+}
+
 dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-core")
@@ -45,6 +52,9 @@ dependencies {
     compile externalDependency.avroMapredH1
   }
 
+  testCompile externalDependency.calciteCore
+  testCompile externalDependency.calciteAvatica
+  testCompile externalDependency.jhyde
   testCompile externalDependency.testng
   testCompile externalDependency.byteman
   testCompile externalDependency.bytemanBmunit
