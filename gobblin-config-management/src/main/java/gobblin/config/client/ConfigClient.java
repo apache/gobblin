@@ -45,7 +45,7 @@ public class ConfigClient {
    */
   public static ConfigClient createDefaultConfigClient( ){
     // create without stable versions
-    return createConfigClientWithStableVersion(VERSION_STABILITY_POLICY.CACHE_CONFIG_IN_MEMORY);
+    return createConfigClientWithStableVersion(VERSION_STABILITY_POLICY.RAISE_ERROR);
   }
   
   // public APIs
@@ -61,7 +61,8 @@ public class ConfigClient {
    * 2. Use ConfigStoreFactory to create ConfigStore 
    *    using getDefaultConfigStore() if Authority is missing in uri
    *    using createConfigStore() if Authority is present
-   * 3. Find ConfigStore's root URI by back tracing the input uri, the path which contains "_CONFIG_STORE" is the root
+   *    One of the implementation for ConfigStore to determine the store root is
+   *    by back tracing the input uri, the path which contains "_CONFIG_STORE" is the root
    * 4. Build ConfigStoreAccessor by checking the current version of the ConfigStore. Added the entry to theMap
    * 
    * 5. If the ConfigStore is NOT ConfigStoreWithResolution, need to do resolution in this client
@@ -98,7 +99,7 @@ public class ConfigClient {
    * 
    * @param uri - URI which must start with scheme name
    * @param recursive - indicate to get the imported by URI recursively or not
-   * @return The java.util.Collection which contains all the URI imported by with input uri
+   * @return The java.util.Collection which contains all the URI which import input uri
    */
   public Collection<URI> getImportedBy(URI uri, boolean recursive){
     return null;
@@ -107,13 +108,15 @@ public class ConfigClient {
   /**
    * 
    * @param uri - clean the cache for the configuration store which specified by input URI 
+   * This will cause a new version of the URI to be retrieved next time it is called, which could be 
+   * different from the last configuration received.
    */
   public void clearCache(URI uri){
     
   }
   
   // key is the store ROOT, must use TreeMap
-  Map<URI, ConfigStoreAccessor> theMap;
+  Map<URI, ConfigStoreAccessor> ConfigStoreMap;
 
   
   static class ConfigStoreAccessor{
