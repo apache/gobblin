@@ -59,7 +59,6 @@ import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
@@ -71,8 +70,6 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskStateTracker;
 import gobblin.yarn.event.DelegationTokenUpdatedEvent;
@@ -106,7 +103,7 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
 
   private final TaskStateModelFactory taskStateModelFactory;
 
-  private final MetricContext metricContext;
+  private final MetricRegistry metricRegistry;
 
   private final JmxReporter jmxReporter;
 
@@ -156,18 +153,8 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
     this.taskStateModelFactory = new TaskStateModelFactory(this.helixManager, taskFactoryMap);
     this.helixManager.getStateMachineEngine().registerStateModelFactory("Task", this.taskStateModelFactory);
 
-    List<Tag<?>> tags = ImmutableList.<Tag<?>>builder()
-        .add(new Tag<String>(GobblinYarnMetricTagNames.YARN_APPLICATION_NAME, applicationName))
-        .add(new Tag<String>(GobblinYarnMetricTagNames.YARN_APPLICATION_ID,
-            containerId.getApplicationAttemptId().getApplicationId().toString()))
-        .add(new Tag<String>(GobblinYarnMetricTagNames.CONTAINER_ID, containerId.toString()))
-        .add(new Tag<String>(GobblinYarnMetricTagNames.HELIX_INSTANCE_NAME, helixInstanceName))
-        .build();
-    this.metricContext = MetricContext.builder(GobblinApplicationMaster.class.getSimpleName())
-        .addTags(tags)
-        .build();
-
-    this.jmxReporter = JmxReporter.forRegistry(this.metricContext)
+    this.metricRegistry = new MetricRegistry();
+    this.jmxReporter = JmxReporter.forRegistry(this.metricRegistry)
         .convertRatesTo(TimeUnit.SECONDS)
         .convertDurationsTo(TimeUnit.MILLISECONDS)
         .build();
@@ -247,12 +234,12 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
     registerMetricSetWithPrefix("jvm.gc", new GarbageCollectorMetricSet());
     registerMetricSetWithPrefix("jvm.memory", new MemoryUsageGaugeSet());
     registerMetricSetWithPrefix("jvm.threads", new ThreadStatesGaugeSet());
-    this.metricContext.register("jvm.fileDescriptorRatio", new FileDescriptorRatioGauge());
+    this.metricRegistry.register("jvm.fileDescriptorRatio", new FileDescriptorRatioGauge());
   }
 
   private void registerMetricSetWithPrefix(String prefix, MetricSet metricSet) {
     for (Map.Entry<String, Metric> entry : metricSet.getMetrics().entrySet()) {
-      this.metricContext.register(MetricRegistry.name(prefix, entry.getKey()), entry.getValue());
+      this.metricRegistry.register(MetricRegistry.name(prefix, entry.getKey()), entry.getValue());
     }
   }
 

@@ -16,8 +16,10 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -63,7 +65,6 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
-import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -88,10 +89,26 @@ import gobblin.yarn.event.ApplicationReportArrivalEvent;
  * A client driver to launch Gobblin as a Yarn application.
  *
  * <p>
- *   This class starts the {@link GobblinApplicationMaster}. Once the application is launched, this class
- *   periodically polls the status of the application through a {@link ListeningExecutorService}. If a
- *   shutdown signal is received, it sends a Helix {@link org.apache.helix.model.Message.MessageType#SCHEDULER_MSG}
- *   to the {@link GobblinApplicationMaster} asking it to shutdown and release all the allocated containers.
+ *   This class, upon starting, will check if there's a Yarn application that it has previously submitted and
+ *   it is able to reconnect to. More specifically, it checks if the file storing the previous application ID
+ *   exists and if so, reads the previous application ID. It then checks if the application with that ID can
+ *   be reconnected to, i.e., if the application has not completed yet. If so, it simply starts monitoring
+ *   that application.
+ * </p>
+ *
+ * <p>
+ *   On the other hand, if there's no such a reconnectable Yarn application, This class will launch a new Yarn
+ *   application and start the {@link GobblinApplicationMaster}. It also persists the new application ID so it
+ *   is able to reconnect to the Yarn application if it is restarted for some reason. Once the application is
+ *   launched, this class starts to monitor the application by periodically polling the status of the application
+ *   through a {@link ListeningExecutorService}.
+ * </p>
+ *
+ * <p>
+ *   If a shutdown signal is received, it sends a Helix
+ *   {@link org.apache.helix.model.Message.MessageType#SCHEDULER_MSG} to the {@link GobblinApplicationMaster}
+ *   asking it to shutdown and release all the allocated containers. Upon successfully shutting down the Yarn
+ *   application, it deletes the file storing the application ID and cleans up the working directory.
  * </p>
  *
  * @author ynli
@@ -101,6 +118,21 @@ public class GobblinYarnAppLauncher {
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinYarnAppLauncher.class);
 
   private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
+
+  // The set of Yarn application types this class is interested in. This is used to
+  // lookup the application this class has launched previously upon restarting.
+  private static final Set<String> APPLICATION_TYPES = ImmutableSet.of("YARN");
+
+  // The set of Yarn application states under which the driver can reconnect to the Yarn application after restart
+  private static final EnumSet<YarnApplicationState> RECONNECTABLE_APPLICATION_STATES = EnumSet.of(
+      YarnApplicationState.NEW,
+      YarnApplicationState.NEW_SAVING,
+      YarnApplicationState.SUBMITTED,
+      YarnApplicationState.ACCEPTED,
+      YarnApplicationState.RUNNING
+  );
+
+  private static final String APPLICATION_ID_FILE_NAME = "_application.id";
 
   private final String applicationName;
   private final String appQueueName;
@@ -113,12 +145,14 @@ public class GobblinYarnAppLauncher {
   private final YarnClient yarnClient;
   private final FileSystem fs;
 
+  private final ApplicationIdStore applicationIdStore;
+
   private final EventBus eventBus = new EventBus(GobblinYarnAppLauncher.class.getSimpleName());
 
   private final ScheduledExecutorService applicationStatusMonitor;
   private final long appReportIntervalMinutes;
 
-  private final String appMasterJvmArgs;
+  private final Optional<String> appMasterJvmArgs;
 
   private final Path sinkLogRootDir;
 
@@ -158,11 +192,16 @@ public class GobblinYarnAppLauncher {
         FileSystem.get(this.yarnConfiguration);
     this.fsCloser.register(this.fs);
 
+    this.applicationIdStore = new FsApplicationIdStore(this.fs,
+        new Path(YarnHelixUtils.getAppRootDirPath(this.fs, this.applicationName), APPLICATION_ID_FILE_NAME));
+
     this.applicationStatusMonitor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("GobblinYarnAppStatusMonitor")));
     this.appReportIntervalMinutes = config.getLong(GobblinYarnConfigurationKeys.APP_REPORT_INTERVAL_MINUTES_KEY);
 
-    this.appMasterJvmArgs = Strings.nullToEmpty(config.getString(GobblinYarnConfigurationKeys.APP_MASTER_JVM_ARGS_KEY));
+    this.appMasterJvmArgs = config.hasPath(GobblinYarnConfigurationKeys.APP_MASTER_JVM_ARGS_KEY) ?
+        Optional.of(config.getString(GobblinYarnConfigurationKeys.APP_MASTER_JVM_ARGS_KEY)) :
+        Optional.<String>absent();
 
     this.sinkLogRootDir = new Path(config.getString(GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY));
   }
@@ -186,7 +225,8 @@ public class GobblinYarnAppLauncher {
     }
 
     this.yarnClient.start();
-    this.applicationId = Optional.of(setupAndSubmitApplication());
+    this.applicationId = getApplicationId();
+    this.applicationIdStore.put(this.applicationId.get().toString());
 
     this.applicationStatusMonitor.scheduleAtFixedRate(new Runnable() {
       @Override
@@ -244,6 +284,9 @@ public class GobblinYarnAppLauncher {
       if (this.helixManager.isConnected()) {
         this.helixManager.disconnect();
       }
+
+      // Delete the file storing the application ID if the application has been shutdown successfully
+      this.applicationIdStore.delete();
     } finally {
       try {
         if (this.applicationId.isPresent()) {
@@ -286,6 +329,38 @@ public class GobblinYarnAppLauncher {
         LOGGER.error("Timeout in stopping the service manager", te);
       }
     }
+  }
+
+  private Optional<ApplicationId> getApplicationId() throws YarnException, IOException {
+    Optional<ApplicationId> reconnectableApplicationId = getReconnectableApplicationId();
+    if (reconnectableApplicationId.isPresent()) {
+      LOGGER.info("Found reconnectable application with application ID: " + reconnectableApplicationId.get());
+      return reconnectableApplicationId;
+    }
+
+    LOGGER.info("No reconnectable application found so submitting a new application");
+    return Optional.of(setupAndSubmitApplication());
+  }
+
+  private Optional<ApplicationId> getReconnectableApplicationId() throws YarnException, IOException {
+    Optional<String> existingApplicationId = this.applicationIdStore.get();
+    if (!existingApplicationId.isPresent()) {
+      return Optional.absent();
+    }
+
+    List<ApplicationReport> applicationReports =
+        this.yarnClient.getApplications(APPLICATION_TYPES, RECONNECTABLE_APPLICATION_STATES);
+    if (applicationReports == null || applicationReports.isEmpty()) {
+      return Optional.absent();
+    }
+
+    for (ApplicationReport applicationReport : applicationReports) {
+      if (applicationReport.getApplicationId().toString().equals(existingApplicationId.get())) {
+        return Optional.of(applicationReport.getApplicationId());
+      }
+    }
+
+    return Optional.absent();
   }
 
   /**
@@ -479,7 +554,7 @@ public class GobblinYarnAppLauncher {
     return new StringBuilder()
         .append(ApplicationConstants.Environment.JAVA_HOME.$()).append("/bin/java")
         .append(" -Xmx").append(memoryMbs).append("M")
-        .append(" ").append(this.appMasterJvmArgs)
+        .append(" ").append(this.appMasterJvmArgs.or(""))
         .append(" ").append(GobblinApplicationMaster.class.getName())
         .append(" --").append(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(this.applicationName)

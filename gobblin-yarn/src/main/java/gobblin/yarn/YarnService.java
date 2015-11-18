@@ -104,7 +104,7 @@ public class YarnService extends AbstractIdleService {
   private final int requestedContainerMemoryMbs;
   private final int requestedContainerCores;
 
-  private final String containerJvmArgs;
+  private final Optional<String> containerJvmArgs;
 
   // Security tokens for accessing HDFS
   private final ByteBuffer tokens;
@@ -116,7 +116,7 @@ public class YarnService extends AbstractIdleService {
   private volatile Optional<Resource> maxResourceCapacity =Optional.absent();
 
   public YarnService(Config config, String applicationName, ApplicationId applicationId, FileSystem fs,
-      EventBus eventBus, String containerJvmArgs) throws Exception {
+      EventBus eventBus) throws Exception {
     this.applicationName = applicationName;
     this.applicationId = applicationId;
 
@@ -140,7 +140,9 @@ public class YarnService extends AbstractIdleService {
     this.requestedContainerMemoryMbs = config.getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
     this.requestedContainerCores = config.getInt(GobblinYarnConfigurationKeys.CONTAINER_CORES_KEY);
 
-    this.containerJvmArgs = containerJvmArgs;
+    this.containerJvmArgs = config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_JVM_ARGS_KEY) ?
+        Optional.of(config.getString(GobblinYarnConfigurationKeys.CONTAINER_JVM_ARGS_KEY)) :
+        Optional.<String>absent();
 
     this.tokens = getSecurityTokens();
   }
@@ -329,7 +331,7 @@ public class YarnService extends AbstractIdleService {
     return new StringBuilder()
         .append(ApplicationConstants.Environment.JAVA_HOME.$()).append("/bin/java")
         .append(" -Xmx").append(container.getResource().getMemory()).append("M")
-        .append(" ").append(this.containerJvmArgs)
+        .append(" ").append(this.containerJvmArgs.or(""))
         .append(" ").append(GobblinWorkUnitRunner.class.getName())
         .append(" --").append(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(this.applicationName)
@@ -357,6 +359,9 @@ public class YarnService extends AbstractIdleService {
               containerStatus.getContainerId(), containerStatus.getDiagnostics()));
         }
         containerMap.remove(containerStatus.getContainerId());
+
+        LOGGER.info("Requesting a new container to replace the one that has completed");
+        eventBus.post(new NewContainerRequest(1));
       }
     }
 
@@ -425,13 +430,11 @@ public class YarnService extends AbstractIdleService {
     public void onContainerStatusReceived(ContainerId containerId, ContainerStatus containerStatus) {
       LOGGER.info(String.format("Received container status for container %s: %s", containerId, containerStatus));
       if (containerStatus.getState() == ContainerState.COMPLETE) {
-        LOGGER.info(String.format("Container %s completed", containerId));
+        LOGGER.info(String.format("Container %s completed with status %s", containerId, containerStatus));
         containerMap.remove(containerId);
-        if (containerMap.isEmpty()) {
-          synchronized (allContainersStopped) {
-            allContainersStopped.notify();
-          }
-        }
+
+        LOGGER.info("Requesting a new container to replace the one that has completed");
+        eventBus.post(new NewContainerRequest(1));
       }
     }
 
