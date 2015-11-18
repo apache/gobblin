@@ -23,6 +23,10 @@ File getEnvironmentScript()
 
 apply from: environmentScript
 
+if (!project.hasProperty('group') || project.group.length() == 0) {
+    project.group='gobblin'
+}
+
 if (!project.hasProperty('version') || project.version=='unspecified') {
     def versionOut=new ByteArrayOutputStream()
     exec {
@@ -39,6 +43,7 @@ if (!project.hasProperty('version') || project.version=='unspecified') {
     }
 }
 
+println "name=" + project.name + " group=" + project.group
 println "project.version=" + project.version
 
 if (!project.hasProperty('hadoopVersion')) {
