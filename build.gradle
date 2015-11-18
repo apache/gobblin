@@ -9,7 +9,6 @@
 // CONDITIONS OF ANY KIND, either express or implied.
 
 apply plugin: 'idea'
-apply plugin: 'eclipse'
 
 ext.build_script_dir = "${projectDir.path}/build_script"
 
