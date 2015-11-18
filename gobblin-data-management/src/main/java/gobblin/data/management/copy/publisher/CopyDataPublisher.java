@@ -15,6 +15,7 @@ package gobblin.data.management.copy.publisher;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.configuration.WorkUnitState.WorkingState;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableFile;
@@ -77,12 +78,22 @@ public class CopyDataPublisher extends DataPublisher {
      */
     Multimap<CopyableDataset, WorkUnitState> datasets = getDatasetRoots(states);
 
+    boolean allDatasetsPublished = true;
     for (CopyableDataset copyableDataset : datasets.keySet()) {
-      this.publishDataset(copyableDataset, datasets.get(copyableDataset));
+      try {
+        this.publishDataset(copyableDataset, datasets.get(copyableDataset));
+      } catch (Throwable e) {
+        // TODO submit failure events here
+        log.error("Failed to publish " + copyableDataset.datasetTargetRoot(), e);
+        allDatasetsPublished = false;
+      }
     }
 
     fs.delete(writerOutputDir, true);
 
+    if (!allDatasetsPublished) {
+      throw new IOException("Not all datasets published successfully");
+    }
   }
 
   /**
@@ -97,7 +108,6 @@ public class CopyDataPublisher extends DataPublisher {
     for (WorkUnitState workUnitState : states) {
       CopyableDataset copyableDataset =
           SerializableCopyableDataset.deserialize(workUnitState.getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
-      copyableDataset.datasetTargetRoot();
 
       datasetRoots.put(copyableDataset, workUnitState);
 
@@ -121,7 +131,9 @@ public class CopyDataPublisher extends DataPublisher {
     fs.delete(datasetWriterOutputPath, true);
 
     for (WorkUnitState wus : datasetWorkUnitStates) {
-      wus.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+      if (wus.getWorkingState() == WorkingState.SUCCESSFUL) {
+        wus.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+      }
     }
   }
 
