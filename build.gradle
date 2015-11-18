@@ -23,6 +23,24 @@ File getEnvironmentScript()
 
 apply from: environmentScript
 
+if (!project.hasProperty('version') || project.version=='unspecified') {
+    def versionOut=new ByteArrayOutputStream()
+    exec {
+        commandLine 'git', 'describe', '--tags'
+        standardOutput versionOut
+    }
+    def tagStr=versionOut.toString().trim()
+    println 'Using latest tag for version: ' + tagStr
+    if (tagStr.startsWith("gobblin_")) {
+        project.version = tagStr.substring(8)
+    }
+    else {
+        project.version = tagStr
+    }
+}
+
+println "project.version=" + project.version
+
 if (!project.hasProperty('hadoopVersion')) {
   if (project.hasProperty('useHadoop2')) {
     hadoopVersion = '2.3.0'
