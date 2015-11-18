@@ -19,7 +19,7 @@ import org.apache.commons.io.FileUtils;
 public class TestCircularDependency {
 
   private final String TestRoot = "CircularDependencyTest";
-  private final String IncludeFile = "includes";
+  private final String IncludeFile = HdfsConfigStoreWithOwnInclude.INCLUDE_FILE_NAME;
   private final String Version = "v1.0";
   private File rootDir;
   private File testRootDir;

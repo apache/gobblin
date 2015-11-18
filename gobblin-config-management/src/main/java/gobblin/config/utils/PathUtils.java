@@ -19,7 +19,10 @@ public class PathUtils {
   public static Path getParent(URI uri){
     if(uri == null) return null;
     
-    Path p = new Path(uri.getPath());
-    return p.getParent();
+    String pStr = uri.getPath();
+    if(pStr.length()==0) return null;
+    
+    Path p = (new Path(uri.getPath())).getParent();
+    return p;
   }
 }

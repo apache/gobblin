@@ -37,7 +37,6 @@ public class CircularDependencyChecker {
     if(pStr.length()==0) return;
     
     Path p = (new Path(uri.getPath())).getParent();
-    if(p==null) return;
     URI parent = p.toUri();
     
     List<URI> current = new ArrayList<URI>();
