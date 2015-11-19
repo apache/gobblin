@@ -221,6 +221,19 @@ plugins.withType(JavaPlugin) {
     }
   }
 
+  if (isDefaultEnvironment) {
+    task sourcesJar(type: Jar, dependsOn: classes) {
+      from sourceSets.main.allSource
+      classifier = 'sources'
+    }
+    task javadocJar(type: Jar) {
+      from javadoc
+      classifier = 'javadoc'
+    }
+    artifacts { archives sourcesJar, javadocJar }
+  }
+
+  // Publishing of maven artifacts for subprojects
   if (rootProject.ext.publishToMaven) {
     plugins.apply('maven-publish')
 
@@ -230,18 +243,13 @@ plugins.withType(JavaPlugin) {
           from components.java
 
           version "${rootProject.version}"
+          groupId "${rootProject.group}"
+         
+          artifact sourcesJar { classifier "sources"} 
+          artifact javadocJar { classifier "javadoc"} 
         }
       }
     }
-    println "publish to maven: " + project.name + " " + project.group + " " + project.version
-  }
-
-  if (isDefaultEnvironment) {
-    task sourcesJar(type: Jar, dependsOn: classes) {
-      from sourceSets.main.allSource
-      classifier = 'sources'
-    }
-    artifacts { archives sourcesJar }
   }
 
   // Configure the IDEA plugin to (1) add the codegen as source dirs and (2) work around
