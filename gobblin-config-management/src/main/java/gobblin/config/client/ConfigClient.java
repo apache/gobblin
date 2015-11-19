@@ -15,14 +15,14 @@ import gobblin.config.configstore.ConfigStore;
  */
 public class ConfigClient {
 
-  /**
-   * RAISE_ERROR 
-   * @author mitu
-   *
-   */
   public static enum VERSION_STABILITY_POLICY{
     RAISE_ERROR,
     CACHE_CONFIG_IN_MEMORY
+  }
+  
+  private final VERSION_STABILITY_POLICY policy;
+  private ConfigClient(VERSION_STABILITY_POLICY policy){
+    this.policy = policy;
   }
   
   /**
@@ -36,15 +36,15 @@ public class ConfigClient {
    * @return - the Configuration Client object
    */
   public static ConfigClient createConfigClientWithStableVersion( VERSION_STABILITY_POLICY policy ){
-    return null;
+    return new ConfigClient(policy);
   }
   
   /**
    * 
-   * @return the {@ConfigClient} with VERSION_STABILITY_POLICY.CACHE_CONFIG_IN_MEMORY
+   * @return the {@ConfigClient} with policy set to VERSION_STABILITY_POLICY.RAISE_ERROR
    */
   public static ConfigClient createDefaultConfigClient( ){
-    // create without stable versions
+    // create with stable versions
     return createConfigClientWithStableVersion(VERSION_STABILITY_POLICY.RAISE_ERROR);
   }
   
