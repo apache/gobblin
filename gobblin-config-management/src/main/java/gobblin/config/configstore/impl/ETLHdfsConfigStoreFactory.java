@@ -48,7 +48,7 @@ public class ETLHdfsConfigStoreFactory implements ConfigStoreFactory<ConfigStore
       String errMesg =
           String.format("Input scheme %s does NOT match config store scheme %s", uri.getScheme(), this.getScheme());
       LOG.error(errMesg);
-      throw new RuntimeException(errMesg);
+      throw new ConfigStoreCreationException(errMesg);
     }
 
     try {
