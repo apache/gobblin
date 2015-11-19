@@ -1,5 +1,7 @@
 package gobblin.config.configstore.impl;
 
+import gobblin.config.utils.PathUtils;
+
 import java.io.File;
 import java.net.URI;
 import java.util.ArrayList;
@@ -108,10 +110,10 @@ public class TestETLHdfsConfigStore {
     String[] expected = { "datasets/a1/a2", "datasets/a1", "datasets", "" };
 
     List<String> parents = new ArrayList<String>();
-    URI parent = store.getParent(dataset);
+    URI parent = PathUtils.getParentURI(dataset);
     while (parent != null) {
       parents.add(parent.toString());
-      parent = store.getParent(parent);
+      parent = PathUtils.getParentURI(parent);
     }
 
     Assert.assertEquals(parents.size(), expected.length);

@@ -6,21 +6,13 @@ import gobblin.config.configstore.ConfigStoreWithResolution;
 import gobblin.config.configstore.ConfigStoreWithStableVersion;
 import gobblin.config.configstore.ImportMappings;
 import gobblin.config.configstore.VersionComparator;
-import gobblin.config.utils.CircularDependencyChecker;
 
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
-
-import org.apache.hadoop.fs.Path;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -39,6 +31,7 @@ public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements
   public final static String ID_DELEMETER = "/";
   
   private final Map<String,ImportMappings> im_map = new HashMap<String, ImportMappings>() ;
+  private final SimpleConfigStoreResolver resolver;
   
   public ETLHdfsConfigStore(URI root) {
     this(root, new SimpleVersionComparator());
@@ -46,82 +39,17 @@ public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements
 
   public ETLHdfsConfigStore(URI root, VersionComparator<String> vc) {
     super(root, vc);
+    this.resolver = new SimpleConfigStoreResolver(this);
   }
 
   @Override
   public Config getResolvedConfig(URI uri, String version) {
-    CircularDependencyChecker.checkCircularDependency(this, version, uri);
-
-    Config self = this.getOwnConfig(uri, version);
-
-    // root can not include anything, otherwise will have circular dependency 
-    if (isRootURI(uri)) {
-      return self;
-    }
-
-    Collection<URI> imported = this.getOwnImports(uri, version);
-    Iterator<URI> it = imported.iterator();
-    List<Config> importedConfigs = new ArrayList<Config>();
-    while (it.hasNext()) {
-      importedConfigs.add(this.getResolvedConfig(it.next(), version));
-    }
-
-    // apply the reverse order for imported
-    for (int i = importedConfigs.size() - 1; i >= 0; i--) {
-      self = self.withFallback(importedConfigs.get(i));
-    }
-
-    Config ancestor = this.getAncestorConfig(uri, version);
-    return self.withFallback(ancestor);
-  }
-
-  protected Config getAncestorConfig(URI uri, String version) {
-    URI parent = getParent(uri);
-    Config res = getResolvedConfig(parent, version);
-    return res;
-  }
-  
-  public URI getParent(URI uri) {
-    if (isValidURI(uri)) {
-      String pStr = uri.getPath();
-      if(pStr.length()==0) return null;
-      
-      Path p = (new Path(uri.getPath())).getParent();
-      try {
-        return new URI(uri.getScheme(), uri.getAuthority(), p.toString(), uri.getQuery(), uri.getFragment());
-      } catch (URISyntaxException e) {
-        // Should not come here
-        e.printStackTrace();
-      }
-    }
-    return null;
+    return this.resolver.getResolvedConfig(uri, version);
   }
 
   @Override
   public Collection<URI> getImportsRecursively(URI uri, String version) {
-    CircularDependencyChecker.checkCircularDependency(this, version, uri);
-
-    Collection<URI> result = getOwnImports(uri, version);
-    // root can not include anything, otherwise will have circular dependency 
-    if (isRootURI(uri)) {
-      return result;
-    }
-
-    Collection<URI> imported = this.getOwnImports(uri, version);
-    Iterator<URI> it = imported.iterator();
-
-    while (it.hasNext()) {
-      result.addAll(this.getImportsRecursively(it.next(), version));
-    }
-
-    result.addAll(this.getImportsRecursively(getParent(uri), version));
-
-    return dedup(result);
-  }
-
-  protected Collection<URI> dedup(Collection<URI> input) {
-    Set<URI> set = new LinkedHashSet<URI>(input);
-    return set;
+    return this.resolver.getImportsRecursively(uri, version);
   }
 
   @Override
@@ -157,11 +85,16 @@ public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements
     return ConfigFactory.empty();
   }
 
-  public static final boolean isValidURI(URI uri) {
+  /**
+   * 
+   * @param uri - should be relative to store
+   * @return
+   */
+  protected static final boolean isValidURI(URI uri) {
     return isRootURI(uri) || isValidTag(uri) || isValidDataset(uri);
   }
 
-  public static final boolean isValidTag(URI uri) {
+  protected static final boolean isValidTag(URI uri) {
     if (uri == null)
       return false;
 
@@ -171,7 +104,7 @@ public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements
     return false;
   }
 
-  public static final boolean isValidDataset(URI uri) {
+  protected static final boolean isValidDataset(URI uri) {
     if (uri == null)
       return false;
 
