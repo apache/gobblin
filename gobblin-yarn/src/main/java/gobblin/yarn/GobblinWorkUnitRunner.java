@@ -85,6 +85,17 @@ import gobblin.yarn.event.DelegationTokenUpdatedEvent;
  *   for creating {@link GobblinHelixTask}s that Helix manages to run Gobblin data ingestion tasks.
  * </p>
  *
+ * <p>
+ *   This class responds to a graceful shutdown initiated by the {@link GobblinApplicationMaster} via
+ *   a Helix message of subtype {@link HelixMessageSubTypes#WORK_UNIT_RUNNER_SHUTDOWN}, or it does a
+ *   graceful shutdown when the shutdown hook gets called. In both cases, {@link #stop()} will be
+ *   called to start the graceful shutdown.
+ * </p>
+ *
+ * <p>
+ *   If for some reason, the container exits or gets killed, the {@link GobblinApplicationMaster} will
+ *   be notified for the completion of the container and will start a new container to replace this one.
+ * </p>
  * @author ynli
  */
 public class GobblinWorkUnitRunner extends GobblinYarnLogSource {

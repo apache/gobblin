@@ -90,10 +90,9 @@ import gobblin.yarn.event.ApplicationReportArrivalEvent;
  *
  * <p>
  *   This class, upon starting, will check if there's a Yarn application that it has previously submitted and
- *   it is able to reconnect to. More specifically, it checks if the file storing the previous application ID
- *   exists and if so, reads the previous application ID. It then checks if the application with that ID can
- *   be reconnected to, i.e., if the application has not completed yet. If so, it simply starts monitoring
- *   that application.
+ *   it is able to reconnect to. More specifically, it checks if an application with the same application name
+ *   exists and can be reconnected to, i.e., if the application has not completed yet. If so, it simply starts
+ *   monitoring that application.
  * </p>
  *
  * <p>
@@ -119,9 +118,11 @@ public class GobblinYarnAppLauncher {
 
   private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
 
+  private static final String GOBBLIN_YARN_APPLICATION_TYPE = "GOBBLIN_YARN";
+
   // The set of Yarn application types this class is interested in. This is used to
   // lookup the application this class has launched previously upon restarting.
-  private static final Set<String> APPLICATION_TYPES = ImmutableSet.of("YARN");
+  private static final Set<String> APPLICATION_TYPES = ImmutableSet.of(GOBBLIN_YARN_APPLICATION_TYPE);
 
   // The set of Yarn application states under which the driver can reconnect to the Yarn application after restart
   private static final EnumSet<YarnApplicationState> RECONNECTABLE_APPLICATION_STATES = EnumSet.of(
@@ -131,8 +132,6 @@ public class GobblinYarnAppLauncher {
       YarnApplicationState.ACCEPTED,
       YarnApplicationState.RUNNING
   );
-
-  private static final String APPLICATION_ID_FILE_NAME = "_application.id";
 
   private final String applicationName;
   private final String appQueueName;
@@ -145,8 +144,6 @@ public class GobblinYarnAppLauncher {
   private final YarnClient yarnClient;
   private final FileSystem fs;
 
-  private final ApplicationIdStore applicationIdStore;
-
   private final EventBus eventBus = new EventBus(GobblinYarnAppLauncher.class.getSimpleName());
 
   private final ScheduledExecutorService applicationStatusMonitor;
@@ -156,7 +153,7 @@ public class GobblinYarnAppLauncher {
 
   private final Path sinkLogRootDir;
 
-  private final Closer fsCloser = Closer.create();
+  private final Closer closer = Closer.create();
 
   // Yarn application ID
   private volatile Optional<ApplicationId> applicationId = Optional.absent();
@@ -190,10 +187,7 @@ public class GobblinYarnAppLauncher {
     this.fs = config.hasPath(ConfigurationKeys.FS_URI_KEY) ?
         FileSystem.get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), this.yarnConfiguration) :
         FileSystem.get(this.yarnConfiguration);
-    this.fsCloser.register(this.fs);
-
-    this.applicationIdStore = new FsApplicationIdStore(this.fs,
-        new Path(YarnHelixUtils.getAppRootDirPath(this.fs, this.applicationName), APPLICATION_ID_FILE_NAME));
+    this.closer.register(this.fs);
 
     this.applicationStatusMonitor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("GobblinYarnAppStatusMonitor")));
@@ -226,7 +220,6 @@ public class GobblinYarnAppLauncher {
 
     this.yarnClient.start();
     this.applicationId = getApplicationId();
-    this.applicationIdStore.put(this.applicationId.get().toString());
 
     this.applicationStatusMonitor.scheduleAtFixedRate(new Runnable() {
       @Override
@@ -282,16 +275,13 @@ public class GobblinYarnAppLauncher {
       if (this.helixManager.isConnected()) {
         this.helixManager.disconnect();
       }
-
-      // Delete the file storing the application ID if the application has been shutdown successfully
-      this.applicationIdStore.delete();
     } finally {
       try {
         if (this.applicationId.isPresent()) {
           cleanUpAppWorkDirectory(this.applicationId.get());
         }
       } finally {
-        this.fsCloser.close();
+        this.closer.close();
       }
     }
 
@@ -341,19 +331,15 @@ public class GobblinYarnAppLauncher {
   }
 
   private Optional<ApplicationId> getReconnectableApplicationId() throws YarnException, IOException {
-    Optional<String> existingApplicationId = this.applicationIdStore.get();
-    if (!existingApplicationId.isPresent()) {
-      return Optional.absent();
-    }
-
     List<ApplicationReport> applicationReports =
         this.yarnClient.getApplications(APPLICATION_TYPES, RECONNECTABLE_APPLICATION_STATES);
     if (applicationReports == null || applicationReports.isEmpty()) {
       return Optional.absent();
     }
 
+    // Try to find an application with a matching application name
     for (ApplicationReport applicationReport : applicationReports) {
-      if (applicationReport.getApplicationId().toString().equals(existingApplicationId.get())) {
+      if (this.applicationName.equals(applicationReport.getName())) {
         return Optional.of(applicationReport.getApplicationId());
       }
     }
@@ -386,6 +372,7 @@ public class GobblinYarnAppLauncher {
   private ApplicationId setupAndSubmitApplication() throws IOException, YarnException {
     YarnClientApplication gobblinYarnApp = this.yarnClient.createApplication();
     ApplicationSubmissionContext appSubmissionContext = gobblinYarnApp.getApplicationSubmissionContext();
+    appSubmissionContext.setApplicationType(GOBBLIN_YARN_APPLICATION_TYPE);
     ApplicationId applicationId = appSubmissionContext.getApplicationId();
 
     GetNewApplicationResponse newApplicationResponse = gobblinYarnApp.getNewApplicationResponse();
@@ -592,7 +579,7 @@ public class GobblinYarnAppLauncher {
   }
 
   private LogCopier buildLogCopier(Path sinkLogDir, Path appWorkDir) throws IOException {
-    FileSystem rawLocalFs = this.fsCloser.register(new RawLocalFileSystem());
+    FileSystem rawLocalFs = this.closer.register(new RawLocalFileSystem());
     rawLocalFs.initialize(URI.create(ConfigurationKeys.LOCAL_FS_URI), new Configuration());
 
     return LogCopier.newBuilder()

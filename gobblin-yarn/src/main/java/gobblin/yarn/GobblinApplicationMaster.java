@@ -87,6 +87,18 @@ import gobblin.yarn.event.DelegationTokenUpdatedEvent;
  *   and it uses a {@link HelixManager} to work with Helix.
  * </p>
  *
+ * <p>
+ *   This class will initiates a graceful shutdown of the Yarn application in the following conditions:
+ *
+ *   <ul>
+ *     <li>A shutdown request is received via a Helix message of subtype
+ *     {@link HelixMessageSubTypes#APPLICATION_MASTER_SHUTDOWN}. Upon receiving such a message,
+ *     it will call {@link #stop()} to initiate a graceful shutdown of the Yarn application.</li>
+ *     <li>The shutdown hook gets called. The shutdown hook will call {@link #stop()}, which will
+ *     start a graceful shutdown of the Yarn application.</li>
+ *   </ul>
+ * </p>
+ *
  * @author ynli
  */
 public class GobblinApplicationMaster extends GobblinYarnLogSource {
