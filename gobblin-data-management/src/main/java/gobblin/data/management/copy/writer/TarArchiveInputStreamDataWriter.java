@@ -16,9 +16,13 @@ import gobblin.configuration.State;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.data.management.util.PathUtils;
+import gobblin.util.io.StreamUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
 import java.util.zip.GZIPInputStream;
 
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +33,6 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.IOUtils;
 
 
 /**
@@ -62,6 +65,7 @@ public class TarArchiveInputStreamDataWriter extends FileAwareInputStreamDataWri
     filesWritten++;
 
     TarArchiveInputStream tarIn = new TarArchiveInputStream(fileAwareInputStream.getInputStream());
+    final ReadableByteChannel inputChannel = Channels.newChannel(tarIn);
     TarArchiveEntry tarEntry;
 
     Path fileDestinationPath = fileAwareInputStream.getFile().getDestination();
@@ -89,15 +93,18 @@ public class TarArchiveInputStreamDataWriter extends FileAwareInputStreamDataWri
           fs.mkdirs(tarEntryStagingPath);
         } else if (!tarEntry.isDirectory()) {
           FSDataOutputStream out = fs.create(tarEntryStagingPath, true);
+          final WritableByteChannel outputChannel = Channels.newChannel(out);
           try {
-            IOUtils.copyBytes(tarIn, out, fs.getConf(), false);
+            bytesWritten += StreamUtils.copy(inputChannel, outputChannel);
           } finally {
             out.close();
+            outputChannel.close();
           }
         }
       }
     } finally {
       tarIn.close();
+      inputChannel.close();
       fileAwareInputStream.getInputStream().close();
     }
 

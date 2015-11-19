@@ -17,10 +17,14 @@ import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.copy.extractor.FileAwareInputStreamExtractor;
+import gobblin.data.management.copy.publisher.CopyEventSubmitterHelper;
 import gobblin.data.management.dataset.Dataset;
 import gobblin.data.management.dataset.DatasetUtils;
 import gobblin.data.management.partition.Partition;
 import gobblin.data.management.retention.dataset.finder.DatasetFinder;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.Tag;
+import gobblin.metrics.event.sla.SlaEventKeys;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.AbstractSource;
 import gobblin.source.workunit.Extract;
@@ -91,6 +95,11 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
             workUnit.addAll(state);
             serializeCopyableFiles(workUnit, Lists.newArrayList(copyableFile));
             serializeCopyableDataset(workUnit, copyableDataset);
+            GobblinMetrics.addCustomTagToState(workUnit, new Tag<String>(
+                CopyEventSubmitterHelper.DATASET_ROOT_METADATA_NAME, copyableDataset.datasetRoot().toString()));
+            workUnit.setProp(SlaEventKeys.DATASET_URN_KEY, copyableDataset.datasetRoot().toString());
+            workUnit.setProp(SlaEventKeys.PARTITION_KEY, partition.getName());
+            workUnit.setProp(SlaEventKeys.ORIGIN_TS_IN_MILLI_SECS_KEY, copyableFile.getFileStatus().getModificationTime());
             workUnits.add(workUnit);
           }
         }
