@@ -233,10 +233,8 @@ public class GobblinYarnAppLauncher {
       public void run() {
         try {
           eventBus.post(new ApplicationReportArrivalEvent(yarnClient.getApplicationReport(applicationId.get())));
-        } catch (YarnException ye) {
-          LOGGER.error("Failed to get application report for Gobblin Yarn application " + applicationId.get(), ye);
-        } catch (IOException ioe) {
-          LOGGER.error("Failed to get application report for Gobblin Yarn application " + applicationId.get(), ioe);
+        } catch (YarnException | IOException e) {
+          LOGGER.error("Failed to get application report for Gobblin Yarn application " + applicationId.get(), e);
         }
       }
     }, 0, this.appReportIntervalMinutes, TimeUnit.MINUTES);

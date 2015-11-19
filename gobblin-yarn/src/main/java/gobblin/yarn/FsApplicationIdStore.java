@@ -21,7 +21,6 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Optional;
 import com.google.common.io.CharStreams;
-import com.google.common.io.Closer;
 
 
 /**
@@ -45,18 +44,12 @@ class FsApplicationIdStore implements ApplicationIdStore {
   public void put(String applicationId) throws IOException {
     delete();
 
-    Closer closer = Closer.create();
-    try {
+    try (OutputStreamWriter osWriter = new OutputStreamWriter(this.fs.create(this.applicationIdFilePath))) {
       if (!this.fs.exists(this.applicationIdFilePath.getParent())) {
         this.fs.mkdirs(this.applicationIdFilePath.getParent());
       }
 
-      CharStreams.asWriter(closer.register(new OutputStreamWriter(this.fs.create(this.applicationIdFilePath))))
-          .write(applicationId);
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
+      CharStreams.asWriter(osWriter).write(applicationId);
     }
   }
 
@@ -66,15 +59,8 @@ class FsApplicationIdStore implements ApplicationIdStore {
       return Optional.absent();
     }
 
-    Closer closer = Closer.create();
-    try {
-      String applicationId =
-          CharStreams.toString(closer.register(new InputStreamReader(this.fs.open(this.applicationIdFilePath))));
-      return Optional.of(applicationId);
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
+    try (InputStreamReader isReader = new InputStreamReader(this.fs.open(this.applicationIdFilePath))) {
+      return Optional.of(CharStreams.toString(isReader));
     }
   }
 

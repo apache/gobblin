@@ -166,10 +166,8 @@ public class YarnService extends AbstractIdleService {
 
     try {
       requestContainers(newContainersRequested);
-    } catch (IOException ioe) {
-      LOGGER.error("Failed to handle new container request", ioe);
-    } catch (YarnException ye) {
-      LOGGER.error("Failed to handle new container request", ye);
+    } catch (IOException | YarnException e) {
+      LOGGER.error("Failed to handle new container request", e);
     }
   }
 
@@ -203,7 +201,7 @@ public class YarnService extends AbstractIdleService {
   }
 
   @Override
-  protected void shutDown() throws Exception {
+  protected void shutDown() throws IOException {
     LOGGER.info("Stopping the YarnService");
 
     try {
@@ -218,18 +216,18 @@ public class YarnService extends AbstractIdleService {
 
       if (!this.containerMap.isEmpty()) {
         synchronized (this.allContainersStopped) {
-          // Wait 5 minutes for the containers to stop
-          this.allContainersStopped.wait(5 * 60 * 1000);
-          LOGGER.info("All of the containers have been stopped");
+          try {
+            // Wait 5 minutes for the containers to stop
+            this.allContainersStopped.wait(5 * 60 * 1000);
+            LOGGER.info("All of the containers have been stopped");
+          } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+          }
         }
       }
 
       this.amrmClientAsync.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, null, null);
-    } catch (IOException ioe) {
-      LOGGER.error("Failed to unregister the ApplicationMaster", ioe);
-    } catch (YarnException ye) {
-      LOGGER.error("Failed to unregister the ApplicationMaster", ye);
-    } catch (Exception e) {
+    } catch (IOException | YarnException e) {
       LOGGER.error("Failed to unregister the ApplicationMaster", e);
     } finally {
       this.closer.close();
@@ -370,9 +368,8 @@ public class YarnService extends AbstractIdleService {
       for (final Container container : containers) {
         LOGGER.info(String.format("Container %s has been allocated", container.getId()));
 
-        Map.Entry<Container, String> containerParticipantPair =
-            new AbstractMap.SimpleImmutableEntry<Container, String>(container,
-                YarnHelixUtils.getParticipantId(container.getNodeId().getHost(), container.getId()));
+        Map.Entry<Container, String> containerParticipantPair = new AbstractMap.SimpleImmutableEntry<>(
+            container, YarnHelixUtils.getParticipantId(container.getNodeId().getHost(), container.getId()));
         containerMap.put(container.getId(), containerParticipantPair);
 
         containerLaunchExecutor.submit(new Runnable() {
