@@ -32,7 +32,7 @@ if (!project.hasProperty('hadoopVersion')) {
 }
 
 if (!project.hasProperty('hiveVersion')) {
-  hiveVersion = '0.13.1'
+  hiveVersion = '1.2.1'
 }
 
 if (!project.hasProperty('pegasusVersion')) {
@@ -119,6 +119,9 @@ ext.externalDependency = [
   "bytemanBmunit": "org.jboss.byteman:byteman-bmunit:"+bytemanVersion,
   "bcpgJdk15on": "org.bouncycastle:bcpg-jdk15on:1.52",
   "bcprovJdk15on": "org.bouncycastle:bcprov-jdk15on:1.52",
+  "calciteCore": "org.apache.calcite:calcite-core:1.2.0-incubating",
+  "calciteAvatica": "org.apache.calcite:calcite-avatica:1.2.0-incubating",
+  "jhyde": "org.pentaho:pentaho-aggdesigner-algorithm:5.1.5-jhyde",
   "pegasus" : [
     "data" : "com.linkedin.pegasus:data:"+pegasusVersion,
     "generator" : "com.linkedin.pegasus:generator:"+pegasusVersion,

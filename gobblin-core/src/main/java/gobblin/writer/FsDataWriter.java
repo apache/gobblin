@@ -12,6 +12,7 @@
 
 package gobblin.writer;
 
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
@@ -139,19 +140,32 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
     this.group = Optional.fromNullable(properties.getProp(ForkOperatorUtils
         .getPropertyNameForBranch(ConfigurationKeys.WRITER_GROUP_NAME, this.numBranches, this.branchId)));
 
-    if (this.group.isPresent()) {
-      HadoopUtils.setGroup(this.fs, this.stagingFile, this.group.get());
-    } else {
-      LOG.warn("No group found for " + this.stagingFile);
-    }
-
     // Create the parent directory of the output file if it does not exist
     WriterUtils.mkdirsWithRecursivePermission(this.fs, this.outputFile.getParent(), this.dirPermission);
   }
 
+  /**
+   * Create the staging output file and an {@link OutputStream} to write to the file.
+   *
+   * @return an {@link OutputStream} to write to the staging file
+   * @throws IOException if it fails to create the file and the {@link OutputStream}
+   */
   protected OutputStream createStagingFileOutputStream() throws IOException {
     return this.closer.register(this.fs.create(this.stagingFile, this.filePermission, true, this.bufferSize,
         this.replicationFactor, this.blockSize, null));
+  }
+
+  /**
+   * Set the group name of the staging output file.
+   *
+   * @throws IOException if it fails to set the group name
+   */
+  protected void setStagingFileGroup() throws IOException {
+    Preconditions.checkArgument(this.fs.exists(this.stagingFile),
+        String.format("Staging output file %s does not exist", this.stagingFile));
+    if (this.group.isPresent()) {
+      HadoopUtils.setGroup(this.fs, this.stagingFile, this.group.get());
+    }
   }
 
   /**
@@ -240,10 +254,20 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
     return state;
   }
 
+  /**
+   * Get the output file path.
+   *
+   * @return the output file path
+   */
   public String getOutputFilePath() {
     return this.outputFile.toString();
   }
 
+  /**
+   * Get the fully-qualified output file path.
+   *
+   * @return the fully-qualified output file path
+   */
   public String getFullyQualifiedOutputFilePath() {
     return this.fs.makeQualified(this.outputFile).toString();
   }
