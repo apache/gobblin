@@ -68,7 +68,7 @@ public class TestETLHdfsConfigStore {
     File input = new File(this.getClass().getResource("/" + TestRoot).getFile());
     FilesUtil.SyncDirs(input, testRootDir);
 
-    URI storeURI = new URI("file://" + testRootDir.getAbsolutePath());
+    URI storeURI = new URI("hdfs://" + testRootDir.getAbsolutePath());
     store = new ETLHdfsConfigStore(storeURI);
     dataset = new URI("datasets/a1/a2/a3");
   }

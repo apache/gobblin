@@ -26,9 +26,9 @@ public class TestETLHdfsConfigStoreFactory {
   }
   
   @Test public void testCreation() throws Exception{
-    factory = new ETLHdfsConfigStoreFactory(new URI("etl-hdfs://" + testRootDir.getAbsolutePath()), true);
+    factory = new ETLHdfsConfigStoreFactory(new URI("etl-hdfs://" + testRootDir.getAbsolutePath()));
     ETLHdfsConfigStore cs = factory.getDefaultConfigStore();
-    //System.out.println("root is " + cs.getStoreURI());
+    System.out.println("root is " + cs.getStoreURI());
     Assert.assertEquals(cs.getCurrentVersion(), Version);
   }
 }

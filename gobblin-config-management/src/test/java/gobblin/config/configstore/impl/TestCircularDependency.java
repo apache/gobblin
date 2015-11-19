@@ -19,7 +19,6 @@ import org.apache.commons.io.FileUtils;
 public class TestCircularDependency {
 
   private final String TestRoot = "CircularDependencyTest";
-  private final String IncludeFile = HdfsConfigStoreWithOwnInclude.INCLUDE_FILE_NAME;
   private final String Version = "v1.0";
   private File rootDir;
   private File testRootDir;
@@ -29,45 +28,22 @@ public class TestCircularDependency {
     rootDir = Files.createTempDir();
     System.out.println("root dir is " + rootDir);
     testRootDir = new File(rootDir, TestRoot);
-  }
 
-  public void testSelfImportCircle() throws Exception {
+    File input = new File(this.getClass().getResource("/" + TestRoot).getFile());
+    FilesUtil.SyncDirs(input, testRootDir);
+  }
+  
+  @Test public void testSelfImportCircle() throws Exception {
 
     String testName = "selfImportCircle";
     File baseDir = new File(testRootDir, testName);
-    File versionRootInFile = new File(baseDir, Version);
-    String versionRootInResources = "/" + TestRoot + "/" + testName + "/" + Version + "/";
-
-    String a_tagString = "tags/t_a_1";
-    File a_tag = new File(versionRootInFile, a_tagString);
-    a_tag.mkdirs();
-
-    String b_tagString = "tags/t_b_1";
-    File b_tag = new File(versionRootInFile, b_tagString);
-    b_tag.mkdirs();
-
-    String c_tagString = "tags/t_c_1";
-    File c_tag = new File(versionRootInFile, c_tagString);
-    c_tag.mkdirs();
-
-    File t_a_include =
-        new File(this.getClass().getResource(versionRootInResources + a_tagString + "/" + IncludeFile).getFile());
-    Files.copy(t_a_include, new File(a_tag, IncludeFile));
-
-    File t_b_include =
-        new File(this.getClass().getResource(versionRootInResources + b_tagString + "/" + IncludeFile).getFile());
-    Files.copy(t_b_include, new File(b_tag, IncludeFile));
-
-    File t_c_include =
-        new File(this.getClass().getResource(versionRootInResources + c_tagString + "/" + IncludeFile).getFile());
-    Files.copy(t_c_include, new File(c_tag, IncludeFile));
-
-    URI storeURI = new URI("file://" + baseDir.getAbsolutePath());
+    URI storeURI = new URI("hdfs://" + baseDir.getAbsolutePath());
     //System.out.println("store uri is " + storeURI);
 
     HdfsConfigStoreWithOwnInclude circularStore = new HdfsConfigStoreWithOwnInclude(storeURI);
     Assert.assertEquals(circularStore.getCurrentVersion(), Version);
 
+    String a_tagString = "tags/t_a_1";
     URI circularNode = new URI(a_tagString);
     try {
       CircularDependencyChecker.checkCircularDependency(circularStore, Version, circularNode);
@@ -77,33 +53,15 @@ public class TestCircularDependency {
     }
   }
 
-  public void testSelfImportSelf() throws Exception {
+  @Test public void testSelfImportSelf() throws Exception {
     String testName = "selfImportSelf";
     File baseDir = new File(testRootDir, testName);
-    File versionRootInFile = new File(baseDir, Version);
-    String versionRootInResources = "/" + TestRoot + "/" + testName + "/" + Version + "/";
 
-    String dsString = "datasets/ds1";
-    String tagString = "tags/t_a_1";
-    File dataset = new File(versionRootInFile, dsString);
-    File tag = new File(versionRootInFile, tagString);
-    dataset.mkdirs();
-    tag.mkdirs();
-
-    URI storeURI = new URI("file://" + baseDir.getAbsolutePath());
-    //System.out.println("store uri is " + storeURI);
-
-    File ds1_include =
-        new File(this.getClass().getResource(versionRootInResources + dsString + "/" + IncludeFile).getFile());
-    Files.copy(ds1_include, new File(dataset, IncludeFile));
-
-    File t_a_1_include =
-        new File(this.getClass().getResource(versionRootInResources + tagString + "/" + IncludeFile).getFile());
-    Files.copy(t_a_1_include, new File(tag, IncludeFile));
-
+    URI storeURI = new URI("hdfs://" + baseDir.getAbsolutePath());
     HdfsConfigStoreWithOwnInclude circularStore = new HdfsConfigStoreWithOwnInclude(storeURI);
     Assert.assertEquals(circularStore.getCurrentVersion(), Version);
 
+    String tagString = "tags/t_a_1";
     URI circularNode = new URI(tagString);
     try {
       CircularDependencyChecker.checkCircularDependency(circularStore, Version, circularNode);
@@ -112,31 +70,19 @@ public class TestCircularDependency {
       Assert.assertTrue(e.getMessage().indexOf("import self") > 0);
     }
   }
+  
 
-  public void testAncestorImportChild() throws Exception {
+  @Test public void testAncestorImportChild() throws Exception {
 
     String testName = "ancestorImportChild";
     File baseDir = new File(testRootDir, testName);
-    File versionRootInFile = new File(baseDir, Version);
-    String versionRootInResources = "/" + TestRoot + "/" + testName + "/" + Version + "/";
-
-    String tagString = "tags/t_a_1/t_a_2/t_a_3";
-    File tag = new File(versionRootInFile, tagString);
-    tag.mkdirs();
-    tagString = "tags/t_a_1";
-    tag = new File(versionRootInFile, tagString);
-
-    File t_a_1_include =
-        new File(this.getClass().getResource(versionRootInResources + tagString + "/" + IncludeFile).getFile());
-    Files.copy(t_a_1_include, new File(tag, IncludeFile));
-
-    URI storeURI = new URI("file://" + baseDir.getAbsolutePath());
+    URI storeURI = new URI("hdfs://" + baseDir.getAbsolutePath());
     //System.out.println("store uri is " + storeURI);
 
     HdfsConfigStoreWithOwnInclude circularStore = new HdfsConfigStoreWithOwnInclude(storeURI);
     Assert.assertEquals(circularStore.getCurrentVersion(), Version);
 
-    tagString = "tags/t_a_1/t_a_2/t_a_3";
+    String tagString = "tags/t_a_1/t_a_2/t_a_3";
     URI circularNode = new URI(tagString);
 
     try {
@@ -161,33 +107,10 @@ public class TestCircularDependency {
   }
 
   public void testAncestorImportChild2() throws Exception {
-
     String testName = "ancestorImportChild2";
     File baseDir = new File(testRootDir, testName);
-    File versionRootInFile = new File(baseDir, Version);
-    String versionRootInResources = "/" + TestRoot + "/" + testName + "/" + Version + "/";
-
-    String a_tagString = "tags/t_a_1";
-    File a_tag = new File(versionRootInFile, a_tagString);
-    a_tag.mkdirs();
-
-    String b_tagString = "tags/t_b_1/t_b_2";
-    File b_tag = new File(versionRootInFile, b_tagString);
-    b_tag.mkdirs();
-
-    File t_a_include =
-        new File(this.getClass().getResource(versionRootInResources + a_tagString + "/" + IncludeFile).getFile());
-    Files.copy(t_a_include, new File(a_tag, IncludeFile));
-
-    File t_b_include =
-        new File(this.getClass().getResource(versionRootInResources + b_tagString + "/" + IncludeFile).getFile());
-    Files.copy(t_b_include, new File(b_tag, IncludeFile));
-
-    a_tagString = "tags/t_a_1/t_a_2/t_a_3";
-    a_tag = new File(versionRootInFile, a_tagString);
-    a_tag.mkdirs();
-
-    URI storeURI = new URI("file://" + baseDir.getAbsolutePath());
+    String a_tagString = "tags/t_a_1/t_a_2/t_a_3";
+    URI storeURI = new URI("hdfs://" + baseDir.getAbsolutePath());
     //System.out.println("store uri is " + storeURI);
 
     HdfsConfigStoreWithOwnInclude circularStore = new HdfsConfigStoreWithOwnInclude(storeURI);
@@ -217,24 +140,13 @@ public class TestCircularDependency {
   public void testRootImportChild() throws Exception {
     String testName = "rootImportChild";
     File baseDir = new File(testRootDir, testName);
-    File versionRootInFile = new File(baseDir, Version);
-    String versionRootInResources = "/" + TestRoot + "/" + testName + "/" + Version + "/";
-
-    String tagString = "tags/t_a_1/t_a_2/t_a_3";
-    File tag = new File(versionRootInFile, tagString);
-    tag.mkdirs();
-
-    File rootDir = new File(testRootDir, testName + "/v1.0");
-
-    File root_include = new File(this.getClass().getResource(versionRootInResources + IncludeFile).getFile());
-    Files.copy(root_include, new File(rootDir, IncludeFile));
-
-    URI storeURI = new URI("file://" + baseDir.getAbsolutePath());
+    URI storeURI = new URI("hdfs://" + baseDir.getAbsolutePath());
     //System.out.println("store uri is " + storeURI);
 
     HdfsConfigStoreWithOwnInclude circularStore = new HdfsConfigStoreWithOwnInclude(storeURI);
     Assert.assertEquals(circularStore.getCurrentVersion(), Version);
 
+    String tagString = "tags/t_a_1/t_a_2/t_a_3";
     URI circularNode = new URI(tagString);
     try {
       CircularDependencyChecker.checkCircularDependency(circularStore, Version, circularNode);
@@ -247,31 +159,13 @@ public class TestCircularDependency {
   public void testNoCircular() throws Exception {
     String testName = "noCircular";
     File baseDir = new File(testRootDir, testName);
-    File versionRootInFile = new File(baseDir, Version);
-    String versionRootInResources = "/" + TestRoot + "/" + testName + "/" + Version + "/";
-
-    String a_tagString = "tags/t_a_1/t_a_2/t_a_3";
-    File a_tag = new File(versionRootInFile, a_tagString);
-    a_tag.mkdirs();
-
-    String b_tagString = "tags/t_b_1/t_b_2";
-    File b_tag = new File(versionRootInFile, b_tagString);
-    b_tag.mkdirs();
-
-    File t_a_include =
-        new File(this.getClass().getResource(versionRootInResources + a_tagString + "/" + IncludeFile).getFile());
-    Files.copy(t_a_include, new File(a_tag, IncludeFile));
-
-    File t_b_include =
-        new File(this.getClass().getResource(versionRootInResources + b_tagString + "/" + IncludeFile).getFile());
-    Files.copy(t_b_include, new File(b_tag, IncludeFile));
-
-    URI storeURI = new URI("file://" + baseDir.getAbsolutePath());
+    URI storeURI = new URI("hdfs://" + baseDir.getAbsolutePath());
     //System.out.println("store uri is " + storeURI);
 
     HdfsConfigStoreWithOwnInclude circularStore = new HdfsConfigStoreWithOwnInclude(storeURI);
     Assert.assertEquals(circularStore.getCurrentVersion(), Version);
 
+    String a_tagString = "tags/t_a_1/t_a_2/t_a_3";
     URI circularNode = new URI(a_tagString);
     CircularDependencyChecker.checkCircularDependency(circularStore, Version, circularNode);
   }

@@ -19,14 +19,12 @@ public class ETLHdfsConfigStoreFactory implements ConfigStoreFactory<ConfigStore
   private static final Logger LOG = Logger.getLogger(ETLHdfsConfigStoreFactory.class);
   private final ETLHdfsConfigStore store;
   private final FileSystem fs;
-  private final boolean fsIsLocal;
 
   public static final String CONFIG_STORE_NAME = "_CONFIG_STORE";
 
-  public ETLHdfsConfigStoreFactory(URI defaultConfigStoreRoot, boolean isLocal) throws ConfigStoreCreationException,
+  public ETLHdfsConfigStoreFactory(URI defaultConfigStoreRoot) throws ConfigStoreCreationException,
       IOException {
     this.fs = new Path(defaultConfigStoreRoot.getPath()).getFileSystem(new Configuration());
-    this.fsIsLocal = isLocal;
     this.store = this.createConfigStore(defaultConfigStoreRoot);
   }
 
@@ -41,10 +39,6 @@ public class ETLHdfsConfigStoreFactory implements ConfigStoreFactory<ConfigStore
   }
 
   private String getActualScheme() {
-    if (this.fsIsLocal) {
-      return "file";
-    }
-
     return "hdfs";
   }
 
