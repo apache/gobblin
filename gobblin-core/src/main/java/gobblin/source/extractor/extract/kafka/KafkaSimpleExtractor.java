@@ -13,7 +13,6 @@
 package gobblin.source.extractor.extract.kafka;
 
 import gobblin.configuration.WorkUnitState;
-import gobblin.metrics.kafka.SchemaNotFoundException;
 
 import java.io.IOException;
 
@@ -32,7 +31,7 @@ public class KafkaSimpleExtractor extends KafkaExtractor<String, byte[]> {
   }
 
   @Override
-  protected byte[] decodeRecord(MessageAndOffset messageAndOffset) throws SchemaNotFoundException, IOException {
+  protected byte[] decodeRecord(MessageAndOffset messageAndOffset) throws IOException {
     return getBytes(messageAndOffset.message().payload());
   }
 

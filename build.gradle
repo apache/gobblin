@@ -9,7 +9,6 @@
 // CONDITIONS OF ANY KIND, either express or implied.
 
 apply plugin: 'idea'
-apply plugin: 'eclipse'
 
 ext.build_script_dir = "${projectDir.path}/build_script"
 
@@ -24,6 +23,29 @@ File getEnvironmentScript()
 
 apply from: environmentScript
 
+if (!project.hasProperty('group') || project.group.length() == 0) {
+    project.group = 'gobblin'
+}
+
+if (!project.hasProperty('version') || project.version == 'unspecified') {
+    def versionOut = new ByteArrayOutputStream()
+    exec {
+        commandLine 'git', 'describe', '--tags'
+        standardOutput versionOut
+    }
+    def tagStr = versionOut.toString().trim()
+    println 'Using latest tag for version: ' + tagStr
+    if (tagStr.startsWith("gobblin_")) {
+        project.version = tagStr.substring(8)
+    }
+    else {
+        project.version = tagStr
+    }
+}
+
+println "name=" + project.name + " group=" + project.group
+println "project.version=" + project.version
+
 if (!project.hasProperty('hadoopVersion')) {
   if (project.hasProperty('useHadoop2')) {
     hadoopVersion = '2.3.0'
@@ -33,7 +55,7 @@ if (!project.hasProperty('hadoopVersion')) {
 }
 
 if (!project.hasProperty('hiveVersion')) {
-  hiveVersion = '0.13.1'
+  hiveVersion = '1.2.1'
 }
 
 if (!project.hasProperty('pegasusVersion')) {
@@ -120,6 +142,9 @@ ext.externalDependency = [
   "bytemanBmunit": "org.jboss.byteman:byteman-bmunit:"+bytemanVersion,
   "bcpgJdk15on": "org.bouncycastle:bcpg-jdk15on:1.52",
   "bcprovJdk15on": "org.bouncycastle:bcprov-jdk15on:1.52",
+  "calciteCore": "org.apache.calcite:calcite-core:1.2.0-incubating",
+  "calciteAvatica": "org.apache.calcite:calcite-avatica:1.2.0-incubating",
+  "jhyde": "org.pentaho:pentaho-aggdesigner-algorithm:5.1.5-jhyde",
   "pegasus" : [
     "data" : "com.linkedin.pegasus:data:"+pegasusVersion,
     "generator" : "com.linkedin.pegasus:generator:"+pegasusVersion,
@@ -149,9 +174,9 @@ task wrapper(type: Wrapper) { gradleVersion = '1.12' }
 import javax.tools.ToolProvider
 
 subprojects {
-  apply plugin: 'java'
-  apply plugin: 'idea'
-  apply plugin: 'eclipse'
+plugins.withType(JavaPlugin) {
+  plugins.apply('idea')
+  plugins.apply('eclipse')
 // Disabling the FindBugs plugin for now because FindBugs 2.x is not compatible with Java8
 //  apply plugin: 'findbugs'
 
@@ -218,6 +243,16 @@ subprojects {
         dataTemplateCompile externalDependency.pegasus.data
         restClientCompile externalDependency.pegasus.restliClient,externalDependency.pegasus.restliCommon,externalDependency.pegasus.restliTools
       }
+    }
+  }
+}
+}
+
+//Turn off javadoc lint for Java 8+
+if (JavaVersion.current().isJava8Compatible()) {
+  allprojects {
+    tasks.withType(Javadoc) {
+      options.addStringOption('Xdoclint:none', '-quiet')
     }
   }
 }

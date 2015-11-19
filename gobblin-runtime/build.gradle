@@ -10,6 +10,13 @@
 
 apply plugin: 'java'
 
+repositories {
+  mavenCentral()
+  maven {
+    url "http://conjars.org/repo"
+  }
+}
+
 dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-core")
@@ -38,12 +45,16 @@ dependencies {
   compile externalDependency.guice
   compile externalDependency.javaxInject
   compile externalDependency.findBugs
+  compile externalDependency.lombok
   if (project.hasProperty('useHadoop2')) {
     compile externalDependency.avroMapredH2
   } else {
     compile externalDependency.avroMapredH1
   }
 
+  testCompile externalDependency.calciteCore
+  testCompile externalDependency.calciteAvatica
+  testCompile externalDependency.jhyde
   testCompile externalDependency.testng
   testCompile externalDependency.byteman
   testCompile externalDependency.bytemanBmunit

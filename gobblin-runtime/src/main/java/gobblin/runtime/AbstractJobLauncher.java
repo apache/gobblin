@@ -96,6 +96,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   // An EventBuilder with basic metadata.
   protected final EventSubmitter eventSubmitter;
 
+  // A list of JobListeners that will be injected into the user provided JobListener
+  private final List<JobListener> mandatoryJobListeners = Lists.newArrayList();
+
   public AbstractJobLauncher(Properties jobProps) throws Exception {
     Preconditions.checkArgument(jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY),
         "A job must have a job name specified by job.name");
@@ -118,6 +121,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         });
 
     this.eventSubmitter = new EventSubmitter.Builder(this.runtimeMetricContext, "gobblin.runtime").build();
+
+    JobExecutionEventSubmitter jobExecutionEventSubmitter = new JobExecutionEventSubmitter(this.eventSubmitter);
+    this.mandatoryJobListeners.add(new JobExecutionEventSubmitterListener(jobExecutionEventSubmitter));
   }
 
   /**
@@ -153,17 +159,23 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
 
     synchronized (this.cancellationExecution) {
+      Closer closer = Closer.create();
       try {
         while (!this.cancellationExecuted) {
           // Wait for the cancellation to be executed
           this.cancellationExecution.wait();
         }
 
-        if (jobListener != null) {
-          jobListener.onJobCancellation(this.jobContext.getJobState());
-        }
+        JobListener parallelJobListener = closer.register(getParallelCombinedJobListener(jobListener));
+        parallelJobListener.onJobCancellation(this.jobContext.getJobState());
       } catch (InterruptedException ie) {
         Thread.currentThread().interrupt();
+      } finally {
+        try {
+          closer.close();
+        } catch (IOException e) {
+          throw new JobException("Failed to execute all JobListeners", e);
+        }
       }
     }
   }
@@ -263,12 +275,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
         // Write job execution info to the job history store upon job termination
         this.jobContext.storeJobExecutionInfo();
-
-        if (this.jobContext.getJobMetricsOptional().isPresent()) {
-          this.jobContext.getJobMetricsOptional().get().triggerMetricReporting();
-          this.jobContext.getJobMetricsOptional().get().stopMetricReporting();
-          JobMetrics.remove(jobState);
-        }
       } finally {
         launchJobTimer.stop();
         unlockJob();
@@ -283,8 +289,23 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       }
     }
 
-    if (jobListener != null) {
-      jobListener.onJobCompletion(jobState);
+    Closer closer = Closer.create();
+    try {
+      JobListener parallelJobListener = closer.register(getParallelCombinedJobListener(jobListener));
+      parallelJobListener.onJobCompletion(jobState);
+    } finally {
+      try {
+        closer.close();
+      } catch (IOException e) {
+        throw new JobException("Failed to execute all JobListeners", e);
+      }
+    }
+
+    // Stop metrics reporting
+    if (this.jobContext.getJobMetricsOptional().isPresent()) {
+      this.jobContext.getJobMetricsOptional().get().triggerMetricReporting();
+      this.jobContext.getJobMetricsOptional().get().stopMetricReporting();
+      JobMetrics.remove(jobState);
     }
 
     if (jobState.getState() == JobState.RunningState.FAILED) {
@@ -480,6 +501,17 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     } else {
       cleanupStagingDataForEntireJob(jobState);
     }
+  }
+
+  /**
+   * Combines the specified {@link JobListener} with the {@link #mandatoryJobListeners} for this job. Uses
+   * {@link JobListeners#parallelJobListener(List)} to create a {@link CloseableJobListener} that will execute all
+   * the {@link JobListener}s in parallel.
+   */
+  private CloseableJobListener getParallelCombinedJobListener(JobListener jobListener) {
+    List<JobListener> jobListeners = Lists.newArrayList(this.mandatoryJobListeners);
+    jobListeners.add(jobListener);
+    return JobListeners.parallelJobListener(jobListeners);
   }
 
   /**
