@@ -53,4 +53,30 @@ public class PathUtils {
   public static Path withoutLeadingSeparator(Path path) {
     return new Path(StringUtils.removeStart(path.toString(), Path.SEPARATOR));
   }
+
+  /**
+   * Removes all <code>extensions</code> from <code>path</code> if they exist.
+   *
+   * <pre>
+   * PathUtils.removeExtention("file.txt", ".txt")                      = file
+   * PathUtils.removeExtention("file.txt.gpg", ".txt", ".gpg")          = file
+   * PathUtils.removeExtention("file", ".txt")                          = file
+   * PathUtils.removeExtention("file.txt", ".tar.gz")                   = file.txt
+   * PathUtils.removeExtention("file.txt.gpg", ".txt")                  = file.gpg
+   * PathUtils.removeExtention("file.txt.gpg", ".gpg")                  = file.txt
+   * </pre>
+   *
+   * @param path in which the <code>extensions</code> need to be removed
+   * @param extensions to be removed
+   *
+   * @return a new {@link Path} without <code>extensions</code>
+   */
+  public static Path removeExtention(Path path, String...extensions) {
+    String pathString = path.toString();
+    for (String extension : extensions) {
+      pathString = StringUtils.remove(pathString, extension);
+    }
+
+    return new Path(pathString);
+  }
 }

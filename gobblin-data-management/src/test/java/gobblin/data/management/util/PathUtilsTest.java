@@ -60,4 +60,30 @@ public class PathUtilsTest {
     Assert.assertTrue(fullPath.toString().startsWith("hdfs"));
     Assert.assertEquals(PathUtils.getPathWithoutSchemeAndAuthority(fullPath), path);
   }
+
+  @Test
+  public void testRemoveExtension() throws Exception {
+
+    Path path = PathUtils.removeExtention(new Path("file.txt"), ".txt");
+    Assert.assertEquals(path, new Path("file"));
+
+    path = PathUtils.removeExtention(new Path("file.txt"), ".abc");
+    Assert.assertEquals(path, new Path("file.txt"));
+
+    path = PathUtils.removeExtention(new Path("file.txt.gpg"), ".txt", ".gpg");
+    Assert.assertEquals(path, new Path("file"));
+
+    path = PathUtils.removeExtention(new Path("file.txt.gpg"), ".gpg", ".txt");
+    Assert.assertEquals(path, new Path("file"));
+
+    path = PathUtils.removeExtention(new Path("file.txt.gpg"), ".txt");
+    Assert.assertEquals(path, new Path("file.gpg"));
+
+    path = PathUtils.removeExtention(new Path("file.txt.gpg"), ".gpg");
+    Assert.assertEquals(path, new Path("file.txt"));
+
+    path = PathUtils.removeExtention(new Path("file"), ".txt", ".gpg");
+    Assert.assertEquals(path, new Path("file"));
+
+  }
 }

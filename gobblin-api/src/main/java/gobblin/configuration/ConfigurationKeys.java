@@ -344,7 +344,6 @@ public class ConfigurationKeys {
    * Configuration properties used internally by the KafkaExtractor.
    */
   public static final String ERROR_PARTITION_COUNT = "error.partition.count";
-  public static final String ERROR_MESSAGE_INVALID_SCHEMA_ID_COUNT = "error.message.invalid.schema.id.count";
   public static final String ERROR_MESSAGE_UNDECODABLE_COUNT = "error.message.undecodable.count";
 
   /**

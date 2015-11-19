@@ -12,19 +12,20 @@
 
 package gobblin.metrics.kafka;
 
-@SuppressWarnings("serial")
-public class SchemaNotFoundException extends Exception {
+public class SchemaRegistryException extends Exception {
 
-  public SchemaNotFoundException(String message) {
+  private static final long serialVersionUID = 1L;
+
+  public SchemaRegistryException(String message) {
     super(message);
   }
 
-  public SchemaNotFoundException(String message, Exception e) {
-    super(message, e);
+  public SchemaRegistryException(String message, Throwable t) {
+    super(message, t);
   }
 
-  public SchemaNotFoundException(Exception e) {
-    super(e);
+  public SchemaRegistryException(Throwable t) {
+    super(t);
   }
 
 }

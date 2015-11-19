@@ -37,7 +37,6 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metrics.Tag;
-import gobblin.metrics.kafka.SchemaNotFoundException;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.EventBasedExtractor;
@@ -72,7 +71,6 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   private final Map<KafkaPartition, Long> avgRecordSizes;
 
   private final Set<Integer> errorPartitions;
-  private int invalidSchemaIdCount = 0;
   private int undecodableMessageCount = 0;
 
   private Iterator<MessageAndOffset> messageIterator = null;
@@ -154,21 +152,11 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
           this.currentPartitionRecordCount++;
           this.currentPartitionTotalSize += nextValidMessage.message().payloadSize();
           return record;
-        } catch (SchemaNotFoundException e) {
-          this.errorPartitions.add(this.currentPartitionIdx);
-          this.invalidSchemaIdCount++;
-          if (shouldLogError()) {
-            LOG.error(
-                String.format("A record from partition %s has a schema ID that doesn't exist in the schema registry.",
-                    getCurrentPartition()),
-                e);
-            incrementErrorCount();
-          }
-        } catch (Exception e) {
+        } catch (Throwable t) {
           this.errorPartitions.add(this.currentPartitionIdx);
           this.undecodableMessageCount++;
           if (shouldLogError()) {
-            LOG.error(String.format("A record from partition %s cannot be decoded.", getCurrentPartition()), e);
+            LOG.error(String.format("A record from partition %s cannot be decoded.", getCurrentPartition()), t);
             incrementErrorCount();
           }
         }
@@ -259,7 +247,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     return this.partitions.get(this.currentPartitionIdx);
   }
 
-  protected abstract D decodeRecord(MessageAndOffset messageAndOffset) throws SchemaNotFoundException, IOException;
+  protected abstract D decodeRecord(MessageAndOffset messageAndOffset) throws IOException;
 
   @Override
   public long getExpectedRecordCount() {
@@ -271,7 +259,6 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
     // Add error partition count and error message count to workUnitState
     this.workUnitState.setProp(ConfigurationKeys.ERROR_PARTITION_COUNT, this.errorPartitions.size());
-    this.workUnitState.setProp(ConfigurationKeys.ERROR_MESSAGE_INVALID_SCHEMA_ID_COUNT, this.invalidSchemaIdCount);
     this.workUnitState.setProp(ConfigurationKeys.ERROR_MESSAGE_UNDECODABLE_COUNT, this.undecodableMessageCount);
 
     // Commit actual high watermark for each partition

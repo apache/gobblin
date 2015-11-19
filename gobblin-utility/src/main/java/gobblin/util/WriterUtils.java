@@ -22,6 +22,7 @@ import org.apache.hadoop.fs.permission.FsPermission;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -181,9 +182,12 @@ public class WriterUtils {
    */
   public static String getWriterFileName(State state, int numBranches, int branchId, String writerId,
       String formatExtension) {
+    String defaultFileName = Strings.isNullOrEmpty(formatExtension)
+        ? String.format("%s.%s", ConfigurationKeys.DEFAULT_WRITER_FILE_BASE_NAME, writerId)
+        : String.format("%s.%s.%s", ConfigurationKeys.DEFAULT_WRITER_FILE_BASE_NAME, writerId, formatExtension);
     return state.getProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_NAME, numBranches, branchId),
-        String.format("%s.%s.%s", ConfigurationKeys.DEFAULT_WRITER_FILE_BASE_NAME, writerId, formatExtension));
+        defaultFileName);
   }
 
   /**
