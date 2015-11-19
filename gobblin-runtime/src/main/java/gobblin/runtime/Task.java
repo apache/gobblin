@@ -304,11 +304,13 @@ public class Task implements Runnable {
 
       LOG.info("Publishing data from task " + this.taskId);
       publisher.publish(this.taskState);
-    } catch (IOException e) {
-      throw closer.rethrow(e);
-    } catch (Throwable t) {
+    } catch (ClassCastException e) {
       LOG.error(String.format("To publish data in task, the publisher class (%s) must extend %s",
-          ConfigurationKeys.DATA_PUBLISHER_TYPE, SingleTaskDataPublisher.class.getSimpleName()), t);
+          ConfigurationKeys.DATA_PUBLISHER_TYPE, SingleTaskDataPublisher.class.getSimpleName()), e);
+      this.taskState.setTaskFailureException(e);
+      throw closer.rethrow(e);
+    } catch(Throwable t) {
+      this.taskState.setTaskFailureException(t);
       throw closer.rethrow(t);
     } finally {
       closer.close();

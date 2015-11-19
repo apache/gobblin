@@ -166,6 +166,11 @@ public class HadoopUtils {
    */
   public static void renameRecursively(FileSystem fileSystem, Path from, Path to) throws IOException {
 
+    // Need this check for hadoop2
+    if (!fileSystem.exists(from)) {
+      return;
+    }
+
     for (FileStatus fromFile : fileSystem.listStatus(from)) {
 
       Path relativeFilePath =

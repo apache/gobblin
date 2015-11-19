@@ -14,12 +14,14 @@ package gobblin.runtime;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Properties;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -208,8 +210,7 @@ public class JobContext {
           ConfigurationKeys.WRITER_STAGING_DIR, ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY));
     } else {
       String workingDir = this.jobState.getProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY);
-      this.jobState.setProp(ConfigurationKeys.WRITER_STAGING_DIR,
-          new Path(workingDir, TASK_STAGING_DIR_NAME).toString());
+      this.jobState.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(workingDir, TASK_STAGING_DIR_NAME).toString());
     }
   }
 
@@ -396,6 +397,7 @@ public class JobContext {
       DataPublisher publisher = closer.register(DataPublisher.getInstance(dataPublisherClass, datasetState));
       publisher.publish(datasetState.getTaskStates());
     } catch (Throwable t) {
+      setTaskFailureException(datasetState.getTaskStates(), t);
       throw closer.rethrow(t);
     } finally {
       closer.close();
@@ -426,5 +428,15 @@ public class JobContext {
 
     datasetState.setId(datasetUrn);
     this.datasetStateStore.persistDatasetState(datasetUrn, datasetState);
+  }
+
+  /**
+   * Sets the {@link ConfigurationKeys#TASK_FAILURE_EXCEPTION_KEY} for each given {@link TaskState} to the given
+   * {@link Throwable}.
+   */
+  private void setTaskFailureException(Collection<TaskState> taskStates, Throwable t) {
+    for (TaskState taskState : taskStates) {
+      taskState.setTaskFailureException(t);
+    }
   }
 }
