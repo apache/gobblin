@@ -3,10 +3,12 @@ package gobblin.config.client;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Map;
+import java.util.TreeMap;
 
 import com.typesafe.config.Config;
 
 import gobblin.config.configstore.ConfigStore;
+import gobblin.config.utils.URIComparator;
 
 /**
  * ConfigClient is the consumer facing class for retrieving configuration against all configuration stores.
@@ -21,6 +23,10 @@ public class ConfigClient {
   }
   
   private final VERSION_STABILITY_POLICY policy;
+  
+  // key is the store ROOT, must use TreeMap
+  private final TreeMap<URI, ConfigStoreAccessor> ConfigStoreMap = new TreeMap<URI, ConfigStoreAccessor>(new URIComparator());
+  
   private ConfigClient(VERSION_STABILITY_POLICY policy){
     this.policy = policy;
   }
@@ -114,9 +120,6 @@ public class ConfigClient {
   public void clearCache(URI uri){
     
   }
-  
-  // key is the store ROOT, must use TreeMap
-  Map<URI, ConfigStoreAccessor> ConfigStoreMap;
 
   
   static class ConfigStoreAccessor{
