@@ -17,14 +17,9 @@ public interface ConfigStoreFactory<T extends ConfigStore> {
   public String getScheme();
 
   /**
-   * 
-   * @return the default {@ConfigStore}
-   */
-  public T getDefaultConfigStore() throws Exception;
-
-  /**
    * @param uri - The specified URI in the configuration store
    * @return {@ConfigStore} which is created from the input URI
    */
   public T createConfigStore(URI uri) throws Exception;
+  
 }

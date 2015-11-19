@@ -35,6 +35,9 @@ public class URITest {
     n = new URI("user");
     display(test, n);
     
+    System.out.println("AAA " + new Path(test.getPath()).toString());
+    System.out.println("AAA " + new Path(test.getPath()).toUri());
+    
     URI test2 = new URI("file", test.getAuthority(), test.getPath(), test.getQuery(), test.getFragment());
     display(test2, n);
     

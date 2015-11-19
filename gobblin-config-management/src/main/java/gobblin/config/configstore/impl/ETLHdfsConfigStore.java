@@ -9,6 +9,7 @@ import gobblin.config.configstore.VersionComparator;
 import gobblin.config.utils.CircularDependencyChecker;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -86,7 +87,12 @@ public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements
       if(pStr.length()==0) return null;
       
       Path p = (new Path(uri.getPath())).getParent();
-      return p.toUri();
+      try {
+        return new URI(uri.getScheme(), uri.getAuthority(), p.toString(), uri.getQuery(), uri.getFragment());
+      } catch (URISyntaxException e) {
+        // Should not come here
+        e.printStackTrace();
+      }
     }
     return null;
   }

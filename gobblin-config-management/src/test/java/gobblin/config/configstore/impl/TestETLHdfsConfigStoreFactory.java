@@ -24,15 +24,12 @@ public class TestETLHdfsConfigStoreFactory {
 
     File input = new File(this.getClass().getResource("/" + TestRoot).getFile());
     FilesUtil.SyncDirs(input, testRootDir);
+    factory = new ETLHdfsConfigStoreFactory();
   }
 
   @Test
   public void testCreation() throws Exception {
-    factory = new ETLHdfsConfigStoreFactory(new URI("etl-hdfs://" + testRootDir.getAbsolutePath()));
-    ETLHdfsConfigStore cs = factory.getDefaultConfigStore();
-    Assert.assertTrue(cs.getStoreURI().toString().indexOf(testRootDir.toString()) > 0);
-    Assert.assertEquals(cs.getCurrentVersion(), Version);
-
+    System.out.println("AAAAAAA_-------");
     ETLHdfsConfigStore cs2 =
         factory.createConfigStore(new URI("etl-hdfs://" + testRootDir.getAbsolutePath() + "/v3.0/datasets/a1/a2"));
     Assert.assertTrue(cs2.getStoreURI().toString().indexOf(testRootDir.toString()) > 0);
@@ -41,12 +38,11 @@ public class TestETLHdfsConfigStoreFactory {
 
   @Test(expectedExceptions = gobblin.config.configstore.impl.ConfigStoreCreationException.class)
   public void testWrongCreation() throws Exception {
-    factory = new ETLHdfsConfigStoreFactory(new URI("foo-hdfs://" + testRootDir.getAbsolutePath()));
+    factory.createConfigStore(new URI("foo-hdfs://" + testRootDir.getAbsolutePath()));
   }
 
   @Test(expectedExceptions = gobblin.config.configstore.impl.ConfigStoreCreationException.class)
   public void testWrongCreation2() throws Exception {
-    factory = new ETLHdfsConfigStoreFactory(new URI("etl-hdfs://" + testRootDir.getAbsolutePath()));
     factory.createConfigStore(new URI("foo-hdfs://" + testRootDir.getAbsolutePath() + "/v3.0/datasets/a1/a2"));
   }
   
@@ -59,7 +55,7 @@ public class TestETLHdfsConfigStoreFactory {
     File input = new File(this.getClass().getResource("/" + WrongTestRoot).getFile());
     FilesUtil.SyncDirs(input, WrongTestRootDir);
     
-    factory = new ETLHdfsConfigStoreFactory(new URI("etl-hdfs://" + WrongTestRootDir.getAbsolutePath()));
+    factory.createConfigStore(new URI("etl-hdfs://" + WrongTestRootDir.getAbsolutePath()));
   }
   
 }

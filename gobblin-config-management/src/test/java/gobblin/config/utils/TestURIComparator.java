@@ -32,5 +32,8 @@ public class TestURIComparator {
 
     testURI = new URI("file:/abc/var/folders/rr");
     Assert.assertEquals(testMap.containsKey(testURI), false);
+    
+    testURI = new URI("file:///var/folders/rr/sub1");
+    Assert.assertEquals(testMap.get(testURI), "file");
   }
 }

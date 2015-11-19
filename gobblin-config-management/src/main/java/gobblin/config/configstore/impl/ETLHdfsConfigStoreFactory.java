@@ -16,26 +16,13 @@ import gobblin.config.configstore.ConfigStoreFactory;
 
 public class ETLHdfsConfigStoreFactory implements ConfigStoreFactory<ConfigStore> {
 
-  private static final Logger LOG = Logger.getLogger(ETLHdfsConfigStoreFactory.class);
-  private final ETLHdfsConfigStore store;
-  private final FileSystem fs;
-
+  public static final String SCHEME_NAME = "etl-hdfs";
   public static final String CONFIG_STORE_NAME = "_CONFIG_STORE";
-
-  public ETLHdfsConfigStoreFactory(URI defaultConfigStoreRoot) throws ConfigStoreCreationException,
-      IOException {
-    this.fs = new Path(defaultConfigStoreRoot.getPath()).getFileSystem(new Configuration());
-    this.store = this.createConfigStore(defaultConfigStoreRoot);
-  }
+  private static final Logger LOG = Logger.getLogger(ETLHdfsConfigStoreFactory.class);
 
   @Override
   public String getScheme() {
-    return "etl-hdfs";
-  }
-
-  @Override
-  public ETLHdfsConfigStore getDefaultConfigStore() {
-    return this.store;
+    return SCHEME_NAME;
   }
 
   private String getActualScheme() {
@@ -44,6 +31,7 @@ public class ETLHdfsConfigStoreFactory implements ConfigStoreFactory<ConfigStore
 
   @Override
   public ETLHdfsConfigStore createConfigStore(URI uri) throws ConfigStoreCreationException, IOException {
+    FileSystem fs = new Path(uri.getPath()).getFileSystem(new Configuration());
     if (!uri.getScheme().equals(this.getScheme())) {
       String errMesg =
           String.format("Input scheme %s does NOT match config store scheme %s", uri.getScheme(), this.getScheme());
@@ -53,7 +41,7 @@ public class ETLHdfsConfigStoreFactory implements ConfigStoreFactory<ConfigStore
 
     try {
       URI adjusted = new URI(getActualScheme(), uri.getAuthority(), uri.getPath(), uri.getQuery(), uri.getFragment());
-      URI root = this.findConfigStoreRoot(adjusted);
+      URI root = this.findConfigStoreRoot(adjusted, fs);
       return new ETLHdfsConfigStore(root);
     } catch (URISyntaxException e) {
       LOG.error("got error when constructing uri based on " + uri, e);
@@ -61,14 +49,25 @@ public class ETLHdfsConfigStoreFactory implements ConfigStoreFactory<ConfigStore
     }
   }
 
-  private URI findConfigStoreRoot(URI input) throws ConfigStoreCreationException, IOException {
+  private URI findConfigStoreRoot(URI input, FileSystem fs) throws ConfigStoreCreationException, IOException {
     Path p = new Path(input.getPath());
 
+    
     while (p != null) {
-      FileStatus[] fileStatus = this.fs.listStatus(p);
+      System.out.println("Check "+p);
+      FileStatus[] fileStatus = fs.listStatus(p);
       for (FileStatus f : fileStatus) {
         if (!f.isDir() && f.getPath().getName().equals(CONFIG_STORE_NAME)) {
-          return f.getPath().getParent().toUri();
+          String parent = f.getPath().getParent().toString();
+          
+          System.out.println("parent is " + parent);
+          
+          try {
+            return new URI(parent);
+          } catch (URISyntaxException e) {
+            // Should not come here
+            e.printStackTrace();
+          }
         }
       }
       p = p.getParent();
