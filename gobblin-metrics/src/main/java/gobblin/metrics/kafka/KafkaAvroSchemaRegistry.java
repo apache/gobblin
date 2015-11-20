@@ -13,10 +13,8 @@
 package gobblin.metrics.kafka;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
 import gobblin.util.AvroUtils;
 import org.apache.avro.Schema;
@@ -31,38 +29,25 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.collect.Maps;
 
 
 /**
- * A schema registry class that provides two services: get the latest schema of a topic, and register a schema.
+ * An implementation of {@link KafkaSchemaRegistry}.
  *
  * @author ziliu
  */
-public class KafkaAvroSchemaRegistry implements KafkaSchemaRegistry<String, Schema> {
+public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaAvroSchemaRegistry.class);
 
-  private static final int GET_SCHEMA_BY_ID_MAX_TIRES = 3;
-  private static final int GET_SCHEMA_BY_ID_MIN_INTERVAL_SECONDS = 1;
   private static final String GET_RESOURCE_BY_ID = "/id=";
   private static final String GET_RESOURCE_BY_TYPE = "/latest_with_type=";
   private static final String SCHEMA_ID_HEADER_NAME = "Location";
   private static final String SCHEMA_ID_HEADER_PREFIX = "/id=";
-  private static final String KAFKA_SCHEMA_REGISTRY_MAX_CACHE_SIZE = "kafka.schema.registry.max.cache.size";
-  private static final String DEFAULT_KAFKA_SCHEMA_REGISTRY_MAX_CACHE_SIZE = "1000";
-  private static final String KAFKA_SCHEMA_REGISTRY_CACHE_EXPIRE_AFTER_WRITE_MIN =
-      "kafka.schema.registry.cache.expire.after.write.min";
-  private static final String DEFAULT_KAFKA_SCHEMA_REGISTRY_CACHE_EXPIRE_AFTER_WRITE_MIN = "10";
 
-  public static final String KAFKA_SCHEMA_REGISTRY_URL = "kafka.schema.registry.url";
   public static final int SCHEMA_ID_LENGTH_BYTE = 16;
   public static final byte MAGIC_BYTE = 0x0;
 
-  private final LoadingCache<String, Schema> cachedSchemasById;
   private final HttpClient httpClient;
   private final String url;
 
@@ -71,18 +56,12 @@ public class KafkaAvroSchemaRegistry implements KafkaSchemaRegistry<String, Sche
    * "kafka.schema.registry.max.cache.size" (default = 1000) and
    * "kafka.schema.registry.cache.expire.after.write.min" (default = 10).
    */
-  public KafkaAvroSchemaRegistry(Properties properties) {
-    Preconditions.checkArgument(properties.containsKey(KAFKA_SCHEMA_REGISTRY_URL),
+  public KafkaAvroSchemaRegistry(Properties props) {
+    super(props);
+    Preconditions.checkArgument(props.containsKey(KAFKA_SCHEMA_REGISTRY_URL),
         String.format("Property %s not provided.", KAFKA_SCHEMA_REGISTRY_URL));
 
-    this.url = properties.getProperty(KAFKA_SCHEMA_REGISTRY_URL);
-    int maxCacheSize = Integer.parseInt(
-        properties.getProperty(KAFKA_SCHEMA_REGISTRY_MAX_CACHE_SIZE, DEFAULT_KAFKA_SCHEMA_REGISTRY_MAX_CACHE_SIZE));
-    int expireAfterWriteMin =
-        Integer.parseInt(properties.getProperty(KAFKA_SCHEMA_REGISTRY_CACHE_EXPIRE_AFTER_WRITE_MIN,
-            DEFAULT_KAFKA_SCHEMA_REGISTRY_CACHE_EXPIRE_AFTER_WRITE_MIN));
-    this.cachedSchemasById = CacheBuilder.newBuilder().maximumSize(maxCacheSize)
-        .expireAfterWrite(expireAfterWriteMin, TimeUnit.MINUTES).build(new KafkaSchemaCacheLoader());
+    this.url = props.getProperty(KAFKA_SCHEMA_REGISTRY_URL);
     this.httpClient = new HttpClient(new MultiThreadedHttpConnectionManager());
   }
 
@@ -96,7 +75,7 @@ public class KafkaAvroSchemaRegistry implements KafkaSchemaRegistry<String, Sche
   @Override
   public Schema getSchemaByKey(String key) throws SchemaRegistryException {
     try {
-      return cachedSchemasById.get(key);
+      return cachedSchemasByKeys.get(key);
     } catch (ExecutionException e) {
       throw new SchemaRegistryException(String.format("Schema with key %s cannot be retrieved", key), e);
     }
@@ -136,15 +115,10 @@ public class KafkaAvroSchemaRegistry implements KafkaSchemaRegistry<String, Sche
     }
 
     Schema schema;
-    if (schemaString.startsWith("{")) {
-      try {
-        schema = new Schema.Parser().parse(schemaString);
-      } catch (Exception e) {
-        throw new SchemaRegistryException(String.format("Latest schema for topic %s cannot be retrieved", topic), e);
-      }
-    } else {
-      throw new SchemaRegistryException(
-          String.format("Latest schema for topic %s cannot be retrieved: schema should start with '{'", topic));
+    try {
+      schema = new Schema.Parser().parse(schemaString);
+    } catch (Throwable t) {
+      throw new SchemaRegistryException(String.format("Latest schema for topic %s cannot be retrieved", topic), t);
     }
 
     return schema;
@@ -216,109 +190,39 @@ public class KafkaAvroSchemaRegistry implements KafkaSchemaRegistry<String, Sche
     }
   }
 
-  private class KafkaSchemaCacheLoader extends CacheLoader<String, Schema> {
+  /**
+   * Fetch schema by key.
+   */
+  @Override
+  protected Schema fetchSchemaByKey(String key) throws SchemaRegistryException {
+    String schemaUrl = KafkaAvroSchemaRegistry.this.url + GET_RESOURCE_BY_ID + key;
 
-    private final Map<String, FailedFetchHistory> failedFetchHistories;
+    GetMethod get = new GetMethod(schemaUrl);
 
-    private KafkaSchemaCacheLoader() {
-      super();
-      this.failedFetchHistories = Maps.newHashMap();
+    int statusCode;
+    String schemaString;
+    try {
+      statusCode = this.httpClient.executeMethod(get);
+      schemaString = get.getResponseBodyAsString();
+    } catch (IOException e) {
+      throw new SchemaRegistryException(e);
+    } finally {
+      get.releaseConnection();
     }
 
-    @Override
-    public Schema load(String key) throws Exception {
-      if (shouldFetchFromSchemaRegistry(key)) {
-        try {
-          return fetchSchemaByKey(key);
-        } catch (SchemaRegistryException e) {
-          addFetchToFailureHistory(key);
-          throw e;
-        }
-      }
-
-      // Throw exception if we've just tried to fetch this id, or if we've tried too many times for this id.
-      throw new SchemaRegistryException(String.format("Schema with key %s cannot be retrieved", key));
+    if (statusCode != HttpStatus.SC_OK) {
+      throw new SchemaRegistryException(
+          String.format("Schema with key %s cannot be retrieved, statusCode = %d", key, statusCode));
     }
 
-    private void addFetchToFailureHistory(String id) {
-      if (!this.failedFetchHistories.containsKey(id)) {
-        this.failedFetchHistories.put(id, new FailedFetchHistory(1, System.nanoTime()));
-      } else {
-        this.failedFetchHistories.get(id).incrementNumOfAttempts();
-        this.failedFetchHistories.get(id).setPreviousAttemptTime(System.nanoTime());
-      }
+    Schema schema;
+    try {
+      schema = new Schema.Parser().parse(schemaString);
+    } catch (Throwable t) {
+      throw new SchemaRegistryException(String.format("Schema with ID = %s cannot be parsed", key), t);
     }
 
-    private boolean shouldFetchFromSchemaRegistry(String id) {
-      if (!this.failedFetchHistories.containsKey(id)) {
-        return true;
-      }
-      FailedFetchHistory failedFetchHistory = this.failedFetchHistories.get(id);
-      boolean maxTriesNotExceeded = failedFetchHistory.getNumOfAttempts() < GET_SCHEMA_BY_ID_MAX_TIRES;
-      boolean minRetryIntervalSatisfied =
-          System.nanoTime() - failedFetchHistory.getPreviousAttemptTime() >= TimeUnit.SECONDS
-              .toNanos(GET_SCHEMA_BY_ID_MIN_INTERVAL_SECONDS);
-      return maxTriesNotExceeded && minRetryIntervalSatisfied;
-    }
-
-    private Schema fetchSchemaByKey(String key) throws SchemaRegistryException, HttpException, IOException {
-      String schemaUrl = KafkaAvroSchemaRegistry.this.url + GET_RESOURCE_BY_ID + key;
-
-      GetMethod get = new GetMethod(schemaUrl);
-
-      int statusCode;
-      String schemaString;
-      try {
-        statusCode = KafkaAvroSchemaRegistry.this.httpClient.executeMethod(get);
-        schemaString = get.getResponseBodyAsString();
-      } finally {
-        get.releaseConnection();
-      }
-
-      if (statusCode != HttpStatus.SC_OK) {
-        throw new SchemaRegistryException(
-            String.format("Schema with key %s cannot be retrieved, statusCode = %d", key, statusCode));
-      }
-
-      Schema schema;
-      if (schemaString.startsWith("{")) {
-        try {
-          schema = new Schema.Parser().parse(schemaString);
-        } catch (Exception e) {
-          throw new SchemaRegistryException(String.format("Schema with ID = %s cannot be parsed", key), e);
-        }
-      } else {
-        throw new SchemaRegistryException(
-            String.format("Schema with key %s cannot be parsed: schema should start with '{'", key));
-      }
-
-      return schema;
-    }
-
-    private class FailedFetchHistory {
-      private int getNumOfAttempts() {
-        return numOfAttempts;
-      }
-
-      private long getPreviousAttemptTime() {
-        return previousAttemptTime;
-      }
-
-      private void setPreviousAttemptTime(long previousAttemptTime) {
-        this.previousAttemptTime = previousAttemptTime;
-      }
-
-      private void incrementNumOfAttempts() {
-        this.numOfAttempts++;
-      }
-
-      private int numOfAttempts;
-      private long previousAttemptTime;
-
-      private FailedFetchHistory(int numOfAttempts, long previousAttemptTime) {
-        this.numOfAttempts = numOfAttempts;
-        this.previousAttemptTime = previousAttemptTime;
-      }
-    }
+    return schema;
   }
+
 }
