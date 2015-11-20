@@ -47,13 +47,13 @@ import gobblin.util.AvroUtils;
 @Slf4j
 public abstract class KafkaAvroExtractor<K> extends KafkaExtractor<Schema, GenericRecord> {
 
-  private static final Schema DEFAULT_SCHEMA = SchemaBuilder.record("DefaultSchema").fields().name("header")
+  protected static final Schema DEFAULT_SCHEMA = SchemaBuilder.record("DefaultSchema").fields().name("header")
       .type(SchemaBuilder.record("header").fields().name("time").type("long").withDefault(0).endRecord()).noDefault()
       .endRecord();
 
-  private final Optional<KafkaSchemaRegistry<K, Schema>> schemaRegistry;
-  private final Optional<Schema> schema;
-  private final Optional<GenericDatumReader<Record>> reader;
+  protected final Optional<KafkaSchemaRegistry<K, Schema>> schemaRegistry;
+  protected final Optional<Schema> schema;
+  protected final Optional<GenericDatumReader<Record>> reader;
 
   public KafkaAvroExtractor(WorkUnitState state) {
     super(state);
