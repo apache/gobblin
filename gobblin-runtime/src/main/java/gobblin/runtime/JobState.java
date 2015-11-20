@@ -25,7 +25,7 @@ import org.apache.hadoop.io.Text;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
-
+import com.google.common.base.Enums;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
@@ -322,8 +322,10 @@ public class JobState extends SourceState {
    * Get the {@link LauncherTypeEnum} for this {@link JobState}.
    */
   public LauncherTypeEnum getLauncherType() {
-    return LauncherTypeEnum.valueOf(
-        this.getProp(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherFactory.JobLauncherType.LOCAL.name()));
+    return Enums
+        .getIfPresent(LauncherTypeEnum.class,
+            this.getProp(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherFactory.JobLauncherType.LOCAL.name()))
+        .or(LauncherTypeEnum.LOCAL);
   }
 
   /**
