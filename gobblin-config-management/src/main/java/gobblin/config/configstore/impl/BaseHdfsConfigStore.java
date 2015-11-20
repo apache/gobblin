@@ -49,7 +49,6 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
       this.storeURI = root;
       this.location = new Path(root.getPath());
       this.fs = FileSystem.get(root, new Configuration());
-      //this.fs = this.location.getFileSystem(new Configuration());
     } catch (IOException ioe) {
       LOG.error("can not initial the file system " + ioe.getMessage(), ioe);
       throw new RuntimeException(ioe);
