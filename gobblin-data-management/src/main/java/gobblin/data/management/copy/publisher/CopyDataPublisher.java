@@ -22,6 +22,10 @@ import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.SerializableCopyableDataset;
 import gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder;
 import gobblin.data.management.util.PathUtils;
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.event.EventSubmitter;
 import gobblin.publisher.DataPublisher;
 import gobblin.util.HadoopUtils;
 
@@ -47,6 +51,7 @@ public class CopyDataPublisher extends DataPublisher {
 
   private Path writerOutputDir;
   private FileSystem fs;
+  protected EventSubmitter eventSubmitter;
 
   /**
    * Build a new {@link CopyDataPublisher} from {@link State}. The constructor expects the following to be set in the
@@ -67,6 +72,11 @@ public class CopyDataPublisher extends DataPublisher {
     FileAwareInputStreamDataWriterBuilder.setJobSpecificOutputPaths(state);
 
     this.writerOutputDir = new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR));
+
+    MetricContext metricContext =
+        Instrumented.getMetricContext(state, CopyDataPublisher.class, GobblinMetrics.getCustomTagsFromState(state));
+
+    this.eventSubmitter = new EventSubmitter.Builder(metricContext, "gobblin.copy.CopyDataPublisher").build();
   }
 
   @Override
@@ -83,13 +93,11 @@ public class CopyDataPublisher extends DataPublisher {
       try {
         this.publishDataset(copyableDataset, datasets.get(copyableDataset));
       } catch (Throwable e) {
-        // TODO submit failure events here
+        CopyEventSubmitterHelper.submitFailedDatasetPublish(eventSubmitter, copyableDataset);
         log.error("Failed to publish " + copyableDataset.datasetTargetRoot(), e);
         allDatasetsPublished = false;
       }
     }
-
-    fs.delete(writerOutputDir, true);
 
     if (!allDatasetsPublished) {
       throw new IOException("Not all datasets published successfully");
@@ -133,8 +141,11 @@ public class CopyDataPublisher extends DataPublisher {
     for (WorkUnitState wus : datasetWorkUnitStates) {
       if (wus.getWorkingState() == WorkingState.SUCCESSFUL) {
         wus.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+        CopyEventSubmitterHelper.submitSuccessfulFilePublish(eventSubmitter, wus);
       }
     }
+
+    CopyEventSubmitterHelper.submitSuccessfulDatasetPublish(eventSubmitter, copyableDataset);
   }
 
   @Override
@@ -143,6 +154,7 @@ public class CopyDataPublisher extends DataPublisher {
 
   @Override
   public void close() throws IOException {
+    fs.delete(writerOutputDir, true);
   }
 
   @Override
