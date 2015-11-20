@@ -177,6 +177,7 @@ subprojects {
 plugins.withType(JavaPlugin) {
   plugins.apply('idea')
   plugins.apply('eclipse')
+  plugins.apply('maven')
 // Disabling the FindBugs plugin for now because FindBugs 2.x is not compatible with Java8
 //  apply plugin: 'findbugs'
 
