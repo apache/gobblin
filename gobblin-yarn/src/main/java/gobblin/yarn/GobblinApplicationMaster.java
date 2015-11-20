@@ -61,9 +61,7 @@ import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
@@ -75,8 +73,6 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
 import gobblin.yarn.event.ApplicationMasterShutdownRequest;
 import gobblin.yarn.event.DelegationTokenUpdatedEvent;
 
@@ -89,6 +85,18 @@ import gobblin.yarn.event.DelegationTokenUpdatedEvent;
  *   and the {@link YarnService} for all Yarn-related stuffs like ApplicationMaster registration
  *   and un-registration and Yarn container provisioning. This class serves as the Helix controller
  *   and it uses a {@link HelixManager} to work with Helix.
+ * </p>
+ *
+ * <p>
+ *   This class will initiates a graceful shutdown of the Yarn application in the following conditions:
+ *
+ *   <ul>
+ *     <li>A shutdown request is received via a Helix message of subtype
+ *     {@link HelixMessageSubTypes#APPLICATION_MASTER_SHUTDOWN}. Upon receiving such a message,
+ *     it will call {@link #stop()} to initiate a graceful shutdown of the Yarn application.</li>
+ *     <li>The shutdown hook gets called. The shutdown hook will call {@link #stop()}, which will
+ *     start a graceful shutdown of the Yarn application.</li>
+ *   </ul>
  * </p>
  *
  * @author ynli
@@ -104,7 +112,7 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
 
   private final HelixManager helixManager;
 
-  private final MetricContext metricContext;
+  private final MetricRegistry metricRegistry;
 
   private final JmxReporter jmxReporter;
 
@@ -131,9 +139,7 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
 
     List<Service> services = Lists.newArrayList();
     services.add(buildLogCopier(containerId, fs, appWorkDir));
-    services.add(
-        new YarnService(config, applicationName, applicationAttemptId.getApplicationId(), fs, this.eventBus,
-            Strings.nullToEmpty(config.getString(GobblinYarnConfigurationKeys.CONTAINER_JVM_ARGS_KEY))));
+    services.add(new YarnService(config, applicationName, applicationAttemptId.getApplicationId(), fs, this.eventBus));
     services.add(
         new GobblinHelixJobScheduler(YarnHelixUtils.configToProperties(config), this.helixManager, this.eventBus,
             appWorkDir));
@@ -147,18 +153,8 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
 
     this.serviceManager = new ServiceManager(services);
 
-    List<Tag<?>> tags = ImmutableList.<Tag<?>>builder()
-        .add(new Tag<String>(GobblinYarnMetricTagNames.YARN_APPLICATION_NAME, applicationName))
-        .add(new Tag<String>(GobblinYarnMetricTagNames.YARN_APPLICATION_ID,
-            applicationAttemptId.getApplicationId().toString()))
-        .add(new Tag<String>(GobblinYarnMetricTagNames.CONTAINER_ID, containerId.toString()))
-        .add(new Tag<String>(GobblinYarnMetricTagNames.HELIX_INSTANCE_NAME, helixInstanceName))
-        .build();
-    this.metricContext = MetricContext.builder(GobblinApplicationMaster.class.getSimpleName())
-        .addTags(tags)
-        .build();
-
-    this.jmxReporter = JmxReporter.forRegistry(this.metricContext)
+    this.metricRegistry = new MetricRegistry();
+    this.jmxReporter = JmxReporter.forRegistry(this.metricRegistry)
         .convertRatesTo(TimeUnit.SECONDS)
         .convertDurationsTo(TimeUnit.MILLISECONDS)
         .build();
@@ -239,12 +235,12 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
     registerMetricSetWithPrefix("jvm.gc", new GarbageCollectorMetricSet());
     registerMetricSetWithPrefix("jvm.memory", new MemoryUsageGaugeSet());
     registerMetricSetWithPrefix("jvm.threads", new ThreadStatesGaugeSet());
-    this.metricContext.register("jvm.fileDescriptorRatio", new FileDescriptorRatioGauge());
+    this.metricRegistry.register("jvm.fileDescriptorRatio", new FileDescriptorRatioGauge());
   }
 
   private void registerMetricSetWithPrefix(String prefix, MetricSet metricSet) {
     for (Map.Entry<String, Metric> entry : metricSet.getMetrics().entrySet()) {
-      this.metricContext.register(MetricRegistry.name(prefix, entry.getKey()), entry.getValue());
+      this.metricRegistry.register(MetricRegistry.name(prefix, entry.getKey()), entry.getValue());
     }
   }
 

@@ -84,6 +84,18 @@ public class YarnHelixUtils {
   }
 
   /**
+   * Get the Yarn application root directory {@link Path}.
+   *
+   * @param fs a {@link FileSystem} instance on which {@link FileSystem#getHomeDirectory()} is called
+   *           to get the home directory of the {@link FileSystem} of the application working directory
+   * @param applicationName the Yarn application name
+   * @return the Yarn application root directory {@link Path}
+   */
+  public static Path getAppRootDirPath(FileSystem fs, String applicationName) {
+    return new Path(fs.getHomeDirectory(), applicationName);
+  }
+
+  /**
    * Get the Yarn application working directory {@link Path}.
    *
    * @param fs a {@link FileSystem} instance on which {@link FileSystem#getHomeDirectory()} is called
