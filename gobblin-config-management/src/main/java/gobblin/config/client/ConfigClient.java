@@ -1,19 +1,27 @@
 package gobblin.config.client;
 
-import java.io.IOException;
+import gobblin.config.configstore.ConfigStore;
+import gobblin.config.configstore.ConfigStoreFactory;
+import gobblin.config.configstore.ConfigStoreWithImportedBy;
+import gobblin.config.configstore.ConfigStoreWithImportedByRecursively;
+import gobblin.config.configstore.ConfigStoreWithResolution;
+import gobblin.config.configstore.ConfigStoreWithStableVersion;
+import gobblin.config.configstore.impl.ETLHdfsConfigStoreFactory;
+import gobblin.config.configstore.impl.SimpleConfigStoreResolver;
+import gobblin.config.configstore.impl.SimpleImportMappings;
+import gobblin.config.utils.URIComparator;
+
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
 import com.typesafe.config.Config;
-
-import gobblin.config.configstore.ConfigStore;
-import gobblin.config.configstore.ConfigStoreFactory;
-import gobblin.config.configstore.impl.ConfigStoreCreationException;
-import gobblin.config.configstore.impl.ETLHdfsConfigStoreFactory;
-import gobblin.config.utils.URIComparator;
 
 
 /**
@@ -69,6 +77,12 @@ public class ConfigClient {
     ConfigStoreFactory<ConfigStore> csFactory = this.getConfigStoreFactory(uri);
     ConfigStore cs = csFactory.createConfigStore(uri);
     
+    if(!(cs instanceof ConfigStoreWithStableVersion)){
+      if(this.policy == VERSION_STABILITY_POLICY.RAISE_ERROR){
+        throw new Exception(String.format("Try to connect to unstable config store ", cs.getStoreURI()));
+      }
+    }
+    
     // ConfigStoreFactory scheme name could be different than configStore's StoreURI's scheme name
     URI csRoot = cs.getStoreURI();
     URI key = new URI(csFactory.getScheme(), csRoot.getAuthority(), csRoot.getPath(), csRoot.getQuery(), csRoot.getFragment());
@@ -109,16 +123,31 @@ public class ConfigClient {
     //    cs.getConfig(uri.getRelativePath());
     
     ConfigStoreAccessor csa = this.getConfigStoreAccessor(uri);
-    csa.store.getOwnConfig(uri, csa.version);
-    return null;
+    
+    URI rel_uri = getRelativeUriToStore(csa.store.getStoreURI(), uri);
+    
+    if(csa.store instanceof ConfigStoreWithResolution){
+      return ((ConfigStoreWithResolution) csa.store).getResolvedConfig(rel_uri, csa.version);
+    }
+    
+    SimpleConfigStoreResolver resolver = new SimpleConfigStoreResolver(csa.store);
+    return resolver.getResolvedConfig(rel_uri, csa.version);
   }
 
   /**
    * @param uris - Collection of URI, each one much start with scheme name
    * @return - the java.util.Map. Key of the map is the URI, value of the Map is getConfig(URI key)
    */
-  public Map<URI, Config> getConfigs(Collection<URI> uris) {
-    return null;
+  public Map<URI, Config> getConfigs(Collection<URI> uris) throws Exception{
+    Map<URI, Config> result = new HashMap<URI, Config>();
+    Iterator<URI> it = uris.iterator();
+    
+    URI tmp;
+    while(it.hasNext()){
+      tmp = it.next();
+      result.put(tmp, this.getConfig(tmp));
+    }
+    return result;
   }
 
   /**
@@ -127,9 +156,26 @@ public class ConfigClient {
    * @param recursive - indicate to get the imported URI recursively or not
    * @return The java.util.Collection which contains all the URI imported by input uri
    * All the URIs must starts with scheme names
+   * @throws Exception 
    */
-  public Collection<URI> getImported(URI uri, boolean recursive) {
-    return null;
+  public Collection<URI> getImported(URI uri, boolean recursive) throws Exception {
+    ConfigStoreAccessor csa = this.getConfigStoreAccessor(uri);
+    
+    URI rel_uri = getRelativeUriToStore(csa.store.getStoreURI(), uri);
+    
+    if(!recursive){
+      return getAbsoluteUri(csa.store.getStoreURI(), csa.store.getOwnImports(rel_uri, csa.version));
+    }
+    
+    // need to get recursively imports 
+    if(csa.store instanceof ConfigStoreWithResolution){
+      return getAbsoluteUri(csa.store.getStoreURI(),
+          ((ConfigStoreWithResolution) csa.store).getImportsRecursively(rel_uri, csa.version));
+    }
+    
+    SimpleImportMappings im = new SimpleImportMappings(csa.store, csa.version);
+    return getAbsoluteUri(csa.store.getStoreURI(),
+        im.getImportMappingRecursively().get(rel_uri));
   }
 
   /**
@@ -137,9 +183,29 @@ public class ConfigClient {
    * @param uri - URI which must start with scheme name
    * @param recursive - indicate to get the imported by URI recursively or not
    * @return The java.util.Collection which contains all the URI which import input uri
+   * @throws Exception 
    */
-  public Collection<URI> getImportedBy(URI uri, boolean recursive) {
-    return null;
+  public Collection<URI> getImportedBy(URI uri, boolean recursive) throws Exception {
+    ConfigStoreAccessor csa = this.getConfigStoreAccessor(uri);
+    URI rel_uri = getRelativeUriToStore(csa.store.getStoreURI(), uri);
+    
+    if((!recursive) && (csa.store instanceof ConfigStoreWithImportedBy)){
+      return getAbsoluteUri(csa.store.getStoreURI(),
+          ((ConfigStoreWithImportedBy) csa.store).getImportedBy(rel_uri,csa.version));
+    }
+    
+    if(recursive && (csa.store instanceof ConfigStoreWithImportedByRecursively)){
+      return getAbsoluteUri(csa.store.getStoreURI(),
+          ((ConfigStoreWithImportedByRecursively) csa.store).getImportedByRecursively(rel_uri, csa.version));
+    }
+    
+    SimpleImportMappings im = new SimpleImportMappings(csa.store, csa.version);
+    if(!recursive){
+      return getAbsoluteUri(csa.store.getStoreURI(), im.getImportedByMapping().get(rel_uri));
+    }
+    
+    return getAbsoluteUri(csa.store.getStoreURI(), im.getImportMappingRecursively().get(rel_uri));
+
   }
 
   /**
@@ -149,9 +215,37 @@ public class ConfigClient {
    * different from the last configuration received.
    */
   public void clearCache(URI uri) {
-
+    this.configStoreMap.remove(uri);
   }
 
+  private URI getRelativeUriToStore(URI storeRootURI, URI absURI) throws URISyntaxException{
+    String root = storeRootURI.getPath();
+    String absPath = absURI.getPath();
+    
+    if(root.equals(absPath)){
+      return new URI("");
+    }
+    
+    return new URI(absPath.substring(root.length()+1));
+  }
+  
+  private Collection<URI> getAbsoluteUri(URI storeRootURI, Collection<URI> relativeURI) throws URISyntaxException {
+    String root = storeRootURI.getPath();
+    List<URI> result = new ArrayList<URI>();
+    
+    Iterator<URI> it = relativeURI.iterator();
+    URI tmp;
+    while(it.hasNext()){
+      tmp = it.next();
+      result.add( new URI(storeRootURI.getScheme(), 
+          storeRootURI.getAuthority(),
+          storeRootURI.getPath() + "/" + tmp.getPath(),
+          storeRootURI.getQuery(),
+          storeRootURI.getFragment()) );
+    }
+    return result;
+  }
+  
   static class ConfigStoreAccessor {
     String version;
     ConfigStore store;

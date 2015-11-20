@@ -35,5 +35,10 @@ public class TestURIComparator {
     
     testURI = new URI("file:///var/folders/rr/sub1");
     Assert.assertEquals(testMap.get(testURI), "file");
+    
+    testURI = new URI("etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/sub1/sub2");
+    testMap.remove(testURI);
+    Assert.assertEquals(testMap.size(), 2);
+    Assert.assertEquals(testMap.containsKey(testURI), false);
   }
 }

@@ -37,7 +37,7 @@ public class TestCircularDependency {
 
     String testName = "selfImportCircle";
     File baseDir = new File(testRootDir, testName);
-    URI storeURI = new URI("hdfs://" + baseDir.getAbsolutePath());
+    URI storeURI = new URI("file://" + baseDir.getAbsolutePath());
     //System.out.println("store uri is " + storeURI);
 
     HdfsConfigStoreWithOwnInclude circularStore = new HdfsConfigStoreWithOwnInclude(storeURI);
@@ -57,7 +57,7 @@ public class TestCircularDependency {
     String testName = "selfImportSelf";
     File baseDir = new File(testRootDir, testName);
 
-    URI storeURI = new URI("hdfs://" + baseDir.getAbsolutePath());
+    URI storeURI = new URI("file://" + baseDir.getAbsolutePath());
     HdfsConfigStoreWithOwnInclude circularStore = new HdfsConfigStoreWithOwnInclude(storeURI);
     Assert.assertEquals(circularStore.getCurrentVersion(), Version);
 
@@ -76,7 +76,7 @@ public class TestCircularDependency {
 
     String testName = "ancestorImportChild";
     File baseDir = new File(testRootDir, testName);
-    URI storeURI = new URI("hdfs://" + baseDir.getAbsolutePath());
+    URI storeURI = new URI("file://" + baseDir.getAbsolutePath());
     //System.out.println("store uri is " + storeURI);
 
     HdfsConfigStoreWithOwnInclude circularStore = new HdfsConfigStoreWithOwnInclude(storeURI);
@@ -110,7 +110,7 @@ public class TestCircularDependency {
     String testName = "ancestorImportChild2";
     File baseDir = new File(testRootDir, testName);
     String a_tagString = "tags/t_a_1/t_a_2/t_a_3";
-    URI storeURI = new URI("hdfs://" + baseDir.getAbsolutePath());
+    URI storeURI = new URI("file://" + baseDir.getAbsolutePath());
     //System.out.println("store uri is " + storeURI);
 
     HdfsConfigStoreWithOwnInclude circularStore = new HdfsConfigStoreWithOwnInclude(storeURI);
@@ -140,7 +140,7 @@ public class TestCircularDependency {
   public void testRootImportChild() throws Exception {
     String testName = "rootImportChild";
     File baseDir = new File(testRootDir, testName);
-    URI storeURI = new URI("hdfs://" + baseDir.getAbsolutePath());
+    URI storeURI = new URI("file://" + baseDir.getAbsolutePath());
     //System.out.println("store uri is " + storeURI);
 
     HdfsConfigStoreWithOwnInclude circularStore = new HdfsConfigStoreWithOwnInclude(storeURI);
@@ -159,7 +159,7 @@ public class TestCircularDependency {
   public void testNoCircular() throws Exception {
     String testName = "noCircular";
     File baseDir = new File(testRootDir, testName);
-    URI storeURI = new URI("hdfs://" + baseDir.getAbsolutePath());
+    URI storeURI = new URI("file://" + baseDir.getAbsolutePath());
     //System.out.println("store uri is " + storeURI);
 
     HdfsConfigStoreWithOwnInclude circularStore = new HdfsConfigStoreWithOwnInclude(storeURI);

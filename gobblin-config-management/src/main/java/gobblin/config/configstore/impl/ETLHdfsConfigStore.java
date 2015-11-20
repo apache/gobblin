@@ -1,6 +1,5 @@
 package gobblin.config.configstore.impl;
 
-import gobblin.config.configstore.ConfigStoreWithImportedBy;
 import gobblin.config.configstore.ConfigStoreWithImportedByRecursively;
 import gobblin.config.configstore.ConfigStoreWithResolution;
 import gobblin.config.configstore.ConfigStoreWithStableVersion;
@@ -24,7 +23,7 @@ import com.typesafe.config.ConfigFactory;
  *
  */
 public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements ConfigStoreWithResolution,
-    ConfigStoreWithImportedBy, ConfigStoreWithImportedByRecursively, ConfigStoreWithStableVersion {
+    ConfigStoreWithImportedByRecursively, ConfigStoreWithStableVersion {
 
   public final static String DATASET_PREFIX = "datasets";
   public final static String TAG_PREFIX = "tags";

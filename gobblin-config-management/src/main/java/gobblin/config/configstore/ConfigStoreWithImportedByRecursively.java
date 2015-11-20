@@ -6,7 +6,7 @@ import java.util.Map;
 
 import com.typesafe.config.Config;
 
-public interface ConfigStoreWithImportedByRecursively {
+public interface ConfigStoreWithImportedByRecursively extends ConfigStoreWithImportedBy{
   /**
    * @param uri - the uri relative to this configuration store
    * @param version - specify the configuration version in the configuration store.
