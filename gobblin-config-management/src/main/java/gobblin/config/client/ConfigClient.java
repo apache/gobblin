@@ -91,7 +91,8 @@ public class ConfigClient {
     return value;
   }
 
-  // TBD, need to use serviceLoader
+  // TBD MITU, need to use serviceLoader
+  // NEED to cache the mapping?
   private ConfigStoreFactory<ConfigStore> getConfigStoreFactory(URI uri) throws Exception {
     return new ETLHdfsConfigStoreFactory();
   }

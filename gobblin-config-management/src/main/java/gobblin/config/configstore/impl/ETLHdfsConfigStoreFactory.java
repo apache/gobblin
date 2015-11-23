@@ -52,18 +52,22 @@ public class ETLHdfsConfigStoreFactory implements ConfigStoreFactory<ConfigStore
   private URI findConfigStoreRoot(URI input, FileSystem fs) throws ConfigStoreCreationException, IOException {
     Path p = new Path(input.getPath());
 
-    
+
     while (p != null) {
-      FileStatus[] fileStatus = fs.listStatus(p);
-      for (FileStatus f : fileStatus) {
-        if (!f.isDir() && f.getPath().getName().equals(CONFIG_STORE_NAME)) {
-          String parent = f.getPath().getParent().toString();
-          
-          try {
-            return new URI(parent);
-          } catch (URISyntaxException e) {
-            // Should not come here
-            e.printStackTrace();
+      // URI input may missing the version information as client do NOT know the version, so need to 
+      // find the existing parent without list Non existing path
+      if(fs.exists(p)){
+        FileStatus[] fileStatus = fs.listStatus(p);
+        for (FileStatus f : fileStatus) {
+          if (!f.isDir() && f.getPath().getName().equals(CONFIG_STORE_NAME)) {
+            String parent = f.getPath().getParent().toString();
+
+            try {
+              return new URI(parent);
+            } catch (URISyntaxException e) {
+              // Should not come here
+              e.printStackTrace();
+            }
           }
         }
       }
