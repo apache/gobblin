@@ -116,11 +116,6 @@ public class ConfigClient {
    * 5. If the ConfigStore is NOT ConfigStoreWithResolution, need to do resolution in this client
    */
   public Config getConfig(URI uri) throws Exception{
-
-    // from scheme, get all subclass of ConfigStoreFactory, match it's scheme name to get ConfigStoreFactory
-    //    ConfigStore cs = ConfigStoreFactory.getDefaultConfigStore();
-    //    theMap.put(cs.getServerURI, new ConfigStoreAccessor(cs.getCurrentVersion, cs));
-    //    cs.getConfig(uri.getRelativePath());
     
     ConfigStoreAccessor csa = this.getConfigStoreAccessor(uri);
     
@@ -158,23 +153,23 @@ public class ConfigClient {
    * All the URIs must starts with scheme names
    * @throws Exception 
    */
-  public Collection<URI> getImported(URI uri, boolean recursive) throws Exception {
+  public Collection<URI> getImports(URI uri, boolean recursive) throws Exception {
     ConfigStoreAccessor csa = this.getConfigStoreAccessor(uri);
     
     URI rel_uri = getRelativeUriToStore(csa.store.getStoreURI(), uri);
     
     if(!recursive){
-      return getAbsoluteUri(csa.store.getStoreURI(), csa.store.getOwnImports(rel_uri, csa.version));
+      return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(), csa.store.getOwnImports(rel_uri, csa.version));
     }
     
     // need to get recursively imports 
     if(csa.store instanceof ConfigStoreWithResolution){
-      return getAbsoluteUri(csa.store.getStoreURI(),
+      return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(),
           ((ConfigStoreWithResolution) csa.store).getImportsRecursively(rel_uri, csa.version));
     }
     
     SimpleImportMappings im = new SimpleImportMappings(csa.store, csa.version);
-    return getAbsoluteUri(csa.store.getStoreURI(),
+    return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(),
         im.getImportMappingRecursively().get(rel_uri));
   }
 
@@ -190,21 +185,21 @@ public class ConfigClient {
     URI rel_uri = getRelativeUriToStore(csa.store.getStoreURI(), uri);
     
     if((!recursive) && (csa.store instanceof ConfigStoreWithImportedBy)){
-      return getAbsoluteUri(csa.store.getStoreURI(),
+      return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(),
           ((ConfigStoreWithImportedBy) csa.store).getImportedBy(rel_uri,csa.version));
     }
     
     if(recursive && (csa.store instanceof ConfigStoreWithImportedByRecursively)){
-      return getAbsoluteUri(csa.store.getStoreURI(),
+      return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(),
           ((ConfigStoreWithImportedByRecursively) csa.store).getImportedByRecursively(rel_uri, csa.version));
     }
     
     SimpleImportMappings im = new SimpleImportMappings(csa.store, csa.version);
     if(!recursive){
-      return getAbsoluteUri(csa.store.getStoreURI(), im.getImportedByMapping().get(rel_uri));
+      return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(), im.getImportedByMapping().get(rel_uri));
     }
     
-    return getAbsoluteUri(csa.store.getStoreURI(), im.getImportMappingRecursively().get(rel_uri));
+    return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(), im.getImportMappingRecursively().get(rel_uri));
 
   }
 
@@ -229,15 +224,14 @@ public class ConfigClient {
     return new URI(absPath.substring(root.length()+1));
   }
   
-  private Collection<URI> getAbsoluteUri(URI storeRootURI, Collection<URI> relativeURI) throws URISyntaxException {
-    String root = storeRootURI.getPath();
+  private Collection<URI> getAbsoluteUri(String scheme, URI storeRootURI, Collection<URI> relativeURI) throws URISyntaxException {
     List<URI> result = new ArrayList<URI>();
     
     Iterator<URI> it = relativeURI.iterator();
     URI tmp;
     while(it.hasNext()){
       tmp = it.next();
-      result.add( new URI(storeRootURI.getScheme(), 
+      result.add( new URI(scheme, 
           storeRootURI.getAuthority(),
           storeRootURI.getPath() + "/" + tmp.getPath(),
           storeRootURI.getQuery(),

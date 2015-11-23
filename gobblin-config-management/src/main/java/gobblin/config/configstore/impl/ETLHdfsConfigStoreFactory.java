@@ -54,13 +54,10 @@ public class ETLHdfsConfigStoreFactory implements ConfigStoreFactory<ConfigStore
 
     
     while (p != null) {
-      System.out.println("Check "+p);
       FileStatus[] fileStatus = fs.listStatus(p);
       for (FileStatus f : fileStatus) {
         if (!f.isDir() && f.getPath().getName().equals(CONFIG_STORE_NAME)) {
           String parent = f.getPath().getParent().toString();
-          
-          System.out.println("parent is " + parent);
           
           try {
             return new URI(parent);

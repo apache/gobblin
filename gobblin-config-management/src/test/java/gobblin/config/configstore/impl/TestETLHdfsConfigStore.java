@@ -12,7 +12,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.io.FileUtils;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -22,11 +24,8 @@ import com.typesafe.config.ConfigValue;
 
 
 public class TestETLHdfsConfigStore {
-  private boolean debug = true;
 
-  public void printConfig(Config c, String urn) {
-    if (!debug)
-      return;
+  public static void printConfig(Config c, String urn) {
     System.out.println("--------------------------------");
     System.out.println("Config for " + urn);
     for (Map.Entry<String, ConfigValue> entry : c.entrySet()) {
@@ -34,7 +33,7 @@ public class TestETLHdfsConfigStore {
     }
   }
 
-  private void validateOwnConfig(Config c) {
+  protected static void validateOwnConfig(Config c) {
     // property in datasets/a1/a2/a3/main.conf
     Assert.assertEquals(c.getString("t1.t2.keyInT2"), "valueInT2");
     Assert.assertEquals(c.getInt("foobar.a"), 42);
@@ -44,7 +43,7 @@ public class TestETLHdfsConfigStore {
     Assert.assertEquals(c.getList("listExample").get(0).unwrapped(), "element in a3");
   }
 
-  private void validateImportedConfig(Config c) {
+  protected static void validateImportedConfig(Config c) {
     // property in datasets/a1/a2/main.conf
     Assert.assertEquals(c.getString("keyInT3"), "valueInT3_atA2level");
     Assert.assertEquals(c.getInt("foobar.b"), 43);
@@ -58,12 +57,13 @@ public class TestETLHdfsConfigStore {
 
   private ETLHdfsConfigStore store;
   private URI dataset;
+  private File rootDir;
   private final String Version = "v3.0";
 
   @BeforeClass
   public void setUpClass() throws Exception {
     String TestRoot = "HdfsBasedConfigTest";
-    File rootDir = Files.createTempDir();
+    rootDir = Files.createTempDir();
     System.out.println("root dir is " + rootDir);
     File testRootDir = new File(rootDir, TestRoot);
 
@@ -199,6 +199,13 @@ public class TestETLHdfsConfigStore {
     it = importedBy.iterator();
     for (int i = 0; i < importedBy.size(); i++) {
       Assert.assertTrue(expected.contains(it.next()));
+    }
+  }
+  
+  @AfterClass
+  public void tearDownClass() throws Exception {
+    if (rootDir != null) {
+      FileUtils.deleteDirectory(rootDir);
     }
   }
 }

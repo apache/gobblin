@@ -3,7 +3,9 @@ package gobblin.config.configstore.impl;
 import java.io.File;
 import java.net.URI;
 
+import org.apache.commons.io.FileUtils;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -14,11 +16,12 @@ public class TestETLHdfsConfigStoreFactory {
   private ETLHdfsConfigStoreFactory factory;
   private final String Version = "v3.0";
   private File testRootDir;
+  private File rootDir;
 
   @BeforeClass
   public void setUpClass() throws Exception {
     String TestRoot = "HdfsBasedConfigTest";
-    File rootDir = Files.createTempDir();
+    rootDir = Files.createTempDir();
     System.out.println("root dir is " + rootDir);
     testRootDir = new File(rootDir, TestRoot);
 
@@ -29,7 +32,6 @@ public class TestETLHdfsConfigStoreFactory {
 
   @Test
   public void testCreation() throws Exception {
-    System.out.println("AAAAAAA_-------");
     ETLHdfsConfigStore cs2 =
         factory.createConfigStore(new URI("etl-hdfs://" + testRootDir.getAbsolutePath() + "/v3.0/datasets/a1/a2"));
     Assert.assertTrue(cs2.getStoreURI().toString().indexOf(testRootDir.toString()) > 0);
@@ -58,4 +60,10 @@ public class TestETLHdfsConfigStoreFactory {
     factory.createConfigStore(new URI("etl-hdfs://" + WrongTestRootDir.getAbsolutePath()));
   }
   
+  @AfterClass
+  public void tearDownClass() throws Exception {
+    if (rootDir != null) {
+      FileUtils.deleteDirectory(rootDir);
+    }
+  }
 }
