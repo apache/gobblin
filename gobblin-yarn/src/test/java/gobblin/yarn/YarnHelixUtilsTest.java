@@ -49,7 +49,7 @@ public class YarnHelixUtilsTest {
     this.configuration = new Configuration();
     this.fileSystem = FileSystem.getLocal(this.configuration);
     this.tokenFilePath = new Path(YarnHelixUtilsTest.class.getSimpleName(), "token");
-    this.token = new Token<TokenIdentifier>();
+    this.token = new Token<>();
     this.token.setKind(new Text("test"));
     this.token.setService(new Text("test"));
   }
@@ -86,8 +86,8 @@ public class YarnHelixUtilsTest {
 
   @AfterClass
   public void tearDown() throws IOException {
-    if (this.fileSystem.exists(this.tokenFilePath)) {
-      this.fileSystem.delete(this.tokenFilePath, false);
+    if (this.fileSystem.exists(this.tokenFilePath.getParent())) {
+      this.fileSystem.delete(this.tokenFilePath.getParent(), true);
     }
   }
 }

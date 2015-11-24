@@ -11,13 +11,13 @@
  */
 package gobblin.metrics;
 
-import gobblin.metrics.reporter.OutputStreamEventReporter;
-
 import java.io.IOException;
 import java.util.Properties;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
+
+import gobblin.metrics.reporter.OutputStreamEventReporter;
 
 
 /**
@@ -30,6 +30,10 @@ public class ConsoleEventReporterFactory implements CustomReporterFactory {
 
   @Override
   public ScheduledReporter newScheduledReporter(MetricRegistry registry, Properties properties) throws IOException {
-    return OutputStreamEventReporter.forContext((MetricContext) registry).build();
+    try {
+      return OutputStreamEventReporter.forContext(MetricContext.class.cast(registry)).build();
+    } catch (ClassCastException cce) {
+      throw new IOException(cce);
+    }
   }
 }
