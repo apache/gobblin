@@ -220,7 +220,7 @@ public class Task implements Runnable {
         this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
       }
 
-      addConstructsFinalStateToTaskState(extractor, converter);
+      addConstructsFinalStateToTaskState(extractor, converter, rowChecker);
     } catch (Throwable t) {
       failTask(t);
     } finally {
@@ -505,11 +505,14 @@ public class Task implements Runnable {
    * Get the final state of each construct used by this task and add it to the {@link gobblin.runtime.TaskState}.
    * @param extractor {@link gobblin.instrumented.extractor.InstrumentedExtractorBase} used by this task.
    * @param converter {@link gobblin.converter.Converter} used by this task.
+   * @param rowChecker 
    */
   private void addConstructsFinalStateToTaskState(InstrumentedExtractorBase<?, ?> extractor,
-      Converter<?, ?, ?, ?> converter) {
+      Converter<?, ?, ?, ?> converter, RowLevelPolicyChecker rowChecker) {
     this.taskState.addFinalConstructState(Constructs.EXTRACTOR.toString().toLowerCase(), extractor.getFinalState());
     this.taskState.addFinalConstructState(Constructs.CONVERTER.toString().toLowerCase(), converter.getFinalState());
+    this.taskState.addFinalConstructState(Constructs.ROW_QUALITY_CHECKER.toString().toLowerCase(),
+        rowChecker.getFinalState());
     int forkIdx = 0;
     for (Optional<Fork> fork : this.forks) {
       if (fork.isPresent()) {
