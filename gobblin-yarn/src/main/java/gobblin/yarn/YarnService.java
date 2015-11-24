@@ -113,7 +113,7 @@ public class YarnService extends AbstractIdleService {
 
   private final Object allContainersStopped = new Object();
 
-  private volatile Optional<Resource> maxResourceCapacity =Optional.absent();
+  private volatile Optional<Resource> maxResourceCapacity = Optional.absent();
 
   public YarnService(Config config, String applicationName, ApplicationId applicationId, FileSystem fs,
       EventBus eventBus) throws Exception {

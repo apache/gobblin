@@ -12,6 +12,7 @@
 
 package gobblin.yarn;
 
+import java.util.Map;
 import java.util.Properties;
 
 import org.apache.hadoop.fs.Path;
@@ -43,9 +44,10 @@ public class GobblinHelixJob implements Job {
     JobListener jobListener = (JobListener) dataMap.get(JobScheduler.JOB_LISTENER_KEY);
     HelixManager helixManager = (HelixManager) dataMap.get(GobblinHelixJobScheduler.HELIX_MANAGER_KEY);
     Path appWorkDir = (Path) dataMap.get(GobblinHelixJobScheduler.APPLICATION_WORK_DIR_KEY);
+    Map<String, String> eventMetadata = (Map<String, String>) dataMap.get(GobblinHelixJobScheduler.EVENT_METADATA);
 
     try {
-      JobLauncher jobLauncher = new GobblinHelixJobLauncher(jobProps, helixManager, appWorkDir);
+      JobLauncher jobLauncher = new GobblinHelixJobLauncher(jobProps, helixManager, appWorkDir, eventMetadata);
       jobScheduler.runJob(jobProps, jobListener, jobLauncher);
     } catch (Throwable t) {
       throw new JobExecutionException(t);
