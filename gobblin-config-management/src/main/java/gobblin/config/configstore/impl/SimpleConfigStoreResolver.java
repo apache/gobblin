@@ -8,7 +8,6 @@ import gobblin.config.utils.PathUtils;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -59,10 +58,9 @@ public class SimpleConfigStoreResolver implements ConfigStoreWithResolution{
     }
 
     Collection<URI> imported = this.getOwnImports(uri, version);
-    Iterator<URI> it = imported.iterator();
     List<Config> importedConfigs = new ArrayList<Config>();
-    while (it.hasNext()) {
-      importedConfigs.add(this.getResolvedConfig(it.next(), version));
+    for(URI u: imported){
+      importedConfigs.add(this.getResolvedConfig(u, version));
     }
 
     // apply the reverse order for imported
@@ -98,10 +96,8 @@ public class SimpleConfigStoreResolver implements ConfigStoreWithResolution{
     }
 
     Collection<URI> imported = this.getOwnImports(uri, version);
-    Iterator<URI> it = imported.iterator();
-
-    while (it.hasNext()) {
-      result.addAll(this.getImportsRecursively(it.next(), version));
+    for(URI u: imported){
+      result.addAll(this.getImportsRecursively(u, version));
     }
 
     result.addAll(this.getImportsRecursively(PathUtils.getParentURI(uri), version));

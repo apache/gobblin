@@ -60,10 +60,7 @@ public class CircularDependencyChecker {
     }
     
     Collection<URI> imported = cs.getOwnImports(uri, version);
-    Iterator<URI> it = imported.iterator();
-    while(it.hasNext()){
-      URI singleImport = it.next();
-      
+    for(URI singleImport: imported){
       if(singleImport.equals(uri)){
         throw new CircularDependencyException(String.format("URI %s import self", uri));
       }

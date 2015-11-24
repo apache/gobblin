@@ -16,7 +16,6 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -76,13 +75,13 @@ public class ConfigClient {
 
     ConfigStoreFactory<ConfigStore> csFactory = this.getConfigStoreFactory(uri);
     ConfigStore cs = csFactory.createConfigStore(uri);
-    
+
     if(!(cs instanceof ConfigStoreWithStableVersion)){
       if(this.policy == VERSION_STABILITY_POLICY.RAISE_ERROR){
         throw new Exception(String.format("Try to connect to unstable config store ", cs.getStoreURI()));
       }
     }
-    
+
     // ConfigStoreFactory scheme name could be different than configStore's StoreURI's scheme name
     URI csRoot = cs.getStoreURI();
     URI key = new URI(csFactory.getScheme(), csRoot.getAuthority(), csRoot.getPath(), csRoot.getQuery(), csRoot.getFragment());
@@ -92,7 +91,6 @@ public class ConfigClient {
   }
 
   // TBD MITU, need to use serviceLoader
-  // NEED to cache the mapping?
   private ConfigStoreFactory<ConfigStore> getConfigStoreFactory(URI uri) throws Exception {
     return new ETLHdfsConfigStoreFactory();
   }
@@ -117,16 +115,21 @@ public class ConfigClient {
    * 5. If the ConfigStore is NOT ConfigStoreWithResolution, need to do resolution in this client
    */
   public Config getConfig(URI uri) throws Exception{
-    
+
     ConfigStoreAccessor csa = this.getConfigStoreAccessor(uri);
-    
+
     URI rel_uri = getRelativeUriToStore(csa.store.getStoreURI(), uri);
-    
+
     if(csa.store instanceof ConfigStoreWithResolution){
       return ((ConfigStoreWithResolution) csa.store).getResolvedConfig(rel_uri, csa.version);
     }
-    
-    SimpleConfigStoreResolver resolver = new SimpleConfigStoreResolver(csa.store);
+
+    SimpleConfigStoreResolver resolver = csa.resolver;
+    if(resolver == null){
+      resolver = new SimpleConfigStoreResolver(csa.store);
+      csa.resolver = resolver;
+    }
+
     return resolver.getResolvedConfig(rel_uri, csa.version);
   }
 
@@ -136,11 +139,7 @@ public class ConfigClient {
    */
   public Map<URI, Config> getConfigs(Collection<URI> uris) throws Exception{
     Map<URI, Config> result = new HashMap<URI, Config>();
-    Iterator<URI> it = uris.iterator();
-    
-    URI tmp;
-    while(it.hasNext()){
-      tmp = it.next();
+    for(URI tmp: uris){
       result.put(tmp, this.getConfig(tmp));
     }
     return result;
@@ -156,20 +155,24 @@ public class ConfigClient {
    */
   public Collection<URI> getImports(URI uri, boolean recursive) throws Exception {
     ConfigStoreAccessor csa = this.getConfigStoreAccessor(uri);
-    
+
     URI rel_uri = getRelativeUriToStore(csa.store.getStoreURI(), uri);
-    
+
     if(!recursive){
       return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(), csa.store.getOwnImports(rel_uri, csa.version));
     }
-    
+
     // need to get recursively imports 
     if(csa.store instanceof ConfigStoreWithResolution){
       return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(),
           ((ConfigStoreWithResolution) csa.store).getImportsRecursively(rel_uri, csa.version));
     }
-    
-    SimpleImportMappings im = new SimpleImportMappings(csa.store, csa.version);
+
+    SimpleImportMappings im = csa.simpleImportMappings;
+    if(im == null){
+      im = new SimpleImportMappings(csa.store, csa.version);
+      csa.simpleImportMappings = im;
+    }
     return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(),
         im.getImportMappingRecursively().get(rel_uri));
   }
@@ -184,22 +187,27 @@ public class ConfigClient {
   public Collection<URI> getImportedBy(URI uri, boolean recursive) throws Exception {
     ConfigStoreAccessor csa = this.getConfigStoreAccessor(uri);
     URI rel_uri = getRelativeUriToStore(csa.store.getStoreURI(), uri);
-    
+
     if((!recursive) && (csa.store instanceof ConfigStoreWithImportedBy)){
       return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(),
           ((ConfigStoreWithImportedBy) csa.store).getImportedBy(rel_uri,csa.version));
     }
-    
+
     if(recursive && (csa.store instanceof ConfigStoreWithImportedByRecursively)){
       return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(),
           ((ConfigStoreWithImportedByRecursively) csa.store).getImportedByRecursively(rel_uri, csa.version));
     }
+
+    SimpleImportMappings im = csa.simpleImportMappings;
+    if(im == null){
+      im = new SimpleImportMappings(csa.store, csa.version);
+      csa.simpleImportMappings = im;
+    }
     
-    SimpleImportMappings im = new SimpleImportMappings(csa.store, csa.version);
     if(!recursive){
       return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(), im.getImportedByMapping().get(rel_uri));
     }
-    
+
     return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(), im.getImportMappingRecursively().get(rel_uri));
 
   }
@@ -217,21 +225,18 @@ public class ConfigClient {
   private URI getRelativeUriToStore(URI storeRootURI, URI absURI) throws URISyntaxException{
     String root = storeRootURI.getPath();
     String absPath = absURI.getPath();
-    
+
     if(root.equals(absPath)){
       return new URI("");
     }
-    
+
     return new URI(absPath.substring(root.length()+1));
   }
-  
+
   private Collection<URI> getAbsoluteUri(String scheme, URI storeRootURI, Collection<URI> relativeURI) throws URISyntaxException {
     List<URI> result = new ArrayList<URI>();
-    
-    Iterator<URI> it = relativeURI.iterator();
-    URI tmp;
-    while(it.hasNext()){
-      tmp = it.next();
+
+    for(URI tmp: relativeURI){
       result.add( new URI(scheme, 
           storeRootURI.getAuthority(),
           storeRootURI.getPath() + "/" + tmp.getPath(),
@@ -240,10 +245,13 @@ public class ConfigClient {
     }
     return result;
   }
-  
+
   static class ConfigStoreAccessor {
     String version;
     ConfigStore store;
+    SimpleImportMappings simpleImportMappings;
+    SimpleConfigStoreResolver resolver;
+
     ConfigStoreAccessor(ConfigStore cs, String v){
       this.store = cs;
       this.version = v;

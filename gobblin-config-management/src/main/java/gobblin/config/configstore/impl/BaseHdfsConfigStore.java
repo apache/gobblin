@@ -11,7 +11,9 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -34,6 +36,7 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
   private static final Logger LOG = Logger.getLogger(BaseHdfsConfigStore.class);
   public static final String CONFIG_FILE_NAME = "main.conf";
 
+  private final Map<String, Path> versionRootMap= new HashMap<String,Path>();
   private final URI storeURI;
   private final Path location;
   private final String currentVersion;
@@ -47,7 +50,7 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
   public BaseHdfsConfigStore(URI root, VersionComparator<String> vc) {
     try {
       this.storeURI = root;
-      this.location = new Path(root.getPath());
+      this.location = new Path(root);
       this.fs = FileSystem.get(root, new Configuration());
     } catch (IOException ioe) {
       LOG.error("can not initial the file system " + ioe.getMessage(), ioe);
@@ -102,9 +105,14 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
   
   @SuppressWarnings("deprecation")
   protected Path getVersionRoot(String version){
+    if(this.versionRootMap.containsKey(version)){
+      return this.versionRootMap.get(version);
+    }
+    
     Path versionRoot = new Path(this.location, version);
     try {
       if(this.fs.isDirectory(versionRoot)){
+        this.versionRootMap.put(version, versionRoot);
         return versionRoot;
       }
       else {
@@ -121,7 +129,7 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
   @Override
   public Collection<URI> getChildren(URI uri, String version) {
     if (uri == null)
-      return null;
+      return Collections.emptyList();;
     
     Path self = getPath(uri, version) ;
     
@@ -161,27 +169,24 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
     if (uri == null)
       return ConfigFactory.empty();
 
-    Closer closer = Closer.create();
+
     Path self = getPath(uri, version);
     Path configFile = new Path(self, CONFIG_FILE_NAME);
     try {
       if (!this.fs.isFile(configFile)) {
         return ConfigFactory.empty();
       }
-
-      FSDataInputStream configFileStream = closer.register(this.fs.open(configFile));
+    } catch (IOException e) {
+      LOG.error(String.format("Got error when get own config for %s, exception %s", self, e.getMessage()), e);
+      return ConfigFactory.empty();
+    }
+    
+    try ( FSDataInputStream configFileStream = this.fs.open(configFile)){
       return ConfigFactory.parseReader(new InputStreamReader(configFileStream)).resolve();
     }
     catch (IOException ioe) {
       LOG.error(String.format("Got error when get own config for %s, exception %s", self, ioe.getMessage()), ioe);
       throw new RuntimeException(ioe);
-    }
-    finally {
-      try {
-        closer.close();
-      } catch (IOException e) {
-        LOG.error("Failed to close FsInputStream: " + e, e);
-      }
     }
   }
 

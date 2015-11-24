@@ -10,7 +10,6 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
 import com.typesafe.config.Config;
@@ -131,14 +130,9 @@ public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements
   public Map<URI, Config> getConfigsImportedByRecursively(URI uri, String version) {
     Collection<URI> importedByRec = this.getImportedByRecursively(uri, version);
     Map<URI, Config> result = new HashMap<URI, Config>();
-    
-    Iterator<URI> it = importedByRec.iterator();
-    URI tmp;
-    while(it.hasNext()){
-      tmp = it.next();
+    for(URI tmp: importedByRec){
       result.put(tmp, this.getResolvedConfig(tmp, version));
     }
-    
     return result;
   }
 
@@ -151,15 +145,10 @@ public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements
   @Override
   public Map<URI, Config> getConfigsImportedBy(URI uri, String version) {
     Collection<URI> importedBy = this.getImportedBy(uri, version);
-    Map<URI, Config> result = new HashMap<URI, Config>();
-    
-    Iterator<URI> it = importedBy.iterator();
-    URI tmp;
-    while(it.hasNext()){
-      tmp = it.next();
+    Map<URI, Config> result = new HashMap<URI, Config>();    
+    for(URI tmp: importedBy){
       result.put(tmp, this.getOwnConfig(tmp, version));
     }
-    
     return result;
   }
 }
