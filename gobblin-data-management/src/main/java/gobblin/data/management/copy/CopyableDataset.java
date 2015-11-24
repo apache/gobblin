@@ -18,6 +18,7 @@ import gobblin.data.management.partition.PartitionableDataset;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 
@@ -32,10 +33,6 @@ public interface CopyableDataset extends PartitionableDataset<CopyableFile> {
    * @return List of {@link CopyableFile}s in this dataset.
    * @throws IOException
    */
-  public List<CopyableFile> getCopyableFiles() throws IOException;
+  public List<CopyableFile> getCopyableFiles(FileSystem targetFs, Path targetRoot) throws IOException;
 
-  /**
-   * The root {@link org.apache.hadoop.fs.Path} on the destination under which this dataset will be copied
-   */
-  public Path datasetTargetRoot();
 }

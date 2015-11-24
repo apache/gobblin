@@ -33,6 +33,7 @@ public class CopySourceTest {
 
     state.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, "file:///");
     state.setProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, "file:///");
+    state.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/target/dir");
     state.setProp(DatasetUtils.DATASET_PROFILE_CLASS_KEY, TestCopyableDatasetFinder.class.getCanonicalName());
 
     CopySource source = new CopySource();
@@ -59,6 +60,7 @@ public class CopySourceTest {
 
     state.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, "file:///");
     state.setProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, "file:///");
+    state.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/target/dir");
     state.setProp(DatasetUtils.DATASET_PROFILE_CLASS_KEY,
         TestCopyablePartitionableDatasedFinder.class.getCanonicalName());
 

@@ -19,7 +19,7 @@ import gobblin.configuration.WorkUnitState.WorkingState;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.SerializableCopyableDataset;
+import gobblin.data.management.copy.CopyableDatasetMetadata;
 import gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder;
 import gobblin.data.management.util.PathUtils;
 import gobblin.instrumented.Instrumented;
@@ -86,15 +86,15 @@ public class CopyDataPublisher extends DataPublisher {
      * This mapping is used to set WorkingState of all {@link WorkUnitState}s to {@link
      * WorkUnitState.WorkingState#COMMITTED} after a {@link CopyableDataset} is successfully published
      */
-    Multimap<CopyableDataset, WorkUnitState> datasets = getDatasetRoots(states);
+    Multimap<CopyableDatasetMetadata, WorkUnitState> datasets = getDatasetRoots(states);
 
     boolean allDatasetsPublished = true;
-    for (CopyableDataset copyableDataset : datasets.keySet()) {
+    for (CopyableDatasetMetadata copyableDataset : datasets.keySet()) {
       try {
         this.publishDataset(copyableDataset, datasets.get(copyableDataset));
       } catch (Throwable e) {
         CopyEventSubmitterHelper.submitFailedDatasetPublish(eventSubmitter, copyableDataset);
-        log.error("Failed to publish " + copyableDataset.datasetTargetRoot(), e);
+        log.error("Failed to publish " + copyableDataset.getDatasetTargetRoot(), e);
         allDatasetsPublished = false;
       }
     }
@@ -109,13 +109,13 @@ public class CopyDataPublisher extends DataPublisher {
    * {@link CopyableDataset}. This mapping is used to set WorkingState of all {@link WorkUnitState}s to
    * {@link WorkUnitState.WorkingState#COMMITTED} after a {@link CopyableDataset} is successfully published.
    */
-  private Multimap<CopyableDataset, WorkUnitState> getDatasetRoots(Collection<? extends WorkUnitState> states)
+  private Multimap<CopyableDatasetMetadata, WorkUnitState> getDatasetRoots(Collection<? extends WorkUnitState> states)
       throws IOException {
-    Multimap<CopyableDataset, WorkUnitState> datasetRoots = ArrayListMultimap.create();
+    Multimap<CopyableDatasetMetadata, WorkUnitState> datasetRoots = ArrayListMultimap.create();
 
     for (WorkUnitState workUnitState : states) {
-      CopyableDataset copyableDataset =
-          SerializableCopyableDataset.deserialize(workUnitState.getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
+      CopyableDatasetMetadata copyableDataset =
+          CopyableDatasetMetadata.deserialize(workUnitState.getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
 
       datasetRoots.put(copyableDataset, workUnitState);
 
@@ -127,14 +127,14 @@ public class CopyDataPublisher extends DataPublisher {
    * Publish data for a {@link CopyableDataset}.
    *
    */
-  private void publishDataset(CopyableDataset copyableDataset, Collection<WorkUnitState> datasetWorkUnitStates)
+  private void publishDataset(CopyableDatasetMetadata copyableDataset, Collection<WorkUnitState> datasetWorkUnitStates)
       throws IOException {
 
-    Path datasetWriterOutputPath = new Path(writerOutputDir, PathUtils.withoutLeadingSeparator(copyableDataset.datasetTargetRoot()));
+    Path datasetWriterOutputPath = new Path(writerOutputDir, PathUtils.withoutLeadingSeparator(copyableDataset.getDatasetTargetRoot()));
 
-    log.info(String.format("Publishing dataset from %s to %s", datasetWriterOutputPath, copyableDataset.datasetTargetRoot()));
+    log.info(String.format("Publishing dataset from %s to %s", datasetWriterOutputPath, copyableDataset.getDatasetTargetRoot()));
 
-    HadoopUtils.renameRecursively(fs, datasetWriterOutputPath, copyableDataset.datasetTargetRoot());
+    HadoopUtils.renameRecursively(fs, datasetWriterOutputPath, copyableDataset.getDatasetTargetRoot());
 
     fs.delete(datasetWriterOutputPath, true);
 

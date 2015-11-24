@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.util.List;
 
 import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 
@@ -34,26 +35,23 @@ public class TestCopyableDataset extends SinglePartitionCopyableDataset {
   public static final OwnerAndPermission OWNER_AND_PERMISSION = new OwnerAndPermission("owner", "group",
       FsPermission.getDefault());
 
-  private Path datasetRoot;
-  private Path datasetTargetRoot;
-  public TestCopyableDataset(Path datasetRoot, Path datasetTargetRoot) {
-    this.datasetRoot = datasetRoot;
-    this.datasetTargetRoot = datasetTargetRoot;
-  }
+  private final Path datasetRoot;
 
+  public TestCopyableDataset(Path datasetRoot) {
+    this.datasetRoot = datasetRoot;
+  }
 
   public TestCopyableDataset() {
     this.datasetRoot = new Path(ORIGIN_PREFIX);
-    this.datasetTargetRoot = new Path(DESTINATION_PREFIX);
   }
 
-  @Override
-  public List<CopyableFile> getCopyableFiles() throws IOException {
+  @Override public List<CopyableFile> getCopyableFiles(FileSystem targetFs, Path targetRoot) throws IOException {
+
     List<CopyableFile> files = Lists.newArrayList();
 
     for (int i = 0; i < FILE_COUNT; i++) {
-      files.add(new CopyableFile(new FileStatus(10, false, 0, 0, 0, new Path(datasetRoot, Integer.toString(i))),
-          new Path(datasetTargetRoot, Integer.toString(i)), new Path(RELATIVE_PREFIX, Integer.toString(i)),
+      files.add(new CopyableFile(new FileStatus(10, false, 0, 0, 0, new Path(this.datasetRoot, Integer.toString(i))),
+          new Path(datasetRoot(), Integer.toString(i)), new Path(RELATIVE_PREFIX, Integer.toString(i)),
           OWNER_AND_PERMISSION, Lists.newArrayList(OWNER_AND_PERMISSION), "checksum".getBytes()));
     }
 
@@ -62,11 +60,7 @@ public class TestCopyableDataset extends SinglePartitionCopyableDataset {
 
   @Override
   public Path datasetRoot() {
-    return datasetRoot;
+    return this.datasetRoot;
   }
 
-  @Override
-  public Path datasetTargetRoot() {
-    return datasetTargetRoot;
-  }
 }

@@ -16,6 +16,7 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.WorkUnitState.WorkingState;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDataset;
+import gobblin.data.management.copy.CopyableDatasetMetadata;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.CopyableFileUtils;
 import gobblin.data.management.copy.TestCopyableDataset;
@@ -50,11 +51,13 @@ public class DeletingCopyDataPublisherTest {
 
     WorkUnitState wus = new WorkUnitState();
 
-    CopyableDataset copyableDataset = new TestCopyableDataset(new Path("origin"), new Path(testMethodTempPath, "testdataset"));
+    CopyableDataset copyableDataset = new TestCopyableDataset(new Path("origin"));
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(copyableDataset,
+        new Path(testMethodTempPath, "testdataset"));
 
     CopyableFile cf = CopyableFileUtils.createTestCopyableFile(new Path(testMethodTempPath, "test.txt").toString());
 
-    CopySource.serializeCopyableDataset(wus, copyableDataset);
+    CopySource.serializeCopyableDataset(wus, metadata);
 
     CopySource.serializeCopyableFiles(wus, ImmutableList.of(cf));
 
