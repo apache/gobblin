@@ -22,7 +22,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Logger;
 
-import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -149,14 +148,9 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
         if (!f.isDir()) {
           continue;
         }
-        try {
-          res.add(new URI(this.getRelativePath(f.getPath(), version)));
-        } catch (URISyntaxException e) {
-          LOG.error(String.format("Got error when create URI for %s, exception %s", f.getPath(), e.getMessage()), e);
-          throw new RuntimeException(e);
-        }
+        
+        res.add(getRelativePathURI(f.getPath(),version));
       }
-
       return res;
     } catch (IOException ioe) {
       LOG.error(String.format("Got error when find children for %s, exception %s", self, ioe.getMessage()));
@@ -190,14 +184,11 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
     }
   }
 
-  protected String getRelativePath(Path p, String version) {
-    String root = PathUtils.getPathWithoutSchemeAndAuthority(this.getVersionRoot(version)).toString();
-    String input = PathUtils.getPathWithoutSchemeAndAuthority(p).toString();
-
-    if (input.equals(root)) {
-      return "";
-    }
-    return input.substring(root.length()+1);
+  private URI getRelativePathURI(Path p, String version) {
+    URI versionRootURI = this.getVersionRoot(version).toUri();
+    URI input = p.toUri();
+    
+    return versionRootURI.relativize(input);
   }
   
   protected static final boolean isRootURI(URI uri) {
