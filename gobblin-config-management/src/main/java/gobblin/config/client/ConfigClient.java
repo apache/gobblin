@@ -18,6 +18,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.TreeMap;
 
 import com.typesafe.config.Config;
@@ -40,6 +41,16 @@ public class ConfigClient {
   // key is the store ROOT, must use TreeMap
   private final TreeMap<URI, ConfigStoreAccessor> configStoreMap = new TreeMap<URI, ConfigStoreAccessor>(
       new URIComparator());
+  
+  // key is the configStore scheme name, value is the ConfigStoreFactory
+  private static final Map<String, ConfigStoreFactory> configStoreFactoryMap = new HashMap<String, ConfigStoreFactory>();
+  
+  static {
+    ServiceLoader<ConfigStoreFactory> loader = ServiceLoader.load(ConfigStoreFactory.class);
+    for(ConfigStoreFactory f: loader){
+      configStoreFactoryMap.put(f.getScheme(), f);
+    }
+  }
 
   private ConfigClient(VERSION_STABILITY_POLICY policy) {
     this.policy = policy;
@@ -90,9 +101,14 @@ public class ConfigClient {
     return value;
   }
 
-  // TBD MITU, need to use serviceLoader
+  // use serviceLoader to load configStoreFactories
   private ConfigStoreFactory<ConfigStore> getConfigStoreFactory(URI uri) throws Exception {
-    return new ETLHdfsConfigStoreFactory();
+    ConfigStoreFactory csf = configStoreFactoryMap.get(uri.getScheme());
+    if(csf==null){
+      throw new Exception("can not find corresponding config store factory for scheme " + uri.getScheme());
+    }
+    return (ConfigStoreFactory<ConfigStore>) csf;
+    //return new ETLHdfsConfigStoreFactory();
   }
 
   // public APIs
