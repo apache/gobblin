@@ -26,17 +26,28 @@ dependencies {
   compile project(":gobblin-core")
   compile project(":gobblin-metrics")
   compile project(":gobblin-utility")
+  if (project.hasProperty('useHadoop2')) {
+    compile project(":gobblin-yarn")
+  }
 
   compile externalDependency.azkaban
   compile externalDependency.log4j
   compile externalDependency.guava
   compile externalDependency.commonsLang
   compile externalDependency.jodaTime
+  if (project.hasProperty('useHadoop2')) {
+    compile externalDependency.typesafeConfig
+    compile externalDependency.hadoopYarnApi
+  }
 }
 
 configurations {
     compile {
-        transitive = false
+      transitive = false
+
+      if (!project.hasProperty('useHadoop2')) {
+        sourceSets.main.java.exclude "**/AzkabanGobblinYarnAppLauncher.java"
+      }
     }
 }
 
