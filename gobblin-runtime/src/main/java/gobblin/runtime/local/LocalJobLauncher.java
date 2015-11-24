@@ -22,14 +22,15 @@ import java.util.concurrent.TimeoutException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
 import gobblin.metrics.event.TimingEvent;
 import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.FileBasedJobLock;
@@ -61,7 +62,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
   private volatile CountDownLatch countDownLatch;
 
   public LocalJobLauncher(Properties jobProps) throws Exception {
-    super(jobProps);
+    super(jobProps, ImmutableMap.<String, String> of());
 
     TimingEvent jobLocalSetupTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.JOB_LOCAL_SETUP);
 

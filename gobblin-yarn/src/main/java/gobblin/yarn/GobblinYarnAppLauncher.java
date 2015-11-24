@@ -52,6 +52,7 @@ import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Records;
+
 import org.apache.helix.Criteria;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
@@ -60,6 +61,7 @@ import org.apache.helix.manager.zk.ZKHelixManager;
 import org.apache.helix.model.HelixConfigScope;
 import org.apache.helix.model.Message;
 import org.apache.helix.tools.ClusterSetup;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -305,8 +307,7 @@ public class GobblinYarnAppLauncher {
       LOGGER.info("Gobblin Yarn application finished with final status: " +
           applicationReport.getFinalApplicationStatus().toString());
       if (applicationReport.getFinalApplicationStatus() == FinalApplicationStatus.FAILED) {
-        LOGGER.error(
-            "Gobblin Yarn application failed for the following reason: " + applicationReport.getDiagnostics());
+        LOGGER.error("Gobblin Yarn application failed for the following reason: " + applicationReport.getDiagnostics());
       }
 
       try {
@@ -403,6 +404,12 @@ public class GobblinYarnAppLauncher {
     // Submit the application
     LOGGER.info("Submitting application " + applicationId);
     this.yarnClient.submitApplication(appSubmissionContext);
+
+    LOGGER.info("Application successfully submitted and accepted");
+    ApplicationReport applicationReport = this.yarnClient.getApplicationReport(applicationId);
+    LOGGER.info("Application Name: " + applicationReport.getName());
+    LOGGER.info("Application Tracking URL: " + applicationReport.getTrackingUrl());
+    LOGGER.info("Application User: " + applicationReport.getUser() + " Queue: " + applicationReport.getQueue());
 
     return applicationId;
   }
