@@ -225,6 +225,7 @@ public class Task implements Runnable {
       failTask(t);
     } finally {
       this.taskState.setProp(ConfigurationKeys.WRITER_RECORDS_WRITTEN, getRecordsWritten());
+      this.taskState.setProp(ConfigurationKeys.WRITER_BYTES_WRITTEN, getBytesWritten());
 
       try {
         closer.close();
@@ -309,7 +310,7 @@ public class Task implements Runnable {
           ConfigurationKeys.DATA_PUBLISHER_TYPE, SingleTaskDataPublisher.class.getSimpleName()), e);
       this.taskState.setTaskFailureException(e);
       throw closer.rethrow(e);
-    } catch(Throwable t) {
+    } catch (Throwable t) {
       this.taskState.setTaskFailureException(t);
       throw closer.rethrow(t);
     } finally {
@@ -499,6 +500,22 @@ public class Task implements Runnable {
       }
     }
     return recordsWritten;
+  }
+
+
+  /**
+   * Get the total number of bytes written by every {@link Fork}s of this {@link Task}.
+   *
+   * @return the number of bytes written by every {@link Fork}s of this {@link Task}
+   */
+  private long getBytesWritten() {
+    long bytesWritten = 0;
+    for (Optional<Fork> fork : this.forks) {
+      if (fork.isPresent()) {
+        bytesWritten += fork.get().getBytesWritten();
+      }
+    }
+    return bytesWritten;
   }
 
   /**
