@@ -6,7 +6,6 @@ import gobblin.config.configstore.ConfigStoreWithImportedBy;
 import gobblin.config.configstore.ConfigStoreWithImportedByRecursively;
 import gobblin.config.configstore.ConfigStoreWithResolution;
 import gobblin.config.configstore.ConfigStoreWithStableVersion;
-import gobblin.config.configstore.impl.ETLHdfsConfigStoreFactory;
 import gobblin.config.configstore.impl.SimpleConfigStoreResolver;
 import gobblin.config.configstore.impl.SimpleImportMappings;
 import gobblin.config.utils.URIComparator;
@@ -29,6 +28,7 @@ import com.typesafe.config.Config;
  * @author mitu
  *
  */
+@SuppressWarnings("rawtypes")
 public class ConfigClient {
 
   public static enum VERSION_STABILITY_POLICY {
@@ -102,6 +102,7 @@ public class ConfigClient {
   }
 
   // use serviceLoader to load configStoreFactories
+  @SuppressWarnings("unchecked")
   private ConfigStoreFactory<ConfigStore> getConfigStoreFactory(URI uri) throws Exception {
     ConfigStoreFactory csf = configStoreFactoryMap.get(uri.getScheme());
     if(csf==null){
