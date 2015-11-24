@@ -6,9 +6,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import gobblin.config.configstore.VersionComparator;
+import gobblin.config.configstore.VersionFinder;
 
-public class SimpleVersionComparator implements VersionComparator<String>{
+public class SimpleVersionFinder implements VersionFinder <String>{
 
   //{v1, V2 ... }
   public static final String VERSION_PATTERN1 = "[Vv]\\d+" ;

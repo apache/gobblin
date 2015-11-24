@@ -1,7 +1,7 @@
 package gobblin.config.configstore.impl;
 
 import gobblin.config.configstore.ConfigStore;
-import gobblin.config.configstore.VersionComparator;
+import gobblin.config.configstore.VersionFinder;
 import gobblin.config.utils.PathUtils;
 
 import java.io.IOException;
@@ -40,13 +40,13 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
   private final Path location;
   private final String currentVersion;
   protected final FileSystem fs;
-  protected final VersionComparator<String> vc;
+  protected final VersionFinder<String> vc;
 
   public BaseHdfsConfigStore(URI root) {
-    this(root, new SimpleVersionComparator());
+    this(root, new SimpleVersionFinder());
   }
 
-  public BaseHdfsConfigStore(URI root, VersionComparator<String> vc) {
+  public BaseHdfsConfigStore(URI root, VersionFinder<String> vc) {
     try {
       this.storeURI = root;
       this.location = new Path(root);

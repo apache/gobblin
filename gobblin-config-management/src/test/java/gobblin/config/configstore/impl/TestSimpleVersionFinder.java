@@ -9,14 +9,14 @@ import org.testng.annotations.BeforeClass;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.config.configstore.impl.SimpleVersionComparator;
+import gobblin.config.configstore.impl.SimpleVersionFinder;
 
-public class TestSimpleVersionComparator {
+public class TestSimpleVersionFinder {
   
-  private SimpleVersionComparator comp ;
+  private SimpleVersionFinder comp ;
   @BeforeClass
   public void setUpClass() throws Exception {
-    comp = new SimpleVersionComparator(); 
+    comp = new SimpleVersionFinder(); 
   }
   
   @Test public void testValid() throws Exception {

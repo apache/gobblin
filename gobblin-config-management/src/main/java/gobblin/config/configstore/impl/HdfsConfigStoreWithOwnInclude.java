@@ -1,6 +1,6 @@
 package gobblin.config.configstore.impl;
 
-import gobblin.config.configstore.VersionComparator;
+import gobblin.config.configstore.VersionFinder;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -30,10 +30,10 @@ public class HdfsConfigStoreWithOwnInclude extends BaseHdfsConfigStore {
   public static final String INCLUDE_FILE_NAME = "includes";
 
   public HdfsConfigStoreWithOwnInclude(URI root) {
-    this(root, new SimpleVersionComparator());
+    this(root, new SimpleVersionFinder());
   }
 
-  public HdfsConfigStoreWithOwnInclude(URI root, VersionComparator<String> vc) {
+  public HdfsConfigStoreWithOwnInclude(URI root, VersionFinder<String> vc) {
     super(root, vc);
   }
 

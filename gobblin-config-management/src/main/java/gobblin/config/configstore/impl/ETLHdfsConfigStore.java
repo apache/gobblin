@@ -4,7 +4,7 @@ import gobblin.config.configstore.ConfigStoreWithImportedByRecursively;
 import gobblin.config.configstore.ConfigStoreWithResolution;
 import gobblin.config.configstore.ConfigStoreWithStableVersion;
 import gobblin.config.configstore.ImportMappings;
-import gobblin.config.configstore.VersionComparator;
+import gobblin.config.configstore.VersionFinder;
 
 import java.net.URI;
 import java.util.Collection;
@@ -32,10 +32,10 @@ public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements
   private final SimpleConfigStoreResolver resolver;
   
   public ETLHdfsConfigStore(URI root) {
-    this(root, new SimpleVersionComparator());
+    this(root, new SimpleVersionFinder());
   }
 
-  public ETLHdfsConfigStore(URI root, VersionComparator<String> vc) {
+  public ETLHdfsConfigStore(URI root, VersionFinder<String> vc) {
     super(root, vc);
     this.resolver = new SimpleConfigStoreResolver(this);
   }
