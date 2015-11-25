@@ -27,7 +27,6 @@ public class SimpleImportMappings implements ImportMappings {
   private final ConfigStore store;
   private final String version;
 
-
   public SimpleImportMappings(ConfigStore cs, String version) {
     this.store = cs;
     this.version = version;
@@ -44,12 +43,12 @@ public class SimpleImportMappings implements ImportMappings {
         for (URI u : currentLevel) {
           Collection<URI> ownImported = this.store.getOwnImports(u, version);
           this.addToImportMapping(u, ownImported, this.importMap, this.importedByMap);
-          
-          if(this.store instanceof ConfigStoreWithResolution){
+
+          if (this.store instanceof ConfigStoreWithResolution) {
             Collection<URI> resolved = ((ConfigStoreWithResolution) this.store).getImportsRecursively(u, version);
             this.addToImportMapping(u, resolved, this.importMapResursively, this.importedByMapRecursively);
           }
-          
+
           nextLevel.addAll(this.store.getChildren(u, version));
         }
         currentLevel = nextLevel;
@@ -59,9 +58,9 @@ public class SimpleImportMappings implements ImportMappings {
       throw new RuntimeException(e);
     }
   }
-  
-  private void addToImportMapping(URI u, Collection<URI> imported, 
-      Map<URI, Collection<URI>> targetImportMap, Map<URI, Collection<URI>> targetImportedByMap){
+
+  private void addToImportMapping(URI u, Collection<URI> imported, Map<URI, Collection<URI>> targetImportMap,
+      Map<URI, Collection<URI>> targetImportedByMap) {
     if (!targetImportMap.containsKey(u)) {
       targetImportMap.put(u, new HashSet<URI>());
     }
@@ -78,7 +77,6 @@ public class SimpleImportMappings implements ImportMappings {
       targetImportedByMap.get(one_imported).add(u);
     }
   }
-
 
   @Override
   public Map<URI, Collection<URI>> getImportMapping() {

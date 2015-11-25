@@ -5,14 +5,15 @@ import java.util.Collection;
 
 import com.typesafe.config.Config;
 
+
 /**
  * ConfigStoreWithResolution is used to indicate the {@ConfigStore} which support the configuration
  * resolution by following the imported path.
  * @author mitu
  *
  */
-public interface ConfigStoreWithResolution extends ConfigStore{
-  
+public interface ConfigStoreWithResolution extends ConfigStore {
+
   /**
    * @param uri - the uri relative to this configuration store
    * @param version - specify the configuration version in the configuration store.
@@ -20,7 +21,7 @@ public interface ConfigStoreWithResolution extends ConfigStore{
    *  against input configuration version
    */
   public Config getResolvedConfig(URI uri, String version);
-  
+
   /**
    * @param uri - the uri relative to this configuration store
    * @param version - specify the configuration version in the configuration store.

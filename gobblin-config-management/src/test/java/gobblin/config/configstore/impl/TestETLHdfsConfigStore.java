@@ -136,7 +136,7 @@ public class TestETLHdfsConfigStore {
     Iterator<URI> it = imported.iterator();
     Assert.assertEquals(it.next().toString(), "tags/t1/t2/t3");
   }
-  
+
   @AfterClass
   public void tearDownClass() throws Exception {
     if (rootDir != null) {

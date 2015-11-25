@@ -2,6 +2,7 @@ package gobblin.config.configstore;
 
 import java.net.URI;
 
+
 /**
  * ConfigStoreFactory is used to created {@ConfigStore}s. 
  * @author mitu
@@ -21,5 +22,5 @@ public interface ConfigStoreFactory<T extends ConfigStore> {
    * @return {@ConfigStore} which is created from the input URI
    */
   public T createConfigStore(URI uri) throws Exception;
-  
+
 }

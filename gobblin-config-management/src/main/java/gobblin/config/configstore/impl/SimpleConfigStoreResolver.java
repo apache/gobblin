@@ -14,10 +14,12 @@ import java.util.Set;
 
 import com.typesafe.config.Config;
 
-public class SimpleConfigStoreResolver implements ConfigStoreWithResolution{
+
+public class SimpleConfigStoreResolver implements ConfigStoreWithResolution {
 
   private final ConfigStore store;
-  public SimpleConfigStoreResolver(ConfigStore base){
+
+  public SimpleConfigStoreResolver(ConfigStore base) {
     this.store = base;
   }
 
@@ -59,7 +61,7 @@ public class SimpleConfigStoreResolver implements ConfigStoreWithResolution{
 
     Collection<URI> imported = this.getOwnImports(uri, version);
     List<Config> importedConfigs = new ArrayList<Config>();
-    for(URI u: imported){
+    for (URI u : imported) {
       importedConfigs.add(this.getResolvedConfig(u, version));
     }
 
@@ -77,14 +79,14 @@ public class SimpleConfigStoreResolver implements ConfigStoreWithResolution{
     Config res = getResolvedConfig(parent, version);
     return res;
   }
-  
+
   protected static final boolean isRootURI(URI uri) {
     if (uri == null)
       return false;
 
-    return uri.toString().length()==0;
+    return uri.toString().length() == 0;
   }
-  
+
   @Override
   public Collection<URI> getImportsRecursively(URI uri, String version) {
     CircularDependencyChecker.checkCircularDependency(this, version, uri);
@@ -96,7 +98,7 @@ public class SimpleConfigStoreResolver implements ConfigStoreWithResolution{
     }
 
     Collection<URI> imported = this.getOwnImports(uri, version);
-    for(URI u: imported){
+    for (URI u : imported) {
       result.addAll(this.getImportsRecursively(u, version));
     }
 

@@ -79,9 +79,9 @@ public class ConfigClient {
     return createConfigClientWithStableVersion(VERSION_STABILITY_POLICY.RAISE_ERROR);
   }
 
-  private ConfigStoreAccessor getConfigStoreAccessor(URI uri) throws Exception {  
+  private ConfigStoreAccessor getConfigStoreAccessor(URI uri) throws Exception {
     URI floorKey = this.configStoreMap.floorKey(uri);
-    if(PathUtils.checkDescendant(floorKey, uri)){
+    if (PathUtils.checkDescendant(floorKey, uri)) {
       return this.configStoreMap.get(floorKey);
     }
 
@@ -126,7 +126,6 @@ public class ConfigClient {
     return (ConfigStoreFactory<ConfigStore>) csf;
   }
 
-  // public APIs
   /**
    * 
    * @param uri - must start with scheme name
@@ -134,15 +133,10 @@ public class ConfigClient {
    * 
    * <p>
    * detail logics:
-   * 0. Used the ConfigStoreAccessor in the cached map if previous ConfigStore been queried
-   * 1. Based the scheme name, using {@java.util.ServiceLoader} to find the first {@gobblin.config.configstore.ConfigStoreFactory}
-   * 2. Use ConfigStoreFactory to create ConfigStore 
-   *    using getDefaultConfigStore() if Authority is missing in uri
-   *    using createConfigStore() if Authority is present
-   *    One of the implementation for ConfigStore to determine the store root is
-   *    by back tracing the input uri, the path which contains "_CONFIG_STORE" is the root
+   * 1. Used the ConfigStoreAccessor in the cached map if previous ConfigStore been queried
+   * 2. Based the scheme name, using {@java.util.ServiceLoader} to find the first {@gobblin.config.configstore.ConfigStoreFactory}
+   * 3. Use ConfigStoreFactory to create ConfigStore 
    * 4. Build ConfigStoreAccessor by checking the current version of the ConfigStore. Added the entry to theMap
-   * 
    * 5. If the ConfigStore is NOT ConfigStoreWithResolution, need to do resolution in this client
    */
   public Config getConfig(URI uri) throws Exception {

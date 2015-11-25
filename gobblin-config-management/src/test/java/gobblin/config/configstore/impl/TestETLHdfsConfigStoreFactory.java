@@ -47,19 +47,19 @@ public class TestETLHdfsConfigStoreFactory {
   public void testWrongCreation2() throws Exception {
     factory.createConfigStore(new URI("foo-hdfs://" + testRootDir.getAbsolutePath() + "/v3.0/datasets/a1/a2"));
   }
-  
-  @Test (expectedExceptions = gobblin.config.configstore.impl.ConfigStoreCreationException.class)
-  public void testWrongHdfsConfigStore() throws Exception {   
+
+  @Test(expectedExceptions = gobblin.config.configstore.impl.ConfigStoreCreationException.class)
+  public void testWrongHdfsConfigStore() throws Exception {
     String WrongTestRoot = "WrongHdfsConfigStore";
     File rootDir = Files.createTempDir();
     System.out.println("wrong root dir is " + rootDir);
     File WrongTestRootDir = new File(rootDir, WrongTestRoot);
     File input = new File(this.getClass().getResource("/" + WrongTestRoot).getFile());
     FilesUtil.SyncDirs(input, WrongTestRootDir);
-    
+
     factory.createConfigStore(new URI("etl-hdfs://" + WrongTestRootDir.getAbsolutePath()));
   }
-  
+
   @AfterClass
   public void tearDownClass() throws Exception {
     if (rootDir != null) {

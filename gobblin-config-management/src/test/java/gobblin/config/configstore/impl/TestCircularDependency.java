@@ -32,8 +32,9 @@ public class TestCircularDependency {
     File input = new File(this.getClass().getResource("/" + TestRoot).getFile());
     FilesUtil.SyncDirs(input, testRootDir);
   }
-  
-  @Test public void testSelfImportCircle() throws Exception {
+
+  @Test
+  public void testSelfImportCircle() throws Exception {
 
     String testName = "selfImportCircle";
     File baseDir = new File(testRootDir, testName);
@@ -53,7 +54,8 @@ public class TestCircularDependency {
     }
   }
 
-  @Test public void testSelfImportSelf() throws Exception {
+  @Test
+  public void testSelfImportSelf() throws Exception {
     String testName = "selfImportSelf";
     File baseDir = new File(testRootDir, testName);
 
@@ -70,9 +72,9 @@ public class TestCircularDependency {
       Assert.assertTrue(e.getMessage().indexOf("import self") > 0);
     }
   }
-  
 
-  @Test public void testAncestorImportChild() throws Exception {
+  @Test
+  public void testAncestorImportChild() throws Exception {
 
     String testName = "ancestorImportChild";
     File baseDir = new File(testRootDir, testName);
@@ -113,7 +115,7 @@ public class TestCircularDependency {
     URI storeURI = new URI("file://" + baseDir.getAbsolutePath());
     //System.out.println("store uri is " + storeURI);
 
-    HdfsConfigStoreWithOwnInclude circularStore = new HdfsConfigStoreWithOwnInclude(storeURI,storeURI);
+    HdfsConfigStoreWithOwnInclude circularStore = new HdfsConfigStoreWithOwnInclude(storeURI, storeURI);
     Assert.assertEquals(circularStore.getCurrentVersion(), Version);
 
     URI circularNode = new URI(a_tagString);
@@ -143,7 +145,7 @@ public class TestCircularDependency {
     URI storeURI = new URI("file://" + baseDir.getAbsolutePath());
     //System.out.println("store uri is " + storeURI);
 
-    HdfsConfigStoreWithOwnInclude circularStore = new HdfsConfigStoreWithOwnInclude(storeURI,storeURI);
+    HdfsConfigStoreWithOwnInclude circularStore = new HdfsConfigStoreWithOwnInclude(storeURI, storeURI);
     Assert.assertEquals(circularStore.getCurrentVersion(), Version);
 
     String tagString = "tags/t_a_1/t_a_2/t_a_3";
@@ -162,7 +164,7 @@ public class TestCircularDependency {
     URI storeURI = new URI("file://" + baseDir.getAbsolutePath());
     //System.out.println("store uri is " + storeURI);
 
-    HdfsConfigStoreWithOwnInclude circularStore = new HdfsConfigStoreWithOwnInclude(storeURI,storeURI);
+    HdfsConfigStoreWithOwnInclude circularStore = new HdfsConfigStoreWithOwnInclude(storeURI, storeURI);
     Assert.assertEquals(circularStore.getCurrentVersion(), Version);
 
     String a_tagString = "tags/t_a_1/t_a_2/t_a_3";

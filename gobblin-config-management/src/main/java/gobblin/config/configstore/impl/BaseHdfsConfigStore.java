@@ -23,6 +23,7 @@ import org.apache.log4j.Logger;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+
 /**
  * The BaseHdfsConfigStore implements basic functions from ConfigStore which is related to HDFS
  * @author mitu
@@ -33,7 +34,7 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
   private static final Logger LOG = Logger.getLogger(BaseHdfsConfigStore.class);
   public static final String CONFIG_FILE_NAME = "main.conf";
 
-  private final Map<String, Path> versionRootMap= new HashMap<String,Path>();
+  private final Map<String, Path> versionRootMap = new HashMap<String, Path>();
   private final URI storeURI;
   private final Path location;
   private final String currentVersion;
@@ -100,25 +101,24 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
   public String getCurrentVersion() {
     return this.currentVersion;
   }
-  
+
   @Override
-  public URI getStoreURI(){
+  public URI getStoreURI() {
     return storeURI;
   }
-  
+
   @SuppressWarnings("deprecation")
-  protected Path getVersionRoot(String version){
-    if(this.versionRootMap.containsKey(version)){
+  protected Path getVersionRoot(String version) {
+    if (this.versionRootMap.containsKey(version)) {
       return this.versionRootMap.get(version);
     }
-    
+
     Path versionRoot = new Path(this.location, version);
     try {
-      if(this.fs.isDirectory(versionRoot)){
+      if (this.fs.isDirectory(versionRoot)) {
         this.versionRootMap.put(version, versionRoot);
         return versionRoot;
-      }
-      else {
+      } else {
         String errorMesg = "Specified version " + versionRoot + " is not valid directory";
         LOG.error(errorMesg);
         throw new VersionDoesNotExistException(errorMesg);
@@ -126,16 +126,17 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
     } catch (IOException ioe) {
       LOG.error("can not find the version " + version + " error:  " + ioe.getMessage(), ioe);
       throw new VersionDoesNotExistException(ioe.getMessage());
-    } 
+    }
   }
 
   @Override
   public Collection<URI> getChildren(URI uri, String version) {
     if (uri == null)
-      return Collections.emptyList();;
-    
-    Path self = getPath(uri, version) ;
-    
+      return Collections.emptyList();
+    ;
+
+    Path self = getPath(uri, version);
+
     try {
       if (this.fs.isFile(self)) {
         return Collections.emptyList();
@@ -152,8 +153,8 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
         if (!f.isDir()) {
           continue;
         }
-        
-        res.add(getRelativePathURI(f.getPath(),version));
+
+        res.add(getRelativePathURI(f.getPath(), version));
       }
       return res;
     } catch (IOException ioe) {
@@ -161,12 +162,11 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
       throw new RuntimeException(ioe);
     }
   }
-  
+
   @Override
   public Config getOwnConfig(URI uri, String version) {
     if (uri == null)
       return ConfigFactory.empty();
-
 
     Path self = getPath(uri, version);
     Path configFile = new Path(self, CONFIG_FILE_NAME);
@@ -178,11 +178,10 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
       LOG.error(String.format("Got error when get own config for %s, exception %s", self, e.getMessage()), e);
       return ConfigFactory.empty();
     }
-    
-    try ( FSDataInputStream configFileStream = this.fs.open(configFile)){
+
+    try (FSDataInputStream configFileStream = this.fs.open(configFile)) {
       return ConfigFactory.parseReader(new InputStreamReader(configFileStream)).resolve();
-    }
-    catch (IOException ioe) {
+    } catch (IOException ioe) {
       LOG.error(String.format("Got error when get own config for %s, exception %s", self, ioe.getMessage()), ioe);
       throw new RuntimeException(ioe);
     }
@@ -191,22 +190,22 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
   private URI getRelativePathURI(Path p, String version) {
     URI versionRootURI = this.getVersionRoot(version).toUri();
     URI input = p.toUri();
-    
+
     return versionRootURI.relativize(input);
   }
-  
+
   protected static final boolean isRootURI(URI uri) {
     if (uri == null)
       return false;
 
-    return uri.toString().length()==0;
+    return uri.toString().length() == 0;
   }
-  
-  protected final Path getPath(URI uri, String version){
-    Path self ;
-    if(isRootURI(uri)){
+
+  protected final Path getPath(URI uri, String version) {
+    Path self;
+    if (isRootURI(uri)) {
       self = this.getVersionRoot(version);
-    }else{
+    } else {
       self = new Path(this.getVersionRoot(version), uri.toString());
     }
     return self;

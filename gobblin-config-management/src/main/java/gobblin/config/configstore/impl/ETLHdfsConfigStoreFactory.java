@@ -30,6 +30,12 @@ public class ETLHdfsConfigStoreFactory implements ConfigStoreFactory<ConfigStore
   }
 
   @Override
+  /**
+   * @param uri - logic hdfs URI, the scheme name could be different than actual hdfs scheme name, 
+   *  example: new URI("etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest")
+   * @return ETLHdfsConfigStore determined by input uri 
+   *  The logic to determine the store root is by back tracing the input uri, the path which contains "_CONFIG_STORE" is the root
+   */
   public ETLHdfsConfigStore createConfigStore(URI uri) throws ConfigStoreCreationException, IOException {
     FileSystem fs = new Path(uri.getPath()).getFileSystem(new Configuration());
     if (!uri.getScheme().equals(this.getScheme())) {
@@ -42,8 +48,9 @@ public class ETLHdfsConfigStoreFactory implements ConfigStoreFactory<ConfigStore
     try {
       URI adjusted = new URI(getActualScheme(), uri.getAuthority(), uri.getPath(), uri.getQuery(), uri.getFragment());
       URI physical_root = this.findConfigStoreRoot(adjusted, fs);
-      URI logical_root = 
-          new URI(getScheme(), physical_root.getAuthority(), physical_root.getPath(), physical_root.getQuery(),physical_root.getFragment());
+      URI logical_root =
+          new URI(getScheme(), physical_root.getAuthority(), physical_root.getPath(), physical_root.getQuery(),
+              physical_root.getFragment());
       return new ETLHdfsConfigStore(physical_root, logical_root);
     } catch (URISyntaxException e) {
       LOG.error("got error when constructing uri based on " + uri, e);
@@ -54,11 +61,10 @@ public class ETLHdfsConfigStoreFactory implements ConfigStoreFactory<ConfigStore
   private URI findConfigStoreRoot(URI input, FileSystem fs) throws ConfigStoreCreationException, IOException {
     Path p = new Path(input.getPath());
 
-
     while (p != null) {
       // URI input may missing the version information as client do NOT know the version, so need to 
       // find the existing parent without list Non existing path
-      if(fs.exists(p)){
+      if (fs.exists(p)) {
         FileStatus[] fileStatus = fs.listStatus(p);
         for (FileStatus f : fileStatus) {
           if (!f.isDir() && f.getPath().getName().equals(CONFIG_STORE_NAME)) {

@@ -18,6 +18,7 @@ import org.apache.log4j.Logger;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
+
 /**
  * HdfsConfigStoreWithOwnInclude extends BaseHdfsConfigStore and use it's own way
  * to implements how configuration node includes other configuration nodes
@@ -37,7 +38,6 @@ public class HdfsConfigStoreWithOwnInclude extends BaseHdfsConfigStore {
     super(physical_root, logic_root, vc);
   }
 
-  
   @Override
   public Collection<URI> getOwnImports(URI uri, String version) {
     List<URI> result = new ArrayList<URI>();
@@ -46,28 +46,26 @@ public class HdfsConfigStoreWithOwnInclude extends BaseHdfsConfigStore {
       Path self = getPath(uri, version);
       Path includeFile = new Path(self, INCLUDE_FILE_NAME);
       List<String> imports = this.getImports(includeFile, version);
-      for(String s: imports){
+      for (String s : imports) {
         try {
           result.add(new URI(s));
-        }
-        catch (URISyntaxException e) {
+        } catch (URISyntaxException e) {
           LOG.error("Could not parse  " + s + " as URI", e);
         }
       }
-      
+
       return result;
-    }
-    catch(IOException ioe){
+    } catch (IOException ioe) {
       LOG.error("Could not find imports at path " + uri, ioe);
       return result;
-    } 
+    }
   }
 
   @SuppressWarnings("deprecation")
-  private List<String> getImports(Path p, String version) throws IOException{
+  private List<String> getImports(Path p, String version) throws IOException {
     List<String> allImports = Lists.newArrayList();
 
-    if(!fs.exists(p) || !fs.isFile(p)) {
+    if (!fs.exists(p) || !fs.isFile(p)) {
       return allImports;
     }
 
@@ -80,16 +78,15 @@ public class HdfsConfigStoreWithOwnInclude extends BaseHdfsConfigStore {
       String line = br.readLine();
       while (line != null) {
         Path singleImport = new Path(getVersionRoot(version), line);
-        if(this.fs.isDirectory(singleImport)){
+        if (this.fs.isDirectory(singleImport)) {
           allImports.add(line);
-        }
-        else {
+        } else {
           LOG.error("Invalid imported for " + line);
         }
 
         line = br.readLine();
       }
-    } catch(IOException exception) {
+    } catch (IOException exception) {
       LOG.error("Could not find imports at path " + p, exception);
       return Lists.newArrayList();
     } finally {
@@ -98,5 +95,5 @@ public class HdfsConfigStoreWithOwnInclude extends BaseHdfsConfigStore {
 
     return allImports;
   }
-  
+
 }

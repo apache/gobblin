@@ -6,13 +6,14 @@ import java.util.Map;
 
 import com.typesafe.config.Config;
 
+
 /**
  * ConfigStoreWithImportedBy indicate this {@ConfigStore} support mapping from the URI to it's imported by URIs
  * @author mitu
  *
  */
-public interface ConfigStoreWithImportedBy extends ConfigStore{
-  
+public interface ConfigStoreWithImportedBy extends ConfigStore {
+
   /**
    * @param uri - the uri relative to this configuration store
    * @param version - specify the configuration version in the configuration store.
@@ -20,7 +21,7 @@ public interface ConfigStoreWithImportedBy extends ConfigStore{
    *  against input configuration version
    */
   public Collection<URI> getImportedBy(URI uri, String version);
-  
+
   /**
    * @param uri - the uri relative to this configuration store
    * @param version - specify the configuration version in the configuration store.

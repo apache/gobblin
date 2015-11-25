@@ -21,7 +21,7 @@ public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements
   public final static String DATASET_PREFIX = "datasets";
   public final static String TAG_PREFIX = "tags";
   public final static String ID_DELEMETER = "/";
-  
+
   public ETLHdfsConfigStore(URI physical_root, URI logic_root) {
     this(physical_root, logic_root, new SimpleVersionFinder());
   }
@@ -91,5 +91,5 @@ public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements
 
     return false;
   }
-  
+
 }
