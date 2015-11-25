@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Properties;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
 import com.google.common.collect.Lists;
 
@@ -31,5 +32,9 @@ public class TestCopyableDatasetFinder implements DatasetFinder<CopyableDataset>
   @Override
   public List<CopyableDataset> findDatasets() throws IOException {
     return Lists.<CopyableDataset> newArrayList(new TestCopyableDataset());
+  }
+
+  @Override public Path commonDatasetRoot() {
+    return new Path("/test");
   }
 }

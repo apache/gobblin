@@ -61,6 +61,19 @@ public class PathUtilsTest {
     Assert.assertEquals(PathUtils.getPathWithoutSchemeAndAuthority(fullPath), path);
   }
 
+  @Test public void testDeepestNonGlobPath() throws Exception {
+
+    Assert.assertEquals(PathUtils.deepestNonGlobPath(new Path("/path/*")), new Path("/path"));
+    Assert.assertEquals(PathUtils.deepestNonGlobPath(new Path("/path/*/*")), new Path("/path"));
+    Assert.assertEquals(PathUtils.deepestNonGlobPath(new Path("/path/a?b")), new Path("/path"));
+    Assert.assertEquals(PathUtils.deepestNonGlobPath(new Path("/path/*.avro")), new Path("/path"));
+    Assert.assertEquals(PathUtils.deepestNonGlobPath(new Path("/path/[abc]")), new Path("/path"));
+    Assert.assertEquals(PathUtils.deepestNonGlobPath(new Path("/path/{ab,bc}")), new Path("/path"));
+    Assert.assertEquals(PathUtils.deepestNonGlobPath(new Path("/path/*/files")), new Path("/path"));
+    Assert.assertEquals(PathUtils.deepestNonGlobPath(new Path("/*")), new Path("/"));
+
+  }
+
   @Test
   public void testRemoveExtension() throws Exception {
 
