@@ -232,6 +232,7 @@ public class ConfigClient {
 
   private Collection<URI> getAbsoluteUri(URI storeRootURI, Collection<URI> relativeURI) throws URISyntaxException {
     List<URI> result = new ArrayList<URI>();
+    if(relativeURI==null || relativeURI.size()==0) return result;
 
     for (URI tmp : relativeURI) {
       result.add(new URI(storeRootURI.getScheme(), storeRootURI.getAuthority(), storeRootURI.getPath() + "/"
