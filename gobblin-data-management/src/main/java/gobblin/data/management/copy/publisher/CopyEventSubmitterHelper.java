@@ -11,9 +11,12 @@
  */
 package gobblin.data.management.copy.publisher;
 
+import java.io.IOException;
+
 import com.google.common.collect.ImmutableMap;
 
 import gobblin.configuration.WorkUnitState;
+import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableDatasetMetadata;
 import gobblin.data.management.copy.CopyableFile;
@@ -32,18 +35,24 @@ public class CopyEventSubmitterHelper {
   private static final String FILE_PUBLISHED_EVENT_NAME = "FilePublished";
   public static final String DATASET_ROOT_METADATA_NAME = "datasetUrn";
   public static final String DATASET_TARGET_ROOT_METADATA_NAME = "datasetTargetRoot";
+  public static final String TARGET_PATH = "TargetPath";
+  public static final String SOURCE_PATH = "SourcePath";
 
-  static void submitSuccessfulDatasetPublish(EventSubmitter eventSubmitter, CopyableDatasetMetadata copyableDataset) {
+  static void submitSuccessfulDatasetPublish(EventSubmitter eventSubmitter, CopyableFile.DatasetAndPartition
+      datasetAndPartition) {
     SlaEventSubmitter.builder().eventSubmitter(eventSubmitter).eventName(DATASET_PUBLISHED_EVENT_NAME)
-        .datasetUrn(copyableDataset.getDatasetRoot().toString()).partition(copyableDataset.getDatasetRoot().toString())
-        .additionalMetadata(DATASET_TARGET_ROOT_METADATA_NAME, copyableDataset.getDatasetTargetRoot().toString()).build()
+        .datasetUrn(datasetAndPartition.getDataset().getDatasetRoot().toString())
+        .partition(datasetAndPartition.getPartition())
+        .additionalMetadata(DATASET_TARGET_ROOT_METADATA_NAME,
+            datasetAndPartition.getDataset().getDatasetTargetRoot().toString()).build()
         .submit();
   }
 
-  static void submitFailedDatasetPublish(EventSubmitter eventSubmitter, CopyableDatasetMetadata copyableDataset) {
+  static void submitFailedDatasetPublish(EventSubmitter eventSubmitter,
+      CopyableFile.DatasetAndPartition datasetAndPartition) {
     eventSubmitter.submit(DATASET_PUBLISHED_FAILED_EVENT_NAME, ImmutableMap.of(DATASET_ROOT_METADATA_NAME,
-        copyableDataset.getDatasetRoot().toString(), DATASET_TARGET_ROOT_METADATA_NAME, copyableDataset
-            .getDatasetTargetRoot().toString()));
+        datasetAndPartition.getDataset().getDatasetRoot().toString(), DATASET_TARGET_ROOT_METADATA_NAME,
+        datasetAndPartition.getDataset().getDatasetTargetRoot().toString()));
 
   }
 
@@ -56,8 +65,24 @@ public class CopyEventSubmitterHelper {
    * @param eventSubmitter
    * @param workUnitState
    */
-  static void submitSuccessfulFilePublish(EventSubmitter eventSubmitter, WorkUnitState workUnitState) {
-    new SlaEventSubmitter(eventSubmitter, FILE_PUBLISHED_EVENT_NAME, workUnitState.getProperties()).submit();
+  static void submitSuccessfulFilePublish(EventSubmitter eventSubmitter, WorkUnitState workUnitState) throws
+      IOException {
+    String datasetUrn = workUnitState.getProp(SlaEventKeys.DATASET_URN_KEY);
+    String partition = workUnitState.getProp(SlaEventKeys.PARTITION_KEY);
+    String originTimestamp = workUnitState.getProp(SlaEventKeys.ORIGIN_TS_IN_MILLI_SECS_KEY);
+    String upstreamTimestamp = workUnitState.getProp(SlaEventKeys.UPSTREAM_TS_IN_MILLI_SECS_KEY);
+    String completenessPercentage = workUnitState.getProp(SlaEventKeys.COMPLETENESS_PERCENTAGE_KEY);
+    String recordCount = workUnitState.getProp(SlaEventKeys.RECORD_COUNT_KEY);
+    String previousPublishTimestamp = workUnitState.getProp(SlaEventKeys.PREVIOUS_PUBLISH_TS_IN_MILLI_SECS_KEY);
+    String dedupeStatus = workUnitState.getProp(SlaEventKeys.DEDUPE_STATUS_KEY);
+    CopyableFile copyableFile = CopySource.deserializeCopyableFiles(workUnitState).get(0);
+    SlaEventSubmitter.builder().eventSubmitter(eventSubmitter).eventName(FILE_PUBLISHED_EVENT_NAME)
+        .datasetUrn(datasetUrn).partition(partition).originTimestamp(originTimestamp)
+        .upstreamTimestamp(upstreamTimestamp).completenessPercentage(completenessPercentage).recordCount(recordCount)
+        .previousPublishTimestamp(previousPublishTimestamp).dedupeStatus(dedupeStatus)
+        .additionalMetadata(TARGET_PATH, copyableFile.getDestination().toString())
+        .additionalMetadata(SOURCE_PATH, copyableFile.getOrigin().getPath().toString())
+        .build().submit();
   }
 
 }

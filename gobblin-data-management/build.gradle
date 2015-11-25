@@ -36,6 +36,7 @@ dependencies {
   compile externalDependency.commonsCompress
   compile externalDependency.commonsIo
   compile externalDependency.gson
+  compile externalDependency.commonsCodec
 
   testCompile externalDependency.calciteCore
   testCompile externalDependency.calciteAvatica

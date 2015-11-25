@@ -11,9 +11,13 @@
  */
 package gobblin.data.management.copy.extractor;
 
+import gobblin.data.management.copy.CopyConfiguration;
+import gobblin.data.management.copy.CopyContext;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.FileAwareInputStream;
+import gobblin.data.management.copy.PreserveAttributes;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -50,9 +54,10 @@ public class InputStreamExtractorTest {
     Assert.assertEquals(IOUtils.toString(fileAwareInputStream.getInputStream()), "second");
   }
 
-  private CopyableFile getTestCopyableFile(String resourcePath) {
+  private CopyableFile getTestCopyableFile(String resourcePath) throws IOException {
     String filePath = getClass().getClassLoader().getResource(resourcePath).getFile();
     FileStatus status = new FileStatus(0l, false, 0, 0l, 0l, new Path(filePath));
-    return new CopyableFile(status, null, null, null, null, null);
+    return CopyableFile.builder(FileSystem.getLocal(new Configuration()), status, new Path("/"),
+        new CopyConfiguration(new Path("/"), PreserveAttributes.fromMnemonicString(""), new CopyContext())).build();
   }
 }

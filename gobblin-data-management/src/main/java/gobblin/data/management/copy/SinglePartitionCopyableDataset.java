@@ -13,26 +13,32 @@
 package gobblin.data.management.copy;
 
 import gobblin.data.management.partition.Partition;
+import gobblin.data.management.partition.PartitionableDataset;
 
 import java.util.Collection;
 import java.util.List;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 /**
  * An implementation of {@link CopyableDataset} that partitions all files into a single partition
  */
-public abstract class SinglePartitionCopyableDataset implements CopyableDataset {
-  @SuppressWarnings("unchecked")
-  @Override
-  public Collection<Partition<CopyableFile>> partitionFiles(Collection<? extends CopyableFile> files) {
+public abstract class SinglePartitionCopyableDataset implements CopyableDataset, PartitionableDataset<CopyableFile> {
 
+  public static Collection<Partition<CopyableFile>> singlePartition(Collection<? extends CopyableFile> files,
+      String name) {
     List<CopyableFile> copyableFiles = Lists.newArrayListWithCapacity(files.size());
     for (CopyableFile file : files) {
       copyableFiles.add(file);
     }
-    return Lists.newArrayList(new Partition.Builder<CopyableFile>(datasetRoot().toString()).add(copyableFiles).build());
+    return ImmutableList.of(new Partition.Builder<CopyableFile>(name).add(copyableFiles).build());
+  }
 
+  @SuppressWarnings("unchecked")
+  @Override
+  public Collection<Partition<CopyableFile>> partitionFiles(Collection<? extends CopyableFile> files) {
+    return singlePartition(files, datasetRoot().toString());
   }
 
   @Override
