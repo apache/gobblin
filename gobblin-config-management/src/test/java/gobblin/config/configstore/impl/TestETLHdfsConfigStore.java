@@ -6,11 +6,9 @@ import java.io.File;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.commons.io.FileUtils;
 import org.testng.Assert;
@@ -131,75 +129,12 @@ public class TestETLHdfsConfigStore {
   }
 
   @Test
-  public void testDatasetResolved() throws Exception {
-    Config c = store.getResolvedConfig(dataset, Version);
-    Assert.assertEquals(c.entrySet().size(), 9);
-
-    validateOwnConfig(c);
-    validateImportedConfig(c);
-
-    Collection<URI> resolvedImport = store.getImportsRecursively(dataset, Version);
-    Assert.assertEquals(resolvedImport.size(), 2);
-    Iterator<URI> it = resolvedImport.iterator();
-    Assert.assertEquals(it.next().toString(), "tags/t1/t2/t3");
-    Assert.assertEquals(it.next().toString(), "tags/l1/l2");
-  }
-
-  @Test
-  public void testDatasetResolvedFromNoExistNode() throws Exception {
-    // Node datasets/a1/a2/a3/a4/a5 does not exist
-    URI notExist = new URI("datasets/a1/a2/a3/a4/a5");
-    Config c = store.getResolvedConfig(notExist, Version);
-    Assert.assertEquals(c.entrySet().size(), 9);
-
-    validateOwnConfig(c);
-    validateImportedConfig(c);
-
-    Collection<URI> resolvedImport = store.getImportsRecursively(notExist, Version);
-    Assert.assertEquals(resolvedImport.size(), 2);
-    Iterator<URI> it = resolvedImport.iterator();
-    Assert.assertEquals(it.next().toString(), "tags/t1/t2/t3");
-    Assert.assertEquals(it.next().toString(), "tags/l1/l2");
-  }
-
-  @Test
   public void testImportMapping() throws Exception {
     // own import
     Collection<URI> imported = store.getOwnImports(dataset, Version);
     Assert.assertEquals(imported.size(), 1);
     Iterator<URI> it = imported.iterator();
     Assert.assertEquals(it.next().toString(), "tags/t1/t2/t3");
-
-    // resolved imports
-    imported = store.getImportsRecursively(dataset, Version);
-    Assert.assertEquals(imported.size(), 2);
-    it = imported.iterator();
-    Assert.assertEquals(it.next().toString(), "tags/t1/t2/t3");
-    Assert.assertEquals(it.next().toString(), "tags/l1/l2");
-
-    // own imported by
-    Collection<URI> importedBy = store.getImportedBy(new URI("tags/l1/l2"), Version);
-    Set<URI> expected = new HashSet<URI>();
-    expected.add(new URI("tags/v1"));
-    expected.add(new URI("tags/t1/t2/t3"));
-
-    Assert.assertEquals(importedBy.size(), 2);
-    it = importedBy.iterator();
-    Assert.assertTrue(expected.contains(it.next()));
-    Assert.assertTrue(expected.contains(it.next()));
-
-    // test imported by recursively
-    importedBy = store.getImportedByRecursively(new URI("tags/l1/l2"), Version);
-
-    expected.add(new URI("tags/v1/v2/v3"));
-    expected.add(new URI("tags/v1/v2"));
-    expected.add(new URI("datasets/a1/a2/a3"));
-
-    Assert.assertEquals(importedBy.size(), 5);
-    it = importedBy.iterator();
-    for (int i = 0; i < importedBy.size(); i++) {
-      Assert.assertTrue(expected.contains(it.next()));
-    }
   }
   
   @AfterClass

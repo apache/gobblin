@@ -41,10 +41,10 @@ public class ConfigClient {
   // key is the store ROOT, must use TreeMap
   private final TreeMap<URI, ConfigStoreAccessor> configStoreMap = new TreeMap<URI, ConfigStoreAccessor>(
       new URIComparator());
-  
+
   // key is the configStore scheme name, value is the ConfigStoreFactory
   private static final Map<String, ConfigStoreFactory> configStoreFactoryMap = new HashMap<String, ConfigStoreFactory>();
-  
+
   static {
     ServiceLoader<ConfigStoreFactory> loader = ServiceLoader.load(ConfigStoreFactory.class);
     for(ConfigStoreFactory f: loader){
@@ -96,7 +96,24 @@ public class ConfigClient {
     // ConfigStoreFactory scheme name could be different than configStore's StoreURI's scheme name
     URI csRoot = cs.getStoreURI();
     URI key = new URI(csFactory.getScheme(), csRoot.getAuthority(), csRoot.getPath(), csRoot.getQuery(), csRoot.getFragment());
-    ConfigStoreAccessor value = new ConfigStoreAccessor(cs, cs.getCurrentVersion());
+    String curVersion = cs.getCurrentVersion();
+    ConfigStoreAccessor value = new ConfigStoreAccessor(cs, curVersion);
+
+    // create default resolver
+    if(!(cs instanceof ConfigStoreWithResolution)){
+      SimpleConfigStoreResolver resolver = new SimpleConfigStoreResolver(cs);
+      value.resolver = resolver;
+    }
+
+    // create default importedBy mapping object
+    // need to create the SimpleImportMappings using the resolver NOT the raw configStore
+    // otherwise, the getImportsRecursively and getImportedByRecursively will not work
+    // as raw configstore is NOT ConfigStoreWithResolution
+    if(! ((cs instanceof ConfigStoreWithImportedBy) && (cs instanceof ConfigStoreWithImportedByRecursively)) ){
+      SimpleImportMappings im = new SimpleImportMappings(value.resolver, value.version);
+      value.simpleImportMappings = im;
+    }
+    
     this.configStoreMap.put(key, value);
     return value;
   }
@@ -109,7 +126,6 @@ public class ConfigClient {
       throw new Exception("can not find corresponding config store factory for scheme " + uri.getScheme());
     }
     return (ConfigStoreFactory<ConfigStore>) csf;
-    //return new ETLHdfsConfigStoreFactory();
   }
 
   // public APIs
@@ -142,11 +158,6 @@ public class ConfigClient {
     }
 
     SimpleConfigStoreResolver resolver = csa.resolver;
-    if(resolver == null){
-      resolver = new SimpleConfigStoreResolver(csa.store);
-      csa.resolver = resolver;
-    }
-
     return resolver.getResolvedConfig(rel_uri, csa.version);
   }
 
@@ -186,10 +197,6 @@ public class ConfigClient {
     }
 
     SimpleImportMappings im = csa.simpleImportMappings;
-    if(im == null){
-      im = new SimpleImportMappings(csa.store, csa.version);
-      csa.simpleImportMappings = im;
-    }
     return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(),
         im.getImportMappingRecursively().get(rel_uri));
   }
@@ -216,17 +223,12 @@ public class ConfigClient {
     }
 
     SimpleImportMappings im = csa.simpleImportMappings;
-    if(im == null){
-      im = new SimpleImportMappings(csa.store, csa.version);
-      csa.simpleImportMappings = im;
-    }
-    
+
     if(!recursive){
       return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(), im.getImportedByMapping().get(rel_uri));
     }
 
-    return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(), im.getImportMappingRecursively().get(rel_uri));
-
+    return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(), im.getImportedByMappingRecursively().get(rel_uri));
   }
 
   /**
