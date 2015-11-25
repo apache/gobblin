@@ -115,11 +115,13 @@ public class MRCompactorTimeBasedJobPropCreator extends MRCompactorJobPropCreato
         Path jobOutputLatePath = appendFolderTime(this.topicOutputLateDir, folderTime);
         Path jobOutputTmpPath = appendFolderTime(this.topicTmpOutputDir, folderTime);
 
-        Dataset dataset = new Dataset.Builder().withTopic(this.topic).withPriority(this.priority)
-            .withInputPath(this.recompactFromOutputPaths ? jobOutputPath : jobInputPath)
-            .withInputLatePath(this.recompactFromOutputPaths ? jobOutputLatePath : jobInputLatePath)
-            .withOutputPath(jobOutputPath).withOutputLatePath(jobOutputLatePath).withOutputTmpPath(jobOutputTmpPath)
-            .build();
+        Dataset dataset =
+            new Dataset.Builder().withTopic(this.topic).withPriority(this.priority)
+                .withLateDataThresholdForRecompact(this.lateDataThresholdForRecompact)
+                .withInputPath(this.recompactFromOutputPaths ? jobOutputPath : jobInputPath)
+                .withInputLatePath(this.recompactFromOutputPaths ? jobOutputLatePath : jobInputLatePath)
+                .withOutputPath(jobOutputPath).withOutputLatePath(jobOutputLatePath)
+                .withOutputTmpPath(jobOutputTmpPath).build();
 
         Optional<Dataset> datasetWithJobProps = createJobProps(dataset, folderTime.toString(this.timeFormatter));
         if (datasetWithJobProps.isPresent()) {

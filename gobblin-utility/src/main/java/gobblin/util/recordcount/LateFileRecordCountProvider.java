@@ -62,15 +62,4 @@ public class LateFileRecordCountProvider extends RecordCountProvider {
   public long getRecordCount(Path path) {
     return this.recordCountProviderWithoutSuffix.getRecordCount(restoreFilePath(path));
   }
-
-  /**
-   * Get record count for a list of paths.
-   */
-  public long getRecordCount(Collection<Path> paths) {
-    long count = 0;
-    for (Path path : paths) {
-      count += getRecordCount(path);
-    }
-    return count;
-  }
 }

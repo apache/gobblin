@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
@@ -151,6 +152,12 @@ public class MRCompactor implements Compactor {
       COMPACTION_PREFIX + "recompact.from.input.for.late.data";
   public static final boolean DEFAULT_COMPACTION_RECOMPACT_FROM_INPUT_FOR_LATE_DATA = false;
 
+  // The threshold of new(late) data that will trigger recompact on per topic basis.
+  // It follows the pattern TOPICREGEX:THRESHOLD;TOPICREGEX:THRESHOLD, e.g., A.*,B.*:0.2; C.*,D.*:0.3.
+  // Topics that matches A.* or B.* will have threshold 0.2. Topics that matches C.* or D.* will have threshold 0.3.
+  public static final String COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_TOPIC = COMPACTION_PREFIX + "latedata.threshold.for.recompact.per.topic";
+  public static final double DEFAULT_COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_TOPIC = 1.0;
+
   // Whether the input data for the compaction is deduplicated.
   public static final String COMPACTION_INPUT_DEDUPLICATED = COMPACTION_PREFIX + "input.deduplicated";
   public static final boolean DEFAULT_COMPACTION_INPUT_DEDUPLICATED = false;
@@ -209,6 +216,9 @@ public class MRCompactor implements Compactor {
   private static final double LOW_PRIORITY = 1.0;
   private static final long COMPACTION_JOB_WAIT_INTERVAL_SECONDS = 10;
   private static final Map<Dataset, Job> RUNNING_MR_JOBS = Maps.newConcurrentMap();
+  private static final char TOPICS_WITH_DIFFERENT_RECOMPACT_THRESHOLDS_SEPARATOR = ';';
+  private static final char TOPICS_WITH_SAME_RECOMPACT_THRESHOLDS_SEPARATOR = ',';
+  private static final char TOPICS_AND_RECOMPACT_THRESHOLD_SEPARATOR = ':';
 
   private final State state;
   private final Configuration conf;
@@ -429,13 +439,16 @@ public class MRCompactor implements Compactor {
   private void createJobPropsForTopics(List<String> topics) {
     List<Pattern> highPriorityTopicPatterns = getHighPriorityTopicPatterns();
     List<Pattern> normalPriorityTopicPatterns = getNormalPriorityTopicPatterns();
+    Map<String, Double> topicRegexAndRecompactThreshold = getTopicRegexAndRecompactThreshold(this.state.getProp(
+        COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_TOPIC, StringUtils.EMPTY));
     for (String topic : topics) {
+      double lateDataThresholdForRecompact = getRecompactThresholdForTopic(topic, topicRegexAndRecompactThreshold);
       if (DatasetFilterUtils.stringInPatterns(topic, highPriorityTopicPatterns)) {
-        createJobPropsForTopic(topic, HIGH_PRIORITY);
+        createJobPropsForTopic(topic, HIGH_PRIORITY, lateDataThresholdForRecompact);
       } else if (DatasetFilterUtils.stringInPatterns(topic, normalPriorityTopicPatterns)) {
-        createJobPropsForTopic(topic, NORMAL_PRIORITY);
+        createJobPropsForTopic(topic, NORMAL_PRIORITY, lateDataThresholdForRecompact);
       } else {
-        createJobPropsForTopic(topic, LOW_PRIORITY);
+        createJobPropsForTopic(topic, LOW_PRIORITY, lateDataThresholdForRecompact);
       }
     }
   }
@@ -450,12 +463,39 @@ public class MRCompactor implements Compactor {
     return DatasetFilterUtils.getPatternsFromStrings(list);
   }
 
+  private Map<String, Double> getTopicRegexAndRecompactThreshold(String topicsAndRecompactThresholds) {
+    Map<String, Double> topicRegexAndRecompactThreshold = Maps.newHashMap();
+    for (String entry : Splitter.on(TOPICS_WITH_DIFFERENT_RECOMPACT_THRESHOLDS_SEPARATOR).trimResults()
+        .omitEmptyStrings().splitToList(topicsAndRecompactThresholds)) {
+      List<String> topicsAndRecompactThreshold = Splitter.on(TOPICS_AND_RECOMPACT_THRESHOLD_SEPARATOR)
+          .trimResults().omitEmptyStrings().splitToList(entry);
+      if (topicsAndRecompactThreshold.size() != 2) {
+        LOG.error("Invalid form (TOPIC:THRESHOLD) in " + COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_TOPIC + ".");
+      } else {
+        topicRegexAndRecompactThreshold.put(topicsAndRecompactThreshold.get(0), Double.parseDouble(topicsAndRecompactThreshold.get(1)));
+      }
+    }
+    return topicRegexAndRecompactThreshold;
+  }
+
+  private double getRecompactThresholdForTopic(String topic, Map<String, Double> topicRegexAndRecompactThreshold) {
+    for(String topicRegex : topicRegexAndRecompactThreshold.keySet()) {
+      if(DatasetFilterUtils.stringInPatterns(topic, DatasetFilterUtils.getPatternsFromStrings(Splitter
+          .on(TOPICS_WITH_SAME_RECOMPACT_THRESHOLDS_SEPARATOR).trimResults()
+          .omitEmptyStrings().splitToList(topicRegex)))) {
+        return topicRegexAndRecompactThreshold.get(topicRegex);
+      }
+    }
+    return DEFAULT_COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_TOPIC;
+  }
+
   /**
    * Identify {@link Dataset}s from a topic, and create compaction job properties for each {@link Dataset}.
    */
-  private void createJobPropsForTopic(String topic, double priority) {
-    LOG.info("Creating compaction jobs for topic " + topic + " with priority " + priority);
-    MRCompactorJobPropCreator jobPropCreator = getJobPropCreator(topic, priority);
+  private void createJobPropsForTopic(String topic, double priority, double lateDataThresholdForRecompact) {
+    LOG.info("Creating compaction jobs for topic " + topic + " with priority " + priority
+        + " and late data threshold for recompact " + lateDataThresholdForRecompact);
+    MRCompactorJobPropCreator jobPropCreator = getJobPropCreator(topic, priority, lateDataThresholdForRecompact);
     try {
       this.datasets.addAll(jobPropCreator.createJobProps());
     } catch (Throwable t) {
@@ -467,17 +507,25 @@ public class MRCompactor implements Compactor {
   }
 
   /**
-   * Get an instance of {@link MRCompactorJobPropCreator}, e.g., {@link MRCompactorTimeBasedJobPropCreator}
-   * for time-based compaction.
+   * @deprecated
    */
-
+  @Deprecated
   MRCompactorJobPropCreator getJobPropCreator(String topic, double priority) {
+    return this.getJobPropCreator(topic, priority, DEFAULT_COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_TOPIC);
+  }
+
+  /**
+   * Get an instance of {@link MRCompactorJobPropCreator}, e.g., {@link MRCompactorTimeBasedJobPropCreator}
+   * for time-based compaction. Each topic has its own priority and late data threshold for recompact.
+   */
+  MRCompactorJobPropCreator getJobPropCreator(String topic, double priority, double lateDataThresholdForRecompact) {
     String builderClassName =
         this.state.getProp(COMPACTION_JOBPROPS_CREATOR_CLASS, DEFAULT_COMPACTION_JOBPROPS_CREATOR_CLASS) + "$Builder";
 
     try {
       return ((MRCompactorJobPropCreator.Builder<?>) Class.forName(builderClassName).newInstance()).withTopic(topic)
-          .withPriority(priority).withTopicInputDir(new Path(this.inputDir, new Path(topic, this.inputSubDir)))
+          .withPriority(priority).withLateDataThresholdForRecompact(lateDataThresholdForRecompact)
+          .withTopicInputDir(new Path(this.inputDir, new Path(topic, this.inputSubDir)))
           .withTopicInputLateDir(new Path(this.inputDir, new Path(topic, this.inputLateSubDir)))
           .withTopicOutputDir(new Path(this.destDir, new Path(topic, this.destSubDir)))
           .withTopicOutputLateDir(new Path(this.destDir, new Path(topic, this.destLateSubDir)))
@@ -673,7 +721,6 @@ public class MRCompactor implements Compactor {
 
         if (dataset.state() == VERIFIED || dataset.state() == UNVERIFIED) {
           allDatasetsCompleted = false;
-
           // Run compaction for a dataset, if it is not already running or completed
           if (jobRunner == null || jobRunner.status() == ABORTED) {
             runCompactionForDataset(dataset, dataset.state() == VERIFIED ? true : false);
@@ -854,9 +901,18 @@ public class MRCompactor implements Compactor {
       MRCompactor.this.jobRunnables.remove(jobRunner.getDataset());
       if (t == null) {
         if (jobRunner.status() == COMMITTED) {
-
-          // Compaction job of a dataset is successful.
-          jobRunner.getDataset().setState(COMPACTION_COMPLETE);
+          if (jobRunner.getDataset().needToRecompact()) {
+            // Modify the dataset for recompaction
+            State recompactState = new State();
+            recompactState.addAll(jobRunner.getDataset().jobProps());
+            recompactState.setProp(MRCompactor.COMPACTION_RECOMPACT_FROM_DEST_PATHS, Boolean.TRUE);
+            recompactState.setProp(MRCompactor.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, Boolean.FALSE);
+            jobRunner.getDataset().modifyDatasetForRecompact(recompactState);
+            jobRunner.getDataset().setState(VERIFIED);
+          } else {
+            // Set the dataset status to COMPACTION_COMPLETE if compaction is successful.
+            jobRunner.getDataset().setState(COMPACTION_COMPLETE);
+          }
         } else
           if (jobRunner.getDataset().state() == GIVEN_UP && !MRCompactor.this.shouldPublishDataIfCannotVerifyCompl) {
 
@@ -866,7 +922,6 @@ public class MRCompactor implements Compactor {
               jobRunner.getDataset()));
           jobRunner.getDataset().setState(COMPACTION_COMPLETE);
         } else {
-
           // Compaction job of a dataset has aborted because data completeness is not verified.
           // Reduce priority and try again.
           jobRunner.getDataset().reducePriority();
