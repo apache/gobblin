@@ -479,11 +479,12 @@ public class MRCompactor implements Compactor {
   }
 
   private double getRecompactThresholdForTopic(String topic, Map<String, Double> topicRegexAndRecompactThreshold) {
-    for(String topicRegex : topicRegexAndRecompactThreshold.keySet()) {
-      if(DatasetFilterUtils.stringInPatterns(topic, DatasetFilterUtils.getPatternsFromStrings(Splitter
-          .on(TOPICS_WITH_SAME_RECOMPACT_THRESHOLDS_SEPARATOR).trimResults()
-          .omitEmptyStrings().splitToList(topicRegex)))) {
-        return topicRegexAndRecompactThreshold.get(topicRegex);
+    for (Map.Entry<String, Double> topicRegexEntry : topicRegexAndRecompactThreshold.entrySet()) {
+      if (DatasetFilterUtils.stringInPatterns(
+          topic,
+          DatasetFilterUtils.getPatternsFromStrings(Splitter.on(TOPICS_WITH_SAME_RECOMPACT_THRESHOLDS_SEPARATOR)
+              .trimResults().omitEmptyStrings().splitToList(topicRegexEntry.getKey())))) {
+        return topicRegexEntry.getValue();
       }
     }
     return DEFAULT_COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_TOPIC;
