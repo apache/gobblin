@@ -8,7 +8,7 @@ import gobblin.config.configstore.ConfigStoreWithResolution;
 import gobblin.config.configstore.ConfigStoreWithStableVersion;
 import gobblin.config.configstore.impl.SimpleConfigStoreResolver;
 import gobblin.config.configstore.impl.SimpleImportMappings;
-import gobblin.config.utils.URIComparator;
+import gobblin.config.utils.PathUtils;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -39,15 +39,15 @@ public class ConfigClient {
   private final VERSION_STABILITY_POLICY policy;
 
   // key is the store ROOT, must use TreeMap
-  private final TreeMap<URI, ConfigStoreAccessor> configStoreMap = new TreeMap<URI, ConfigStoreAccessor>(
-      new URIComparator());
+  private final TreeMap<URI, ConfigStoreAccessor> configStoreMap = new TreeMap<URI, ConfigStoreAccessor>();
 
   // key is the configStore scheme name, value is the ConfigStoreFactory
-  private static final Map<String, ConfigStoreFactory> configStoreFactoryMap = new HashMap<String, ConfigStoreFactory>();
+  private static final Map<String, ConfigStoreFactory> configStoreFactoryMap =
+      new HashMap<String, ConfigStoreFactory>();
 
   static {
     ServiceLoader<ConfigStoreFactory> loader = ServiceLoader.load(ConfigStoreFactory.class);
-    for(ConfigStoreFactory f: loader){
+    for (ConfigStoreFactory f : loader) {
       configStoreFactoryMap.put(f.getScheme(), f);
     }
   }
@@ -79,28 +79,26 @@ public class ConfigClient {
     return createConfigClientWithStableVersion(VERSION_STABILITY_POLICY.RAISE_ERROR);
   }
 
-  private ConfigStoreAccessor getConfigStoreAccessor(URI uri) throws Exception {
-    if (this.configStoreMap.containsKey(uri)) {
-      return this.configStoreMap.get(uri);
+  private ConfigStoreAccessor getConfigStoreAccessor(URI uri) throws Exception {  
+    URI floorKey = this.configStoreMap.floorKey(uri);
+    if(PathUtils.checkDescendant(floorKey, uri)){
+      return this.configStoreMap.get(floorKey);
     }
 
     ConfigStoreFactory<ConfigStore> csFactory = this.getConfigStoreFactory(uri);
     ConfigStore cs = csFactory.createConfigStore(uri);
 
-    if(!(cs instanceof ConfigStoreWithStableVersion)){
-      if(this.policy == VERSION_STABILITY_POLICY.RAISE_ERROR){
+    if (!(cs instanceof ConfigStoreWithStableVersion)) {
+      if (this.policy == VERSION_STABILITY_POLICY.RAISE_ERROR) {
         throw new Exception(String.format("Try to connect to unstable config store ", cs.getStoreURI()));
       }
     }
 
-    // ConfigStoreFactory scheme name could be different than configStore's StoreURI's scheme name
-    URI csRoot = cs.getStoreURI();
-    URI key = new URI(csFactory.getScheme(), csRoot.getAuthority(), csRoot.getPath(), csRoot.getQuery(), csRoot.getFragment());
-    String curVersion = cs.getCurrentVersion();
-    ConfigStoreAccessor value = new ConfigStoreAccessor(cs, curVersion);
+    URI key = cs.getStoreURI();
+    ConfigStoreAccessor value = new ConfigStoreAccessor(cs, cs.getCurrentVersion());
 
     // create default resolver
-    if(!(cs instanceof ConfigStoreWithResolution)){
+    if (!(cs instanceof ConfigStoreWithResolution)) {
       SimpleConfigStoreResolver resolver = new SimpleConfigStoreResolver(cs);
       value.resolver = resolver;
     }
@@ -109,11 +107,11 @@ public class ConfigClient {
     // need to create the SimpleImportMappings using the resolver NOT the raw configStore
     // otherwise, the getImportsRecursively and getImportedByRecursively will not work
     // as raw configstore is NOT ConfigStoreWithResolution
-    if(! ((cs instanceof ConfigStoreWithImportedBy) && (cs instanceof ConfigStoreWithImportedByRecursively)) ){
+    if (!((cs instanceof ConfigStoreWithImportedBy) && (cs instanceof ConfigStoreWithImportedByRecursively))) {
       SimpleImportMappings im = new SimpleImportMappings(value.resolver, value.version);
       value.simpleImportMappings = im;
     }
-    
+
     this.configStoreMap.put(key, value);
     return value;
   }
@@ -122,7 +120,7 @@ public class ConfigClient {
   @SuppressWarnings("unchecked")
   private ConfigStoreFactory<ConfigStore> getConfigStoreFactory(URI uri) throws Exception {
     ConfigStoreFactory csf = configStoreFactoryMap.get(uri.getScheme());
-    if(csf==null){
+    if (csf == null) {
       throw new Exception("can not find corresponding config store factory for scheme " + uri.getScheme());
     }
     return (ConfigStoreFactory<ConfigStore>) csf;
@@ -147,13 +145,12 @@ public class ConfigClient {
    * 
    * 5. If the ConfigStore is NOT ConfigStoreWithResolution, need to do resolution in this client
    */
-  public Config getConfig(URI uri) throws Exception{
+  public Config getConfig(URI uri) throws Exception {
 
     ConfigStoreAccessor csa = this.getConfigStoreAccessor(uri);
+    URI rel_uri = csa.store.getStoreURI().relativize(uri);
 
-    URI rel_uri = getRelativeUriToStore(csa.store.getStoreURI(), uri);
-
-    if(csa.store instanceof ConfigStoreWithResolution){
+    if (csa.store instanceof ConfigStoreWithResolution) {
       return ((ConfigStoreWithResolution) csa.store).getResolvedConfig(rel_uri, csa.version);
     }
 
@@ -165,9 +162,9 @@ public class ConfigClient {
    * @param uris - Collection of URI, each one much start with scheme name
    * @return - the java.util.Map. Key of the map is the URI, value of the Map is getConfig(URI key)
    */
-  public Map<URI, Config> getConfigs(Collection<URI> uris) throws Exception{
+  public Map<URI, Config> getConfigs(Collection<URI> uris) throws Exception {
     Map<URI, Config> result = new HashMap<URI, Config>();
-    for(URI tmp: uris){
+    for (URI tmp : uris) {
       result.put(tmp, this.getConfig(tmp));
     }
     return result;
@@ -183,22 +180,20 @@ public class ConfigClient {
    */
   public Collection<URI> getImports(URI uri, boolean recursive) throws Exception {
     ConfigStoreAccessor csa = this.getConfigStoreAccessor(uri);
+    URI rel_uri = csa.store.getStoreURI().relativize(uri);
 
-    URI rel_uri = getRelativeUriToStore(csa.store.getStoreURI(), uri);
-
-    if(!recursive){
-      return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(), csa.store.getOwnImports(rel_uri, csa.version));
+    if (!recursive) {
+      return getAbsoluteUri(csa.store.getStoreURI(), csa.store.getOwnImports(rel_uri, csa.version));
     }
 
     // need to get recursively imports 
-    if(csa.store instanceof ConfigStoreWithResolution){
-      return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(),
+    if (csa.store instanceof ConfigStoreWithResolution) {
+      return getAbsoluteUri(csa.store.getStoreURI(),
           ((ConfigStoreWithResolution) csa.store).getImportsRecursively(rel_uri, csa.version));
     }
 
     SimpleImportMappings im = csa.simpleImportMappings;
-    return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(),
-        im.getImportMappingRecursively().get(rel_uri));
+    return getAbsoluteUri(csa.store.getStoreURI(), im.getImportMappingRecursively().get(rel_uri));
   }
 
   /**
@@ -210,25 +205,25 @@ public class ConfigClient {
    */
   public Collection<URI> getImportedBy(URI uri, boolean recursive) throws Exception {
     ConfigStoreAccessor csa = this.getConfigStoreAccessor(uri);
-    URI rel_uri = getRelativeUriToStore(csa.store.getStoreURI(), uri);
+    URI rel_uri = csa.store.getStoreURI().relativize(uri);
 
-    if((!recursive) && (csa.store instanceof ConfigStoreWithImportedBy)){
-      return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(),
-          ((ConfigStoreWithImportedBy) csa.store).getImportedBy(rel_uri,csa.version));
+    if ((!recursive) && (csa.store instanceof ConfigStoreWithImportedBy)) {
+      return getAbsoluteUri(csa.store.getStoreURI(),
+          ((ConfigStoreWithImportedBy) csa.store).getImportedBy(rel_uri, csa.version));
     }
 
-    if(recursive && (csa.store instanceof ConfigStoreWithImportedByRecursively)){
-      return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(),
+    if (recursive && (csa.store instanceof ConfigStoreWithImportedByRecursively)) {
+      return getAbsoluteUri(csa.store.getStoreURI(),
           ((ConfigStoreWithImportedByRecursively) csa.store).getImportedByRecursively(rel_uri, csa.version));
     }
 
     SimpleImportMappings im = csa.simpleImportMappings;
 
-    if(!recursive){
-      return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(), im.getImportedByMapping().get(rel_uri));
+    if (!recursive) {
+      return getAbsoluteUri(csa.store.getStoreURI(), im.getImportedByMapping().get(rel_uri));
     }
 
-    return getAbsoluteUri(uri.getScheme(), csa.store.getStoreURI(), im.getImportedByMappingRecursively().get(rel_uri));
+    return getAbsoluteUri(csa.store.getStoreURI(), im.getImportedByMappingRecursively().get(rel_uri));
   }
 
   /**
@@ -241,26 +236,12 @@ public class ConfigClient {
     this.configStoreMap.remove(uri);
   }
 
-  private URI getRelativeUriToStore(URI storeRootURI, URI absURI) throws URISyntaxException{
-    String root = storeRootURI.getPath();
-    String absPath = absURI.getPath();
-
-    if(root.equals(absPath)){
-      return new URI("");
-    }
-
-    return new URI(absPath.substring(root.length()+1));
-  }
-
-  private Collection<URI> getAbsoluteUri(String scheme, URI storeRootURI, Collection<URI> relativeURI) throws URISyntaxException {
+  private Collection<URI> getAbsoluteUri(URI storeRootURI, Collection<URI> relativeURI) throws URISyntaxException {
     List<URI> result = new ArrayList<URI>();
 
-    for(URI tmp: relativeURI){
-      result.add( new URI(scheme, 
-          storeRootURI.getAuthority(),
-          storeRootURI.getPath() + "/" + tmp.getPath(),
-          storeRootURI.getQuery(),
-          storeRootURI.getFragment()) );
+    for (URI tmp : relativeURI) {
+      result.add(new URI(storeRootURI.getScheme(), storeRootURI.getAuthority(), storeRootURI.getPath() + "/"
+          + tmp.getPath(), storeRootURI.getQuery(), storeRootURI.getFragment()));
     }
     return result;
   }
@@ -271,7 +252,7 @@ public class ConfigClient {
     SimpleImportMappings simpleImportMappings;
     SimpleConfigStoreResolver resolver;
 
-    ConfigStoreAccessor(ConfigStore cs, String v){
+    ConfigStoreAccessor(ConfigStore cs, String v) {
       this.store = cs;
       this.version = v;
     }

@@ -2,12 +2,10 @@ package gobblin.config.configstore.impl;
 
 import gobblin.config.configstore.ConfigStore;
 import gobblin.config.configstore.VersionFinder;
-import gobblin.config.utils.PathUtils;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -42,15 +40,21 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
   protected final FileSystem fs;
   protected final VersionFinder<String> vc;
 
-  public BaseHdfsConfigStore(URI root) {
-    this(root, new SimpleVersionFinder());
+  /**
+   * 
+   * @param physical_root - actual hdfs URI, example: new URI("hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest")
+   * @param logic_root - logic hdfs URI, the scheme name could be different than actual scheme name, 
+   *  example: new URI("etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest")
+   */
+  public BaseHdfsConfigStore(URI physical_root, URI logic_root) {
+    this(physical_root, logic_root, new SimpleVersionFinder());
   }
 
-  public BaseHdfsConfigStore(URI root, VersionFinder<String> vc) {
+  public BaseHdfsConfigStore(URI physical_root, URI logic_root, VersionFinder<String> vc) {
     try {
-      this.storeURI = root;
-      this.location = new Path(root);
-      this.fs = FileSystem.get(root, new Configuration());
+      this.storeURI = logic_root;
+      this.location = new Path(physical_root);
+      this.fs = FileSystem.get(physical_root, new Configuration());
     } catch (IOException ioe) {
       LOG.error("can not initial the file system " + ioe.getMessage(), ioe);
       throw new RuntimeException(ioe);

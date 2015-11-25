@@ -41,8 +41,10 @@ public class ETLHdfsConfigStoreFactory implements ConfigStoreFactory<ConfigStore
 
     try {
       URI adjusted = new URI(getActualScheme(), uri.getAuthority(), uri.getPath(), uri.getQuery(), uri.getFragment());
-      URI root = this.findConfigStoreRoot(adjusted, fs);
-      return new ETLHdfsConfigStore(root);
+      URI physical_root = this.findConfigStoreRoot(adjusted, fs);
+      URI logical_root = 
+          new URI(getScheme(), physical_root.getAuthority(), physical_root.getPath(), physical_root.getQuery(),physical_root.getFragment());
+      return new ETLHdfsConfigStore(physical_root, logical_root);
     } catch (URISyntaxException e) {
       LOG.error("got error when constructing uri based on " + uri, e);
       throw new RuntimeException(e);

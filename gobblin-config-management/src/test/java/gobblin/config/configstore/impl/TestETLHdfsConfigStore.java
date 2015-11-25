@@ -69,7 +69,7 @@ public class TestETLHdfsConfigStore {
     FilesUtil.SyncDirs(input, testRootDir);
 
     URI storeURI = new URI("file://" + testRootDir.getAbsolutePath());
-    store = new ETLHdfsConfigStore(storeURI);
+    store = new ETLHdfsConfigStore(storeURI, storeURI);
     dataset = new URI("datasets/a1/a2/a3");
   }
 
