@@ -27,6 +27,10 @@ dependencies {
     compile externalDependency.slf4j
     compile externalDependency.gson
     compile externalDependency.commonsVfs
+    compile externalDependency.parquetCommon
+	compile externalDependency.parquetColumn
+	compile externalDependency.parquetHadoop
+	compile externalDependency.parquetAvro
     if (project.hasProperty('useHadoop2')) {
       compile externalDependency.avroMapredH2
     } else {
