@@ -66,6 +66,6 @@ public class SimpleJsonConverter extends ToAvroConverterBase<String, String> {
       record.put(entry.getKey(), entry.getValue());
     }
 
-    return new SingleRecordIterable<GenericRecord>(record);
+    return new SingleRecordIterable<>(record);
   }
 }

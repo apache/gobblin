@@ -41,8 +41,6 @@ public class TestExtractor implements Extractor<String, String> {
 
   private static final Logger LOG = LoggerFactory.getLogger(TestExtractor.class);
 
-  private static final String SOURCE_FILE_KEY = "source.file";
-
   // Test Avro schema
   private static final String AVRO_SCHEMA = "{\"namespace\": \"example.avro\",\n" +
       " \"type\": \"record\",\n" +
@@ -61,7 +59,7 @@ public class TestExtractor implements Extractor<String, String> {
   public TestExtractor(WorkUnitState workUnitState) {
     //super(workUnitState);
     Schema schema = new Schema.Parser().parse(AVRO_SCHEMA);
-    Path sourceFile = new Path(workUnitState.getWorkunit().getProp(SOURCE_FILE_KEY));
+    Path sourceFile = new Path(workUnitState.getWorkunit().getProp(TestSource.SOURCE_FILE_KEY));
     LOG.info("Reading from source file " + sourceFile);
     DatumReader<GenericRecord> datumReader = new GenericDatumReader<GenericRecord>(schema);
     try {

@@ -96,6 +96,7 @@ ext.externalDependency = [
   "hadoopYarnApi": "org.apache.hadoop:hadoop-yarn-api:"+hadoopVersion,
   "hadoopYarnCommon": "org.apache.hadoop:hadoop-yarn-common:"+hadoopVersion,
   "hadoopYarnClient": "org.apache.hadoop:hadoop-yarn-client:"+hadoopVersion,
+  "hadoopYarnMiniCluster": "org.apache.hadoop:hadoop-minicluster:"+hadoopVersion,
   "hadoopAnnotations": "org.apache.hadoop:hadoop-annotations:"+hadoopVersion,
   "hadoopAws": "org.apache.hadoop:hadoop-aws:2.6.0",
   "hiveService": "org.apache.hive:hive-service:"+hiveVersion,
@@ -145,6 +146,8 @@ ext.externalDependency = [
   "calciteCore": "org.apache.calcite:calcite-core:1.2.0-incubating",
   "calciteAvatica": "org.apache.calcite:calcite-avatica:1.2.0-incubating",
   "jhyde": "org.pentaho:pentaho-aggdesigner-algorithm:5.1.5-jhyde",
+  "curatorFramework": "org.apache.curator:curator-framework:2.8.0",
+  "curatorTest": "org.apache.curator:curator-test:2.8.0",
   "pegasus" : [
     "data" : "com.linkedin.pegasus:data:"+pegasusVersion,
     "generator" : "com.linkedin.pegasus:generator:"+pegasusVersion,

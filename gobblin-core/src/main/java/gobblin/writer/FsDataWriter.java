@@ -89,12 +89,10 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
         ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
       // Initialize file system as a proxy user.
       try {
-        this.fs =
-            new ProxiedFileSystemWrapper().getProxiedFileSystem(properties, ProxiedFileSystemWrapper.AuthType.TOKEN,
+        this.fs = new ProxiedFileSystemWrapper()
+            .getProxiedFileSystem(properties, ProxiedFileSystemWrapper.AuthType.TOKEN,
                 properties.getProp(ConfigurationKeys.FS_PROXY_AS_USER_TOKEN_FILE), uri);
-      } catch (InterruptedException e) {
-        throw new IOException(e);
-      } catch (URISyntaxException e) {
+      } catch (InterruptedException | URISyntaxException e) {
         throw new IOException(e);
       }
     } else {

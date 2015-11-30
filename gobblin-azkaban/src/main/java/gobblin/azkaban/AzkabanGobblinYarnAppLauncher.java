@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.util.Properties;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.log4j.Logger;
 
 import azkaban.jobExecutor.AbstractJob;
@@ -49,7 +50,8 @@ public class AzkabanGobblinYarnAppLauncher extends AbstractJob {
 
   public AzkabanGobblinYarnAppLauncher(String jobId, Properties props) throws IOException {
     super(jobId, LOGGER);
-    this.gobblinYarnAppLauncher = new GobblinYarnAppLauncher(ConfigFactory.parseProperties(props));
+    this.gobblinYarnAppLauncher = new GobblinYarnAppLauncher(ConfigFactory.parseProperties(props),
+        new YarnConfiguration());
   }
 
   @Override

@@ -57,6 +57,7 @@ import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
@@ -121,10 +122,10 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
   private volatile boolean stopInProgress = false;
   private volatile boolean isStopped = false;
 
-  public GobblinWorkUnitRunner(String applicationName, Config config) throws Exception {
-    this.containerId =
-        ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
+  public GobblinWorkUnitRunner(String applicationName, ContainerId containerId, Config config) throws Exception {
+    this.containerId = containerId;
     ApplicationAttemptId applicationAttemptId = this.containerId.getApplicationAttemptId();
+    String applicationId = applicationAttemptId.getApplicationId().toString();
 
     FileSystem fs = config.hasPath(ConfigurationKeys.FS_URI_KEY) ?
         FileSystem.get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), new Configuration()) :
@@ -144,8 +145,10 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
     TaskStateTracker taskStateTracker = new GobblinHelixTaskStateTracker(properties, this.helixManager);
 
     List<Service> services = Lists.newArrayList();
-    services.add(buildLogCopier(this.containerId, fs, YarnHelixUtils.getAppWorkDirPath(fs, applicationName,
-        applicationAttemptId.getApplicationId())));
+    if (isLogSourcePresent()) {
+      services.add(
+          buildLogCopier(this.containerId, fs, YarnHelixUtils.getAppWorkDirPath(fs, applicationName, applicationId)));
+    }
     services.add(taskExecutor);
     services.add(taskStateTracker);
     if (config.hasPath(GobblinYarnConfigurationKeys.KEYTAB_FILE_PATH)) {
@@ -157,8 +160,7 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
 
     // Register task factory for the Helix task state model
     Map<String, TaskFactory> taskFactoryMap = Maps.newHashMap();
-    Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(
-        fs, applicationName, containerId.getApplicationAttemptId().getApplicationId());
+    Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(fs, applicationName, applicationId);
     taskFactoryMap.put(GOBBLIN_TASK_FACTORY_NAME,
         new GobblinHelixTaskFactory(taskExecutor, taskStateTracker, fs, appWorkDir));
     this.taskStateModelFactory = new TaskStateModelFactory(this.helixManager, taskFactoryMap);
@@ -181,16 +183,7 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
     // Add a shutdown hook so the task scheduler gets properly shutdown
     addShutdownHook();
 
-    try {
-      this.helixManager.connect();
-      this.helixManager.getMessagingService().registerMessageHandlerFactory(
-          Message.MessageType.SHUTDOWN.toString(), new ParticipantShutdownMessageHandlerFactory());
-      this.helixManager.getMessagingService().registerMessageHandlerFactory(
-          Message.MessageType.USER_DEFINE_MSG.toString(), new ParticipantUserDefinedMessageHandlerFactory());
-    } catch (Exception e) {
-      LOGGER.error("HelixManager failed to connect", e);
-      throw Throwables.propagate(e);
-    }
+    connectHelixManager();
 
     // Register JVM metrics to collect and report
     registerJvmMetrics();
@@ -221,13 +214,36 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
     } finally {
       this.taskStateModelFactory.shutdown();
 
-      if (this.helixManager.isConnected()) {
-        this.helixManager.getStateMachineEngine().removeStateModelFactory("Task", this.taskStateModelFactory);
-        this.helixManager.disconnect();
-      }
+      disconnectHelixManager();
     }
 
     this.isStopped = true;
+  }
+
+  @VisibleForTesting
+  boolean isStopped() {
+    return this.isStopped;
+  }
+
+  @VisibleForTesting
+  void connectHelixManager() {
+    try {
+      this.helixManager.connect();
+      this.helixManager.getMessagingService().registerMessageHandlerFactory(
+          Message.MessageType.SHUTDOWN.toString(), new ParticipantShutdownMessageHandlerFactory());
+      this.helixManager.getMessagingService().registerMessageHandlerFactory(
+          Message.MessageType.USER_DEFINE_MSG.toString(), new ParticipantUserDefinedMessageHandlerFactory());
+    } catch (Exception e) {
+      LOGGER.error("HelixManager failed to connect", e);
+      throw Throwables.propagate(e);
+    }
+  }
+
+  @VisibleForTesting
+  void disconnectHelixManager() {
+    if (this.helixManager.isConnected()) {
+      this.helixManager.disconnect();
+    }
   }
 
   private void addShutdownHook() {
@@ -421,8 +437,11 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
       Log4jConfigurationHelper.updateLog4jConfiguration(
           GobblinWorkUnitRunner.class, Log4jConfigurationHelper.LOG4J_CONFIGURATION_FILE_NAME);
 
-      GobblinWorkUnitRunner gobblinWorkUnitRunner = new GobblinWorkUnitRunner(
-          cmd.getOptionValue(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME), ConfigFactory.load());
+      ContainerId containerId =
+          ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
+      GobblinWorkUnitRunner gobblinWorkUnitRunner =
+          new GobblinWorkUnitRunner(cmd.getOptionValue(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME),
+              containerId, ConfigFactory.load());
       gobblinWorkUnitRunner.start();
     } catch (ParseException pe) {
       printUsage(options);

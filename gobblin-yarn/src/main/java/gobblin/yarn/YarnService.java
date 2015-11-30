@@ -33,7 +33,6 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
-import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
@@ -87,8 +86,8 @@ public class YarnService extends AbstractIdleService {
 
   private final ConcurrentMap<ContainerId, Map.Entry<Container, String>> containerMap = Maps.newConcurrentMap();
 
-  private final ApplicationId applicationId;
   private final String applicationName;
+  private final String applicationId;
 
   private final Config config;
 
@@ -115,14 +114,14 @@ public class YarnService extends AbstractIdleService {
 
   private volatile Optional<Resource> maxResourceCapacity =Optional.absent();
 
-  public YarnService(Config config, String applicationName, ApplicationId applicationId, FileSystem fs,
-      EventBus eventBus) throws Exception {
+  public YarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
+      FileSystem fs, EventBus eventBus) throws Exception {
     this.applicationName = applicationName;
     this.applicationId = applicationId;
 
     this.config = config;
 
-    this.yarnConfiguration = new YarnConfiguration();
+    this.yarnConfiguration = yarnConfiguration;
     this.amrmClientAsync = closer.register(
         AMRMClientAsync.createAMRMClientAsync(1000, new AMRMClientCallbackHandler()));
     this.amrmClientAsync.init(this.yarnConfiguration);

@@ -32,11 +32,6 @@ dependencies {
   compile externalDependency.commonsConfiguration
   compile externalDependency.quartz
   compile externalDependency.guava
-  compile externalDependency.jacksonCore
-  compile externalDependency.jacksonMapper
-  compile externalDependency.jodaTime
-  compile externalDependency.httpclient
-  compile externalDependency.httpcore
   compile externalDependency.commonsLang
   compile externalDependency.slf4j
   compile externalDependency.log4j
@@ -47,8 +42,6 @@ dependencies {
   compile externalDependency.commonsIo
   compile externalDependency.commonsEmail
   compile externalDependency.pegasus.data
-  compile externalDependency.guice
-  compile externalDependency.javaxInject
   compile externalDependency.findBugs
   compile externalDependency.typesafeConfig
   compile externalDependency.hadoopCommon
@@ -61,39 +54,48 @@ dependencies {
     compile externalDependency.avroMapredH1
   }
 
+  testCompile project(":gobblin-example")
+
   testCompile externalDependency.testng
-  testCompile externalDependency.byteman
-  testCompile externalDependency.bytemanBmunit
-  testRuntime externalDependency.derby
+  testCompile externalDependency.hadoopYarnMiniCluster
+  testCompile externalDependency.curatorFramework
+  testCompile externalDependency.curatorTest
 
   compile files('./src/main/resources/helix-core-0.6.6-SNAPSHOT.jar')
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {
-    baseName = "test-${project.archivesBaseName}"
-    from sourceSets.test.output
+  baseName = "test-${project.archivesBaseName}"
+  from sourceSets.test.output
 }
 
 configurations {
-    tests
+  tests
 }
 
 configurations {
-    compile {
-        transitive = false
+  compile {
+    transitive = false
+  }
+
+  testRuntime {
+    resolutionStrategy {
+      force 'com.google.inject:guice:3.0'
+      force 'org.apache.hadoop:hadoop-yarn-server-resourcemanager:'+hadoopVersion
     }
+  }
 }
 
 artifacts {
-    tests testJar
+  tests testJar
 }
 
 test {
-    useTestNG () {
-      excludeGroups 'ignore'
-    }
-    workingDir rootProject.rootDir
-    maxParallelForks = 1
+  useTestNG () {
+    excludeGroups 'ignore'
+  }
+  workingDir rootProject.rootDir
+  maxParallelForks = 1
 }
 
 clean {
