@@ -7,6 +7,7 @@
 FWDIR="$(cd `dirname $0`/..; pwd)"
 FWDIR_LIB=$FWDIR/lib
 FWDIR_CONF=$FWDIR/conf
+FWDIR_BIN=$FWDIR/bin
 
 function print_usage(){
   echo "Usage: gobblin-mapreduce.sh [OPTION] --conf <job configuration file>"
@@ -71,7 +72,7 @@ if [ -z "$GOBBLIN_WORK_DIR" ]; then
   die "GOBBLIN_WORK_DIR is not set!"
 fi
 
-. $FWDIR_CONF/gobblin-env.sh
+. $FWDIR_BIN/gobblin-env.sh
 
 USER_JARS=""
 separator=''
