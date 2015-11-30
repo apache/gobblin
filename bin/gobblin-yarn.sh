@@ -50,9 +50,10 @@ function stop() {
 
 FWDIR="$(cd `dirname $0`/..; pwd)"
 FWDIR_LIB=${FWDIR}/lib
-FWDIR_CONF=${FWDIR}/conf
+FWDIR_CONF=${FWDIR}/yarn/conf
+FWDIR_BIN=${FWDIR}/bin
 
-. ${FWDIR_CONF}/gobblin-env.sh
+. ${FWDIR_BIN}/gobblin-env.sh
 
 for i in "$@"
 do
