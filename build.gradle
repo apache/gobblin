@@ -25,11 +25,13 @@ apply from: environmentScript
 
 ext.publishToMaven = project.hasProperty('publishToMaven')
 if (ext.publishToMaven) {
-    plugins.apply('maven-publish')
+    plugins.apply('maven')
+    //workaround for a bug in gradle's "maven" plugin. See https://discuss.gradle.org/t/error-in-parallel-build/7215/3
+    project.setProperty("org.gradle.parallel", "false")
 }
 
 if (!project.hasProperty('group') || project.group.length() == 0) {
-    project.group = 'gobblin'
+    project.group = 'com.linkedin.gobblin'
 }
 
 if (!project.hasProperty('version') || project.version == 'unspecified') {
@@ -45,6 +47,9 @@ if (!project.hasProperty('version') || project.version == 'unspecified') {
     }
     else {
         project.version = tagStr
+    }
+    if (!project.hasProperty('useHadoop2')) {
+      project.version = project.version + "-hadoop1"
     }
 }
 
@@ -187,6 +192,10 @@ plugins.withType(JavaPlugin) {
 
   sourceCompatibility = JavaVersion.VERSION_1_7
 
+  javadoc {
+    options.JFlags = ["-Xmx256m"]
+  }
+
 /*  findbugs {
     ignoreFailures = true
     effort = "max"
@@ -235,20 +244,46 @@ plugins.withType(JavaPlugin) {
 
   // Publishing of maven artifacts for subprojects
   if (rootProject.ext.publishToMaven) {
-    plugins.apply('maven-publish')
+    plugins.apply('maven')
+    plugins.apply('signing')
 
-    publishing {
-      publications {
-        mavenJava(MavenPublication) {
-          from components.java
+    project.version = rootProject.version
+    project.group = rootProject.group
 
-          version "${rootProject.version}"
-          groupId "${rootProject.group}"
-         
-          artifact sourcesJar { classifier "sources"} 
-          artifact javadocJar { classifier "javadoc"} 
+    uploadArchives {
+      repositories {
+        mavenDeployer {
+          beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+          repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+            authentication(userName: ossrhUsername, password: ossrhPassword)
+          }
+
+          snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+            authentication(userName: ossrhUsername, password: ossrhPassword)
+          }
+
+          pom.project {
+            name "${project.name}"
+            packaging 'jar'
+            // optionally artifactId can be defined here 
+            description 'Gobblin'
+            url 'https://github.com/linkedin/gobblin/'
+
+
+            licenses {
+              license {
+                name 'The Apache License, Version 2.0'
+                url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+              }
+            }
+          }
         }
       }
+    }
+
+    signing {
+      sign configurations.archives
     }
   }
 
