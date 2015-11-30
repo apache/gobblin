@@ -42,6 +42,11 @@ public class TestConfigClient {
     Config c = cc.getConfig(dsURI);
     //TestETLHdfsConfigStore.printConfig(c, dsURI.toString());
     TestETLHdfsConfigStore.validateImportedConfig(c);
+    
+    // clear cache 
+    cc.clearCache(dsURI);
+    c = cc.getConfig(dsURI);
+    TestETLHdfsConfigStore.validateImportedConfig(c);
   }
 
   @Test

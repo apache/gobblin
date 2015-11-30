@@ -69,7 +69,7 @@ public class PathUtils {
     String path2 = child.getPath();
 
     // path2 starts with path1
-    if (path1.equals(path2) || path1.indexOf(path2 + "/") == 0) {
+    if (path2.equals(path1) || path2.indexOf(path1 + "/") == 0) {
       return true;
     }
     return false;

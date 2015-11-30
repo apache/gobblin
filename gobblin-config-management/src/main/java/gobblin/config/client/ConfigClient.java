@@ -20,6 +20,8 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.TreeMap;
 
+import org.apache.log4j.Logger;
+
 import com.typesafe.config.Config;
 
 
@@ -30,6 +32,8 @@ import com.typesafe.config.Config;
  */
 @SuppressWarnings("rawtypes")
 public class ConfigClient {
+
+  private static final Logger LOG = Logger.getLogger(ConfigClient.class);
 
   public static enum VERSION_STABILITY_POLICY {
     RAISE_ERROR,
@@ -49,6 +53,7 @@ public class ConfigClient {
     ServiceLoader<ConfigStoreFactory> loader = ServiceLoader.load(ConfigStoreFactory.class);
     for (ConfigStoreFactory f : loader) {
       configStoreFactoryMap.put(f.getScheme(), f);
+      LOG.info("Created the config store factory with scheme name " + f.getScheme());
     }
   }
 
@@ -104,15 +109,22 @@ public class ConfigClient {
     }
 
     // create default importedBy mapping object
-    // need to create the SimpleImportMappings using the resolver NOT the raw configStore
-    // otherwise, the getImportsRecursively and getImportedByRecursively will not work
-    // as raw configstore is NOT ConfigStoreWithResolution
     if (!((cs instanceof ConfigStoreWithImportedBy) && (cs instanceof ConfigStoreWithImportedByRecursively))) {
-      SimpleImportMappings im = new SimpleImportMappings(value.resolver, value.version);
+      SimpleImportMappings im = null;
+      // need to create the SimpleImportMappings using the resolver NOT the raw configStore
+      // otherwise, the getImportsRecursively and getImportedByRecursively will not work
+      // as raw configstore is NOT ConfigStoreWithResolution
+      if (!(cs instanceof ConfigStoreWithResolution)) {
+        im = new SimpleImportMappings(value.resolver, value.version);
+      } else {
+        im = new SimpleImportMappings(cs, value.version);
+      }
       value.simpleImportMappings = im;
     }
 
     this.configStoreMap.put(key, value);
+    LOG.info(String.format("Created new config store with uri: %s, version: %s", cs.getStoreURI(),
+        cs.getCurrentVersion()));
     return value;
   }
 
@@ -123,6 +135,7 @@ public class ConfigClient {
     if (csf == null) {
       throw new Exception("can not find corresponding config store factory for scheme " + uri.getScheme());
     }
+
     return (ConfigStoreFactory<ConfigStore>) csf;
   }
 
@@ -227,12 +240,17 @@ public class ConfigClient {
    * different from the last configuration received.
    */
   public void clearCache(URI uri) {
-    this.configStoreMap.remove(uri);
+    URI floorKey = this.configStoreMap.floorKey(uri);
+    if (PathUtils.checkDescendant(floorKey, uri)) {
+      ConfigStoreAccessor csa = this.configStoreMap.remove(floorKey);
+      LOG.info(String.format("Cleared cache for config store: %s, version %s", csa.store.getStoreURI(), csa.version));
+    }
   }
 
   private Collection<URI> getAbsoluteUri(URI storeRootURI, Collection<URI> relativeURI) throws URISyntaxException {
     List<URI> result = new ArrayList<URI>();
-    if(relativeURI==null || relativeURI.size()==0) return result;
+    if (relativeURI == null || relativeURI.size() == 0)
+      return result;
 
     for (URI tmp : relativeURI) {
       result.add(new URI(storeRootURI.getScheme(), storeRootURI.getAuthority(), storeRootURI.getPath() + "/"
