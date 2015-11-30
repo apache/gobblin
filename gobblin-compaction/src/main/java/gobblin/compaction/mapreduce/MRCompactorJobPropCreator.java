@@ -15,6 +15,7 @@ package gobblin.compaction.mapreduce;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -28,7 +29,8 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
-import gobblin.compaction.Dataset;
+import gobblin.compaction.dataset.Dataset;
+import gobblin.compaction.event.CompactionSlaEventHelper;
 import gobblin.configuration.State;
 import gobblin.util.FileListUtils;
 
@@ -42,69 +44,32 @@ import gobblin.util.FileListUtils;
 public class MRCompactorJobPropCreator {
   private static final Logger LOG = LoggerFactory.getLogger(MRCompactorJobPropCreator.class);
 
-  @SuppressWarnings("unchecked")
-  static class Builder<T extends Builder<?>> {
+  static class Builder {
 
-    String topic;
-    double priority = Dataset.DEFAULT_PRIORITY;
-    Path topicInputDir;
-    Path topicInputLateDir;
-    Path topicOutputDir;
-    Path topicOutputLateDir;
-    Path topicTmpOutputDir;
+    Dataset dataset;
     FileSystem fs;
     State state;
     double lateDataThresholdForRecompact;
 
-    T withTopic(String topic) {
-      this.topic = topic;
-      return (T) this;
+    Builder withDataset(Dataset dataset) {
+      this.dataset = dataset;
+      return this;
     }
 
-    T withPriority(double priority) {
-      this.priority = priority;
-      return (T) this;
-    }
-
-    T withTopicInputDir(Path topicInputDir) {
-      this.topicInputDir = topicInputDir;
-      return (T) this;
-    }
-
-    T withTopicInputLateDir(Path topicInputLateDir) {
-      this.topicInputLateDir = topicInputLateDir;
-      return (T) this;
-    }
-
-    T withTopicOutputDir(Path topicOutputDir) {
-      this.topicOutputDir = topicOutputDir;
-      return (T) this;
-    }
-
-    T withTopicOutputLateDir(Path topicOutputLateDir) {
-      this.topicOutputLateDir = topicOutputLateDir;
-      return (T) this;
-    }
-
-    T withTopicTmpOutputDir(Path topicTmpOutputDir) {
-      this.topicTmpOutputDir = topicTmpOutputDir;
-      return (T) this;
-    }
-
-    T withFileSystem(FileSystem fs) {
+    Builder withFileSystem(FileSystem fs) {
       this.fs = fs;
-      return (T) this;
+      return this;
     }
 
-    T withState(State state) {
+    Builder withState(State state) {
       this.state = new State();
       this.state.addAll(state);
-      return (T) this;
+      return this;
     }
 
-    T withLateDataThresholdForRecompact(double thresholdForRecompact) {
+    Builder withLateDataThresholdForRecompact(double thresholdForRecompact) {
       this.lateDataThresholdForRecompact = thresholdForRecompact;
-      return (T) this;
+      return this;
     }
 
     MRCompactorJobPropCreator build() {
@@ -112,13 +77,7 @@ public class MRCompactorJobPropCreator {
     }
   }
 
-  protected final String topic;
-  protected final double priority;
-  protected final Path topicInputDir;
-  protected final Path topicInputLateDir;
-  protected final Path topicOutputDir;
-  protected final Path topicOutputLateDir;
-  protected final Path topicTmpOutputDir;
+  protected final Dataset dataset;
   protected final FileSystem fs;
   protected final State state;
   protected final boolean inputDeduplicated;
@@ -133,14 +92,8 @@ public class MRCompactorJobPropCreator {
   // output '_late' folders will be used as input to compaction jobs.
   protected final boolean recompactFromOutputPaths;
 
-  protected MRCompactorJobPropCreator(Builder<?> builder) {
-    this.topic = builder.topic;
-    this.priority = builder.priority;
-    this.topicInputDir = builder.topicInputDir;
-    this.topicInputLateDir = builder.topicInputLateDir;
-    this.topicOutputDir = builder.topicOutputDir;
-    this.topicOutputLateDir = builder.topicOutputLateDir;
-    this.topicTmpOutputDir = builder.topicTmpOutputDir;
+  private MRCompactorJobPropCreator(Builder builder) {
+    this.dataset = builder.dataset;
     this.fs = builder.fs;
     this.state = builder.state;
     this.lateDataThresholdForRecompact = builder.lateDataThresholdForRecompact;
@@ -156,26 +109,28 @@ public class MRCompactorJobPropCreator {
   }
 
   protected List<Dataset> createJobProps() throws IOException {
-    if (!this.fs.exists(this.topicInputDir)) {
-      LOG.warn("Input folder " + this.topicInputDir + " does not exist. Skipping topic " + this.topic);
+    if (!this.fs.exists(this.dataset.inputPath())) {
+      LOG.warn("Input folder " + this.dataset.inputPath() + " does not exist. Skipping dataset " + this.dataset);
       return ImmutableList.<Dataset> of();
     }
-    Dataset dataset = buildDataset();
-    Optional<Dataset> datasetWithJobProps = createJobProps(dataset);
+    Optional<Dataset> datasetWithJobProps = createJobProps(this.dataset);
     if (datasetWithJobProps.isPresent()) {
+      setCompactionSLATimestamp(datasetWithJobProps.get());
       return ImmutableList.<Dataset> of(datasetWithJobProps.get());
     } else {
       return ImmutableList.<Dataset> of();
     }
   }
 
-  private Dataset buildDataset() {
-    return new Dataset.Builder().withTopic(this.topic).withPriority(this.priority)
-        .withLateDataThresholdForRecompact(this.lateDataThresholdForRecompact)
-        .withInputPath(this.recompactFromOutputPaths ? this.topicOutputDir : this.topicInputDir)
-        .withInputLatePath(this.recompactFromOutputPaths ? this.topicOutputLateDir : this.topicInputLateDir)
-        .withOutputPath(this.topicOutputDir).withOutputLatePath(this.topicOutputLateDir)
-        .withOutputTmpPath(this.topicTmpOutputDir).build();
+  private void setCompactionSLATimestamp(Dataset dataset) {
+    // Set up SLA timestamp only if this dataset will be compacted and MRCompactor.COMPACTION_INPUT_PATH_TIME is present.
+    if ((this.recompactFromOutputPaths || !MRCompactor.datasetAlreadyCompacted(this.fs, dataset))
+        && dataset.jobProps().contains(MRCompactor.COMPACTION_INPUT_PATH_TIME)) {
+      long timeInMills = dataset.jobProps().getPropAsLong(MRCompactor.COMPACTION_INPUT_PATH_TIME);
+      // Set the upstream time to partition + 1 day. E.g. for 2015/10/13 the upstream time is midnight of 2015/10/14
+      CompactionSlaEventHelper.setUpstreamTimeStamp(state,
+          timeInMills + TimeUnit.MILLISECONDS.convert(1, TimeUnit.DAYS));
+    }
   }
 
   /**
@@ -245,19 +200,6 @@ public class MRCompactorJobPropCreator {
   }
 
   /**
-   * Create MR job properties for a {@link Dataset} and partition.
-   */
-  protected Optional<Dataset> createJobProps(Dataset dataset, String partition) throws IOException {
-    Optional<Dataset> datasetWithJobProps = createJobProps(dataset);
-    if (datasetWithJobProps.isPresent()) {
-      datasetWithJobProps.get().jobProps().setProp(MRCompactor.COMPACTION_JOB_DEST_PARTITION, partition);
-      return datasetWithJobProps;
-    } else {
-      return Optional.<Dataset> absent();
-    }
-  }
-
-  /**
    * Check if inputFolder contains any files which have modification times which are more
    * recent than the last compaction time as stored within outputFolder; return any files
    * which do. An empty list will be returned if all files are older than the last compaction time.
@@ -290,9 +232,8 @@ public class MRCompactorJobPropCreator {
    * the {@link Dataset}.
    */
   public Dataset createFailedJobProps(Throwable t) {
-    Dataset dataset = buildDataset();
-    dataset.setJobProps(this.state);
-    dataset.skip(t);
-    return dataset;
+    this.dataset.setJobProps(this.state);
+    this.dataset.skip(t);
+    return this.dataset;
   }
 }

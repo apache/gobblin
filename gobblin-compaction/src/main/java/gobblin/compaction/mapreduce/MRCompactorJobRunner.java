@@ -42,7 +42,7 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.primitives.Ints;
 
-import gobblin.compaction.Dataset;
+import gobblin.compaction.dataset.Dataset;
 import gobblin.compaction.event.CompactionRecordCountEvent;
 import gobblin.compaction.event.CompactionSlaEventHelper;
 import gobblin.configuration.ConfigurationKeys;
@@ -395,20 +395,20 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   private void submitAndWait(Job job) throws ClassNotFoundException, IOException, InterruptedException {
     job.submit();
     MRCompactor.addRunningHadoopJob(this.dataset, job);
-    LOG.info(String.format("MR job submitted for topic %s, input %s, url: %s", this.dataset.topic(), getInputPaths(),
+    LOG.info(String.format("MR job submitted for dataset %s, input %s, url: %s", this.dataset, getInputPaths(),
         job.getTrackingURL()));
     while (!job.isComplete()) {
       if (this.policy == Policy.ABORT_ASAP) {
         LOG.info(String.format(
-            "MR job for topic %s, input %s killed due to input data incompleteness." + " Will try again later",
-            this.dataset.topic(), getInputPaths()));
+            "MR job for dataset %s, input %s killed due to input data incompleteness." + " Will try again later",
+            this.dataset, getInputPaths()));
         job.killJob();
         return;
       }
       Thread.sleep(MR_JOB_CHECK_COMPLETE_INTERVAL_MS);
     }
     if (!job.isSuccessful()) {
-      throw new RuntimeException(String.format("MR job failed for topic %s, input %s, url: %s", this.dataset.topic(),
+      throw new RuntimeException(String.format("MR job failed for topic %s, input %s, url: %s", this.dataset,
           getInputPaths(), job.getTrackingURL()));
     }
   }
