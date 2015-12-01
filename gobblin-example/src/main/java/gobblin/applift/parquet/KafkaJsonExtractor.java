@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.extract.kafka.KafkaExtractor;
 import kafka.message.MessageAndOffset;
@@ -32,7 +33,7 @@ public class KafkaJsonExtractor extends KafkaExtractor<String, String> {
 	 */
 	@Override
 	public String getSchema() throws IOException {
-		return this.topicName;
+		return null;
 	}
 	
 	

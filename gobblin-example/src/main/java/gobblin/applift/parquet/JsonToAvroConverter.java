@@ -64,7 +64,6 @@ public class JsonToAvroConverter extends ToAvroConverterBase<String, String> {
     for (Map.Entry<String, Object> entry : fields.entrySet()) {
       record.put(entry.getKey(), entry.getValue());
     }
-
     return new SingleRecordIterable<GenericRecord>(record);
   }
 }
