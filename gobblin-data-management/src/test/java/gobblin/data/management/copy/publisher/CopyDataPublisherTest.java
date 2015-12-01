@@ -18,7 +18,7 @@ import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableDatasetMetadata;
 import gobblin.data.management.copy.TestCopyableDataset;
-import gobblin.data.management.util.PathUtils;
+import gobblin.util.PathUtils;
 
 import java.io.IOException;
 import java.util.Collection;

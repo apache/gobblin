@@ -282,8 +282,8 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
    */
   private JobConfigurationManager buildJobConfigurationManager(Config config) {
     Optional<String> jobConfPackagePath =
-        config.hasPath(GobblinYarnConfigurationKeys.JOB_CONF_PACKAGE_PATH_KEY) ? Optional
-            .of(config.getString(GobblinYarnConfigurationKeys.JOB_CONF_PACKAGE_PATH_KEY)) : Optional.<String>absent();
+        config.hasPath(GobblinYarnConfigurationKeys.JOB_CONF_PATH_KEY) ? Optional
+            .of(config.getString(GobblinYarnConfigurationKeys.JOB_CONF_PATH_KEY)) : Optional.<String>absent();
     return new JobConfigurationManager(this.eventBus, jobConfPackagePath);
   }
 

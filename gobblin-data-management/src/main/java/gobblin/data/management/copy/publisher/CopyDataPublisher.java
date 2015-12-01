@@ -21,7 +21,7 @@ import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.CopyableDatasetMetadata;
 import gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder;
-import gobblin.data.management.util.PathUtils;
+import gobblin.util.PathUtils;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;

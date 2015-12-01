@@ -12,9 +12,8 @@
 
 package gobblin.data.management.copy;
 
-import gobblin.configuration.ConfigurationKeys;
 import gobblin.data.management.dataset.DatasetUtils;
-import gobblin.data.management.util.PathUtils;
+import gobblin.util.PathUtils;
 import gobblin.util.FileListUtils;
 
 import java.io.IOException;
@@ -28,8 +27,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;

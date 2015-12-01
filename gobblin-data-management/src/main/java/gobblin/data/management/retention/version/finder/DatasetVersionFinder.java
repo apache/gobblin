@@ -25,7 +25,7 @@ import com.google.common.collect.Lists;
 
 import gobblin.data.management.retention.dataset.CleanableDataset;
 import gobblin.data.management.retention.version.DatasetVersion;
-import gobblin.data.management.util.PathUtils;
+import gobblin.util.PathUtils;
 
 
 /**

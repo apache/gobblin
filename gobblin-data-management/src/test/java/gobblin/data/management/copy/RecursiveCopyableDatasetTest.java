@@ -12,7 +12,7 @@
 
 package gobblin.data.management.copy;
 
-import gobblin.data.management.util.PathUtils;
+import gobblin.util.PathUtils;
 
 import java.util.List;
 import java.util.Properties;

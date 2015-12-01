@@ -12,6 +12,7 @@
 
 package gobblin.data.management.util;
 
+import gobblin.util.PathUtils;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
