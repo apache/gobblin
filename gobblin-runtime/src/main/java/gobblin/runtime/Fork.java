@@ -350,6 +350,21 @@ public class Fork implements Closeable, Runnable, FinalState {
   }
 
   /**
+   * Get the number of bytes written by this {@link Fork}.
+   *
+   * @return the number of bytes written by this {@link Fork}
+   */
+  long getBytesWritten() {
+    try {
+      return this.writer.isPresent() ? this.writer.get().bytesWritten() : 0L;
+    } catch (Throwable t) {
+
+      // Return 0 if the writer does not implement bytesWritten();
+      return 0L;
+    }
+  }
+
+  /**
    * Build a {@link gobblin.writer.DataWriter} for writing fetched data records.
    */
   private DataWriter<Object> buildWriter()

@@ -12,7 +12,6 @@
 
 package gobblin.data.management.copy;
 
-import gobblin.configuration.ConfigurationKeys;
 import gobblin.data.management.util.PathUtils;
 
 import java.util.List;
@@ -39,11 +38,10 @@ public class RecursiveCopyableDatasetTest {
     String destinationDir = getClass().getClassLoader().getResource("copyableDatasetTest/destination").getFile();
 
     Properties properties = new Properties();
-    properties.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, destinationDir);
 
     RecursiveCopyableDataset dataset = new RecursiveCopyableDataset(FileSystem.getLocal(new Configuration()), new Path(baseDir), properties);
 
-    List<CopyableFile> files = dataset.getCopyableFiles();
+    List<CopyableFile> files = dataset.getCopyableFiles(FileSystem.getLocal(new Configuration()), new Path(destinationDir));
 
     Assert.assertEquals(files.size(), 3);
 

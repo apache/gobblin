@@ -12,9 +12,12 @@
 
 package gobblin.yarn;
 
+import java.io.IOException;
 import java.net.URI;
+import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -26,14 +29,16 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
-import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.util.ConverterUtils;
+
 import org.apache.helix.Criteria;
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixManager;
@@ -47,6 +52,7 @@ import org.apache.helix.messaging.handling.MessageHandler;
 import org.apache.helix.messaging.handling.MessageHandlerFactory;
 import org.apache.helix.model.LiveInstance;
 import org.apache.helix.model.Message;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,9 +67,8 @@ import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
@@ -75,8 +80,6 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
 import gobblin.yarn.event.ApplicationMasterShutdownRequest;
 import gobblin.yarn.event.DelegationTokenUpdatedEvent;
 
@@ -89,6 +92,18 @@ import gobblin.yarn.event.DelegationTokenUpdatedEvent;
  *   and the {@link YarnService} for all Yarn-related stuffs like ApplicationMaster registration
  *   and un-registration and Yarn container provisioning. This class serves as the Helix controller
  *   and it uses a {@link HelixManager} to work with Helix.
+ * </p>
+ *
+ * <p>
+ *   This class will initiates a graceful shutdown of the Yarn application in the following conditions:
+ *
+ *   <ul>
+ *     <li>A shutdown request is received via a Helix message of subtype
+ *     {@link HelixMessageSubTypes#APPLICATION_MASTER_SHUTDOWN}. Upon receiving such a message,
+ *     it will call {@link #stop()} to initiate a graceful shutdown of the Yarn application.</li>
+ *     <li>The shutdown hook gets called. The shutdown hook will call {@link #stop()}, which will
+ *     start a graceful shutdown of the Yarn application.</li>
+ *   </ul>
  * </p>
  *
  * @author ynli
@@ -104,61 +119,46 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
 
   private final HelixManager helixManager;
 
-  private final MetricContext metricContext;
+  private final MetricRegistry metricRegistry;
 
   private final JmxReporter jmxReporter;
 
   private volatile boolean stopInProgress = false;
 
-  public GobblinApplicationMaster(String applicationName, Config config) throws Exception {
+  public GobblinApplicationMaster(String applicationName, Config config)
+      throws Exception {
+
     ContainerId containerId =
         ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
-    ApplicationAttemptId applicationAttemptId = containerId.getApplicationAttemptId();
+    ApplicationId applicationId = containerId.getApplicationAttemptId().getApplicationId();
 
     String zkConnectionString = config.getString(GobblinYarnConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     LOGGER.info("Using ZooKeeper connection string: " + zkConnectionString);
 
-    String helixInstanceName = YarnHelixUtils.getHelixInstanceName(YarnHelixUtils.getHostname(), containerId);
     // This will create and register a Helix controller in ZooKeeper
-    this.helixManager = HelixManagerFactory.getZKHelixManager(
-        config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY), helixInstanceName,
-        InstanceType.CONTROLLER, zkConnectionString);
+    this.helixManager = buildHelixManager(config, containerId, zkConnectionString);
 
-    FileSystem fs = config.hasPath(ConfigurationKeys.FS_URI_KEY) ?
-        FileSystem.get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), new Configuration()) :
-        FileSystem.get(new Configuration());
-    Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(fs, applicationName, applicationAttemptId.getApplicationId());
+    FileSystem fs = buildFileSystem(config);
+    Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(fs, applicationName, applicationId);
+
+    Map<String, String> eventMetadata = getEventSubmitterMetadata(applicationName, applicationId);
 
     List<Service> services = Lists.newArrayList();
+
     services.add(buildLogCopier(containerId, fs, appWorkDir));
-    services.add(
-        new YarnService(config, applicationName, applicationAttemptId.getApplicationId(), fs, this.eventBus,
-            Strings.nullToEmpty(config.getString(GobblinYarnConfigurationKeys.CONTAINER_JVM_ARGS_KEY))));
-    services.add(
-        new GobblinHelixJobScheduler(YarnHelixUtils.configToProperties(config), this.helixManager, this.eventBus,
-            appWorkDir));
-    services.add(new JobConfigurationManager(this.eventBus,
-        config.hasPath(GobblinYarnConfigurationKeys.JOB_CONF_PACKAGE_PATH_KEY) ? Optional
-            .of(config.getString(GobblinYarnConfigurationKeys.JOB_CONF_PACKAGE_PATH_KEY)) : Optional.<String>absent()));
+    services.add(buildYarnService(config, applicationName, applicationId, fs));
+    services.add(buildGobblinHelixJobScheduler(config, appWorkDir, eventMetadata));
+    services.add(buildJobConfigurationManager(config));
+
     if (UserGroupInformation.isSecurityEnabled()) {
       LOGGER.info("Adding YarnContainerSecurityManager since security is enabled");
-      services.add(new YarnContainerSecurityManager(config, fs, this.eventBus));
+      services.add(buildYarnContainerSecurityManager(config, fs));
     }
 
     this.serviceManager = new ServiceManager(services);
 
-    List<Tag<?>> tags = ImmutableList.<Tag<?>>builder()
-        .add(new Tag<String>(GobblinYarnMetricTagNames.YARN_APPLICATION_NAME, applicationName))
-        .add(new Tag<String>(GobblinYarnMetricTagNames.YARN_APPLICATION_ID,
-            applicationAttemptId.getApplicationId().toString()))
-        .add(new Tag<String>(GobblinYarnMetricTagNames.CONTAINER_ID, containerId.toString()))
-        .add(new Tag<String>(GobblinYarnMetricTagNames.HELIX_INSTANCE_NAME, helixInstanceName))
-        .build();
-    this.metricContext = MetricContext.builder(GobblinApplicationMaster.class.getSimpleName())
-        .addTags(tags)
-        .build();
-
-    this.jmxReporter = JmxReporter.forRegistry(this.metricContext)
+    this.metricRegistry = new MetricRegistry();
+    this.jmxReporter = JmxReporter.forRegistry(this.metricRegistry)
         .convertRatesTo(TimeUnit.SECONDS)
         .convertDurationsTo(TimeUnit.MILLISECONDS)
         .build();
@@ -229,6 +229,71 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
     }
   }
 
+  /**
+   * Get additional metadata required for the {@link gobblin.metrics.event.EventSubmitter}.
+   */
+  private Map<String, String> getEventSubmitterMetadata(String applicationName, ApplicationId applicationId) {
+    return new ImmutableMap.Builder<String, String>().put(GobblinYarnEventNames.YARN_APPLICATION_NAME, applicationName)
+        .put(GobblinYarnEventNames.YARN_APPLICATION_ID, applicationId.toString()).build();
+  }
+
+  /**
+   * Build the {@link HelixManager} for the Application Master.
+   */
+  private HelixManager buildHelixManager(Config config, ContainerId containerId, String zkConnectionString)
+      throws UnknownHostException {
+    String helixInstanceName = YarnHelixUtils.getHelixInstanceName(YarnHelixUtils.getHostname(), containerId);
+    return HelixManagerFactory.getZKHelixManager(
+        config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY), helixInstanceName,
+        InstanceType.CONTROLLER, zkConnectionString);
+  }
+
+  /**
+   * Build the {@link FileSystem} for the Application Master.
+   */
+  private FileSystem buildFileSystem(Config config)
+      throws IOException {
+    return config.hasPath(ConfigurationKeys.FS_URI_KEY) ? FileSystem
+        .get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), new Configuration())
+        : FileSystem.get(new Configuration());
+  }
+
+  /**
+   * Build the {@link YarnService} for the Application Master.
+   */
+  private YarnService buildYarnService(Config config, String applicationName, ApplicationId applicationId,
+      FileSystem fs)
+      throws Exception {
+    return new YarnService(config, applicationName, applicationId, fs, this.eventBus);
+  }
+
+  /**
+   * Build the {@link GobblinHelixJobScheduler} for the Application Master.
+   */
+  private GobblinHelixJobScheduler buildGobblinHelixJobScheduler(Config config, Path appWorkDir,
+      Map<String, String> eventMetadata)
+      throws Exception {
+    Properties properties = YarnHelixUtils.configToProperties(config);
+    return new GobblinHelixJobScheduler(properties, this.helixManager, this.eventBus, appWorkDir, eventMetadata);
+  }
+
+  /**
+   * Build the {@link JobConfigurationManager} for the Application Master.
+   */
+  private JobConfigurationManager buildJobConfigurationManager(Config config) {
+    Optional<String> jobConfPackagePath =
+        config.hasPath(GobblinYarnConfigurationKeys.JOB_CONF_PACKAGE_PATH_KEY) ? Optional
+            .of(config.getString(GobblinYarnConfigurationKeys.JOB_CONF_PACKAGE_PATH_KEY)) : Optional.<String>absent();
+    return new JobConfigurationManager(this.eventBus, jobConfPackagePath);
+  }
+
+  /**
+   * Build the {@link YarnContainerSecurityManager} for the Application Master.
+   */
+  private YarnContainerSecurityManager buildYarnContainerSecurityManager(Config config, FileSystem fs) {
+    return new YarnContainerSecurityManager(config, fs, this.eventBus);
+  }
+
   @SuppressWarnings("unused")
   @Subscribe
   public void handleApplicationMasterShutdownRequest(ApplicationMasterShutdownRequest shutdownRequest) {
@@ -239,12 +304,12 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
     registerMetricSetWithPrefix("jvm.gc", new GarbageCollectorMetricSet());
     registerMetricSetWithPrefix("jvm.memory", new MemoryUsageGaugeSet());
     registerMetricSetWithPrefix("jvm.threads", new ThreadStatesGaugeSet());
-    this.metricContext.register("jvm.fileDescriptorRatio", new FileDescriptorRatioGauge());
+    this.metricRegistry.register("jvm.fileDescriptorRatio", new FileDescriptorRatioGauge());
   }
 
   private void registerMetricSetWithPrefix(String prefix, MetricSet metricSet) {
     for (Map.Entry<String, Metric> entry : metricSet.getMetrics().entrySet()) {
-      this.metricContext.register(MetricRegistry.name(prefix, entry.getKey()), entry.getValue());
+      this.metricRegistry.register(MetricRegistry.name(prefix, entry.getKey()), entry.getValue());
     }
   }
 

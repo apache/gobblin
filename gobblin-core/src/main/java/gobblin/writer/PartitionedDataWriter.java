@@ -34,6 +34,8 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.instrumented.writer.InstrumentedDataWriterDecorator;
 import gobblin.instrumented.writer.InstrumentedPartitionedDataWriterDecorator;
+import gobblin.util.AvroUtils;
+import gobblin.util.FinalState;
 import gobblin.writer.partitioner.WriterPartitioner;
 
 
@@ -44,7 +46,7 @@ import gobblin.writer.partitioner.WriterPartitioner;
  * @param <D> record type.
  */
 @Slf4j
-public class PartitionedDataWriter<S, D> implements DataWriter<D> {
+public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState {
 
   private static final GenericRecord NON_PARTITIONED_WRITER_KEY =
       new GenericData.Record(SchemaBuilder.record("Dummy").fields().endRecord());
@@ -170,5 +172,36 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D> {
     }
     return this.builder.get().forPartition(partition).withWriterId(this.baseWriterId + "_" + this.writerIdSuffix++)
         .build();
+  }
+
+  @Override
+  public State getFinalState() {
+
+    State state = new State();
+    try {
+      for (Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
+        if (entry.getValue() instanceof FinalState) {
+
+          State partitionFinalState = ((FinalState) entry.getValue()).getFinalState();
+
+          if (this.shouldPartition) {
+            for (String key : partitionFinalState.getPropertyNames()) {
+              // Prevent overwriting final state across writers
+              partitionFinalState.setProp(key + "_" + AvroUtils.serializeAsPath(entry.getKey(), false, true),
+                  partitionFinalState.getProp(key));
+            }
+          }
+
+          state.addAll(partitionFinalState);
+        }
+      }
+      state.setProp("RecordsWritten", recordsWritten());
+      state.setProp("BytesWritten", bytesWritten());
+    } catch (Exception exception) {
+      log.warn("Failed to get final state." + exception.getMessage());
+      // If Writer fails to return bytesWritten, it might not be implemented, or implemented incorrectly.
+      // Omit property instead of failing.
+    }
+    return state;
   }
 }

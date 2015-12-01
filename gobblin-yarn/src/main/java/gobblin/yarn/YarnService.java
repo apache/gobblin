@@ -104,7 +104,7 @@ public class YarnService extends AbstractIdleService {
   private final int requestedContainerMemoryMbs;
   private final int requestedContainerCores;
 
-  private final String containerJvmArgs;
+  private final Optional<String> containerJvmArgs;
 
   // Security tokens for accessing HDFS
   private final ByteBuffer tokens;
@@ -113,10 +113,10 @@ public class YarnService extends AbstractIdleService {
 
   private final Object allContainersStopped = new Object();
 
-  private volatile Optional<Resource> maxResourceCapacity =Optional.absent();
+  private volatile Optional<Resource> maxResourceCapacity = Optional.absent();
 
   public YarnService(Config config, String applicationName, ApplicationId applicationId, FileSystem fs,
-      EventBus eventBus, String containerJvmArgs) throws Exception {
+      EventBus eventBus) throws Exception {
     this.applicationName = applicationName;
     this.applicationId = applicationId;
 
@@ -140,7 +140,9 @@ public class YarnService extends AbstractIdleService {
     this.requestedContainerMemoryMbs = config.getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
     this.requestedContainerCores = config.getInt(GobblinYarnConfigurationKeys.CONTAINER_CORES_KEY);
 
-    this.containerJvmArgs = containerJvmArgs;
+    this.containerJvmArgs = config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_JVM_ARGS_KEY) ?
+        Optional.of(config.getString(GobblinYarnConfigurationKeys.CONTAINER_JVM_ARGS_KEY)) :
+        Optional.<String>absent();
 
     this.tokens = getSecurityTokens();
   }
@@ -164,10 +166,8 @@ public class YarnService extends AbstractIdleService {
 
     try {
       requestContainers(newContainersRequested);
-    } catch (IOException ioe) {
-      LOGGER.error("Failed to handle new container request", ioe);
-    } catch (YarnException ye) {
-      LOGGER.error("Failed to handle new container request", ye);
+    } catch (IOException | YarnException e) {
+      LOGGER.error("Failed to handle new container request", e);
     }
   }
 
@@ -201,7 +201,7 @@ public class YarnService extends AbstractIdleService {
   }
 
   @Override
-  protected void shutDown() throws Exception {
+  protected void shutDown() throws IOException {
     LOGGER.info("Stopping the YarnService");
 
     try {
@@ -216,18 +216,18 @@ public class YarnService extends AbstractIdleService {
 
       if (!this.containerMap.isEmpty()) {
         synchronized (this.allContainersStopped) {
-          // Wait 5 minutes for the containers to stop
-          this.allContainersStopped.wait(5 * 60 * 1000);
-          LOGGER.info("All of the containers have been stopped");
+          try {
+            // Wait 5 minutes for the containers to stop
+            this.allContainersStopped.wait(5 * 60 * 1000);
+            LOGGER.info("All of the containers have been stopped");
+          } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+          }
         }
       }
 
       this.amrmClientAsync.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, null, null);
-    } catch (IOException ioe) {
-      LOGGER.error("Failed to unregister the ApplicationMaster", ioe);
-    } catch (YarnException ye) {
-      LOGGER.error("Failed to unregister the ApplicationMaster", ye);
-    } catch (Exception e) {
+    } catch (IOException | YarnException e) {
       LOGGER.error("Failed to unregister the ApplicationMaster", e);
     } finally {
       this.closer.close();
@@ -329,7 +329,7 @@ public class YarnService extends AbstractIdleService {
     return new StringBuilder()
         .append(ApplicationConstants.Environment.JAVA_HOME.$()).append("/bin/java")
         .append(" -Xmx").append(container.getResource().getMemory()).append("M")
-        .append(" ").append(this.containerJvmArgs)
+        .append(" ").append(this.containerJvmArgs.or(""))
         .append(" ").append(GobblinWorkUnitRunner.class.getName())
         .append(" --").append(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(this.applicationName)
@@ -357,6 +357,9 @@ public class YarnService extends AbstractIdleService {
               containerStatus.getContainerId(), containerStatus.getDiagnostics()));
         }
         containerMap.remove(containerStatus.getContainerId());
+
+        LOGGER.info("Requesting a new container to replace the one that has completed");
+        eventBus.post(new NewContainerRequest(1));
       }
     }
 
@@ -365,9 +368,8 @@ public class YarnService extends AbstractIdleService {
       for (final Container container : containers) {
         LOGGER.info(String.format("Container %s has been allocated", container.getId()));
 
-        Map.Entry<Container, String> containerParticipantPair =
-            new AbstractMap.SimpleImmutableEntry<Container, String>(container,
-                YarnHelixUtils.getParticipantId(container.getNodeId().getHost(), container.getId()));
+        Map.Entry<Container, String> containerParticipantPair = new AbstractMap.SimpleImmutableEntry<>(
+            container, YarnHelixUtils.getParticipantId(container.getNodeId().getHost(), container.getId()));
         containerMap.put(container.getId(), containerParticipantPair);
 
         containerLaunchExecutor.submit(new Runnable() {
@@ -425,13 +427,11 @@ public class YarnService extends AbstractIdleService {
     public void onContainerStatusReceived(ContainerId containerId, ContainerStatus containerStatus) {
       LOGGER.info(String.format("Received container status for container %s: %s", containerId, containerStatus));
       if (containerStatus.getState() == ContainerState.COMPLETE) {
-        LOGGER.info(String.format("Container %s completed", containerId));
+        LOGGER.info(String.format("Container %s completed with status %s", containerId, containerStatus));
         containerMap.remove(containerId);
-        if (containerMap.isEmpty()) {
-          synchronized (allContainersStopped) {
-            allContainersStopped.notify();
-          }
-        }
+
+        LOGGER.info("Requesting a new container to replace the one that has completed");
+        eventBus.post(new NewContainerRequest(1));
       }
     }
 

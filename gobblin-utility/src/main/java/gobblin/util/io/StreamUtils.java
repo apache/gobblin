@@ -30,7 +30,7 @@ import org.apache.hadoop.fs.Seekable;
 public class StreamUtils {
 
   private static final int KB = 1024;
-  private static final int DEFAULT_BUFFER_SIZE = 8 * KB;
+  private static final int DEFAULT_BUFFER_SIZE = 32 * KB;
 
   /**
    * Convert an instance of {@link InputStream} to a {@link FSDataInputStream} that is {@link Seekable} and
@@ -51,17 +51,19 @@ public class StreamUtils {
    * {@link ReadableByteChannel} and {@link WritableByteChannel}s are closed
    * </p>
    *
+   * @return Total bytes copied
    */
-  public static void copy(InputStream is, OutputStream os) throws IOException {
+  public static long copy(InputStream is, OutputStream os) throws IOException {
 
     final ReadableByteChannel inputChannel = Channels.newChannel(is);
     final WritableByteChannel outputChannel = Channels.newChannel(os);
 
-    copy(inputChannel, outputChannel);
+    long totalBytesCopied = copy(inputChannel, outputChannel);
 
     inputChannel.close();
     outputChannel.close();
 
+    return totalBytesCopied;
   }
 
   /**
@@ -70,11 +72,15 @@ public class StreamUtils {
    * <b>Note:</b> The {@link ReadableByteChannel} and {@link WritableByteChannel}s are NOT closed by the method
    * </p>
    *
+   * @return Total bytes copied
    */
-  public static void copy(ReadableByteChannel inputChannel, WritableByteChannel outputChannel) throws IOException {
+  public static long copy(ReadableByteChannel inputChannel, WritableByteChannel outputChannel) throws IOException {
 
+    long bytesRead = 0;
+    long totalBytesRead = 0;
     final ByteBuffer buffer = ByteBuffer.allocateDirect(DEFAULT_BUFFER_SIZE);
-    while (inputChannel.read(buffer) != -1) {
+    while ((bytesRead = inputChannel.read(buffer)) != -1) {
+      totalBytesRead += bytesRead;
       // flip the buffer to be written
       buffer.flip();
       outputChannel.write(buffer);
@@ -87,5 +93,7 @@ public class StreamUtils {
     while (buffer.hasRemaining()) {
       outputChannel.write(buffer);
     }
+
+    return totalBytesRead;
   }
 }

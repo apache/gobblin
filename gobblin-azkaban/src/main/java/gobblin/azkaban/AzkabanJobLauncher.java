@@ -156,6 +156,7 @@ public class AzkabanJobLauncher extends AbstractJob {
       return TimeRangeChecker.isTimeInRange(executionDays, executionTimeRange.get(0), executionTimeRange.get(1),
           new DateTime(DateTimeZone.forID(ConfigurationKeys.PST_TIMEZONE_NAME)));
     }
+
     return true;
   }
 }

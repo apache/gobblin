@@ -212,6 +212,12 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         }
         this.submitLateRecordCountsEvent(newLateFilePaths, lateDataOutputPath);
         this.copyDataFiles(lateDataOutputPath, newLateFilePaths);
+        if (this.outputDeduplicated) {
+          LOG.info("Getting late record count from: " + this.dataset.outputLatePath());
+          this.dataset.checkIfNeedToRecompact(this.lateOutputRecordCountProvider.getRecordCount(this
+              .getCumulativeLateFilePaths(this.dataset.outputLatePath())), this.outputRecordCountProvider
+              .getRecordCount(this.getCumulativeLateFilePaths(this.dataset.outputPath())));
+        }
         this.status = Status.COMMITTED;
       } else {
         if (this.fs.exists(this.dataset.outputPath()) && !canOverwriteOutputDir()) {
@@ -282,7 +288,8 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
 
   private boolean canOverwriteOutputDir() {
     return this.dataset.jobProps().getPropAsBoolean(COMPACTION_JOB_OVERWRITE_OUTPUT_DIR,
-        DEFAULT_COMPACTION_JOB_OVERWRITE_OUTPUT_DIR);
+        DEFAULT_COMPACTION_JOB_OVERWRITE_OUTPUT_DIR)
+        || this.recompactFromDestPaths;
   }
 
   private void addJars(Configuration conf) throws IOException {

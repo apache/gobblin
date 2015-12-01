@@ -21,6 +21,8 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.collect.Lists;
 
+import lombok.extern.slf4j.Slf4j;
+
 import gobblin.configuration.State;
 
 
@@ -29,6 +31,7 @@ import gobblin.configuration.State;
  *
  * @author ziliu
  */
+@Slf4j
 public class Dataset implements Comparable<Dataset> {
 
   public static final double DEFAULT_PRIORITY = 1.0;
@@ -58,6 +61,7 @@ public class Dataset implements Comparable<Dataset> {
     private Path outputLatePath;
     private Path outputTmpPath;
     private double priority = DEFAULT_PRIORITY;
+    private double lateDataThresholdForRecompact;
 
     public Builder withTopic(String topic) {
       this.topic = topic;
@@ -94,22 +98,29 @@ public class Dataset implements Comparable<Dataset> {
       return this;
     }
 
+    public Builder withLateDataThresholdForRecompact(double lateDataThresholdForRecompact) {
+      this.lateDataThresholdForRecompact = lateDataThresholdForRecompact;
+      return this;
+    }
+
     public Dataset build() {
       return new Dataset(this);
     }
   }
 
   private final String topic;
-  private final Path inputPath;
-  private final Path inputLatePath;
   private final Path outputPath;
   private final Path outputLatePath;
   private final Path outputTmpPath;
   private final List<Path> additionalInputPaths;
   private final Collection<Throwable> throwables;
 
+  private Path inputPath;
+  private Path inputLatePath;
   private State jobProps;
   private double priority;
+  private double lateDataThresholdForRecompact;
+  private boolean needToRecompact;
   private AtomicReference<DatasetState> state;
 
   private Dataset(Builder builder) {
@@ -123,6 +134,7 @@ public class Dataset implements Comparable<Dataset> {
     this.throwables = Collections.synchronizedCollection(Lists.<Throwable> newArrayList());
 
     this.priority = builder.priority;
+    this.lateDataThresholdForRecompact = builder.lateDataThresholdForRecompact;
     this.state = new AtomicReference<>(DatasetState.UNVERIFIED);
   }
 
@@ -176,6 +188,14 @@ public class Dataset implements Comparable<Dataset> {
     return this.outputTmpPath;
   }
 
+  public double lateDataThresholdForRecompact() {
+    return this.lateDataThresholdForRecompact;
+  }
+
+  public boolean needToRecompact() {
+    return this.needToRecompact;
+  }
+
   /**
    * Additional paths of this {@link Dataset} besides {@link #inputPath()} that contain data to be compacted.
    */
@@ -223,6 +243,14 @@ public class Dataset implements Comparable<Dataset> {
     return this.priority;
   }
 
+  public void checkIfNeedToRecompact(long lateDataCount, long nonLateDataCount) {
+    double lateDataPercent = lateDataCount * 1.0 / (lateDataCount + nonLateDataCount);
+    log.info("Late data percentage is " + lateDataPercent + " and threshold is " + this.lateDataThresholdForRecompact);
+    if (lateDataPercent > this.lateDataThresholdForRecompact) {
+      this.needToRecompact = true;
+    }
+  }
+
   public void setState(DatasetState state) {
     this.state.set(state);
   }
@@ -241,6 +269,29 @@ public class Dataset implements Comparable<Dataset> {
 
   public void setJobProps(State jobProps) {
     this.jobProps = jobProps;
+  }
+
+  public void setInputPath(Path newInputPath) {
+    this.inputPath = newInputPath;
+  }
+
+  public void setInputLatePath(Path newInputLatePath) {
+    this.inputLatePath = newInputLatePath;
+  }
+
+  public void resetNeedToRecompact() {
+    this.needToRecompact = false;
+  }
+
+  /**
+   * Modify an existing dataset to recompact from its ouput path.
+   */
+  public void modifyDatasetForRecompact(State recompactState) {
+    this.setJobProps(recompactState);
+    this.setInputPath(this.outputPath);
+    this.setInputLatePath(this.outputLatePath);
+    this.addAdditionalInputPath(this.outputLatePath);
+    this.resetNeedToRecompact();
   }
 
   public Collection<Throwable> throwables() {
