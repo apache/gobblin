@@ -16,7 +16,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.math3.primes.Primes;
@@ -40,11 +39,11 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 import com.google.common.primitives.Ints;
 
 import gobblin.compaction.Dataset;
+import gobblin.compaction.event.CompactionRecordCountEvent;
 import gobblin.compaction.event.CompactionSlaEventHelper;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.GobblinMetrics;
@@ -210,13 +209,12 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
             }
           }
         }
-        this.submitLateRecordCountsEvent(newLateFilePaths, lateDataOutputPath);
         this.copyDataFiles(lateDataOutputPath, newLateFilePaths);
         if (this.outputDeduplicated) {
           LOG.info("Getting late record count from: " + this.dataset.outputLatePath());
           this.dataset.checkIfNeedToRecompact(this.lateOutputRecordCountProvider.getRecordCount(this
-              .getCumulativeLateFilePaths(this.dataset.outputLatePath())), this.outputRecordCountProvider
-              .getRecordCount(this.getCumulativeLateFilePaths(this.dataset.outputPath())));
+              .getApplicableFilePaths(this.dataset.outputLatePath())), this.outputRecordCountProvider
+              .getRecordCount(this.getApplicableFilePaths(this.dataset.outputPath())));
         }
         this.status = Status.COMMITTED;
       } else {
@@ -245,6 +243,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         }
       }
       this.markOutputDirAsCompleted(compactionTimestamp);
+      this.submitRecordsCountsEvent();
     } catch (Throwable t) {
       throw Throwables.propagate(t);
     }
@@ -504,12 +503,16 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     return Double.compare(o.dataset.priority(), this.dataset.priority());
   }
 
-  private List<Path> getCumulativeLateFilePaths(Path lateDataDir) throws FileNotFoundException, IOException {
-    if (!this.fs.exists(lateDataDir)) {
+  /**
+   * Get the list of file {@link Path}s in the given dataDir, which satisfy the extension requirements
+   *  of {@link #getApplicableFileExtensions()}.
+   */
+  private List<Path> getApplicableFilePaths(Path dataDir) throws IOException {
+    if (!this.fs.exists(dataDir)) {
       return Lists.newArrayList();
     }
     List<Path> paths = Lists.newArrayList();
-    for (FileStatus fileStatus : FileListUtils.listFilesRecursively(fs, lateDataDir, new PathFilter() {
+    for (FileStatus fileStatus : FileListUtils.listFilesRecursively(fs, dataDir, new PathFilter() {
       @Override
       public boolean accept(Path path) {
         for (String validExtention : getApplicableFileExtensions()) {
@@ -526,18 +529,21 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   }
 
   /**
-   * Submit an event reporting new and cumulative late record counts.
+   * Submit an event reporting late record counts and non-late record counts.
    */
-  private void submitLateRecordCountsEvent(List<Path> newLateFilePaths, Path lateDataDir) {
+  private void submitRecordsCountsEvent() {
     try {
-      Map<String, String> eventMetadataMap = Maps.newHashMap();
-      long newLateRecordCount = this.lateInputRecordCountProvider.getRecordCount(newLateFilePaths);
-      eventMetadataMap.put(NEW_LATE_RECORD_COUNTS, Long.toString(newLateRecordCount));
-      eventMetadataMap.put(CUMULATIVE_LATE_RECORD_COUNTS, Long.toString(newLateRecordCount
-          + this.lateOutputRecordCountProvider.getRecordCount(this.getCumulativeLateFilePaths(lateDataDir))));
-
-      LOG.info("Submitting late event counts: " + eventMetadataMap);
-      this.eventSubmitter.submit(LATE_RECORD_COUNTS_EVENT, eventMetadataMap);
+      long lateOutputRecordCount = 0l;
+      Path outputLatePath = this.dataset.outputLatePath();
+      if (this.fs.exists(outputLatePath)) {
+        lateOutputRecordCount =
+            this.lateOutputRecordCountProvider
+                .getRecordCount(this.getApplicableFilePaths(this.dataset.outputLatePath()));
+      }
+      long outputRecordCount =
+          this.outputRecordCountProvider.getRecordCount(this.getApplicableFilePaths(this.dataset.outputPath()));
+      new CompactionRecordCountEvent(this.dataset, outputRecordCount, lateOutputRecordCount, this.eventSubmitter)
+          .submit();
     } catch (Exception e) {
       LOG.error("Failed to submit late event count:" + e, e);
     }
