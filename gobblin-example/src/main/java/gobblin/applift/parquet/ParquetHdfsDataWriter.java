@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.avro.Schema;
-import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericRecord;
 
@@ -14,18 +13,22 @@ import gobblin.writer.FsDataWriterBuilder;
 import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.hadoop.ParquetWriter;
 
+/*
+ * @author prashant.bhardwaj@applift.com
+ * 
+ */
+
 public class ParquetHdfsDataWriter extends FsDataWriter<GenericRecord> {
 	private final AtomicLong count = new AtomicLong(0);
 	private ParquetWriter<GenericRecord> writer;
 	public ParquetHdfsDataWriter(FsDataWriterBuilder<Schema, GenericRecord> builder, State properties, Schema schema)
 	    throws IOException {
 		super(builder, properties);
-		this.writer = this.closer.register(createDataFileWriter(schema));
+		this.writer = this.closer.register(createParquetWriter(schema));
 	}
 
 	@Override
 	public void write(GenericRecord record) throws IOException {
-		// TODO Auto-generated method stub
 		this.writer.write(record);
 		this.count.incrementAndGet();
 	}
@@ -45,12 +48,12 @@ public class ParquetHdfsDataWriter extends FsDataWriter<GenericRecord> {
 	}
 
 	/**
-   * Create a new {@link ParquetWriter} for writing Avro records.
+   * Create a new {@link org.apache.parquet.hadoop.ParquetWriter} for writing Avro records.
    *
-   * @param codecFactory a {@link CodecFactory} object for building the compression codec
+   * @param schema {@link org.apache.avro.Schema} for writing avro record to Parquet file.
    * @throws IOException if there is something wrong creating a new {@link DataFileWriter}
    */
-  private org.apache.parquet.hadoop.ParquetWriter<GenericRecord> createDataFileWriter(Schema schema) throws IOException {
+  private org.apache.parquet.hadoop.ParquetWriter<GenericRecord> createParquetWriter(Schema schema) throws IOException {
     return AvroParquetWriter.<GenericRecord>builder(this.stagingFile).withSchema(schema).build();
   }
 

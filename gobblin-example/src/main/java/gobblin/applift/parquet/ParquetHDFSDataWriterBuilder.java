@@ -13,6 +13,12 @@ import gobblin.writer.DataWriter;
 import gobblin.writer.FsDataWriterBuilder;
 import gobblin.writer.WriterOutputFormat;
 
+/*
+ * 
+ * @author prashant.bhardwaj@applift.com
+ * 
+ */
+
 public class ParquetHDFSDataWriterBuilder extends FsDataWriterBuilder<Schema, GenericRecord> {
 
 	@Override

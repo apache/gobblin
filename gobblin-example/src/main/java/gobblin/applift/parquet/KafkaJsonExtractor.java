@@ -10,7 +10,7 @@ import gobblin.source.extractor.extract.kafka.KafkaExtractor;
 import kafka.message.MessageAndOffset;
 
 /**
- * @author prashantbhardwaj
+ * @author prashant.bhardwaj@applift.com
  *
  */
 public class KafkaJsonExtractor extends KafkaExtractor<String, String> {

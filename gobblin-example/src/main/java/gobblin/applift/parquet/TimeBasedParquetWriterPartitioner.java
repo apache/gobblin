@@ -5,9 +5,14 @@ import org.apache.avro.generic.GenericRecord;
 import gobblin.configuration.State;
 import gobblin.writer.partitioner.TimeBasedWriterPartitioner;
 
-public class ParquetTimeBasedWriterPartitioner extends TimeBasedWriterPartitioner<GenericRecord> {
+/*
+ * @author prashant.bhardwaj@applift.com
+ * 
+ */
 
-	public ParquetTimeBasedWriterPartitioner(State state, int numBranches, int branchId) {
+public class TimeBasedParquetWriterPartitioner extends TimeBasedWriterPartitioner<GenericRecord> {
+
+	public TimeBasedParquetWriterPartitioner(State state, int numBranches, int branchId) {
 		super(state, numBranches, branchId);
 		
 	}
