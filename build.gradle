@@ -267,14 +267,66 @@ plugins.withType(JavaPlugin) {
             name "${project.name}"
             packaging 'jar'
             // optionally artifactId can be defined here 
-            description 'Gobblin'
+            description 'Gobblin Ingestion Framework'
             url 'https://github.com/linkedin/gobblin/'
 
+            scm {
+              connection 'scm:git:git@github.com:linkedin/gobblin.git'
+              developerConnection 'scm:git:git@github.com:linkedin/gobblin.git'
+              url 'git@github.com:linkedin/gobblin.git'
+            }
 
             licenses {
               license {
                 name 'The Apache License, Version 2.0'
                 url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+              }
+            }
+
+            developers {
+              developer {
+                name 'Abhishek Tiwari'
+                organization 'LinkedIn'
+              }
+              developer {
+                name 'Chavdar Botev'
+                organization 'LinkedIn'
+              }
+              developer {
+                name 'Issac Buenrostro'
+                organization 'LinkedIn'
+              }
+              developer {
+                name 'Min Tu'
+                organization 'LinkedIn'
+              }
+              developer {
+                name 'Narasimha Veeramreddy'
+                organization 'LinkedIn'
+              }
+              developer {
+                name 'Pradhan Cadabam'
+                organization 'LinkedIn'
+              }
+              developer {
+                name 'Sahil Takiar'
+                organization 'LinkedIn'
+              }
+              developer {
+                name 'Shirshanka Das'
+                organization 'LinkedIn'
+              }
+              developer {
+                name 'Yinan Li'
+                organization 'LinkedIn'
+              }
+              developer {
+                name 'Ying Dai'
+                organization 'LinkedIn'
+              }
+              developer {
+                name 'Ziyang Liu'
+                organization 'LinkedIn'
               }
             }
           }
