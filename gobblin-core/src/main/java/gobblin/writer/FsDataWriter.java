@@ -57,7 +57,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
   protected final String fileName;
   protected final FileSystem fs;
   protected final Path stagingFile;
-  protected final Path outputFile;
+  protected Path outputFile;
   protected final String allOutputFilesPropName;
   protected final boolean shouldIncludeRecordCountInFileName;
   protected final int bufferSize;
@@ -210,11 +210,12 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
     }
   }
 
-  private String addRecordCountToFileName() throws IOException {
+  private synchronized String addRecordCountToFileName() throws IOException {
     String filePath = getOutputFilePath();
     String filePathWithRecordCount = new IngestionRecordCountProvider().constructFilePath(filePath, recordsWritten());
     LOG.info("Renaming " + filePath + " to " + filePathWithRecordCount);
     HadoopUtils.renamePath(this.fs, new Path(filePath), new Path(filePathWithRecordCount));
+    this.outputFile = new Path(filePathWithRecordCount);
     return filePathWithRecordCount;
   }
 
