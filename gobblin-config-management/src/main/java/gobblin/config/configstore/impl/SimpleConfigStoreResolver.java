@@ -10,13 +10,19 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Set;
+import java.util.UUID;
+
+import org.apache.log4j.Logger;
 
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValue;
 
 
 public class SimpleConfigStoreResolver implements ConfigStoreWithResolution {
 
+  private static final Logger LOG = Logger.getLogger(SimpleConfigStoreResolver.class);
   private final ConfigStore store;
 
   public SimpleConfigStoreResolver(ConfigStore base) {
@@ -50,9 +56,19 @@ public class SimpleConfigStoreResolver implements ConfigStoreWithResolution {
 
   @Override
   public Config getResolvedConfig(URI uri, String version) {
-    CircularDependencyChecker.checkCircularDependency(store, version, uri);
+    UUID traceID = UUID.randomUUID();
+    LOG.info(String.format("Getting resolved config for uri: %s for version %s, with traceID: %s", 
+        uri, version, traceID));
+    return getResolvedConfigWithTrace(uri, version, traceID.toString());
+  }
 
+  protected Config getResolvedConfigWithTrace(URI uri, String version, String traceID) {
+    CircularDependencyChecker.checkCircularDependency(store, version, uri);
     Config self = this.getOwnConfig(uri, version);
+    for (Entry<String, ConfigValue> entry : self.entrySet()) {
+      LOG.info(String.format("key %s, value %s from uri %s, with traceID %s", 
+          entry.getKey(), entry.getValue(), uri, traceID)); 
+    }
 
     // root can not include anything, otherwise will have circular dependency 
     if (isRootURI(uri)) {
@@ -62,7 +78,8 @@ public class SimpleConfigStoreResolver implements ConfigStoreWithResolution {
     Collection<URI> imported = this.getOwnImports(uri, version);
     List<Config> importedConfigs = new ArrayList<Config>();
     for (URI u : imported) {
-      importedConfigs.add(this.getResolvedConfig(u, version));
+      Config singleImported = this.getResolvedConfigWithTrace(u, version, traceID);
+      importedConfigs.add(singleImported);
     }
 
     // apply the reverse order for imported
@@ -70,13 +87,13 @@ public class SimpleConfigStoreResolver implements ConfigStoreWithResolution {
       self = self.withFallback(importedConfigs.get(i));
     }
 
-    Config ancestor = this.getAncestorConfig(uri, version);
+    Config ancestor = this.getAncestorConfig(uri, version, traceID);
     return self.withFallback(ancestor);
   }
 
-  protected Config getAncestorConfig(URI uri, String version) {
+  protected Config getAncestorConfig(URI uri, String version, String traceID) {
     URI parent = PathUtils.getParentURI(uri);
-    Config res = getResolvedConfig(parent, version);
+    Config res = getResolvedConfigWithTrace(parent, version, traceID);
     return res;
   }
 
