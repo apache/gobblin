@@ -13,36 +13,40 @@ package gobblin.data.management.copy;
 
 import gobblin.configuration.WorkUnitState;
 
+import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 
-public class SerializableCopyableDatasetTest {
+public class CopyableDatasetMetadataTest {
 
   @Test
   public void testSerializeDeserialize() throws Exception {
     CopyableDataset copyableDataset = new TestCopyableDataset();
-    String serialized = SerializableCopyableDataset.serialize(copyableDataset);
+    Path target = new Path("/target");
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(copyableDataset, target);
+    String serialized = metadata.serialize();
 
-    CopyableDataset deserialized = SerializableCopyableDataset.deserialize(serialized);
+    CopyableDatasetMetadata deserialized = CopyableDatasetMetadata.deserialize(serialized);
 
-    Assert.assertEquals(copyableDataset.datasetRoot(), deserialized.datasetRoot());
-    Assert.assertEquals(copyableDataset.datasetTargetRoot(), deserialized.datasetTargetRoot());
+    Assert.assertEquals(copyableDataset.datasetRoot(), deserialized.getDatasetRoot());
+    Assert.assertEquals(target, deserialized.getDatasetTargetRoot());
   }
 
   @Test
   public void testHashCode() throws Exception {
 
     CopyableDataset copyableDataset = new TestCopyableDataset();
+    Path target = new Path("/target");
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(copyableDataset, target);
+    String serialized = metadata.serialize();
 
-    String serialized = SerializableCopyableDataset.serialize(copyableDataset);
+    CopyableDatasetMetadata deserialized = CopyableDatasetMetadata.deserialize(serialized);
+    CopyableDatasetMetadata deserialized2 = CopyableDatasetMetadata.deserialize(serialized);
 
-    CopyableDataset deserialized = SerializableCopyableDataset.deserialize(serialized);
-    CopyableDataset deserialized2 = SerializableCopyableDataset.deserialize(serialized);
-
-    Multimap<CopyableDataset, WorkUnitState> datasetRoots = ArrayListMultimap.create();
+    Multimap<CopyableDatasetMetadata, WorkUnitState> datasetRoots = ArrayListMultimap.create();
 
     datasetRoots.put(deserialized, new WorkUnitState());
     datasetRoots.put(deserialized2, new WorkUnitState());

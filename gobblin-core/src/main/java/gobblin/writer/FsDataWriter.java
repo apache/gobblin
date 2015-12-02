@@ -12,11 +12,8 @@
 
 package gobblin.writer;
 
-import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.URI;
-import java.net.URISyntaxException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -26,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -34,7 +32,6 @@ import gobblin.util.FinalState;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.JobConfigurationUtils;
-import gobblin.util.ProxiedFileSystemWrapper;
 import gobblin.util.WriterUtils;
 import gobblin.util.recordcount.IngestionRecordCountProvider;
 
@@ -60,7 +57,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
   protected final String fileName;
   protected final FileSystem fs;
   protected final Path stagingFile;
-  protected final Path outputFile;
+  protected Path outputFile;
   protected final String allOutputFilesPropName;
   protected final boolean shouldIncludeRecordCountInFileName;
   protected final int bufferSize;
@@ -82,23 +79,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
     // Add all job configuration properties so they are picked up by Hadoop
     JobConfigurationUtils.putStateIntoConfiguration(properties, conf);
 
-    String uri = properties.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI,
-        this.numBranches, this.branchId), ConfigurationKeys.LOCAL_FS_URI);
-
-    if (properties.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
-        ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
-      // Initialize file system as a proxy user.
-      try {
-        this.fs = new ProxiedFileSystemWrapper()
-            .getProxiedFileSystem(properties, ProxiedFileSystemWrapper.AuthType.TOKEN,
-                properties.getProp(ConfigurationKeys.FS_PROXY_AS_USER_TOKEN_FILE), uri);
-      } catch (InterruptedException | URISyntaxException e) {
-        throw new IOException(e);
-      }
-    } else {
-      // Initialize file system as the current user.
-      this.fs = FileSystem.get(URI.create(uri), conf);
-    }
+    this.fs = WriterUtils.getWriterFS(properties, this.numBranches, this.branchId);
 
     // Initialize staging/output directory
     this.stagingFile =
@@ -229,11 +210,12 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
     }
   }
 
-  private String addRecordCountToFileName() throws IOException {
+  private synchronized String addRecordCountToFileName() throws IOException {
     String filePath = getOutputFilePath();
     String filePathWithRecordCount = new IngestionRecordCountProvider().constructFilePath(filePath, recordsWritten());
     LOG.info("Renaming " + filePath + " to " + filePathWithRecordCount);
     HadoopUtils.renamePath(this.fs, new Path(filePath), new Path(filePathWithRecordCount));
+    this.outputFile = new Path(filePathWithRecordCount);
     return filePathWithRecordCount;
   }
 

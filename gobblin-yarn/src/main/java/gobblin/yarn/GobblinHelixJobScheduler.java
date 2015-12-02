@@ -17,6 +17,7 @@ import java.util.Properties;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,19 +45,22 @@ public class GobblinHelixJobScheduler extends JobScheduler {
 
   static final String HELIX_MANAGER_KEY = "helixManager";
   static final String APPLICATION_WORK_DIR_KEY = "applicationWorkDir";
+  static final String EVENT_METADATA = "eventMetadata";
 
   private final Properties properties;
   private final HelixManager helixManager;
   private final EventBus eventBus;
   private final Path appWorkDir;
+  private final Map<String, String> eventMetadata;
 
   public GobblinHelixJobScheduler(Properties properties, HelixManager helixManager, EventBus eventBus,
-      Path appWorkDir) throws Exception {
+      Path appWorkDir, Map<String, String> eventMetadata) throws Exception {
     super(properties);
     this.properties = properties;
     this.helixManager = helixManager;
     this.eventBus = eventBus;
     this.appWorkDir = appWorkDir;
+    this.eventMetadata = eventMetadata;
   }
 
   @Override
@@ -70,6 +74,7 @@ public class GobblinHelixJobScheduler extends JobScheduler {
     Map<String, Object> additionalJobDataMap = Maps.newHashMap();
     additionalJobDataMap.put(HELIX_MANAGER_KEY, this.helixManager);
     additionalJobDataMap.put(APPLICATION_WORK_DIR_KEY, this.appWorkDir);
+    additionalJobDataMap.put(EVENT_METADATA, this.eventMetadata);
 
     try {
       scheduleJob(jobProps, jobListener, additionalJobDataMap, GobblinHelixJob.class);
@@ -81,11 +86,16 @@ public class GobblinHelixJobScheduler extends JobScheduler {
   @Override
   public void runJob(Properties jobProps, JobListener jobListener) throws JobException {
     try {
-      JobLauncher jobLauncher = new GobblinHelixJobLauncher(jobProps, this.helixManager, this.appWorkDir);
+      JobLauncher jobLauncher = buildGobblinHelixJobLauncher(jobProps);
       runJob(jobProps, jobListener, jobLauncher);
     } catch (Exception e) {
       throw new JobException("Failed to run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
     }
+  }
+
+  private GobblinHelixJobLauncher buildGobblinHelixJobLauncher(Properties jobProps)
+      throws Exception {
+    return new GobblinHelixJobLauncher(jobProps, this.helixManager, this.appWorkDir, this.eventMetadata);
   }
 
   @SuppressWarnings("unused")

@@ -19,7 +19,7 @@ import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.FileAwareInputStream;
-import gobblin.data.management.util.PathUtils;
+import gobblin.util.PathUtils;
 import gobblin.util.io.StreamUtils;
 
 import java.io.IOException;

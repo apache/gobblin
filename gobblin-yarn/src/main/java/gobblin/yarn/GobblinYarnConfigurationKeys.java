@@ -21,17 +21,13 @@ public class GobblinYarnConfigurationKeys {
 
   public static final String GOBBLIN_YARN_PREFIX = "gobblin.yarn.";
 
-  /**
-   * General Gobblin Yarn application configuration properties.
-   */
+  // General Gobblin Yarn application configuration properties.
   public static final String APPLICATION_NAME_KEY = GOBBLIN_YARN_PREFIX + "app.name";
   public static final String APPLICATION_NAME_OPTION_NAME = "app_name";
   public static final String APP_QUEUE_KEY = GOBBLIN_YARN_PREFIX + "app.queue";
   public static final String APP_REPORT_INTERVAL_MINUTES_KEY = GOBBLIN_YARN_PREFIX + "app.report.interval.minutes";
 
-  /**
-   * Gobblin Yarn ApplicationMaster configuration properties.
-   */
+  // Gobblin Yarn ApplicationMaster configuration properties.
   public static final String APP_MASTER_MEMORY_MBS_KEY = GOBBLIN_YARN_PREFIX + "app.master.memory.mbs";
   public static final String APP_MASTER_CORES_KEY = GOBBLIN_YARN_PREFIX + "app.master.cores";
   public static final String APP_MASTER_JARS_KEY = GOBBLIN_YARN_PREFIX + "app.master.jars";
@@ -40,9 +36,7 @@ public class GobblinYarnConfigurationKeys {
   public static final String APP_MASTER_WORK_DIR_NAME = "appmaster";
   public static final String APP_MASTER_JVM_ARGS_KEY = GOBBLIN_YARN_PREFIX + "app.master.jvm.args";
 
-  /**
-   * Gobblin Yarn container configuration properties.
-   */
+  // Gobblin Yarn container configuration properties.
   public static final String INITIAL_CONTAINERS_KEY = GOBBLIN_YARN_PREFIX + "initial.containers";
   public static final String CONTAINER_MEMORY_MBS_KEY = GOBBLIN_YARN_PREFIX + "container.memory.mbs";
   public static final String CONTAINER_CORES_KEY = GOBBLIN_YARN_PREFIX + "container.cores";
@@ -52,27 +46,28 @@ public class GobblinYarnConfigurationKeys {
   public static final String CONTAINER_WORK_DIR_NAME = "container";
   public static final String CONTAINER_JVM_ARGS_KEY = GOBBLIN_YARN_PREFIX + "container.jvm.args";
 
-  /**
-   * Helix configuration properties.
-   */
+  //Helix configuration properties.
   public static final String HELIX_CLUSTER_NAME_KEY = GOBBLIN_YARN_PREFIX + "helix.cluster.name";
   public static final String ZK_CONNECTION_STRING_KEY = GOBBLIN_YARN_PREFIX + "zk.connection.string";
   public static final String WORK_UNIT_FILE_PATH = GOBBLIN_YARN_PREFIX + "work.unit.file.path";
 
-  /**
-   * Security and authentication configuration properties.
-   */
+  //Security and authentication configuration properties.
   public static final String KEYTAB_FILE_PATH = GOBBLIN_YARN_PREFIX + "keytab.file.path";
   public static final String KEYTAB_PRINCIPAL_NAME = GOBBLIN_YARN_PREFIX + "keytab.principal.name";
   public static final String TOKEN_FILE_NAME = ".token";
   public static final String LOGIN_INTERVAL_IN_MINUTES = GOBBLIN_YARN_PREFIX + "login.interval.minutes";
   public static final String TOKEN_RENEW_INTERVAL_IN_MINUTES = GOBBLIN_YARN_PREFIX + "token.renew.interval.minutes";
 
-  /**
-   * Resource/dependencies configuration properties.
-   */
+  // Resource/dependencies configuration properties.
   public static final String LIB_JARS_DIR_KEY = GOBBLIN_YARN_PREFIX + "lib.jars.dir";
-  public static final String JOB_CONF_PACKAGE_PATH_KEY = GOBBLIN_YARN_PREFIX + "job.conf.package.path";
+
+  /**
+   * A path pointing to a directory that contains job execution files to be executed by Gobblin. This directory can
+   * have a nested structure.
+   *
+   * @see <a href="https://github.com/linkedin/gobblin/wiki/Working-with-Job-Configuration-Files">Job Config Files</a>
+   */
+  public static final String JOB_CONF_PATH_KEY = GOBBLIN_YARN_PREFIX + "job.conf.path";
   public static final String LOGS_SINK_ROOT_DIR_KEY = GOBBLIN_YARN_PREFIX + "logs.sink.root.dir";
   public static final String LIB_JARS_DIR_NAME = "_libjars";
   public static final String APP_JARS_DIR_NAME = "_appjars";
@@ -80,9 +75,8 @@ public class GobblinYarnConfigurationKeys {
   public static final String INPUT_WORK_UNIT_DIR_NAME = "_workunits";
   public static final String OUTPUT_TASK_STATE_DIR_NAME = "_taskstates";
   public static final String APP_LOGS_DIR_NAME = "_applogs";
+  public static final String TAR_GZ_FILE_SUFFIX = ".tar.gz";
 
-  /**
-   * Other misc configuration properties.
-   */
+  // Other misc configuration properties.
   public static final String TASK_SUCCESS_OPTIONAL_KEY = "TASK_SUCCESS_OPTIONAL";
 }

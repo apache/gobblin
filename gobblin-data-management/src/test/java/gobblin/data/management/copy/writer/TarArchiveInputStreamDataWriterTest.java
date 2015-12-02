@@ -18,7 +18,7 @@ import gobblin.data.management.copy.CopyableFileUtils;
 import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.data.management.copy.OwnerAndPermission;
 import gobblin.data.management.copy.converter.UnGzipConverter;
-import gobblin.data.management.util.PathUtils;
+import gobblin.util.PathUtils;
 
 import java.io.FileInputStream;
 import java.io.IOException;

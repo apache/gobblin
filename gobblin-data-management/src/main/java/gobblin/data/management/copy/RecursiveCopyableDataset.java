@@ -12,9 +12,8 @@
 
 package gobblin.data.management.copy;
 
-import gobblin.configuration.ConfigurationKeys;
 import gobblin.data.management.dataset.DatasetUtils;
-import gobblin.data.management.util.PathUtils;
+import gobblin.util.PathUtils;
 import gobblin.util.FileListUtils;
 
 import java.io.IOException;
@@ -28,8 +27,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -44,20 +41,14 @@ public class RecursiveCopyableDataset extends SinglePartitionCopyableDataset {
 
   private final Path rootPath;
   private final FileSystem fs;
-  private final Path targetDirectory;
   private final Properties properties;
   private LoadingCache<Path, OwnerAndPermission> ownerAndPermissionCache;
   private final PathFilter pathFilter;
 
   public RecursiveCopyableDataset(final FileSystem fs, Path rootPath, Properties properties) {
 
-    Preconditions.checkArgument(
-        !Strings.isNullOrEmpty(properties.getProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR)), "Missing property "
-            + ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR);
-
     this.rootPath = PathUtils.getPathWithoutSchemeAndAuthority(rootPath);
     this.fs = fs;
-    this.targetDirectory = new Path(properties.getProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR));
     this.properties = properties;
     this.ownerAndPermissionCache = CacheBuilder.newBuilder().build(new CacheLoader<Path, OwnerAndPermission>() {
       @Override
@@ -70,8 +61,7 @@ public class RecursiveCopyableDataset extends SinglePartitionCopyableDataset {
     this.pathFilter = DatasetUtils.instantiatePathFilter(properties);
   }
 
-  @Override
-  public List<CopyableFile> getCopyableFiles() throws IOException {
+  @Override public List<CopyableFile> getCopyableFiles(FileSystem targetFs, Path targetRoot) throws IOException {
 
     List<FileStatus> files = FileListUtils.listFilesRecursively(this.fs, this.rootPath, this.pathFilter);
 
@@ -81,7 +71,7 @@ public class RecursiveCopyableDataset extends SinglePartitionCopyableDataset {
 
       Path relativeOutputPath = getRelativeOuptutPath(file);
 
-      Path outputPath = new Path(this.targetDirectory, relativeOutputPath);
+      Path outputPath = new Path(targetRoot, relativeOutputPath);
 
       OwnerAndPermission ownerAndPermission =
           new OwnerAndPermission(file.getOwner(), file.getGroup(), file.getPermission());
@@ -121,8 +111,4 @@ public class RecursiveCopyableDataset extends SinglePartitionCopyableDataset {
     return this.rootPath;
   }
 
-  @Override
-  public Path datasetTargetRoot() {
-    return this.targetDirectory;
-  }
 }

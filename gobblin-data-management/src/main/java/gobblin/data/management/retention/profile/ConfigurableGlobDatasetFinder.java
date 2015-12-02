@@ -15,7 +15,7 @@ package gobblin.data.management.retention.profile;
 import gobblin.data.management.dataset.Dataset;
 import gobblin.data.management.retention.DatasetCleaner;
 import gobblin.data.management.retention.dataset.finder.DatasetFinder;
-import gobblin.data.management.util.PathUtils;
+import gobblin.util.PathUtils;
 
 import java.io.IOException;
 import java.util.List;
@@ -58,6 +58,7 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
 
   private final Path datasetPattern;
   private final Optional<Pattern> blacklist;
+  private final Path commonRoot;
   protected final FileSystem fs;
   protected final Properties props;
 
@@ -73,14 +74,19 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
       this.blacklist = Optional.absent();
     }
 
-    if (props.getProperty(DATASET_FINDER_PATTERN_KEY) != null) {
-      this.datasetPattern = new Path(props.getProperty(DATASET_FINDER_PATTERN_KEY));
-    } else {
-      this.datasetPattern = new Path(props.getProperty(DATASET_PATTERN_KEY));
-    }
-
     this.fs = fs;
+
+    Path tmpDatasetPattern;
+    if (props.getProperty(DATASET_FINDER_PATTERN_KEY) != null) {
+      tmpDatasetPattern = new Path(props.getProperty(DATASET_FINDER_PATTERN_KEY));
+    } else {
+      tmpDatasetPattern = new Path(props.getProperty(DATASET_PATTERN_KEY));
+    }
+    this.datasetPattern = tmpDatasetPattern.isAbsolute() ? tmpDatasetPattern :
+        new Path(this.fs.getWorkingDirectory(), tmpDatasetPattern);
+
     this.props = props;
+    this.commonRoot = PathUtils.deepestNonGlobPath(this.datasetPattern);
   }
 
   /**
@@ -110,6 +116,13 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
       datasets.add(datasetAtPath(fileStatus.getPath()));
     }
     return datasets;
+  }
+
+  /**
+   * Returns the deepest non-glob ancestor of the dataset pattern.
+   */
+  @Override public Path commonDatasetRoot() {
+    return this.commonRoot;
   }
 
   /**

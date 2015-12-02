@@ -82,6 +82,7 @@ public class JobExecutionEventSubmitter {
     ImmutableMap.Builder<String, String> jobMetadataBuilder = new ImmutableMap.Builder<String, String>();
     jobMetadataBuilder.put(JOB_ID, jobState.getJobId());
     jobMetadataBuilder.put(JOB_NAME, jobState.getJobName());
+    jobMetadataBuilder.put(JOB_TRACKING_URL, jobState.getTrackingURL().or(UNKNOWN_VALUE));
     Map<String, String> jobMetadata = jobMetadataBuilder.build();
 
     // Submit event for each TaskState

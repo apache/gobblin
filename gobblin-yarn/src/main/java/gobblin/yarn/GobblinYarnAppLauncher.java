@@ -52,6 +52,7 @@ import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Records;
+
 import org.apache.helix.Criteria;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
@@ -79,6 +80,7 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.ExecutorsUtils;
+import gobblin.util.io.StreamUtils;
 import gobblin.util.logs.LogCopier;
 import gobblin.yarn.event.ApplicationReportArrivalEvent;
 
@@ -299,8 +301,7 @@ public class GobblinYarnAppLauncher {
       LOGGER.info("Gobblin Yarn application finished with final status: " +
           applicationReport.getFinalApplicationStatus().toString());
       if (applicationReport.getFinalApplicationStatus() == FinalApplicationStatus.FAILED) {
-        LOGGER.error(
-            "Gobblin Yarn application failed for the following reason: " + applicationReport.getDiagnostics());
+        LOGGER.error("Gobblin Yarn application failed for the following reason: " + applicationReport.getDiagnostics());
       }
 
       try {
@@ -401,6 +402,12 @@ public class GobblinYarnAppLauncher {
     LOGGER.info("Submitting application " + applicationId);
     this.yarnClient.submitApplication(appSubmissionContext);
 
+    LOGGER.info("Application successfully submitted and accepted");
+    ApplicationReport applicationReport = this.yarnClient.getApplicationReport(applicationId);
+    LOGGER.info("Application Name: " + applicationReport.getName());
+    LOGGER.info("Application Tracking URL: " + applicationReport.getTrackingUrl());
+    LOGGER.info("Application User: " + applicationReport.getUser() + " Queue: " + applicationReport.getQueue());
+
     return applicationId;
   }
 
@@ -450,9 +457,9 @@ public class GobblinYarnAppLauncher {
       addAppRemoteFiles(this.config.getString(GobblinYarnConfigurationKeys.APP_MASTER_FILES_REMOTE_KEY),
           appMasterResources);
     }
-    if (this.config.hasPath(GobblinYarnConfigurationKeys.JOB_CONF_PACKAGE_PATH_KEY)) {
+    if (this.config.hasPath(GobblinYarnConfigurationKeys.JOB_CONF_PATH_KEY)) {
       Path appFilesDestDir = new Path(appMasterWorkDir, GobblinYarnConfigurationKeys.APP_FILES_DIR_NAME);
-      addJobConfPackage(this.config.getString(GobblinYarnConfigurationKeys.JOB_CONF_PACKAGE_PATH_KEY), appFilesDestDir,
+      addJobConfPackage(this.config.getString(GobblinYarnConfigurationKeys.JOB_CONF_PATH_KEY), appFilesDestDir,
           appMasterResources);
     }
 
@@ -526,8 +533,8 @@ public class GobblinYarnAppLauncher {
   private void addJobConfPackage(String jobConfPackagePath, Path destDir, Map<String, LocalResource> resourceMap)
       throws IOException {
     Path srcFilePath = new Path(jobConfPackagePath);
-    Path destFilePath = new Path(destDir, srcFilePath.getName());
-    this.fs.copyFromLocalFile(srcFilePath, destFilePath);
+    Path destFilePath = new Path(destDir, srcFilePath.getName() + GobblinYarnConfigurationKeys.TAR_GZ_FILE_SUFFIX);
+    StreamUtils.tar(FileSystem.getLocal(this.yarnConfiguration), this.fs, srcFilePath, destFilePath);
     YarnHelixUtils.addFileAsLocalResource(this.fs, destFilePath, LocalResourceType.ARCHIVE, resourceMap);
   }
 

@@ -136,4 +136,16 @@ public class HadoopUtilsTest {
     Assert.assertTrue(fs.exists(new Path(hadoopUtilsTestDir, "testSafeRename/a/b/c/e/t4.txt")));
 
   }
+
+  @Test
+  public void testSanitizePath() throws Exception {
+    Assert.assertEquals(HadoopUtils.sanitizePath("/A:B/::C:::D\\", "abc"), "/AabcB/abcabcCabcabcabcDabc");
+    Assert.assertEquals(HadoopUtils.sanitizePath(":\\:\\/", ""), "/");
+    try {
+      HadoopUtils.sanitizePath("/A:B/::C:::D\\", "a:b");
+      throw new RuntimeException();
+    } catch (RuntimeException e) {
+      Assert.assertTrue(e.getMessage().contains("substitute contains illegal characters"));
+    }
+  }
 }

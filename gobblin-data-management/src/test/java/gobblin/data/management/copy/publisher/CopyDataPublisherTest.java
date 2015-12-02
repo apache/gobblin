@@ -16,8 +16,9 @@ import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDataset;
+import gobblin.data.management.copy.CopyableDatasetMetadata;
 import gobblin.data.management.copy.TestCopyableDataset;
-import gobblin.data.management.util.PathUtils;
+import gobblin.util.PathUtils;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -214,6 +215,7 @@ public class CopyDataPublisherTest {
   public static class TestDatasetManager {
 
     private CopyableDataset copyableDataset;
+    private CopyableDatasetMetadata metadata;
     private List<String> relativeFilePaths;
     private Path writerOutputPath;
     private FileSystem fs;
@@ -221,7 +223,7 @@ public class CopyDataPublisherTest {
     private void createDatasetFiles() throws IOException {
       // Create writer output files
       Path datasetWriterOutputPath =
-          new Path(writerOutputPath, PathUtils.withoutLeadingSeparator(copyableDataset.datasetTargetRoot()));
+          new Path(writerOutputPath, PathUtils.withoutLeadingSeparator(metadata.getDatasetTargetRoot()));
       for (String path : relativeFilePaths) {
         Path pathToCreate = new Path(datasetWriterOutputPath, path);
         fs.mkdirs(pathToCreate.getParent());
@@ -234,7 +236,8 @@ public class CopyDataPublisherTest {
 
       this.fs = FileSystem.getLocal(new Configuration());
       this.copyableDataset =
-          new TestCopyableDataset(new Path("origin"), new Path(testMethodTempPath, datasetTargetPath));
+          new TestCopyableDataset(new Path("origin"));
+      this.metadata = new CopyableDatasetMetadata(this.copyableDataset, new Path(testMethodTempPath, datasetTargetPath));
       this.relativeFilePaths = relativeFilePaths;
       this.writerOutputPath = new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR));
 
@@ -247,21 +250,21 @@ public class CopyDataPublisherTest {
       List<WorkUnitState> workUnitStates =
           Lists.newArrayList(new WorkUnitState(), new WorkUnitState(), new WorkUnitState());
       for (WorkUnitState wus : workUnitStates) {
-        CopySource.serializeCopyableDataset(wus, copyableDataset);
+        CopySource.serializeCopyableDataset(wus, metadata);
       }
       return workUnitStates;
     }
 
     void verifyExists() throws IOException {
       for (String fileRelativePath : relativeFilePaths) {
-        Path filePublishPath = new Path(copyableDataset.datasetTargetRoot(), fileRelativePath);
+        Path filePublishPath = new Path(metadata.getDatasetTargetRoot(), fileRelativePath);
         Assert.assertEquals(fs.exists(filePublishPath), true);
       }
     }
 
     void verifyDoesntExist() throws IOException {
       for (String fileRelativePath : relativeFilePaths) {
-        Path filePublishPath = new Path(copyableDataset.datasetTargetRoot(), fileRelativePath);
+        Path filePublishPath = new Path(metadata.getDatasetTargetRoot(), fileRelativePath);
         Assert.assertEquals(fs.exists(filePublishPath), false);
       }
     }

@@ -10,13 +10,18 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.data.management.util;
+package gobblin.util;
+
+import java.net.URI;
+import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;
 
 
 public class PathUtils {
+
+  public static final Pattern GLOB_TOKENS = Pattern.compile("[\\?\\*\\[\\{]");
 
   public static Path mergePaths(Path path1, Path path2) {
     String path2Str = path2.toUri().getPath();
@@ -52,6 +57,18 @@ public class PathUtils {
    */
   public static Path withoutLeadingSeparator(Path path) {
     return new Path(StringUtils.removeStart(path.toString(), Path.SEPARATOR));
+  }
+
+  /**
+   * Finds the deepest ancestor of input that is not a glob.
+   */
+  public static Path deepestNonGlobPath(Path input) {
+    Path commonRoot = input;
+
+    while(commonRoot != null && GLOB_TOKENS.matcher(commonRoot.toString()).find()) {
+      commonRoot = commonRoot.getParent();
+    }
+    return commonRoot;
   }
 
   /**

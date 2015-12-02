@@ -38,6 +38,7 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.util.ReflectionUtils;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.io.BaseEncoding;
 import com.google.common.io.Closer;
@@ -48,6 +49,8 @@ import com.google.common.io.Closer;
  */
 @Slf4j
 public class HadoopUtils {
+
+  public static final String HDFS_ILLEGAL_TOKEN_REGEX = "[\\s:\\\\]";
 
   public static Configuration newConfiguration() {
     Configuration conf = new Configuration();
@@ -414,5 +417,24 @@ public class HadoopUtils {
     short mode = props.getPropAsShortWithRadix(propName, defaultPermission.toShort(),
         ConfigurationKeys.PERMISSION_PARSING_RADIX);
     return new FsPermission(mode);
+  }
+
+  /**
+   * Remove illegal HDFS path characters from the given path. Illegal characters will be replaced
+   * with the given substitute.
+   */
+  public static String sanitizePath(String path, String substitute) {
+    Preconditions.checkArgument(substitute.replaceAll(HDFS_ILLEGAL_TOKEN_REGEX, "").equals(substitute),
+        "substitute contains illegal characters: " + substitute);
+
+    return path.replaceAll(HDFS_ILLEGAL_TOKEN_REGEX, substitute);
+  }
+
+  /**
+   * Remove illegal HDFS path characters from the given path. Illegal characters will be replaced
+   * with the given substitute.
+   */
+  public static Path sanitizePath(Path path, String substitute) {
+    return new Path(sanitizePath(path.toString(), substitute));
   }
 }

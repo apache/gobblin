@@ -148,6 +148,7 @@ ext.externalDependency = [
   "jhyde": "org.pentaho:pentaho-aggdesigner-algorithm:5.1.5-jhyde",
   "curatorFramework": "org.apache.curator:curator-framework:2.8.0",
   "curatorTest": "org.apache.curator:curator-test:2.8.0",
+  "hamcrest": "org.hamcrest:hamcrest-all:1.3",
   "pegasus" : [
     "data" : "com.linkedin.pegasus:data:"+pegasusVersion,
     "generator" : "com.linkedin.pegasus:generator:"+pegasusVersion,
@@ -180,6 +181,7 @@ subprojects {
 plugins.withType(JavaPlugin) {
   plugins.apply('idea')
   plugins.apply('eclipse')
+  plugins.apply('maven')
 // Disabling the FindBugs plugin for now because FindBugs 2.x is not compatible with Java8
 //  apply plugin: 'findbugs'
 

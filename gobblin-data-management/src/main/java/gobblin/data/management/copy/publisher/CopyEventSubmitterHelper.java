@@ -15,6 +15,7 @@ import com.google.common.collect.ImmutableMap;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.copy.CopyableDataset;
+import gobblin.data.management.copy.CopyableDatasetMetadata;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.metrics.event.EventSubmitter;
 import gobblin.metrics.event.sla.SlaEventKeys;
@@ -32,17 +33,17 @@ public class CopyEventSubmitterHelper {
   public static final String DATASET_ROOT_METADATA_NAME = "datasetUrn";
   public static final String DATASET_TARGET_ROOT_METADATA_NAME = "datasetTargetRoot";
 
-  static void submitSuccessfulDatasetPublish(EventSubmitter eventSubmitter, CopyableDataset copyableDataset) {
+  static void submitSuccessfulDatasetPublish(EventSubmitter eventSubmitter, CopyableDatasetMetadata copyableDataset) {
     SlaEventSubmitter.builder().eventSubmitter(eventSubmitter).eventName(DATASET_PUBLISHED_EVENT_NAME)
-        .datasetUrn(copyableDataset.datasetRoot().toString()).partition(copyableDataset.datasetRoot().toString())
-        .additionalMetadata(DATASET_TARGET_ROOT_METADATA_NAME, copyableDataset.datasetTargetRoot().toString()).build()
+        .datasetUrn(copyableDataset.getDatasetRoot().toString()).partition(copyableDataset.getDatasetRoot().toString())
+        .additionalMetadata(DATASET_TARGET_ROOT_METADATA_NAME, copyableDataset.getDatasetTargetRoot().toString()).build()
         .submit();
   }
 
-  static void submitFailedDatasetPublish(EventSubmitter eventSubmitter, CopyableDataset copyableDataset) {
+  static void submitFailedDatasetPublish(EventSubmitter eventSubmitter, CopyableDatasetMetadata copyableDataset) {
     eventSubmitter.submit(DATASET_PUBLISHED_FAILED_EVENT_NAME, ImmutableMap.of(DATASET_ROOT_METADATA_NAME,
-        copyableDataset.datasetRoot().toString(), DATASET_TARGET_ROOT_METADATA_NAME, copyableDataset
-            .datasetTargetRoot().toString()));
+        copyableDataset.getDatasetRoot().toString(), DATASET_TARGET_ROOT_METADATA_NAME, copyableDataset
+            .getDatasetTargetRoot().toString()));
 
   }
 

@@ -17,7 +17,7 @@ import gobblin.configuration.State;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.data.management.copy.OwnerAndPermission;
-import gobblin.data.management.util.PathUtils;
+import gobblin.util.PathUtils;
 import gobblin.util.FileListUtils;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.util.HadoopUtils;

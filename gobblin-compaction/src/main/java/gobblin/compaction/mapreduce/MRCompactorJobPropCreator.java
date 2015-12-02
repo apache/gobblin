@@ -54,6 +54,7 @@ public class MRCompactorJobPropCreator {
     Path topicTmpOutputDir;
     FileSystem fs;
     State state;
+    double lateDataThresholdForRecompact;
 
     T withTopic(String topic) {
       this.topic = topic;
@@ -101,6 +102,11 @@ public class MRCompactorJobPropCreator {
       return (T) this;
     }
 
+    T withLateDataThresholdForRecompact(double thresholdForRecompact) {
+      this.lateDataThresholdForRecompact = thresholdForRecompact;
+      return (T) this;
+    }
+
     MRCompactorJobPropCreator build() {
       return new MRCompactorJobPropCreator(this);
     }
@@ -117,6 +123,7 @@ public class MRCompactorJobPropCreator {
   protected final State state;
   protected final boolean inputDeduplicated;
   protected final boolean outputDeduplicated;
+  protected final double lateDataThresholdForRecompact;
 
   // Whether we should recompact the input folders if new data files are found in the input folders.
   protected final boolean recompactFromInputPaths;
@@ -136,6 +143,7 @@ public class MRCompactorJobPropCreator {
     this.topicTmpOutputDir = builder.topicTmpOutputDir;
     this.fs = builder.fs;
     this.state = builder.state;
+    this.lateDataThresholdForRecompact = builder.lateDataThresholdForRecompact;
     this.inputDeduplicated = this.state.getPropAsBoolean(MRCompactor.COMPACTION_INPUT_DEDUPLICATED,
         MRCompactor.DEFAULT_COMPACTION_INPUT_DEDUPLICATED);
     this.outputDeduplicated = this.state.getPropAsBoolean(MRCompactor.COMPACTION_OUTPUT_DEDUPLICATED,
@@ -152,7 +160,6 @@ public class MRCompactorJobPropCreator {
       LOG.warn("Input folder " + this.topicInputDir + " does not exist. Skipping topic " + this.topic);
       return ImmutableList.<Dataset> of();
     }
-
     Dataset dataset = buildDataset();
     Optional<Dataset> datasetWithJobProps = createJobProps(dataset);
     if (datasetWithJobProps.isPresent()) {
@@ -164,6 +171,7 @@ public class MRCompactorJobPropCreator {
 
   private Dataset buildDataset() {
     return new Dataset.Builder().withTopic(this.topic).withPriority(this.priority)
+        .withLateDataThresholdForRecompact(this.lateDataThresholdForRecompact)
         .withInputPath(this.recompactFromOutputPaths ? this.topicOutputDir : this.topicInputDir)
         .withInputLatePath(this.recompactFromOutputPaths ? this.topicOutputLateDir : this.topicInputLateDir)
         .withOutputPath(this.topicOutputDir).withOutputLatePath(this.topicOutputLateDir)

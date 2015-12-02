@@ -14,10 +14,11 @@ package gobblin.qualitychecker.row;
 
 import java.io.BufferedWriter;
 import java.io.Closeable;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.io.Closer;
@@ -32,17 +33,24 @@ import gobblin.configuration.ConfigurationKeys;
  * @author stakiar
  */
 public class RowLevelErrFileWriter implements Closeable {
+  private final FileSystem fs;
   private final Closer closer = Closer.create();
   private BufferedWriter writer;
+
+  public RowLevelErrFileWriter(FileSystem fs) {
+    this.fs = fs;
+  }
 
   /**
    * Open a BufferedWriter
    * @param errFilePath path to write the file
    */
   public void open(Path errFilePath) throws IOException {
-    this.writer =
-        closer.register(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(errFilePath.toString()),
-            ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
+    this.fs.mkdirs(errFilePath.getParent());
+    OutputStream os =
+        this.closer.register(this.fs.exists(errFilePath) ? this.fs.append(errFilePath) : this.fs.create(errFilePath));
+    this.writer = this.closer
+        .register(new BufferedWriter(new OutputStreamWriter(os, ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
   }
 
   /**
