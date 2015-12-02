@@ -22,8 +22,8 @@ import java.util.Comparator;
 import java.util.List;
 
 import org.apache.avro.Schema;
-import org.apache.avro.SchemaCompatibility;
 import org.apache.avro.Schema.Field;
+import org.apache.avro.SchemaCompatibility;
 import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapred.AvroValue;
@@ -64,6 +64,12 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
   private static final String COMPACTION_JOB_PREFIX = "compaction.job.";
 
   /**
+   * If true, the latest schema, determined from the input files, will be used as single schema for all input files,
+   * otherwise, the avro each input file will be determined and splits will be created with respect to the input file's schema
+   */
+  private static final String COMPACTION_JOB_AVRO_SINGLE_INPUT_SCHEMA = COMPACTION_JOB_PREFIX + "avro.single.input.schema";
+
+  /**
    * Properties related to the avro dedup compaction job of a dataset.
    */
   private static final String COMPACTION_JOB_AVRO_KEY_SCHEMA_LOC = COMPACTION_JOB_PREFIX + "avro.key.schema.loc";
@@ -87,8 +93,11 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
 
   private static final DedupKeyOption DEFAULT_DEDUP_KEY_OPTION = DedupKeyOption.KEY;
 
+  private final boolean useSingleInputSchema;
+
   public MRCompactorAvroKeyDedupJobRunner(Dataset dataset, FileSystem fs, Double priority) {
     super(dataset, fs, priority);
+    this.useSingleInputSchema = this.dataset.jobProps().getPropAsBoolean(COMPACTION_JOB_AVRO_SINGLE_INPUT_SCHEMA, false);
   }
 
   @Override
@@ -99,12 +108,14 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
 
   private void configureSchema(Job job) throws IOException {
     Schema newestSchema = getNewestSchemaFromSource(job);
-    AvroJob.setInputKeySchema(job, newestSchema);
+    if (useSingleInputSchema) {
+      AvroJob.setInputKeySchema(job, newestSchema);
+    }
     AvroJob.setMapOutputKeySchema(job, this.shouldDeduplicate ? getKeySchema(job, newestSchema) : newestSchema);
     AvroJob.setMapOutputValueSchema(job, newestSchema);
     AvroJob.setOutputKeySchema(job, newestSchema);
   }
-
+  
   /**
    * Obtain the schema used for compaction. If compaction.dedup.key=all, it returns topicSchema.
    * If compaction.dedup.key=key, it returns a schema composed of all fields in topicSchema

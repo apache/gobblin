@@ -32,16 +32,19 @@ import org.apache.hadoop.mapreduce.lib.input.FileSplit;
  */
 public class AvroKeyCombineFileRecordReader extends AvroKeyRecordReader<GenericRecord> {
 
-  private final CombineFileSplit split;
+  private final AvroCombineFileSplit split;
   private final Integer idx;
 
   public AvroKeyCombineFileRecordReader(CombineFileSplit split, TaskAttemptContext cx, Integer idx) {
-    this(split, AvroJob.getInputKeySchema(cx.getConfiguration()), idx);
+      this(split,
+          AvroJob.getInputKeySchema(cx.getConfiguration()) != null ?
+              AvroJob.getInputKeySchema(cx.getConfiguration()) : ((AvroCombineFileSplit) split).getSchema(),
+          idx);
   }
 
   private AvroKeyCombineFileRecordReader(CombineFileSplit split, Schema inputKeySchema, Integer idx) {
     super(inputKeySchema);
-    this.split = split;
+    this.split = (AvroCombineFileSplit) split;
     this.idx = idx;
   }
 
