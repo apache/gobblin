@@ -10,8 +10,9 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.data.management.util;
+package gobblin.util;
 
+import java.net.URI;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;

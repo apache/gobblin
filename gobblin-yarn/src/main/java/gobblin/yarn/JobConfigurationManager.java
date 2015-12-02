@@ -16,13 +16,14 @@ import java.io.File;
 import java.util.List;
 import java.util.Properties;
 
-import org.apache.hadoop.yarn.api.ApplicationConstants;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.base.Optional;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.AbstractIdleService;
+
+import org.apache.hadoop.yarn.api.ApplicationConstants;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.yarn.event.NewJobConfigArrivalEvent;
@@ -51,18 +52,20 @@ public class JobConfigurationManager extends AbstractIdleService {
   private static final Logger LOGGER = LoggerFactory.getLogger(JobConfigurationManager.class);
 
   private final EventBus eventBus;
-  private final Optional<String> jobConfPackagePath;
+  private final Optional<String> jobConfDirPath;
 
-  public JobConfigurationManager(EventBus eventBus, Optional<String> jobConfPackagePath) {
+  public JobConfigurationManager(EventBus eventBus, Optional<String> jobConfDirPath) {
     this.eventBus = eventBus;
-    this.jobConfPackagePath = jobConfPackagePath;
+    this.jobConfDirPath = jobConfDirPath;
   }
 
   @Override
   protected void startUp() throws Exception {
-    if (this.jobConfPackagePath.isPresent()) {
-      File path = new File(this.jobConfPackagePath.get());
-      File jobConfigDir = new File(System.getenv().get(ApplicationConstants.Environment.PWD.key()), path.getName());
+    if (this.jobConfDirPath.isPresent()) {
+      File path = new File(this.jobConfDirPath.get());
+      String pwd = System.getenv().get(ApplicationConstants.Environment.PWD.key());
+      File jobConfigDir = new File(pwd, path.getName() + GobblinYarnConfigurationKeys.TAR_GZ_FILE_SUFFIX);
+
       if (jobConfigDir.exists()) {
         LOGGER.info("Loading job configurations from " + jobConfigDir);
         Properties properties = new Properties();

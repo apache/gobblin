@@ -15,7 +15,7 @@ package gobblin.data.management.retention.profile;
 import gobblin.data.management.dataset.Dataset;
 import gobblin.data.management.retention.DatasetCleaner;
 import gobblin.data.management.retention.dataset.finder.DatasetFinder;
-import gobblin.data.management.util.PathUtils;
+import gobblin.util.PathUtils;
 
 import java.io.IOException;
 import java.util.List;

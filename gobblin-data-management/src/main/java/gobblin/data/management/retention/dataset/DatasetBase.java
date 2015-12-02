@@ -32,7 +32,7 @@ import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.finder.VersionFinder;
 import gobblin.data.management.trash.ProxiedTrash;
 import gobblin.data.management.trash.TrashFactory;
-import gobblin.data.management.util.PathUtils;
+import gobblin.util.PathUtils;
 
 
 /**
