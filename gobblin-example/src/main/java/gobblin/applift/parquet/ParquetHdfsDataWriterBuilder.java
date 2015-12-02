@@ -19,7 +19,7 @@ import gobblin.writer.WriterOutputFormat;
  * 
  */
 
-public class ParquetHDFSDataWriterBuilder extends FsDataWriterBuilder<Schema, GenericRecord> {
+public class ParquetHdfsDataWriterBuilder extends FsDataWriterBuilder<Schema, GenericRecord> {
 
 	@Override
 	public DataWriter<GenericRecord> build() throws IOException {
