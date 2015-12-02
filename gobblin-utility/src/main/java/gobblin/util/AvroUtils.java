@@ -69,7 +69,6 @@ public class AvroUtils {
   private static final String FIELD_LOCATION_DELIMITER = ".";
 
   private static final String AVRO_SUFFIX = ".avro";
-  public static final String HDFS_ILLEGAL_TOKEN_REGEX = "[\\s:\\\\]";
 
   /**
    * Given a GenericRecord, this method will return the schema of the field specified by the path parameter. The
@@ -458,8 +457,8 @@ public class AvroUtils {
     }
     List<String> tokens = Lists.newArrayList();
     for (Schema.Field field : record.getSchema().getFields()) {
-      String sanitizedName = field.name().replaceAll(HDFS_ILLEGAL_TOKEN_REGEX, "_");
-      String sanitizedValue = record.get(field.name()).toString().replaceAll(HDFS_ILLEGAL_TOKEN_REGEX, "_");
+      String sanitizedName = HadoopUtils.sanitizePath(field.name(), "_");
+      String sanitizedValue = HadoopUtils.sanitizePath(record.get(field.name()).toString(), "_");
       if (replacePathSeparators) {
         sanitizedName = sanitizedName.replaceAll(Path.SEPARATOR, "_");
         sanitizedValue = sanitizedValue.replaceAll(Path.SEPARATOR, "_");

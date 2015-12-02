@@ -25,6 +25,7 @@ import com.google.common.collect.Lists;
 
 import gobblin.configuration.State;
 import gobblin.util.ForkOperatorUtils;
+import gobblin.util.WriterUtils;
 
 
 public class RowLevelPolicyCheckerBuilder {
@@ -78,6 +79,6 @@ public class RowLevelPolicyCheckerBuilder {
 
   public RowLevelPolicyChecker build()
       throws Exception {
-    return new RowLevelPolicyChecker(createPolicyList());
+    return new RowLevelPolicyChecker(createPolicyList(), this.state.getId(), WriterUtils.getWriterFS(this.state, 1, 0));
   }
 }
