@@ -10,6 +10,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.lib.input.CombineFileSplit;
 
+import gobblin.configuration.ConfigurationKeys;
+
 
 /**
  * A subclass of {@link org.apache.hadoop.mapreduce.lib.input.CombineFileSplit}. The purpose is to add the input file's
@@ -66,11 +68,13 @@ public class AvroCombineFileSplit extends CombineFileSplit {
 
   private static String toBase64(String rawString) {
     Base64 base64decoder = new Base64();
-    return new String(base64decoder.encode(rawString.getBytes()));
+    return new String(base64decoder.encode(rawString.getBytes(ConfigurationKeys.DEFAULT_CHARSET_ENCODING)),
+        ConfigurationKeys.DEFAULT_CHARSET_ENCODING);
   }
 
   private static String fromBase64(String base64String) {
     Base64 base64decoder = new Base64();
-    return new String(base64decoder.decode(base64String.getBytes()));
+    return new String(base64decoder.decode(base64String.getBytes(ConfigurationKeys.DEFAULT_CHARSET_ENCODING)),
+        ConfigurationKeys.DEFAULT_CHARSET_ENCODING);
   }
 }
