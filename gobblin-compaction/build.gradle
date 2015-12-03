@@ -53,8 +53,10 @@ dependencies {
 }
 
 
-configurations { compile { transitive = true
-  } }
+configurations { 
+    compile { transitive = true } 
+    archives
+}
 
 classification="library"
 
@@ -70,7 +72,10 @@ jar {
 }
 
 task createCompactionTar(type: Tar) {
-  extension = 'tar.gz'
+  //there seems to be a bug in the Gradle signing module where X.tar.gz will generate
+  // a signature X.gz.asc instead of X.tar.gz.asc. Therefore, we have to use the .tgz 
+  // extension
+  extension = 'tgz'
   baseName = project.name
   compression = Compression.GZIP
 
