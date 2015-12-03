@@ -27,9 +27,8 @@ import gobblin.writer.DataWriter;
 
 
 /**
- * Decorator that automatically instruments {@link gobblin.writer.DataWriter}.
- * Handles already instrumented {@link gobblin.instrumented.writer.InstrumentedDataWriter}
- * appropriately to avoid double metric reporting.
+ * Decorator that automatically instruments {@link gobblin.writer.DataWriter}. Handles already instrumented
+ * {@link gobblin.instrumented.writer.InstrumentedDataWriter} appropriately to avoid double metric reporting.
  */
 public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBase<D> implements Decorator {
 
@@ -44,15 +43,14 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
 
   @Override
   public MetricContext getMetricContext() {
-    return this.isEmbeddedInstrumented ?
-        ((InstrumentedDataWriterBase)this.embeddedWriter).getMetricContext() :
-        super.getMetricContext();
+    return this.isEmbeddedInstrumented ? ((InstrumentedDataWriterBase) this.embeddedWriter).getMetricContext()
+        : super.getMetricContext();
   }
 
   @Override
   public void write(D record)
       throws IOException {
-    if(this.isEmbeddedInstrumented) {
+    if (this.isEmbeddedInstrumented) {
       writeImpl(record);
     } else {
       super.write(record);
@@ -69,6 +67,7 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   public void commit()
       throws IOException {
     this.embeddedWriter.commit();
+    super.commit();
   }
 
   @Override
@@ -90,7 +89,7 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
 
   @Override
   public State getFinalState() {
-    if(this.embeddedWriter instanceof FinalState) {
+    if (this.embeddedWriter instanceof FinalState) {
       return ((FinalState) this.embeddedWriter).getFinalState();
     } else {
       return super.getFinalState();

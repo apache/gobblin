@@ -55,9 +55,25 @@ import gobblin.metrics.GobblinMetrics;
 public class TaskState extends WorkUnitState {
 
   // Built-in metric names
+
+  /**
+   * @deprecated see {@link gobblin.instrumented.writer.InstrumentedDataWriterBase}.
+   */
   private static final String RECORDS = "records";
+
+  /**
+   * @deprecated see {@link gobblin.instrumented.writer.InstrumentedDataWriterBase}.
+   */
   private static final String RECORDS_PER_SECOND = "recordsPerSec";
+
+  /**
+   * @deprecated see {@link gobblin.instrumented.writer.InstrumentedDataWriterBase}.
+   */
   private static final String BYTES = "bytes";
+
+  /**
+   * @deprecated see {@link gobblin.instrumented.writer.InstrumentedDataWriterBase}.
+   */
   private static final String BYTES_PER_SECOND = "bytesPerSec";
 
   private String jobId;
@@ -211,13 +227,14 @@ public class TaskState extends WorkUnitState {
    *
    * @param recordsWritten number of records written by the writer
    * @param branchIndex fork branch index
+   *
+   * @deprecated see {@link gobblin.instrumented.writer.InstrumentedDataWriterBase}.
    */
-  public void updateRecordMetrics(long recordsWritten, int branchIndex) {
+  public synchronized void updateRecordMetrics(long recordsWritten, int branchIndex) {
     TaskMetrics metrics = TaskMetrics.get(this);
     String forkBranchId = ForkOperatorUtils.getForkId(this.taskId, branchIndex);
 
-    Counter taskRecordCounter =
-        metrics.getCounter(gobblin.runtime.util.MetricGroup.TASK.name(), forkBranchId, RECORDS);
+    Counter taskRecordCounter = metrics.getCounter(MetricGroup.TASK.name(), forkBranchId, RECORDS);
     long inc = recordsWritten - taskRecordCounter.getCount();
     taskRecordCounter.inc(inc);
     metrics.getMeter(MetricGroup.TASK.name(), forkBranchId, RECORDS_PER_SECOND).mark(inc);
@@ -228,21 +245,21 @@ public class TaskState extends WorkUnitState {
   /**
    * Collect byte-level metrics.
    *
-   * <p>
-   *     This method is only supposed to be called after the writer commits.
-   * </p>
-   *
    * @param bytesWritten number of bytes written by the writer
    * @param branchIndex fork branch index
+   *
+   * @deprecated see {@link gobblin.instrumented.writer.InstrumentedDataWriterBase}.
    */
-  public void updateByteMetrics(long bytesWritten, int branchIndex) {
+  public synchronized void updateByteMetrics(long bytesWritten, int branchIndex) {
     TaskMetrics metrics = TaskMetrics.get(this);
     String forkBranchId = ForkOperatorUtils.getForkId(this.taskId, branchIndex);
 
-    metrics.getCounter(MetricGroup.TASK.name(), forkBranchId, BYTES).inc(bytesWritten);
-    metrics.getMeter(MetricGroup.TASK.name(), forkBranchId, BYTES_PER_SECOND).mark(bytesWritten);
-    metrics.getCounter(MetricGroup.JOB.name(), this.jobId, BYTES).inc(bytesWritten);
-    metrics.getMeter(MetricGroup.JOB.name(), this.jobId, BYTES_PER_SECOND).mark(bytesWritten);
+    Counter taskByteCounter = metrics.getCounter(MetricGroup.TASK.name(), forkBranchId, BYTES);
+    long inc = bytesWritten - taskByteCounter.getCount();
+    taskByteCounter.inc(inc);
+    metrics.getMeter(MetricGroup.TASK.name(), forkBranchId, BYTES_PER_SECOND).mark(inc);
+    metrics.getCounter(MetricGroup.JOB.name(), this.jobId, BYTES).inc(inc);
+    metrics.getMeter(MetricGroup.JOB.name(), this.jobId, BYTES_PER_SECOND).mark(inc);
   }
 
   /**

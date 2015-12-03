@@ -62,13 +62,42 @@ public class MetricNames {
   }
 
   /**
-   * Data writer metrics.
+   * {@link gobblin.writer.DataWriter} metrics.
    */
   public static class DataWriterMetrics {
+
+    /**
+     * A {@link com.codahale.metrics.Meter} measuring the number of records given to a {@link gobblin.writer.DataWriter}.
+     */
     public static final String RECORDS_IN_METER = "gobblin.writer.records.in";
+
+    /**
+     * A {@link com.codahale.metrics.Meter} measuring the number of successful write operations performed by a
+     * {@link gobblin.writer.DataWriter}.
+     */
+    public static final String SUCCESSFUL_WRITES_METER = "gobblin.writer.successful.writes";
+
+    /**
+     * A {@link com.codahale.metrics.Meter} measuring the number of failed write operations performed by a
+     * {@link gobblin.writer.DataWriter}.
+     */
+    public static final String FAILED_WRITES_METER = "gobblin.writer.failed.writes";
+
+    /**
+     * A {@link com.codahale.metrics.Meter} measuring the number records written by a {@link gobblin.writer.DataWriter}
+     * as reported by its {@link gobblin.writer.DataWriter#recordsWritten()} method.
+     */
     public static final String RECORDS_WRITTEN_METER = "gobblin.writer.records.written";
-    public static final String RECORDS_FAILED_METER = "gobblin.writer.records.failed";
-    // Times writing of records.
+
+    /**
+     * A {@link com.codahale.metrics.Meter} measuring the number bytes written by a {@link gobblin.writer.DataWriter} as
+     * reported by its {@link gobblin.writer.DataWriter#bytesWritten()} method.
+     */
+    public static final String BYTES_WRITTEN_METER = "gobblin.writer.bytes.written";
+
+    /**
+     * A {@link com.codahale.metrics.Timer} measuring the time taken for each write operation.
+     */
     public static final String WRITE_TIMER = "gobblin.writer.write.time";
   }
 }

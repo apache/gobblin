@@ -50,8 +50,8 @@ import com.google.common.io.Closer;
 @Slf4j
 public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInputStream> {
 
-  protected long bytesWritten = 0;
-  protected long filesWritten = 0;
+  protected volatile long bytesWritten = 0;
+  protected volatile long filesWritten = 0;
   protected final State state;
   protected final FileSystem fs;
   protected final Path stagingDir;
@@ -81,15 +81,16 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
     this.fs.mkdirs(stagingFile.getParent(), fileAwareInputStream.getFile().getDestinationOwnerAndPermission()
         .getFsPermission());
 
-    FSDataOutputStream os = fs.create(stagingFile, true);
+    FSDataOutputStream os = this.fs.create(stagingFile, true);
     try {
-      bytesWritten += StreamUtils.copy(fileAwareInputStream.getInputStream(), os);
+      this.bytesWritten += StreamUtils.copy(fileAwareInputStream.getInputStream(), os);
+      log.info("bytes written: " + this.bytesWritten + " for file " + fileAwareInputStream.getFile());
     } finally {
       os.close();
       fileAwareInputStream.getInputStream().close();
     }
 
-    filesWritten++;
+    this.filesWritten++;
 
     setFilePermissions(fileAwareInputStream.getFile());
   }
@@ -142,10 +143,10 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
    */
   private void setPathPermission(Path path, OwnerAndPermission ownerAndPermission) throws IOException {
 
-    fs.setPermission(path, ownerAndPermission.getFsPermission());
+    this.fs.setPermission(path, ownerAndPermission.getFsPermission());
 
     if (StringUtils.isNotBlank(ownerAndPermission.getGroup()) && StringUtils.isNotBlank(ownerAndPermission.getOwner())) {
-      fs.setOwner(path, ownerAndPermission.getOwner(), ownerAndPermission.getGroup());
+      this.fs.setOwner(path, ownerAndPermission.getOwner(), ownerAndPermission.getGroup());
     } else {
       log.info("Owner and group will not be set as no valid user and group available for " + path);
     }
@@ -201,17 +202,17 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
 
   @Override
   public long recordsWritten() {
-    return filesWritten;
+    return this.filesWritten;
   }
 
   @Override
   public long bytesWritten() throws IOException {
-    return bytesWritten;
+    return this.bytesWritten;
   }
 
   @Override
   public void close() throws IOException {
-    closer.close();
+    this.closer.close();
   }
 
   /**
@@ -224,16 +225,13 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
    */
   @Override
   public void commit() throws IOException {
-    log.info(String.format("Committing data from %s to %s", stagingDir, outputDir));
-    HadoopUtils.renameRecursively(fs, stagingDir, outputDir);
-    fs.delete(stagingDir, true);
+    log.info(String.format("Committing data from %s to %s", this.stagingDir, this.outputDir));
+    HadoopUtils.renameRecursively(this.fs, this.stagingDir, this.outputDir);
+    this.fs.delete(this.stagingDir, true);
   }
 
   @Override
   public void cleanup() throws IOException {
+    // Do nothing
   }
-
-
-
-
 }
