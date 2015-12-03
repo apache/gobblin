@@ -7,8 +7,23 @@
 // Unless required by applicable law or agreed to in writing, software distributed
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied.
+buildscript {
+  repositories {
+    maven {
+      url "https://plugins.gradle.org/m2/"
+    }
+  }
+  dependencies {
+    classpath "gradle.plugin.org.inferred:gradle-processors:1.1.1"
+  }
+}
 
+apply plugin: "org.inferred.processors"
 apply plugin: 'idea'
+
+idea.project {
+  languageLevel = JavaVersion.VERSION_1_7
+}
 
 ext.build_script_dir = "${projectDir.path}/build_script"
 
@@ -228,6 +243,9 @@ plugins.withType(JavaPlugin) {
 
   // Configure the IDEA plugin to (1) add the codegen as source dirs and (2) work around
   // an apparent bug in the plugin which doesn't set the outputDir/testOutputDir as documented
+  idea.project {
+    languageLevel = JavaVersion.VERSION_1_7
+  }
   idea.module {
     // Gradle docs claim the two settings below are the default, but
     // the actual defaults appear to be "out/production/$MODULE_NAME"

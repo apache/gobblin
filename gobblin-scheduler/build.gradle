@@ -22,6 +22,7 @@ dependencies {
   compile project(":gobblin-runtime")
   compile project(":gobblin-utility")
   compile project(":gobblin-rest-service:gobblin-rest-server")
+  runtime project(":gobblin-example")
 
   compile externalDependency.commonsConfiguration
   compile externalDependency.quartz
