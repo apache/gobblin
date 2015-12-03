@@ -161,6 +161,7 @@ ext.externalDependency = [
   "calciteAvatica": "org.apache.calcite:calcite-avatica:1.2.0-incubating",
   "jhyde": "org.pentaho:pentaho-aggdesigner-algorithm:5.1.5-jhyde",
   "hamcrest": "org.hamcrest:hamcrest-all:1.3",
+  "joptSimple": "net.sf.jopt-simple:jopt-simple:4.9",
   "pegasus" : [
     "data" : "com.linkedin.pegasus:data:"+pegasusVersion,
     "generator" : "com.linkedin.pegasus:generator:"+pegasusVersion,
