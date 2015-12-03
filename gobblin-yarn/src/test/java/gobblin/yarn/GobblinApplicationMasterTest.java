@@ -44,9 +44,6 @@ import gobblin.yarn.event.ApplicationMasterShutdownRequest;
 public class GobblinApplicationMasterTest implements HelixMessageTestBase {
 
   private static final int TEST_ZK_PORT = 3182;
-  private static final String TEST_APPLICATION_NAME = "TestApplication";
-  private static final String TEST_HELIX_INSTANCE_NAME = "TestInstance";
-  private static final String TEST_CONTAINER_ID = "container_1447921358856_210676_01_000001";
 
   private TestingServer testingZKServer;
 
@@ -73,16 +70,15 @@ public class GobblinApplicationMasterTest implements HelixMessageTestBase {
     YarnHelixUtils.createGobblinYarnHelixCluster(zkConnectionString,
         config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY));
 
-    this.helixManager = HelixManagerFactory.getZKHelixManager(
-        config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY), TEST_HELIX_INSTANCE_NAME,
-        InstanceType.PARTICIPANT, zkConnectionString);
+    this.helixManager = HelixManagerFactory
+        .getZKHelixManager(config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY),
+            TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.PARTICIPANT, zkConnectionString);
     this.helixManager.connect();
     this.helixManager.getMessagingService().registerMessageHandlerFactory(Message.MessageType.SHUTDOWN.toString(),
         new TestShutdownMessageHandlerFactory(this));
 
-    this.gobblinApplicationMaster =
-        new GobblinApplicationMaster(TEST_APPLICATION_NAME, ConverterUtils.toContainerId(TEST_CONTAINER_ID), config,
-            yarnConfiguration);
+    this.gobblinApplicationMaster = new GobblinApplicationMaster(TestHelper.TEST_APPLICATION_NAME,
+        ConverterUtils.toContainerId(TestHelper.TEST_CONTROLLER_CONTAINER_ID), config, yarnConfiguration);
     this.gobblinApplicationMaster.getEventBus().register(this.gobblinApplicationMaster);
     this.gobblinApplicationMaster.connectHelixManager();
   }
@@ -98,16 +94,16 @@ public class GobblinApplicationMasterTest implements HelixMessageTestBase {
 
       Assert.assertEquals(curatorFramework.checkExists().forPath(String
           .format("/%s/INSTANCES/%s/MESSAGES", GobblinApplicationMasterTest.class.getSimpleName(),
-              TEST_HELIX_INSTANCE_NAME)).getVersion(), 0);
+              TestHelper.TEST_HELIX_INSTANCE_NAME)).getVersion(), 0);
       Thread.sleep(500);
       Assert.assertEquals(curatorFramework.getChildren().forPath(String
           .format("/%s/INSTANCES/%s/MESSAGES", GobblinApplicationMasterTest.class.getSimpleName(),
-              TEST_HELIX_INSTANCE_NAME)).size(), 1);
+              TestHelper.TEST_HELIX_INSTANCE_NAME)).size(), 1);
       // Give Helix sometime to handle the message
       Thread.sleep(2000);
       Assert.assertEquals(curatorFramework.getChildren().forPath(String
           .format("/%s/INSTANCES/%s/MESSAGES", GobblinApplicationMasterTest.class.getSimpleName(),
-              TEST_HELIX_INSTANCE_NAME)).size(), 0);
+              TestHelper.TEST_HELIX_INSTANCE_NAME)).size(), 0);
     } finally {
       curatorFramework.close();
     }

@@ -36,7 +36,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Maps;
-import com.google.common.io.Files;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.example.simplejson.SimpleJsonConverter;
@@ -45,7 +44,6 @@ import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.JobState;
 import gobblin.runtime.TaskExecutor;
 import gobblin.source.workunit.WorkUnit;
-import gobblin.util.JobLauncherUtils;
 import gobblin.util.SerializationUtils;
 import gobblin.writer.AvroDataWriterBuilder;
 import gobblin.writer.Destination;
@@ -59,23 +57,6 @@ import gobblin.writer.WriterOutputFormat;
  */
 @Test(groups = { "gobblin.yarn" })
 public class GobblinHelixTaskTest {
-
-  private static final String JOB_NAME = GobblinHelixTaskTest.class.getSimpleName();
-  private static final String JOB_ID = JobLauncherUtils.newJobId(JOB_NAME);
-  private static final String TASK_ID = JobLauncherUtils.newTaskId(JOB_ID, 0);
-
-  private static final String REL_WRITER_FILE_PATH = "avro";
-  private static final String WRITER_FILE_NAME = "foo.avro";
-
-  private static final String SOURCE_SCHEMA =
-      "{\"namespace\":\"example.avro\", \"type\":\"record\", \"name\":\"User\", "
-          + "\"fields\":[{\"name\":\"name\", \"type\":\"string\"}, {\"name\":\"favorite_number\",  "
-          + "\"type\":\"int\"}, {\"name\":\"favorite_color\", \"type\":\"string\"}]}\n";
-
-  private static final String SOURCE_JSON_DOCS =
-      "{\"name\": \"Alyssa\", \"favorite_number\": 256, \"favorite_color\": \"yellow\"}\n"
-      + "{\"name\": \"Ben\", \"favorite_number\": 7, \"favorite_color\": \"red\"}\n"
-      + "{\"name\": \"Charlie\", \"favorite_number\": 68, \"favorite_color\": \"blue\"}";
 
   private TaskExecutor taskExecutor;
   private GobblinHelixTaskStateTracker taskStateTracker;
@@ -103,10 +84,11 @@ public class GobblinHelixTaskTest {
   @Test
   public void testPrepareTask() throws IOException {
     // Serialize the JobState that will be read later in GobblinHelixTask
-    Path jobStateFilePath = new Path(appWorkDir, JOB_ID + "." + AbstractJobLauncher.JOB_STATE_FILE_NAME);
+    Path jobStateFilePath =
+        new Path(appWorkDir, TestHelper.TEST_JOB_ID + "." + AbstractJobLauncher.JOB_STATE_FILE_NAME);
     JobState jobState = new JobState();
-    jobState.setJobName(JOB_NAME);
-    jobState.setJobId(JOB_ID);
+    jobState.setJobName(TestHelper.TEST_JOB_NAME);
+    jobState.setJobId(TestHelper.TEST_JOB_ID);
     SerializationUtils.serializeState(this.localFs, jobStateFilePath, jobState);
 
     // Prepare the WorkUnit
@@ -114,27 +96,28 @@ public class GobblinHelixTaskTest {
     prepareWorkUnit(workUnit);
 
     // Prepare the source Json file
-    File sourceJsonFile = new File(this.appWorkDir.toString(), JOB_NAME + ".json");
-    createSourceJsonFile(sourceJsonFile);
+    File sourceJsonFile = new File(this.appWorkDir.toString(), TestHelper.TEST_JOB_NAME + ".json");
+    TestHelper.createSourceJsonFile(sourceJsonFile);
     workUnit.setProp(SimpleJsonSource.SOURCE_FILE_KEY, sourceJsonFile.getAbsolutePath());
 
     // Serialize the WorkUnit into a file
-    Path workUnitFilePath = new Path(this.appWorkDir, JOB_NAME + ".wu");
+    Path workUnitFilePath = new Path(this.appWorkDir, TestHelper.TEST_JOB_NAME + ".wu");
     SerializationUtils.serializeState(this.localFs, workUnitFilePath, workUnit);
     Assert.assertTrue(this.localFs.exists(workUnitFilePath));
 
     // Prepare the GobblinHelixTask
     Map<String, String> taskConfigMap = Maps.newHashMap();
     taskConfigMap.put(GobblinYarnConfigurationKeys.WORK_UNIT_FILE_PATH, workUnitFilePath.toString());
-    taskConfigMap.put(ConfigurationKeys.JOB_ID_KEY, JOB_ID);
+    taskConfigMap.put(ConfigurationKeys.JOB_ID_KEY, TestHelper.TEST_JOB_ID);
 
     TaskConfig taskConfig = new TaskConfig("", taskConfigMap, true);
     TaskCallbackContext taskCallbackContext = Mockito.mock(TaskCallbackContext.class);
     Mockito.when(taskCallbackContext.getTaskConfig()).thenReturn(taskConfig);
     Mockito.when(taskCallbackContext.getManager()).thenReturn(this.helixManager);
 
-    this.gobblinHelixTask = new GobblinHelixTask(taskCallbackContext, this.taskExecutor,
-        this.taskStateTracker, this.localFs, this.appWorkDir);
+    GobblinHelixTaskFactory gobblinHelixTaskFactory =
+        new GobblinHelixTaskFactory(this.taskExecutor, this.taskStateTracker, this.localFs, this.appWorkDir);
+    this.gobblinHelixTask = (GobblinHelixTask) gobblinHelixTaskFactory.createNewTask(taskCallbackContext);
   }
 
   @Test(dependsOnMethods = "testPrepareTask")
@@ -143,11 +126,11 @@ public class GobblinHelixTaskTest {
     System.out.println(taskResult.getInfo());
     Assert.assertEquals(taskResult.getStatus(), TaskResult.Status.COMPLETED);
 
-    File outputAvroFile =
-        new File(this.taskOutputDir.toString(), REL_WRITER_FILE_PATH + File.separator + WRITER_FILE_NAME);
+    File outputAvroFile = new File(this.taskOutputDir.toString(),
+        TestHelper.REL_WRITER_FILE_PATH + File.separator + TestHelper.WRITER_FILE_NAME);
     Assert.assertTrue(outputAvroFile.exists());
 
-    Schema schema = new Schema.Parser().parse(SOURCE_SCHEMA);
+    Schema schema = new Schema.Parser().parse(TestHelper.SOURCE_SCHEMA);
 
     try (DataFileReader<GenericRecord> reader =
         new DataFileReader<>(outputAvroFile, new GenericDatumReader<GenericRecord>(schema))) {
@@ -179,21 +162,16 @@ public class GobblinHelixTaskTest {
   }
 
   private void prepareWorkUnit(WorkUnit workUnit) {
-    workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, TASK_ID);
+    workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, TestHelper.TEST_TASK_ID);
+    workUnit.setProp(ConfigurationKeys.SOURCE_CLASS_KEY, SimpleJsonSource.class.getName());
     workUnit.setProp(ConfigurationKeys.CONVERTER_CLASSES_KEY, SimpleJsonConverter.class.getName());
     workUnit.setProp(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY, WriterOutputFormat.AVRO.toString());
     workUnit.setProp(ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY, Destination.DestinationType.HDFS.toString());
     workUnit.setProp(ConfigurationKeys.WRITER_STAGING_DIR, this.appWorkDir.toString() + Path.SEPARATOR + "staging");
     workUnit.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, this.taskOutputDir.toString());
-    workUnit.setProp(ConfigurationKeys.WRITER_FILE_NAME, WRITER_FILE_NAME);
-    workUnit.setProp(ConfigurationKeys.WRITER_FILE_PATH, REL_WRITER_FILE_PATH);
+    workUnit.setProp(ConfigurationKeys.WRITER_FILE_NAME, TestHelper.WRITER_FILE_NAME);
+    workUnit.setProp(ConfigurationKeys.WRITER_FILE_PATH, TestHelper.REL_WRITER_FILE_PATH);
     workUnit.setProp(ConfigurationKeys.WRITER_BUILDER_CLASS, AvroDataWriterBuilder.class.getName());
-    workUnit.setProp(ConfigurationKeys.SOURCE_SCHEMA, SOURCE_SCHEMA);
-    workUnit.setProp(ConfigurationKeys.SOURCE_CLASS_KEY, SimpleJsonSource.class.getName());
-  }
-
-  private void createSourceJsonFile(File sourceJsonFile) throws IOException {
-    Files.createParentDirs(sourceJsonFile);
-    Files.write(SOURCE_JSON_DOCS, sourceJsonFile, ConfigurationKeys.DEFAULT_CHARSET_ENCODING);
+    workUnit.setProp(ConfigurationKeys.SOURCE_SCHEMA, TestHelper.SOURCE_SCHEMA);
   }
 }

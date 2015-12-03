@@ -58,6 +58,7 @@ import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
@@ -122,7 +123,8 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
   private volatile boolean stopInProgress = false;
   private volatile boolean isStopped = false;
 
-  public GobblinWorkUnitRunner(String applicationName, ContainerId containerId, Config config) throws Exception {
+  public GobblinWorkUnitRunner(String applicationName, ContainerId containerId, Config config,
+      Optional<Path> appWorkDirOptional) throws Exception {
     this.containerId = containerId;
     ApplicationAttemptId applicationAttemptId = this.containerId.getApplicationAttemptId();
     String applicationId = applicationAttemptId.getApplicationId().toString();
@@ -144,10 +146,12 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
     TaskExecutor taskExecutor = new TaskExecutor(properties);
     TaskStateTracker taskStateTracker = new GobblinHelixTaskStateTracker(properties, this.helixManager);
 
+    Path appWorkDir = appWorkDirOptional.isPresent() ?
+        appWorkDirOptional.get() : YarnHelixUtils.getAppWorkDirPath(fs, applicationName, applicationId);
+
     List<Service> services = Lists.newArrayList();
     if (isLogSourcePresent()) {
-      services.add(
-          buildLogCopier(this.containerId, fs, YarnHelixUtils.getAppWorkDirPath(fs, applicationName, applicationId)));
+      services.add(buildLogCopier(this.containerId, fs, appWorkDir));
     }
     services.add(taskExecutor);
     services.add(taskStateTracker);
@@ -160,7 +164,6 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
 
     // Register task factory for the Helix task state model
     Map<String, TaskFactory> taskFactoryMap = Maps.newHashMap();
-    Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(fs, applicationName, applicationId);
     taskFactoryMap.put(GOBBLIN_TASK_FACTORY_NAME,
         new GobblinHelixTaskFactory(taskExecutor, taskStateTracker, fs, appWorkDir));
     this.taskStateModelFactory = new TaskStateModelFactory(this.helixManager, taskFactoryMap);
@@ -441,7 +444,7 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
           ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
       GobblinWorkUnitRunner gobblinWorkUnitRunner =
           new GobblinWorkUnitRunner(cmd.getOptionValue(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME),
-              containerId, ConfigFactory.load());
+              containerId, ConfigFactory.load(), Optional.<Path>absent());
       gobblinWorkUnitRunner.start();
     } catch (ParseException pe) {
       printUsage(options);

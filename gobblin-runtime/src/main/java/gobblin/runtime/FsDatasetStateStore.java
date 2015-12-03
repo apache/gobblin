@@ -57,9 +57,9 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FsDatasetStateStore.class);
 
-  static final String DATASET_STATE_STORE_TABLE_SUFFIX = ".jst";
+  public static final String DATASET_STATE_STORE_TABLE_SUFFIX = ".jst";
 
-  static final String CURRENT_DATASET_STATE_FILE_SUFFIX = "current";
+  public static final String CURRENT_DATASET_STATE_FILE_SUFFIX = "current";
 
   public FsDatasetStateStore(String fsUri, String storeRootDir) throws IOException {
     super(fsUri, storeRootDir, JobState.DatasetState.class);

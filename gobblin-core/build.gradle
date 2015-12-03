@@ -61,6 +61,7 @@ dependencies {
   testCompile externalDependency.jhyde
   testCompile externalDependency.testng
   testCompile externalDependency.mockRunnerJdbc
+  testRuntime externalDependency.xerces
 }
 
 configurations { compile { transitive = false } }

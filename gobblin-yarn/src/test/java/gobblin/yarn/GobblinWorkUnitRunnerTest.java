@@ -16,12 +16,15 @@ import java.io.IOException;
 import java.net.URL;
 
 import org.apache.curator.test.TestingServer;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+
+import com.google.common.base.Optional;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -36,9 +39,6 @@ import com.typesafe.config.ConfigFactory;
 public class GobblinWorkUnitRunnerTest {
 
   private static final int TEST_ZK_PORT = 3183;
-  private static final String TEST_APPLICATION_NAME = "TestApplication";
-  private static final String TEST_CONTROLLER_CONTAINER_ID = "container_1447921358856_210676_01_000001";
-  private static final String TEST_PARTICIPANT_CONTAINER_ID = "container_1447921358856_210676_01_000002";
 
   private TestingServer testingZKServer;
 
@@ -63,13 +63,13 @@ public class GobblinWorkUnitRunnerTest {
         config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY));
 
     // Participant
-    this.gobblinWorkUnitRunner = new GobblinWorkUnitRunner(
-        TEST_APPLICATION_NAME, ConverterUtils.toContainerId(TEST_PARTICIPANT_CONTAINER_ID), config);
+    this.gobblinWorkUnitRunner = new GobblinWorkUnitRunner(TestHelper.TEST_APPLICATION_NAME,
+        ConverterUtils.toContainerId(TestHelper.TEST_PARTICIPANT_CONTAINER_ID), config, Optional.<Path>absent());
     this.gobblinWorkUnitRunner.connectHelixManager();
 
     // Controller
-    this.gobblinApplicationMaster = new GobblinApplicationMaster(TEST_APPLICATION_NAME,
-        ConverterUtils.toContainerId(TEST_CONTROLLER_CONTAINER_ID), config, new YarnConfiguration());
+    this.gobblinApplicationMaster = new GobblinApplicationMaster(TestHelper.TEST_APPLICATION_NAME,
+        ConverterUtils.toContainerId(TestHelper.TEST_CONTROLLER_CONTAINER_ID), config, new YarnConfiguration());
     this.gobblinApplicationMaster.connectHelixManager();
 
   }
