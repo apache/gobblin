@@ -12,14 +12,24 @@
 
 package gobblin.util;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Queue;
 
+import com.google.common.base.Optional;
+import gobblin.util.io.SeekableFSInputStream;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -152,6 +162,41 @@ public class ParallelRunnerTest {
       TestWatermark watermark = new Gson().fromJson(workUnitState.getActualHighWatermark(), TestWatermark.class);
       Assert.assertTrue(watermark.getLongWatermark() == 10L || watermark.getLongWatermark() == 100L);
     }
+  }
+
+  @Test
+  public void testMovePath() throws IOException, URISyntaxException {
+    String expected = "test";
+    ByteArrayOutputStream actual = new ByteArrayOutputStream();
+
+    Path src = new Path("/src/file.txt");
+    Path dst = new Path("/dst/file.txt");
+    FileSystem fs1 = Mockito.mock(FileSystem.class);
+    Mockito.when(fs1.exists(src)).thenReturn(true);
+    Mockito.when(fs1.isFile(src)).thenReturn(true);
+    Mockito.when(fs1.getUri()).thenReturn(new URI("fs1:////"));
+    Mockito.when(fs1.getFileStatus(src)).thenReturn(new FileStatus(1, false, 1, 1, 1, src));
+    Mockito.when(fs1.open(src))
+            .thenReturn(new FSDataInputStream(new SeekableFSInputStream(new ByteArrayInputStream(expected.getBytes()))));
+    Mockito.when(fs1.delete(src, true)).thenReturn(true);
+
+    FileSystem fs2 = Mockito.mock(FileSystem.class);
+    Mockito.when(fs2.exists(dst)).thenReturn(false);
+    Mockito.when(fs2.getUri()).thenReturn(new URI("fs2:////"));
+    Mockito.when(fs2.getConf()).thenReturn(new Configuration());
+    Mockito.when(fs2.create(dst, false)).thenReturn(new FSDataOutputStream(actual, null));
+
+    Closer closer = Closer.create();
+    try {
+      ParallelRunner parallelRunner = closer.register(new ParallelRunner(1, fs1));
+      parallelRunner.movePath(src, fs2, dst, Optional.<String>absent());
+    } catch (Throwable t) {
+        throw closer.rethrow(t);
+    } finally {
+        closer.close();
+    }
+
+    Assert.assertEquals(actual.toString(), expected);
   }
 
   @AfterClass

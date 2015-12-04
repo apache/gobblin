@@ -186,6 +186,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
 
     Closer closer = Closer.create();
     try {
+      @SuppressWarnings("deprecation")
       SequenceFile.Reader reader = closer.register(new SequenceFile.Reader(this.fs, tablePath, this.conf));
       try {
         Text key = new Text();
@@ -219,6 +220,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
 
     Closer closer = Closer.create();
     try {
+      @SuppressWarnings("deprecation")
       SequenceFile.Reader reader = closer.register(new SequenceFile.Reader(this.fs, tablePath, this.conf));
       try {
         Text key = new Text();

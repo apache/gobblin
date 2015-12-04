@@ -82,6 +82,7 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> {
 
     Closer closer = Closer.create();
     try {
+      @SuppressWarnings("deprecation")
       SequenceFile.Reader reader = closer.register(new SequenceFile.Reader(this.fs, tablePath, this.conf));
       // This is necessary for backward compatibility as existing jobs are using the JobState class
       Writable writable = reader.getValueClass() == JobState.class ? new JobState() : new JobState.DatasetState();
@@ -121,6 +122,7 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> {
 
     Closer closer = Closer.create();
     try {
+      @SuppressWarnings("deprecation")
       SequenceFile.Reader reader = closer.register(new SequenceFile.Reader(this.fs, tablePath, this.conf));
       // This is necessary for backward compatibility as existing jobs are using the JobState class
       Writable writable = reader.getValueClass() == JobState.class ? new JobState() : new JobState.DatasetState();
