@@ -14,11 +14,11 @@ buildscript {
     }
   }
   dependencies {
-    classpath "gradle.plugin.org.inferred:gradle-processors:1.1.1"
+    classpath "gradle.plugin.info.kadaan:gradle-processors:1.1"
   }
 }
 
-apply plugin: "org.inferred.processors"
+apply plugin: "info.kadaan.processors"
 apply plugin: 'idea'
 
 idea.project {
