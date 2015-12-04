@@ -60,9 +60,9 @@ public class TarArchiveInputStreamDataWriter extends FileAwareInputStreamDataWri
    */
   @Override
   public void write(FileAwareInputStream fileAwareInputStream) throws IOException {
-    closer.register(fileAwareInputStream.getInputStream());
+    this.closer.register(fileAwareInputStream.getInputStream());
 
-    filesWritten++;
+    this.filesWritten.incrementAndGet();
 
     TarArchiveInputStream tarIn = new TarArchiveInputStream(fileAwareInputStream.getInputStream());
     final ReadableByteChannel inputChannel = Channels.newChannel(tarIn);
@@ -89,13 +89,13 @@ public class TarArchiveInputStreamDataWriter extends FileAwareInputStreamDataWri
 
         log.info("Unarchiving at " + tarEntryStagingPath);
 
-        if (tarEntry.isDirectory() && !fs.exists(tarEntryStagingPath)) {
-          fs.mkdirs(tarEntryStagingPath);
+        if (tarEntry.isDirectory() && !this.fs.exists(tarEntryStagingPath)) {
+          this.fs.mkdirs(tarEntryStagingPath);
         } else if (!tarEntry.isDirectory()) {
-          FSDataOutputStream out = fs.create(tarEntryStagingPath, true);
+          FSDataOutputStream out = this.fs.create(tarEntryStagingPath, true);
           final WritableByteChannel outputChannel = Channels.newChannel(out);
           try {
-            bytesWritten += StreamUtils.copy(inputChannel, outputChannel);
+            this.bytesWritten.addAndGet(StreamUtils.copy(inputChannel, outputChannel));
           } finally {
             out.close();
             outputChannel.close();

@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -50,24 +51,23 @@ import com.google.common.io.Closer;
 @Slf4j
 public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInputStream> {
 
-  protected volatile long bytesWritten = 0;
-  protected volatile long filesWritten = 0;
+  protected final AtomicLong bytesWritten = new AtomicLong();
+  protected final AtomicLong filesWritten = new AtomicLong();
   protected final State state;
   protected final FileSystem fs;
   protected final Path stagingDir;
   protected final Path outputDir;
-  protected Closer closer = Closer.create();
+  protected final Closer closer = Closer.create();
 
   public FileAwareInputStreamDataWriter(State state, int numBranches, int branchId) throws IOException {
     this.state = state;
 
-    Configuration conf = new Configuration();
     String uri =
         this.state
             .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches,
                 branchId), ConfigurationKeys.LOCAL_FS_URI);
 
-    this.fs = FileSystem.get(URI.create(uri), conf);
+    this.fs = FileSystem.get(URI.create(uri), new Configuration());
     this.stagingDir = WriterUtils.getWriterStagingDir(state, numBranches, branchId);
     this.outputDir =
         new Path(state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR,
@@ -83,14 +83,14 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
 
     FSDataOutputStream os = this.fs.create(stagingFile, true);
     try {
-      this.bytesWritten += StreamUtils.copy(fileAwareInputStream.getInputStream(), os);
-      log.info("bytes written: " + this.bytesWritten + " for file " + fileAwareInputStream.getFile());
+      this.bytesWritten.addAndGet(StreamUtils.copy(fileAwareInputStream.getInputStream(), os));
+      log.info("bytes written: " + this.bytesWritten.get() + " for file " + fileAwareInputStream.getFile());
     } finally {
       os.close();
       fileAwareInputStream.getInputStream().close();
     }
 
-    this.filesWritten++;
+    this.filesWritten.incrementAndGet();
 
     setFilePermissions(fileAwareInputStream.getFile());
   }
@@ -105,7 +105,6 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
     } catch (IOException e) {
       log.error("Failed to set permissions for " + file.getOrigin(), e);
     }
-
   }
 
   protected Path getStagingFilePath(CopyableFile file) {
@@ -202,12 +201,12 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
 
   @Override
   public long recordsWritten() {
-    return this.filesWritten;
+    return this.filesWritten.get();
   }
 
   @Override
   public long bytesWritten() throws IOException {
-    return this.bytesWritten;
+    return this.bytesWritten.get();
   }
 
   @Override
