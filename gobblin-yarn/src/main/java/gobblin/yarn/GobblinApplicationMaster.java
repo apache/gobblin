@@ -310,7 +310,7 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
 
   @VisibleForTesting
   void disconnectHelixManager() {
-    if (this.helixManager.isConnected()) {
+    if (isHelixManagerConnected()) {
       this.helixManager.disconnect();
     }
   }

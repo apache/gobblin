@@ -81,9 +81,7 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
 
     URL url = GobblinYarnAppLauncherTest.class.getClassLoader().getResource(
         GobblinYarnAppLauncherTest.class.getSimpleName() + ".conf");
-    if (url == null) {
-      Assert.fail();
-    }
+    Assert.assertNotNull(url, "Could not find resource " + url);
 
     this.config = ConfigFactory.parseURL(url).resolve();
 

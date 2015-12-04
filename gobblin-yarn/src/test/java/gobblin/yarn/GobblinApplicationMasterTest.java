@@ -57,9 +57,7 @@ public class GobblinApplicationMasterTest implements HelixMessageTestBase {
 
     URL url = GobblinApplicationMasterTest.class.getClassLoader().getResource(
         GobblinApplicationMasterTest.class.getSimpleName() + ".conf");
-    if (url == null) {
-      Assert.fail();
-    }
+    Assert.assertNotNull(url, "Could not find resource " + url);
 
     Config config = ConfigFactory.parseURL(url).resolve();
 

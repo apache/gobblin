@@ -36,7 +36,7 @@ import gobblin.source.workunit.WorkUnit;
  */
 public class TestSource extends AbstractSource<String, String> {
 
-  public static final String SOURCE_FILE_LIST_KEY = "source.files";
+  static final String SOURCE_FILE_LIST_KEY = "source.files";
   static final String SOURCE_FILE_KEY = "source.file";
 
   private static final Splitter SPLITTER = Splitter.on(",").omitEmptyStrings().trimResults();

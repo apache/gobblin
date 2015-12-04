@@ -29,6 +29,7 @@ import gobblin.util.JobLauncherUtils;
 public class TestHelper {
 
   static final String TEST_APPLICATION_NAME = "TestApplication";
+  static final String TEST_APPLICATION_ID = "application_1447921358856_210676";
   static final String TEST_HELIX_CLUSTER_NAME = "TestCluster";
   static final String TEST_HELIX_INSTANCE_NAME = "TestInstance";
 

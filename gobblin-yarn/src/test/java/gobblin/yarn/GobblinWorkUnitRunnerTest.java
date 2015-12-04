@@ -52,9 +52,7 @@ public class GobblinWorkUnitRunnerTest {
 
     URL url = GobblinWorkUnitRunnerTest.class.getClassLoader().getResource(
         GobblinWorkUnitRunnerTest.class.getSimpleName() + ".conf");
-    if (url == null) {
-      Assert.fail();
-    }
+    Assert.assertNotNull(url, "Could not find resource " + url);
 
     Config config = ConfigFactory.parseURL(url).resolve();
 

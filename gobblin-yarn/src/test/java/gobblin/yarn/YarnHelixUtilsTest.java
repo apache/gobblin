@@ -57,9 +57,7 @@ public class YarnHelixUtilsTest {
   @Test
   public void testConfigToProperties() {
     URL url = YarnHelixUtilsTest.class.getClassLoader().getResource(YarnHelixUtilsTest.class.getSimpleName() + ".conf");
-    if (url == null) {
-      Assert.fail();
-    }
+    Assert.assertNotNull(url, "Could not find resource " + url);
 
     Config config = ConfigFactory.parseURL(url).resolve();
     Assert.assertEquals(config.getString("k1"), "v1");

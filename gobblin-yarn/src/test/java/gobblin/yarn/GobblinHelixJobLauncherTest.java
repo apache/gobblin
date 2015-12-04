@@ -86,9 +86,7 @@ public class GobblinHelixJobLauncherTest {
 
     URL url = GobblinHelixJobLauncherTest.class.getClassLoader().getResource(
         GobblinHelixJobLauncherTest.class.getSimpleName() + ".conf");
-    if (url == null) {
-      Assert.fail();
-    }
+    Assert.assertNotNull(url, "Could not find resource " + url);
 
     Config config = ConfigFactory.parseURL(url).resolve();
 
