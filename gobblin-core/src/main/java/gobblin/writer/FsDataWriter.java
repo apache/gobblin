@@ -12,7 +12,6 @@
 
 package gobblin.writer;
 
-import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.OutputStream;
 
@@ -24,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;

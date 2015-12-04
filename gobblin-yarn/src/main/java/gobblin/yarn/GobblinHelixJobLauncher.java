@@ -100,7 +100,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private volatile boolean jobSubmitted = false;
   private volatile boolean jobComplete = false;
 
-  public GobblinHelixJobLauncher(Properties jobProps, HelixManager helixManager, Path appWorkDir,
+  public GobblinHelixJobLauncher(Properties jobProps, HelixManager helixManager, FileSystem fs, Path appWorkDir,
       Map<String, String> eventMetadata)
       throws Exception {
     super(jobProps, eventMetadata);
@@ -108,7 +108,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     this.helixManager = helixManager;
     this.helixTaskDriver = new TaskDriver(this.helixManager);
 
-    this.fs = FileSystem.get(new Configuration());
+    this.fs = fs;
     this.appWorkDir = appWorkDir;
     this.inputWorkUnitDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME);
 
