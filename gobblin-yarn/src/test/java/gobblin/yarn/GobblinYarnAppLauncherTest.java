@@ -151,9 +151,8 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
       if (this.helixManager.isConnected()) {
         this.helixManager.disconnect();
       }
+
       this.gobblinYarnAppLauncher.disconnectHelixManager();
-    } catch (Throwable t) {
-      Assert.fail();
     } finally {
       this.closer.close();
     }

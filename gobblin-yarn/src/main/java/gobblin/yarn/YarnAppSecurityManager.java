@@ -35,6 +35,7 @@ import org.apache.helix.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
@@ -91,14 +92,13 @@ public class YarnAppSecurityManager extends AbstractIdleService {
   // happens after this class starts up so the token gets regularly refreshed before the next login.
   private volatile boolean firstLogin = true;
 
-  public YarnAppSecurityManager(Config config, HelixManager helixManager, FileSystem fs) throws IOException {
+  public YarnAppSecurityManager(Config config, HelixManager helixManager, FileSystem fs, Path tokenFilePath)
+      throws IOException {
     this.config = config;
     this.helixManager = helixManager;
     this.fs = fs;
 
-    this.tokenFilePath = new Path(this.fs.getHomeDirectory(),
-        config.getString(GobblinYarnConfigurationKeys.APPLICATION_NAME_KEY) + Path.SEPARATOR
-            + GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
+    this.tokenFilePath = tokenFilePath;
     this.fs.makeQualified(tokenFilePath);
     this.loginUser = UserGroupInformation.getLoginUser();
     this.loginIntervalInMinutes = config.getLong(GobblinYarnConfigurationKeys.LOGIN_INTERVAL_IN_MINUTES);
@@ -191,7 +191,8 @@ public class YarnAppSecurityManager extends AbstractIdleService {
   /**
    * Get a new delegation token for the current logged-in user.
    */
-  private synchronized void getNewDelegationTokenForLoginUser() throws IOException {
+  @VisibleForTesting
+  synchronized void getNewDelegationTokenForLoginUser() throws IOException {
     this.token = this.fs.getDelegationToken(this.loginUser.getShortUserName());
   }
 
@@ -235,7 +236,8 @@ public class YarnAppSecurityManager extends AbstractIdleService {
   /**
    * Write the current delegation token to the token file.
    */
-  private synchronized void writeDelegationTokenToFile() throws IOException {
+  @VisibleForTesting
+  synchronized void writeDelegationTokenToFile() throws IOException {
     if (this.fs.exists(this.tokenFilePath)) {
       LOGGER.info("Deleting existing token file " + this.tokenFilePath);
       this.fs.delete(this.tokenFilePath, false);
@@ -247,7 +249,8 @@ public class YarnAppSecurityManager extends AbstractIdleService {
     this.fs.setPermission(this.tokenFilePath, new FsPermission(FsAction.READ_WRITE, FsAction.NONE, FsAction.NONE));
   }
 
-  private void sendTokenFileUpdatedMessage(InstanceType instanceType) {
+  @VisibleForTesting
+  void sendTokenFileUpdatedMessage(InstanceType instanceType) {
     Criteria criteria = new Criteria();
     criteria.setInstanceName("%");
     criteria.setResource("%");
