@@ -16,6 +16,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.commons.io.FileUtils;
@@ -26,6 +27,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.io.Closer;
@@ -85,10 +87,16 @@ public class JobConfigurationManagerTest {
     // Wait for all job configs to be received
     this.countDownLatch.await();
 
+    Set<String> actual = Sets.newHashSet();
+    Set<String> expected = Sets.newHashSet();
+
     Assert.assertEquals(this.receivedJobConfigs.size(), 3);
     for (int i = 0; i < NUM_JOB_CONFIG_FILES; i++) {
-      Assert.assertEquals(this.receivedJobConfigs.get(i).getProperty("foo"), "bar" + i);
+      actual.add(this.receivedJobConfigs.get(i).getProperty("foo"));
+      expected.add("bar" + i);
     }
+
+    Assert.assertEquals(actual, expected);
   }
 
   @AfterClass
