@@ -40,7 +40,7 @@ import gobblin.source.workunit.WorkUnit;
 @SuppressWarnings("unused")
 public class SimpleJsonSource implements Source<String, String> {
 
-  private static final String SOURCE_FILE_KEY = "source.file";
+  public static final String SOURCE_FILE_KEY = "source.file";
 
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
@@ -51,7 +51,7 @@ public class SimpleJsonSource implements Source<String, String> {
     }
 
     // Create a single snapshot-type extract for all files
-    Extract extract = new Extract(state, Extract.TableType.SNAPSHOT_ONLY,
+    Extract extract = new Extract(Extract.TableType.SNAPSHOT_ONLY,
         state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY, "ExampleNamespace"), "ExampleTable");
 
     String filesToPull = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL);

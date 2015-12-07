@@ -243,10 +243,6 @@ public class Fork implements Closeable, Runnable, FinalState {
 
   /**
    * Update byte-level metrics.
-   *
-   * <p>
-   *     This method is only supposed to be called after the writer commits.
-   * </p>
    */
   public void updateByteMetrics() throws IOException {
     if (this.writer.isPresent()) {
@@ -487,7 +483,8 @@ public class Fork implements Closeable, Runnable, FinalState {
 
     try {
       if (GobblinMetrics.isEnabled(this.taskState.getWorkunit())) {
-        // Update byte-level metrics after the writer commits
+        // Update record-level and byte-level metrics after the writer commits
+        updateRecordMetrics();
         updateByteMetrics();
       }
     } catch (IOException ioe) {

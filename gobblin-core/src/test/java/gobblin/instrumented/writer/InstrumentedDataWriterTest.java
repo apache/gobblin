@@ -132,8 +132,8 @@ public class InstrumentedDataWriterTest {
 
     Map<String, Long> metrics = MetricsHelper.dumpMetrics(writer.getMetricContext());
     Assert.assertEquals(metrics.get(MetricNames.DataWriterMetrics.RECORDS_IN_METER), Long.valueOf(1));
-    Assert.assertEquals(metrics.get(MetricNames.DataWriterMetrics.RECORDS_WRITTEN_METER), Long.valueOf(1));
-    Assert.assertEquals(metrics.get(MetricNames.DataWriterMetrics.RECORDS_FAILED_METER), Long.valueOf(0));
+    Assert.assertEquals(metrics.get(MetricNames.DataWriterMetrics.SUCCESSFUL_WRITES_METER), Long.valueOf(1));
+    Assert.assertEquals(metrics.get(MetricNames.DataWriterMetrics.FAILED_WRITES_METER), Long.valueOf(0));
     Assert.assertEquals(metrics.get(MetricNames.DataWriterMetrics.WRITE_TIMER), Long.valueOf(1));
 
     Assert.assertEquals(MetricsHelper.dumpTags(writer.getMetricContext()).get("construct"),

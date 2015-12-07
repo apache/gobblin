@@ -23,8 +23,15 @@ File getEnvironmentScript()
 
 apply from: environmentScript
 
+ext.publishToMaven = project.hasProperty('publishToMaven')
+if (ext.publishToMaven) {
+    plugins.apply('maven')
+    // Workaround for a bug in gradle's "maven" plugin. See https://discuss.gradle.org/t/error-in-parallel-build/7215/3
+    project.setProperty("org.gradle.parallel", "false")
+}
+
 if (!project.hasProperty('group') || project.group.length() == 0) {
-    project.group = 'gobblin'
+    project.group = 'com.linkedin.gobblin'
 }
 
 if (!project.hasProperty('version') || project.version == 'unspecified') {
@@ -40,6 +47,9 @@ if (!project.hasProperty('version') || project.version == 'unspecified') {
     }
     else {
         project.version = tagStr
+    }
+    if (!project.hasProperty('useHadoop2')) {
+      project.version = project.version + "-hadoop1"
     }
 }
 
@@ -96,6 +106,7 @@ ext.externalDependency = [
   "hadoopYarnApi": "org.apache.hadoop:hadoop-yarn-api:"+hadoopVersion,
   "hadoopYarnCommon": "org.apache.hadoop:hadoop-yarn-common:"+hadoopVersion,
   "hadoopYarnClient": "org.apache.hadoop:hadoop-yarn-client:"+hadoopVersion,
+  "hadoopYarnMiniCluster": "org.apache.hadoop:hadoop-minicluster:"+hadoopVersion,
   "hadoopAnnotations": "org.apache.hadoop:hadoop-annotations:"+hadoopVersion,
   "hadoopAws": "org.apache.hadoop:hadoop-aws:2.6.0",
   "hiveService": "org.apache.hive:hive-service:"+hiveVersion,
@@ -140,7 +151,7 @@ ext.externalDependency = [
   "influxdbJava": "org.influxdb:influxdb-java:1.5",
   "lombok":"org.projectlombok:lombok:1.16.4",
   "mockRunnerJdbc":"com.mockrunner:mockrunner-jdbc:1.0.8",
-  "xerces":"xercesImpl:2.11.0",
+  "xerces":"xerces:xercesImpl:2.11.0",
   "typesafeConfig": "com.typesafe:config:1.2.1",
   "byteman": "org.jboss.byteman:byteman:"+bytemanVersion,
   "bytemanBmunit": "org.jboss.byteman:byteman-bmunit:"+bytemanVersion,
@@ -149,6 +160,9 @@ ext.externalDependency = [
   "calciteCore": "org.apache.calcite:calcite-core:1.2.0-incubating",
   "calciteAvatica": "org.apache.calcite:calcite-avatica:1.2.0-incubating",
   "jhyde": "org.pentaho:pentaho-aggdesigner-algorithm:5.1.5-jhyde",
+  "curatorFramework": "org.apache.curator:curator-framework:2.8.0",
+  "curatorTest": "org.apache.curator:curator-test:2.8.0",
+  "hamcrest": "org.hamcrest:hamcrest-all:1.3",
   "pegasus" : [
     "data" : "com.linkedin.pegasus:data:"+pegasusVersion,
     "generator" : "com.linkedin.pegasus:generator:"+pegasusVersion,
@@ -186,6 +200,11 @@ plugins.withType(JavaPlugin) {
 //  apply plugin: 'findbugs'
 
   sourceCompatibility = JavaVersion.VERSION_1_7
+
+  //Sometimes generating javadocs can lead to OOM. This may needs to be increased.
+  javadoc {
+    options.JFlags = ["-Xmx256m"]
+  }
 
 /*  findbugs {
     ignoreFailures = true
@@ -226,7 +245,108 @@ plugins.withType(JavaPlugin) {
       from sourceSets.main.allSource
       classifier = 'sources'
     }
-    artifacts { archives sourcesJar }
+    task javadocJar(type: Jar) {
+      from javadoc
+      classifier = 'javadoc'
+    }
+    artifacts { archives sourcesJar, javadocJar }
+  }
+
+  // Publishing of maven artifacts for subprojects
+  if (rootProject.ext.publishToMaven) {
+    plugins.apply('maven')
+    plugins.apply('signing')
+
+    project.version = rootProject.version
+    project.group = rootProject.group
+
+    uploadArchives {
+      repositories {
+        mavenDeployer {
+          beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+          repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+            authentication(userName: ossrhUsername, password: ossrhPassword)
+          }
+
+          snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+            authentication(userName: ossrhUsername, password: ossrhPassword)
+          }
+
+          pom.project {
+            name "${project.name}"
+            packaging 'jar'
+            // optionally artifactId can be defined here 
+            description 'Gobblin Ingestion Framework'
+            url 'https://github.com/linkedin/gobblin/'
+
+            scm {
+              connection 'scm:git:git@github.com:linkedin/gobblin.git'
+              developerConnection 'scm:git:git@github.com:linkedin/gobblin.git'
+              url 'git@github.com:linkedin/gobblin.git'
+            }
+
+            licenses {
+              license {
+                name 'The Apache License, Version 2.0'
+                url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+              }
+            }
+
+            developers {
+              developer {
+                name 'Abhishek Tiwari'
+                organization 'LinkedIn'
+              }
+              developer {
+                name 'Chavdar Botev'
+                organization 'LinkedIn'
+              }
+              developer {
+                name 'Issac Buenrostro'
+                organization 'LinkedIn'
+              }
+              developer {
+                name 'Min Tu'
+                organization 'LinkedIn'
+              }
+              developer {
+                name 'Narasimha Veeramreddy'
+                organization 'LinkedIn'
+              }
+              developer {
+                name 'Pradhan Cadabam'
+                organization 'LinkedIn'
+              }
+              developer {
+                name 'Sahil Takiar'
+                organization 'LinkedIn'
+              }
+              developer {
+                name 'Shirshanka Das'
+                organization 'LinkedIn'
+              }
+              developer {
+                name 'Yinan Li'
+                organization 'LinkedIn'
+              }
+              developer {
+                name 'Ying Dai'
+                organization 'LinkedIn'
+              }
+              developer {
+                name 'Ziyang Liu'
+                organization 'LinkedIn'
+              }
+            }
+          }
+        }
+      }
+    }
+
+    signing {
+      sign configurations.archives
+    }
   }
 
   // Configure the IDEA plugin to (1) add the codegen as source dirs and (2) work around

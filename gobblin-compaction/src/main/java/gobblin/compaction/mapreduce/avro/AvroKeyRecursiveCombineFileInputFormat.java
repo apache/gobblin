@@ -12,13 +12,15 @@
 
 package gobblin.compaction.mapreduce.avro;
 
-import gobblin.util.FileListUtils;
-
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.commons.io.FilenameUtils;
@@ -37,6 +39,9 @@ import org.apache.hadoop.mapreduce.lib.input.CombineFileSplit;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+
+import gobblin.util.AvroUtils;
+import gobblin.util.FileListUtils;
 
 
 /**
@@ -105,10 +110,23 @@ public class AvroKeyRecursiveCombineFileInputFormat
 
   private void addAvroFilesInSubdirsToSplits(List<InputSplit> splits, List<Path> subdirs, FileSystem fs, JobContext cx)
       throws FileNotFoundException, IOException {
-    List<Path> files = findAvroFilesInDirs(subdirs, fs);
-    Job helperJob = Job.getInstance(cx.getConfiguration());
-    setInputPaths(helperJob, files.toArray(new Path[files.size()]));
-    splits.addAll(super.getSplits(helperJob));
+    Map<Schema, List<Path>> filesBySchema = new HashMap<Schema, List<Path>>();
+    for (Path file : findAvroFilesInDirs(subdirs, fs)) {
+      final Schema schema = AvroUtils.getSchemaFromDataFile(file, fs);
+      if (! filesBySchema.containsKey(schema)) {
+        filesBySchema.put(schema, new ArrayList<Path>());
+      }
+      filesBySchema.get(schema).add(file);
+    }
+
+    for (Map.Entry<Schema, List<Path>> entry : filesBySchema.entrySet()) {
+      List<Path> files = entry.getValue();
+      Job helperJob = Job.getInstance(cx.getConfiguration());
+      setInputPaths(helperJob, files.toArray(new Path[files.size()]));
+      for (InputSplit inputSplit : super.getSplits(helperJob)) {
+        splits.add(new AvroCombineFileSplit((CombineFileSplit) inputSplit, entry.getKey()));
+      }
+    }
   }
 
   private List<Path> findAvroFilesInDirs(List<Path> dirs, FileSystem fs) throws FileNotFoundException, IOException {
@@ -132,8 +150,9 @@ public class AvroKeyRecursiveCombineFileInputFormat
     List<InputSplit> cleanedSplits = Lists.newArrayList();
 
     for (int i = 0; i < splits.size(); i++) {
-      CombineFileSplit oldSplit = (CombineFileSplit) splits.get(i);
+      AvroCombineFileSplit oldSplit = (AvroCombineFileSplit) splits.get(i);
       String[] locations = oldSplit.getLocations();
+      Schema schema = oldSplit.getSchema();
 
       Preconditions.checkNotNull(locations, "CombineFileSplit.getLocations() returned null");
 
@@ -142,7 +161,8 @@ public class AvroKeyRecursiveCombineFileInputFormat
       }
 
       cleanedSplits
-          .add(new CombineFileSplit(oldSplit.getPaths(), oldSplit.getStartOffsets(), oldSplit.getLengths(), locations));
+          .add(new AvroCombineFileSplit(
+              oldSplit.getPaths(), oldSplit.getStartOffsets(), oldSplit.getLengths(), locations, schema));
     }
     return cleanedSplits;
   }

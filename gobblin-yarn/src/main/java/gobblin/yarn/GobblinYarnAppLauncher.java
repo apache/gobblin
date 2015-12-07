@@ -57,14 +57,11 @@ import org.apache.helix.Criteria;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
-import org.apache.helix.manager.zk.ZKHelixManager;
-import org.apache.helix.model.HelixConfigScope;
 import org.apache.helix.model.Message;
-import org.apache.helix.tools.ClusterSetup;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
@@ -83,6 +80,7 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.ExecutorsUtils;
+import gobblin.util.io.StreamUtils;
 import gobblin.util.logs.LogCopier;
 import gobblin.yarn.event.ApplicationReportArrivalEvent;
 
@@ -168,7 +166,7 @@ public class GobblinYarnAppLauncher {
 
   private volatile boolean stopped = false;
 
-  public GobblinYarnAppLauncher(Config config) throws IOException {
+  public GobblinYarnAppLauncher(Config config, YarnConfiguration yarnConfiguration) throws IOException {
     this.config = config;
 
     this.applicationName = config.getString(GobblinYarnConfigurationKeys.APPLICATION_NAME_KEY);
@@ -181,10 +179,11 @@ public class GobblinYarnAppLauncher {
         config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY), YarnHelixUtils.getHostname(),
         InstanceType.SPECTATOR, zkConnectionString);
 
-    this.yarnConfiguration = new YarnConfiguration();
+    this.yarnConfiguration = yarnConfiguration;
     this.yarnConfiguration.set("fs.automatic.close", "false");
     this.yarnClient = YarnClient.createYarnClient();
     this.yarnClient.init(this.yarnConfiguration);
+    this.yarnClient.start();
 
     this.fs = config.hasPath(ConfigurationKeys.FS_URI_KEY) ?
         FileSystem.get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), this.yarnConfiguration) :
@@ -211,16 +210,13 @@ public class GobblinYarnAppLauncher {
   public void launch() throws IOException, YarnException {
     this.eventBus.register(this);
 
-    createGobblinYarnHelixCluster();
+    String clusterName = this.config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+    YarnHelixUtils.createGobblinYarnHelixCluster(
+        this.config.getString(GobblinYarnConfigurationKeys.ZK_CONNECTION_STRING_KEY), clusterName);
+    LOGGER.info("Created Helix cluster " + clusterName);
 
-    try {
-      this.helixManager.connect();
-    } catch (Exception e) {
-      LOGGER.error("HelixManager failed to connect", e);
-      throw Throwables.propagate(e);
-    }
+    connectHelixManager();
 
-    this.yarnClient.start();
     this.applicationId = getApplicationId();
 
     this.applicationStatusMonitor.scheduleAtFixedRate(new Runnable() {
@@ -241,7 +237,7 @@ public class GobblinYarnAppLauncher {
     }
     services.add(buildLogCopier(
         new Path(this.sinkLogRootDir, this.applicationName + Path.SEPARATOR + this.applicationId.get().toString()),
-        YarnHelixUtils.getAppWorkDirPath(this.fs, this.applicationName, this.applicationId.get())));
+        YarnHelixUtils.getAppWorkDirPath(this.fs, this.applicationName, this.applicationId.get().toString())));
 
     this.serviceManager = Optional.of(new ServiceManager(services));
     // Start all the services running in the ApplicationMaster
@@ -274,9 +270,7 @@ public class GobblinYarnAppLauncher {
 
       this.yarnClient.stop();
 
-      if (this.helixManager.isConnected()) {
-        this.helixManager.disconnect();
-      }
+      disconnectHelixManager();
     } finally {
       try {
         if (this.applicationId.isPresent()) {
@@ -320,6 +314,23 @@ public class GobblinYarnAppLauncher {
     }
   }
 
+  @VisibleForTesting
+  void connectHelixManager() {
+    try {
+      this.helixManager.connect();
+    } catch (Exception e) {
+      LOGGER.error("HelixManager failed to connect", e);
+      throw Throwables.propagate(e);
+    }
+  }
+
+  @VisibleForTesting
+  void disconnectHelixManager() {
+    if (this.helixManager.isConnected()) {
+      this.helixManager.disconnect();
+    }
+  }
+
   private Optional<ApplicationId> getApplicationId() throws YarnException, IOException {
     Optional<ApplicationId> reconnectableApplicationId = getReconnectableApplicationId();
     if (reconnectableApplicationId.isPresent()) {
@@ -331,7 +342,8 @@ public class GobblinYarnAppLauncher {
     return Optional.of(setupAndSubmitApplication());
   }
 
-  private Optional<ApplicationId> getReconnectableApplicationId() throws YarnException, IOException {
+  @VisibleForTesting
+  Optional<ApplicationId> getReconnectableApplicationId() throws YarnException, IOException {
     List<ApplicationReport> applicationReports =
         this.yarnClient.getApplications(APPLICATION_TYPES, RECONNECTABLE_APPLICATION_STATES);
     if (applicationReports == null || applicationReports.isEmpty()) {
@@ -349,28 +361,13 @@ public class GobblinYarnAppLauncher {
   }
 
   /**
-   * Create a Helix cluster with the cluster name specified using
-   * {@link GobblinYarnConfigurationKeys#HELIX_CLUSTER_NAME_KEY} if it does not exist.
-   */
-  private void createGobblinYarnHelixCluster() {
-    ClusterSetup clusterSetup =
-        new ClusterSetup(this.config.getString(GobblinYarnConfigurationKeys.ZK_CONNECTION_STRING_KEY));
-    String clusterName = this.config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
-    // Create the cluster and overwrite if it already exists
-    clusterSetup.addCluster(clusterName, true);
-    // Helix 0.6.x requires a configuration property to have the form key=value.
-    String autoJoinConfig = ZKHelixManager.ALLOW_PARTICIPANT_AUTO_JOIN + "=true";
-    clusterSetup.setConfig(HelixConfigScope.ConfigScopeProperty.CLUSTER, clusterName, autoJoinConfig);
-    LOGGER.info("Created Helix cluster " + clusterName);
-  }
-
-  /**
    * Setup and submit the Gobblin Yarn application.
    *
    * @throws IOException if there's anything wrong setting up and submitting the Yarn application
    * @throws YarnException if there's anything wrong setting up and submitting the Yarn application
    */
-  private ApplicationId setupAndSubmitApplication() throws IOException, YarnException {
+  @VisibleForTesting
+  ApplicationId setupAndSubmitApplication() throws IOException, YarnException {
     YarnClientApplication gobblinYarnApp = this.yarnClient.createApplication();
     ApplicationSubmissionContext appSubmissionContext = gobblinYarnApp.getApplicationSubmissionContext();
     appSubmissionContext.setApplicationType(GOBBLIN_YARN_APPLICATION_TYPE);
@@ -436,7 +433,7 @@ public class GobblinYarnAppLauncher {
   }
 
   private Map<String, LocalResource> addAppMasterLocalResources(ApplicationId applicationId) throws IOException {
-    Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(this.fs, this.applicationName, applicationId);
+    Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(this.fs, this.applicationName, applicationId.toString());
     Path appMasterWorkDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.APP_MASTER_WORK_DIR_NAME);
 
     Map<String, LocalResource> appMasterResources = Maps.newHashMap();
@@ -460,9 +457,9 @@ public class GobblinYarnAppLauncher {
       addAppRemoteFiles(this.config.getString(GobblinYarnConfigurationKeys.APP_MASTER_FILES_REMOTE_KEY),
           appMasterResources);
     }
-    if (this.config.hasPath(GobblinYarnConfigurationKeys.JOB_CONF_PACKAGE_PATH_KEY)) {
+    if (this.config.hasPath(GobblinYarnConfigurationKeys.JOB_CONF_PATH_KEY)) {
       Path appFilesDestDir = new Path(appMasterWorkDir, GobblinYarnConfigurationKeys.APP_FILES_DIR_NAME);
-      addJobConfPackage(this.config.getString(GobblinYarnConfigurationKeys.JOB_CONF_PACKAGE_PATH_KEY), appFilesDestDir,
+      addJobConfPackage(this.config.getString(GobblinYarnConfigurationKeys.JOB_CONF_PATH_KEY), appFilesDestDir,
           appMasterResources);
     }
 
@@ -470,7 +467,7 @@ public class GobblinYarnAppLauncher {
   }
 
   private void addContainerLocalResources(ApplicationId applicationId) throws IOException {
-    Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(this.fs, this.applicationName, applicationId);
+    Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(this.fs, this.applicationName, applicationId.toString());
     Path containerWorkDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.CONTAINER_WORK_DIR_NAME);
 
     if (this.config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_JARS_KEY)) {
@@ -536,8 +533,8 @@ public class GobblinYarnAppLauncher {
   private void addJobConfPackage(String jobConfPackagePath, Path destDir, Map<String, LocalResource> resourceMap)
       throws IOException {
     Path srcFilePath = new Path(jobConfPackagePath);
-    Path destFilePath = new Path(destDir, srcFilePath.getName());
-    this.fs.copyFromLocalFile(srcFilePath, destFilePath);
+    Path destFilePath = new Path(destDir, srcFilePath.getName() + GobblinYarnConfigurationKeys.TAR_GZ_FILE_SUFFIX);
+    StreamUtils.tar(FileSystem.getLocal(this.yarnConfiguration), this.fs, srcFilePath, destFilePath);
     YarnHelixUtils.addFileAsLocalResource(this.fs, destFilePath, LocalResourceType.ARCHIVE, resourceMap);
   }
 
@@ -607,7 +604,8 @@ public class GobblinYarnAppLauncher {
     return logRootDir;
   }
 
-  private void sendShutdownRequest() {
+  @VisibleForTesting
+  void sendShutdownRequest() {
     Criteria criteria = new Criteria();
     criteria.setInstanceName("%");
     criteria.setResource("%");
@@ -629,7 +627,7 @@ public class GobblinYarnAppLauncher {
   }
 
   private void cleanUpAppWorkDirectory(ApplicationId applicationId) throws IOException {
-    Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(this.fs, this.applicationName, applicationId);
+    Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(this.fs, this.applicationName, applicationId.toString());
     if (this.fs.exists(appWorkDir)) {
       LOGGER.info("Deleting application working directory " + appWorkDir);
       this.fs.delete(appWorkDir, true);
@@ -637,7 +635,8 @@ public class GobblinYarnAppLauncher {
   }
 
   public static void main(String[] args) throws Exception {
-    final GobblinYarnAppLauncher gobblinYarnAppLauncher = new GobblinYarnAppLauncher(ConfigFactory.load());
+    final GobblinYarnAppLauncher gobblinYarnAppLauncher =
+        new GobblinYarnAppLauncher(ConfigFactory.load(), new YarnConfiguration());
     Runtime.getRuntime().addShutdownHook(new Thread() {
 
       @Override

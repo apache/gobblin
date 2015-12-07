@@ -35,8 +35,8 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
-import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 
 import org.apache.helix.Criteria;
@@ -65,6 +65,7 @@ import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -125,12 +126,9 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
 
   private volatile boolean stopInProgress = false;
 
-  public GobblinApplicationMaster(String applicationName, Config config)
-      throws Exception {
-
-    ContainerId containerId =
-        ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
-    ApplicationId applicationId = containerId.getApplicationAttemptId().getApplicationId();
+  public GobblinApplicationMaster(String applicationName, ContainerId containerId, Config config,
+      YarnConfiguration yarnConfiguration) throws Exception {
+    String applicationId = containerId.getApplicationAttemptId().getApplicationId().toString();
 
     String zkConnectionString = config.getString(GobblinYarnConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     LOGGER.info("Using ZooKeeper connection string: " + zkConnectionString);
@@ -145,8 +143,10 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
 
     List<Service> services = Lists.newArrayList();
 
-    services.add(buildLogCopier(containerId, fs, appWorkDir));
-    services.add(buildYarnService(config, applicationName, applicationId, fs));
+    if (isLogSourcePresent()) {
+      services.add(buildLogCopier(containerId, fs, appWorkDir));
+    }
+    services.add(buildYarnService(config, applicationName, applicationId, yarnConfiguration, fs));
     services.add(buildGobblinHelixJobScheduler(config, appWorkDir, eventMetadata));
     services.add(buildJobConfigurationManager(config));
 
@@ -175,18 +175,7 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
 
     this.eventBus.register(this);
 
-    try {
-      this.helixManager.connect();
-      this.helixManager.addLiveInstanceChangeListener(new GobblinLiveInstanceChangeListener());
-      this.helixManager.getMessagingService().registerMessageHandlerFactory(
-          Message.MessageType.SHUTDOWN.toString(), new ControllerShutdownMessageHandlerFactory());
-      this.helixManager.getMessagingService().registerMessageHandlerFactory(
-          Message.MessageType.USER_DEFINE_MSG.toString(), new ControllerUserDefinedMessageHandlerFactory()
-      );
-    } catch (Exception e) {
-      LOGGER.error("HelixManager failed to connect", e);
-      throw Throwables.propagate(e);
-    }
+    connectHelixManager();
 
     // Register JVM metrics to collect and report
     registerJvmMetrics();
@@ -220,21 +209,19 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
     } catch (TimeoutException te) {
       LOGGER.error("Timeout in stopping the service manager", te);
     } finally {
+      disconnectHelixManager();
+
       // Stop metric reporting
       this.jmxReporter.stop();
-
-      if (this.helixManager.isConnected()) {
-        this.helixManager.disconnect();
-      }
     }
   }
 
   /**
    * Get additional metadata required for the {@link gobblin.metrics.event.EventSubmitter}.
    */
-  private Map<String, String> getEventSubmitterMetadata(String applicationName, ApplicationId applicationId) {
+  private Map<String, String> getEventSubmitterMetadata(String applicationName, String applicationId) {
     return new ImmutableMap.Builder<String, String>().put(GobblinYarnEventNames.YARN_APPLICATION_NAME, applicationName)
-        .put(GobblinYarnEventNames.YARN_APPLICATION_ID, applicationId.toString()).build();
+        .put(GobblinYarnEventNames.YARN_APPLICATION_ID, applicationId).build();
   }
 
   /**
@@ -261,10 +248,10 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
   /**
    * Build the {@link YarnService} for the Application Master.
    */
-  private YarnService buildYarnService(Config config, String applicationName, ApplicationId applicationId,
-      FileSystem fs)
+  private YarnService buildYarnService(Config config, String applicationName, String applicationId,
+      YarnConfiguration yarnConfiguration, FileSystem fs)
       throws Exception {
-    return new YarnService(config, applicationName, applicationId, fs, this.eventBus);
+    return new YarnService(config, applicationName, applicationId, yarnConfiguration, fs, this.eventBus);
   }
 
   /**
@@ -282,8 +269,8 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
    */
   private JobConfigurationManager buildJobConfigurationManager(Config config) {
     Optional<String> jobConfPackagePath =
-        config.hasPath(GobblinYarnConfigurationKeys.JOB_CONF_PACKAGE_PATH_KEY) ? Optional
-            .of(config.getString(GobblinYarnConfigurationKeys.JOB_CONF_PACKAGE_PATH_KEY)) : Optional.<String>absent();
+        config.hasPath(GobblinYarnConfigurationKeys.JOB_CONF_PATH_KEY) ? Optional
+            .of(config.getString(GobblinYarnConfigurationKeys.JOB_CONF_PATH_KEY)) : Optional.<String>absent();
     return new JobConfigurationManager(this.eventBus, jobConfPackagePath);
   }
 
@@ -298,6 +285,39 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
   @Subscribe
   public void handleApplicationMasterShutdownRequest(ApplicationMasterShutdownRequest shutdownRequest) {
     stop();
+  }
+
+  @VisibleForTesting
+  EventBus getEventBus() {
+    return this.eventBus;
+  }
+
+  @VisibleForTesting
+  void connectHelixManager() {
+    try {
+      this.helixManager.connect();
+      this.helixManager.addLiveInstanceChangeListener(new GobblinLiveInstanceChangeListener());
+      this.helixManager.getMessagingService().registerMessageHandlerFactory(
+          Message.MessageType.SHUTDOWN.toString(), new ControllerShutdownMessageHandlerFactory());
+      this.helixManager.getMessagingService().registerMessageHandlerFactory(
+          Message.MessageType.USER_DEFINE_MSG.toString(), new ControllerUserDefinedMessageHandlerFactory()
+      );
+    } catch (Exception e) {
+      LOGGER.error("HelixManager failed to connect", e);
+      throw Throwables.propagate(e);
+    }
+  }
+
+  @VisibleForTesting
+  void disconnectHelixManager() {
+    if (isHelixManagerConnected()) {
+      this.helixManager.disconnect();
+    }
+  }
+
+  @VisibleForTesting
+  boolean isHelixManagerConnected() {
+    return this.helixManager.isConnected();
   }
 
   private void registerJvmMetrics() {
@@ -323,7 +343,8 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
     });
   }
 
-  private void sendShutdownRequest() {
+  @VisibleForTesting
+  void sendShutdownRequest() {
     Criteria criteria = new Criteria();
     criteria.setInstanceName("%");
     criteria.setResource("%");
@@ -524,8 +545,11 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
       Log4jConfigurationHelper.updateLog4jConfiguration(
           GobblinApplicationMaster.class, Log4jConfigurationHelper.LOG4J_CONFIGURATION_FILE_NAME);
 
-      GobblinApplicationMaster applicationMaster = new GobblinApplicationMaster(
-          cmd.getOptionValue(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME), ConfigFactory.load());
+      ContainerId containerId =
+          ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
+      GobblinApplicationMaster applicationMaster =
+          new GobblinApplicationMaster(cmd.getOptionValue(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME),
+              containerId, ConfigFactory.load(), new YarnConfiguration());
       applicationMaster.start();
     } catch (ParseException pe) {
       printUsage(options);

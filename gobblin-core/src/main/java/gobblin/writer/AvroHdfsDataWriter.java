@@ -89,7 +89,7 @@ public class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
   }
 
   @Override
-  public long bytesWritten() throws IOException {
+  public synchronized long bytesWritten() throws IOException {
     if (!this.fs.exists(this.outputFile)) {
       return 0;
     }

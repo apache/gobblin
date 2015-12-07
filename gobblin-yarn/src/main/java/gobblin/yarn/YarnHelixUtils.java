@@ -28,7 +28,6 @@ import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
-import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
@@ -37,6 +36,9 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.Apps;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
+import org.apache.helix.manager.zk.ZKHelixManager;
+import org.apache.helix.model.HelixConfigScope;
+import org.apache.helix.tools.ClusterSetup;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValue;
@@ -50,6 +52,21 @@ import com.google.common.collect.Maps;
  * @author ynli
  */
 public class YarnHelixUtils {
+
+  /**
+   * Create a Helix cluster for the Gobblin Yarn application.
+   *
+   * @param zkConnectionString the ZooKeeper connection string
+   * @param clusterName the Helix cluster name
+   */
+  public static void createGobblinYarnHelixCluster(String zkConnectionString, String clusterName) {
+    ClusterSetup clusterSetup = new ClusterSetup(zkConnectionString);
+    // Create the cluster and overwrite if it already exists
+    clusterSetup.addCluster(clusterName, true);
+    // Helix 0.6.x requires a configuration property to have the form key=value.
+    String autoJoinConfig = ZKHelixManager.ALLOW_PARTICIPANT_AUTO_JOIN + "=true";
+    clusterSetup.setConfig(HelixConfigScope.ConfigScopeProperty.CLUSTER, clusterName, autoJoinConfig);
+  }
 
   /**
    * Get the name of the current host.
@@ -101,11 +118,11 @@ public class YarnHelixUtils {
    * @param fs a {@link FileSystem} instance on which {@link FileSystem#getHomeDirectory()} is called
    *           to get the home directory of the {@link FileSystem} of the application working directory
    * @param applicationName the Yarn application name
-   * @param applicationId the Yarn {@link ApplicationId}
+   * @param applicationId the Yarn application ID in string form
    * @return the Yarn application working directory {@link Path}
    */
-  public static Path getAppWorkDirPath(FileSystem fs, String applicationName, ApplicationId applicationId) {
-    return new Path(fs.getHomeDirectory(), applicationName + Path.SEPARATOR + applicationId.toString());
+  public static Path getAppWorkDirPath(FileSystem fs, String applicationName, String applicationId) {
+    return new Path(fs.getHomeDirectory(), applicationName + Path.SEPARATOR + applicationId);
   }
 
   /**
@@ -183,8 +200,10 @@ public class YarnHelixUtils {
   public static Map<String, String> getEnvironmentVariables(Configuration yarnConfiguration) {
     Map<String, String> environmentVariableMap = Maps.newHashMap();
 
-    Apps.addToEnvironment(environmentVariableMap, ApplicationConstants.Environment.JAVA_HOME.key(),
-        System.getenv(ApplicationConstants.Environment.JAVA_HOME.key()));
+    if (System.getenv().containsKey(ApplicationConstants.Environment.JAVA_HOME.key())) {
+      Apps.addToEnvironment(environmentVariableMap, ApplicationConstants.Environment.JAVA_HOME.key(),
+          System.getenv(ApplicationConstants.Environment.JAVA_HOME.key()));
+    }
 
     // Add jars/files in the working directory of the ApplicationMaster to the CLASSPATH
     Apps.addToEnvironment(environmentVariableMap, ApplicationConstants.Environment.CLASSPATH.key(),

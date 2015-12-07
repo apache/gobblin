@@ -13,6 +13,7 @@
 package gobblin.yarn;
 
 import java.io.IOException;
+import java.net.URL;
 import java.util.Collection;
 import java.util.Properties;
 
@@ -21,7 +22,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.security.token.TokenIdentifier;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -56,7 +56,10 @@ public class YarnHelixUtilsTest {
 
   @Test
   public void testConfigToProperties() {
-    Config config = ConfigFactory.load();
+    URL url = YarnHelixUtilsTest.class.getClassLoader().getResource(YarnHelixUtilsTest.class.getSimpleName() + ".conf");
+    Assert.assertNotNull(url, "Could not find resource " + url);
+
+    Config config = ConfigFactory.parseURL(url).resolve();
     Assert.assertEquals(config.getString("k1"), "v1");
     Assert.assertEquals(config.getString("k2"), "v1");
     Assert.assertEquals(config.getInt("k3"), 1000);

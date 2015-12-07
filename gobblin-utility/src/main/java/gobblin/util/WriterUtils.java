@@ -84,10 +84,7 @@ public class WriterUtils {
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR, numBranches, branchId);
     Preconditions.checkArgument(state.contains(writerOutputDirKey), "Missing required property " + writerOutputDirKey);
 
-    return new Path(
-        state.getProp(
-            ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR, numBranches, branchId)),
-        WriterUtils.getWriterFilePath(state, numBranches, branchId));
+    return new Path(state.getProp(writerOutputDirKey), WriterUtils.getWriterFilePath(state, numBranches, branchId));
   }
 
   /**

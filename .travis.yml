@@ -1,8 +1,8 @@
 language: java
 
 script:
-  - ./gradlew clean check -i
-  - ./gradlew clean check -PuseHadoop2 -i
+  - ./gradlew clean check -PskipTestGroup=disabledOnTravis -i
+  - ./gradlew clean check -PuseHadoop2 -PskipTestGroup=disabledOnTravis -i
 
 jdk:
   - oraclejdk8

@@ -15,6 +15,7 @@ dependencies {
 
   compile externalDependency.commonsCli
   compile externalDependency.commonsConfiguration
+  compile externalDependency.commonsCompress
   compile externalDependency.commonsDbcp
   compile externalDependency.commonsEmail
   compile externalDependency.commonsIo
@@ -41,6 +42,7 @@ dependencies {
     runtime externalDependency.hadoop
   }
 
+  testCompile externalDependency.hamcrest
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
 }
@@ -49,6 +51,7 @@ configurations {
     compile {
         transitive = true
     }
+    archives
 }
 
 test {
@@ -62,7 +65,10 @@ classification="library"
 
 
 task utilityTar(type: Tar) {
-  extension = 'tar.gz'
+  //there seems to be a bug in the Gradle signing module where X.tar.gz will generate
+  // a signature X.gz.asc instead of X.tar.gz.asc. Therefore, we have to use the .tgz 
+  // extension
+  extension = 'tgz'
   baseName = project.name
   compression = Compression.GZIP
 
