@@ -1,3 +1,4 @@
+#!/bin/bash
 #group is overiden to support forked repositories
 
 function print_usage(){
@@ -32,7 +33,7 @@ fi
 echo VERSION=$VERSION
 
 if [ -z "$GROUP" ]; then
- GROUP="gobblin" 
+ GROUP="gobblin"
 fi
 
 

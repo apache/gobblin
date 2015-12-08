@@ -45,8 +45,18 @@ if (ext.publishToMaven) {
     project.setProperty("org.gradle.parallel", "false")
 }
 
+ext.signArtifacts = !project.hasProperty('doNotSignArtifacts')
+
 if (!project.hasProperty('group') || project.group.length() == 0) {
     project.group = 'com.linkedin.gobblin'
+}
+
+if (!project.hasProperty('artifactRepository') || project.artifactRepository.length() == 0) {
+    project.artifactRepository = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+}
+
+if (!project.hasProperty('artifactSnapshotRepository') || project.artifactSnapshotRepository.length() == 0) {
+    project.artifactSnapshotRepository = "https://oss.sonatype.org/content/repositories/snapshots/"
 }
 
 if (!project.hasProperty('version') || project.version == 'unspecified') {
@@ -267,7 +277,9 @@ plugins.withType(JavaPlugin) {
   // Publishing of maven artifacts for subprojects
   if (rootProject.ext.publishToMaven) {
     plugins.apply('maven')
-    plugins.apply('signing')
+    if (rootProject.ext.signArtifacts) {
+      plugins.apply('signing')
+    }
 
     project.version = rootProject.version
     project.group = rootProject.group
@@ -275,20 +287,24 @@ plugins.withType(JavaPlugin) {
     uploadArchives {
       repositories {
         mavenDeployer {
-          beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+          beforeDeployment { MavenDeployment deployment ->
+            if (rootProject.ext.signArtifacts) {
+              signing.signPom(deployment)
+            }
+          }
 
-          repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+          repository(url: rootProject.artifactRepository) {
             authentication(userName: ossrhUsername, password: ossrhPassword)
           }
 
-          snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+          snapshotRepository(url: rootProject.artifactSnapshotRepository) {
             authentication(userName: ossrhUsername, password: ossrhPassword)
           }
 
           pom.project {
             name "${project.name}"
             packaging 'jar'
-            // optionally artifactId can be defined here 
+            // optionally artifactId can be defined here
             description 'Gobblin Ingestion Framework'
             url 'https://github.com/linkedin/gobblin/'
 
@@ -356,8 +372,10 @@ plugins.withType(JavaPlugin) {
       }
     }
 
-    signing {
-      sign configurations.archives
+    if (rootProject.ext.signArtifacts) {
+      signing {
+        sign configurations.archives
+      }
     }
   }
 
