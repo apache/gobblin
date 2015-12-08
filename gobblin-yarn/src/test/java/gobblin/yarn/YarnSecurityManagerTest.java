@@ -23,8 +23,6 @@ import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hdfs.HdfsConfiguration;
-import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
@@ -52,6 +50,14 @@ import com.typesafe.config.ConfigFactory;
  *   as it is more convenient to test both here where all dependencies are setup between the two.
  * </p>
  *
+ * <p>
+ *   This class uses a {@link TestingServer} as an embedded ZooKeeper server for testing. The Curator
+ *   framework is used to provide a ZooKeeper client. This class also uses a {@link HelixManager} as
+ *   being required by {@link YarnAppSecurityManager}. The local file system as returned by
+ *   {@link FileSystem#getLocal(Configuration)} is used for writing the testing delegation token, which
+ *   is acquired by mocking the method {@link FileSystem#getDelegationToken(String)} on the local
+ *   {@link FileSystem} instance.
+ * </p>
  * @author ynli
  */
 @Test(groups = { "gobblin.yarn" })
@@ -63,11 +69,9 @@ public class YarnSecurityManagerTest {
 
   private HelixManager helixManager;
 
-  private MiniDFSCluster miniDFSCluster;
-
-  private Configuration dfsConfig;
-  private FileSystem fs;
-  private Path miniHDFSBaseDir;
+  private Configuration configuration;
+  private FileSystem localFs;
+  private Path baseDir;
   private Path tokenFilePath;
   private Token<?> token;
 
@@ -99,23 +103,20 @@ public class YarnSecurityManagerTest {
         helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.SPECTATOR, zkConnectingString);
     this.helixManager.connect();
 
-    this.miniHDFSBaseDir = new Path(YarnSecurityManagerTest.class.getSimpleName());
-    this.dfsConfig = getTestConfiguration(this.miniHDFSBaseDir);
-    dfsConfig.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, this.miniHDFSBaseDir.toUri().toString());
-    MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(dfsConfig);
-    this.miniDFSCluster = builder.numDataNodes(1).build();
-
-    this.fs = Mockito.spy(this.closer.register(this.miniDFSCluster.getFileSystem()));
+    this.configuration = new Configuration();
+    this.localFs = Mockito.spy(FileSystem.getLocal(this.configuration));
 
     this.token = new Token<>();
     this.token.setKind(new Text("test"));
     this.token.setService(new Text("test"));
-    Mockito.<Token<?>>when(this.fs.getDelegationToken(UserGroupInformation.getLoginUser().getShortUserName()))
+    Mockito.<Token<?>>when(this.localFs.getDelegationToken(UserGroupInformation.getLoginUser().getShortUserName()))
         .thenReturn(this.token);
 
-    this.tokenFilePath = new Path(this.fs.getHomeDirectory(), GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
-    this.yarnAppSecurityManager = new YarnAppSecurityManager(config, this.helixManager, this.fs, this.tokenFilePath);
-    this.yarnContainerSecurityManager = new YarnContainerSecurityManager(config, this.fs, new EventBus());
+    this.baseDir = new Path(YarnSecurityManagerTest.class.getSimpleName());
+    this.tokenFilePath = new Path(this.baseDir, GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
+    this.yarnAppSecurityManager =
+        new YarnAppSecurityManager(config, this.helixManager, this.localFs, this.tokenFilePath);
+    this.yarnContainerSecurityManager = new YarnContainerSecurityManager(config, this.localFs, new EventBus());
   }
 
   @Test
@@ -126,8 +127,8 @@ public class YarnSecurityManagerTest {
   @Test(dependsOnMethods = "testGetNewDelegationTokenForLoginUser")
   public void testWriteDelegationTokenToFile() throws IOException {
     this.yarnAppSecurityManager.writeDelegationTokenToFile();
-    Assert.assertTrue(this.fs.exists(this.tokenFilePath));
-    assertToken(YarnHelixUtils.readTokensFromFile(this.tokenFilePath, this.dfsConfig));
+    Assert.assertTrue(this.localFs.exists(this.tokenFilePath));
+    assertToken(YarnHelixUtils.readTokensFromFile(this.tokenFilePath, this.configuration));
   }
 
   @Test
@@ -154,11 +155,7 @@ public class YarnSecurityManagerTest {
       if (this.helixManager.isConnected()) {
         this.helixManager.disconnect();
       }
-      try {
-        FileSystem.getLocal(this.dfsConfig).delete(this.miniHDFSBaseDir, true);
-      } finally {
-        this.miniDFSCluster.shutdown(true);
-      }
+      this.localFs.delete(this.baseDir, true);
     } catch (Throwable t) {
       throw this.closer.rethrow(t);
     } finally {
@@ -170,15 +167,5 @@ public class YarnSecurityManagerTest {
     Assert.assertEquals(tokens.size(), 1);
     Token<?> token = tokens.iterator().next();
     Assert.assertEquals(token, this.token);
-  }
-
-  private HdfsConfiguration getTestConfiguration(Path miniHDFSBaseDir) {
-    HdfsConfiguration hdfsConfiguration = new HdfsConfiguration(false);
-
-    hdfsConfiguration.set("dfs.namenode.name.dir", miniHDFSBaseDir.toString());
-    hdfsConfiguration.set("dfs.namenode.edits.dir", miniHDFSBaseDir.toString());
-    hdfsConfiguration.setLong("dfs.namenode.fs-limits.min-block-size", 0L);
-
-    return hdfsConfiguration;
   }
 }

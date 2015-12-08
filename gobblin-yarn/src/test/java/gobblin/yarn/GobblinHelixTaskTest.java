@@ -49,17 +49,30 @@ import gobblin.writer.WriterOutputFormat;
 /**
  * Unit tests for {@link GobblinHelixTask}.
  *
+ * <p>
+ *   This class uses a mocked {@link HelixManager} to control the behavior of certain method for testing.
+ *   A {@link TaskExecutor} is used to run the test task and a {@link GobblinHelixTaskStateTracker} is
+ *   also used as being required by {@link GobblinHelixTaskFactory}. The test task writes everything to
+ *   the local file system as returned by {@link FileSystem#getLocal(Configuration)}.
+ * </p>
+ *
  * @author ynli
  */
 @Test(groups = { "gobblin.yarn" })
 public class GobblinHelixTaskTest {
 
   private TaskExecutor taskExecutor;
+
   private GobblinHelixTaskStateTracker taskStateTracker;
+
   private GobblinHelixTask gobblinHelixTask;
+
   private HelixManager helixManager;
+
   private FileSystem localFs;
+
   private Path appWorkDir;
+
   private Path taskOutputDir;
 
   @BeforeClass

@@ -42,6 +42,14 @@ import com.google.common.io.Closer;
 /**
  * Unit tests for {@link GobblinYarnAppLauncher}.
  *
+ * <p>
+ *   This class uses a {@link TestingServer} as an embedded ZooKeeper server for testing. The Curator
+ *   framework is used to provide a ZooKeeper client. This class also uses the {@link HelixManager} to
+ *   act as a testing Helix controller to receive the ApplicationMaster shutdown request message. It
+ *   also starts a {@link MiniYARNCluster} so submission of a Gobblin Yarn application can be tested.
+ *   A {@link YarnClient} is used to work with the {@link MiniYARNCluster}.
+ * </p>
+ *
  * @author ynli
  */
 @Test(groups = { "gobblin.yarn" })

@@ -49,6 +49,15 @@ import gobblin.runtime.JobState;
 /**
  * Unit tests for {@link GobblinHelixJobLauncher}.
  *
+ * <p>
+ *   This class uses a {@link TestingServer} as an embedded ZooKeeper server for testing. This class
+ *   also uses the {@link HelixManager} to act as a testing Helix controller to be passed into the
+ *   {@link GobblinHelixJobLauncher} instance. A {@link GobblinWorkUnitRunner} is also used to run
+ *   the single task of the test job. A {@link FsDatasetStateStore} is used to check the state store
+ *   after the job is done. The test job writes everything to the local file system as returned by
+ *   {@link FileSystem#getLocal(Configuration)}.
+ * </p>
+ *
  * @author ynli
  */
 @Test(groups = { "gobblin.yarn" })
