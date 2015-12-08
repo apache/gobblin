@@ -14,6 +14,7 @@ package gobblin.compaction.mapreduce.avro;
 
 import java.io.IOException;
 
+import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.GenericData;
@@ -21,8 +22,11 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapred.AvroValue;
 import org.apache.avro.mapreduce.AvroJob;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.lib.input.CombineFileSplit;
 
 
 /**
@@ -61,7 +65,12 @@ public class AvroKeyMapper extends Mapper<AvroKey<GenericRecord>, NullWritable, 
     } else {
       populateComparableKeyRecord(key.datum(), outKey.datum());
       outValue.datum(key.datum());
-      context.write(outKey, outValue);
+      try {
+        context.write(outKey, outValue);
+      } catch (AvroRuntimeException e) {
+        final Path[] paths = ((CombineFileSplit) context.getInputSplit()).getPaths();
+        throw new IOException("Unable to process paths " + StringUtils.join(paths, ','), e);
+      }
     }
     context.getCounter(EVENT_COUNTER.RECORD_COUNT).increment(1);
   }

@@ -32,7 +32,6 @@ import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
 import gobblin.instrumented.Instrumented;
-import gobblin.instrumented.writer.InstrumentedDataWriterDecorator;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.Tag;
 import gobblin.publisher.TaskPublisher;
@@ -244,10 +243,6 @@ public class Fork implements Closeable, Runnable, FinalState {
 
   /**
    * Update byte-level metrics.
-   *
-   * <p>
-   *     This method is only supposed to be called after the writer commits.
-   * </p>
    */
   public void updateByteMetrics() throws IOException {
     if (this.writer.isPresent()) {
@@ -351,9 +346,23 @@ public class Fork implements Closeable, Runnable, FinalState {
   }
 
   /**
+   * Get the number of bytes written by this {@link Fork}.
+   *
+   * @return the number of bytes written by this {@link Fork}
+   */
+  long getBytesWritten() {
+    try {
+      return this.writer.isPresent() ? this.writer.get().bytesWritten() : 0L;
+    } catch (Throwable t) {
+
+      // Return 0 if the writer does not implement bytesWritten();
+      return 0L;
+    }
+  }
+
+  /**
    * Build a {@link gobblin.writer.DataWriter} for writing fetched data records.
    */
-  @SuppressWarnings("unchecked")
   private DataWriter<Object> buildWriter()
       throws IOException, SchemaConversionException {
     DataWriterBuilder<Object, Object> builder = this.taskContext.getDataWriterBuilder(this.branches, this.index)
@@ -474,7 +483,8 @@ public class Fork implements Closeable, Runnable, FinalState {
 
     try {
       if (GobblinMetrics.isEnabled(this.taskState.getWorkunit())) {
-        // Update byte-level metrics after the writer commits
+        // Update record-level and byte-level metrics after the writer commits
+        updateRecordMetrics();
         updateByteMetrics();
       }
     } catch (IOException ioe) {

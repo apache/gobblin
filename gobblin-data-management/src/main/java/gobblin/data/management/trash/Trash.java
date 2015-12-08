@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import azkaban.utils.Props;
 
-import gobblin.data.management.util.PathUtils;
+import gobblin.util.PathUtils;
 
 
 /**

@@ -16,53 +16,71 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+
+import com.google.common.base.Strings;
+import com.google.common.io.Closer;
 
 import gobblin.configuration.State;
 import gobblin.util.FinalState;
+import gobblin.util.HadoopUtils;
 
 
 public class RowLevelPolicyChecker implements Closeable, FinalState {
 
   private final List<RowLevelPolicy> list;
+  private final String stateId;
+  private final FileSystem fs;
   private boolean errFileOpen;
+  private final Closer closer;
   private RowLevelErrFileWriter writer;
 
-  public RowLevelPolicyChecker(List<RowLevelPolicy> list) {
+  public RowLevelPolicyChecker(List<RowLevelPolicy> list, String stateId, FileSystem fs) throws IOException {
     this.list = list;
+    this.stateId = stateId;
+    this.fs = fs;
     this.errFileOpen = false;
-    this.writer = new RowLevelErrFileWriter();
+    this.closer = Closer.create();
+    this.writer = this.closer.register(new RowLevelErrFileWriter(this.fs));
   }
 
-  public boolean executePolicies(Object record, RowLevelPolicyCheckResults results)
-      throws IOException {
+  public boolean executePolicies(Object record, RowLevelPolicyCheckResults results) throws IOException {
     for (RowLevelPolicy p : this.list) {
       RowLevelPolicy.Result result = p.executePolicy(record);
       results.put(p, result);
 
-      if (p.getType().equals(RowLevelPolicy.Type.FAIL) && result.equals(RowLevelPolicy.Result.FAILED)) {
-        throw new RuntimeException("RowLevelPolicy " + p + " failed on record " + record);
-      }
-
-      if (p.getType().equals(RowLevelPolicy.Type.ERR_FILE)) {
-        if (!errFileOpen) {
-          this.writer.open(new Path(p.getErrFileLocation(), p.toString().replaceAll("\\.", "-") + ".err"));
-          this.writer.write(record);
-        } else {
-          this.writer.write(record);
+      if (result.equals(RowLevelPolicy.Result.FAILED)) {
+        if (p.getType().equals(RowLevelPolicy.Type.FAIL)) {
+          throw new RuntimeException("RowLevelPolicy " + p + " failed on record " + record);
+        } else if (p.getType().equals(RowLevelPolicy.Type.ERR_FILE)) {
+          if (!errFileOpen) {
+            this.writer.open(getErrFilePath(p));
+            this.writer.write(record);
+          } else {
+            this.writer.write(record);
+          }
+          errFileOpen = true;
         }
-        errFileOpen = true;
         return false;
       }
     }
     return true;
   }
 
+  private Path getErrFilePath(RowLevelPolicy policy) {
+    String errFileName = HadoopUtils.sanitizePath(policy.toString(), "-");
+    if (!Strings.isNullOrEmpty(this.stateId)) {
+      errFileName += "-" + this.stateId;
+    }
+    errFileName += ".err";
+    return new Path(policy.getErrFileLocation(), errFileName);
+  }
+
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     if (errFileOpen) {
-      this.writer.close();
+      this.closer.close();
     }
   }
 
@@ -74,7 +92,7 @@ public class RowLevelPolicyChecker implements Closeable, FinalState {
    */
   public State getFinalState() {
     State state = new State();
-    for(RowLevelPolicy policy : this.list) {
+    for (RowLevelPolicy policy : this.list) {
       state.addAll(policy.getFinalState());
     }
     return state;

@@ -25,7 +25,8 @@ import org.apache.hadoop.io.Text;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
-
+import com.google.common.base.Enums;
+import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -317,6 +318,30 @@ public class JobState extends SourceState {
     return builder.build();
   }
 
+  /**
+   * Get the {@link LauncherTypeEnum} for this {@link JobState}.
+   */
+  public LauncherTypeEnum getLauncherType() {
+    return Enums
+        .getIfPresent(LauncherTypeEnum.class,
+            this.getProp(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherFactory.JobLauncherType.LOCAL.name()))
+        .or(LauncherTypeEnum.LOCAL);
+  }
+
+  /**
+   * Sets the {@link LauncherTypeEnum} for this {@link JobState}.
+   */
+  public void setJobLauncherType(LauncherTypeEnum jobLauncherType) {
+    this.setProp(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, jobLauncherType.name());
+  }
+
+  /**
+   * Get the tracking URL for this {@link JobState}.
+   */
+  public Optional<String> getTrackingURL() {
+    return Optional.fromNullable(this.getProp(ConfigurationKeys.JOB_TRACKING_URL_KEY));
+  }
+
   @Override
   public void readFields(DataInput in)
       throws IOException {
@@ -450,10 +475,9 @@ public class JobState extends SourceState {
     jobExecutionInfo.setState(JobStateEnum.valueOf(this.state.name()));
     jobExecutionInfo.setLaunchedTasks(this.taskCount);
     jobExecutionInfo.setCompletedTasks(this.getCompletedTasks());
-    jobExecutionInfo.setLauncherType(LauncherTypeEnum.valueOf(this.getProp(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY,
-        JobLauncherFactory.JobLauncherType.LOCAL.name())));
-    if (this.contains(ConfigurationKeys.JOB_TRACKING_URL_KEY)) {
-      jobExecutionInfo.setTrackingUrl(this.getProp(ConfigurationKeys.JOB_TRACKING_URL_KEY));
+    jobExecutionInfo.setLauncherType(getLauncherType());
+    if (getTrackingURL().isPresent()) {
+      jobExecutionInfo.setTrackingUrl(getTrackingURL().get());
     }
 
     // Add task execution information

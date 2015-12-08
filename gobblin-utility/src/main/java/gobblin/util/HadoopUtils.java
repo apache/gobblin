@@ -38,6 +38,7 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.util.ReflectionUtils;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.io.BaseEncoding;
 import com.google.common.io.Closer;
@@ -48,6 +49,8 @@ import com.google.common.io.Closer;
  */
 @Slf4j
 public class HadoopUtils {
+
+  public static final String HDFS_ILLEGAL_TOKEN_REGEX = "[\\s:\\\\]";
 
   public static Configuration newConfiguration() {
     Configuration conf = new Configuration();
@@ -65,6 +68,7 @@ public class HadoopUtils {
 
     // Add a new custom filesystem mapping
     conf.set("fs.sftp.impl", "gobblin.source.extractor.extract.sftp.SftpLightWeightFileSystem");
+    conf.set("fs.sftp.impl.disable.cache", "true");
     return conf;
   }
 
@@ -76,6 +80,15 @@ public class HadoopUtils {
     List<FileStatus> results = Lists.newArrayList();
     walk(results, fileSystem, path);
     return results;
+  }
+
+  /**
+   * Get the path as a string without schema or authority.
+   *
+   * E.g. Converts sftp://user/data/file.txt to /user/data/file.txt
+   */
+  public static String toUriPath(Path path) {
+    return path.toUri().getPath();
   }
 
   /**
@@ -146,13 +159,8 @@ public class HadoopUtils {
    *
    * <p>
    * The rename operation happens at the first non-existent sub-directory. If a directory at destination path already
-   * exists, it recursively tries to move for sub-directories. If all the sub-directories also exist at the destination,
-   * a file level copy is done
-   * </p>
-   *
-   * <p>
-   * If the contents of destination 'to' path is expected to be modified concurrently, use
-   * {@link #safeRenameRecursively(FileSystem, Path, Path)}
+   * exists, it recursively tries to move sub-directories. If all the sub-directories also exist at the destination,
+   * a file level move is done
    * </p>
    *
    * @param fileSystem on which the data needs to be moved
@@ -160,6 +168,11 @@ public class HadoopUtils {
    * @param to path of the data to be moved
    */
   public static void renameRecursively(FileSystem fileSystem, Path from, Path to) throws IOException {
+
+    // Need this check for hadoop2
+    if (!fileSystem.exists(from)) {
+      return;
+    }
 
     for (FileStatus fromFile : fileSystem.listStatus(from)) {
 
@@ -169,11 +182,25 @@ public class HadoopUtils {
       Path toFilePath = new Path(to, relativeFilePath);
 
       if (!fileSystem.exists(toFilePath)) {
+        /*
+         * Permissions for newly created directories will be inherited from parent directory. This is because the source
+         * and destination directory path may diverge after a certain level
+         *
+         * Source :/data/gobblin/task-staging/writer_1234/Log/file.txt
+         *
+         * Destination :/data/gobblin/task-output/Log/file.txt
+         *
+         * When the directory Log is being renamed from source to destination, task-output directory may not exist. It
+         * will be created by inheriting it's parent permission (/data/gobblin/)
+         */
+        if (!fileSystem.exists(toFilePath.getParent())) {
+          fileSystem.mkdirs(toFilePath.getParent());
+        }
+
         if (!fileSystem.rename(fromFile.getPath(), toFilePath)) {
           throw new IOException(String.format("Failed to rename %s to %s.", fromFile.getPath(), toFilePath));
-        } else {
-          log.info(String.format("Renamed %s to %s", fromFile.getPath(), toFilePath));
         }
+
       } else if (fromFile.isDir()) {
         renameRecursively(fileSystem, fromFile.getPath(), toFilePath);
       } else {
@@ -192,9 +219,13 @@ public class HadoopUtils {
    * {@link #renamePath(FileSystem, Path, Path)} which is faster and more optimized
    * </p>
    *
+   * <b>NOTE: This does not seem to be working for all {@link FileSystem} implementations. Use
+   * {@link #renameRecursively(FileSystem, Path, Path)}</b>
+   *
    * @param fileSystem on which the data needs to be moved
    * @param from path of the data to be moved
    * @param to path of the data to be moved
+   *
    */
   public static void safeRenameRecursively(FileSystem fileSystem, Path from, Path to) throws IOException {
 
@@ -386,5 +417,24 @@ public class HadoopUtils {
     short mode = props.getPropAsShortWithRadix(propName, defaultPermission.toShort(),
         ConfigurationKeys.PERMISSION_PARSING_RADIX);
     return new FsPermission(mode);
+  }
+
+  /**
+   * Remove illegal HDFS path characters from the given path. Illegal characters will be replaced
+   * with the given substitute.
+   */
+  public static String sanitizePath(String path, String substitute) {
+    Preconditions.checkArgument(substitute.replaceAll(HDFS_ILLEGAL_TOKEN_REGEX, "").equals(substitute),
+        "substitute contains illegal characters: " + substitute);
+
+    return path.replaceAll(HDFS_ILLEGAL_TOKEN_REGEX, substitute);
+  }
+
+  /**
+   * Remove illegal HDFS path characters from the given path. Illegal characters will be replaced
+   * with the given substitute.
+   */
+  public static Path sanitizePath(Path path, String substitute) {
+    return new Path(sanitizePath(path.toString(), substitute));
   }
 }

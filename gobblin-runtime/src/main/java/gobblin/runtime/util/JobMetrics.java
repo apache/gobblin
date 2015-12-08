@@ -34,8 +34,6 @@ public class JobMetrics extends GobblinMetrics {
 
   protected final String jobName;
 
-  private static final Configuration HADOOP_CONFIGURATION = new Configuration();
-
   protected JobMetrics(JobState job) {
     super(name(job), null, tagsForJob(job));
     this.jobName = job.getJobName();

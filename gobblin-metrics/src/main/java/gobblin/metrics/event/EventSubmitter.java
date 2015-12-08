@@ -57,6 +57,11 @@ public class EventSubmitter {
       return this;
     }
 
+    public Builder addMetadata(Map<String, String> additionalMetadata) {
+      this.metadata.putAll(additionalMetadata);
+      return this;
+    }
+
     public EventSubmitter build() {
       return new EventSubmitter(this);
     }

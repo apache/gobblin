@@ -21,7 +21,6 @@ import java.net.URI;
 import java.util.List;
 import java.util.Properties;
 import java.util.Queue;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -57,12 +56,11 @@ import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ServiceManager;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.instrumented.Instrumented;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.event.TimingEvent;
+import gobblin.password.PasswordManager;
 import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.FileBasedJobLock;
 import gobblin.runtime.JobLauncher;
@@ -125,7 +123,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
   }
 
   public MRJobLauncher(Properties jobProps, Configuration conf) throws Exception {
-    super(jobProps);
+    super(jobProps, ImmutableMap.<String, String> of());
 
     this.conf = conf;
     // Put job configuration properties into the Hadoop configuration so they are available in the mappers
@@ -376,6 +374,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
    */
   private void addHDFSFiles(String jobFileList) throws IOException {
     DistributedCache.createSymlink(this.conf);
+    jobFileList = PasswordManager.getInstance(jobProps).readPassword(jobFileList);
     for (String jobFile : SPLITTER.split(jobFileList)) {
       Path srcJobFile = new Path(jobFile);
       // Create a URI that is in the form path#symlink
@@ -533,8 +532,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
     protected void setup(Context context) {
       try {
         this.fs = FileSystem.get(context.getConfiguration());
-        this.taskStateStore = new FsStateStore<TaskState>(this.fs,
-            SequenceFileOutputFormat.getOutputPath(context).toUri().getPath(), TaskState.class);
+        this.taskStateStore =
+            new FsStateStore<TaskState>(this.fs, SequenceFileOutputFormat.getOutputPath(context).toUri().getPath(),
+                TaskState.class);
 
         Path jobStateFilePath = new Path(context.getConfiguration().get(ConfigurationKeys.JOB_STATE_FILE_PATH_KEY));
         SerializationUtils.deserializeState(this.fs, jobStateFilePath, this.jobState);
@@ -582,14 +582,16 @@ public class MRJobLauncher extends AbstractJobLauncher {
           this.map(context.getCurrentKey(), context.getCurrentValue(), context);
         }
         // Actually run the list of WorkUnits
-        runWorkUnits(this.workUnits, context);
+        runWorkUnits(this.jobState.getJobId(), context.getTaskAttemptID().toString(), this.workUnits,
+            this.taskStateTracker, this.taskExecutor, this.taskStateStore, LOG);
       } finally {
         this.cleanup(context);
       }
     }
 
     @Override
-    public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+    public void map(LongWritable key, Text value, Context context)
+        throws IOException, InterruptedException {
       WorkUnit workUnit = (value.toString().endsWith(MULTI_WORK_UNIT_FILE_EXTENSION) ?
           MultiWorkUnit.createEmpty() : WorkUnit.createEmpty());
       SerializationUtils.deserializeState(this.fs, new Path(value.toString()), workUnit);
@@ -608,7 +610,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
     }
 
     @Override
-    protected void cleanup(Context context) throws IOException, InterruptedException {
+    protected void cleanup(Context context)
+        throws IOException, InterruptedException {
       try {
         this.serviceManager.stopAsync().awaitStopped(5, TimeUnit.SECONDS);
       } catch (TimeoutException te) {
@@ -622,67 +625,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
             JobMetrics.remove(this.jobMetrics.get().getName());
           }
         }
-      }
-    }
-
-    /**
-     * Run the given list of {@link WorkUnit}s sequentially. If any work unit/task fails,
-     * an {@link java.io.IOException} is thrown so the mapper is failed and retried.
-     */
-    private void runWorkUnits(List<WorkUnit> workUnits, Context context) throws IOException, InterruptedException {
-      if (workUnits.isEmpty()) {
-        LOG.warn("No work units to run in mapper " + context.getTaskAttemptID());
-        return;
-      }
-
-      String jobId = workUnits.get(0).getProp(ConfigurationKeys.JOB_ID_KEY);
-
-      for (WorkUnit workUnit : workUnits) {
-        if (this.jobMetrics.isPresent()) {
-          workUnit.setProp(Instrumented.METRIC_CONTEXT_NAME_KEY, this.jobMetrics.get().getName());
-        }
-        String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
-        // Delete the task state file for the task if it already exists.
-        // This usually happens if the task is retried upon failure.
-        if (this.taskStateStore.exists(jobId, taskId + TASK_STATE_STORE_TABLE_SUFFIX)) {
-          this.taskStateStore.delete(jobId, taskId + TASK_STATE_STORE_TABLE_SUFFIX);
-        }
-      }
-
-      CountDownLatch countDownLatch = new CountDownLatch(workUnits.size());
-      List<Task> tasks = AbstractJobLauncher.submitWorkUnits(jobId, workUnits, this.taskStateTracker, this.taskExecutor,
-          countDownLatch);
-
-      LOG.info(String.format("Waiting for submitted tasks of job %s to complete in mapper %s...", jobId,
-          context.getTaskAttemptID()));
-      while (countDownLatch.getCount() > 0) {
-        LOG.info(String.format("%d out of %d tasks of job %s are running in mapper %s", countDownLatch.getCount(),
-            workUnits.size(), jobId, context.getTaskAttemptID()));
-        if (countDownLatch.await(10, TimeUnit.SECONDS)) {
-          break;
-        }
-      }
-      LOG.info(String.format("All tasks of job %s have completed in mapper %s", jobId, context.getTaskAttemptID()));
-
-      boolean hasTaskFailure = false;
-      for (Task task : tasks) {
-        LOG.info("Writing task state for task " + task.getTaskId());
-        this.taskStateStore.put(task.getJobId(), task.getTaskId() + TASK_STATE_STORE_TABLE_SUFFIX, task.getTaskState());
-
-        if (task.getTaskState().getWorkingState() == WorkUnitState.WorkingState.FAILED) {
-          hasTaskFailure = true;
-        }
-      }
-
-      if (hasTaskFailure) {
-        for (Task task : tasks) {
-          if (task.getTaskState().contains(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)) {
-            LOG.error(String.format("Task %s failed due to exception: %s", task.getTaskId(),
-                task.getTaskState().getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)));
-          }
-        }
-        throw new IOException(
-            String.format("Not all tasks running in mapper %s completed successfully", context.getTaskAttemptID()));
       }
     }
   }

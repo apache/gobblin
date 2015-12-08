@@ -43,7 +43,8 @@ import gobblin.source.workunit.WorkUnit;
 
 
 /**
- * An abstract class for packing Kafka {@link WorkUnits} into {@link MultiWorkUnits} based on the number of containers.
+ * An abstract class for packing Kafka {@link WorkUnit}s into {@link MultiWorkUnit}s
+ * based on the number of containers.
  *
  * @author ziliu
  */

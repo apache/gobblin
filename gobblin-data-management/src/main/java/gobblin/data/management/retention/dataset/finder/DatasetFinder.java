@@ -15,6 +15,8 @@ package gobblin.data.management.retention.dataset.finder;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.hadoop.fs.Path;
+
 import gobblin.data.management.dataset.Dataset;
 
 
@@ -34,5 +36,10 @@ public interface DatasetFinder <T extends Dataset>{
    * @throws IOException
    */
   public List<T> findDatasets() throws IOException;
+
+  /**
+   * @return The deepest common root shared by all all {@link Dataset} root paths returned by this finder.
+   */
+  public Path commonDatasetRoot();
 
 }

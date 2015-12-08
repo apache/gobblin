@@ -22,14 +22,15 @@ import java.util.concurrent.TimeoutException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
 import gobblin.metrics.event.TimingEvent;
 import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.FileBasedJobLock;
@@ -61,7 +62,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
   private volatile CountDownLatch countDownLatch;
 
   public LocalJobLauncher(Properties jobProps) throws Exception {
-    super(jobProps);
+    super(jobProps, ImmutableMap.<String, String> of());
 
     TimingEvent jobLocalSetupTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.JOB_LOCAL_SETUP);
 
@@ -113,7 +114,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     TimingEvent workUnitsRunTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.WORK_UNITS_RUN);
 
     this.countDownLatch = new CountDownLatch(workUnitsToRun.size());
-    List<Task> tasks = AbstractJobLauncher.submitWorkUnits(this.jobContext.getJobId(), workUnitsToRun,
+    List<Task> tasks = AbstractJobLauncher.runWorkUnits(this.jobContext.getJobId(), workUnitsToRun,
         this.taskStateTracker, this.taskExecutor, this.countDownLatch);
 
     LOG.info(String.format("Waiting for submitted tasks of job %s to complete...", jobId));
@@ -143,9 +144,6 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     // Collect task states and set job state to FAILED if any task failed
     for (Task task : tasks) {
       jobState.addTaskState(task.getTaskState());
-      if (task.getTaskState().getWorkingState() == WorkUnitState.WorkingState.FAILED) {
-        this.eventSubmitter.submit(gobblin.metrics.event.EventNames.TASK_FAILED, "taskId", task.getTaskId());
-      }
     }
   }
 

@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Properties;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
 import com.google.common.collect.Lists;
 
@@ -33,4 +34,7 @@ public class TestCopyablePartitionableDatasedFinder implements DatasetFinder<Cop
     return Lists.<CopyableDataset>newArrayList(new TestCopyablePartitionableDataset());
   }
 
+  @Override public Path commonDatasetRoot() {
+    return new Path("/test");
+  }
 }

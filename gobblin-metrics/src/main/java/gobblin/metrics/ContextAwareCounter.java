@@ -11,14 +11,12 @@
  */
 
 package gobblin.metrics;
-
-import java.util.Collection;
-import java.util.List;
+import lombok.experimental.Delegate;
 
 import com.codahale.metrics.Counter;
-import com.codahale.metrics.MetricRegistry;
 
-import com.google.common.base.Optional;
+import gobblin.metrics.metric.ProxyMetric;
+import gobblin.metrics.metric.InnerMetric;
 
 
 /**
@@ -37,74 +35,22 @@ import com.google.common.base.Optional;
  *
  * @author ynli
  */
-class ContextAwareCounter extends Counter implements ContextAwareMetric {
+class ContextAwareCounter extends Counter implements ProxyMetric, ContextAwareMetric {
 
-  private final String name;
-  private final MetricContext context;
-  private final Tagged tagged;
-  private final Optional<ContextAwareCounter> parentCounter;
+  private final MetricContext metricContext;
+  @Delegate
+  private final InnerCounter innerCounter;
 
   ContextAwareCounter(MetricContext context, String name) {
-    this.name = name;
-    this.context = context;
-    this.tagged = new Tagged();
-
-    Optional<MetricContext> parentContext = context.getParent();
-    if (parentContext.isPresent()) {
-      this.parentCounter = Optional.fromNullable(parentContext.get().contextAwareCounter(name));
-    } else {
-      this.parentCounter = Optional.absent();
-    }
+    this.innerCounter = new InnerCounter(context, name, this);
+    this.metricContext = context;
   }
 
-  @Override
-  public void inc(long n) {
-    super.inc(n);
-    if (this.parentCounter.isPresent()) {
-      this.parentCounter.get().inc(n);
-    }
-  }
-
-  @Override
-  public void dec(long n) {
-    super.dec(n);
-    if (this.parentCounter.isPresent()) {
-      this.parentCounter.get().dec(n);
-    }
-  }
-
-  @Override
-  public String getName() {
-    return this.name;
-  }
-
-  @Override
-  public String getFullyQualifiedName(boolean includeTagKeys) {
-    return MetricRegistry.name(metricNamePrefix(includeTagKeys), this.name);
-  }
-
-  @Override
   public MetricContext getContext() {
-    return this.context;
+    return this.metricContext;
   }
 
-  @Override
-  public void addTag(Tag<?> tag) {
-    this.tagged.addTag(tag);
-  }
-
-  @Override
-  public void addTags(Collection<Tag<?>> tags) {
-    this.tagged.addTags(tags);
-  }
-
-  @Override
-  public List<Tag<?>> getTags() {
-    return this.tagged.getTags();
-  }
-
-  @Override
-  public String metricNamePrefix(boolean includeTagKeys) {
-    return this.tagged.metricNamePrefix(includeTagKeys);
+  @Override public InnerMetric getInnerMetric() {
+    return this.innerCounter;
   }
 }

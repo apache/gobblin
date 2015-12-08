@@ -13,7 +13,7 @@
 package gobblin.writer.test;
 
 import gobblin.configuration.State;
-import gobblin.writer.WriterPartitioner;
+import gobblin.writer.partitioner.WriterPartitioner;
 
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
@@ -29,14 +29,15 @@ public class TestPartitioner implements WriterPartitioner<String> {
       fields().name(PARTITION).
       type(Schema.create(Schema.Type.STRING)).noDefault().endRecord();
 
-  public TestPartitioner(State state) {
+  public TestPartitioner(State state, int numBranches, int branchId) {
   }
 
   @Override public Schema partitionSchema() {
     return SCHEMA;
   }
 
-  @Override public GenericRecord partitionForRecord(String record) {
+  @Override
+  public GenericRecord partitionForRecord(String record) {
     GenericRecord partition = new GenericData.Record(SCHEMA);
     partition.put(PARTITION, record.toLowerCase().charAt(0));
     return partition;

@@ -85,6 +85,8 @@ public abstract class AbstractTaskStateTracker extends AbstractIdleService imple
 
   /**
    * A base class providing a default implementation for updating task metrics.
+   *
+   * @deprecated see {@link gobblin.instrumented.writer.InstrumentedDataWriterBase}.
    */
   protected class TaskMetricsUpdater implements Runnable {
 

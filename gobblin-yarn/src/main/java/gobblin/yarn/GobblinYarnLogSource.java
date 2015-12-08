@@ -38,6 +38,15 @@ import gobblin.util.logs.LogCopier;
 class GobblinYarnLogSource {
 
   /**
+   * Return if the log source is present or not.
+   *
+   * @return {@code true} if the log source is present and {@code false} otherwise
+   */
+  protected boolean isLogSourcePresent() {
+    return System.getenv().containsKey(ApplicationConstants.Environment.LOG_DIRS.toString());
+  }
+
+  /**
    * Build a {@link LogCopier} instance used to copy the logs out from this {@link GobblinYarnLogSource}.
    *
    * @param containerId the {@link ContainerId} of the container the {@link LogCopier} runs in
@@ -52,7 +61,7 @@ class GobblinYarnLogSource {
         .useSrcFileSystem(FileSystem.getLocal(new Configuration()))
         .useDestFileSystem(destFs)
         .readFrom(getLocalLogDir())
-        .writeTo(getHdfsLogDir(destFs, appWorkDir))
+        .writeTo(getHdfsLogDir(containerId, destFs, appWorkDir))
         .acceptsLogFileExtensions(ImmutableSet.of(ApplicationConstants.STDOUT, ApplicationConstants.STDERR))
         .useLogFileNamePrefix(containerId.toString())
         .build();
@@ -62,12 +71,12 @@ class GobblinYarnLogSource {
     return new Path(System.getenv(ApplicationConstants.Environment.LOG_DIRS.toString()));
   }
 
-  private Path getHdfsLogDir(FileSystem destFs, Path appWorkDir) throws IOException {
+  private Path getHdfsLogDir(ContainerId containerId, FileSystem destFs, Path appWorkDir) throws IOException {
     Path logRootDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.APP_LOGS_DIR_NAME);
     if (!destFs.exists(logRootDir)) {
       destFs.mkdirs(logRootDir);
     }
 
-    return new Path(logRootDir, System.getenv(ApplicationConstants.Environment.CONTAINER_ID.toString()));
+    return new Path(logRootDir, containerId.toString());
   }
 }

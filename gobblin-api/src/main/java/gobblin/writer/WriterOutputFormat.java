@@ -12,6 +12,8 @@
 
 package gobblin.writer;
 
+import org.apache.commons.lang3.StringUtils;
+
 /**
  * An enumeration of writer output formats.
  *
@@ -21,8 +23,10 @@ public enum WriterOutputFormat {
   AVRO("avro"),
   PARQUET("parquet"),
   PROTOBUF("protobuf"),
+  JSON("json"),
   ORC("orc"),
-  CSV("csv");
+  CSV("csv"),
+  OTHER(StringUtils.EMPTY);
 
   /**
    * Extension specifies the file name extension

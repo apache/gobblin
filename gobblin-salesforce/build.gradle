@@ -10,6 +10,13 @@
 
 apply plugin: 'java'
 
+repositories {
+  mavenCentral()
+  maven {
+    url "http://conjars.org/repo"
+  }
+}
+
 dependencies {
     compile project(":gobblin-api")
     compile project(":gobblin-core")
@@ -21,7 +28,7 @@ dependencies {
     compile externalDependency.jodaTime
     compile externalDependency.jacksonCore
     compile externalDependency.jacksonMapper
-    compile externalDependency.commonsLang
+    compile externalDependency.commonsLang3
     compile externalDependency.commonsIo
     compile externalDependency.httpclient
     compile externalDependency.httpcore

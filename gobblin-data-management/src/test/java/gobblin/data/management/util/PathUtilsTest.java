@@ -12,6 +12,7 @@
 
 package gobblin.data.management.util;
 
+import gobblin.util.PathUtils;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -59,5 +60,44 @@ public class PathUtilsTest {
     Path fullPath = new Path(schemeAndAuthority, path);
     Assert.assertTrue(fullPath.toString().startsWith("hdfs"));
     Assert.assertEquals(PathUtils.getPathWithoutSchemeAndAuthority(fullPath), path);
+  }
+
+  @Test public void testDeepestNonGlobPath() throws Exception {
+
+    Assert.assertEquals(PathUtils.deepestNonGlobPath(new Path("/path/*")), new Path("/path"));
+    Assert.assertEquals(PathUtils.deepestNonGlobPath(new Path("/path/*/*")), new Path("/path"));
+    Assert.assertEquals(PathUtils.deepestNonGlobPath(new Path("/path/a?b")), new Path("/path"));
+    Assert.assertEquals(PathUtils.deepestNonGlobPath(new Path("/path/*.avro")), new Path("/path"));
+    Assert.assertEquals(PathUtils.deepestNonGlobPath(new Path("/path/[abc]")), new Path("/path"));
+    Assert.assertEquals(PathUtils.deepestNonGlobPath(new Path("/path/{ab,bc}")), new Path("/path"));
+    Assert.assertEquals(PathUtils.deepestNonGlobPath(new Path("/path/*/files")), new Path("/path"));
+    Assert.assertEquals(PathUtils.deepestNonGlobPath(new Path("/*")), new Path("/"));
+
+  }
+
+  @Test
+  public void testRemoveExtension() throws Exception {
+
+    Path path = PathUtils.removeExtention(new Path("file.txt"), ".txt");
+    Assert.assertEquals(path, new Path("file"));
+
+    path = PathUtils.removeExtention(new Path("file.txt"), ".abc");
+    Assert.assertEquals(path, new Path("file.txt"));
+
+    path = PathUtils.removeExtention(new Path("file.txt.gpg"), ".txt", ".gpg");
+    Assert.assertEquals(path, new Path("file"));
+
+    path = PathUtils.removeExtention(new Path("file.txt.gpg"), ".gpg", ".txt");
+    Assert.assertEquals(path, new Path("file"));
+
+    path = PathUtils.removeExtention(new Path("file.txt.gpg"), ".txt");
+    Assert.assertEquals(path, new Path("file.gpg"));
+
+    path = PathUtils.removeExtention(new Path("file.txt.gpg"), ".gpg");
+    Assert.assertEquals(path, new Path("file.txt"));
+
+    path = PathUtils.removeExtention(new Path("file"), ".txt", ".gpg");
+    Assert.assertEquals(path, new Path("file"));
+
   }
 }

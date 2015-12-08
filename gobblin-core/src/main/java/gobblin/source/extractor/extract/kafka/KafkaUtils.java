@@ -30,7 +30,8 @@ public class KafkaUtils {
    * {@link KafkaSource#TOPIC_NAME}.
    */
   public static String getTopicName(State state) {
-    Preconditions.checkArgument(state.contains(KafkaSource.TOPIC_NAME));
+    Preconditions.checkArgument(state.contains(KafkaSource.TOPIC_NAME),
+        "Missing configuration property " + KafkaSource.TOPIC_NAME);
 
     return state.getProp(KafkaSource.TOPIC_NAME);
   }
@@ -41,7 +42,10 @@ public class KafkaUtils {
    * {@link KafkaSource#LEADER_ID} and {@link KafkaSource#LEADER_HOSTANDPORT}.
    */
   public static KafkaPartition getPartition(State state) {
-    Preconditions.checkArgument(state.contains(KafkaSource.TOPIC_NAME) && state.contains(KafkaSource.PARTITION_ID));
+    Preconditions.checkArgument(state.contains(KafkaSource.TOPIC_NAME),
+        "Missing configuration property " + KafkaSource.TOPIC_NAME);
+    Preconditions.checkArgument(state.contains(KafkaSource.PARTITION_ID),
+        "Missing configuration property " + KafkaSource.PARTITION_ID);
 
     KafkaPartition.Builder builder = new KafkaPartition.Builder().withTopicName(state.getProp(KafkaSource.TOPIC_NAME))
         .withId(state.getPropAsInt(KafkaSource.PARTITION_ID));

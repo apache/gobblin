@@ -30,7 +30,6 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
 import gobblin.configuration.State;
-import gobblin.writer.WriterOutputFormat;
 
 
 /**
@@ -48,33 +47,27 @@ public class HiveSerDeWrapper {
   public static final String SERDE_SERIALIZER_TYPE = SERDE_SERIALIZER_PREFIX + "type";
   public static final String SERDE_SERIALIZER_INPUT_FORMAT_TYPE = SERDE_SERIALIZER_PREFIX + "input.format.type";
   public static final String SERDE_SERIALIZER_OUTPUT_FORMAT_TYPE = SERDE_SERIALIZER_PREFIX + "output.format.type";
-  public static final String SERDE_SERIALIZER_FILE_EXTENSION = SERDE_SERIALIZER_PREFIX + "extension";
 
   public static final String SERDE_DESERIALIZER_TYPE = SERDE_DESERIALIZER_PREFIX + "type";
   public static final String SERDE_DESERIALIZER_INPUT_FORMAT_TYPE = SERDE_DESERIALIZER_PREFIX + "input.format.type";
   public static final String SERDE_DESERIALIZER_OUTPUT_FORMAT_TYPE = SERDE_DESERIALIZER_PREFIX + "output.format.type";
-  public static final String SERDE_DESERIALIZER_FILE_EXTENSION = SERDE_DESERIALIZER_PREFIX + "extension";
 
   public enum BuiltInHiveSerDe {
 
-    AVRO(AvroSerDe.class.getName(), AvroContainerInputFormat.class.getName(), AvroContainerOutputFormat.class.getName(),
-        WriterOutputFormat.AVRO.getExtension()),
-    ORC(OrcSerde.class.getName(), OrcInputFormat.class.getName(), OrcOutputFormat.class.getName(),
-        WriterOutputFormat.ORC.getExtension()),
+    AVRO(AvroSerDe.class.getName(), AvroContainerInputFormat.class.getName(),
+        AvroContainerOutputFormat.class.getName()),
+    ORC(OrcSerde.class.getName(), OrcInputFormat.class.getName(), OrcOutputFormat.class.getName()),
     PARQUET(ParquetHiveSerDe.class.getName(), MapredParquetInputFormat.class.getName(),
-        MapredParquetOutputFormat.class.getName(), WriterOutputFormat.PARQUET.getExtension());
+        MapredParquetOutputFormat.class.getName());
 
     private final String serDeClassName;
     private final String inputFormatClassName;
     private final String outputFormatClassName;
-    private final String extension;
 
-    private BuiltInHiveSerDe(String serDeClassName, String inputFormatClassName, String outputFormatClassName,
-        String extension) {
+    private BuiltInHiveSerDe(String serDeClassName, String inputFormatClassName, String outputFormatClassName) {
       this.serDeClassName = serDeClassName;
       this.inputFormatClassName = inputFormatClassName;
       this.outputFormatClassName = outputFormatClassName;
-      this.extension = extension;
     }
 
     @Override
@@ -87,19 +80,15 @@ public class HiveSerDeWrapper {
   private final String serDeClassName;
   private final String inputFormatClassName;
   private final String outputFormatClassName;
-  private final String extension;
 
   private HiveSerDeWrapper(BuiltInHiveSerDe hiveSerDe) {
-    this(hiveSerDe.serDeClassName, hiveSerDe.inputFormatClassName, hiveSerDe.outputFormatClassName,
-        hiveSerDe.extension);
+    this(hiveSerDe.serDeClassName, hiveSerDe.inputFormatClassName, hiveSerDe.outputFormatClassName);
   }
 
-  private HiveSerDeWrapper(String serDeClassName, String inputFormatClassName, String outputFormatClassName,
-      String extension) {
+  private HiveSerDeWrapper(String serDeClassName, String inputFormatClassName, String outputFormatClassName) {
     this.serDeClassName = serDeClassName;
     this.inputFormatClassName = inputFormatClassName;
     this.outputFormatClassName = outputFormatClassName;
-    this.extension = extension;
   }
 
   /**
@@ -132,19 +121,12 @@ public class HiveSerDeWrapper {
   }
 
   /**
-   * Get the output file extension associated with this {@link HiveSerDeWrapper}.
-   */
-  public String getExtension() {
-    return this.extension;
-  }
-
-  /**
    * Get an instance of {@link HiveSerDeWrapper}.
    *
    * @param serDeType The SerDe type. This should be one of the available {@link HiveSerDeWrapper.BuiltInHiveSerDe}s.
    */
   public static HiveSerDeWrapper get(String serDeType) {
-    return get(serDeType, Optional.<String> absent(), Optional.<String> absent(), Optional.<String> absent());
+    return get(serDeType, Optional.<String> absent(), Optional.<String> absent());
   }
 
   /**
@@ -155,7 +137,7 @@ public class HiveSerDeWrapper {
    * and the other three parameters must be present.
    */
   public static HiveSerDeWrapper get(String serDeType, Optional<String> inputFormatClassName,
-      Optional<String> outputFormatClassName, Optional<String> extension) {
+      Optional<String> outputFormatClassName) {
     Optional<BuiltInHiveSerDe> hiveSerDe = Enums.getIfPresent(BuiltInHiveSerDe.class, serDeType.toUpperCase());
     if (hiveSerDe.isPresent()) {
       return new HiveSerDeWrapper(hiveSerDe.get());
@@ -164,8 +146,7 @@ public class HiveSerDeWrapper {
           "Missing input format class name for SerDe " + serDeType);
       Preconditions.checkArgument(outputFormatClassName.isPresent(),
           "Missing output format class name for SerDe " + serDeType);
-      Preconditions.checkArgument(extension.isPresent(), "Missing file extension for SerDe " + serDeType);
-      return new HiveSerDeWrapper(serDeType, inputFormatClassName.get(), outputFormatClassName.get(), extension.get());
+      return new HiveSerDeWrapper(serDeType, inputFormatClassName.get(), outputFormatClassName.get());
     }
   }
 
@@ -181,8 +162,7 @@ public class HiveSerDeWrapper {
         "Missing required property " + SERDE_SERIALIZER_TYPE);
     return get(state.getProp(SERDE_SERIALIZER_TYPE),
         Optional.fromNullable(state.getProp(SERDE_SERIALIZER_INPUT_FORMAT_TYPE)),
-        Optional.fromNullable(state.getProp(SERDE_SERIALIZER_OUTPUT_FORMAT_TYPE)),
-        Optional.fromNullable(state.getProp(SERDE_SERIALIZER_FILE_EXTENSION)));
+        Optional.fromNullable(state.getProp(SERDE_SERIALIZER_OUTPUT_FORMAT_TYPE)));
   }
 
   /**
@@ -197,7 +177,6 @@ public class HiveSerDeWrapper {
         "Missing required property " + SERDE_DESERIALIZER_TYPE);
     return get(state.getProp(SERDE_DESERIALIZER_TYPE),
         Optional.fromNullable(state.getProp(SERDE_DESERIALIZER_INPUT_FORMAT_TYPE)),
-        Optional.fromNullable(state.getProp(SERDE_DESERIALIZER_OUTPUT_FORMAT_TYPE)),
-        Optional.fromNullable(state.getProp(SERDE_DESERIALIZER_FILE_EXTENSION)));
+        Optional.fromNullable(state.getProp(SERDE_DESERIALIZER_OUTPUT_FORMAT_TYPE)));
   }
 }

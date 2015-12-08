@@ -16,9 +16,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.math3.primes.Primes;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -39,11 +39,11 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 import com.google.common.primitives.Ints;
 
 import gobblin.compaction.Dataset;
+import gobblin.compaction.event.CompactionRecordCountEvent;
 import gobblin.compaction.event.CompactionSlaEventHelper;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.GobblinMetrics;
@@ -87,13 +87,17 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   private static final String COMPACTION_JOB_OUTPUT_DIR_PERMISSION = COMPACTION_JOB_PREFIX + "output.dir.permission";
   private static final String COMPACTION_JOB_TARGET_OUTPUT_FILE_SIZE =
       COMPACTION_JOB_PREFIX + "target.output.file.size";
-  private static final long DEFAULT_COMPACTION_JOB_TARGET_OUTPUT_FILE_SIZE = 268435456;
+  private static final long DEFAULT_COMPACTION_JOB_TARGET_OUTPUT_FILE_SIZE = 536870912;
   private static final String COMPACTION_JOB_MAX_NUM_REDUCERS = COMPACTION_JOB_PREFIX + "max.num.reducers";
   private static final int DEFAULT_COMPACTION_JOB_MAX_NUM_REDUCERS = 900;
   private static final String COMPACTION_JOB_OVERWRITE_OUTPUT_DIR = COMPACTION_JOB_PREFIX + "overwrite.output.dir";
   private static final boolean DEFAULT_COMPACTION_JOB_OVERWRITE_OUTPUT_DIR = false;
   private static final String COMPACTION_JOB_ABORT_UPON_NEW_DATA = COMPACTION_JOB_PREFIX + "abort.upon.new.data";
   private static final boolean DEFAULT_COMPACTION_JOB_ABORT_UPON_NEW_DATA = false;
+
+  // If true, the MR job will use either 1 reducer or a prime number of reducers.
+  private static final String COMPACTION_JOB_USE_PRIME_REDUCERS = COMPACTION_JOB_PREFIX + "use.prime.reducers";
+  private static final boolean DEFAULT_COMPACTION_JOB_USE_PRIME_REDUCERS = true;
 
   private static final String HADOOP_JOB_NAME = "Gobblin MR Compaction";
   private static final long MR_JOB_CHECK_COMPLETE_INTERVAL_MS = 5000;
@@ -122,6 +126,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   protected final boolean shouldDeduplicate;
   protected final boolean outputDeduplicated;
   protected final boolean recompactFromDestPaths;
+  protected final boolean usePrimeReducers;
   protected final EventSubmitter eventSubmitter;
   private final RecordCountProvider inputRecordCountProvider;
   private final RecordCountProvider outputRecordCountProvider;
@@ -145,6 +150,9 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
 
     this.outputDeduplicated = this.dataset.jobProps().getPropAsBoolean(MRCompactor.COMPACTION_OUTPUT_DEDUPLICATED,
         MRCompactor.DEFAULT_COMPACTION_OUTPUT_DEDUPLICATED);
+
+    this.usePrimeReducers = this.dataset.jobProps().getPropAsBoolean(COMPACTION_JOB_USE_PRIME_REDUCERS,
+        DEFAULT_COMPACTION_JOB_USE_PRIME_REDUCERS);
 
     this.eventSubmitter = new EventSubmitter.Builder(
         GobblinMetrics.get(this.dataset.jobProps().getProp(ConfigurationKeys.JOB_NAME_KEY)).getMetricContext(),
@@ -201,8 +209,13 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
             }
           }
         }
-        this.submitLateRecordCountsEvent(newLateFilePaths, lateDataOutputPath);
         this.copyDataFiles(lateDataOutputPath, newLateFilePaths);
+        if (this.outputDeduplicated) {
+          LOG.info("Getting late record count from: " + this.dataset.outputLatePath());
+          this.dataset.checkIfNeedToRecompact(this.lateOutputRecordCountProvider.getRecordCount(this
+              .getApplicableFilePaths(this.dataset.outputLatePath())), this.outputRecordCountProvider
+              .getRecordCount(this.getApplicableFilePaths(this.dataset.outputPath())));
+        }
         this.status = Status.COMMITTED;
       } else {
         if (this.fs.exists(this.dataset.outputPath()) && !canOverwriteOutputDir()) {
@@ -230,6 +243,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         }
       }
       this.markOutputDirAsCompleted(compactionTimestamp);
+      this.submitRecordsCountsEvent();
     } catch (Throwable t) {
       throw Throwables.propagate(t);
     }
@@ -273,7 +287,8 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
 
   private boolean canOverwriteOutputDir() {
     return this.dataset.jobProps().getPropAsBoolean(COMPACTION_JOB_OVERWRITE_OUTPUT_DIR,
-        DEFAULT_COMPACTION_JOB_OVERWRITE_OUTPUT_DIR);
+        DEFAULT_COMPACTION_JOB_OVERWRITE_OUTPUT_DIR)
+        || this.recompactFromDestPaths;
   }
 
   private void addJars(Configuration conf) throws IOException {
@@ -352,7 +367,11 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   protected void setNumberOfReducers(Job job) throws IOException {
     long inputSize = getInputSize();
     long targetFileSize = getTargetFileSize();
-    job.setNumReduceTasks(Math.min(Ints.checkedCast(inputSize / targetFileSize) + 1, getMaxNumReducers()));
+    int numReducers = Math.min(Ints.checkedCast(inputSize / targetFileSize) + 1, getMaxNumReducers());
+    if (this.usePrimeReducers && numReducers != 1) {
+      numReducers = Primes.nextPrime(numReducers);
+    }
+    job.setNumReduceTasks(numReducers);
   }
 
   private long getInputSize() throws IOException {
@@ -484,12 +503,16 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     return Double.compare(o.dataset.priority(), this.dataset.priority());
   }
 
-  private List<Path> getCumulativeLateFilePaths(Path lateDataDir) throws FileNotFoundException, IOException {
-    if (!this.fs.exists(lateDataDir)) {
+  /**
+   * Get the list of file {@link Path}s in the given dataDir, which satisfy the extension requirements
+   *  of {@link #getApplicableFileExtensions()}.
+   */
+  private List<Path> getApplicableFilePaths(Path dataDir) throws IOException {
+    if (!this.fs.exists(dataDir)) {
       return Lists.newArrayList();
     }
     List<Path> paths = Lists.newArrayList();
-    for (FileStatus fileStatus : FileListUtils.listFilesRecursively(fs, lateDataDir, new PathFilter() {
+    for (FileStatus fileStatus : FileListUtils.listFilesRecursively(fs, dataDir, new PathFilter() {
       @Override
       public boolean accept(Path path) {
         for (String validExtention : getApplicableFileExtensions()) {
@@ -506,18 +529,21 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   }
 
   /**
-   * Submit an event reporting new and cumulative late record counts.
+   * Submit an event reporting late record counts and non-late record counts.
    */
-  private void submitLateRecordCountsEvent(List<Path> newLateFilePaths, Path lateDataDir) {
+  private void submitRecordsCountsEvent() {
     try {
-      Map<String, String> eventMetadataMap = Maps.newHashMap();
-      long newLateRecordCount = this.lateInputRecordCountProvider.getRecordCount(newLateFilePaths);
-      eventMetadataMap.put(NEW_LATE_RECORD_COUNTS, Long.toString(newLateRecordCount));
-      eventMetadataMap.put(CUMULATIVE_LATE_RECORD_COUNTS, Long.toString(newLateRecordCount
-          + this.lateOutputRecordCountProvider.getRecordCount(this.getCumulativeLateFilePaths(lateDataDir))));
-
-      LOG.info("Submitting late event counts: " + eventMetadataMap);
-      this.eventSubmitter.submit(LATE_RECORD_COUNTS_EVENT, eventMetadataMap);
+      long lateOutputRecordCount = 0l;
+      Path outputLatePath = this.dataset.outputLatePath();
+      if (this.fs.exists(outputLatePath)) {
+        lateOutputRecordCount =
+            this.lateOutputRecordCountProvider
+                .getRecordCount(this.getApplicableFilePaths(this.dataset.outputLatePath()));
+      }
+      long outputRecordCount =
+          this.outputRecordCountProvider.getRecordCount(this.getApplicableFilePaths(this.dataset.outputPath()));
+      new CompactionRecordCountEvent(this.dataset, outputRecordCount, lateOutputRecordCount, this.eventSubmitter)
+          .submit();
     } catch (Exception e) {
       LOG.error("Failed to submit late event count:" + e, e);
     }

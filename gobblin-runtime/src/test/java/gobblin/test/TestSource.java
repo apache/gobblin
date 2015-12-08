@@ -22,6 +22,7 @@ import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.Source;
 import gobblin.source.extractor.Extractor;
+import gobblin.source.extractor.extract.AbstractSource;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.Extract.TableType;
 import gobblin.source.workunit.MultiWorkUnit;
@@ -33,34 +34,30 @@ import gobblin.source.workunit.WorkUnit;
  *
  * @author ynli
  */
-public class TestSource implements Source<String, String> {
+public class TestSource extends AbstractSource<String, String> {
 
-  private static final String SOURCE_FILE_LIST_KEY = "source.files";
-  private static final String SOURCE_FILE_KEY = "source.file";
+  static final String SOURCE_FILE_LIST_KEY = "source.files";
+  static final String SOURCE_FILE_KEY = "source.file";
 
   private static final Splitter SPLITTER = Splitter.on(",").omitEmptyStrings().trimResults();
 
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
-    Extract extract1 = state
-        .createExtract(TableType.SNAPSHOT_ONLY, state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY),
-            "TestTable1");
-
-    Extract extract2 = state
-        .createExtract(TableType.SNAPSHOT_ONLY, state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY),
-            "TestTable2");
+    String nameSpace = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY);
+    Extract extract1 = createExtract(TableType.SNAPSHOT_ONLY, nameSpace, "TestTable1");
+    Extract extract2 = createExtract(TableType.SNAPSHOT_ONLY, nameSpace, "TestTable2");
 
     String sourceFileList = state.getProp(SOURCE_FILE_LIST_KEY);
     List<String> list = SPLITTER.splitToList(sourceFileList);
     List<WorkUnit> workUnits = Lists.newArrayList();
     for (int i = 0; i < list.size(); i++) {
-      WorkUnit workUnit = new WorkUnit(state, i % 2 == 0 ? extract1 : extract2);
+      WorkUnit workUnit = WorkUnit.create(i % 2 == 0 ? extract1 : extract2);
       workUnit.setProp(SOURCE_FILE_KEY, list.get(i));
       workUnits.add(workUnit);
     }
 
     if (state.getPropAsBoolean("use.multiworkunit", false)) {
-      MultiWorkUnit multiWorkUnit = new MultiWorkUnit();
+      MultiWorkUnit multiWorkUnit = MultiWorkUnit.createEmpty();
       multiWorkUnit.addWorkUnits(workUnits);
       workUnits.clear();
       workUnits.add(multiWorkUnit);

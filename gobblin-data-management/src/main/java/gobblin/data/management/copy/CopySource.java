@@ -17,24 +17,34 @@ import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.copy.extractor.FileAwareInputStreamExtractor;
+import gobblin.data.management.copy.publisher.CopyEventSubmitterHelper;
 import gobblin.data.management.dataset.Dataset;
 import gobblin.data.management.dataset.DatasetUtils;
 import gobblin.data.management.partition.Partition;
 import gobblin.data.management.retention.dataset.finder.DatasetFinder;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.Tag;
+import gobblin.metrics.event.sla.SlaEventKeys;
+import gobblin.util.PathUtils;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.AbstractSource;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.HadoopUtils;
+import gobblin.util.WriterUtils;
 
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 
@@ -42,6 +52,7 @@ import com.google.common.collect.Lists;
  * {@link gobblin.source.Source} that generates work units from {@link gobblin.data.management.copy.CopyableDataset}s.
  *
  */
+@Slf4j
 public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
   public static final String DEFAULT_DATASET_PROFILE_CLASS_KEY = CopyableGlobDatasetFinder.class.getCanonicalName();
@@ -70,19 +81,20 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public List<WorkUnit> getWorkunits(SourceState state) {
 
     List<WorkUnit> workUnits = Lists.newArrayList();
-
     try {
 
       DatasetFinder<CopyableDataset> datasetFinder =
           DatasetUtils.instantiateDatasetFinder(state.getProperties(), getSourceFileSystem(state),
               DEFAULT_DATASET_PROFILE_CLASS_KEY);
       List<CopyableDataset> copyableDatasets = datasetFinder.findDatasets();
+      FileSystem targetFs = getTargetFileSystem(state);
+
       for (CopyableDataset copyableDataset : copyableDatasets) {
 
-        serializeCopyableDataset(state, copyableDataset);
+        Path targetRoot = getTargetRoot(state, datasetFinder, copyableDataset);
 
         Collection<Partition<CopyableFile>> partitions =
-            copyableDataset.partitionFiles(copyableDataset.getCopyableFiles());
+            copyableDataset.partitionFiles(copyableDataset.getCopyableFiles(targetFs, targetRoot));
 
         for (Partition<CopyableFile> partition : partitions) {
           Extract extract = new Extract(Extract.TableType.SNAPSHOT_ONLY, COPY_PREFIX, partition.getName());
@@ -90,6 +102,12 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
             WorkUnit workUnit = new WorkUnit(extract);
             workUnit.addAll(state);
             serializeCopyableFiles(workUnit, Lists.newArrayList(copyableFile));
+            serializeCopyableDataset(workUnit, new CopyableDatasetMetadata(copyableDataset, targetRoot));
+            GobblinMetrics.addCustomTagToState(workUnit, new Tag<String>(
+                CopyEventSubmitterHelper.DATASET_ROOT_METADATA_NAME, copyableDataset.datasetRoot().toString()));
+            workUnit.setProp(SlaEventKeys.DATASET_URN_KEY, copyableDataset.datasetRoot().toString());
+            workUnit.setProp(SlaEventKeys.PARTITION_KEY, partition.getName());
+            workUnit.setProp(SlaEventKeys.ORIGIN_TS_IN_MILLI_SECS_KEY, copyableFile.getFileStatus().getModificationTime());
             workUnits.add(workUnit);
           }
         }
@@ -97,6 +115,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+
+    log.info(String.format("Created %s workunits", workUnits.size()));
 
     return workUnits;
   }
@@ -119,11 +139,25 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public void shutdown(SourceState state) {
   }
 
-  private FileSystem getSourceFileSystem(State state) throws IOException {
+  protected FileSystem getSourceFileSystem(State state) throws IOException {
 
     Configuration conf = HadoopUtils.getConfFromState(state);
     String uri = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, ConfigurationKeys.LOCAL_FS_URI);
     return FileSystem.get(URI.create(uri), conf);
+  }
+
+  private FileSystem getTargetFileSystem(State state) throws IOException {
+    return WriterUtils.getWriterFS(state, 1, 0);
+  }
+
+  private Path getTargetRoot(State state, DatasetFinder<?> datasetFinder, CopyableDataset dataset) {
+    Preconditions.checkArgument(state.contains(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
+        "Missing property " + ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR);
+    Path basePath = new Path(state.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR));
+    Path datasetRelativeToCommonRoot = PathUtils.relativizePath(
+        PathUtils.getPathWithoutSchemeAndAuthority(dataset.datasetRoot()),
+        PathUtils.getPathWithoutSchemeAndAuthority(datasetFinder.commonDatasetRoot()));
+    return new Path(basePath, datasetRelativeToCommonRoot);
   }
 
   /**
@@ -143,14 +177,14 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   /**
    * Serialize a {@link CopyableDataset} into a {@link State} at {@link #SERIALIZED_COPYABLE_DATASET}
    */
-  public static void serializeCopyableDataset(State state, CopyableDataset copyableDataset) throws IOException {
-    state.setProp(SERIALIZED_COPYABLE_DATASET, SerializableCopyableDataset.serialize(copyableDataset));
+  public static void serializeCopyableDataset(State state, CopyableDatasetMetadata copyableDataset) throws IOException {
+    state.setProp(SERIALIZED_COPYABLE_DATASET, copyableDataset.serialize());
   }
 
   /**
    * Deserialize a {@link CopyableDataset} from a {@link State} at {@link #SERIALIZED_COPYABLE_DATASET}
    */
-  public static CopyableDataset deserializeCopyableDataset(State state) throws IOException {
-    return SerializableCopyableDataset.deserialize(state.getProp(SERIALIZED_COPYABLE_DATASET));
+  public static CopyableDatasetMetadata deserializeCopyableDataset(State state) throws IOException {
+    return CopyableDatasetMetadata.deserialize(state.getProp(SERIALIZED_COPYABLE_DATASET));
   }
 }

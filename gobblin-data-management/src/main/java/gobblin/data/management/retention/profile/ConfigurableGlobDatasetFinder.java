@@ -15,10 +15,11 @@ package gobblin.data.management.retention.profile;
 import gobblin.data.management.dataset.Dataset;
 import gobblin.data.management.retention.DatasetCleaner;
 import gobblin.data.management.retention.dataset.finder.DatasetFinder;
-import gobblin.data.management.util.PathUtils;
+import gobblin.util.PathUtils;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Pattern;
 
@@ -31,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
 
@@ -42,26 +44,49 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
 
   private static final Logger LOG = LoggerFactory.getLogger(ConfigurableGlobDatasetFinder.class);
 
+  private static final String CONFIGURATION_KEY_PREFIX = "gobblin.";
+
+  @Deprecated
+  /** @deprecated use {@link DATASET_FINDER_PATTERN_KEY} */
   public static final String DATASET_PATTERN_KEY = DatasetCleaner.CONFIGURATION_KEY_PREFIX + "dataset.pattern";
+  @Deprecated
+  /** @deprecated use {@link DATASET_FINDER_BLACKLIST_KEY} */
   public static final String DATASET_BLACKLIST_KEY = DatasetCleaner.CONFIGURATION_KEY_PREFIX + "dataset.blacklist";
+
+  public static final String DATASET_FINDER_PATTERN_KEY = CONFIGURATION_KEY_PREFIX + "dataset.pattern";
+  public static final String DATASET_FINDER_BLACKLIST_KEY = CONFIGURATION_KEY_PREFIX + "dataset.blacklist";
 
   private final Path datasetPattern;
   private final Optional<Pattern> blacklist;
+  private final Path commonRoot;
   protected final FileSystem fs;
   protected final Properties props;
 
+  private static final Map<String, String> DEPRECATIONS = ImmutableMap.of(DATASET_FINDER_PATTERN_KEY,
+      DATASET_PATTERN_KEY, DATASET_FINDER_BLACKLIST_KEY, DATASET_BLACKLIST_KEY);
   public ConfigurableGlobDatasetFinder(FileSystem fs, Properties props) throws IOException {
     for (String property : requiredProperties()) {
-      Preconditions.checkArgument(props.containsKey(property));
+      Preconditions.checkArgument(props.containsKey(property) || props.containsKey(DEPRECATIONS.get(property)));
     }
     if (props.containsKey(DATASET_BLACKLIST_KEY) && !Strings.isNullOrEmpty(props.getProperty(DATASET_BLACKLIST_KEY))) {
       this.blacklist = Optional.of(Pattern.compile(props.getProperty(DATASET_BLACKLIST_KEY)));
     } else {
       this.blacklist = Optional.absent();
     }
-    this.datasetPattern = new Path(props.getProperty(DATASET_PATTERN_KEY));
+
     this.fs = fs;
+
+    Path tmpDatasetPattern;
+    if (props.getProperty(DATASET_FINDER_PATTERN_KEY) != null) {
+      tmpDatasetPattern = new Path(props.getProperty(DATASET_FINDER_PATTERN_KEY));
+    } else {
+      tmpDatasetPattern = new Path(props.getProperty(DATASET_PATTERN_KEY));
+    }
+    this.datasetPattern = tmpDatasetPattern.isAbsolute() ? tmpDatasetPattern :
+        new Path(this.fs.getWorkingDirectory(), tmpDatasetPattern);
+
     this.props = props;
+    this.commonRoot = PathUtils.deepestNonGlobPath(this.datasetPattern);
   }
 
   /**
@@ -70,7 +95,7 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
    * @return List of all required property keys in the constructor {@link java.util.Properties}.
    */
   public List<String> requiredProperties() {
-    return Lists.newArrayList(DATASET_PATTERN_KEY);
+    return Lists.newArrayList(DATASET_FINDER_PATTERN_KEY);
   }
 
   /**
@@ -91,6 +116,13 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
       datasets.add(datasetAtPath(fileStatus.getPath()));
     }
     return datasets;
+  }
+
+  /**
+   * Returns the deepest non-glob ancestor of the dataset pattern.
+   */
+  @Override public Path commonDatasetRoot() {
+    return this.commonRoot;
   }
 
   /**

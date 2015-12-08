@@ -54,6 +54,7 @@ public class MRCompactorJobPropCreator {
     Path topicTmpOutputDir;
     FileSystem fs;
     State state;
+    double lateDataThresholdForRecompact;
 
     T withTopic(String topic) {
       this.topic = topic;
@@ -101,6 +102,11 @@ public class MRCompactorJobPropCreator {
       return (T) this;
     }
 
+    T withLateDataThresholdForRecompact(double thresholdForRecompact) {
+      this.lateDataThresholdForRecompact = thresholdForRecompact;
+      return (T) this;
+    }
+
     MRCompactorJobPropCreator build() {
       return new MRCompactorJobPropCreator(this);
     }
@@ -117,6 +123,7 @@ public class MRCompactorJobPropCreator {
   protected final State state;
   protected final boolean inputDeduplicated;
   protected final boolean outputDeduplicated;
+  protected final double lateDataThresholdForRecompact;
 
   // Whether we should recompact the input folders if new data files are found in the input folders.
   protected final boolean recompactFromInputPaths;
@@ -136,6 +143,7 @@ public class MRCompactorJobPropCreator {
     this.topicTmpOutputDir = builder.topicTmpOutputDir;
     this.fs = builder.fs;
     this.state = builder.state;
+    this.lateDataThresholdForRecompact = builder.lateDataThresholdForRecompact;
     this.inputDeduplicated = this.state.getPropAsBoolean(MRCompactor.COMPACTION_INPUT_DEDUPLICATED,
         MRCompactor.DEFAULT_COMPACTION_INPUT_DEDUPLICATED);
     this.outputDeduplicated = this.state.getPropAsBoolean(MRCompactor.COMPACTION_OUTPUT_DEDUPLICATED,
@@ -152,19 +160,22 @@ public class MRCompactorJobPropCreator {
       LOG.warn("Input folder " + this.topicInputDir + " does not exist. Skipping topic " + this.topic);
       return ImmutableList.<Dataset> of();
     }
-
-    Dataset dataset = new Dataset.Builder().withTopic(this.topic).withPriority(this.priority)
-        .withInputPath(this.recompactFromOutputPaths ? this.topicOutputDir : this.topicInputDir)
-        .withInputLatePath(this.recompactFromOutputPaths ? this.topicOutputLateDir : this.topicInputLateDir)
-        .withOutputPath(this.topicOutputDir).withOutputLatePath(this.topicOutputLateDir)
-        .withOutputTmpPath(this.topicTmpOutputDir).build();
-
+    Dataset dataset = buildDataset();
     Optional<Dataset> datasetWithJobProps = createJobProps(dataset);
     if (datasetWithJobProps.isPresent()) {
       return ImmutableList.<Dataset> of(datasetWithJobProps.get());
     } else {
       return ImmutableList.<Dataset> of();
     }
+  }
+
+  private Dataset buildDataset() {
+    return new Dataset.Builder().withTopic(this.topic).withPriority(this.priority)
+        .withLateDataThresholdForRecompact(this.lateDataThresholdForRecompact)
+        .withInputPath(this.recompactFromOutputPaths ? this.topicOutputDir : this.topicInputDir)
+        .withInputLatePath(this.recompactFromOutputPaths ? this.topicOutputLateDir : this.topicInputLateDir)
+        .withOutputPath(this.topicOutputDir).withOutputLatePath(this.topicOutputLateDir)
+        .withOutputTmpPath(this.topicTmpOutputDir).build();
   }
 
   /**
@@ -271,5 +282,17 @@ public class MRCompactorJobPropCreator {
     }
 
     return newFiles;
+  }
+
+  /**
+   * Create a {@link Dataset} with the given {@link Throwable}. This {@link Dataset} will be skipped by setting
+   * its state to {@link Dataset.DatasetState#COMPACTION_COMPLETE}, and the {@link Throwable} will be added to
+   * the {@link Dataset}.
+   */
+  public Dataset createFailedJobProps(Throwable t) {
+    Dataset dataset = buildDataset();
+    dataset.setJobProps(this.state);
+    dataset.skip(t);
+    return dataset;
   }
 }

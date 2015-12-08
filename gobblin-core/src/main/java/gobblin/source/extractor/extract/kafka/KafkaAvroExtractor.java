@@ -13,9 +13,9 @@
 package gobblin.source.extractor.extract.kafka;
 
 import java.io.IOException;
-import java.util.Arrays;
 
 import kafka.message.MessageAndOffset;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
@@ -23,60 +23,66 @@ import org.apache.avro.generic.GenericData.Record;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.Decoder;
-import org.apache.avro.io.DecoderFactory;
-import org.apache.commons.codec.binary.Hex;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 
 import gobblin.configuration.WorkUnitState;
-import gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
-import gobblin.metrics.kafka.SchemaNotFoundException;
+import gobblin.metrics.kafka.KafkaSchemaRegistry;
+import gobblin.metrics.kafka.SchemaRegistryException;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.util.AvroUtils;
 
 
 /**
- * An implementation of {@link Extractor} for Kafka, where events are in Avro format.
+ * An abstract implementation of {@link Extractor} for Kafka, where events are in Avro format.
+ *
+ * Subclasses should implement {@link #getRecordSchema(byte[])} and {@link #getDecoder(byte[])}. Additionally, if
+ * schema registry is not used (i.e., property {@link KafkaSchemaRegistry#KAFKA_SCHEMA_REGISTRY_CLASS} is not
+ * specified, method {@link #getExtractorSchema()} should be overriden.
  *
  * @author ziliu
  */
-public class KafkaAvroExtractor extends KafkaExtractor<Schema, GenericRecord> {
+@Slf4j
+public abstract class KafkaAvroExtractor<K> extends KafkaExtractor<Schema, GenericRecord> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(KafkaAvroExtractor.class);
-  private static final Schema DEFAULT_SCHEMA = SchemaBuilder.record("DefaultSchema").fields().name("header")
+  protected static final Schema DEFAULT_SCHEMA = SchemaBuilder.record("DefaultSchema").fields().name("header")
       .type(SchemaBuilder.record("header").fields().name("time").type("long").withDefault(0).endRecord()).noDefault()
       .endRecord();
 
-  private final Optional<Schema> schema;
-  private final KafkaAvroSchemaRegistry schemaRegistry;
-  private final Optional<GenericDatumReader<Record>> reader;
+  protected final Optional<KafkaSchemaRegistry<K, Schema>> schemaRegistry;
+  protected final Optional<Schema> schema;
+  protected final Optional<GenericDatumReader<Record>> reader;
 
-  /**
-   * @param state state should contain property "kafka.schema.registry.url", and optionally
-   * "kafka.schema.registry.max.cache.size" (default = 1000) and
-   * "kafka.schema.registry.cache.expire.after.write.min" (default = 10).
-   * @throws SchemaNotFoundException if the latest schema of the topic cannot be retrieved
-   * from the schema registry.
-   */
   public KafkaAvroExtractor(WorkUnitState state) {
     super(state);
-    this.schemaRegistry = new KafkaAvroSchemaRegistry(state.getProperties());
-    this.schema = Optional.fromNullable(getLatestSchemaByTopic());
+    this.schemaRegistry = state.contains(KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_CLASS)
+        ? Optional.of(KafkaSchemaRegistry.<K, Schema> get(state.getProperties()))
+        : Optional.<KafkaSchemaRegistry<K, Schema>> absent();
+    this.schema = getExtractorSchema();
     if (this.schema.isPresent()) {
       this.reader = Optional.of(new GenericDatumReader<Record>(this.schema.get()));
     } else {
+      log.error(String.format("Cannot find latest schema for topic %s. This topic will be skipped", this.topicName));
       this.reader = Optional.absent();
     }
   }
 
+  /**
+   * Get the schema to be used by this extractor. All extracted records that have different schemas
+   * will be converted to this schema.
+   */
+  protected Optional<Schema> getExtractorSchema() {
+    return Optional.fromNullable(getLatestSchemaByTopic());
+  }
+
   private Schema getLatestSchemaByTopic() {
+    Preconditions.checkState(this.schemaRegistry.isPresent());
     try {
-      return this.schemaRegistry.getLatestSchemaByTopic(this.topicName);
-    } catch (SchemaNotFoundException e) {
-      LOG.error(String.format("Cannot find latest schema for topic %s. This topic will be skipped", this.topicName), e);
+      return this.schemaRegistry.get().getLatestSchemaByTopic(this.topicName);
+    } catch (SchemaRegistryException e) {
+      log.error(String.format("Cannot find latest schema for topic %s. This topic will be skipped", this.topicName), e);
       return null;
     }
   }
@@ -95,27 +101,28 @@ public class KafkaAvroExtractor extends KafkaExtractor<Schema, GenericRecord> {
   }
 
   @Override
-  protected GenericRecord decodeRecord(MessageAndOffset messageAndOffset) throws SchemaNotFoundException, IOException {
+  protected GenericRecord decodeRecord(MessageAndOffset messageAndOffset) throws IOException {
     byte[] payload = getBytes(messageAndOffset.message().payload());
-    if (payload[0] != KafkaAvroSchemaRegistry.MAGIC_BYTE) {
-      throw new RuntimeException(String.format("Unknown magic byte for partition %s", this.getCurrentPartition()));
-    }
-
-    byte[] schemaIdByteArray = Arrays.copyOfRange(payload, 1, 1 + KafkaAvroSchemaRegistry.SCHEMA_ID_LENGTH_BYTE);
-    String schemaId = Hex.encodeHexString(schemaIdByteArray);
-    Schema schema = null;
-    schema = this.schemaRegistry.getSchemaById(schemaId);
-    reader.get().setSchema(schema);
-    Decoder binaryDecoder =
-        DecoderFactory.get().binaryDecoder(payload, 1 + KafkaAvroSchemaRegistry.SCHEMA_ID_LENGTH_BYTE,
-            payload.length - 1 - KafkaAvroSchemaRegistry.SCHEMA_ID_LENGTH_BYTE, null);
+    Schema recordSchema = getRecordSchema(payload);
+    Decoder decoder = getDecoder(payload);
+    this.reader.get().setSchema(recordSchema);
     try {
-      GenericRecord record = reader.get().read(null, binaryDecoder);
+      GenericRecord record = this.reader.get().read(null, decoder);
       record = AvroUtils.convertRecordSchema(record, this.schema.get());
       return record;
     } catch (IOException e) {
-      LOG.error(String.format("Error during decoding record for partition %s: ", this.getCurrentPartition()));
+      log.error(String.format("Error during decoding record for partition %s: ", this.getCurrentPartition()));
       throw e;
     }
   }
+
+  /**
+   * Obtain the Avro {@link Schema} of a Kafka record given the payload of the record.
+   */
+  protected abstract Schema getRecordSchema(byte[] payload);
+
+  /**
+   * Obtain the Avro {@link Decoder} for a Kafka record given the payload of the record.
+   */
+  protected abstract Decoder getDecoder(byte[] payload);
 }

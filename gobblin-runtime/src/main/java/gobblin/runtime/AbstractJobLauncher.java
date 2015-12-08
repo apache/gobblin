@@ -19,6 +19,7 @@ import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,15 +28,18 @@ import com.google.common.base.CaseFormat;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.metastore.StateStore;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.metrics.MetricContext;
+import gobblin.metrics.Tag;
 import gobblin.metrics.event.EventNames;
 import gobblin.metrics.event.EventSubmitter;
 import gobblin.metrics.event.TimingEvent;
@@ -94,7 +98,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   // An EventBuilder with basic metadata.
   protected final EventSubmitter eventSubmitter;
 
-  public AbstractJobLauncher(Properties jobProps) throws Exception {
+  // A list of JobListeners that will be injected into the user provided JobListener
+  private final List<JobListener> mandatoryJobListeners = Lists.newArrayList();
+
+  public AbstractJobLauncher(Properties jobProps, Map<String, String> eventMetadata) throws Exception {
     Preconditions.checkArgument(jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY),
         "A job must have a job name specified by job.name");
 
@@ -115,47 +122,11 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           }
         });
 
-    this.eventSubmitter = new EventSubmitter.Builder(this.runtimeMetricContext, "gobblin.runtime").build();
-  }
+    this.eventSubmitter =
+        new EventSubmitter.Builder(this.runtimeMetricContext, "gobblin.runtime").addMetadata(eventMetadata).build();
 
-  /**
-   * Submit a given list of {@link WorkUnit}s of a job to run.
-   *
-   * <p>
-   *   This method assumes that the given list of {@link WorkUnit}s have already been flattened and
-   *   each {@link WorkUnit} contains the task ID in the property {@link ConfigurationKeys#TASK_ID_KEY}.
-   * </p>
-   *
-   * @param jobId job ID
-   * @param workUnits given list of {@link WorkUnit}s to submit to run
-   * @param stateTracker a {@link TaskStateTracker} for task state tracking
-   * @param taskExecutor a {@link TaskExecutor} for task execution
-   * @param countDownLatch a {@link java.util.concurrent.CountDownLatch} waited on for job completion
-   * @return a list of {@link Task}s from the {@link WorkUnit}s
-   * @throws InterruptedException
-   */
-  public static List<Task> submitWorkUnits(String jobId, List<WorkUnit> workUnits, TaskStateTracker stateTracker,
-      TaskExecutor taskExecutor, CountDownLatch countDownLatch) throws InterruptedException {
-
-    List<Task> tasks = Lists.newArrayList();
-    for (WorkUnit workUnit : workUnits) {
-      String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
-      WorkUnitState workUnitState = new WorkUnitState(workUnit);
-      workUnitState.setId(taskId);
-      workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
-      workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
-
-      // Create a new task from the work unit and submit the task to run
-      Task task = new Task(new TaskContext(workUnitState), stateTracker, taskExecutor, Optional.of(countDownLatch));
-      stateTracker.registerNewTask(task);
-      tasks.add(task);
-      taskExecutor.execute(task);
-    }
-
-    new EventSubmitter.Builder(JobMetrics.get(jobId).getMetricContext(), "gobblin.runtime").build()
-        .submit(EventNames.TASKS_SUBMITTED, "tasksCount", Integer.toString(workUnits.size()));
-
-    return tasks;
+    JobExecutionEventSubmitter jobExecutionEventSubmitter = new JobExecutionEventSubmitter(this.eventSubmitter);
+    this.mandatoryJobListeners.add(new JobExecutionEventSubmitterListener(jobExecutionEventSubmitter));
   }
 
   /**
@@ -191,17 +162,23 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
 
     synchronized (this.cancellationExecution) {
+      Closer closer = Closer.create();
       try {
         while (!this.cancellationExecuted) {
           // Wait for the cancellation to be executed
           this.cancellationExecution.wait();
         }
 
-        if (jobListener != null) {
-          jobListener.onJobCancellation(this.jobContext.getJobState());
-        }
+        JobListener parallelJobListener = closer.register(getParallelCombinedJobListener(jobListener));
+        parallelJobListener.onJobCancellation(this.jobContext.getJobState());
       } catch (InterruptedException ie) {
         Thread.currentThread().interrupt();
+      } finally {
+        try {
+          closer.close();
+        } catch (IOException e) {
+          throw new JobException("Failed to execute all JobListeners", e);
+        }
       }
     }
   }
@@ -301,12 +278,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
         // Write job execution info to the job history store upon job termination
         this.jobContext.storeJobExecutionInfo();
-
-        if (this.jobContext.getJobMetricsOptional().isPresent()) {
-          this.jobContext.getJobMetricsOptional().get().triggerMetricReporting();
-          this.jobContext.getJobMetricsOptional().get().stopMetricReporting();
-          JobMetrics.remove(jobState);
-        }
       } finally {
         launchJobTimer.stop();
         unlockJob();
@@ -321,8 +292,23 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       }
     }
 
-    if (jobListener != null) {
-      jobListener.onJobCompletion(jobState);
+    Closer closer = Closer.create();
+    try {
+      JobListener parallelJobListener = closer.register(getParallelCombinedJobListener(jobListener));
+      parallelJobListener.onJobCompletion(jobState);
+    } finally {
+      try {
+        closer.close();
+      } catch (IOException e) {
+        throw new JobException("Failed to execute all JobListeners", e);
+      }
+    }
+
+    // Stop metrics reporting
+    if (this.jobContext.getJobMetricsOptional().isPresent()) {
+      this.jobContext.getJobMetricsOptional().get().triggerMetricReporting();
+      this.jobContext.getJobMetricsOptional().get().stopMetricReporting();
+      JobMetrics.remove(jobState);
     }
 
     if (jobState.getState() == JobState.RunningState.FAILED) {
@@ -518,6 +504,128 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     } else {
       cleanupStagingDataForEntireJob(jobState);
     }
+  }
+
+  /**
+   * Combines the specified {@link JobListener} with the {@link #mandatoryJobListeners} for this job. Uses
+   * {@link JobListeners#parallelJobListener(List)} to create a {@link CloseableJobListener} that will execute all
+   * the {@link JobListener}s in parallel.
+   */
+  private CloseableJobListener getParallelCombinedJobListener(JobListener jobListener) {
+    List<JobListener> jobListeners = Lists.newArrayList(this.mandatoryJobListeners);
+    jobListeners.add(jobListener);
+    return JobListeners.parallelJobListener(jobListeners);
+  }
+
+  /**
+   * Run a given list of {@link WorkUnit}s of a job.
+   *
+   * <p>
+   *   This method calls {@link #runWorkUnits(String, List, TaskStateTracker, TaskExecutor, CountDownLatch)}
+   *   to actually run the {@link Task}s of the {@link WorkUnit}s.
+   * </p>
+   *
+   * @param jobId the job ID
+   * @param workUnits the given list of {@link WorkUnit}s to submit to run
+   * @param taskStateTracker a {@link TaskStateTracker} for task state tracking
+   * @param taskExecutor a {@link TaskExecutor} for task execution
+   * @param taskStateStore a {@link StateStore} for storing {@link TaskState}s
+   * @param logger a {@link Logger} for logging
+   * @throws IOException if there's something wrong with any IO operations
+   * @throws InterruptedException if the task execution gets cancelled
+   */
+  public static void runWorkUnits(String jobId, String containerId, List<WorkUnit> workUnits,
+      TaskStateTracker taskStateTracker,  TaskExecutor taskExecutor, StateStore<TaskState> taskStateStore,
+      Logger logger) throws IOException, InterruptedException {
+
+    if (workUnits.isEmpty()) {
+      logger.warn("No work units to run in container " + containerId);
+      return;
+    }
+
+    for (WorkUnit workUnit : workUnits) {
+      String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
+      // Delete the task state file for the task if it already exists.
+      // This usually happens if the task is retried upon failure.
+      if (taskStateStore.exists(jobId, taskId + AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX)) {
+        taskStateStore.delete(jobId, taskId + AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX);
+      }
+    }
+
+    CountDownLatch countDownLatch = new CountDownLatch(workUnits.size());
+    List<Task> tasks = runWorkUnits(jobId, workUnits, taskStateTracker, taskExecutor, countDownLatch);
+
+    logger.info(String.format("Waiting for submitted tasks of job %s to complete in container %s...",
+        jobId, containerId));
+    while (countDownLatch.getCount() > 0) {
+      logger.info(String.format("%d out of %d tasks of job %s are running in container %s",
+          countDownLatch.getCount(), workUnits.size(), jobId, containerId));
+      if (countDownLatch.await(10, TimeUnit.SECONDS)) {
+        break;
+      }
+    }
+    logger.info(String.format("All assigned tasks of job %s have completed in container %s", jobId, containerId));
+
+    boolean hasTaskFailure = false;
+    for (Task task : tasks) {
+      logger.info("Writing task state for task " + task.getTaskId());
+      taskStateStore.put(task.getJobId(), task.getTaskId() + AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX,
+          task.getTaskState());
+
+      if (task.getTaskState().getWorkingState() == WorkUnitState.WorkingState.FAILED) {
+        hasTaskFailure = true;
+      }
+    }
+
+    if (hasTaskFailure) {
+      for (Task task : tasks) {
+        if (task.getTaskState().contains(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)) {
+          logger.error(String.format("Task %s failed due to exception: %s", task.getTaskId(),
+              task.getTaskState().getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)));
+        }
+      }
+
+      throw new IOException(String.format("Not all tasks running in container %s completed successfully", containerId));
+    }
+  }
+
+  /**
+   * Run a given list of {@link WorkUnit}s of a job.
+   *
+   * <p>
+   *   This method assumes that the given list of {@link WorkUnit}s have already been flattened and
+   *   each {@link WorkUnit} contains the task ID in the property {@link ConfigurationKeys#TASK_ID_KEY}.
+   * </p>
+   *
+   * @param jobId the job ID
+   * @param workUnits the given list of {@link WorkUnit}s to submit to run
+   * @param stateTracker a {@link TaskStateTracker} for task state tracking
+   * @param taskExecutor a {@link TaskExecutor} for task execution
+   * @param countDownLatch a {@link java.util.concurrent.CountDownLatch} waited on for job completion
+   * @return a list of {@link Task}s from the {@link WorkUnit}s
+   */
+  public static List<Task> runWorkUnits(String jobId, List<WorkUnit> workUnits, TaskStateTracker stateTracker,
+      TaskExecutor taskExecutor, CountDownLatch countDownLatch) {
+
+    List<Task> tasks = Lists.newArrayList();
+    for (WorkUnit workUnit : workUnits) {
+      String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
+      WorkUnitState workUnitState = new WorkUnitState(workUnit);
+      workUnitState.setId(taskId);
+      workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
+      workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
+
+      // Create a new task from the work unit and submit the task to run
+      Task task = new Task(new TaskContext(workUnitState), stateTracker, taskExecutor, Optional.of(countDownLatch));
+      stateTracker.registerNewTask(task);
+      tasks.add(task);
+      taskExecutor.execute(task);
+    }
+
+    new EventSubmitter.Builder(JobMetrics.get(jobId).getMetricContext(), "gobblin.runtime").build()
+        .submit(EventNames.TASKS_SUBMITTED, "tasksCount", Integer.toString(workUnits.size()));
+
+    return tasks;
   }
 
   private static void cleanupStagingDataPerTask(JobState jobState) {

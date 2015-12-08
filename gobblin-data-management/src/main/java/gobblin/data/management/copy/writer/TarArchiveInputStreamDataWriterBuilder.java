@@ -11,22 +11,21 @@
  */
 package gobblin.data.management.copy.writer;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
 import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.writer.DataWriter;
 import gobblin.writer.DataWriterBuilder;
 
 import java.io.IOException;
 
+
 /**
  * A {@link DataWriterBuilder} for {@link TarArchiveInputStreamDataWriter}
  */
-public class TarArchiveInputStreamDataWriterBuilder extends DataWriterBuilder<String, FileAwareInputStream> {
+public class TarArchiveInputStreamDataWriterBuilder extends FileAwareInputStreamDataWriterBuilder {
+
   @Override
-  public DataWriter<FileAwareInputStream> build() throws IOException {
-    State properties = this.destination.getProperties();
-    properties.setProp(ConfigurationKeys.WRITER_FILE_PATH, this.writerId);
-    return new TarArchiveInputStreamDataWriter(properties, this.branches, this.branch);
+  protected DataWriter<FileAwareInputStream> buildWriter() throws IOException {
+    return new TarArchiveInputStreamDataWriter(this.destination.getProperties(), this.branches, this.branch);
   }
+
 }

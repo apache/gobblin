@@ -12,11 +12,11 @@
 
 package gobblin.metrics;
 
-import java.util.Collection;
-import java.util.List;
+import lombok.experimental.Delegate;
 
 import com.codahale.metrics.Gauge;
-import com.codahale.metrics.MetricRegistry;
+
+import gobblin.metrics.metric.InnerMetric;
 
 
 /**
@@ -34,31 +34,13 @@ import com.codahale.metrics.MetricRegistry;
  */
 public class ContextAwareGauge<T> implements Gauge<T>, ContextAwareMetric {
 
-  private final String name;
+  @Delegate
+  private final InnerGauge<T> innerGauge;
   private final MetricContext context;
-  private final Tagged tagged;
-  private final Gauge<T> gauge;
 
   ContextAwareGauge(MetricContext context, String name, Gauge<T> gauge) {
-    this.name = name;
+    this.innerGauge = new InnerGauge<T>(context, name, gauge, this);
     this.context = context;
-    this.tagged = new Tagged();
-    this.gauge = gauge;
-  }
-
-  @Override
-  public T getValue() {
-    return this.gauge.getValue();
-  }
-
-  @Override
-  public String getName() {
-    return this.name;
-  }
-
-  @Override
-  public String getFullyQualifiedName(boolean includeTagKeys) {
-    return MetricRegistry.name(metricNamePrefix(includeTagKeys), this.name);
   }
 
   @Override
@@ -66,23 +48,7 @@ public class ContextAwareGauge<T> implements Gauge<T>, ContextAwareMetric {
     return this.context;
   }
 
-  @Override
-  public void addTag(Tag<?> tag) {
-    this.tagged.addTag(tag);
-  }
-
-  @Override
-  public void addTags(Collection<Tag<?>> tags) {
-    this.tagged.addTags(tags);
-  }
-
-  @Override
-  public List<Tag<?>> getTags() {
-    return this.tagged.getTags();
-  }
-
-  @Override
-  public String metricNamePrefix(boolean includeTagKeys) {
-    return this.tagged.metricNamePrefix(includeTagKeys);
+  @Override public InnerMetric getInnerMetric() {
+    return this.innerGauge;
   }
 }

@@ -46,14 +46,20 @@ import com.jcraft.jsch.SftpException;
 
 /**
  * A {@link FileSystem} implementation that provides the {@link FileSystem} interface for an SFTP server. Uses
- * {@link SftpFsHelper} internally to connect to the SFPT server.
+ * {@link SftpFsHelper} internally to connect to the SFPT server. {@link HadoopUtils#newConfiguration()}
+ * <ul>
+ * <li>It is the caller's responsibility to call {@link #close()} on this {@link FileSystem} to disconnect the session.
+ * <li>Use {@link HadoopUtils#newConfiguration()} when creating a {@link FileSystem} with
+ * {@link FileSystem#get(Configuration)}. It creates a new {@link SftpLightWeightFileSystem} everytime instead of cached
+ * copy
+ * </ul>
  */
 public class SftpLightWeightFileSystem extends FileSystem {
 
   private static final URI NAME = URI.create("sftp:///");
   private SftpFsHelper fsHelper;
 
-  private static final int DEFAULT_BUFFER_SIZE = 8192;
+  private static final int DEFAULT_BUFFER_SIZE = 32 * 1024;
 
   private static final PathFilter VALID_PATH_FILTER = new PathFilter() {
     @Override
@@ -92,9 +98,9 @@ public class SftpLightWeightFileSystem extends FileSystem {
     try {
       channel = fsHelper.getSftpChannel();
       if (getFileStatus(path).isDir()) {
-        channel.rmdir(path.toString());
+        channel.rmdir(HadoopUtils.toUriPath(path));
       } else {
-        channel.rm(path.toString());
+        channel.rm(HadoopUtils.toUriPath(path));
       }
     } catch (SftpException e) {
       throw new IOException(e);
@@ -119,7 +125,7 @@ public class SftpLightWeightFileSystem extends FileSystem {
     ChannelExec channelExec2 = null;
     try {
       channelSftp = fsHelper.getSftpChannel();
-      SftpATTRS sftpAttrs = channelSftp.stat(path.toString());
+      SftpATTRS sftpAttrs = channelSftp.stat(HadoopUtils.toUriPath(path));
       FsPermission permission = new FsPermission((short) sftpAttrs.getPermissions());
 
       channelExec1 = fsHelper.getExecChannel("id " + sftpAttrs.getUId());
@@ -169,7 +175,7 @@ public class SftpLightWeightFileSystem extends FileSystem {
   public FileStatus[] listStatus(Path path) throws IOException {
 
     try {
-      List<String> fileNames = fsHelper.ls(path.toString());
+      List<String> fileNames = fsHelper.ls(HadoopUtils.toUriPath(path));
       List<FileStatus> status = Lists.newArrayListWithCapacity(fileNames.size());
       for (String name : fileNames) {
         Path filePath = new Path(name);
@@ -188,8 +194,8 @@ public class SftpLightWeightFileSystem extends FileSystem {
     ChannelSftp channel = null;
     try {
       channel = fsHelper.getSftpChannel();
-      channel.mkdir(path.toString());
-      channel.chmod((int) permission.toShort(), path.toString());
+      channel.mkdir(HadoopUtils.toUriPath(path));
+      channel.chmod((int) permission.toShort(), HadoopUtils.toUriPath(path));
     } catch (SftpException e) {
       throw new IOException(e);
     } finally {
@@ -203,7 +209,7 @@ public class SftpLightWeightFileSystem extends FileSystem {
     SftpGetMonitor monitor = new SftpGetMonitor();
     try {
       ChannelSftp channelSftp = fsHelper.getSftpChannel();
-      InputStream is = channelSftp.get(path.toString(), monitor);
+      InputStream is = channelSftp.get(HadoopUtils.toUriPath(path), monitor);
       return new FSDataInputStream(new BufferedFSInputStream(new SftpFsFileInputStream(is, channelSftp), bufferSize));
     } catch (SftpException e) {
       throw new IOException(e);
@@ -216,11 +222,11 @@ public class SftpLightWeightFileSystem extends FileSystem {
   }
 
   @Override
-  public boolean rename(Path oldpath, Path newpath) throws IOException {
+  public boolean rename(Path oldPath, Path newPath) throws IOException {
     ChannelSftp channelSftp = null;
     try {
       channelSftp = fsHelper.getSftpChannel();
-      channelSftp.rename(oldpath.toString(), newpath.toString());
+      channelSftp.rename(HadoopUtils.toUriPath(oldPath), HadoopUtils.toUriPath(newPath));
 
     } catch (SftpException e) {
       throw new IOException(e);
@@ -235,7 +241,7 @@ public class SftpLightWeightFileSystem extends FileSystem {
     ChannelSftp channelSftp = null;
     try {
       channelSftp = fsHelper.getSftpChannel();
-      channelSftp.lcd(path.toString());
+      channelSftp.lcd(HadoopUtils.toUriPath(path));
 
     } catch (SftpException e) {
       throw new RuntimeException("Failed to set working directory", e);

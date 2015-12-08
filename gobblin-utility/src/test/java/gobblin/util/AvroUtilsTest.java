@@ -193,8 +193,8 @@ public class AvroUtilsTest {
     partition.put("name", "a/b:c\\d e");
     partition.put("title", "title");
 
-    Assert.assertEquals(AvroUtils.serializeAsPath(partition, true), new Path("name=a_b_c_d_e/title=title"));
-    Assert.assertEquals(AvroUtils.serializeAsPath(partition, false), new Path("a_b_c_d_e/title"));
-
+    Assert.assertEquals(AvroUtils.serializeAsPath(partition, true, true), new Path("name=a_b_c_d_e/title=title"));
+    Assert.assertEquals(AvroUtils.serializeAsPath(partition, false, true), new Path("a_b_c_d_e/title"));
+    Assert.assertEquals(AvroUtils.serializeAsPath(partition, false, false), new Path("a/b_c_d_e/title"));
   }
 }

@@ -24,6 +24,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.io.Text;
+
 import org.apache.helix.HelixManager;
 import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.JobQueue;
@@ -31,6 +32,7 @@ import org.apache.helix.task.TaskConfig;
 import org.apache.helix.task.TaskDriver;
 import org.apache.helix.task.TaskUtil;
 import org.apache.helix.task.WorkflowContext;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +42,7 @@ import com.google.common.collect.Queues;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.rest.LauncherTypeEnum;
 import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.FileBasedJobLock;
 import gobblin.runtime.JobLauncher;
@@ -48,6 +51,7 @@ import gobblin.runtime.JobState;
 import gobblin.runtime.TaskState;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.JobLauncherUtils;
 import gobblin.util.ParallelRunner;
 import gobblin.util.SerializationUtils;
 
@@ -96,13 +100,15 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private volatile boolean jobSubmitted = false;
   private volatile boolean jobComplete = false;
 
-  public GobblinHelixJobLauncher(Properties jobProps, HelixManager helixManager, Path appWorkDir) throws Exception {
-    super(jobProps);
+  public GobblinHelixJobLauncher(Properties jobProps, HelixManager helixManager, FileSystem fs, Path appWorkDir,
+      Map<String, String> eventMetadata)
+      throws Exception {
+    super(jobProps, eventMetadata);
 
     this.helixManager = helixManager;
     this.helixTaskDriver = new TaskDriver(this.helixManager);
 
-    this.fs = FileSystem.get(new Configuration());
+    this.fs = fs;
     this.appWorkDir = appWorkDir;
     this.inputWorkUnitDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME);
 
@@ -111,6 +117,8 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
     this.stateSerDeRunnerThreads = Integer.parseInt(jobProps.getProperty(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY,
         Integer.toString(ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS)));
+
+    this.jobContext.getJobState().setJobLauncherType(LauncherTypeEnum.YARN);
   }
 
   @Override
@@ -169,7 +177,11 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     try {
       ParallelRunner stateSerDeRunner = closer.register(new ParallelRunner(this.stateSerDeRunnerThreads, this.fs));
 
+      int multiTaskIdSequence = 0;
       for (WorkUnit workUnit : workUnits) {
+        if (workUnit instanceof MultiWorkUnit) {
+          workUnit.setId(JobLauncherUtils.newMultiTaskId(this.jobContext.getJobId(), multiTaskIdSequence++));
+        }
         addWorkUnit(workUnit, stateSerDeRunner, taskConfigMap);
       }
 

@@ -23,7 +23,9 @@ import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 import com.google.gson.stream.JsonWriter;
 
@@ -53,9 +55,25 @@ import gobblin.metrics.GobblinMetrics;
 public class TaskState extends WorkUnitState {
 
   // Built-in metric names
+
+  /**
+   * @deprecated see {@link gobblin.instrumented.writer.InstrumentedDataWriterBase}.
+   */
   private static final String RECORDS = "records";
+
+  /**
+   * @deprecated see {@link gobblin.instrumented.writer.InstrumentedDataWriterBase}.
+   */
   private static final String RECORDS_PER_SECOND = "recordsPerSec";
+
+  /**
+   * @deprecated see {@link gobblin.instrumented.writer.InstrumentedDataWriterBase}.
+   */
   private static final String BYTES = "bytes";
+
+  /**
+   * @deprecated see {@link gobblin.instrumented.writer.InstrumentedDataWriterBase}.
+   */
   private static final String BYTES_PER_SECOND = "bytesPerSec";
 
   private String jobId;
@@ -177,6 +195,24 @@ public class TaskState extends WorkUnitState {
   }
 
   /**
+   * Get the {@link ConfigurationKeys#TASK_FAILURE_EXCEPTION_KEY} if it exists, else return {@link Optional#absent()}.
+   */
+  public Optional<String> getTaskFailureException() {
+    return Optional.fromNullable(this.getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY));
+  }
+
+  /**
+   * If not already present, set the {@link ConfigurationKeys#TASK_FAILURE_EXCEPTION_KEY} to a {@link String}
+   * representation of the given {@link Throwable}.
+   */
+  public void setTaskFailureException(Throwable taskFailureException) {
+    if (!this.contains(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)) {
+      this.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY,
+          Throwables.getStackTraceAsString(taskFailureException));
+    }
+  }
+
+  /**
    * Return whether the task has completed running or not.
    *
    * @return {@code true} if the task has completed or {@code false} otherwise
@@ -191,13 +227,14 @@ public class TaskState extends WorkUnitState {
    *
    * @param recordsWritten number of records written by the writer
    * @param branchIndex fork branch index
+   *
+   * @deprecated see {@link gobblin.instrumented.writer.InstrumentedDataWriterBase}.
    */
-  public void updateRecordMetrics(long recordsWritten, int branchIndex) {
+  public synchronized void updateRecordMetrics(long recordsWritten, int branchIndex) {
     TaskMetrics metrics = TaskMetrics.get(this);
     String forkBranchId = ForkOperatorUtils.getForkId(this.taskId, branchIndex);
 
-    Counter taskRecordCounter =
-        metrics.getCounter(gobblin.runtime.util.MetricGroup.TASK.name(), forkBranchId, RECORDS);
+    Counter taskRecordCounter = metrics.getCounter(MetricGroup.TASK.name(), forkBranchId, RECORDS);
     long inc = recordsWritten - taskRecordCounter.getCount();
     taskRecordCounter.inc(inc);
     metrics.getMeter(MetricGroup.TASK.name(), forkBranchId, RECORDS_PER_SECOND).mark(inc);
@@ -208,21 +245,21 @@ public class TaskState extends WorkUnitState {
   /**
    * Collect byte-level metrics.
    *
-   * <p>
-   *     This method is only supposed to be called after the writer commits.
-   * </p>
-   *
    * @param bytesWritten number of bytes written by the writer
    * @param branchIndex fork branch index
+   *
+   * @deprecated see {@link gobblin.instrumented.writer.InstrumentedDataWriterBase}.
    */
-  public void updateByteMetrics(long bytesWritten, int branchIndex) {
+  public synchronized void updateByteMetrics(long bytesWritten, int branchIndex) {
     TaskMetrics metrics = TaskMetrics.get(this);
     String forkBranchId = ForkOperatorUtils.getForkId(this.taskId, branchIndex);
 
-    metrics.getCounter(MetricGroup.TASK.name(), forkBranchId, BYTES).inc(bytesWritten);
-    metrics.getMeter(MetricGroup.TASK.name(), forkBranchId, BYTES_PER_SECOND).mark(bytesWritten);
-    metrics.getCounter(MetricGroup.JOB.name(), this.jobId, BYTES).inc(bytesWritten);
-    metrics.getMeter(MetricGroup.JOB.name(), this.jobId, BYTES_PER_SECOND).mark(bytesWritten);
+    Counter taskByteCounter = metrics.getCounter(MetricGroup.TASK.name(), forkBranchId, BYTES);
+    long inc = bytesWritten - taskByteCounter.getCount();
+    taskByteCounter.inc(inc);
+    metrics.getMeter(MetricGroup.TASK.name(), forkBranchId, BYTES_PER_SECOND).mark(inc);
+    metrics.getCounter(MetricGroup.JOB.name(), this.jobId, BYTES).inc(inc);
+    metrics.getMeter(MetricGroup.JOB.name(), this.jobId, BYTES_PER_SECOND).mark(inc);
   }
 
   /**
@@ -312,8 +349,8 @@ public class TaskState extends WorkUnitState {
 
     // Also add failure exception information if it exists. This information is useful even in the
     // case that the task finally succeeds so we know what happened in the course of task execution.
-    if (this.contains(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)) {
-      jsonWriter.name("exception").value(this.getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY));
+    if (getTaskFailureException().isPresent()) {
+      jsonWriter.name("exception").value(getTaskFailureException().get());
     }
 
     if (keepConfig) {

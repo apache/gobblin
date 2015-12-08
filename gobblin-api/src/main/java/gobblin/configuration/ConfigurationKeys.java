@@ -70,6 +70,8 @@ public class ConfigurationKeys {
   // Comma-separated list of framework jars to include
   public static final String FRAMEWORK_JAR_FILES_KEY = "framework.jars";
 
+  public static final String PST_TIMEZONE_NAME = "America/Los_Angeles";
+
   /**
    * Task executor and state tracker configuration properties.
    */
@@ -208,8 +210,6 @@ public class ConfigurationKeys {
   public static final String WRITER_FILE_SYSTEM_URI = WRITER_PREFIX + ".fs.uri";
   public static final String WRITER_STAGING_DIR = WRITER_PREFIX + ".staging.dir";
   public static final String WRITER_OUTPUT_DIR = WRITER_PREFIX + ".output.dir";
-  // WRITER_FINAL_OUTPUT_PATH is used for internal purposes only to pass the absolute writer path to the publisher
-  public static final String WRITER_FINAL_OUTPUT_FILE_PATHS = WRITER_PREFIX + ".final.output.file.paths";
   public static final String WRITER_BUILDER_CLASS = WRITER_PREFIX + ".builder.class";
   public static final String DEFAULT_WRITER_BUILDER_CLASS = "gobblin.writer.AvroDataWriterBuilder";
   public static final String WRITER_FILE_NAME = WRITER_PREFIX + ".file.name";
@@ -228,29 +228,18 @@ public class ConfigurationKeys {
   public static final String WRITER_EAGER_INITIALIZATION_KEY = WRITER_PREFIX + ".eager.initialization";
   public static final String WRITER_PARTITIONER_CLASS = WRITER_PREFIX + ".partitioner.class";
   public static final boolean DEFAULT_WRITER_EAGER_INITIALIZATION = false;
-
-  // Deprecated. Use WRITER_PARTITION_COLUMNS
-  @Deprecated
-  public static final String WRITER_PARTITION_COLUMN_NAME = WRITER_PREFIX + ".partition.column.name";
-  public static final String WRITER_PARTITION_COLUMNS = WRITER_PREFIX + ".partition.columns";
-  public static final String WRITER_PARTITION_LEVEL = WRITER_PREFIX + ".partition.level";
-  public static final String WRITER_PARTITION_PATTERN = WRITER_PREFIX + ".partition.pattern";
-  public static final String WRITER_PARTITION_TIMEZONE = WRITER_PREFIX + ".partition.timezone";
   public static final String WRITER_GROUP_NAME = WRITER_PREFIX + ".group.name";
   public static final String DEFAULT_WRITER_FILE_BASE_NAME = "part";
   public static final int DEFAULT_DEFLATE_LEVEL = 9;
-  public static final String DEFAULT_BUFFER_SIZE = "4096";
-  public static final String DEFAULT_WRITER_PARTITION_LEVEL = "daily";
-  public static final String DEFAULT_WRITER_PARTITION_PATTERN = "yyyy/MM/dd";
-  public static final String DEFAULT_WRITER_PARTITION_TIMEZONE = "America/Los_Angeles";
+  public static final int DEFAULT_BUFFER_SIZE = 4096;
   public static final String DEFAULT_WRITER_FILE_PATH_TYPE = "default";
-
   public static final String SIMPLE_WRITER_DELIMITER = "simple.writer.delimiter";
   public static final String SIMPLE_WRITER_PREPEND_SIZE = "simple.writer.prepend.size";
 
   /**
    * Writer configuration properties used internally.
    */
+  public static final String WRITER_FINAL_OUTPUT_FILE_PATHS = WRITER_PREFIX + ".final.output.file.paths";
   public static final String WRITER_RECORDS_WRITTEN = WRITER_PREFIX + ".records.written";
   public static final String WRITER_BYTES_WRITTEN = WRITER_PREFIX + ".bytes.written";
   public static final String WRITER_EARLIEST_TIMESTAMP = WRITER_PREFIX + ".earliest.timestamp";
@@ -265,6 +254,8 @@ public class ConfigurationKeys {
   public static final String ROW_LEVEL_POLICY_LIST = QUALITY_CHECKER_PREFIX + ".row.policies";
   public static final String ROW_LEVEL_POLICY_LIST_TYPE = QUALITY_CHECKER_PREFIX + ".row.policy.types";
   public static final String ROW_LEVEL_ERR_FILE = QUALITY_CHECKER_PREFIX + ".row.err.file";
+  public static final String QUALITY_CHECKER_TIMEZONE = QUALITY_CHECKER_PREFIX + ".timezone";
+  public static final String DEFAULT_QUALITY_CHECKER_TIMEZONE = PST_TIMEZONE_NAME;
 
   /**
    * Configuration properties used by the row count policies.
@@ -312,6 +303,7 @@ public class ConfigurationKeys {
   public static final String SOURCE_QUERYBASED_HOUR_COLUMN = "source.querybased.hour.column";
   public static final String SOURCE_QUERYBASED_SKIP_HIGH_WATERMARK_CALC = "source.querybased.skip.high.watermark.calc";
   public static final String SOURCE_QUERYBASED_QUERY = "source.querybased.query";
+  public static final String SOURCE_QUERYBASED_EXCLUDED_COLUMNS = "source.querybased.excluded.columns";
   public static final String SOURCE_QUERYBASED_IS_HOURLY_EXTRACT = "source.querybased.hourly.extract";
   public static final String SOURCE_QUERYBASED_EXTRACT_TYPE = "source.querybased.extract.type";
   public static final String SOURCE_QUERYBASED_PARTITION_INTERVAL = "source.querybased.partition.interval";
@@ -352,7 +344,6 @@ public class ConfigurationKeys {
    * Configuration properties used internally by the KafkaExtractor.
    */
   public static final String ERROR_PARTITION_COUNT = "error.partition.count";
-  public static final String ERROR_MESSAGE_INVALID_SCHEMA_ID_COUNT = "error.message.invalid.schema.id.count";
   public static final String ERROR_MESSAGE_UNDECODABLE_COUNT = "error.message.undecodable.count";
 
   /**
@@ -395,7 +386,7 @@ public class ConfigurationKeys {
 
   public static final String FILEBASED_REPORT_STATUS_ON_COUNT = "filebased.report.status.on.count";
   public static final int DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT = 10000;
-  public static final String DEFAULT_SOURCE_TIMEZONE = "America/Los_Angeles";
+  public static final String DEFAULT_SOURCE_TIMEZONE = PST_TIMEZONE_NAME;
 
   /**
    * Configuration properties used by the Hadoop MR job launcher.

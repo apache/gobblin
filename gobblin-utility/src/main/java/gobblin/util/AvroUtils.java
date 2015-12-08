@@ -69,7 +69,6 @@ public class AvroUtils {
   private static final String FIELD_LOCATION_DELIMITER = ".";
 
   private static final String AVRO_SUFFIX = ".avro";
-  public static final String HDFS_ILLEGAL_TOKEN_REGEX = "[\\s/:\\\\]";
 
   /**
    * Given a GenericRecord, this method will return the schema of the field specified by the path parameter. The
@@ -443,23 +442,30 @@ public class AvroUtils {
   /**
    * Serialize a generic record as a relative {@link Path}. Useful for converting {@link GenericRecord} type keys
    * into file system locations. For example {field1=v1, field2=v2} returns field1=v1/field2=v2 if includeFieldNames
-   * is true, or v1/v2 if it is false.
+   * is true, or v1/v2 if it is false. Illegal HDFS tokens such as ':' and '\\' will be replaced with '_'.
+   * Additionally, parameter replacePathSeparators controls whether to replace path separators ('/') with '_'.
+   *
    * @param record {@link GenericRecord} to serialize.
    * @param includeFieldNames If true, each token in the path will be of the form key=value, otherwise, only the value
    *                          will be included.
+   * @param replacePathSeparators If true, path separators ('/') in each token will be replaced with '_'.
    * @return A relative path where each level is a field in the input record.
    */
-  public static Path serializeAsPath(GenericRecord record, boolean includeFieldNames) {
-    if(record == null) {
+  public static Path serializeAsPath(GenericRecord record, boolean includeFieldNames, boolean replacePathSeparators) {
+    if (record == null) {
       return new Path("");
     }
     List<String> tokens = Lists.newArrayList();
-    for(Schema.Field field : record.getSchema().getFields()) {
-      String sanitizedName = field.name().replaceAll(HDFS_ILLEGAL_TOKEN_REGEX, "_");
-      String sanitizedValue = record.get(field.name()).toString().replaceAll(HDFS_ILLEGAL_TOKEN_REGEX, "_");
-      if(includeFieldNames) {
+    for (Schema.Field field : record.getSchema().getFields()) {
+      String sanitizedName = HadoopUtils.sanitizePath(field.name(), "_");
+      String sanitizedValue = HadoopUtils.sanitizePath(record.get(field.name()).toString(), "_");
+      if (replacePathSeparators) {
+        sanitizedName = sanitizedName.replaceAll(Path.SEPARATOR, "_");
+        sanitizedValue = sanitizedValue.replaceAll(Path.SEPARATOR, "_");
+      }
+      if (includeFieldNames) {
         tokens.add(String.format("%s=%s", sanitizedName, sanitizedValue));
-      } else {
+      } else if (!Strings.isNullOrEmpty(sanitizedValue)) {
         tokens.add(sanitizedValue);
       }
     }

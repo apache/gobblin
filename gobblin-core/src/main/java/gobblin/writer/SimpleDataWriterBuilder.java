@@ -14,15 +14,13 @@ package gobblin.writer;
 
 import java.io.IOException;
 
-import gobblin.configuration.State;
-import gobblin.util.WriterUtils;
 
 /**
  * A {@link DataWriterBuilder} for building {@link DataWriter} that writes bytes.
  *
  * @author akshay@nerdwallet.com
  */
-public class SimpleDataWriterBuilder extends DataWriterBuilder<String, byte[]> {
+public class SimpleDataWriterBuilder extends FsDataWriterBuilder<String, byte[]> {
   /**
    * Build a {@link gobblin.writer.DataWriter}.
    *
@@ -31,10 +29,7 @@ public class SimpleDataWriterBuilder extends DataWriterBuilder<String, byte[]> {
    */
   @Override
   public DataWriter<byte[]> build() throws IOException {
-    State properties = this.destination.getProperties();
-    String fileName = WriterUtils.getWriterFileName(
-            properties, this.branches, this.branch, this.writerId, this.format.getExtension()
-    );
-    return new SimpleDataWriter(properties, fileName, this.branches, this.branch);
+    return new SimpleDataWriter(this, this.destination.getProperties());
   }
+
 }

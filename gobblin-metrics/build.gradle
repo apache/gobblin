@@ -10,6 +10,13 @@
 
 apply plugin: 'java'
 
+repositories {
+  mavenCentral()
+  maven {
+    url "http://conjars.org/repo"
+  }
+}
+
 /** TODO: Re-enable avro auto-compile once Java 1.7 is fully supported by users.
 buildscript {
   repositories {
@@ -46,6 +53,7 @@ dependencies {
   compile externalDependency.commonsHttpClient
   compile externalDependency.commonsCodec
   compile externalDependency.commonsLang
+  compile externalDependency.typesafeConfig
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito

@@ -22,6 +22,7 @@ import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.data.management.retention.DatasetCleaner;
 import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.TimestampedDatasetVersion;
@@ -37,9 +38,9 @@ public class DateTimeDatasetVersionFinder extends DatasetVersionFinder<Timestamp
   private static final Logger LOGGER = LoggerFactory.getLogger(DateTimeDatasetVersionFinder.class);
 
   public static final String DATE_TIME_PATTERN_KEY = DatasetCleaner.CONFIGURATION_KEY_PREFIX + "datetime.pattern";
-  public static final String DATE_TIME_PATTERN_TIMEZONE_KEY = DatasetCleaner.CONFIGURATION_KEY_PREFIX
-      + "datetime.pattern.timezone";
-  public static final String DEFAULT_DATE_TIME_PATTERN_TIMEZONE = "America/Los_Angeles";
+  public static final String DATE_TIME_PATTERN_TIMEZONE_KEY =
+      DatasetCleaner.CONFIGURATION_KEY_PREFIX + "datetime.pattern.timezone";
+  public static final String DEFAULT_DATE_TIME_PATTERN_TIMEZONE = ConfigurationKeys.PST_TIMEZONE_NAME;
 
   private final Path globPattern;
   private final DateTimeFormatter formatter;
@@ -48,10 +49,10 @@ public class DateTimeDatasetVersionFinder extends DatasetVersionFinder<Timestamp
     super(fs, props);
     String pattern = props.getProperty(DATE_TIME_PATTERN_KEY);
     this.globPattern = new Path(pattern.replaceAll("[^/]+", "*"));
-    LOGGER.debug(String.format("Setting timezone for patthern: %s. By default it is America/Los_Angeles", pattern));
-    this.formatter =
-        DateTimeFormat.forPattern(pattern).withZone(
-            DateTimeZone.forID(props.getProperty(DATE_TIME_PATTERN_TIMEZONE_KEY, DEFAULT_DATE_TIME_PATTERN_TIMEZONE)));
+    LOGGER.debug(String.format("Setting timezone for patthern: %s. By default it is %s", pattern,
+        DEFAULT_DATE_TIME_PATTERN_TIMEZONE));
+    this.formatter = DateTimeFormat.forPattern(pattern).withZone(
+        DateTimeZone.forID(props.getProperty(DATE_TIME_PATTERN_TIMEZONE_KEY, DEFAULT_DATE_TIME_PATTERN_TIMEZONE)));
 
   }
 
@@ -75,10 +76,11 @@ public class DateTimeDatasetVersionFinder extends DatasetVersionFinder<Timestamp
   @Override
   public TimestampedDatasetVersion getDatasetVersion(Path pathRelativeToDatasetRoot, Path fullPath) {
     try {
-      return new TimestampedDatasetVersion(this.formatter.parseDateTime(pathRelativeToDatasetRoot.toString()), fullPath);
+      return new TimestampedDatasetVersion(this.formatter.parseDateTime(pathRelativeToDatasetRoot.toString()),
+          fullPath);
     } catch (IllegalArgumentException exception) {
-      LOGGER.warn("Candidate dataset version at " + pathRelativeToDatasetRoot
-          + " does not match expected pattern. Ignoring.");
+      LOGGER.warn(
+          "Candidate dataset version at " + pathRelativeToDatasetRoot + " does not match expected pattern. Ignoring.");
       return null;
     }
   }

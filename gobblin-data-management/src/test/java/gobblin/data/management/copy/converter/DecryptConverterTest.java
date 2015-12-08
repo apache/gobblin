@@ -9,15 +9,12 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
  */
-package gobblin.data.management.copy.converter;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.copy.FileAwareInputStream;
+package gobblin.data.management.copy.converter;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.UUID;
 
@@ -32,8 +29,20 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Iterables;
 import com.google.common.io.Files;
 
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+import gobblin.configuration.WorkUnitState;
+import gobblin.data.management.copy.CopyableFileUtils;
+import gobblin.data.management.copy.FileAwareInputStream;
 
+
+/**
+ * Unit tests for {@link DecryptConverter}.
+ */
+@Test(groups = { "gobblin.data.management.copy.converter" })
 public class DecryptConverterTest {
+
+  private final File masterPwdFile = new File("masterPwd");
 
   @Test
   public void testConvertRecord() throws Exception {
@@ -42,26 +51,40 @@ public class DecryptConverterTest {
     final String passphrase = "12";
     DecryptConverter converter = new DecryptConverter();
     WorkUnitState workUnitState = new WorkUnitState();
-    setEncyptedPassphrase(passphrase, workUnitState);
-    converter.init(workUnitState);
 
-    FileSystem fs = FileSystem.getLocal(new Configuration());
+    try {
+      setEncryptedPassphrase(passphrase, workUnitState);
+      converter.init(workUnitState);
 
-    String gpgFilePath = getClass().getClassLoader().getResource("decryptConverterTest/decrypt-test.txt.gpg").getFile();
-    FileAwareInputStream fileAwareInputStream = new FileAwareInputStream(null, fs.open(new Path(gpgFilePath)));
+      FileSystem fs = FileSystem.getLocal(new Configuration());
 
-    Iterable<FileAwareInputStream> iterable =
-        converter.convertRecord("outputSchema", fileAwareInputStream, workUnitState);
+      URL url = getClass().getClassLoader().getResource("decryptConverterTest/decrypt-test.txt.gpg");
+      if (url == null) {
+        Assert.fail();
+      }
 
-    String actual = IOUtils.toString(Iterables.getFirst(iterable, null).getInputStream());
-    Assert.assertEquals(actual, expectedFileContents);
+      String gpgFilePath =url.getFile();
+      FileAwareInputStream fileAwareInputStream =
+          new FileAwareInputStream(CopyableFileUtils.getTestCopyableFile(), fs.open(new Path(gpgFilePath)));
 
+      Iterable<FileAwareInputStream> iterable =
+          converter.convertRecord("outputSchema", fileAwareInputStream, workUnitState);
+      fileAwareInputStream = Iterables.getFirst(iterable, null);
+      if (fileAwareInputStream == null) {
+        Assert.fail();
+      }
+
+      String actual = IOUtils.toString(fileAwareInputStream.getInputStream());
+      Assert.assertEquals(actual, expectedFileContents);
+    } finally {
+      deleteMasterPwdFile();
+    }
   }
 
-  private void setEncyptedPassphrase(String plainPassphrase, State state) throws IOException {
+  private void setEncryptedPassphrase(String plainPassphrase, State state) throws IOException {
     String masterPassword = UUID.randomUUID().toString();
-    File masterPwdFile = getMasterPwdFile(masterPassword);
-    state.setProp(ConfigurationKeys.ENCRYPT_KEY_LOC, masterPwdFile.toString());
+    createMasterPwdFile(masterPassword);
+    state.setProp(ConfigurationKeys.ENCRYPT_KEY_LOC, this.masterPwdFile.toString());
     state.setProp(ConfigurationKeys.ENCRYPT_USE_STRONG_ENCRYPTOR, true);
     StrongTextEncryptor encryptor = new StrongTextEncryptor();
     encryptor.setPassword(masterPassword);
@@ -69,10 +92,17 @@ public class DecryptConverterTest {
     state.setProp("converter.decrypt.passphrase", "ENC(" + encrypted + ")");
   }
 
-  private File getMasterPwdFile(String masterPwd) throws IOException {
-    File masterPwdFile = new File("masterPwd");
-    masterPwdFile.createNewFile();
-    Files.write(masterPwd, masterPwdFile, Charset.defaultCharset());
-    return masterPwdFile;
+  private void createMasterPwdFile(String masterPwd) throws IOException {
+    if (!this.masterPwdFile.createNewFile()) {
+      Assert.fail();
+    }
+
+    Files.write(masterPwd, this.masterPwdFile, Charset.defaultCharset());
+  }
+
+  private void deleteMasterPwdFile() {
+    if (!this.masterPwdFile.delete()) {
+      Assert.fail();
+    }
   }
 }

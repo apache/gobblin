@@ -19,11 +19,11 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.lang.exception.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
@@ -220,11 +220,12 @@ public class Task implements Runnable {
         this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
       }
 
-      addConstructsFinalStateToTaskState(extractor, converter);
+      addConstructsFinalStateToTaskState(extractor, converter, rowChecker);
     } catch (Throwable t) {
       failTask(t);
     } finally {
       this.taskState.setProp(ConfigurationKeys.WRITER_RECORDS_WRITTEN, getRecordsWritten());
+      this.taskState.setProp(ConfigurationKeys.WRITER_BYTES_WRITTEN, getBytesWritten());
 
       try {
         closer.close();
@@ -253,7 +254,7 @@ public class Task implements Runnable {
   private void failTask(Throwable t) {
     LOG.error(String.format("Task %s failed", this.taskId), t);
     this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-    this.taskState.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, ExceptionUtils.getStackTrace(t));
+    this.taskState.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, Throwables.getStackTraceAsString(t));
   }
 
   /**
@@ -304,11 +305,13 @@ public class Task implements Runnable {
 
       LOG.info("Publishing data from task " + this.taskId);
       publisher.publish(this.taskState);
-    } catch (IOException e) {
+    } catch (ClassCastException e) {
+      LOG.error(String.format("To publish data in task, the publisher class (%s) must extend %s",
+          ConfigurationKeys.DATA_PUBLISHER_TYPE, SingleTaskDataPublisher.class.getSimpleName()), e);
+      this.taskState.setTaskFailureException(e);
       throw closer.rethrow(e);
     } catch (Throwable t) {
-      LOG.error(String.format("To publish data in task, the publisher class (%s) must extend %s",
-          ConfigurationKeys.DATA_PUBLISHER_TYPE, SingleTaskDataPublisher.class.getSimpleName()), t);
+      this.taskState.setTaskFailureException(t);
       throw closer.rethrow(t);
     } finally {
       closer.close();
@@ -499,15 +502,34 @@ public class Task implements Runnable {
     return recordsWritten;
   }
 
+
+  /**
+   * Get the total number of bytes written by every {@link Fork}s of this {@link Task}.
+   *
+   * @return the number of bytes written by every {@link Fork}s of this {@link Task}
+   */
+  private long getBytesWritten() {
+    long bytesWritten = 0;
+    for (Optional<Fork> fork : this.forks) {
+      if (fork.isPresent()) {
+        bytesWritten += fork.get().getBytesWritten();
+      }
+    }
+    return bytesWritten;
+  }
+
   /**
    * Get the final state of each construct used by this task and add it to the {@link gobblin.runtime.TaskState}.
    * @param extractor {@link gobblin.instrumented.extractor.InstrumentedExtractorBase} used by this task.
    * @param converter {@link gobblin.converter.Converter} used by this task.
+   * @param rowChecker 
    */
   private void addConstructsFinalStateToTaskState(InstrumentedExtractorBase<?, ?> extractor,
-      Converter<?, ?, ?, ?> converter) {
+      Converter<?, ?, ?, ?> converter, RowLevelPolicyChecker rowChecker) {
     this.taskState.addFinalConstructState(Constructs.EXTRACTOR.toString().toLowerCase(), extractor.getFinalState());
     this.taskState.addFinalConstructState(Constructs.CONVERTER.toString().toLowerCase(), converter.getFinalState());
+    this.taskState.addFinalConstructState(Constructs.ROW_QUALITY_CHECKER.toString().toLowerCase(),
+        rowChecker.getFinalState());
     int forkIdx = 0;
     for (Optional<Fork> fork : this.forks) {
       if (fork.isPresent()) {

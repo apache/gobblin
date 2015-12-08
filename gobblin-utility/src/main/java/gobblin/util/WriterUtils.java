@@ -13,15 +13,21 @@
 package gobblin.util;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileConstants;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.security.token.Token;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -78,10 +84,7 @@ public class WriterUtils {
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR, numBranches, branchId);
     Preconditions.checkArgument(state.contains(writerOutputDirKey), "Missing required property " + writerOutputDirKey);
 
-    return new Path(
-        state.getProp(
-            ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR, numBranches, branchId)),
-        WriterUtils.getWriterFilePath(state, numBranches, branchId));
+    return new Path(state.getProp(writerOutputDirKey), WriterUtils.getWriterFilePath(state, numBranches, branchId));
   }
 
   /**
@@ -181,9 +184,12 @@ public class WriterUtils {
    */
   public static String getWriterFileName(State state, int numBranches, int branchId, String writerId,
       String formatExtension) {
+    String defaultFileName = Strings.isNullOrEmpty(formatExtension)
+        ? String.format("%s.%s", ConfigurationKeys.DEFAULT_WRITER_FILE_BASE_NAME, writerId)
+        : String.format("%s.%s.%s", ConfigurationKeys.DEFAULT_WRITER_FILE_BASE_NAME, writerId, formatExtension);
     return state.getProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_NAME, numBranches, branchId),
-        String.format("%s.%s.%s", ConfigurationKeys.DEFAULT_WRITER_FILE_BASE_NAME, writerId, formatExtension));
+        defaultFileName);
   }
 
   /**
@@ -233,6 +239,34 @@ public class WriterUtils {
     // Double check permission, since fs.mkdirs() may not guarantee to set the permission correctly
     if (!fs.getFileStatus(path).getPermission().equals(perm)) {
       fs.setPermission(path, perm);
+    }
+  }
+
+  public static FileSystem getWriterFS(State state, int numBranches, int branchId) throws IOException {
+    URI uri = URI.create(state.getProp(
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
+        ConfigurationKeys.LOCAL_FS_URI));
+
+    if (state.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
+        ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
+      // Initialize file system as a proxy user.
+      try {
+        String user = state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME);
+        Optional<Token<?>> token = ProxiedFileSystemUtils.getTokenFromSeqFile(user,
+            new Path(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_TOKEN_FILE)));
+        if(!token.isPresent()) {
+          throw new IOException("No token found for user " + user);
+        }
+        return
+            ProxiedFileSystemCache.fromToken().
+                userNameToken(token.get()).
+                userNameToProxyAs(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME)).fsURI(uri).build();
+      } catch (ExecutionException e) {
+        throw new IOException(e);
+      }
+    } else {
+      // Initialize file system as the current user.
+      return FileSystem.get(uri, new Configuration());
     }
   }
 }

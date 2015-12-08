@@ -12,14 +12,12 @@
 
 package gobblin.metrics;
 
-import java.util.Collection;
-import java.util.List;
+import lombok.experimental.Delegate;
 
 import com.codahale.metrics.ExponentiallyDecayingReservoir;
 import com.codahale.metrics.Histogram;
-import com.codahale.metrics.MetricRegistry;
 
-import com.google.common.base.Optional;
+import gobblin.metrics.metric.InnerMetric;
 
 
 /**
@@ -40,47 +38,16 @@ import com.google.common.base.Optional;
  */
 class ContextAwareHistogram extends Histogram implements ContextAwareMetric {
 
-  private final String name;
+  @Delegate
+  private final InnerHistogram innerHistogram;
+
   private final MetricContext context;
-  private final Tagged tagged;
-  private final Optional<ContextAwareHistogram> parentHistogram;
 
   ContextAwareHistogram(MetricContext context, String name) {
     super(new ExponentiallyDecayingReservoir());
-
-    this.name = name;
+    this.innerHistogram = new InnerHistogram(context, name, this);
     this.context = context;
-    this.tagged = new Tagged();
 
-    Optional<MetricContext> parentContext = context.getParent();
-    if (parentContext.isPresent()) {
-      this.parentHistogram = Optional.fromNullable(parentContext.get().contextAwareHistogram(name));
-    } else {
-      this.parentHistogram = Optional.absent();
-    }
-  }
-
-  @Override
-  public void update(int value) {
-    update((long) value);
-  }
-
-  @Override
-  public void update(long value) {
-    super.update(value);
-    if (this.parentHistogram.isPresent()) {
-      this.parentHistogram.get().update(value);
-    }
-  }
-
-  @Override
-  public String getName() {
-    return this.name;
-  }
-
-  @Override
-  public String getFullyQualifiedName(boolean includeTagKeys) {
-    return MetricRegistry.name(metricNamePrefix(includeTagKeys), this.name);
   }
 
   @Override
@@ -88,23 +55,7 @@ class ContextAwareHistogram extends Histogram implements ContextAwareMetric {
     return this.context;
   }
 
-  @Override
-  public void addTag(Tag<?> tag) {
-    this.tagged.addTag(tag);
-  }
-
-  @Override
-  public void addTags(Collection<Tag<?>> tags) {
-    this.tagged.addTags(tags);
-  }
-
-  @Override
-  public List<Tag<?>> getTags() {
-    return this.tagged.getTags();
-  }
-
-  @Override
-  public String metricNamePrefix(boolean includeTagKeys) {
-    return this.tagged.metricNamePrefix(includeTagKeys);
+  @Override public InnerMetric getInnerMetric() {
+    return this.innerHistogram;
   }
 }
