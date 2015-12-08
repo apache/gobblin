@@ -1,6 +1,7 @@
 package gobblin.config.configstore.impl;
 
 import gobblin.config.configstore.ConfigStoreWithStableVersion;
+import gobblin.config.configstore.VersionDoesNotExistException;
 import gobblin.config.configstore.VersionFinder;
 
 import java.net.URI;
@@ -31,7 +32,7 @@ public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements
   }
 
   @Override
-  public Collection<URI> getChildren(URI uri, String version) {
+  public Collection<URI> getChildren(URI uri, String version) throws VersionDoesNotExistException{
     if (isValidURI(uri)) {
       return super.getChildren(uri, version);
     }
@@ -39,7 +40,7 @@ public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements
   }
 
   @Override
-  public Collection<URI> getOwnImports(URI uri, String version) {
+  public Collection<URI> getOwnImports(URI uri, String version) throws VersionDoesNotExistException{
     if (!isValidURI(uri)) {
       return Collections.emptyList();
     }
@@ -56,7 +57,7 @@ public class ETLHdfsConfigStore extends HdfsConfigStoreWithOwnInclude implements
   }
 
   @Override
-  public Config getOwnConfig(URI uri, String version) {
+  public Config getOwnConfig(URI uri, String version) throws VersionDoesNotExistException{
     if (isValidURI(uri)) {
       return super.getOwnConfig(uri, version);
     }

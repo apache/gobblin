@@ -20,7 +20,7 @@ public interface ConfigStoreWithImportedBy extends ConfigStore {
    * @return - The {@java.util.Collection} of the URI. Each URI in the collection directly import input uri 
    *  against input configuration version
    */
-  public Collection<URI> getImportedBy(URI uri, String version);
+  public Collection<URI> getImportedBy(URI uri, String version) throws VersionDoesNotExistException;
 
   /**
    * @param uri - the uri relative to this configuration store
@@ -29,5 +29,5 @@ public interface ConfigStoreWithImportedBy extends ConfigStore {
    *  against input configuration version. The value of the Map the directly specified configuration in 
    *  com.typesafe.config.Config format for corresponding key
    */
-  public Map<URI, Config> getConfigsImportedBy(URI uri, String version);
+  public Map<URI, Config> getConfigsImportedBy(URI uri, String version) throws VersionDoesNotExistException;
 }

@@ -46,19 +46,16 @@ public class ConfigClient {
   private final TreeMap<URI, ConfigStoreAccessor> configStoreMap = new TreeMap<URI, ConfigStoreAccessor>();
 
   // key is the configStore scheme name, value is the ConfigStoreFactory
-  private static final Map<String, ConfigStoreFactory> configStoreFactoryMap =
-      new HashMap<String, ConfigStoreFactory>();
+  private final Map<String, ConfigStoreFactory> configStoreFactoryMap = new HashMap<String, ConfigStoreFactory>();
 
-  static {
+  private ConfigClient(VERSION_STABILITY_POLICY policy) {
+    this.policy = policy;
+    
     ServiceLoader<ConfigStoreFactory> loader = ServiceLoader.load(ConfigStoreFactory.class);
     for (ConfigStoreFactory f : loader) {
       configStoreFactoryMap.put(f.getScheme(), f);
       LOG.info("Created the config store factory with scheme name " + f.getScheme());
     }
-  }
-
-  private ConfigClient(VERSION_STABILITY_POLICY policy) {
-    this.policy = policy;
   }
 
   /**
@@ -95,17 +92,17 @@ public class ConfigClient {
 
     if (!(cs instanceof ConfigStoreWithStableVersion)) {
       if (this.policy == VERSION_STABILITY_POLICY.RAISE_ERROR) {
-        throw new Exception(String.format("Try to connect to unstable config store ", cs.getStoreURI()));
+        throw new RuntimeException(String.format("Try to connect to unstable config store ", cs.getStoreURI()));
       }
     }
 
-    URI key = cs.getStoreURI();
-    ConfigStoreAccessor value = new ConfigStoreAccessor(cs, cs.getCurrentVersion());
+    URI csRootURI = cs.getStoreURI();
+    ConfigStoreAccessor CSAccessor = new ConfigStoreAccessor(cs, cs.getCurrentVersion());
 
     // create default resolver
     if (!(cs instanceof ConfigStoreWithResolution)) {
       SimpleConfigStoreResolver resolver = new SimpleConfigStoreResolver(cs);
-      value.resolver = resolver;
+      CSAccessor.resolver = resolver;
     }
 
     // create default importedBy mapping object
@@ -115,17 +112,17 @@ public class ConfigClient {
       // otherwise, the getImportsRecursively and getImportedByRecursively will not work
       // as raw configstore is NOT ConfigStoreWithResolution
       if (!(cs instanceof ConfigStoreWithResolution)) {
-        im = new SimpleImportMappings(value.resolver, value.version);
+        im = new SimpleImportMappings(CSAccessor.resolver, CSAccessor.version);
       } else {
-        im = new SimpleImportMappings(cs, value.version);
+        im = new SimpleImportMappings(cs, CSAccessor.version);
       }
-      value.simpleImportMappings = im;
+      CSAccessor.simpleImportMappings = im;
     }
 
-    this.configStoreMap.put(key, value);
+    this.configStoreMap.put(csRootURI, CSAccessor);
     LOG.info(String.format("Created new config store with uri: %s, version: %s", cs.getStoreURI(),
         cs.getCurrentVersion()));
-    return value;
+    return CSAccessor;
   }
 
   // use serviceLoader to load configStoreFactories
@@ -166,7 +163,7 @@ public class ConfigClient {
   }
 
   /**
-   * @param uris - Collection of URI, each one much start with scheme name
+   * @param uris - Collection of URI, each one must start with scheme name
    * @return - the java.util.Map. Key of the map is the URI, value of the Map is getConfig(URI key)
    */
   public Map<URI, Config> getConfigs(Collection<URI> uris) throws Exception {

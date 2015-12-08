@@ -1,4 +1,4 @@
-package gobblin.config.configstore.impl;
+package gobblin.config.configstore;
 
 public class ConfigStoreCreationException extends Exception {
 
@@ -9,5 +9,9 @@ public class ConfigStoreCreationException extends Exception {
 
   public ConfigStoreCreationException(String message) {
     super(message);
+  }
+  
+  public ConfigStoreCreationException(Exception e) {
+    super(e);
   }
 }

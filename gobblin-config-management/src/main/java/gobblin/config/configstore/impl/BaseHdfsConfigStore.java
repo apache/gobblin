@@ -1,6 +1,7 @@
 package gobblin.config.configstore.impl;
 
 import gobblin.config.configstore.ConfigStore;
+import gobblin.config.configstore.VersionDoesNotExistException;
 import gobblin.config.configstore.VersionFinder;
 
 import java.io.IOException;
@@ -108,7 +109,7 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
   }
 
   @SuppressWarnings("deprecation")
-  protected Path getVersionRoot(String version) {
+  protected Path getVersionRoot(String version) throws VersionDoesNotExistException{
     if (this.versionRootMap.containsKey(version)) {
       return this.versionRootMap.get(version);
     }
@@ -130,10 +131,9 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
   }
 
   @Override
-  public Collection<URI> getChildren(URI uri, String version) {
+  public Collection<URI> getChildren(URI uri, String version) throws VersionDoesNotExistException{
     if (uri == null)
       return Collections.emptyList();
-    ;
 
     Path self = getPath(uri, version);
 
@@ -164,7 +164,7 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
   }
 
   @Override
-  public Config getOwnConfig(URI uri, String version) {
+  public Config getOwnConfig(URI uri, String version) throws VersionDoesNotExistException{
     if (uri == null)
       return ConfigFactory.empty();
 
@@ -187,7 +187,7 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
     }
   }
 
-  private URI getRelativePathURI(Path p, String version) {
+  private URI getRelativePathURI(Path p, String version) throws VersionDoesNotExistException{
     URI versionRootURI = this.getVersionRoot(version).toUri();
     URI input = p.toUri();
 
@@ -201,7 +201,7 @@ public abstract class BaseHdfsConfigStore implements ConfigStore {
     return uri.toString().length() == 0;
   }
 
-  protected final Path getPath(URI uri, String version) {
+  protected final Path getPath(URI uri, String version) throws VersionDoesNotExistException{
     Path self;
     if (isRootURI(uri)) {
       self = this.getVersionRoot(version);

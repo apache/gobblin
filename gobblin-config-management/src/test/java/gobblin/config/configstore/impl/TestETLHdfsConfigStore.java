@@ -78,7 +78,7 @@ public class TestETLHdfsConfigStore {
     Assert.assertEquals(store.getCurrentVersion(), Version);
   }
 
-  @Test(expectedExceptions = gobblin.config.configstore.impl.VersionDoesNotExistException.class)
+  @Test(expectedExceptions = gobblin.config.configstore.VersionDoesNotExistException.class)
   public void testInvalidVersion() throws Exception {
     store.getChildren(new URI(""), "V1.0");
   }

@@ -20,7 +20,7 @@ public interface ConfigStoreWithResolution extends ConfigStore {
    * @return - the directly and indirectly specified configuration in com.typesafe.config.Config format for input uri 
    *  against input configuration version
    */
-  public Config getResolvedConfig(URI uri, String version);
+  public Config getResolvedConfig(URI uri, String version) throws VersionDoesNotExistException;
 
   /**
    * @param uri - the uri relative to this configuration store
@@ -28,6 +28,6 @@ public interface ConfigStoreWithResolution extends ConfigStore {
    * @return - the directly and indirectly imported URIs followed the imported path for input uri 
    *  against input configuration version
    */
-  public Collection<URI> getImportsRecursively(URI uri, String version);
+  public Collection<URI> getImportsRecursively(URI uri, String version) throws VersionDoesNotExistException;
 
 }

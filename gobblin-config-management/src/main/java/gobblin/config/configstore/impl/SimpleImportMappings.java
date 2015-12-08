@@ -13,6 +13,7 @@ import org.apache.log4j.Logger;
 import gobblin.config.configstore.ConfigStore;
 import gobblin.config.configstore.ConfigStoreWithResolution;
 import gobblin.config.configstore.ImportMappings;
+import gobblin.config.configstore.VersionDoesNotExistException;
 
 
 public class SimpleImportMappings implements ImportMappings {
@@ -27,13 +28,13 @@ public class SimpleImportMappings implements ImportMappings {
   private final ConfigStore store;
   private final String version;
 
-  public SimpleImportMappings(ConfigStore cs, String version) {
+  public SimpleImportMappings(ConfigStore cs, String version) throws VersionDoesNotExistException{
     this.store = cs;
     this.version = version;
     buildMaps();
   }
 
-  private void buildMaps() {
+  private void buildMaps() throws VersionDoesNotExistException{
     try {
       URI root = new URI("");
       Collection<URI> currentLevel = this.store.getChildren(root, version);

@@ -38,17 +38,17 @@ public class TestETLHdfsConfigStoreFactory {
     Assert.assertEquals(cs2.getCurrentVersion(), Version);
   }
 
-  @Test(expectedExceptions = gobblin.config.configstore.impl.ConfigStoreCreationException.class)
+  @Test(expectedExceptions = gobblin.config.configstore.ConfigStoreCreationException.class)
   public void testWrongCreation() throws Exception {
     factory.createConfigStore(new URI("foo-hdfs://" + testRootDir.getAbsolutePath()));
   }
 
-  @Test(expectedExceptions = gobblin.config.configstore.impl.ConfigStoreCreationException.class)
+  @Test(expectedExceptions = gobblin.config.configstore.ConfigStoreCreationException.class)
   public void testWrongCreation2() throws Exception {
     factory.createConfigStore(new URI("foo-hdfs://" + testRootDir.getAbsolutePath() + "/v3.0/datasets/a1/a2"));
   }
 
-  @Test(expectedExceptions = gobblin.config.configstore.impl.ConfigStoreCreationException.class)
+  @Test(expectedExceptions = gobblin.config.configstore.ConfigStoreCreationException.class)
   public void testWrongHdfsConfigStore() throws Exception {
     String WrongTestRoot = "WrongHdfsConfigStore";
     File rootDir = Files.createTempDir();

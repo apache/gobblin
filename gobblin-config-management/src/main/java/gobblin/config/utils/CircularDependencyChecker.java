@@ -1,14 +1,14 @@
 package gobblin.config.utils;
 
+import gobblin.config.configstore.ConfigStore;
+import gobblin.config.configstore.VersionDoesNotExistException;
+
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 
 import org.apache.hadoop.fs.Path;
-
-import gobblin.config.configstore.ConfigStore;
 
 
 public class CircularDependencyChecker {
@@ -17,7 +17,7 @@ public class CircularDependencyChecker {
    * @param cs - {@gobblin.config.configstore.ConfigStore} to check circular dependency
    * @param uri - URI relative to the input ConfigStore. This is the starting point to check circular dependency
    */
-  public static void checkCircularDependency(ConfigStore cs, String version, URI uri) {
+  public static void checkCircularDependency(ConfigStore cs, String version, URI uri) throws VersionDoesNotExistException{
     // check ancestor chain
     checkAncestorCircularDependency(cs, version, uri, uri, new ArrayList<URI>());
 
@@ -34,7 +34,7 @@ public class CircularDependencyChecker {
    * @param previous - all previously imports
    */
   private static void checkAncestorCircularDependency(ConfigStore cs, String version, URI initialURI, URI uri,
-      List<URI> previous) {
+      List<URI> previous) throws VersionDoesNotExistException{
     String pStr = uri.getPath();
     if (pStr.length() == 0)
       return;
@@ -55,7 +55,7 @@ public class CircularDependencyChecker {
   }
 
   private static void checkImportCircularDependency(ConfigStore cs, String version, URI initialURI, URI uri,
-      List<URI> previous) {
+      List<URI> previous) throws VersionDoesNotExistException{
     for (URI p : previous) {
       if (uri != null && uri.equals(p)) {
         previous.add(p);

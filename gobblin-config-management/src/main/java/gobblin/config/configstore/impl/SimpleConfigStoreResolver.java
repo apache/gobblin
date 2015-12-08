@@ -2,6 +2,7 @@ package gobblin.config.configstore.impl;
 
 import gobblin.config.configstore.ConfigStore;
 import gobblin.config.configstore.ConfigStoreWithResolution;
+import gobblin.config.configstore.VersionDoesNotExistException;
 import gobblin.config.utils.CircularDependencyChecker;
 import gobblin.config.utils.PathUtils;
 
@@ -40,29 +41,29 @@ public class SimpleConfigStoreResolver implements ConfigStoreWithResolution {
   }
 
   @Override
-  public Collection<URI> getChildren(URI uri, String version) {
+  public Collection<URI> getChildren(URI uri, String version) throws VersionDoesNotExistException{
     return store.getChildren(uri, version);
   }
 
   @Override
-  public Collection<URI> getOwnImports(URI uri, String version) {
+  public Collection<URI> getOwnImports(URI uri, String version) throws VersionDoesNotExistException{
     return store.getOwnImports(uri, version);
   }
 
   @Override
-  public Config getOwnConfig(URI uri, String version) {
+  public Config getOwnConfig(URI uri, String version) throws VersionDoesNotExistException{
     return store.getOwnConfig(uri, version);
   }
 
   @Override
-  public Config getResolvedConfig(URI uri, String version) {
+  public Config getResolvedConfig(URI uri, String version) throws VersionDoesNotExistException{
     UUID traceID = UUID.randomUUID();
     LOG.info(String.format("Getting resolved config for uri: %s for version %s, with traceID: %s", 
         uri, version, traceID));
     return getResolvedConfigWithTrace(uri, version, traceID.toString());
   }
 
-  protected Config getResolvedConfigWithTrace(URI uri, String version, String traceID) {
+  protected Config getResolvedConfigWithTrace(URI uri, String version, String traceID) throws VersionDoesNotExistException{
     CircularDependencyChecker.checkCircularDependency(store, version, uri);
     Config self = this.getOwnConfig(uri, version);
     for (Entry<String, ConfigValue> entry : self.entrySet()) {
@@ -91,7 +92,7 @@ public class SimpleConfigStoreResolver implements ConfigStoreWithResolution {
     return self.withFallback(ancestor);
   }
 
-  protected Config getAncestorConfig(URI uri, String version, String traceID) {
+  protected Config getAncestorConfig(URI uri, String version, String traceID) throws VersionDoesNotExistException{
     URI parent = PathUtils.getParentURI(uri);
     Config res = getResolvedConfigWithTrace(parent, version, traceID);
     return res;
@@ -105,7 +106,7 @@ public class SimpleConfigStoreResolver implements ConfigStoreWithResolution {
   }
 
   @Override
-  public Collection<URI> getImportsRecursively(URI uri, String version) {
+  public Collection<URI> getImportsRecursively(URI uri, String version) throws VersionDoesNotExistException{
     CircularDependencyChecker.checkCircularDependency(this, version, uri);
 
     Collection<URI> result = getOwnImports(uri, version);

@@ -1,6 +1,6 @@
-package gobblin.config.configstore.impl;
+package gobblin.config.configstore;
 
-public class VersionDoesNotExistException extends RuntimeException {
+public class VersionDoesNotExistException extends Exception {
 
   /**
    * 
@@ -9,5 +9,9 @@ public class VersionDoesNotExistException extends RuntimeException {
 
   public VersionDoesNotExistException(String message) {
     super(message);
+  }
+  
+  public VersionDoesNotExistException(Exception e) {
+    super(e);
   }
 }

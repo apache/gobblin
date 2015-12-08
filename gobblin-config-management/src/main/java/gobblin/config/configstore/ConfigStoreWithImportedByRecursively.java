@@ -14,7 +14,7 @@ public interface ConfigStoreWithImportedByRecursively extends ConfigStoreWithImp
    * @return - The {@java.util.Collection} of the URI. Each URI in the collection directly or indirectly import input uri 
    *  against input configuration version
    */
-  public Collection<URI> getImportedByRecursively(URI uri, String version);
+  public Collection<URI> getImportedByRecursively(URI uri, String version) throws VersionDoesNotExistException;
 
   /**
    * @param uri - the uri relative to this configuration store
@@ -23,5 +23,5 @@ public interface ConfigStoreWithImportedByRecursively extends ConfigStoreWithImp
    *  against input configuration version. The value of the Map the directly or indirectly specified configuration in 
    *  com.typesafe.config.Config format for corresponding key.
    */
-  public Map<URI, Config> getConfigsImportedByRecursively(URI uri, String version);
+  public Map<URI, Config> getConfigsImportedByRecursively(URI uri, String version) throws VersionDoesNotExistException;
 }

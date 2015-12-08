@@ -1,5 +1,6 @@
 package gobblin.config.configstore.impl;
 
+import gobblin.config.configstore.VersionDoesNotExistException;
 import gobblin.config.configstore.VersionFinder;
 
 import java.io.BufferedReader;
@@ -39,33 +40,33 @@ public class HdfsConfigStoreWithOwnInclude extends BaseHdfsConfigStore {
   }
 
   @Override
-  public Collection<URI> getOwnImports(URI uri, String version) {
+  public Collection<URI> getOwnImports(URI uri, String version) throws VersionDoesNotExistException {
     List<URI> result = new ArrayList<URI>();
 
-    try {
-      Path self = getPath(uri, version);
-      Path includeFile = new Path(self, INCLUDE_FILE_NAME);
-      List<String> imports = this.getImports(includeFile, version);
-      for (String s : imports) {
-        try {
-          result.add(new URI(s));
-        } catch (URISyntaxException e) {
-          LOG.error("Could not parse  " + s + " as URI", e);
-        }
+    Path self = getPath(uri, version);
+    Path includeFile = new Path(self, INCLUDE_FILE_NAME);
+    List<String> imports = this.getImports(includeFile, version);
+    for (String s : imports) {
+      try {
+        result.add(new URI(s));
+      } catch (URISyntaxException e) {
+        LOG.error("Could not parse  " + s + " as URI", e);
       }
-
-      return result;
-    } catch (IOException ioe) {
-      LOG.error("Could not find imports at path " + uri, ioe);
-      return result;
     }
+
+    return result;
   }
 
   @SuppressWarnings("deprecation")
-  private List<String> getImports(Path p, String version) throws IOException {
+  private List<String> getImports(Path p, String version) throws VersionDoesNotExistException {
     List<String> allImports = Lists.newArrayList();
 
-    if (!fs.exists(p) || !fs.isFile(p)) {
+    try {
+      if (!fs.exists(p) || !fs.isFile(p)) {
+        return allImports;
+      }
+    } catch (IOException e) {
+      LOG.error("Caught IOException when listing path " + p, e);
       return allImports;
     }
 
@@ -90,7 +91,11 @@ public class HdfsConfigStoreWithOwnInclude extends BaseHdfsConfigStore {
       LOG.error("Could not find imports at path " + p, exception);
       return Lists.newArrayList();
     } finally {
-      closer.close();
+      try {
+        closer.close();
+      } catch (IOException e) {
+        LOG.error("Could not close the stream " + p, e);
+      }
     }
 
     return allImports;

@@ -21,6 +21,6 @@ public interface ConfigStoreFactory<T extends ConfigStore> {
    * @param uri - The specified URI in the configuration store
    * @return {@ConfigStore} which is created from the input URI
    */
-  public T createConfigStore(URI uri) throws Exception;
+  public T createConfigStore(URI uri) throws ConfigStoreCreationException;
 
 }

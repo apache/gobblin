@@ -11,6 +11,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.log4j.Logger;
 
 import gobblin.config.configstore.ConfigStore;
+import gobblin.config.configstore.ConfigStoreCreationException;
 import gobblin.config.configstore.ConfigStoreFactory;
 
 
@@ -36,8 +37,15 @@ public class ETLHdfsConfigStoreFactory implements ConfigStoreFactory<ConfigStore
    * @return ETLHdfsConfigStore determined by input uri 
    *  The logic to determine the store root is by back tracing the input uri, the path which contains "_CONFIG_STORE" is the root
    */
-  public ETLHdfsConfigStore createConfigStore(URI uri) throws ConfigStoreCreationException, IOException {
-    FileSystem fs = new Path(uri.getPath()).getFileSystem(new Configuration());
+  public ETLHdfsConfigStore createConfigStore(URI uri) throws ConfigStoreCreationException {
+    FileSystem fs;
+    try {
+      fs = new Path(uri.getPath()).getFileSystem(new Configuration());
+    } catch (IOException e1) {
+      LOG.error("got IOException when constructing uri based on " + uri, e1);
+      throw new ConfigStoreCreationException(e1);
+    }
+    
     if (!uri.getScheme().equals(this.getScheme())) {
       String errMesg =
           String.format("Input scheme %s does NOT match config store scheme %s", uri.getScheme(), this.getScheme());
@@ -53,8 +61,11 @@ public class ETLHdfsConfigStoreFactory implements ConfigStoreFactory<ConfigStore
               physical_root.getFragment());
       return new ETLHdfsConfigStore(physical_root, logical_root);
     } catch (URISyntaxException e) {
-      LOG.error("got error when constructing uri based on " + uri, e);
-      throw new RuntimeException(e);
+      LOG.error("got URISyntaxException when constructing uri based on " + uri, e);
+      throw new ConfigStoreCreationException(e);
+    } catch (IOException e) {
+      LOG.error("got IOException when constructing uri based on " + uri, e);
+      throw new ConfigStoreCreationException(e);
     }
   }
 

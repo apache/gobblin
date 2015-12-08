@@ -28,14 +28,14 @@ public interface ConfigStore {
    * @param version - specify the configuration version in the configuration store.
    * @return - the direct children URIs for input uri against input configuration version
    */
-  public Collection<URI> getChildren(URI uri, String version);
+  public Collection<URI> getChildren(URI uri, String version) throws VersionDoesNotExistException;
 
   /**
    * @param uri - the uri relative to this configuration store
    * @param version - specify the configuration version in the configuration store.
    * @return - the directly imported URIs for input uri against input configuration version
    */
-  public Collection<URI> getOwnImports(URI uri, String version);
+  public Collection<URI> getOwnImports(URI uri, String version) throws VersionDoesNotExistException;
 
   /**
    * @param uri - the uri relative to this configuration store
@@ -43,5 +43,5 @@ public interface ConfigStore {
    * @return - the directly specified configuration in com.typesafe.config.Config format for input uri 
    *  against input configuration version
    */
-  public Config getOwnConfig(URI uri, String version);
+  public Config getOwnConfig(URI uri, String version) throws VersionDoesNotExistException;
 }
