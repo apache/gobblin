@@ -444,7 +444,7 @@ public class LogCopier extends AbstractScheduledService {
 
     private final Path srcLogFile;
     private final Path destLogFile;
-    private final Stopwatch watch = Stopwatch.createStarted();
+    private final Stopwatch watch;
 
     // The task maintains the current source log file position itself
     private long currentPos = 0;
@@ -452,7 +452,7 @@ public class LogCopier extends AbstractScheduledService {
     LogCopyTask(Path srcLogFile, Path destLogFile) {
       this.srcLogFile = srcLogFile;
       this.destLogFile = destLogFile;
-      this.watch.start();
+      this.watch = Stopwatch.createStarted();
     }
 
     @Override
