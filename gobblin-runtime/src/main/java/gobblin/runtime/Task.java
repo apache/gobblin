@@ -520,9 +520,9 @@ public class Task implements Runnable {
 
   /**
    * Get the final state of each construct used by this task and add it to the {@link gobblin.runtime.TaskState}.
-   * @param extractor {@link gobblin.instrumented.extractor.InstrumentedExtractorBase} used by this task.
-   * @param converter {@link gobblin.converter.Converter} used by this task.
-   * @param rowChecker 
+   * @param extractor the {@link gobblin.instrumented.extractor.InstrumentedExtractorBase} used by this task.
+   * @param converter the {@link gobblin.converter.Converter} used by this task.
+   * @param rowChecker the {@link RowLevelPolicyChecker} used by this task.
    */
   private void addConstructsFinalStateToTaskState(InstrumentedExtractorBase<?, ?> extractor,
       Converter<?, ?, ?, ?> converter, RowLevelPolicyChecker rowChecker) {

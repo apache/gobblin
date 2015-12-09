@@ -12,12 +12,12 @@
 
 package gobblin.fork;
 
-import gobblin.configuration.ConfigurationKeys;
 import java.io.IOException;
 import java.util.List;
 
 import com.google.common.collect.Lists;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 
 
@@ -46,24 +46,22 @@ public class IdentityForkOperator<S, D> implements ForkOperator<S, D> {
 
   @Override
   public List<Boolean> forkSchema(WorkUnitState workUnitState, S input) {
-
-    schemas.clear();
+    this.schemas.clear();
     for (int i = 0; i < getBranches(workUnitState); i++) {
-      schemas.add(Boolean.TRUE);
+      this.schemas.add(Boolean.TRUE);
     }
 
-    return schemas;
+    return this.schemas;
   }
 
   @Override
   public List<Boolean> forkDataRecord(WorkUnitState workUnitState, D input) {
-
-    records.clear();
+    this.records.clear();
     for (int i = 0; i < getBranches(workUnitState); i++) {
-      records.add(Boolean.TRUE);
+      this.records.add(Boolean.TRUE);
     }
 
-    return records;
+    return this.records;
   }
 
   @Override

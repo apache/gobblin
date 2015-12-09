@@ -14,14 +14,10 @@ package gobblin.yarn;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 
 import org.apache.avro.Schema;
-import org.apache.avro.file.DataFileReader;
-import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -53,17 +49,30 @@ import gobblin.writer.WriterOutputFormat;
 /**
  * Unit tests for {@link GobblinHelixTask}.
  *
+ * <p>
+ *   This class uses a mocked {@link HelixManager} to control the behavior of certain method for testing.
+ *   A {@link TaskExecutor} is used to run the test task and a {@link GobblinHelixTaskStateTracker} is
+ *   also used as being required by {@link GobblinHelixTaskFactory}. The test task writes everything to
+ *   the local file system as returned by {@link FileSystem#getLocal(Configuration)}.
+ * </p>
+ *
  * @author ynli
  */
 @Test(groups = { "gobblin.yarn" })
 public class GobblinHelixTaskTest {
 
   private TaskExecutor taskExecutor;
+
   private GobblinHelixTaskStateTracker taskStateTracker;
+
   private GobblinHelixTask gobblinHelixTask;
+
   private HelixManager helixManager;
+
   private FileSystem localFs;
+
   private Path appWorkDir;
+
   private Path taskOutputDir;
 
   @BeforeClass
@@ -131,22 +140,7 @@ public class GobblinHelixTaskTest {
     Assert.assertTrue(outputAvroFile.exists());
 
     Schema schema = new Schema.Parser().parse(TestHelper.SOURCE_SCHEMA);
-
-    try (DataFileReader<GenericRecord> reader =
-        new DataFileReader<>(outputAvroFile, new GenericDatumReader<GenericRecord>(schema))) {
-      Iterator<GenericRecord> iterator = reader.iterator();
-
-      GenericRecord record = iterator.next();
-      Assert.assertEquals(record.get("name").toString(), "Alyssa");
-
-      record = iterator.next();
-      Assert.assertEquals(record.get("name").toString(), "Ben");
-
-      record = iterator.next();
-      Assert.assertEquals(record.get("name").toString(), "Charlie");
-
-      Assert.assertFalse(iterator.hasNext());
-    }
+    TestHelper.assertGenericRecords(outputAvroFile, schema);
   }
 
   @AfterClass

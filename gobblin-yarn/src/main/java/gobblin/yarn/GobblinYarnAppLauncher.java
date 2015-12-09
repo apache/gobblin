@@ -231,9 +231,9 @@ public class GobblinYarnAppLauncher {
     }, 0, this.appReportIntervalMinutes, TimeUnit.MINUTES);
 
     List<Service> services = Lists.newArrayList();
-    if (config.hasPath(GobblinYarnConfigurationKeys.KEYTAB_FILE_PATH)) {
+    if (this.config.hasPath(GobblinYarnConfigurationKeys.KEYTAB_FILE_PATH)) {
       LOGGER.info("Adding YarnAppSecurityManager since login is keytab based");
-      services.add(new YarnAppSecurityManager(config, this.helixManager, this.fs));
+      services.add(buildYarnAppSecurityManager());
     }
     services.add(buildLogCopier(
         new Path(this.sinkLogRootDir, this.applicationName + Path.SEPARATOR + this.applicationId.get().toString()),
@@ -602,6 +602,12 @@ public class GobblinYarnAppLauncher {
     }
 
     return logRootDir;
+  }
+
+  private YarnAppSecurityManager buildYarnAppSecurityManager() throws IOException {
+    Path tokenFilePath = new Path(this.fs.getHomeDirectory(), this.applicationName + Path.SEPARATOR +
+        GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
+    return new YarnAppSecurityManager(this.config, this.helixManager, this.fs, tokenFilePath);
   }
 
   @VisibleForTesting

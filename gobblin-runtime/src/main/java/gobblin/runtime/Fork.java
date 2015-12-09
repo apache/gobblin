@@ -145,7 +145,7 @@ public class Fork implements Closeable, Runnable, FinalState {
         .collectStats()
         .build();
 
-    this.forkState = new AtomicReference<ForkState>(ForkState.PENDING);
+    this.forkState = new AtomicReference<>(ForkState.PENDING);
 
     /**
      * Create a {@link GobblinMetrics} for this {@link Fork} instance so that all new {@link MetricContext}s returned by
@@ -165,20 +165,9 @@ public class Fork implements Closeable, Runnable, FinalState {
     try {
       processRecords();
       compareAndSetForkState(ForkState.RUNNING, ForkState.SUCCEEDED);
-    } catch (IOException ioe) {
-      this.forkState.set(ForkState.FAILED);
-      this.logger.error(
-          String.format("Fork %d of task %s failed to process data records", this.index, this.taskId), ioe);
-      Throwables.propagate(ioe);
-    } catch (DataConversionException dce) {
-      this.forkState.set(ForkState.FAILED);
-      this.logger.error(
-          String.format("Fork %d of task %s failed to convert data records", this.index, this.taskId), dce);
-      Throwables.propagate(dce);
     } catch (Throwable t) {
       this.forkState.set(ForkState.FAILED);
       this.logger.error(String.format("Fork %d of task %s failed to process data records", this.index, this.taskId), t);
-      Throwables.propagate(t);
     } finally {
       // Clear the queue and count down so the parent task knows this fork is done (succeeded or failed)
       this.recordQueue.clear();
@@ -342,7 +331,7 @@ public class Fork implements Closeable, Runnable, FinalState {
    * @return the number of records written by this {@link Fork}
    */
   long getRecordsWritten() {
-    return this.writer.isPresent() ? this.writer.get().recordsWritten() : 0l;
+    return this.writer.isPresent() ? this.writer.get().recordsWritten() : 0L;
   }
 
   /**
@@ -373,7 +362,7 @@ public class Fork implements Closeable, Runnable, FinalState {
         .withBranches(this.branches)
         .forBranch(this.index);
 
-    return new PartitionedDataWriter<Object, Object>(builder, this.taskContext.getTaskState());
+    return new PartitionedDataWriter<>(builder, this.taskContext.getTaskState());
   }
 
   private void buildWriterIfNotPresent() throws IOException {
@@ -434,8 +423,8 @@ public class Fork implements Closeable, Runnable, FinalState {
       this.forkTaskState.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, this.writer.get().recordsWritten());
       this.taskState.setProp(writerRecordsWrittenKey, this.writer.get().recordsWritten());
     } else {
-      this.forkTaskState.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, 0l);
-      this.taskState.setProp(writerRecordsWrittenKey, 0l);
+      this.forkTaskState.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, 0L);
+      this.taskState.setProp(writerRecordsWrittenKey, 0L);
     }
 
     if (schema.isPresent()) {
@@ -509,7 +498,7 @@ public class Fork implements Closeable, Runnable, FinalState {
    * index and the branch name.
    */
   private static List<Tag<?>> getForkMetricsTags(State state, int index) {
-    return ImmutableList.<Tag<?>>of(new Tag<String>(FORK_METRICS_BRANCH_NAME_KEY, getForkMetricsId(state, index)));
+    return ImmutableList.<Tag<?>>of(new Tag<>(FORK_METRICS_BRANCH_NAME_KEY, getForkMetricsId(state, index)));
   }
 
   /**

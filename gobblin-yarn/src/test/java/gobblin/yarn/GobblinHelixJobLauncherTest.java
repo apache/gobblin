@@ -15,14 +15,10 @@ package gobblin.yarn;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 
 import org.apache.avro.Schema;
-import org.apache.avro.file.DataFileReader;
-import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.generic.GenericRecord;
 import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -52,6 +48,15 @@ import gobblin.runtime.JobState;
 
 /**
  * Unit tests for {@link GobblinHelixJobLauncher}.
+ *
+ * <p>
+ *   This class uses a {@link TestingServer} as an embedded ZooKeeper server for testing. This class
+ *   also uses the {@link HelixManager} to act as a testing Helix controller to be passed into the
+ *   {@link GobblinHelixJobLauncher} instance. A {@link GobblinWorkUnitRunner} is also used to run
+ *   the single task of the test job. A {@link FsDatasetStateStore} is used to check the state store
+ *   after the job is done. The test job writes everything to the local file system as returned by
+ *   {@link FileSystem#getLocal(Configuration)}.
+ * </p>
  *
  * @author ynli
  */
@@ -142,22 +147,7 @@ public class GobblinHelixJobLauncherTest {
     Assert.assertTrue(this.jobOutputFile.exists());
 
     Schema schema = new Schema.Parser().parse(TestHelper.SOURCE_SCHEMA);
-
-    try (DataFileReader<GenericRecord> reader =
-        new DataFileReader<>(this.jobOutputFile, new GenericDatumReader<GenericRecord>(schema))) {
-      Iterator<GenericRecord> iterator = reader.iterator();
-
-      GenericRecord record = iterator.next();
-      Assert.assertEquals(record.get("name").toString(), "Alyssa");
-
-      record = iterator.next();
-      Assert.assertEquals(record.get("name").toString(), "Ben");
-
-      record = iterator.next();
-      Assert.assertEquals(record.get("name").toString(), "Charlie");
-
-      Assert.assertFalse(iterator.hasNext());
-    }
+    TestHelper.assertGenericRecords(this.jobOutputFile, schema);
 
     List<JobState.DatasetState> datasetStates = this.fsDatasetStateStore.getAll(this.jobName,
         FsDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + FsDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX);
