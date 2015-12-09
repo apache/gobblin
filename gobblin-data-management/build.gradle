@@ -42,6 +42,7 @@ dependencies {
   testCompile externalDependency.jhyde
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
+  testCompile externalDependency.joptSimple
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {
