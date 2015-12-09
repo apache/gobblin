@@ -12,7 +12,6 @@
 
 package gobblin.compaction.mapreduce;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -77,9 +76,6 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
 
   private static final String COMPACTION_JOB_PREFIX = "compaction.job.";
 
-  private static final String LATE_RECORD_COUNTS_EVENT = "LateRecordCounts";
-  private static final String NEW_LATE_RECORD_COUNTS = "newLateRecordCounts";
-  private static final String CUMULATIVE_LATE_RECORD_COUNTS = "cumulativeLateRecordCounts";
 
   /**
    * Properties related to the compaction job of a dataset.
