@@ -89,7 +89,6 @@ abstract class InstrumentedDataWriterBase<D> implements DataWriter<D>, Instrumen
   public void switchMetricContext(List<Tag<?>> tags) {
     this.metricContext = this.closer
         .register(Instrumented.newContextFromReferenceContext(this.metricContext, tags, Optional.<String>absent()));
-
     regenerateMetrics();
   }
 
@@ -108,17 +107,33 @@ abstract class InstrumentedDataWriterBase<D> implements DataWriter<D>, Instrumen
       this.successfulWritesMeter =
           Optional.of(this.metricContext.meter(MetricNames.DataWriterMetrics.SUCCESSFUL_WRITES_METER));
       this.failedWritesMeter = Optional.of(this.metricContext.meter(MetricNames.DataWriterMetrics.FAILED_WRITES_METER));
-      this.recordsWrittenMeter =
-          Optional.of(this.metricContext.meter(MetricNames.DataWriterMetrics.RECORDS_WRITTEN_METER));
-      this.bytesWrittenMeter = Optional.of(this.metricContext.meter(MetricNames.DataWriterMetrics.BYTES_WRITTEN_METER));
+      setRecordsWrittenMeter(isInstrumentationEnabled());
+      setBytesWrittenMeter(isInstrumentationEnabled());
       this.dataWriterTimer = Optional.of(this.metricContext.timer(MetricNames.DataWriterMetrics.WRITE_TIMER));
     } else {
       this.recordsInMeter = Optional.absent();
       this.successfulWritesMeter = Optional.absent();
       this.failedWritesMeter = Optional.absent();
-      this.recordsWrittenMeter = Optional.absent();
-      this.bytesWrittenMeter = Optional.absent();
+      setRecordsWrittenMeter(isInstrumentationEnabled());
+      setBytesWrittenMeter(isInstrumentationEnabled());
       this.dataWriterTimer = Optional.absent();
+    }
+  }
+
+  private synchronized void setRecordsWrittenMeter(boolean isInstrumentationEnabled) {
+    if (isInstrumentationEnabled) {
+      this.recordsWrittenMeter =
+          Optional.of(this.metricContext.meter(MetricNames.DataWriterMetrics.RECORDS_WRITTEN_METER));
+    } else {
+      this.recordsWrittenMeter = Optional.absent();
+    }
+  }
+
+  private synchronized void setBytesWrittenMeter(boolean isInstrumentationEnabled) {
+    if (isInstrumentationEnabled) {
+      this.bytesWrittenMeter = Optional.of(this.metricContext.meter(MetricNames.DataWriterMetrics.BYTES_WRITTEN_METER));
+    } else {
+      this.bytesWrittenMeter = Optional.absent();
     }
   }
 
