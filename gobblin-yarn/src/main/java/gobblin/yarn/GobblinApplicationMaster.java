@@ -14,7 +14,6 @@ package gobblin.yarn;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -134,7 +133,7 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
     LOGGER.info("Using ZooKeeper connection string: " + zkConnectionString);
 
     // This will create and register a Helix controller in ZooKeeper
-    this.helixManager = buildHelixManager(config, containerId, zkConnectionString);
+    this.helixManager = buildHelixManager(config, zkConnectionString);
 
     FileSystem fs = buildFileSystem(config);
     Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(fs, applicationName, applicationId);
@@ -227,9 +226,8 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
   /**
    * Build the {@link HelixManager} for the Application Master.
    */
-  private HelixManager buildHelixManager(Config config, ContainerId containerId, String zkConnectionString)
-      throws UnknownHostException {
-    String helixInstanceName = YarnHelixUtils.getHelixInstanceName(YarnHelixUtils.getHostname(), containerId);
+  private HelixManager buildHelixManager(Config config, String zkConnectionString) {
+    String helixInstanceName = GobblinApplicationMaster.class.getSimpleName();
     return HelixManagerFactory.getZKHelixManager(
         config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY), helixInstanceName,
         InstanceType.CONTROLLER, zkConnectionString);

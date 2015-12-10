@@ -19,9 +19,11 @@ import java.util.AbstractMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -34,6 +36,7 @@ import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
 import org.apache.hadoop.yarn.api.records.Container;
+import org.apache.hadoop.yarn.api.records.ContainerExitStatus;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.ContainerState;
@@ -54,11 +57,13 @@ import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Function;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Queues;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.io.Closer;
@@ -84,26 +89,30 @@ public class YarnService extends AbstractIdleService {
 
   private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
 
-  private final ConcurrentMap<ContainerId, Map.Entry<Container, String>> containerMap = Maps.newConcurrentMap();
-
   private final String applicationName;
   private final String applicationId;
 
   private final Config config;
 
+  private final EventBus eventBus;
+
   private final Configuration yarnConfiguration;
+  private final FileSystem fs;
+
   private final AMRMClientAsync<AMRMClient.ContainerRequest> amrmClientAsync;
   private final NMClientAsync nmClientAsync;
   private final ExecutorService containerLaunchExecutor;
-  private final FileSystem fs;
-
-  private final EventBus eventBus;
 
   private final int initialContainers;
   private final int requestedContainerMemoryMbs;
   private final int requestedContainerCores;
+  private final boolean containerHostAffinityEnabled;
+
+  private final int helixInstanceMaxRetries;
 
   private final Optional<String> containerJvmArgs;
+
+  private volatile Optional<Resource> maxResourceCapacity = Optional.absent();
 
   // Security tokens for accessing HDFS
   private final ByteBuffer tokens;
@@ -112,7 +121,19 @@ public class YarnService extends AbstractIdleService {
 
   private final Object allContainersStopped = new Object();
 
-  private volatile Optional<Resource> maxResourceCapacity = Optional.absent();
+  // A map from container IDs to pairs of Container instances and Helix participant IDs of the containers
+  private final ConcurrentMap<ContainerId, Map.Entry<Container, String>> containerMap = Maps.newConcurrentMap();
+
+  // A generator for an integer ID of a Helix instance (participant)
+  private final AtomicInteger helixInstanceIdGenerator = new AtomicInteger(0);
+
+  // A map from Helix instance names to the number times the instances are retried to be started
+  private final ConcurrentMap<String, AtomicInteger> helixInstanceRetryCount = Maps.newConcurrentMap();
+
+  // A queue of unused Helix instance names. An unused Helix instance name gets put
+  // into the queue if the container running the instance completes. Unused Helix
+  // instance names get picked up when replacement containers get allocated.
+  private final ConcurrentLinkedQueue<String> unusedHelixInstanceNames = Queues.newConcurrentLinkedQueue();
 
   public YarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
       FileSystem fs, EventBus eventBus) throws Exception {
@@ -121,27 +142,30 @@ public class YarnService extends AbstractIdleService {
 
     this.config = config;
 
+    this.eventBus = eventBus;
+
     this.yarnConfiguration = yarnConfiguration;
+    this.fs = fs;
+
     this.amrmClientAsync = closer.register(
         AMRMClientAsync.createAMRMClientAsync(1000, new AMRMClientCallbackHandler()));
     this.amrmClientAsync.init(this.yarnConfiguration);
     this.nmClientAsync = closer.register(NMClientAsync.createNMClientAsync(new NMClientCallbackHandler()));
     this.nmClientAsync.init(this.yarnConfiguration);
 
-    this.containerLaunchExecutor = Executors.newFixedThreadPool(10,
-        ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("ContainerLaunchExecutor")));
-
-    this.fs = fs;
-
-    this.eventBus = eventBus;
-
     this.initialContainers = config.getInt(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY);
     this.requestedContainerMemoryMbs = config.getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
     this.requestedContainerCores = config.getInt(GobblinYarnConfigurationKeys.CONTAINER_CORES_KEY);
+    this.containerHostAffinityEnabled = config.getBoolean(GobblinYarnConfigurationKeys.CONTAINER_HOST_AFFINITY_ENABLED);
+
+    this.helixInstanceMaxRetries = config.getInt(GobblinYarnConfigurationKeys.HELIX_INSTANCE_MAX_RETRIES);
 
     this.containerJvmArgs = config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_JVM_ARGS_KEY) ?
         Optional.of(config.getString(GobblinYarnConfigurationKeys.CONTAINER_JVM_ARGS_KEY)) :
         Optional.<String>absent();
+
+    this.containerLaunchExecutor = Executors.newFixedThreadPool(10,
+        ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("ContainerLaunchExecutor")));
 
     this.tokens = getSecurityTokens();
   }
@@ -149,25 +173,21 @@ public class YarnService extends AbstractIdleService {
   @SuppressWarnings("unused")
   @Subscribe
   public void handleNewContainerRequest(NewContainerRequest newContainerRequest) {
-    int newContainersRequested = newContainerRequest.getNewContainersRequested();
-    if (newContainersRequested <= 0) {
-      LOGGER.error("Number of containers requested me be positive");
-      return;
-    }
-
     if (!this.maxResourceCapacity.isPresent()) {
       LOGGER.error(String.format(
           "Unable to handle new container request as maximum resource capacity is not available: "
-          + "[containers requested = %d, memory (MBs) requested = %d, vcores requested = %d]",
-          newContainersRequested, this.requestedContainerMemoryMbs, this.requestedContainerCores));
+              + "[memory (MBs) requested = %d, vcores requested = %d]", this.requestedContainerMemoryMbs,
+          this.requestedContainerCores));
       return;
     }
 
-    try {
-      requestContainers(newContainersRequested);
-    } catch (IOException | YarnException e) {
-      LOGGER.error("Failed to handle new container request", e);
-    }
+    requestContainer(newContainerRequest.getReplacedContainer().transform(new Function<Container, String>() {
+
+      @Override
+      public String apply(Container container) {
+        return container.getNodeId().getHost();
+      }
+    }));
   }
 
   @SuppressWarnings("unused")
@@ -196,7 +216,7 @@ public class YarnService extends AbstractIdleService {
     this.maxResourceCapacity = Optional.of(response.getMaximumResourceCapability());
 
     LOGGER.info("Requesting initial containers");
-    requestContainers(this.initialContainers);
+    requestInitialContainers(this.initialContainers);
   }
 
   @Override
@@ -233,24 +253,31 @@ public class YarnService extends AbstractIdleService {
     }
   }
 
-  private void requestContainers(int containersRequested) throws IOException, YarnException {
+  private void requestInitialContainers(int containersRequested) {
     for (int i = 0; i < containersRequested; i++) {
-      Priority priority = Records.newRecord(Priority.class);
-      priority.setPriority(0);
-
-      Resource capability = Records.newRecord(Resource.class);
-      int maxMemoryCapacity = this.maxResourceCapacity.get().getMemory();
-      capability.setMemory(this.requestedContainerMemoryMbs <= maxMemoryCapacity ?
-          this.requestedContainerMemoryMbs : maxMemoryCapacity);
-      int maxCoreCapacity = this.maxResourceCapacity.get().getVirtualCores();
-      capability.setVirtualCores(this.requestedContainerCores <= maxCoreCapacity ?
-          this.requestedContainerCores : maxCoreCapacity);
-
-      this.amrmClientAsync.addContainerRequest(new AMRMClient.ContainerRequest(capability, null, null, priority));
+      requestContainer(Optional.<String>absent());
     }
   }
 
-  private ContainerLaunchContext newContainerLaunchContext(Container container) throws IOException {
+  private void requestContainer(Optional<String> preferredNode) {
+    Priority priority = Records.newRecord(Priority.class);
+    priority.setPriority(0);
+
+    Resource capability = Records.newRecord(Resource.class);
+    int maxMemoryCapacity = this.maxResourceCapacity.get().getMemory();
+    capability.setMemory(this.requestedContainerMemoryMbs <= maxMemoryCapacity ?
+        this.requestedContainerMemoryMbs : maxMemoryCapacity);
+    int maxCoreCapacity = this.maxResourceCapacity.get().getVirtualCores();
+    capability.setVirtualCores(this.requestedContainerCores <= maxCoreCapacity ?
+        this.requestedContainerCores : maxCoreCapacity);
+
+    String[] preferredNodes = preferredNode.isPresent() ? new String[] {preferredNode.get()} : null;
+    this.amrmClientAsync.addContainerRequest(
+        new AMRMClient.ContainerRequest(capability, preferredNodes, null, priority));
+  }
+
+  private ContainerLaunchContext newContainerLaunchContext(Container container, String helixInstanceName)
+      throws IOException {
     Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(this.fs, this.applicationName, this.applicationId);
     Path containerWorkDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.CONTAINER_WORK_DIR_NAME);
 
@@ -268,7 +295,7 @@ public class YarnService extends AbstractIdleService {
     ContainerLaunchContext containerLaunchContext = Records.newRecord(ContainerLaunchContext.class);
     containerLaunchContext.setLocalResources(resourceMap);
     containerLaunchContext.setEnvironment(YarnHelixUtils.getEnvironmentVariables(this.yarnConfiguration));
-    containerLaunchContext.setCommands(Lists.newArrayList(buildContainerCommand(container)));
+    containerLaunchContext.setCommands(Lists.newArrayList(buildContainerCommand(container, helixInstanceName)));
 
     if (UserGroupInformation.isSecurityEnabled()) {
       containerLaunchContext.setTokens(this.tokens.duplicate());
@@ -323,7 +350,7 @@ public class YarnService extends AbstractIdleService {
     }
   }
 
-  private String buildContainerCommand(Container container) {
+  private String buildContainerCommand(Container container, String helixInstanceName) {
     String containerProcessName = GobblinWorkUnitRunner.class.getSimpleName();
     return new StringBuilder()
         .append(ApplicationConstants.Environment.JAVA_HOME.$()).append("/bin/java")
@@ -332,11 +359,67 @@ public class YarnService extends AbstractIdleService {
         .append(" ").append(GobblinWorkUnitRunner.class.getName())
         .append(" --").append(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(this.applicationName)
+        .append(" --").append(GobblinYarnConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME)
+        .append(" ").append(helixInstanceName)
         .append(" 1>").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR).append(File.separator).append(
           containerProcessName).append(".").append(ApplicationConstants.STDOUT)
         .append(" 2>").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR).append(File.separator).append(
           containerProcessName).append(".").append(ApplicationConstants.STDERR)
         .toString();
+  }
+
+  /**
+   * Check the exit status of a completed container and see if the replacement container
+   * should try to be started on the same node. Some exit status indicates a disk or
+   * node failure and in such cases the replacement container should try to be started on
+   * a different node.
+   */
+  private boolean shouldStickToTheSameNode(int containerExitStatus) {
+    switch (containerExitStatus) {
+      case ContainerExitStatus.DISKS_FAILED:
+      case ContainerExitStatus.ABORTED:
+        // Mostly likely this exit status is due to node failures because the
+        // application itself will not release containers.
+        return false;
+      default:
+        // Stick to the same node for other cases if host affinity is enabled.
+        return this.containerHostAffinityEnabled;
+    }
+  }
+
+  /**
+   * Handle the completion of a container. A new container will be requested to replace the one
+   * that just exited. Depending on the exit status and if container host affinity is enabled,
+   * the new container may or may not try to be started on the same node.
+   */
+  private void handleContainerCompletion(ContainerStatus containerStatus) {
+    Map.Entry<Container, String> completedContainerEntry = this.containerMap.remove(containerStatus.getContainerId());
+    String completedInstanceName = completedContainerEntry.getValue();
+
+    LOGGER.info(String.format("Container %s running Helix instance %s has completed with exit status %d",
+        containerStatus.getContainerId(), completedInstanceName, containerStatus.getExitStatus()));
+
+    if (!Strings.isNullOrEmpty(containerStatus.getDiagnostics())) {
+      LOGGER.info(String.format("Received the following diagnostics information for container %s: %s",
+          containerStatus.getContainerId(), containerStatus.getDiagnostics()));
+    }
+
+    int retryCount =
+        this.helixInstanceRetryCount.putIfAbsent(completedInstanceName, new AtomicInteger(0)).incrementAndGet();
+    if (this.helixInstanceMaxRetries > 0 && retryCount > this.helixInstanceMaxRetries) {
+      LOGGER.warn("Maximum number of retries has been achieved for Helix instance " + completedInstanceName);
+      return;
+    }
+
+    // Add the Helix instance name of the completed container to the queue of unused
+    // instance names so they can be reused by a replacement container.
+    this.unusedHelixInstanceNames.offer(completedInstanceName);
+
+    LOGGER.info(String.format("Requesting a new container to replace %s to run Helix instance %s",
+        containerStatus.getContainerId(), completedInstanceName));
+    this.eventBus.post(new NewContainerRequest(
+        shouldStickToTheSameNode(containerStatus.getExitStatus()) ?
+            Optional.of(completedContainerEntry.getKey()) : Optional.<Container>absent()));
   }
 
   /**
@@ -349,16 +432,7 @@ public class YarnService extends AbstractIdleService {
     @Override
     public void onContainersCompleted(List<ContainerStatus> statuses) {
       for (ContainerStatus containerStatus : statuses) {
-        LOGGER.info(String.format("Container %s has completed with exit status %d", containerStatus.getContainerId(),
-            containerStatus.getExitStatus()));
-        if (!Strings.isNullOrEmpty(containerStatus.getDiagnostics())) {
-          LOGGER.info(String.format("Received the following diagnostics information for container %s: %s",
-              containerStatus.getContainerId(), containerStatus.getDiagnostics()));
-        }
-        containerMap.remove(containerStatus.getContainerId());
-
-        LOGGER.info("Requesting a new container to replace the one that has completed");
-        eventBus.post(new NewContainerRequest(1));
+        handleContainerCompletion(containerStatus);
       }
     }
 
@@ -367,16 +441,23 @@ public class YarnService extends AbstractIdleService {
       for (final Container container : containers) {
         LOGGER.info(String.format("Container %s has been allocated", container.getId()));
 
-        Map.Entry<Container, String> containerParticipantPair = new AbstractMap.SimpleImmutableEntry<>(
-            container, YarnHelixUtils.getParticipantId(container.getNodeId().getHost(), container.getId()));
-        containerMap.put(container.getId(), containerParticipantPair);
+        String instanceName = unusedHelixInstanceNames.poll();
+        if (Strings.isNullOrEmpty(instanceName)) {
+          // No unused instance name, so generating a new one.
+          instanceName = YarnHelixUtils.getHelixInstanceName(GobblinWorkUnitRunner.class.getSimpleName(),
+              helixInstanceIdGenerator.incrementAndGet());
+        }
+
+        final String finalInstanceName = instanceName;
+        containerMap.put(container.getId(), new AbstractMap.SimpleImmutableEntry<>(container, finalInstanceName));
 
         containerLaunchExecutor.submit(new Runnable() {
           @Override
           public void run() {
             try {
               LOGGER.info("Starting container " + container.getId());
-              nmClientAsync.startContainerAsync(container, newContainerLaunchContext(container));
+
+              nmClientAsync.startContainerAsync(container, newContainerLaunchContext(container, finalInstanceName));
             } catch (IOException ioe) {
               LOGGER.error("Failed to start container " + container.getId(), ioe);
             }
@@ -425,12 +506,9 @@ public class YarnService extends AbstractIdleService {
     @Override
     public void onContainerStatusReceived(ContainerId containerId, ContainerStatus containerStatus) {
       LOGGER.info(String.format("Received container status for container %s: %s", containerId, containerStatus));
-      if (containerStatus.getState() == ContainerState.COMPLETE) {
-        LOGGER.info(String.format("Container %s completed with status %s", containerId, containerStatus));
-        containerMap.remove(containerId);
 
-        LOGGER.info("Requesting a new container to replace the one that has completed");
-        eventBus.post(new NewContainerRequest(1));
+      if (containerStatus.getState() == ContainerState.COMPLETE) {
+        handleContainerCompletion(containerStatus);
       }
     }
 

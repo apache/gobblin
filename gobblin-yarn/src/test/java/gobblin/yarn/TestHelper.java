@@ -38,7 +38,7 @@ public class TestHelper {
   static final String TEST_APPLICATION_NAME = "TestApplication";
   static final String TEST_APPLICATION_ID = "application_1447921358856_210676";
   static final String TEST_HELIX_CLUSTER_NAME = "TestCluster";
-  static final String TEST_HELIX_INSTANCE_NAME = "TestInstance";
+  static final String TEST_HELIX_INSTANCE_NAME = YarnHelixUtils.getHelixInstanceName("TestInstance", 0);
 
   static final String TEST_CONTROLLER_CONTAINER_ID = "container_1447921358856_210676_01_000001";
   static final String TEST_PARTICIPANT_CONTAINER_ID = "container_1447921358856_210676_01_000002";
