@@ -105,7 +105,7 @@ public class ExecutorsUtils {
     executorService.shutdown();
 
     if (logger.isPresent()) {
-      logger.get().info("Attempting to shutdown ExecutorSerivce: " + executorService);
+      logger.get().info("Attempting to shutdown ExecutorService: " + executorService);
     }
 
     try {
@@ -133,7 +133,7 @@ public class ExecutorsUtils {
       executorService.shutdownNow();
 
       if (logger.isPresent()) {
-        logger.get().info("Attempting to shutdownNow ExecutorSerivce: " + executorService);
+        logger.get().info("Attempting to shutdownNow ExecutorService: " + executorService);
       }
     }
   }

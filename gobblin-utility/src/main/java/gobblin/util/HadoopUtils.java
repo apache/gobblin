@@ -142,6 +142,22 @@ public class HadoopUtils {
     }
   }
 
+  /**
+   * A wrapper around {@link HadoopUtils#renamePath(FileSystem, Path, Path)} and
+   * {@link FileUtil#copy(FileSystem, Path, FileSystem, Path, boolean, Configuration)} which will rename the path
+   * if the src and dst filesystems are the same; otherwise, the src file will be moved the the dst filesystem.
+   * An {@link IOException} if {@link FileUtil#copy(FileSystem, Path, FileSystem, Path, boolean, Configuration)} returns false.
+   */
+  public static void movePath(FileSystem srcFs, Path src, FileSystem dstFs, Path dst) throws IOException {
+    if (srcFs.getUri().equals(dstFs.getUri())) {
+      renamePath(srcFs, src, dst);
+    } else {
+      if (!FileUtil.copy(srcFs, src, dstFs, dst, true, false, dstFs.getConf())) {
+        throw new IOException(String.format("Failed to move %s to %s", src, dst));
+      }
+    }
+  }
+
   @SuppressWarnings("deprecation")
   private static void walk(List<FileStatus> results, FileSystem fileSystem, Path path) throws IOException {
     for (FileStatus status : fileSystem.listStatus(path)) {

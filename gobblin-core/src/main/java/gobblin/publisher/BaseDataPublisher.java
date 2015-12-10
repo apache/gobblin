@@ -60,7 +60,8 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   private static final Logger LOG = LoggerFactory.getLogger(BaseDataPublisher.class);
 
   protected final int numBranches;
-  protected final List<FileSystem> fileSystemByBranches;
+  protected final List<FileSystem> writerFileSystemByBranches;
+  protected final List<FileSystem> publisherFileSystemByBranches;
   protected final List<Optional<String>> publisherFinalDirOwnerGroupsByBranches;
   protected final List<FsPermission> permissions;
   protected final Closer closer;
@@ -79,16 +80,22 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
 
     this.numBranches = this.getState().getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
 
-    this.fileSystemByBranches = Lists.newArrayListWithCapacity(this.numBranches);
+    this.writerFileSystemByBranches = Lists.newArrayListWithCapacity(this.numBranches);
+    this.publisherFileSystemByBranches = Lists.newArrayListWithCapacity(this.numBranches);
     this.publisherFinalDirOwnerGroupsByBranches = Lists.newArrayListWithCapacity(this.numBranches);
     this.permissions = Lists.newArrayListWithCapacity(this.numBranches);
 
     // Get a FileSystem instance for each branch
     for (int i = 0; i < this.numBranches; i++) {
-      URI uri = URI.create(this.getState().getProp(
+      URI writerUri = URI.create(this.getState().getProp(
           ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, this.numBranches, i),
           ConfigurationKeys.LOCAL_FS_URI));
-      this.fileSystemByBranches.add(FileSystem.get(uri, conf));
+      this.writerFileSystemByBranches.add(FileSystem.get(writerUri, conf));
+
+      URI publisherUri = URI.create(this.getState().getProp(
+          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FILE_SYSTEM_URI, this.numBranches, i),
+          writerUri.toString()));
+      this.publisherFileSystemByBranches.add(FileSystem.get(publisherUri, conf));
 
       // The group(s) will be applied to the final publisher output directory(ies)
       this.publisherFinalDirOwnerGroupsByBranches.add(Optional.fromNullable(this.getState().getProp(ForkOperatorUtils
@@ -162,12 +169,12 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   protected void publishData(WorkUnitState state, int branchId, boolean publishSingleTaskData,
       Set<Path> writerOutputPathsMoved) throws IOException {
     // Get a ParallelRunner instance for moving files in parallel
-    ParallelRunner parallelRunner = this.getParallelRunner(this.fileSystemByBranches.get(branchId));
+    ParallelRunner parallelRunner = this.getParallelRunner(this.writerFileSystemByBranches.get(branchId));
 
     // The directory where the workUnitState wrote its output data.
     Path writerOutputDir = WriterUtils.getWriterOutputDir(state, this.numBranches, branchId);
 
-    if (!this.fileSystemByBranches.get(branchId).exists(writerOutputDir)) {
+    if (!this.writerFileSystemByBranches.get(branchId).exists(writerOutputDir)) {
       LOG.warn(String.format("Branch %d of WorkUnit %s produced no data", branchId, state.getId()));
       return;
     }
@@ -179,7 +186,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     if (publishSingleTaskData) {
 
       // Create final output directory
-      WriterUtils.mkdirsWithRecursivePermission(this.fileSystemByBranches.get(branchId), publisherOutputDir,
+      WriterUtils.mkdirsWithRecursivePermission(this.publisherFileSystemByBranches.get(branchId), publisherOutputDir,
           this.permissions.get(branchId));
       addSingleTaskWriterOutputToExistingDir(writerOutputDir, publisherOutputDir, state, branchId, parallelRunner);
     } else {
@@ -189,7 +196,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
         return;
       }
 
-      if (this.fileSystemByBranches.get(branchId).exists(publisherOutputDir)) {
+      if (this.publisherFileSystemByBranches.get(branchId).exists(publisherOutputDir)) {
         // The final output directory already exists, check if the job is configured to replace it.
         // If publishSingleTaskData=true, final output directory is never replaced.
         boolean replaceFinalOutputDir = this.getState().getPropAsBoolean(ForkOperatorUtils
@@ -203,16 +210,16 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
         }
         // Delete the final output directory if it is configured to be replaced
         LOG.info("Deleting publisher output dir " + publisherOutputDir);
-        this.fileSystemByBranches.get(branchId).delete(publisherOutputDir, true);
+        this.publisherFileSystemByBranches.get(branchId).delete(publisherOutputDir, true);
       } else {
         // Create the parent directory of the final output directory if it does not exist
-        WriterUtils.mkdirsWithRecursivePermission(this.fileSystemByBranches.get(branchId),
+        WriterUtils.mkdirsWithRecursivePermission(this.publisherFileSystemByBranches.get(branchId),
             publisherOutputDir.getParent(), this.permissions.get(branchId));
       }
 
       LOG.info(String.format("Moving %s to %s", writerOutputDir, publisherOutputDir));
-      parallelRunner.renamePath(writerOutputDir, publisherOutputDir,
-          this.publisherFinalDirOwnerGroupsByBranches.get(branchId));
+      parallelRunner.movePath(writerOutputDir, this.publisherFileSystemByBranches.get(branchId),
+          publisherOutputDir, this.publisherFinalDirOwnerGroupsByBranches.get(branchId));
       writerOutputPathsMoved.add(writerOutputDir);
     }
   }
@@ -246,18 +253,19 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     Iterable<String> taskOutputFiles = workUnitState.getPropAsList(outputFilePropName);
     for (String taskOutputFile : taskOutputFiles) {
       Path taskOutputPath = new Path(taskOutputFile);
-      if (!this.fileSystemByBranches.get(branchId).exists(taskOutputPath)) {
+      if (!this.writerFileSystemByBranches.get(branchId).exists(taskOutputPath)) {
         LOG.warn("Task output file " + taskOutputFile + " doesn't exist.");
         continue;
       }
       String pathSuffix = taskOutputFile
           .substring(taskOutputFile.indexOf(writerOutputDir.toString()) + writerOutputDir.toString().length() + 1);
       Path publisherOutputPath = new Path(publisherOutputDir, pathSuffix);
-      WriterUtils.mkdirsWithRecursivePermission(this.fileSystemByBranches.get(branchId),
+      WriterUtils.mkdirsWithRecursivePermission(this.publisherFileSystemByBranches.get(branchId),
           publisherOutputPath.getParent(), this.permissions.get(branchId));
 
       LOG.info(String.format("Moving %s to %s", taskOutputFile, publisherOutputPath));
-      parallelRunner.renamePath(taskOutputPath, publisherOutputPath, Optional.<String> absent());
+      parallelRunner.movePath(taskOutputPath, this.publisherFileSystemByBranches.get(branchId),
+          publisherOutputPath, Optional.<String> absent());
     }
   }
 
@@ -267,7 +275,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
         ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, this.numBranches, branchId), false);
 
     // Go through each file in writerOutputDir and move it into publisherOutputDir
-    for (FileStatus status : this.fileSystemByBranches.get(branchId).listStatus(writerOutputDir)) {
+    for (FileStatus status : this.writerFileSystemByBranches.get(branchId).listStatus(writerOutputDir)) {
 
       // Preserve the file name if configured, use specified name otherwise
       Path finalOutputPath =
@@ -278,7 +286,8 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
           : new Path(publisherOutputDir, status.getPath().getName());
 
       LOG.info(String.format("Moving %s to %s", status.getPath(), finalOutputPath));
-      parallelRunner.renamePath(status.getPath(), finalOutputPath, Optional.<String> absent());
+      parallelRunner.movePath(status.getPath(), this.publisherFileSystemByBranches.get(branchId),
+          finalOutputPath, Optional.<String> absent());
     }
   }
 
