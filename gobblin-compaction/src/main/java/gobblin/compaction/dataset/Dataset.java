@@ -10,19 +10,22 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.compaction;
+package gobblin.compaction.dataset;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
 import lombok.extern.slf4j.Slf4j;
 
+import gobblin.compaction.mapreduce.MRCompactor;
 import gobblin.configuration.State;
 
 
@@ -32,7 +35,7 @@ import gobblin.configuration.State;
  * @author ziliu
  */
 @Slf4j
-public class Dataset implements Comparable<Dataset> {
+public class Dataset implements Comparable<Dataset>, gobblin.dataset.Dataset {
 
   public static final double DEFAULT_PRIORITY = 1.0;
   public static final double DEFAULT_PRIORITY_REDUCTION_FACTOR = 1.0 / 3.0;
@@ -54,7 +57,6 @@ public class Dataset implements Comparable<Dataset> {
   }
 
   public static class Builder {
-    private String topic;
     private Path inputPath;
     private Path inputLatePath;
     private Path outputPath;
@@ -62,11 +64,6 @@ public class Dataset implements Comparable<Dataset> {
     private Path outputTmpPath;
     private double priority = DEFAULT_PRIORITY;
     private double lateDataThresholdForRecompact;
-
-    public Builder withTopic(String topic) {
-      this.topic = topic;
-      return this;
-    }
 
     public Builder withInputPath(Path inputPath) {
       this.inputPath = inputPath;
@@ -108,7 +105,6 @@ public class Dataset implements Comparable<Dataset> {
     }
   }
 
-  private final String topic;
   private final Path outputPath;
   private final Path outputLatePath;
   private final Path outputTmpPath;
@@ -124,7 +120,6 @@ public class Dataset implements Comparable<Dataset> {
   private AtomicReference<DatasetState> state;
 
   private Dataset(Builder builder) {
-    this.topic = builder.topic;
     this.inputPath = builder.inputPath;
     this.inputLatePath = builder.inputLatePath;
     this.outputPath = builder.outputPath;
@@ -132,17 +127,10 @@ public class Dataset implements Comparable<Dataset> {
     this.outputTmpPath = builder.outputTmpPath;
     this.additionalInputPaths = Lists.newArrayList();
     this.throwables = Collections.synchronizedCollection(Lists.<Throwable> newArrayList());
-
     this.priority = builder.priority;
     this.lateDataThresholdForRecompact = builder.lateDataThresholdForRecompact;
     this.state = new AtomicReference<>(DatasetState.UNVERIFIED);
-  }
-
-  /**
-   * Name of the topic represented by this {@link Dataset}.
-   */
-  public String topic() {
-    return this.topic;
+    this.jobProps = new State();
   }
 
   /**
@@ -268,7 +256,11 @@ public class Dataset implements Comparable<Dataset> {
   }
 
   public void setJobProps(State jobProps) {
-    this.jobProps = jobProps;
+    this.jobProps.addAll(jobProps);
+  }
+
+  public void setJobProp(String key, Object value) {
+    this.jobProps.setProp(key, value);
   }
 
   public void setInputPath(Path newInputPath) {
@@ -292,6 +284,33 @@ public class Dataset implements Comparable<Dataset> {
     this.setInputLatePath(this.outputLatePath);
     this.addAdditionalInputPath(this.outputLatePath);
     this.resetNeedToRecompact();
+  }
+
+  /**
+   * Get dataset URN, which equals {@link #outputPath} by removing {@link MRCompactor#COMPACTION_JOB_DEST_PARTITION}
+   * and {@link MRCompactor#COMPACTION_DEST_SUBDIR}, if any.
+   */
+  public String getUrn() {
+    return this.simplifyOutputPath().toString();
+  }
+
+  /**
+   * Get dataset name, which equals {@link Path#getName()} of {@link #outputPath} after removing
+   * {@link MRCompactor#COMPACTION_JOB_DEST_PARTITION} and {@link MRCompactor#COMPACTION_DEST_SUBDIR}, if any.
+   */
+  public String getName() {
+    return this.simplifyOutputPath().getName();
+  }
+
+
+  private Path simplifyOutputPath() {
+    Path simplifiedPath =
+        new Path(StringUtils.removeEnd(this.outputPath.toString(),
+            this.jobProps().getProp(MRCompactor.COMPACTION_JOB_DEST_PARTITION, StringUtils.EMPTY)));
+    simplifiedPath =
+        new Path(StringUtils.removeEnd(simplifiedPath.toString(),
+            this.jobProps().getProp(MRCompactor.COMPACTION_DEST_SUBDIR, MRCompactor.DEFAULT_COMPACTION_DEST_SUBDIR)));
+    return simplifiedPath;
   }
 
   public Collection<Throwable> throwables() {
@@ -352,5 +371,10 @@ public class Dataset implements Comparable<Dataset> {
   @Override
   public String toString() {
     return this.inputPath.toString();
+  }
+
+  @Override
+  public Path datasetRoot() {
+    return this.outputPath;
   }
 }

@@ -43,7 +43,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-import gobblin.compaction.Dataset;
+import gobblin.compaction.dataset.Dataset;
 import gobblin.compaction.mapreduce.MRCompactorJobRunner;
 import gobblin.util.AvroUtils;
 

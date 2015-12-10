@@ -10,10 +10,17 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.data.management.dataset;
+package gobblin.dataset;
+
+import org.apache.hadoop.fs.Path;
+
 
 /**
- * {@inheritDoc}
+ * Interface representing a dataset.
  */
-public interface Dataset extends gobblin.dataset.Dataset {
+public interface Dataset {
+  /**
+   * Deepest {@link org.apache.hadoop.fs.Path} that contains all files in the dataset.
+   */
+  public Path datasetRoot();
 }

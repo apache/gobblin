@@ -19,7 +19,7 @@ import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
 import lombok.AllArgsConstructor;
 
-import gobblin.compaction.Dataset;
+import gobblin.compaction.dataset.Dataset;
 import gobblin.metrics.event.EventSubmitter;
 
 
