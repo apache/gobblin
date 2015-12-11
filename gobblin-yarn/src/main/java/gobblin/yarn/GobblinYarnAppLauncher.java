@@ -79,6 +79,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.rest.JobExecutionInfoServer;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.io.StreamUtils;
 import gobblin.util.logs.LogCopier;
@@ -238,6 +239,9 @@ public class GobblinYarnAppLauncher {
     services.add(buildLogCopier(
         new Path(this.sinkLogRootDir, this.applicationName + Path.SEPARATOR + this.applicationId.get().toString()),
         YarnHelixUtils.getAppWorkDirPath(this.fs, this.applicationName, this.applicationId.get().toString())));
+    if (config.getBoolean(ConfigurationKeys.JOB_EXECINFO_SERVER_ENABLED_KEY)) {
+      services.add(new JobExecutionInfoServer(YarnHelixUtils.configToProperties(config)));
+    }
 
     this.serviceManager = Optional.of(new ServiceManager(services));
     // Start all the services running in the ApplicationMaster
