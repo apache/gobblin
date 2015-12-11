@@ -39,7 +39,6 @@ import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerExitStatus;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
-import org.apache.hadoop.yarn.api.records.ContainerState;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.LocalResource;
@@ -135,6 +134,8 @@ public class YarnService extends AbstractIdleService {
   // instance names get picked up when replacement containers get allocated.
   private final ConcurrentLinkedQueue<String> unusedHelixInstanceNames = Queues.newConcurrentLinkedQueue();
 
+  private volatile boolean shutdownInProgress = false;
+
   public YarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
       FileSystem fs, EventBus eventBus) throws Exception {
     this.applicationName = applicationName;
@@ -222,6 +223,8 @@ public class YarnService extends AbstractIdleService {
   @Override
   protected void shutDown() throws IOException {
     LOGGER.info("Stopping the YarnService");
+
+    this.shutdownInProgress = true;
 
     try {
       ExecutorsUtils.shutdownExecutorService(this.containerLaunchExecutor, Optional.of(LOGGER));
@@ -377,6 +380,7 @@ public class YarnService extends AbstractIdleService {
   private boolean shouldStickToTheSameNode(int containerExitStatus) {
     switch (containerExitStatus) {
       case ContainerExitStatus.DISKS_FAILED:
+        return false;
       case ContainerExitStatus.ABORTED:
         // Mostly likely this exit status is due to node failures because the
         // application itself will not release containers.
@@ -391,6 +395,12 @@ public class YarnService extends AbstractIdleService {
    * Handle the completion of a container. A new container will be requested to replace the one
    * that just exited. Depending on the exit status and if container host affinity is enabled,
    * the new container may or may not try to be started on the same node.
+   *
+   * A container completes in either of the following conditions: 1) some error happens in the
+   * container and caused the container to exit, 2) the container gets killed due to some reason,
+   * for example, if it runs over the allowed amount of virtual or physical memory, 3) the gets
+   * preempted by the ResourceManager, or 4) the container gets stopped by the ApplicationMaster.
+   * A replacement container is needed in all but the last case.
    */
   private void handleContainerCompletion(ContainerStatus containerStatus) {
     Map.Entry<Container, String> completedContainerEntry = this.containerMap.remove(containerStatus.getContainerId());
@@ -402,6 +412,10 @@ public class YarnService extends AbstractIdleService {
     if (!Strings.isNullOrEmpty(containerStatus.getDiagnostics())) {
       LOGGER.info(String.format("Received the following diagnostics information for container %s: %s",
           containerStatus.getContainerId(), containerStatus.getDiagnostics()));
+    }
+
+    if (this.shutdownInProgress) {
+      return;
     }
 
     int retryCount =
@@ -506,10 +520,6 @@ public class YarnService extends AbstractIdleService {
     @Override
     public void onContainerStatusReceived(ContainerId containerId, ContainerStatus containerStatus) {
       LOGGER.info(String.format("Received container status for container %s: %s", containerId, containerStatus));
-
-      if (containerStatus.getState() == ContainerState.COMPLETE) {
-        handleContainerCompletion(containerStatus);
-      }
     }
 
     @Override
