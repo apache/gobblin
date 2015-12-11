@@ -12,29 +12,16 @@
 
 package gobblin.source.extractor.extract.sftp;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.password.PasswordManager;
-import gobblin.source.extractor.filebased.FileBasedHelperException;
-import gobblin.source.extractor.filebased.SizeAwareFileBasedHelper;
-
 import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
 
-import org.apache.commons.io.IOUtils;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+
 import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.ChannelSftp.LsEntry;
@@ -45,6 +32,22 @@ import com.jcraft.jsch.Session;
 import com.jcraft.jsch.SftpException;
 import com.jcraft.jsch.SftpProgressMonitor;
 import com.jcraft.jsch.UserInfo;
+
+import org.apache.commons.io.IOUtils;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+import gobblin.password.PasswordManager;
+import gobblin.source.extractor.filebased.FileBasedHelperException;
+import gobblin.source.extractor.filebased.SizeAwareFileBasedHelper;
 
 
 /**
@@ -392,26 +395,24 @@ public class SftpFsHelper implements SizeAwareFileBasedHelper {
   private static class HDFSIdentityStrategy implements IdentityStrategy {
     public boolean setIdentity(String privateKey, JSch jsch) {
 
-      FSDataInputStream privateKeyStream = null;
+      FileSystem fs;
       try {
-        FileSystem fs;
         fs = FileSystem.get(new Configuration());
-        privateKeyStream = fs.open(new Path(privateKey));
+      } catch (Exception e) {
+        log.warn("Failed to set identity using HDFS file. Will attempt next strategy. " + e.getMessage());
+        return false;
+      }
+
+      Preconditions.checkNotNull(fs, "FileSystem cannot be null");
+      try (FSDataInputStream privateKeyStream = fs.open(new Path(privateKey))) {
         byte[] bytes = IOUtils.toByteArray(privateKeyStream);
         jsch.addIdentity("sftpIdentityKey", bytes, (byte[]) null, (byte[]) null);
         log.info("Successfully set identity using HDFS file");
         return true;
       } catch (Exception e) {
         log.warn("Failed to set identity using HDFS file. Will attempt next strategy. " + e.getMessage());
-      } finally {
-        try {
-          privateKeyStream.close();
-        } catch (IOException e) {
-          log.error("Failed to close input stream", e);
-        }
+        return false;
       }
-
-      return false;
     }
   }
 

@@ -38,6 +38,13 @@ import gobblin.yarn.event.ApplicationMasterShutdownRequest;
 /**
  * Unit tests for {@link GobblinApplicationMaster}.
  *
+ * <p>
+ *   This class uses a {@link TestingServer} as an embedded ZooKeeper server for testing. The Curator
+ *   framework is used to provide a ZooKeeper client. This class also uses the {@link HelixManager} to
+ *   act as a testing Helix participant to receive the container (running the {@link GobblinWorkUnitRunner})
+ *   shutdown request message.
+ * </p>
+ *
  * @author ynli
  */
 @Test(groups = { "gobblin.yarn" })

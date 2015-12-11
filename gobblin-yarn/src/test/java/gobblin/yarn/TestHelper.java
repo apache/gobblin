@@ -14,6 +14,13 @@ package gobblin.yarn;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Iterator;
+
+import org.apache.avro.Schema;
+import org.apache.avro.file.DataFileReader;
+import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericRecord;
+import org.testng.Assert;
 
 import com.google.common.io.Files;
 
@@ -56,5 +63,23 @@ public class TestHelper {
   static void createSourceJsonFile(File sourceJsonFile) throws IOException {
     Files.createParentDirs(sourceJsonFile);
     Files.write(SOURCE_JSON_DOCS, sourceJsonFile, ConfigurationKeys.DEFAULT_CHARSET_ENCODING);
+  }
+
+  static void assertGenericRecords(File outputAvroFile, Schema schema) throws IOException {
+    try (DataFileReader<GenericRecord> reader =
+        new DataFileReader<>(outputAvroFile, new GenericDatumReader<GenericRecord>(schema))) {
+      Iterator<GenericRecord> iterator = reader.iterator();
+
+      GenericRecord record = iterator.next();
+      Assert.assertEquals(record.get("name").toString(), "Alyssa");
+
+      record = iterator.next();
+      Assert.assertEquals(record.get("name").toString(), "Ben");
+
+      record = iterator.next();
+      Assert.assertEquals(record.get("name").toString(), "Charlie");
+
+      Assert.assertFalse(iterator.hasNext());
+    }
   }
 }

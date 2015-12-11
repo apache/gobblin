@@ -19,7 +19,7 @@ import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
 import lombok.AllArgsConstructor;
 
-import gobblin.compaction.Dataset;
+import gobblin.compaction.dataset.Dataset;
 import gobblin.metrics.event.EventSubmitter;
 
 
@@ -34,6 +34,7 @@ public class CompactionRecordCountEvent {
   public static final String DATASET_OUTPUT_PATH = "DatasetOutputPath";
   public static final String LATE_RECORD_COUNT = "LateRecordCount";
   public static final String REGULAR_RECORD_COUNT = "RegularRecordCount";
+  public static final String NEED_RECOMPACT = "NeedRecompact";
 
   private final Dataset dataset;
   private final long outputRecordCount;
@@ -48,6 +49,7 @@ public class CompactionRecordCountEvent {
     eventMetadataMap.put(DATASET_OUTPUT_PATH, dataset.outputPath().toString());
     eventMetadataMap.put(LATE_RECORD_COUNT, Long.toString(lateOutputRecordCount));
     eventMetadataMap.put(REGULAR_RECORD_COUNT, Long.toString(outputRecordCount));
+    eventMetadataMap.put(NEED_RECOMPACT, Boolean.toString(dataset.needToRecompact()));
     log.info("Compaction record count event metadata: " + eventMetadataMap);
     return eventMetadataMap;
   }

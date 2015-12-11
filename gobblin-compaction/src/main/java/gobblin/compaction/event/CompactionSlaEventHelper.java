@@ -15,6 +15,7 @@ package gobblin.compaction.event;
 
 import java.io.IOException;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -25,8 +26,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Strings;
 
-import gobblin.compaction.Dataset;
+import gobblin.compaction.dataset.Dataset;
 import gobblin.compaction.mapreduce.MRCompactor;
 import gobblin.compaction.mapreduce.avro.AvroKeyDedupReducer;
 import gobblin.compaction.mapreduce.avro.AvroKeyMapper;
@@ -56,8 +58,7 @@ public class CompactionSlaEventHelper {
   }
 
   private static void setDatasetUrn(Dataset dataset) {
-    dataset.jobProps().setProp(SlaEventKeys.DATASET_URN_KEY,
-        new Path(dataset.jobProps().getProp(MRCompactor.COMPACTION_DEST_DIR), dataset.topic()).toString());
+    dataset.jobProps().setProp(SlaEventKeys.DATASET_URN_KEY, dataset.getUrn());
   }
 
   private static void setPartition(Dataset dataset) {
@@ -115,5 +116,4 @@ public class CompactionSlaEventHelper {
     LOG.info("Non zero record count not found in both mapper and reducer counters");
 
   }
-
 }

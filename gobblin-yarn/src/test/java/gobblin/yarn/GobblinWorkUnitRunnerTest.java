@@ -33,6 +33,11 @@ import com.typesafe.config.ConfigFactory;
 /**
  * Unit tests for {@link GobblinWorkUnitRunner}.
  *
+ * <p>
+ *   This class uses a {@link TestingServer} as an embedded ZooKeeper server for testing. A
+ *   {@link GobblinApplicationMaster} instance is used to send the test shutdown request message.
+ * </p>
+ *
  * @author ynli
  */
 @Test(groups = { "gobblin.yarn" })
