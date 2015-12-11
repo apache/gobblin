@@ -14,7 +14,6 @@ package gobblin.data.management.copy;
 
 import gobblin.data.management.partition.File;
 
-import java.io.IOException;
 import java.util.List;
 
 import lombok.AccessLevel;
@@ -41,15 +40,20 @@ import com.google.gson.reflect.TypeToken;
 @EqualsAndHashCode
 public class CopyableFile implements File {
 
-  private static Gson gson = new Gson();
+  private static final Gson GSON = new Gson();
+
   /** {@link FileStatus} of the existing origin file. */
   private FileStatus origin;
+
   /** Complete destination {@link Path} of the file. Dataset's final publish directory + {@link #relativeDestination} */
   private Path destination;
+
   /** {@link Path} to the file relative to the dataset's final publish directory */
   private Path relativeDestination;
+
   /** Desired {@link OwnerAndPermission} of the destination path. */
   private OwnerAndPermission destinationOwnerAndPermission;
+
   /**
    * Desired {@link OwnerAndPermission} of the ancestor directories of the destination path. The list is ordered from
    * deepest to highest directory.
@@ -65,6 +69,7 @@ public class CopyableFile implements File {
    * </p>
    */
   private List<OwnerAndPermission> ancestorsOwnerAndPermission;
+
   /** Checksum of the origin file. */
   private byte[] checksum;
 
@@ -79,18 +84,18 @@ public class CopyableFile implements File {
    * @param copyableFile to be serialized
    * @return serialized string
    */
-  public static String serialize(CopyableFile copyableFile) throws IOException {
-    return gson.toJson(copyableFile);
+  public static String serialize(CopyableFile copyableFile) {
+    return GSON.toJson(copyableFile);
   }
 
   /**
    * Serialize a {@link List} of {@link CopyableFile}s into a {@link String}.
    *
-   * @param copyableFile to be serialized
+   * @param copyableFiles to be serialized
    * @return serialized string
    */
-  public static String serializeList(List<CopyableFile> copyableFiles) throws IOException {
-    return gson.toJson(copyableFiles, new TypeToken<List<CopyableFile>>(){}.getType());
+  public static String serializeList(List<CopyableFile> copyableFiles) {
+    return GSON.toJson(copyableFiles, new TypeToken<List<CopyableFile>>(){}.getType());
   }
 
   /**
@@ -99,8 +104,8 @@ public class CopyableFile implements File {
    * @param serialized string
    * @return a new instance of {@link CopyableFile}
    */
-  public static CopyableFile deserialize(String serialized) throws IOException {
-    return gson.fromJson(serialized, CopyableFile.class);
+  public static CopyableFile deserialize(String serialized) {
+    return GSON.fromJson(serialized, CopyableFile.class);
   }
 
   /**
@@ -110,7 +115,12 @@ public class CopyableFile implements File {
    * @param serialized string
    * @return a new {@link List} of {@link CopyableFile}s
    */
-  public static List<CopyableFile> deserializeList(String serialized) throws IOException {
-    return gson.fromJson(serialized, new TypeToken<List<CopyableFile>>(){}.getType());
+  public static List<CopyableFile> deserializeList(String serialized) {
+    return GSON.fromJson(serialized, new TypeToken<List<CopyableFile>>(){}.getType());
+  }
+
+  @Override
+  public String toString() {
+    return serialize(this);
   }
 }

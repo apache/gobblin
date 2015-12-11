@@ -47,7 +47,6 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -75,6 +74,7 @@ import gobblin.runtime.util.MetricGroup;
 import gobblin.runtime.util.TimingEventNames;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.HadoopUtils;
 import gobblin.util.JobConfigurationUtils;
 import gobblin.util.JobLauncherUtils;
 import gobblin.util.ParallelRunner;
@@ -558,17 +558,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
       if (Boolean.valueOf(
           configuration.get(ConfigurationKeys.METRICS_ENABLED_KEY, ConfigurationKeys.DEFAULT_METRICS_ENABLED))) {
         this.jobMetrics = Optional.of(JobMetrics.get(this.jobState));
-        String metricFileSuffix =
-            configuration.get(ConfigurationKeys.METRICS_FILE_SUFFIX, ConfigurationKeys.DEFAULT_METRICS_FILE_SUFFIX);
-        // If running in MR mode, all mappers will try to write metrics to the same file, which will fail.
-        // Instead, append the taskAttemptId to each file name.
-        if (Strings.isNullOrEmpty(metricFileSuffix)) {
-          metricFileSuffix = context.getTaskAttemptID().getTaskID().toString();
-        } else {
-          metricFileSuffix += "." + context.getTaskAttemptID().getTaskID().toString();
-        }
-        configuration.set(ConfigurationKeys.METRICS_FILE_SUFFIX, metricFileSuffix);
-        this.jobMetrics.get().startMetricReporting(configuration);
+        this.jobMetrics.get().startMetricReportingWithFileSuffix(HadoopUtils.getStateFromConf(configuration),
+            context.getTaskAttemptID().getTaskID().toString());
       }
     }
 
