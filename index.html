@@ -1,46 +1,23 @@
-<html>
-<head>
-   <title>Gobblin</title>
-  <meta content="text/html; charset=UTF-8" http-equiv="content-type">
-  <style type="text/css">
-    img{border-width:0;}
-  </style>
-</head>
-<body>
-  <table border=0 width="100%">
-      <tr style="background-color:black">
-        <td  colspan="2"><img style="" src="site/img/GobblinLogo.png"></td>
-      </tr>
-      <tr>
-        <td style="width:200px">
-          <ul>
-            <li><a href="site/about.html" target="content_iframe">About</a></li>
-            <li><a href="https://github.com/linkedin/gobblin/wiki/Getting%20Started" target="content_frame">Getting started</a></li>
-            <li>Documentation</li>
-              <ul>
-                <li><a href="https://github.com/linkedin/gobblin/wiki">Wiki</a></li>
-                <li>Papers and presentations</li>
-              </ul>
-            <li>Developer
-              <ul>
-                <li>Release Notes</li>
-                <li>Maven</li>
-                <li><a href="https://github.com/linkedin/gobblin/">Source Code</a></li>
-                <li><a href="site/javadoc/latest/index.html">Javadocs</a></li>
-              </ul>
-            </li>
-            <li>Community</li>
-              <ul>
-                <li>User group</li>
-                <li>Contributing</li>
-                <li><a href="site/meetups.html" target="content_iframe">Meetups</a></li>
-              </ul>
-          </ul>
-        </td>
-        <td style="width:800px">
-          <iframe src="site/about.html" id="content_iframe" style="border:none"></iframe>
-        </td>
-      </tr>
-  </table>
-</body>
-</html>
+---
+layout: default
+---
+
+<div class="home">
+
+  <h1 class="page-heading">News</h1>
+
+  <ul class="post-list">
+    {% for post in site.posts %}
+      <li>
+        <span class="post-meta">{{ post.date | date: "%b %-d, %Y" }}</span>
+
+        <h2>
+          <a class="post-link" href="{{ post.url | prepend: site.baseurl }}">{{ post.title }}</a>
+        </h2>
+        <p>{{ post.excerpt | remove: "<p>" | remove: "</p>"}}  <a href="{{ post.url | prepend: site.baseurl }}">[&gt;&gt;]</a>
+        
+      </li>
+    {% endfor %}
+  </ul>
+
+</div>

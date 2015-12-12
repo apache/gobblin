@@ -51,3 +51,6 @@ out/
 **/mainGeneratedRest
 gobblin-dist*
 gobblin.tar.gz
+Gemfile.lock
+_site/*
+.sass-cache
