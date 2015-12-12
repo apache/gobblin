@@ -26,7 +26,7 @@ idea.project {
 }
 
 ext.build_script_dir = "${projectDir.path}/build_script"
-
+ext.javadocPackages = new ArrayList<String>()
 ext.isDefaultEnvironment = !project.hasProperty('overrideBuildEnvironment')
 
 File getEnvironmentScript()
@@ -203,6 +203,29 @@ task wrapper(type: Wrapper) { gradleVersion = '1.12' }
 
 import javax.tools.ToolProvider
 
+task javadocTarball(type: Tar) {
+  baseName = "gobblin-javadoc-all"
+  destinationDir = new File(project.buildDir, baseName)
+  compression = Compression.GZIP
+  extension = 'tgz'
+  description = "Generates a tar-ball with all javadocs to ${destinationDir}/${archiveName}"
+}
+
+javadocTarball << {
+  def indexFile = new File(destinationDir, "index.md")
+  def version = null != project.version ? project.version : "latest"
+  indexFile << """----
+layout: page
+title: Gobblin Javadoc packages ${version}
+permalink: /javadoc/${version}/
+----
+
+"""
+  rootProject.ext.javadocPackages.each {
+    indexFile << "* [${it}](${it})\n"
+  }
+}
+
 subprojects {
 plugins.withType(JavaPlugin) {
   plugins.apply('idea')
@@ -216,6 +239,13 @@ plugins.withType(JavaPlugin) {
   //Sometimes generating javadocs can lead to OOM. This may needs to be increased.
   javadoc {
     options.JFlags = ["-Xmx256m"]
+  }
+  
+  rootProject.tasks.javadocTarball.dependsOn project.tasks.javadoc
+  def javadocRoot = "${project.buildDir}/docs/javadoc"
+  if ( file(javadocRoot).exists()) {
+    def cs = rootProject.tasks.javadocTarball.into(project.name){from(fileTree(dir: javadocRoot))}
+    rootProject.ext.javadocPackages += project.name
   }
 
 /*  findbugs {
@@ -401,3 +431,4 @@ if (JavaVersion.current().isJava8Compatible()) {
     }
   }
 }
+
