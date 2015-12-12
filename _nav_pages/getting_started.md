@@ -7,7 +7,7 @@ order: 2
 
 # Building Gobblin
 
-Download or clone the Gobblin repository (say, into `/path/to/gobblin`) and run the following command:
+Download or clone the [Gobblin repository](https://github.com/linkedin/gobblin) (say, into `/path/to/gobblin`) and run the following command:
 
 	$ cd /path/to/gobblin
 	$ ./gradlew clean build
