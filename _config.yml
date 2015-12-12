@@ -1,5 +1,5 @@
 # Site settings
-baseurl: "/gobblin/" # the subpath of your site, e.g. /blog/
+baseurl: "/gobblin" # the subpath of your site, e.g. /blog/
 title: Gobblin
 email: gobblin-user@googlegroups.com
 description: (C) 2015 LinkedIn Corp.
