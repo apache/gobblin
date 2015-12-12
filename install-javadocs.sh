@@ -5,15 +5,12 @@ root_dir=$(cd ${script_dir}; echo $PWD)
 script_name=$(basename $0)
 build_dir=${root_dir}/build
 
-SITE_JAVADOC_DIR=${root_dir}/site/javadoc
+SITE_JAVADOC_DIR=${root_dir}/javadoc
 
 function print_usage() {
-	echo -e "$script_name [-lg] version"
+	echo -e "$script_name <version>"
 	echo
 	echo -e "Copies javadocs for specified version to site directory ${SITE_JAVADOC_DIR}."
-	echo -e "OPTIONS:"
-	echo -e "\t-g     add to git"
-	echo -e "\t-l     setup link ${SITE_JAVADOC_DIR}/latest to published version"
 }
 
 version=$1
@@ -24,15 +21,19 @@ if [ -z "$version" ] ; then
 fi
 
 version_root=${SITE_JAVADOC_DIR}/${version}
-site_javadoc_index=${version_root}/index.html
 mkdir -p ${version_root}
+site_javadoc_index=${version_root}/index.md
+
 
 cat - > ${site_javadoc_index} << END_OF_HEADER
-<html>
-	<head><title>Gobblin Javadoc</title></head>
-	<body>
-		<b>Packages:</b>
-		<ul>
+---
+layout: page
+title: Gobblin Javadoc
+permalink: /javadoc/${version}/
+---
+
+# Gobblin Javadoc Packages
+
 END_OF_HEADER
 
 if ${root_dir}/gradlew -PuseHadoop2 javadoc ; then
@@ -44,7 +45,7 @@ if ${root_dir}/gradlew -PuseHadoop2 javadoc ; then
 			echo "Installing javadocs for $D"
 			mkdir -p ${dest_javadoc_dir}
 			cp -r ${src_javadoc_dir}/* ${dest_javadoc_dir}/
-			echo -e "\t\t<li><a href=\"$D/index.html\">$D</a></li>" >> ${site_javadoc_index}
+			echo -e "# [$D]($D)" >> ${site_javadoc_index}
 		fi
 	done
 	cd - > /dev/null)
@@ -54,6 +55,5 @@ else
 fi
 
 cat - >> ${site_javadoc_index} << END_OF_FOOTER
-	</ul>
-</body></html>
+
 END_OF_FOOTER
