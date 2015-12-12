@@ -26,7 +26,6 @@ idea.project {
 }
 
 ext.build_script_dir = "${projectDir.path}/build_script"
-ext.javadocPackages = new ArrayList<String>()
 ext.isDefaultEnvironment = !project.hasProperty('overrideBuildEnvironment')
 
 File getEnvironmentScript()
@@ -213,7 +212,7 @@ task javadocTarball(type: Tar) {
 
 javadocTarball << {
   def indexFile = new File(destinationDir, "index.md")
-  def version = null != project.version ? project.version : "latest"
+  def version = rootProject.ext.javadocVersion
   indexFile << """----
 layout: page
 title: Gobblin Javadoc packages ${version}
@@ -226,6 +225,38 @@ permalink: /javadoc/${version}/
   }
 }
 
+//Javadoc initialization for subprojects
+ext.javadocVersion = null != project.version ? project.version : "latest"
+if (ext.javadocVersion.indexOf('-') > 0) {
+  //remove any "-" addons from the version
+  ext.javadocVersion = ext.javadocVersion.substring(0, ext.javadocVersion.indexOf('-'))
+}
+
+ext.javadocPackages = new HashSet<String>()
+subprojects.each{Project pr -> 
+  if (file(pr.projectDir.absolutePath + "/src/main/java").exists()) {
+    rootProject.ext.javadocPackages += pr.name
+  }
+}
+ext.javadocLinks = ext.javadocPackages.collect{"http://linkedin.github.io/gobblin/javadoc/${ext.javadocVersion}/${it}/"}
+//println "GOBBLIN_LINKS=" + ext.javadocLinks
+
+subprojects {
+  plugins.withType(JavaPlugin) {
+ 
+    //Sometimes generating javadocs can lead to OOM. This may needs to be increased.
+    javadoc {
+      options.JFlags = ["-Xmx256m"]
+    }
+    
+    rootProject.tasks.javadocTarball.dependsOn project.tasks.javadoc
+    if ( rootProject.ext.javadocPackages.contains(project.name)) {
+      def cs = rootProject.tasks.javadocTarball.into(project.name){from(fileTree(dir: "${project.buildDir}/docs/javadoc/"))}
+    } 
+  }
+}
+
+
 subprojects {
 plugins.withType(JavaPlugin) {
   plugins.apply('idea')
@@ -236,17 +267,6 @@ plugins.withType(JavaPlugin) {
 
   sourceCompatibility = JavaVersion.VERSION_1_7
 
-  //Sometimes generating javadocs can lead to OOM. This may needs to be increased.
-  javadoc {
-    options.JFlags = ["-Xmx256m"]
-  }
-  
-  rootProject.tasks.javadocTarball.dependsOn project.tasks.javadoc
-  def javadocRoot = "${project.buildDir}/docs/javadoc"
-  if ( file(javadocRoot).exists()) {
-    def cs = rootProject.tasks.javadocTarball.into(project.name){from(fileTree(dir: javadocRoot))}
-    rootProject.ext.javadocPackages += project.name
-  }
 
 /*  findbugs {
     ignoreFailures = true
@@ -410,6 +430,7 @@ plugins.withType(JavaPlugin) {
   tasks.javadoc.options.links "http://typesafehub.github.io/config/latest/api/",
                               "https://docs.oracle.com/javase/7/docs/api/",
                               "http://docs.guava-libraries.googlecode.com/git-history/v15.0/javadoc/"
+  rootProject.ext.javadocLinks.each{tasks.javadoc.options.links it}
 
   afterEvaluate {
     // add the standard pegasus dependencies wherever the plugin is used
