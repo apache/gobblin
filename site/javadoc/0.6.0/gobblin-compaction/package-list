@@ -1,0 +1,8 @@
+gobblin.compaction
+gobblin.compaction.dataset
+gobblin.compaction.event
+gobblin.compaction.hive
+gobblin.compaction.mapreduce
+gobblin.compaction.mapreduce.avro
+gobblin.compaction.verify
+gobblin.hive.util
