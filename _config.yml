@@ -1,9 +1,9 @@
 # Site settings
-baseurl: "" # the subpath of your site, e.g. /blog/
+baseurl: "/gobblin/" # the subpath of your site, e.g. /blog/
 title: Gobblin
 email: gobblin-user@googlegroups.com
 description: (C) 2015 LinkedIn Corp.
-url: "http://yourdomain.com" # the base hostname & protocol for your site
+url: "https://linkedin.github.io" # the base hostname & protocol for your site
 
 # Build settings
 markdown: kramdown
