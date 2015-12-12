@@ -13,6 +13,14 @@ function print_usage() {
 	echo -e "Copies javadocs for specified version to site directory ${SITE_JAVADOC_DIR}."
 }
 
+function safe_rm() {
+	if [ ! -z "$1" ] ; then
+		rm -r $1
+	else
+		echo "$script_name: attempting to remove everything!"
+	fi
+}
+
 version=$1
 
 if [ -z "$version" ] ; then
@@ -49,6 +57,12 @@ if ${root_dir}/gradlew -PuseHadoop2 javadoc ; then
 		fi
 	done
 	cd - > /dev/null)
+	(
+		cd ${root_dir}
+		rm -f javadoc-${version}.tar.gz
+		tar -zcf javadoc/${version} javadoc-${version}.tar.gz
+		safe_rm ${SITE_JAVADOC_DIR}
+	)
 else
 	echo "$script_name: building of javadocs failed"
 	exit 2
