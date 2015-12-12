@@ -30,6 +30,6 @@ git clone git@github.com:linkedin/gobblin.git
 
 # Javadocs
 
-* [Latest]({{ site.rooturl}}/javadoc/latest/)
+* [Latest]({{ site.baseurl }}/javadoc/latest/)
 * Previous versions
-  - [0.6.0]({{ site.rooturl}}/javadoc/0.6.0/)
+  - [0.6.0]({{ site.baseurl }}/javadoc/0.6.0/)
