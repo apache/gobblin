@@ -1,7 +1,7 @@
 package gobblin.config.store.api;
 
 import java.net.URI;
-import java.util.Collection;
+import java.util.List;
 
 import com.typesafe.config.Config;
 
@@ -28,6 +28,6 @@ public interface ConfigStoreWithResolution extends ConfigStore {
    * @return - the directly and indirectly imported URIs followed the imported path for input uri 
    *  against input configuration version
    */
-  public Collection<URI> getImportsRecursively(URI uri, String version) throws VersionDoesNotExistException;
+  public List<URI> getImportsRecursively(URI uri, String version) throws VersionDoesNotExistException;
 
 }

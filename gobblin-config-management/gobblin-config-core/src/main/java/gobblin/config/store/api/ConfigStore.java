@@ -2,6 +2,7 @@ package gobblin.config.store.api;
 
 import java.net.URI;
 import java.util.Collection;
+import java.util.List;
 
 import com.typesafe.config.Config;
 
@@ -35,7 +36,7 @@ public interface ConfigStore {
    * @param version - specify the configuration version in the configuration store.
    * @return - the directly imported URIs for input uri against input configuration version
    */
-  public Collection<URI> getOwnImports(URI uri, String version) throws VersionDoesNotExistException;
+  public List<URI> getOwnImports(URI uri, String version) throws VersionDoesNotExistException;
 
   /**
    * @param uri - the uri relative to this configuration store
