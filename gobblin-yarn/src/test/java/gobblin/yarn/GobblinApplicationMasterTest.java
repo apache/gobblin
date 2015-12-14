@@ -15,8 +15,6 @@ package gobblin.yarn;
 import java.net.URL;
 
 import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.retry.RetryOneTime;
 import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.ConverterUtils;
@@ -29,6 +27,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -90,11 +89,9 @@ public class GobblinApplicationMasterTest implements HelixMessageTestBase {
 
   @Test
   public void testSendShutdownRequest() throws Exception {
-    CuratorFramework curatorFramework = CuratorFrameworkFactory.newClient(this.testingZKServer.getConnectString(),
-        new RetryOneTime(2000));
-    curatorFramework.start();
-
+    Closer closer = Closer.create();
     try {
+      CuratorFramework curatorFramework = TestHelper.createZkClient(this.testingZKServer, closer);
       this.gobblinApplicationMaster.sendShutdownRequest();
 
       Assert.assertEquals(curatorFramework.checkExists().forPath(String
@@ -110,7 +107,7 @@ public class GobblinApplicationMasterTest implements HelixMessageTestBase {
           .format("/%s/INSTANCES/%s/MESSAGES", GobblinApplicationMasterTest.class.getSimpleName(),
               TestHelper.TEST_HELIX_INSTANCE_NAME)).size(), 0);
     } finally {
-      curatorFramework.close();
+      closer.close();
     }
   }
 

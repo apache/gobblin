@@ -15,13 +15,19 @@ package gobblin.yarn;
 import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.retry.RetryOneTime;
+import org.apache.curator.test.TestingServer;
 import org.testng.Assert;
 
+import com.google.common.io.Closer;
 import com.google.common.io.Files;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -82,4 +88,17 @@ public class TestHelper {
       Assert.assertFalse(iterator.hasNext());
     }
   }
+
+  public static CuratorFramework createZkClient(TestingServer testingZKServer, Closer closer)
+      throws InterruptedException {
+    CuratorFramework curatorFramework =
+        closer.register(CuratorFrameworkFactory.newClient(testingZKServer.getConnectString(),
+            new RetryOneTime(2000)));
+    curatorFramework.start();
+    if (! curatorFramework.blockUntilConnected(60, TimeUnit.SECONDS)) {
+      throw new RuntimeException("Time out waiting to connect to ZK!");
+    }
+    return curatorFramework;
+  }
+
 }

@@ -14,12 +14,9 @@ package gobblin.yarn;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.retry.RetryOneTime;
 import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.client.api.YarnClient;
@@ -83,12 +80,8 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     this.yarnClient.start();
 
     TestingServer testingZKServer = this.closer.register(new TestingServer(TEST_ZK_PORT));
-    this.curatorFramework = this.closer.register(
-        CuratorFrameworkFactory.newClient(testingZKServer.getConnectString(), new RetryOneTime(2000)));
-    this.curatorFramework.start();
-    if (! this.curatorFramework.blockUntilConnected(60, TimeUnit.SECONDS)) {
-      throw new RuntimeException("Time out waiting to connect to ZK!");
-    }
+
+    this.curatorFramework = TestHelper.createZkClient(testingZKServer, this.closer);
 
     URL url = GobblinYarnAppLauncherTest.class.getClassLoader().getResource(
         GobblinYarnAppLauncherTest.class.getSimpleName() + ".conf");

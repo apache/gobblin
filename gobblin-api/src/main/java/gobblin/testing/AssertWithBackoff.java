@@ -30,11 +30,11 @@ public class AssertWithBackoff {
   /** the max time in milliseconds to wait for the condition to become true */
   private long timemoutMs = 30 * 1000;
   /** a logger to use for logging waiting, results, etc. */
-  private Logger _log = LoggerFactory.getLogger(AssertWithBackoff.class);
+  private Logger log = LoggerFactory.getLogger(AssertWithBackoff.class);
   /** the number to multiple the sleep after condition failure */
-  private Optional<Double> _backoffFactor = Optional.<Double>absent();
+  private Optional<Double> backoffFactor = Optional.<Double>absent();
   /** the max time to sleep between condition failures; */
-  private Optional<Long> _maxSleepMs = Optional.<Long>absent();
+  private Optional<Long> maxSleepMs = Optional.<Long>absent();
 
   public class EqualsCheck<T> implements Predicate<Void> {
     private final Predicate<T> _eqExpected;
@@ -65,11 +65,11 @@ public class AssertWithBackoff {
   /** Set the max time in milliseconds to wait for the condition to become true */
   public AssertWithBackoff timeoutMs(long assertTimeoutMs) {
     timemoutMs = assertTimeoutMs;
-    if (!_maxSleepMs.isPresent()) {
-      _maxSleepMs = Optional.of(getAutoMaxSleep());
+    if (!this.maxSleepMs.isPresent()) {
+      this.maxSleepMs = Optional.of(getAutoMaxSleep());
     }
-    if (!_backoffFactor.isPresent()) {
-      _backoffFactor = Optional.of(getAutoBackoffFactor());
+    if (!this.backoffFactor.isPresent()) {
+      this.backoffFactor = Optional.of(getAutoBackoffFactor());
     }
     return this;
   }
@@ -81,34 +81,34 @@ public class AssertWithBackoff {
 
   /** Set the max time to sleep between condition failures */
   public AssertWithBackoff maxSleepMs(long maxSleepMs) {
-    _maxSleepMs = Optional.of(maxSleepMs);
+    this.maxSleepMs = Optional.of(maxSleepMs);
     return this;
   }
 
   /** The max time to sleep between condition failures */
   public long getMaxSleepMs() {
-    return _maxSleepMs.or(getAutoMaxSleep());
+    return this.maxSleepMs.or(getAutoMaxSleep());
   }
 
   /** Set the number to multiple the sleep after condition failure */
   public AssertWithBackoff backoffFactor(double backoffFactor) {
-    _backoffFactor = Optional.of(backoffFactor);
+    this.backoffFactor = Optional.of(backoffFactor);
     return this;
   }
 
   /** The number to multiple the sleep after condition failure */
   public double getBackoffFactor() {
-    return _backoffFactor.or(getAutoBackoffFactor());
+    return this.backoffFactor.or(getAutoBackoffFactor());
   }
 
   /** Set the logger to use for logging waiting, results, etc. */
   public AssertWithBackoff logger(Logger log) {
-    _log = log;
+    this.log = log;
     return this;
   }
   /** The logger to use for logging waiting, results, etc. */
   public Logger getLogger() {
-    return _log;
+    return this.log;
   }
 
   private long getAutoMaxSleep() {
