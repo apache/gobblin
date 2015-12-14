@@ -1,6 +1,5 @@
 package gobblin.testing;
 
-import java.util.concurrent.Callable;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -12,9 +11,11 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Optional;
+import com.google.common.base.Function;
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 
-/** Unit tests for {@link TestingUtils} */
+/** Unit tests for {@link AssertWithBackoff} */
 public class TestingUtilsTest {
 
   @BeforeClass
@@ -26,32 +27,31 @@ public class TestingUtilsTest {
   @Test
   public void testComputeRetrySleep() {
     final long infiniteFutureMs = Long.MAX_VALUE;
-    Assert.assertEquals(TestingUtils.computeRetrySleep(0, 2, 100, infiniteFutureMs), 1);
-    Assert.assertEquals(TestingUtils.computeRetrySleep(10, 2, 100, infiniteFutureMs), 20);
-    Assert.assertEquals(TestingUtils.computeRetrySleep(50, 1, 100, infiniteFutureMs), 51);
-    Assert.assertEquals(TestingUtils.computeRetrySleep(50, 3, 100, infiniteFutureMs), 100);
-    Assert.assertEquals(TestingUtils.computeRetrySleep(50, 3, 60, System.currentTimeMillis() + 100), 60);
-    long sleepMs = TestingUtils.computeRetrySleep(50, 3, 1000, System.currentTimeMillis() + 100);
+    Assert.assertEquals(AssertWithBackoff.computeRetrySleep(0, 2, 100, infiniteFutureMs), 1);
+    Assert.assertEquals(AssertWithBackoff.computeRetrySleep(10, 2, 100, infiniteFutureMs), 20);
+    Assert.assertEquals(AssertWithBackoff.computeRetrySleep(50, 1, 100, infiniteFutureMs), 51);
+    Assert.assertEquals(AssertWithBackoff.computeRetrySleep(50, 3, 100, infiniteFutureMs), 100);
+    Assert.assertEquals(AssertWithBackoff.computeRetrySleep(50, 3, 60, System.currentTimeMillis() + 100), 60);
+    long sleepMs = AssertWithBackoff.computeRetrySleep(50, 3, 1000, System.currentTimeMillis() + 100);
     Assert.assertTrue(sleepMs <= 100);
   }
 
   @Test
   public void testAssertWithBackoff_conditionTrue() throws Exception {
     Logger log = LoggerFactory.getLogger("testAssertWithBackoff_conditionTrue");
-    TestingUtils.assertWithBackoff(new Callable<Boolean>() {
-        @Override public Boolean call() { return true; }
-      }, 1000L, "should always succeed", log);
+    AssertWithBackoff.create().logger(log).timeoutMs(1000)
+        .assertTrue(Predicates.<Void>alwaysTrue(), "should always succeed");
   }
 
   @Test
   public void testAssertWithBackoff_conditionEventuallyTrue() throws Exception {
     Logger log = LoggerFactory.getLogger("testAssertWithBackoff_conditionEventuallyTrue");
-    //TestingUtils.setLogjLevelForLogger(log, Level.DEBUG);
+    //setLogjLevelForLogger(log, Level.DEBUG);
     final AtomicInteger cnt = new AtomicInteger();
-    TestingUtils.assertWithBackoff(new Callable<Boolean>() {
-        @Override public Boolean call() { return cnt.incrementAndGet() >= 6; }
-      }, 1000L, Optional.of("should eventually succeed"),
-      Optional.of(log), Optional.of(2.0), Optional.of(100L));
+    AssertWithBackoff.create().logger(log).timeoutMs(100000).backoffFactor(2.0)
+        .assertEquals(new Function<Void, Integer>() {
+          @Override public Integer apply(Void input) { return cnt.incrementAndGet(); }
+        }, 5, "should eventually succeed");
   }
 
   @Test
@@ -60,10 +60,8 @@ public class TestingUtilsTest {
     //setLogjLevelForLogger(log, Level.DEBUG);
     long startTimeMs = System.currentTimeMillis();
     try {
-      TestingUtils.assertWithBackoff(new Callable<Boolean>() {
-          @Override public Boolean call() { return false; }
-        }, 50L, Optional.of("should timeout"),
-        Optional.of(log), Optional.<Double>absent(), Optional.<Long>absent());
+      AssertWithBackoff.create().logger(log).timeoutMs(50)
+         .assertTrue(Predicates.<Void>alwaysFalse(), "should timeout");
       Assert.fail("TimeoutException expected");
     } catch (TimeoutException e) {
       //Expected
@@ -74,26 +72,14 @@ public class TestingUtilsTest {
   }
 
   @Test
-  public void testAssertWithBackoff_InterruptedException() throws Exception {
-    try {
-      TestingUtils.assertWithBackoff(new Callable<Boolean>() {
-          @Override public Boolean call() throws Exception { throw new InterruptedException(); }
-        }, 50L, "should throw InterruptedException");
-      Assert.fail("InterruptedException expected");
-    } catch (InterruptedException e) {
-      //Expected
-    }
-  }
-
-  @Test
   public void testAssertWithBackoff_RuntimeException() throws Exception {
     Logger log = LoggerFactory.getLogger("testAssertWithBackoff_RuntimeException");
     //setLogjLevelForLogger(log, Level.DEBUG);
     try {
-      TestingUtils.assertWithBackoff(new Callable<Boolean>() {
-          @Override public Boolean call() throws Exception { throw new Exception("BLAH"); }
-        }, 50L, Optional.of("should throw RuntimeException"),
-        Optional.of(log), Optional.<Double>absent(), Optional.<Long>absent());
+      AssertWithBackoff.create().logger(log).timeoutMs(50)
+        .assertTrue(new Predicate<Void>() {
+          @Override public boolean apply(Void input) { throw new RuntimeException("BLAH"); }
+        }, "should throw RuntimeException");
       Assert.fail("should throw RuntimeException");
     } catch (RuntimeException e) {
       Assert.assertTrue(e.getMessage().indexOf("BLAH") > 0, e.getMessage());

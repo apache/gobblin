@@ -17,7 +17,6 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -28,12 +27,13 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ServiceManager;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.testing.TestingUtils;
+import gobblin.testing.AssertWithBackoff;
 
 
 /**
@@ -68,14 +68,13 @@ public class JobConfigFileMonitorTest {
   public void testAddNewJobConfigFile()
       throws Exception {
     final Logger log = LoggerFactory.getLogger("testAddNewJobConfigFile");
-    TestingUtils.assertWithBackoff(new Callable<Boolean>() {
+    AssertWithBackoff assertWithBackoff = AssertWithBackoff.create().logger(log).timeoutMs(5000);
+    assertWithBackoff.assertEquals(new Function<Void, Integer>() {
       @Override
-      public Boolean call() {
-        int numScheduledJobs = JobConfigFileMonitorTest.this.jobScheduler.getScheduledJobs().size();
-        log.debug("numScheduledJobs=" + numScheduledJobs);
-        return numScheduledJobs == 3;
+      public Integer apply(Void input) {
+        return JobConfigFileMonitorTest.this.jobScheduler.getScheduledJobs().size();
       }
-    }, 5000, "3 scheduled jobs", log);
+    }, 3, "3 scheduled jobs");
 
     // Create a new job configuration file by making a copy of an existing
     // one and giving a different job name
@@ -85,14 +84,12 @@ public class JobConfigFileMonitorTest {
     this.newJobConfigFile = new File(JOB_CONFIG_FILE_DIR, "Gobblin-test-new.pull");
     jobProps.store(new FileWriter(this.newJobConfigFile), null);
 
-    TestingUtils.assertWithBackoff(new Callable<Boolean>() {
+    assertWithBackoff.assertEquals(new Function<Void, Integer>() {
       @Override
-      public Boolean call() {
-        int numScheduledJobs = JobConfigFileMonitorTest.this.jobScheduler.getScheduledJobs().size();
-        log.debug("numScheduledJobs=" + numScheduledJobs);
-        return numScheduledJobs == 4;
+      public Integer apply(Void input) {
+        return JobConfigFileMonitorTest.this.jobScheduler.getScheduledJobs().size();
       }
-    }, 5000, "4 scheduled jobs", log);
+    }, 4, "4 scheduled jobs");
 
     Set<String> jobNames = Sets.newHashSet(this.jobScheduler.getScheduledJobs());
     Assert.assertEquals(jobNames.size(), 4);
@@ -115,14 +112,13 @@ public class JobConfigFileMonitorTest {
     jobProps.setProperty(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "partial");
     jobProps.store(new FileWriter(this.newJobConfigFile), null);
 
-    TestingUtils.assertWithBackoff(new Callable<Boolean>() {
+    AssertWithBackoff assertWithBackoff = AssertWithBackoff.create().logger(log).timeoutMs(5000);
+    assertWithBackoff.assertEquals(new Function<Void, Integer>() {
       @Override
-      public Boolean call() {
-        int numScheduledJobs = JobConfigFileMonitorTest.this.jobScheduler.getScheduledJobs().size();
-        log.debug("numScheduledJobs=" + numScheduledJobs);
-        return numScheduledJobs == 4;
+      public Integer apply(Void input) {
+        return JobConfigFileMonitorTest.this.jobScheduler.getScheduledJobs().size();
       }
-    }, 5000, "4 scheduled jobs", log);
+    }, 4, "4 scheduled jobs");
 
     Set<String> jobNames = Sets.newHashSet(this.jobScheduler.getScheduledJobs());
     Assert.assertEquals(jobNames.size(), 4);
@@ -146,14 +142,13 @@ public class JobConfigFileMonitorTest {
     jobProps.store(new FileWriter(this.newJobConfigFile), null);
 
 
-    TestingUtils.assertWithBackoff(new Callable<Boolean>() {
+    AssertWithBackoff assertWithBackoff = AssertWithBackoff.create().logger(log).timeoutMs(5000);
+    assertWithBackoff.assertEquals(new Function<Void, Integer>() {
       @Override
-      public Boolean call() {
-        int numScheduledJobs = JobConfigFileMonitorTest.this.jobScheduler.getScheduledJobs().size();
-        log.debug("numScheduledJobs=" + numScheduledJobs);
-        return numScheduledJobs == 3;
+      public Integer apply(Void input) {
+        return JobConfigFileMonitorTest.this.jobScheduler.getScheduledJobs().size();
       }
-    }, 5000, "3 scheduled jobs", log);
+    }, 3, "3 scheduled jobs");
 
     Set<String> jobNames = Sets.newHashSet(this.jobScheduler.getScheduledJobs());
     Assert.assertEquals(jobNames.size(), 3);
