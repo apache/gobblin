@@ -144,6 +144,8 @@ public class AssertWithBackoff {
    *                            default is {@link #DEFAULT_ASSERT_BACKOFF_FACTOR}
    * @param maxSleepMs          the max time to sleep between condition failures; default is
    * @throws TimeoutException   if the condition did not become true in the specified time budget
+   * @throws InterrupedException if the assert gets interrupted while waiting for the condition to
+   *                            become true.
    */
   public static void assertTrue(
       Predicate<Void> condition, long assertTimeoutMs, String message,
@@ -189,9 +191,9 @@ public class AssertWithBackoff {
   public static long computeRetrySleep(long currentSleepMs, double backoffFactor, long maxSleepMs,
                                        long endTimeMs) {
     long newSleepMs = Math.round(currentSleepMs * backoffFactor);
-    if (newSleepMs == currentSleepMs) {
+    if (newSleepMs <= currentSleepMs) {
       //prevent infinite loops
-      ++newSleepMs;
+      newSleepMs = currentSleepMs + 1;
     }
     long currentTimeMs = System.currentTimeMillis();
     newSleepMs = Math.min(Math.min(newSleepMs, maxSleepMs), endTimeMs - currentTimeMs);
