@@ -1,3 +1,14 @@
+/*
+ * Copyright (C) 2015 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
 package gobblin.testing;
 
 import java.util.concurrent.TimeoutException;
@@ -17,7 +28,7 @@ import com.google.common.base.Predicates;
 public class AssertWithBackoff {
 
   /** the max time in milliseconds to wait for the condition to become true */
-  private long timemoutMs = 30 * 000;
+  private long timemoutMs = 30 * 1000;
   /** a logger to use for logging waiting, results, etc. */
   private Logger _log = LoggerFactory.getLogger(AssertWithBackoff.class);
   /** the number to multiple the sleep after condition failure */
@@ -145,7 +156,6 @@ public class AssertWithBackoff {
    * @param message             the message to print while waiting for the condition
    * @param log                 the logger to use for logging waiting, results
    * @param backoffFactor       the number to multiple the sleep after condition failure;
-   *                            default is {@link #DEFAULT_ASSERT_BACKOFF_FACTOR}
    * @param maxSleepMs          the max time to sleep between condition failures; default is
    * @throws TimeoutException   if the condition did not become true in the specified time budget
    * @throws InterrupedException if the assert gets interrupted while waiting for the condition to
@@ -196,7 +206,7 @@ public class AssertWithBackoff {
                                        long endTimeMs) {
     long newSleepMs = Math.round(currentSleepMs * backoffFactor);
     if (newSleepMs <= currentSleepMs) {
-      //prevent infinite loops
+      // Prevent infinite loops
       newSleepMs = currentSleepMs + 1;
     }
     long currentTimeMs = System.currentTimeMillis();
