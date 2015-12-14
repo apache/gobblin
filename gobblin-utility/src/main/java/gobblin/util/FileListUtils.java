@@ -29,13 +29,11 @@ public class FileListUtils {
     }
   };
 
-  public static List<FileStatus> listFilesRecursively(FileSystem fs, Path path)
-      throws FileNotFoundException, IOException {
+  public static List<FileStatus> listFilesRecursively(FileSystem fs, Path path) throws IOException {
     return listFilesRecursively(fs, path, NO_OP_PATH_FILTER);
   }
 
-  public static List<FileStatus> listFilesRecursively(FileSystem fs, Iterable<Path> paths)
-      throws FileNotFoundException, IOException {
+  public static List<FileStatus> listFilesRecursively(FileSystem fs, Iterable<Path> paths) throws IOException {
     List<FileStatus> results = Lists.newArrayList();
     for (Path path : paths) {
       results.addAll(listFilesRecursively(fs, path));
@@ -48,7 +46,7 @@ public class FileListUtils {
    * filter, that is it is only applied to file {@link Path}s.
    */
   public static List<FileStatus> listFilesRecursively(FileSystem fs, Path path, PathFilter fileFilter)
-      throws FileNotFoundException, IOException {
+      throws IOException {
     return listFilesRecursivelyHelper(fs, Lists.<FileStatus> newArrayList(), fs.getFileStatus(path), fileFilter);
   }
 
@@ -68,9 +66,16 @@ public class FileListUtils {
   /**
    * Method to list out all files, or directory if no file exists, under a specified path.
    */
-  public static List<FileStatus> listMostNestedPathRecursively(FileSystem fs, Path path)
-      throws FileNotFoundException, IOException {
+  public static List<FileStatus> listMostNestedPathRecursively(FileSystem fs, Path path) throws IOException {
     return listMostNestedPathRecursively(fs, path, NO_OP_PATH_FILTER);
+  }
+
+  public static List<FileStatus> listMostNestedPathRecursively(FileSystem fs, Iterable<Path> paths) throws IOException {
+    List<FileStatus> results = Lists.newArrayList();
+    for (Path path : paths) {
+      results.addAll(listMostNestedPathRecursively(fs, path));
+    }
+    return results;
   }
 
   /**
@@ -78,14 +83,14 @@ public class FileListUtils {
    * The specified {@link PathFilter} is treated as a file filter, that is it is only applied to file {@link Path}s.
    */
   public static List<FileStatus> listMostNestedPathRecursively(FileSystem fs, Path path, PathFilter fileFilter)
-      throws FileNotFoundException, IOException {
+      throws IOException {
     return listMostNestedPathRecursivelyHelper(fs, Lists.<FileStatus> newArrayList(), fs.getFileStatus(path),
         fileFilter);
   }
 
   @SuppressWarnings("deprecation")
   private static List<FileStatus> listMostNestedPathRecursivelyHelper(FileSystem fs, List<FileStatus> files,
-      FileStatus fileStatus, PathFilter fileFilter) throws FileNotFoundException, IOException {
+      FileStatus fileStatus, PathFilter fileFilter) throws IOException {
     if (fileStatus.isDir()) {
       FileStatus[] curFileStatus = fs.listStatus(fileStatus.getPath());
       if (ArrayUtils.isEmpty(curFileStatus)) {
