@@ -124,6 +124,13 @@ public class AssertWithBackoff {
             getBackoffFactor(), getMaxSleepMs());
   }
 
+  /**
+   * A convenience method for {@link #assertTrue(Predicate, String)} to keep checking until a
+   * certain value until it becomes equal to an expected value.
+   * @param actual    a function that checks the actual value
+   * @param expected  the expected value
+   * @param message   a debugging message
+   **/
   public <T>void assertEquals(Function<Void, T> actual, T expected, String message)
       throws TimeoutException, InterruptedException {
     assertTrue(new EqualsCheck<T>(actual, expected, message), message);

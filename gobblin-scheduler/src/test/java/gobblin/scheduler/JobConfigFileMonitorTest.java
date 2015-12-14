@@ -50,6 +50,15 @@ public class JobConfigFileMonitorTest {
   private JobScheduler jobScheduler;
   private File newJobConfigFile;
 
+  private class GetNumScheduledJobs implements Function<Void, Integer> {
+
+    @Override
+    public Integer apply(Void input) {
+      return JobConfigFileMonitorTest.this.jobScheduler.getScheduledJobs().size();
+    }
+
+  }
+
   @BeforeClass
   public void setUp()
       throws Exception {
@@ -69,12 +78,7 @@ public class JobConfigFileMonitorTest {
       throws Exception {
     final Logger log = LoggerFactory.getLogger("testAddNewJobConfigFile");
     AssertWithBackoff assertWithBackoff = AssertWithBackoff.create().logger(log).timeoutMs(5000);
-    assertWithBackoff.assertEquals(new Function<Void, Integer>() {
-      @Override
-      public Integer apply(Void input) {
-        return JobConfigFileMonitorTest.this.jobScheduler.getScheduledJobs().size();
-      }
-    }, 3, "3 scheduled jobs");
+    assertWithBackoff.assertEquals(new GetNumScheduledJobs(), 3, "3 scheduled jobs");
 
     // Create a new job configuration file by making a copy of an existing
     // one and giving a different job name
@@ -84,12 +88,7 @@ public class JobConfigFileMonitorTest {
     this.newJobConfigFile = new File(JOB_CONFIG_FILE_DIR, "Gobblin-test-new.pull");
     jobProps.store(new FileWriter(this.newJobConfigFile), null);
 
-    assertWithBackoff.assertEquals(new Function<Void, Integer>() {
-      @Override
-      public Integer apply(Void input) {
-        return JobConfigFileMonitorTest.this.jobScheduler.getScheduledJobs().size();
-      }
-    }, 4, "4 scheduled jobs");
+    assertWithBackoff.assertEquals(new GetNumScheduledJobs(), 4, "4 scheduled jobs");
 
     Set<String> jobNames = Sets.newHashSet(this.jobScheduler.getScheduledJobs());
     Assert.assertEquals(jobNames.size(), 4);
@@ -112,13 +111,8 @@ public class JobConfigFileMonitorTest {
     jobProps.setProperty(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "partial");
     jobProps.store(new FileWriter(this.newJobConfigFile), null);
 
-    AssertWithBackoff assertWithBackoff = AssertWithBackoff.create().logger(log).timeoutMs(5000);
-    assertWithBackoff.assertEquals(new Function<Void, Integer>() {
-      @Override
-      public Integer apply(Void input) {
-        return JobConfigFileMonitorTest.this.jobScheduler.getScheduledJobs().size();
-      }
-    }, 4, "4 scheduled jobs");
+    AssertWithBackoff.create().logger(log).timeoutMs(5000)
+        .assertEquals(new GetNumScheduledJobs(), 4, "4 scheduled jobs");
 
     Set<String> jobNames = Sets.newHashSet(this.jobScheduler.getScheduledJobs());
     Assert.assertEquals(jobNames.size(), 4);
@@ -142,13 +136,8 @@ public class JobConfigFileMonitorTest {
     jobProps.store(new FileWriter(this.newJobConfigFile), null);
 
 
-    AssertWithBackoff assertWithBackoff = AssertWithBackoff.create().logger(log).timeoutMs(5000);
-    assertWithBackoff.assertEquals(new Function<Void, Integer>() {
-      @Override
-      public Integer apply(Void input) {
-        return JobConfigFileMonitorTest.this.jobScheduler.getScheduledJobs().size();
-      }
-    }, 3, "3 scheduled jobs");
+    AssertWithBackoff.create().logger(log).timeoutMs(5000)
+        .assertEquals(new GetNumScheduledJobs(), 3, "3 scheduled jobs");
 
     Set<String> jobNames = Sets.newHashSet(this.jobScheduler.getScheduledJobs());
     Assert.assertEquals(jobNames.size(), 3);
