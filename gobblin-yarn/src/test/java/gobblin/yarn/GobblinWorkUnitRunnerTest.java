@@ -66,8 +66,9 @@ public class GobblinWorkUnitRunnerTest {
         config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY));
 
     // Participant
-    this.gobblinWorkUnitRunner = new GobblinWorkUnitRunner(TestHelper.TEST_APPLICATION_NAME,
-        ConverterUtils.toContainerId(TestHelper.TEST_PARTICIPANT_CONTAINER_ID), config, Optional.<Path>absent());
+    this.gobblinWorkUnitRunner =
+        new GobblinWorkUnitRunner(TestHelper.TEST_APPLICATION_NAME, TestHelper.TEST_HELIX_INSTANCE_NAME,
+            ConverterUtils.toContainerId(TestHelper.TEST_PARTICIPANT_CONTAINER_ID), config, Optional.<Path>absent());
     this.gobblinWorkUnitRunner.connectHelixManager();
 
     // Controller

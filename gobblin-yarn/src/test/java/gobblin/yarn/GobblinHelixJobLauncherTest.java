@@ -126,8 +126,9 @@ public class GobblinHelixJobLauncherTest {
         new GobblinHelixJobLauncher(properties, this.helixManager, this.localFs, this.appWorkDir,
             ImmutableMap.<String, String>of()));
 
-    this.gobblinWorkUnitRunner = new GobblinWorkUnitRunner(TestHelper.TEST_APPLICATION_NAME,
-        ConverterUtils.toContainerId(TestHelper.TEST_PARTICIPANT_CONTAINER_ID), config, Optional.of(appWorkDir));
+    this.gobblinWorkUnitRunner =
+        new GobblinWorkUnitRunner(TestHelper.TEST_APPLICATION_NAME, TestHelper.TEST_HELIX_INSTANCE_NAME,
+            ConverterUtils.toContainerId(TestHelper.TEST_PARTICIPANT_CONTAINER_ID), config, Optional.of(appWorkDir));
 
     this.fsDatasetStateStore =
         new FsDatasetStateStore(this.localFs, config.getString(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY));

@@ -14,7 +14,7 @@ function print_usage(){
   echo "Where OPTION can be:"
   echo "  --jt <job tracker / resource manager URL>      Job submission URL: if not set, taken from \${HADOOP_HOME}/conf"
   echo "  --fs <file system URL>                         Target file system: if not set, taken from \${HADOOP_HOME}/conf"
-  echo "  --jars <comma-separated list of job jars>      Job jar(s): if not set, "$FWDIR_LIB" is examined"
+  echo "  --jars <comma-separated list of job jars>      Job jar(s): if not set, \"$FWDIR_LIB\" is examined"
   echo "  --workdir <job work dir>                       Gobblin's base work directory: if not set, taken from \${GOBBLIN_WORK_DIR}"
   echo "  --help                                         Display this help and exit"
 }
@@ -95,7 +95,7 @@ add_user_jar(){
   separator=','
 }
 
-# Add the absoulte path of the user defined job jars to the LIBJARS first
+# Add the absolute path of the user defined job jars to the LIBJARS first
 set_user_jars "$JARS"
 
 # Jars Gobblin runtime depends on

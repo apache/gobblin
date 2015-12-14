@@ -106,6 +106,8 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
 
   static final String GOBBLIN_TASK_FACTORY_NAME = "GobblinTaskFactory";
 
+  private final String helixInstanceName;
+
   private final ContainerId containerId;
 
   private final HelixManager helixManager;
@@ -123,8 +125,10 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
   private volatile boolean stopInProgress = false;
   private volatile boolean isStopped = false;
 
-  public GobblinWorkUnitRunner(String applicationName, ContainerId containerId, Config config,
-      Optional<Path> appWorkDirOptional) throws Exception {
+  public GobblinWorkUnitRunner(String applicationName, String helixInstanceName, ContainerId containerId,
+      Config config, Optional<Path> appWorkDirOptional) throws Exception {
+    this.helixInstanceName = helixInstanceName;
+
     this.containerId = containerId;
     ApplicationAttemptId applicationAttemptId = this.containerId.getApplicationAttemptId();
     String applicationId = applicationAttemptId.getApplicationId().toString();
@@ -136,7 +140,6 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
     String zkConnectionString = config.getString(GobblinYarnConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     LOGGER.info("Using ZooKeeper connection string: " + zkConnectionString);
 
-    String helixInstanceName = YarnHelixUtils.getHelixInstanceName(YarnHelixUtils.getHostname(), this.containerId);
     this.helixManager = HelixManagerFactory.getZKHelixManager(
         config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY), helixInstanceName,
         InstanceType.PARTICIPANT, zkConnectionString);
@@ -180,8 +183,7 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
    * Start this {@link GobblinWorkUnitRunner} instance.
    */
   public void start() {
-    LOGGER.info(String.format("Starting %s in container %s",
-        GobblinWorkUnitRunner.class.getSimpleName(), this.containerId));
+    LOGGER.info(String.format("Starting %s in container %s", this.helixInstanceName, this.containerId));
 
     // Add a shutdown hook so the task scheduler gets properly shutdown
     addShutdownHook();
@@ -420,6 +422,7 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
   private static Options buildOptions() {
     Options options = new Options();
     options.addOption("a", GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME, true, "Yarn application name");
+    options.addOption("i", GobblinYarnConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME, true, "Helix instance name");
     return options;
   }
 
@@ -432,7 +435,8 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
     Options options = buildOptions();
     try {
       CommandLine cmd = new DefaultParser().parse(options, args);
-      if (!cmd.hasOption(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME)) {
+      if (!cmd.hasOption(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME) ||
+          !cmd.hasOption(GobblinYarnConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME)) {
         printUsage(options);
         System.exit(1);
       }
@@ -442,9 +446,12 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
 
       ContainerId containerId =
           ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
+      String applicationName = cmd.getOptionValue(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME);
+      String helixInstanceName = cmd.getOptionValue(GobblinYarnConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME);
+
       GobblinWorkUnitRunner gobblinWorkUnitRunner =
-          new GobblinWorkUnitRunner(cmd.getOptionValue(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME),
-              containerId, ConfigFactory.load(), Optional.<Path>absent());
+          new GobblinWorkUnitRunner(applicationName, helixInstanceName, containerId, ConfigFactory.load(),
+              Optional.<Path>absent());
       gobblinWorkUnitRunner.start();
     } catch (ParseException pe) {
       printUsage(options);
