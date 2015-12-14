@@ -15,6 +15,9 @@ package gobblin.data.management.copy;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 
+import java.util.regex.Pattern;
+
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
 
@@ -24,6 +27,8 @@ import com.google.common.base.Strings;
 @AllArgsConstructor
 @EqualsAndHashCode
 public class PreserveAttributes {
+
+  public static final Pattern ATTRIBUTES_REGEXP = getAllowedRegexp();
 
   /**
    * Attributes that can be preserved.
@@ -83,6 +88,12 @@ public class PreserveAttributes {
    * @return Parsed {@link PreserveAttributes}
    */
   public static PreserveAttributes fromMnemonicString(String s) {
+
+    s = s.toLowerCase();
+
+    Preconditions.checkArgument(ATTRIBUTES_REGEXP.matcher(s).matches(), "Invalid %s string %s, must be of the form %s.",
+        PreserveAttributes.class.getSimpleName(), s, ATTRIBUTES_REGEXP.pattern());
+
     if (Strings.isNullOrEmpty(s)) {
       return new PreserveAttributes(0);
     }
@@ -93,5 +104,14 @@ public class PreserveAttributes {
       }
     }
     return new PreserveAttributes(value);
+  }
+
+  private static Pattern getAllowedRegexp() {
+    StringBuilder builder = new StringBuilder("[");
+    for(Option option : Option.values()) {
+      builder.append(option.token);
+    }
+    builder.append("]*");
+    return Pattern.compile(builder.toString());
   }
 }

@@ -40,7 +40,7 @@ public class PreserveAttributesTest {
     tests.put("rbugp", Sets.newHashSet(Option.REPLICATION, Option.OWNER, Option.BLOCK_SIZE, Option.GROUP,
         Option.PERMISSION));
     tests.put("rrr", Sets.newHashSet(Option.REPLICATION));
-    tests.put("rrbx", Sets.newHashSet(Option.REPLICATION, Option.BLOCK_SIZE));
+    tests.put("rrb", Sets.newHashSet(Option.REPLICATION, Option.BLOCK_SIZE));
     tests.put("", Sets.<Option>newHashSet());
 
     for(Map.Entry<String, Set<PreserveAttributes.Option>> entry : tests.entrySet()) {
@@ -49,6 +49,32 @@ public class PreserveAttributesTest {
         Assert.assertEquals(preserve.preserve(option), entry.getValue().contains(option));
       }
       Assert.assertEquals(preserve, PreserveAttributes.fromMnemonicString(preserve.toMnemonicString()));
+    }
+
+  }
+
+  @Test
+  public void testInvalidStrings() {
+
+    try {
+      PreserveAttributes.fromMnemonicString("x");
+      Assert.fail();
+    } catch (IllegalArgumentException iae) {
+      // Expect exception
+    }
+
+    try {
+      PreserveAttributes.fromMnemonicString("rx");
+      Assert.fail();
+    } catch (IllegalArgumentException iae) {
+      // Expect exception
+    }
+
+    try {
+      PreserveAttributes.fromMnemonicString("ugq");
+      Assert.fail();
+    } catch (IllegalArgumentException iae) {
+      // Expect exception
     }
 
   }
