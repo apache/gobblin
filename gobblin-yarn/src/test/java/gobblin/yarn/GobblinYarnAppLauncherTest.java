@@ -87,7 +87,7 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
         CuratorFrameworkFactory.newClient(testingZKServer.getConnectString(), new RetryOneTime(2000)));
     this.curatorFramework.start();
     if (! this.curatorFramework.blockUntilConnected(60, TimeUnit.SECONDS)) {
-      throw new RuntimeException("time out waiting to connect to ZK!");
+      throw new RuntimeException("Time out waiting to connect to ZK!");
     }
 
     URL url = GobblinYarnAppLauncherTest.class.getClassLoader().getResource(
