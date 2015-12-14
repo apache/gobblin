@@ -15,8 +15,6 @@ import com.google.common.base.Predicates;
    * needs for something asynchronous to happen, say a service to start.
  **/
 public class AssertWithBackoff {
-  public static final Double DEFAULT_ASSERT_BACKOFF_FACTOR = 1.5;
-  public static final Long DEFAULT_MAX_ASSERT_BACKOFF_SLEEP_MS = 10 * 1000L;
 
   /** the max time in milliseconds to wait for the condition to become true */
   private long timemoutMs = 30 * 000;
@@ -107,8 +105,7 @@ public class AssertWithBackoff {
   }
 
   private double getAutoBackoffFactor() {
-    double maxSleepMs = _maxSleepMs.or(DEFAULT_MAX_ASSERT_BACKOFF_SLEEP_MS);
-    return Math.log(maxSleepMs) / Math.log(5);
+    return Math.log(getMaxSleepMs()) / Math.log(5);
   }
 
   /**
