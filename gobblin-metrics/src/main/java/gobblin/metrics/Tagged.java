@@ -44,8 +44,8 @@ public class Tagged implements Taggable {
 
   @Override
   public void addTag(Tag<?> tag) {
-    Preconditions.checkNotNull(tag);
-    Preconditions.checkNotNull(tag.getValue());
+    Preconditions.checkNotNull(tag, "Cannot add a null Tag");
+    Preconditions.checkNotNull(tag.getValue(), "Cannot add a Tag with a null value. Tag: " + tag);
     this.tags.put(tag.getKey(), tag.getValue());
   }
 

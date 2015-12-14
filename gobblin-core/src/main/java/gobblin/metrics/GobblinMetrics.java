@@ -300,6 +300,25 @@ public class GobblinMetrics {
   }
 
   /**
+   * Starts metric reporting and appends the given metrics file suffix to the current value of
+   * {@link ConfigurationKeys#METRICS_FILE_SUFFIX}.
+   */
+  public void startMetricReportingWithFileSuffix(State state, String metricsFileSuffix) {
+    Properties metricsReportingProps = new Properties();
+    metricsReportingProps.putAll(state.getProperties());
+
+    String oldMetricsFileSuffix =
+        state.getProp(ConfigurationKeys.METRICS_FILE_SUFFIX, ConfigurationKeys.DEFAULT_METRICS_FILE_SUFFIX);
+    if (Strings.isNullOrEmpty(oldMetricsFileSuffix)) {
+      oldMetricsFileSuffix = metricsFileSuffix;
+    } else {
+      oldMetricsFileSuffix += "." + metricsFileSuffix;
+    }
+    metricsReportingProps.setProperty(ConfigurationKeys.METRICS_FILE_SUFFIX, oldMetricsFileSuffix);
+    startMetricReporting(metricsReportingProps);
+  }
+
+  /**
    * Start metric reporting.
    *
    * @param configuration configuration properties
@@ -328,6 +347,7 @@ public class GobblinMetrics {
 
     buildJmxMetricReporter(properties);
     if (this.jmxReporter.isPresent()) {
+      LOGGER.info("Will start reporting metrics to JMX");
       this.jmxReporter.get().start();
     }
 
@@ -346,7 +366,7 @@ public class GobblinMetrics {
    * Immediately trigger metric reporting.
    */
   public void triggerMetricReporting() {
-    for(ScheduledReporter reporter : this.scheduledReporters) {
+    for (ScheduledReporter reporter : this.scheduledReporters) {
       reporter.report();
     }
   }
@@ -359,6 +379,8 @@ public class GobblinMetrics {
       LOGGER.warn("Metric reporting has not started yet");
       return;
     }
+
+    LOGGER.info("Stopping metric reporting");
 
     if (this.jmxReporter.isPresent()) {
       this.jmxReporter.get().stop();
@@ -418,6 +440,8 @@ public class GobblinMetrics {
           .outputTo(output).build()));
       this.scheduledReporters.add(this.closer.register(OutputStreamEventReporter.forContext(this.metricContext)
           .outputTo(output).build()));
+
+      LOGGER.info("Will start reporting metrics to directory " + metricsLogDir);
     } catch (IOException ioe) {
       LOGGER.error("Failed to build file metric reporter for job " + this.id, ioe);
     }
@@ -470,23 +494,29 @@ public class GobblinMetrics {
       formatEnum = KafkaReportingFormats.JSON;
     }
 
-    if(metricsTopic.or(defaultTopic).isPresent()) {
+    if (metricsTopic.or(defaultTopic).isPresent()) {
       try {
         KafkaReporter.Builder<?> builder = formatEnum.metricReporterBuilder(this.metricContext, properties);
         this.scheduledReporters.add(this.closer.register(builder.build(brokers, metricsTopic.or(defaultTopic).get())));
       } catch (IOException exception) {
         LOGGER.error("Failed to create Kafka metrics reporter. Will not report metrics to Kafka.", exception);
       }
+    } else {
+      LOGGER.warn("Not reporting metrics to Kafka, no topic specified");
     }
 
-    if(eventsTopic.or(defaultTopic).isPresent()) {
+    if (eventsTopic.or(defaultTopic).isPresent()) {
       try {
         KafkaEventReporter.Builder<?> builder = formatEnum.eventReporterBuilder(this.metricContext, properties);
         this.scheduledReporters.add(this.closer.register(builder.build(brokers, eventsTopic.or(defaultTopic).get())));
       } catch (IOException exception) {
         LOGGER.error("Failed to create Kafka events reporter. Will not report events to Kafka.", exception);
       }
+    } else {
+      LOGGER.warn("Not reporting events to Kafka, no topic specified");
     }
+
+    LOGGER.info("Will start reporting metrics to Kafka");
   }
 
   /**
@@ -521,7 +551,5 @@ public class GobblinMetrics {
         LOGGER.warn("Could not create metric reporter from builder " + reporterClass + ".", exception);
       }
     }
-
   }
-
 }

@@ -35,6 +35,7 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.Apps;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
+
 import org.apache.helix.manager.zk.ZKHelixManager;
 import org.apache.helix.model.HelixConfigScope;
 import org.apache.helix.tools.ClusterSetup;
@@ -43,6 +44,8 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValue;
 
 import com.google.common.collect.Maps;
+
+import gobblin.configuration.State;
 
 
 /**
@@ -126,6 +129,16 @@ public class YarnHelixUtils {
     }
 
     return properties;
+  }
+
+  /**
+   * Convert a given {@link Config} to a {@link State} instance.
+   *
+   * @param config the given {@link Config} instance
+   * @return a {@link State} instance
+   */
+  public static State configToState(Config config) {
+    return new State(configToProperties(config));
   }
 
   /**

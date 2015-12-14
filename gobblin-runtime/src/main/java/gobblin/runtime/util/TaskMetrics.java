@@ -62,7 +62,7 @@ public class TaskMetrics extends GobblinMetrics {
 
   protected static List<Tag<?>> tagsForTask(TaskState taskState) {
     List<Tag<?>> tags = Lists.newArrayList();
-    tags.add(new Tag<String>("taskId", taskState.getTaskId()));
+    tags.add(new Tag<>("taskId", taskState.getTaskId()));
     tags.addAll(getCustomTagsFromState(taskState));
     return tags;
   }
@@ -71,5 +71,4 @@ public class TaskMetrics extends GobblinMetrics {
     return JobMetrics.get(taskState.getProp(ConfigurationKeys.JOB_NAME_KEY), taskState.getJobId())
         .getMetricContext();
   }
-
 }
