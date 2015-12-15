@@ -18,19 +18,24 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.avro.Schema;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+
 import org.apache.helix.HelixManager;
 import org.apache.helix.task.TaskCallbackContext;
 import org.apache.helix.task.TaskConfig;
 import org.apache.helix.task.TaskResult;
+
 import org.mockito.Mockito;
+
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -125,7 +130,8 @@ public class GobblinHelixTaskTest {
     Mockito.when(taskCallbackContext.getManager()).thenReturn(this.helixManager);
 
     GobblinHelixTaskFactory gobblinHelixTaskFactory =
-        new GobblinHelixTaskFactory(this.taskExecutor, this.taskStateTracker, this.localFs, this.appWorkDir);
+        new GobblinHelixTaskFactory(Optional.<ContainerMetrics>absent(), this.taskExecutor, this.taskStateTracker,
+            this.localFs, this.appWorkDir);
     this.gobblinHelixTask = (GobblinHelixTask) gobblinHelixTaskFactory.createNewTask(taskCallbackContext);
   }
 
