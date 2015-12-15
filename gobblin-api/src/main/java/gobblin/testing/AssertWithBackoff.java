@@ -37,22 +37,22 @@ public class AssertWithBackoff {
   private Optional<Long> maxSleepMs = Optional.<Long>absent();
 
   public class EqualsCheck<T> implements Predicate<Void> {
-    private final Predicate<T> _eqExpected;
-    private final String _message;
-    private final Function<Void, T> _actual;
+    private final Predicate<T> eqToExpected;
+    private final String message;
+    private final Function<Void, T> actual;
 
 
     public EqualsCheck(Function<Void, T> actual, T expected, String message) {
-      _eqExpected = Predicates.equalTo(expected);
-      _message = message;
-      _actual = actual;
+      this.eqToExpected = Predicates.equalTo(expected);
+      this.message = message;
+      this.actual = actual;
     }
 
     @Override
     public boolean apply(Void input) {
-      T currentValue = _actual.apply(input);
-      getLogger().debug("checking '" + _message + "': " + currentValue);
-      return _eqExpected.apply(currentValue);
+      T currentValue = this.actual.apply(input);
+      getLogger().debug("checking '" + this.message + "': " + currentValue);
+      return this.eqToExpected.apply(currentValue);
     }
 
   }
