@@ -16,14 +16,9 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Queue;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.PathFilter;
-import org.apache.hadoop.io.Text;
 
 import org.apache.helix.HelixManager;
 import org.apache.helix.task.JobConfig;
@@ -36,19 +31,17 @@ import org.apache.helix.task.WorkflowContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Queues;
-import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.metrics.event.TimingEvent;
 import gobblin.rest.LauncherTypeEnum;
-import gobblin.runtime.AbstractJobLauncher;
+import gobblin.runtime.DistributedJobLauncher;
 import gobblin.runtime.FileBasedJobLock;
 import gobblin.runtime.JobLauncher;
 import gobblin.runtime.JobLock;
-import gobblin.runtime.JobState;
 import gobblin.runtime.TaskState;
+import gobblin.runtime.util.TimingEventNames;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.JobLauncherUtils;
@@ -80,7 +73,7 @@ import gobblin.util.SerializationUtils;
  *
  * @author ynli
  */
-public class GobblinHelixJobLauncher extends AbstractJobLauncher {
+public class GobblinHelixJobLauncher extends DistributedJobLauncher {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinHelixJobLauncher.class);
 
@@ -91,11 +84,8 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private final String helixQueueName;
   private final String jobResourceName;
 
-  private final FileSystem fs;
   private final Path appWorkDir;
   private final Path inputWorkUnitDir;
-
-  private final int stateSerDeRunnerThreads;
 
   private volatile boolean jobSubmitted = false;
   private volatile boolean jobComplete = false;
@@ -103,20 +93,16 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   public GobblinHelixJobLauncher(Properties jobProps, HelixManager helixManager, FileSystem fs, Path appWorkDir,
       Map<String, String> eventMetadata)
       throws Exception {
-    super(jobProps, eventMetadata);
+    super(jobProps, fs, eventMetadata);
 
     this.helixManager = helixManager;
     this.helixTaskDriver = new TaskDriver(this.helixManager);
 
-    this.fs = fs;
     this.appWorkDir = appWorkDir;
     this.inputWorkUnitDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME);
 
     this.helixQueueName = this.jobContext.getJobName();
     this.jobResourceName = TaskUtil.getNamespacedJobName(this.helixQueueName, this.jobContext.getJobId());
-
-    this.stateSerDeRunnerThreads = Integer.parseInt(jobProps.getProperty(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY,
-        Integer.toString(ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS)));
 
     this.jobContext.getJobState().setJobLauncherType(LauncherTypeEnum.YARN);
   }
@@ -133,22 +119,28 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   @Override
   protected void runWorkUnits(List<WorkUnit> workUnits) throws Exception {
     try {
+      Path outputTaskStateDir = new Path(this.appWorkDir, GobblinYarnConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME +
+          Path.SEPARATOR + this.jobContext.getJobId());
+      // Schedule the collector of output TaskStates that collects TaskStates from output TaskState files periodically
+      scheduleOutputTaskStatesCollector(outputTaskStateDir);
+
+      TimingEvent jobSubmissionTimer =
+          this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.HELIX_JOB_SUBMISSION);
       submitJobToHelix(createJob(workUnits));
+      jobSubmissionTimer.stop();
       LOGGER.info(String.format("Submitted job %s to Helix", this.jobContext.getJobId()));
       this.jobSubmitted = true;
 
+      TimingEvent jobRunTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.HELIX_JOB_RUN);
       waitForJobCompletion();
+      jobRunTimer.stop();
       LOGGER.info(String.format("Job %s completed", this.jobContext.getJobId()));
       this.jobComplete = true;
 
-      List<TaskState> outputTaskStates = collectOutputTaskStates();
-      if (outputTaskStates.size() < this.jobContext.getJobState().getTaskCount()) {
-        // If the number of collected task states is less than the number of tasks in the job
-        LOGGER.error(String.format("Collected %d task states while expecting %d task states", outputTaskStates.size(),
-            this.jobContext.getJobState().getTaskCount()));
-        this.jobContext.getJobState().setState(JobState.RunningState.FAILED);
-      }
-      this.jobContext.getJobState().addTaskStates(outputTaskStates);
+      // Shutdown the collector of output TaskStates and do a last batch of collecting,
+      // which is still necessary in the batch-oriented job model used by this launcher.
+      shutdownOutputTaskStatesCollector();
+      collectOutputTaskStates(outputTaskStateDir);
     } finally {
       deletePersistedWorkUnitsForJob();
     }
@@ -173,10 +165,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private JobConfig.Builder createJob(List<WorkUnit> workUnits) throws IOException {
     Map<String, TaskConfig> taskConfigMap = Maps.newHashMap();
 
-    Closer closer = Closer.create();
-    try {
-      ParallelRunner stateSerDeRunner = closer.register(new ParallelRunner(this.stateSerDeRunnerThreads, this.fs));
-
+    try (ParallelRunner stateSerDeRunner = new ParallelRunner(this.stateSerDeRunnerThreads, this.fs)) {
       int multiTaskIdSequence = 0;
       for (WorkUnit workUnit : workUnits) {
         if (workUnit instanceof MultiWorkUnit) {
@@ -187,10 +176,6 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
       Path jobStateFilePath = new Path(this.appWorkDir, this.jobContext.getJobId() + "." + JOB_STATE_FILE_NAME);
       SerializationUtils.serializeState(this.fs, jobStateFilePath, this.jobContext.getJobState());
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
     }
 
     JobConfig.Builder jobConfigBuilder = new JobConfig.Builder();
@@ -264,40 +249,6 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
       Thread.sleep(1000);
     }
-  }
-
-  private List<TaskState> collectOutputTaskStates() throws IOException {
-    Path outputTaskStateDir = new Path(this.appWorkDir, GobblinYarnConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME +
-        Path.SEPARATOR + this.jobContext.getJobId());
-
-    FileStatus[] fileStatuses = this.fs.listStatus(outputTaskStateDir, new PathFilter() {
-      @Override
-      public boolean accept(Path path) {
-        return path.getName().endsWith(TASK_STATE_STORE_TABLE_SUFFIX);
-      }
-    });
-    if (fileStatuses == null || fileStatuses.length == 0) {
-      return ImmutableList.of();
-    }
-
-    Queue<TaskState> taskStateQueue = Queues.newConcurrentLinkedQueue();
-
-    Closer closer = Closer.create();
-    try {
-      ParallelRunner stateSerDeRunner = closer.register(new ParallelRunner(this.stateSerDeRunnerThreads, this.fs));
-      for (FileStatus status : fileStatuses) {
-        LOGGER.info("Found output task state file " + status.getPath());
-        stateSerDeRunner.deserializeFromSequenceFile(Text.class, TaskState.class, status.getPath(), taskStateQueue);
-      }
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
-    }
-
-    LOGGER.info(String.format("Collected task state of %d completed tasks", taskStateQueue.size()));
-
-    return ImmutableList.copyOf(taskStateQueue);
   }
 
   /**

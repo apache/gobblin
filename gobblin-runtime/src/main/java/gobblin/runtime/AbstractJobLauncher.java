@@ -28,9 +28,9 @@ import com.google.common.base.CaseFormat;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.eventbus.EventBus;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -39,7 +39,6 @@ import gobblin.metastore.StateStore;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.metrics.MetricContext;
-import gobblin.metrics.Tag;
 import gobblin.metrics.event.EventNames;
 import gobblin.metrics.event.EventSubmitter;
 import gobblin.metrics.event.TimingEvent;
@@ -98,6 +97,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   // An EventBuilder with basic metadata.
   protected final EventSubmitter eventSubmitter;
 
+  // This is for dispatching events related to job launching and execution to registered subscribers
+  protected final EventBus eventBus = new EventBus(AbstractJobLauncher.class.getSimpleName());
+
   // A list of JobListeners that will be injected into the user provided JobListener
   private final List<JobListener> mandatoryJobListeners = Lists.newArrayList();
 
@@ -110,6 +112,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     this.jobProps.putAll(jobProps);
 
     this.jobContext = new JobContext(this.jobProps, LOG);
+    this.eventBus.register(this.jobContext);
 
     this.cancellationExecutor = Executors.newSingleThreadExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of("CancellationExecutor")));
@@ -162,30 +165,23 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
 
     synchronized (this.cancellationExecution) {
-      Closer closer = Closer.create();
-      try {
+      try (CloseableJobListener parallelJobListener = getParallelCombinedJobListener(jobListener)) {
         while (!this.cancellationExecuted) {
           // Wait for the cancellation to be executed
           this.cancellationExecution.wait();
         }
 
-        JobListener parallelJobListener = closer.register(getParallelCombinedJobListener(jobListener));
         parallelJobListener.onJobCancellation(this.jobContext.getJobState());
       } catch (InterruptedException ie) {
         Thread.currentThread().interrupt();
-      } finally {
-        try {
-          closer.close();
-        } catch (IOException e) {
-          throw new JobException("Failed to execute all JobListeners", e);
-        }
+      } catch (IOException e) {
+        throw new JobException("Failed to execute all JobListeners", e);
       }
     }
   }
 
   @Override
   public void launchJob(JobListener jobListener) throws JobException {
-
     if (this.jobContext.getJobMetricsOptional().isPresent()) {
       this.jobContext.getJobMetricsOptional().get().startMetricReporting(this.jobProps);
     }
@@ -292,16 +288,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       }
     }
 
-    Closer closer = Closer.create();
-    try {
-      JobListener parallelJobListener = closer.register(getParallelCombinedJobListener(jobListener));
+    try (CloseableJobListener parallelJobListener = getParallelCombinedJobListener(jobListener)) {
       parallelJobListener.onJobCompletion(jobState);
-    } finally {
-      try {
-        closer.close();
-      } catch (IOException e) {
-        throw new JobException("Failed to execute all JobListeners", e);
-      }
+    } catch (IOException ioe) {
+      throw new JobException("Failed to execute all JobListeners", ioe);
     }
 
     // Stop metrics reporting
@@ -323,7 +313,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * @deprecated Use {@link #postProcessJobState(JobState)
    */
   @Deprecated
-  protected void postProcessTaskStates(List<TaskState> taskStates) {
+  protected void postProcessTaskStates(@SuppressWarnings("unused") List<TaskState> taskStates) {
     // Do nothing
   }
 
@@ -331,6 +321,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * Subclasses can override this method to do whatever processing on the {@link JobState} and its
    * associated {@link TaskState}s, e.g., aggregate task-level metrics into job-level metrics.
    */
+  @SuppressWarnings("deprecation")
   protected void postProcessJobState(JobState jobState) {
     postProcessTaskStates(jobState.getTaskStates());
   }
@@ -415,7 +406,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   }
 
   /**
-   * Prepare the {@link WorkUnit}s for execution by populating the job and task IDs.
+   * Prepare the flattened {@link WorkUnit}s for execution by populating the job and task IDs.
    */
   private void prepareWorkUnits(List<WorkUnit> workUnits, JobState jobState) {
     int taskIdSequence = 0;

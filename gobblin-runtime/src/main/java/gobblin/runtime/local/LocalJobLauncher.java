@@ -36,6 +36,7 @@ import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.FileBasedJobLock;
 import gobblin.runtime.JobLock;
 import gobblin.runtime.JobState;
+import gobblin.runtime.NewOutputTaskStateEvent;
 import gobblin.runtime.Task;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskStateTracker;
@@ -55,7 +56,9 @@ public class LocalJobLauncher extends AbstractJobLauncher {
   private static final Logger LOG = LoggerFactory.getLogger(LocalJobLauncher.class);
 
   private final TaskExecutor taskExecutor;
+
   private final TaskStateTracker taskStateTracker;
+
   // Service manager to manage dependent services
   private final ServiceManager serviceManager;
 
@@ -121,7 +124,16 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     while (this.countDownLatch.getCount() > 0) {
       LOG.info(String.format("%d out of %d tasks of job %s are running", this.countDownLatch.getCount(),
           workUnitsToRun.size(), jobId));
+
       this.countDownLatch.await(1, TimeUnit.MINUTES);
+
+      // Add the TaskStates of completed tasks
+      for (Task task : tasks) {
+        if (task.isCompleted()) {
+          // Notify the listeners for each output TaskState
+          this.eventBus.post(new NewOutputTaskStateEvent(task.getTaskState()));
+        }
+      }
     }
 
     workUnitsRunTimer.stop();
@@ -139,11 +151,6 @@ public class LocalJobLauncher extends AbstractJobLauncher {
 
     if (jobState.getState() == JobState.RunningState.RUNNING) {
       jobState.setState(JobState.RunningState.SUCCESSFUL);
-    }
-
-    // Collect task states and set job state to FAILED if any task failed
-    for (Task task : tasks) {
-      jobState.addTaskState(task.getTaskState());
     }
   }
 

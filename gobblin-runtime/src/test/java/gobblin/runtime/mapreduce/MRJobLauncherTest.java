@@ -176,13 +176,14 @@ public class MRJobLauncherTest extends BMNGRunner {
   }
 
   /**
-   * Byteman test that ensures the {@link MRJobLauncher} successfully cleans up all staging data even when
-   * an exception is thrown in the {@link MRJobLauncher#collectOutputTaskStates(Path)} method. The {@link BMRule} is
-   * to inject an {@link IOException} when the {@link MRJobLauncher#collectOutputTaskStates(Path)} method is called.
+   * Byteman test that ensures the {@link MRJobLauncher} successfully cleans up all staging data
+   * even when an exception is thrown in the {@link MRJobLauncher#collectOutputTaskStates(Path)}
+   * method. The {@link BMRule} is to inject an {@link IOException} when the
+   * {@link MRJobLauncher#collectOutputTaskStates(Path)} method is called.
    */
   @Test
   @BMRule(name = "testJobCleanupOnError",
-          targetClass = "gobblin.runtime.mapreduce.MRJobLauncher",
+          targetClass = "gobblin.runtime.DistributedJobLauncher",
           targetMethod = "collectOutputTaskStates(Path)",
           targetLocation = "AT ENTRY",
           condition = "true",
