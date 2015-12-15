@@ -26,6 +26,8 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.apache.helix.model.Message;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -34,6 +36,8 @@ import org.testng.annotations.Test;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+
+import gobblin.testing.AssertWithBackoff;
 
 
 /**
@@ -131,6 +135,7 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
 
   @Test(dependsOnMethods = "testCreateHelixCluster")
   public void testSendShutdownRequest() throws Exception {
+    Logger log = LoggerFactory.getLogger("testSendShutdownRequest");
     this.helixManager.connect();
     this.helixManager.getMessagingService().registerMessageHandlerFactory(Message.MessageType.SHUTDOWN.toString(),
         new TestShutdownMessageHandlerFactory(this));
@@ -140,13 +145,14 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
 
     Assert.assertEquals(this.curatorFramework.checkExists().forPath(
         String.format("/%s/CONTROLLER/MESSAGES", GobblinYarnAppLauncherTest.class.getSimpleName())).getVersion(), 0);
-    Thread.sleep(500);
-    Assert.assertEquals(this.curatorFramework.getChildren().forPath(String.format("/%s/CONTROLLER/MESSAGES",
-        GobblinYarnAppLauncherTest.class.getSimpleName())).size(), 1);
+    YarnSecurityManagerTest.GetControllerMessageNumFunc getCtrlMessageNum =
+        new YarnSecurityManagerTest.GetControllerMessageNumFunc(
+            GobblinYarnAppLauncherTest.class.getSimpleName(), this.curatorFramework);
+    AssertWithBackoff assertWithBackoff = AssertWithBackoff.create().logger(log).timeoutMs(20000);
+    assertWithBackoff.assertEquals(getCtrlMessageNum, 1, "1 controller message queued");
+
     // Give Helix sometime to handle the message
-    Thread.sleep(2000);
-    Assert.assertEquals(this.curatorFramework.getChildren().forPath(String.format("/%s/CONTROLLER/MESSAGES",
-        GobblinYarnAppLauncherTest.class.getSimpleName())).size(), 0);
+    assertWithBackoff.assertEquals(getCtrlMessageNum, 0, "all controller messages processed");
   }
 
   @AfterClass

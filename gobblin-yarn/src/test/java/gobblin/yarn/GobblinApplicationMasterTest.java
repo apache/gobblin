@@ -92,18 +92,20 @@ public class GobblinApplicationMasterTest implements HelixMessageTestBase {
     this.gobblinApplicationMaster.connectHelixManager();
   }
 
-  private static class GetMessageNumFunc implements Function<Void, Integer> {
+  static class GetInstanceMessageNumFunc implements Function<Void, Integer> {
     private final CuratorFramework curatorFramework;
+    private final String testName;
 
-    public GetMessageNumFunc(CuratorFramework curatorFramework) {
+    public GetInstanceMessageNumFunc(String testName, CuratorFramework curatorFramework) {
       this.curatorFramework = curatorFramework;
+      this.testName = testName;
     }
 
     @Override
     public Integer apply(Void input) {
       try {
         return this.curatorFramework.getChildren().forPath(String
-            .format("/%s/INSTANCES/%s/MESSAGES", GobblinApplicationMasterTest.class.getSimpleName(),
+            .format("/%s/INSTANCES/%s/MESSAGES", this.testName,
                 TestHelper.TEST_HELIX_INSTANCE_NAME)).size();
       } catch (Exception e) {
         throw new RuntimeException(e);
@@ -118,7 +120,9 @@ public class GobblinApplicationMasterTest implements HelixMessageTestBase {
     Closer closer = Closer.create();
     try {
       CuratorFramework curatorFramework = TestHelper.createZkClient(this.testingZKServer, closer);
-      final GetMessageNumFunc getMessageNumFunc = new GetMessageNumFunc(curatorFramework);
+      final GetInstanceMessageNumFunc getMessageNumFunc =
+          new GetInstanceMessageNumFunc(GobblinApplicationMasterTest.class.getSimpleName(),
+              curatorFramework);
       AssertWithBackoff assertWithBackoff =
           AssertWithBackoff.create().logger(log).timeoutMs(30000);
 
@@ -139,7 +143,7 @@ public class GobblinApplicationMasterTest implements HelixMessageTestBase {
 
   @Test(dependsOnMethods = "testSendShutdownRequest")
   public void testHandleApplicationMasterShutdownRequest() throws Exception {
-    Logger log = LoggerFactory.getLogger("testSendShutdownRequest");
+    Logger log = LoggerFactory.getLogger("testHandleApplicationMasterShutdownRequest");
     this.gobblinApplicationMaster.getEventBus().post(new ApplicationMasterShutdownRequest());
     AssertWithBackoff.create().logger(log).timeoutMs(20000)
       .assertTrue(new Predicate<Void>() {
