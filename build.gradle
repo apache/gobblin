@@ -231,7 +231,7 @@ permalink: /javadoc/${version}/
 //Javadoc initialization for subprojects
 ext.javadocVersion = null != project.version ? project.version : "latest"
 if (ext.javadocVersion.indexOf('-') > 0) {
-  //remove any "-" addons from the version
+  // Remove any "-" addons from the version
   ext.javadocVersion = javadocVersion.substring(0, javadocVersion.indexOf('-'))
 }
 
@@ -252,7 +252,7 @@ subprojects {
     
     rootProject.tasks.javadocTarball.dependsOn project.tasks.javadoc
     if ( rootProject.ext.javadocPackages.contains(project.name)) {
-      def cs = rootProject.tasks.javadocTarball.into(project.name){from(fileTree(dir: "${project.buildDir}/docs/javadoc/"))}
+      rootProject.tasks.javadocTarball.into(project.name){from(fileTree(dir: "${project.buildDir}/docs/javadoc/"))}
     } 
   }
 }
