@@ -242,7 +242,7 @@ permalink: /javadoc/${version}/
 }
 
 //Javadoc initialization for subprojects
-ext.javadocVersion = null != project.version ? project.version : "latest"
+ext.javadocVersion = null != project.version ? project.version.toString() : "latest"
 if (ext.javadocVersion.indexOf('-') > 0) {
   // Remove any "-" addons from the version
   ext.javadocVersion = javadocVersion.substring(0, javadocVersion.indexOf('-'))
