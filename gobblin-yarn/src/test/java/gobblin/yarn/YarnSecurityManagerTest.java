@@ -30,16 +30,20 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.mockito.Mockito;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Function;
 import com.google.common.eventbus.EventBus;
 import com.google.common.io.Closer;
-
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+
+import gobblin.testing.AssertWithBackoff;
 
 
 /**
@@ -131,14 +135,37 @@ public class YarnSecurityManagerTest {
     assertToken(YarnHelixUtils.readTokensFromFile(this.tokenFilePath, this.configuration));
   }
 
+
+  static class GetControllerMessageNumFunc implements Function<Void, Integer> {
+    private final CuratorFramework curatorFramework;
+    private final String testName;
+
+    public GetControllerMessageNumFunc(String testName, CuratorFramework curatorFramework) {
+      this.curatorFramework = curatorFramework;
+      this.testName = testName;
+    }
+
+    @Override
+    public Integer apply(Void input) {
+      try {
+        return this.curatorFramework.getChildren().forPath(String.format("/%s/CONTROLLER/MESSAGES",
+            this.testName)).size();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+  }
+
   @Test
   public void testSendTokenFileUpdatedMessage() throws Exception {
+    Logger log = LoggerFactory.getLogger("testSendTokenFileUpdatedMessage");
     this.yarnAppSecurityManager.sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
     Assert.assertEquals(this.curatorFramework.checkExists().forPath(
         String.format("/%s/CONTROLLER/MESSAGES", YarnSecurityManagerTest.class.getSimpleName())).getVersion(), 0);
-    Thread.sleep(500);
-    Assert.assertEquals(this.curatorFramework.getChildren().forPath(String.format("/%s/CONTROLLER/MESSAGES",
-        YarnSecurityManagerTest.class.getSimpleName())).size(), 1);
+    AssertWithBackoff.create().logger(log).timeoutMs(20000)
+      .assertEquals(new GetControllerMessageNumFunc(YarnSecurityManagerTest.class.getSimpleName(),
+          this.curatorFramework), 1, "1 controller message queued");
   }
 
   @Test(dependsOnMethods = "testWriteDelegationTokenToFile")

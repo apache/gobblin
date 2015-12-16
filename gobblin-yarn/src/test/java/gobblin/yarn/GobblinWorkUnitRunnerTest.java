@@ -19,15 +19,19 @@ import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.ConverterUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
-
+import com.google.common.base.Predicate;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+
+import gobblin.testing.AssertWithBackoff;
 
 
 /**
@@ -80,12 +84,16 @@ public class GobblinWorkUnitRunnerTest {
 
   @Test
   public void testSendReceiveShutdownMessage() throws Exception {
+    Logger log = LoggerFactory.getLogger("testSendReceiveShutdownMessage");
     this.gobblinApplicationMaster.sendShutdownRequest();
 
     // Give Helix some time to handle the message
-    Thread.sleep(2000);
-
-    Assert.assertTrue(this.gobblinWorkUnitRunner.isStopped());
+    AssertWithBackoff.create().logger(log).timeoutMs(20000)
+      .assertTrue(new Predicate<Void>() {
+        @Override public boolean apply(Void input) {
+          return GobblinWorkUnitRunnerTest.this.gobblinWorkUnitRunner.isStopped();
+        }
+      }, "gobblinWorkUnitRunner stopped");
   }
 
   @AfterClass

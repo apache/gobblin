@@ -46,6 +46,9 @@ public class LocalJobLauncherTest {
 
   @BeforeClass
   public void startUp() throws Exception {
+    System.setProperty("derby.locks.deadlockTrace", "true");
+    System.setProperty("derby.locks.waitTimeout", "180");
+    System.setProperty("derby.locks.deadlockTimeout", "120");
     this.launcherProps = new Properties();
     this.launcherProps.load(new FileReader("gobblin-test/resource/gobblin.test.properties"));
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, "true");

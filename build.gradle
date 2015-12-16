@@ -59,9 +59,12 @@ if (!project.hasProperty('artifactSnapshotRepository') || project.artifactSnapsh
 }
 
 if (!project.hasProperty('version') || project.version == 'unspecified') {
+    exec {
+        commandLine 'git', 'fetch', '-t', 'https://github.com/linkedin/gobblin.git', 'master'
+    }
     def versionOut = new ByteArrayOutputStream()
     exec {
-        commandLine 'git', 'describe', '--tags'
+        commandLine 'git', 'describe', '--tags', '--always'
         standardOutput versionOut
     }
     def tagStr = versionOut.toString().trim()
