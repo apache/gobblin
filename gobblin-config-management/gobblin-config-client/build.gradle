@@ -16,6 +16,7 @@ dependencies {
     compile externalDependency.guava
     compile externalDependency.lombok
     compile externalDependency.slf4j
+    compile externalDependency.log4j
     compile externalDependency.typesafeConfig
 
     testCompile externalDependency.testng

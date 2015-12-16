@@ -17,8 +17,3 @@
  * are generally accessed through the config client API.
  */
 package gobblin.config.store.api;
-
-// TODO: Added to prevent javadoc from failing. REMOVE once a class is added.
-class DummyClassForJavadoc {
-}
-
