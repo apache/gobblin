@@ -399,6 +399,13 @@ public class ConfigurationKeys {
   public static final int DEFAULT_MR_JOB_MAX_MAPPERS = 100;
 
   /**
+   * Configuration properties used by the distributed job launcher.
+   */
+  public static final String TASK_STATE_COLLECTOR_INTERVAL_SECONDS = "task.state.collector.interval.secs";
+  public static final int DEFAULT_TASK_STATE_COLLECTOR_INTERVAL_SECONDS = 60;
+
+
+  /**
    * Configuration properties for email settings.
    */
   public static final String ALERT_EMAIL_ENABLED_KEY = "email.alert.enabled";
