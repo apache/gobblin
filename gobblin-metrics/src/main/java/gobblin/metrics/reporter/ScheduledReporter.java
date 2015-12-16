@@ -12,10 +12,9 @@
 
 package gobblin.metrics.reporter;
 
-import lombok.extern.slf4j.Slf4j;
-
 import java.io.IOException;
 import java.util.Map;
+import java.util.Properties;
 import java.util.SortedMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -32,10 +31,14 @@ import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.Timer;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
+
+import lombok.extern.slf4j.Slf4j;
 
 import gobblin.metrics.InnerMetricContext;
 import gobblin.metrics.context.ReportableContext;
@@ -49,8 +52,7 @@ import gobblin.util.ExecutorsUtils;
 public abstract class ScheduledReporter extends ContextAwareReporter {
 
   /**
-   * Interval at which metrics are reported.
-   * Format: hours, minutes, seconds. Examples: 1h, 1m, 10s, 1h30m, 2m30s, ...
+   * Interval at which metrics are reported. Format: hours, minutes, seconds. Examples: 1h, 1m, 10s, 1h30m, 2m30s, ...
    */
   public static final String REPORTING_INTERVAL = "reporting.interval";
   public static final String DEFAULT_REPORTING_INTERVAL_PERIOD = "1M";
@@ -61,12 +63,20 @@ public abstract class ScheduledReporter extends ContextAwareReporter {
       appendSeconds().appendSuffix("S").toFormatter();
 
   @VisibleForTesting
-  public static int parsePeriodToSeconds(String periodStr) {
+  static int parsePeriodToSeconds(String periodStr) {
     try {
       return Period.parse(periodStr.toUpperCase(), PERIOD_FORMATTER).toStandardSeconds().getSeconds();
     } catch(ArithmeticException ae) {
       throw new RuntimeException(String.format("Reporting interval is too long. Max: %d seconds.", Integer.MAX_VALUE));
     }
+  }
+
+  public static void setReportingInterval(Properties props, long reportingInterval, TimeUnit reportingIntervalUnit) {
+    long seconds = TimeUnit.SECONDS.convert(reportingInterval, reportingIntervalUnit);
+    if (seconds > Integer.MAX_VALUE) {
+      throw new RuntimeException(String.format("Reporting interval is too long. Max: %d seconds.", Integer.MAX_VALUE));
+    }
+    props.setProperty(REPORTING_INTERVAL, Long.toString(seconds) + "S");
   }
 
   public static Config setReportingInterval(Config config, long reportingInterval, TimeUnit reportingIntervalUnit) {
@@ -89,7 +99,8 @@ public abstract class ScheduledReporter extends ContextAwareReporter {
         config.hasPath(REPORTING_INTERVAL) ? config.getString(REPORTING_INTERVAL) : DEFAULT_REPORTING_INTERVAL_PERIOD);
   }
 
-  @Override public void startImpl() {
+  @Override
+  public void startImpl() {
     this.scheduledTask = Optional.<ScheduledFuture>of(this.executor.scheduleAtFixedRate(new Runnable() {
       @Override public void run() {
         report();
@@ -97,33 +108,23 @@ public abstract class ScheduledReporter extends ContextAwareReporter {
     }, 0, this.reportingPeriodSeconds, TimeUnit.SECONDS));
   }
 
-  @Override public void stopImpl() {
+  @Override
+  public void stopImpl() {
+    // Report metrics before stopping - this ensures any metrics values updated between intervals are reported
+    report();
     this.scheduledTask.get().cancel(false);
     this.scheduledTask = Optional.absent();
   }
 
-  @Override public void close() throws IOException {
-    this.executor.shutdown();
-    try {
-      // Wait a while for existing tasks to terminate
-      if (!this.executor.awaitTermination(10, TimeUnit.SECONDS)) {
-        this.executor.shutdownNow(); // Cancel currently executing tasks
-        // Wait a while for tasks to respond to being cancelled
-        if (!this.executor.awaitTermination(10, TimeUnit.SECONDS)) {
-          System.err.println(getClass().getSimpleName() + ": ScheduledExecutorService did not terminate");
-        }
-      }
-    } catch (InterruptedException ie) {
-      // (Re-)Cancel if current thread also interrupted
-      this.executor.shutdownNow();
-      // Preserve interrupt status
-      Thread.currentThread().interrupt();
-    }
+  @Override
+  public void close() throws IOException {
+    ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(log), 10, TimeUnit.SECONDS);
     super.close();
   }
 
-  @Override protected void removedMetricContext(InnerMetricContext context) {
-    if(shouldReportInnerMetricContext(context)) {
+  @Override
+  protected void removedMetricContext(InnerMetricContext context) {
+    if (shouldReportInnerMetricContext(context)) {
       report(context);
     }
     super.removedMetricContext(context);
@@ -133,13 +134,14 @@ public abstract class ScheduledReporter extends ContextAwareReporter {
    * Trigger emission of a report.
    */
   public void report() {
-    for(ReportableContext metricContext : getMetricContextsToReport()) {
+    for (ReportableContext metricContext : getMetricContextsToReport()) {
       report(metricContext);
     }
   }
 
   /**
    * Report as {@link InnerMetricContext}.
+   *
    * @param context {@link InnerMetricContext} to report.
    */
   protected void report(ReportableContext context) {

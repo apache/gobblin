@@ -80,6 +80,7 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.rest.JobExecutionInfoServer;
+import gobblin.util.ConfigUtils;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.io.StreamUtils;
 import gobblin.util.logs.LogCopier;
@@ -241,7 +242,7 @@ public class GobblinYarnAppLauncher {
         YarnHelixUtils.getAppWorkDirPath(this.fs, this.applicationName, this.applicationId.get().toString())));
     if (config.getBoolean(ConfigurationKeys.JOB_EXECINFO_SERVER_ENABLED_KEY)) {
       LOGGER.info("Starting the job execution info server since it is enabled");
-      services.add(new JobExecutionInfoServer(YarnHelixUtils.configToProperties(config)));
+      services.add(new JobExecutionInfoServer(ConfigUtils.configToProperties(config)));
     }
 
     this.serviceManager = Optional.of(new ServiceManager(services));

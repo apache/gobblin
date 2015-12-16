@@ -12,19 +12,22 @@
 
 package gobblin.metrics.reporter;
 
-import lombok.extern.slf4j.Slf4j;
-
-import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Set;
 import java.util.UUID;
 
+import javax.annotation.Nullable;
+
 import com.codahale.metrics.Reporter;
+
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+
 import com.typesafe.config.Config;
+
+import lombok.extern.slf4j.Slf4j;
 
 import gobblin.metrics.InnerMetricContext;
 import gobblin.metrics.MetricContext;
@@ -42,10 +45,9 @@ import gobblin.metrics.notification.Notification;
  * {@link gobblin.metrics.Metric} filtering, and changes to reporting on {@link MetricContext} life cycle.
  *
  * <p>
- * The lifecycle of a {@link ContextAwareReporter} fully managed by the {@link RootMetricContext} is:
- * Construct -> start -> stop -> close
- * However, {@link ContextAwareReporter}s created manually by the user can have a different life cycle (for example
- * multiple calls to start / stop).
+ *   The lifecycle of a {@link ContextAwareReporter} fully managed by the {@link RootMetricContext} is:
+ *   {@code construct -> start -> stop -> close}. However, {@link ContextAwareReporter}s created manually by the user
+ *   can have a different life cycle (for example  multiple calls to start / stop).
  * </p>
  */
 @Slf4j
@@ -69,17 +71,17 @@ public class ContextAwareReporter implements Reporter, Closeable {
     });
     this.contextFilter = ContextFilterFactory.createContextFilter(config);
     this.contextsToReport = Sets.newConcurrentHashSet();
-    for(MetricContext context : this.contextFilter.getMatchingContexts()) {
+    for (MetricContext context : this.contextFilter.getMatchingContexts()) {
       this.contextsToReport.add(context.getInnerMetricContext());
     }
   }
 
   /**
-   * Starts the {@link ContextAwareReporter}.
-   * If the {@link ContextAwareReporter} has been started (and not stopped since), this is a no-op.
+   * Starts the {@link ContextAwareReporter}. If the {@link ContextAwareReporter} has been started
+   * (and not stopped since), this is a no-op.
    */
   public final void start() {
-    if(this.started) {
+    if (this.started) {
       log.warn(String.format("Reporter %s has already been started.", this.name));
       return;
     }
@@ -99,12 +101,11 @@ public class ContextAwareReporter implements Reporter, Closeable {
   }
 
   /**
-   * Stops the {@link ContextAwareReporter}.
-   * If the {@link ContextAwareReporter} has not been started, or if it has been stopped already,
-   * and not started since, this is a no-op.
+   * Stops the {@link ContextAwareReporter}. If the {@link ContextAwareReporter} has not been started, or if it has been
+   * stopped already, and not started since, this is a no-op.
    */
   public final void stop() {
-    if(!this.started) {
+    if (!this.started) {
       log.warn(String.format("Reporter %s has already been stopped.", this.name));
       return;
     }
@@ -128,7 +129,8 @@ public class ContextAwareReporter implements Reporter, Closeable {
    * This method should be considered irreversible and destructive to the {@link ContextAwareReporter}.
    * @throws IOException
    */
-  @Override public void close() throws IOException {
+  @Override
+  public void close() throws IOException {
     RootMetricContext.get().removeNotificationTarget(this.notificationTargetUUID);
     RootMetricContext.get().removeReporter(this);
   }
@@ -137,38 +139,40 @@ public class ContextAwareReporter implements Reporter, Closeable {
    * Callback used to receive notifications from the {@link RootMetricContext}.
    */
   private void notificationCallback(Notification notification) {
-    if(notification instanceof MetricContextCleanupNotification) {
+    if (notification instanceof MetricContextCleanupNotification) {
       removedMetricContext(((MetricContextCleanupNotification) notification).getMetricContext());
     }
-    if(notification instanceof NewMetricContextNotification) {
+    if (notification instanceof NewMetricContextNotification) {
       newMetricContext(((NewMetricContextNotification) notification).getMetricContext());
     }
   }
 
   /**
    * Called when any {@link MetricContext} is removed from the tree.
+   *
    * @param context {@link InnerMetricContext} backing the removed {@link MetricContext}.
    */
   protected void removedMetricContext(InnerMetricContext context) {
     this.contextsToReport.remove(context);
-    if(context.getParent().isPresent() && this.contextFilter.shouldReplaceByParent(context)) {
+    if (context.getParent().isPresent() && this.contextFilter.shouldReplaceByParent(context)) {
       this.contextsToReport.add(context.getParent().get().getInnerMetricContext());
     }
   }
 
   /**
    * Called whenever a new {@link MetricContext} is added to the tree.
+   *
    * @param context new {@link MetricContext} added.
    */
   protected void newMetricContext(MetricContext context) {
-    if(this.contextFilter.matches(context)) {
+    if (this.contextFilter.matches(context)) {
       this.contextsToReport.add(context.getInnerMetricContext());
     }
   }
 
   /**
-   * Whether a {@link InnerMetricContext} should be reported. Called when a {@link MetricContext} has been removed
-   * and just before the corresponding {@link InnerMetricContext} is removed.
+   * Whether a {@link InnerMetricContext} should be reported. Called when a {@link MetricContext} has been removed and
+   * just before the corresponding {@link InnerMetricContext} is removed.
    */
   protected boolean shouldReportInnerMetricContext(InnerMetricContext context) {
     return this.contextsToReport.contains(context);
@@ -180,5 +184,4 @@ public class ContextAwareReporter implements Reporter, Closeable {
   protected Iterable<ReportableContext> getMetricContextsToReport() {
     return ImmutableSet.<ReportableContext>copyOf(this.contextsToReport);
   }
-
 }

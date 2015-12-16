@@ -10,23 +10,23 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics.kafka;
+package gobblin.metrics.reporter;
 
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
 
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterSuite;
 import org.testng.annotations.Test;
 
-import com.beust.jcommander.internal.Maps;
+import com.google.common.collect.Maps;
 
 import gobblin.metrics.GobblinTrackingEvent;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
 import gobblin.metrics.reporter.util.EventUtils;
+import gobblin.metrics.kafka.KafkaEventReporter;
+import gobblin.metrics.kafka.KafkaPusher;
 
 
 @Test(groups = {"gobblin.metrics"})
@@ -79,7 +79,7 @@ public class KafkaEventReporterTest {
     GobblinTrackingEvent retrievedEvent = nextEvent(pusher.messageIterator());
     Assert.assertEquals(retrievedEvent.getNamespace(), namespace);
     Assert.assertEquals(retrievedEvent.getName(), eventName);
-    Assert.assertEquals(retrievedEvent.getMetadata().size(), 3);
+    Assert.assertEquals(retrievedEvent.getMetadata().size(), 4);
 
   }
 
@@ -126,7 +126,7 @@ public class KafkaEventReporterTest {
     GobblinTrackingEvent retrievedEvent = nextEvent(pusher.messageIterator());
     Assert.assertEquals(retrievedEvent.getNamespace(), namespace);
     Assert.assertEquals(retrievedEvent.getName(), eventName);
-    Assert.assertEquals(retrievedEvent.getMetadata().size(), 3);
+    Assert.assertEquals(retrievedEvent.getMetadata().size(), 4);
     Assert.assertEquals(retrievedEvent.getMetadata().get(tag1), metadataValue1);
     Assert.assertEquals(retrievedEvent.getMetadata().get(tag2), value2);
   }
@@ -142,17 +142,4 @@ public class KafkaEventReporterTest {
     Assert.assertTrue(it.hasNext());
     return EventUtils.deserializeReportFromJson(new GobblinTrackingEvent(), it.next());
   }
-
-  @AfterClass
-  public void after() {
-    try {
-    } catch(Exception e) {
-    }
-  }
-
-  @AfterSuite
-  public void afterSuite() {
-
-  }
-
 }

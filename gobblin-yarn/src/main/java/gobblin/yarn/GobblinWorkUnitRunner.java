@@ -77,6 +77,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskStateTracker;
+import gobblin.util.ConfigUtils;
 import gobblin.yarn.event.DelegationTokenUpdatedEvent;
 
 
@@ -152,7 +153,7 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
         .getZKHelixManager(config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY), helixInstanceName,
             InstanceType.PARTICIPANT, zkConnectionString);
 
-    Properties properties = YarnHelixUtils.configToProperties(config);
+    Properties properties = ConfigUtils.configToProperties(config);
 
     TaskExecutor taskExecutor = new TaskExecutor(properties);
     TaskStateTracker taskStateTracker = new GobblinHelixTaskStateTracker(properties, this.helixManager);
@@ -175,7 +176,7 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
 
     if (GobblinMetrics.isEnabled(properties)) {
       this.containerMetrics =
-          Optional.of(ContainerMetrics.get(YarnHelixUtils.configToState(this.config), applicationName, containerId));
+          Optional.of(ContainerMetrics.get(ConfigUtils.configToState(this.config), applicationName, containerId));
     } else {
       this.containerMetrics = Optional.absent();
     }
@@ -210,7 +211,7 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
     this.jmxReporter.start();
     if (this.containerMetrics.isPresent()) {
       this.containerMetrics.get()
-          .startMetricReportingWithFileSuffix(YarnHelixUtils.configToState(this.config), this.containerId.toString());
+          .startMetricReportingWithFileSuffix(ConfigUtils.configToState(this.config), this.containerId.toString());
     }
 
     this.serviceManager.startAsync();
@@ -229,8 +230,7 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
     // Stop metric reporting
     this.jmxReporter.stop();
     if (this.containerMetrics.isPresent()) {
-      this.containerMetrics.get().triggerMetricReporting();
-      this.containerMetrics.get().stopMetricReporting();
+      this.containerMetrics.get().stopMetricsReporting();
     }
 
     try {
