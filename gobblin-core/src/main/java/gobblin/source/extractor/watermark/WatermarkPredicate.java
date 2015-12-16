@@ -15,7 +15,7 @@ package gobblin.source.extractor.watermark;
 import gobblin.source.extractor.extract.QueryBasedExtractor;
 import java.util.HashMap;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 
 public class WatermarkPredicate {
