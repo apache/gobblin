@@ -36,8 +36,6 @@ import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.FileBasedJobLock;
 import gobblin.runtime.JobLock;
 import gobblin.runtime.JobState;
-import gobblin.runtime.NewOutputTaskStateEvent;
-import gobblin.runtime.Task;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskStateTracker;
 import gobblin.runtime.util.TimingEventNames;
@@ -70,7 +68,8 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     TimingEvent jobLocalSetupTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.JOB_LOCAL_SETUP);
 
     this.taskExecutor = new TaskExecutor(jobProps);
-    this.taskStateTracker = new LocalTaskStateTracker(jobProps, this.taskExecutor);
+    this.taskStateTracker =
+        new LocalTaskStateTracker(jobProps, this.jobContext.getJobState(), this.taskExecutor, this.eventBus);
 
     this.serviceManager = new ServiceManager(Lists.newArrayList(
         // The order matters due to dependencies between services
@@ -117,8 +116,8 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     TimingEvent workUnitsRunTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.WORK_UNITS_RUN);
 
     this.countDownLatch = new CountDownLatch(workUnitsToRun.size());
-    List<Task> tasks = AbstractJobLauncher.runWorkUnits(this.jobContext.getJobId(), workUnitsToRun,
-        this.taskStateTracker, this.taskExecutor, this.countDownLatch);
+    AbstractJobLauncher.runWorkUnits(this.jobContext.getJobId(), workUnitsToRun, this.taskStateTracker,
+        this.taskExecutor, this.countDownLatch);
 
     LOG.info(String.format("Waiting for submitted tasks of job %s to complete...", jobId));
     while (this.countDownLatch.getCount() > 0) {
@@ -126,14 +125,6 @@ public class LocalJobLauncher extends AbstractJobLauncher {
           workUnitsToRun.size(), jobId));
 
       this.countDownLatch.await(1, TimeUnit.MINUTES);
-
-      // Add the TaskStates of completed tasks
-      for (Task task : tasks) {
-        if (task.isCompleted()) {
-          // Notify the listeners for each output TaskState
-          this.eventBus.post(new NewOutputTaskStateEvent(task.getTaskState()));
-        }
-      }
     }
 
     workUnitsRunTimer.stop();

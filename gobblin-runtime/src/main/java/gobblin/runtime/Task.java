@@ -92,8 +92,6 @@ public class Task implements Runnable {
   // Number of task retries
   private final AtomicInteger retryCount = new AtomicInteger();
 
-  private volatile boolean completed = false;
-
   /**
    * Instantiate a new {@link Task}.
    *
@@ -417,18 +415,8 @@ public class Task implements Runnable {
     if (this.countDownLatch.isPresent()) {
       this.countDownLatch.get().countDown();
     }
-    this.completed = true;
 
     this.taskState.setProp(ConfigurationKeys.TASK_RETRIES_KEY, this.retryCount.get());
-  }
-
-  /**
-   * Return whether this {@link Task} is completed or not.
-   *
-   * @return {@code true} if this {@link Task} is completed or {@code false} otherwise
-   */
-  public boolean isCompleted() {
-    return this.completed;
   }
 
   @Override

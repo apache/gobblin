@@ -104,8 +104,10 @@ public class DistributedJobLauncherTest {
 
   @Subscribe
   @Test(enabled = false)
-  public void handleNewOutputTaskStateEvent(NewOutputTaskStateEvent newOutputTaskStateEvent) {
-    this.taskStateMap.put(newOutputTaskStateEvent.getTaskState().getTaskId(), newOutputTaskStateEvent.getTaskState());
+  public void handleNewOutputTaskStateEvent(NewTaskCompletionEvent newOutputTaskStateEvent) {
+    for (TaskState taskState : newOutputTaskStateEvent.getTaskStates()) {
+      this.taskStateMap.put(taskState.getTaskId(), taskState);
+    }
   }
 
   /**

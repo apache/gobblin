@@ -273,9 +273,8 @@ public class JobContext {
   }
 
   @Subscribe
-  public void handleNewOutputTaskStateEvent(NewOutputTaskStateEvent newOutputTaskStateEvent) {
-    this.jobState.addTaskState(newOutputTaskStateEvent.getTaskState());
-    // Update the job execution history store upon every task completion
+  public void handleNewOutputTaskStateEvent(NewTaskCompletionEvent newOutputTaskStateEvent) {
+    // Update the job execution history store upon new task completion
     storeJobExecutionInfo();
   }
 

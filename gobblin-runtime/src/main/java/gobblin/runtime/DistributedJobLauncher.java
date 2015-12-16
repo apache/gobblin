@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Queues;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -156,10 +157,14 @@ public abstract class DistributedJobLauncher extends AbstractJobLauncher {
 
     LOGGER.info(String.format("Collected task state of %d completed tasks", taskStateQueue.size()));
 
+    // Add the TaskStates of completed tasks to the JobState so when the control
+    // returns to the launcher, it sees the TaskStates of all completed tasks.
     for (TaskState taskState : taskStateQueue) {
-      // Notify the listeners for each collected output TaskState
-      this.eventBus.post(new NewOutputTaskStateEvent(taskState));
+      this.jobContext.getJobState().addTaskState(taskState);
     }
+
+    // Notify the listeners for the completion of the tasks
+    this.eventBus.post(new NewTaskCompletionEvent(ImmutableList.copyOf(taskStateQueue)));
   }
 
   @Override
