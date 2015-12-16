@@ -13,6 +13,7 @@
 package gobblin.runtime.util;
 
 import java.util.List;
+import java.util.concurrent.Callable;
 
 import com.google.common.collect.Lists;
 
@@ -70,8 +71,12 @@ public class JobMetrics extends GobblinMetrics {
    * @param parentContext is the parent {@link MetricContext}
    * @return a {@link JobMetrics} instance
    */
-  public static JobMetrics get(JobState jobState, MetricContext parentContext) {
-    return (JobMetrics) GOBBLIN_METRICS_REGISTRY.getOrDefault(name(jobState), new JobMetrics(jobState, parentContext));
+  public static JobMetrics get(final JobState jobState, final MetricContext parentContext) {
+    return (JobMetrics) GOBBLIN_METRICS_REGISTRY.getOrDefault(name(jobState), new Callable<GobblinMetrics>() {
+      @Override public GobblinMetrics call() throws Exception {
+        return new JobMetrics(jobState, parentContext);
+      }
+    });
   }
 
   /**
@@ -80,8 +85,12 @@ public class JobMetrics extends GobblinMetrics {
    * @param jobState the given {@link JobState} instance
    * @return a {@link JobMetrics} instance
    */
-  public static JobMetrics get(JobState jobState) {
-    return (JobMetrics) GOBBLIN_METRICS_REGISTRY.getOrDefault(name(jobState), new JobMetrics(jobState));
+  public static JobMetrics get(final JobState jobState) {
+    return (JobMetrics) GOBBLIN_METRICS_REGISTRY.getOrDefault(name(jobState), new Callable<GobblinMetrics>() {
+      @Override public GobblinMetrics call() throws Exception {
+        return new JobMetrics(jobState);
+      }
+    });
   }
 
   /**

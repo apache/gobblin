@@ -692,7 +692,10 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
       try {
         return buildStrict();
       } catch (NameConflictException nce) {
-        this.name = this.name + "_" + UUID.randomUUID().toString();
+        String uuid = UUID.randomUUID().toString();
+        LOG.warn("MetricContext with specified name already exists, appending UUID to the given name: " + uuid);
+
+        this.name = this.name + "_" + uuid;
         try {
           return buildStrict();
         } catch (NameConflictException nce2) {
