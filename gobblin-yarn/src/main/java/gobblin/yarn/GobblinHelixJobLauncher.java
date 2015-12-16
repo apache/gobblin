@@ -36,11 +36,12 @@ import com.google.common.collect.Maps;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.event.TimingEvent;
 import gobblin.rest.LauncherTypeEnum;
-import gobblin.runtime.DistributedJobLauncher;
+import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.FileBasedJobLock;
 import gobblin.runtime.JobLauncher;
 import gobblin.runtime.JobLock;
 import gobblin.runtime.TaskState;
+import gobblin.runtime.TaskStateCollectorService;
 import gobblin.runtime.util.TimingEventNames;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
@@ -73,7 +74,7 @@ import gobblin.util.SerializationUtils;
  *
  * @author ynli
  */
-public class GobblinHelixJobLauncher extends DistributedJobLauncher {
+public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinHelixJobLauncher.class);
 
@@ -84,8 +85,15 @@ public class GobblinHelixJobLauncher extends DistributedJobLauncher {
   private final String helixQueueName;
   private final String jobResourceName;
 
+  private final FileSystem fs;
   private final Path appWorkDir;
   private final Path inputWorkUnitDir;
+  private final Path outputTaskStateDir;
+
+  // Number of ParallelRunner threads to be used for state serialization/deserialization
+  private final int stateSerDeRunnerThreads;
+
+  private final TaskStateCollectorService taskStateCollectorService;
 
   private volatile boolean jobSubmitted = false;
   private volatile boolean jobComplete = false;
@@ -93,18 +101,27 @@ public class GobblinHelixJobLauncher extends DistributedJobLauncher {
   public GobblinHelixJobLauncher(Properties jobProps, HelixManager helixManager, FileSystem fs, Path appWorkDir,
       Map<String, String> eventMetadata)
       throws Exception {
-    super(jobProps, fs, eventMetadata);
+    super(jobProps, eventMetadata);
 
     this.helixManager = helixManager;
     this.helixTaskDriver = new TaskDriver(this.helixManager);
 
+    this.fs = fs;
     this.appWorkDir = appWorkDir;
     this.inputWorkUnitDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME);
+    this.outputTaskStateDir = new Path(this.appWorkDir, GobblinYarnConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME +
+        Path.SEPARATOR + this.jobContext.getJobId());
 
     this.helixQueueName = this.jobContext.getJobName();
     this.jobResourceName = TaskUtil.getNamespacedJobName(this.helixQueueName, this.jobContext.getJobId());
 
     this.jobContext.getJobState().setJobLauncherType(LauncherTypeEnum.YARN);
+
+    this.stateSerDeRunnerThreads = Integer.parseInt(jobProps.getProperty(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY,
+        Integer.toString(ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS)));
+
+    this.taskStateCollectorService = new TaskStateCollectorService(jobProps, this.jobContext.getJobState(),
+        this.eventBus, this.fs, outputTaskStateDir);
   }
 
   @Override
@@ -119,10 +136,8 @@ public class GobblinHelixJobLauncher extends DistributedJobLauncher {
   @Override
   protected void runWorkUnits(List<WorkUnit> workUnits) throws Exception {
     try {
-      Path outputTaskStateDir = new Path(this.appWorkDir, GobblinYarnConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME +
-          Path.SEPARATOR + this.jobContext.getJobId());
-      // Schedule the collector of output TaskStates that collects TaskStates from output TaskState files periodically
-      scheduleOutputTaskStatesCollector(outputTaskStateDir);
+      // Start the output TaskState collector service
+      this.taskStateCollectorService.startAsync().awaitRunning();
 
       TimingEvent jobSubmissionTimer =
           this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.HELIX_JOB_SUBMISSION);
@@ -136,12 +151,9 @@ public class GobblinHelixJobLauncher extends DistributedJobLauncher {
       jobRunTimer.stop();
       LOGGER.info(String.format("Job %s completed", this.jobContext.getJobId()));
       this.jobComplete = true;
-
-      // Shutdown the collector of output TaskStates and do a last batch of collecting,
-      // which is still necessary in the batch-oriented job model used by this launcher.
-      shutdownOutputTaskStatesCollector();
-      collectOutputTaskStates(outputTaskStateDir);
     } finally {
+      // The last iteration of output TaskState collecting will run when the collector service gets stopped
+      this.taskStateCollectorService.stopAsync().awaitTerminated();
       deletePersistedWorkUnitsForJob();
     }
   }

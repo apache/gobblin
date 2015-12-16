@@ -273,7 +273,8 @@ public class JobContext {
   }
 
   @Subscribe
-  public void handleNewOutputTaskStateEvent(NewTaskCompletionEvent newOutputTaskStateEvent) {
+  public void handleNewTaskCompletionEvent(NewTaskCompletionEvent newOutputTaskStateEvent) {
+    LOG.info("{} more tasks of job {} have completed", newOutputTaskStateEvent.getTaskStates().size(), this.jobId);
     // Update the job execution history store upon new task completion
     storeJobExecutionInfo();
   }

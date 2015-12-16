@@ -20,7 +20,6 @@ import java.sql.SQLException;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.hadoop.fs.Path;
 import org.jboss.byteman.contrib.bmunit.BMNGRunner;
 import org.jboss.byteman.contrib.bmunit.BMRule;
 import org.testng.Assert;
@@ -31,6 +30,7 @@ import org.testng.annotations.Test;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.runtime.JobLauncherTestHelper;
 import gobblin.runtime.JobState;
 import gobblin.util.limiter.BaseLimiterType;
@@ -64,7 +64,7 @@ public class MRJobLauncherTest extends BMNGRunner {
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY,
         "jdbc:derby:memory:gobblin2;create=true");
 
-    StateStore<JobState.DatasetState> datasetStateStore = new FsStateStore<JobState.DatasetState>(
+    StateStore<JobState.DatasetState> datasetStateStore = new FsStateStore<>(
         this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
         this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
         JobState.DatasetState.class);
@@ -178,15 +178,15 @@ public class MRJobLauncherTest extends BMNGRunner {
   }
 
   /**
-   * Byteman test that ensures the {@link MRJobLauncher} successfully cleans up all staging data
-   * even when an exception is thrown in the {@link MRJobLauncher#collectOutputTaskStates(Path)}
-   * method. The {@link BMRule} is to inject an {@link IOException} when the
-   * {@link MRJobLauncher#collectOutputTaskStates(Path)} method is called.
+   * Byteman test that ensures the {@link MRJobLauncher} successfully cleans up all staging data even
+   * when an exception is thrown in the {@link MRJobLauncher#countersToMetrics(GobblinMetrics)} method.
+   * The {@link BMRule} is to inject an {@link IOException} when the
+   * {@link MRJobLauncher#countersToMetrics(GobblinMetrics)} method is called.
    */
   @Test
   @BMRule(name = "testJobCleanupOnError",
-          targetClass = "gobblin.runtime.DistributedJobLauncher",
-          targetMethod = "collectOutputTaskStates(Path)",
+          targetClass = "gobblin.runtime.mapreduce.MRJobLauncher",
+          targetMethod = "countersToMetrics(GobblinMetrics)",
           targetLocation = "AT ENTRY",
           condition = "true",
           action = "throw new IOException(\"Exception for testJobCleanupOnError\")")

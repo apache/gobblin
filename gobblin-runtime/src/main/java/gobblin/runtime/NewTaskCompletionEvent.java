@@ -19,7 +19,10 @@ import java.util.Collection;
  * An event triggered upon the completion of one or more {@link Task}s.
  *
  * <p>
- *   This event carries the {@link TaskState}(s) of the completed {@link Task}(s).
+ *   This event carries the {@link TaskState}(s) of the completed {@link Task}(s). Classes that are
+ *   interested in receiving the events can registered themselves to the
+ *   {@link com.google.common.eventbus.EventBus} in {@link AbstractJobLauncher} to which the events
+ *   are posted.
  * </p>
  *
  * @author ynli

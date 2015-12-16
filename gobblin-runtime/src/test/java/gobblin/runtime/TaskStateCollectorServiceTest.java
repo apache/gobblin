@@ -13,7 +13,6 @@
 package gobblin.runtime;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -25,34 +24,38 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 
-import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.FsStateStore;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.test.TestSource;
 import gobblin.util.JobLauncherUtils;
 
 
 /**
- * Unit tests for {@link DistributedJobLauncher}.
+ * Unit tests for {@link TaskStateCollectorService}.
  *
  * @author ynli
  */
 @Test(groups = { "gobblin.runtime" })
-public class DistributedJobLauncherTest {
+public class TaskStateCollectorServiceTest {
 
   private static final String JOB_NAME = "TestJob";
   private static final String JOB_ID = JobLauncherUtils.newJobId(JOB_NAME);
   private static final String TASK_ID_0 = JobLauncherUtils.newTaskId(JOB_ID, 0);
   private static final String TASK_ID_1 = JobLauncherUtils.newTaskId(JOB_ID, 1);
 
-  private final Path outputTaskStateDir = new Path(DistributedJobLauncherTest.class.getSimpleName());
+  private final Path outputTaskStateDir = new Path(TaskStateCollectorServiceTest.class.getSimpleName());
+
   private FileSystem localFs;
+
   private FsStateStore<TaskState> taskStateStore;
-  private DistributedJobLauncher distributedJobLauncher;
+
+  private TaskStateCollectorService taskStateCollectorService;
+
+  private final JobState jobState = new JobState();
+
+  private final EventBus eventBus = new EventBus();
 
   private final Map<String, TaskState> taskStateMap = Maps.newHashMap();
 
@@ -63,13 +66,10 @@ public class DistributedJobLauncherTest {
 
     this.taskStateStore = new FsStateStore<>(this.localFs, this.outputTaskStateDir.toUri().getPath(), TaskState.class);
 
-    Properties properties = new Properties();
-    properties.setProperty(ConfigurationKeys.JOB_NAME_KEY, JOB_NAME);
-    properties.setProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, this.outputTaskStateDir.toUri().getPath());
-    properties.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, TestSource.class.getName());
-    this.distributedJobLauncher =
-        new TestDistributedJobLauncher(properties, this.localFs, ImmutableMap.<String, String>of());
-    this.distributedJobLauncher.eventBus.register(this);
+    this.taskStateCollectorService = new TaskStateCollectorService(new Properties(), this.jobState, this.eventBus,
+        this.localFs, new Path(this.outputTaskStateDir, JOB_ID));
+
+    this.eventBus.register(this);
   }
 
   @Test
@@ -86,8 +86,9 @@ public class DistributedJobLauncherTest {
   }
 
   @Test(dependsOnMethods = "testPutIntoTaskStateStore")
-  public void testCollectOutputTaskStates() throws IOException {
-    this.distributedJobLauncher.collectOutputTaskStates(new Path(this.outputTaskStateDir, JOB_ID));
+  public void testCollectOutputTaskStates() throws Exception {
+    this.taskStateCollectorService.runOneIteration();
+    Assert.assertEquals(this.jobState.getTaskStates().size(), 2);
     Assert.assertEquals(this.taskStateMap.size(), 2);
     Assert.assertEquals(this.taskStateMap.get(TASK_ID_0).getJobId(), JOB_ID);
     Assert.assertEquals(this.taskStateMap.get(TASK_ID_0).getTaskId(), TASK_ID_0);
@@ -107,32 +108,6 @@ public class DistributedJobLauncherTest {
   public void handleNewOutputTaskStateEvent(NewTaskCompletionEvent newOutputTaskStateEvent) {
     for (TaskState taskState : newOutputTaskStateEvent.getTaskStates()) {
       this.taskStateMap.put(taskState.getTaskId(), taskState);
-    }
-  }
-
-  /**
-   * Ad dummy test implementation of {@link DistributedJobLauncher}.
-   */
-  private static class TestDistributedJobLauncher extends DistributedJobLauncher {
-
-    public TestDistributedJobLauncher(Properties jobProps, FileSystem fs, Map<String, String> eventMetadata)
-        throws Exception {
-      super(jobProps, fs, eventMetadata);
-    }
-
-    @Override
-    protected void runWorkUnits(List<WorkUnit> workUnits) throws Exception {
-
-    }
-
-    @Override
-    protected JobLock getJobLock() throws IOException {
-      return null;
-    }
-
-    @Override
-    protected void executeCancellation() {
-
     }
   }
 }
