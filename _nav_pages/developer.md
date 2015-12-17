@@ -20,13 +20,14 @@ We upload our releases to [Maven Central](http://search.maven.org/#search%7Cga%7
 
 # Source Code
 
-You can find our source code on [github](https://github.com/linkedin/gobblin/).
+You can find our source code on [github](https://github.com/linkedin/gobblin/) and [fork it](https://github.com/linkedin/gobblin#fork-destination-box).
 
 To check it out, you can run
 
 {% highlight bash %}
 git clone git@github.com:linkedin/gobblin.git
 {% endhighlight %}
+
 
 # Javadocs
 
