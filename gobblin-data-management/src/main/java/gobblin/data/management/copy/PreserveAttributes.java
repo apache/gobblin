@@ -89,14 +89,15 @@ public class PreserveAttributes {
    */
   public static PreserveAttributes fromMnemonicString(String s) {
 
+    if (Strings.isNullOrEmpty(s)) {
+      return new PreserveAttributes(0);
+    }
+
     s = s.toLowerCase();
 
     Preconditions.checkArgument(ATTRIBUTES_REGEXP.matcher(s).matches(), "Invalid %s string %s, must be of the form %s.",
         PreserveAttributes.class.getSimpleName(), s, ATTRIBUTES_REGEXP.pattern());
 
-    if (Strings.isNullOrEmpty(s)) {
-      return new PreserveAttributes(0);
-    }
     int value = 0;
     for (Option option : Option.values()) {
       if (s.indexOf(option.token) >= 0) {

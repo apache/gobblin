@@ -90,11 +90,11 @@ public class CopyableFile implements File {
   /** Attributes to be preserved. */
   private PreserveAttributes preserve;
   /**
-   * Partition this file belongs to. {@link CopyableFile}s in the same partition and originating from the same
+   * File set this file belongs to. {@link CopyableFile}s in the same fileSet and originating from the same
    * {@link CopyableDataset} will be treated as a unit: they will be published nearly atomically, and a notification
-   * will be emitted for each partition when it is published.
+   * will be emitted for each fileSet when it is published.
    */
-  private String partition;
+  private String fileSet;
 
   /**
    * Get a {@link CopyableFile.Builder}.
@@ -160,7 +160,7 @@ public class CopyableFile implements File {
      *       allowing Gobblin distcp to use defaults for the target {@link FileSystem}.
      *   * {@link CopyableFile#checksum}: the checksum of the origin {@link FileStatus} obtained using the origin
      *       {@link FileSystem}.
-     *   * {@link CopyableFile#partition}: equal to the origin dataset root path.
+     *   * {@link CopyableFile#fileSet}: equal to the origin dataset root path.
      * </p>
      *
      * @return A {@link CopyableFile}.
@@ -183,12 +183,12 @@ public class CopyableFile implements File {
         FileChecksum checksumTmp = this.originFs.getFileChecksum(origin.getPath());
         this.checksum = checksumTmp == null ? new byte[0] : checksumTmp.getBytes();
       }
-      if (this.partition == null) {
-        this.partition = this.rootPath.toString();
+      if (this.fileSet == null) {
+        this.fileSet = this.rootPath.toString();
       }
 
       return new CopyableFile(origin, destination, relativeDestination, destinationOwnerAndPermission,
-          ancestorsOwnerAndPermission, null, preserve, partition);
+          ancestorsOwnerAndPermission, null, preserve, fileSet);
     }
 
     private List<OwnerAndPermission> replicateOwnerAndPermission(final FileSystem originFs, final Path path,
@@ -275,16 +275,16 @@ public class CopyableFile implements File {
   }
 
   /**
-   * Get a {@link DatasetAndPartition} instance for the dataset and partition this {@link CopyableFile} belongs to.
+   * Get a {@link DatasetAndPartition} instance for the dataset and fileSet this {@link CopyableFile} belongs to.
    * @param metadata {@link CopyableDatasetMetadata} for the dataset this {@link CopyableFile} belongs to.
    * @return an instance of {@link DatasetAndPartition}
    */
   public DatasetAndPartition getDatasetAndPartition(CopyableDatasetMetadata metadata) {
-    return new DatasetAndPartition(metadata, getPartition());
+    return new DatasetAndPartition(metadata, getFileSet());
   }
 
   /**
-   * Uniquely identifies a partition by also including the dataset metadata.
+   * Uniquely identifies a fileSet by also including the dataset metadata.
    */
   @Data
   @EqualsAndHashCode

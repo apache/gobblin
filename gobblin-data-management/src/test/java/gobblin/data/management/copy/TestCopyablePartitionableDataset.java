@@ -27,9 +27,9 @@ public class TestCopyablePartitionableDataset extends TestCopyableDataset {
   @Override protected void modifyCopyableFile(CopyableFile.Builder builder, FileStatus origin) {
     super.modifyCopyableFile(builder, origin);
     if (Integer.parseInt(origin.getPath().getName()) < THRESHOLD) {
-      builder.partition(BELOW);
+      builder.fileSet(BELOW);
     } else {
-      builder.partition(ABOVE);
+      builder.fileSet(ABOVE);
     }
   }
 

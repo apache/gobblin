@@ -87,12 +87,12 @@ public class CopyDataPublisher extends DataPublisher {
      * This mapping is used to set WorkingState of all {@link WorkUnitState}s to {@link
      * WorkUnitState.WorkingState#COMMITTED} after a {@link CopyableDataset} is successfully published
      */
-    Multimap<CopyableFile.DatasetAndPartition, WorkUnitState> datasets = getDatasetRoots(states);
+    Multimap<CopyableFile.DatasetAndPartition, WorkUnitState> datasets = groupByFileSet(states);
 
     boolean allDatasetsPublished = true;
     for (CopyableFile.DatasetAndPartition datasetAndPartition : datasets.keySet()) {
       try {
-        this.publishDataset(datasetAndPartition, datasets.get(datasetAndPartition));
+        this.publishFileSet(datasetAndPartition, datasets.get(datasetAndPartition));
       } catch (Throwable e) {
         CopyEventSubmitterHelper.submitFailedDatasetPublish(eventSubmitter, datasetAndPartition);
         log.error("Failed to publish " + datasetAndPartition.getDataset().getDatasetTargetRoot(), e);
@@ -110,7 +110,8 @@ public class CopyDataPublisher extends DataPublisher {
    * {@link CopyableDataset}. This mapping is used to set WorkingState of all {@link WorkUnitState}s to
    * {@link WorkUnitState.WorkingState#COMMITTED} after a {@link CopyableDataset} is successfully published.
    */
-  private Multimap<CopyableFile.DatasetAndPartition, WorkUnitState> getDatasetRoots(Collection<? extends WorkUnitState> states)
+  private Multimap<CopyableFile.DatasetAndPartition, WorkUnitState> groupByFileSet(
+      Collection<? extends WorkUnitState> states)
       throws IOException {
     Multimap<CopyableFile.DatasetAndPartition, WorkUnitState> datasetRoots = ArrayListMultimap.create();
 
@@ -128,12 +129,12 @@ public class CopyDataPublisher extends DataPublisher {
    * Publish data for a {@link CopyableDataset}.
    *
    */
-  private void publishDataset(CopyableFile.DatasetAndPartition datasetAndPartition,
+  private void publishFileSet(CopyableFile.DatasetAndPartition datasetAndPartition,
       Collection<WorkUnitState> datasetWorkUnitStates)
       throws IOException {
 
     Preconditions.checkArgument(!datasetWorkUnitStates.isEmpty(),
-        "publishDataset received an empty collection work units. This is an error in code.");
+        "publishFileSet received an empty collection work units. This is an error in code.");
 
     CopyableDatasetMetadata metadata = CopyableDatasetMetadata.deserialize(
         datasetWorkUnitStates.iterator().next().getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
@@ -141,7 +142,7 @@ public class CopyDataPublisher extends DataPublisher {
         PathUtils.withoutLeadingSeparator(metadata.getDatasetTargetRoot()));
 
     log.info(String
-        .format("Publishing dataset from %s to %s", datasetWriterOutputPath, metadata.getDatasetTargetRoot()));
+        .format("Publishing fileSet from %s to %s", datasetWriterOutputPath, metadata.getDatasetTargetRoot()));
 
     HadoopUtils.renameRecursively(fs, datasetWriterOutputPath, metadata.getDatasetTargetRoot());
 

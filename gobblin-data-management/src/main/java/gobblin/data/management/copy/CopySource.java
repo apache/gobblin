@@ -118,7 +118,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
             GobblinMetrics.addCustomTagToState(workUnit, new Tag<String>(
                 CopyEventSubmitterHelper.DATASET_ROOT_METADATA_NAME, copyableDataset.datasetRoot().toString()));
             workUnit.setProp(SlaEventKeys.DATASET_URN_KEY, copyableDataset.datasetRoot().toString());
-            workUnit.setProp(SlaEventKeys.PARTITION_KEY, copyableFile.getPartition());
+            workUnit.setProp(SlaEventKeys.PARTITION_KEY, copyableFile.getFileSet());
             workUnit.setProp(SlaEventKeys.ORIGIN_TS_IN_MILLI_SECS_KEY, copyableFile.getFileStatus().getModificationTime());
             workUnits.add(workUnit);
           }
@@ -203,10 +203,10 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   private Collection<Partition<CopyableFile>> partitionCopyableFiles(Collection<CopyableFile> files) {
     Map<String, Partition.Builder<CopyableFile>> partitionBuildersMaps = Maps.newHashMap();
     for (CopyableFile file : files) {
-      if (!partitionBuildersMaps.containsKey(file.getPartition())) {
-        partitionBuildersMaps.put(file.getPartition(), new Partition.Builder<CopyableFile>(file.getPartition()));
+      if (!partitionBuildersMaps.containsKey(file.getFileSet())) {
+        partitionBuildersMaps.put(file.getFileSet(), new Partition.Builder<CopyableFile>(file.getFileSet()));
       }
-      partitionBuildersMaps.get(file.getPartition()).add(file);
+      partitionBuildersMaps.get(file.getFileSet()).add(file);
     }
     return Lists.newArrayList(Iterables.transform(partitionBuildersMaps.values(),
         new Function<Partition.Builder<CopyableFile>, Partition<CopyableFile>>() {

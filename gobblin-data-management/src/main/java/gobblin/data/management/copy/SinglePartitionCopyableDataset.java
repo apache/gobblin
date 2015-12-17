@@ -22,7 +22,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 /**
- * An implementation of {@link CopyableDataset} that partitions all files into a single partition
+ * An implementation of {@link CopyableDataset} that partitions all files into a single fileSet
  */
 public abstract class SinglePartitionCopyableDataset implements CopyableDataset, PartitionableDataset<CopyableFile> {
 
