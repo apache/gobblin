@@ -14,11 +14,10 @@ package gobblin.data.management.copy;
 
 import gobblin.data.management.copy.PreserveAttributes.Option;
 
-import junit.framework.Assert;
-
 import java.util.Map;
 import java.util.Set;
 
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Maps;
