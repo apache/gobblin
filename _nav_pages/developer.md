@@ -28,6 +28,9 @@ To check it out, you can run
 git clone git@github.com:linkedin/gobblin.git
 {% endhighlight %}
 
+# License
+
+Gobblin is licensed under [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
 
 # Javadocs
 
