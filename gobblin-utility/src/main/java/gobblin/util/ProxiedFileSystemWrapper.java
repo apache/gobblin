@@ -128,6 +128,7 @@ public class ProxiedFileSystemWrapper {
     Closer closer = Closer.create();
     try {
       FileSystem localFs = FileSystem.getLocal(new Configuration());
+      @SuppressWarnings("deprecation")
       SequenceFile.Reader tokenReader =
           closer.register(new SequenceFile.Reader(localFs, new Path(authPath), localFs.getConf()));
       Text key = new Text();

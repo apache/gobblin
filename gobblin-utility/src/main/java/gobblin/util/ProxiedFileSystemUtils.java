@@ -213,6 +213,7 @@ public class ProxiedFileSystemUtils {
     Closer closer = Closer.create();
     try {
       FileSystem localFs = FileSystem.getLocal(new Configuration());
+      @SuppressWarnings("deprecation")
       SequenceFile.Reader tokenReader =
           closer.register(new SequenceFile.Reader(localFs, tokenFilePath, localFs.getConf()));
       Text key = new Text();

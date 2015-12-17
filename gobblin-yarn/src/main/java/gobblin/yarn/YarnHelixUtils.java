@@ -28,7 +28,6 @@ import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
-import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
@@ -36,6 +35,7 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.Apps;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
+
 import org.apache.helix.manager.zk.ZKHelixManager;
 import org.apache.helix.model.HelixConfigScope;
 import org.apache.helix.tools.ClusterSetup;
@@ -44,6 +44,8 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValue;
 
 import com.google.common.collect.Maps;
+
+import gobblin.configuration.State;
 
 
 /**
@@ -79,25 +81,14 @@ public class YarnHelixUtils {
   }
 
   /**
-   * Get a Helix partition ID from a given host name and a given Yarn {@link ContainerId}.
+   * Get a Helix instance name.
    *
-   * @param hostName the given host name
-   * @param containerId the given {@link ContainerId}
-   * @return a Helix partition ID
+   * @param namePrefix a prefix of Helix instance names
+   * @param instanceId an integer instance ID
+   * @return a Helix instance name that is a concatenation of the given prefix and instance ID
    */
-  public static String getParticipantId(String hostName, ContainerId containerId) {
-    return getHelixInstanceName(hostName, containerId);
-  }
-
-  /**
-   * Get a Helix instance name from a given host name and a given Yarn {@link ContainerId}.
-   *
-   * @param hostName the given host name
-   * @param containerId the given {@link ContainerId}
-   * @return a Helix instance name
-   */
-  public static String getHelixInstanceName(String hostName, ContainerId containerId) {
-    return hostName + "_" + containerId.toString();
+  public static String getHelixInstanceName(String namePrefix, int instanceId) {
+    return namePrefix + "_" + instanceId;
   }
 
   /**
@@ -138,6 +129,16 @@ public class YarnHelixUtils {
     }
 
     return properties;
+  }
+
+  /**
+   * Convert a given {@link Config} to a {@link State} instance.
+   *
+   * @param config the given {@link Config} instance
+   * @return a {@link State} instance
+   */
+  public static State configToState(Config config) {
+    return new State(configToProperties(config));
   }
 
   /**
@@ -197,6 +198,7 @@ public class YarnHelixUtils {
    * @param yarnConfiguration a Hadoop {@link Configuration} object carrying Hadoop/Yarn configuration properties
    * @return a {@link java.util.Map} storing environment variables used when launching a Yarn container
    */
+  @SuppressWarnings("deprecation")
   public static Map<String, String> getEnvironmentVariables(Configuration yarnConfiguration) {
     Map<String, String> environmentVariableMap = Maps.newHashMap();
 

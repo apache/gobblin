@@ -21,10 +21,8 @@ import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.Path;
-
 import org.jboss.byteman.contrib.bmunit.BMNGRunner;
 import org.jboss.byteman.contrib.bmunit.BMRule;
-
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -52,6 +50,10 @@ public class MRJobLauncherTest extends BMNGRunner {
 
   @BeforeClass
   public void startUp() throws Exception {
+    System.setProperty("derby.locks.deadlockTrace", "true");
+    System.setProperty("derby.locks.waitTimeout", "180");
+    System.setProperty("derby.locks.deadlockTimeout", "120");
+
     this.launcherProps = new Properties();
     this.launcherProps.load(new FileReader("gobblin-test/resource/gobblin.mr-test.properties"));
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, "true");

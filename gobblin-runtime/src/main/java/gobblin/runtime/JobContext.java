@@ -93,9 +93,15 @@ public class JobContext {
     this.jobLockEnabled =
         Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, Boolean.TRUE.toString()));
 
+    // Add all job configuration properties so they are picked up by Hadoop
+    Configuration conf = new Configuration();
+    for (String key : jobProps.stringPropertyNames()) {
+      conf.set(key, jobProps.getProperty(key));
+    }
+
     String stateStoreFsUri =
         jobProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI);
-    FileSystem stateStoreFs = FileSystem.get(URI.create(stateStoreFsUri), new Configuration());
+    FileSystem stateStoreFs = FileSystem.get(URI.create(stateStoreFsUri), conf);
     String stateStoreRootDir = jobProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY);
     this.datasetStateStore = new FsDatasetStateStore(stateStoreFs, stateStoreRootDir);
 

@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import com.typesafe.config.Config;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
@@ -65,7 +66,7 @@ public class YarnContainerSecurityManager extends AbstractIdleService {
   @Subscribe
   public void handleTokenFileUpdatedEvent(DelegationTokenUpdatedEvent delegationTokenUpdatedEvent) {
     try {
-      readAndAddDelegationTokens(this.tokenFilePath);
+      addDelegationTokens(readDelegationTokens(this.tokenFilePath));
     } catch (IOException ioe) {
       throw Throwables.propagate(ioe);
     }
@@ -82,12 +83,16 @@ public class YarnContainerSecurityManager extends AbstractIdleService {
   }
 
   /**
-   * Read the {@link Token}s stored in the token file and add them for the login user.
+   * Read the {@link Token}s stored in the token file.
    */
-  private void readAndAddDelegationTokens(Path tokenFilePath) throws IOException {
+  @VisibleForTesting
+  Collection<Token<? extends TokenIdentifier>> readDelegationTokens(Path tokenFilePath) throws IOException {
     LOGGER.info("Reading updated token from token file: " + tokenFilePath);
-    Collection<Token<? extends TokenIdentifier>> tokens =
-        YarnHelixUtils.readTokensFromFile(tokenFilePath, this.fs.getConf());
+    return YarnHelixUtils.readTokensFromFile(tokenFilePath, this.fs.getConf());
+  }
+
+  @VisibleForTesting
+  void addDelegationTokens(Collection<Token<? extends TokenIdentifier>> tokens) throws IOException {
     for (Token<? extends TokenIdentifier> token : tokens) {
       if (!UserGroupInformation.getCurrentUser().addToken(token)) {
         LOGGER.error(String.format("Failed to add token %s to user %s",

@@ -11,7 +11,6 @@
  */
 package gobblin.util.io;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -20,12 +19,15 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 import org.apache.commons.compress.utils.IOUtils;
+
+import org.apache.commons.lang.StringUtils;
 
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -53,7 +55,8 @@ public class StreamUtils {
    * @see SeekableFSInputStream
    *
    */
-  public static FSDataInputStream convertStream(InputStream in) throws IOException {
+  public static FSDataInputStream convertStream(InputStream in)
+      throws IOException {
     return new FSDataInputStream(new SeekableFSInputStream(in));
   }
 
@@ -67,7 +70,8 @@ public class StreamUtils {
    *
    * @return Total bytes copied
    */
-  public static long copy(InputStream is, OutputStream os) throws IOException {
+  public static long copy(InputStream is, OutputStream os)
+      throws IOException {
 
     final ReadableByteChannel inputChannel = Channels.newChannel(is);
     final WritableByteChannel outputChannel = Channels.newChannel(os);
@@ -88,7 +92,8 @@ public class StreamUtils {
    *
    * @return Total bytes copied
    */
-  public static long copy(ReadableByteChannel inputChannel, WritableByteChannel outputChannel) throws IOException {
+  public static long copy(ReadableByteChannel inputChannel, WritableByteChannel outputChannel)
+      throws IOException {
 
     long bytesRead = 0;
     long totalBytesRead = 0;
@@ -138,11 +143,11 @@ public class StreamUtils {
 
       FileStatus fileStatus = sourceFs.getFileStatus(sourcePath);
 
-      if (fileStatus.isDir()) {
-        dirToTarArchiveOutputStreamRecursive(fileStatus, sourceFs, new File("."), tarArchiveOutputStream);
+      if (sourceFs.isDirectory(sourcePath)) {
+        dirToTarArchiveOutputStreamRecursive(fileStatus, sourceFs, Optional.<Path>absent(), tarArchiveOutputStream);
       } else {
         try (FSDataInputStream fsDataInputStream = sourceFs.open(sourcePath)) {
-          fileToTarArchiveOutputStream(fileStatus, fsDataInputStream, new File(sourcePath.getName()),
+          fileToTarArchiveOutputStream(fileStatus, fsDataInputStream, new Path(sourcePath.getName()),
               tarArchiveOutputStream);
         }
       }
@@ -153,20 +158,21 @@ public class StreamUtils {
    * Helper method for {@link #tar(FileSystem, FileSystem, Path, Path)} that recursively adds a directory to a given
    * {@link TarArchiveOutputStream}.
    */
-  private static void dirToTarArchiveOutputStreamRecursive(FileStatus dirFileStatus, FileSystem fs, File destDir,
-      TarArchiveOutputStream tarArchiveOutputStream)
+  private static void dirToTarArchiveOutputStreamRecursive(FileStatus dirFileStatus, FileSystem fs,
+      Optional<Path> destDir, TarArchiveOutputStream tarArchiveOutputStream)
       throws IOException {
 
-    Preconditions.checkState(dirFileStatus.isDir());
+    Preconditions.checkState(fs.isDirectory(dirFileStatus.getPath()));
 
-    File dir = new File(destDir, dirFileStatus.getPath().getName());
+    Path dir = destDir.isPresent() ? new Path(destDir.get(), dirFileStatus.getPath().getName())
+        : new Path(dirFileStatus.getPath().getName());
     dirToTarArchiveOutputStream(dir, tarArchiveOutputStream);
 
     for (FileStatus childFileStatus : fs.listStatus(dirFileStatus.getPath())) {
-      File childFile = new File(dir, childFileStatus.getPath().getName());
+      Path childFile = new Path(dir, childFileStatus.getPath().getName());
 
-      if (childFileStatus.isDir()) {
-        dirToTarArchiveOutputStreamRecursive(childFileStatus, fs, childFile, tarArchiveOutputStream);
+      if (fs.isDirectory(childFileStatus.getPath())) {
+        dirToTarArchiveOutputStreamRecursive(childFileStatus, fs, Optional.of(childFile), tarArchiveOutputStream);
       } else {
         try (FSDataInputStream fsDataInputStream = fs.open(childFileStatus.getPath())) {
           fileToTarArchiveOutputStream(childFileStatus, fsDataInputStream, childFile, tarArchiveOutputStream);
@@ -179,15 +185,12 @@ public class StreamUtils {
    * Helper method for {@link #tar(FileSystem, FileSystem, Path, Path)} that adds a directory entry to a given
    * {@link TarArchiveOutputStream}.
    */
-  private static void dirToTarArchiveOutputStream(File destDir, TarArchiveOutputStream tarArchiveOutputStream)
+  private static void dirToTarArchiveOutputStream(Path destDir, TarArchiveOutputStream tarArchiveOutputStream)
       throws IOException {
-    Preconditions.checkArgument(destDir.isDirectory());
-
-    try {
-      tarArchiveOutputStream.putArchiveEntry(new TarArchiveEntry(destDir));
-    } finally {
-      tarArchiveOutputStream.closeArchiveEntry();
-    }
+    TarArchiveEntry tarArchiveEntry = new TarArchiveEntry(formatPathToDir(destDir));
+    tarArchiveEntry.setModTime(System.currentTimeMillis());
+    tarArchiveOutputStream.putArchiveEntry(tarArchiveEntry);
+    tarArchiveOutputStream.closeArchiveEntry();
   }
 
   /**
@@ -195,17 +198,33 @@ public class StreamUtils {
    * {@link TarArchiveOutputStream} and copies the contents of the file to the new entry.
    */
   private static void fileToTarArchiveOutputStream(FileStatus fileStatus, FSDataInputStream fsDataInputStream,
-      File destFile, TarArchiveOutputStream tarArchiveOutputStream)
+      Path destFile, TarArchiveOutputStream tarArchiveOutputStream)
       throws IOException {
-    Preconditions.checkState(!fileStatus.isDir());
-    Preconditions.checkState(destFile.isFile());
-
-    tarArchiveOutputStream.putArchiveEntry(new TarArchiveEntry(destFile));
+    TarArchiveEntry tarArchiveEntry = new TarArchiveEntry(formatPathToFile(destFile));
+    tarArchiveEntry.setSize(fileStatus.getLen());
+    tarArchiveEntry.setModTime(System.currentTimeMillis());
+    tarArchiveOutputStream.putArchiveEntry(tarArchiveEntry);
 
     try {
       IOUtils.copy(fsDataInputStream, tarArchiveOutputStream);
     } finally {
       tarArchiveOutputStream.closeArchiveEntry();
     }
+  }
+
+  /**
+   * Convert a {@link Path} to a {@link String} and make sure it is properly formatted to be recognized as a directory
+   * by {@link TarArchiveEntry}.
+   */
+  private static String formatPathToDir(Path path) {
+    return path.toString().endsWith(Path.SEPARATOR) ? path.toString() : path.toString() + Path.SEPARATOR;
+  }
+
+  /**
+   * Convert a {@link Path} to a {@link String} and make sure it is properly formatted to be recognized as a file
+   * by {@link TarArchiveEntry}.
+   */
+  private static String formatPathToFile(Path path) {
+    return StringUtils.removeEnd(path.toString(), Path.SEPARATOR);
   }
 }

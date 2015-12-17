@@ -17,8 +17,6 @@ import java.net.URL;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.retry.RetryOneTime;
 import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.client.api.YarnClient;
@@ -28,19 +26,30 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.apache.helix.model.Message;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import com.google.common.io.Closer;
+import gobblin.testing.AssertWithBackoff;
 
 
 /**
  * Unit tests for {@link GobblinYarnAppLauncher}.
+ *
+ * <p>
+ *   This class uses a {@link TestingServer} as an embedded ZooKeeper server for testing. The Curator
+ *   framework is used to provide a ZooKeeper client. This class also uses the {@link HelixManager} to
+ *   act as a testing Helix controller to receive the ApplicationMaster shutdown request message. It
+ *   also starts a {@link MiniYARNCluster} so submission of a Gobblin Yarn application can be tested.
+ *   A {@link YarnClient} is used to work with the {@link MiniYARNCluster}.
+ * </p>
  *
  * @author ynli
  */
@@ -75,9 +84,8 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     this.yarnClient.start();
 
     TestingServer testingZKServer = this.closer.register(new TestingServer(TEST_ZK_PORT));
-    this.curatorFramework = this.closer.register(
-        CuratorFrameworkFactory.newClient(testingZKServer.getConnectString(), new RetryOneTime(2000)));
-    this.curatorFramework.start();
+
+    this.curatorFramework = TestHelper.createZkClient(testingZKServer, this.closer);
 
     URL url = GobblinYarnAppLauncherTest.class.getClassLoader().getResource(
         GobblinYarnAppLauncherTest.class.getSimpleName() + ".conf");
@@ -127,6 +135,7 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
 
   @Test(dependsOnMethods = "testCreateHelixCluster")
   public void testSendShutdownRequest() throws Exception {
+    Logger log = LoggerFactory.getLogger("testSendShutdownRequest");
     this.helixManager.connect();
     this.helixManager.getMessagingService().registerMessageHandlerFactory(Message.MessageType.SHUTDOWN.toString(),
         new TestShutdownMessageHandlerFactory(this));
@@ -136,13 +145,14 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
 
     Assert.assertEquals(this.curatorFramework.checkExists().forPath(
         String.format("/%s/CONTROLLER/MESSAGES", GobblinYarnAppLauncherTest.class.getSimpleName())).getVersion(), 0);
-    Thread.sleep(500);
-    Assert.assertEquals(this.curatorFramework.getChildren().forPath(String.format("/%s/CONTROLLER/MESSAGES",
-        GobblinYarnAppLauncherTest.class.getSimpleName())).size(), 1);
+    YarnSecurityManagerTest.GetControllerMessageNumFunc getCtrlMessageNum =
+        new YarnSecurityManagerTest.GetControllerMessageNumFunc(
+            GobblinYarnAppLauncherTest.class.getSimpleName(), this.curatorFramework);
+    AssertWithBackoff assertWithBackoff = AssertWithBackoff.create().logger(log).timeoutMs(20000);
+    assertWithBackoff.assertEquals(getCtrlMessageNum, 1, "1 controller message queued");
+
     // Give Helix sometime to handle the message
-    Thread.sleep(2000);
-    Assert.assertEquals(this.curatorFramework.getChildren().forPath(String.format("/%s/CONTROLLER/MESSAGES",
-        GobblinYarnAppLauncherTest.class.getSimpleName())).size(), 0);
+    assertWithBackoff.assertEquals(getCtrlMessageNum, 0, "all controller messages processed");
   }
 
   @AfterClass
@@ -151,9 +161,8 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
       if (this.helixManager.isConnected()) {
         this.helixManager.disconnect();
       }
+
       this.gobblinYarnAppLauncher.disconnectHelixManager();
-    } catch (Throwable t) {
-      Assert.fail();
     } finally {
       this.closer.close();
     }

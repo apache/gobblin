@@ -4,8 +4,17 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericData.Record;
+
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.metrics.kafka.KafkaSchemaRegistry;
+import gobblin.metrics.kafka.SchemaRegistryException;
 import gobblin.source.extractor.extract.kafka.KafkaExtractor;
 import kafka.message.MessageAndOffset;
 
@@ -15,9 +24,33 @@ import kafka.message.MessageAndOffset;
  */
 public class KafkaJsonExtractor extends KafkaExtractor<String, String> {
 
+	protected final Optional<KafkaSchemaRegistry<String, String>> schemaRegistry;
+  protected final String schema;
+  
 	public KafkaJsonExtractor(WorkUnitState state) {
 	    super(state);
+	    this.schemaRegistry = state.contains(KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_CLASS)
+	        ? Optional.of(KafkaSchemaRegistry.<String, String> get(state.getProperties()))
+	        : Optional.<KafkaSchemaRegistry<String, String>> absent();
+	    this.schema = getExtractorSchema();
 	  }
+	
+	/**
+   * Get the schema to be used by this extractor.
+   */
+  protected String getExtractorSchema() {
+    return getLatestSchemaByTopic();
+  }
+  
+  private String getLatestSchemaByTopic() {
+    Preconditions.checkState(this.schemaRegistry.isPresent());
+    try {
+      return this.schemaRegistry.get().getLatestSchemaByTopic(this.topicName);
+    } catch (SchemaRegistryException e) {
+      log.error(String.format("Cannot find latest schema for topic %s. This topic will be skipped", this.topicName), e);
+      return null;
+    }
+  }
 
 	@Override
 	protected String decodeRecord(MessageAndOffset messageAndOffset) throws IOException {
@@ -33,7 +66,7 @@ public class KafkaJsonExtractor extends KafkaExtractor<String, String> {
 	 */
 	@Override
 	public String getSchema() throws IOException {
-		return null;
+		return this.schema;
 	}
 	
 	

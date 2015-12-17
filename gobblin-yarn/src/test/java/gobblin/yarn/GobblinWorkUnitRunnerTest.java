@@ -19,19 +19,28 @@ import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.ConverterUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
-
+import com.google.common.base.Predicate;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+
+import gobblin.testing.AssertWithBackoff;
 
 
 /**
  * Unit tests for {@link GobblinWorkUnitRunner}.
+ *
+ * <p>
+ *   This class uses a {@link TestingServer} as an embedded ZooKeeper server for testing. A
+ *   {@link GobblinApplicationMaster} instance is used to send the test shutdown request message.
+ * </p>
  *
  * @author ynli
  */
@@ -61,8 +70,9 @@ public class GobblinWorkUnitRunnerTest {
         config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY));
 
     // Participant
-    this.gobblinWorkUnitRunner = new GobblinWorkUnitRunner(TestHelper.TEST_APPLICATION_NAME,
-        ConverterUtils.toContainerId(TestHelper.TEST_PARTICIPANT_CONTAINER_ID), config, Optional.<Path>absent());
+    this.gobblinWorkUnitRunner =
+        new GobblinWorkUnitRunner(TestHelper.TEST_APPLICATION_NAME, TestHelper.TEST_HELIX_INSTANCE_NAME,
+            ConverterUtils.toContainerId(TestHelper.TEST_PARTICIPANT_CONTAINER_ID), config, Optional.<Path>absent());
     this.gobblinWorkUnitRunner.connectHelixManager();
 
     // Controller
@@ -74,12 +84,16 @@ public class GobblinWorkUnitRunnerTest {
 
   @Test
   public void testSendReceiveShutdownMessage() throws Exception {
+    Logger log = LoggerFactory.getLogger("testSendReceiveShutdownMessage");
     this.gobblinApplicationMaster.sendShutdownRequest();
 
     // Give Helix some time to handle the message
-    Thread.sleep(2000);
-
-    Assert.assertTrue(this.gobblinWorkUnitRunner.isStopped());
+    AssertWithBackoff.create().logger(log).timeoutMs(20000)
+      .assertTrue(new Predicate<Void>() {
+        @Override public boolean apply(Void input) {
+          return GobblinWorkUnitRunnerTest.this.gobblinWorkUnitRunner.isStopped();
+        }
+      }, "gobblinWorkUnitRunner stopped");
   }
 
   @AfterClass

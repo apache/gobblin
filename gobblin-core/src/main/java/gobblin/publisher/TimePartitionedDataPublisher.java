@@ -54,18 +54,19 @@ public class TimePartitionedDataPublisher extends BaseDataPublisher {
   protected void addWriterOutputToExistingDir(Path writerOutput, Path publisherOutput, WorkUnitState workUnitState,
       int branchId, ParallelRunner parallelRunner) throws IOException {
 
-    for (FileStatus status : FileListUtils.listFilesRecursively(this.fileSystemByBranches.get(branchId),
+    for (FileStatus status : FileListUtils.listFilesRecursively(this.writerFileSystemByBranches.get(branchId),
         writerOutput)) {
       String filePathStr = status.getPath().toString();
       String pathSuffix =
           filePathStr.substring(filePathStr.indexOf(writerOutput.toString()) + writerOutput.toString().length() + 1);
       Path outputPath = new Path(publisherOutput, pathSuffix);
 
-      WriterUtils.mkdirsWithRecursivePermission(this.fileSystemByBranches.get(branchId), outputPath.getParent(),
+      WriterUtils.mkdirsWithRecursivePermission(this.publisherFileSystemByBranches.get(branchId), outputPath.getParent(),
           this.permissions.get(branchId));
 
       LOG.info(String.format("Moving %s to %s", status.getPath(), outputPath));
-      parallelRunner.renamePath(status.getPath(), outputPath, Optional.<String> absent());
+      parallelRunner.movePath(status.getPath(), this.publisherFileSystemByBranches.get(branchId),
+          outputPath, Optional.<String> absent());
     }
   }
 }

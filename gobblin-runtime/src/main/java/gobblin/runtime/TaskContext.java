@@ -17,7 +17,6 @@ import java.util.Collections;
 import java.util.List;
 
 import com.google.common.base.Enums;
-import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 
