@@ -77,7 +77,7 @@ public class JobConfigFileMonitorTest {
   public void testAddNewJobConfigFile()
       throws Exception {
     final Logger log = LoggerFactory.getLogger("testAddNewJobConfigFile");
-    AssertWithBackoff assertWithBackoff = AssertWithBackoff.create().logger(log).timeoutMs(5000);
+    AssertWithBackoff assertWithBackoff = AssertWithBackoff.create().logger(log).timeoutMs(7500);
     assertWithBackoff.assertEquals(new GetNumScheduledJobs(), 3, "3 scheduled jobs");
 
     // Create a new job configuration file by making a copy of an existing
@@ -111,7 +111,7 @@ public class JobConfigFileMonitorTest {
     jobProps.setProperty(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "partial");
     jobProps.store(new FileWriter(this.newJobConfigFile), null);
 
-    AssertWithBackoff.create().logger(log).timeoutMs(5000)
+    AssertWithBackoff.create().logger(log).timeoutMs(7500)
         .assertEquals(new GetNumScheduledJobs(), 4, "4 scheduled jobs");
 
     Set<String> jobNames = Sets.newHashSet(this.jobScheduler.getScheduledJobs());
@@ -136,7 +136,7 @@ public class JobConfigFileMonitorTest {
     jobProps.store(new FileWriter(this.newJobConfigFile), null);
 
 
-    AssertWithBackoff.create().logger(log).timeoutMs(5000)
+    AssertWithBackoff.create().logger(log).timeoutMs(7500)
         .assertEquals(new GetNumScheduledJobs(), 3, "3 scheduled jobs");
 
     Set<String> jobNames = Sets.newHashSet(this.jobScheduler.getScheduledJobs());

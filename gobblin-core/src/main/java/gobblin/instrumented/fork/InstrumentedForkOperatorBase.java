@@ -35,36 +35,47 @@ import gobblin.metrics.Tag;
 
 
 /**
- * package-private implementation of instrumentation for {@link gobblin.fork.ForkOperator}.
- * See {@link gobblin.instrumented.fork.InstrumentedForkOperator} for extensible class.
+ * Package-private implementation of instrumentation for {@link gobblin.fork.ForkOperator}.
+ *
+ * @see {@link gobblin.instrumented.fork.InstrumentedForkOperator} for extensible class.
  */
 abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, ForkOperator<S, D> {
 
-  private boolean instrumentationEnabled = false;
-  protected final Closer closer = Closer.create();
+  private boolean instrumentationEnabled;
+  private MetricContext metricContext;
+  private Optional<Class<?>> classTag;
+  private Optional<Meter> inputMeter;
+  private Optional<Meter> outputForks;
+  private Optional<Timer> forkOperatorTimer;
 
-  private MetricContext metricContext = new MetricContext.Builder(InstrumentedForkOperatorBase.class.getName())
-      .build();
-  private Optional<Meter> inputMeter = Optional.absent();
-  private Optional<Meter> outputForks = Optional.absent();
-  private Optional<Timer> forkOperatorTimer = Optional.absent();
+  protected final Closer closer;
+
+  public InstrumentedForkOperatorBase() {
+    this(Optional.<Class<?>>absent());
+  }
+
+  protected InstrumentedForkOperatorBase(Optional<Class<?>> classTag) {
+    this.closer = Closer.create();
+    this.classTag = classTag;
+
+    regenerateMetrics();
+  }
 
   @Override
   public void init(WorkUnitState workUnitState) throws Exception {
     init(workUnitState, this.getClass());
   }
 
-  protected void init(WorkUnitState workUnitState, Class<?> classTag)
-      throws Exception {
+  protected void init(WorkUnitState workUnitState, Class<?> classTag) throws Exception {
     this.instrumentationEnabled = GobblinMetrics.isEnabled(workUnitState);
-    this.metricContext = closer.register(Instrumented.getMetricContext(workUnitState, classTag));
+    this.metricContext = this.closer.register(Instrumented.getMetricContext(workUnitState, this.classTag.or(classTag)));
     regenerateMetrics();
   }
 
   @Override
   public void switchMetricContext(List<Tag<?>> tags) {
-    this.metricContext = this.closer.register(Instrumented.newContextFromReferenceContext(this.metricContext, tags,
-        Optional.<String>absent()));
+    this.metricContext = this.closer
+        .register(Instrumented.newContextFromReferenceContext(this.metricContext, tags, Optional.<String>absent()));
 
     regenerateMetrics();
   }
@@ -79,14 +90,20 @@ abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, For
    * Generates metrics for the instrumentation of this class.
    */
   protected void regenerateMetrics() {
-    if(isInstrumentationEnabled()) {
+    if (isInstrumentationEnabled()) {
       this.inputMeter = Optional.of(this.metricContext.meter(MetricNames.ForkOperatorMetrics.RECORDS_IN_METER));
       this.outputForks = Optional.of(this.metricContext.meter(MetricNames.ForkOperatorMetrics.FORKS_OUT_METER));
       this.forkOperatorTimer = Optional.of(this.metricContext.timer(MetricNames.ForkOperatorMetrics.FORK_TIMER));
+    } else {
+      this.inputMeter = Optional.absent();
+      this.outputForks = Optional.absent();
+      this.forkOperatorTimer = Optional.absent();
     }
   }
 
-  /** Default with no additional tags */
+  /**
+   * Default with no additional tags
+   */
   @Override
   public List<Tag<?>> generateTags(State state) {
     return Lists.newArrayList();
@@ -114,6 +131,7 @@ abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, For
 
   /**
    * Called before forkDataRecord.
+   *
    * @param input an input data record
    */
   protected void beforeFork(D input) {
@@ -122,6 +140,7 @@ abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, For
 
   /**
    * Called after forkDataRecord.
+   *
    * @param forks result from forkDataRecord.
    * @param startTimeNanos start time of forkDataRecord.
    */
