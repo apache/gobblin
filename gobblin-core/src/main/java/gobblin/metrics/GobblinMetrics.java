@@ -18,6 +18,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.conf.Configuration;
@@ -120,8 +121,12 @@ public class GobblinMetrics {
    * @param tags the given list of {@link Tag}s
    * @return a {@link GobblinMetrics} instance
    */
-  public static GobblinMetrics get(String id, MetricContext parentContext, List<Tag<?>> tags) {
-    return GOBBLIN_METRICS_REGISTRY.getOrDefault(id, new GobblinMetrics(id, parentContext, tags));
+  public static GobblinMetrics get(final String id, final MetricContext parentContext, final List<Tag<?>> tags) {
+    return GOBBLIN_METRICS_REGISTRY.getOrDefault(id, new Callable<GobblinMetrics>() {
+      @Override public GobblinMetrics call() throws Exception {
+        return new GobblinMetrics(id, parentContext, tags);
+      }
+    });
   }
 
   /**
@@ -436,10 +441,10 @@ public class GobblinMetrics {
       }
 
       OutputStream output = append ? fs.append(metricLogFile) : fs.create(metricLogFile, true);
-      this.scheduledReporters.add(this.closer.register(OutputStreamReporter.forContext(this.metricContext)
-          .outputTo(output).build()));
-      this.scheduledReporters.add(this.closer.register(OutputStreamEventReporter.forContext(this.metricContext)
-          .outputTo(output).build()));
+      this.scheduledReporters
+          .add(this.closer.register(OutputStreamReporter.forContext(this.metricContext).outputTo(output).build()));
+      this.scheduledReporters
+          .add(this.closer.register(OutputStreamEventReporter.forContext(this.metricContext).outputTo(output).build()));
 
       LOGGER.info("Will start reporting metrics to directory " + metricsLogDir);
     } catch (IOException ioe) {

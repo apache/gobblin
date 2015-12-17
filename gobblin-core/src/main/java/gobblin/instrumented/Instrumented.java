@@ -126,16 +126,18 @@ public class Instrumented implements Instrumentable, Closeable {
 
     List<Tag<?>> generatedTags = Lists.newArrayList();
     if (construct != null) {
-      generatedTags.add(new Tag<String>("construct", construct.toString()));
+      generatedTags.add(new Tag<>("construct", construct.toString()));
     }
     if (!klazz.isAnonymousClass()) {
-      generatedTags.add(new Tag<String>("class", klazz.getCanonicalName()));
+      generatedTags.add(new Tag<>("class", klazz.getCanonicalName()));
     }
 
-    GobblinMetrics gobblinMetrics;
-    MetricContext.Builder builder = state.contains(METRIC_CONTEXT_NAME_KEY) &&
-        (gobblinMetrics = GobblinMetricsRegistry.getInstance().get(state.getProp(METRIC_CONTEXT_NAME_KEY))) != null ?
-        gobblinMetrics.getMetricContext().childBuilder(klazz.getCanonicalName() + "." + randomId) :
+    Optional<GobblinMetrics> gobblinMetrics = state.contains(METRIC_CONTEXT_NAME_KEY) ?
+        GobblinMetricsRegistry.getInstance().get(state.getProp(METRIC_CONTEXT_NAME_KEY)) :
+        Optional.<GobblinMetrics>absent();
+
+    MetricContext.Builder builder = gobblinMetrics.isPresent() ?
+        gobblinMetrics.get().getMetricContext().childBuilder(klazz.getCanonicalName() + "." + randomId) :
         MetricContext.builder(klazz.getCanonicalName() + "." + randomId);
     return builder.
         addTags(generatedTags).
