@@ -67,7 +67,7 @@ public class PreserveAttributes {
     int value = options;
     StringBuilder mnemonicString = new StringBuilder();
     for(Option option : Option.values()) {
-      if(value % 2  == 1) {
+      if(value % 2  != 0) {
         mnemonicString.append(option.token);
       }
       value >>= 1;
