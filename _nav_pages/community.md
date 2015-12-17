@@ -13,7 +13,7 @@ Please [join us](https://groups.google.com/forum/#!forum/gobblin-users) at our [
 
 {% for post in site.categories.blog %}
 
-# <span class="post-meta">{{ post.date | date: "%b %-d, %Y" }} - [{{ post.title }}]({{ post.url }})</span>
+# <span class="post-meta">{{ post.date | date: "%b %-d, %Y" }} - [{{ post.title }}]({{ site.baseurl }}/{{ post.url }})</span>
 
 {% endfor %}
 
@@ -22,6 +22,6 @@ Please [join us](https://groups.google.com/forum/#!forum/gobblin-users) at our [
 
 {% for post in site.categories.meetup %}
 
-# <span class="post-meta">{{ post.date | date: "%b %-d, %Y" }} - [{{ post.title }}]({{ post.url }})</span>
+# <span class="post-meta">{{ post.date | date: "%b %-d, %Y" }} - [{{ post.title }}]({{ site.baseurl }}/{{ post.url }})</span>
 
 {% endfor %}

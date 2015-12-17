@@ -13,7 +13,7 @@ Please refer to our [Wiki](https://github.com/linkedin/gobblin/wiki) for the ful
 
 {% for post in site.categories.talks %}
 
-# <span class="post-meta">{{ post.date | date: "%b %-d, %Y" }} - [{{ post.title }}]({{ post.url }})</span>
+# <span class="post-meta">{{ post.date | date: "%b %-d, %Y" }} - [{{ post.title }}]({{ site.baseurl }}/{{ post.url }})</span>
 
   {{ post.excerpt }} [(full post)]({{ post.url }})
 
