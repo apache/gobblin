@@ -33,44 +33,37 @@ public class ConfigurationKeys {
   // Local file system URI
   public static final String LOCAL_FS_URI = "file:///";
 
-  // Directory where all job configuration files are stored
-  public static final String JOB_CONFIG_FILE_DIR_KEY = "jobconf.dir";
-
-  // Job configuration file extensions
-  public static final String JOB_CONFIG_FILE_EXTENSIONS_KEY = "jobconf.extensions";
-  // Default job configuration file extensions
-  public static final String DEFAULT_JOB_CONFIG_FILE_EXTENSIONS = "pull,job";
-
-  // Root directory where task state files are stored
-  public static final String STATE_STORE_ROOT_DIR_KEY = "state.store.dir";
-
-  // File system URI for file-system-based task store
-  public static final String STATE_STORE_FS_URI_KEY = "state.store.fs.uri";
-
-  //Directory that stores task staging data and task output data.
-  public static final String TASK_DATA_ROOT_DIR_KEY = "task.data.root.dir";
-
-  // Directory where job lock files are stored
-  public static final String JOB_LOCK_DIR_KEY = "job.lock.dir";
-
-  // Job launcher type
-  public static final String JOB_LAUNCHER_TYPE_KEY = "launcher.type";
-
-  // If job execution info server is enabled
-  public static final String JOB_EXECINFO_SERVER_ENABLED_KEY = "job.execinfo.server.enabled";
-
-  // Job executor thread pool size
-  public static final String JOB_EXECUTOR_THREAD_POOL_SIZE_KEY = "jobexecutor.threadpool.size";
-  public static final int DEFAULT_JOB_EXECUTOR_THREAD_POOL_SIZE = 5;
-
-  // Job configuration file monitor polling interval in milliseconds
-  public static final String JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY = "jobconf.monitor.interval";
-  public static final long DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL = 300000;
-
   // Comma-separated list of framework jars to include
   public static final String FRAMEWORK_JAR_FILES_KEY = "framework.jars";
 
   public static final String PST_TIMEZONE_NAME = "America/Los_Angeles";
+
+  /**
+   * State store configuration properties.
+   */
+  // Root directory where task state files are stored
+  public static final String STATE_STORE_ROOT_DIR_KEY = "state.store.dir";
+  // File system URI for file-system-based task store
+  public static final String STATE_STORE_FS_URI_KEY = "state.store.fs.uri";
+
+  /**
+   * Job scheduler configuration properties.
+   */
+  // Job executor thread pool size
+  public static final String JOB_EXECUTOR_THREAD_POOL_SIZE_KEY = "jobexecutor.threadpool.size";
+  public static final int DEFAULT_JOB_EXECUTOR_THREAD_POOL_SIZE = 5;
+  // Job configuration file monitor polling interval in milliseconds
+  public static final String JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY = "jobconf.monitor.interval";
+  public static final long DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL = 300000;
+  // Directory where all job configuration files are stored
+  public static final String JOB_CONFIG_FILE_DIR_KEY = "jobconf.dir";
+  // Job configuration file extensions
+  public static final String JOB_CONFIG_FILE_EXTENSIONS_KEY = "jobconf.extensions";
+  public static final String DEFAULT_JOB_CONFIG_FILE_EXTENSIONS = "pull,job";
+  // Whether the scheduler should wait for running jobs to complete during shutdown.
+  // Note this only applies to jobs scheduled by the built-in Quartz-based job scheduler.
+  public static final String SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY = "scheduler.wait.for.job.completion";
+  public static final String DEFAULT_SCHEDULER_WAIT_FOR_JOB_COMPLETION = Boolean.TRUE.toString();
 
   /**
    * Task executor and state tracker configuration properties.
@@ -88,7 +81,13 @@ public class ConfigurationKeys {
   public static final String JOB_NAME_KEY = "job.name";
   public static final String JOB_GROUP_KEY = "job.group";
   public static final String JOB_DESCRIPTION_KEY = "job.description";
+  // Job launcher type
+  public static final String JOB_LAUNCHER_TYPE_KEY = "launcher.type";
   public static final String JOB_SCHEDULE_KEY = "job.schedule";
+  // Directory where job lock files are stored
+  public static final String JOB_LOCK_DIR_KEY = "job.lock.dir";
+  //Directory that stores task staging data and task output data.
+  public static final String TASK_DATA_ROOT_DIR_KEY = "task.data.root.dir";
   public static final String SOURCE_CLASS_KEY = "source.class";
   public static final String CONVERTER_CLASSES_KEY = "converter.classes";
   public static final String FORK_OPERATOR_CLASS_KEY = "fork.operator.class";
@@ -469,8 +468,10 @@ public class ConfigurationKeys {
   public static final String KAFKA_BROKERS = "kafka.brokers";
 
   /**
-   * MySQL job history store configuration properties.
+   * Job execution info server and history store configuration properties.
    */
+  // If job execution info server is enabled
+  public static final String JOB_EXECINFO_SERVER_ENABLED_KEY = "job.execinfo.server.enabled";
   public static final String JOB_HISTORY_STORE_ENABLED_KEY = "job.history.store.enabled";
   public static final String JOB_HISTORY_STORE_URL_KEY = "job.history.store.url";
   public static final String JOB_HISTORY_STORE_JDBC_DRIVER_KEY = "job.history.store.jdbc.driver";
