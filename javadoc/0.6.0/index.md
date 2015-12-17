@@ -1,25 +1,24 @@
 ---
 layout: page
-title: Gobblin Javadoc
+title: Gobblin Javadoc packages 0.6.0
 permalink: /javadoc/0.6.0/
---- 
+---
 
-# Gobblin Javadoc Packages
-
-* [gobblin-api](gobblin-api/index.html)
-* [gobblin-azkaban](gobblin-azkaban/index.html)
-* [gobblin-compaction](gobblin-compaction/index.html)
-* [gobblin-core](gobblin-core/index.html)
-* [gobblin-data-management](gobblin-data-management/index.html)
-* [gobblin-example](gobblin-example/index.html)
-* [gobblin-metastore](gobblin-metastore/index.html)
-* [gobblin-metrics](gobblin-metrics/index.html)
-* [gobblin-rest-client](gobblin-rest-client/index.html)
-* [gobblin-rest-server](gobblin-rest-server/index.html)
-* [gobblin-runtime](gobblin-runtime/index.html)
-* [gobblin-salesforce](gobblin-salesforce/index.html)
-* [gobblin-scheduler](gobblin-scheduler/index.html)
-* [gobblin-test-harness](gobblin-test-harness/index.html)
-* [gobblin-utility](gobblin-utility/index.html)
-* [gobblin-yarn](gobblin-yarn/index.html)
-
+* [gobblin-data-management](gobblin-data-management)
+* [gobblin-api](gobblin-api)
+* [gobblin-config-client](gobblin-config-client)
+* [gobblin-test-harness](gobblin-test-harness)
+* [gobblin-compaction](gobblin-compaction)
+* [gobblin-azkaban](gobblin-azkaban)
+* [gobblin-scheduler](gobblin-scheduler)
+* [gobblin-yarn](gobblin-yarn)
+* [gobblin-utility](gobblin-utility)
+* [gobblin-runtime](gobblin-runtime)
+* [gobblin-metrics](gobblin-metrics)
+* [gobblin-metastore](gobblin-metastore)
+* [gobblin-rest-server](gobblin-rest-server)
+* [gobblin-salesforce](gobblin-salesforce)
+* [gobblin-config-core](gobblin-config-core)
+* [gobblin-core](gobblin-core)
+* [gobblin-example](gobblin-example)
+* [gobblin-rest-client](gobblin-rest-client)

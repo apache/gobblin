@@ -9,5 +9,6 @@ gobblin.qualitychecker.task
 gobblin.source
 gobblin.source.extractor
 gobblin.source.workunit
+gobblin.testing
 gobblin.util
 gobblin.writer

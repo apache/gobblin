@@ -10,7 +10,7 @@ order: 4
 
 {% for post in site.categories.release %}
 
-# <span class="post-meta">{{ post.date | date: "%b %-d, %Y" }} - [{{ post.title }}]({{ post.url }})</span>
+# <span class="post-meta">{{ post.date | date: "%b %-d, %Y" }} - [{{ post.title }}]({{ site.baseurl }}/{{ post.url }})</span>
 
 {% endfor %}
 
