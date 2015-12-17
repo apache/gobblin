@@ -13,8 +13,10 @@
 package gobblin.data.management.copy;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -45,14 +47,18 @@ public class TestCopyableDataset extends SinglePartitionCopyableDataset {
     this.datasetRoot = new Path(ORIGIN_PREFIX);
   }
 
-  @Override public List<CopyableFile> getCopyableFiles(FileSystem targetFs, Path targetRoot) throws IOException {
+  @Override public Collection<CopyableFile> getCopyableFiles(FileSystem targetFs, CopyConfiguration configuration)
+      throws IOException {
 
     List<CopyableFile> files = Lists.newArrayList();
 
     for (int i = 0; i < FILE_COUNT; i++) {
-      files.add(new CopyableFile(new FileStatus(10, false, 0, 0, 0, new Path(this.datasetRoot, Integer.toString(i))),
-          new Path(datasetRoot(), Integer.toString(i)), new Path(RELATIVE_PREFIX, Integer.toString(i)),
-          OWNER_AND_PERMISSION, Lists.newArrayList(OWNER_AND_PERMISSION), "checksum".getBytes()));
+      FileStatus origin = new FileStatus(10, false, 0, 0, 0, new Path(this.datasetRoot, Integer.toString(i)));
+      CopyableFile.Builder builder = CopyableFile.builder(FileSystem.getLocal(new Configuration()),
+          origin, datasetRoot(), configuration).destinationOwnerAndPermission(OWNER_AND_PERMISSION).
+          ancestorsOwnerAndPermission(Lists.newArrayList(OWNER_AND_PERMISSION)).checksum("checksum".getBytes());
+      modifyCopyableFile(builder, origin);
+      files.add(builder.build());
     }
 
     return files;
@@ -61,6 +67,9 @@ public class TestCopyableDataset extends SinglePartitionCopyableDataset {
   @Override
   public Path datasetRoot() {
     return this.datasetRoot;
+  }
+
+  protected void modifyCopyableFile(CopyableFile.Builder builder, FileStatus origin) {
   }
 
 }

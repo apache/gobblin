@@ -13,10 +13,13 @@ package gobblin.data.management.copy.writer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.data.management.copy.CopySource;
+import gobblin.data.management.copy.CopyableDatasetMetadata;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.CopyableFileUtils;
 import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.data.management.copy.OwnerAndPermission;
+import gobblin.data.management.copy.TestCopyableDataset;
 import gobblin.util.io.StreamUtils;
 
 import java.io.FileInputStream;
@@ -56,6 +59,9 @@ public class FileAwareInputStreamDataWriterTest {
     state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
     state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output").toString());
     state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")),
+        new Path("/"));
+    CopySource.serializeCopyableDataset(state, metadata);
 
     FileStatus status = fs.getFileStatus(testTempPath);
 
@@ -69,7 +75,8 @@ public class FileAwareInputStreamDataWriterTest {
     FileAwareInputStream fileAwareInputStream = new FileAwareInputStream(cf, StreamUtils.convertStream(IOUtils.toInputStream(streamString)));
     dataWriter.write(fileAwareInputStream);
     dataWriter.commit();
-    Path writtenFilePath = new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR), cf.getDestination());
+    Path writtenFilePath = new Path(new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
+        cf.getDatasetAndPartition(metadata).identifier()), cf.getDestination());
     Assert.assertEquals(IOUtils.toString(new FileInputStream(writtenFilePath.toString())), streamString);
   }
 

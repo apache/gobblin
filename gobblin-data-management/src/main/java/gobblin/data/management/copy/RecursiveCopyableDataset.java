@@ -17,11 +17,10 @@ import gobblin.util.PathUtils;
 import gobblin.util.FileListUtils;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.ExecutionException;
 
-import org.apache.hadoop.fs.FileChecksum;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -61,35 +60,15 @@ public class RecursiveCopyableDataset extends SinglePartitionCopyableDataset {
     this.pathFilter = DatasetUtils.instantiatePathFilter(properties);
   }
 
-  @Override public List<CopyableFile> getCopyableFiles(FileSystem targetFs, Path targetRoot) throws IOException {
+  @Override public Collection<CopyableFile> getCopyableFiles(FileSystem targetFs, CopyConfiguration configuration)
+      throws IOException {
 
     List<FileStatus> files = FileListUtils.listFilesRecursively(this.fs, this.rootPath, this.pathFilter);
 
     List<CopyableFile> copyableFiles = Lists.newArrayList();
 
     for (FileStatus file : files) {
-
-      Path relativeOutputPath = getRelativeOuptutPath(file);
-
-      Path outputPath = new Path(targetRoot, relativeOutputPath);
-
-      OwnerAndPermission ownerAndPermission =
-          new OwnerAndPermission(file.getOwner(), file.getGroup(), file.getPermission());
-      List<OwnerAndPermission> ancestorOwnerAndPermissions = Lists.newArrayList();
-      try {
-        Path currentPath = PathUtils.getPathWithoutSchemeAndAuthority(file.getPath());
-        while (currentPath != null && currentPath.getParent() != null && !currentPath.getParent().equals(this.rootPath)) {
-          currentPath = currentPath.getParent();
-          ancestorOwnerAndPermissions.add(this.ownerAndPermissionCache.get(currentPath));
-        }
-      } catch (ExecutionException ee) {
-        // When cache loader failed.
-      }
-
-      FileChecksum checksum = this.fs.getFileChecksum(file.getPath());
-
-      copyableFiles.add(new CopyableFile(file, outputPath, relativeOutputPath, ownerAndPermission,
-          ancestorOwnerAndPermissions, checksum == null ? new byte[0] : checksum.getBytes()));
+      copyableFiles.add(CopyableFile.builder(this.fs, file, this.rootPath, configuration).build());
     }
     return copyableFiles;
   }
