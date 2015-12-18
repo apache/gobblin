@@ -29,3 +29,28 @@ buildscript {
         classpath group: 'com.linkedin.pegasus', name: 'gradle-plugins', version: '1.15.9'
     }
 }
+
+artifacts {
+    runtime mainDataTemplateJar
+    archives mainDataTemplateJar
+}
+
+def runtimeJarArtifact
+configurations.runtime.artifacts.each {
+    if (it.name == "gobblin-rest-api-data-template") {
+        it.name = "gobblin-rest-api"
+    } else if (it.classifier == "") {
+        runtimeJarArtifact = it
+    }
+}
+configurations.runtime.artifacts.remove(runtimeJarArtifact)
+
+def archiveJarArtifact
+configurations.archives.artifacts.each {
+    if (it.name == "gobblin-rest-api-data-template") {
+        it.name = "gobblin-rest-api"
+    } else if (it.classifier == "") {
+        archiveJarArtifact = it
+    }
+}
+configurations.archives.artifacts.remove(archiveJarArtifact)
