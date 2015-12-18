@@ -1,14 +1,16 @@
-package gobblin.source.extractor.hadoop;
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.source.extractor.filebased.FileBasedHelper;
-import gobblin.source.extractor.filebased.FileBasedHelperException;
-import gobblin.util.ProxiedFileSystemWrapper;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
+package gobblin.source.extractor.hadoop;
 
 import java.io.IOException;
 import java.net.URI;
@@ -16,6 +18,20 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import com.google.common.base.Strings;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+import gobblin.source.extractor.filebased.FileBasedHelper;
+import gobblin.source.extractor.filebased.FileBasedHelperException;
+import gobblin.util.ProxiedFileSystemWrapper;
+
+/**
+ * A common helper that extends {@link FileBasedHelper} and provides access to a files via a {@link FileSystem}.
+ */
 public abstract class HadoopFsHelper implements FileBasedHelper {
   private final State state;
   private final Configuration configuration;
@@ -38,7 +54,7 @@ public abstract class HadoopFsHelper implements FileBasedHelper {
   public void connect() throws FileBasedHelperException {
     String uri = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI);
     try {
-      if (uri == null) {
+      if (Strings.isNullOrEmpty(uri)) {
         throw new FileBasedHelperException(ConfigurationKeys.SOURCE_FILEBASED_FS_URI + " has not been configured");
       }
       this.createFileSystem(uri);
