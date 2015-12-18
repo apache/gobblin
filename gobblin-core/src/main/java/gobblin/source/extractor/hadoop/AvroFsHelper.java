@@ -15,7 +15,6 @@ package gobblin.source.extractor.hadoop;
 import java.io.IOException;
 import java.io.InputStream;
 
-import com.google.common.io.Closer;
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericDatumReader;
@@ -57,6 +56,7 @@ public class AvroFsHelper extends HadoopFsHelper implements SizeAwareFileBasedHe
    * <p>
    * Note: It is the caller's responsibility to close the returned {@link InputStream}.
    * </p>
+   *
    * @param path The path to the file to open.
    * @return An {@link InputStream} for the specified file.
    * @throws FileBasedHelperException if there is a problem opening the {@link InputStream} for the specified file.
@@ -108,6 +108,7 @@ public class AvroFsHelper extends HadoopFsHelper implements SizeAwareFileBasedHe
    * <p>
    * Note: It is the caller's responsibility to close the returned {@link DataFileReader}.
    * </p>
+   *
    * @param file The path to the avro file to open.
    * @return A {@link DataFileReader} for the specified avro file.
    * @throws FileBasedHelperException if there is a problem opening the {@link InputStream} for the specified file.
