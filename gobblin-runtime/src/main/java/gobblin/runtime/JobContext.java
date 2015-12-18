@@ -33,6 +33,11 @@ import com.google.common.io.Closer;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 
+import gobblin.commit.CommitSequence;
+import gobblin.commit.CommitSequence.Builder;
+import gobblin.commit.CommitSequenceStore;
+import gobblin.commit.CommitStep;
+import gobblin.commit.DeliverySemantics;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
@@ -40,11 +45,17 @@ import gobblin.instrumented.Instrumented;
 import gobblin.metastore.JobHistoryStore;
 import gobblin.metastore.MetaStoreModule;
 import gobblin.metrics.GobblinMetrics;
+import gobblin.publisher.CommitSequencePublisher;
 import gobblin.publisher.DataPublisher;
+import gobblin.runtime.JobState.DatasetState;
+import gobblin.runtime.commit.DatasetStateCommitStep;
+import gobblin.runtime.commit.FsCommitSequenceStore;
 import gobblin.runtime.util.JobMetrics;
 import gobblin.source.Source;
 import gobblin.source.extractor.JobCommitPolicy;
+import gobblin.util.HadoopUtils;
 import gobblin.util.JobLauncherUtils;
+import lombok.Getter;
 
 
 /**
@@ -73,10 +84,18 @@ public class JobContext {
   // Store for runtime job execution information
   private final Optional<JobHistoryStore> jobHistoryStoreOptional;
 
+  @Getter
+  private final DeliverySemantics semantics;
+
+  @Getter
+  private final Optional<CommitSequenceStore> commitSequenceStore;
+
   private final Logger logger;
 
   // A map from dataset URNs to DatasetStates (optional and maybe absent if not populated)
   private Optional<Map<String, JobState.DatasetState>> datasetStatesByUrns = Optional.absent();
+
+  private Optional<CommitSequence.Builder> commitSequenceBuilder = Optional.<CommitSequence.Builder> absent();
 
   @SuppressWarnings("unchecked")
   public JobContext(Properties jobProps, Logger logger) throws Exception {
@@ -128,11 +147,31 @@ public class JobContext {
       this.jobMetricsOptional = Optional.absent();
     }
 
+    this.semantics = DeliverySemantics.parse(this.jobState);
+    this.commitSequenceStore = createCommitSequenceStore();
+
     this.source = new SourceDecorator(
         Source.class.cast(Class.forName(jobProps.getProperty(ConfigurationKeys.SOURCE_CLASS_KEY)).newInstance()),
         this.jobId, logger);
 
     this.logger = logger;
+  }
+
+  private Optional<CommitSequenceStore> createCommitSequenceStore() throws IOException {
+
+    if (this.semantics != DeliverySemantics.EXACTLY_ONCE) {
+      return Optional.<CommitSequenceStore> absent();
+    }
+
+    Preconditions.checkState(this.jobState.contains(FsCommitSequenceStore.GOBBLIN_RUNTIME_COMMIT_SEQUENCE_STORE_DIR));
+
+    FileSystem fs = FileSystem.get(
+        URI.create(
+            this.jobState.getProp(FsCommitSequenceStore.GOBBLIN_RUNTIME_COMMIT_SEQUENCE_STORE_FS_URI, ConfigurationKeys.LOCAL_FS_URI)),
+        HadoopUtils.getConfFromState(this.jobState));
+
+    return Optional.<CommitSequenceStore> of(new FsCommitSequenceStore(fs,
+        new Path(this.jobState.getProp(FsCommitSequenceStore.GOBBLIN_RUNTIME_COMMIT_SEQUENCE_STORE_DIR))));
   }
 
   /**
@@ -216,7 +255,8 @@ public class JobContext {
           ConfigurationKeys.WRITER_STAGING_DIR, ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY));
     } else {
       String workingDir = this.jobState.getProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY);
-      this.jobState.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(workingDir, TASK_STAGING_DIR_NAME).toString());
+      this.jobState.setProp(ConfigurationKeys.WRITER_STAGING_DIR,
+          new Path(workingDir, TASK_STAGING_DIR_NAME).toString());
     }
   }
 
@@ -256,7 +296,7 @@ public class JobContext {
    * @return a {@link Map} from dataset URNs to {@link JobState.DatasetState}s representing the dataset states
    */
   Map<String, JobState.DatasetState> getDatasetStatesByUrns() {
-    return ImmutableMap.copyOf(this.datasetStatesByUrns.or(Maps.<String, JobState.DatasetState>newHashMap()));
+    return ImmutableMap.copyOf(this.datasetStatesByUrns.or(Maps.<String, JobState.DatasetState> newHashMap()));
   }
 
   /**
@@ -299,7 +339,9 @@ public class JobContext {
   void commit() throws IOException {
     this.datasetStatesByUrns = Optional.of(this.jobState.createDatasetStatesByUrns());
     boolean allDatasetsCommit = true;
-    boolean shouldCommitDataInJob = shouldCommitDataInJob();
+    boolean shouldCommitDataInJob = shouldCommitDataInJob(this.jobState);
+    DeliverySemantics deliverySemantics = DeliverySemantics.parse(this.jobState);
+
     if (!shouldCommitDataInJob) {
       this.logger.info("Job will not commit data since data are committed by tasks.");
     }
@@ -320,7 +362,11 @@ public class JobContext {
         if (shouldCommitDataInJob) {
           this.logger.info(String.format("Committing dataset %s of job %s with commit policy %s and state %s",
               datasetUrn, this.jobId, this.jobCommitPolicy, datasetState.getState()));
-          commitDataset(datasetState);
+          if (deliverySemantics == DeliverySemantics.EXACTLY_ONCE) {
+            generateCommitSequenceBuilder(datasetState);
+          } else {
+            commitDataset(datasetState);
+          }
         } else {
           if (datasetState.getState() == JobState.RunningState.SUCCESSFUL) {
             datasetState.setState(JobState.RunningState.COMMITTED);
@@ -332,7 +378,14 @@ public class JobContext {
         allDatasetsCommit = false;
       } finally {
         try {
-          persistDatasetState(datasetUrn, datasetState);
+          finalizeDatasetState(datasetState, datasetUrn);
+
+          if (this.commitSequenceBuilder.isPresent()) {
+            buildAndExecuteCommitSequence(commitSequenceBuilder.get(), datasetState, datasetUrn);
+            datasetState.setState(JobState.RunningState.COMMITTED);
+          } else {
+            persistDatasetState(datasetUrn, datasetState);
+          }
         } catch (IOException ioe) {
           this.logger.error(
               String.format("Failed to persist dataset state for dataset %s of job %s", datasetUrn, this.jobId), ioe);
@@ -354,10 +407,10 @@ public class JobContext {
    * Data should be committed by the job if either {@link ConfigurationKeys#JOB_COMMIT_POLICY_KEY} is set to "full",
    * or {@link ConfigurationKeys#PUBLISH_DATA_AT_JOB_LEVEL} is set to true.
    */
-  private boolean shouldCommitDataInJob() {
+  public static boolean shouldCommitDataInJob(State state) {
     boolean jobCommitPolicyIsFull =
-        JobCommitPolicy.getCommitPolicy(this.jobState.getProperties()) == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS;
-    boolean publishDataAtJobLevel = this.jobState.getPropAsBoolean(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL,
+        JobCommitPolicy.getCommitPolicy(state.getProperties()) == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS;
+    boolean publishDataAtJobLevel = state.getPropAsBoolean(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL,
         ConfigurationKeys.DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL);
     return jobCommitPolicyIsFull || publishDataAtJobLevel;
   }
@@ -397,10 +450,10 @@ public class JobContext {
   private boolean canCommitDataset(JobState.DatasetState datasetState) {
     // Only commit a dataset if 1) COMMIT_ON_PARTIAL_SUCCESS is used, or 2)
     // COMMIT_ON_FULL_SUCCESS is used and all of the tasks of the dataset have succeeded.
-    return this.jobCommitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS ||
-        this.jobCommitPolicy == JobCommitPolicy.COMMIT_SUCCESSFUL_TASKS ||
-        (this.jobCommitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS &&
-            datasetState.getState() == JobState.RunningState.SUCCESSFUL);
+    return this.jobCommitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS
+        || this.jobCommitPolicy == JobCommitPolicy.COMMIT_SUCCESSFUL_TASKS
+        || (this.jobCommitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS
+            && datasetState.getState() == JobState.RunningState.SUCCESSFUL);
   }
 
   /**
@@ -415,6 +468,7 @@ public class JobContext {
       DataPublisher publisher = closer.register(DataPublisher.getInstance(dataPublisherClass, datasetState));
       publisher.publish(datasetState.getTaskStates());
     } catch (Throwable t) {
+      LOG.error("Failed to commit dataset", t);
       setTaskFailureException(datasetState.getTaskStates(), t);
       throw closer.rethrow(t);
     } finally {
@@ -425,10 +479,51 @@ public class JobContext {
     datasetState.setState(JobState.RunningState.COMMITTED);
   }
 
+  @SuppressWarnings("unchecked")
+  private void generateCommitSequenceBuilder(JobState.DatasetState datasetState) throws IOException {
+    Closer closer = Closer.create();
+    try {
+      Class<? extends CommitSequencePublisher> dataPublisherClass =
+          (Class<? extends CommitSequencePublisher>) Class.forName(datasetState
+              .getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE, ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
+      CommitSequencePublisher publisher =
+          (CommitSequencePublisher) closer.register(DataPublisher.getInstance(dataPublisherClass, datasetState));
+      publisher.publish(datasetState.getTaskStates());
+      this.commitSequenceBuilder = publisher.getCommitSequenceBuilder();
+    } catch (Throwable t) {
+      LOG.error("Failed to generate commit sequence", t);
+      setTaskFailureException(datasetState.getTaskStates(), t);
+      throw closer.rethrow(t);
+    } finally {
+      closer.close();
+    }
+  }
+
+  private void buildAndExecuteCommitSequence(Builder builder, DatasetState datasetState, String datasetUrn)
+      throws IOException {
+    CommitSequence commitSequence =
+        builder.addStep(buildDatasetStateCommitStep(datasetUrn, datasetState).get()).build();
+    this.commitSequenceStore.get().put(commitSequence.getJobName(), datasetUrn, commitSequence);
+    commitSequence.execute();
+    this.commitSequenceStore.get().delete(commitSequence.getJobName(), datasetUrn);
+  }
+
   /**
    * Persist dataset state of a given dataset identified by the dataset URN.
    */
   private void persistDatasetState(String datasetUrn, JobState.DatasetState datasetState) throws IOException {
+    LOG.info("Persisting dataset state for dataset " + datasetUrn);
+    this.datasetStateStore.persistDatasetState(datasetUrn, datasetState);
+  }
+
+  private Optional<CommitStep> buildDatasetStateCommitStep(String datasetUrn, JobState.DatasetState datasetState)
+      throws IOException {
+    LOG.info("Creating " + DatasetStateCommitStep.class.getSimpleName() + " for dataset " + datasetUrn);
+    return Optional.of(new DatasetStateCommitStep.Builder<>().withProps(datasetState).withDatasetUrn(datasetUrn)
+        .withDatasetState(datasetState).build());
+  }
+
+  private void finalizeDatasetState(JobState.DatasetState datasetState, String datasetUrn) {
     for (TaskState taskState : datasetState.getTaskStates()) {
       // Backoff the actual high watermark to the low watermark for each task that has not been committed
       if (taskState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED) {
@@ -445,7 +540,6 @@ public class JobContext {
     }
 
     datasetState.setId(datasetUrn);
-    this.datasetStateStore.persistDatasetState(datasetUrn, datasetState);
   }
 
   /**

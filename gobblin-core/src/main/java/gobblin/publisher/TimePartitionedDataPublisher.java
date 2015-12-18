@@ -38,8 +38,6 @@ import gobblin.util.WriterUtils;
  */
 public class TimePartitionedDataPublisher extends BaseDataPublisher {
 
-  private static final Logger LOG = LoggerFactory.getLogger(TimePartitionedDataPublisher.class);
-
   public TimePartitionedDataPublisher(State state) throws IOException {
     super(state);
   }
@@ -64,9 +62,7 @@ public class TimePartitionedDataPublisher extends BaseDataPublisher {
       WriterUtils.mkdirsWithRecursivePermission(this.publisherFileSystemByBranches.get(branchId), outputPath.getParent(),
           this.permissions.get(branchId));
 
-      LOG.info(String.format("Moving %s to %s", status.getPath(), outputPath));
-      parallelRunner.movePath(status.getPath(), this.publisherFileSystemByBranches.get(branchId),
-          outputPath, Optional.<String> absent());
+      movePath(parallelRunner, status.getPath(), outputPath, branchId);
     }
   }
 }
