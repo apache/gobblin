@@ -270,7 +270,6 @@ subprojects {
   }
 }
 
-
 subprojects {
 plugins.withType(JavaPlugin) {
   plugins.apply('idea')
