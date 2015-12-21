@@ -11,9 +11,16 @@
  */
 package gobblin.annotation;
 
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
 /**
  * Denotes an API that is still stable and should not change.
  */
+@Documented @Retention(value=RetentionPolicy.CLASS) @Target(value=ElementType.TYPE)
 public @interface Stable {
 
 }
