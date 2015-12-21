@@ -12,6 +12,8 @@
 
 package gobblin.config.store.api;
 
+import java.net.URI;
+
 import gobblin.annotation.Alpha;
 
 /**
@@ -29,7 +31,7 @@ public interface ConfigKeyPath {
 
   /**
    * The path to the parent.
-   * @throws IllegalArgumentException if the current node is the root.
+   * @throws UnsupportedOperationException if the current node is the root.
    */
   public ConfigKeyPath getParent();
 
@@ -53,4 +55,32 @@ public interface ConfigKeyPath {
 
   /** Check if the current path is the root path ("/"). */
   public boolean isRootPath();
+
+  /** Parses the string representation of a path into a ConfigKeyPath object */
+  public ConfigKeyPath fromPathString(String configKeyPath);
+
+  /**
+   * Creates a new  ConfigKeyPath object from a config key URI.
+   *
+   * @param  configKeyURI       the URI of the config key; it must be hosted by the specified store
+   * @param  configStore        the store that can handle the above config key, i.e. it root URI
+   *                            must be a prefix of the config key URI
+   * @return a ConfigKeyPath rooted at the config store root URI
+   * @throws IllegalArgumentException if the config store root URI is not a prefix of the config key
+   *                            root URI
+   */
+  public ConfigKeyPath fromUri(URI configKeyURI, ConfigStore configStore);
+
+  /**
+   * Creates a new  ConfigKeyPath object from a config key URI. This is a convenience version of
+   * {@link #fromUri(URI, ConfigStore)} which parses the config key URI string into a {@link URI}.
+   *
+   * @param  configKeyURI       the URI of the config key; it must be hosted by the specified store
+   * @param  configStore        the store that can handle the above config key, i.e. it root URI
+   *                            must be a prefix of the config key URI
+   * @return a ConfigKeyPath rooted at the config store root URI
+   * @throws IllegalArgumentException if the config store root URI is not a prefix of the config key
+   *                            root URI
+   */
+  public ConfigKeyPath fromUriString(String configKeyURI, ConfigStore configStore);
 }

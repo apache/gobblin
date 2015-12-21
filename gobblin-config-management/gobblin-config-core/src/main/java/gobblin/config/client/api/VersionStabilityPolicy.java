@@ -15,7 +15,7 @@ import gobblin.annotation.Alpha;
 import gobblin.config.store.api.ConfigStoreWithStableVersioning;
 
 /**
- * This version specifies the behavior expected by the client application when making repeated
+ * This policy specifies the behavior expected by the client application when making repeated
  * calls to the fetch the configuration object for the same config key and version. This interface
  * is closely associated with the {@link ConfigStoreWithStableVersioning} API.
  *
@@ -24,11 +24,12 @@ import gobblin.config.store.api.ConfigStoreWithStableVersioning;
  * <p> Here is the table that summarizes the expected client library behavior depending on the
  * VersionStabilityPolicy and ConfigStoreWithStableVersioning support from a store.
  * <table>
- *   <tr><th>VersionStabilityPolicy/ConfigStoreWithStableVersioning</th><th>No</th><th>Yes</th></tr>
- *   <tr><th>{@link #CROSS_JVM_STABILITY}</th><td>ERROR</td><td>WeakCache</td></tr>
- *   <tr><th>{@link #STRONG_LOCAL_STABILITY}</th><td>StrongCache</td><td>WeakCache</td></tr>
- *   <tr><th>{@link #WEAK_LOCAL_STABILITY}</th><td>WeakCache</td><td>WeakCache</td></tr>
- *   <tr><th>{@link #READ_FRESHEST}</th><td>NoCache</td><td>WeakCache</td></tr>
+ *   <tr><th>VersionStabilityPolicy/ConfigStoreWithStableVersioning</th>
+ *                                                 <th>No</th>           <th>Yes</th></tr>
+ *   <tr><th>{@link #CROSS_JVM_STABILITY}</th>     <td>ERROR</td>        <td>WeakCache</td></tr>
+ *   <tr><th>{@link #STRONG_LOCAL_STABILITY}</th>  <td>StrongCache</td>  <td>WeakCache</td></tr>
+ *   <tr><th>{@link #WEAK_LOCAL_STABILITY}</th>    <td>WeakCache</td>    <td>WeakCache</td></tr>
+ *   <tr><th>{@link #READ_FRESHEST}</th>           <td>NoCache</td>      <td>WeakCache</td></tr>
  * </table>
  *
  * <ul>

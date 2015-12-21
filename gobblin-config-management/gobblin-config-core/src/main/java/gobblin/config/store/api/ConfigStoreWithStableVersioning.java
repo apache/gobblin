@@ -26,8 +26,9 @@ import gobblin.config.client.api.VersionStabilityPolicy;
  * supports stable versioning. This means that:
  *
  * <ul>
- *   <li>Once published the version will remain available for at a day even if it gets rolled back.
- *   <li>The version and all its configuration objects are immutable.
+ *   <li>Once published the version will remain available for at least a day even if it gets rolled
+ *       back.</li>
+ *   <li>The version and all its configuration objects are immutable.</li>
  * </ul>
  *
  * Version stability defines the possible outcomes for repeated calls to
