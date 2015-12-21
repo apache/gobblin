@@ -1,5 +1,6 @@
 package gobblin.config.client.api;
 
+import gobblin.annotation.Alpha;
 import gobblin.config.store.api.ConfigStoreWithStableVersioning;
 
 /**
@@ -29,6 +30,7 @@ import gobblin.config.store.api.ConfigStoreWithStableVersioning;
  *   <li>NoCache means that the client library should never cache the read configs.</li>
  * </ul>
  */
+@Alpha
 public enum VersionStabilityPolicy {
   /** Reading the same config key and version from different JVMs must return the same result. */
   CROSS_JVM_STABILITY,

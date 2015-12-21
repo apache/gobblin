@@ -17,6 +17,8 @@ import java.util.Map;
 
 import com.typesafe.config.Config;
 
+import gobblin.annotation.Alpha;
+
 /**
  * ConfigStoreWithBatchFetches indicate this {@link ConfigStore} support (efficient) fetching of
  * batches of config keys with the same config version. For {@link ConfigStore} implementations that
@@ -27,6 +29,7 @@ import com.typesafe.config.Config;
  * @author mitu
  *
  */
+@Alpha
 public interface ConfigStoreWithBatchFetches extends ConfigStore {
   /**
    *

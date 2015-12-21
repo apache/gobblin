@@ -16,6 +16,8 @@ import java.util.List;
 
 import com.typesafe.config.Config;
 
+import gobblin.annotation.Alpha;
+
 
 /**
  * The ConfigStoreWithResolution interface is used to indicate the {@link ConfigStore} implementation
@@ -29,6 +31,7 @@ import com.typesafe.config.Config;
  * @author mitu
  *
  */
+@Alpha
 public interface ConfigStoreWithResolution extends ConfigStore {
 
   /**

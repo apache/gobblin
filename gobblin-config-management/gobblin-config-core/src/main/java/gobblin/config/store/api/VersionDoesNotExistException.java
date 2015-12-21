@@ -14,35 +14,37 @@ package gobblin.config.store.api;
 
 import java.net.URI;
 
+import gobblin.annotation.Alpha;
 
+
+@Alpha
+/** Denotes that a requested config version is invalid or is no longer available. */
 public class VersionDoesNotExistException extends Exception {
 
-  /**
-   * 
-   */
-  private static final long serialVersionUID = 2736458021800944664L;
+  private static final long serialVersionUID = 1L;
+  private static final String MESSAGE_FORMAT =
+      "Failed to find the version %s in config store %s because of: %s ";
 
   private final URI storeURI;
-  private final String version;
+  private final String configVersion;
 
-  public VersionDoesNotExistException(URI storeURI, String version, String message) {
-    super(String
-        .format("failed to find the version %s in config store %s with message %s ", version, storeURI, message));
+  public VersionDoesNotExistException(URI storeURI, String configVersion, String errorMessage) {
+    super(String.format(MESSAGE_FORMAT, configVersion, storeURI, errorMessage));
     this.storeURI = storeURI;
-    this.version = version;
+    this.configVersion = configVersion;
   }
 
-  public VersionDoesNotExistException(URI storeURI, String version, Exception e) {
-    super(e);
+  public VersionDoesNotExistException(URI storeURI, String configVersion, Exception e) {
+    super(String.format(MESSAGE_FORMAT, configVersion, storeURI, e.getMessage()), e);
     this.storeURI = storeURI;
-    this.version = version;
+    this.configVersion = configVersion;
   }
 
   public URI getStoreURI() {
-    return storeURI;
+    return this.storeURI;
   }
 
-  public String getVersion() {
-    return version;
+  public String getConfigVersion() {
+    return this.configVersion;
   }
 }

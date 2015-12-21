@@ -14,6 +14,8 @@ package gobblin.config.store.api;
 
 import java.net.URI;
 
+import gobblin.annotation.Alpha;
+
 
 /**
  * ConfigStoreFactory is used to created {@link ConfigStore}s. Each ConfigStoreFactory is responsible for
@@ -26,6 +28,7 @@ import java.net.URI;
  *
  * @param <T> The java class of the {@link ConfigStore} implementation(s) supported by this factory
  */
+@Alpha
 public interface ConfigStoreFactory<T extends ConfigStore> {
 
   /**

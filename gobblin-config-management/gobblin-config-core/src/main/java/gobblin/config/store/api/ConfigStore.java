@@ -18,6 +18,8 @@ import java.util.List;
 
 import com.typesafe.config.Config;
 
+import gobblin.annotation.Alpha;
+
 
 /**
  * The ConfigStore interface used to describe a configuration store. A configuration store is a
@@ -37,6 +39,7 @@ import com.typesafe.config.Config;
  * @author mitu
  *
  */
+@Alpha
 public interface ConfigStore {
 
   /**

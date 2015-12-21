@@ -12,6 +12,8 @@
 
 package gobblin.config.store.api;
 
+import gobblin.annotation.Alpha;
+
 /**
  * The ConfigKeyPath is used to describe the relative path for a given configuration key URI to
  * the root URI of a config store ({@link ConfigStore#getStoreURI()}). For example,
@@ -22,6 +24,7 @@ package gobblin.config.store.api;
  * @author mitu
  *
  */
+@Alpha
 public interface ConfigKeyPath {
 
   /**

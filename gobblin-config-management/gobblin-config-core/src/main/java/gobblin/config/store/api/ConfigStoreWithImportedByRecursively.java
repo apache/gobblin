@@ -14,6 +14,8 @@ package gobblin.config.store.api;
 
 import java.util.Collection;
 
+import gobblin.annotation.Alpha;
+
 /**
  * This is an extension of the {@link ConfigStoreWithImportedBy} interface which marks that
  * this {@link ConfigStore} implementation supports not only efficiently obtaining the
@@ -23,6 +25,7 @@ import java.util.Collection;
  * Note that when calculating the transitive closure, implicit imports coming from ancestor config
  * keys are also considered.
  */
+@Alpha
 public interface ConfigStoreWithImportedByRecursively extends ConfigStoreWithImportedBy {
   /**
    * Obtains all config keys which directly or indirectly import a given config key

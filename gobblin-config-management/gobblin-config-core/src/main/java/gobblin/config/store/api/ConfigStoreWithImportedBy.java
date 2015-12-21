@@ -14,6 +14,8 @@ package gobblin.config.store.api;
 
 import java.util.Collection;
 
+import gobblin.annotation.Alpha;
+
 
 /**
  * ConfigStoreWithImportedBy indicates that this {@link ConfigStore} implementation supports an
@@ -22,6 +24,7 @@ import java.util.Collection;
  * @author mitu
  *
  */
+@Alpha
 public interface ConfigStoreWithImportedBy extends ConfigStore {
 
   /**

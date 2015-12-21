@@ -18,6 +18,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import gobblin.annotation.Alpha;
 import gobblin.config.client.api.VersionStabilityPolicy;
 
 /**
@@ -39,6 +40,7 @@ import gobblin.config.client.api.VersionStabilityPolicy;
  *
  */
 @Documented @Retention(value=RetentionPolicy.RUNTIME) @Target(value=ElementType.TYPE)
+@Alpha
 public @interface ConfigStoreWithStableVersioning {
 
 }
