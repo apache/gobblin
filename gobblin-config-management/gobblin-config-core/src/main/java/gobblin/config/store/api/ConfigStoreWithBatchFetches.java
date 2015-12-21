@@ -12,25 +12,29 @@
 
 package gobblin.config.store.api;
 
-import java.net.URI;
 import java.util.Collection;
 import java.util.Map;
 
 import com.typesafe.config.Config;
 
 /**
- * ConfigStoreWithBatchFetches indicate this {@ConfigStore} support batch fetching for a collection of configUris with
- * specified configuration store version
+ * ConfigStoreWithBatchFetches indicate this {@link ConfigStore} support (efficient) fetching of
+ * batches of config keys with the same config version. For {@link ConfigStore} implementations that
+ * implement this interface, the config client library will delegate the batch fetches to the
+ * store instead of doing that itself. A typical use case for this interface is if the {@link ConfigStore}
+ * supports an RPC call which can fetch multiple config objects with a single call.
+ *
  * @author mitu
  *
  */
 public interface ConfigStoreWithBatchFetches extends ConfigStore {
   /**
-   * 
-   * @param configUris - the collection of configUris, all the Uris are relative to this configuration store
-   * @param version - configuration store version
-   * @return the Map whose key is the input configUris, the value is the {@com.typesafe.config.Config} format of 
-   *  own configuration for corresponding key
+   *
+   * @param  configKeys     the config keys whose {@link Config} objects are to be fetched
+   * @param  version        the configuration version of the config keys
+   * @return the Map from the config key to its the {@com.typesafe.config.Config} object
+   * @throws VersionDoesNotExistException if the requested config version does not exist (any longer)
    */
-  public Map<URI, Config> getOwnConfigs(Collection<URI> configUris, String version) throws VersionDoesNotExistException;
+  public Map<ConfigKeyPath, Config> getOwnConfigs(Collection<ConfigKeyPath> configKeys, String version)
+      throws VersionDoesNotExistException;
 }
