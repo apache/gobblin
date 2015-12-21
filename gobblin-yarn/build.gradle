@@ -61,6 +61,8 @@ dependencies {
   testCompile externalDependency.hadoopYarnMiniCluster
   testCompile externalDependency.curatorFramework
   testCompile externalDependency.curatorTest
+  testCompile externalDependency.calciteCore
+  testCompile externalDependency.calciteAvatica
 
   compile files('./src/main/resources/helix-core-0.6.6-SNAPSHOT.jar')
 }
