@@ -13,6 +13,8 @@
 package gobblin.applift.parquet;
 
 import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.avro.Schema;
@@ -54,15 +56,25 @@ public class JsonToAvroConverter extends ToAvroConverterBase<String, String> {
     return new Schema.Parser().parse(inputSchema);
   }
 
+  
+  /*
+   * For converting bulk Json Records each per line to Avro GenericRecord
+   * @see gobblin.converter.ToAvroConverterBase#convertRecord(org.apache.avro.Schema, java.lang.Object, gobblin.configuration.WorkUnitState)
+   */
   @Override
-  public Iterable<GenericRecord> convertRecord(Schema schema, String inputRecord, WorkUnitState workUnit)
+  public Iterable<GenericRecord> convertRecord(Schema schema, String jsonRecords, WorkUnitState workUnit)
       throws DataConversionException {
-    JsonElement element = GSON.fromJson(inputRecord, JsonElement.class);
-    Map<String, Object> fields = GSON.fromJson(element, FIELD_ENTRY_TYPE);
-    GenericRecord record = new GenericData.Record(schema);
-    for (Map.Entry<String, Object> entry : fields.entrySet()) {
-      record.put(entry.getKey(), entry.getValue());
-    }
-    return new SingleRecordIterable<GenericRecord>(record);
+  	String[] inputRecords = jsonRecords.split("\n");
+  	List<GenericRecord> avroRecords = new ArrayList<GenericRecord>();
+  	for(String inputRecord:inputRecords){
+	    JsonElement element = GSON.fromJson(inputRecord, JsonElement.class);
+	    Map<String, Object> fields = GSON.fromJson(element, FIELD_ENTRY_TYPE);
+	    GenericRecord record = new GenericData.Record(schema);
+	    for (Map.Entry<String, Object> entry : fields.entrySet()) {
+	      record.put(entry.getKey(), entry.getValue());
+	    }
+	    avroRecords.add(record);
+  	}
+    return avroRecords;
   }
 }
