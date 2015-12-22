@@ -13,16 +13,19 @@
 
 package gobblin.metrics;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Properties;
+import java.util.Set;
+
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
-import com.codahale.metrics.MetricRegistry;
-import java.io.ByteArrayOutputStream;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -36,17 +39,16 @@ public class OutputStreamReporterTest {
   private ByteArrayOutputStream stream = new ByteArrayOutputStream();
 
   @Test
-  public void testReporter() {
+  public void testReporter() throws IOException {
 
-    MetricRegistry registry = new MetricRegistry();
-    Counter counter = registry.counter("com.linkedin.example.counter");
-    Meter meter = registry.meter("com.linkedin.example.meter");
-    Histogram histogram = registry.histogram("com.linkedin.example.histogram");
+    MetricContext metricContext = MetricContext.builder(this.getClass().getCanonicalName()).build();
+    Counter counter = metricContext.counter("com.linkedin.example.counter");
+    Meter meter = metricContext.meter("com.linkedin.example.meter");
+    Histogram histogram = metricContext.histogram("com.linkedin.example.histogram");
 
-    OutputStreamReporter reporter = OutputStreamReporter.
-        forRegistry(registry).
+    OutputStreamReporter reporter = OutputStreamReporter.Factory.newBuilder().
         outputTo(stream).
-        build();
+        build(new Properties());
 
     counter.inc();
     meter.mark(2);
@@ -87,19 +89,18 @@ public class OutputStreamReporterTest {
   }
 
   @Test
-  public void testTags() {
-    MetricRegistry registry = new MetricRegistry();
-    Counter counter = registry.counter("com.linkedin.example.counter");
+  public void testTags() throws IOException {
+    MetricContext metricContext = MetricContext.builder(this.getClass().getCanonicalName()).build();
+    Counter counter = metricContext.counter("com.linkedin.example.counter");
 
     Map<String, String> tags = new HashMap<String, String>();
     tags.put("testKey", "testValue");
     tags.put("key2", "value2");
 
-    OutputStreamReporter reporter = OutputStreamReporter.
-        forRegistry(registry).
+    OutputStreamReporter reporter = OutputStreamReporter.Factory.newBuilder().
         withTags(tags).
         outputTo(stream).
-        build();
+        build(new Properties());
 
     counter.inc();
 
@@ -120,15 +121,14 @@ public class OutputStreamReporterTest {
   }
 
   @Test
-  public void testTagsFromContext() {
+  public void testTagsFromContext() throws IOException {
     Tag<?> tag1 = new Tag<String>("tag1", "value1");
     MetricContext context = MetricContext.builder("context").addTag(tag1).build();
     Counter counter = context.counter("com.linkedin.example.counter");
 
-    OutputStreamReporter reporter = OutputStreamReporter.
-        forContext(context).
+    OutputStreamReporter reporter = OutputStreamReporter.Factory.newBuilder().
         outputTo(stream).
-        build();
+        build(new Properties());
 
     counter.inc();
 
@@ -182,8 +182,5 @@ public class OutputStreamReporterTest {
     Assert.assertTrue(metrics.isEmpty(),
         String.format("Output does not contain all expected top level metrics. Missing: %s",
             Arrays.toString(metrics.keySet().toArray())));
-
   }
-
-
 }

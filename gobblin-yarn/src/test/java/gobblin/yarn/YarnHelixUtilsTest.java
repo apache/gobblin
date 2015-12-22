@@ -30,6 +30,8 @@ import org.testng.annotations.Test;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.util.ConfigUtils;
+
 
 /**
  * Unit tests for {@link YarnHelixUtils}.
@@ -66,7 +68,7 @@ public class YarnHelixUtilsTest {
     Assert.assertTrue(config.getBoolean("k4"));
     Assert.assertEquals(config.getLong("k5"), 10000);
 
-    Properties properties = YarnHelixUtils.configToProperties(config);
+    Properties properties = ConfigUtils.configToProperties(config);
     Assert.assertEquals(properties.getProperty("k1"), "v1");
     Assert.assertEquals(properties.getProperty("k2"), "v1");
     Assert.assertEquals(properties.getProperty("k3"), "1000");

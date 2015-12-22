@@ -10,33 +10,34 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics.kafka;
+package gobblin.metrics.reporter;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterSuite;
 import org.testng.annotations.Test;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
-import com.codahale.metrics.MetricRegistry;
+
 import com.google.common.collect.Lists;
 
 import gobblin.metrics.Measurements;
 import gobblin.metrics.Metric;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricReport;
-import gobblin.metrics.reporter.util.MetricReportUtils;
 import gobblin.metrics.Tag;
+import gobblin.metrics.kafka.KafkaPusher;
+import gobblin.metrics.kafka.KafkaReporter;
+import gobblin.metrics.reporter.util.MetricReportUtils;
 
 
 @Test(groups = {"gobblin.metrics"})
@@ -48,28 +49,25 @@ public class KafkaReporterTest {
 
   /**
    * Get builder for KafkaReporter (override if testing an extension of KafkaReporter)
-   * @param registry metricregistry
    * @return KafkaReporter builder
    */
-  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilder(MetricRegistry registry,
-      KafkaPusher pusher) {
-    return KafkaReporter.Factory.forRegistry(registry).withKafkaPusher(pusher);
+  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilder(KafkaPusher pusher) {
+    return KafkaReporter.BuilderFactory.newBuilder().withKafkaPusher(pusher);
   }
 
-  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilderFromContext(MetricContext context,
-      KafkaPusher pusher) {
-    return KafkaReporter.Factory.forContext(context).withKafkaPusher(pusher);
+  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilderFromContext(KafkaPusher pusher) {
+    return KafkaReporter.BuilderFactory.newBuilder().withKafkaPusher(pusher);
   }
 
   @Test
   public void testKafkaReporter() throws IOException {
-    MetricRegistry registry = new MetricRegistry();
-    Counter counter = registry.counter("com.linkedin.example.counter");
-    Meter meter = registry.meter("com.linkedin.example.meter");
-    Histogram histogram = registry.histogram("com.linkedin.example.histogram");
+    MetricContext metricContext = MetricContext.builder(this.getClass().getCanonicalName() + ".testKafkaReporter").build();
+    Counter counter = metricContext.counter("com.linkedin.example.counter");
+    Meter meter = metricContext.meter("com.linkedin.example.meter");
+    Histogram histogram = metricContext.histogram("com.linkedin.example.histogram");
 
     MockKafkaPusher pusher = new MockKafkaPusher();
-    KafkaReporter kafkaReporter = getBuilder(registry, pusher).build("localhost:0000", "topic");
+    KafkaReporter kafkaReporter = getBuilder(pusher).build("localhost:0000", "topic", new Properties());
 
     counter.inc();
     meter.mark(2);
@@ -77,11 +75,11 @@ public class KafkaReporterTest {
     histogram.update(1);
     histogram.update(2);
 
-    kafkaReporter.report();
+    kafkaReporter.report(metricContext);
 
     try {
-      Thread.sleep(100);
-    } catch(InterruptedException ex) {
+      Thread.sleep(1000);
+    } catch (InterruptedException ex) {
       Thread.currentThread().interrupt();
     }
 
@@ -94,10 +92,11 @@ public class KafkaReporterTest {
 
     expectMetricsWithValues(nextReport, expected);
 
-    kafkaReporter.report();
+    kafkaReporter.report(metricContext);
+
     try {
-      Thread.sleep(100);
-    } catch(InterruptedException ex) {
+      Thread.sleep(1000);
+    } catch (InterruptedException ex) {
       Thread.currentThread().interrupt();
     }
 
@@ -127,30 +126,30 @@ public class KafkaReporterTest {
 
   @Test
   public void kafkaReporterTagsTest() throws IOException {
-    MetricRegistry registry = new MetricRegistry();
-    Counter counter = registry.counter("com.linkedin.example.counter");
+    MetricContext metricContext = MetricContext.builder(this.getClass().getCanonicalName() + ".kafkaReporterTagsTest").build();
+    Counter counter = metricContext.counter("com.linkedin.example.counter");
 
     Tag<?> tag1 = new Tag<String>("tag1", "value1");
     Tag<?> tag2 = new Tag<Integer>("tag2", 2);
 
     MockKafkaPusher pusher = new MockKafkaPusher();
-    KafkaReporter kafkaReporter = getBuilder(registry, pusher).
+    KafkaReporter kafkaReporter = getBuilder(pusher).
         withTags(Lists.newArrayList(tag1, tag2)).
-        build("localhost:0000", "topic");
+        build("localhost:0000", "topic", new Properties());
 
     counter.inc();
 
-    kafkaReporter.report();
+    kafkaReporter.report(metricContext);
 
     try {
-      Thread.sleep(100);
-    } catch(InterruptedException ex) {
+      Thread.sleep(1000);
+    } catch (InterruptedException ex) {
       Thread.currentThread().interrupt();
     }
 
     MetricReport metricReport = nextReport(pusher.messageIterator());
 
-    Assert.assertEquals(2, metricReport.getTags().size());
+    Assert.assertEquals(4, metricReport.getTags().size());
     Assert.assertTrue(metricReport.getTags().containsKey(tag1.getKey()));
     Assert.assertEquals(metricReport.getTags().get(tag1.getKey()),
         tag1.getValue().toString());
@@ -166,24 +165,23 @@ public class KafkaReporterTest {
     Counter counter = context.counter("com.linkedin.example.counter");
 
     MockKafkaPusher pusher = new MockKafkaPusher();
-    KafkaReporter kafkaReporter = getBuilderFromContext(context, pusher).build("localhost:0000", "topic");
+    KafkaReporter kafkaReporter = getBuilderFromContext(pusher).build("localhost:0000", "topic", new Properties());
 
     counter.inc();
 
-    kafkaReporter.report();
+    kafkaReporter.report(context);
 
     try {
-      Thread.sleep(100);
-    } catch(InterruptedException ex) {
+      Thread.sleep(1000);
+    } catch (InterruptedException ex) {
       Thread.currentThread().interrupt();
     }
 
     MetricReport metricReport = nextReport(pusher.messageIterator());
 
-    Assert.assertEquals(2, metricReport.getTags().size());
+    Assert.assertEquals(3, metricReport.getTags().size());
     Assert.assertTrue(metricReport.getTags().containsKey(tag1.getKey()));
-    Assert.assertEquals(metricReport.getTags().get(tag1.getKey()),
-        tag1.getValue().toString());
+    Assert.assertEquals(metricReport.getTags().get(tag1.getKey()), tag1.getValue().toString());
 
   }
 
@@ -223,7 +221,7 @@ public class KafkaReporterTest {
       //System.out.println(String.format("expectedSet.add(\"%s\")", metric.name));
       if (expected.contains(metric.getName())) {
         expected.remove(metric.getName());
-      } else if (strict) {
+      } else if (strict && !metric.getName().contains(MetricContext.GOBBLIN_METRICS_NOTIFICATIONS_TIMER_NAME)) {
         Assert.assertTrue(false, "Metric present in report not expected: " + metric.toString());
       }
     }
@@ -241,16 +239,4 @@ public class KafkaReporterTest {
     Assert.assertTrue(it.hasNext());
     return MetricReportUtils.deserializeReportFromJson(new MetricReport(), it.next());
   }
-
-  @AfterClass
-  public void after() {
-    try {
-    } catch(Exception e) {
-    }
-  }
-
-  @AfterSuite
-  public void afterSuite() {
-  }
-
 }

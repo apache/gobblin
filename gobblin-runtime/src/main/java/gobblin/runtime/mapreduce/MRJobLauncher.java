@@ -580,8 +580,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
       } finally {
         if (this.jobMetrics.isPresent()) {
           try {
-            this.jobMetrics.get().triggerMetricReporting();
-            this.jobMetrics.get().stopMetricReporting();
+            this.jobMetrics.get().stopMetricsReporting();
           } finally {
             JobMetrics.remove(this.jobMetrics.get().getName());
           }

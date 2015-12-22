@@ -14,8 +14,9 @@ package gobblin.metrics.reporter;
 
 import java.util.Set;
 
-import com.beust.jcommander.internal.Sets;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
+
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 

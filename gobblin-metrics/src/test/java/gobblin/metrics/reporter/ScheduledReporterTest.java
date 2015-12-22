@@ -12,24 +12,25 @@
 
 package gobblin.metrics.reporter;
 
-import javax.annotation.Nullable;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import org.joda.time.format.PeriodFormatter;
-import org.joda.time.format.PeriodFormatterBuilder;
+import javax.annotation.Nullable;
+
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
+
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.context.ReportableContext;
 import gobblin.metrics.context.filter.ContextFilterFactory;
+import gobblin.util.ConfigUtils;
 
 
 /**
@@ -53,7 +54,6 @@ public class ScheduledReporterTest {
     } catch (RuntimeException re) {
       // fail unless exception is thrown
     }
-
   }
 
   @Test
@@ -69,8 +69,9 @@ public class ScheduledReporterTest {
     MetricContext context1 = MetricContext.builder(context1Name).build();
 
     // Set up config for reporter
-    Config config = ConfigFactory.empty();
-    config = ScheduledReporter.setReportingInterval(config, reportingIntervalMillis, TimeUnit.MILLISECONDS);
+    Properties props = new Properties();
+    ScheduledReporter.setReportingInterval(props, reportingIntervalMillis, TimeUnit.MILLISECONDS);
+    Config config = ConfigUtils.propertiesToConfig(props);
     config = PrefixContextFilter.setPrefixString(config, ScheduledReporterTest.class.getSimpleName());
     config = ContextFilterFactory.setContextFilterClass(config, PrefixContextFilter.class);
 
@@ -154,7 +155,6 @@ public class ScheduledReporterTest {
 
     // Test close method
     reporter.close();
-
   }
 
   private Set<String> getContextNames(ContextStoreReporter reporter) {
@@ -165,5 +165,4 @@ public class ScheduledReporterTest {
           }
         }));
   }
-
 }

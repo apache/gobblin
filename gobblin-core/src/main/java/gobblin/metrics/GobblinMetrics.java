@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,8 +33,8 @@ import com.codahale.metrics.Histogram;
 import com.codahale.metrics.JmxReporter;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Timer;
+
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
@@ -44,9 +45,9 @@ import com.google.common.io.Closer;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.metrics.kafka.KafkaEventReporter;
-import gobblin.metrics.kafka.KafkaReporter;
 import gobblin.metrics.reporter.OutputStreamEventReporter;
 import gobblin.metrics.reporter.OutputStreamReporter;
+import gobblin.metrics.reporter.ScheduledReporter;
 
 
 /**
@@ -200,7 +201,7 @@ public class GobblinMetrics {
     List<Tag<?>> tags = Lists.newArrayList();
     for (String tagKeyValue : state.getPropAsList(METRICS_STATE_CUSTOM_TAGS, "")) {
       Tag<?> tag = Tag.fromString(tagKeyValue);
-      if(tag != null) {
+      if (tag != null) {
         tags.add(tag);
       }
     }
@@ -211,16 +212,16 @@ public class GobblinMetrics {
   protected final MetricContext metricContext;
 
   // Closer for closing the metric output stream
-  protected final Closer closer = Closer.create();
+  protected final Closer codahaleReportersCloser = Closer.create();
 
   // JMX metric reporter
   private Optional<JmxReporter> jmxReporter = Optional.absent();
 
   // Custom metric reporters instantiated through reflection
-  private final List<ScheduledReporter> scheduledReporters = Lists.newArrayList();
+  private final List<com.codahale.metrics.ScheduledReporter> scheduledReporters = Lists.newArrayList();
 
   // A flag telling whether metric reporting has started or not
-  private volatile boolean reportingStarted = false;
+  private volatile boolean metricsReportingStarted = false;
 
   protected GobblinMetrics(String id, MetricContext parentContext, List<Tag<?>> tags) {
     this.id = id;
@@ -342,62 +343,69 @@ public class GobblinMetrics {
    * @param properties configuration properties
    */
   public void startMetricReporting(Properties properties) {
-    if (this.reportingStarted) {
+    if (this.metricsReportingStarted) {
       LOGGER.warn("Metric reporting has already started");
       return;
     }
 
-    long reportInterval = Long.parseLong(properties.getProperty(ConfigurationKeys.METRICS_REPORT_INTERVAL_KEY,
-        ConfigurationKeys.DEFAULT_METRICS_REPORT_INTERVAL));
+    TimeUnit reportTimeUnit = TimeUnit.MILLISECONDS;
+    long reportInterval = Long.parseLong(properties
+        .getProperty(ConfigurationKeys.METRICS_REPORT_INTERVAL_KEY, ConfigurationKeys.DEFAULT_METRICS_REPORT_INTERVAL));
+    ScheduledReporter.setReportingInterval(properties, reportInterval, reportTimeUnit);
 
+    // Build and start the JMX reporter
     buildJmxMetricReporter(properties);
     if (this.jmxReporter.isPresent()) {
       LOGGER.info("Will start reporting metrics to JMX");
       this.jmxReporter.get().start();
     }
 
+    // Build all other reporters
     buildFileMetricReporter(properties);
     buildKafkaMetricReporter(properties);
     buildCustomMetricReporters(properties);
 
-    for (ScheduledReporter reporter : this.scheduledReporters) {
-      reporter.start(reportInterval, TimeUnit.MILLISECONDS);
+    // Start reporters that implement gobblin.metrics.report.ScheduledReporter
+    RootMetricContext.get().startReporting();
+
+    // Start reporters that implement com.codahale.metrics.ScheduledReporter
+    for (com.codahale.metrics.ScheduledReporter scheduledReporter : this.scheduledReporters) {
+      scheduledReporter.start(reportInterval, reportTimeUnit);
     }
 
-    this.reportingStarted = true;
+    this.metricsReportingStarted = true;
   }
 
   /**
-   * Immediately trigger metric reporting.
+   * Stop metric reporting.
    */
-  public void triggerMetricReporting() {
-    for (ScheduledReporter reporter : this.scheduledReporters) {
-      reporter.report();
-    }
-  }
-
-  /**
-   * Stop the metric reporting.
-   */
-  public void stopMetricReporting() {
-    if (!this.reportingStarted) {
+  public void stopMetricsReporting() {
+    if (!this.metricsReportingStarted) {
       LOGGER.warn("Metric reporting has not started yet");
       return;
     }
 
-    LOGGER.info("Stopping metric reporting");
-
+    // Stop the JMX reporter
     if (this.jmxReporter.isPresent()) {
       this.jmxReporter.get().stop();
     }
 
+    // Trigger and stop reporters that implement gobblin.metrics.report.ScheduledReporter
+    RootMetricContext.get().stopReporting();
+
+    // Trigger and stop reporters that implement com.codahale.metrics.ScheduledReporter
+
+    for (com.codahale.metrics.ScheduledReporter scheduledReporter : this.scheduledReporters) {
+      scheduledReporter.report();
+    }
+
     try {
-      this.closer.close();
+      this.codahaleReportersCloser.close();
     } catch (IOException ioe) {
       LOGGER.error("Failed to close metric output stream for job " + this.id, ioe);
     }
 
-    this.reportingStarted = false;
+    this.metricsReportingStarted = false;
   }
 
   private void buildFileMetricReporter(Properties properties) {
@@ -427,7 +435,7 @@ public class GobblinMetrics {
       // Add a suffix to file name if specified in properties.
       String metricsFileSuffix = properties.getProperty(ConfigurationKeys.METRICS_FILE_SUFFIX,
           ConfigurationKeys.DEFAULT_METRICS_FILE_SUFFIX);
-      if(!Strings.isNullOrEmpty(metricsFileSuffix) && !metricsFileSuffix.startsWith(".")) {
+      if (!Strings.isNullOrEmpty(metricsFileSuffix) && !metricsFileSuffix.startsWith(".")) {
         metricsFileSuffix = "." + metricsFileSuffix;
       }
 
@@ -441,10 +449,9 @@ public class GobblinMetrics {
       }
 
       OutputStream output = append ? fs.append(metricLogFile) : fs.create(metricLogFile, true);
-      this.scheduledReporters
-          .add(this.closer.register(OutputStreamReporter.forContext(this.metricContext).outputTo(output).build()));
-      this.scheduledReporters
-          .add(this.closer.register(OutputStreamEventReporter.forContext(this.metricContext).outputTo(output).build()));
+      OutputStreamReporter.Factory.newBuilder().outputTo(output).build(properties);
+      this.scheduledReporters.add(this.codahaleReportersCloser
+          .register(OutputStreamEventReporter.forContext(this.metricContext).outputTo(output).build()));
 
       LOGGER.info("Will start reporting metrics to directory " + metricsLogDir);
     } catch (IOException ioe) {
@@ -459,7 +466,7 @@ public class GobblinMetrics {
       return;
     }
 
-    this.jmxReporter = Optional.of(closer.register(JmxReporter.forRegistry(this.metricContext).
+    this.jmxReporter = Optional.of(codahaleReportersCloser.register(JmxReporter.forRegistry(this.metricContext).
         convertRatesTo(TimeUnit.SECONDS).convertDurationsTo(TimeUnit.MILLISECONDS).build()));
   }
 
@@ -480,7 +487,7 @@ public class GobblinMetrics {
       Preconditions.checkArgument(properties.containsKey(ConfigurationKeys.METRICS_KAFKA_BROKERS),
           "Kafka metrics brokers missing.");
       Preconditions.checkArgument(metricsTopic.or(eventsTopic).or(defaultTopic).isPresent(), "Kafka topic missing.");
-    } catch(IllegalArgumentException exception) {
+    } catch (IllegalArgumentException exception) {
       LOGGER.error("Not reporting metrics to Kafka due to missing Kafka configuration(s).", exception);
       return;
     }
@@ -493,7 +500,7 @@ public class GobblinMetrics {
     KafkaReportingFormats formatEnum;
     try {
       formatEnum = KafkaReportingFormats.valueOf(reportingFormat.toUpperCase());
-    } catch(IllegalArgumentException exception) {
+    } catch (IllegalArgumentException exception) {
       LOGGER.warn("Kafka metrics reporting format " + reportingFormat +
           " not recognized. Will report in json format.", exception);
       formatEnum = KafkaReportingFormats.JSON;
@@ -501,8 +508,8 @@ public class GobblinMetrics {
 
     if (metricsTopic.or(defaultTopic).isPresent()) {
       try {
-        KafkaReporter.Builder<?> builder = formatEnum.metricReporterBuilder(this.metricContext, properties);
-        this.scheduledReporters.add(this.closer.register(builder.build(brokers, metricsTopic.or(defaultTopic).get())));
+        formatEnum.metricReporterBuilder(properties)
+            .build(brokers, metricsTopic.or(defaultTopic).get(), properties);
       } catch (IOException exception) {
         LOGGER.error("Failed to create Kafka metrics reporter. Will not report metrics to Kafka.", exception);
       }
@@ -513,7 +520,8 @@ public class GobblinMetrics {
     if (eventsTopic.or(defaultTopic).isPresent()) {
       try {
         KafkaEventReporter.Builder<?> builder = formatEnum.eventReporterBuilder(this.metricContext, properties);
-        this.scheduledReporters.add(this.closer.register(builder.build(brokers, eventsTopic.or(defaultTopic).get())));
+        this.scheduledReporters
+            .add(this.codahaleReportersCloser.register(builder.build(brokers, eventsTopic.or(defaultTopic).get())));
       } catch (IOException exception) {
         LOGGER.error("Failed to create Kafka events reporter. Will not report events to Kafka.", exception);
       }
@@ -538,21 +546,34 @@ public class GobblinMetrics {
 
     for (String reporterClass : Splitter.on(",").split(reporterClasses)) {
       try {
-        ScheduledReporter reporter = ((CustomReporterFactory) Class.forName(reporterClass)
-            .getConstructor().newInstance()).newScheduledReporter(this.metricContext, properties);
-        this.scheduledReporters.add(this.closer.register(reporter));
-      } catch(ClassNotFoundException exception) {
-        LOGGER.warn(
-            String.format("Failed to create metric reporter: requested CustomReporterFactory %s not found.",
-                reporterClass),
+        Class<?> clazz = Class.forName(reporterClass);
+
+        if (CustomCodahaleReporterFactory.class.isAssignableFrom(clazz)) {
+          CustomCodahaleReporterFactory customCodahaleReporterFactory =
+              ((CustomCodahaleReporterFactory) clazz.getConstructor().newInstance());
+          com.codahale.metrics.ScheduledReporter scheduledReporter = this.codahaleReportersCloser
+              .register(customCodahaleReporterFactory.newScheduledReporter(this.metricContext, properties));
+          this.scheduledReporters.add(scheduledReporter);
+
+        } else if (CustomReporterFactory.class.isAssignableFrom(clazz)) {
+          CustomReporterFactory customReporterFactory = ((CustomReporterFactory) clazz.getConstructor().newInstance());
+          customReporterFactory.newScheduledReporter(properties);
+
+        } else {
+          throw new IllegalArgumentException("Class " + reporterClass +
+              " specified by key " + ConfigurationKeys.METRICS_CUSTOM_BUILDERS + " must implement: "
+              + CustomCodahaleReporterFactory.class + " or " + CustomReporterFactory.class);
+        }
+      } catch (ClassNotFoundException exception) {
+        LOGGER.warn(String
+            .format("Failed to create metric reporter: requested CustomReporterFactory %s not found.", reporterClass),
             exception);
-      } catch(NoSuchMethodException exception) {
-        LOGGER.warn(
-            String.format("Failed to create metric reporter: requested CustomReporterFactory %s "
-                    + "does not have parameterless constructor.",
-                reporterClass),
-            exception);
-      } catch(Exception exception) {
+
+      } catch (NoSuchMethodException exception) {
+        LOGGER.warn(String.format("Failed to create metric reporter: requested CustomReporterFactory %s "
+            + "does not have parameterless constructor.", reporterClass), exception);
+
+      } catch (Exception exception) {
         LOGGER.warn("Could not create metric reporter from builder " + reporterClass + ".", exception);
       }
     }

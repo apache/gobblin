@@ -44,6 +44,7 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.runtime.FsDatasetStateStore;
 import gobblin.runtime.JobException;
 import gobblin.runtime.JobState;
+import gobblin.util.ConfigUtils;
 
 
 /**
@@ -105,7 +106,7 @@ public class GobblinHelixJobLauncherTest {
             zkConnectingString);
     this.helixManager.connect();
 
-    Properties properties = YarnHelixUtils.configToProperties(config);
+    Properties properties = ConfigUtils.configToProperties(config);
 
     this.localFs = FileSystem.getLocal(new Configuration());
 

@@ -311,7 +311,7 @@ public class MRCompactor implements Compactor {
         this.closer.close();
       } finally {
         deleteDependencyJars();
-        gobblinMetrics.stopMetricReporting();
+        gobblinMetrics.stopMetricsReporting();
       }
     }
   }

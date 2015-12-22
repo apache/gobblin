@@ -25,6 +25,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.mail.EmailException;
 import org.apache.hadoop.conf.Configuration;
@@ -83,6 +84,7 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.rest.JobExecutionInfoServer;
+import gobblin.util.ConfigUtils;
 import gobblin.util.EmailUtils;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.io.StreamUtils;
@@ -176,12 +178,8 @@ public class GobblinYarnAppLauncher {
   // Maximum number of consecutive failures allowed to get the ApplicationReport
   private final int maxGetApplicationReportFailures;
 
-  // A count on the number of consecutive failures on getting the ApplicationReport.
-  // Using a plain integer is fine because either the ApplicationReportArrivalEvent
-  // or the GetApplicationReportFailureEvent is posted, but not both, and EventBus
-  // guarantees it won't call a handler method from multiple threads simultaneously
-  // so effectively this variable won't be updated simultaneously.
-  private int getApplicationReportFailureCount = 0;
+  // A count on the number of consecutive failures on getting the ApplicationReport
+  private final AtomicInteger getApplicationReportFailureCount = new AtomicInteger();
 
   // This flag tells if the Yarn application has already completed. This is used to
   // tell if it is necessary to send a shutdown message to the ApplicationMaster.
@@ -270,7 +268,8 @@ public class GobblinYarnAppLauncher {
         new Path(this.sinkLogRootDir, this.applicationName + Path.SEPARATOR + this.applicationId.get().toString()),
         YarnHelixUtils.getAppWorkDirPath(this.fs, this.applicationName, this.applicationId.get().toString())));
     if (config.getBoolean(ConfigurationKeys.JOB_EXECINFO_SERVER_ENABLED_KEY)) {
-      services.add(new JobExecutionInfoServer(YarnHelixUtils.configToProperties(config)));
+      LOGGER.info("Starting the job execution info server since it is enabled");
+      services.add(new JobExecutionInfoServer(ConfigUtils.configToProperties(config)));
     }
 
     this.serviceManager = Optional.of(new ServiceManager(services));
@@ -327,7 +326,7 @@ public class GobblinYarnAppLauncher {
     LOGGER.info("Gobblin Yarn application state: " + appState.toString());
 
     // Reset the count on failures to get the ApplicationReport when there's one success
-    this.getApplicationReportFailureCount = 0;
+    this.getApplicationReportFailureCount.set(0);
 
     if (appState == YarnApplicationState.FINISHED ||
         appState == YarnApplicationState.FAILED ||
@@ -358,11 +357,11 @@ public class GobblinYarnAppLauncher {
   @Subscribe
   public void handleGetApplicationReportFailureEvent(
       @SuppressWarnings("unused") GetApplicationReportFailureEvent getApplicationReportFailureEvent) {
-    this.getApplicationReportFailureCount++;
-    if (this.getApplicationReportFailureCount > this.maxGetApplicationReportFailures) {
+    int numConsecutiveFailures = this.getApplicationReportFailureCount.incrementAndGet();
+    if (numConsecutiveFailures > this.maxGetApplicationReportFailures) {
       LOGGER.warn(String
           .format("Number of consecutive failures to get the ApplicationReport %d exceeds the threshold %d",
-              this.getApplicationReportFailureCount, this.maxGetApplicationReportFailures));
+              numConsecutiveFailures, this.maxGetApplicationReportFailures));
 
       try {
         stop();
@@ -736,7 +735,7 @@ public class GobblinYarnAppLauncher {
     }
 
     try {
-      EmailUtils.sendEmail(YarnHelixUtils.configToState(this.config), subject, messageBuilder.toString());
+      EmailUtils.sendEmail(ConfigUtils.configToState(this.config), subject, messageBuilder.toString());
     } catch (EmailException ee) {
       LOGGER.error("Failed to send email notification on shutdown", ee);
     }
