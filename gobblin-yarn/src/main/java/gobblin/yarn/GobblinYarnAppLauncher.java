@@ -25,7 +25,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.mail.EmailException;
 import org.apache.hadoop.conf.Configuration;
@@ -177,8 +176,12 @@ public class GobblinYarnAppLauncher {
   // Maximum number of consecutive failures allowed to get the ApplicationReport
   private final int maxGetApplicationReportFailures;
 
-  // A count on the number of consecutive failures on getting the ApplicationReport
-  private final AtomicInteger getApplicationReportFailureCount = new AtomicInteger();
+  // A count on the number of consecutive failures on getting the ApplicationReport.
+  // Using a plain integer is fine because either the ApplicationReportArrivalEvent
+  // or the GetApplicationReportFailureEvent is posted, but not both, and EventBus
+  // guarantees it won't call a handler method from multiple threads simultaneously
+  // so effectively this variable won't be updated simultaneously.
+  private int getApplicationReportFailureCount = 0;
 
   // This flag tells if the Yarn application has already completed. This is used to
   // tell if it is necessary to send a shutdown message to the ApplicationMaster.
@@ -324,7 +327,7 @@ public class GobblinYarnAppLauncher {
     LOGGER.info("Gobblin Yarn application state: " + appState.toString());
 
     // Reset the count on failures to get the ApplicationReport when there's one success
-    this.getApplicationReportFailureCount.set(0);
+    this.getApplicationReportFailureCount = 0;
 
     if (appState == YarnApplicationState.FINISHED ||
         appState == YarnApplicationState.FAILED ||
@@ -355,11 +358,11 @@ public class GobblinYarnAppLauncher {
   @Subscribe
   public void handleGetApplicationReportFailureEvent(
       @SuppressWarnings("unused") GetApplicationReportFailureEvent getApplicationReportFailureEvent) {
-    int numConsecutiveFailures = this.getApplicationReportFailureCount.incrementAndGet();
-    if (numConsecutiveFailures > this.maxGetApplicationReportFailures) {
+    this.getApplicationReportFailureCount++;
+    if (this.getApplicationReportFailureCount > this.maxGetApplicationReportFailures) {
       LOGGER.warn(String
           .format("Number of consecutive failures to get the ApplicationReport %d exceeds the threshold %d",
-              numConsecutiveFailures, this.maxGetApplicationReportFailures));
+              this.getApplicationReportFailureCount, this.maxGetApplicationReportFailures));
 
       try {
         stop();
