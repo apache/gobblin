@@ -59,7 +59,9 @@ import gobblin.metrics.Tag;
  */
 public abstract class MetricReportReporter extends ScheduledReporter {
 
-  private final static Logger LOGGER = LoggerFactory.getLogger(MetricReportReporter.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(MetricReportReporter.class);
+
+  private static final String FINAL_TAG_KEY = "finalMetricReport";
 
   @Getter
   private final TimeUnit rateUnit;
@@ -172,6 +174,18 @@ public abstract class MetricReportReporter extends ScheduledReporter {
     }
   }
 
+  @Override
+  protected void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters,
+      SortedMap<String, Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers,
+      Map<String, Object> tags, boolean isFinal) {
+    if (isFinal) {
+      report(gauges, counters, histograms, meters, timers,
+          ImmutableMap.<String, Object>builder().putAll(tags).put(FINAL_TAG_KEY, Boolean.TRUE).build());
+    } else {
+      report(gauges, counters, histograms, meters, timers, tags);
+    }
+  }
+
   /**
    * Serializes metrics and pushes the byte arrays to Kafka. Uses the serialize* methods in {@link MetricReportReporter}.
    *
@@ -182,7 +196,7 @@ public abstract class MetricReportReporter extends ScheduledReporter {
    * @param timers map of {@link com.codahale.metrics.Timer} to report and their name.
    */
   @Override
-  public void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters,
+  protected void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters,
       SortedMap<String, Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers,
       Map<String, Object> tags) {
 

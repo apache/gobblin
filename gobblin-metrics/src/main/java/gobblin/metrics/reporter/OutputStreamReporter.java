@@ -204,7 +204,7 @@ public class OutputStreamReporter extends MetricReportReporter {
   }
 
   @Override
-  public synchronized void report(SortedMap<String, Gauge> gauges,
+  protected synchronized void report(SortedMap<String, Gauge> gauges,
       SortedMap<String, Counter> counters,
       SortedMap<String, Histogram> histograms,
       SortedMap<String, Meter> meters,
