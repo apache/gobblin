@@ -45,7 +45,7 @@ public class ContextFilterFactory {
    */
   public static ContextFilter createContextFilter(Config config) {
     // For now always return an accept-all context filter.
-    if(config.hasPath(CONTEXT_FILTER_CLASS)) {
+    if (config.hasPath(CONTEXT_FILTER_CLASS)) {
       try {
         return ContextFilter.class.cast(
             ConstructorUtils.invokeConstructor(Class.forName(config.getString(CONTEXT_FILTER_CLASS)), config));
@@ -55,5 +55,4 @@ public class ContextFilterFactory {
     }
     return new AllContextFilter();
   }
-
 }

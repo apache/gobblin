@@ -45,19 +45,22 @@ public class JobMetricsTest {
     List<Tag<?>> tags = jobMetrics.getMetricContext().getTags();
     Map<String, ?> tagMap = jobMetrics.getMetricContext().getTagMap();
     String contextId = tagMap.get(MetricContext.METRIC_CONTEXT_ID_TAG_NAME).toString();
+    String contextName = tagMap.get(MetricContext.METRIC_CONTEXT_NAME_TAG_NAME).toString();
 
-    Assert.assertEquals(tagMap.size(), 3);
+    Assert.assertEquals(tagMap.size(), 4);
     Assert.assertEquals(tagMap.get("jobId"), jobId);
     Assert.assertEquals(tagMap.get("jobName"), jobName);
     Assert.assertEquals(tagMap.get(MetricContext.METRIC_CONTEXT_ID_TAG_NAME), contextId);
+    Assert.assertEquals(tagMap.get(MetricContext.METRIC_CONTEXT_NAME_TAG_NAME), contextName);
 
     // should get the original jobMetrics, can check by the id
     JobMetrics jobMetrics1 = JobMetrics.get(jobName + "_", jobId);
     Assert.assertNotNull(jobMetrics1.getMetricContext());
 
     tagMap = jobMetrics1.getMetricContext().getTagMap();
-    Assert.assertEquals(tags.size(), 3);
+    Assert.assertEquals(tags.size(), 4);
     Assert.assertEquals(tagMap.get(MetricContext.METRIC_CONTEXT_ID_TAG_NAME), contextId);
+    Assert.assertEquals(tagMap.get(MetricContext.METRIC_CONTEXT_NAME_TAG_NAME), contextName);
 
     // remove original jobMetrics, should create a new one
     GobblinMetricsRegistry.getInstance().remove(jobMetrics.getId());
@@ -65,8 +68,9 @@ public class JobMetricsTest {
     Assert.assertNotNull(jobMetrics2.getMetricContext());
 
     tagMap = jobMetrics2.getMetricContext().getTagMap();
-    Assert.assertEquals(tags.size(), 3);
+    Assert.assertEquals(tags.size(), 4);
     Assert.assertNotEquals(tagMap.get(MetricContext.METRIC_CONTEXT_ID_TAG_NAME), contextId);
+    Assert.assertNotEquals(tagMap.get(MetricContext.METRIC_CONTEXT_NAME_TAG_NAME), contextName);
   }
 
   @Test

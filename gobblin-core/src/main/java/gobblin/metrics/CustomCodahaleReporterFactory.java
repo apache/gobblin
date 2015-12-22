@@ -15,19 +15,21 @@ package gobblin.metrics;
 import java.io.IOException;
 import java.util.Properties;
 
-import gobblin.metrics.reporter.ScheduledReporter;
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.ScheduledReporter;
 
 
 /**
  * BuilderFactory for custom {@link ScheduledReporter}. Implementations should have a parameter-less constructor.
  */
-public interface CustomReporterFactory {
+public interface CustomCodahaleReporterFactory {
 
   /**
-   * Builds and returns a new {@link com.codahale.metrics.ScheduledReporter}.
+   * Builds and returns a new {@link ScheduledReporter}.
    *
+   * @param registry {@link MetricRegistry} for which metrics should be reported.
    * @param properties {@link Properties} used to build the reporter.
    * @return new {@link ScheduledReporter}.
    */
-  public ScheduledReporter newScheduledReporter(Properties properties) throws IOException;
+  public ScheduledReporter newScheduledReporter(MetricRegistry registry, Properties properties) throws IOException;
 }

@@ -80,6 +80,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.util.ConfigUtils;
 import gobblin.yarn.event.ApplicationMasterShutdownRequest;
 import gobblin.yarn.event.DelegationTokenUpdatedEvent;
 
@@ -258,7 +259,7 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
   private GobblinHelixJobScheduler buildGobblinHelixJobScheduler(Config config, Path appWorkDir,
       Map<String, String> eventMetadata)
       throws Exception {
-    Properties properties = YarnHelixUtils.configToProperties(config);
+    Properties properties = ConfigUtils.configToProperties(config);
     return new GobblinHelixJobScheduler(properties, this.helixManager, this.eventBus, appWorkDir, eventMetadata);
   }
 

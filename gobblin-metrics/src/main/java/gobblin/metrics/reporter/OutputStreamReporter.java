@@ -13,7 +13,6 @@
 package gobblin.metrics.reporter;
 
 import java.io.ByteArrayOutputStream;
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -24,9 +23,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
 import java.util.SortedMap;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
+
+import com.typesafe.config.Config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,46 +39,30 @@ import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricFilter;
-import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
+
 import com.google.common.collect.Maps;
 import com.google.common.base.Charsets;
 import com.google.common.io.Closer;
 
-import gobblin.metrics.MetricContext;
+import gobblin.metrics.MetricReport;
 import gobblin.metrics.Tag;
+import gobblin.util.ConfigUtils;
 
 
-public class OutputStreamReporter extends RecursiveScheduledMetricReporter implements Closeable {
+public class OutputStreamReporter extends MetricReportReporter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(OutputStreamReporter.class);
 
-  /**
-   * Returns a new {@link Builder} for {@link OutputStreamReporter}.
-   * If the registry is of type {@link gobblin.metrics.MetricContext} tags will NOT be inherited.
-   * To inherit tags, use forContext method.
-   *
-   * @param registry the registry to report
-   * @return a {@link Builder} instance for a {@link OutputStreamReporter}
-   */
-  public static Builder<?> forRegistry(MetricRegistry registry) {
-    return new BuilderImpl(registry);
+  public static class Factory {
+
+    public static BuilderImpl newBuilder() {
+      return new BuilderImpl();
+    }
   }
 
-  /**
-   * Returns a new {@link OutputStreamReporter.Builder} for {@link OutputStreamReporter}.
-   * Will automatically add all Context tags to the reporter.
-   *
-   * @param context the {@link gobblin.metrics.MetricContext} to report
-   * @return {@link OutputStreamReporter.Builder}
-   */
-  public static Builder<?> forContext(MetricContext context) {
-    return forRegistry(context);
-  }
-
-  private static class BuilderImpl extends Builder<BuilderImpl> {
-    public BuilderImpl(MetricRegistry registry) { super(registry); }
+  public static class BuilderImpl extends Builder<BuilderImpl> {
 
     @Override
     protected BuilderImpl self() {
@@ -85,13 +71,13 @@ public class OutputStreamReporter extends RecursiveScheduledMetricReporter imple
   }
 
   /**
-   * A builder for {@link OutputStreamReporter} instances.
-   * Defaults to using the default locale and
-   * time zone, writing to {@code System.out}, converting rates to events/second, converting
-   * durations to milliseconds, and not filtering metrics.
+   * A builder for {@link OutputStreamReporter} instances. Defaults to using the default locale and time zone, writing
+   * to {@code System.out}, converting rates to events/second, converting durations to milliseconds, and not filtering
+   * metrics.
    */
-  public static abstract class Builder<T extends Builder<T>> {
-    protected final MetricRegistry registry;
+  public static abstract class Builder<T extends MetricReportReporter.Builder<T>>
+      extends MetricReportReporter.Builder<T> {
+
     protected PrintStream output;
     protected Locale locale;
     protected Clock clock;
@@ -101,8 +87,7 @@ public class OutputStreamReporter extends RecursiveScheduledMetricReporter imple
     protected MetricFilter filter;
     protected Map<String, String> tags;
 
-    protected Builder(MetricRegistry registry) {
-      this.registry = registry;
+    protected Builder() {
       this.output = System.out;
       this.locale = Locale.getDefault();
       this.clock = Clock.defaultClock();
@@ -110,7 +95,7 @@ public class OutputStreamReporter extends RecursiveScheduledMetricReporter imple
       this.rateUnit = TimeUnit.SECONDS;
       this.durationUnit = TimeUnit.MILLISECONDS;
       this.filter = MetricFilter.ALL;
-      this.tags = new LinkedHashMap<String, String>();
+      this.tags = new LinkedHashMap<>();
     }
 
     protected abstract T self();
@@ -128,6 +113,7 @@ public class OutputStreamReporter extends RecursiveScheduledMetricReporter imple
 
     /**
      * Write to the given {@link java.io.OutputStream}.
+     *
      * @param stream 2 {@link java.io.OutputStream} instance
      * @return {@code this}
      */
@@ -209,6 +195,7 @@ public class OutputStreamReporter extends RecursiveScheduledMetricReporter imple
 
     /**
      * Add tags.
+     *
      * @param tags List of {@link gobblin.metrics.Tag}
      * @return {@code this}
      */
@@ -235,8 +222,8 @@ public class OutputStreamReporter extends RecursiveScheduledMetricReporter imple
      *
      * @return a {@link OutputStreamReporter}
      */
-    public OutputStreamReporter build() {
-      return new OutputStreamReporter(this);
+    public OutputStreamReporter build(Properties props) {
+      return new OutputStreamReporter(this, ConfigUtils.propertiesToConfig(props));
     }
   }
 
@@ -252,31 +239,29 @@ public class OutputStreamReporter extends RecursiveScheduledMetricReporter imple
 
   public final Map<String, String> tags;
 
-  private OutputStreamReporter(Builder<?> builder) {
-    super(builder.registry, "console-reporter", builder.filter,
-        builder.rateUnit, builder.durationUnit);
+  private OutputStreamReporter(Builder<?> builder, Config config) {
+    super(builder, config);
     this.closer = Closer.create();
-    this.output = closer.register(builder.output);
+    this.output = this.closer.register(builder.output);
     this.locale = builder.locale;
     this.clock = builder.clock;
-    this.dateFormat = DateFormat.getDateTimeInstance(DateFormat.SHORT,
-        DateFormat.MEDIUM,
-        locale);
+    this.dateFormat = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.MEDIUM, locale);
     this.tags = builder.tags;
     this.dateFormat.setTimeZone(builder.timeZone);
     this.outputBuffer = new ByteArrayOutputStream();
     try {
-      this.outputBufferPrintStream = this.closer.register(new PrintStream(this.outputBuffer, false, Charsets.UTF_8.toString()));
-    } catch(UnsupportedEncodingException re) {
+      this.outputBufferPrintStream =
+          this.closer.register(new PrintStream(this.outputBuffer, false, Charsets.UTF_8.toString()));
+    } catch (UnsupportedEncodingException re) {
       throw new RuntimeException("This should never happen.", re);
     }
   }
 
   @Override
-  public void close() {
+  public void close() throws IOException {
     try {
       this.closer.close();
-    } catch(IOException exception) {
+    } catch (IOException exception) {
       LOGGER.warn("Failed to close output streams.");
     } finally {
       super.close();
@@ -289,7 +274,7 @@ public class OutputStreamReporter extends RecursiveScheduledMetricReporter imple
       SortedMap<String, Histogram> histograms,
       SortedMap<String, Meter> meters,
       SortedMap<String, Timer> timers,
-      Map<String, String> tags) {
+      Map<String, Object> tags) {
 
     this.outputBuffer.reset();
 
@@ -297,13 +282,13 @@ public class OutputStreamReporter extends RecursiveScheduledMetricReporter imple
     printWithBanner(dateTime, '=');
     this.outputBufferPrintStream.println();
 
-    Map<String, String> allTags = Maps.newHashMap();
+    Map<String, Object> allTags = Maps.newHashMap();
     allTags.putAll(tags);
     allTags.putAll(this.tags);
 
     if (!allTags.isEmpty()) {
       printWithBanner("-- Tags", '-');
-      for (Map.Entry<String, String> entry : allTags.entrySet()) {
+      for (Map.Entry<String, Object> entry : allTags.entrySet()) {
         this.outputBufferPrintStream.println(String.format("%s=%s", entry.getKey(), entry.getValue()));
       }
       this.outputBufferPrintStream.println();
@@ -361,6 +346,16 @@ public class OutputStreamReporter extends RecursiveScheduledMetricReporter imple
     } catch (IOException exception) {
       LOGGER.warn("Failed to write metric report to output stream.");
     }
+  }
+
+  /**
+   * Do nothing as this method is only invoked by
+   * {@link #report(SortedMap, SortedMap, SortedMap, SortedMap, SortedMap, Map)} which is overloaded in this class.
+   */
+  @Override
+  protected void emitReport(MetricReport report) {
+    throw new UnsupportedOperationException(
+        "This method should never be directly invoked, use the report() method instead!");
   }
 
   private void printMeter(Meter meter) {
@@ -422,5 +417,4 @@ public class OutputStreamReporter extends RecursiveScheduledMetricReporter imple
     }
     this.outputBufferPrintStream.println();
   }
-
 }

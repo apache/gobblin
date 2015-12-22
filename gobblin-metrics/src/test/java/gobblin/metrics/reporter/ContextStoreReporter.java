@@ -12,8 +12,6 @@
 
 package gobblin.metrics.reporter;
 
-import lombok.Getter;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -24,9 +22,13 @@ import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
+
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+
 import com.typesafe.config.Config;
+
+import lombok.Getter;
 
 import gobblin.metrics.context.ReportableContext;
 
@@ -44,11 +46,13 @@ public class ContextStoreReporter extends ScheduledReporter {
     this.reportedContexts = Lists.newArrayList();
   }
 
-  @Override protected void report(ReportableContext context) {
+  @Override
+  protected void report(ReportableContext context) {
     this.reportedContexts.add(context);
   }
 
-  @Override public void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters,
+  @Override
+  public void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters,
       SortedMap<String, Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers,
       Map<String, Object> tags) {
     // Noop

@@ -30,6 +30,7 @@ dependencies {
   compile externalDependency.guice
   compile externalDependency.bcpgJdk15on
   compile externalDependency.bcprovJdk15on
+  compile externalDependency.typesafeConfig
 
   if (project.hasProperty('useHadoop2')) {
     compile externalDependency.avroMapredH2

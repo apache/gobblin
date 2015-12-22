@@ -82,6 +82,8 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
   protected final Closer closer;
 
   public static final String METRIC_CONTEXT_ID_TAG_NAME = "metricContextID";
+  public static final String METRIC_CONTEXT_NAME_TAG_NAME = "metricContextName";
+
   @Getter
   private final InnerMetricContext innerMetricContext;
 
@@ -118,7 +120,7 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
     this.notificationTimer = new ContextAwareTimer(this, GOBBLIN_METRICS_NOTIFICATIONS_TIMER_NAME);
     register(this.notificationTimer);
 
-    if(!isRoot) {
+    if (!isRoot) {
       RootMetricContext.get().addMetricContext(this);
     }
   }

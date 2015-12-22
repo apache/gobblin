@@ -117,31 +117,6 @@ public class YarnHelixUtils {
   }
 
   /**
-   * Convert a given {@link Config} instance to a {@link Properties} instance.
-   *
-   * @param config the given {@link Config} instance
-   * @return a {@link Properties} instance
-   */
-  public static Properties configToProperties(Config config) {
-    Properties properties = new Properties();
-    for (Map.Entry<String, ConfigValue> entry : config.entrySet()) {
-      properties.setProperty(entry.getKey(), config.getString(entry.getKey()));
-    }
-
-    return properties;
-  }
-
-  /**
-   * Convert a given {@link Config} to a {@link State} instance.
-   *
-   * @param config the given {@link Config} instance
-   * @return a {@link State} instance
-   */
-  public static State configToState(Config config) {
-    return new State(configToProperties(config));
-  }
-
-  /**
    * Write a {@link Token} to a given file.
    *
    * @param token the token to write

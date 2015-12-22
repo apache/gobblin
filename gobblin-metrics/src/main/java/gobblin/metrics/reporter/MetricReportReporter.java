@@ -12,10 +12,15 @@
 
 package gobblin.metrics.reporter;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
+
+import javax.annotation.Nullable;
+
+import lombok.Getter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,10 +35,14 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
+
+import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
+
+import com.typesafe.config.Config;
 
 import gobblin.metrics.Measurements;
 import gobblin.metrics.Metric;
@@ -45,36 +54,48 @@ import gobblin.metrics.Tag;
  * Scheduled reporter based on {@link gobblin.metrics.MetricReport}.
  *
  * <p>
- * This class will generate a metric report, and call {@link #emitReport} to actually emit the metrics.
+ *   This class will generate a metric report, and call {@link #emitReport} to actually emit the metrics.
  * </p>
  */
-public abstract class MetricReportReporter extends RecursiveScheduledMetricReporter {
+public abstract class MetricReportReporter extends ScheduledReporter {
 
   private final static Logger LOGGER = LoggerFactory.getLogger(MetricReportReporter.class);
+
+  @Getter
+  private final TimeUnit rateUnit;
+
+  @Getter
+  private final TimeUnit durationUnit;
+
+  private final double rateFactor;
+  private final double durationFactor;
 
   protected final ImmutableMap<String, String> tags;
   protected final Closer closer;
 
-  public MetricReportReporter(Builder<?> builder) {
-    super(builder.registry, builder.name, builder.filter, builder.rateUnit, builder.durationUnit);
+  public MetricReportReporter(Builder<?> builder, Config config) {
+    super(builder.name, config);
+    this.rateUnit = builder.rateUnit;
+    this.durationUnit = builder.durationUnit;
+    this.rateFactor = builder.rateUnit.toSeconds(1);
+    this.durationFactor = 1.0 / builder.durationUnit.toNanos(1);
     this.tags = ImmutableMap.copyOf(builder.tags);
     this.closer = Closer.create();
   }
 
   /**
-   * Builder for {@link MetricReportReporter}.
-   * Defaults to no filter, reporting rates in seconds and times in milliseconds.
+   * Builder for {@link MetricReportReporter}. Defaults to no filter, reporting rates in seconds and times in
+   * milliseconds.
    */
   public static abstract class Builder<T extends Builder<T>> {
-    protected MetricRegistry registry;
+
     protected String name;
     protected MetricFilter filter;
     protected TimeUnit rateUnit;
     protected TimeUnit durationUnit;
     protected Map<String, String> tags;
 
-    protected Builder(MetricRegistry registry) {
-      this.registry = registry;
+    protected Builder() {
       this.name = "MetricReportReporter";
       this.rateUnit = TimeUnit.SECONDS;
       this.durationUnit = TimeUnit.MILLISECONDS;
@@ -149,13 +170,11 @@ public abstract class MetricReportReporter extends RecursiveScheduledMetricRepor
       this.tags.put(key, value);
       return self();
     }
-
   }
 
-
   /**
-   * Serializes metrics and pushes the byte arrays to Kafka.
-   * Uses the serialize* methods in {@link MetricReportReporter}.
+   * Serializes metrics and pushes the byte arrays to Kafka. Uses the serialize* methods in {@link MetricReportReporter}.
+   *
    * @param gauges map of {@link com.codahale.metrics.Gauge} to report and their name.
    * @param counters map of {@link com.codahale.metrics.Counter} to report and their name.
    * @param histograms map of {@link com.codahale.metrics.Histogram} to report and their name.
@@ -165,51 +184,60 @@ public abstract class MetricReportReporter extends RecursiveScheduledMetricRepor
   @Override
   public void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters,
       SortedMap<String, Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers,
-      Map<String, String> tags) {
+      Map<String, Object> tags) {
 
     List<Metric> metrics = Lists.newArrayList();
 
-    for(Map.Entry<String, Gauge> gauge : gauges.entrySet()) {
+    for (Map.Entry<String, Gauge> gauge : gauges.entrySet()) {
       metrics.addAll(serializeGauge(gauge.getKey(), gauge.getValue()));
     }
 
-    for(Map.Entry<String, Counter> counter : counters.entrySet()) {
+    for (Map.Entry<String, Counter> counter : counters.entrySet()) {
       metrics.addAll(serializeCounter(counter.getKey(), counter.getValue()));
     }
 
-    for(Map.Entry<String, Histogram> histogram : histograms.entrySet()) {
+    for (Map.Entry<String, Histogram> histogram : histograms.entrySet()) {
       metrics.addAll(serializeSnapshot(histogram.getKey(), histogram.getValue().getSnapshot()));
       metrics.addAll(serializeCounter(histogram.getKey(), histogram.getValue()));
     }
 
-    for(Map.Entry<String, Meter> meter : meters.entrySet()) {
+    for (Map.Entry<String, Meter> meter : meters.entrySet()) {
       metrics.addAll(serializeMetered(meter.getKey(), meter.getValue()));
     }
 
-    for(Map.Entry<String, Timer> timer : timers.entrySet()) {
+    for (Map.Entry<String, Timer> timer : timers.entrySet()) {
       metrics.addAll(serializeSnapshot(timer.getKey(), timer.getValue().getSnapshot()));
       metrics.addAll(serializeMetered(timer.getKey(), timer.getValue()));
       metrics.addAll(serializeSingleValue(timer.getKey(), timer.getValue().getCount(), Measurements.COUNT.getName()));
     }
 
-    Map<String, String> allTags = Maps.newHashMap();
+    Map<String, Object> allTags = Maps.newHashMap();
     allTags.putAll(tags);
     allTags.putAll(this.tags);
 
-    MetricReport report = new MetricReport(allTags, System.currentTimeMillis(), metrics);
+    Map<String, String> allTagsString = Maps.transformValues(allTags, new Function<Object, String>() {
+      @Nullable
+      @Override
+      public String apply(Object input) {
+        return input.toString();
+      }
+    });
+
+    MetricReport report = new MetricReport(allTagsString, System.currentTimeMillis(), metrics);
 
     emitReport(report);
-
   }
 
   /**
    * Emit the {@link gobblin.metrics.MetricReport} to the metrics sink.
+   *
    * @param report metric report to emit.
    */
   protected abstract void emitReport(MetricReport report);
 
   /**
    * Extracts metrics from {@link com.codahale.metrics.Gauge}.
+   *
    * @param name name of the {@link com.codahale.metrics.Gauge}.
    * @param gauge instance of {@link com.codahale.metrics.Gauge} to serialize.
    * @return a list of {@link gobblin.metrics.Metric}.
@@ -226,6 +254,7 @@ public abstract class MetricReportReporter extends RecursiveScheduledMetricRepor
 
   /**
    * Extracts metrics from {@link com.codahale.metrics.Counter}.
+   *
    * @param name name of the {@link com.codahale.metrics.Counter}.
    * @param counter instance of {@link com.codahale.metrics.Counter} to serialize.
    * @return a list of {@link gobblin.metrics.Metric}.
@@ -238,6 +267,7 @@ public abstract class MetricReportReporter extends RecursiveScheduledMetricRepor
 
   /**
    * Extracts metrics from {@link com.codahale.metrics.Metered}.
+   *
    * @param name name of the {@link com.codahale.metrics.Metered}.
    * @param meter instance of {@link com.codahale.metrics.Metered} to serialize.
    * @return a list of {@link gobblin.metrics.Metric}.
@@ -254,6 +284,7 @@ public abstract class MetricReportReporter extends RecursiveScheduledMetricRepor
 
   /**
    * Extracts metrics from {@link com.codahale.metrics.Snapshot}.
+   *
    * @param name name of the {@link com.codahale.metrics.Snapshot}.
    * @param snapshot instance of {@link com.codahale.metrics.Snapshot} to serialize.
    * @return a list of {@link gobblin.metrics.Metric}.
@@ -273,6 +304,7 @@ public abstract class MetricReportReporter extends RecursiveScheduledMetricRepor
 
   /**
    * Convert single value into list of {@link gobblin.metrics.Metric}.
+   *
    * @param name name of the metric.
    * @param value value of the metric.
    * @param path suffixes to more precisely identify the meaning of the reported value
@@ -286,6 +318,7 @@ public abstract class MetricReportReporter extends RecursiveScheduledMetricRepor
 
   /**
    * Converts a single key-value pair into a metric.
+   *
    * @param name name of the metric
    * @param value value of the metric to report
    * @param path additional suffixes to further identify the meaning of the reported value
@@ -295,8 +328,16 @@ public abstract class MetricReportReporter extends RecursiveScheduledMetricRepor
     return new Metric(MetricRegistry.name(name, path), value.doubleValue());
   }
 
+  protected double convertDuration(double duration) {
+    return duration * this.durationFactor;
+  }
+
+  protected double convertRate(double rate) {
+    return rate * this.rateFactor;
+  }
+
   @Override
-  public void close() {
+  public void close() throws IOException {
     try {
       this.closer.close();
     } catch(Exception e) {
