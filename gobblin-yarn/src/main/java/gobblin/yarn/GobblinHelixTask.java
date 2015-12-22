@@ -66,7 +66,7 @@ public class GobblinHelixTask implements Task {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinHelixTask.class);
 
-  private final Optional<ContainerMetrics> containerMetrics;
+  @SuppressWarnings({"unused", "FieldCanBeLocal"})
   private final Optional<JobMetrics> jobMetrics;
   private final TaskExecutor taskExecutor;
   private final TaskStateTracker taskStateTracker;
@@ -80,11 +80,9 @@ public class GobblinHelixTask implements Task {
   private final FileSystem fs;
   private final StateStore<TaskState> taskStateStore;
 
-  public GobblinHelixTask(TaskCallbackContext taskCallbackContext, Optional<ContainerMetrics> containerMetrics, TaskExecutor taskExecutor,
-      TaskStateTracker taskStateTracker, FileSystem fs, Path appWorkDir)
+  public GobblinHelixTask(TaskCallbackContext taskCallbackContext, Optional<ContainerMetrics> containerMetrics,
+      TaskExecutor taskExecutor, TaskStateTracker taskStateTracker, FileSystem fs, Path appWorkDir)
       throws IOException {
-    this.containerMetrics = containerMetrics;
-
     this.taskExecutor = taskExecutor;
     this.taskStateTracker = taskStateTracker;
 
@@ -99,10 +97,10 @@ public class GobblinHelixTask implements Task {
     Path jobStateFilePath = new Path(appWorkDir, this.jobId + "." + AbstractJobLauncher.JOB_STATE_FILE_NAME);
     SerializationUtils.deserializeState(this.fs, jobStateFilePath, this.jobState);
 
-    if (this.containerMetrics.isPresent()) {
+    if (containerMetrics.isPresent()) {
       // This must be done after the jobState is deserialized from the jobStateFilePath
-      // A reference to jobMetrics is required to ensure it is not evicted from the GobbinMetricsRegistry Cache
-      this.jobMetrics = Optional.of(JobMetrics.get(this.jobState, this.containerMetrics.get().getMetricContext()));
+      // A reference to jobMetrics is required to ensure it is not evicted from the GobblinMetricsRegistry Cache
+      this.jobMetrics = Optional.of(JobMetrics.get(this.jobState, containerMetrics.get().getMetricContext()));
     } else {
       this.jobMetrics = Optional.absent();
     }

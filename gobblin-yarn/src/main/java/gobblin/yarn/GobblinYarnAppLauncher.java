@@ -25,7 +25,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.commons.mail.EmailException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -39,6 +41,7 @@ import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
+import org.apache.hadoop.yarn.api.records.ApplicationResourceUsageReport;
 import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
@@ -64,6 +67,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -81,10 +85,12 @@ import com.typesafe.config.ConfigFactory;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.rest.JobExecutionInfoServer;
 import gobblin.util.ConfigUtils;
+import gobblin.util.EmailUtils;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.io.StreamUtils;
 import gobblin.util.logs.LogCopier;
 import gobblin.yarn.event.ApplicationReportArrivalEvent;
+import gobblin.yarn.event.GetApplicationReportFailureEvent;
 
 
 /**
@@ -108,8 +114,15 @@ import gobblin.yarn.event.ApplicationReportArrivalEvent;
  * <p>
  *   If a shutdown signal is received, it sends a Helix
  *   {@link org.apache.helix.model.Message.MessageType#SCHEDULER_MSG} to the {@link GobblinApplicationMaster}
- *   asking it to shutdown and release all the allocated containers. Upon successfully shutting down the Yarn
- *   application, it deletes the file storing the application ID and cleans up the working directory.
+ *   asking it to shutdown and release all the allocated containers. It also sends an email notification for
+ *   the shutdown if {@link GobblinYarnConfigurationKeys#EMAIL_NOTIFICATION_ON_SHUTDOWN_KEY} is {@code true}.
+ * </p>
+ *
+ * <p>
+ *   This class has a scheduled task to get the {@link ApplicationReport} of the Yarn application periodically.
+ *   Since it may fail to get the {@link ApplicationReport} due to reason such as the Yarn cluster is down for
+ *   maintenance, it keeps track of the count of consecutive failures to get the {@link ApplicationReport}. If
+ *   this count exceeds the maximum number allowed, it will initiate a shutdown.
  * </p>
  *
  * @author ynli
@@ -162,11 +175,19 @@ public class GobblinYarnAppLauncher {
 
   private volatile Optional<ServiceManager> serviceManager = Optional.absent();
 
+  // Maximum number of consecutive failures allowed to get the ApplicationReport
+  private final int maxGetApplicationReportFailures;
+
+  // A count on the number of consecutive failures on getting the ApplicationReport
+  private final AtomicInteger getApplicationReportFailureCount = new AtomicInteger();
+
   // This flag tells if the Yarn application has already completed. This is used to
   // tell if it is necessary to send a shutdown message to the ApplicationMaster.
   private volatile boolean applicationCompleted = false;
 
   private volatile boolean stopped = false;
+
+  private final boolean emailNotificationOnShutdown;
 
   public GobblinYarnAppLauncher(Config config, YarnConfiguration yarnConfiguration) throws IOException {
     this.config = config;
@@ -201,6 +222,11 @@ public class GobblinYarnAppLauncher {
         Optional.<String>absent();
 
     this.sinkLogRootDir = new Path(config.getString(GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY));
+
+    this.maxGetApplicationReportFailures = config.getInt(GobblinYarnConfigurationKeys.MAX_GET_APP_REPORT_FAILURES_KEY);
+
+    this.emailNotificationOnShutdown =
+        config.getBoolean(GobblinYarnConfigurationKeys.EMAIL_NOTIFICATION_ON_SHUTDOWN_KEY);
   }
 
   /**
@@ -228,6 +254,7 @@ public class GobblinYarnAppLauncher {
           eventBus.post(new ApplicationReportArrivalEvent(yarnClient.getApplicationReport(applicationId.get())));
         } catch (YarnException | IOException e) {
           LOGGER.error("Failed to get application report for Gobblin Yarn application " + applicationId.get(), e);
+          eventBus.post(new GetApplicationReportFailureEvent(e));
         }
       }
     }, 0, this.appReportIntervalMinutes, TimeUnit.MINUTES);
@@ -298,6 +325,9 @@ public class GobblinYarnAppLauncher {
     YarnApplicationState appState = applicationReport.getYarnApplicationState();
     LOGGER.info("Gobblin Yarn application state: " + appState.toString());
 
+    // Reset the count on failures to get the ApplicationReport when there's one success
+    this.getApplicationReportFailureCount.set(0);
+
     if (appState == YarnApplicationState.FINISHED ||
         appState == YarnApplicationState.FAILED ||
         appState == YarnApplicationState.KILLED) {
@@ -316,6 +346,33 @@ public class GobblinYarnAppLauncher {
         LOGGER.error("Failed to close the " + GobblinYarnAppLauncher.class.getSimpleName(), ioe);
       } catch (TimeoutException te) {
         LOGGER.error("Timeout in stopping the service manager", te);
+      } finally {
+        if (this.emailNotificationOnShutdown) {
+          sendEmailOnShutdown(Optional.of(applicationReport));
+        }
+      }
+    }
+  }
+
+  @Subscribe
+  public void handleGetApplicationReportFailureEvent(
+      @SuppressWarnings("unused") GetApplicationReportFailureEvent getApplicationReportFailureEvent) {
+    int numConsecutiveFailures = this.getApplicationReportFailureCount.incrementAndGet();
+    if (numConsecutiveFailures > this.maxGetApplicationReportFailures) {
+      LOGGER.warn(String
+          .format("Number of consecutive failures to get the ApplicationReport %d exceeds the threshold %d",
+              numConsecutiveFailures, this.maxGetApplicationReportFailures));
+
+      try {
+        stop();
+      } catch (IOException ioe) {
+        LOGGER.error("Failed to close the " + GobblinYarnAppLauncher.class.getSimpleName(), ioe);
+      } catch (TimeoutException te) {
+        LOGGER.error("Timeout in stopping the service manager", te);
+      } finally {
+        if (this.emailNotificationOnShutdown) {
+          sendEmailOnShutdown(Optional.<ApplicationReport>absent());
+        }
       }
     }
   }
@@ -646,6 +703,44 @@ public class GobblinYarnAppLauncher {
     }
   }
 
+  private void sendEmailOnShutdown(Optional<ApplicationReport> applicationReport) {
+    String subject = String.format("Gobblin Yarn application %s completed", this.applicationName);
+
+    StringBuilder messageBuilder = new StringBuilder("Gobblin Yarn ApplicationReport:");
+    if (applicationReport.isPresent()) {
+      messageBuilder.append("\n");
+      messageBuilder.append("\tApplication ID: ").append(applicationReport.get().getApplicationId()).append("\n");
+      messageBuilder.append("\tApplication attempt ID: ")
+          .append(applicationReport.get().getCurrentApplicationAttemptId()).append("\n");
+      messageBuilder.append("\tFinal application status: ").append(applicationReport.get().getFinalApplicationStatus())
+          .append("\n");
+      messageBuilder.append("\tStart time: ").append(applicationReport.get().getStartTime()).append("\n");
+      messageBuilder.append("\tFinish time: ").append(applicationReport.get().getFinishTime()).append("\n");
+
+      if (!Strings.isNullOrEmpty(applicationReport.get().getDiagnostics())) {
+        messageBuilder.append("\tDiagnostics: ").append(applicationReport.get().getDiagnostics()).append("\n");
+      }
+
+      ApplicationResourceUsageReport resourceUsageReport = applicationReport.get().getApplicationResourceUsageReport();
+      if (resourceUsageReport != null) {
+        messageBuilder.append("\tUsed containers: ").append(resourceUsageReport.getNumUsedContainers()).append("\n");
+        Resource usedResource = resourceUsageReport.getUsedResources();
+        if (usedResource != null) {
+          messageBuilder.append("\tUsed memory (MBs): ").append(usedResource.getMemory()).append("\n");
+          messageBuilder.append("\tUsed vcores: ").append(usedResource.getVirtualCores()).append("\n");
+        }
+      }
+    } else {
+      messageBuilder.append(' ').append("Not available");
+    }
+
+    try {
+      EmailUtils.sendEmail(ConfigUtils.configToState(this.config), subject, messageBuilder.toString());
+    } catch (EmailException ee) {
+      LOGGER.error("Failed to send email notification on shutdown", ee);
+    }
+  }
+
   public static void main(String[] args) throws Exception {
     final GobblinYarnAppLauncher gobblinYarnAppLauncher =
         new GobblinYarnAppLauncher(ConfigFactory.load(), new YarnConfiguration());
@@ -659,6 +754,8 @@ public class GobblinYarnAppLauncher {
           LOGGER.error("Failed to shutdown the " + GobblinYarnAppLauncher.class.getSimpleName(), ioe);
         } catch (TimeoutException te) {
           LOGGER.error("Timeout in stopping the service manager", te);
+        } finally {
+          gobblinYarnAppLauncher.sendEmailOnShutdown(Optional.<ApplicationReport>absent());
         }
       }
     });
