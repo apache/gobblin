@@ -105,4 +105,4 @@ task performance(type: Test) {
   }
 }
 
-classification="library"
+ext.classification="library"

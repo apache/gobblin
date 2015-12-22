@@ -12,8 +12,6 @@
 
 package gobblin.metrics;
 
-import lombok.Getter;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
@@ -26,9 +24,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
@@ -37,6 +32,8 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.MetricSet;
 import com.codahale.metrics.Timer;
+
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -45,6 +42,8 @@ import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
+
+import lombok.Getter;
 
 import gobblin.metrics.context.ContextWeakReference;
 import gobblin.metrics.context.NameConflictException;
@@ -59,8 +58,6 @@ import gobblin.metrics.metric.InnerMetric;
  * has been GCed.
  */
 public class InnerMetricContext extends MetricRegistry implements ReportableContext, Closeable {
-
-  private static final Logger LOG = LoggerFactory.getLogger(MetricContext.class);
 
   private final Closer closer;
 
@@ -93,11 +90,11 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
       this.parent.get().addChildContext(this.name, context);
       this.metricContext = new ContextWeakReference(context, this);
     } else {
-      this.metricContext = new WeakReference<MetricContext>(context);
+      this.metricContext = new WeakReference<>(context);
     }
     this.tagged = new Tagged(tags);
-    this.tagged.addTag(new Tag<String>(MetricContext.METRIC_CONTEXT_ID_TAG_NAME, UUID.randomUUID().toString()));
-
+    this.tagged.addTag(new Tag<>(MetricContext.METRIC_CONTEXT_ID_TAG_NAME, UUID.randomUUID().toString()));
+    this.tagged.addTag(new Tag<>(MetricContext.METRIC_CONTEXT_NAME_TAG_NAME, name));
   }
 
   /**
@@ -371,4 +368,21 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
     return removed;
   }
 
+  @Override
+  public String toString() {
+    StringBuilder stringBuilder = new StringBuilder();
+    stringBuilder.append("InnerMetricContext Name: ");
+    stringBuilder.append(this.name);
+    if (this.getParent().isPresent()) {
+      stringBuilder.append(", Parent Name: ");
+      stringBuilder.append(this.getParent().get().getName());
+    } else {
+      stringBuilder.append(", No Parent Context");
+    }
+    stringBuilder.append(", Number of Children: ");
+    stringBuilder.append(this.getChildContextsAsMap().size());
+    stringBuilder.append(", Tags: ");
+    stringBuilder.append(Joiner.on(", ").withKeyValueSeparator(" : ").useForNull("NULL").join(this.getTagMap()));
+    return stringBuilder.toString();
+  }
 }

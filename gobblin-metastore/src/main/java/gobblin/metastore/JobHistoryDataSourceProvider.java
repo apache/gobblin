@@ -18,6 +18,7 @@ import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.password.PasswordManager;
 
 
 /**
@@ -33,7 +34,8 @@ public class JobHistoryDataSourceProvider extends gobblin.util.jdbc.DataSourcePr
     if (properties.containsKey(ConfigurationKeys.JOB_HISTORY_STORE_USER_KEY)
         && properties.containsKey(ConfigurationKeys.JOB_HISTORY_STORE_PASSWORD_KEY)) {
       basicDataSource.setUsername(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_USER_KEY));
-      basicDataSource.setPassword(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_PASSWORD_KEY));
+      basicDataSource.setPassword(PasswordManager.getInstance(properties).readPassword(
+          properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_PASSWORD_KEY)));
     }
   }
 }

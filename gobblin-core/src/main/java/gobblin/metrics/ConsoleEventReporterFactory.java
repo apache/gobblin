@@ -22,11 +22,12 @@ import gobblin.metrics.reporter.OutputStreamEventReporter;
 
 /**
  * A reporter factory to report event to console.
+ *
  * <p>
- * Set metrics.reporting.custom.builders=gobblin.metrics.ConsoleEventReporterFactory to report event to console
+ *   Set metrics.reporting.custom.builders=gobblin.metrics.ConsoleEventReporterFactory to report event to console
  * </p>
  */
-public class ConsoleEventReporterFactory implements CustomReporterFactory {
+public class ConsoleEventReporterFactory implements CustomCodahaleReporterFactory {
 
   @Override
   public ScheduledReporter newScheduledReporter(MetricRegistry registry, Properties properties) throws IOException {

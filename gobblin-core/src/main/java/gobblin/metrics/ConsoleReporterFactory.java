@@ -11,24 +11,24 @@
  */
 package gobblin.metrics;
 
-import gobblin.metrics.reporter.OutputStreamReporter;
-
 import java.io.IOException;
 import java.util.Properties;
 
-import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.ScheduledReporter;
+import gobblin.metrics.reporter.OutputStreamReporter;
+import gobblin.metrics.reporter.ScheduledReporter;
 
 
 /**
  * A reporter factory to report metrics to console.
- * <p>Set
- * metrics.reporting.custom.builders=gobblin.metrics.ConsoleReporterFactory to report event to console</p>
+ *
+ * <p>
+ *   Set metrics.reporting.custom.builders=gobblin.metrics.ConsoleReporterFactory to report event to console
+ * </p>
  */
 public class ConsoleReporterFactory implements CustomReporterFactory {
 
   @Override
-  public ScheduledReporter newScheduledReporter(MetricRegistry registry, Properties properties) throws IOException {
-    return OutputStreamReporter.forRegistry(registry).build();
+  public ScheduledReporter newScheduledReporter(Properties properties) throws IOException {
+    return OutputStreamReporter.Factory.newBuilder().build(properties);
   }
 }

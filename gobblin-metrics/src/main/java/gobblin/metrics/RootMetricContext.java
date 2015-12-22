@@ -15,6 +15,7 @@ package gobblin.metrics;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.IOException;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.util.List;
@@ -50,7 +51,6 @@ public class RootMetricContext extends MetricContext {
   private final ReferenceQueue<MetricContext> referenceQueue;
   private final Set<InnerMetricContext> innerMetricContexts;
   private final ScheduledExecutorService referenceQueueExecutorService;
-
   private final Set<ContextAwareReporter> reporters;
 
   private volatile boolean reportingStarted;
@@ -58,13 +58,15 @@ public class RootMetricContext extends MetricContext {
   private RootMetricContext(List<Tag<?>> tags) throws NameConflictException {
     super(ROOT_METRIC_CONTEXT, null, tags, true);
     this.innerMetricContexts = Sets.newConcurrentHashSet();
-    this.referenceQueue = new ReferenceQueue<MetricContext>();
+    this.referenceQueue = new ReferenceQueue<>();
     this.referenceQueueExecutorService = MoreExecutors.getExitingScheduledExecutorService(new ScheduledThreadPoolExecutor(1,
         ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("GobblinMetrics-ReferenceQueue"))));
     this.referenceQueueExecutorService.scheduleWithFixedDelay(new CheckReferenceQueue(), 0, 2, TimeUnit.SECONDS);
 
     this.reporters = Sets.newConcurrentHashSet();
     this.reportingStarted = false;
+
+    addShutdownHook();
   }
 
   private static void initialize() {
@@ -72,7 +74,7 @@ public class RootMetricContext extends MetricContext {
       INSTANCE = new RootMetricContext(Lists.<Tag<?>>newArrayList());
     } catch (NameConflictException nce) {
       // Should never happen, as there is no parent, so no conflict.
-      throw new RuntimeException("Failed to generate root metric context. This is an error in the code.");
+      throw new IllegalStateException("Failed to generate root metric context. This is an error in the code.", nce);
     }
   }
 
@@ -81,8 +83,7 @@ public class RootMetricContext extends MetricContext {
    * @return singleton instance of {@link RootMetricContext}.
    */
   public synchronized static RootMetricContext get() {
-
-    if(INSTANCE == null) {
+    if (INSTANCE == null) {
       initialize();
     }
     return INSTANCE;
@@ -91,11 +92,13 @@ public class RootMetricContext extends MetricContext {
   private static RootMetricContext INSTANCE;
 
   /**
-   * Checks the {@link ReferenceQueue} to find any {@link MetricContext}s that have been garbage collected, and
-   * sends a {@link MetricContextCleanupNotification} to all targets.
+   * Checks the {@link ReferenceQueue} to find any {@link MetricContext}s that have been garbage collected, and sends a
+   * {@link MetricContextCleanupNotification} to all targets.
    */
   private class CheckReferenceQueue implements Runnable {
-    @Override public void run() {
+
+    @Override
+    public void run() {
       Reference<? extends MetricContext> reference;
       while((reference = referenceQueue.poll()) != null) {
         ContextWeakReference contextReference = (ContextWeakReference)reference;
@@ -112,7 +115,7 @@ public class RootMetricContext extends MetricContext {
    */
   public void addNewReporter(ContextAwareReporter reporter) {
     this.reporters.add(this.closer.register(reporter));
-    if(this.reportingStarted) {
+    if (this.reportingStarted) {
       reporter.start();
     }
   }
@@ -122,7 +125,7 @@ public class RootMetricContext extends MetricContext {
    * @param reporter {@link ContextAwareReporter} to remove.
    */
   public void removeReporter(ContextAwareReporter reporter) {
-    if(this.reporters.contains(reporter)) {
+    if (this.reporters.contains(reporter)) {
       reporter.stop();
       this.reporters.remove(reporter);
     }
@@ -133,10 +136,10 @@ public class RootMetricContext extends MetricContext {
    */
   public void startReporting() {
     this.reportingStarted = true;
-    for(ContextAwareReporter reporter : this.reporters) {
+    for (ContextAwareReporter reporter : this.reporters) {
       try {
         reporter.start();
-      } catch(Throwable throwable) {
+      } catch (Throwable throwable) {
         log.error(String.format("Failed to start reporter with class %s", reporter.getClass().getCanonicalName()),
             throwable);
       }
@@ -148,10 +151,10 @@ public class RootMetricContext extends MetricContext {
    */
   public void stopReporting() {
     this.reportingStarted = false;
-    for(ContextAwareReporter reporter : this.reporters) {
+    for (ContextAwareReporter reporter : this.reporters) {
       try {
         reporter.stop();
-      } catch(Throwable throwable) {
+      } catch (Throwable throwable) {
         log.error(String.format("Failed to stop reporter with class %s", reporter.getClass().getCanonicalName()),
             throwable);
       }
@@ -163,4 +166,22 @@ public class RootMetricContext extends MetricContext {
     this.sendNotification(new NewMetricContextNotification(context, context.getInnerMetricContext()));
   }
 
+  /**
+   * Add a shutwon hook that first invokes {@link #stopReporting()} and then closes the {@link RootMetricContext}. This
+   * ensures all reporting started on the  {@link RootMetricContext} stops properly and any resources obtained by the
+   * {@link RootMetricContext} are released.
+   */
+  private void addShutdownHook() {
+    Runtime.getRuntime().addShutdownHook(new Thread() {
+      @Override
+      public void run() {
+        stopReporting();
+        try {
+          close();
+        } catch (IOException e) {
+          log.warn("Unable to close " + this.getClass().getCanonicalName(), e);
+        }
+      }
+    });
+  }
 }

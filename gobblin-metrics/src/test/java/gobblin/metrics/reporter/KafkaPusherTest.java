@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics.kafka;
+package gobblin.metrics.reporter;
 
 import java.io.IOException;
 
@@ -20,6 +20,8 @@ import org.testng.annotations.AfterSuite;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
+
+import gobblin.metrics.kafka.KafkaPusher;
 
 
 /**

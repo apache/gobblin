@@ -22,7 +22,7 @@ apply plugin: 'org.inferred.processors'
 apply plugin: 'idea'
 
 idea.project {
-  languageLevel = JavaVersion.VERSION_1_7
+  ext.languageLevel = JavaVersion.VERSION_1_7
 }
 
 ext.build_script_dir = "${projectDir.path}/build_script"
@@ -51,11 +51,11 @@ if (!project.hasProperty('group') || project.group.length() == 0) {
 }
 
 if (!project.hasProperty('artifactRepository') || project.artifactRepository.length() == 0) {
-    project.artifactRepository = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+    ext.artifactRepository = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
 }
 
 if (!project.hasProperty('artifactSnapshotRepository') || project.artifactSnapshotRepository.length() == 0) {
-    project.artifactSnapshotRepository = "https://oss.sonatype.org/content/repositories/snapshots/"
+    ext.artifactSnapshotRepository = "https://oss.sonatype.org/content/repositories/snapshots/"
 }
 
 if (!project.hasProperty('version') || project.version == 'unspecified') {
@@ -450,7 +450,7 @@ subprojects {
     // Configure the IDEA plugin to (1) add the codegen as source dirs and (2) work around
     // an apparent bug in the plugin which doesn't set the outputDir/testOutputDir as documented
     idea.project {
-      languageLevel = JavaVersion.VERSION_1_7
+      ext.languageLevel = JavaVersion.VERSION_1_7
     }
     idea.module {
       // Gradle docs claim the two settings below are the default, but

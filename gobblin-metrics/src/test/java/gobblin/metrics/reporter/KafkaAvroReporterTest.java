@@ -10,8 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-
-package gobblin.metrics.kafka;
+package gobblin.metrics.reporter;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -19,11 +18,11 @@ import java.util.Iterator;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.codahale.metrics.MetricRegistry;
-
-import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricReport;
 import gobblin.metrics.reporter.util.MetricReportUtils;
+import gobblin.metrics.kafka.KafkaAvroReporter;
+import gobblin.metrics.kafka.KafkaPusher;
+import gobblin.metrics.kafka.KafkaReporter;
 
 
 /**
@@ -45,13 +44,13 @@ public class KafkaAvroReporterTest extends KafkaReporterTest {
   }
 
   @Override
-  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilder(MetricRegistry registry, KafkaPusher pusher) {
-    return KafkaAvroReporter.Factory.forRegistry(registry).withKafkaPusher(pusher);
+  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilder(KafkaPusher pusher) {
+    return KafkaAvroReporter.BuilderFactory.newBuilder().withKafkaPusher(pusher);
   }
 
   @Override
-  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilderFromContext(MetricContext context, KafkaPusher pusher) {
-    return KafkaAvroReporter.Factory.forContext(context).withKafkaPusher(pusher);
+  public KafkaReporter.Builder<? extends KafkaReporter.Builder> getBuilderFromContext(KafkaPusher pusher) {
+    return KafkaAvroReporter.BuilderFactory.newBuilder().withKafkaPusher(pusher);
   }
 
   @Override

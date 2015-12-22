@@ -49,6 +49,8 @@ public class InstrumentedTest {
     expectedTags.put("class", InstrumentedExtractor.class.getCanonicalName());
     expectedTags.put(MetricContext.METRIC_CONTEXT_ID_TAG_NAME,
         tags.get(MetricContext.METRIC_CONTEXT_ID_TAG_NAME).toString());
+    expectedTags.put(MetricContext.METRIC_CONTEXT_NAME_TAG_NAME,
+        tags.get(MetricContext.METRIC_CONTEXT_NAME_TAG_NAME).toString());
 
     Assert.assertEquals(tags.size(), expectedTags.size());
     for(Map.Entry<String, ?> tag : tags.entrySet()) {

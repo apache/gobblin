@@ -296,8 +296,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
     // Stop metrics reporting
     if (this.jobContext.getJobMetricsOptional().isPresent()) {
-      this.jobContext.getJobMetricsOptional().get().triggerMetricReporting();
-      this.jobContext.getJobMetricsOptional().get().stopMetricReporting();
+      this.jobContext.getJobMetricsOptional().get().stopMetricsReporting();
       JobMetrics.remove(jobState);
     }
 

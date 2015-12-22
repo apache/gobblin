@@ -13,16 +13,18 @@
 package gobblin.metrics.kafka;
 
 import java.io.IOException;
+import java.util.Properties;
 
-import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Optional;
 
-import gobblin.metrics.MetricContext;
+import com.typesafe.config.Config;
+
 import gobblin.metrics.MetricReport;
 import gobblin.metrics.reporter.util.AvroBinarySerializer;
 import gobblin.metrics.reporter.util.AvroSerializer;
 import gobblin.metrics.reporter.util.SchemaRegistryVersionWriter;
 import gobblin.metrics.reporter.util.SchemaVersionWriter;
+import gobblin.util.ConfigUtils;
 
 
 /**
@@ -32,9 +34,9 @@ import gobblin.metrics.reporter.util.SchemaVersionWriter;
  */
 public class KafkaAvroReporter extends KafkaReporter {
 
-  protected KafkaAvroReporter(Builder<?> builder) throws IOException {
-    super(builder);
-    if(builder.registry.isPresent()) {
+  protected KafkaAvroReporter(Builder<?> builder, Config config) throws IOException {
+    super(builder, config);
+    if (builder.registry.isPresent()) {
       this.serializer.setSchemaVersionWriter(new SchemaRegistryVersionWriter(builder.registry.get(), builder.topic));
     }
   }
@@ -42,63 +44,22 @@ public class KafkaAvroReporter extends KafkaReporter {
   @Override
   protected AvroSerializer<MetricReport> createSerializer(SchemaVersionWriter schemaVersionWriter)
       throws IOException {
-    return new AvroBinarySerializer<MetricReport>(MetricReport.SCHEMA$, schemaVersionWriter);
+    return new AvroBinarySerializer<>(MetricReport.SCHEMA$, schemaVersionWriter);
   }
 
   /**
-   * Returns a new {@link KafkaAvroReporter.Builder} for {@link KafkaAvroReporter}.
-   * If the registry is of type {@link gobblin.metrics.MetricContext} tags will NOT be inherited.
-   * To inherit tags, use forContext method.
+   * A static factory class for obtaining new {@link gobblin.metrics.kafka.KafkaAvroReporter.Builder}s
    *
-   * @param registry the registry to report
-   * @return KafkaAvroReporter builder
-   * @deprecated this method is bugged. Use {@link KafkaAvroReporter.Factory#forRegistry} instead.
+   * @see {@link gobblin.metrics.kafka.KafkaAvroReporter.Builder}
    */
-  @Deprecated
-  public static Builder<? extends Builder<?>> forRegistry(MetricRegistry registry) {
-    return new BuilderImpl(registry);
-  }
+  public static class BuilderFactory {
 
-  /**
-   * Returns a new {@link KafkaAvroReporter.Builder} for {@link KafkaAvroReporter}.
-   *
-   * @param context the {@link gobblin.metrics.MetricContext} to report
-   * @return KafkaAvroReporter builder
-   * @deprecated this method is bugged. Use {@link KafkaAvroReporter.Factory#forContext} instead.
-   */
-  @Deprecated
-  public static Builder<? extends Builder<?>> forContext(MetricContext context) {
-    return forRegistry(context);
-  }
-
-  public static class Factory {
-    /**
-     * Returns a new {@link KafkaAvroReporter.Builder} for {@link KafkaAvroReporter}.
-     * If the registry is of type {@link gobblin.metrics.MetricContext} tags will NOT be inherited.
-     * To inherit tags, use forContext method.
-     *
-     * @param registry the registry to report
-     * @return KafkaAvroReporter builder
-     */
-    public static BuilderImpl forRegistry(MetricRegistry registry) {
-      return new BuilderImpl(registry);
-    }
-
-    /**
-     * Returns a new {@link KafkaAvroReporter.Builder} for {@link KafkaAvroReporter}.
-     *
-     * @param context the {@link gobblin.metrics.MetricContext} to report
-     * @return KafkaAvroReporter builder
-     */
-    public static BuilderImpl forContext(MetricContext context) {
-      return forRegistry(context);
+    public static BuilderImpl newBuilder() {
+      return new BuilderImpl();
     }
   }
 
   public static class BuilderImpl extends Builder<BuilderImpl> {
-    private BuilderImpl(MetricRegistry registry) {
-      super(registry);
-    }
 
     @Override
     protected BuilderImpl self() {
@@ -107,16 +68,11 @@ public class KafkaAvroReporter extends KafkaReporter {
   }
 
   /**
-   * Builder for {@link KafkaAvroReporter}.
-   * Defaults to no filter, reporting rates in seconds and times in milliseconds.
+   * Builder for {@link KafkaAvroReporter}. Defaults to no filter, reporting rates in seconds and times in milliseconds.
    */
   public static abstract class Builder<T extends Builder<T>> extends KafkaReporter.Builder<T> {
 
     private Optional<KafkaAvroSchemaRegistry> registry = Optional.absent();
-
-    private Builder(MetricRegistry registry) {
-      super(registry);
-    }
 
     public T withSchemaRegistry(KafkaAvroSchemaRegistry registry) {
       this.registry = Optional.of(registry);
@@ -130,12 +86,10 @@ public class KafkaAvroReporter extends KafkaReporter {
      * @param topic topic to send metrics to
      * @return KafkaAvroReporter
      */
-    public KafkaAvroReporter build(String brokers, String topic) throws IOException {
+    public KafkaAvroReporter build(String brokers, String topic, Properties props) throws IOException {
       this.brokers = brokers;
       this.topic = topic;
-      return new KafkaAvroReporter(this);
+      return new KafkaAvroReporter(this, ConfigUtils.propertiesToConfig(props));
     }
-
   }
-
 }

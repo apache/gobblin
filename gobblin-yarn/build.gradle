@@ -107,4 +107,4 @@ clean {
   delete "../gobblin-test/basicTest"
 }
 
-classification="library"
+ext.classification="library"
