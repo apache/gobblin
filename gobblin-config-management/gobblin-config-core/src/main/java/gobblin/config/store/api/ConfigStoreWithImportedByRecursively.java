@@ -12,28 +12,29 @@
 
 package gobblin.config.store.api;
 
-import java.net.URI;
 import java.util.Collection;
-import java.util.Map;
 
-import com.typesafe.config.Config;
+import gobblin.annotation.Alpha;
 
-
+/**
+ * This is an extension of the {@link ConfigStoreWithImportedBy} interface which marks that
+ * this {@link ConfigStore} implementation supports not only efficiently obtaining the
+ * config keys that directly import a given config key but also the full transitive closure of such
+ * keys.
+ *
+ * Note that when calculating the transitive closure, implicit imports coming from ancestor config
+ * keys are also considered.
+ */
+@Alpha
 public interface ConfigStoreWithImportedByRecursively extends ConfigStoreWithImportedBy {
   /**
-   * @param uri - the uri relative to this configuration store
-   * @param version - specify the configuration version in the configuration store.
-   * @return - The {@java.util.Collection} of the URI. Each URI in the collection directly or indirectly import input uri 
-   *  against input configuration version
+   * Obtains all config keys which directly or indirectly import a given config key
+   * @param  configKey      the path of the config key being imported
+   * @param  version        the configuration version to check against
+   * @return The {@link Collection} of paths of the config keys that directly or indirectly import
+   *         the specified config key in the specified conf version.
+   * @throws VersionDoesNotExistException if the requested config version does not exist (any longer)
    */
-  public Collection<URI> getImportedByRecursively(URI uri, String version) throws VersionDoesNotExistException;
-
-  /**
-   * @param uri - the uri relative to this configuration store
-   * @param version - specify the configuration version in the configuration store.
-   * @return - The {@java.util.Map}. The key of the Map is the URI directly or indirectly import input uri 
-   *  against input configuration version. The value of the Map the directly or indirectly specified configuration in 
-   *  com.typesafe.config.Config format for corresponding key.
-   */
-  public Map<URI, Config> getConfigsImportedByRecursively(URI uri, String version) throws VersionDoesNotExistException;
+  public Collection<ConfigKeyPath> getImportedByRecursively(ConfigKeyPath configKey, String version)
+      throws VersionDoesNotExistException;
 }

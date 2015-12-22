@@ -12,28 +12,45 @@
 
 package gobblin.config.store.api;
 
+import gobblin.annotation.Alpha;
+
 /**
- * The ConfigKeyPath is used to describe the relative path for a given configuration key URI to 
- * configuration store
+ * The ConfigKeyPath is used to describe the relative path for a given configuration key URI to
+ * the root URI of a config store ({@link ConfigStore#getStoreURI()}). For example,
+ * for a configuration store with root URI hfs://namenode.grid.company.com:9000/configs/hfs_config_root/
+ * and a config key URI hfs://namenode.grid.company.com:9000/configs/hfs_config_root/data/tracking/,
+ * the ConfigKeyPath will be /data/tracking.
+
  * @author mitu
  *
  */
+@Alpha
 public interface ConfigKeyPath {
 
-  public ConfigKeyPath getParent();
-  
-  public String getOwnPathName();
-  
-  public ConfigKeyPath createChild(String childPathName);
-  
   /**
-   * 
-   * @return the absoluate configuration key path 
-   * for example 
-   * configuration store with root URI: etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest
-   * getAbsolutePathString will return /datasets/a1/a2 where datasets is a subdirectory under /user/mitu/HdfsBasedConfigTest
+   * The path to the parent.
+   * @throws UnsupportedOperationException if the current node is the root.
+   */
+  public ConfigKeyPath getParent();
+
+  /**
+   * The last component of this path. For example, for /a/b/c, it will return "c". If the current
+   * path points to the root ("/"), the result is the empty string "".
+   */
+  public String getOwnPathName();
+
+  /**
+   * Creates a path that is a child of the current path by appending one component to the path.
+   * For example, if the current path points to "/a/b", createChild("c") will return a path that
+   * points to "/a/b/c" . */
+  public ConfigKeyPath createChild(String childPathName);
+
+  /**
+   * The absolute configuration key path. This is joining all path components from the root using
+   * "/" as a separator.
    */
   public String getAbsolutePathString();
-  
+
+  /** Check if the current path is the root path ("/"). */
   public boolean isRootPath();
 }

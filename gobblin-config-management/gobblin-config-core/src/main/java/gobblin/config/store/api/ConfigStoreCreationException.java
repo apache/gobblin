@@ -14,26 +14,26 @@ package gobblin.config.store.api;
 
 import java.net.URI;
 
+import gobblin.annotation.Alpha;
 
+@Alpha
 public class ConfigStoreCreationException extends Exception {
 
-  /**
-   * 
-   */
-  private static final long serialVersionUID = -6021197312675836949L;
-  
+  private static final long serialVersionUID = 1L;
+  private static final String MESSAGE_FORMAT = "Failed to create config store %s because of: %s";
+
   private final URI storeURI;
 
   public ConfigStoreCreationException(URI storeURI, String message) {
-    super(String.format("failed to create config store %s with message %s", storeURI, message));
+    super(String.format(MESSAGE_FORMAT, storeURI, message));
     this.storeURI = storeURI;
   }
 
   public ConfigStoreCreationException(URI storeURI, Exception e) {
-    super(e);
+    super(String.format(MESSAGE_FORMAT, storeURI, e.getMessage()), e);
     this.storeURI = storeURI;
   }
-  
+
   public URI getStoreURI(){
     return this.storeURI;
   }
