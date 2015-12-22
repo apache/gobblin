@@ -14,10 +14,6 @@ package gobblin.source.extractor.hadoop;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.List;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
@@ -25,8 +21,6 @@ import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.FsInput;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionCodecFactory;
@@ -39,57 +33,17 @@ import gobblin.source.extractor.filebased.FileBasedHelperException;
 import gobblin.source.extractor.filebased.SizeAwareFileBasedHelper;
 import gobblin.source.extractor.utils.ProxyFsInput;
 import gobblin.util.HadoopUtils;
-import gobblin.util.ProxiedFileSystemWrapper;
 
-
-public class AvroFsHelper implements SizeAwareFileBasedHelper {
+public class AvroFsHelper extends HadoopFsHelper implements SizeAwareFileBasedHelper {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AvroFsHelper.class);
-
-  private State state;
-  private final Configuration configuration;
-  private FileSystem fs;
 
   public AvroFsHelper(State state) {
     this(state, HadoopUtils.newConfiguration());
   }
 
   public AvroFsHelper(State state, Configuration configuration) {
-    this.state = state;
-    this.configuration = configuration;
-  }
-
-  public FileSystem getFileSystem() {
-    return this.fs;
-  }
-
-  private void createFileSystem(String uri) throws IOException, InterruptedException, URISyntaxException {
-
-    if (state.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
-        ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
-      // Initialize file system as a proxy user.
-      this.fs =
-          new ProxiedFileSystemWrapper().getProxiedFileSystem(state, ProxiedFileSystemWrapper.AuthType.TOKEN,
-              state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_TOKEN_FILE), uri);
-
-    } else {
-      // Initialize file system as the current user.
-      this.fs = FileSystem.get(URI.create(uri), this.configuration);
-    }
-  }
-
-  @Override
-  public void connect() throws FileBasedHelperException {
-    URI uri = null;
-    try {
-      this.createFileSystem(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI));
-    } catch (IOException e) {
-      throw new FileBasedHelperException("Cannot connect to given URI " + uri + " due to " + e.getMessage(), e);
-    } catch (URISyntaxException e) {
-      throw new FileBasedHelperException("Malformed uri " + uri + " due to " + e.getMessage(), e);
-    } catch (InterruptedException e) {
-      throw new FileBasedHelperException("Interruptted exception is caught when getting the proxy file system", e);
-    }
+    super(state, configuration);
   }
 
   @Override
@@ -97,56 +51,42 @@ public class AvroFsHelper implements SizeAwareFileBasedHelper {
 
   }
 
-  @Override
-  public List<String> ls(String path) throws FileBasedHelperException {
-    List<String> results = new ArrayList<String>();
-    try {
-      lsr(new Path(path), results);
-    } catch (IOException e) {
-      throw new FileBasedHelperException("Cannot do ls on path " + path + " due to " + e.getMessage(), e);
-    }
-    return results;
-  }
-
-  public void lsr(Path p, List<String> results) throws IOException {
-    if (!this.fs.getFileStatus(p).isDir()) {
-      results.add(p.toString());
-    }
-    for (FileStatus status : this.fs.listStatus(p)) {
-      if (status.isDir()) {
-        lsr(status.getPath(), results);
-      } else {
-        results.add(status.getPath().toString());
-      }
-    }
-  }
-
+  /**
+   * Returns an {@link InputStream} to the specified file.
+   * <p>
+   * Note: It is the caller's responsibility to close the returned {@link InputStream}.
+   * </p>
+   *
+   * @param path The path to the file to open.
+   * @return An {@link InputStream} for the specified file.
+   * @throws FileBasedHelperException if there is a problem opening the {@link InputStream} for the specified file.
+   */
   @Override
   public InputStream getFileStream(String path) throws FileBasedHelperException {
     try {
       Path p = new Path(path);
-      InputStream in = this.fs.open(p);
+      InputStream in = this.getFileSystem().open(p);
       // Account for compressed files (e.g. gzip).
       // https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/input/WholeTextFileRecordReader.scala
-      CompressionCodecFactory factory = new CompressionCodecFactory(this.fs.getConf());
+      CompressionCodecFactory factory = new CompressionCodecFactory(this.getFileSystem().getConf());
       CompressionCodec codec = factory.getCodec(p);
       return (codec == null) ? in : codec.createInputStream(in);
     } catch (IOException e) {
-      throw new FileBasedHelperException("Cannot do open file " + path + " due to " + e.getMessage(), e);
+      throw new FileBasedHelperException("Cannot open file " + path + " due to " + e.getMessage(), e);
     }
   }
 
   public Schema getAvroSchema(String file) throws FileBasedHelperException {
     DataFileReader<GenericRecord> dfr = null;
     try {
-      if (state.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
+      if (this.getState().getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
           ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
         dfr =
-            new DataFileReader<GenericRecord>(new ProxyFsInput(new Path(file), this.fs),
+            new DataFileReader<>(new ProxyFsInput(new Path(file), this.getFileSystem()),
                 new GenericDatumReader<GenericRecord>());
       } else {
         dfr =
-            new DataFileReader<GenericRecord>(new FsInput(new Path(file), fs.getConf()),
+            new DataFileReader<>(new FsInput(new Path(file), this.getFileSystem().getConf()),
                 new GenericDatumReader<GenericRecord>());
       }
       return dfr.getSchema();
@@ -163,18 +103,28 @@ public class AvroFsHelper implements SizeAwareFileBasedHelper {
     }
   }
 
+  /**
+   * Returns an {@link DataFileReader} to the specified avro file.
+   * <p>
+   * Note: It is the caller's responsibility to close the returned {@link DataFileReader}.
+   * </p>
+   *
+   * @param file The path to the avro file to open.
+   * @return A {@link DataFileReader} for the specified avro file.
+   * @throws FileBasedHelperException if there is a problem opening the {@link InputStream} for the specified file.
+   */
   public DataFileReader<GenericRecord> getAvroFile(String file) throws FileBasedHelperException {
     try {
-      if (!fs.exists(new Path(file))) {
+      if (!this.getFileSystem().exists(new Path(file))) {
         LOGGER.warn(file + " does not exist.");
         return null;
       }
-      if (state.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
+      if (this.getState().getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
           ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
-        return new DataFileReader<GenericRecord>(new ProxyFsInput(new Path(file), this.fs),
+        return new DataFileReader<>(new ProxyFsInput(new Path(file), this.getFileSystem()),
             new GenericDatumReader<GenericRecord>());
       } else {
-        return new DataFileReader<GenericRecord>(new FsInput(new Path(file), fs.getConf()),
+        return new DataFileReader<>(new FsInput(new Path(file), this.getFileSystem().getConf()),
             new GenericDatumReader<GenericRecord>());
       }
     } catch (IOException e) {
@@ -185,7 +135,7 @@ public class AvroFsHelper implements SizeAwareFileBasedHelper {
   @Override
   public long getFileSize(String filePath) throws FileBasedHelperException {
     try {
-      return fs.getFileStatus(new Path(filePath)).getLen();
+      return this.getFileSystem().getFileStatus(new Path(filePath)).getLen();
     } catch (IOException e) {
       throw new FileBasedHelperException(String.format("Failed to get size for file at path %s due to error %s",
           filePath, e.getMessage()), e);
