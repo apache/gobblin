@@ -16,7 +16,7 @@ import gobblin.config.store.api.ConfigStoreWithStableVersioning;
 
 /**
  * This policy specifies the behavior expected by the client application when making repeated
- * calls to the fetch the configuration object for the same config key and version. This interface
+ * calls to fetch the configuration object for the same config key and version. This interface
  * is closely associated with the {@link ConfigStoreWithStableVersioning} API.
  *
  * <p>The semantic of each policy is documented with each constant.
