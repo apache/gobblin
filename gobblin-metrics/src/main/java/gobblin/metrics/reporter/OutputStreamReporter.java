@@ -82,20 +82,13 @@ public class OutputStreamReporter extends MetricReportReporter {
     protected Locale locale;
     protected Clock clock;
     protected TimeZone timeZone;
-    protected TimeUnit rateUnit;
-    protected TimeUnit durationUnit;
     protected MetricFilter filter;
-    protected Map<String, String> tags;
 
     protected Builder() {
       this.output = System.out;
       this.locale = Locale.getDefault();
       this.clock = Clock.defaultClock();
       this.timeZone = TimeZone.getDefault();
-      this.rateUnit = TimeUnit.SECONDS;
-      this.durationUnit = TimeUnit.MILLISECONDS;
-      this.filter = MetricFilter.ALL;
-      this.tags = new LinkedHashMap<>();
     }
 
     protected abstract T self();
@@ -157,63 +150,6 @@ public class OutputStreamReporter extends MetricReportReporter {
      */
     public T formattedFor(TimeZone timeZone) {
       this.timeZone = timeZone;
-      return self();
-    }
-
-    /**
-     * Convert rates to the given time unit.
-     *
-     * @param rateUnit a unit of time
-     * @return {@code this}
-     */
-    public T convertRatesTo(TimeUnit rateUnit) {
-      this.rateUnit = rateUnit;
-      return self();
-    }
-
-    /**
-     * Convert durations to the given time unit.
-     *
-     * @param durationUnit a unit of time
-     * @return {@code this}
-     */
-    public T convertDurationsTo(TimeUnit durationUnit) {
-      this.durationUnit = durationUnit;
-      return self();
-    }
-
-    /**
-     * Adds tags to the reporter.
-     *
-     * @param tags key-value pairs
-     * @return {@code this}
-     */
-    public T withTags(Map<String, String> tags) {
-      this.tags.putAll(tags);
-      return  self();
-    }
-
-    /**
-     * Add tags.
-     *
-     * @param tags List of {@link gobblin.metrics.Tag}
-     * @return {@code this}
-     */
-    public T withTags(List<Tag<?>> tags) {
-      for(Tag<?> tag : tags) {
-        this.tags.put(tag.getKey(), tag.getValue().toString());
-      }
-      return self();
-    }
-
-    /**
-     * Only report metrics which match the given filter.
-     *
-     * @param filter a {@link MetricFilter}
-     * @return {@code this}
-     */
-    public T filter(MetricFilter filter) {
-      this.filter = filter;
       return self();
     }
 
