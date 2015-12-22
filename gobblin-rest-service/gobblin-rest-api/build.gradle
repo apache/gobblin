@@ -33,6 +33,10 @@ configure(install.repositories.mavenInstaller) {
   addFilter('gobblin-rest-api-data-template') {artifact, file ->
     artifact.name == 'gobblin-rest-api-data-template'
   }.artifactId = 'gobblin-rest-api-data-template'
+
+  addFilter('gobblin-rest-api') {artifact, file ->
+    artifact.name == 'gobblin-rest-api'
+  }.artifactId = 'gobblin-rest-api'  
   // artifact names for 'data-model', 'avro-schema' and 'rest-model' may be added as well if needed
 }
 
