@@ -271,205 +271,220 @@ subprojects {
 }
 
 subprojects {
-plugins.withType(JavaPlugin) {
-  plugins.apply('idea')
-  plugins.apply('eclipse')
-  plugins.apply('maven')
-// Disabling the FindBugs plugin for now because FindBugs 2.x is not compatible with Java8
-//  apply plugin: 'findbugs'
-
-  sourceCompatibility = JavaVersion.VERSION_1_7
-
-
-/*  findbugs {
-    ignoreFailures = true
-    effort = "max"
-    excludeFilter = file(rootProject.projectDir.path + "/ligradle/findbugs/findbugsExclude.xml")
-  }
-*/
-  test {
-    if (project.hasProperty("printTestOutput")) {
-      testLogging.showStandardStreams = true
-    }
-  }
-
-  configurations {
-    compile
-    dependencies {
-      if (project.hasProperty('useHadoop2')) {
-        compile externalDependency.hadoopCommon
-        compile externalDependency.hadoopClientCore
-        compile externalDependency.hadoopAnnotations
-        if (project.name.equals('gobblin-runtime') || project.name.equals('gobblin-test')) {
-          compile externalDependency.hadoopClientCommon
-        }
-      } else {
-        compile externalDependency.hadoop
-      }
-      compile(externalDependency.guava) {
-        force = true
-      }
-
-      // Required to add JDK's tool jar, which is required to run byteman tests.
-      compile (files(((URLClassLoader) ToolProvider.getSystemToolClassLoader()).getURLs()))
-    }
-  }
-
-  if (isDefaultEnvironment) {
-    task sourcesJar(type: Jar, dependsOn: classes) {
-      from sourceSets.main.allSource
-      classifier = 'sources'
-    }
-    task javadocJar(type: Jar) {
-      from javadoc
-      classifier = 'javadoc'
-    }
-    artifacts { archives sourcesJar, javadocJar }
-  }
-
-  // Publishing of maven artifacts for subprojects
-  if (rootProject.ext.publishToMaven) {
+  plugins.withType(JavaPlugin) {
+    plugins.apply('idea')
+    plugins.apply('eclipse')
     plugins.apply('maven')
-    if (rootProject.ext.signArtifacts) {
-      plugins.apply('signing')
+  // Disabling the FindBugs plugin for now because FindBugs 2.x is not compatible with Java8
+  //  apply plugin: 'findbugs'
+
+    sourceCompatibility = JavaVersion.VERSION_1_7
+
+
+  /*  findbugs {
+      ignoreFailures = true
+      effort = "max"
+      excludeFilter = file(rootProject.projectDir.path + "/ligradle/findbugs/findbugsExclude.xml")
     }
+  */
+    test {
+      if (project.hasProperty("printTestOutput")) {
+        testLogging.showStandardStreams = true
+      }
+    }
+
+    configurations {
+      compile
+      dependencies {
+        if (project.hasProperty('useHadoop2')) {
+          compile externalDependency.hadoopCommon
+          compile externalDependency.hadoopClientCore
+          compile externalDependency.hadoopAnnotations
+          if (project.name.equals('gobblin-runtime') || project.name.equals('gobblin-test')) {
+            compile externalDependency.hadoopClientCommon
+          }
+        } else {
+          compile externalDependency.hadoop
+        }
+        compile(externalDependency.guava) {
+          force = true
+        }
+
+        // Required to add JDK's tool jar, which is required to run byteman tests.
+        compile (files(((URLClassLoader) ToolProvider.getSystemToolClassLoader()).getURLs()))
+      }
+    }
+
+    if (isDefaultEnvironment) {
+      task sourcesJar(type: Jar, dependsOn: classes) {
+        from sourceSets.main.allSource
+        classifier = 'sources'
+      }
+      task javadocJar(type: Jar) {
+        from javadoc
+        classifier = 'javadoc'
+      }
+      artifacts { archives sourcesJar, javadocJar }
+    }
+
+    plugins.apply('maven')
 
     project.version = rootProject.version
     project.group = rootProject.group
 
-    uploadArchives {
+    install {
       repositories {
-        mavenDeployer {
-          beforeDeployment { MavenDeployment deployment ->
-            if (rootProject.ext.signArtifacts) {
-              signing.signPom(deployment)
-            }
-          }
-
-          repository(url: rootProject.artifactRepository) {
-            authentication(userName: ossrhUsername, password: ossrhPassword)
-          }
-
-          snapshotRepository(url: rootProject.artifactSnapshotRepository) {
-            authentication(userName: ossrhUsername, password: ossrhPassword)
-          }
-
+        mavenInstaller {
+          mavenLocal()
           pom.project {
             name "${project.name}"
             packaging 'jar'
-            // optionally artifactId can be defined here
             description 'Gobblin Ingestion Framework'
             url 'https://github.com/linkedin/gobblin/'
-
-            scm {
-              connection 'scm:git:git@github.com:linkedin/gobblin.git'
-              developerConnection 'scm:git:git@github.com:linkedin/gobblin.git'
-              url 'git@github.com:linkedin/gobblin.git'
-            }
-
-            licenses {
-              license {
-                name 'The Apache License, Version 2.0'
-                url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-              }
-            }
-
-            developers {
-              developer {
-                name 'Abhishek Tiwari'
-                organization 'LinkedIn'
-              }
-              developer {
-                name 'Chavdar Botev'
-                organization 'LinkedIn'
-              }
-              developer {
-                name 'Issac Buenrostro'
-                organization 'LinkedIn'
-              }
-              developer {
-                name 'Min Tu'
-                organization 'LinkedIn'
-              }
-              developer {
-                name 'Narasimha Veeramreddy'
-                organization 'LinkedIn'
-              }
-              developer {
-                name 'Pradhan Cadabam'
-                organization 'LinkedIn'
-              }
-              developer {
-                name 'Sahil Takiar'
-                organization 'LinkedIn'
-              }
-              developer {
-                name 'Shirshanka Das'
-                organization 'LinkedIn'
-              }
-              developer {
-                name 'Yinan Li'
-                organization 'LinkedIn'
-              }
-              developer {
-                name 'Ying Dai'
-                organization 'LinkedIn'
-              }
-              developer {
-                name 'Ziyang Liu'
-                organization 'LinkedIn'
-              }
-            }
           }
         }
       }
     }
 
-    if (rootProject.ext.signArtifacts) {
-      signing {
-        sign configurations.archives
+    // Publishing of maven artifacts for subprojects
+    if (rootProject.ext.publishToMaven) {
+      if (rootProject.ext.signArtifacts) {
+        plugins.apply('signing')
+      }
+
+      uploadArchives {
+        repositories {
+          mavenDeployer {
+            beforeDeployment { MavenDeployment deployment ->
+              if (rootProject.ext.signArtifacts) {
+                signing.signPom(deployment)
+              }
+            }
+
+            repository(url: rootProject.artifactRepository) {
+              authentication(userName: ossrhUsername, password: ossrhPassword)
+            }
+
+            snapshotRepository(url: rootProject.artifactSnapshotRepository) {
+              authentication(userName: ossrhUsername, password: ossrhPassword)
+            }
+
+            pom.project {
+              name "${project.name}"
+              packaging 'jar'
+              // optionally artifactId can be defined here
+              description 'Gobblin Ingestion Framework'
+              url 'https://github.com/linkedin/gobblin/'
+
+              scm {
+                connection 'scm:git:git@github.com:linkedin/gobblin.git'
+                developerConnection 'scm:git:git@github.com:linkedin/gobblin.git'
+                url 'git@github.com:linkedin/gobblin.git'
+              }
+
+              licenses {
+                license {
+                  name 'The Apache License, Version 2.0'
+                  url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                }
+              }
+
+              developers {
+                developer {
+                  name 'Abhishek Tiwari'
+                  organization 'LinkedIn'
+                }
+                developer {
+                  name 'Chavdar Botev'
+                  organization 'LinkedIn'
+                }
+                developer {
+                  name 'Issac Buenrostro'
+                  organization 'LinkedIn'
+                }
+                developer {
+                  name 'Min Tu'
+                  organization 'LinkedIn'
+                }
+                developer {
+                  name 'Narasimha Veeramreddy'
+                  organization 'LinkedIn'
+                }
+                developer {
+                  name 'Pradhan Cadabam'
+                  organization 'LinkedIn'
+                }
+                developer {
+                  name 'Sahil Takiar'
+                  organization 'LinkedIn'
+                }
+                developer {
+                  name 'Shirshanka Das'
+                  organization 'LinkedIn'
+                }
+                developer {
+                  name 'Yinan Li'
+                  organization 'LinkedIn'
+                }
+                developer {
+                  name 'Ying Dai'
+                  organization 'LinkedIn'
+                }
+                developer {
+                  name 'Ziyang Liu'
+                  organization 'LinkedIn'
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (rootProject.ext.signArtifacts) {
+        signing {
+          sign configurations.archives
+        }
+      }
+    }
+
+    // Configure the IDEA plugin to (1) add the codegen as source dirs and (2) work around
+    // an apparent bug in the plugin which doesn't set the outputDir/testOutputDir as documented
+    idea.project {
+      languageLevel = JavaVersion.VERSION_1_7
+    }
+    idea.module {
+      // Gradle docs claim the two settings below are the default, but
+      // the actual defaults appear to be "out/production/$MODULE_NAME"
+      // and "out/test/$MODULE_NAME". Changing it so IDEA and gradle share
+      // the class output directory.
+
+      outputDir = sourceSets.main.output.classesDir
+      testOutputDir = sourceSets.test.output.classesDir
+    }
+
+    // Add standard javadoc repositories so we can reference classes in them using @link
+    tasks.javadoc.options.links "http://typesafehub.github.io/config/latest/api/",
+                                "https://docs.oracle.com/javase/7/docs/api/",
+                                "http://docs.guava-libraries.googlecode.com/git-history/v15.0/javadoc/",
+                                "http://hadoop.apache.org/docs/r${rootProject.ext.hadoopVersion}/api/",
+                                "https://hive.apache.org/javadocs/r${rootProject.ext.hiveVersion}/api/",
+                                "http://avro.apache.org/docs/${avroVersion}/api/java/",
+                                "https://dropwizard.github.io/metrics/${dropwizardMetricsVersion}/apidocs/"
+    rootProject.ext.javadocPackages.each {
+      tasks.javadoc.options.linksOffline "http://linkedin.github.io/gobblin/javadoc/${javadocVersion}/${it}/",
+                                         "${rootProject.buildDir}/${it}/docs/javadoc/"
+    }
+
+    afterEvaluate {
+      // add the standard pegasus dependencies wherever the plugin is used
+      if (project.plugins.hasPlugin('pegasus')) {
+        dependencies {
+          dataTemplateCompile externalDependency.pegasus.data
+          restClientCompile externalDependency.pegasus.restliClient,externalDependency.pegasus.restliCommon,externalDependency.pegasus.restliTools
+        }
       }
     }
   }
-
-  // Configure the IDEA plugin to (1) add the codegen as source dirs and (2) work around
-  // an apparent bug in the plugin which doesn't set the outputDir/testOutputDir as documented
-  idea.project {
-    languageLevel = JavaVersion.VERSION_1_7
-  }
-  idea.module {
-    // Gradle docs claim the two settings below are the default, but
-    // the actual defaults appear to be "out/production/$MODULE_NAME"
-    // and "out/test/$MODULE_NAME". Changing it so IDEA and gradle share
-    // the class output directory.
-
-    outputDir = sourceSets.main.output.classesDir
-    testOutputDir = sourceSets.test.output.classesDir
-  }
-
-  // Add standard javadoc repositories so we can reference classes in them using @link
-  tasks.javadoc.options.links "http://typesafehub.github.io/config/latest/api/",
-                              "https://docs.oracle.com/javase/7/docs/api/",
-                              "http://docs.guava-libraries.googlecode.com/git-history/v15.0/javadoc/",
-                              "http://hadoop.apache.org/docs/r${rootProject.ext.hadoopVersion}/api/",
-                              "https://hive.apache.org/javadocs/r${rootProject.ext.hiveVersion}/api/",
-                              "http://avro.apache.org/docs/${avroVersion}/api/java/",
-                              "https://dropwizard.github.io/metrics/${dropwizardMetricsVersion}/apidocs/"
-  rootProject.ext.javadocPackages.each {
-    tasks.javadoc.options.linksOffline "http://linkedin.github.io/gobblin/javadoc/${javadocVersion}/${it}/",
-                                       "${rootProject.buildDir}/${it}/docs/javadoc/" 
-  }
-
-  afterEvaluate {
-    // add the standard pegasus dependencies wherever the plugin is used
-    if (project.plugins.hasPlugin('pegasus')) {
-      dependencies {
-        dataTemplateCompile externalDependency.pegasus.data
-        restClientCompile externalDependency.pegasus.restliClient,externalDependency.pegasus.restliCommon,externalDependency.pegasus.restliTools
-      }
-    }
-  }
-}
 }
 
 //Turn off javadoc lint for Java 8+
