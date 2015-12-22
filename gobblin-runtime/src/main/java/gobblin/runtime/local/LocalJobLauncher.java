@@ -36,7 +36,6 @@ import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.FileBasedJobLock;
 import gobblin.runtime.JobLock;
 import gobblin.runtime.JobState;
-import gobblin.runtime.Task;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskStateTracker;
 import gobblin.runtime.util.TimingEventNames;
@@ -55,7 +54,9 @@ public class LocalJobLauncher extends AbstractJobLauncher {
   private static final Logger LOG = LoggerFactory.getLogger(LocalJobLauncher.class);
 
   private final TaskExecutor taskExecutor;
+
   private final TaskStateTracker taskStateTracker;
+
   // Service manager to manage dependent services
   private final ServiceManager serviceManager;
 
@@ -67,7 +68,8 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     TimingEvent jobLocalSetupTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.JOB_LOCAL_SETUP);
 
     this.taskExecutor = new TaskExecutor(jobProps);
-    this.taskStateTracker = new LocalTaskStateTracker(jobProps, this.taskExecutor);
+    this.taskStateTracker =
+        new LocalTaskStateTracker(jobProps, this.jobContext.getJobState(), this.taskExecutor, this.eventBus);
 
     this.serviceManager = new ServiceManager(Lists.newArrayList(
         // The order matters due to dependencies between services
@@ -114,13 +116,14 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     TimingEvent workUnitsRunTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.WORK_UNITS_RUN);
 
     this.countDownLatch = new CountDownLatch(workUnitsToRun.size());
-    List<Task> tasks = AbstractJobLauncher.runWorkUnits(this.jobContext.getJobId(), workUnitsToRun,
-        this.taskStateTracker, this.taskExecutor, this.countDownLatch);
+    AbstractJobLauncher.runWorkUnits(this.jobContext.getJobId(), workUnitsToRun, this.taskStateTracker,
+        this.taskExecutor, this.countDownLatch);
 
     LOG.info(String.format("Waiting for submitted tasks of job %s to complete...", jobId));
     while (this.countDownLatch.getCount() > 0) {
       LOG.info(String.format("%d out of %d tasks of job %s are running", this.countDownLatch.getCount(),
           workUnitsToRun.size(), jobId));
+
       this.countDownLatch.await(1, TimeUnit.MINUTES);
     }
 
@@ -139,11 +142,6 @@ public class LocalJobLauncher extends AbstractJobLauncher {
 
     if (jobState.getState() == JobState.RunningState.RUNNING) {
       jobState.setState(JobState.RunningState.SUCCESSFUL);
-    }
-
-    // Collect task states and set job state to FAILED if any task failed
-    for (Task task : tasks) {
-      jobState.addTaskState(task.getTaskState());
     }
   }
 

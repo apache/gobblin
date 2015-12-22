@@ -13,26 +13,34 @@
 package gobblin.data.management.copy;
 
 import gobblin.data.management.dataset.Dataset;
-import gobblin.data.management.partition.PartitionableDataset;
 
 import java.io.IOException;
-import java.util.List;
+import java.util.Collection;
 
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 
 
 /**
  * {@link Dataset} that supports finding {@link CopyableFile}s.
  */
-public interface CopyableDataset extends PartitionableDataset<CopyableFile> {
+public interface CopyableDataset extends Dataset {
 
   /**
    * Find all {@link CopyableFile}s in this dataset.
    *
+   * <p>
+   *   This method should return a collection of {@link CopyableFile}, each describing one file that should be copied
+   *   to the target. The returned collection should contain exactly one {@link CopyableFile} per file that should
+   *   be copied. Directories are created automatically, the returned collection should not include any directories.
+   *   See {@link CopyableFile} for explanation of the information contained in the {@link CopyableFile}s.
+   * </p>
+   *
+   * @param targetFs target {@link FileSystem} where copied files will be placed.
+   * @param configuration {@link CopyConfiguration} for this job. See {@link CopyConfiguration}.
    * @return List of {@link CopyableFile}s in this dataset.
    * @throws IOException
    */
-  public List<CopyableFile> getCopyableFiles(FileSystem targetFs, Path targetRoot) throws IOException;
+  public Collection<CopyableFile> getCopyableFiles(FileSystem targetFs, CopyConfiguration configuration) throws
+      IOException;
 
 }

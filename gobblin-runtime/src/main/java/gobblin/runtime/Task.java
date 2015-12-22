@@ -182,7 +182,7 @@ public class Task implements Runnable {
 
       for (Optional<Fork> fork : this.forks) {
         if (fork.isPresent()) {
-          // Tell the fork that the main branch is done and no new incoming data records should be expected
+          // Tell the fork that the main branch is completed and no new incoming data records should be expected
           fork.get().markParentTaskDone();
         }
       }
@@ -415,6 +415,7 @@ public class Task implements Runnable {
     if (this.countDownLatch.isPresent()) {
       this.countDownLatch.get().countDown();
     }
+
     this.taskState.setProp(ConfigurationKeys.TASK_RETRIES_KEY, this.retryCount.get());
   }
 

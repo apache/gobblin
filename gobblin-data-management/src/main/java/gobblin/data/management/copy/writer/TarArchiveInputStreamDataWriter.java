@@ -82,10 +82,9 @@ public class TarArchiveInputStreamDataWriter extends FileAwareInputStreamDataWri
 
         // the API tarEntry.getName() is misleading, it is actually the path of the tarEntry in the tar file
         String newTarEntryPath = tarEntry.getName().replace(tarEntryRootName, fileDestinationPath.getName());
-        Path tarEntryDestinationPath =
-            PathUtils.withoutLeadingSeparator(new Path(fileDestinationPath.getParent(), newTarEntryPath));
 
-        Path tarEntryStagingPath = new Path(this.stagingDir, tarEntryDestinationPath);
+        Path tarEntryStagingPath = new Path(getStagingFilePath(fileAwareInputStream.getFile()).getParent()
+            , newTarEntryPath);
 
         log.info("Unarchiving at " + tarEntryStagingPath);
 

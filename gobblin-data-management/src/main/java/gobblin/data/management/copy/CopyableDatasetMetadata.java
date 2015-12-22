@@ -16,6 +16,7 @@ import java.io.IOException;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.ToString;
 
 import org.apache.hadoop.fs.Path;
 
@@ -28,6 +29,7 @@ import com.google.gson.Gson;
  * The class is a data object and does not carry any functionality
  */
 @EqualsAndHashCode(callSuper=false)
+@ToString
 public class CopyableDatasetMetadata {
 
   public CopyableDatasetMetadata(CopyableDataset copyableDataset, Path datasetTargetRoot) {
@@ -59,4 +61,5 @@ public class CopyableDatasetMetadata {
   public static CopyableDatasetMetadata deserialize(String serialized) throws IOException {
     return GSON.fromJson(serialized, CopyableDatasetMetadata.class);
   }
+
 }

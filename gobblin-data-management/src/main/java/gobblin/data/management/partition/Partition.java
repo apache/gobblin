@@ -37,7 +37,7 @@ public class Partition<T extends File> {
     private final List<T> files;
 
     public Builder(String name) {
-      if(name == null) {
+      if (name == null) {
         throw new RuntimeException("Name cannot be null.");
       }
       this.name = name;

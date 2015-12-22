@@ -14,9 +14,10 @@ package gobblin.util;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -25,8 +26,9 @@ import org.slf4j.Logger;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -41,7 +43,9 @@ import gobblin.source.workunit.WorkUnit;
  * @author ynli
  */
 public class JobLauncherUtils {
-  private static Map<String, FileSystem> ownerAndFs = Maps.newConcurrentMap();
+
+  // A cache for proxied FileSystems by owners
+  private static Cache<String, FileSystem> fileSystemCacheByOwners = CacheBuilder.newBuilder().build();
 
   /**
    * Create a new job ID.
@@ -218,29 +222,29 @@ public class JobLauncherUtils {
     }
   }
 
-  private static FileSystem getFsWithProxy(State state, String writerFsUri) throws IOException {
+  private static FileSystem getFsWithProxy(final State state, final String writerFsUri) throws IOException {
     if (!state.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
         ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
       return FileSystem.get(URI.create(writerFsUri), new Configuration());
-    } else {
-      Preconditions.checkArgument(!Strings.isNullOrEmpty(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME)),
-          "State does not contain a proper proxy user name");
-      String owner = state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME);
-      if (ownerAndFs.containsKey(owner)) {
-        return ownerAndFs.get(owner);
-      } else {
-        try {
-          FileSystem proxiedFs =
-              new ProxiedFileSystemWrapper().getProxiedFileSystem(state, ProxiedFileSystemWrapper.AuthType.KEYTAB,
-                  state.getProp(ConfigurationKeys.SUPER_USER_KEY_TAB_LOCATION), writerFsUri);
-          ownerAndFs.put(owner, proxiedFs);
-          return proxiedFs;
-        } catch (InterruptedException e) {
-          throw new IOException(e);
-        } catch (URISyntaxException e) {
-          throw new IOException(e);
+    }
+
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME)),
+        "State does not contain a proper proxy user name");
+    String owner = state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME);
+
+    try {
+      return fileSystemCacheByOwners.get(owner, new Callable<FileSystem>() {
+
+        @Override
+        public FileSystem call()
+            throws Exception {
+          return new ProxiedFileSystemWrapper().getProxiedFileSystem(state, ProxiedFileSystemWrapper.AuthType.KEYTAB,
+              state.getProp(ConfigurationKeys.SUPER_USER_KEY_TAB_LOCATION), writerFsUri);
         }
-      }
+
+      });
+    } catch (ExecutionException ee) {
+      throw new IOException(ee.getCause());
     }
   }
 

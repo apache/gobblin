@@ -240,6 +240,7 @@ public class GobblinYarnAppLauncher {
         new Path(this.sinkLogRootDir, this.applicationName + Path.SEPARATOR + this.applicationId.get().toString()),
         YarnHelixUtils.getAppWorkDirPath(this.fs, this.applicationName, this.applicationId.get().toString())));
     if (config.getBoolean(ConfigurationKeys.JOB_EXECINFO_SERVER_ENABLED_KEY)) {
+      LOGGER.info("Starting the job execution info server since it is enabled");
       services.add(new JobExecutionInfoServer(YarnHelixUtils.configToProperties(config)));
     }
 

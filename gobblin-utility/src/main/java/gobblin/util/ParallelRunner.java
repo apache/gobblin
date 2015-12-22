@@ -146,10 +146,11 @@ public class ParallelRunner implements Closeable {
    * @param stateClass the {@link Class} object of the {@link State} class
    * @param inputFilePath the input {@link SequenceFile} to read from
    * @param states a {@link Collection} object to store the deserialized {@link State} objects
+   * @param deleteAfter a flag telling whether to delete the {@link SequenceFile} afterwards
    * @param <T> the {@link State} object type
    */
   public <T extends State> void deserializeFromSequenceFile(final Class<? extends Writable> keyClass,
-      final Class<T> stateClass, final Path inputFilePath, final Collection<T> states) {
+      final Class<T> stateClass, final Path inputFilePath, final Collection<T> states, final boolean deleteAfter) {
     this.futures.add(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
@@ -162,6 +163,10 @@ public class ParallelRunner implements Closeable {
           while (reader.next(key, state)) {
             states.add(state);
             state = stateClass.newInstance();
+          }
+
+          if (deleteAfter) {
+            HadoopUtils.deletePath(fs, inputFilePath, false);
           }
         } catch (Throwable t) {
           throw closer.rethrow(t);

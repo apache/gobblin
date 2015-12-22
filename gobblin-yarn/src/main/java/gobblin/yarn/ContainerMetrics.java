@@ -13,6 +13,7 @@
 package gobblin.yarn;
 
 import java.util.List;
+import java.util.concurrent.Callable;
 
 import org.apache.hadoop.yarn.api.records.ContainerId;
 
@@ -46,9 +47,13 @@ public class ContainerMetrics extends GobblinMetrics {
    * @param containerId the {@link ContainerId} of the container
    * @return a {@link ContainerMetrics} instance
    */
-  public static ContainerMetrics get(State containerState, String applicationName, ContainerId containerId) {
-    return (ContainerMetrics) GOBBLIN_METRICS_REGISTRY
-        .getOrDefault(name(containerId), new ContainerMetrics(containerState, applicationName, containerId));
+  public static ContainerMetrics get(final State containerState, final String applicationName,
+      final ContainerId containerId) {
+    return (ContainerMetrics) GOBBLIN_METRICS_REGISTRY.getOrDefault(name(containerId), new Callable<GobblinMetrics>() {
+      @Override public GobblinMetrics call() throws Exception {
+        return new ContainerMetrics(containerState, applicationName, containerId);
+      }
+    });
   }
 
   private static String name(ContainerId containerId) {

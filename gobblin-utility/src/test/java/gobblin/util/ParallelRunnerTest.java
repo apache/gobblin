@@ -19,8 +19,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Queue;
 
-import com.google.common.base.Optional;
-import gobblin.util.io.SeekableFSInputStream;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -35,6 +33,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Queues;
 import com.google.common.io.Closer;
 import com.google.gson.Gson;
@@ -44,6 +43,7 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.Watermark;
 import gobblin.source.extractor.WatermarkSerializerHelper;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.io.SeekableFSInputStream;
 
 
 /**
@@ -65,10 +65,7 @@ public class ParallelRunnerTest {
 
   @Test
   public void testSerializeToFile() throws IOException {
-    Closer closer = Closer.create();
-    try {
-      ParallelRunner parallelRunner = closer.register(new ParallelRunner(2, this.fs));
-
+    try (ParallelRunner parallelRunner = new ParallelRunner(2, this.fs)) {
       WorkUnit workUnit1 = WorkUnit.createEmpty();
       workUnit1.setProp("foo", "bar");
       workUnit1.setProp("a", 10);
@@ -78,11 +75,6 @@ public class ParallelRunnerTest {
       workUnit2.setProp("foo", "baz");
       workUnit2.setProp("b", 20);
       parallelRunner.serializeToFile(workUnit2, new Path(this.outputPath, "wu2"));
-
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
     }
   }
 
@@ -91,15 +83,9 @@ public class ParallelRunnerTest {
     WorkUnit workUnit1 = WorkUnit.createEmpty();
     WorkUnit workUnit2 = WorkUnit.createEmpty();
 
-    Closer closer = Closer.create();
-    try {
-      ParallelRunner parallelRunner = closer.register(new ParallelRunner(2, this.fs));
+    try (ParallelRunner parallelRunner = new ParallelRunner(2, this.fs)) {
       parallelRunner.deserializeFromFile(workUnit1, new Path(this.outputPath, "wu1"));
       parallelRunner.deserializeFromFile(workUnit2, new Path(this.outputPath, "wu2"));
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
     }
 
     Assert.assertEquals(workUnit1.getPropertyNames().size(), 2);
@@ -112,6 +98,7 @@ public class ParallelRunnerTest {
   }
 
   @Test
+  @SuppressWarnings("deprecation")
   public void testSerializeToSequenceFile() throws IOException {
     Closer closer = Closer.create();
     try {
@@ -143,18 +130,16 @@ public class ParallelRunnerTest {
   public void testDeserializeFromSequenceFile() throws IOException {
     Queue<WorkUnitState> workUnitStates = Queues.newConcurrentLinkedQueue();
 
-    Closer closer = Closer.create();
-    try {
-      ParallelRunner parallelRunner = closer.register(new ParallelRunner(2, this.fs));
-      parallelRunner.deserializeFromSequenceFile(Text.class, WorkUnitState.class, new Path(this.outputPath, "seq1"),
-          workUnitStates);
-      parallelRunner.deserializeFromSequenceFile(Text.class, WorkUnitState.class, new Path(this.outputPath, "seq2"),
-          workUnitStates);
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
+    Path seqPath1 = new Path(this.outputPath, "seq1");
+    Path seqPath2 = new Path(this.outputPath, "seq2");
+
+    try (ParallelRunner parallelRunner = new ParallelRunner(2, this.fs)) {
+      parallelRunner.deserializeFromSequenceFile(Text.class, WorkUnitState.class, seqPath1, workUnitStates, true);
+      parallelRunner.deserializeFromSequenceFile(Text.class, WorkUnitState.class, seqPath2, workUnitStates, true);
     }
+
+    Assert.assertFalse(this.fs.exists(seqPath1));
+    Assert.assertFalse(this.fs.exists(seqPath2));
 
     Assert.assertEquals(workUnitStates.size(), 2);
 
@@ -186,14 +171,8 @@ public class ParallelRunnerTest {
     Mockito.when(fs2.getConf()).thenReturn(new Configuration());
     Mockito.when(fs2.create(dst, false)).thenReturn(new FSDataOutputStream(actual, null));
 
-    Closer closer = Closer.create();
-    try {
-      ParallelRunner parallelRunner = closer.register(new ParallelRunner(1, fs1));
+    try (ParallelRunner parallelRunner = new ParallelRunner(1, fs1)) {
       parallelRunner.movePath(src, fs2, dst, Optional.<String>absent());
-    } catch (Throwable t) {
-        throw closer.rethrow(t);
-    } finally {
-        closer.close();
     }
 
     Assert.assertEquals(actual.toString(), expected);

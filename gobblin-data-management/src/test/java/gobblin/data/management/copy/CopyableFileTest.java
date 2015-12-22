@@ -33,7 +33,7 @@ public class CopyableFileTest {
         new CopyableFile(new FileStatus(10, false, 12, 100, 12345, new Path("/path")), new Path("/destination"),
             new Path("/relative"), new OwnerAndPermission("owner", "group", FsPermission.getDefault()),
             Lists.newArrayList(new OwnerAndPermission("owner2", "group2", FsPermission.getDefault())),
-            "checksum".getBytes());
+            "checksum".getBytes(), PreserveAttributes.fromMnemonicString(""), "");
 
     String s = CopyableFile.serialize(copyableFile);
     CopyableFile de = CopyableFile.deserialize(s);
@@ -47,7 +47,7 @@ public class CopyableFileTest {
     CopyableFile copyableFile =
         new CopyableFile(null, null, new Path("/relative"), new OwnerAndPermission("owner", "group",
             FsPermission.getDefault()), Lists.newArrayList(new OwnerAndPermission(null, "group2", FsPermission
-            .getDefault())), "checksum".getBytes());
+            .getDefault())), "checksum".getBytes(), PreserveAttributes.fromMnemonicString(""), "");
 
     String serialized = CopyableFile.serialize(copyableFile);
     CopyableFile deserialized = CopyableFile.deserialize(serialized);

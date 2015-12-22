@@ -13,10 +13,13 @@ package gobblin.data.management.copy.writer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.data.management.copy.CopySource;
+import gobblin.data.management.copy.CopyableDatasetMetadata;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.CopyableFileUtils;
 import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.data.management.copy.OwnerAndPermission;
+import gobblin.data.management.copy.TestCopyableDataset;
 import gobblin.data.management.copy.converter.UnGzipConverter;
 import gobblin.util.PathUtils;
 
@@ -70,6 +73,9 @@ public class TarArchiveInputStreamDataWriterTest {
     state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
     state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output").toString());
     state.setProp(ConfigurationKeys.WRITER_FILE_PATH, "writer_file_path_" + RandomStringUtils.randomAlphabetic(5));
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")),
+        new Path("/"));
+    CopySource.serializeCopyableDataset(state, metadata);
 
     TarArchiveInputStreamDataWriter dataWriter = new TarArchiveInputStreamDataWriter(state, 1, 0);
     FileAwareInputStream fileAwareInputStream = getCompressedInputStream(filePath, newFileName);
@@ -81,7 +87,8 @@ public class TarArchiveInputStreamDataWriterTest {
 
     // Path at which the writer writes text.txt
     Path taskOutputFilePath =
-        new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
+        new Path(new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
+            fileAwareInputStream.getFile().getDatasetAndPartition(metadata).identifier()),
             PathUtils.withoutLeadingSeparator(unArchivedFilePath));
 
     Assert.assertEquals(IOUtils.toString(new FileInputStream(taskOutputFilePath.toString())).trim(),

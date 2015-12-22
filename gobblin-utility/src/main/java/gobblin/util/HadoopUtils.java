@@ -197,31 +197,43 @@ public class HadoopUtils {
 
       Path toFilePath = new Path(to, relativeFilePath);
 
-      if (!fileSystem.exists(toFilePath)) {
-        /*
-         * Permissions for newly created directories will be inherited from parent directory. This is because the source
-         * and destination directory path may diverge after a certain level
-         *
-         * Source :/data/gobblin/task-staging/writer_1234/Log/file.txt
-         *
-         * Destination :/data/gobblin/task-output/Log/file.txt
-         *
-         * When the directory Log is being renamed from source to destination, task-output directory may not exist. It
-         * will be created by inheriting it's parent permission (/data/gobblin/)
-         */
-        if (!fileSystem.exists(toFilePath.getParent())) {
-          fileSystem.mkdirs(toFilePath.getParent());
+      if (!safeRenameIfNotExists(fileSystem, fromFile.getPath(), toFilePath)) {
+        if(fromFile.isDir()) {
+          renameRecursively(fileSystem, fromFile.getPath(), toFilePath);
+        } else {
+          log.info(String.format("File already exists %s. Will not rewrite", toFilePath));
         }
-
-        if (!fileSystem.rename(fromFile.getPath(), toFilePath)) {
-          throw new IOException(String.format("Failed to rename %s to %s.", fromFile.getPath(), toFilePath));
-        }
-
-      } else if (fromFile.isDir()) {
-        renameRecursively(fileSystem, fromFile.getPath(), toFilePath);
-      } else {
-        log.info(String.format("File already exists %s. Will not rewrite", toFilePath));
       }
+    }
+  }
+
+  /**
+   * Renames from to to if to doesn't exist in a thread-safe way. This method is necessary because
+   * {@link FileSystem#rename} is inconsistent across file system implementations, e.g. in some of them rename(foo, bar)
+   * will create bar/foo if bar already existed, but it will only create bar if it didn't.
+   *
+   * <p>
+   *   The thread-safety is only guaranteed among calls to this method. An external modification to the relevant
+   *   target directory could still cause unexpected results in the renaming.
+   * </p>
+   *
+   * @param fs filesystem where rename will be executed.
+   * @param from origin {@link Path}.
+   * @param to target {@link Path}.
+   * @return true if rename succeeded, false if the target already exists.
+   * @throws IOException if rename failed for reasons other than target exists.
+   */
+  public synchronized static boolean safeRenameIfNotExists(FileSystem fs, Path from, Path to) throws IOException {
+    if(!fs.exists(to)) {
+      if(!fs.exists(to.getParent())) {
+        fs.mkdirs(to.getParent());
+      }
+      if(!fs.rename(from, to)) {
+        throw new IOException(String.format("Failed to rename %s to %s.", from, to));
+      }
+      return true;
+    } else {
+      return false;
     }
   }
 
