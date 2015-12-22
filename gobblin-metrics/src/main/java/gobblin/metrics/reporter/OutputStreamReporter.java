@@ -82,7 +82,6 @@ public class OutputStreamReporter extends MetricReportReporter {
     protected Locale locale;
     protected Clock clock;
     protected TimeZone timeZone;
-    protected MetricFilter filter;
 
     protected Builder() {
       this.output = System.out;
