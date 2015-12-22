@@ -28,6 +28,7 @@ import com.google.gson.reflect.TypeToken;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
+import gobblin.converter.EmptyIterable;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
 import gobblin.converter.ToAvroConverterBase;
@@ -64,6 +65,8 @@ public class JsonToAvroConverter extends ToAvroConverterBase<String, String> {
   @Override
   public Iterable<GenericRecord> convertRecord(Schema schema, String jsonRecords, WorkUnitState workUnit)
       throws DataConversionException {
+  	if(jsonRecords.contains("LOGROTATE"))
+  		return new EmptyIterable<GenericRecord>();
   	String[] inputRecords = jsonRecords.split("\n");
   	List<GenericRecord> avroRecords = new ArrayList<GenericRecord>();
   	for(String inputRecord:inputRecords){
