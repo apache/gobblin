@@ -57,6 +57,8 @@ dependencies {
 
   testCompile project(":gobblin-example")
 
+  testCompile externalDependency.calciteCore
+  testCompile externalDependency.calciteAvatica
   testCompile externalDependency.testng
   testCompile externalDependency.hadoopYarnMiniCluster
   testCompile externalDependency.curatorFramework

@@ -92,7 +92,7 @@ if (!project.hasProperty('hadoopVersion')) {
 }
 
 if (!project.hasProperty('hiveVersion')) {
-  ext.hiveVersion = '1.2.1'
+  ext.hiveVersion = '0.14.0'
 }
 
 if (!project.hasProperty('pegasusVersion')) {
@@ -122,8 +122,8 @@ ext.externalDependency = [
   "commonsMath": "org.apache.commons:commons-math3:3.5",
   "commonsHttpClient": "commons-httpclient:commons-httpclient:3.1",
   "commonsCompress":"org.apache.commons:commons-compress:1.10",
-  "datanucleusCore": "org.datanucleus:datanucleus-core:4.1.2",
-  "datanucleusRdbms": "org.datanucleus:datanucleus-rdbms:4.1.2",
+  "datanucleusCore": "org.datanucleus:datanucleus-core:3.2.0",
+  "datanucleusRdbms": "org.datanucleus:datanucleus-rdbms:3.2.0",
   "guava": "com.google.guava:guava:15.0",
   "gson": "com.google.code.gson:gson:2.3.1",
   "findBugs": "com.google.code.findbugs:jsr305:1.3.9",
@@ -183,13 +183,14 @@ ext.externalDependency = [
   "bytemanBmunit": "org.jboss.byteman:byteman-bmunit:"+bytemanVersion,
   "bcpgJdk15on": "org.bouncycastle:bcpg-jdk15on:1.52",
   "bcprovJdk15on": "org.bouncycastle:bcprov-jdk15on:1.52",
-  "calciteCore": "org.apache.calcite:calcite-core:1.2.0-incubating",
-  "calciteAvatica": "org.apache.calcite:calcite-avatica:1.2.0-incubating",
+  "calciteCore": "org.apache.calcite:calcite-core:0.9.2-incubating",
+  "calciteAvatica": "org.apache.calcite:calcite-avatica:0.9.2-incubating",
   "jhyde": "org.pentaho:pentaho-aggdesigner-algorithm:5.1.5-jhyde",
   "curatorFramework": "org.apache.curator:curator-framework:2.8.0",
   "curatorTest": "org.apache.curator:curator-test:2.8.0",
   "hamcrest": "org.hamcrest:hamcrest-all:1.3",
   "joptSimple": "net.sf.jopt-simple:jopt-simple:4.9",
+  "protobuf": "com.google.protobuf:protobuf-java:2.6.1",
   "pegasus" : [
     "data" : "com.linkedin.pegasus:data:"+pegasusVersion,
     "generator" : "com.linkedin.pegasus:generator:"+pegasusVersion,
