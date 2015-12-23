@@ -49,6 +49,8 @@ dependencies {
   compile externalDependency.lombok
   compile externalDependency.typesafeConfig
 
+  runtime externalDependency.protobuf
+
   if (project.hasProperty('useHadoop2')) {
     compile externalDependency.avroMapredH2
     testRuntime externalDependency.hadoopAws
