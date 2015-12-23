@@ -19,6 +19,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Queue;
 
+import com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -172,7 +173,7 @@ public class ParallelRunnerTest {
     Mockito.when(fs2.create(dst, false)).thenReturn(new FSDataOutputStream(actual, null));
 
     try (ParallelRunner parallelRunner = new ParallelRunner(1, fs1)) {
-      parallelRunner.movePath(src, fs2, dst, Optional.<String>absent(), null);
+      parallelRunner.movePaths(fs2, ImmutableMap.of(src, dst), Optional.<String>absent(), null);
     }
 
     Assert.assertEquals(actual.toString(), expected);

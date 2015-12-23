@@ -20,6 +20,8 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
 import gobblin.util.Action;
 import org.apache.hadoop.conf.Configuration;
@@ -125,8 +127,8 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
 
   @Override
   public void publishData(WorkUnitState state) throws IOException {
-    WorkUnitPublishGroup group = getWorkUnitPublishGroup(state);
-    if (group != null) {
+    List<WorkUnitPublishGroup> groups = getWorkUnitPublishGroup(state);
+    for (WorkUnitPublishGroup group : groups) {
       // Get a ParallelRunner instance for moving files in parallel
       ParallelRunner parallelRunner = this.getParallelRunner(
               this.writerFileSystemByBranches.get(group.getBranchId()));
@@ -145,10 +147,10 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
     Multimap<WorkUnitPublishGroup, WorkUnitState> roots = ArrayListMultimap.create();
     for (WorkUnitState state : states) {
-        WorkUnitPublishGroup group = getWorkUnitPublishGroup(state);
-        if (group != null) {
-            roots.put(group, state);
-        }
+      List<WorkUnitPublishGroup> groups = getWorkUnitPublishGroup(state);
+      for (WorkUnitPublishGroup group : groups) {
+        roots.put(group, state);
+      }
     }
 
     for (WorkUnitPublishGroup group : roots.keySet()) {
@@ -179,7 +181,8 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
         String outputFilePropName = ForkOperatorUtils
                 .getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS, this.numBranches, group.getBranchId());
 
-        Iterable<String> taskOutputFiles = state.getPropAsList(outputFilePropName);
+        Iterable<String> taskOutputFiles = state.getPropAsList(outputFilePropName, "");
+        ImmutableMap.Builder<Path, Path> movesBuilder = new ImmutableMap.Builder<>();
         for (String taskOutputFile : taskOutputFiles) {
           Path taskOutputPath = new Path(taskOutputFile);
           if (!this.writerFileSystemByBranches.get(group.getBranchId()).exists(taskOutputPath)) {
@@ -199,10 +202,10 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
           WriterUtils.mkdirsWithRecursivePermission(this.publisherFileSystemByBranches.get(group.getBranchId()),
                   publisherOutputPath.getParent(), this.permissions.get(group.getBranchId()));
 
-          LOG.info(String.format("Moving %s to %s", taskOutputFile, publisherOutputPath));
-          parallelRunner.movePath(taskOutputPath, this.publisherFileSystemByBranches.get(group.getBranchId()),
-                  publisherOutputPath, Optional.<String>absent(), new CommitAction(state));
+          movesBuilder.put(taskOutputPath, publisherOutputPath);
         }
+        parallelRunner.movePaths(this.publisherFileSystemByBranches.get(group.getBranchId()),
+                movesBuilder.build(), Optional.<String>absent(), new CommitAction(state));
       }
     }
   }
@@ -270,7 +273,8 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     return this.parallelRunners.get(uri);
   }
 
-  private WorkUnitPublishGroup getWorkUnitPublishGroup(WorkUnitState state) throws IOException {
+  private List<WorkUnitPublishGroup> getWorkUnitPublishGroup(WorkUnitState state) throws IOException {
+    ImmutableList.Builder<WorkUnitPublishGroup> builder = new ImmutableList.Builder<>();
     for (int branchId = 0; branchId < this.numBranches; branchId++) {
       // The directory where the workUnitState wrote its output data.
       Path writerOutputDir = WriterUtils.getWriterOutputDir(state, this.numBranches, branchId);
@@ -284,9 +288,9 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       // It is a combination of DATA_PUBLISHER_FINAL_DIR and WRITER_FILE_PATH.
       Path publisherOutputDir = getPublisherOutputDir(state, branchId);
 
-      return new WorkUnitPublishGroup(branchId, writerOutputDir, publisherOutputDir);
+      builder.add(new WorkUnitPublishGroup(branchId, writerOutputDir, publisherOutputDir));
     }
-    return null;
+    return builder.build();
   }
 
   private static class CommitAction implements Action {
