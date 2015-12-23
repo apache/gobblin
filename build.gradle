@@ -481,3 +481,21 @@ if (JavaVersion.current().isJava8Compatible()) {
   }
 }
 
+task dotProjectDependencies(description: 'List of gobblin project dependencies in dot format') << {
+  println "// ========= Start of project dependency graph ======= "
+  println "digraph project_dependencies {"
+  subprojects.each { Project project ->
+    def project_node_name = project.name.replaceAll("-","_")
+    if (project.configurations.findByName("compile") != null) {
+      project.configurations.compile.dependencies.each { Dependency dep ->
+        if (dep instanceof ProjectDependency) {
+          def dep_node_name = dep.dependencyProject.name.replaceAll("-","_")
+          println "\t${project_node_name} -> ${dep_node_name};"
+        }
+      }
+    }
+  }
+  println "}"
+  println "// ========= End of project dependency graph ======= "
+}
+
