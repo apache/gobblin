@@ -18,6 +18,10 @@ repositories {
 }
 
 dependencies {
+  compile externalDependency.jodaTime
+  compile externalDependency.log4j
+  compile externalDependency.slf4j
+
   testCompile project(":gobblin-api")
   testCompile project(":gobblin-core")
   testCompile project(":gobblin-runtime")
