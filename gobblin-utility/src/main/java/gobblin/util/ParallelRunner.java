@@ -253,8 +253,10 @@ public class ParallelRunner implements Closeable {
    * @param dstFs the destination {@link FileSystem}
    * @param dst the destination path
    * @param group an optional group name for the destination path
+   * @param commitAction an action to perform when the move completes successfully
    */
-  public void movePath(final Path src, final FileSystem dstFs, final Path dst, final Optional<String> group) {
+  public void movePath(final Path src, final FileSystem dstFs, final Path dst, final Optional<String> group,
+                       final Action commitAction) {
     this.futures.add(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
@@ -265,6 +267,9 @@ public class ParallelRunner implements Closeable {
             HadoopUtils.movePath(fs, src, dstFs, dst);
             if (group.isPresent()) {
               HadoopUtils.setGroup(dstFs, dst, group.get());
+            }
+            if (commitAction != null) {
+                commitAction.apply();
             }
           }
           return null;

@@ -20,6 +20,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -51,7 +52,7 @@ import gobblin.source.workunit.Extract;
  */
 public class SourceState extends State {
 
-  private static final Set<Extract> EXTRACT_SET = Sets.newConcurrentHashSet();
+  private static final Set<Extract> EXTRACT_SET = Sets.newSetFromMap(new ConcurrentHashMap<Extract, Boolean>());
   private static final DateTimeFormatter DTF =
       DateTimeFormat.forPattern("yyyyMMddHHmmss").withLocale(Locale.US).withZone(DateTimeZone.UTC);
 

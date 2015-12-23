@@ -33,6 +33,7 @@ import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
+import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.Writable;
@@ -152,8 +153,27 @@ public class HadoopUtils {
     if (srcFs.getUri().equals(dstFs.getUri())) {
       renamePath(srcFs, src, dst);
     } else {
-      if (!FileUtil.copy(srcFs, src, dstFs, dst, true, false, dstFs.getConf())) {
-        throw new IOException(String.format("Failed to move %s to %s", src, dst));
+      boolean isSourceFileSystemLocal = srcFs instanceof LocalFileSystem;
+      FileStatus srcStatus = srcFs.getFileStatus(src);
+      if (srcStatus.isDir()) {
+        for (FileStatus srcFile : FileListUtils.listFilesRecursively(srcFs, src)) {
+          if (isSourceFileSystemLocal) {
+            Path dstFile = new Path(dst, srcFile.getPath().getName());
+            dstFs.moveFromLocalFile(srcFile.getPath(), dstFile);
+          } else {
+            if (!FileUtil.copy(srcFs, src, dstFs, dst, true, false, dstFs.getConf())) {
+              throw new IOException(String.format("Failed to move %s to %s", src, dst));
+            }
+          }
+        }
+      } else {
+        if (isSourceFileSystemLocal) {
+          dstFs.moveFromLocalFile(srcStatus.getPath(), dst);
+        } else {
+          if (!FileUtil.copy(srcFs, src, dstFs, dst, true, false, dstFs.getConf())) {
+            throw new IOException(String.format("Failed to move %s to %s", src, dst));
+          }
+        }
       }
     }
   }

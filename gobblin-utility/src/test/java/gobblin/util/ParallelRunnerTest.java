@@ -172,7 +172,7 @@ public class ParallelRunnerTest {
     Mockito.when(fs2.create(dst, false)).thenReturn(new FSDataOutputStream(actual, null));
 
     try (ParallelRunner parallelRunner = new ParallelRunner(1, fs1)) {
-      parallelRunner.movePath(src, fs2, dst, Optional.<String>absent());
+      parallelRunner.movePath(src, fs2, dst, Optional.<String>absent(), null);
     }
 
     Assert.assertEquals(actual.toString(), expected);

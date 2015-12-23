@@ -55,9 +55,13 @@ public class FileListUtils {
   @SuppressWarnings("deprecation")
   private static List<FileStatus> listFilesRecursivelyHelper(FileSystem fs, List<FileStatus> files,
       FileStatus fileStatus, PathFilter fileFilter) throws FileNotFoundException, IOException {
+    Path qualifiedPath = fs.makeQualified(fileStatus.getPath());
     if (fileStatus.isDir()) {
       for (FileStatus status : fs.listStatus(fileStatus.getPath())) {
-        listFilesRecursivelyHelper(fs, files, status, fileFilter);
+        // Fix for hadoop issue: https://issues.apache.org/jira/browse/HADOOP-12169
+        if (!qualifiedPath.equals(status.getPath())) {
+          listFilesRecursivelyHelper(fs, files, status, fileFilter);
+        }
       }
     } else if (fileFilter.accept(fileStatus.getPath())) {
       files.add(fileStatus);
@@ -87,12 +91,16 @@ public class FileListUtils {
   private static List<FileStatus> listMostNestedPathRecursivelyHelper(FileSystem fs, List<FileStatus> files,
       FileStatus fileStatus, PathFilter fileFilter) throws FileNotFoundException, IOException {
     if (fileStatus.isDir()) {
+      Path qualifiedPath = fs.makeQualified(fileStatus.getPath());
       FileStatus[] curFileStatus = fs.listStatus(fileStatus.getPath());
       if (ArrayUtils.isEmpty(curFileStatus)) {
         files.add(fileStatus);
       } else {
         for (FileStatus status : curFileStatus) {
-          listMostNestedPathRecursivelyHelper(fs, files, status, fileFilter);
+          // Fix for hadoop issue: https://issues.apache.org/jira/browse/HADOOP-12169
+          if (!qualifiedPath.equals(status.getPath())) {
+            listMostNestedPathRecursivelyHelper(fs, files, status, fileFilter);
+          }
         }
       }
     } else if (fileFilter.accept(fileStatus.getPath())) {
@@ -118,8 +126,12 @@ public class FileListUtils {
     }
     if (fileStatus.isDir()) {
       try {
+        Path qualifiedPath = fs.makeQualified(fileStatus.getPath());
         for (FileStatus status : fs.listStatus(fileStatus.getPath())) {
-          listPathsRecursivelyHelper(fs, files, status, fileFilter);
+          // Fix for hadoop issue: https://issues.apache.org/jira/browse/HADOOP-12169
+          if (!qualifiedPath.equals(status.getPath())) {
+            listPathsRecursivelyHelper(fs, files, status, fileFilter);
+          }
         }
       } catch (IOException ioe) {
         LOG.error("Could not list contents of path " + fileStatus.getPath());

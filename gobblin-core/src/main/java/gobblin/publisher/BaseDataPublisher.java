@@ -15,13 +15,14 @@ package gobblin.publisher;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
 
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
+import gobblin.util.Action;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -31,7 +32,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.State;
@@ -125,103 +125,96 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
 
   @Override
   public void publishData(WorkUnitState state) throws IOException {
-    for (int branchId = 0; branchId < this.numBranches; branchId++) {
-      publishSingleTaskData(state, branchId);
-    }
-  }
+    WorkUnitPublishGroup group = getWorkUnitPublishGroup(state);
+    if (group != null) {
+      // Get a ParallelRunner instance for moving files in parallel
+      ParallelRunner parallelRunner = this.getParallelRunner(
+              this.writerFileSystemByBranches.get(group.getBranchId()));
 
-  /**
-   * This method publishes output data for a single task based on the given {@link WorkUnitState}.
-   * Output data from other tasks won't be published even if they are in the same folder.
-   */
-  private void publishSingleTaskData(WorkUnitState state, int branchId) throws IOException {
-    publishData(state, branchId, true, new HashSet<Path>());
+      // Create final output directory
+      WriterUtils.mkdirsWithRecursivePermission(this.publisherFileSystemByBranches.get(
+              group.getBranchId()), group.getPublisherOutputDir(),
+              this.permissions.get(group.getBranchId()));
+      addSingleTaskWriterOutputToExistingDir(group.getWriterOutputDir(),
+              group.getPublisherOutputDir(), state, group.getBranchId(),
+              parallelRunner);
+    }
   }
 
   @Override
   public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
-
-    // We need a Set to collect unique writer output paths as multiple tasks may belong to the same extract. Tasks that
-    // belong to the same Extract will by default have the same output directory
-    Set<Path> writerOutputPathsMoved = Sets.newHashSet();
-
-    for (WorkUnitState workUnitState : states) {
-      for (int branchId = 0; branchId < this.numBranches; branchId++) {
-        publishMultiTaskData(workUnitState, branchId, writerOutputPathsMoved);
-      }
-
-      // Upon successfully committing the data to the final output directory, set states
-      // of successful tasks to COMMITTED. leaving states of unsuccessful ones unchanged.
-      // This makes sense to the COMMIT_ON_PARTIAL_SUCCESS policy.
-      workUnitState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
-    }
-  }
-
-  /**
-   * This method publishes task output data for the given {@link WorkUnitState}, but if there are output data of
-   * other tasks in the same folder, it may also publish those data.
-   */
-  private void publishMultiTaskData(WorkUnitState state, int branchId, Set<Path> writerOutputPathsMoved)
-      throws IOException {
-    publishData(state, branchId, false, writerOutputPathsMoved);
-  }
-
-  protected void publishData(WorkUnitState state, int branchId, boolean publishSingleTaskData,
-      Set<Path> writerOutputPathsMoved) throws IOException {
-    // Get a ParallelRunner instance for moving files in parallel
-    ParallelRunner parallelRunner = this.getParallelRunner(this.writerFileSystemByBranches.get(branchId));
-
-    // The directory where the workUnitState wrote its output data.
-    Path writerOutputDir = WriterUtils.getWriterOutputDir(state, this.numBranches, branchId);
-
-    if (!this.writerFileSystemByBranches.get(branchId).exists(writerOutputDir)) {
-      LOG.warn(String.format("Branch %d of WorkUnit %s produced no data", branchId, state.getId()));
-      return;
+    Multimap<WorkUnitPublishGroup, WorkUnitState> roots = ArrayListMultimap.create();
+    for (WorkUnitState state : states) {
+        WorkUnitPublishGroup group = getWorkUnitPublishGroup(state);
+        if (group != null) {
+            roots.put(group, state);
+        }
     }
 
-    // The directory where the final output directory for this job will be placed.
-    // It is a combination of DATA_PUBLISHER_FINAL_DIR and WRITER_FILE_PATH.
-    Path publisherOutputDir = getPublisherOutputDir(state, branchId);
+    for (WorkUnitPublishGroup group : roots.keySet()) {
+      ParallelRunner parallelRunner = this.getParallelRunner(this.writerFileSystemByBranches.get(group.getBranchId()));
 
-    if (publishSingleTaskData) {
-
-      // Create final output directory
-      WriterUtils.mkdirsWithRecursivePermission(this.publisherFileSystemByBranches.get(branchId), publisherOutputDir,
-          this.permissions.get(branchId));
-      addSingleTaskWriterOutputToExistingDir(writerOutputDir, publisherOutputDir, state, branchId, parallelRunner);
-    } else {
-      if (writerOutputPathsMoved.contains(writerOutputDir)) {
-        // This writer output path has already been moved for another task of the same extract
-        // If publishSingleTaskData=true, writerOutputPathMoved is ignored.
-        return;
-      }
-
-      if (this.publisherFileSystemByBranches.get(branchId).exists(publisherOutputDir)) {
+      if (this.publisherFileSystemByBranches.get(group.getBranchId()).exists(group.getPublisherOutputDir())) {
         // The final output directory already exists, check if the job is configured to replace it.
         // If publishSingleTaskData=true, final output directory is never replaced.
-        boolean replaceFinalOutputDir = this.getState().getPropAsBoolean(ForkOperatorUtils
-            .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_REPLACE_FINAL_DIR, this.numBranches, branchId));
+        boolean replaceFinalOutputDir = this.getState().getPropAsBoolean(
+                ForkOperatorUtils.getPropertyNameForBranch(
+                        ConfigurationKeys.DATA_PUBLISHER_REPLACE_FINAL_DIR, this.numBranches, group.getBranchId()));
 
-        // If the final output directory is not configured to be replaced, put new data to the existing directory.
+        // If the final output directory is configured to be replaced, delete the existing publisher output directory
         if (!replaceFinalOutputDir) {
-          addWriterOutputToExistingDir(writerOutputDir, publisherOutputDir, state, branchId, parallelRunner);
-          writerOutputPathsMoved.add(writerOutputDir);
-          return;
+          LOG.info("Deleting publisher output dir " + group.getPublisherOutputDir());
+          this.publisherFileSystemByBranches.get(group.getBranchId()).delete(group.getPublisherOutputDir(), true);
         }
-        // Delete the final output directory if it is configured to be replaced
-        LOG.info("Deleting publisher output dir " + publisherOutputDir);
-        this.publisherFileSystemByBranches.get(branchId).delete(publisherOutputDir, true);
       } else {
-        // Create the parent directory of the final output directory if it does not exist
-        WriterUtils.mkdirsWithRecursivePermission(this.publisherFileSystemByBranches.get(branchId),
-            publisherOutputDir.getParent(), this.permissions.get(branchId));
+          // Create the parent directory of the final output directory if it does not exist
+          WriterUtils.mkdirsWithRecursivePermission(this.publisherFileSystemByBranches.get(group.getBranchId()),
+                  group.getPublisherOutputDir().getParent(), this.permissions.get(group.getBranchId()));
       }
 
-      LOG.info(String.format("Moving %s to %s", writerOutputDir, publisherOutputDir));
-      parallelRunner.movePath(writerOutputDir, this.publisherFileSystemByBranches.get(branchId),
-          publisherOutputDir, this.publisherFinalDirOwnerGroupsByBranches.get(branchId));
-      writerOutputPathsMoved.add(writerOutputDir);
+      for (WorkUnitState state : roots.get(group)) {
+        boolean preserveFileName = state.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(
+                ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, this.numBranches, group.getBranchId()), false);
+
+        String outputFilePropName = ForkOperatorUtils
+                .getPropertyNameForBranch(ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS, this.numBranches, group.getBranchId());
+
+        Iterable<String> taskOutputFiles = state.getPropAsList(outputFilePropName);
+        for (String taskOutputFile : taskOutputFiles) {
+          Path taskOutputPath = new Path(taskOutputFile);
+          if (!this.writerFileSystemByBranches.get(group.getBranchId()).exists(taskOutputPath)) {
+            LOG.warn("Task output file " + taskOutputFile + " doesn't exist.");
+            continue;
+          }
+          String pathSuffix;
+          if (preserveFileName) {
+              pathSuffix = state.getProp(ForkOperatorUtils.getPropertyNameForBranch(
+                      ConfigurationKeys.DATA_PUBLISHER_FINAL_NAME, this.numBranches, group.getBranchId()));
+          } else {
+            pathSuffix = taskOutputFile
+                    .substring(taskOutputFile.indexOf(group.getWriterOutputDir().toString()) +
+                            group.getWriterOutputDir().toString().length() + 1);
+          }
+          Path publisherOutputPath = new Path(group.getPublisherOutputDir(), pathSuffix);
+          WriterUtils.mkdirsWithRecursivePermission(this.publisherFileSystemByBranches.get(group.getBranchId()),
+                  publisherOutputPath.getParent(), this.permissions.get(group.getBranchId()));
+
+          LOG.info(String.format("Moving %s to %s", taskOutputFile, publisherOutputPath));
+          parallelRunner.movePath(taskOutputPath, this.publisherFileSystemByBranches.get(group.getBranchId()),
+                  publisherOutputPath, Optional.<String>absent(), new CommitAction(state));
+        }
+      }
     }
+  }
+
+  @Override
+  public void publishMetadata(Collection<? extends WorkUnitState> states) throws IOException {
+    // Nothing to do
+  }
+
+  @Override
+  public void publishMetadata(WorkUnitState state) throws IOException {
+    // Nothing to do
   }
 
   /**
@@ -265,29 +258,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
 
       LOG.info(String.format("Moving %s to %s", taskOutputFile, publisherOutputPath));
       parallelRunner.movePath(taskOutputPath, this.publisherFileSystemByBranches.get(branchId),
-          publisherOutputPath, Optional.<String> absent());
-    }
-  }
-
-  protected void addWriterOutputToExistingDir(Path writerOutputDir, Path publisherOutputDir,
-      WorkUnitState workUnitState, int branchId, ParallelRunner parallelRunner) throws IOException {
-    boolean preserveFileName = workUnitState.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(
-        ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, this.numBranches, branchId), false);
-
-    // Go through each file in writerOutputDir and move it into publisherOutputDir
-    for (FileStatus status : this.writerFileSystemByBranches.get(branchId).listStatus(writerOutputDir)) {
-
-      // Preserve the file name if configured, use specified name otherwise
-      Path finalOutputPath =
-          preserveFileName
-              ? new Path(publisherOutputDir,
-                  workUnitState.getProp(ForkOperatorUtils.getPropertyNameForBranch(
-                      ConfigurationKeys.DATA_PUBLISHER_FINAL_NAME, this.numBranches, branchId)))
-          : new Path(publisherOutputDir, status.getPath().getName());
-
-      LOG.info(String.format("Moving %s to %s", status.getPath(), finalOutputPath));
-      parallelRunner.movePath(status.getPath(), this.publisherFileSystemByBranches.get(branchId),
-          finalOutputPath, Optional.<String> absent());
+          publisherOutputPath, Optional.<String> absent(), new CommitAction(workUnitState));
     }
   }
 
@@ -299,14 +270,75 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     return this.parallelRunners.get(uri);
   }
 
-  @Override
-  public void publishMetadata(Collection<? extends WorkUnitState> states) throws IOException {
-    // Nothing to do
+  private WorkUnitPublishGroup getWorkUnitPublishGroup(WorkUnitState state) throws IOException {
+    for (int branchId = 0; branchId < this.numBranches; branchId++) {
+      // The directory where the workUnitState wrote its output data.
+      Path writerOutputDir = WriterUtils.getWriterOutputDir(state, this.numBranches, branchId);
+
+      if (!this.writerFileSystemByBranches.get(branchId).exists(writerOutputDir)) {
+        LOG.warn(String.format("Branch %d of WorkUnit %s produced no data", branchId, state.getId()));
+        continue;
+      }
+
+      // The directory where the final output directory for this job will be placed.
+      // It is a combination of DATA_PUBLISHER_FINAL_DIR and WRITER_FILE_PATH.
+      Path publisherOutputDir = getPublisherOutputDir(state, branchId);
+
+      return new WorkUnitPublishGroup(branchId, writerOutputDir, publisherOutputDir);
+    }
+    return null;
   }
 
-  @Override
-  public void publishMetadata(WorkUnitState state) throws IOException {
-    // Nothing to do
+  private static class CommitAction implements Action {
+    private final WorkUnitState state;
+
+    public CommitAction(WorkUnitState state) {
+      this.state = state;
+    }
+
+    @Override
+    public void apply() {
+       state.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+    }
   }
 
+  private class WorkUnitPublishGroup {
+    private final int branchId;
+    private final Path writerOutputDir;
+    private final Path publisherOutputDir;
+
+    public WorkUnitPublishGroup(int branchId, Path writerOutputDir, Path publisherOutputDir) {
+      this.branchId = branchId;
+      this.writerOutputDir = writerOutputDir;
+      this.publisherOutputDir = publisherOutputDir;
+    }
+
+    public int getBranchId() {
+      return branchId;
+    }
+
+    public Path getWriterOutputDir() {
+      return writerOutputDir;
+    }
+
+    public Path getPublisherOutputDir() {
+      return publisherOutputDir;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+
+      WorkUnitPublishGroup that = (WorkUnitPublishGroup) o;
+      return Objects.equals(branchId, that.branchId) &&
+              Objects.equals(writerOutputDir, that.writerOutputDir) &&
+              Objects.equals(publisherOutputDir, that.publisherOutputDir);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(branchId, writerOutputDir, publisherOutputDir);
+    }
+  }
 }
