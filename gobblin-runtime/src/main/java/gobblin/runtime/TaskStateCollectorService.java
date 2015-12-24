@@ -135,11 +135,11 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     }
 
     Queue<TaskState> taskStateQueue = Queues.newConcurrentLinkedQueue();
-    try (ParallelRunner stateSerDeRunner = new ParallelRunner(stateSerDeRunnerThreads, this.fs)) {
+    try (ParallelRunner stateSerDeRunner = new ParallelRunner(stateSerDeRunnerThreads)) {
       for (FileStatus status : fileStatuses) {
         LOGGER.info("Found output task state file " + status.getPath());
         // Deserialize the TaskState and delete the file
-        stateSerDeRunner.deserializeFromSequenceFile(Text.class, TaskState.class, status.getPath(),
+        stateSerDeRunner.deserializeFromSequenceFile(Text.class, TaskState.class, this.fs, status.getPath(),
             taskStateQueue, true);
       }
     }

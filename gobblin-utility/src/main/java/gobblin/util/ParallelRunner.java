@@ -16,7 +16,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -24,7 +23,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.locks.Lock;
 
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableList;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileSystem;
@@ -80,16 +79,14 @@ public class ParallelRunner implements Closeable {
   public static final int DEFAULT_PARALLEL_RUNNER_THREADS = 10;
 
   private final ExecutorService executor;
-  private final FileSystem fs;
 
   private final List<Future<?>> futures = Lists.newArrayList();
 
   private final Striped<Lock> locks = Striped.lazyWeakLock(Integer.MAX_VALUE);
 
-  public ParallelRunner(int threads, FileSystem fs) {
+  public ParallelRunner(int threads) {
     this.executor = Executors.newFixedThreadPool(threads,
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("ParallelRunner")));
-    this.fs = fs;
   }
 
   /**
@@ -101,16 +98,17 @@ public class ParallelRunner implements Closeable {
    * </p>
    *
    * @param state the {@link State} object to be serialized
+   * @param fileSystem the {@link FileSystem} to write the file to
    * @param outputFilePath the file to write the serialized {@link State} object to
    * @param <T> the {@link State} object type
    */
-  public <T extends State> void serializeToFile(final T state, final Path outputFilePath) {
+  public <T extends State> void serializeToFile(final T state, final FileSystem fileSystem, final Path outputFilePath) {
     // Use a Callable with a Void return type to allow exceptions to be thrown
     this.futures.add(this.executor.submit(new Callable<Void>() {
 
       @Override
       public Void call() throws Exception {
-        SerializationUtils.serializeState(fs, outputFilePath, state);
+        SerializationUtils.serializeState(fileSystem, outputFilePath, state);
         return null;
       }
     }));
@@ -125,15 +123,16 @@ public class ParallelRunner implements Closeable {
    * </p>
    *
    * @param state an empty {@link State} object to which the deserialized content will be populated
+   * @param fileSystem the {@link FileSystem} to read the file from
    * @param inputFilePath the input file to read from
    * @param <T> the {@link State} object type
    */
-  public <T extends State> void deserializeFromFile(final T state, final Path inputFilePath) {
+  public <T extends State> void deserializeFromFile(final T state, final FileSystem fileSystem, final Path inputFilePath) {
     this.futures.add(this.executor.submit(new Callable<Void>() {
 
       @Override
       public Void call() throws Exception {
-        SerializationUtils.deserializeState(fs, inputFilePath, state);
+        SerializationUtils.deserializeState(fileSystem, inputFilePath, state);
         return null;
       }
     }));
@@ -148,20 +147,23 @@ public class ParallelRunner implements Closeable {
    * </p>
    *
    * @param stateClass the {@link Class} object of the {@link State} class
+   * @param fileSystem the {@link FileSystem} to read the file from
    * @param inputFilePath the input {@link SequenceFile} to read from
    * @param states a {@link Collection} object to store the deserialized {@link State} objects
    * @param deleteAfter a flag telling whether to delete the {@link SequenceFile} afterwards
    * @param <T> the {@link State} object type
    */
   public <T extends State> void deserializeFromSequenceFile(final Class<? extends Writable> keyClass,
-      final Class<T> stateClass, final Path inputFilePath, final Collection<T> states, final boolean deleteAfter) {
+      final Class<T> stateClass, final FileSystem fileSystem, final Path inputFilePath, final Collection<T> states,
+      final boolean deleteAfter) {
     this.futures.add(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
         Closer closer = Closer.create();
         try {
           @SuppressWarnings("deprecation")
-          SequenceFile.Reader reader = closer.register(new SequenceFile.Reader(fs, inputFilePath, fs.getConf()));
+          SequenceFile.Reader reader = closer.register(
+                  new SequenceFile.Reader(fileSystem, inputFilePath, fileSystem.getConf()));
           Writable key = keyClass.newInstance();
           T state = stateClass.newInstance();
           while (reader.next(key, state)) {
@@ -170,7 +172,7 @@ public class ParallelRunner implements Closeable {
           }
 
           if (deleteAfter) {
-            HadoopUtils.deletePath(fs, inputFilePath, false);
+            HadoopUtils.deletePath(fileSystem, inputFilePath, false);
           }
         } catch (Throwable t) {
           throw closer.rethrow(t);
@@ -190,17 +192,18 @@ public class ParallelRunner implements Closeable {
    *   This method submits a task to delete a {@link Path} and returns immediately
    *   after the task is submitted.
    * </p>
-   *
+   * @param fileSystem the {@link FileSystem} to delete the path from
    * @param path path to be deleted.
+   * @param recursive true if the delete is recursive; otherwise, false
    */
-  public void deletePath(final Path path, final boolean recursive) {
+  public void deletePath(final FileSystem fileSystem, final Path path, final boolean recursive) {
     this.futures.add(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
         Lock lock = locks.get(path.toString());
         lock.lock();
         try {
-          HadoopUtils.deletePath(fs, path, recursive);
+          HadoopUtils.deletePath(fileSystem, path, recursive);
           return null;
         } finally {
           lock.unlock();
@@ -217,24 +220,25 @@ public class ParallelRunner implements Closeable {
    *   after the task is submitted.
    * </p>
    *
+   * @param fileSystem the {@link FileSystem} where the rename will be done
    * @param src path to be renamed
    * @param dst new path after rename
    * @param group an optional group name for the destination path
    *
-   * @Deprecated Use {@link gobblin.util.ParallelRunner#movePath(Path, FileSystem, Path, Optional, Action)}
+   * @Deprecated Use {@link gobblin.util.ParallelRunner#movePath(FileSystem, Path, FileSystem, Path, Optional, Action)}
    */
   @Deprecated
-  public void renamePath(final Path src, final Path dst, final Optional<String> group) {
+  public void renamePath(final FileSystem fileSystem, final Path src, final Path dst, final Optional<String> group) {
     this.futures.add(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
         Lock lock = locks.get(src.toString());
         lock.lock();
         try {
-          if (fs.exists(src)) {
-            HadoopUtils.renamePath(fs, src, dst);
+          if (fileSystem.exists(src)) {
+            HadoopUtils.renamePath(fileSystem, src, dst);
             if (group.isPresent()) {
-              HadoopUtils.setGroup(fs, dst, group.get());
+              HadoopUtils.setGroup(fileSystem, dst, group.get());
             }
           }
           return null;
@@ -256,15 +260,16 @@ public class ParallelRunner implements Closeable {
    *   after the task is submitted.
    * </p>
    *
+   * @param srcFs the source {@link FileSystem}
    * @param src path to be moved
    * @param dstFs the destination {@link FileSystem}
    * @param dst the destination path
    * @param group an optional group name for the destination path
    * @param commitAction an action to perform when the move completes successfully
    */
-  public void movePath(final Path src, final FileSystem dstFs, final Path dst, final Optional<String> group,
+  public void movePath(final FileSystem srcFs, final Path src, final FileSystem dstFs, final Path dst, final Optional<String> group,
                        final Action commitAction) {
-      movePaths(dstFs, ImmutableMap.of(src, dst), group, commitAction);
+      movePaths(ImmutableList.of(new MoveCommand(srcFs, src, dstFs, dst)), group, commitAction);
   }
 
   /**
@@ -275,31 +280,27 @@ public class ParallelRunner implements Closeable {
    *   after the task is submitted.
    * </p>
    *
-   * @param dstFs the destination {@link FileSystem}
-   * @param moves the set of src path to dst path pairs
+   * @param commands the set of move commands
    * @param group an optional group name for the destination path
    * @param commitAction an action to perform when the move completes successfully
    */
-  public void movePaths(final FileSystem dstFs, final Map<Path, Path> moves, final Optional<String> group,
-                        final Action commitAction) {
+  public void movePaths(final List<MoveCommand> commands, final Optional<String> group, final Action commitAction) {
     this.futures.add(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
-        for (Map.Entry<Path, Path> move : moves.entrySet()) {
-          Path src = move.getKey();
-          Path dst = move.getValue();
-          log.info(String.format("Moving %s to %s", src, dst));
-          Lock lock = locks.get(src.toString());
+        for (MoveCommand command : commands) {
+          log.info(String.format("Moving %s to %s", command.src, command.dst));
+          Lock lock = locks.get(command.src.toString());
           lock.lock();
           try {
-            if (fs.exists(src)) {
-              HadoopUtils.movePath(fs, src, dstFs, dst);
+            if (command.srcFs.exists(command.src)) {
+              HadoopUtils.movePath(command.srcFs, command.src, command.dstFs, command.dst);
               if (group.isPresent()) {
-                HadoopUtils.setGroup(dstFs, dst, group.get());
+                HadoopUtils.setGroup(command.dstFs, command.dst, group.get());
               }
             }
           } catch (FileAlreadyExistsException e) {
-            LOGGER.warn(String.format("Failed to move %s to %s: dst already exists", src, dst), e);
+            LOGGER.warn(String.format("Failed to move %s to %s: dst already exists", command.src, command.dst), e);
             return null;
           } finally {
             lock.unlock();
@@ -326,6 +327,20 @@ public class ParallelRunner implements Closeable {
       throw new IOException(ee.getCause());
     } finally {
       ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(LOGGER));
+    }
+  }
+
+  public static class MoveCommand {
+    private FileSystem srcFs;
+    private Path src;
+    private FileSystem dstFs;
+    private Path dst;
+
+    public MoveCommand(FileSystem srcFs, Path src, FileSystem dstFs, Path dst) {
+      this.srcFs = srcFs;
+      this.src = src;
+      this.dstFs = dstFs;
+      this.dst = dst;
     }
   }
 }

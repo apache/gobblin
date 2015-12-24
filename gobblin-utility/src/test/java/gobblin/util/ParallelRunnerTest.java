@@ -19,7 +19,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Queue;
 
-import com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -66,16 +65,16 @@ public class ParallelRunnerTest {
 
   @Test
   public void testSerializeToFile() throws IOException {
-    try (ParallelRunner parallelRunner = new ParallelRunner(2, this.fs)) {
+    try (ParallelRunner parallelRunner = new ParallelRunner(2)) {
       WorkUnit workUnit1 = WorkUnit.createEmpty();
       workUnit1.setProp("foo", "bar");
       workUnit1.setProp("a", 10);
-      parallelRunner.serializeToFile(workUnit1, new Path(this.outputPath, "wu1"));
+      parallelRunner.serializeToFile(workUnit1, this.fs, new Path(this.outputPath, "wu1"));
 
       WorkUnit workUnit2 = WorkUnit.createEmpty();
       workUnit2.setProp("foo", "baz");
       workUnit2.setProp("b", 20);
-      parallelRunner.serializeToFile(workUnit2, new Path(this.outputPath, "wu2"));
+      parallelRunner.serializeToFile(workUnit2, this.fs, new Path(this.outputPath, "wu2"));
     }
   }
 
@@ -84,9 +83,9 @@ public class ParallelRunnerTest {
     WorkUnit workUnit1 = WorkUnit.createEmpty();
     WorkUnit workUnit2 = WorkUnit.createEmpty();
 
-    try (ParallelRunner parallelRunner = new ParallelRunner(2, this.fs)) {
-      parallelRunner.deserializeFromFile(workUnit1, new Path(this.outputPath, "wu1"));
-      parallelRunner.deserializeFromFile(workUnit2, new Path(this.outputPath, "wu2"));
+    try (ParallelRunner parallelRunner = new ParallelRunner(2)) {
+      parallelRunner.deserializeFromFile(workUnit1, this.fs, new Path(this.outputPath, "wu1"));
+      parallelRunner.deserializeFromFile(workUnit2, this.fs, new Path(this.outputPath, "wu2"));
     }
 
     Assert.assertEquals(workUnit1.getPropertyNames().size(), 2);
@@ -134,9 +133,9 @@ public class ParallelRunnerTest {
     Path seqPath1 = new Path(this.outputPath, "seq1");
     Path seqPath2 = new Path(this.outputPath, "seq2");
 
-    try (ParallelRunner parallelRunner = new ParallelRunner(2, this.fs)) {
-      parallelRunner.deserializeFromSequenceFile(Text.class, WorkUnitState.class, seqPath1, workUnitStates, true);
-      parallelRunner.deserializeFromSequenceFile(Text.class, WorkUnitState.class, seqPath2, workUnitStates, true);
+    try (ParallelRunner parallelRunner = new ParallelRunner(2)) {
+      parallelRunner.deserializeFromSequenceFile(Text.class, WorkUnitState.class, this.fs, seqPath1, workUnitStates, true);
+      parallelRunner.deserializeFromSequenceFile(Text.class, WorkUnitState.class, this.fs, seqPath2, workUnitStates, true);
     }
 
     Assert.assertFalse(this.fs.exists(seqPath1));
@@ -172,8 +171,8 @@ public class ParallelRunnerTest {
     Mockito.when(fs2.getConf()).thenReturn(new Configuration());
     Mockito.when(fs2.create(dst, false)).thenReturn(new FSDataOutputStream(actual, null));
 
-    try (ParallelRunner parallelRunner = new ParallelRunner(1, fs1)) {
-      parallelRunner.movePaths(fs2, ImmutableMap.of(src, dst), Optional.<String>absent(), null);
+    try (ParallelRunner parallelRunner = new ParallelRunner(1)) {
+      parallelRunner.movePath(fs1, src, fs2, dst, Optional.<String>absent(), null);
     }
 
     Assert.assertEquals(actual.toString(), expected);
