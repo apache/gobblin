@@ -21,6 +21,8 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.RemoteIterator;
+import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -258,37 +260,53 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
         continue;
       }
       String pathSuffix = taskOutputFile
-          .substring(taskOutputFile.indexOf(writerOutputDir.toString()) + writerOutputDir.toString().length() + 1);
+              .substring(taskOutputFile.indexOf(writerOutputDir.toString()) + writerOutputDir.toString().length() + 1);
       Path publisherOutputPath = new Path(publisherOutputDir, pathSuffix);
       WriterUtils.mkdirsWithRecursivePermission(this.publisherFileSystemByBranches.get(branchId),
           publisherOutputPath.getParent(), this.permissions.get(branchId));
 
       LOG.info(String.format("Moving %s to %s", taskOutputFile, publisherOutputPath));
       parallelRunner.movePath(taskOutputPath, this.publisherFileSystemByBranches.get(branchId),
-          publisherOutputPath, Optional.<String> absent());
+              publisherOutputPath, Optional.<String> absent());
     }
   }
+
+  private Path targetPath(Path dstDir, Path src, Path path) {
+    String pathStr = path.toString();
+    String srcStr = src.toString();
+    String relative = pathStr.substring(pathStr.indexOf(srcStr) + srcStr.length() + 1);
+    return new Path(dstDir, relative);
+  }
+
 
   protected void addWriterOutputToExistingDir(Path writerOutputDir, Path publisherOutputDir,
       WorkUnitState workUnitState, int branchId, ParallelRunner parallelRunner) throws IOException {
     boolean preserveFileName = workUnitState.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(
         ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, this.numBranches, branchId), false);
 
-    // Go through each file in writerOutputDir and move it into publisherOutputDir
-    for (FileStatus status : this.writerFileSystemByBranches.get(branchId).listStatus(writerOutputDir)) {
+    FileSystem fs = this.writerFileSystemByBranches.get(branchId);
+    RemoteIterator<LocatedFileStatus> iterator = fs.listFiles(writerOutputDir, true);
 
-      // Preserve the file name if configured, use specified name otherwise
-      Path finalOutputPath =
-          preserveFileName
-              ? new Path(publisherOutputDir,
-                  workUnitState.getProp(ForkOperatorUtils.getPropertyNameForBranch(
-                      ConfigurationKeys.DATA_PUBLISHER_FINAL_NAME, this.numBranches, branchId)))
-          : new Path(publisherOutputDir, status.getPath().getName());
+    while (iterator.hasNext()) {
+      FileStatus status = iterator.next();
+      Path finalOutputPath = null;
+      if (preserveFileName) {
+        // Preserve the file name if configured, use specified name otherwise
+        finalOutputPath = new Path(publisherOutputDir,
+            workUnitState.getProp(ForkOperatorUtils.getPropertyNameForBranch(
+                ConfigurationKeys.DATA_PUBLISHER_FINAL_NAME, this.numBranches, branchId)));
+      } else {
+        finalOutputPath = targetPath(publisherOutputDir, writerOutputDir, status.getPath());
+        if (!this.writerFileSystemByBranches.get(branchId).exists(finalOutputPath.getParent())) {
+            this.writerFileSystemByBranches.get(branchId).mkdirs(finalOutputPath.getParent());
+        }
+      }
 
       LOG.info(String.format("Moving %s to %s", status.getPath(), finalOutputPath));
       parallelRunner.movePath(status.getPath(), this.publisherFileSystemByBranches.get(branchId),
-          finalOutputPath, Optional.<String> absent());
+              finalOutputPath, Optional.<String> absent());
     }
+
   }
 
   private ParallelRunner getParallelRunner(FileSystem fs) {
