@@ -33,7 +33,7 @@ public class SingleLinkedListConfigKeyPath implements ConfigKeyPath{
   @Override
   public String getAbsolutePathString() {
     if(this.isRootPath()){
-      return "";
+      return this.getOwnPathName();
     }
     
     return this.parent.getAbsolutePathString() + "/" + this.ownName;
