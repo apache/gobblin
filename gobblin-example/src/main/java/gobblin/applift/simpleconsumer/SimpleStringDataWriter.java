@@ -2,18 +2,13 @@ package gobblin.applift.simpleconsumer;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-import org.apache.commons.lang.ArrayUtils;
-
 import com.google.common.base.Optional;
-import com.google.common.primitives.Longs;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.writer.FsDataWriter;
-import gobblin.writer.FsDataWriterBuilder;
 
 public class SimpleStringDataWriter extends FsDataWriter<String> {
   private final Optional<Byte> recordDelimiter; // optional byte to place between each record write
@@ -22,7 +17,7 @@ public class SimpleStringDataWriter extends FsDataWriter<String> {
 
   private final OutputStream stagingFileOutputStream;
 	
-	public SimpleStringDataWriter(FsDataWriterBuilder<?, String> builder, State properties) throws IOException {
+	public SimpleStringDataWriter(SimpleStringDataWriterBuilder builder, State properties) throws IOException {
 		super(builder, properties);
 		String delim;
     if ((delim = properties.getProp(ConfigurationKeys.SIMPLE_WRITER_DELIMITER, null)) == null || delim.length() == 0) {
@@ -30,7 +25,6 @@ public class SimpleStringDataWriter extends FsDataWriter<String> {
     } else {
       this.recordDelimiter = Optional.of(delim.getBytes(ConfigurationKeys.DEFAULT_CHARSET_ENCODING)[0]);
     }
-
     this.recordsWritten = 0;
     this.bytesWritten = 0;
     this.stagingFileOutputStream = createStagingFileOutputStream();
@@ -56,12 +50,11 @@ public class SimpleStringDataWriter extends FsDataWriter<String> {
 
 	@Override
 	public long recordsWritten() {
-		return this.recordsWritten();
+		return this.recordsWritten;
 	}
 
 	@Override
 	public long bytesWritten() throws IOException {
-		return this.bytesWritten();
+		return this.bytesWritten;
 	}
-
 }
