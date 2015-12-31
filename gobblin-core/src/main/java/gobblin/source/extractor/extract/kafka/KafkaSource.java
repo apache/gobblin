@@ -455,6 +455,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     private long latestOffset = 0;
 
     private void startAt(long offset) throws StartOffsetOutOfRangeException {
+    	LOG.warn("Applift: Previous offset = "+offset+", Earliest offset = "+this.earliestOffset+",Llatest offset = "+this.latestOffset);
       if (offset < this.earliestOffset || offset > this.latestOffset + 1) {
         throw new StartOffsetOutOfRangeException(
             String.format("start offset = %d, earliest offset = %d, latest offset = %d", offset, this.earliestOffset,
