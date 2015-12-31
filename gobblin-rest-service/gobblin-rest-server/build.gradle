@@ -11,6 +11,16 @@
 apply plugin: 'pegasus'
 apply plugin: 'java'
 
+repositories {
+  mavenCentral()
+  maven {
+    url "http://conjars.org/repo"
+  }
+  maven {
+    url "https://repository.cloudera.com/artifactory/cloudera-repos/"
+  }
+}
+
 ext.apiProject = project(':gobblin-rest-service:gobblin-rest-api')
 
 pegasus.main.idlOptions.addIdlItem(['gobblin.rest'])

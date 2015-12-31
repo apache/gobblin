@@ -15,13 +15,16 @@ repositories {
   maven {
     url "http://conjars.org/repo"
   }
+  maven {
+    url "https://repository.cloudera.com/artifactory/cloudera-repos/"
+  }
 }
 
 dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-core")
-	compile project(":gobblin-metrics")
-	compile project(":gobblin-utility")
+  compile project(":gobblin-metrics")
+  compile project(":gobblin-utility")
   compile externalDependency.avro
   compile externalDependency.guava
   compile externalDependency.jacksonCore
@@ -29,11 +32,12 @@ dependencies {
   compile externalDependency.gson
   compile externalDependency.commonsVfs  
   compile externalDependency.commonsLang
+  compile externalDependency.commonsCodec
   compile externalDependency.parquetCommon
-	compile externalDependency.parquetColumn
-	compile externalDependency.parquetHadoop
-	compile externalDependency.parquetAvro
-	compile externalDependency.kafka
+  compile externalDependency.parquetColumn
+  compile externalDependency.parquetHadoop
+  compile externalDependency.parquetAvro
+  compile externalDependency.kafka
   compile externalDependency.kafkaClient
   compile externalDependency.scala
   if (project.hasProperty('useHadoop2')) {

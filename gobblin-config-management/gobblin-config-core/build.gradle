@@ -10,6 +10,16 @@
 
 apply plugin: 'java'
 
+repositories {
+  mavenCentral()
+  maven {
+    url "http://conjars.org/repo"
+  }
+  maven {
+    url "https://repository.cloudera.com/artifactory/cloudera-repos/"
+  }
+}
+
 dependencies {
     compile externalDependency.slf4j
     compile externalDependency.log4j

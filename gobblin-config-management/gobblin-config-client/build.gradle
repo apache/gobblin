@@ -10,6 +10,16 @@
 
 apply plugin: 'java'
 
+repositories {
+  mavenCentral()
+  maven {
+    url "http://conjars.org/repo"
+  }
+  maven {
+    url "https://repository.cloudera.com/artifactory/cloudera-repos/"
+  }
+}
+
 dependencies {
     compile project(":gobblin-config-management:gobblin-config-core")
 
