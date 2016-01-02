@@ -4,6 +4,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.Optional;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -11,6 +14,7 @@ import gobblin.configuration.State;
 import gobblin.writer.FsDataWriter;
 
 public class SimpleStringDataWriter extends FsDataWriter<String> {
+	private static final Logger LOG = LoggerFactory.getLogger(SimpleStringDataWriter.class);
   private final Optional<Byte> recordDelimiter; // optional byte to place between each record write
   private int recordsWritten;
   private int bytesWritten;
@@ -46,6 +50,8 @@ public class SimpleStringDataWriter extends FsDataWriter<String> {
     this.stagingFileOutputStream.write(toWrite);
     this.bytesWritten += toWrite.length;
     this.recordsWritten++;
+    if(this.recordsWritten%2000==0)
+    	LOG.info("Applift: Records Written = "+this.recordsWritten);
 	}
 
 	@Override
