@@ -1,8 +1,5 @@
 package gobblin.applift.simpleconsumer;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -10,10 +7,9 @@ import com.google.gson.JsonParser;
 import gobblin.configuration.State;
 import gobblin.writer.partitioner.TimeBasedWriterPartitioner;
 
-public class TimeBasedJsonWriterPartitioner extends TimeBasedWriterPartitioner<String> {
-	private static final Logger LOG = LoggerFactory.getLogger(TimeBasedJsonWriterPartitioner.class);
+public class TimeBasedReqLogWriterPartitioner extends TimeBasedWriterPartitioner<String> {
 	
-	public TimeBasedJsonWriterPartitioner(State state, int numBranches, int branchId) {
+	public TimeBasedReqLogWriterPartitioner(State state, int numBranches, int branchId) {
 		super(state, numBranches, branchId);
 	}
 
@@ -24,7 +20,6 @@ public class TimeBasedJsonWriterPartitioner extends TimeBasedWriterPartitioner<S
 		JsonObject reqInfoObject = reqLogObject.getAsJsonObject("req_info");
 		float unixTS = Float.valueOf(reqInfoObject.get("unix_ts").toString());
 		long timestampMS = (long) (unixTS*1000);
-		LOG.info("Applift: TimeStamp = "+ timestampMS);
 		return timestampMS;
 	}
 }

@@ -8,9 +8,9 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.extract.kafka.KafkaExtractor;
 import kafka.message.MessageAndOffset;
 
-public class KafkaSimpleJsonExtractor extends KafkaExtractor<String, String>{
+public class KafkaSimpleLogExtractor extends KafkaExtractor<String, String>{
 
-	public KafkaSimpleJsonExtractor(WorkUnitState state) {
+	public KafkaSimpleLogExtractor(WorkUnitState state) {
 		super(state);
 	}
 

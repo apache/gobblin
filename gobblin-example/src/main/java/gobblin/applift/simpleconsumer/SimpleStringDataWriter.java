@@ -50,7 +50,7 @@ public class SimpleStringDataWriter extends FsDataWriter<String> {
     this.stagingFileOutputStream.write(toWrite);
     this.bytesWritten += toWrite.length;
     this.recordsWritten++;
-    if(this.recordsWritten%2000==0)
+    if(this.recordsWritten%10000==0)
     	LOG.info("Applift: Records Written = "+this.recordsWritten);
 	}
 

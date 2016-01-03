@@ -15,9 +15,9 @@ import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
 
-public class LogConverter extends Converter<Object, Object, String, String> {
+public class LogNormalizerConverter extends Converter<Object, Object, String, String> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(LogConverter.class);
+	private static final Logger LOG = LoggerFactory.getLogger(LogNormalizerConverter.class);
 	@Override
 	public Object convertSchema(Object inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
 		return inputSchema;
