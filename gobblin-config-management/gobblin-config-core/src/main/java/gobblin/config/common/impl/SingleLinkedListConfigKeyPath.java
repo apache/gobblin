@@ -4,7 +4,7 @@ import gobblin.config.store.api.ConfigKeyPath;
 
 public class SingleLinkedListConfigKeyPath implements ConfigKeyPath{
   
-  public static final SingleLinkedListConfigKeyPath ROOT = new SingleLinkedListConfigKeyPath(null, "");
+  public static final SingleLinkedListConfigKeyPath ROOT = new SingleLinkedListConfigKeyPath(null, "/");
 
   private final ConfigKeyPath parent;
   private final String ownName;
@@ -35,6 +35,10 @@ public class SingleLinkedListConfigKeyPath implements ConfigKeyPath{
     if(this.isRootPath()){
       return this.getOwnPathName();
     }
+    
+    // first level children do not need to add "/"
+    if(this.parent.isRootPath())
+      return this.parent.getAbsolutePathString() + this.ownName;
     
     return this.parent.getAbsolutePathString() + "/" + this.ownName;
   }
