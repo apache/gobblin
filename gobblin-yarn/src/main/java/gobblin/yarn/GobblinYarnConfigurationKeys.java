@@ -15,7 +15,7 @@ package gobblin.yarn;
 /**
  * A central place for configuration related constants of Gobblin on Yarn.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class GobblinYarnConfigurationKeys {
 

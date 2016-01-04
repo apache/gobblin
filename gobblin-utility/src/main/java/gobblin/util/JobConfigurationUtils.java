@@ -22,7 +22,7 @@ import gobblin.configuration.State;
 /**
  * A utility class for working with job configurations.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class JobConfigurationUtils {
 

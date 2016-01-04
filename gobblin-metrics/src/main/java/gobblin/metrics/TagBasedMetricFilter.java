@@ -24,7 +24,7 @@ import com.google.common.collect.ImmutableSet;
  * A type of {@link com.codahale.metrics.MetricFilter}s that matches {@link com.codahale.metrics.Metric}s
  * of type {@link Taggable} that have some given {@link Tag}s.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class TagBasedMetricFilter implements MetricFilter {
 

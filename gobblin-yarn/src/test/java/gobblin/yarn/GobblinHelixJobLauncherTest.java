@@ -59,7 +59,7 @@ import gobblin.util.ConfigUtils;
  *   {@link FileSystem#getLocal(Configuration)}.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = { "gobblin.yarn" })
 public class GobblinHelixJobLauncherTest {

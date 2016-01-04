@@ -17,7 +17,7 @@ package gobblin.runtime;
  * data records returned by a {@link gobblin.fork.ForkOperator}
  * is not equal to the number of declared branches.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class ForkBranchMismatchException extends Exception {
 

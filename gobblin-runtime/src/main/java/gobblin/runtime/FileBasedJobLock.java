@@ -26,7 +26,7 @@ import org.apache.hadoop.fs.Path;
  *     releasing a lock is done by deleting the empty file associated with the lock.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class FileBasedJobLock implements JobLock {
 

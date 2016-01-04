@@ -36,7 +36,7 @@ import gobblin.fork.CopyableSchema;
  * An implementation of {@link Converter} for tests related to the
  * {@link gobblin.fork.ForkOperator}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @SuppressWarnings("unused")
 public class TestConverter2 extends Converter<String, CopyableSchema, String, CopyableGenericRecord> {

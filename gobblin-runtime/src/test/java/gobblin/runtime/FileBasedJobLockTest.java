@@ -36,7 +36,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test for {@link FileBasedJobLock}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = {"gobblin.runtime"})
 public class FileBasedJobLockTest {

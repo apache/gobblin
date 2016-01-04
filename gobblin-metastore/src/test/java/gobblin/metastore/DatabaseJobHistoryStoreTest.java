@@ -58,7 +58,7 @@ import gobblin.configuration.ConfigurationKeys;
 /**
  * Unit tests for {@link DatabaseJobHistoryStore}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = {"gobblin.metastore"})
 public class DatabaseJobHistoryStoreTest {

@@ -39,7 +39,7 @@ import gobblin.util.ExecutorsUtils;
  *   refills are not supported in this implementation.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class TimeBasedLimiter extends NonRefillableLimiter {
 

@@ -39,7 +39,7 @@ import gobblin.yarn.GobblinYarnAppLauncher;
  *   application on Yarn.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 @SuppressWarnings("unused")
 public class AzkabanGobblinYarnAppLauncher extends AbstractJob {

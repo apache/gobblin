@@ -51,7 +51,7 @@ import gobblin.metastore.FsStateStore;
  *   backward compatibility.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> {
 

@@ -35,7 +35,7 @@ import gobblin.converter.SingleRecordIterable;
 /**
  * An implementation of {@link Converter} that applies a given list of {@link Converter}s in the given order.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @SuppressWarnings("unchecked")
 public class MultiConverter extends Converter<Object, Object, Object, Object> {

@@ -45,7 +45,7 @@ import gobblin.util.SchedulerUtils;
  *   to existing configuration files at runtime to this class.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class JobConfigurationManager extends AbstractIdleService {
 

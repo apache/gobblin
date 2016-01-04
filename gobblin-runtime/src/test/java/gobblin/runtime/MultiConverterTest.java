@@ -37,7 +37,7 @@ import gobblin.test.TestConverter;
 /**
  * Unit tests for {@link MultiConverter}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = { "gobblin.runtime" })
 public class MultiConverterTest {

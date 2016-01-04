@@ -80,7 +80,7 @@ import gobblin.util.SchedulerUtils;
  *     {@link org.quartz.Trigger} for the job.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class JobScheduler extends AbstractIdleService {
 

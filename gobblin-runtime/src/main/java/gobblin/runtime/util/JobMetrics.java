@@ -28,7 +28,7 @@ import gobblin.util.ClustersNames;
 /**
  * An extension to {@link GobblinMetrics} specifically for job runs.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class JobMetrics extends GobblinMetrics {
 

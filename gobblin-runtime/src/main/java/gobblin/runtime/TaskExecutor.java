@@ -37,7 +37,7 @@ import gobblin.util.ExecutorsUtils;
 /**
  * A class for executing {@link Task}s and retrying failed ones as well as for executing {@link Fork}s.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class TaskExecutor extends AbstractIdleService {
 

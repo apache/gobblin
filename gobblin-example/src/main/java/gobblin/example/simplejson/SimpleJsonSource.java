@@ -35,7 +35,7 @@ import gobblin.source.workunit.WorkUnit;
  *   for each file to pull and uses the {@link SimpleJsonExtractor} to pull the data.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 @SuppressWarnings("unused")
 public class SimpleJsonSource implements Source<String, String> {

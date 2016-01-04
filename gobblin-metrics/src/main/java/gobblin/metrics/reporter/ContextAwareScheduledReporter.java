@@ -32,7 +32,7 @@ import gobblin.metrics.MetricContext;
  * A custom {@link com.codahale.metrics.ScheduledReporter} that is aware of the
  * {@link gobblin.metrics.MetricContext} it is associated to.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public abstract class ContextAwareScheduledReporter extends ScheduledReporter {
 

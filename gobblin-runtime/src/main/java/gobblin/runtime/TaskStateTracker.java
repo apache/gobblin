@@ -18,7 +18,7 @@ import com.google.common.util.concurrent.Service;
 /**
  * An interface for classes that track {@link TaskState}s.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public interface TaskStateTracker extends Service {
 

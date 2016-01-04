@@ -47,7 +47,7 @@ import gobblin.util.JobLauncherUtils;
  * An implementation of {@link gobblin.runtime.JobLauncher} for launching and running jobs
  * locally on a single node.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class LocalJobLauncher extends AbstractJobLauncher {
 

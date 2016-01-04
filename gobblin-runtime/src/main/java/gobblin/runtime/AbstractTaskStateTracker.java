@@ -33,7 +33,7 @@ import gobblin.util.ExecutorsUtils;
  * An abstract implementation of {@link TaskStateTracker} that provides basic common functionality for
  * platform-specific implementations.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public abstract class AbstractTaskStateTracker extends AbstractIdleService implements TaskStateTracker {
 

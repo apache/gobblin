@@ -63,7 +63,7 @@ import gobblin.rest.TimeRange;
  *     The DDLs for the MySQL job history store can be found under metastore/src/main/resources.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class DatabaseJobHistoryStore implements JobHistoryStore {
 
@@ -784,7 +784,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
 
     return sb.toString();
   }
-  
+
   private static Calendar getCalendarUTCInstance() {
     return Calendar.getInstance(TimeZone.getTimeZone("UTC"));
   }

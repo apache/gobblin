@@ -57,7 +57,7 @@ import gobblin.metastore.MetaStoreModule;
  *     those classes.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = { "gobblin.rest" })
 public class JobExecutionInfoServerTest {

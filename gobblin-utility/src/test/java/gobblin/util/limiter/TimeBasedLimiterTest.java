@@ -26,7 +26,7 @@ import gobblin.util.limiter.TimeBasedLimiter;
 /**
  * Unit tests for {@link TimeBasedLimiter}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = { "gobblin.util.limiter" })
 public class TimeBasedLimiterTest {

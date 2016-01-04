@@ -72,7 +72,7 @@ import gobblin.util.SerializationUtils;
  *   containers and is managed by the {@link GobblinWorkUnitRunner}.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 

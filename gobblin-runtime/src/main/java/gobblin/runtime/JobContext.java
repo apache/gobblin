@@ -50,7 +50,7 @@ import gobblin.util.JobLauncherUtils;
 /**
  * A class carrying context information of a Gobblin job.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class JobContext {
 

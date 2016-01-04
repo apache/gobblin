@@ -21,7 +21,7 @@ import gobblin.configuration.State;
 /**
  * An enumeration of policies on how output data of jobs/tasks should be committed.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public enum JobCommitPolicy {
 

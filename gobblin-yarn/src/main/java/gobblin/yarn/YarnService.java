@@ -80,7 +80,7 @@ import gobblin.yarn.event.NewContainerRequest;
  * This class is responsible for all Yarn-related stuffs including ApplicationMaster registration,
  * ApplicationMaster un-registration, Yarn container management, etc.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class YarnService extends AbstractIdleService {
 

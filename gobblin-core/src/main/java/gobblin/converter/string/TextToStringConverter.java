@@ -24,7 +24,7 @@ import gobblin.converter.SingleRecordIterable;
 /**
  * An implementation of {@link Converter} that converts input records of type {@link Text} to strings.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @SuppressWarnings("unused")
 public class TextToStringConverter extends Converter<Object, Object, Text, String> {

@@ -43,7 +43,7 @@ import gobblin.metastore.MetaStoreModule;
 /**
  * A server running the Rest.li resource for job execution queries.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class JobExecutionInfoServer extends AbstractIdleService {
 

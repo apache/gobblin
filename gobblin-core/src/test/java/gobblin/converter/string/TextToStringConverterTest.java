@@ -25,7 +25,7 @@ import gobblin.converter.DataConversionException;
 /**
  * Unit tests for {@link TextToStringConverter}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = { "gobblin.converter.string" })
 public class TextToStringConverterTest {

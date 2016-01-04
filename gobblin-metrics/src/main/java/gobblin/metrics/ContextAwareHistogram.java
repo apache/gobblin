@@ -34,7 +34,7 @@ import gobblin.metrics.metric.InnerMetric;
  *   {@link com.codahale.metrics.Histogram} to the wrapped {@link com.codahale.metrics.Histogram}.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 class ContextAwareHistogram extends Histogram implements ContextAwareMetric {
 

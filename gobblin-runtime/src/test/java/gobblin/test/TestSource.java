@@ -32,7 +32,7 @@ import gobblin.source.workunit.WorkUnit;
 /**
  * An implementation of {@link Source} for integration test.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class TestSource extends AbstractSource<String, String> {
 

@@ -42,7 +42,7 @@ import gobblin.configuration.ConfigurationKeys;
  *   </ul>
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class BoundedBlockingRecordQueue<T> {
 

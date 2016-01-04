@@ -23,7 +23,7 @@ import gobblin.rest.JobExecutionQuery;
 /**
  * An interface for stores that store job execution information.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public interface JobHistoryStore extends Closeable {
 

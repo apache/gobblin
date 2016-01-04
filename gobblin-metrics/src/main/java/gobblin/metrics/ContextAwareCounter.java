@@ -33,7 +33,7 @@ import gobblin.metrics.metric.InnerMetric;
  *   {@link com.codahale.metrics.Counter} to the wrapped {@link com.codahale.metrics.Counter}.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 class ContextAwareCounter extends Counter implements ProxyMetric, ContextAwareMetric {
 

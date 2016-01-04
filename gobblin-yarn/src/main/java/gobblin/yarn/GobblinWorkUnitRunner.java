@@ -102,7 +102,8 @@ import gobblin.yarn.event.DelegationTokenUpdatedEvent;
  *   If for some reason, the container exits or gets killed, the {@link GobblinApplicationMaster} will
  *   be notified for the completion of the container and will start a new container to replace this one.
  * </p>
- * @author ynli
+ *
+ * @author Yinan Li
  */
 public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
 

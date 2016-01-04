@@ -33,7 +33,7 @@ import gobblin.util.logs.LogCopier;
  *   be copied to a given destination {@link FileSystem}, which is typically HDFS.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 class GobblinYarnLogSource {
 

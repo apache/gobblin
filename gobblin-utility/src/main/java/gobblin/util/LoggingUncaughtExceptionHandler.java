@@ -21,7 +21,7 @@ import com.google.common.base.Optional;
 /**
  * A type of {@link java.lang.Thread.UncaughtExceptionHandler} that logs uncaught exceptions.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class LoggingUncaughtExceptionHandler implements Thread.UncaughtExceptionHandler {
 

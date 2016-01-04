@@ -75,7 +75,7 @@ import gobblin.util.ExecutorsUtils;
  *   of itself when constructing the metric name prefix.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class MetricContext extends MetricRegistry implements ReportableContext, Closeable {
 

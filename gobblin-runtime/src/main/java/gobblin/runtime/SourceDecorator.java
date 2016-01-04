@@ -32,7 +32,7 @@ import gobblin.util.DecoratorUtils;
  * A decorator class for {@link gobblin.source.Source} that catches any
  * possible exceptions/errors thrown by the {@link gobblin.source.Source}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class SourceDecorator<S, D> implements Source<S, D>, Decorator {
 

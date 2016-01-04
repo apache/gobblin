@@ -125,7 +125,7 @@ import gobblin.yarn.event.GetApplicationReportFailureEvent;
  *   this count exceeds the maximum number allowed, it will initiate a shutdown.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class GobblinYarnAppLauncher {
 

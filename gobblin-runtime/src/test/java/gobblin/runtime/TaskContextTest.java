@@ -31,7 +31,7 @@ import gobblin.util.JobLauncherUtils;
 /**
  * Unit tests for {@link TaskContext}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = {"gobblin.runtime"})
 public class TaskContextTest {

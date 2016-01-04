@@ -48,7 +48,7 @@ import gobblin.util.TimeRangeChecker;
  *   using {@link ConfigurationKeys#JOB_LAUNCHER_TYPE_KEY}.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class AzkabanJobLauncher extends AbstractJob {
 

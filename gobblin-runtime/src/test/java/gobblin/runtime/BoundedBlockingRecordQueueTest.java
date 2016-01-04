@@ -29,7 +29,7 @@ import com.google.common.collect.Lists;
 /**
  * Unit tests for {@link BoundedBlockingRecordQueue}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = {"gobblin.runtime"})
 public class BoundedBlockingRecordQueueTest {
