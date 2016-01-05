@@ -2,22 +2,26 @@ package gobblin.config.common.impl;
 
 import gobblin.config.store.api.ConfigKeyPath;
 
-public class SingleLinkedListConfigKeyPath implements ConfigKeyPath{
-  
+
+public class SingleLinkedListConfigKeyPath implements ConfigKeyPath {
+
   public static final String PATH_DELIMETER = "/";
   public static final SingleLinkedListConfigKeyPath ROOT = new SingleLinkedListConfigKeyPath(null, "");
 
   private final ConfigKeyPath parent;
   private final String ownName;
-  
+
   // constructor private, can only create path from ROOT using createChild method
-  private SingleLinkedListConfigKeyPath(ConfigKeyPath parent, String name){
+  private SingleLinkedListConfigKeyPath(ConfigKeyPath parent, String name) {
     this.parent = parent;
     this.ownName = name;
   }
-  
+
   @Override
   public ConfigKeyPath getParent() {
+    if (this.isRootPath())
+      throw new UnsupportedOperationException("Can not getParent from Root");
+
     return this.parent;
   }
 
@@ -33,14 +37,14 @@ public class SingleLinkedListConfigKeyPath implements ConfigKeyPath{
 
   @Override
   public String getAbsolutePathString() {
-    if(this.isRootPath()){
+    if (this.isRootPath()) {
       return this.getOwnPathName() + PATH_DELIMETER;
     }
-    
+
     // first level children do not need to add "/"
-    if(this.parent.isRootPath())
+    if (this.parent.isRootPath())
       return this.parent.getAbsolutePathString() + this.ownName;
-    
+
     return this.parent.getAbsolutePathString() + PATH_DELIMETER + this.ownName;
   }
 
@@ -48,10 +52,40 @@ public class SingleLinkedListConfigKeyPath implements ConfigKeyPath{
   public boolean isRootPath() {
     return this == ROOT;
   }
-  
+
   @Override
-  public String toString(){
+  public String toString() {
     return this.getAbsolutePathString();
   }
 
+  @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = 1;
+    result = prime * result + ((ownName == null) ? 0 : ownName.hashCode());
+    result = prime * result + ((parent == null) ? 0 : parent.hashCode());
+    return result;
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj)
+      return true;
+    if (obj == null)
+      return false;
+    if (getClass() != obj.getClass())
+      return false;
+    SingleLinkedListConfigKeyPath other = (SingleLinkedListConfigKeyPath) obj;
+    if (ownName == null) {
+      if (other.ownName != null)
+        return false;
+    } else if (!ownName.equals(other.ownName))
+      return false;
+    if (parent == null) {
+      if (other.parent != null)
+        return false;
+    } else if (!parent.equals(other.parent))
+      return false;
+    return true;
+  }
 }
