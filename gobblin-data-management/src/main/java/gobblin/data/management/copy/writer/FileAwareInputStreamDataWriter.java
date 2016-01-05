@@ -14,9 +14,12 @@ package gobblin.data.management.copy.writer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.data.management.copy.CopySource;
+import gobblin.data.management.copy.CopyableDatasetMetadata;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.data.management.copy.OwnerAndPermission;
+import gobblin.data.management.copy.PreserveAttributes;
 import gobblin.util.PathUtils;
 import gobblin.util.FileListUtils;
 import gobblin.util.ForkOperatorUtils;
@@ -33,7 +36,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -42,6 +44,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 
+import com.google.common.base.Strings;
 import com.google.common.io.Closer;
 
 
@@ -58,6 +61,7 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
   protected final Path stagingDir;
   protected final Path outputDir;
   protected final Closer closer = Closer.create();
+  protected CopyableDatasetMetadata copyableDatasetMetadata;
 
   public FileAwareInputStreamDataWriter(State state, int numBranches, int branchId) throws IOException {
     this.state = state;
@@ -72,16 +76,24 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
     this.outputDir =
         new Path(state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR,
             numBranches, branchId)));
+    this.copyableDatasetMetadata =
+        CopyableDatasetMetadata.deserialize(state.getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
   }
 
   @Override
   public void write(FileAwareInputStream fileAwareInputStream) throws IOException {
     fileAwareInputStream.getInputStream();
     Path stagingFile = getStagingFilePath(fileAwareInputStream.getFile());
-    this.fs.mkdirs(stagingFile.getParent(), fileAwareInputStream.getFile().getDestinationOwnerAndPermission()
-        .getFsPermission());
+    CopyableFile copyableFile = fileAwareInputStream.getFile();
 
-    FSDataOutputStream os = this.fs.create(stagingFile, true);
+    this.fs.mkdirs(stagingFile.getParent());
+
+    short replication = copyableFile.getPreserve().preserve(PreserveAttributes.Option.REPLICATION) ?
+        copyableFile.getOrigin().getReplication() : fs.getDefaultReplication(stagingFile);
+    long blockSize = copyableFile.getPreserve().preserve(PreserveAttributes.Option.BLOCK_SIZE) ?
+        copyableFile.getOrigin().getBlockSize() : fs.getDefaultBlockSize(stagingFile);
+    FSDataOutputStream os = this.fs.create(stagingFile, true, fs.getConf().getInt("io.file.buffer.size", 4096),
+        replication, blockSize);
     try {
       this.bytesWritten.addAndGet(StreamUtils.copy(fileAwareInputStream.getInputStream(), os));
       log.info("bytes written: " + this.bytesWritten.get() + " for file " + fileAwareInputStream.getFile());
@@ -108,7 +120,10 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
   }
 
   protected Path getStagingFilePath(CopyableFile file) {
-    return new Path(this.stagingDir, PathUtils.withoutLeadingSeparator(file.getDestination()));
+    CopyableFile.DatasetAndPartition datasetAndPartition =
+        file.getDatasetAndPartition(this.copyableDatasetMetadata);
+    return new Path(new Path(this.stagingDir, datasetAndPartition.identifier()),
+        PathUtils.withoutLeadingSeparator(file.getDestination()));
   }
 
   protected Path getOutputFilePath(CopyableFile file) {
@@ -132,23 +147,36 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
             file.getAncestorsOwnerAndPermission().size()));
         break;
       }
-      setPathPermission(parentPath, ownerAndPermission);
+      safeSetPathPermission(parentPath, ownerAndPermission);
       parentPath = parentPath.getParent();
     }
   }
 
   /**
-   * Sets the {@link FsPermission}, owner, group for the path passed.
+   * Sets the {@link FsPermission}, owner, group for the path passed. It will not throw exceptions, if operations
+   * cannot be executed, will warn and continue.
    */
-  private void setPathPermission(Path path, OwnerAndPermission ownerAndPermission) throws IOException {
+  private void safeSetPathPermission(Path path, OwnerAndPermission ownerAndPermission) {
 
-    this.fs.setPermission(path, ownerAndPermission.getFsPermission());
-
-    if (StringUtils.isNotBlank(ownerAndPermission.getGroup()) && StringUtils.isNotBlank(ownerAndPermission.getOwner())) {
-      this.fs.setOwner(path, ownerAndPermission.getOwner(), ownerAndPermission.getGroup());
-    } else {
-      log.info("Owner and group will not be set as no valid user and group available for " + path);
+    try {
+      if (ownerAndPermission.getFsPermission() != null) {
+        fs.setPermission(path, ownerAndPermission.getFsPermission());
+      }
+    } catch (IOException ioe) {
+      log.warn("Failed to set permission for directory " + path, ioe);
     }
+
+    String owner = Strings.isNullOrEmpty(ownerAndPermission.getOwner()) ? null : ownerAndPermission.getOwner();
+    String group = Strings.isNullOrEmpty(ownerAndPermission.getGroup()) ? null : ownerAndPermission.getGroup();
+
+    try {
+      if (owner != null || group != null) {
+        this.fs.setOwner(path, owner, group);
+      }
+    } catch (IOException ioe) {
+      log.warn("Failed to set owner and/or group for path " + path, ioe);
+    }
+
   }
 
   /**
@@ -162,7 +190,7 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
     Collections.reverse(files);
 
     for (FileStatus file : files) {
-      setPathPermission(file.getPath(), addExecutePermissionsIfRequired(file, ownerAndPermission));
+      safeSetPathPermission(file.getPath(), addExecutePermissionsIfRequired(file, ownerAndPermission));
     }
   }
 
@@ -171,6 +199,10 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
    * directory. The publisher needs it to publish it to the final directory and list files under this directory.
    */
   private OwnerAndPermission addExecutePermissionsIfRequired(FileStatus file, OwnerAndPermission ownerAndPermission) {
+
+    if (ownerAndPermission.getFsPermission() == null) {
+      return ownerAndPermission;
+    }
 
     if (!file.isDir()) {
       return ownerAndPermission;

@@ -12,10 +12,9 @@
 
 package gobblin.metrics.reporter;
 
-import lombok.extern.slf4j.Slf4j;
-
 import java.io.IOException;
 import java.util.Map;
+import java.util.Properties;
 import java.util.SortedMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -32,10 +31,14 @@ import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.Timer;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
+
+import lombok.extern.slf4j.Slf4j;
 
 import gobblin.metrics.InnerMetricContext;
 import gobblin.metrics.context.ReportableContext;
@@ -49,8 +52,7 @@ import gobblin.util.ExecutorsUtils;
 public abstract class ScheduledReporter extends ContextAwareReporter {
 
   /**
-   * Interval at which metrics are reported.
-   * Format: hours, minutes, seconds. Examples: 1h, 1m, 10s, 1h30m, 2m30s, ...
+   * Interval at which metrics are reported. Format: hours, minutes, seconds. Examples: 1h, 1m, 10s, 1h30m, 2m30s, ...
    */
   public static final String REPORTING_INTERVAL = "reporting.interval";
   public static final String DEFAULT_REPORTING_INTERVAL_PERIOD = "1M";
@@ -61,12 +63,20 @@ public abstract class ScheduledReporter extends ContextAwareReporter {
       appendSeconds().appendSuffix("S").toFormatter();
 
   @VisibleForTesting
-  public static int parsePeriodToSeconds(String periodStr) {
+  static int parsePeriodToSeconds(String periodStr) {
     try {
       return Period.parse(periodStr.toUpperCase(), PERIOD_FORMATTER).toStandardSeconds().getSeconds();
     } catch(ArithmeticException ae) {
       throw new RuntimeException(String.format("Reporting interval is too long. Max: %d seconds.", Integer.MAX_VALUE));
     }
+  }
+
+  public static void setReportingInterval(Properties props, long reportingInterval, TimeUnit reportingIntervalUnit) {
+    long seconds = TimeUnit.SECONDS.convert(reportingInterval, reportingIntervalUnit);
+    if (seconds > Integer.MAX_VALUE) {
+      throw new RuntimeException(String.format("Reporting interval is too long. Max: %d seconds.", Integer.MAX_VALUE));
+    }
+    props.setProperty(REPORTING_INTERVAL, Long.toString(seconds) + "S");
   }
 
   public static Config setReportingInterval(Config config, long reportingInterval, TimeUnit reportingIntervalUnit) {
@@ -89,7 +99,8 @@ public abstract class ScheduledReporter extends ContextAwareReporter {
         config.hasPath(REPORTING_INTERVAL) ? config.getString(REPORTING_INTERVAL) : DEFAULT_REPORTING_INTERVAL_PERIOD);
   }
 
-  @Override public void startImpl() {
+  @Override
+  public void startImpl() {
     this.scheduledTask = Optional.<ScheduledFuture>of(this.executor.scheduleAtFixedRate(new Runnable() {
       @Override public void run() {
         report();
@@ -97,34 +108,24 @@ public abstract class ScheduledReporter extends ContextAwareReporter {
     }, 0, this.reportingPeriodSeconds, TimeUnit.SECONDS));
   }
 
-  @Override public void stopImpl() {
+  @Override
+  public void stopImpl() {
+    // Report metrics before stopping - this ensures any metrics values updated between intervals are reported
+    report(true);
     this.scheduledTask.get().cancel(false);
     this.scheduledTask = Optional.absent();
   }
 
-  @Override public void close() throws IOException {
-    this.executor.shutdown();
-    try {
-      // Wait a while for existing tasks to terminate
-      if (!this.executor.awaitTermination(10, TimeUnit.SECONDS)) {
-        this.executor.shutdownNow(); // Cancel currently executing tasks
-        // Wait a while for tasks to respond to being cancelled
-        if (!this.executor.awaitTermination(10, TimeUnit.SECONDS)) {
-          System.err.println(getClass().getSimpleName() + ": ScheduledExecutorService did not terminate");
-        }
-      }
-    } catch (InterruptedException ie) {
-      // (Re-)Cancel if current thread also interrupted
-      this.executor.shutdownNow();
-      // Preserve interrupt status
-      Thread.currentThread().interrupt();
-    }
+  @Override
+  public void close() throws IOException {
+    ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(log), 10, TimeUnit.SECONDS);
     super.close();
   }
 
-  @Override protected void removedMetricContext(InnerMetricContext context) {
-    if(shouldReportInnerMetricContext(context)) {
-      report(context);
+  @Override
+  protected void removedMetricContext(InnerMetricContext context) {
+    if (shouldReportInnerMetricContext(context)) {
+      report(context, true);
     }
     super.removedMetricContext(context);
   }
@@ -133,25 +134,68 @@ public abstract class ScheduledReporter extends ContextAwareReporter {
    * Trigger emission of a report.
    */
   public void report() {
-    for(ReportableContext metricContext : getMetricContextsToReport()) {
-      report(metricContext);
+    report(false);
+  }
+
+  /***
+   * @param isFinal true if this is the final time report will be called for this reporter, false otherwise
+   * @see {@link #report()}
+   */
+  protected void report(boolean isFinal) {
+    for (ReportableContext metricContext : getMetricContextsToReport()) {
+      report(metricContext, isFinal);
     }
   }
 
   /**
    * Report as {@link InnerMetricContext}.
+   *
+   * <p>
+   *   This method is marked as final because it is not directly invoked from the framework, so this method should not
+   *   be overloaded. Overload {@link #report(ReportableContext, boolean)} instead.
+   * </p>
+   *
    * @param context {@link InnerMetricContext} to report.
+   * @see {@link #report(ReportableContext, boolean)}
    */
-  protected void report(ReportableContext context) {
+  protected final void report(ReportableContext context) {
+    report(context, false);
+  }
+
+  /**
+   * @param context {@link InnerMetricContext} to report.
+   * @param isFinal true if this is the final time report will be called for the given context, false otherwise
+   * @see {@link #report(ReportableContext)}
+   */
+  protected void report(ReportableContext context, boolean isFinal) {
     report(context.getGauges(MetricFilter.ALL), context.getCounters(MetricFilter.ALL),
         context.getHistograms(MetricFilter.ALL), context.getMeters(MetricFilter.ALL),
-        context.getTimers(MetricFilter.ALL), context.getTagMap());
+        context.getTimers(MetricFilter.ALL), context.getTagMap(), isFinal);
   }
 
   /**
    * Report the input metrics. The input tags apply to all input metrics.
+   *
+   * <p>
+   *   The default implementation of this method is to ignore the value of isFinal. Sub-classes that are interested in
+   *   using the value of isFinal should override this method as well as
+   *    {@link #report(SortedMap, SortedMap, SortedMap, SortedMap, SortedMap, Map)}. If they are not interested in the
+   *    value of isFinal, they should just override
+   *    {@link #report(SortedMap, SortedMap, SortedMap, SortedMap, SortedMap, Map)}.
+   * </p>
+   *
+   * @param isFinal true if this is the final time report will be called, false otherwise
    */
-  public abstract void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters,
+  protected void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters,
+      SortedMap<String, Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers,
+      Map<String, Object> tags, boolean isFinal) {
+    report(gauges, counters, histograms, meters, timers, tags);
+  }
+
+  /**
+   * @see {@link #report(SortedMap, SortedMap, SortedMap, SortedMap, SortedMap, Map)}
+   */
+  protected abstract void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters,
       SortedMap<String, Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers,
       Map<String, Object> tags);
 }

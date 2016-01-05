@@ -12,6 +12,7 @@
 
 package gobblin.yarn;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,7 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -33,6 +35,7 @@ import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.util.ConverterUtils;
+
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
@@ -45,6 +48,7 @@ import org.apache.helix.messaging.handling.MessageHandlerFactory;
 import org.apache.helix.model.Message;
 import org.apache.helix.task.TaskFactory;
 import org.apache.helix.task.TaskStateModelFactory;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,8 +76,11 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskStateTracker;
+import gobblin.util.ConfigUtils;
+import gobblin.util.HadoopUtils;
 import gobblin.yarn.event.DelegationTokenUpdatedEvent;
 
 
@@ -106,6 +113,10 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
 
   static final String GOBBLIN_TASK_FACTORY_NAME = "GobblinTaskFactory";
 
+  private final String helixInstanceName;
+
+  private final Config config;
+
   private final ContainerId containerId;
 
   private final HelixManager helixManager;
@@ -116,6 +127,8 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
 
   private final TaskStateModelFactory taskStateModelFactory;
 
+  private final Optional<ContainerMetrics> containerMetrics;
+
   private final MetricRegistry metricRegistry;
 
   private final JmxReporter jmxReporter;
@@ -123,31 +136,32 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
   private volatile boolean stopInProgress = false;
   private volatile boolean isStopped = false;
 
-  public GobblinWorkUnitRunner(String applicationName, ContainerId containerId, Config config,
+  public GobblinWorkUnitRunner(String applicationName, String helixInstanceName, ContainerId containerId, Config config,
       Optional<Path> appWorkDirOptional) throws Exception {
+    this.helixInstanceName = helixInstanceName;
+    this.config = config;
     this.containerId = containerId;
+
     ApplicationAttemptId applicationAttemptId = this.containerId.getApplicationAttemptId();
     String applicationId = applicationAttemptId.getApplicationId().toString();
 
-    FileSystem fs = config.hasPath(ConfigurationKeys.FS_URI_KEY) ?
-        FileSystem.get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), new Configuration()) :
-        FileSystem.get(new Configuration());
+    Configuration conf = HadoopUtils.newConfiguration();
+    FileSystem fs = buildFileSystem(this.config, conf);
 
     String zkConnectionString = config.getString(GobblinYarnConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     LOGGER.info("Using ZooKeeper connection string: " + zkConnectionString);
 
-    String helixInstanceName = YarnHelixUtils.getHelixInstanceName(YarnHelixUtils.getHostname(), this.containerId);
-    this.helixManager = HelixManagerFactory.getZKHelixManager(
-        config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY), helixInstanceName,
-        InstanceType.PARTICIPANT, zkConnectionString);
+    this.helixManager = HelixManagerFactory
+        .getZKHelixManager(config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY), helixInstanceName,
+            InstanceType.PARTICIPANT, zkConnectionString);
 
-    Properties properties = YarnHelixUtils.configToProperties(config);
+    Properties properties = ConfigUtils.configToProperties(config);
 
     TaskExecutor taskExecutor = new TaskExecutor(properties);
     TaskStateTracker taskStateTracker = new GobblinHelixTaskStateTracker(properties, this.helixManager);
 
-    Path appWorkDir = appWorkDirOptional.isPresent() ?
-        appWorkDirOptional.get() : YarnHelixUtils.getAppWorkDirPath(fs, applicationName, applicationId);
+    Path appWorkDir = appWorkDirOptional.isPresent() ? appWorkDirOptional.get() :
+        YarnHelixUtils.getAppWorkDirPath(fs, applicationName, applicationId);
 
     List<Service> services = Lists.newArrayList();
     if (isLogSourcePresent()) {
@@ -162,26 +176,25 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
 
     this.serviceManager = new ServiceManager(services);
 
+    this.containerMetrics = buildContainerMetrics(this.config, properties, applicationName, containerId);
+
     // Register task factory for the Helix task state model
     Map<String, TaskFactory> taskFactoryMap = Maps.newHashMap();
     taskFactoryMap.put(GOBBLIN_TASK_FACTORY_NAME,
-        new GobblinHelixTaskFactory(taskExecutor, taskStateTracker, fs, appWorkDir));
+        new GobblinHelixTaskFactory(this.containerMetrics, taskExecutor, taskStateTracker, fs, appWorkDir));
     this.taskStateModelFactory = new TaskStateModelFactory(this.helixManager, taskFactoryMap);
     this.helixManager.getStateMachineEngine().registerStateModelFactory("Task", this.taskStateModelFactory);
 
     this.metricRegistry = new MetricRegistry();
-    this.jmxReporter = JmxReporter.forRegistry(this.metricRegistry)
-        .convertRatesTo(TimeUnit.SECONDS)
-        .convertDurationsTo(TimeUnit.MILLISECONDS)
-        .build();
+    this.jmxReporter = JmxReporter.forRegistry(this.metricRegistry).convertRatesTo(TimeUnit.SECONDS)
+        .convertDurationsTo(TimeUnit.MILLISECONDS).build();
   }
 
   /**
    * Start this {@link GobblinWorkUnitRunner} instance.
    */
   public void start() {
-    LOGGER.info(String.format("Starting %s in container %s",
-        GobblinWorkUnitRunner.class.getSimpleName(), this.containerId));
+    LOGGER.info(String.format("Starting %s in container %s", this.helixInstanceName, this.containerId));
 
     // Add a shutdown hook so the task scheduler gets properly shutdown
     addShutdownHook();
@@ -190,8 +203,13 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
 
     // Register JVM metrics to collect and report
     registerJvmMetrics();
+
     // Start metric reporting
     this.jmxReporter.start();
+    if (this.containerMetrics.isPresent()) {
+      this.containerMetrics.get()
+          .startMetricReportingWithFileSuffix(ConfigUtils.configToState(this.config), this.containerId.toString());
+    }
 
     this.serviceManager.startAsync();
     this.serviceManager.awaitStopped();
@@ -206,10 +224,13 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
 
     LOGGER.info("Stopping the Gobblin Yarn WorkUnit runner");
 
-    try {
-      // Stop metric reporting
-      this.jmxReporter.stop();
+    // Stop metric reporting
+    this.jmxReporter.stop();
+    if (this.containerMetrics.isPresent()) {
+      this.containerMetrics.get().stopMetricsReporting();
+    }
 
+    try {
       // Give the services 5 minutes to stop to ensure that we are responsive to shutdown requests
       this.serviceManager.stopAsync().awaitStopped(5, TimeUnit.MINUTES);
     } catch (TimeoutException te) {
@@ -232,10 +253,11 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
   void connectHelixManager() {
     try {
       this.helixManager.connect();
-      this.helixManager.getMessagingService().registerMessageHandlerFactory(
-          Message.MessageType.SHUTDOWN.toString(), new ParticipantShutdownMessageHandlerFactory());
-      this.helixManager.getMessagingService().registerMessageHandlerFactory(
-          Message.MessageType.USER_DEFINE_MSG.toString(), new ParticipantUserDefinedMessageHandlerFactory());
+      this.helixManager.getMessagingService().registerMessageHandlerFactory(Message.MessageType.SHUTDOWN.toString(),
+          new ParticipantShutdownMessageHandlerFactory());
+      this.helixManager.getMessagingService()
+          .registerMessageHandlerFactory(Message.MessageType.USER_DEFINE_MSG.toString(),
+              new ParticipantUserDefinedMessageHandlerFactory());
     } catch (Exception e) {
       LOGGER.error("HelixManager failed to connect", e);
       throw Throwables.propagate(e);
@@ -273,6 +295,21 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
     }
   }
 
+  private FileSystem buildFileSystem(Config config, Configuration conf) throws IOException {
+    return config.hasPath(ConfigurationKeys.FS_URI_KEY) ?
+        FileSystem.get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), conf) :
+        FileSystem.get(conf);
+  }
+
+  private Optional<ContainerMetrics> buildContainerMetrics(Config config, Properties properties, String applicationName,
+      ContainerId containerId) {
+    if (GobblinMetrics.isEnabled(properties)) {
+      return Optional.of(ContainerMetrics.get(ConfigUtils.configToState(config), applicationName, containerId));
+    } else {
+      return Optional.absent();
+    }
+  }
+
   /**
    * A custom {@link MessageHandlerFactory} for {@link ParticipantShutdownMessageHandler}s that handle messages
    * of type {@link org.apache.helix.model.Message.MessageType#SHUTDOWN} for shutting down the participants.
@@ -307,9 +344,10 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
       @Override
       public HelixTaskResult handleMessage() throws InterruptedException {
         String messageSubType = this._message.getMsgSubType();
-        Preconditions.checkArgument(
-            messageSubType.equalsIgnoreCase(HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString()),
-            String.format("Unknown %s message subtype: %s", Message.MessageType.SHUTDOWN.toString(), messageSubType));
+        Preconditions
+            .checkArgument(messageSubType.equalsIgnoreCase(HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString()),
+                String
+                    .format("Unknown %s message subtype: %s", Message.MessageType.SHUTDOWN.toString(), messageSubType));
 
         HelixTaskResult result = new HelixTaskResult();
 
@@ -405,8 +443,8 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
           return helixTaskResult;
         }
 
-        throw new IllegalArgumentException(String.format("Unknown %s message subtype: %s",
-            Message.MessageType.USER_DEFINE_MSG.toString(), messageSubType));
+        throw new IllegalArgumentException(String
+            .format("Unknown %s message subtype: %s", Message.MessageType.USER_DEFINE_MSG.toString(), messageSubType));
       }
 
       @Override
@@ -420,6 +458,7 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
   private static Options buildOptions() {
     Options options = new Options();
     options.addOption("a", GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME, true, "Yarn application name");
+    options.addOption("i", GobblinYarnConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME, true, "Helix instance name");
     return options;
   }
 
@@ -432,19 +471,23 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
     Options options = buildOptions();
     try {
       CommandLine cmd = new DefaultParser().parse(options, args);
-      if (!cmd.hasOption(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME)) {
+      if (!cmd.hasOption(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME) || !cmd
+          .hasOption(GobblinYarnConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME)) {
         printUsage(options);
         System.exit(1);
       }
 
-      Log4jConfigurationHelper.updateLog4jConfiguration(
-          GobblinWorkUnitRunner.class, Log4jConfigurationHelper.LOG4J_CONFIGURATION_FILE_NAME);
+      Log4jConfigurationHelper.updateLog4jConfiguration(GobblinWorkUnitRunner.class,
+          Log4jConfigurationHelper.LOG4J_CONFIGURATION_FILE_NAME);
 
       ContainerId containerId =
           ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
+      String applicationName = cmd.getOptionValue(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME);
+      String helixInstanceName = cmd.getOptionValue(GobblinYarnConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME);
+
       GobblinWorkUnitRunner gobblinWorkUnitRunner =
-          new GobblinWorkUnitRunner(cmd.getOptionValue(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME),
-              containerId, ConfigFactory.load(), Optional.<Path>absent());
+          new GobblinWorkUnitRunner(applicationName, helixInstanceName, containerId, ConfigFactory.load(),
+              Optional.<Path>absent());
       gobblinWorkUnitRunner.start();
     } catch (ParseException pe) {
       printUsage(options);

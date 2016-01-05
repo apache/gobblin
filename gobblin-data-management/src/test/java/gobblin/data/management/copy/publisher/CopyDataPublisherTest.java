@@ -14,9 +14,13 @@ package gobblin.data.management.copy.publisher;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.data.management.copy.CopyConfiguration;
+import gobblin.data.management.copy.CopyContext;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableDatasetMetadata;
+import gobblin.data.management.copy.CopyableFile;
+import gobblin.data.management.copy.PreserveAttributes;
 import gobblin.data.management.copy.TestCopyableDataset;
 import gobblin.util.PathUtils;
 
@@ -27,6 +31,7 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
@@ -219,11 +224,13 @@ public class CopyDataPublisherTest {
     private List<String> relativeFilePaths;
     private Path writerOutputPath;
     private FileSystem fs;
+    private CopyableFile copyableFile;
 
     private void createDatasetFiles() throws IOException {
       // Create writer output files
       Path datasetWriterOutputPath =
-          new Path(writerOutputPath, PathUtils.withoutLeadingSeparator(metadata.getDatasetTargetRoot()));
+          new Path(new Path(writerOutputPath, copyableFile.getDatasetAndPartition(this.metadata).identifier()),
+              PathUtils.withoutLeadingSeparator(metadata.getDatasetTargetRoot()));
       for (String path : relativeFilePaths) {
         Path pathToCreate = new Path(datasetWriterOutputPath, path);
         fs.mkdirs(pathToCreate.getParent());
@@ -241,6 +248,10 @@ public class CopyDataPublisherTest {
       this.relativeFilePaths = relativeFilePaths;
       this.writerOutputPath = new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR));
 
+      FileStatus file = new FileStatus(0, false, 0, 0, 0, new Path("/file"));
+      this.copyableFile = CopyableFile.builder(FileSystem.getLocal(new Configuration()), file, new Path("/"),
+          new CopyConfiguration(new Path("/"), PreserveAttributes.fromMnemonicString(""), new CopyContext())).build();
+
       fs.mkdirs(testMethodTempPath);
       log.info("Created a temp directory for test at " + testMethodTempPath);
 
@@ -251,6 +262,7 @@ public class CopyDataPublisherTest {
           Lists.newArrayList(new WorkUnitState(), new WorkUnitState(), new WorkUnitState());
       for (WorkUnitState wus : workUnitStates) {
         CopySource.serializeCopyableDataset(wus, metadata);
+        CopySource.serializeCopyableFiles(wus, Lists.newArrayList(this.copyableFile));
       }
       return workUnitStates;
     }

@@ -21,7 +21,6 @@ import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +28,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import com.google.common.eventbus.Subscribe;
 import com.google.common.io.Closer;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -236,7 +236,12 @@ public class JobContext {
     }
   }
 
-  public boolean shouldCleanupStagingDataPerTask() {
+  /**
+   * Return whether staging data should be cleaned up on a per-task basis.
+   *
+   * @return {@code true} if staging data should be cleaned up on a per-task basis or {@code false} otherwise
+   */
+  boolean shouldCleanupStagingDataPerTask() {
     return this.jobState.getPropAsBoolean(ConfigurationKeys.CLEANUP_STAGING_DATA_PER_TASK,
         ConfigurationKeys.DEFAULT_CLEANUP_STAGING_DATA_PER_TASK);
   }
@@ -265,6 +270,13 @@ public class JobContext {
         this.logger.error("Failed to write job execution information to the job history store: " + ioe, ioe);
       }
     }
+  }
+
+  @Subscribe
+  public void handleNewTaskCompletionEvent(NewTaskCompletionEvent newOutputTaskStateEvent) {
+    LOG.info("{} more tasks of job {} have completed", newOutputTaskStateEvent.getTaskStates().size(), this.jobId);
+    // Update the job execution history store upon new task completion
+    storeJobExecutionInfo();
   }
 
   /**

@@ -111,6 +111,8 @@ public class JobScheduler extends AbstractIdleService {
   // A monitor for changes to job configuration files
   private final FileAlterationMonitor fileAlterationMonitor;
 
+  private final boolean waitForJobCompletion;
+
   public JobScheduler(Properties properties)
       throws Exception {
     this.properties = properties;
@@ -129,6 +131,10 @@ public class JobScheduler extends AbstractIdleService {
         ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
         Long.toString(ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL)));
     this.fileAlterationMonitor = new FileAlterationMonitor(pollingInterval);
+
+    this.waitForJobCompletion = Boolean.parseBoolean(this.properties
+        .getProperty(ConfigurationKeys.SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY,
+            ConfigurationKeys.DEFAULT_SCHEDULER_WAIT_FOR_JOB_COMPLETION));
   }
 
   @Override
@@ -156,7 +162,7 @@ public class JobScheduler extends AbstractIdleService {
     try {
       ExecutorsUtils.shutdownExecutorService(this.jobExecutor, Optional.of(LOG));
     } finally {
-      this.scheduler.shutdown(true);
+      this.scheduler.shutdown(this.waitForJobCompletion);
     }
   }
 
@@ -413,10 +419,8 @@ public class JobScheduler extends AbstractIdleService {
           Properties jobProps = SchedulerUtils.loadJobConfig(properties, file, jobConfigFileDir);
           boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
           scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : new EmailNotificationJobListener());
-        } catch (ConfigurationException ce) {
-          LOG.error("Failed to load from job configuration file " + file.getAbsolutePath(), ce);
-        } catch (IOException ioe) {
-          LOG.error("Failed to load from job configuration file " + file.getAbsolutePath(), ioe);
+        } catch (ConfigurationException | IOException e) {
+          LOG.error("Failed to load from job configuration file " + file.getAbsolutePath(), e);
         } catch (JobException je) {
           LOG.error("Failed to schedule new job loaded from job configuration file " + file.getAbsolutePath(), je);
         }
@@ -439,11 +443,10 @@ public class JobScheduler extends AbstractIdleService {
                     .getProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY), je);
               }
             }
-          } catch (ConfigurationException ce) {
-            LOG.error("Failed to reload job configuration files affected by changes to " + file.getAbsolutePath(), ce);
-          } catch (IOException ioe) {
-            LOG.error("Failed to reload job configuration files affected by changes to " + file.getAbsolutePath(), ioe);
+          } catch (ConfigurationException | IOException e) {
+            LOG.error("Failed to reload job configuration files affected by changes to " + file.getAbsolutePath(), e);
           }
+
           return;
         }
 
@@ -456,10 +459,8 @@ public class JobScheduler extends AbstractIdleService {
           LOG.info("Detected change to job configuration file " + file.getAbsolutePath());
           Properties jobProps = SchedulerUtils.loadJobConfig(properties, file, jobConfigFileDir);
           rescheduleJob(jobProps);
-        } catch (ConfigurationException ce) {
-          LOG.error("Failed to reload from job configuration file " + file.getAbsolutePath(), ce);
-        } catch (IOException ioe) {
-          LOG.error("Failed to reload from job configuration file " + file.getAbsolutePath(), ioe);
+        } catch (ConfigurationException | IOException e) {
+          LOG.error("Failed to reload from job configuration file " + file.getAbsolutePath(), e);
         } catch (JobException je) {
           LOG.error("Failed to reschedule job reloaded from job configuration file " + file.getAbsolutePath(), je);
         }

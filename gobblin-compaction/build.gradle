@@ -58,7 +58,7 @@ configurations {
     archives
 }
 
-classification="library"
+ext.classification="library"
 
 jar {
   def manifestClasspath = configurations.runtime.collect { "gobblin-compaction_lib/" + it.getName() }.join(' ')

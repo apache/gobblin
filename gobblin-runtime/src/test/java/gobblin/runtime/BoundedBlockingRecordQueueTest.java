@@ -23,7 +23,6 @@ import org.testng.annotations.Test;
 
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
-
 import com.google.common.collect.Lists;
 
 
@@ -43,7 +42,7 @@ public class BoundedBlockingRecordQueueTest {
   public void setUp() {
     this.boundedBlockingRecordQueue = BoundedBlockingRecordQueue.<Integer>newBuilder()
         .hasCapacity(2)
-        .useTimeout(100)
+        .useTimeout(1000)
         .useTimeoutTimeUnit(TimeUnit.MILLISECONDS)
         .collectStats()
         .build();
@@ -92,7 +91,7 @@ public class BoundedBlockingRecordQueueTest {
 
   @Test(dependsOnMethods = "testPutAndGet")
   public void testQueueStats() throws InterruptedException {
-    BoundedBlockingRecordQueue.QueueStats stats = this.boundedBlockingRecordQueue.stats().get();
+    BoundedBlockingRecordQueue<Integer>.QueueStats stats = this.boundedBlockingRecordQueue.stats().get();
     Assert.assertEquals(stats.queueSize(), 0);
     Assert.assertEquals(stats.fillRatio(), 0d);
     Assert.assertEquals(stats.getAttemptCount(), 7);
@@ -111,6 +110,7 @@ public class BoundedBlockingRecordQueueTest {
   public void testRegisterAll() {
     MetricRegistry metricRegistry = new MetricRegistry();
     this.boundedBlockingRecordQueue.stats().get().registerAll(metricRegistry, METRIC_NAME_PREFIX);
+    @SuppressWarnings("rawtypes")
     Map<String, Gauge> gauges = metricRegistry.getGauges();
     Assert.assertEquals(gauges.size(), 2);
     Assert.assertEquals(

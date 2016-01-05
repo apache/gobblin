@@ -18,7 +18,7 @@ import java.util.List;
 
 import gobblin.source.extractor.extract.AbstractSource;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -105,51 +105,49 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
     filesToPull.removeAll(prevFsSnapshot);
 
     List<WorkUnit> workUnits = Lists.newArrayList();
-    if (filesToPull.isEmpty()) {
-      return workUnits;
-    }
+    if (!filesToPull.isEmpty()) {
+      log.info("Will pull the following files in this run: " + Arrays.toString(filesToPull.toArray()));
 
-    log.info("Will pull the following files in this run: " + Arrays.toString(filesToPull.toArray()));
-
-    int numPartitions = state.contains((ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS))
-        && state.getPropAsInt(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS) <= filesToPull.size() ? state
-        .getPropAsInt(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS) : filesToPull.size();
-    if (numPartitions <= 0) {
-      throw new IllegalArgumentException("The number of partitions should be positive");
-    }
-
-    int filesPerPartition = filesToPull.size() % numPartitions == 0 ?
-        filesToPull.size() / numPartitions : filesToPull.size() / numPartitions + 1;
-
-    int workUnitCount = 0;
-
-    // Distribute the files across the workunits
-    for (int fileOffset = 0; fileOffset < filesToPull.size(); fileOffset += filesPerPartition) {
-      SourceState partitionState = new SourceState();
-      partitionState.addAll(state);
-
-      // Eventually these setters should be integrated with framework support for generalized watermark handling
-      partitionState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT, StringUtils.join(currentFsSnapshot, ","));
-
-      List<String> partitionFilesToPull = filesToPull.subList(fileOffset,
-          fileOffset + filesPerPartition > filesToPull.size() ? filesToPull.size() : fileOffset + filesPerPartition);
-      partitionState
-          .setProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, StringUtils.join(partitionFilesToPull, ","));
-      if (state.getPropAsBoolean(ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, false)) {
-        if (partitionFilesToPull.size() != 1) {
-          throw new RuntimeException("Cannot preserve the file name if a workunit is given multiple files");
-        }
-        partitionState.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR,
-            partitionState.getProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL));
+      int numPartitions = state.contains((ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS))
+          && state.getPropAsInt(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS) <= filesToPull.size() ? state
+          .getPropAsInt(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS) : filesToPull.size();
+      if (numPartitions <= 0) {
+        throw new IllegalArgumentException("The number of partitions should be positive");
       }
 
-      // Use extract table name to create extract
-      Extract extract = partitionState.createExtract(tableType, nameSpaceName, extractTableName);
-      workUnits.add(partitionState.createWorkUnit(extract));
-      workUnitCount++;
-    }
+      int filesPerPartition = filesToPull.size() % numPartitions == 0 ?
+          filesToPull.size() / numPartitions : filesToPull.size() / numPartitions + 1;
 
-    log.info("Total number of work units for the current run: " + workUnitCount);
+      int workUnitCount = 0;
+
+      // Distribute the files across the workunits
+      for (int fileOffset = 0; fileOffset < filesToPull.size(); fileOffset += filesPerPartition) {
+        SourceState partitionState = new SourceState();
+        partitionState.addAll(state);
+
+        // Eventually these setters should be integrated with framework support for generalized watermark handling
+        partitionState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT, StringUtils.join(currentFsSnapshot, ","));
+
+        List<String> partitionFilesToPull = filesToPull.subList(fileOffset,
+            fileOffset + filesPerPartition > filesToPull.size() ? filesToPull.size() : fileOffset + filesPerPartition);
+        partitionState
+            .setProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, StringUtils.join(partitionFilesToPull, ","));
+        if (state.getPropAsBoolean(ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, false)) {
+          if (partitionFilesToPull.size() != 1) {
+            throw new RuntimeException("Cannot preserve the file name if a workunit is given multiple files");
+          }
+          partitionState.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR,
+              partitionState.getProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL));
+        }
+
+        // Use extract table name to create extract
+        Extract extract = partitionState.createExtract(tableType, nameSpaceName, extractTableName);
+        workUnits.add(partitionState.createWorkUnit(extract));
+        workUnitCount++;
+      }
+
+      log.info("Total number of work units for the current run: " + workUnitCount);
+    }
 
     List<WorkUnit> previousWorkUnits = this.getPreviousWorkUnitsForRetry(state);
     log.info("Total number of work units from the previous failed runs: " + previousWorkUnits.size());

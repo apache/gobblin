@@ -15,11 +15,14 @@ package gobblin.azkaban;
 import gobblin.compaction.Compactor;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Properties;
 
 import org.apache.log4j.Logger;
 
 import azkaban.jobExecutor.AbstractJob;
+
+import gobblin.metrics.Tag;
 
 
 /**
@@ -47,7 +50,8 @@ public class AzkabanCompactionJobLauncher extends AbstractJob {
   private Compactor getCompactor() {
     try {
       Class<? extends Compactor> compactorClass = getCompactorClass();
-      Compactor compactor = compactorClass.getDeclaredConstructor(Properties.class).newInstance(this.properties);
+      Compactor compactor = compactorClass.getDeclaredConstructor(Properties.class, List.class)
+          .newInstance(this.properties, Tag.fromMap(AzkabanTags.getAzkabanTags()));
       return compactor;
     } catch (Exception e) {
       throw new RuntimeException("Failed to instantiate compactor", e);
@@ -56,7 +60,6 @@ public class AzkabanCompactionJobLauncher extends AbstractJob {
 
   @Override
   public void run() throws Exception {
-
     this.compactor.compact();
   }
 
@@ -71,5 +74,4 @@ public class AzkabanCompactionJobLauncher extends AbstractJob {
   public void cancel() throws IOException {
     this.compactor.cancel();
   }
-
 }

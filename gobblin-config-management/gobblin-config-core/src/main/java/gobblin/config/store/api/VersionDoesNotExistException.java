@@ -1,36 +1,50 @@
+/*
+ * Copyright (C) 2015 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.config.store.api;
 
 import java.net.URI;
 
+import gobblin.annotation.Alpha;
 
+
+@Alpha
+/** Denotes that a requested config version is invalid or is no longer available. */
 public class VersionDoesNotExistException extends Exception {
 
-  /**
-   * 
-   */
-  private static final long serialVersionUID = 2736458021800944664L;
+  private static final long serialVersionUID = 1L;
+  private static final String MESSAGE_FORMAT =
+      "Failed to find the version %s in config store %s because of: %s ";
 
   private final URI storeURI;
-  private final String version;
+  private final String configVersion;
 
-  public VersionDoesNotExistException(URI storeURI, String version, String message) {
-    super(String
-        .format("failed to find the version %s in config store %s with message %s ", version, storeURI, message));
+  public VersionDoesNotExistException(URI storeURI, String configVersion, String errorMessage) {
+    super(String.format(MESSAGE_FORMAT, configVersion, storeURI, errorMessage));
     this.storeURI = storeURI;
-    this.version = version;
+    this.configVersion = configVersion;
   }
 
-  public VersionDoesNotExistException(URI storeURI, String version, Exception e) {
-    super(e);
+  public VersionDoesNotExistException(URI storeURI, String configVersion, Exception e) {
+    super(String.format(MESSAGE_FORMAT, configVersion, storeURI, e.getMessage()), e);
     this.storeURI = storeURI;
-    this.version = version;
+    this.configVersion = configVersion;
   }
 
   public URI getStoreURI() {
-    return storeURI;
+    return this.storeURI;
   }
 
-  public String getVersion() {
-    return version;
+  public String getConfigVersion() {
+    return this.configVersion;
   }
 }

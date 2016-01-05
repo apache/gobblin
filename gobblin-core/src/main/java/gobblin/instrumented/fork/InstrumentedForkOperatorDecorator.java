@@ -14,6 +14,8 @@ package gobblin.instrumented.fork;
 
 import java.util.List;
 
+import com.google.common.base.Optional;
+
 import gobblin.configuration.WorkUnitState;
 import gobblin.fork.ForkOperator;
 import gobblin.instrumented.Instrumented;
@@ -33,6 +35,7 @@ public class InstrumentedForkOperatorDecorator<S, D> extends InstrumentedForkOpe
   private boolean isEmbeddedInstrumented;
 
   public InstrumentedForkOperatorDecorator(ForkOperator<S, D> forkOperator) {
+    super(Optional.<Class<?>>of(DecoratorUtils.resolveUnderlyingObject(forkOperator).getClass()));
     this.embeddedForkOperator = this.closer.register(forkOperator);
     this.isEmbeddedInstrumented = Instrumented.isLineageInstrumented(forkOperator);
   }

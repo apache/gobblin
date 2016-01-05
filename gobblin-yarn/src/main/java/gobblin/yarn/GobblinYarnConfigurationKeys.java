@@ -26,6 +26,9 @@ public class GobblinYarnConfigurationKeys {
   public static final String APPLICATION_NAME_OPTION_NAME = "app_name";
   public static final String APP_QUEUE_KEY = GOBBLIN_YARN_PREFIX + "app.queue";
   public static final String APP_REPORT_INTERVAL_MINUTES_KEY = GOBBLIN_YARN_PREFIX + "app.report.interval.minutes";
+  public static final String MAX_GET_APP_REPORT_FAILURES_KEY = GOBBLIN_YARN_PREFIX + "max.get.app.report.failures";
+  public static final String EMAIL_NOTIFICATION_ON_SHUTDOWN_KEY =
+      GOBBLIN_YARN_PREFIX + "email.notification.on.shutdown";
 
   // Gobblin Yarn ApplicationMaster configuration properties.
   public static final String APP_MASTER_MEMORY_MBS_KEY = GOBBLIN_YARN_PREFIX + "app.master.memory.mbs";
@@ -45,11 +48,14 @@ public class GobblinYarnConfigurationKeys {
   public static final String CONTAINER_FILES_REMOTE_KEY = GOBBLIN_YARN_PREFIX + "container.files.remote";
   public static final String CONTAINER_WORK_DIR_NAME = "container";
   public static final String CONTAINER_JVM_ARGS_KEY = GOBBLIN_YARN_PREFIX + "container.jvm.args";
+  public static final String CONTAINER_HOST_AFFINITY_ENABLED = GOBBLIN_YARN_PREFIX + "container.affinity.enabled";
 
   //Helix configuration properties.
   public static final String HELIX_CLUSTER_NAME_KEY = GOBBLIN_YARN_PREFIX + "helix.cluster.name";
   public static final String ZK_CONNECTION_STRING_KEY = GOBBLIN_YARN_PREFIX + "zk.connection.string";
   public static final String WORK_UNIT_FILE_PATH = GOBBLIN_YARN_PREFIX + "work.unit.file.path";
+  public static final String HELIX_INSTANCE_MAX_RETRIES = GOBBLIN_YARN_PREFIX + "helix.instance.max.retries";
+  public static final String HELIX_INSTANCE_NAME_OPTION_NAME = "helix_instance_name";
 
   //Security and authentication configuration properties.
   public static final String KEYTAB_FILE_PATH = GOBBLIN_YARN_PREFIX + "keytab.file.path";

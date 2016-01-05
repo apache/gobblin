@@ -12,18 +12,19 @@
 
 package gobblin.metrics;
 
-import junit.framework.Assert;
-import lombok.AllArgsConstructor;
-
 import java.lang.ref.WeakReference;
 import java.util.UUID;
 
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Predicate;
+
 import com.typesafe.config.ConfigFactory;
+
+import lombok.AllArgsConstructor;
 
 import gobblin.metrics.callback.NotificationStore;
 import gobblin.metrics.notification.MetricContextCleanupNotification;
@@ -37,25 +38,27 @@ import gobblin.metrics.reporter.ContextStoreReporter;
  */
 public class RootMetricContextTest {
 
-  @BeforeMethod public void setUp() throws Exception {
-
+  @BeforeMethod
+  public void setUp() throws Exception {
     System.gc();
     RootMetricContext.get().clearNotificationTargets();
   }
 
-  @AfterMethod public void tearDown() throws Exception {
+  @AfterMethod
+  public void tearDown() throws Exception {
     System.gc();
     RootMetricContext.get().clearNotificationTargets();
   }
 
-  @Test public void testGet() throws Exception {
-
+  @Test
+  public void testGet() throws Exception {
     Assert.assertNotNull(RootMetricContext.get());
     Assert.assertEquals(RootMetricContext.get(), RootMetricContext.get());
     Assert.assertEquals(RootMetricContext.get().getName(), RootMetricContext.ROOT_METRIC_CONTEXT);
   }
 
-  @Test public void testMetricContextLifecycle() throws Exception {
+  @Test
+  public void testMetricContextLifecycle() throws Exception {
 
     String name = UUID.randomUUID().toString();
     NotificationStore store = new NotificationStore(new ContextNamePredicate(name));
@@ -156,7 +159,6 @@ public class RootMetricContextTest {
     ensureGarbageCollected(innerMetricContextWeakReference);
 
     RootMetricContext.get().removeReporter(reporter);
-
   }
 
   private void ensureGarbageCollected(WeakReference<?> weakReference) {
@@ -181,14 +183,16 @@ public class RootMetricContextTest {
 
   @AllArgsConstructor
   private class ContextNamePredicate implements Predicate<Notification> {
+
     private final String name;
 
-    @Override public boolean apply(Notification input) {
-      if(input instanceof NewMetricContextNotification &&
+    @Override
+    public boolean apply(Notification input) {
+      if (input instanceof NewMetricContextNotification &&
           ((NewMetricContextNotification) input).getInnerMetricContext().getName().equals(this.name)) {
         return true;
       }
-      if(input instanceof MetricContextCleanupNotification &&
+      if (input instanceof MetricContextCleanupNotification &&
           ((MetricContextCleanupNotification) input).getMetricContext().getName().equals(this.name)) {
         return true;
       }

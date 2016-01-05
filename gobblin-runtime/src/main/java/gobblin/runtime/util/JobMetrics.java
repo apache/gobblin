@@ -13,12 +13,12 @@
 package gobblin.runtime.util;
 
 import java.util.List;
-
-import org.apache.hadoop.conf.Configuration;
+import java.util.concurrent.Callable;
 
 import com.google.common.collect.Lists;
 
 import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
 import gobblin.runtime.JobState;
 import gobblin.runtime.TaskState;
@@ -35,9 +35,12 @@ public class JobMetrics extends GobblinMetrics {
   protected final String jobName;
 
   protected JobMetrics(JobState job) {
-    super(name(job), null, tagsForJob(job));
-    this.jobName = job.getJobName();
+    this(job, null);
+  }
 
+  protected JobMetrics(JobState job, MetricContext parentContext) {
+    super(name(job), parentContext, tagsForJob(job));
+    this.jobName = job.getJobName();
   }
 
   /**
@@ -62,13 +65,32 @@ public class JobMetrics extends GobblinMetrics {
   }
 
   /**
+   * Get a new {@link GobblinMetrics} instance for a given job.
+   *
+   * @param jobState the given {@link JobState} instance
+   * @param parentContext is the parent {@link MetricContext}
+   * @return a {@link JobMetrics} instance
+   */
+  public static JobMetrics get(final JobState jobState, final MetricContext parentContext) {
+    return (JobMetrics) GOBBLIN_METRICS_REGISTRY.getOrDefault(name(jobState), new Callable<GobblinMetrics>() {
+      @Override public GobblinMetrics call() throws Exception {
+        return new JobMetrics(jobState, parentContext);
+      }
+    });
+  }
+
+  /**
    * Get a {@link JobMetrics} instance for the job with the given {@link JobState} instance.
    *
    * @param jobState the given {@link JobState} instance
    * @return a {@link JobMetrics} instance
    */
-  public static JobMetrics get(JobState jobState) {
-    return (JobMetrics) GOBBLIN_METRICS_REGISTRY.getOrDefault(name(jobState), new JobMetrics(jobState));
+  public static JobMetrics get(final JobState jobState) {
+    return (JobMetrics) GOBBLIN_METRICS_REGISTRY.getOrDefault(name(jobState), new Callable<GobblinMetrics>() {
+      @Override public GobblinMetrics call() throws Exception {
+        return new JobMetrics(jobState);
+      }
+    });
   }
 
   /**
@@ -93,19 +115,17 @@ public class JobMetrics extends GobblinMetrics {
 
   private static List<Tag<?>> tagsForJob(JobState jobState) {
     List<Tag<?>> tags = Lists.newArrayList();
-    tags.add(new Tag<String>("jobName", jobState.getJobName() == null ? "" : jobState.getJobName()));
-    tags.add(new Tag<String>("jobId", jobState.getJobId()));
+    tags.add(new Tag<>("jobName", jobState.getJobName() == null ? "" : jobState.getJobName()));
+    tags.add(new Tag<>("jobId", jobState.getJobId()));
 
     tags.addAll(getCustomTagsFromState(jobState));
     return tags;
   }
 
   /**
-   * @deprecated
-   * Use {@link ClustersNames#getInstance()#getClusterName()}
+   * @deprecated use {@link ClustersNames#getInstance()#getClusterName()}
    */
   public static String getClusterIdentifierTag() {
     return ClustersNames.getInstance().getClusterName();
   }
-
 }

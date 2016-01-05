@@ -1,33 +1,65 @@
+/*
+ * Copyright (C) 2015 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.config.store.api;
 
-import java.net.URI;
 import java.util.List;
 
 import com.typesafe.config.Config;
 
+import gobblin.annotation.Alpha;
+
 
 /**
- * ConfigStoreWithResolution is used to indicate the {@ConfigStore} which support the configuration
- * resolution by following the imported path.
+ * The ConfigStoreWithResolution interface is used to indicate the {@link ConfigStore} implementation
+ * supports an efficient import configuration resolution for a given config key. The library will
+ * delegate the import resolution to this implementation instead of performing it.
+ *
+ * The resolution is performed by using the
+ * {@link Config#withFallback(com.typesafe.config.ConfigMergeable)} in the correct order. See the
+ * package documentation for more information on the order of import resolution.
+ *
  * @author mitu
  *
  */
+@Alpha
 public interface ConfigStoreWithResolution extends ConfigStore {
 
   /**
-   * @param uri - the uri relative to this configuration store
-   * @param version - specify the configuration version in the configuration store.
-   * @return - the directly and indirectly specified configuration in com.typesafe.config.Config format for input uri 
-   *  against input configuration version
+   * Obtains a {@link Config} object with all implicit and explicit imports resolved, i.e. specified
+   * using the {@link Config#withFallback(com.typesafe.config.ConfigMergeable)} API.
+   *
+   * @param  configKey       the path of the configuration key to be resolved
+   * @param  version         the configuration version for resolution
+   * @return the {@link Config} object associated with the specified config key with akk direct
+   *         and indirect imports resolved.
+   * @throws VersionDoesNotExistException if the requested config version does not exist (any longer)
    */
-  public Config getResolvedConfig(URI uri, String version) throws VersionDoesNotExistException;
+  public ConfigKeyPath getResolvedConfig(ConfigKeyPath configKey, String version)
+      throws VersionDoesNotExistException;
 
   /**
-   * @param uri - the uri relative to this configuration store
-   * @param version - specify the configuration version in the configuration store.
-   * @return - the directly and indirectly imported URIs followed the imported path for input uri 
-   *  against input configuration version
+   * Obtains the list of config keys which are directly and indirectly imported by the specified
+   * config key. The import graph is traversed in depth-first manner. For a given config key,
+   * explicit imports are listed before implicit imports from the ancestor keys.
+   *
+   * @param  configKey      the path of the config key whose imports are needed
+   * @param  version        the configuration version to check
+   * @return the paths of the directly and indirectly imported keys, including config keys imported
+   *         by ancestors. The earlier config key in the list will have higher priority when resolving
+   *         configuration conflict.
+   * @throws VersionDoesNotExistException if the requested config version does not exist (any longer)
    */
-  public List<URI> getImportsRecursively(URI uri, String version) throws VersionDoesNotExistException;
+  public List<ConfigKeyPath> getImportsRecursively(ConfigKeyPath configKey, String version)
+      throws VersionDoesNotExistException;
 
 }

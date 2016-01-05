@@ -21,6 +21,7 @@ dependencies {
     compile externalDependency.lombok
 
     testCompile externalDependency.testng
+    testCompile externalDependency.log4j
 }
 
 configurations {
@@ -36,4 +37,4 @@ test {
     workingDir rootProject.rootDir
 }
 
-classification="library"
+ext.classification="library"

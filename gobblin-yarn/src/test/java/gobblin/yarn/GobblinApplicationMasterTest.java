@@ -15,8 +15,6 @@ package gobblin.yarn;
 import java.net.URL;
 
 import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.retry.RetryOneTime;
 import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.ConverterUtils;
@@ -24,14 +22,20 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.apache.helix.model.Message;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Function;
+import com.google.common.base.Predicate;
+import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.testing.AssertWithBackoff;
 import gobblin.yarn.event.ApplicationMasterShutdownRequest;
 
 
@@ -88,38 +92,65 @@ public class GobblinApplicationMasterTest implements HelixMessageTestBase {
     this.gobblinApplicationMaster.connectHelixManager();
   }
 
+  static class GetInstanceMessageNumFunc implements Function<Void, Integer> {
+    private final CuratorFramework curatorFramework;
+    private final String testName;
+
+    public GetInstanceMessageNumFunc(String testName, CuratorFramework curatorFramework) {
+      this.curatorFramework = curatorFramework;
+      this.testName = testName;
+    }
+
+    @Override
+    public Integer apply(Void input) {
+      try {
+        return this.curatorFramework.getChildren().forPath(String
+            .format("/%s/INSTANCES/%s/MESSAGES", this.testName,
+                TestHelper.TEST_HELIX_INSTANCE_NAME)).size();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+  }
+
   @Test
   public void testSendShutdownRequest() throws Exception {
-    CuratorFramework curatorFramework = CuratorFrameworkFactory.newClient(this.testingZKServer.getConnectString(),
-        new RetryOneTime(2000));
-    curatorFramework.start();
-
+    Logger log = LoggerFactory.getLogger("testSendShutdownRequest");
+    Closer closer = Closer.create();
     try {
+      CuratorFramework curatorFramework = TestHelper.createZkClient(this.testingZKServer, closer);
+      final GetInstanceMessageNumFunc getMessageNumFunc =
+          new GetInstanceMessageNumFunc(GobblinApplicationMasterTest.class.getSimpleName(),
+              curatorFramework);
+      AssertWithBackoff assertWithBackoff =
+          AssertWithBackoff.create().logger(log).timeoutMs(30000);
+
       this.gobblinApplicationMaster.sendShutdownRequest();
 
       Assert.assertEquals(curatorFramework.checkExists().forPath(String
           .format("/%s/INSTANCES/%s/MESSAGES", GobblinApplicationMasterTest.class.getSimpleName(),
               TestHelper.TEST_HELIX_INSTANCE_NAME)).getVersion(), 0);
-      Thread.sleep(500);
-      Assert.assertEquals(curatorFramework.getChildren().forPath(String
-          .format("/%s/INSTANCES/%s/MESSAGES", GobblinApplicationMasterTest.class.getSimpleName(),
-              TestHelper.TEST_HELIX_INSTANCE_NAME)).size(), 1);
+
+      assertWithBackoff.assertEquals(getMessageNumFunc, 1, "1 message queued");
+
       // Give Helix sometime to handle the message
-      Thread.sleep(2000);
-      Assert.assertEquals(curatorFramework.getChildren().forPath(String
-          .format("/%s/INSTANCES/%s/MESSAGES", GobblinApplicationMasterTest.class.getSimpleName(),
-              TestHelper.TEST_HELIX_INSTANCE_NAME)).size(), 0);
+      assertWithBackoff.assertEquals(getMessageNumFunc, 0, "all messages processed");
     } finally {
-      curatorFramework.close();
+      closer.close();
     }
   }
 
   @Test(dependsOnMethods = "testSendShutdownRequest")
-  public void testHandleApplicationMasterShutdownRequest() throws InterruptedException {
+  public void testHandleApplicationMasterShutdownRequest() throws Exception {
+    Logger log = LoggerFactory.getLogger("testHandleApplicationMasterShutdownRequest");
     this.gobblinApplicationMaster.getEventBus().post(new ApplicationMasterShutdownRequest());
-    // Give the ApplicationMaster some time to shutdown
-    Thread.sleep(1000);
-    Assert.assertFalse(this.gobblinApplicationMaster.isHelixManagerConnected());
+    AssertWithBackoff.create().logger(log).timeoutMs(20000)
+      .assertTrue(new Predicate<Void>() {
+        @Override public boolean apply(Void input) {
+          return !GobblinApplicationMasterTest.this.gobblinApplicationMaster.isHelixManagerConnected();
+        }
+      }, "ApplicationMaster shutdown");
   }
 
   @AfterClass

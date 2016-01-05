@@ -37,15 +37,21 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
+
+import javax.annotation.Nullable;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 
 /**
@@ -59,6 +65,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   private static final String COPY_PREFIX = "gobblin.copy";
   public static final String SERIALIZED_COPYABLE_FILES = COPY_PREFIX + ".serialized.copyable.files";
   public static final String SERIALIZED_COPYABLE_DATASET = COPY_PREFIX + ".serialized.copyable.datasets";
+  public static final String PRESERVE_ATTRIBUTES_KEY = COPY_PREFIX + ".preserved.attributes";
 
   /**
    * <ul>
@@ -81,6 +88,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public List<WorkUnit> getWorkunits(SourceState state) {
 
     List<WorkUnit> workUnits = Lists.newArrayList();
+    CopyContext copyContext = new CopyContext();
+
     try {
 
       DatasetFinder<CopyableDataset> datasetFinder =
@@ -93,8 +102,11 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
         Path targetRoot = getTargetRoot(state, datasetFinder, copyableDataset);
 
-        Collection<Partition<CopyableFile>> partitions =
-            copyableDataset.partitionFiles(copyableDataset.getCopyableFiles(targetFs, targetRoot));
+        CopyConfiguration copyConfiguration = new CopyConfiguration(targetRoot,
+            PreserveAttributes.fromMnemonicString(state.getProp(PRESERVE_ATTRIBUTES_KEY)), copyContext);
+
+        Collection<CopyableFile> files = copyableDataset.getCopyableFiles(targetFs, copyConfiguration);
+        Collection<Partition<CopyableFile>> partitions = partitionCopyableFiles(files);
 
         for (Partition<CopyableFile> partition : partitions) {
           Extract extract = new Extract(Extract.TableType.SNAPSHOT_ONLY, COPY_PREFIX, partition.getName());
@@ -106,7 +118,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
             GobblinMetrics.addCustomTagToState(workUnit, new Tag<String>(
                 CopyEventSubmitterHelper.DATASET_ROOT_METADATA_NAME, copyableDataset.datasetRoot().toString()));
             workUnit.setProp(SlaEventKeys.DATASET_URN_KEY, copyableDataset.datasetRoot().toString());
-            workUnit.setProp(SlaEventKeys.PARTITION_KEY, partition.getName());
+            workUnit.setProp(SlaEventKeys.PARTITION_KEY, copyableFile.getFileSet());
             workUnit.setProp(SlaEventKeys.ORIGIN_TS_IN_MILLI_SECS_KEY, copyableFile.getFileStatus().getModificationTime());
             workUnits.add(workUnit);
           }
@@ -187,4 +199,21 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public static CopyableDatasetMetadata deserializeCopyableDataset(State state) throws IOException {
     return CopyableDatasetMetadata.deserialize(state.getProp(SERIALIZED_COPYABLE_DATASET));
   }
+
+  private Collection<Partition<CopyableFile>> partitionCopyableFiles(Collection<CopyableFile> files) {
+    Map<String, Partition.Builder<CopyableFile>> partitionBuildersMaps = Maps.newHashMap();
+    for (CopyableFile file : files) {
+      if (!partitionBuildersMaps.containsKey(file.getFileSet())) {
+        partitionBuildersMaps.put(file.getFileSet(), new Partition.Builder<CopyableFile>(file.getFileSet()));
+      }
+      partitionBuildersMaps.get(file.getFileSet()).add(file);
+    }
+    return Lists.newArrayList(Iterables.transform(partitionBuildersMaps.values(),
+        new Function<Partition.Builder<CopyableFile>, Partition<CopyableFile>>() {
+          @Nullable @Override public Partition<CopyableFile> apply(Partition.Builder<CopyableFile> input) {
+            return input.build();
+          }
+        }));
+  }
+
 }

@@ -12,6 +12,11 @@
 
 package gobblin.yarn.event;
 
+import org.apache.hadoop.yarn.api.records.Container;
+
+import com.google.common.base.Optional;
+
+
 /**
  * A type of events for new container requests to be used with a {@link com.google.common.eventbus.EventBus}.
  *
@@ -19,18 +24,18 @@ package gobblin.yarn.event;
  */
 public class NewContainerRequest {
 
-  private final int newContainersRequested;
+  private final Optional<Container> replacedContainer;
 
-  public NewContainerRequest(int newContainersRequested) {
-    this.newContainersRequested = newContainersRequested;
+  public NewContainerRequest(Optional<Container> replacedContainer) {
+    this.replacedContainer = replacedContainer;
   }
 
   /**
-   * Get the number of new containers requested.
+   * Get (optionally) the {@link Container} to be replaced by the to be requested new container.
    *
-   * @return the number of new containers requested
+   * @return an {@link Optional} of the {@link Container} to be replaced
    */
-  public int getNewContainersRequested() {
-    return this.newContainersRequested;
+  public Optional<Container> getReplacedContainer() {
+    return this.replacedContainer;
   }
 }

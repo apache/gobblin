@@ -113,7 +113,7 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
         continue;
       }
       LOG.info("Found dataset at " + fileStatus.getPath());
-      datasets.add(datasetAtPath(fileStatus.getPath()));
+      datasets.add(datasetAtPath(PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath())));
     }
     return datasets;
   }

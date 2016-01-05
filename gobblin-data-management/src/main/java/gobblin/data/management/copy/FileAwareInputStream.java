@@ -29,4 +29,8 @@ public class FileAwareInputStream {
   private CopyableFile file;
   private FSDataInputStream inputStream;
 
+  @Override
+  public String toString() {
+    return this.file.toString();
+  }
 }

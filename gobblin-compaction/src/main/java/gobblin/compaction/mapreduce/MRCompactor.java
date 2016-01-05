@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -39,6 +40,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,6 +48,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -70,7 +73,7 @@ import gobblin.metrics.event.sla.SlaEventSubmitter;
 import gobblin.util.DatasetFilterUtils;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.HadoopUtils;
-import gobblin.util.TagUtils;
+import gobblin.util.ClusterNameTags;
 import gobblin.util.recordcount.CompactionRecordCountProvider;
 import gobblin.util.recordcount.IngestionRecordCountProvider;
 
@@ -210,6 +213,7 @@ public class MRCompactor implements Compactor {
   private static final Map<Dataset, Job> RUNNING_MR_JOBS = Maps.newConcurrentMap();
 
   private final State state;
+  private final List<? extends Tag<?>> tags;
   private final Configuration conf;
   private final String tmpOutputDir;
   private final FileSystem fs;
@@ -227,9 +231,10 @@ public class MRCompactor implements Compactor {
   private final boolean shouldVerifDataCompl;
   private final boolean shouldPublishDataIfCannotVerifyCompl;
 
-  public MRCompactor(Properties props) throws IOException {
+  public MRCompactor(Properties props, List<? extends Tag<?>> tags) throws IOException {
     this.state = new State();
-    state.addAll(props);
+    this.state.addAll(props);
+    this.tags = tags;
     this.conf = HadoopUtils.getConfFromState(state);
     this.tmpOutputDir = getTmpOutputDir();
     this.fs = getFileSystem();
@@ -286,10 +291,12 @@ public class MRCompactor implements Compactor {
   }
 
   private GobblinMetrics initializeMetrics() {
-    List<Tag<?>> tags = Lists.newArrayList();
-    tags.addAll(Tag.fromMap(TagUtils.getRuntimeTags()));
-    GobblinMetrics gobblinMetrics = GobblinMetrics.get(state.getProp(ConfigurationKeys.JOB_NAME_KEY), null, tags);
-    gobblinMetrics.startMetricReporting(state.getProperties());
+    ImmutableList.Builder<Tag<?>> tags = ImmutableList.builder();
+    tags.addAll(this.tags);
+    tags.addAll(Tag.fromMap(ClusterNameTags.getClusterNameTags()));
+    GobblinMetrics gobblinMetrics =
+        GobblinMetrics.get(this.state.getProp(ConfigurationKeys.JOB_NAME_KEY), null, tags.build());
+    gobblinMetrics.startMetricReporting(this.state.getProperties());
     return gobblinMetrics;
   }
 
@@ -311,7 +318,7 @@ public class MRCompactor implements Compactor {
         this.closer.close();
       } finally {
         deleteDependencyJars();
-        gobblinMetrics.stopMetricReporting();
+        gobblinMetrics.stopMetricsReporting();
       }
     }
   }

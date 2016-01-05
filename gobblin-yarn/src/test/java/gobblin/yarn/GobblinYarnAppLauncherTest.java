@@ -17,8 +17,6 @@ import java.net.URL;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.retry.RetryOneTime;
 import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.client.api.YarnClient;
@@ -28,15 +26,18 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.apache.helix.model.Message;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import com.google.common.io.Closer;
+import gobblin.testing.AssertWithBackoff;
 
 
 /**
@@ -83,9 +84,8 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     this.yarnClient.start();
 
     TestingServer testingZKServer = this.closer.register(new TestingServer(TEST_ZK_PORT));
-    this.curatorFramework = this.closer.register(
-        CuratorFrameworkFactory.newClient(testingZKServer.getConnectString(), new RetryOneTime(2000)));
-    this.curatorFramework.start();
+
+    this.curatorFramework = TestHelper.createZkClient(testingZKServer, this.closer);
 
     URL url = GobblinYarnAppLauncherTest.class.getClassLoader().getResource(
         GobblinYarnAppLauncherTest.class.getSimpleName() + ".conf");
@@ -119,11 +119,10 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
    * has some issue that causes the {@link YarnClient} not be able to connect and submit the Gobblin Yarn
    * application successfully. This works fine on local machine though. So disabling this and the test
    * below that depends on it on Travis-CI.
-   *
-   * @throws Exception
    */
   @Test(groups = { "disabledOnTravis" }, dependsOnMethods = "testCreateHelixCluster")
   public void testSetupAndSubmitApplication() throws Exception {
+    this.gobblinYarnAppLauncher.startYarnClient();
     this.applicationId = this.gobblinYarnAppLauncher.setupAndSubmitApplication();
   }
 
@@ -142,20 +141,25 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     this.gobblinYarnAppLauncher.connectHelixManager();
     this.gobblinYarnAppLauncher.sendShutdownRequest();
 
-    Assert.assertEquals(this.curatorFramework.checkExists().forPath(
-        String.format("/%s/CONTROLLER/MESSAGES", GobblinYarnAppLauncherTest.class.getSimpleName())).getVersion(), 0);
-    Thread.sleep(500);
-    Assert.assertEquals(this.curatorFramework.getChildren().forPath(String.format("/%s/CONTROLLER/MESSAGES",
-        GobblinYarnAppLauncherTest.class.getSimpleName())).size(), 1);
+    Assert.assertEquals(this.curatorFramework.checkExists()
+        .forPath(String.format("/%s/CONTROLLER/MESSAGES", GobblinYarnAppLauncherTest.class.getSimpleName()))
+        .getVersion(), 0);
+    YarnSecurityManagerTest.GetControllerMessageNumFunc getCtrlMessageNum =
+        new YarnSecurityManagerTest.GetControllerMessageNumFunc(GobblinYarnAppLauncherTest.class.getSimpleName(),
+            this.curatorFramework);
+    AssertWithBackoff assertWithBackoff =
+        AssertWithBackoff.create().logger(LoggerFactory.getLogger("testSendShutdownRequest")).timeoutMs(20000);
+    assertWithBackoff.assertEquals(getCtrlMessageNum, 1, "1 controller message queued");
+
     // Give Helix sometime to handle the message
-    Thread.sleep(2000);
-    Assert.assertEquals(this.curatorFramework.getChildren().forPath(String.format("/%s/CONTROLLER/MESSAGES",
-        GobblinYarnAppLauncherTest.class.getSimpleName())).size(), 0);
+    assertWithBackoff.assertEquals(getCtrlMessageNum, 0, "all controller messages processed");
   }
 
   @AfterClass
   public void tearDown() throws IOException, TimeoutException {
     try {
+      this.gobblinYarnAppLauncher.stopYarnClient();
+
       if (this.helixManager.isConnected()) {
         this.helixManager.disconnect();
       }

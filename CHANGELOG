@@ -1,0 +1,84 @@
+GOBBLIN 0.6.1
+=============
+
+## BUG FIXES
+
+- **Build/release** Adding build instrumentation for generation of rest-api-* artifacts
+- **Build/release** Various fixes to decrease reliance of unit tests on timing.
+
+## OTHER IMPROVEMENTS
+
+- **Core** Add stability annotations for APIs. We plan on starting to annotate interfaces/classes to specify how likely the API is to change.
+- **Runtime** Made it an option for the job scheduler to wait for running jobs to complete
+- **Runtime** Fixing dangling MetricContext creation in ForkOperator
+
+## EXTERNAL CONTRIBUTIONS
+
+- kadaan, joel.baranick:
+  + Added a fix for a hadoop issue (https://issues.apache.org/jira/browse/HADOOP-12169) which affects the s3a filesystem and results in duplicate files appearing in the results of ListStatus. In the process, extracted a base class for all FsHelper classes based on the hadoop filesystem.
+
+
+GOBBLIN 0.6.0
+--------------
+
+NEW FEATURES
+
+* [Compaction] Added M/R compaction/de-duping for hourly data
+* [Compaction] Added late data handling for hourly and daily M/R compaction: https://github.com/linkedin/gobblin/wiki/Compaction#handling-late-records; added support for triggering M/R compaction if late data exceeds a threshold
+* [I/O] Added support for using Hive SerDe's through HiveWritableHdfsDataWriter
+* [I/O] Added the concept of data partitioning to writers: https://github.com/linkedin/gobblin/wiki/Partitioned-Writers
+* [Runtime] Added CliLocalJobLauncher for launching single jobs from the command line.
+* [Converters] Added AvroSchemaFieldRemover that can remove specific fields from a (possibly recursive) Avro schema.
+* [DQ] Added new row-level policies RecordTimestampLowerBoundPolicy and AvroRecordTimestampLowerBoundPolicy for checking if a record timestamp is too far in the past.
+* [Kafka] Added schema registry API to KafkaAvroExtractor which enables supports for various Kafka schema registry implementations (e.g. Confluent's schema registry). 
+* [Build/Release] Added build instrumentation to publish artifacts to Maven Central
+
+BUG FIXES
+
+* [Retention management] Trash handles deletes of files already existing in trash correctly.
+* [Kafka] Fixed an issue that may cause Kafka adapter to miss data if the fork fails.
+
+OTHER IMPROVEMENTS
+
+* [Runtime] Added metrics for job executions
+* [Metrics] Added a root metric context to keep track of GC of metrics and metric contexts and make sure those are properly reported
+* [Compaction] Improve topic isolation in MRCompactor
+* [Build/release] Java version compatibility raised to Java 7.
+* [Runtime] Deprecated COMMIT_ON_PARTIAL_SUCCESS and added a new policy for successful extracts
+* [Retention management] Async trash implementation for parallel deletions.
+* [Metrics] Added tracking events emission when data gets published
+* [Retention management] Added support for parallel execution to the dataset cleaner
+* [Runtime] Update job execution info in the execution history store upon every task completion
+
+INCUBATION
+
+Note: these are new features which are under active development and may be subject to significant changes.
+
+* [gobblin-ce] Adding support for Gobblin Continuous Execution on Yarn
+* [distcp-ng] Started work on bulk transfer (file copies) using Gobblin
+* [distcp-ng] Added a light-weight Hadoop FileSystem implementation for file transfer from SFTP
+* [gobblin-config] Added API for dataset driven
+
+EXTERNAL CONTRIBUTIONS
+
+We would like to thank all our external contributors for helping improve Gobblin.
+
+* kadaan, joel.baranick: 
+    - Separate publisher filesystem from writer filesystem
+    - Support for generating Idea projects with the correct language level (Java 7)
+    - Fixed yarn conf path in gobblin-yarn.sh
+* mwol(Maurice Wolter) 
+    - Implemented new class AvroCombineFileSplit which stores the avro schema for each split, determined by the corresponding input file.
+* cheleb(NOUGUIER Olivier)
+    - Add support for maven install
+* dvenkateshappa 
+    - bugifx to RestApiExtractor.java
+    - Added an excluding column list , which can be used for salesforce configuration with huge list of columns.
+* klyr (Julien Barbot) 
+    - bugfix to gobblin-mapreduce.sh
+* gheo21 
+    - Bumped kafka dependency to 2.11
+* ahollenbach (Andrew Hollenbach)
+   -  configuration improvements for standalone mode
+* lbendig (Lorand Bendig)
+   - fixed a bug in DatasetState creation

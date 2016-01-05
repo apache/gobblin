@@ -17,13 +17,16 @@ import java.util.List;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+
 import org.apache.helix.task.Task;
 import org.apache.helix.task.TaskCallbackContext;
 import org.apache.helix.task.TaskConfig;
 import org.apache.helix.task.TaskResult;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
@@ -35,6 +38,7 @@ import gobblin.runtime.JobState;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskState;
 import gobblin.runtime.TaskStateTracker;
+import gobblin.runtime.util.JobMetrics;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.JobLauncherUtils;
@@ -62,6 +66,8 @@ public class GobblinHelixTask implements Task {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinHelixTask.class);
 
+  @SuppressWarnings({"unused", "FieldCanBeLocal"})
+  private final Optional<JobMetrics> jobMetrics;
   private final TaskExecutor taskExecutor;
   private final TaskStateTracker taskStateTracker;
 
@@ -74,8 +80,9 @@ public class GobblinHelixTask implements Task {
   private final FileSystem fs;
   private final StateStore<TaskState> taskStateStore;
 
-  public GobblinHelixTask(TaskCallbackContext taskCallbackContext, TaskExecutor taskExecutor,
-      TaskStateTracker taskStateTracker, FileSystem fs, Path appWorkDir) throws IOException {
+  public GobblinHelixTask(TaskCallbackContext taskCallbackContext, Optional<ContainerMetrics> containerMetrics,
+      TaskExecutor taskExecutor, TaskStateTracker taskStateTracker, FileSystem fs, Path appWorkDir)
+      throws IOException {
     this.taskExecutor = taskExecutor;
     this.taskStateTracker = taskStateTracker;
 
@@ -85,10 +92,18 @@ public class GobblinHelixTask implements Task {
 
     this.fs = fs;
     Path taskStateOutputDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME);
-    this.taskStateStore = new FsStateStore<TaskState>(this.fs, taskStateOutputDir.toString(), TaskState.class);
+    this.taskStateStore = new FsStateStore<>(this.fs, taskStateOutputDir.toString(), TaskState.class);
 
     Path jobStateFilePath = new Path(appWorkDir, this.jobId + "." + AbstractJobLauncher.JOB_STATE_FILE_NAME);
     SerializationUtils.deserializeState(this.fs, jobStateFilePath, this.jobState);
+
+    if (containerMetrics.isPresent()) {
+      // This must be done after the jobState is deserialized from the jobStateFilePath
+      // A reference to jobMetrics is required to ensure it is not evicted from the GobblinMetricsRegistry Cache
+      this.jobMetrics = Optional.of(JobMetrics.get(this.jobState, containerMetrics.get().getMetricContext()));
+    } else {
+      this.jobMetrics = Optional.absent();
+    }
   }
 
   @Override
@@ -97,8 +112,9 @@ public class GobblinHelixTask implements Task {
       Path workUnitFilePath =
           new Path(this.taskConfig.getConfigMap().get(GobblinYarnConfigurationKeys.WORK_UNIT_FILE_PATH));
 
-      WorkUnit workUnit = workUnitFilePath.getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION) ?
-          MultiWorkUnit.createEmpty() : WorkUnit.createEmpty();
+      WorkUnit workUnit =
+          workUnitFilePath.getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION) ? MultiWorkUnit
+              .createEmpty() : WorkUnit.createEmpty();
       SerializationUtils.deserializeState(this.fs, workUnitFilePath, workUnit);
 
       // The list of individual WorkUnits (flattened) to run
@@ -117,20 +133,21 @@ public class GobblinHelixTask implements Task {
         workUnits.add(workUnit);
       }
 
-      AbstractJobLauncher.runWorkUnits(this.jobId, this.participantId, workUnits, this.taskStateTracker,
-          this.taskExecutor, this.taskStateStore, LOGGER);
-
+      AbstractJobLauncher
+          .runWorkUnits(this.jobId, this.participantId, workUnits, this.taskStateTracker, this.taskExecutor,
+              this.taskStateStore, LOGGER);
       return new TaskResult(TaskResult.Status.COMPLETED, String.format("completed tasks: %d", workUnits.size()));
     } catch (InterruptedException ie) {
       Thread.currentThread().interrupt();
       return new TaskResult(TaskResult.Status.CANCELED, "");
     } catch (Throwable t) {
+      LOGGER.error("GobblinHelixTask failed due to " + t.getMessage(), t);
       return new TaskResult(TaskResult.Status.ERROR, Throwables.getStackTraceAsString(t));
     }
   }
 
   @Override
   public void cancel() {
-    // TODO: implementation cancellation.
+    // TODO: implement cancellation.
   }
 }

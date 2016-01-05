@@ -73,7 +73,7 @@ public class MetricContextTest {
     Assert.assertEquals(this.context.getName(), contextName);
     Assert.assertTrue(this.context.getParent().isPresent());
     Assert.assertEquals(this.context.getParent().get(), RootMetricContext.get());
-    Assert.assertEquals(this.context.getTags().size(), 2); // uuid tag gets added automatically
+    Assert.assertEquals(this.context.getTags().size(), 3); // uuid and name tag gets added automatically
     Assert.assertEquals(this.context.getTags().get(0).getKey(), JOB_ID_KEY);
     Assert.assertEquals(this.context.getTags().get(0).getValue(), JOB_ID_PREFIX + 0);
     // Second tag should be uuid
@@ -90,12 +90,13 @@ public class MetricContextTest {
     Assert.assertEquals(this.childContext.getName(), CHILD_CONTEXT_NAME);
     Assert.assertTrue(this.childContext.getParent().isPresent());
     Assert.assertEquals(this.childContext.getParent().get(), this.context);
-    Assert.assertEquals(this.childContext.getTags().size(), 3);
+    Assert.assertEquals(this.childContext.getTags().size(), 4);
     Assert.assertEquals(this.childContext.getTags().get(0).getKey(), JOB_ID_KEY);
     Assert.assertEquals(this.childContext.getTags().get(0).getValue(), JOB_ID_PREFIX + 0);
     Assert.assertEquals(this.childContext.getTags().get(1).getKey(), MetricContext.METRIC_CONTEXT_ID_TAG_NAME);
-    Assert.assertEquals(this.childContext.getTags().get(2).getKey(), TASK_ID_KEY);
-    Assert.assertEquals(this.childContext.getTags().get(2).getValue(), TASK_ID_PREFIX + 0);
+    Assert.assertEquals(this.childContext.getTags().get(2).getKey(), MetricContext.METRIC_CONTEXT_NAME_TAG_NAME);
+    Assert.assertEquals(this.childContext.getTags().get(3).getKey(), TASK_ID_KEY);
+    Assert.assertEquals(this.childContext.getTags().get(3).getValue(), TASK_ID_PREFIX + 0);
   }
 
   @Test(dependsOnMethods = "testChildContext")

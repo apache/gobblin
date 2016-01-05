@@ -35,5 +35,7 @@ public class TimingEventNames {
     public static final String MR_DISTRIBUTED_CACHE_SETUP = "JobMrDistributedCacheSetupTimer";
     public static final String MR_JOB_SETUP = "JobMrSetupTimer";
     public static final String MR_JOB_RUN = "JobMrRunTimer";
+    public static final String HELIX_JOB_SUBMISSION = "JobHelixSubmissionTimer";
+    public static final String HELIX_JOB_RUN = "JobHelixRunTimer";
   }
 }

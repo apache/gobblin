@@ -31,21 +31,21 @@ public enum KafkaReportingFormats {
 
   /**
    * Get a {@link gobblin.metrics.kafka.KafkaReporter.Builder} for this reporting format.
-   * @param context {@link gobblin.metrics.MetricContext} that should be reported.
+   *
    * @param properties {@link java.util.Properties} containing information to build reporters.
    * @return {@link gobblin.metrics.kafka.KafkaReporter.Builder}.
    */
-  public KafkaReporter.Builder<?> metricReporterBuilder(MetricContext context, Properties properties) {
+  public KafkaReporter.Builder<?> metricReporterBuilder(Properties properties) {
     switch (this) {
       case AVRO:
-        KafkaAvroReporter.Builder<?> builder = KafkaAvroReporter.forContext(context);
+        KafkaAvroReporter.Builder<?> builder = KafkaAvroReporter.BuilderFactory.newBuilder();
         if (Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
             ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
           builder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
         }
         return builder;
       case JSON:
-        return KafkaReporter.forContext(context);
+        return KafkaReporter.BuilderFactory.newBuilder();
       default:
         // This should never happen.
         throw new IllegalArgumentException("KafkaReportingFormat not recognized.");
@@ -74,5 +74,4 @@ public enum KafkaReportingFormats {
         throw new IllegalArgumentException("KafkaReportingFormat not recognized.");
     }
   }
-
 }

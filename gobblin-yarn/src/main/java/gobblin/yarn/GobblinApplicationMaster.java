@@ -14,7 +14,6 @@ package gobblin.yarn;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -81,6 +80,9 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.metrics.Tag;
+import gobblin.util.ClusterNameTags;
+import gobblin.util.ConfigUtils;
 import gobblin.yarn.event.ApplicationMasterShutdownRequest;
 import gobblin.yarn.event.DelegationTokenUpdatedEvent;
 
@@ -134,20 +136,19 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
     LOGGER.info("Using ZooKeeper connection string: " + zkConnectionString);
 
     // This will create and register a Helix controller in ZooKeeper
-    this.helixManager = buildHelixManager(config, containerId, zkConnectionString);
+    this.helixManager = buildHelixManager(config, zkConnectionString);
 
     FileSystem fs = buildFileSystem(config);
     Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(fs, applicationName, applicationId);
-
-    Map<String, String> eventMetadata = getEventSubmitterMetadata(applicationName, applicationId);
 
     List<Service> services = Lists.newArrayList();
 
     if (isLogSourcePresent()) {
       services.add(buildLogCopier(containerId, fs, appWorkDir));
     }
+
     services.add(buildYarnService(config, applicationName, applicationId, yarnConfiguration, fs));
-    services.add(buildGobblinHelixJobScheduler(config, appWorkDir, eventMetadata));
+    services.add(buildGobblinHelixJobScheduler(config, appWorkDir, getMetadataTags(applicationName, applicationId)));
     services.add(buildJobConfigurationManager(config));
 
     if (UserGroupInformation.isSecurityEnabled()) {
@@ -217,19 +218,19 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
   }
 
   /**
-   * Get additional metadata required for the {@link gobblin.metrics.event.EventSubmitter}.
+   * Get additional {@link Tag}s required for any type of reporting.
    */
-  private Map<String, String> getEventSubmitterMetadata(String applicationName, String applicationId) {
-    return new ImmutableMap.Builder<String, String>().put(GobblinYarnEventNames.YARN_APPLICATION_NAME, applicationName)
-        .put(GobblinYarnEventNames.YARN_APPLICATION_ID, applicationId).build();
+  private List<? extends Tag<?>> getMetadataTags(String applicationName, String applicationId) {
+    return Tag.fromMap(
+        new ImmutableMap.Builder<String, Object>().put(GobblinYarnEventNames.YARN_APPLICATION_NAME, applicationName)
+            .put(GobblinYarnEventNames.YARN_APPLICATION_ID, applicationId).build());
   }
 
   /**
    * Build the {@link HelixManager} for the Application Master.
    */
-  private HelixManager buildHelixManager(Config config, ContainerId containerId, String zkConnectionString)
-      throws UnknownHostException {
-    String helixInstanceName = YarnHelixUtils.getHelixInstanceName(YarnHelixUtils.getHostname(), containerId);
+  private HelixManager buildHelixManager(Config config, String zkConnectionString) {
+    String helixInstanceName = GobblinApplicationMaster.class.getSimpleName();
     return HelixManagerFactory.getZKHelixManager(
         config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY), helixInstanceName,
         InstanceType.CONTROLLER, zkConnectionString);
@@ -258,10 +259,10 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
    * Build the {@link GobblinHelixJobScheduler} for the Application Master.
    */
   private GobblinHelixJobScheduler buildGobblinHelixJobScheduler(Config config, Path appWorkDir,
-      Map<String, String> eventMetadata)
+      List<? extends Tag<?>> metadataTags)
       throws Exception {
-    Properties properties = YarnHelixUtils.configToProperties(config);
-    return new GobblinHelixJobScheduler(properties, this.helixManager, this.eventBus, appWorkDir, eventMetadata);
+    Properties properties = ConfigUtils.configToProperties(config);
+    return new GobblinHelixJobScheduler(properties, this.helixManager, this.eventBus, appWorkDir, metadataTags);
   }
 
   /**

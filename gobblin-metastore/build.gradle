@@ -29,6 +29,8 @@ dependencies {
     compile externalDependency.guice
     compile externalDependency.javaxInject
     compile externalDependency.jodaTime
+    
+    runtime externalDependency.mysqlConnector
 
     testCompile externalDependency.testng
     testRuntime externalDependency.derby
@@ -47,4 +49,4 @@ test {
     workingDir rootProject.rootDir
 }
 
-classification="library"
+ext.classification="library"

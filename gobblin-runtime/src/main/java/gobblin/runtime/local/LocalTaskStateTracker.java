@@ -20,20 +20,22 @@ import java.util.concurrent.ScheduledFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
+import com.google.common.eventbus.EventBus;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.runtime.AbstractTaskStateTracker;
+import gobblin.runtime.JobState;
+import gobblin.runtime.NewTaskCompletionEvent;
 import gobblin.runtime.Task;
 import gobblin.runtime.TaskExecutor;
 
 
 /**
- * A concrete extension to {@link AbstractTaskStateTracker}  for standalone mode.
- *
- * TODO: rename this to LocalTaskStateTracker once {@link LocalTaskStateTracker} is fully retired.
+ * A concrete extension to {@link AbstractTaskStateTracker} for standalone mode.
  *
  * @author ynli
  */
@@ -41,18 +43,26 @@ public class LocalTaskStateTracker extends AbstractTaskStateTracker {
 
   private static final Logger LOG = LoggerFactory.getLogger(LocalTaskStateTracker.class);
 
+  private final JobState jobState;
+
   // This is used to retry failed tasks
   private final TaskExecutor taskExecutor;
 
   // Mapping between tasks and the task state reporters associated with them
   private final Map<String, ScheduledFuture<?>> scheduledReporters = Maps.newHashMap();
 
+  private final EventBus eventBus;
+
   // Maximum number of task retries allowed
   private final int maxTaskRetries;
 
-  public LocalTaskStateTracker(Properties properties, TaskExecutor taskExecutor) {
+  public LocalTaskStateTracker(Properties properties, JobState jobState, TaskExecutor taskExecutor,
+      EventBus eventBus) {
     super(properties, LOG);
+
+    this.jobState = jobState;
     this.taskExecutor = taskExecutor;
+    this.eventBus = eventBus;
     this.maxTaskRetries = Integer.parseInt(properties.getProperty(
         ConfigurationKeys.MAX_TASK_RETRIES_KEY, Integer.toString(ConfigurationKeys.DEFAULT_MAX_TASK_RETRIES)));
   }
@@ -93,8 +103,15 @@ public class LocalTaskStateTracker extends AbstractTaskStateTracker {
       LOG.error("Failed to process a task completion callback", t);
     }
 
+    // Add the TaskState of the completed task to the JobState so when the control
+    // returns to the launcher, it sees the TaskStates of all completed tasks.
+    this.jobState.addTaskState(task.getTaskState());
+
     // Mark the completion of this task
     task.markTaskCompletion();
+
+    // Notify the listeners for the completion of the task
+    this.eventBus.post(new NewTaskCompletionEvent(ImmutableList.of(task.getTaskState())));
 
     // At this point, the task is considered being completed.
     LOG.info(String.format("Task %s completed in %dms with state %s", task.getTaskId(),

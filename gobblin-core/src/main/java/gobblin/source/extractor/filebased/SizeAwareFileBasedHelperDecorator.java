@@ -32,13 +32,11 @@ public class SizeAwareFileBasedHelperDecorator implements SizeAwareFileBasedHelp
   @Override
   public void connect() throws FileBasedHelperException {
     fileBasedHelper.connect();
-
   }
 
   @Override
   public void close() throws FileBasedHelperException {
     fileBasedHelper.close();
-
   }
 
   @Override
