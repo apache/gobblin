@@ -108,7 +108,7 @@ public class Tag<T> extends AbstractMap.SimpleEntry<String, T> {
   public static List<Tag<String>> tagValuesToString(List<? extends Tag<?>> tags) {
     return Lists.transform(tags, new Function<Tag<?>, Tag<String>>() {
       @Nullable @Override public Tag<String> apply(Tag<?> input) {
-        return Tag.tagValueToString(input);
+        return input == null ? null : Tag.tagValueToString(input);
       }
     });
   }
