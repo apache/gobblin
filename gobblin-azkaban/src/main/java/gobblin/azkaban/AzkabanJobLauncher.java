@@ -35,7 +35,6 @@ import gobblin.runtime.JobLauncher;
 import gobblin.runtime.JobLauncherFactory;
 import gobblin.runtime.JobListener;
 import gobblin.runtime.util.JobMetrics;
-import gobblin.util.TagUtils;
 import gobblin.util.TimeRangeChecker;
 
 
@@ -94,7 +93,7 @@ public class AzkabanJobLauncher extends AbstractJob {
     }
 
     List<Tag<?>> tags = Lists.newArrayList();
-    tags.addAll(Tag.fromMap(TagUtils.getRuntimeTags()));
+    tags.addAll(Tag.fromMap(AzkabanTags.getAzkabanTags()));
     JobMetrics.addCustomTagsToProperties(this.props, tags);
 
     // If the job launcher type is not specified in the job configuration,
