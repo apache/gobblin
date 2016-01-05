@@ -33,6 +33,7 @@ apply plugin: "com.commercehub.gradle.plugin.avro"
 
 dependencies {
   compile project(":gobblin-utility")
+  compile project(":gobblin-api")
 
   compile externalDependency.guava
   compile externalDependency.metricsCore
