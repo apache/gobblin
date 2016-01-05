@@ -46,7 +46,7 @@ abstract class InstrumentedConverterBase<SI, SO, DI, DO> extends Converter<SI, S
     implements Instrumentable, Closeable {
 
   private boolean instrumentationEnabled = false;
-  private MetricContext metricContext = new MetricContext.Builder(InstrumentedConverterBase.class.getName()).build();
+  private MetricContext metricContext;
   private Optional<Meter> recordsInMeter = Optional.absent();
   private Optional<Meter> recordsOutMeter = Optional.absent();
   private Optional<Meter> recordsExceptionMeter = Optional.absent();
