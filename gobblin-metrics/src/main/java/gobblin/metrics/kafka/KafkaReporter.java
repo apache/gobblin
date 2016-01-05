@@ -12,14 +12,7 @@
 
 package gobblin.metrics.kafka;
 
-import java.io.IOException;
-import java.util.Properties;
-
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
-
-import com.typesafe.config.Config;
-
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.MetricReport;
 import gobblin.metrics.reporter.MetricReportReporter;
 import gobblin.metrics.reporter.util.AvroJsonSerializer;
@@ -27,6 +20,13 @@ import gobblin.metrics.reporter.util.AvroSerializer;
 import gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
 import gobblin.metrics.reporter.util.SchemaVersionWriter;
 import gobblin.util.ConfigUtils;
+
+import java.io.IOException;
+import java.util.Properties;
+
+import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
 
 
 /**
@@ -109,7 +109,7 @@ public class KafkaReporter extends MetricReportReporter {
       this.brokers = brokers;
       this.topic = topic;
 
-      return new KafkaReporter(this, ConfigUtils.propertiesToConfig(props));
+      return new KafkaReporter(this, ConfigUtils.propertiesToConfig(props, Optional.of(ConfigurationKeys.METRICS_CONFIGURATIONS_PREFIX)));
     }
   }
 
