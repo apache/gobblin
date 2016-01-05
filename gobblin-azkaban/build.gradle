@@ -35,6 +35,8 @@ dependencies {
   compile externalDependency.guava
   compile externalDependency.commonsLang
   compile externalDependency.jodaTime
+  compile externalDependency.lombok
+  compile externalDependency.slf4j
   if (project.hasProperty('useHadoop2')) {
     compile externalDependency.typesafeConfig
     compile externalDependency.hadoopYarnApi
