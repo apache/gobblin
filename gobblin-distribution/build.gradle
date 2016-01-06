@@ -10,6 +10,17 @@
 
 apply plugin: 'java'
 
+configurations {
+  compile {
+    if (rootProject.hasProperty('excludeHadoopDeps')) {
+      exclude group: "org.apache.hadoop"
+    }
+    if (rootProject.hasProperty('excludeHiveDeps')) {
+      exclude group: "org.apache.hive"
+    }
+  }
+}
+
 dependencies {
   compile project(':gobblin-azkaban')
   compile project(':gobblin-api')

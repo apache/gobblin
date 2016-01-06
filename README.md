@@ -33,6 +33,7 @@ To build Gobblin against a different version of Hadoop 2, e.g., 2.2.0, run the f
 
 	$ ./gradlew clean build -PuseHadoop2 -PhadoopVersion=2.2.0
 
+For more information on the different build options for Gobblin, check out the [Gobblin Build Options](https://github.com/linkedin/gobblin/wiki/Gobblin-Build-Options) wiki.
 
 ### Running Gobblin
 
