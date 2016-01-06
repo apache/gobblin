@@ -206,7 +206,6 @@ public class GobblinYarnAppLauncher {
     this.yarnConfiguration.set("fs.automatic.close", "false");
     this.yarnClient = YarnClient.createYarnClient();
     this.yarnClient.init(this.yarnConfiguration);
-    this.yarnClient.start();
 
     this.fs = config.hasPath(ConfigurationKeys.FS_URI_KEY) ?
         FileSystem.get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), this.yarnConfiguration) :
@@ -244,6 +243,8 @@ public class GobblinYarnAppLauncher {
     LOGGER.info("Created Helix cluster " + clusterName);
 
     connectHelixManager();
+
+    startYarnClient();
 
     this.applicationId = getApplicationId();
 
@@ -301,7 +302,7 @@ public class GobblinYarnAppLauncher {
 
       ExecutorsUtils.shutdownExecutorService(this.applicationStatusMonitor, Optional.of(LOGGER), 5, TimeUnit.MINUTES);
 
-      this.yarnClient.stop();
+      stopYarnClient();
 
       disconnectHelixManager();
     } finally {
@@ -392,6 +393,16 @@ public class GobblinYarnAppLauncher {
     if (this.helixManager.isConnected()) {
       this.helixManager.disconnect();
     }
+  }
+
+  @VisibleForTesting
+  void startYarnClient() {
+    this.yarnClient.start();
+  }
+
+  @VisibleForTesting
+  void stopYarnClient() {
+    this.yarnClient.stop();
   }
 
   private Optional<ApplicationId> getApplicationId() throws YarnException, IOException {
