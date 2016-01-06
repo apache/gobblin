@@ -23,6 +23,7 @@ public class SimpleStringDataWriter extends FsDataWriter<String> {
 	
 	public SimpleStringDataWriter(SimpleStringDataWriterBuilder builder, State properties) throws IOException {
 		super(builder, properties);
+		
 		String delim;
     if ((delim = properties.getProp(ConfigurationKeys.SIMPLE_WRITER_DELIMITER, null)) == null || delim.length() == 0) {
       this.recordDelimiter = Optional.absent();

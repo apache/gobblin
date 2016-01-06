@@ -58,7 +58,7 @@ public class RowLevelErrFileWriter implements Closeable {
    * @param record the record to write
    */
   public void write(Object record) throws IOException {
-    this.writer.write(record.toString());
+    this.writer.write(record.toString()+"\n");
   }
 
   /**
