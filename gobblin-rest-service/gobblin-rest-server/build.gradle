@@ -32,6 +32,17 @@ dependencies {
     testRuntime externalDependency.derby
 }
 
+// Begin HACK to get around POM being depenendent on the (empty) gobblin-rest-api instead of gobblin-rest-api-data-template
+if (rootProject.publishToMaven) {
+    def installer = install.repositories.mavenInstaller
+    def deployer = uploadArchives.repositories.mavenDeployer
+
+    [installer, deployer]*.pom*.whenConfigured {pom ->
+        pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }.artifactId = 'gobblin-rest-api-data-template'
+    }
+}
+// End HACK
+
 buildscript {
     repositories {
         mavenCentral()
