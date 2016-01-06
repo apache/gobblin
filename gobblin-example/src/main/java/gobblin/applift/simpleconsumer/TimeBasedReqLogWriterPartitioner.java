@@ -22,8 +22,8 @@ public class TimeBasedReqLogWriterPartitioner extends TimeBasedWriterPartitioner
 		JsonElement element = new JsonParser().parse(record);
 		JsonObject reqLogObject = element.getAsJsonObject();
 		JsonObject reqInfoObject = reqLogObject.getAsJsonObject("req_info");
-		if(reqInfoObject.get("unix_ts").toString() == null)
-			LOG.warn("Applift: FaultyRecord = "+record);
+		if(reqInfoObject== null || reqInfoObject.get("unix_ts").toString() == null)
+			LOG.warn("Applift: FaultyRecord = " + record);
 		float unixTS = Float.valueOf(reqInfoObject.get("unix_ts").toString());
 		long timestampMS = (long) (unixTS*1000);
 		return timestampMS;
