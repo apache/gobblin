@@ -28,16 +28,11 @@ public class CliLocalJobLauncher {
   private static final Logger LOG = LoggerFactory.getLogger(CliLocalJobLauncher.class);
 
   public static void main(String[] args) throws Exception {
+    Properties jobProperties = CliOptions.parseArgs(CliLocalJobLauncher.class, args);
 
-    try {
-
-      Properties jobProperties = CliOptions.parseArgs(CliLocalJobLauncher.class, args);
-      LOG.debug(String.format("Running job with properties:%n%s", jobProperties));
-      new LocalJobLauncher(jobProperties).launchJob(null);
-
-    } catch (Exception exception) {
-      throw new RuntimeException(exception);
+    LOG.debug(String.format("Running job with properties:%n%s", jobProperties));
+    try (LocalJobLauncher localJobLauncher = new LocalJobLauncher(jobProperties)) {
+      localJobLauncher.launchJob(null);
     }
   }
-
 }
