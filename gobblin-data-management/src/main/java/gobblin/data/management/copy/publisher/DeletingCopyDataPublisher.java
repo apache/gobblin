@@ -17,7 +17,6 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.WorkUnitState.WorkingState;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.publisher.CopyDataPublisher;
 import gobblin.util.HadoopUtils;
 
 import java.io.IOException;
@@ -29,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
 
 /**
@@ -39,6 +39,7 @@ import org.apache.hadoop.fs.FileSystem;
 public class DeletingCopyDataPublisher extends CopyDataPublisher {
 
   private final FileSystem sourceFs;
+  private static final String READY_SUFFIX = ".ready";
 
   public DeletingCopyDataPublisher(State state) throws IOException {
     super(state);
@@ -69,12 +70,10 @@ public class DeletingCopyDataPublisher extends CopyDataPublisher {
   private void deleteFilesOnSource(WorkUnitState state) throws IOException {
     List<CopyableFile> copyableFiles = CopySource.deserializeCopyableFiles(state);
     for (CopyableFile copyableFile : copyableFiles) {
-      if (this.sourceFs.exists(copyableFile.getOrigin().getPath())) {
-        log.info(String.format("Deleting %s on source fileSystem.", copyableFile.getOrigin().getPath()));
-        if (!this.sourceFs.delete(copyableFile.getOrigin().getPath(), true)) {
-          throw new IOException("Delete failed for " + copyableFile.getOrigin().getPath());
-        }
-      }
+      HadoopUtils.deletePath(this.sourceFs, copyableFile.getOrigin().getPath(), false);
+      HadoopUtils.deletePath(this.sourceFs, new Path(copyableFile.getOrigin().getPath().getParent(), copyableFile
+          .getOrigin().getPath().getName()
+          + READY_SUFFIX), false);
     }
   }
 }
