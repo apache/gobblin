@@ -22,7 +22,7 @@ import gobblin.annotation.Alpha;
 import gobblin.config.client.api.VersionStabilityPolicy;
 
 /**
- * The ConfigStoreWithStableVersion annotation is used to indicate that the configuration store
+ * The ConfigStoreWithStableVersioning annotation is used to indicate that the configuration store
  * supports stable versioning. This means that:
  *
  * <ul>

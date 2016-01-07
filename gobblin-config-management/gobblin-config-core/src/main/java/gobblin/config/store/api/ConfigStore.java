@@ -77,7 +77,7 @@ public interface ConfigStore {
    * @param  configKey      the config key path whose tags are needed
    * @param  version        the configuration version in the configuration store.
    * @return the paths of the directly imported config keys for the specified config key and
-   * version. Note that order is significant the earlier URI in the List will have higher priority
+   * version. Note that order is significant the earlier ConfigKeyPath in the List will have higher priority
    * when resolving configuration conflicts.
    * @throws VersionDoesNotExistException if the requested config version does not exist (any longer)
    *
