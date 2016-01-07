@@ -42,7 +42,8 @@ public class TimePartitionedCustomDataPublisher extends BaseDataPublisher {
       String[] directories = pathSuffix.split("\\/");
       LOG.info("Applift: PathSuffix ="+ pathSuffix);
       for(String directory:directories)
-      	LOG.info("Applift: Directory ="+ directory+"\n");
+      	LOG.info
+      	("Applift: Directory ="+ directory+"\n");
 
       Path outputPath = new Path(publisherOutput, pathSuffix);
 
