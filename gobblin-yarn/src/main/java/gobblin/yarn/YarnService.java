@@ -57,9 +57,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
-import com.google.common.base.Optional;
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
@@ -70,6 +73,11 @@ import com.google.common.util.concurrent.AbstractIdleService;
 
 import com.typesafe.config.Config;
 
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.Tag;
+import gobblin.metrics.event.EventSubmitter;
+import gobblin.util.ConfigUtils;
 import gobblin.util.ExecutorsUtils;
 import gobblin.yarn.event.ApplicationMasterShutdownRequest;
 import gobblin.yarn.event.ContainerShutdownRequest;
@@ -97,6 +105,9 @@ public class YarnService extends AbstractIdleService {
 
   private final Configuration yarnConfiguration;
   private final FileSystem fs;
+
+  private final Optional<GobblinMetrics> gobblinMetrics;
+  private final Optional<EventSubmitter> eventSubmitter;
 
   private final AMRMClientAsync<AMRMClient.ContainerRequest> amrmClientAsync;
   private final NMClientAsync nmClientAsync;
@@ -144,6 +155,12 @@ public class YarnService extends AbstractIdleService {
     this.config = config;
 
     this.eventBus = eventBus;
+
+    this.gobblinMetrics = config.getBoolean(ConfigurationKeys.METRICS_ENABLED_KEY) ?
+        Optional.of(buildGobblinMetrics()) : Optional.<GobblinMetrics>absent();
+
+    this.eventSubmitter = config.getBoolean(ConfigurationKeys.METRICS_ENABLED_KEY) ?
+        Optional.of(buildEventSubmitter()) : Optional.<EventSubmitter>absent();
 
     this.yarnConfiguration = yarnConfiguration;
     this.fs = fs;
@@ -252,8 +269,33 @@ public class YarnService extends AbstractIdleService {
     } catch (IOException | YarnException e) {
       LOGGER.error("Failed to unregister the ApplicationMaster", e);
     } finally {
-      this.closer.close();
+      try {
+        this.closer.close();
+      } finally {
+        if (this.gobblinMetrics.isPresent()) {
+          this.gobblinMetrics.get().stopMetricsReporting();
+        }
+      }
     }
+  }
+
+  private GobblinMetrics buildGobblinMetrics() {
+    // Create tags list
+    ImmutableList.Builder<Tag<?>> tags = new ImmutableList.Builder<>();
+    tags.add(new Tag<>(GobblinYarnMetricTagNames.YARN_APPLICATION_ID, this.applicationId));
+    tags.add(new Tag<>(GobblinYarnMetricTagNames.YARN_APPLICATION_NAME, this.applicationName));
+
+    // Intialize Gobblin metrics and start reporters
+    GobblinMetrics gobblinMetrics = GobblinMetrics.get(this.applicationId, null, tags.build());
+    gobblinMetrics.startMetricReporting(ConfigUtils.configToProperties(config));
+
+    return gobblinMetrics;
+  }
+
+  private EventSubmitter buildEventSubmitter() {
+    return new EventSubmitter.Builder(this.gobblinMetrics.get().getMetricContext(),
+        GobblinYarnEventConstants.EVENT_NAMESPACE)
+        .build();
   }
 
   private void requestInitialContainers(int containersRequested) {
@@ -420,7 +462,21 @@ public class YarnService extends AbstractIdleService {
 
     int retryCount =
         this.helixInstanceRetryCount.putIfAbsent(completedInstanceName, new AtomicInteger(0)).incrementAndGet();
+
+    // Populate event metadata
+    Optional<ImmutableMap.Builder<String, String>> eventMetadataBuilder = Optional.absent();
+    if (this.eventSubmitter.isPresent()) {
+      eventMetadataBuilder = Optional.of(buildContainerStatusEventMetadata(containerStatus));
+      eventMetadataBuilder.get().put(GobblinYarnEventConstants.EventMetadata.HELIX_INSTANCE_ID, completedInstanceName);
+      eventMetadataBuilder.get().put(GobblinYarnEventConstants.EventMetadata.CONTAINER_STATUS_RETRY_ATTEMPT, retryCount + "");
+    }
+
     if (this.helixInstanceMaxRetries > 0 && retryCount > this.helixInstanceMaxRetries) {
+      if (this.eventSubmitter.isPresent()) {
+        this.eventSubmitter.get().submit(GobblinYarnEventConstants.EventNames.HELIX_INSTANCE_COMPLETION,
+            eventMetadataBuilder.get().build());
+      }
+
       LOGGER.warn("Maximum number of retries has been achieved for Helix instance " + completedInstanceName);
       return;
     }
@@ -429,11 +485,33 @@ public class YarnService extends AbstractIdleService {
     // instance names so they can be reused by a replacement container.
     this.unusedHelixInstanceNames.offer(completedInstanceName);
 
+    if (this.eventSubmitter.isPresent()) {
+      this.eventSubmitter.get().submit(GobblinYarnEventConstants.EventNames.HELIX_INSTANCE_COMPLETION,
+          eventMetadataBuilder.get().build());
+    }
+
     LOGGER.info(String.format("Requesting a new container to replace %s to run Helix instance %s",
         containerStatus.getContainerId(), completedInstanceName));
     this.eventBus.post(new NewContainerRequest(
         shouldStickToTheSameNode(containerStatus.getExitStatus()) ?
             Optional.of(completedContainerEntry.getKey()) : Optional.<Container>absent()));
+  }
+
+  private ImmutableMap.Builder<String, String> buildContainerStatusEventMetadata(ContainerStatus containerStatus) {
+    ImmutableMap.Builder eventMetadataBuilder = new ImmutableMap.Builder<String, String>();
+    eventMetadataBuilder.put(GobblinYarnMetricTagNames.CONTAINER_ID, containerStatus.getContainerId().toString());
+    eventMetadataBuilder.put(GobblinYarnEventConstants.EventMetadata.CONTAINER_STATUS_CONTAINER_STATE,
+        containerStatus.getState().toString());
+    if (ContainerExitStatus.INVALID != containerStatus.getExitStatus()) {
+      eventMetadataBuilder.put(GobblinYarnEventConstants.EventMetadata.CONTAINER_STATUS_EXIT_STATUS,
+          containerStatus.getExitStatus() + "");
+    }
+    if (!Strings.isNullOrEmpty(containerStatus.getDiagnostics())) {
+      eventMetadataBuilder.put(GobblinYarnEventConstants.EventMetadata.CONTAINER_STATUS_EXIT_DIAGNOSTICS,
+          containerStatus.getDiagnostics());
+    }
+
+    return eventMetadataBuilder;
   }
 
   /**
@@ -453,6 +531,11 @@ public class YarnService extends AbstractIdleService {
     @Override
     public void onContainersAllocated(List<Container> containers) {
       for (final Container container : containers) {
+        if (eventSubmitter.isPresent()) {
+          eventSubmitter.get().submit(GobblinYarnEventConstants.EventNames.CONTAINER_ALLOCATION,
+              GobblinYarnMetricTagNames.CONTAINER_ID, container.getId().toString());
+        }
+
         LOGGER.info(String.format("Container %s has been allocated", container.getId()));
 
         String instanceName = unusedHelixInstanceNames.poll();
@@ -482,6 +565,10 @@ public class YarnService extends AbstractIdleService {
 
     @Override
     public void onShutdownRequest() {
+      if (eventSubmitter.isPresent()) {
+        eventSubmitter.get().submit(GobblinYarnEventConstants.EventNames.SHUTDOWN_REQUEST);
+      }
+
       LOGGER.info("Received shutdown request from the ResourceManager");
       this.done = true;
       eventBus.post(new ApplicationMasterShutdownRequest());
@@ -501,6 +588,11 @@ public class YarnService extends AbstractIdleService {
 
     @Override
     public void onError(Throwable t) {
+      if (eventSubmitter.isPresent()) {
+        eventSubmitter.get().submit(GobblinYarnEventConstants.EventNames.ERROR,
+            GobblinYarnEventConstants.EventMetadata.ERROR_EXCEPTION, Throwables.getStackTraceAsString(t));
+      }
+
       LOGGER.error("Received error: " + t, t);
       this.done = true;
       eventBus.post(new ApplicationMasterShutdownRequest());
@@ -514,16 +606,31 @@ public class YarnService extends AbstractIdleService {
 
     @Override
     public void onContainerStarted(ContainerId containerId, Map<String, ByteBuffer> allServiceResponse) {
+      if (eventSubmitter.isPresent()) {
+        eventSubmitter.get().submit(GobblinYarnEventConstants.EventNames.CONTAINER_STARTED,
+            GobblinYarnMetricTagNames.CONTAINER_ID, containerId.toString());
+      }
+
       LOGGER.info(String.format("Container %s has been started", containerId));
     }
 
     @Override
     public void onContainerStatusReceived(ContainerId containerId, ContainerStatus containerStatus) {
+      if (eventSubmitter.isPresent()) {
+        eventSubmitter.get().submit(GobblinYarnEventConstants.EventNames.CONTAINER_STATUS_RECEIVED,
+            buildContainerStatusEventMetadata(containerStatus).build());
+      }
+
       LOGGER.info(String.format("Received container status for container %s: %s", containerId, containerStatus));
     }
 
     @Override
     public void onContainerStopped(ContainerId containerId) {
+      if (eventSubmitter.isPresent()) {
+        eventSubmitter.get().submit(GobblinYarnEventConstants.EventNames.CONTAINER_STOPPED,
+            GobblinYarnMetricTagNames.CONTAINER_ID, containerId.toString());
+      }
+
       LOGGER.info(String.format("Container %s has been stopped", containerId));
       containerMap.remove(containerId);
       if (containerMap.isEmpty()) {
@@ -535,17 +642,35 @@ public class YarnService extends AbstractIdleService {
 
     @Override
     public void onStartContainerError(ContainerId containerId, Throwable t) {
+      if (eventSubmitter.isPresent()) {
+        eventSubmitter.get().submit(GobblinYarnEventConstants.EventNames.CONTAINER_START_ERROR,
+            GobblinYarnMetricTagNames.CONTAINER_ID, containerId.toString(),
+            GobblinYarnEventConstants.EventMetadata.ERROR_EXCEPTION, Throwables.getStackTraceAsString(t));
+      }
+
       LOGGER.error(String.format("Failed to start container %s due to error %s", containerId, t));
       containerMap.remove(containerId);
     }
 
     @Override
     public void onGetContainerStatusError(ContainerId containerId, Throwable t) {
+      if (eventSubmitter.isPresent()) {
+        eventSubmitter.get().submit(GobblinYarnEventConstants.EventNames.CONTAINER_GET_STATUS_ERROR,
+            GobblinYarnMetricTagNames.CONTAINER_ID, containerId.toString(),
+            GobblinYarnEventConstants.EventMetadata.ERROR_EXCEPTION, Throwables.getStackTraceAsString(t));
+      }
+
       LOGGER.error(String.format("Failed to get status for container %s due to error %s", containerId, t));
     }
 
     @Override
     public void onStopContainerError(ContainerId containerId, Throwable t) {
+      if (eventSubmitter.isPresent()) {
+        eventSubmitter.get().submit(GobblinYarnEventConstants.EventNames.CONTAINER_STOP_ERROR,
+            GobblinYarnMetricTagNames.CONTAINER_ID, containerId.toString(),
+            GobblinYarnEventConstants.EventMetadata.ERROR_EXCEPTION, Throwables.getStackTraceAsString(t));
+      }
+
       LOGGER.error(String.format("Failed to stop container %s due to error %s", containerId, t));
     }
   }

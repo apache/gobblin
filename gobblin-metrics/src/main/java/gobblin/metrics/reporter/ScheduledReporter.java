@@ -94,7 +94,7 @@ public abstract class ScheduledReporter extends ContextAwareReporter {
   public ScheduledReporter(String name, Config config) {
     super(name, config);
     this.executor = Executors.newSingleThreadScheduledExecutor(
-        ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("metrics-" + name + "-scheduler")));
+        ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of("metrics-" + name + "-scheduler")));
     this.reportingPeriodSeconds = parsePeriodToSeconds(
         config.hasPath(REPORTING_INTERVAL) ? config.getString(REPORTING_INTERVAL) : DEFAULT_REPORTING_INTERVAL_PERIOD);
   }
@@ -110,15 +110,16 @@ public abstract class ScheduledReporter extends ContextAwareReporter {
 
   @Override
   public void stopImpl() {
-    // Report metrics before stopping - this ensures any metrics values updated between intervals are reported
-    report(true);
     this.scheduledTask.get().cancel(false);
     this.scheduledTask = Optional.absent();
+    ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(log), 10, TimeUnit.SECONDS);
+
+    // Report metrics one last time - this ensures any metrics values updated between intervals are reported
+    report(true);
   }
 
   @Override
   public void close() throws IOException {
-    ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(log), 10, TimeUnit.SECONDS);
     super.close();
   }
 

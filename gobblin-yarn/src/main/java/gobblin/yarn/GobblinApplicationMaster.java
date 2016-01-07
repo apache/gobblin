@@ -221,8 +221,8 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
    */
   private List<? extends Tag<?>> getMetadataTags(String applicationName, String applicationId) {
     return Tag.fromMap(
-        new ImmutableMap.Builder<String, Object>().put(GobblinYarnEventNames.YARN_APPLICATION_NAME, applicationName)
-            .put(GobblinYarnEventNames.YARN_APPLICATION_ID, applicationId).build());
+        new ImmutableMap.Builder<String, Object>().put(GobblinYarnMetricTagNames.YARN_APPLICATION_NAME, applicationName)
+            .put(GobblinYarnMetricTagNames.YARN_APPLICATION_ID, applicationId).build());
   }
 
   /**
