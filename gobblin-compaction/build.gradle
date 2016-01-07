@@ -65,7 +65,7 @@ jar {
   manifestClasspath = ". " + manifestClasspath
   manifest {
     attributes("Manifest-Version"       : "1.0",
-    "Main-Class"             : "gobblin.compaction.CompactionRunner",
+    "Main-Class"             : "gobblin.compaction.hive.CompactionRunner",
     "Class-Path"             : manifestClasspath
     )
   }
