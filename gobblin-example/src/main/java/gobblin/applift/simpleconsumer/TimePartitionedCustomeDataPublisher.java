@@ -16,15 +16,15 @@ import gobblin.util.FileListUtils;
 import gobblin.util.ParallelRunner;
 import gobblin.util.WriterUtils;
 
-public class TimePartitionedDataPublisher extends BaseDataPublisher {
-  private static final Logger LOG = LoggerFactory.getLogger(TimePartitionedDataPublisher.class);
+public class TimePartitionedCustomeDataPublisher extends BaseDataPublisher {
+  private static final Logger LOG = LoggerFactory.getLogger(TimePartitionedCustomeDataPublisher.class);
 	
-	public TimePartitionedDataPublisher(State state) throws IOException {
+	public TimePartitionedCustomeDataPublisher(State state) throws IOException {
 		super(state);
 	}
 	
 	/**
-   * This method needs to be overridden for TimePartitionedDataPublisher, since the output folder structure
+   * This method needs to be overridden for TimePartitionedCustomeDataPublisher, since the output folder structure
    * contains timestamp, we have to move the files recursively.
    *
    * For example, move {writerOutput}/2015/04/08/15/output.avro to {publisherOutput}/2015/04/08/15/output.avro
@@ -38,6 +38,12 @@ public class TimePartitionedDataPublisher extends BaseDataPublisher {
       String filePathStr = status.getPath().toString();
       String pathSuffix =
           filePathStr.substring(filePathStr.indexOf(writerOutput.toString()) + writerOutput.toString().length() + 1);
+      
+      String[] directories = pathSuffix.split("\\/");
+      LOG.warn("Applift: PathSuffix ="+ pathSuffix);
+      for(String directory:directories)
+      	LOG.warn("Applift: Directory ="+ directory+"\n");
+
       Path outputPath = new Path(publisherOutput, pathSuffix);
 
       WriterUtils.mkdirsWithRecursivePermission(this.publisherFileSystemByBranches.get(branchId), outputPath.getParent(),
