@@ -498,7 +498,7 @@ public class YarnService extends AbstractIdleService {
   }
 
   private ImmutableMap.Builder<String, String> buildContainerStatusEventMetadata(ContainerStatus containerStatus) {
-    ImmutableMap.Builder eventMetadataBuilder = new ImmutableMap.Builder<String, String>();
+    ImmutableMap.Builder<String, String> eventMetadataBuilder = new ImmutableMap.Builder<>();
     eventMetadataBuilder.put(GobblinYarnMetricTagNames.CONTAINER_ID, containerStatus.getContainerId().toString());
     eventMetadataBuilder.put(GobblinYarnEventConstants.EventMetadata.CONTAINER_STATUS_CONTAINER_STATE,
         containerStatus.getState().toString());
