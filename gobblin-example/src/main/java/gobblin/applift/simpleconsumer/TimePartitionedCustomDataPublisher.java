@@ -16,15 +16,15 @@ import gobblin.util.FileListUtils;
 import gobblin.util.ParallelRunner;
 import gobblin.util.WriterUtils;
 
-public class TimePartitionedCustomeDataPublisher extends BaseDataPublisher {
-  private static final Logger LOG = LoggerFactory.getLogger(TimePartitionedCustomeDataPublisher.class);
+public class TimePartitionedCustomDataPublisher extends BaseDataPublisher {
+  private static final Logger LOG = LoggerFactory.getLogger(TimePartitionedCustomDataPublisher.class);
 	
-	public TimePartitionedCustomeDataPublisher(State state) throws IOException {
+	public TimePartitionedCustomDataPublisher(State state) throws IOException {
 		super(state);
 	}
 	
 	/**
-   * This method needs to be overridden for TimePartitionedCustomeDataPublisher, since the output folder structure
+   * This method needs to be overridden for TimePartitionedCustomDataPublisher, since the output folder structure
    * contains timestamp, we have to move the files recursively.
    *
    * For example, move {writerOutput}/2015/04/08/15/output.avro to {publisherOutput}/2015/04/08/15/output.avro
