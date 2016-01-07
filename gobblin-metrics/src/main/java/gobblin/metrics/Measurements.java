@@ -16,7 +16,7 @@ package gobblin.metrics;
 /**
  * A enumeration of different measurements of metrics.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public enum Measurements {
 

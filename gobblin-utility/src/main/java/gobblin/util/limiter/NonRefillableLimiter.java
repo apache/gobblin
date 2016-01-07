@@ -20,7 +20,7 @@ import java.io.IOException;
  * A type of {@link Limiter}s that do not support permit refills by returning a no-op
  * {@link Closeable} in {@link #acquirePermits(long)}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public abstract class NonRefillableLimiter implements Limiter {
 

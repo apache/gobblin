@@ -108,7 +108,7 @@ import gobblin.yarn.event.DelegationTokenUpdatedEvent;
  *   </ul>
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class GobblinApplicationMaster extends GobblinYarnLogSource {
 

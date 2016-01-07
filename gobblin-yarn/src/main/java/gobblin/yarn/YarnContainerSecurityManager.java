@@ -44,7 +44,7 @@ import gobblin.yarn.event.DelegationTokenUpdatedEvent;
  *   current login user.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class YarnContainerSecurityManager extends AbstractIdleService {
 

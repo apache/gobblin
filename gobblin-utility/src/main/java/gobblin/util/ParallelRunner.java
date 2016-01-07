@@ -66,7 +66,7 @@ import gobblin.configuration.State;
  *   {@link ParallelRunner} by shutting down the {@link ExecutorService}.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class ParallelRunner implements Closeable {
 

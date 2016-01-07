@@ -23,7 +23,7 @@ import gobblin.configuration.WorkUnitState;
  * records. So essentially this operator forks one input data stream into multiple
  * data streams. This interface allows user to plugin their fork logic.
  *
- * @author ynli
+ * @author Yinan Li
  *
  * @param <S> schema data type
  * @param <D> data record data type

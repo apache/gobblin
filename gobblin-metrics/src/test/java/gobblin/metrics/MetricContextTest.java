@@ -46,7 +46,7 @@ import gobblin.metrics.reporter.ContextAwareScheduledReporter;
  *   {@link gobblin.metrics.reporter.ContextAwareScheduledReporter}, and {@link TagBasedMetricFilter}.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = {"gobblin.metrics"})
 public class MetricContextTest {

@@ -43,7 +43,7 @@ import com.google.common.io.Files;
 /**
  * A utility class used by the scheduler.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class SchedulerUtils {
 

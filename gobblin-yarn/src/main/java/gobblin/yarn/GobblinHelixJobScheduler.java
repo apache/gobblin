@@ -42,7 +42,7 @@ import gobblin.yarn.event.NewJobConfigArrivalEvent;
  * An extension to {@link JobScheduler} that schedules and runs Gobblin jobs on Helix using
  * {@link GobblinHelixJobLauncher}s.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class GobblinHelixJobScheduler extends JobScheduler {
 

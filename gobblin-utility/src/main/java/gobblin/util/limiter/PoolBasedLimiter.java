@@ -31,7 +31,7 @@ import com.google.common.primitives.Ints;
  *   {@link Integer#MAX_VALUE}.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class PoolBasedLimiter implements Limiter {
 

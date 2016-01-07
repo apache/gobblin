@@ -61,7 +61,7 @@ import gobblin.writer.WriterOutputFormat;
  *   the local file system as returned by {@link FileSystem#getLocal(Configuration)}.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = { "gobblin.yarn" })
 public class GobblinHelixTaskTest {

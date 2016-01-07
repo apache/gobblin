@@ -36,7 +36,7 @@ import gobblin.util.limiter.Limiter;
  * @param <S> output schema type
  * @param <D> output record type
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class LimitingExtractorDecorator<S, D> implements Extractor<S, D>, Decorator {
 

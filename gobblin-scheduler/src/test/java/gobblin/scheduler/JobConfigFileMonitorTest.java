@@ -39,7 +39,7 @@ import gobblin.testing.AssertWithBackoff;
 /**
  * Unit tests for the job configuration file monitor in {@link gobblin.scheduler.JobScheduler}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = {"gobblin.scheduler"})
 public class JobConfigFileMonitorTest {

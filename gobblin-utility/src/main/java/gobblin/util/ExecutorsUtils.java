@@ -35,7 +35,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 /**
  * A utility class to use with {@link java.util.concurrent.Executors} in cases such as when creating new thread pools.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class ExecutorsUtils {
 

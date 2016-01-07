@@ -44,7 +44,7 @@ import gobblin.rest.JobExecutionInfoServer;
 /**
  * A class that runs the {@link JobScheduler} in a daemon process for standalone deployment.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class SchedulerDaemon {
 

@@ -19,7 +19,7 @@ import com.google.common.base.Strings;
 /**
  * An enumeration of supported work unit retry policies.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public enum WorkUnitRetryPolicy {
   /**

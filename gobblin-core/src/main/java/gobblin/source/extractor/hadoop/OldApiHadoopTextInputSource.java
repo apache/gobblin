@@ -35,7 +35,7 @@ import gobblin.configuration.WorkUnitState;
  *
  * @param <S> output schema type
  *
- * @author ynli
+ * @author Yinan Li
  */
 public abstract class OldApiHadoopTextInputSource<S> extends OldApiHadoopFileInputSource<S, Text, LongWritable, Text> {
 

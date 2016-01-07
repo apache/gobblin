@@ -27,7 +27,7 @@ import gobblin.util.JobConfigurationUtils;
 /**
  * A factory class for building {@link JobLauncher} instances.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class JobLauncherFactory {
 

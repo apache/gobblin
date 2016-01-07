@@ -39,7 +39,7 @@ import gobblin.converter.ToAvroConverterBase;
  *   and each input json document into an Avro {@link org.apache.avro.generic.GenericRecord}.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 @SuppressWarnings("unused")
 public class SimpleJsonConverter extends ToAvroConverterBase<String, String> {

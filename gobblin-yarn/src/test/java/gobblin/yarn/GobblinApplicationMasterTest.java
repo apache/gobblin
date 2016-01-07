@@ -49,7 +49,7 @@ import gobblin.yarn.event.ApplicationMasterShutdownRequest;
  *   shutdown request message.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = { "gobblin.yarn" })
 public class GobblinApplicationMasterTest implements HelixMessageTestBase {

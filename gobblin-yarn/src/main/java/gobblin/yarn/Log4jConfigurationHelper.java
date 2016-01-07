@@ -27,7 +27,7 @@ import com.google.common.io.Closer;
 /**
  * A helper class for programmatically configuring log4j.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class Log4jConfigurationHelper {
 

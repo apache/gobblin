@@ -71,7 +71,7 @@ import gobblin.source.extractor.JobCommitPolicy;
  *     </ul>
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class Task implements Runnable {
 

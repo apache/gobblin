@@ -21,7 +21,7 @@ import com.google.common.collect.Iterators;
 /**
  * A type of {@link Iterable}s for a single non-nullable record.
  *
- * @author ynli
+ * @author Yinan Li
  *
  * @param <T> record type
  */

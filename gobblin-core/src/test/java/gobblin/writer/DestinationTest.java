@@ -9,7 +9,7 @@ import gobblin.configuration.State;
 /**
  * Unit tests for {@link Destination}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = {"gobblin.writer"})
 public class DestinationTest {

@@ -22,7 +22,7 @@ import com.google.inject.name.Names;
 /**
  * A Guice module defining the dependencies used by the metastore module.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class MetaStoreModule extends AbstractModule {
 

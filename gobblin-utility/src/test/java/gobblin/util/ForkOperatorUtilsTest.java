@@ -23,7 +23,7 @@ import gobblin.configuration.WorkUnitState;
 /**
  * Unit tests for {@link ForkOperatorUtils}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = {"gobblin.util"})
 public class ForkOperatorUtilsTest {

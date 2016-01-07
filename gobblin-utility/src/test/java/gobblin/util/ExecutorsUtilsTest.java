@@ -31,7 +31,7 @@ import com.google.common.collect.ImmutableList;
 /**
  * Unit tests for {@link ExecutorsUtils}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = {"gobblin.util"})
 public class ExecutorsUtilsTest {

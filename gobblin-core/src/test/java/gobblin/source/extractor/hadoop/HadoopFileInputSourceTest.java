@@ -34,7 +34,7 @@ import gobblin.source.workunit.WorkUnit;
 /**
  * Unit tests for {@link HadoopFileInputSource}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = {"gobblin.source.extractor.hadoop"})
 public class HadoopFileInputSourceTest extends OldApiHadoopFileInputSourceTest {

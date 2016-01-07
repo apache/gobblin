@@ -39,7 +39,7 @@ import com.linkedin.restli.common.EmptyRecord;
 /**
  * A Rest.li client to work with the Rest.li service for job execution queries.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class JobExecutionInfoClient implements Closeable {
 

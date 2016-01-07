@@ -42,7 +42,7 @@ import gobblin.testing.AssertWithBackoff;
  *   {@link GobblinApplicationMaster} instance is used to send the test shutdown request message.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = { "gobblin.yarn" })
 public class GobblinWorkUnitRunnerTest {

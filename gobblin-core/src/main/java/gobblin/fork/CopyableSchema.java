@@ -18,7 +18,7 @@ import org.apache.avro.Schema;
 /**
  * A wrapper class for {@link org.apache.avro.Schema} that is also {@link Copyable}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class CopyableSchema implements Copyable<Schema> {
 

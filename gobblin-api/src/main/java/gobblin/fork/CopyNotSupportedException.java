@@ -15,7 +15,7 @@ package gobblin.fork;
 /**
  * A type of {@link java.lang.Exception}s thrown when copying is not supported.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class CopyNotSupportedException extends Exception {
 

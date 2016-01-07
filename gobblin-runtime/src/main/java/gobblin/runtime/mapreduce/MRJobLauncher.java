@@ -93,7 +93,7 @@ import gobblin.util.SerializationUtils;
  *     mode. Each mapper writes out task states upon task completion.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class MRJobLauncher extends AbstractJobLauncher {
 

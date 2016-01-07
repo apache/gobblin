@@ -20,7 +20,7 @@ import org.apache.avro.generic.GenericRecord;
  * A wrapper class for {@link org.apache.avro.generic.GenericRecord}
  * that is also {@link Copyable}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class CopyableGenericRecord implements Copyable<GenericRecord> {
 

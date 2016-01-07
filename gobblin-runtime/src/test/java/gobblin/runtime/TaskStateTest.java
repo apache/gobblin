@@ -32,7 +32,7 @@ import gobblin.configuration.WorkUnitState;
 /**
  * Unit tests for {@link TaskState}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = {"gobblin.runtime"})
 public class TaskStateTest {

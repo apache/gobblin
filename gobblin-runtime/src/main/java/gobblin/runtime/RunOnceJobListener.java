@@ -26,7 +26,7 @@ import gobblin.configuration.ConfigurationKeys;
 /**
  * An implementation of {@link JobListener} for run-once jobs.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class RunOnceJobListener implements JobListener {
 

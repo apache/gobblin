@@ -34,7 +34,7 @@ import gobblin.scheduler.JobScheduler;
  * An implementation of a Quartz's {@link Job} that uses a {@link GobblinHelixJobLauncher}
  * to launch a Gobblin job.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class GobblinHelixJob implements Job {
 

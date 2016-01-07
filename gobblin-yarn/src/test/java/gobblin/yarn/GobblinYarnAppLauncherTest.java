@@ -51,7 +51,7 @@ import gobblin.testing.AssertWithBackoff;
  *   A {@link YarnClient} is used to work with the {@link MiniYARNCluster}.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = { "gobblin.yarn" })
 public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {

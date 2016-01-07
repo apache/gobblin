@@ -15,7 +15,7 @@ package gobblin.yarn;
 /**
  * A central place for constants of {@link gobblin.metrics.MetricContext} tag names for Gobblin on Yarn.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class GobblinYarnMetricTagNames {
 

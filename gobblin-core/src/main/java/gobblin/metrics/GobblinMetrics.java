@@ -53,7 +53,7 @@ import gobblin.metrics.reporter.ScheduledReporter;
 /**
  * A class that represents a set of metrics associated with a given name.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class GobblinMetrics {
 

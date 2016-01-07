@@ -23,7 +23,7 @@ import gobblin.util.EmailUtils;
 /**
  * An implementation of {@link JobListener} that sends email notifications.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class EmailNotificationJobListener implements JobListener {
 

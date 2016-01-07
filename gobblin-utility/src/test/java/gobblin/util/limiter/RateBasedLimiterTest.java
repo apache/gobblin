@@ -30,7 +30,7 @@ import gobblin.util.limiter.RateBasedLimiter;
 /**
  * Unit tests for {@link RateBasedLimiter}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = { "gobblin.util.limiter" })
 public class RateBasedLimiterTest {

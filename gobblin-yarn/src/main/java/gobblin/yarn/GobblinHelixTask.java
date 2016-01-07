@@ -60,7 +60,7 @@ import gobblin.util.SerializationUtils;
  *   a file that will be collected by the {@link GobblinHelixJobLauncher} later upon completion of the job.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class GobblinHelixTask implements Task {
 

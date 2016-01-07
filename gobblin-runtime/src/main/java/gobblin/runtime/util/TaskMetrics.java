@@ -27,7 +27,7 @@ import gobblin.runtime.TaskState;
 /**
  * An extension to {@link GobblinMetrics} specifically for tasks.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class TaskMetrics extends GobblinMetrics {
 

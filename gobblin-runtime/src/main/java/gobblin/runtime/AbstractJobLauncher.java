@@ -56,7 +56,7 @@ import gobblin.util.ParallelRunner;
 /**
  * An abstract implementation of {@link JobLauncher} that handles common tasks for launching and running a job.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public abstract class AbstractJobLauncher implements JobLauncher {
 

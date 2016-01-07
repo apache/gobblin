@@ -36,7 +36,7 @@ import gobblin.util.ConfigUtils;
 /**
  * Unit tests for {@link YarnHelixUtils}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = { "gobblin.yarn" })
 public class YarnHelixUtilsTest {

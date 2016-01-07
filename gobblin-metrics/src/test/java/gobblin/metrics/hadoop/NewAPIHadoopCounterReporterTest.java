@@ -42,7 +42,7 @@ import static gobblin.metrics.TestConstants.*;
 /**
  * Unit tests for {@link NewAPIHadoopCounterReporter}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = {"gobblin.metrics.hadoop"})
 public class NewAPIHadoopCounterReporterTest {

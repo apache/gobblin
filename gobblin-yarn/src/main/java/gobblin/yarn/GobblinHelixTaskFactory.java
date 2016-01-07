@@ -36,7 +36,7 @@ import gobblin.runtime.TaskStateTracker;
 /**
  * An implementation of Helix's {@link TaskFactory} for {@link GobblinHelixTask}s.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class GobblinHelixTaskFactory implements TaskFactory {
 

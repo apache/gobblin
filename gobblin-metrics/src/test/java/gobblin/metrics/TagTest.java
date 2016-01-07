@@ -19,7 +19,7 @@ import org.testng.annotations.Test;
 /**
  * Unit tests for {@link Tag}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = {"gobblin.metrics"})
 public class TagTest {

@@ -43,7 +43,7 @@ import gobblin.util.ExecutorsUtils;
  * A utility class for cleaning up old state store files created by {@link gobblin.metastore.FsStateStore}
  * based on a configured retention.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class StateStoreCleaner implements Closeable {
 

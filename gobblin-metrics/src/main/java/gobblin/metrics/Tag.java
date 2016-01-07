@@ -30,7 +30,7 @@ import com.google.common.collect.Lists;
  *
  * @param <T> type of the tag value
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class Tag<T> extends AbstractMap.SimpleEntry<String, T> {
 
