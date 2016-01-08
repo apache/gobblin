@@ -69,7 +69,7 @@ public class UnGzipConverter extends Converter<String, String, FileAwareInputStr
    * {@link CopyableFile#getRelativeDestination()}
    */
   private void removeExtensionAtDestination(CopyableFile file) {
-    file.setDestination(PathUtils.removeExtention(file.getDestination(), TAR_EXTENSION, GZ_EXTENSION, TGZ_EXTENSION));
-    file.setRelativeDestination(PathUtils.removeExtention(file.getRelativeDestination(), TAR_EXTENSION, GZ_EXTENSION, TGZ_EXTENSION));
+    file.setDestination(PathUtils.removeExtension(file.getDestination(), TAR_EXTENSION, GZ_EXTENSION, TGZ_EXTENSION));
+    file.setRelativeDestination(PathUtils.removeExtension(file.getRelativeDestination(), TAR_EXTENSION, GZ_EXTENSION, TGZ_EXTENSION));
   }
 }
