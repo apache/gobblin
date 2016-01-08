@@ -153,6 +153,10 @@ public class HadoopUtils {
     if (srcFs.getUri().equals(dstFs.getUri())) {
       renamePath(srcFs, src, dst);
     } else {
+      // Determining if the source filesystem in local will allow us to call moveFromLocalFile and give the
+      // destination filesystem the ability optimize the transfer. For example, when the source file is
+      // local the S3AFileSystem will skip buffering it into the fs.s3a.buffer.dir and immediately transfer the
+      // file to S3.
       boolean isSourceFileSystemLocal = srcFs instanceof LocalFileSystem;
       FileStatus srcStatus = srcFs.getFileStatus(src);
       if (srcStatus.isDir()) {
