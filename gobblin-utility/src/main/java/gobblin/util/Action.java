@@ -13,5 +13,5 @@
 package gobblin.util;
 
 public interface Action {
-  public void apply();
+  void apply() throws Exception;
 }
