@@ -21,7 +21,6 @@ import java.util.Set;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
-import gobblin.util.Action;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -36,6 +35,7 @@ import com.google.common.io.Closer;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.util.Action;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.util.ParallelRunner;
 import gobblin.util.WriterUtils;
