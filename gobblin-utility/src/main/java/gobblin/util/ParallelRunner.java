@@ -23,7 +23,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.locks.Lock;
 
-import com.google.common.collect.ImmutableList;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileSystem;
@@ -34,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.Striped;
@@ -268,7 +268,7 @@ public class ParallelRunner implements Closeable {
    * @param commitAction an action to perform when the move completes successfully
    */
   public void movePath(final FileSystem srcFs, final Path src, final FileSystem dstFs, final Path dst, final Optional<String> group,
-                       final Action commitAction) {
+                       final Optional<Action> commitAction) {
       movePaths(ImmutableList.of(new MoveCommand(srcFs, src, dstFs, dst)), group, commitAction);
   }
 
@@ -284,7 +284,7 @@ public class ParallelRunner implements Closeable {
    * @param group an optional group name for the destination path
    * @param commitAction an action to perform when the move completes successfully
    */
-  public void movePaths(final List<MoveCommand> commands, final Optional<String> group, final Action commitAction) {
+  public void movePaths(final List<MoveCommand> commands, final Optional<String> group, final Optional<Action> commitAction) {
     this.futures.add(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
@@ -306,8 +306,8 @@ public class ParallelRunner implements Closeable {
             lock.unlock();
           }
         }
-        if (commitAction != null) {
-          commitAction.apply();
+        if (commitAction.isPresent()) {
+          commitAction.get().apply();
         }
         return null;
       }

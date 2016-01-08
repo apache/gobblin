@@ -174,7 +174,8 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
                   publisherFileSystem, publisherOutputPath));
         }
       }
-      this.parallelRunner.movePaths(movesBuilder.build(), Optional.<String>absent(), new CommitAction(state));
+      this.parallelRunner.movePaths(movesBuilder.build(), Optional.<String>absent(),
+              Optional.<Action>of(new CommitAction(state)));
     }
   }
 
@@ -257,7 +258,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     }
   }
 
-  private class WorkUnitPublishGroup {
+  private static class WorkUnitPublishGroup {
     private final int branchId;
     private final Path writerOutputDir;
     private final Path publisherOutputDir;
@@ -283,7 +284,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     @Override
     public boolean equals(Object o) {
       if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (!(o instanceof WorkUnitPublishGroup)) return false;
 
       WorkUnitPublishGroup that = (WorkUnitPublishGroup) o;
       return Objects.equals(branchId, that.branchId) &&
