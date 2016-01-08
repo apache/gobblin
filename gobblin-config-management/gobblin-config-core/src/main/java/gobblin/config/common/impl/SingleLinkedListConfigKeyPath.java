@@ -14,7 +14,6 @@ package gobblin.config.common.impl;
 
 import gobblin.config.store.api.ConfigKeyPath;
 
-
 public class SingleLinkedListConfigKeyPath implements ConfigKeyPath {
 
   public static final String PATH_DELIMETER = "/";

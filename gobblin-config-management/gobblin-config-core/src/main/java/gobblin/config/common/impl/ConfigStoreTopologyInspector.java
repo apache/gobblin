@@ -12,18 +12,28 @@
 
 package gobblin.config.common.impl;
 
-import gobblin.config.store.api.ConfigKeyPath;
-
 import java.util.Collection;
 import java.util.List;
+
+import gobblin.config.store.api.ConfigKeyPath;
 
 /**
  * The ConfigStoreTopology interface used to describe the topology of a configuration store.
  * 
+ * Each node in the configuration store is represented as one {@ConfigKeyPath}, so the topology of 
+ * any node includes:
+ * 
+ * 1. The link to it's parent ( already defined in {@ConfigKeyPath} )
+ * 2. All the direct children of the node.
+ * 3. The node's directly outgoing imports links. ( defined as getOwnImports() )
+ * 4. Other nodes which directly imports the node. ( defined as getImportedBy() )
+ * 5. The node's directly and indirectly imports links. ( defined as getImportsRecursively )
+ * 6. Other nodes which directly and indirectly imports the node. ( defined as getImportedByRecursively() )
+ * 
  * @author mitu
  *
  */
-public interface ConfigStoreTopologyIntf {
+public interface ConfigStoreTopologyInspector {
 
   /**
    * Obtains the direct children config keys for a given config key. 
