@@ -75,7 +75,7 @@ public class DecryptConverter extends Converter<String, String, FileAwareInputSt
    * {@link CopyableFile#getRelativeDestination()}
    */
   private void removeExtensionAtDestination(CopyableFile file) {
-    file.setDestination(PathUtils.removeExtention(file.getDestination(), GPG_EXTENSION));
-    file.setRelativeDestination(PathUtils.removeExtention(file.getRelativeDestination(), GPG_EXTENSION));
+    file.setDestination(PathUtils.removeExtension(file.getDestination(), GPG_EXTENSION));
+    file.setRelativeDestination(PathUtils.removeExtension(file.getRelativeDestination(), GPG_EXTENSION));
   }
 }
