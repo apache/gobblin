@@ -11,6 +11,9 @@
 subprojects {
   repositories {
     mavenCentral()
+    maven {
+      url "https://repository.cloudera.com/artifactory/cloudera-repos/"
+    }
   }
 
   project.buildDir = new File(project.rootProject.buildDir, project.name)
