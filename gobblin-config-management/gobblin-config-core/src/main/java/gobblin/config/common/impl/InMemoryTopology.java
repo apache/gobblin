@@ -66,6 +66,8 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
       currentLevel = nextLevel;
     }
 
+    System.out.println("size of ownImportMpa is " + this.ownImportMap.size() );
+    System.out.println("size of chldrenMap is " + this.childrenMap.size() );
     // traversal the ownImports map to get the recursive imports map and set recursive imported by map
     for(ConfigKeyPath configKey: this.ownImportMap.keySet()){
       List<ConfigKeyPath> recursiveImports = null;
@@ -93,7 +95,9 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
   private List<ConfigKeyPath> buildImportsRecursiveFromCacheHelper(ConfigKeyPath initialConfigKey, 
       ConfigKeyPath currentConfigKey, List<ConfigKeyPath> previous) {
     
+    System.out.println("current is " + currentConfigKey);
     for (ConfigKeyPath p : previous) {
+      System.out.println("previous is " + p);
       if (currentConfigKey != null && currentConfigKey.equals(p)) {
         previous.add(p);
         throw new CircularDependencyException(getCircularDependencyChain(initialConfigKey, previous, currentConfigKey));
@@ -108,13 +112,24 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
     List<ConfigKeyPath> result = new ArrayList<>();
 
     // Own imports map should be filled in already
-    List<ConfigKeyPath> imported = this.getOwnImportsFromCache(currentConfigKey); 
+    List<ConfigKeyPath> rawList = this.getOwnImportsFromCache(currentConfigKey); 
+    
+    // without this wrapper, will cause UnsupportedOperationException in adding parent node
+    List<ConfigKeyPath> imported = new ArrayList<ConfigKeyPath>();
+    imported.addAll(rawList);
     
     // implicit import parent with the lowest priority
-    imported.add(currentConfigKey.getParent());
+    if(!currentConfigKey.isRootPath()){
+      imported.add(currentConfigKey.getParent());
+    }
     
     for (ConfigKeyPath u : imported) {
-      result.add(u);
+      // do NOT add self parent in result as
+      // 1. by default import parent
+      // 2. if added, too many entries in the result
+      if(!u.equals(currentConfigKey.getParent())){
+        result.add(u);
+      }
       
       List<ConfigKeyPath> current = new ArrayList<ConfigKeyPath>();
       current.addAll(previous);
@@ -151,7 +166,7 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
   // return the circular dependency chain
   private static String getCircularDependencyChain(ConfigKeyPath initialConfigKey, List<ConfigKeyPath> chain, ConfigKeyPath circular) {
     StringBuilder sb = new StringBuilder();
-    sb.append("Initial configKey : " + initialConfigKey);
+    sb.append("Initial configKey : " + initialConfigKey + ", loop is ");
     for (ConfigKeyPath u : chain) {
       sb.append(" -> " + u);
     }
@@ -170,12 +185,17 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
    */
   @Override
   public Collection<ConfigKeyPath> getChildren(ConfigKeyPath configKey) {
+    System.out.println("BBB " + configKey);
     if (this.childrenMap.containsKey(configKey)) {
+      System.out.println("BBB in cache");
       return this.childrenMap.get(configKey);
     }
 
     Collection<ConfigKeyPath> result = this.fallback.getChildren(configKey);
     this.childrenMap.putAll(configKey, result);
+    
+    System.out.println("BBB size is " + result.size());
+    System.out.println("BBB in cahche? " + this.childrenMap.containsKey(configKey));
     return result;
   }
 
@@ -189,12 +209,17 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
    */
   @Override
   public List<ConfigKeyPath> getOwnImports(ConfigKeyPath configKey) {
+    System.out.println("AAA " + configKey);
     if (this.ownImportMap.containsKey(configKey)) {
+      System.out.println("AAA in cache");
       return this.ownImportMap.get(configKey);
     }
 
     List<ConfigKeyPath> result = this.fallback.getOwnImports(configKey);
     this.ownImportMap.putAll(configKey, result);
+    
+    System.out.println("AAA size is " + result.size());
+    System.out.println("AAA in cahche? " + this.ownImportMap.containsKey(configKey));
     return result;
   }
 

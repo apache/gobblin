@@ -14,6 +14,7 @@ package gobblin.config.common.impl;
 
 import gobblin.config.store.api.ConfigKeyPath;
 
+
 public class SingleLinkedListConfigKeyPath implements ConfigKeyPath {
 
   public static final String PATH_DELIMETER = "/";
@@ -43,6 +44,10 @@ public class SingleLinkedListConfigKeyPath implements ConfigKeyPath {
 
   @Override
   public ConfigKeyPath createChild(String childPathName) {
+    if (childPathName == null || childPathName.length() == 0 || childPathName.indexOf(PATH_DELIMETER) >= 0) {
+      throw new IllegalArgumentException("Name can not be null/empty string and can not contains the delimter "
+          + PATH_DELIMETER);
+    }
     return new SingleLinkedListConfigKeyPath(this, childPathName);
   }
 
