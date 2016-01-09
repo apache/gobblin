@@ -87,7 +87,10 @@ var app = app || {}
     },
     getRecordsRead: function () {
       if (this.hasMetrics()) {
-        var recordsRead = $.grep(this.attributes.metrics, function (e) { return e.name === 'gobblin.extractor.records.read' })
+        var recordsRead = $.grep(
+          this.attributes.metrics, function (e) {
+            return e.name.match(/JOB.*\.records$/)}
+        )
         if (recordsRead.length === 1) {
           var val = parseFloat(recordsRead[0].value)
           if (!isNaN(val)) {
