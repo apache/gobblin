@@ -31,255 +31,200 @@ import org.testng.annotations.Test;
 import gobblin.config.store.api.ConfigKeyPath;
 import gobblin.config.store.api.ConfigStore;
 
-@Test(groups = { "gobblin.config.common.impl" })
 
+@Test(groups = { "gobblin.config.common.impl" })
 public class TestCircularDependency {
-  
+
   private final String version = "V1.0";
   List<ConfigKeyPath> emptyList = Collections.emptyList();
+
+  public static void addConfigStoreChildren(ConfigStore mockup, String version, ConfigKeyPath parent,
+      ConfigKeyPath... configKeyPaths) {
+    List<ConfigKeyPath> children = new ArrayList<ConfigKeyPath>();
+    for (ConfigKeyPath p : configKeyPaths) {
+      children.add(p);
+    }
+
+    when(mockup.getChildren(parent, version)).thenReturn(children);
+  }
+
+  public static void addConfigStoreImports(ConfigStore mockup, String version, ConfigKeyPath self,
+      ConfigKeyPath... configKeyPaths) {
+    List<ConfigKeyPath> ownImports = new ArrayList<ConfigKeyPath>();
+    for (ConfigKeyPath p : configKeyPaths) {
+      ownImports.add(p);
+    }
+
+    when(mockup.getOwnImports(self, version)).thenReturn(ownImports);
+  }
 
   @Test
   public void testSelfImportSelf() {
     ConfigKeyPath tag = SingleLinkedListConfigKeyPath.ROOT.createChild("tag");
-    
+
     ConfigStore mockConfigStore = mock(ConfigStore.class, Mockito.RETURNS_SMART_NULLS);
     when(mockConfigStore.getCurrentVersion()).thenReturn(version);
-    List<ConfigKeyPath> rootChildren = new ArrayList<ConfigKeyPath>();
-    rootChildren.add(tag);
-    when(mockConfigStore.getChildren(SingleLinkedListConfigKeyPath.ROOT, version)).thenReturn(rootChildren);
-    when(mockConfigStore.getChildren(tag, version)).thenReturn(emptyList);
-    
+
+    addConfigStoreChildren(mockConfigStore, version, SingleLinkedListConfigKeyPath.ROOT, tag);
+
     // self import self
-    List<ConfigKeyPath> tagImports = new ArrayList<ConfigKeyPath>();
-    tagImports.add(tag);
-    when(mockConfigStore.getOwnImports(tag, version)).thenReturn(tagImports);
-    
-    when(mockConfigStore.getOwnImports(SingleLinkedListConfigKeyPath.ROOT, version)).thenReturn(emptyList);
-    
+    addConfigStoreImports(mockConfigStore, version, tag, tag);
+
     ConfigStoreBackedTopology csTopology = new ConfigStoreBackedTopology(mockConfigStore, this.version);
     InMemoryTopology inMemory = new InMemoryTopology(csTopology);
-    
-   try {
+
+    try {
       inMemory.getImportsRecursively(tag);
       Assert.fail("Did not catch expected CircularDependencyException");
     } catch (CircularDependencyException e) {
       Assert.assertTrue(e.getMessage().indexOf("/tag") > 0);
     }
   }
-  
+
   @Test
   public void testSelfImportChild() {
     ConfigKeyPath tag = SingleLinkedListConfigKeyPath.ROOT.createChild("tag");
     ConfigKeyPath highPriorityTag = tag.createChild("highPriorityTag");
-    
+
     ConfigStore mockConfigStore = mock(ConfigStore.class, Mockito.RETURNS_SMART_NULLS);
     when(mockConfigStore.getCurrentVersion()).thenReturn(version);
-    List<ConfigKeyPath> rootChildren = new ArrayList<ConfigKeyPath>();
-    rootChildren.add(tag);
-    when(mockConfigStore.getChildren(SingleLinkedListConfigKeyPath.ROOT, version)).thenReturn(rootChildren);
-    
-    List<ConfigKeyPath> tagChildren = new ArrayList<ConfigKeyPath>();
-    tagChildren.add(highPriorityTag);
-    when(mockConfigStore.getChildren(tag, version)).thenReturn(tagChildren);
-    
-    when(mockConfigStore.getChildren(highPriorityTag, version)).thenReturn(this.emptyList);
-    
+
+    addConfigStoreChildren(mockConfigStore, version, SingleLinkedListConfigKeyPath.ROOT, tag);
+    addConfigStoreChildren(mockConfigStore, version, tag, highPriorityTag);
+
     // parent import direct child
-    List<ConfigKeyPath> tagImports = new ArrayList<ConfigKeyPath>();
-    tagImports.add(highPriorityTag);
-    when(mockConfigStore.getOwnImports(tag, version)).thenReturn(tagImports);
-    
+    addConfigStoreImports(mockConfigStore, version, tag, highPriorityTag);
+
     ConfigStoreBackedTopology csTopology = new ConfigStoreBackedTopology(mockConfigStore, this.version);
     InMemoryTopology inMemory = new InMemoryTopology(csTopology);
-    
-   try {
+
+    try {
       inMemory.getImportsRecursively(tag);
       Assert.fail("Did not catch expected CircularDependencyException");
     } catch (CircularDependencyException e) {
-      Assert.assertTrue(e.getMessage().indexOf("/tag/highPriorityTag") > 0
-          && e.getMessage().indexOf("/tag ") > 0);
+      Assert.assertTrue(e.getMessage().indexOf("/tag/highPriorityTag") > 0 && e.getMessage().indexOf("/tag ") > 0);
     }
   }
-  
+
   @Test
   public void testSelfImportDescendant() {
     ConfigKeyPath tag = SingleLinkedListConfigKeyPath.ROOT.createChild("tag");
     ConfigKeyPath highPriorityTag = tag.createChild("highPriorityTag");
     ConfigKeyPath nertzHighPriorityTag = highPriorityTag.createChild("nertzHighPriorityTag");
-    
+
     ConfigStore mockConfigStore = mock(ConfigStore.class, Mockito.RETURNS_SMART_NULLS);
     when(mockConfigStore.getCurrentVersion()).thenReturn(version);
-    List<ConfigKeyPath> rootChildren = new ArrayList<ConfigKeyPath>();
-    rootChildren.add(tag);
-    when(mockConfigStore.getChildren(SingleLinkedListConfigKeyPath.ROOT, version)).thenReturn(rootChildren);
-    
-    List<ConfigKeyPath> tagChildren = new ArrayList<ConfigKeyPath>();
-    tagChildren.add(highPriorityTag);
-    when(mockConfigStore.getChildren(tag, version)).thenReturn(tagChildren);
-    
-    List<ConfigKeyPath> highPriorityTagChildren = new ArrayList<ConfigKeyPath>();
-    highPriorityTagChildren.add(nertzHighPriorityTag);
-    when(mockConfigStore.getChildren(highPriorityTag, version)).thenReturn(highPriorityTagChildren);
-    
+
+    addConfigStoreChildren(mockConfigStore, version, SingleLinkedListConfigKeyPath.ROOT, tag);
+    addConfigStoreChildren(mockConfigStore, version, tag, highPriorityTag);
+    addConfigStoreChildren(mockConfigStore, version, highPriorityTag, nertzHighPriorityTag);
+
     // self import descendant 
     // formed the loop /tag -> /tag/highPriorityTag/nertzHighPriorityTag -> /tag/highPriorityTag -> /tag
-    List<ConfigKeyPath> tagImports = new ArrayList<ConfigKeyPath>();
-    tagImports.add(nertzHighPriorityTag);
-    when(mockConfigStore.getOwnImports(tag, version)).thenReturn(tagImports);
-    
+    addConfigStoreImports(mockConfigStore, version, tag, nertzHighPriorityTag);
+
     ConfigStoreBackedTopology csTopology = new ConfigStoreBackedTopology(mockConfigStore, this.version);
     InMemoryTopology inMemory = new InMemoryTopology(csTopology);
-    
-   try {
+
+    try {
       inMemory.getImportsRecursively(tag);
       Assert.fail("Did not catch expected CircularDependencyException");
     } catch (CircularDependencyException e) {
       Assert.assertTrue(e.getMessage().indexOf("/tag/highPriorityTag/nertzHighPriorityTag") > 0
-          && e.getMessage().indexOf("/tag/highPriorityTag ") > 0
-          && e.getMessage().indexOf("/tag ") > 0);
+          && e.getMessage().indexOf("/tag/highPriorityTag ") > 0 && e.getMessage().indexOf("/tag ") > 0);
     }
   }
-  
+
   @Test
   public void testSelfIndirectlyImportDescendant() {
     ConfigKeyPath tag = SingleLinkedListConfigKeyPath.ROOT.createChild("tag");
     ConfigKeyPath highPriorityTag = tag.createChild("highPriorityTag");
     ConfigKeyPath nertzHighPriorityTag = highPriorityTag.createChild("nertzHighPriorityTag");
-    
-    ConfigKeyPath tag2 = tag.createChild("tag2");
-    
+
+    ConfigKeyPath tag2 = SingleLinkedListConfigKeyPath.ROOT.createChild("tag2");
+
     ConfigStore mockConfigStore = mock(ConfigStore.class, Mockito.RETURNS_SMART_NULLS);
     when(mockConfigStore.getCurrentVersion()).thenReturn(version);
-    List<ConfigKeyPath> rootChildren = new ArrayList<ConfigKeyPath>();
-    rootChildren.add(tag);
-    rootChildren.add(tag2);
-    when(mockConfigStore.getChildren(SingleLinkedListConfigKeyPath.ROOT, version)).thenReturn(rootChildren);
-    
-    List<ConfigKeyPath> tagChildren = new ArrayList<ConfigKeyPath>();
-    tagChildren.add(highPriorityTag);
-    when(mockConfigStore.getChildren(tag, version)).thenReturn(tagChildren);
-    
-    List<ConfigKeyPath> highPriorityTagChildren = new ArrayList<ConfigKeyPath>();
-    highPriorityTagChildren.add(nertzHighPriorityTag);
-    when(mockConfigStore.getChildren(highPriorityTag, version)).thenReturn(highPriorityTagChildren);
-    
+
+    addConfigStoreChildren(mockConfigStore, version, SingleLinkedListConfigKeyPath.ROOT, tag, tag2);
+    addConfigStoreChildren(mockConfigStore, version, tag, highPriorityTag);
+    addConfigStoreChildren(mockConfigStore, version, highPriorityTag, nertzHighPriorityTag);
+
     // self import descendant 
     // formed the loop /tag -> /tag2 -> /tag/highPriorityTag/nertzHighPriorityTag -> /tag/highPriorityTag -> /tag
-    List<ConfigKeyPath> tagImports = new ArrayList<ConfigKeyPath>();
-    tagImports.add(tag2);
-    when(mockConfigStore.getOwnImports(tag, version)).thenReturn(tagImports);
-    
-    List<ConfigKeyPath> tag2Imports = new ArrayList<ConfigKeyPath>();
-    tag2Imports.add(nertzHighPriorityTag);
-    when(mockConfigStore.getOwnImports(tag2, version)).thenReturn(tag2Imports);
-    
+    addConfigStoreImports(mockConfigStore, version, tag, tag2);
+    addConfigStoreImports(mockConfigStore, version, tag2, nertzHighPriorityTag);
+
     ConfigStoreBackedTopology csTopology = new ConfigStoreBackedTopology(mockConfigStore, this.version);
     InMemoryTopology inMemory = new InMemoryTopology(csTopology);
-    
-   try {
+
+    try {
       inMemory.getImportsRecursively(tag);
       Assert.fail("Did not catch expected CircularDependencyException");
     } catch (CircularDependencyException e) {
-      System.out.println("FFF " + e.getMessage());
       Assert.assertTrue(e.getMessage().indexOf("/tag/highPriorityTag/nertzHighPriorityTag") > 0
-          && e.getMessage().indexOf("/tag/highPriorityTag ") > 0
-          && e.getMessage().indexOf("/tag ") > 0
-          && e.getMessage().indexOf("/tag2 ") > 0 );
+          && e.getMessage().indexOf("/tag/highPriorityTag ") > 0 && e.getMessage().indexOf("/tag ") > 0
+          && e.getMessage().indexOf("/tag2 ") > 0);
     }
   }
-  
+
   @Test
   public void testLoops() {
     ConfigKeyPath tag = SingleLinkedListConfigKeyPath.ROOT.createChild("tag");
     ConfigKeyPath subTag1 = tag.createChild("subTag1");
     ConfigKeyPath subTag2 = tag.createChild("subTag2");
     ConfigKeyPath subTag3 = tag.createChild("subTag3");
-    
+
     ConfigStore mockConfigStore = mock(ConfigStore.class, Mockito.RETURNS_SMART_NULLS);
     when(mockConfigStore.getCurrentVersion()).thenReturn(version);
-    List<ConfigKeyPath> rootChildren = new ArrayList<ConfigKeyPath>();
-    rootChildren.add(tag);
-    when(mockConfigStore.getChildren(SingleLinkedListConfigKeyPath.ROOT, version)).thenReturn(rootChildren);
-    
-    List<ConfigKeyPath> tagChildren = new ArrayList<ConfigKeyPath>();
-    tagChildren.add(subTag1);
-    tagChildren.add(subTag2);
-    tagChildren.add(subTag3);
-    when(mockConfigStore.getChildren(tag, version)).thenReturn(tagChildren);
-    
+
+    addConfigStoreChildren(mockConfigStore, version, SingleLinkedListConfigKeyPath.ROOT, tag);
+    addConfigStoreChildren(mockConfigStore, version, tag, subTag1, subTag2, subTag3);
+
     // self import descendant
     // formed loop /tag/subTag1 -> /tag/subTag2 -> /tag/subTag3 -> /tag/subTag1
-    List<ConfigKeyPath> subTag1Imports = new ArrayList<ConfigKeyPath>();
-    subTag1Imports.add(subTag2);
-    when(mockConfigStore.getOwnImports(subTag1, version)).thenReturn(subTag1Imports);
-    
-    List<ConfigKeyPath> subTag2Imports = new ArrayList<ConfigKeyPath>();
-    subTag2Imports.add(subTag3);
-    when(mockConfigStore.getOwnImports(subTag2, version)).thenReturn(subTag2Imports);
-    
-    List<ConfigKeyPath> subTag3Imports = new ArrayList<ConfigKeyPath>();
-    subTag3Imports.add(subTag1);
-    when(mockConfigStore.getOwnImports(subTag3, version)).thenReturn(subTag3Imports);
-    
+    addConfigStoreImports(mockConfigStore, version, subTag1, subTag2);
+    addConfigStoreImports(mockConfigStore, version, subTag2, subTag3);
+    addConfigStoreImports(mockConfigStore, version, subTag3, subTag1);
+
     ConfigStoreBackedTopology csTopology = new ConfigStoreBackedTopology(mockConfigStore, this.version);
     InMemoryTopology inMemory = new InMemoryTopology(csTopology);
-    
-   try {
+
+    try {
       inMemory.getImportsRecursively(subTag1);
       Assert.fail("Did not catch expected CircularDependencyException");
     } catch (CircularDependencyException e) {
-      Assert.assertTrue(e.getMessage().indexOf("/tag/subTag1") > 0 &&
-          e.getMessage().indexOf("/tag/subTag2") > 0 &&
-          e.getMessage().indexOf("/tag/subTag3") > 0 );
+      Assert.assertTrue(e.getMessage().indexOf("/tag/subTag1") > 0 && e.getMessage().indexOf("/tag/subTag2") > 0
+          && e.getMessage().indexOf("/tag/subTag3") > 0);
     }
   }
-  
+
   @Test
-  public void testNoCircular(){
+  public void testNoCircular() {
     ConfigKeyPath tag = SingleLinkedListConfigKeyPath.ROOT.createChild("tag");
     ConfigKeyPath highPriorityTag = tag.createChild("highPriorityTag");
     ConfigKeyPath nertzHighPriorityTag = highPriorityTag.createChild("nertzHighPriorityTag");
-    
+
     ConfigKeyPath tag2 = SingleLinkedListConfigKeyPath.ROOT.createChild("tag2");
-    
+
     ConfigStore mockConfigStore = mock(ConfigStore.class, Mockito.RETURNS_SMART_NULLS);
     when(mockConfigStore.getCurrentVersion()).thenReturn(version);
-    List<ConfigKeyPath> rootChildren = new ArrayList<ConfigKeyPath>();
-    rootChildren.add(tag);
-    rootChildren.add(tag2);
-    when(mockConfigStore.getChildren(SingleLinkedListConfigKeyPath.ROOT, version)).thenReturn(rootChildren);
-    
-    List<ConfigKeyPath> tagChildren = new ArrayList<ConfigKeyPath>();
-    tagChildren.add(highPriorityTag);
-    when(mockConfigStore.getChildren(tag, version)).thenReturn(tagChildren);
-    
-    List<ConfigKeyPath> highPriorityTagChildren = new ArrayList<ConfigKeyPath>();
-    highPriorityTagChildren.add(nertzHighPriorityTag);
-    when(mockConfigStore.getChildren(highPriorityTag, version)).thenReturn(highPriorityTagChildren);
-    
-    // mock up imports
-    when(mockConfigStore.getOwnImports(tag, version)).thenReturn(this.emptyList);
-    when(mockConfigStore.getOwnImports(highPriorityTag, version)).thenReturn(this.emptyList);
-    
-    List<ConfigKeyPath> nertzHighPriorityTagImports = new ArrayList<ConfigKeyPath>();
-    nertzHighPriorityTagImports.add(tag2);
-    when(mockConfigStore.getOwnImports(nertzHighPriorityTag, version)).thenReturn(nertzHighPriorityTagImports);
-    
-    List<ConfigKeyPath> tag2Imports = new ArrayList<ConfigKeyPath>();
-    tag2Imports.add(tag);
-    when(mockConfigStore.getOwnImports(tag2, version)).thenReturn(tag2Imports);
-    
+
+    addConfigStoreChildren(mockConfigStore, version, SingleLinkedListConfigKeyPath.ROOT, tag, tag2);
+    addConfigStoreChildren(mockConfigStore, version, tag, highPriorityTag);
+    addConfigStoreChildren(mockConfigStore, version, highPriorityTag, nertzHighPriorityTag);
+
+    // mock up imports, point to same node but without circular
+    addConfigStoreImports(mockConfigStore, version, nertzHighPriorityTag, tag2);
+    addConfigStoreImports(mockConfigStore, version, tag2, tag);
+
     ConfigStoreBackedTopology csTopology = new ConfigStoreBackedTopology(mockConfigStore, this.version);
     InMemoryTopology inMemory = new InMemoryTopology(csTopology);
-    
-    System.out.println("AAABB 0 " + inMemory.getOwnImports(nertzHighPriorityTag));
-    System.out.println("AAABB 1 " + inMemory.getOwnImports(tag2));
+
     List<ConfigKeyPath> result = inMemory.getImportsRecursively(nertzHighPriorityTag);
-    System.out.println("AAABB " + result);
-    
-    Assert.assertTrue(result.size()==2);
+    Assert.assertTrue(result.size() == 2);
     Iterator<ConfigKeyPath> it = result.iterator();
     Assert.assertEquals(it.next(), tag2);
-    Assert.assertEquals(it.next(), tag);      
+    Assert.assertEquals(it.next(), tag);
   }
 }
