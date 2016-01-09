@@ -18,6 +18,7 @@ repositories {
 }
 
 dependencies {
+  compile project(":gobblin-admin")
   compile project(":gobblin-api")
   compile project(":gobblin-runtime")
   compile project(":gobblin-utility")

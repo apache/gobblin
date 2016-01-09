@@ -37,30 +37,9 @@ The CLI does not yet support the `tasks` command.
 
 ## GUI
 The GUI is a lightweight Backbone.js frontend to the Job Execution
-History Store. The simplest form of deployment in its current state is
-to use a lightweight HTTP server such as Python's SimpleHTTPServer,
-since the frontend is simply static files. However, to closer integrate
-to Gobblin, it could be deployed with Jetty on Gobblin start, or with
-any other web server. The root directory to be served is at
-`gobblin-interface/src/main/web`. The URL scheme is RESTful, so job
-information can be found at `<host:port>/job/JobName` and details about
-a job id can be found at `<host:port>/job-details/JobId`.
+History Store. 
 
-The GUI is in the earliest stage of development and is not very
-extensible. If you are serving your history store API in a non-default
-location, you will have to create the settings file, found at
-`gobblin-interface/src/main/web/js/settings.js`. The contents of this
-file should be mirrored after
-[`gobblin-interface/src/main/web/js/settings.js.example`](https://github.com/linkedin/gobblin/blob/feature/gui/gobblin-interface/src/main/web/js/settings.js.example).
-As the project progresses, this file will be used for more custom
-configuration, and its creation/population should likely be automated by
-a deploy tool.
+To enable it, you can set `admin.server.enabled` to true in your configuration file.
+The admin web server will be available on port 8000 by default, but this can be changed with
+the `admin.server.port` configuration key.
 
-Note that `settings.js` is not required by the frontend (by default it
-looks for the Gobblin default location for the API at `localhost:8080`). 
-
-
-## Readme Todo:
-- Update branch when pushed to master, update links when pushed to
-  linkedin
-- Merge `settings.js.example` and update link

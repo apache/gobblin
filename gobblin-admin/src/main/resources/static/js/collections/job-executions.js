@@ -2,8 +2,12 @@
 var app = app || {}
 
 ;(function () {
+  var urlRoot = Gobblin.settings.restServerUrl + '/jobExecutions/';
+  if (urlRoot.indexOf('http') !== 0) {
+    urlRoot = 'http://' + urlRoot;
+  }
   var JobExecutions = Backbone.Collection.extend({
-    urlRoot: 'http://' + Gobblin.settings.restServerUrl + '/jobExecutions/',
+    urlRoot: urlRoot,
     model: app.JobExecution,
 
     fetchCurrent: function (idType, id, params) {

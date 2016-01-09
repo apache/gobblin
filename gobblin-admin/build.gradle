@@ -21,6 +21,8 @@ repositories {
 dependencies {
     compile project(":gobblin-rest-service:gobblin-rest-client")
     compile project(":gobblin-core")
+
+    compile externalDependency.jetty
     compile externalDependency.commonsCli
     compile externalDependency.slf4j
     compile externalDependency.jodaTime

@@ -18,7 +18,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.apache.commons.configuration.Configuration;
+import gobblin.admin.AdminWebServer;
 import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.slf4j.Logger;
@@ -73,9 +73,17 @@ public class SchedulerDaemon {
     boolean jobExecInfoServerEnabled = Boolean
         .valueOf(properties.getProperty(ConfigurationKeys.JOB_EXECINFO_SERVER_ENABLED_KEY, Boolean.FALSE.toString()));
     if (jobExecInfoServerEnabled) {
-      services.add(new JobExecutionInfoServer(properties));
+      JobExecutionInfoServer executionInfoServer = new JobExecutionInfoServer(properties);
+      services.add(executionInfoServer);
+      if (shouldRunAdminServer(properties)) {
+        services.add(new AdminWebServer(properties, executionInfoServer.getServerUri()));
+      }
     }
     this.serviceManager = new ServiceManager(services);
+  }
+
+  private boolean shouldRunAdminServer(Properties properties) {
+    return Boolean.valueOf(properties.getProperty(ConfigurationKeys.ADMIN_SERVER_ENABLED_KEY, Boolean.FALSE.toString()));
   }
 
   /**
