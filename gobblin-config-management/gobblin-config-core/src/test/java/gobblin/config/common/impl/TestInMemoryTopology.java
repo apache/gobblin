@@ -155,9 +155,5 @@ public class TestInMemoryTopology {
       Assert.assertTrue(expected.contains(tmp));
       expected.remove(tmp);
     }
-    //Assert.assertEquals(result.iterator().next(), espressoTag);
-    for(ConfigKeyPath p: result){
-      System.out.println("imported by recur is " + p);
-    }
   }
 }
