@@ -15,36 +15,48 @@ repositories {
   maven {
     url "http://conjars.org/repo"
   }
+  maven {
+    url "https://repository.cloudera.com/artifactory/cloudera-repos/"
+  }
 }
 
 dependencies {
-    compile project(":gobblin-api")
-    compile project(":gobblin-core")
-
-    compile externalDependency.avro
-    compile externalDependency.guava
-    compile externalDependency.jacksonCore
-    compile externalDependency.slf4j
-    compile externalDependency.gson
-    compile externalDependency.commonsVfs
-    if (project.hasProperty('useHadoop2')) {
-      compile externalDependency.avroMapredH2
-    } else {
-      compile externalDependency.avroMapredH1
-    }
-
-    testCompile externalDependency.testng
+  compile project(":gobblin-api")
+  compile project(":gobblin-core")
+  compile project(":gobblin-metrics")
+  compile project(":gobblin-utility")
+  compile externalDependency.avro
+  compile externalDependency.guava
+  compile externalDependency.jacksonCore
+  compile externalDependency.slf4j
+  compile externalDependency.gson
+  compile externalDependency.commonsVfs  
+  compile externalDependency.commonsLang
+  compile externalDependency.commonsCodec
+  compile externalDependency.parquetCommon
+  compile externalDependency.parquetColumn
+  compile externalDependency.parquetHadoop
+  compile externalDependency.parquetAvro
+  compile externalDependency.kafka
+  compile externalDependency.kafkaClient
+  compile externalDependency.scala
+  if (project.hasProperty('useHadoop2')) {
+    compile externalDependency.avroMapredH2
+  } else {
+    compile externalDependency.avroMapredH1
+  }
+  testCompile externalDependency.testng
 }
 
 configurations {
-    compile {
-        transitive = false
-    }
+  compile {
+    transitive = false
+  }
 }
 
 test {
-    useTestNG ()
-    include '**/*Test*'
+  useTestNG ()
+  include '**/*Test*'
 }
 
 ext.classification="library"

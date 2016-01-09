@@ -49,7 +49,6 @@ public class RowLevelPolicyChecker implements Closeable, FinalState {
     for (RowLevelPolicy p : this.list) {
       RowLevelPolicy.Result result = p.executePolicy(record);
       results.put(p, result);
-
       if (result.equals(RowLevelPolicy.Result.FAILED)) {
         if (p.getType().equals(RowLevelPolicy.Type.FAIL)) {
           throw new RuntimeException("RowLevelPolicy " + p + " failed on record " + record);

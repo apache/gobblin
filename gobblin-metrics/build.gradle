@@ -15,6 +15,9 @@ repositories {
   maven {
     url "http://conjars.org/repo"
   }
+  maven {
+    url "https://repository.cloudera.com/artifactory/cloudera-repos/"
+  }
 }
 
 /** TODO: Re-enable avro auto-compile once Java 1.7 is fully supported by users.
