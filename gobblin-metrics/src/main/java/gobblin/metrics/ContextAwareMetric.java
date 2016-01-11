@@ -21,7 +21,7 @@ import gobblin.metrics.metric.ProxyMetric;
  * An interface for a type of {@link com.codahale.metrics.Metric}s that are aware of their
  * {@link MetricContext} and can have associated {@link Tag}s.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public interface ContextAwareMetric extends Metric, ProxyMetric {
 

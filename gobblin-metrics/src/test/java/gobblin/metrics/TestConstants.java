@@ -15,7 +15,7 @@ package gobblin.metrics;
 /**
  * A central place for constants used in tests for gobblin-metrics.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class TestConstants {
 

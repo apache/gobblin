@@ -62,7 +62,7 @@ import gobblin.testing.AssertWithBackoff;
  *   is acquired by mocking the method {@link FileSystem#getDelegationToken(String)} on the local
  *   {@link FileSystem} instance.
  * </p>
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = { "gobblin.yarn" })
 public class YarnSecurityManagerTest {

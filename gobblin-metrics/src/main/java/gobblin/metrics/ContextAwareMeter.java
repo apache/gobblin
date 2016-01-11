@@ -33,7 +33,7 @@ import gobblin.metrics.metric.InnerMetric;
  *   {@link com.codahale.metrics.Meter} to the wrapped {@link com.codahale.metrics.Meter}.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 class ContextAwareMeter extends Meter implements ContextAwareMetric {
 

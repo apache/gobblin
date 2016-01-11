@@ -53,7 +53,7 @@ import gobblin.metrics.reporter.ScheduledReporter;
 /**
  * A class that represents a set of metrics associated with a given name.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class GobblinMetrics {
 
@@ -137,6 +137,22 @@ public class GobblinMetrics {
    */
   public static void remove(String id) {
     GOBBLIN_METRICS_REGISTRY.remove(id);
+  }
+
+  /**
+   * Add a {@link List} of {@link Tag}s to a {@link gobblin.configuration.State} with key {@link #METRICS_STATE_CUSTOM_TAGS}.
+   *
+   * <p>
+   *   {@link gobblin.metrics.Tag}s under this key can later be parsed using the method {@link #getCustomTagsFromState}.
+   * </p>
+   *
+   * @param state {@link gobblin.configuration.State} state to add the tag to.
+   * @param tags list of {@link Tag}s to add.
+   */
+  public static void addCustomTagToState(State state, List<? extends Tag<?>> tags) {
+    for (Tag<?> tag : tags) {
+      state.appendToListProp(METRICS_STATE_CUSTOM_TAGS, tag.toString());
+    }
   }
 
   /**

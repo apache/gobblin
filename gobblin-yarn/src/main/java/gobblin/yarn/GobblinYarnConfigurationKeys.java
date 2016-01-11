@@ -15,7 +15,7 @@ package gobblin.yarn;
 /**
  * A central place for configuration related constants of Gobblin on Yarn.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class GobblinYarnConfigurationKeys {
 
@@ -26,6 +26,9 @@ public class GobblinYarnConfigurationKeys {
   public static final String APPLICATION_NAME_OPTION_NAME = "app_name";
   public static final String APP_QUEUE_KEY = GOBBLIN_YARN_PREFIX + "app.queue";
   public static final String APP_REPORT_INTERVAL_MINUTES_KEY = GOBBLIN_YARN_PREFIX + "app.report.interval.minutes";
+  public static final String MAX_GET_APP_REPORT_FAILURES_KEY = GOBBLIN_YARN_PREFIX + "max.get.app.report.failures";
+  public static final String EMAIL_NOTIFICATION_ON_SHUTDOWN_KEY =
+      GOBBLIN_YARN_PREFIX + "email.notification.on.shutdown";
 
   // Gobblin Yarn ApplicationMaster configuration properties.
   public static final String APP_MASTER_MEMORY_MBS_KEY = GOBBLIN_YARN_PREFIX + "app.master.memory.mbs";

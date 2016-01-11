@@ -62,7 +62,7 @@ import gobblin.writer.PartitionedDataWriter;
  *     </ul>
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 @SuppressWarnings("unchecked")
 public class Fork implements Closeable, Runnable, FinalState {

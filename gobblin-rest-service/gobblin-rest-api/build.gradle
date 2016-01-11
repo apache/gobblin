@@ -24,7 +24,6 @@ artifacts {
   archives mainDataTemplateJar
 } 
 
- 
 configure(install.repositories.mavenInstaller) {
   addFilter('gobblin-rest-api-rest-client') {artifact, file ->
     artifact.name == 'gobblin-rest-api-rest-client'

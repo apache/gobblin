@@ -49,7 +49,7 @@ import gobblin.metrics.Tag;
  *   use the same given {@link ContextAwareScheduledReporter} to report metrics.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class ReporterExampleBase {
 

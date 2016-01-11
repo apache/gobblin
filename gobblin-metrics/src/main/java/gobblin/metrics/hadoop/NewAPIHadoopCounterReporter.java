@@ -31,7 +31,7 @@ import gobblin.metrics.MetricContext;
  * @param <KO> the output key type of {@code hadoopContext}
  * @param <VO> the output value type of {@code hadoopContext}
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class NewAPIHadoopCounterReporter<KI, VI, KO, VO> extends AbstractHadoopCounterReporter {
 

@@ -26,11 +26,12 @@ import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.metrics.Tag;
 import gobblin.metrics.event.TimingEvent;
 import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.FileBasedJobLock;
@@ -47,7 +48,7 @@ import gobblin.util.JobLauncherUtils;
  * An implementation of {@link gobblin.runtime.JobLauncher} for launching and running jobs
  * locally on a single node.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class LocalJobLauncher extends AbstractJobLauncher {
 
@@ -63,7 +64,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
   private volatile CountDownLatch countDownLatch;
 
   public LocalJobLauncher(Properties jobProps) throws Exception {
-    super(jobProps, ImmutableMap.<String, String> of());
+    super(jobProps, ImmutableList.<Tag<?>>of());
 
     TimingEvent jobLocalSetupTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.JOB_LOCAL_SETUP);
 

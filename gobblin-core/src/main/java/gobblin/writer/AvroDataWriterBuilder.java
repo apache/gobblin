@@ -24,7 +24,7 @@ import com.google.common.base.Strings;
 /**
  * A {@link DataWriterBuilder} for building {@link DataWriter} that writes in Avro format.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class AvroDataWriterBuilder extends FsDataWriterBuilder<Schema, GenericRecord> {
 

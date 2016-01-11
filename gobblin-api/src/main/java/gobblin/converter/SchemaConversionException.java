@@ -16,7 +16,7 @@ package gobblin.converter;
  * A type of {@link Exception} thrown when there's anything wrong
  * with schema conversion.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class SchemaConversionException extends Exception {
 

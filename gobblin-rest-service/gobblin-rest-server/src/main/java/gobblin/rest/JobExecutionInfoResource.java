@@ -33,7 +33,7 @@ import gobblin.metastore.JobHistoryStore;
 /**
  * A Rest.li resource for serving queries of Gobblin job executions.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @RestLiCollection(name = "jobExecutions", namespace = "gobblin.rest")
 public class JobExecutionInfoResource extends ComplexKeyResourceTemplate<JobExecutionQuery, EmptyRecord, JobExecutionQueryResult> {

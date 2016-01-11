@@ -21,7 +21,7 @@ import com.google.common.base.Preconditions;
  * A type of events for the arrival of an {@link ApplicationReport} to be used with a
  * {@link com.google.common.eventbus.EventBus}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class ApplicationReportArrivalEvent {
 

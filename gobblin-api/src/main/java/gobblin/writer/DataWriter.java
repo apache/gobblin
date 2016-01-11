@@ -21,7 +21,7 @@ import java.io.IOException;
  *
  * @param <D> data record type
  *
- * @author ynli
+ * @author Yinan Li
  */
 public interface DataWriter<D> extends Closeable {
 

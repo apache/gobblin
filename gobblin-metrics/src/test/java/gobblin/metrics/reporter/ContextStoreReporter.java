@@ -47,7 +47,7 @@ public class ContextStoreReporter extends ScheduledReporter {
   }
 
   @Override
-  protected void report(ReportableContext context) {
+  protected void report(ReportableContext context, boolean isFinal) {
     this.reportedContexts.add(context);
   }
 

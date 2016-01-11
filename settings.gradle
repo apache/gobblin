@@ -12,7 +12,7 @@ def modules = ['gobblin-api','gobblin-azkaban','gobblin-compaction', 'gobblin-co
                'gobblin-core','gobblin-distribution',
                'gobblin-example','gobblin-metrics','gobblin-metastore','gobblin-rest-service','gobblin-runtime',
                'gobblin-scheduler','gobblin-utility','gobblin-salesforce','gobblin-test-harness',
-               'gobblin-data-management']
+               'gobblin-data-management','gobblin-config-management']
 
 modules.each { module ->
   include "${module}"

@@ -38,7 +38,7 @@ import gobblin.source.workunit.WorkUnit;
 /**
  * A concrete extension to {@link gobblin.runtime.AbstractTaskStateTracker} for Hadoop MapReduce based runtime.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class MRTaskStateTracker extends AbstractTaskStateTracker {
 
@@ -113,12 +113,12 @@ public class MRTaskStateTracker extends AbstractTaskStateTracker {
       this.context.progress();
     }
   }
-  
+
   private void updateCounters(Task task) {
     updateCounters(task, MetricGroupFilter.JOB);
     updateCounters(task, MetricGroupFilter.TASK);
   }
-  
+
   private void updateCounters(Task task, MetricGroupFilter filter) {
     Map<String, Counter> counters = JobMetrics.get(null, task.getJobId()).getMetricContext().getCounters(filter);
     if (counters != null) {
@@ -127,7 +127,7 @@ public class MRTaskStateTracker extends AbstractTaskStateTracker {
       }
     }
   }
-  
+
   private enum MetricGroupFilter implements MetricFilter {
     JOB() {
       @Override

@@ -28,6 +28,7 @@ import com.google.common.base.CaseFormat;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
@@ -39,12 +40,14 @@ import gobblin.metastore.StateStore;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.metrics.MetricContext;
+import gobblin.metrics.Tag;
 import gobblin.metrics.event.EventNames;
 import gobblin.metrics.event.EventSubmitter;
 import gobblin.metrics.event.TimingEvent;
 import gobblin.runtime.util.JobMetrics;
 import gobblin.runtime.util.TimingEventNames;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.ClusterNameTags;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.JobLauncherUtils;
 import gobblin.util.ParallelRunner;
@@ -53,7 +56,7 @@ import gobblin.util.ParallelRunner;
 /**
  * An abstract implementation of {@link JobLauncher} that handles common tasks for launching and running a job.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public abstract class AbstractJobLauncher implements JobLauncher {
 
@@ -103,7 +106,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   // A list of JobListeners that will be injected into the user provided JobListener
   private final List<JobListener> mandatoryJobListeners = Lists.newArrayList();
 
-  public AbstractJobLauncher(Properties jobProps, Map<String, String> eventMetadata) throws Exception {
+  public AbstractJobLauncher(Properties jobProps, List<? extends Tag<?>> metadataTags) throws Exception {
     Preconditions.checkArgument(jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY),
         "A job must have a job name specified by job.name");
 
@@ -125,8 +128,11 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           }
         });
 
-    this.eventSubmitter =
-        new EventSubmitter.Builder(this.runtimeMetricContext, "gobblin.runtime").addMetadata(eventMetadata).build();
+    metadataTags = addClusterNameTags(metadataTags);
+    this.eventSubmitter = buildEventSubmitter(metadataTags);
+
+    // Add all custom tags to the JobState so that tags are added to any new TaskState created
+    JobMetrics.addCustomTagToState(this.jobContext.getJobState(), metadataTags);
 
     JobExecutionEventSubmitter jobExecutionEventSubmitter = new JobExecutionEventSubmitter(this.eventSubmitter);
     this.mandatoryJobListeners.add(new JobExecutionEventSubmitterListener(jobExecutionEventSubmitter));
@@ -505,6 +511,25 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     List<JobListener> jobListeners = Lists.newArrayList(this.mandatoryJobListeners);
     jobListeners.add(jobListener);
     return JobListeners.parallelJobListener(jobListeners);
+  }
+
+  /**
+   * Takes a {@link List} of {@link Tag}s and returns a new {@link List} with the original {@link Tag}s as well as any
+   * additional {@link Tag}s returned by {@link ClusterNameTags#getClusterNameTags()}.
+   *
+   * @see {@link ClusterNameTags}
+   */
+  private List<Tag<?>> addClusterNameTags(List<? extends Tag<?>> tags) {
+    return ImmutableList.<Tag<?>>builder().addAll(tags).addAll(Tag.fromMap(ClusterNameTags.getClusterNameTags()))
+        .build();
+  }
+
+  /**
+   * Build the {@link EventSubmitter} for this class.
+   */
+  private EventSubmitter buildEventSubmitter(List<? extends Tag<?>> tags) {
+    return new EventSubmitter.Builder(this.runtimeMetricContext, "gobblin.runtime")
+        .addMetadata(Tag.toMap(Tag.tagValuesToString(tags))).build();
   }
 
   /**

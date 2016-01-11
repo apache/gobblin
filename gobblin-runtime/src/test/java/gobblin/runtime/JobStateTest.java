@@ -39,7 +39,7 @@ import gobblin.configuration.WorkUnitState;
 /**
  * Unit test for {@link JobState}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = {"gobblin.runtime"})
 public class JobStateTest {

@@ -41,11 +41,12 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
-
 import com.google.common.collect.Maps;
 import com.google.common.base.Charsets;
+import com.google.common.base.Optional;
 import com.google.common.io.Closer;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.MetricReport;
 import gobblin.metrics.Tag;
 import gobblin.util.ConfigUtils;
@@ -158,7 +159,7 @@ public class OutputStreamReporter extends MetricReportReporter {
      * @return a {@link OutputStreamReporter}
      */
     public OutputStreamReporter build(Properties props) {
-      return new OutputStreamReporter(this, ConfigUtils.propertiesToConfig(props));
+      return new OutputStreamReporter(this, ConfigUtils.propertiesToConfig(props, Optional.of(ConfigurationKeys.METRICS_CONFIGURATIONS_PREFIX)));
     }
   }
 
@@ -204,7 +205,7 @@ public class OutputStreamReporter extends MetricReportReporter {
   }
 
   @Override
-  public synchronized void report(SortedMap<String, Gauge> gauges,
+  protected synchronized void report(SortedMap<String, Gauge> gauges,
       SortedMap<String, Counter> counters,
       SortedMap<String, Histogram> histograms,
       SortedMap<String, Meter> meters,

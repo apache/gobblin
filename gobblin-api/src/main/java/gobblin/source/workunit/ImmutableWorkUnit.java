@@ -22,7 +22,7 @@ import gobblin.configuration.State;
 /**
  * An immutable version of {@link WorkUnit}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class ImmutableWorkUnit extends WorkUnit {
 

@@ -23,7 +23,7 @@ import com.google.common.collect.Maps;
 /**
  * A test implementation of {@link com.codahale.metrics.graphite.GraphiteSender}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class TestGraphiteSender implements GraphiteSender {
 

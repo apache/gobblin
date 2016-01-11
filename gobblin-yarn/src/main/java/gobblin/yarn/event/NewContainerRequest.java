@@ -20,7 +20,7 @@ import com.google.common.base.Optional;
 /**
  * A type of events for new container requests to be used with a {@link com.google.common.eventbus.EventBus}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class NewContainerRequest {
 

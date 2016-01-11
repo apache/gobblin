@@ -33,7 +33,7 @@ import gobblin.source.workunit.Extract.TableType;
 /**
  * A base implementation of {@link gobblin.source.Source} that provides default behavior.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public abstract class AbstractSource<S, D> implements Source<S, D> {
 

@@ -17,7 +17,7 @@ import org.apache.commons.lang3.StringUtils;
 /**
  * An enumeration of writer output formats.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public enum WriterOutputFormat {
   AVRO("avro"),

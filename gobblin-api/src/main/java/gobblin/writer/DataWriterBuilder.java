@@ -23,7 +23,7 @@ import lombok.Getter;
  * @param <S> schema type
  * @param <D> data record type
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Getter
 public abstract class DataWriterBuilder<S, D> {

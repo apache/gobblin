@@ -21,7 +21,7 @@ import org.testng.annotations.Test;
 /**
  * Unit tests for {@link EmptyIterable}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = {"gobblin.converter"})
 public class EmptyIterableTest {

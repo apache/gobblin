@@ -32,7 +32,7 @@ import gobblin.metastore.StateStore;
 /**
  * Unit tests for {@link FsDatasetStateStore}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = { "gobblin.runtime" })
 public class FsDatasetStateStoreTest {
@@ -45,7 +45,7 @@ public class FsDatasetStateStoreTest {
   private StateStore<JobState> fsJobStateStore;
   private FsDatasetStateStore fsDatasetStateStore;
   private long startTime = System.currentTimeMillis();
-  
+
   @BeforeClass
   public void setUp() throws IOException {
     this.fsJobStateStore = new FsStateStore<JobState>(ConfigurationKeys.LOCAL_FS_URI,
@@ -62,7 +62,7 @@ public class FsDatasetStateStoreTest {
     jobState.setState(JobState.RunningState.COMMITTED);
     jobState.setStartTime(this.startTime);
     jobState.setEndTime(this.startTime + 1000);
-    jobState.setDuration(1000);    
+    jobState.setDuration(1000);
 
     for (int i = 0; i < 3; i++) {
       TaskState taskState = new TaskState();
@@ -91,7 +91,7 @@ public class FsDatasetStateStoreTest {
     Assert.assertEquals(jobState.getStartTime(), this.startTime);
     Assert.assertEquals(jobState.getEndTime(), this.startTime + 1000);
     Assert.assertEquals(jobState.getDuration(), 1000);
-       
+
     Assert.assertEquals(jobState.getCompletedTasks(), 3);
     for (int i = 0; i < jobState.getCompletedTasks(); i++) {
       TaskState taskState = jobState.getTaskStates().get(i);
@@ -112,8 +112,8 @@ public class FsDatasetStateStoreTest {
     datasetState.setId(TEST_DATASET_URN);
     datasetState.setStartTime(this.startTime);
     datasetState.setEndTime(this.startTime + 1000);
-    datasetState.setDuration(1000);   
-    
+    datasetState.setDuration(1000);
+
     for (int i = 0; i < 3; i++) {
       TaskState taskState = new TaskState();
       taskState.setJobId(TEST_JOB_ID);
@@ -139,7 +139,7 @@ public class FsDatasetStateStoreTest {
     Assert.assertEquals(datasetState.getStartTime(), this.startTime);
     Assert.assertEquals(datasetState.getEndTime(), this.startTime + 1000);
     Assert.assertEquals(datasetState.getDuration(), 1000);
-    
+
     Assert.assertEquals(datasetState.getCompletedTasks(), 3);
     for (int i = 0; i < datasetState.getCompletedTasks(); i++) {
       TaskState taskState = datasetState.getTaskStates().get(i);

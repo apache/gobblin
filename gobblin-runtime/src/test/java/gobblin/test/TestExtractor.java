@@ -35,7 +35,7 @@ import gobblin.source.extractor.Extractor;
 /**
  * An implementation of {@link Extractor} for integration test.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class TestExtractor implements Extractor<String, String> {
 

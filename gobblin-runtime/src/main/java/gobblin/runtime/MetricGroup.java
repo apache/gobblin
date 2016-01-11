@@ -16,7 +16,7 @@ package gobblin.runtime;
 /**
  * An enumeration of metric groups used internally.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public enum MetricGroup {
   JOB, TASK

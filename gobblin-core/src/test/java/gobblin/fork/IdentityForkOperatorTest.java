@@ -13,7 +13,7 @@ import gobblin.configuration.WorkUnitState;
 /**
  * Unit tests for {@link IdentityForkOperator}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = {"gobblin.fork"})
 public class IdentityForkOperatorTest {

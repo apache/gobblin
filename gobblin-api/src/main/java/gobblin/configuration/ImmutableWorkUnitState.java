@@ -22,7 +22,7 @@ import gobblin.source.extractor.Watermark;
 /**
  * An immutable version of {@link WorkUnitState}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class ImmutableWorkUnitState extends WorkUnitState {
 

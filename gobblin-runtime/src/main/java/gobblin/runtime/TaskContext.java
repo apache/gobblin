@@ -50,7 +50,7 @@ import gobblin.writer.WriterOutputFormat;
 /**
  * A class containing all necessary information to construct and run a {@link Task}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class TaskContext {
 

@@ -43,7 +43,7 @@ import gobblin.source.extractor.Extractor;
  *   json documents confirming to a schema. Each line of the file is a json document.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class SimpleJsonExtractor implements Extractor<String, String> {
 

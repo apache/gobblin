@@ -19,21 +19,25 @@ import java.util.List;
 import java.util.Properties;
 
 import org.apache.avro.Schema;
+
 import org.apache.curator.test.TestingServer;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.util.ConverterUtils;
+
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
+
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;
 
 import com.typesafe.config.Config;
@@ -41,6 +45,7 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.metrics.Tag;
 import gobblin.runtime.FsDatasetStateStore;
 import gobblin.runtime.JobException;
 import gobblin.runtime.JobState;
@@ -59,7 +64,7 @@ import gobblin.util.ConfigUtils;
  *   {@link FileSystem#getLocal(Configuration)}.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = { "gobblin.yarn" })
 public class GobblinHelixJobLauncherTest {
@@ -125,7 +130,7 @@ public class GobblinHelixJobLauncherTest {
 
     this.gobblinHelixJobLauncher = this.closer.register(
         new GobblinHelixJobLauncher(properties, this.helixManager, this.localFs, this.appWorkDir,
-            ImmutableMap.<String, String>of()));
+            ImmutableList.<Tag<?>>of()));
 
     this.gobblinWorkUnitRunner =
         new GobblinWorkUnitRunner(TestHelper.TEST_APPLICATION_NAME, TestHelper.TEST_HELIX_INSTANCE_NAME,

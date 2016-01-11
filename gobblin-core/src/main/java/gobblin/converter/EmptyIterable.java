@@ -20,7 +20,7 @@ import com.google.common.collect.ImmutableSet;
 /**
  * A type of {@link java.lang.Iterable}s corresponding to empty {@link java.util.Collection}s.
  *
- * @author ynli
+ * @author Yinan Li
  *
  * @param <T> record type
  */

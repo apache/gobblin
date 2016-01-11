@@ -25,7 +25,7 @@ import java.io.IOException;
  *     a job is running at any time.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public interface JobLock {
 

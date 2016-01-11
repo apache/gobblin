@@ -17,7 +17,7 @@ package gobblin.yarn.event;
  * A dummy class representing an ApplicationMaster shutdown request to be used with a
  * {@link com.google.common.eventbus.EventBus}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class ApplicationMasterShutdownRequest {
 }

@@ -31,7 +31,7 @@ import gobblin.password.PasswordManager;
 /**
  * A utility class for sending emails.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class EmailUtils {
 

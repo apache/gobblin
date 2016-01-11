@@ -18,7 +18,7 @@ import org.apache.helix.model.Message;
 /**
  * An interface for test classes that involve sending and receiving Helix messages.
  *
- * @author ynli
+ * @author Yinan Li
  */
 interface HelixMessageTestBase {
 

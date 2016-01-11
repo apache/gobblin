@@ -41,7 +41,7 @@ import gobblin.util.WriterUtils;
  *   property {@link ConfigurationKeys#WRITER_CODEC_TYPE}. By default, the deflate codec is used.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
 

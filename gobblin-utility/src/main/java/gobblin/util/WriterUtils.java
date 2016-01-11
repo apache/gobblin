@@ -229,7 +229,7 @@ public class WriterUtils {
     if (fs.exists(path)) {
       return;
     }
-    if (!fs.exists(path.getParent())) {
+    if (path.getParent() != null && !fs.exists(path.getParent())) {
       mkdirsWithRecursivePermission(fs, path.getParent(), perm);
     }
     if (!fs.mkdirs(path, perm)) {

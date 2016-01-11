@@ -12,10 +12,7 @@
 
 package gobblin.data.management.copy;
 
-import gobblin.util.PathUtils;
-
 import java.util.Collection;
-import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
@@ -26,6 +23,8 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Sets;
+
+import gobblin.util.PathUtils;
 
 
 public class RecursiveCopyableDatasetTest {

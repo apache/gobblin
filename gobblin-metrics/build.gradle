@@ -10,13 +10,6 @@
 
 apply plugin: 'java'
 
-repositories {
-  mavenCentral()
-  maven {
-    url "http://conjars.org/repo"
-  }
-}
-
 /** TODO: Re-enable avro auto-compile once Java 1.7 is fully supported by users.
 buildscript {
   repositories {
@@ -33,6 +26,7 @@ apply plugin: "com.commercehub.gradle.plugin.avro"
 
 dependencies {
   compile project(":gobblin-utility")
+  compile project(":gobblin-api")
 
   compile externalDependency.guava
   compile externalDependency.metricsCore

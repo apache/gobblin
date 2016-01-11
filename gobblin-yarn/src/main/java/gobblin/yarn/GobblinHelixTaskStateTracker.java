@@ -36,7 +36,7 @@ import gobblin.runtime.Task;
  *   This class is currently still primitive and will be enhanced once we add more monitoring in place.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class GobblinHelixTaskStateTracker extends AbstractTaskStateTracker {
 

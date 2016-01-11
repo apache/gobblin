@@ -11,15 +11,6 @@
  */
 package gobblin.data.management.copy.publisher;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.configuration.WorkUnitState.WorkingState;
-import gobblin.data.management.copy.CopySource;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.publisher.CopyDataPublisher;
-import gobblin.util.HadoopUtils;
-
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -29,6 +20,16 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+import gobblin.configuration.WorkUnitState;
+import gobblin.configuration.WorkUnitState.WorkingState;
+import gobblin.data.management.copy.CopySource;
+import gobblin.data.management.copy.CopyableFile;
+import gobblin.data.management.copy.ReadyCopyableFileFilter;
+import gobblin.util.HadoopUtils;
+import gobblin.util.PathUtils;
 
 
 /**
@@ -69,12 +70,9 @@ public class DeletingCopyDataPublisher extends CopyDataPublisher {
   private void deleteFilesOnSource(WorkUnitState state) throws IOException {
     List<CopyableFile> copyableFiles = CopySource.deserializeCopyableFiles(state);
     for (CopyableFile copyableFile : copyableFiles) {
-      if (this.sourceFs.exists(copyableFile.getOrigin().getPath())) {
-        log.info(String.format("Deleting %s on source fileSystem.", copyableFile.getOrigin().getPath()));
-        if (!this.sourceFs.delete(copyableFile.getOrigin().getPath(), true)) {
-          throw new IOException("Delete failed for " + copyableFile.getOrigin().getPath());
-        }
-      }
+      HadoopUtils.deletePath(this.sourceFs, copyableFile.getOrigin().getPath(), true);
+      HadoopUtils.deletePath(this.sourceFs,
+          PathUtils.addExtension(copyableFile.getOrigin().getPath(), ReadyCopyableFileFilter.READY_EXTENSION), true);
     }
   }
 }

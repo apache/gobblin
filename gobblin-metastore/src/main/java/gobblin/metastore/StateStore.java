@@ -30,7 +30,7 @@ import gobblin.configuration.State;
  *
  * @param <T> state object type
  *
- * @author ynli
+ * @author Yinan Li
  */
 public interface StateStore<T extends State> {
 

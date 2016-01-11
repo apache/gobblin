@@ -7,6 +7,7 @@
 // Unless required by applicable law or agreed to in writing, software distributed
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied.
+
 buildscript {
   repositories {
     maven {
@@ -92,7 +93,7 @@ if (!project.hasProperty('hadoopVersion')) {
 }
 
 if (!project.hasProperty('hiveVersion')) {
-  ext.hiveVersion = '1.2.1'
+  ext.hiveVersion = '1.0.1'
 }
 
 if (!project.hasProperty('pegasusVersion')) {
@@ -127,23 +128,23 @@ ext.externalDependency = [
   "guava": "com.google.guava:guava:15.0",
   "gson": "com.google.code.gson:gson:2.3.1",
   "findBugs": "com.google.code.findbugs:jsr305:1.3.9",
-  "hadoop": "org.apache.hadoop:hadoop-core:"+hadoopVersion,
-  "hadoopCommon": "org.apache.hadoop:hadoop-common:"+hadoopVersion,
-  "hadoopClientCore": "org.apache.hadoop:hadoop-mapreduce-client-core:"+hadoopVersion,
-  "hadoopClientCommon": "org.apache.hadoop:hadoop-mapreduce-client-common:"+hadoopVersion,
-  "hadoopHdfs": "org.apache.hadoop:hadoop-hdfs:"+hadoopVersion,
-  "hadoopAuth": "org.apache.hadoop:hadoop-auth:"+hadoopVersion,
-  "hadoopYarnApi": "org.apache.hadoop:hadoop-yarn-api:"+hadoopVersion,
-  "hadoopYarnCommon": "org.apache.hadoop:hadoop-yarn-common:"+hadoopVersion,
-  "hadoopYarnClient": "org.apache.hadoop:hadoop-yarn-client:"+hadoopVersion,
-  "hadoopYarnMiniCluster": "org.apache.hadoop:hadoop-minicluster:"+hadoopVersion,
-  "hadoopAnnotations": "org.apache.hadoop:hadoop-annotations:"+hadoopVersion,
+  "hadoop": "org.apache.hadoop:hadoop-core:" + hadoopVersion,
+  "hadoopCommon": "org.apache.hadoop:hadoop-common:" + hadoopVersion,
+  "hadoopClientCore": "org.apache.hadoop:hadoop-mapreduce-client-core:" + hadoopVersion,
+  "hadoopClientCommon": "org.apache.hadoop:hadoop-mapreduce-client-common:" + hadoopVersion,
+  "hadoopHdfs": "org.apache.hadoop:hadoop-hdfs:" + hadoopVersion,
+  "hadoopAuth": "org.apache.hadoop:hadoop-auth:" + hadoopVersion,
+  "hadoopYarnApi": "org.apache.hadoop:hadoop-yarn-api:" + hadoopVersion,
+  "hadoopYarnCommon": "org.apache.hadoop:hadoop-yarn-common:" + hadoopVersion,
+  "hadoopYarnClient": "org.apache.hadoop:hadoop-yarn-client:" + hadoopVersion,
+  "hadoopYarnMiniCluster": "org.apache.hadoop:hadoop-minicluster:" + hadoopVersion,
+  "hadoopAnnotations": "org.apache.hadoop:hadoop-annotations:" + hadoopVersion,
   "hadoopAws": "org.apache.hadoop:hadoop-aws:2.6.0",
-  "hiveService": "org.apache.hive:hive-service:"+hiveVersion,
-  "hiveJdbc": "org.apache.hive:hive-jdbc:"+hiveVersion,
-  "hiveMetastore": "org.apache.hive:hive-metastore:"+hiveVersion,
+  "hiveService": "org.apache.hive:hive-service:" + hiveVersion,
+  "hiveJdbc": "org.apache.hive:hive-jdbc:" + hiveVersion,
+  "hiveMetastore": "org.apache.hive:hive-metastore:" + hiveVersion,
   "hiveExec": "org.apache.hive:hive-exec:" + hiveVersion + ":core",
-  "hiveSerDe": "org.apache.hive:hive-serde:"+hiveVersion,
+  "hiveSerDe": "org.apache.hive:hive-serde:" + hiveVersion,
   "httpclient": "org.apache.httpcomponents:httpclient:4.5",
   "httpcore": "org.apache.httpcomponents:httpcore:4.4.1",
   "kafka": "org.apache.kafka:kafka_2.11:0.8.2.1",
@@ -179,8 +180,8 @@ ext.externalDependency = [
   "mockRunnerJdbc":"com.mockrunner:mockrunner-jdbc:1.0.8",
   "xerces":"xerces:xercesImpl:2.11.0",
   "typesafeConfig": "com.typesafe:config:1.2.1",
-  "byteman": "org.jboss.byteman:byteman:"+bytemanVersion,
-  "bytemanBmunit": "org.jboss.byteman:byteman-bmunit:"+bytemanVersion,
+  "byteman": "org.jboss.byteman:byteman:" + bytemanVersion,
+  "bytemanBmunit": "org.jboss.byteman:byteman-bmunit:" + bytemanVersion,
   "bcpgJdk15on": "org.bouncycastle:bcpg-jdk15on:1.52",
   "bcprovJdk15on": "org.bouncycastle:bcprov-jdk15on:1.52",
   "calciteCore": "org.apache.calcite:calcite-core:1.2.0-incubating",
@@ -190,17 +191,18 @@ ext.externalDependency = [
   "curatorTest": "org.apache.curator:curator-test:2.8.0",
   "hamcrest": "org.hamcrest:hamcrest-all:1.3",
   "joptSimple": "net.sf.jopt-simple:jopt-simple:4.9",
+  "protobuf": "com.google.protobuf:protobuf-java:2.6.1",
   "pegasus" : [
-    "data" : "com.linkedin.pegasus:data:"+pegasusVersion,
-    "generator" : "com.linkedin.pegasus:generator:"+pegasusVersion,
-    "restliClient" : "com.linkedin.pegasus:restli-client:"+pegasusVersion,
-    "restliServer" : "com.linkedin.pegasus:restli-server:"+pegasusVersion,
-    "restliTools" : "com.linkedin.pegasus:restli-tools:"+pegasusVersion,
-    "pegasusCommon" : "com.linkedin.pegasus:pegasus-common:"+pegasusVersion,
-    "restliCommon" : "com.linkedin.pegasus:restli-common:"+pegasusVersion,
-    "r2" : "com.linkedin.pegasus:r2:"+pegasusVersion,
-    "d2" : "com.linkedin.pegasus:d2:"+pegasusVersion,
-    "restliNettyStandalone" : "com.linkedin.pegasus:restli-netty-standalone:"+pegasusVersion
+    "data" : "com.linkedin.pegasus:data:" + pegasusVersion,
+    "generator" : "com.linkedin.pegasus:generator:" + pegasusVersion,
+    "restliClient" : "com.linkedin.pegasus:restli-client:" + pegasusVersion,
+    "restliServer" : "com.linkedin.pegasus:restli-server:" + pegasusVersion,
+    "restliTools" : "com.linkedin.pegasus:restli-tools:" + pegasusVersion,
+    "pegasusCommon" : "com.linkedin.pegasus:pegasus-common:" + pegasusVersion,
+    "restliCommon" : "com.linkedin.pegasus:restli-common:" + pegasusVersion,
+    "r2" : "com.linkedin.pegasus:r2:" + pegasusVersion,
+    "d2" : "com.linkedin.pegasus:d2:" + pegasusVersion,
+    "restliNettyStandalone" : "com.linkedin.pegasus:restli-netty-standalone:" + pegasusVersion
   ]
 ];
 
@@ -241,7 +243,7 @@ permalink: /javadoc/${version}/
   }
 }
 
-//Javadoc initialization for subprojects
+// Javadoc initialization for subprojects
 ext.javadocVersion = null != project.version ? project.version.toString() : "latest"
 if (ext.javadocVersion.indexOf('-') > 0) {
   // Remove any "-" addons from the version
@@ -258,7 +260,7 @@ subprojects.each{Project pr ->
 subprojects {
   plugins.withType(JavaPlugin) {
  
-    //Sometimes generating javadocs can lead to OOM. This may needs to be increased.
+    // Sometimes generating javadocs can lead to OOM. This may needs to be increased.
     javadoc {
       options.JFlags = ["-Xmx256m"]
     }
@@ -275,18 +277,19 @@ subprojects {
     plugins.apply('idea')
     plugins.apply('eclipse')
     plugins.apply('maven')
-  // Disabling the FindBugs plugin for now because FindBugs 2.x is not compatible with Java8
-  //  apply plugin: 'findbugs'
+// Disabling the FindBugs plugin for now because FindBugs 2.x is not compatible with Java8
+//  apply plugin: 'findbugs'
 
     sourceCompatibility = JavaVersion.VERSION_1_7
 
-
-  /*  findbugs {
+    /*
+    findbugs {
       ignoreFailures = true
       effort = "max"
       excludeFilter = file(rootProject.projectDir.path + "/ligradle/findbugs/findbugsExclude.xml")
     }
-  */
+    */
+
     test {
       if (project.hasProperty("printTestOutput")) {
         testLogging.showStandardStreams = true
@@ -472,7 +475,7 @@ subprojects {
                                 "https://dropwizard.github.io/metrics/${dropwizardMetricsVersion}/apidocs/"
     rootProject.ext.javadocPackages.each {
       tasks.javadoc.options.linksOffline "http://linkedin.github.io/gobblin/javadoc/${javadocVersion}/${it}/",
-                                         "${rootProject.buildDir}/${it}/docs/javadoc/"
+                                       "${rootProject.buildDir}/${it}/docs/javadoc/" 
     }
 
     afterEvaluate {
@@ -494,5 +497,23 @@ if (JavaVersion.current().isJava8Compatible()) {
       options.addStringOption('Xdoclint:none', '-quiet')
     }
   }
+}
+
+task dotProjectDependencies(description: 'List of gobblin project dependencies in dot format') << {
+  println "// ========= Start of project dependency graph ======= "
+  println "digraph project_dependencies {"
+  subprojects.each { Project project ->
+    def project_node_name = project.name.replaceAll("-","_")
+    if (project.configurations.findByName("compile") != null) {
+      project.configurations.compile.dependencies.each { Dependency dep ->
+        if (dep instanceof ProjectDependency) {
+          def dep_node_name = dep.dependencyProject.name.replaceAll("-","_")
+          println "\t${project_node_name} -> ${dep_node_name};"
+        }
+      }
+    }
+  }
+  println "}"
+  println "// ========= End of project dependency graph ======= "
 }
 

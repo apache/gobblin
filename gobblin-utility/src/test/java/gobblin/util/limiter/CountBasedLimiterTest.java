@@ -22,7 +22,7 @@ import gobblin.util.limiter.Limiter;
 /**
  * Unit tests for {@link CountBasedLimiter}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = { "gobblin.util.limiter" })
 public class CountBasedLimiterTest {

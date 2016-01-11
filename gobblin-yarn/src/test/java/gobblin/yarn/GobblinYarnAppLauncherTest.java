@@ -51,7 +51,7 @@ import gobblin.testing.AssertWithBackoff;
  *   A {@link YarnClient} is used to work with the {@link MiniYARNCluster}.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = { "gobblin.yarn" })
 public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
@@ -119,11 +119,10 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
    * has some issue that causes the {@link YarnClient} not be able to connect and submit the Gobblin Yarn
    * application successfully. This works fine on local machine though. So disabling this and the test
    * below that depends on it on Travis-CI.
-   *
-   * @throws Exception
    */
   @Test(groups = { "disabledOnTravis" }, dependsOnMethods = "testCreateHelixCluster")
   public void testSetupAndSubmitApplication() throws Exception {
+    this.gobblinYarnAppLauncher.startYarnClient();
     this.applicationId = this.gobblinYarnAppLauncher.setupAndSubmitApplication();
   }
 
@@ -135,7 +134,6 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
 
   @Test(dependsOnMethods = "testCreateHelixCluster")
   public void testSendShutdownRequest() throws Exception {
-    Logger log = LoggerFactory.getLogger("testSendShutdownRequest");
     this.helixManager.connect();
     this.helixManager.getMessagingService().registerMessageHandlerFactory(Message.MessageType.SHUTDOWN.toString(),
         new TestShutdownMessageHandlerFactory(this));
@@ -143,12 +141,14 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     this.gobblinYarnAppLauncher.connectHelixManager();
     this.gobblinYarnAppLauncher.sendShutdownRequest();
 
-    Assert.assertEquals(this.curatorFramework.checkExists().forPath(
-        String.format("/%s/CONTROLLER/MESSAGES", GobblinYarnAppLauncherTest.class.getSimpleName())).getVersion(), 0);
+    Assert.assertEquals(this.curatorFramework.checkExists()
+        .forPath(String.format("/%s/CONTROLLER/MESSAGES", GobblinYarnAppLauncherTest.class.getSimpleName()))
+        .getVersion(), 0);
     YarnSecurityManagerTest.GetControllerMessageNumFunc getCtrlMessageNum =
-        new YarnSecurityManagerTest.GetControllerMessageNumFunc(
-            GobblinYarnAppLauncherTest.class.getSimpleName(), this.curatorFramework);
-    AssertWithBackoff assertWithBackoff = AssertWithBackoff.create().logger(log).timeoutMs(20000);
+        new YarnSecurityManagerTest.GetControllerMessageNumFunc(GobblinYarnAppLauncherTest.class.getSimpleName(),
+            this.curatorFramework);
+    AssertWithBackoff assertWithBackoff =
+        AssertWithBackoff.create().logger(LoggerFactory.getLogger("testSendShutdownRequest")).timeoutMs(20000);
     assertWithBackoff.assertEquals(getCtrlMessageNum, 1, "1 controller message queued");
 
     // Give Helix sometime to handle the message
@@ -158,6 +158,8 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
   @AfterClass
   public void tearDown() throws IOException, TimeoutException {
     try {
+      this.gobblinYarnAppLauncher.stopYarnClient();
+
       if (this.helixManager.isConnected()) {
         this.helixManager.disconnect();
       }

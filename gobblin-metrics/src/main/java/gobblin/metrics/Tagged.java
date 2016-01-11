@@ -27,7 +27,7 @@ import com.google.common.collect.Maps;
 /**
  * A base implementation of {@link Taggable}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class Tagged implements Taggable {
 

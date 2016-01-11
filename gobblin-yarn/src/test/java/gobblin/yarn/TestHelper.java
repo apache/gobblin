@@ -37,7 +37,7 @@ import gobblin.util.JobLauncherUtils;
 /**
  * A helper class for Gobblin Yarn related test constants and utility methods.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class TestHelper {
 

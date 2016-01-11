@@ -35,7 +35,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 /**
  * A utility class to use with {@link java.util.concurrent.Executors} in cases such as when creating new thread pools.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class ExecutorsUtils {
 
@@ -75,7 +75,24 @@ public class ExecutorsUtils {
    * @return a new {@link java.util.concurrent.ThreadFactory}
    */
   public static ThreadFactory newThreadFactory(Optional<Logger> logger, Optional<String> nameFormat) {
-    ThreadFactoryBuilder builder = new ThreadFactoryBuilder();
+    return newThreadFactory(new ThreadFactoryBuilder(), logger, nameFormat);
+  }
+
+  /**
+   * Get a new {@link ThreadFactory} that uses a {@link LoggingUncaughtExceptionHandler}
+   * to handle uncaught exceptions, uses the given thread name format, and produces daemon threads.
+   *
+   * @param logger an {@link Optional} wrapping the {@link Logger} that the
+   *               {@link LoggingUncaughtExceptionHandler} uses to log uncaught exceptions thrown in threads
+   * @param nameFormat an {@link Optional} wrapping a thread naming format
+   * @return a new {@link ThreadFactory}
+   */
+  public static ThreadFactory newDaemonThreadFactory(Optional<Logger> logger, Optional<String> nameFormat) {
+    return newThreadFactory(new ThreadFactoryBuilder().setDaemon(true), logger, nameFormat);
+  }
+
+  private static ThreadFactory newThreadFactory(ThreadFactoryBuilder builder, Optional<Logger> logger,
+      Optional<String> nameFormat) {
     if (nameFormat.isPresent()) {
       builder.setNameFormat(nameFormat.get());
     }

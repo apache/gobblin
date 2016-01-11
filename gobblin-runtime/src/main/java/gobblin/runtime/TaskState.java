@@ -50,7 +50,7 @@ import gobblin.metrics.GobblinMetrics;
 /**
  * An extension to {@link WorkUnitState} with run-time task state information.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class TaskState extends WorkUnitState {
 

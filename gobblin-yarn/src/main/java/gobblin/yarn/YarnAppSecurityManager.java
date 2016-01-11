@@ -66,7 +66,7 @@ import gobblin.util.ExecutorsUtils;
  *   renewing interval are configurable.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class YarnAppSecurityManager extends AbstractIdleService {
 

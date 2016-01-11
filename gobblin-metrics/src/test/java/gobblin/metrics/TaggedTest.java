@@ -24,7 +24,7 @@ import com.codahale.metrics.MetricRegistry;
 /**
  * Unit tests for {@link Tagged}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = {"gobblin.metrics"})
 public class TaggedTest {
