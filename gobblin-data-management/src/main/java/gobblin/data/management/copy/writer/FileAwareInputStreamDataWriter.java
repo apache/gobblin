@@ -20,6 +20,7 @@ import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.data.management.copy.OwnerAndPermission;
 import gobblin.data.management.copy.PreserveAttributes;
+import gobblin.data.management.copy.recovery.RecoveryHelper;
 import gobblin.util.PathUtils;
 import gobblin.util.FileListUtils;
 import gobblin.util.ForkOperatorUtils;
@@ -44,6 +45,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 
+import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.io.Closer;
 
@@ -62,6 +65,7 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
   protected final Path outputDir;
   protected final Closer closer = Closer.create();
   protected CopyableDatasetMetadata copyableDatasetMetadata;
+  protected final RecoveryHelper recoveryHelper;
 
   public FileAwareInputStreamDataWriter(State state, int numBranches, int branchId) throws IOException {
     this.state = state;
@@ -78,6 +82,7 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
             numBranches, branchId)));
     this.copyableDatasetMetadata =
         CopyableDatasetMetadata.deserialize(state.getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
+    this.recoveryHelper = new RecoveryHelper(this.fs, state);
   }
 
   @Override
@@ -88,35 +93,52 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
 
     this.fs.mkdirs(stagingFile.getParent());
 
-    short replication = copyableFile.getPreserve().preserve(PreserveAttributes.Option.REPLICATION) ?
+    final short replication = copyableFile.getPreserve().preserve(PreserveAttributes.Option.REPLICATION) ?
         copyableFile.getOrigin().getReplication() : fs.getDefaultReplication(stagingFile);
-    long blockSize = copyableFile.getPreserve().preserve(PreserveAttributes.Option.BLOCK_SIZE) ?
+    final long blockSize = copyableFile.getPreserve().preserve(PreserveAttributes.Option.BLOCK_SIZE) ?
         copyableFile.getOrigin().getBlockSize() : fs.getDefaultBlockSize(stagingFile);
-    FSDataOutputStream os = this.fs.create(stagingFile, true, fs.getConf().getInt("io.file.buffer.size", 4096),
-        replication, blockSize);
-    try {
-      this.bytesWritten.addAndGet(StreamUtils.copy(fileAwareInputStream.getInputStream(), os));
-      log.info("bytes written: " + this.bytesWritten.get() + " for file " + fileAwareInputStream.getFile());
-    } finally {
-      os.close();
-      fileAwareInputStream.getInputStream().close();
+
+    Predicate<FileStatus> fileStatusAttributesFilter = new Predicate<FileStatus>() {
+      @Override public boolean apply(FileStatus input) {
+        return input.getReplication() == replication && input.getBlockSize() == blockSize;
+      }
+    };
+    Optional<FileStatus> persistedFile = this.recoveryHelper.findPersistedFile(this.state,
+        fileAwareInputStream.getFile(), fileStatusAttributesFilter);
+
+    if (persistedFile.isPresent()) {
+      log.info(String.format("Recovering persisted file %s to %s.", persistedFile.get().getPath(), stagingFile));
+      this.fs.rename(persistedFile.get().getPath(), stagingFile);
+    } else {
+
+      FSDataOutputStream os =
+          this.fs.create(stagingFile, true, fs.getConf().getInt("io.file.buffer.size", 4096), replication, blockSize);
+      try {
+        this.bytesWritten.addAndGet(StreamUtils.copy(fileAwareInputStream.getInputStream(), os));
+        log.info("bytes written: " + this.bytesWritten.get() + " for file " + fileAwareInputStream.getFile());
+      } finally {
+        os.close();
+        fileAwareInputStream.getInputStream().close();
+      }
     }
 
     this.filesWritten.incrementAndGet();
 
-    setFilePermissions(fileAwareInputStream.getFile());
+    try {
+      setFilePermissions(fileAwareInputStream.getFile());
+    } catch (IOException ioe) {
+      log.error(String.format("Failed to set permissions for file %s. Attempting to persist it for future runs.",
+          stagingFile));
+      this.recoveryHelper.persistFile(this.state, fileAwareInputStream.getFile(), stagingFile);
+    }
   }
 
   /**
    * Sets the owner/group and permission for the file in the task staging directory
    */
-  protected void setFilePermissions(CopyableFile file) {
-    try {
-      setAncestorPermissions(file);
-      setRecursivePermission(getStagingFilePath(file), file.getDestinationOwnerAndPermission());
-    } catch (IOException e) {
-      log.error("Failed to set permissions for " + file.getOrigin(), e);
-    }
+  protected void setFilePermissions(CopyableFile file) throws IOException {
+    setAncestorPermissions(file);
+    setRecursivePermission(getStagingFilePath(file), file.getDestinationOwnerAndPermission());
   }
 
   protected Path getStagingFilePath(CopyableFile file) {

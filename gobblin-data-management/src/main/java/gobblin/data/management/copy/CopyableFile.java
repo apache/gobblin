@@ -15,6 +15,8 @@ package gobblin.data.management.copy;
 import gobblin.data.management.partition.File;
 import gobblin.data.management.copy.PreserveAttributes.Option;
 import gobblin.util.PathUtils;
+import gobblin.util.guid.Guid;
+import gobblin.util.guid.HasGuid;
 
 import java.io.IOException;
 import java.util.List;
@@ -53,7 +55,7 @@ import com.google.gson.reflect.TypeToken;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @EqualsAndHashCode
 @Builder(builderClassName = "Builder", builderMethodName = "_hiddenBuilder")
-public class CopyableFile implements File {
+public class CopyableFile implements File, HasGuid {
 
   private static final Gson GSON = new Gson();
 
@@ -226,6 +228,18 @@ public class CopyableFile implements File {
   @Override
   public FileStatus getFileStatus() {
     return this.origin;
+  }
+
+  /**
+   * Generates a replicable guid to uniquely identify the origin of this {@link CopyableFile}.
+   * @return a guid uniquely identifying the origin file.
+   */
+  public Guid guid() throws IOException {
+    StringBuilder uniqueString = new StringBuilder();
+    uniqueString.append(getFileStatus().getModificationTime());
+    uniqueString.append(getFileStatus().getLen());
+    uniqueString.append(getFileStatus().getPath());
+    return Guid.fromStrings(uniqueString.toString());
   }
 
   /**

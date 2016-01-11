@@ -32,6 +32,8 @@ import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.HadoopUtils;
 import gobblin.util.WriterUtils;
+import gobblin.util.guid.Guid;
+import gobblin.util.guid.HasGuid;
 
 import java.io.IOException;
 import java.net.URI;
@@ -48,6 +50,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -66,6 +69,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public static final String SERIALIZED_COPYABLE_FILES = COPY_PREFIX + ".serialized.copyable.files";
   public static final String SERIALIZED_COPYABLE_DATASET = COPY_PREFIX + ".serialized.copyable.datasets";
   public static final String PRESERVE_ATTRIBUTES_KEY = COPY_PREFIX + ".preserved.attributes";
+  public static final String WORK_UNIT_GUID = COPY_PREFIX + ".work.unit.guid";
 
   /**
    * <ul>
@@ -120,6 +124,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
             workUnit.setProp(SlaEventKeys.DATASET_URN_KEY, copyableDataset.datasetRoot().toString());
             workUnit.setProp(SlaEventKeys.PARTITION_KEY, copyableFile.getFileSet());
             workUnit.setProp(SlaEventKeys.ORIGIN_TS_IN_MILLI_SECS_KEY, copyableFile.getFileStatus().getModificationTime());
+            computeAndSetWorkUnitGuid(workUnit);
             workUnits.add(workUnit);
           }
         }
@@ -170,6 +175,36 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
         PathUtils.getPathWithoutSchemeAndAuthority(dataset.datasetRoot()),
         PathUtils.getPathWithoutSchemeAndAuthority(datasetFinder.commonDatasetRoot()));
     return new Path(basePath, datasetRelativeToCommonRoot);
+  }
+
+  private void computeAndSetWorkUnitGuid(WorkUnit workUnit) throws IOException {
+    Guid guid = Guid.fromStrings(workUnit.contains(ConfigurationKeys.CONVERTER_CLASSES_KEY) ?
+        workUnit.getProp(ConfigurationKeys.CONVERTER_CLASSES_KEY) :
+        "");
+    setWorkUnitGuid(workUnit, guid.append(deserializeCopyableFiles(workUnit).toArray(new HasGuid[0])));
+  }
+
+  /**
+   * Set a unique, replicable guid for this work unit. Used for recovering partially successful work units.
+   * @param state {@link State} where guid should be written.
+   * @param guid A byte array guid.
+   */
+  public static void setWorkUnitGuid(State state, Guid guid) throws IOException {
+    state.setProp(WORK_UNIT_GUID, guid.toString());
+  }
+
+  /**
+   * Get guid in this state if available. This is the reverse operation of {@link #setWorkUnitGuid}.
+   * @param state State from which guid should be extracted.
+   * @return A byte array guid.
+   * @throws IOException
+   */
+  public static Optional<Guid> getWorkUnitGuid(State state) throws IOException {
+    if (state.contains(WORK_UNIT_GUID)) {
+      return Optional.of(Guid.deserialize(state.getProp(WORK_UNIT_GUID)));
+    } else {
+      return Optional.absent();
+    }
   }
 
   /**
