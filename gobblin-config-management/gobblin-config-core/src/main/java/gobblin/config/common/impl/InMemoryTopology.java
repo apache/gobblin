@@ -17,6 +17,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -92,16 +93,16 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
   }
 
   private List<ConfigKeyPath> buildImportsRecursiveFromCache(ConfigKeyPath configKey) {
-    return buildImportsRecursiveFromCacheHelper(configKey, configKey, new ArrayList<ConfigKeyPath>());
+    return buildImportsRecursiveFromCacheHelper(configKey, configKey, new LinkedHashSet<ConfigKeyPath>());
   }
 
   private List<ConfigKeyPath> buildImportsRecursiveFromCacheHelper(ConfigKeyPath initialConfigKey,
-      ConfigKeyPath currentConfigKey, List<ConfigKeyPath> previous) {
+      ConfigKeyPath currentConfigKey, Set<ConfigKeyPath> previousVisited) {
 
-    for (ConfigKeyPath p : previous) {
+    for (ConfigKeyPath p : previousVisited) {
       if (currentConfigKey != null && currentConfigKey.equals(p)) {
-        previous.add(p);
-        throw new CircularDependencyException(getCircularDependencyChain(initialConfigKey, previous, currentConfigKey));
+        previousVisited.add(p);
+        throw new CircularDependencyException(getCircularDependencyChain(initialConfigKey, previousVisited, currentConfigKey));
       }
     }
 
@@ -111,43 +112,38 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
     }
 
     List<ConfigKeyPath> result = new ArrayList<>();
-
+    
+    Set<ConfigKeyPath> currentVisited = new LinkedHashSet<ConfigKeyPath>(previousVisited);
+    currentVisited.add(currentConfigKey);
+    
     // Own imports map should be filled in already
-    List<ConfigKeyPath> rawList = this.getOwnImportsFromCache(currentConfigKey);
-
-    // without this wrapper, will cause UnsupportedOperationException in adding parent node
-    List<ConfigKeyPath> imported = new ArrayList<ConfigKeyPath>();
-    imported.addAll(rawList);
-
-    // implicit import parent with the lowest priority
-    if (!currentConfigKey.isRootPath()) {
-      imported.add(currentConfigKey.getParent());
+    for (ConfigKeyPath u: this.getOwnImportsFromCache(currentConfigKey)) {
+      addRecursiveImportsToResult(u, initialConfigKey, currentConfigKey, result, currentVisited);
     }
-
-    for (ConfigKeyPath u : imported) {
-      // do NOT add self parent in result as
-      // 1. by default import parent
-      // 2. if added, too many entries in the result
-      if (!u.equals(currentConfigKey.getParent())) {
-        result.add(u);
-      }
-
-      List<ConfigKeyPath> current = new ArrayList<ConfigKeyPath>();
-      current.addAll(previous);
-      current.add(currentConfigKey);
-
-      List<ConfigKeyPath> subResult = null;
-      if (this.recursiveImportMap.containsKey(u)) {
-        subResult = this.recursiveImportMap.get(u);
-      } else {
-        subResult = buildImportsRecursiveFromCacheHelper(initialConfigKey, u, current);
-        this.addToListMapForListValue(this.recursiveImportMap, u, subResult);
-      }
-
-      result.addAll(subResult);
-    }
-
+    
+    addRecursiveImportsToResult(currentConfigKey.getParent(), initialConfigKey, currentConfigKey, result, currentVisited);
     return dedup(result);
+  }
+  
+  private void addRecursiveImportsToResult(ConfigKeyPath u, ConfigKeyPath initialConfigKey,
+      ConfigKeyPath currentConfigKey, List<ConfigKeyPath> result, Set<ConfigKeyPath> current){
+    
+    // do NOT add self parent in result as
+    // 1. by default import parent
+    // 2. if added, too many entries in the result
+    if (!u.equals(currentConfigKey.getParent())) {
+      result.add(u);
+    }
+
+    List<ConfigKeyPath> subResult = null;
+    if (this.recursiveImportMap.containsKey(u)) {
+      subResult = this.recursiveImportMap.get(u);
+    } else {
+      subResult = buildImportsRecursiveFromCacheHelper(initialConfigKey, u, current);
+      this.addToListMapForListValue(this.recursiveImportMap, u, subResult);
+    }
+
+    result.addAll(subResult);
   }
 
   private void addToCollectionMapForCollectionValue(Map<ConfigKeyPath, Collection<ConfigKeyPath>> theMap,
@@ -179,17 +175,6 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
     }
   }
 
-  private void addToListMapForSingleValue(Map<ConfigKeyPath, List<ConfigKeyPath>> theMap, ConfigKeyPath key,
-      ConfigKeyPath value) {
-    if (theMap.containsKey(key)) {
-      theMap.get(key).add(value);
-    } else {
-      List<ConfigKeyPath> list = new ArrayList<ConfigKeyPath>();
-      list.add(value);
-      theMap.put(key, list);
-    }
-  }
-
   private static List<ConfigKeyPath> dedup(List<ConfigKeyPath> input) {
     List<ConfigKeyPath> result = new ArrayList<ConfigKeyPath>();
 
@@ -204,7 +189,7 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
   }
 
   // return the circular dependency chain
-  private static String getCircularDependencyChain(ConfigKeyPath initialConfigKey, List<ConfigKeyPath> chain,
+  private static String getCircularDependencyChain(ConfigKeyPath initialConfigKey, Set<ConfigKeyPath> chain,
       ConfigKeyPath circular) {
     StringBuilder sb = new StringBuilder();
     sb.append("Initial configKey : " + initialConfigKey + ", loop is ");
