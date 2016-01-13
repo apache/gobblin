@@ -17,6 +17,7 @@ dependencies {
     compile externalDependency.log4j
     compile externalDependency.typesafeConfig
 
+    testCompile externalDependency.mockito
     testCompile externalDependency.testng
 }
 

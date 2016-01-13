@@ -44,7 +44,7 @@ public interface ConfigStoreWithResolution extends ConfigStore {
    *         and indirect imports resolved.
    * @throws VersionDoesNotExistException if the requested config version does not exist (any longer)
    */
-  public ConfigKeyPath getResolvedConfig(ConfigKeyPath configKey, String version)
+  public Config getResolvedConfig(ConfigKeyPath configKey, String version)
       throws VersionDoesNotExistException;
 
   /**
