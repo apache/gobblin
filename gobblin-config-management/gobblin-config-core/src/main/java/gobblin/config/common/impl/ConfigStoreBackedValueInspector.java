@@ -85,11 +85,11 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
     
     // merge with other configs from imports
     for(ConfigKeyPath p: recursiveImports){
-      initialConfig.withFallback(this.getConfigInSelfChain(p));
+      initialConfig = initialConfig.withFallback(this.getConfigInSelfChain(p));
     }
     
     // merge with configs from parent
-    initialConfig.withFallback(this.getConfigInSelfChain(configKey.getParent()));
+    initialConfig = initialConfig.withFallback(this.getConfigInSelfChain(configKey.getParent()));
     
     return initialConfig;
   }
@@ -102,13 +102,12 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
     
     ConfigKeyPath parent = configKey.getParent();
     while(!parent.isRootPath()){
-      result.withFallback(this.getOwnConfig(parent));
+      result = result.withFallback(this.getOwnConfig(parent));
       parent = parent.getParent();
     }
     
     // parent is root now, need to merge the config for root
-    result.withFallback(this.getOwnConfig(parent));
-    
+    result = result.withFallback(this.getOwnConfig(parent));
     return result;
   }
 }
