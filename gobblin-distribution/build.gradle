@@ -44,9 +44,9 @@ task build(type: Tar, overwrite: true) {
 
   doLast {
     copy {
-      from buildDir.path + '/distributions/gobblin-distribution.tar.gz'
+      from buildDir.path + '/distributions/gobblin-distribution-' + project.version + '.tar.gz'
       into project.rootDir.path
-      rename ('gobblin-distribution.tar.gz', 'gobblin-dist.tar.gz')
+      rename ('gobblin-distribution-' + project.version + '.tar.gz', 'gobblin-dist.tar.gz')
     }
   }
 }
