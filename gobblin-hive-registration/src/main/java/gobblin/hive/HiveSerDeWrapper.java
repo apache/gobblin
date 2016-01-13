@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.serde;
+package gobblin.hive;
 
 import java.io.IOException;
 
@@ -29,6 +29,7 @@ import com.google.common.base.Enums;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
+import gobblin.annotation.Alpha;
 import gobblin.configuration.State;
 
 
@@ -38,6 +39,7 @@ import gobblin.configuration.State;
  *
  * @author ziliu
  */
+@Alpha
 @SuppressWarnings("deprecation")
 public class HiveSerDeWrapper {
 
