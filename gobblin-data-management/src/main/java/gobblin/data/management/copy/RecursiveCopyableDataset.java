@@ -43,6 +43,7 @@ public class RecursiveCopyableDataset extends SinglePartitionCopyableDataset {
   private final Properties properties;
   private LoadingCache<Path, OwnerAndPermission> ownerAndPermissionCache;
   private final PathFilter pathFilter;
+  private final CopyableFileFilter copyableFileFilter;
 
   public RecursiveCopyableDataset(final FileSystem fs, Path rootPath, Properties properties) {
 
@@ -58,6 +59,7 @@ public class RecursiveCopyableDataset extends SinglePartitionCopyableDataset {
     });
 
     this.pathFilter = DatasetUtils.instantiatePathFilter(properties);
+    this.copyableFileFilter = DatasetUtils.instantiateCopyableFileFilter(properties);
   }
 
   @Override public Collection<CopyableFile> getCopyableFiles(FileSystem targetFs, CopyConfiguration configuration)
@@ -70,7 +72,7 @@ public class RecursiveCopyableDataset extends SinglePartitionCopyableDataset {
     for (FileStatus file : files) {
       copyableFiles.add(CopyableFile.builder(this.fs, file, this.rootPath, configuration).build());
     }
-    return copyableFiles;
+    return copyableFileFilter.filter(this.fs, targetFs, copyableFiles);
   }
 
   /**

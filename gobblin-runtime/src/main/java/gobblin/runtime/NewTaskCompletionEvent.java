@@ -25,7 +25,7 @@ import java.util.Collection;
  *   are posted.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class NewTaskCompletionEvent {
 

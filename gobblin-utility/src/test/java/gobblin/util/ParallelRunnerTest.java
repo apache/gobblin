@@ -49,7 +49,7 @@ import gobblin.util.io.SeekableFSInputStream;
 /**
  * Unit tests for {@link ParallelRunner}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = { "gobblin.util" })
 public class ParallelRunnerTest {

@@ -53,7 +53,7 @@ import gobblin.source.extractor.Extractor;
  * @param <K> key type expected by the {@link RecordReader}
  * @param <V> value type expected by the {@link RecordReader}
  *
- * @author ynli
+ * @author Yinan Li
  */
 public abstract class HadoopFileInputExtractor<S, D, K, V> implements Extractor<S, D> {
 

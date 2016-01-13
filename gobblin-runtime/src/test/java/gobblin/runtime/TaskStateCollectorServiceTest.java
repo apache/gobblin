@@ -35,7 +35,7 @@ import gobblin.util.JobLauncherUtils;
 /**
  * Unit tests for {@link TaskStateCollectorService}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = { "gobblin.runtime" })
 public class TaskStateCollectorServiceTest {

@@ -52,7 +52,7 @@ import gobblin.util.limiter.DefaultLimiterFactory;
 /**
  * Base class for {@link JobLauncher} unit tests.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class JobLauncherTestHelper {
 

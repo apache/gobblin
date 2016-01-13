@@ -12,6 +12,7 @@
 
 package gobblin.yarn;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,7 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -78,6 +80,7 @@ import gobblin.metrics.GobblinMetrics;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskStateTracker;
 import gobblin.util.ConfigUtils;
+import gobblin.util.HadoopUtils;
 import gobblin.yarn.event.DelegationTokenUpdatedEvent;
 
 
@@ -102,7 +105,8 @@ import gobblin.yarn.event.DelegationTokenUpdatedEvent;
  *   If for some reason, the container exits or gets killed, the {@link GobblinApplicationMaster} will
  *   be notified for the completion of the container and will start a new container to replace this one.
  * </p>
- * @author ynli
+ *
+ * @author Yinan Li
  */
 public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
 
@@ -142,9 +146,8 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
     ApplicationAttemptId applicationAttemptId = this.containerId.getApplicationAttemptId();
     String applicationId = applicationAttemptId.getApplicationId().toString();
 
-    FileSystem fs = config.hasPath(ConfigurationKeys.FS_URI_KEY) ?
-        FileSystem.get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), new Configuration()) :
-        FileSystem.get(new Configuration());
+    Configuration conf = HadoopUtils.newConfiguration();
+    FileSystem fs = buildFileSystem(this.config, conf);
 
     String zkConnectionString = config.getString(GobblinYarnConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     LOGGER.info("Using ZooKeeper connection string: " + zkConnectionString);
@@ -174,12 +177,7 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
 
     this.serviceManager = new ServiceManager(services);
 
-    if (GobblinMetrics.isEnabled(properties)) {
-      this.containerMetrics =
-          Optional.of(ContainerMetrics.get(ConfigUtils.configToState(this.config), applicationName, containerId));
-    } else {
-      this.containerMetrics = Optional.absent();
-    }
+    this.containerMetrics = buildContainerMetrics(this.config, properties, applicationName, containerId);
 
     // Register task factory for the Helix task state model
     Map<String, TaskFactory> taskFactoryMap = Maps.newHashMap();
@@ -295,6 +293,21 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
   private void registerMetricSetWithPrefix(String prefix, MetricSet metricSet) {
     for (Map.Entry<String, Metric> entry : metricSet.getMetrics().entrySet()) {
       this.metricRegistry.register(MetricRegistry.name(prefix, entry.getKey()), entry.getValue());
+    }
+  }
+
+  private FileSystem buildFileSystem(Config config, Configuration conf) throws IOException {
+    return config.hasPath(ConfigurationKeys.FS_URI_KEY) ?
+        FileSystem.get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), conf) :
+        FileSystem.get(conf);
+  }
+
+  private Optional<ContainerMetrics> buildContainerMetrics(Config config, Properties properties, String applicationName,
+      ContainerId containerId) {
+    if (GobblinMetrics.isEnabled(properties)) {
+      return Optional.of(ContainerMetrics.get(ConfigUtils.configToState(config), applicationName, containerId));
+    } else {
+      return Optional.absent();
     }
   }
 

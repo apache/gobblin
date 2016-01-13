@@ -52,7 +52,7 @@ import gobblin.writer.DataWriterBuilder;
  *   are carried over properly between runs.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = {"gobblin.runtime"})
 public class DatasetStateStoreTest {

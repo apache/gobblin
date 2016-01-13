@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Maps;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.metrics.Tag;
 import gobblin.metrics.event.TimingEvent;
 import gobblin.rest.LauncherTypeEnum;
 import gobblin.runtime.AbstractJobLauncher;
@@ -72,7 +73,7 @@ import gobblin.util.SerializationUtils;
  *   containers and is managed by the {@link GobblinWorkUnitRunner}.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
@@ -99,9 +100,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private volatile boolean jobComplete = false;
 
   public GobblinHelixJobLauncher(Properties jobProps, HelixManager helixManager, FileSystem fs, Path appWorkDir,
-      Map<String, String> eventMetadata)
+      List<? extends Tag<?>> metadataTags)
       throws Exception {
-    super(jobProps, eventMetadata);
+    super(jobProps, metadataTags);
 
     this.helixManager = helixManager;
     this.helixTaskDriver = new TaskDriver(this.helixManager);

@@ -37,7 +37,7 @@ import gobblin.util.JobConfigurationUtils;
 /**
  * A utility class for launching a Gobblin Hadoop MR job through the command line.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class CliMRJobLauncher extends Configured implements Tool {
 

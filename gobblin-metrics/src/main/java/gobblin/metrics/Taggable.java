@@ -19,7 +19,7 @@ import java.util.List;
 /**
  * An interface for classes with which {@link Tag}s can be associated.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public interface Taggable {
 

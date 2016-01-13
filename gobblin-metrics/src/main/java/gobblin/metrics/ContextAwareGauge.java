@@ -30,7 +30,7 @@ import gobblin.metrics.metric.InnerMetric;
  *
  * @param <T> the type of the {@link ContextAwareGauge}'s value
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class ContextAwareGauge<T> implements Gauge<T>, ContextAwareMetric {
 

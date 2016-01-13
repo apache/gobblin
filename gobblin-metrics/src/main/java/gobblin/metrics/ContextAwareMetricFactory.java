@@ -22,7 +22,7 @@ import com.codahale.metrics.Timer;
 /**
  * An interface for factory classes for {@link ContextAwareMetric}s.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public interface ContextAwareMetricFactory<T extends ContextAwareMetric> {
 

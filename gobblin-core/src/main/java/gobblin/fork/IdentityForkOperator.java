@@ -26,7 +26,7 @@ import gobblin.configuration.WorkUnitState;
  * and data record into each forked branch. This class is useful if a converted
  * data record needs to be written to different destinations.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class IdentityForkOperator<S, D> implements ForkOperator<S, D> {
 

@@ -15,7 +15,7 @@ package gobblin.writer;
 /**
  * Test constants.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class TestConstants {
 

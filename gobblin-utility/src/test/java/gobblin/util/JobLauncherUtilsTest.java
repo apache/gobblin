@@ -36,7 +36,7 @@ import gobblin.source.workunit.WorkUnit;
 /**
  * Unit tests for {@link JobLauncherUtils}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = {"gobblin.util"})
 public class JobLauncherUtilsTest {

@@ -23,7 +23,7 @@ import gobblin.configuration.State;
 /**
  * An immutable version of {@link Extract}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class ImmutableExtract extends Extract {
 

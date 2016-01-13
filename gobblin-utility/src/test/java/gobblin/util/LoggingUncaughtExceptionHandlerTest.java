@@ -22,7 +22,7 @@ import com.google.common.base.Optional;
 /**
  * Unit tests for {@link LoggingUncaughtExceptionHandler}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = {"gobblin.util"})
 public class LoggingUncaughtExceptionHandlerTest {

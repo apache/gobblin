@@ -95,7 +95,7 @@ import gobblin.util.HadoopUtils;
  *   Checkout the Javadoc of {@link LogCopier.Builder} to see the available options for customization.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class LogCopier extends AbstractScheduledService {
 

@@ -17,8 +17,6 @@ import com.google.common.collect.ImmutableMap;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.copy.CopySource;
-import gobblin.data.management.copy.CopyableDataset;
-import gobblin.data.management.copy.CopyableDatasetMetadata;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.metrics.event.EventSubmitter;
 import gobblin.metrics.event.sla.SlaEventKeys;
@@ -37,6 +35,7 @@ public class CopyEventSubmitterHelper {
   public static final String DATASET_TARGET_ROOT_METADATA_NAME = "datasetTargetRoot";
   public static final String TARGET_PATH = "TargetPath";
   public static final String SOURCE_PATH = "SourcePath";
+  public static final String SIZE_IN_BYTES = "SizeInBytes";
 
   static void submitSuccessfulDatasetPublish(EventSubmitter eventSubmitter, CopyableFile.DatasetAndPartition
       datasetAndPartition) {
@@ -82,7 +81,7 @@ public class CopyEventSubmitterHelper {
         .previousPublishTimestamp(previousPublishTimestamp).dedupeStatus(dedupeStatus)
         .additionalMetadata(TARGET_PATH, copyableFile.getDestination().toString())
         .additionalMetadata(SOURCE_PATH, copyableFile.getOrigin().getPath().toString())
+        .additionalMetadata(SIZE_IN_BYTES, Long.toString(copyableFile.getOrigin().getLen()))
         .build().submit();
   }
-
 }

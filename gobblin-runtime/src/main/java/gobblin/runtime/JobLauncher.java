@@ -24,7 +24,7 @@ import javax.annotation.Nullable;
  *   should only be used to launch a single job.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public interface JobLauncher extends Closeable {
 

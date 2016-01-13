@@ -16,7 +16,7 @@ package gobblin.yarn.event;
 /**
  * A dummy class representing a type of events fired when the delegation token has been updated by the controller.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class DelegationTokenUpdatedEvent {
 

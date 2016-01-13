@@ -40,7 +40,7 @@ import gobblin.yarn.event.NewJobConfigArrivalEvent;
 /**
  * Unit tests for {@link JobConfigurationManager}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = { "gobblin.yarn" })
 public class JobConfigurationManagerTest {

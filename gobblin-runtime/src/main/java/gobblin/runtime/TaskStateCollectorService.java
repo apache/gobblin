@@ -40,7 +40,7 @@ import gobblin.util.ParallelRunner;
  * For each batch of {@link TaskState}s collected, it posts a {@link NewTaskCompletionEvent} to notify
  * parties that are interested in such events.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class TaskStateCollectorService extends AbstractScheduledService {
 

@@ -43,7 +43,7 @@ import gobblin.runtime.JobState;
 /**
  * A utility class for converting a {@link gobblin.runtime.JobState} object to a json-formatted document.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @SuppressWarnings("unused")
 public class JobStateToJsonConverter {

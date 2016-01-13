@@ -37,7 +37,7 @@ import gobblin.runtime.TaskExecutor;
 /**
  * A concrete extension to {@link AbstractTaskStateTracker} for standalone mode.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class LocalTaskStateTracker extends AbstractTaskStateTracker {
 

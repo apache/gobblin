@@ -20,7 +20,7 @@ import org.apache.hadoop.yarn.api.records.Container;
 /**
  * A type of events for container shutdown requests to be used with a {@link com.google.common.eventbus.EventBus}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class ContainerShutdownRequest {
 

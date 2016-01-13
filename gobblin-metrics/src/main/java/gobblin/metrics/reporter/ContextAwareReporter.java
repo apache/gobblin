@@ -59,8 +59,11 @@ public class ContextAwareReporter implements Reporter, Closeable {
   private final Set<InnerMetricContext> contextsToReport;
   private final ContextFilter contextFilter;
 
+  protected final Config config;
+
   public ContextAwareReporter(String name, Config config) {
     this.name = name;
+    this.config = config;
     this.started = false;
     RootMetricContext.get().addNewReporter(this);
     this.notificationTargetUUID = RootMetricContext.get().addNotificationTarget(new Function<Notification, Void>() {

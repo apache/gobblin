@@ -24,7 +24,7 @@ import java.io.Closeable;
  * </p>
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class CountBasedLimiter extends NonRefillableLimiter {
 

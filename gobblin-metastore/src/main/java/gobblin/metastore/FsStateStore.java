@@ -48,7 +48,7 @@ import gobblin.configuration.State;
  *
  * @param <T> state object type
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class FsStateStore<T extends State> implements StateStore<T> {
 

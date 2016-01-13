@@ -36,7 +36,7 @@ import gobblin.writer.WriterOutputFormat;
 /**
  * Unit test for {@link LocalJobLauncher}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = { "gobblin.runtime.local" })
 public class LocalJobLauncherTest {

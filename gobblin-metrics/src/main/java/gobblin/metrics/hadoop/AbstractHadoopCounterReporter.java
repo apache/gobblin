@@ -23,7 +23,7 @@ import gobblin.metrics.MetricContext;
  * An extension to {@link ContextAwareScheduledReporter} that serves as the basis
  * for implementations that report applicable metrics through Hadoop counters.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public abstract class AbstractHadoopCounterReporter extends ContextAwareScheduledReporter {
 

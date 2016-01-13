@@ -30,7 +30,7 @@ import com.google.common.util.concurrent.RateLimiter;
  *   arguments that can be safely casted to an integer bounded by {@link Integer#MAX_VALUE}.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class RateBasedLimiter extends NonRefillableLimiter {
 

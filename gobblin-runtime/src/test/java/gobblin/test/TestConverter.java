@@ -31,7 +31,7 @@ import gobblin.converter.ToAvroConverterBase;
 /**
  * An extension to {@link ToAvroConverterBase} for integration test.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class TestConverter extends ToAvroConverterBase<String, String> {
 

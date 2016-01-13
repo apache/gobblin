@@ -40,7 +40,7 @@ import gobblin.source.workunit.WorkUnit;
 /**
  * Utility class for the job scheduler and job launchers.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class JobLauncherUtils {
 

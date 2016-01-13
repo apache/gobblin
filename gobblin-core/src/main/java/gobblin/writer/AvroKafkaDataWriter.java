@@ -20,7 +20,7 @@ import org.apache.avro.generic.GenericRecord;
 /**
  * An implementation of {@link DataWriter} that writes to a Kafka topic.
  *
- * @author ynli
+ * @author Yinan Li
  */
 class AvroKafkaDataWriter implements DataWriter<GenericRecord> {
 

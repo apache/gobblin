@@ -15,7 +15,7 @@ package gobblin.fork;
 /**
  * An interface for classes that supports making copies of their instances.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public interface Copyable<T> {
 

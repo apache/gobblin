@@ -53,7 +53,7 @@ import gobblin.runtime.util.JobMetrics;
 /**
  * A class for tracking job state information.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class JobState extends SourceState {
 

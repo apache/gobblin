@@ -64,7 +64,7 @@ import gobblin.util.HadoopUtils;
  * @param <K> key type expected by the {@link FileInputFormat}
  * @param <V> value type expected by the {@link FileInputFormat}
  *
- * @author ynli
+ * @author Yinan Li
  */
 public abstract class HadoopFileInputSource<S, D, K, V> extends AbstractSource<S, D> {
 

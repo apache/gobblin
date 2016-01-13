@@ -112,9 +112,6 @@ public class SftpLightWeightFileSystem extends FileSystem {
 
   @Override
   public boolean delete(Path path, boolean recursive) throws IOException {
-    if (!recursive) {
-      throw new UnsupportedOperationException("Non recursive delete is not supported on this file system");
-    }
     return delete(path);
   }
 

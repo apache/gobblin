@@ -27,7 +27,7 @@ import static gobblin.metrics.TestConstants.*;
 /**
  * Unit tests for {@link ContextAwareMetricFactory}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = {"gobblin.metrics"})
 public class ContextAwareMetricFactoryTest {

@@ -13,6 +13,7 @@
 package gobblin.yarn;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -29,6 +30,7 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.metrics.Tag;
 import gobblin.runtime.JobException;
 import gobblin.runtime.JobLauncher;
 import gobblin.runtime.JobListener;
@@ -40,7 +42,7 @@ import gobblin.yarn.event.NewJobConfigArrivalEvent;
  * An extension to {@link JobScheduler} that schedules and runs Gobblin jobs on Helix using
  * {@link GobblinHelixJobLauncher}s.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class GobblinHelixJobScheduler extends JobScheduler {
 
@@ -48,25 +50,25 @@ public class GobblinHelixJobScheduler extends JobScheduler {
 
   static final String HELIX_MANAGER_KEY = "helixManager";
   static final String APPLICATION_WORK_DIR_KEY = "applicationWorkDir";
-  static final String EVENT_METADATA = "eventMetadata";
+  static final String METADATA_TAGS = "metadataTags";
   static final String FILE_SYSTEM = "fileSystem";
 
   private final Properties properties;
   private final HelixManager helixManager;
   private final EventBus eventBus;
   private final Path appWorkDir;
-  private final Map<String, String> eventMetadata;
+  private final List<? extends Tag<?>> metadataTags;
   private final FileSystem fs;
 
   public GobblinHelixJobScheduler(Properties properties, HelixManager helixManager, EventBus eventBus,
-      Path appWorkDir, Map<String, String> eventMetadata) throws Exception {
+      Path appWorkDir, List<? extends Tag<?>> metadataTags) throws Exception {
     super(properties);
     this.properties = properties;
     this.helixManager = helixManager;
     this.eventBus = eventBus;
 
     this.appWorkDir = appWorkDir;
-    this.eventMetadata = eventMetadata;
+    this.metadataTags = metadataTags;
 
     URI fsUri = URI.create(properties.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
     this.fs = FileSystem.get(fsUri, new Configuration());
@@ -83,7 +85,7 @@ public class GobblinHelixJobScheduler extends JobScheduler {
     Map<String, Object> additionalJobDataMap = Maps.newHashMap();
     additionalJobDataMap.put(HELIX_MANAGER_KEY, this.helixManager);
     additionalJobDataMap.put(APPLICATION_WORK_DIR_KEY, this.appWorkDir);
-    additionalJobDataMap.put(EVENT_METADATA, this.eventMetadata);
+    additionalJobDataMap.put(METADATA_TAGS, this.metadataTags);
     additionalJobDataMap.put(FILE_SYSTEM, this.fs);
 
     try {
@@ -105,7 +107,7 @@ public class GobblinHelixJobScheduler extends JobScheduler {
 
   private GobblinHelixJobLauncher buildGobblinHelixJobLauncher(Properties jobProps)
       throws Exception {
-    return new GobblinHelixJobLauncher(jobProps, this.helixManager, this.fs, this.appWorkDir, this.eventMetadata);
+    return new GobblinHelixJobLauncher(jobProps, this.helixManager, this.fs, this.appWorkDir, this.metadataTags);
   }
 
   @SuppressWarnings("unused")

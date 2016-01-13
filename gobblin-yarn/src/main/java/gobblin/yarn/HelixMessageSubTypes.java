@@ -15,7 +15,7 @@ package gobblin.yarn;
 /**
  * An enumeration of Helix message sub types.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public enum HelixMessageSubTypes {
 

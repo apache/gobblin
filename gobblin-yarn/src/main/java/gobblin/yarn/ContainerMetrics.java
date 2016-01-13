@@ -29,11 +29,6 @@ import gobblin.metrics.Tag;
  */
 public class ContainerMetrics extends GobblinMetrics {
 
-  private static final String APPLICATION_NAME = "applicationName";
-  private static final String APPLICATION_ID = "applicationId";
-  private static final String APPLICATION_ATTEMPT_ID = "applicationAttemptId";
-  private static final String CONTAINER_ID = "containerId";
-
   protected ContainerMetrics(State containerState, String applicationName, ContainerId containerId) {
     super(name(containerId), null, tagsForContainer(containerState, applicationName, containerId));
   }
@@ -62,10 +57,12 @@ public class ContainerMetrics extends GobblinMetrics {
 
   private static List<Tag<?>> tagsForContainer(State containerState, String applicationName, ContainerId containerId) {
     ImmutableList.Builder<Tag<?>> tags = new ImmutableList.Builder<>();
-    tags.add(new Tag<>(APPLICATION_NAME, applicationName));
-    tags.add(new Tag<>(APPLICATION_ID, containerId.getApplicationAttemptId().getApplicationId().toString()));
-    tags.add(new Tag<>(APPLICATION_ATTEMPT_ID, containerId.getApplicationAttemptId().getAttemptId()));
-    tags.add(new Tag<>(CONTAINER_ID, containerId.toString()));
+    tags.add(new Tag<>(GobblinYarnMetricTagNames.YARN_APPLICATION_NAME, applicationName));
+    tags.add(new Tag<>(GobblinYarnMetricTagNames.YARN_APPLICATION_ID,
+        containerId.getApplicationAttemptId().getApplicationId().toString()));
+    tags.add(new Tag<>(GobblinYarnMetricTagNames.YARN_APPLICATION_ATTEMPT_ID,
+        containerId.getApplicationAttemptId().toString()));
+    tags.add(new Tag<>(GobblinYarnMetricTagNames.CONTAINER_ID, containerId.toString()));
     tags.addAll(getCustomTagsFromState(containerState));
     return tags.build();
   }

@@ -51,7 +51,7 @@ import gobblin.configuration.State;
 /**
  * A utility class for Gobblin on Yarn/Helix.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class YarnHelixUtils {
 

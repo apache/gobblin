@@ -8,7 +8,7 @@ import org.testng.annotations.Test;
 /**
  * Unit tests for {@link CopyableSchema}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = {"gobblin.fork"})
 public class CopyableSchemaTest {

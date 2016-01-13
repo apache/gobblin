@@ -19,7 +19,7 @@ import java.util.Properties;
  * A type of events for the arrival of a new job configuration to be used with a
  * {@link com.google.common.eventbus.EventBus}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class NewJobConfigArrivalEvent {
 

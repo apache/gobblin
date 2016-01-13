@@ -29,7 +29,7 @@ import gobblin.runtime.TaskExecutor;
  *   custom {@link TaskStateModel}. So currently this is like a place holder class.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class GobblinTaskStateModel extends TaskStateModel {
 

@@ -33,7 +33,7 @@ import com.google.common.collect.Lists;
  *  {@link #workUnits}.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class MultiWorkUnit extends WorkUnit {
 

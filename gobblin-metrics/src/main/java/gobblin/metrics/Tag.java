@@ -16,7 +16,12 @@ import java.util.AbstractMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.Nullable;
+
+import com.google.common.base.Function;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
 
@@ -25,7 +30,7 @@ import com.google.common.collect.Lists;
  *
  * @param <T> type of the tag value
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class Tag<T> extends AbstractMap.SimpleEntry<String, T> {
 
@@ -46,7 +51,7 @@ public class Tag<T> extends AbstractMap.SimpleEntry<String, T> {
   public static Tag<String> fromString(String tagKeyValue) {
     List<String> splitKeyValue = Splitter.on(KEY_VALUE_SEPARATOR).limit(2).omitEmptyStrings().splitToList(tagKeyValue);
     if(splitKeyValue.size() == 2) {
-      return new Tag<String>(splitKeyValue.get(0), splitKeyValue.get(1));
+      return new Tag<>(splitKeyValue.get(0), splitKeyValue.get(1));
     } else {
       return null;
     }
@@ -60,12 +65,64 @@ public class Tag<T> extends AbstractMap.SimpleEntry<String, T> {
     super(entry);
   }
 
+  /**
+   * Converts a {@link Map} of key, value pairs to a {@link List} of {@link Tag}s. Each key, value pair will be used to
+   * create a new {@link Tag}.
+   *
+   * @param tagsMap a {@link Map} of key, value pairs that should be converted into {@link Tag}s
+   *
+   * @return a {@link List} of {@link Tag}s
+   */
   public static <T> List<Tag<T>> fromMap(Map<? extends String, T> tagsMap) {
-    List<Tag<T>> tags = Lists.newArrayList();
-    for(Map.Entry<? extends String, T> entry : tagsMap.entrySet()) {
-      tags.add(new Tag<T>(entry));
+    ImmutableList.Builder<Tag<T>> tagsBuilder = ImmutableList.builder();
+    for (Map.Entry<? extends String, T> entry : tagsMap.entrySet()) {
+      tagsBuilder.add(new Tag<>(entry));
     }
-    return tags;
+    return tagsBuilder.build();
+  }
+
+  /**
+   * Converts a {@link List} of {@link Tag}s to a {@link Map} of key, value pairs.
+   *
+   * @param tags a {@link List} of {@link Tag}s that should be converted to key, value pairs
+   *
+   * @return a {@link Map} of key, value pairs
+   */
+  public static <T> Map<? extends String, T> toMap(List<Tag<T>> tags) {
+    ImmutableMap.Builder<String, T> tagsMapBuilder = ImmutableMap.builder();
+    for (Tag<T> tag : tags) {
+      tagsMapBuilder.put(tag.getKey(), tag.getValue());
+    }
+    return tagsMapBuilder.build();
+  }
+
+  /**
+   * Converts a {@link List} of wildcard {@link Tag}s to a {@link List} of {@link String} {@link Tag}s.
+   *
+   * @param tags a {@link List} of {@link Tag}s that should be converted to {@link Tag}s with value of type {@link String}
+   *
+   * @return a {@link List} of {@link Tag}s
+   *
+   * @see {@link #tagValueToString(Tag)}
+   */
+  public static List<Tag<String>> tagValuesToString(List<? extends Tag<?>> tags) {
+    return Lists.transform(tags, new Function<Tag<?>, Tag<String>>() {
+      @Nullable @Override public Tag<String> apply(Tag<?> input) {
+        return input == null ? null : Tag.tagValueToString(input);
+      }
+    });
+  }
+
+  /**
+   * Converts a wildcard {@link Tag} to a {@link String} {@link Tag}. This method uses the {@link Object#toString()}
+   * method to convert the wildcard type to a {@link String}.
+   *
+   * @param tag a {@link Tag} that should be converted to a {@link Tag} with value of type {@link String}
+   *
+   * @return a {@link Tag} with a {@link String} value
+   */
+  public static Tag<String> tagValueToString(Tag<?> tag) {
+    return new Tag<>(tag.getKey(), tag.getValue().toString());
   }
 
   @Override

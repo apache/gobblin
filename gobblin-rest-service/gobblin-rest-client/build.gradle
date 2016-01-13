@@ -18,3 +18,15 @@ dependencies {
     compile externalDependency.pegasus.d2
     compile externalDependency.guava
 }
+
+// Begin HACK to get around POM being depenendent on the (empty) gobblin-rest-api instead of gobblin-rest-api-rest-client
+if (rootProject.publishToMaven) {
+    def installer = install.repositories.mavenInstaller
+    def deployer = uploadArchives.repositories.mavenDeployer
+
+    [installer, deployer]*.pom*.whenConfigured {pom ->
+        pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }.artifactId = 'gobblin-rest-api-rest-client'
+    }
+}
+// End HACK
+

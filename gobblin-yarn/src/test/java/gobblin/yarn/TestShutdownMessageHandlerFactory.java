@@ -23,7 +23,7 @@ import org.testng.Assert;
 /**
  * A test implementation of {@link MessageHandlerFactory}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 class TestShutdownMessageHandlerFactory implements MessageHandlerFactory {
 

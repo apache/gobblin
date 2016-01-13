@@ -40,7 +40,7 @@ import gobblin.configuration.State;
 /**
  * Unit tests for {@link AvroHdfsDataWriter}.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @Test(groups = {"gobblin.writer"})
 public class AvroHdfsDataWriterTest {

@@ -15,7 +15,7 @@ package gobblin.util.limiter;
 /**
  * An enumeration of types of {@link Limiter}s supported out-of-the-box.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public enum BaseLimiterType {
 

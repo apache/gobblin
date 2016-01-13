@@ -25,7 +25,7 @@ import gobblin.metastore.util.StateStoreCleaner;
 /**
  * A utility class for running the {@link StateStoreCleaner} on Azkaban.
  *
- * @author ynli
+ * @author Yinan Li
  */
 @SuppressWarnings("unused")
 public class AzkabanStateStoreCleanerJob extends AbstractJob {

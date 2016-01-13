@@ -19,7 +19,7 @@ import gobblin.configuration.State;
  * A class representing a destination for a writer to write to.
  * It currently supports HDFS and Kafka as destinations.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class Destination {
 

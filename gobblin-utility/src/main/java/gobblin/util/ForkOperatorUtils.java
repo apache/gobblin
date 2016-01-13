@@ -25,7 +25,7 @@ import gobblin.configuration.WorkUnitState;
 /**
  * Utility class for use with the {@link gobblin.fork.ForkOperator} class.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class ForkOperatorUtils {
 

@@ -22,7 +22,7 @@ import gobblin.configuration.State;
 /**
  * A default factory class for {@link Limiter}s.
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class DefaultLimiterFactory {
 

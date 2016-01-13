@@ -10,13 +10,6 @@
 
 apply plugin: 'java'
 
-repositories {
-  mavenCentral()
-  maven {
-    url "http://conjars.org/repo"
-  }
-}
-
 dependencies {
     compile project(":gobblin-api")
     compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'restClient')
@@ -35,6 +28,17 @@ dependencies {
     testCompile externalDependency.testng
     testRuntime externalDependency.derby
 }
+
+// Begin HACK to get around POM being depenendent on the (empty) gobblin-rest-api instead of gobblin-rest-api-rest-client
+if (rootProject.publishToMaven) {
+    def installer = install.repositories.mavenInstaller
+    def deployer = uploadArchives.repositories.mavenDeployer
+
+    [installer, deployer]*.pom*.whenConfigured {pom ->
+        pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }.artifactId = 'gobblin-rest-api-rest-client'
+    }
+}
+// End HACK
 
 configurations {
     compile {

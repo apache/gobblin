@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
@@ -55,6 +56,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
 import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.Tag;
 import gobblin.metrics.event.TimingEvent;
 import gobblin.password.PasswordManager;
 import gobblin.runtime.AbstractJobLauncher;
@@ -91,7 +93,7 @@ import gobblin.util.SerializationUtils;
  *     mode. Each mapper writes out task states upon task completion.
  * </p>
  *
- * @author ynli
+ * @author Yinan Li
  */
 public class MRJobLauncher extends AbstractJobLauncher {
 
@@ -125,7 +127,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
   }
 
   public MRJobLauncher(Properties jobProps, Configuration conf) throws Exception {
-    super(jobProps, ImmutableMap.<String, String>of());
+    super(jobProps, ImmutableList.<Tag<?>>of());
 
     this.conf = conf;
     // Put job configuration properties into the Hadoop configuration so they are available in the mappers
