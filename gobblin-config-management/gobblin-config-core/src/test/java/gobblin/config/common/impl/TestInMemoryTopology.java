@@ -55,6 +55,13 @@ public class TestInMemoryTopology {
 
   private final ConfigKeyPath nertzTag2 = tag2.createChild("nertzTag2");
 
+  public void printConfig(Config config){
+    Set<Map.Entry<String,ConfigValue>> entrySet = config.entrySet();
+    for(Map.Entry<String,ConfigValue> entry: entrySet){
+      System.out.println("key: " + entry.getKey() + ", value: " + entry.getValue());
+    }
+  }
+  
   @BeforeClass
   public void setup(){
     // Topology for mock up config store
@@ -139,7 +146,6 @@ public class TestInMemoryTopology {
   }
   
   private void mockupConfigValueForKey(ConfigKeyPath configKey){
-    System.out.println("mockup values for " + configKey);
     final String generalKey = "generalKey";
     Map<String, String> valueMap = new HashMap<>();
     // key in all the nodes
@@ -201,7 +207,16 @@ public class TestInMemoryTopology {
     ConfigStoreBackedTopology csTopology = new ConfigStoreBackedTopology(this.mockConfigStore, this.version);
     InMemoryTopology inMemory = new InMemoryTopology(csTopology);
     
-    ConfigStoreBackedValueInspector valueInspector = new ConfigStoreBackedValueInspector(this.mockConfigStore, this.version, inMemory);
+    ConfigStoreBackedValueInspector rawValueInspector = new ConfigStoreBackedValueInspector(this.mockConfigStore, this.version, inMemory);
+    InMemoryValueInspector inMemoryStrongRef = new InMemoryValueInspector(rawValueInspector, true);
+    InMemoryValueInspector inMemoryWeakRef = new InMemoryValueInspector(rawValueInspector, false);
+
+    testValues(rawValueInspector);
+    testValues(inMemoryStrongRef);
+    testValues(inMemoryWeakRef);
+  }
+  
+  private void testValues(ConfigStoreValueInspector valueInspector){
     Config ownConfig = valueInspector.getOwnConfig(identity);
     Assert.assertTrue(ownConfig.entrySet().size() == 2 );
     Assert.assertTrue(ownConfig.getString("keyOf_identity").equals("valueOf_identity"));
@@ -221,10 +236,5 @@ public class TestInMemoryTopology {
     Assert.assertTrue(resolvedConfig.getString("keyOf_databases").equals("valueOf_databases"));
   }
   
-  public static void printConfig(Config config){
-    Set<Map.Entry<String,ConfigValue>> entrySet = config.entrySet();
-    for(Map.Entry<String,ConfigValue> entry: entrySet){
-      System.out.println("key: " + entry.getKey() + ", value: " + entry.getValue());
-    }
-  }
+
 }
