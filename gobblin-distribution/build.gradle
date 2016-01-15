@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+// Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not use
 // this file except in compliance with the License. You may obtain a copy of the
@@ -9,6 +9,17 @@
 // CONDITIONS OF ANY KIND, either express or implied.
 
 apply plugin: 'java'
+
+configurations {
+  compile {
+    if (rootProject.hasProperty('excludeHadoopDeps')) {
+      exclude group: "org.apache.hadoop"
+    }
+    if (rootProject.hasProperty('excludeHiveDeps')) {
+      exclude group: "org.apache.hive"
+    }
+  }
+}
 
 dependencies {
   compile project(':gobblin-azkaban')
@@ -44,9 +55,9 @@ task build(type: Tar, overwrite: true) {
 
   doLast {
     copy {
-      from buildDir.path + '/distributions/gobblin-distribution.tar.gz'
+      from buildDir.path + '/distributions/gobblin-distribution-' + project.version + '.tar.gz'
       into project.rootDir.path
-      rename ('gobblin-distribution.tar.gz', 'gobblin-dist.tar.gz')
+      rename ('gobblin-distribution-' + project.version + '.tar.gz', 'gobblin-dist.tar.gz')
     }
   }
 }

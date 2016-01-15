@@ -1,4 +1,4 @@
-# Gobblin [![Build Status](https://secure.travis-ci.org/linkedin/gobblin.png)](https://travis-ci.org/linkedin/gobblin)
+# Gobblin [![Build Status](https://secure.travis-ci.org/linkedin/gobblin.png)](https://travis-ci.org/linkedin/gobblin) [![IRC](https://img.shields.io/badge/irc-%23gobblin-blue.svg)](https://webchat.freenode.net/?channels=gobblin)
 
 Gobblin is a universal data ingestion framework for extracting, transforming, and loading large volume of data from a variety of data sources, e.g., databases, rest APIs, FTP/SFTP servers, filers, etc., onto Hadoop. Gobblin handles the common routine tasks required for all data ingestion ETLs, including job/task scheduling, task partitioning, error handling, state management, data quality checking, data publishing, etc. Gobblin ingests data from different data sources in the same execution framework, and manages metadata of different sources all in one place. This, combined with other features such as auto scalability, fault tolerance, data quality assurance, extensibility, and the ability of handling data model evolution, makes Gobblin an easy-to-use, self-serving, and efficient data ingestion framework.
 
@@ -33,6 +33,7 @@ To build Gobblin against a different version of Hadoop 2, e.g., 2.2.0, run the f
 
 	$ ./gradlew clean build -PuseHadoop2 -PhadoopVersion=2.2.0
 
+For more information on the different build options for Gobblin, check out the [Gobblin Build Options](https://github.com/linkedin/gobblin/wiki/Gobblin-Build-Options) wiki.
 
 ### Running Gobblin
 
