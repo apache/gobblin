@@ -9,7 +9,7 @@ import com.typesafe.config.Config;
 import gobblin.config.store.api.ConfigKeyPath;
 
 /**
- * InMemoryValueInspector provide the caching layer for getting the {@com.typesafe.config.Config} from {@ConfigStore}
+ * InMemoryValueInspector provide the caching layer for getting the {@link com.typesafe.config.Config} from {@link ConfigStore}
  * 
  * @author mitu
  *
@@ -23,7 +23,7 @@ public class InMemoryValueInspector implements ConfigStoreValueInspector{
 
   /**
    * 
-   * @param valueFallback - the fall back {@ConfigStoreValueInspector} which used to get the raw {@com.typesafe.config.Config} 
+   * @param valueFallback - the fall back {@link ConfigStoreValueInspector} which used to get the raw {@link com.typesafe.config.Config} 
    * @param useStrongRef  - if true, use Strong reference in cache, else, use Weak reference in cache
    */
   public InMemoryValueInspector (ConfigStoreValueInspector valueFallback, boolean useStrongRef){
@@ -43,7 +43,7 @@ public class InMemoryValueInspector implements ConfigStoreValueInspector{
    * {@inheritDoc}.
    *
    * <p>
-   *   If present in the cache, return the cached {@com.typesafe.config.Config} for given input
+   *   If present in the cache, return the cached {@link com.typesafe.config.Config} for given input
    *   Otherwise, simply delegate the functionality to the internal {ConfigStoreValueInspector} and store the value into cache
    * </p>
    */
@@ -66,7 +66,7 @@ public class InMemoryValueInspector implements ConfigStoreValueInspector{
    * {@inheritDoc}.
    *
    * <p>
-   *   If present in the cache, return the cached {@com.typesafe.config.Config} for given input
+   *   If present in the cache, return the cached {@link com.typesafe.config.Config} for given input
    *   Otherwise, simply delegate the functionality to the internal {ConfigStoreValueInspector} and store the value into cache
    * </p>
    */

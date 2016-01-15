@@ -21,8 +21,8 @@ import gobblin.config.store.api.ConfigStore;
 import gobblin.config.store.api.ConfigStoreWithResolution;
 
 /**
- * ConfigStoreBackedValueInspector always query the underline {@ConfigStore} to get the freshest 
- * {@com.typesafe.config.Config}
+ * ConfigStoreBackedValueInspector always query the underline {@link ConfigStore} to get the freshest 
+ * {@link com.typesafe.config.Config}
  * @author mitu
  *
  */
@@ -33,9 +33,9 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
   private final ConfigStoreTopologyInspector topology;
 
   /**
-   * @param cs       - internal {@ConfigStore} to retrieve configuration 
-   * @param version  - version of the {@ConfigStore}
-   * @param topology - corresponding {@ConfigStoreTopologyInspector} for the input {@ConfigStore}
+   * @param cs       - internal {@link ConfigStore} to retrieve configuration 
+   * @param version  - version of the {@link ConfigStore}
+   * @param topology - corresponding {@link ConfigStoreTopologyInspector} for the input {@link ConfigStore}
    */
   public ConfigStoreBackedValueInspector(ConfigStore cs, String version, ConfigStoreTopologyInspector topology) {
     this.cs = cs;
@@ -55,7 +55,7 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
    * {@inheritDoc}.
    *
    * <p>
-   *   This implementation simply delegate the functionality to the internal {@ConfigStore}/version
+   *   This implementation simply delegate the functionality to the internal {@link ConfigStore}/version
    * </p>
    */
   @Override
@@ -67,8 +67,8 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
    * {@inheritDoc}.
    *
    * <p>
-   *   This implementation simply delegate the functionality to the internal {@ConfigStore}/version if
-   *   the internal {@ConfigStore} is {@ConfigStoreWithResolution}, otherwise based on {@ConfigStoreTopologyInspector}
+   *   This implementation simply delegate the functionality to the internal {@link ConfigStore}/version if
+   *   the internal {@link ConfigStore} is {@link ConfigStoreWithResolution}, otherwise based on {@link ConfigStoreTopologyInspector}
    *   
    *   1. find out all the imports recursively
    *   2. resolved the config on the fly
@@ -100,14 +100,6 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
     if(configKey.isRootPath())
       return result;
     
-    ConfigKeyPath parent = configKey.getParent();
-    while(!parent.isRootPath()){
-      result = result.withFallback(this.getOwnConfig(parent));
-      parent = parent.getParent();
-    }
-    
-    // parent is root now, need to merge the config for root
-    result = result.withFallback(this.getOwnConfig(parent));
-    return result;
+    return result.withFallback(getConfigInSelfChain(configKey.getParent()));
   }
 }

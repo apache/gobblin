@@ -12,11 +12,13 @@
 
 package gobblin.config.client.api;
 
+/**
+ * ConfigStoreFactoryDoesNotExistsException indicate the requested {@link ConfigStoreFactory} can not
+ * be found
+ * @author mitu
+ *
+ */
 public class ConfigStoreFactoryDoesNotExistsException extends Exception {
-
-  /**
-   * 
-   */
   private static final long serialVersionUID = -131707505927389860L;
   
   private static final String MESSAGE_FORMAT =

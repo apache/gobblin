@@ -43,7 +43,7 @@ public class ConfigStoreBackedTopology implements ConfigStoreTopologyInspector {
    * {@inheritDoc}.
    *
    * <p>
-   *   This implementation simply delegate the functionality to the internal {@ConfigStore}/version
+   *   This implementation simply delegate the functionality to the internal {@link ConfigStore}/version
    * </p>
    */
   @Override
@@ -55,7 +55,7 @@ public class ConfigStoreBackedTopology implements ConfigStoreTopologyInspector {
    * {@inheritDoc}.
    *
    * <p>
-   *   This implementation simply delegate the functionality to the internal {@ConfigStore}/version
+   *   This implementation simply delegate the functionality to the internal {@link ConfigStore}/version
    * </p>
    */
   @Override
@@ -67,8 +67,8 @@ public class ConfigStoreBackedTopology implements ConfigStoreTopologyInspector {
    * {@inheritDoc}.
    *
    * <p>
-   *   This implementation simply delegate the functionality to the internal {@ConfigStore}/version if
-   *   the internal {@ConfigStore} is {@ConfigStoreWithImportedBy}, otherwise throws {@UnsupportedOperationException}
+   *   This implementation simply delegate the functionality to the internal {@link ConfigStore}/version if
+   *   the internal {@link ConfigStore} is {@link ConfigStoreWithImportedBy}, otherwise throws {@link UnsupportedOperationException}
    * </p>
    */
   @Override
@@ -84,8 +84,8 @@ public class ConfigStoreBackedTopology implements ConfigStoreTopologyInspector {
    * {@inheritDoc}.
    *
    * <p>
-   *   This implementation simply delegate the functionality to the internal {@ConfigStore}/version if
-   *   the internal {@ConfigStore} is {@ConfigStoreWithResolution}, otherwise throws {@UnsupportedOperationException}
+   *   This implementation simply delegate the functionality to the internal {@link ConfigStore}/version if
+   *   the internal {@link ConfigStore} is {@link ConfigStoreWithResolution}, otherwise throws {@link UnsupportedOperationException}
    * </p>
    */
   @Override
@@ -101,8 +101,8 @@ public class ConfigStoreBackedTopology implements ConfigStoreTopologyInspector {
    * {@inheritDoc}.
    *
    * <p>
-   *   This implementation simply delegate the functionality to the internal {@ConfigStore}/version if
-   *   the internal {@ConfigStore} is {@ConfigStoreWithImportedByRecursively}, otherwise throws {@UnsupportedOperationException}
+   *   This implementation simply delegate the functionality to the internal {@link ConfigStore}/version if
+   *   the internal {@link ConfigStore} is {@link ConfigStoreWithImportedByRecursively}, otherwise throws {@link UnsupportedOperationException}
    * </p>
    */
   @Override

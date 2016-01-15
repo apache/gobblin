@@ -17,8 +17,8 @@ import com.typesafe.config.Config;
 import gobblin.config.store.api.ConfigKeyPath;
 
 /**
- * The ConfigStoreValueInspector interface used to inspect the {@com.typesafe.config.Config} for a given
- * {@gobblin.config.store.api.ConfigKeyPath} in {@ConfigStore}
+ * The ConfigStoreValueInspector interface used to inspect the {@link com.typesafe.config.Config} for a given
+ * {@link gobblin.config.store.api.ConfigKeyPath} in {@link ConfigStore}
  * 
  * @author mitu
  *
