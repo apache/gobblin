@@ -33,7 +33,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.Striped;
@@ -76,7 +75,7 @@ public class ParallelRunner implements Closeable {
   private static final Logger LOGGER = LoggerFactory.getLogger(ParallelRunner.class);
 
   public static final String PARALLEL_RUNNER_THREADS_KEY = "parallel.runner.threads";
-  public static final int DEFAULT_PARALLEL_RUNNER_THREADS = 10;
+  public static final int DEFAULT_PARALLEL_RUNNER_THREADS = Runtime.getRuntime().availableProcessors();
 
   private final ExecutorService executor;
 
@@ -224,11 +223,11 @@ public class ParallelRunner implements Closeable {
    * @param src path to be renamed
    * @param dst new path after rename
    * @param group an optional group name for the destination path
+   * @param commitAction an action to perform when the rename completes successfully
    *
-   * @Deprecated Use {@link gobblin.util.ParallelRunner#movePath(FileSystem, Path, FileSystem, Path, Optional, Action)}
    */
-  @Deprecated
-  public void renamePath(final FileSystem fileSystem, final Path src, final Path dst, final Optional<String> group) {
+  public void renamePath(final FileSystem fileSystem, final Path src, final Path dst, final Optional<String> group,
+                         final Optional<Action> commitAction) {
     this.futures.add(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
@@ -241,13 +240,16 @@ public class ParallelRunner implements Closeable {
               HadoopUtils.setGroup(fileSystem, dst, group.get());
             }
           }
-          return null;
         } catch (FileAlreadyExistsException e) {
           LOGGER.warn(String.format("Failed to rename %s to %s: dst already exists", src, dst), e);
           return null;
         } finally {
           lock.unlock();
         }
+        if (commitAction.isPresent()) {
+          commitAction.get().apply();
+        }
+        return null;
       }
     }));
   }
@@ -267,44 +269,26 @@ public class ParallelRunner implements Closeable {
    * @param group an optional group name for the destination path
    * @param commitAction an action to perform when the move completes successfully
    */
-  public void movePath(final FileSystem srcFs, final Path src, final FileSystem dstFs, final Path dst, final Optional<String> group,
-                       final Optional<Action> commitAction) {
-      movePaths(ImmutableList.of(new MoveCommand(srcFs, src, dstFs, dst)), group, commitAction);
-  }
-
-  /**
-   * Move a set of {@link Path}.
-   *
-   * <p>
-   *   This method submits a task to move a set of {@link Path} and returns immediately
-   *   after the task is submitted.
-   * </p>
-   *
-   * @param commands the set of move commands
-   * @param group an optional group name for the destination path
-   * @param commitAction an action to perform when the move completes successfully
-   */
-  public void movePaths(final List<MoveCommand> commands, final Optional<String> group, final Optional<Action> commitAction) {
+  public void movePath(final FileSystem srcFs, final Path src, final FileSystem dstFs, final Path dst,
+                       final Optional<String> group, final Optional<Action> commitAction) {
     this.futures.add(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
-        for (MoveCommand command : commands) {
-          log.info(String.format("Moving %s to %s", command.src, command.dst));
-          Lock lock = locks.get(command.src.toString());
-          lock.lock();
-          try {
-            if (command.srcFs.exists(command.src)) {
-              HadoopUtils.movePath(command.srcFs, command.src, command.dstFs, command.dst);
-              if (group.isPresent()) {
-                HadoopUtils.setGroup(command.dstFs, command.dst, group.get());
-              }
+        log.info(String.format("Moving %s to %s", src, dst));
+        Lock lock = locks.get(src.toString());
+        lock.lock();
+        try {
+          if (srcFs.exists(src)) {
+            HadoopUtils.movePath(srcFs, src, dstFs, dst);
+            if (group.isPresent()) {
+              HadoopUtils.setGroup(dstFs, dst, group.get());
             }
-          } catch (FileAlreadyExistsException e) {
-            LOGGER.warn(String.format("Failed to move %s to %s: dst already exists", command.src, command.dst), e);
-            return null;
-          } finally {
-            lock.unlock();
           }
+        } catch (FileAlreadyExistsException e) {
+          LOGGER.warn(String.format("Failed to move %s to %s: dst already exists", src, dst), e);
+          return null;
+        } finally {
+          lock.unlock();
         }
         if (commitAction.isPresent()) {
           commitAction.get().apply();
