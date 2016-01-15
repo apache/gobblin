@@ -1,12 +1,14 @@
 package gobblin.config.common.impl;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.WeakHashMap;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.typesafe.config.Config;
 
 import gobblin.config.store.api.ConfigKeyPath;
+import gobblin.config.store.api.ConfigStore;
 
 /**
  * InMemoryValueInspector provide the caching layer for getting the {@link com.typesafe.config.Config} from {@link ConfigStore}
@@ -17,9 +19,8 @@ import gobblin.config.store.api.ConfigKeyPath;
 public class InMemoryValueInspector implements ConfigStoreValueInspector{
 
   private final ConfigStoreValueInspector valueFallback;
-
-  private final Map<ConfigKeyPath, Config> ownConfigMap;
-  private final Map<ConfigKeyPath, Config> recursiveConfigMap;
+  private final Cache<ConfigKeyPath, Config> ownConfigCache ;
+  private final Cache<ConfigKeyPath, Config> recursiveConfigCache ;
 
   /**
    * 
@@ -29,13 +30,13 @@ public class InMemoryValueInspector implements ConfigStoreValueInspector{
   public InMemoryValueInspector (ConfigStoreValueInspector valueFallback, boolean useStrongRef){
     this.valueFallback = valueFallback;
 
-    if(useStrongRef){
-      this.ownConfigMap = new HashMap<>();
-      this.recursiveConfigMap = new HashMap<>();
+    if (useStrongRef) {
+      ownConfigCache = CacheBuilder.newBuilder().build();
+      recursiveConfigCache = CacheBuilder.newBuilder().build();
     }
     else{
-      this.ownConfigMap = new WeakHashMap<>();
-      this.recursiveConfigMap = new WeakHashMap<>();
+      ownConfigCache = CacheBuilder.newBuilder().softValues().build();
+      recursiveConfigCache = CacheBuilder.newBuilder().softValues().build();
     }
   }
 
@@ -48,18 +49,18 @@ public class InMemoryValueInspector implements ConfigStoreValueInspector{
    * </p>
    */
   @Override
-  public Config getOwnConfig(ConfigKeyPath configKey) {
-    if(this.ownConfigMap.containsKey(configKey)){
-      Config result = this.ownConfigMap.get(configKey);
-      // in case of the GC happened when containsKey() and get() function
-      if(result!=null){
-        return result;
-      }
+  public Config getOwnConfig(final ConfigKeyPath configKey) {
+    try {
+      return this.ownConfigCache.get(configKey, new Callable<Config>() {
+        @Override
+        public Config call()  {
+          return valueFallback.getOwnConfig(configKey);
+        }
+      });
+    } catch (ExecutionException e) {
+      // should NOT come here
+      throw new RuntimeException("Can not getOwnConfig for " + configKey);
     }
-
-    Config ownConfig = this.valueFallback.getOwnConfig(configKey);
-    this.ownConfigMap.put(configKey, ownConfig);
-    return ownConfig;
   }
 
   /**
@@ -71,17 +72,17 @@ public class InMemoryValueInspector implements ConfigStoreValueInspector{
    * </p>
    */
   @Override
-  public Config getResolvedConfig(ConfigKeyPath configKey) {
-    if(this.recursiveConfigMap.containsKey(configKey)){
-      Config result = this.recursiveConfigMap.get(configKey);
-      // in case of the GC happened when containsKey() and get() function
-      if(result!=null){
-        return result;
-      }
+  public Config getResolvedConfig(final ConfigKeyPath configKey) {
+    try {
+      return this.recursiveConfigCache.get(configKey, new Callable<Config>() {
+        @Override
+        public Config call()  {
+          return valueFallback.getResolvedConfig(configKey);
+        }
+      });
+    } catch (ExecutionException e) {
+      // should NOT come here
+      throw new RuntimeException("Can not getOwnConfig for " + configKey);
     }
-
-    Config recursiveConfig = this.valueFallback.getResolvedConfig(configKey);
-    this.recursiveConfigMap.put(configKey, recursiveConfig);
-    return recursiveConfig;
   }
 }
