@@ -233,6 +233,9 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
             publishCommands.put(group, publishCommand);
           }
         }
+        if (commitAction == null) {
+          markWorkUnitCommitted(state);
+        }
       }
       return publishCommands;
   }
@@ -289,6 +292,10 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
             }));
   }
 
+  private static void markWorkUnitCommitted(WorkUnitState state) {
+    state.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+  }
+
   private static class CompositeCommitAction implements Action {
     private final Iterable<CommitAction> commitActions;
 
@@ -316,7 +323,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     @Override
     public void apply() {
       if (requiredSuccesses.decrementAndGet() == 0) {
-        state.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+        markWorkUnitCommitted(state);
       }
     }
 
