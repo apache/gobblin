@@ -213,7 +213,7 @@ public class HadoopUtils {
       Path toFilePath = new Path(to, relativeFilePath);
 
       if (!safeRenameIfNotExists(fileSystem, fromFile.getPath(), toFilePath)) {
-        if(fromFile.isDirectory()) {
+        if(fromFile.isDir()) {
           renameRecursively(fileSystem, fromFile.getPath(), toFilePath);
         } else {
           log.info(String.format("File already exists %s. Will not rewrite", toFilePath));
