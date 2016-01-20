@@ -74,7 +74,7 @@ public class CopyEventSubmitterHelper {
     String recordCount = workUnitState.getProp(SlaEventKeys.RECORD_COUNT_KEY);
     String previousPublishTimestamp = workUnitState.getProp(SlaEventKeys.PREVIOUS_PUBLISH_TS_IN_MILLI_SECS_KEY);
     String dedupeStatus = workUnitState.getProp(SlaEventKeys.DEDUPE_STATUS_KEY);
-    CopyableFile copyableFile = CopySource.deserializeCopyableFiles(workUnitState).get(0);
+    CopyableFile copyableFile = CopySource.deserializeCopyableFile(workUnitState);
     SlaEventSubmitter.builder().eventSubmitter(eventSubmitter).eventName(FILE_PUBLISHED_EVENT_NAME)
         .datasetUrn(datasetUrn).partition(partition).originTimestamp(originTimestamp)
         .upstreamTimestamp(upstreamTimestamp).completenessPercentage(completenessPercentage).recordCount(recordCount)

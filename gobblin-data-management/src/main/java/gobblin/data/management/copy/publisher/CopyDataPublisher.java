@@ -116,7 +116,7 @@ public class CopyDataPublisher extends DataPublisher {
     Multimap<CopyableFile.DatasetAndPartition, WorkUnitState> datasetRoots = ArrayListMultimap.create();
 
     for (WorkUnitState workUnitState : states) {
-      CopyableFile file = CopySource.deserializeCopyableFiles(workUnitState).get(0);
+      CopyableFile file = CopySource.deserializeCopyableFile(workUnitState);
       CopyableFile.DatasetAndPartition datasetAndPartition = file.getDatasetAndPartition(
           CopyableDatasetMetadata.deserialize(workUnitState.getProp(CopySource.SERIALIZED_COPYABLE_DATASET)));
 

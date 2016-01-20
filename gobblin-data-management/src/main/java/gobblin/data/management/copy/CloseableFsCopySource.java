@@ -20,7 +20,6 @@ import gobblin.source.extractor.extract.sftp.SftpLightWeightFileSystem;
 import gobblin.util.HadoopUtils;
 
 import java.io.IOException;
-import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -68,9 +67,9 @@ public class CloseableFsCopySource extends CopySource {
   @Override
   public Extractor<String, FileAwareInputStream> getExtractor(WorkUnitState state) throws IOException {
 
-    List<CopyableFile> copyableFiles = deserializeCopyableFiles(state);
+    CopyableFile copyableFile = deserializeCopyableFile(state);
 
-    return new CloseableFsFileAwareInputStreamExtractor(getSourceFileSystem(state), copyableFiles.iterator());
+    return new CloseableFsFileAwareInputStreamExtractor(getSourceFileSystem(state), copyableFile);
   }
 
 }

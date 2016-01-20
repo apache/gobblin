@@ -15,7 +15,6 @@ import gobblin.data.management.copy.CopyableFile;
 import gobblin.source.extractor.extract.sftp.SftpLightWeightFileSystem;
 
 import java.io.IOException;
-import java.util.Iterator;
 
 import org.apache.hadoop.fs.FileSystem;
 
@@ -30,10 +29,10 @@ public class CloseableFsFileAwareInputStreamExtractor extends FileAwareInputStre
 
   private final Closer closer = Closer.create();
 
-  public CloseableFsFileAwareInputStreamExtractor(FileSystem fs, Iterator<CopyableFile> filesIterator)
+  public CloseableFsFileAwareInputStreamExtractor(FileSystem fs, CopyableFile file)
       throws IOException {
 
-    super(fs, filesIterator);
+    super(fs, file);
     closer.register(fs);
   }
 
