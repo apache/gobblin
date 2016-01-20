@@ -42,6 +42,7 @@ import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.Action;
+import gobblin.util.CompositeAction;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.ParallelRunner;
@@ -141,12 +142,12 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       if (canPublishByRenamingFolder(group.getSourceFileSystem(), group.getDestinationFileSystem())) {
         this.parallelRunner.renamePath(group.getSourceFileSystem(), group.getSourcePath(),
                   group.getDestinationPath(), Optional.<String>absent(),
-                  Optional.<Action>of(getCompositeCommitAction(entry.getValue())));
+                  Optional.<Action>of(getCompositeAction(entry.getValue())));
       } else {
         for (PublishCommand command : entry.getValue()) {
           this.parallelRunner.movePath(group.getSourceFileSystem(), command.getSrc(),
                   group.getDestinationFileSystem(), command.getDst(), Optional.<String>absent(),
-                  Optional.<Action>of(command.getCommitAction()));
+                  Optional.of(command.getAction()));
         }
       }
     }
@@ -186,7 +187,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       Set<PublishGroup> preparedGroups = Sets.newHashSet();
       Multimap<PublishGroup, PublishCommand> publishCommands = ArrayListMultimap.create();
       for (WorkUnitState state : states) {
-        CommitAction commitAction = null;
+        MarkWorkUnitCommittedAction markWorkUnitCommittedAction = null;
         List<PublishGroup> groups = getPublishGroups(state);
         for (PublishGroup group : groups) {
           if (preparedGroups.add(group)) {
@@ -223,17 +224,17 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
             WriterUtils.mkdirsWithRecursivePermission(group.getDestinationFileSystem(),
                     publisherOutputPath.getParent(), this.permissions.get(group.getBranchId()));
 
-            if (commitAction == null) {
-              commitAction = new CommitAction(state);
-            } else {
-              commitAction.increment();
+            if (markWorkUnitCommittedAction == null) {
+              markWorkUnitCommittedAction = new MarkWorkUnitCommittedAction(state);
             }
+            markWorkUnitCommittedAction.requireSuccessfulPublish();
 
-            PublishCommand publishCommand = new PublishCommand(taskOutputPath, publisherOutputPath, commitAction);
+            PublishCommand publishCommand = new PublishCommand(taskOutputPath, publisherOutputPath,
+                    markWorkUnitCommittedAction);
             publishCommands.put(group, publishCommand);
           }
         }
-        if (commitAction == null) {
+        if (markWorkUnitCommittedAction == null) {
           markWorkUnitCommitted(state);
         }
       }
@@ -282,12 +283,12 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     return builder.build();
   }
 
-  private CompositeCommitAction getCompositeCommitAction(Iterable<PublishCommand> publishCommands) {
-    return new CompositeCommitAction(Iterables.transform(publishCommands,
-            new Function<PublishCommand, CommitAction>() {
+  private CompositeAction getCompositeAction(Iterable<PublishCommand> publishCommands) {
+    return new CompositeAction(Iterables.transform(publishCommands,
+            new Function<PublishCommand, Action>() {
               @Override
-              public CommitAction apply(PublishCommand publishCommand) {
-                return publishCommand.getCommitAction();
+              public Action apply(PublishCommand publishCommand) {
+                return publishCommand.getAction();
               }
             }));
   }
@@ -296,38 +297,31 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     state.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
   }
 
-  private static class CompositeCommitAction implements Action {
-    private final Iterable<CommitAction> commitActions;
-
-    public CompositeCommitAction(Iterable<CommitAction> commitActions) {
-      this.commitActions = commitActions;
-    }
-
-    @Override
-    public void apply() throws Exception {
-      for (CommitAction commitAction : commitActions) {
-        commitAction.apply();
-      }
-    }
-  }
-
-  private static class CommitAction implements Action {
+  /**
+   * An implementation of {@link Action} which sets the specified {@link WorkUnitState} to
+   * COMMITTED when the required files have been published.
+   */
+  private static class MarkWorkUnitCommittedAction implements Action {
     private final WorkUnitState state;
     private AtomicInteger requiredSuccesses = new AtomicInteger();
 
-    public CommitAction(WorkUnitState state) {
+    public MarkWorkUnitCommittedAction(WorkUnitState state) {
       this.state = state;
-      this.requiredSuccesses.incrementAndGet();
     }
 
     @Override
     public void apply() {
-      if (requiredSuccesses.decrementAndGet() == 0) {
+      if (requiredSuccesses.decrementAndGet() <= 0) {
         markWorkUnitCommitted(state);
       }
     }
 
-    public void increment() {
+    /**
+     * Requires that a file be successfully published before this {@link WorkUnitState} will be set
+     * to COMMITTED.  This method can be called multiple times to indicate that multiple files must be
+     * successfully published.
+     */
+    public void requireSuccessfulPublish() {
       this.requiredSuccesses.incrementAndGet();
     }
   }
@@ -388,12 +382,12 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   public static class PublishCommand {
     private final Path src;
     private final Path dst;
-    private final CommitAction commitAction;
+    private final Action action;
 
-    public PublishCommand(Path src, Path dst, CommitAction commitAction) {
+    public PublishCommand(Path src, Path dst, Action action) {
       this.src = src;
       this.dst = dst;
-      this.commitAction = commitAction;
+      this.action = action;
     }
 
     public Path getSrc() {
@@ -404,8 +398,8 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       return dst;
     }
 
-    public CommitAction getCommitAction() {
-      return commitAction;
+    public Action getAction() {
+      return action;
     }
   }
 }
