@@ -33,7 +33,6 @@ import gobblin.source.workunit.WorkUnit;
 import gobblin.util.HadoopUtils;
 import gobblin.util.WriterUtils;
 import gobblin.util.guid.Guid;
-import gobblin.util.guid.HasGuid;
 
 import java.io.IOException;
 import java.net.URI;
@@ -66,7 +65,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
   public static final String DEFAULT_DATASET_PROFILE_CLASS_KEY = CopyableGlobDatasetFinder.class.getCanonicalName();
   private static final String COPY_PREFIX = "gobblin.copy";
-  public static final String SERIALIZED_COPYABLE_FILES = COPY_PREFIX + ".serialized.copyable.files";
+  public static final String SERIALIZED_COPYABLE_FILE = COPY_PREFIX + ".serialized.copyable.file";
   public static final String SERIALIZED_COPYABLE_DATASET = COPY_PREFIX + ".serialized.copyable.datasets";
   public static final String PRESERVE_ATTRIBUTES_KEY = COPY_PREFIX + ".preserved.attributes";
   public static final String WORK_UNIT_GUID = COPY_PREFIX + ".work.unit.guid";
@@ -117,9 +116,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
           for (CopyableFile copyableFile : partition.getFiles()) {
             WorkUnit workUnit = new WorkUnit(extract);
             workUnit.addAll(state);
-            serializeCopyableFiles(workUnit, Lists.newArrayList(copyableFile));
+            serializeCopyableFile(workUnit, copyableFile);
             serializeCopyableDataset(workUnit, new CopyableDatasetMetadata(copyableDataset, targetRoot));
-            GobblinMetrics.addCustomTagToState(workUnit, new Tag<String>(
+            GobblinMetrics.addCustomTagToState(workUnit, new Tag<>(
                 CopyEventSubmitterHelper.DATASET_ROOT_METADATA_NAME, copyableDataset.datasetRoot().toString()));
             workUnit.setProp(SlaEventKeys.DATASET_URN_KEY, copyableDataset.datasetRoot().toString());
             workUnit.setProp(SlaEventKeys.PARTITION_KEY, copyableFile.getFileSet());
@@ -147,9 +146,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   @Override
   public Extractor<String, FileAwareInputStream> getExtractor(WorkUnitState state) throws IOException {
 
-    List<CopyableFile> copyableFiles = deserializeCopyableFiles(state);
+    CopyableFile copyableFile = deserializeCopyableFile(state);
 
-    return new FileAwareInputStreamExtractor(getSourceFileSystem(state), copyableFiles.iterator());
+    return new FileAwareInputStreamExtractor(getSourceFileSystem(state), copyableFile);
   }
 
   @Override
@@ -181,7 +180,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     Guid guid = Guid.fromStrings(workUnit.contains(ConfigurationKeys.CONVERTER_CLASSES_KEY) ?
         workUnit.getProp(ConfigurationKeys.CONVERTER_CLASSES_KEY) :
         "");
-    setWorkUnitGuid(workUnit, guid.append(deserializeCopyableFiles(workUnit).toArray(new HasGuid[0])));
+    setWorkUnitGuid(workUnit, guid.append(deserializeCopyableFile(workUnit)));
   }
 
   /**
@@ -208,17 +207,17 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   }
 
   /**
-   * Serialize a {@link List} of {@link CopyableFile}s into a {@link State} at {@link #SERIALIZED_COPYABLE_FILES}
+   * Serialize a {@link List} of {@link CopyableFile}s into a {@link State} at {@link #SERIALIZED_COPYABLE_FILE}
    */
-  public static void serializeCopyableFiles(State state, List<CopyableFile> copyableFiles) throws IOException {
-    state.setProp(SERIALIZED_COPYABLE_FILES, CopyableFile.serializeList(copyableFiles));
+  public static void serializeCopyableFile(State state, CopyableFile copyableFile) throws IOException {
+    state.setProp(SERIALIZED_COPYABLE_FILE, CopyableFile.serialize(copyableFile));
   }
 
   /**
-   * Deserialize a {@link List} of {@link CopyableFile}s from a {@link State} at {@link #SERIALIZED_COPYABLE_FILES}
+   * Deserialize a {@link List} of {@link CopyableFile}s from a {@link State} at {@link #SERIALIZED_COPYABLE_FILE}
    */
-  public static List<CopyableFile> deserializeCopyableFiles(State state) throws IOException {
-    return CopyableFile.deserializeList(state.getProp(SERIALIZED_COPYABLE_FILES));
+  public static CopyableFile deserializeCopyableFile(State state) throws IOException {
+    return CopyableFile.deserialize(state.getProp(SERIALIZED_COPYABLE_FILE));
   }
 
   /**

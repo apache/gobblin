@@ -262,7 +262,7 @@ public class CopyDataPublisherTest {
           Lists.newArrayList(new WorkUnitState(), new WorkUnitState(), new WorkUnitState());
       for (WorkUnitState wus : workUnitStates) {
         CopySource.serializeCopyableDataset(wus, metadata);
-        CopySource.serializeCopyableFiles(wus, Lists.newArrayList(this.copyableFile));
+        CopySource.serializeCopyableFile(wus, this.copyableFile);
       }
       return workUnitStates;
     }

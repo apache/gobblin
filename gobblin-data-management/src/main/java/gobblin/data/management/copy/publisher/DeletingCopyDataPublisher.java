@@ -14,7 +14,6 @@ package gobblin.data.management.copy.publisher;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
-import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -58,21 +57,19 @@ public class DeletingCopyDataPublisher extends CopyDataPublisher {
         } catch (Throwable t) {
           log.warn(
               String.format("Failed to delete one or more files on source in %s",
-                  state.getProp(CopySource.SERIALIZED_COPYABLE_FILES)), t);
+                  state.getProp(CopySource.SERIALIZED_COPYABLE_FILE)), t);
         }
       } else {
         log.info(String.format("Not deleting files %s on source fileSystem as the workunit state is %s.",
-            state.getProp(CopySource.SERIALIZED_COPYABLE_FILES), state.getWorkingState()));
+            state.getProp(CopySource.SERIALIZED_COPYABLE_FILE), state.getWorkingState()));
       }
     }
   }
 
   private void deleteFilesOnSource(WorkUnitState state) throws IOException {
-    List<CopyableFile> copyableFiles = CopySource.deserializeCopyableFiles(state);
-    for (CopyableFile copyableFile : copyableFiles) {
-      HadoopUtils.deletePath(this.sourceFs, copyableFile.getOrigin().getPath(), true);
-      HadoopUtils.deletePath(this.sourceFs,
-          PathUtils.addExtension(copyableFile.getOrigin().getPath(), ReadyCopyableFileFilter.READY_EXTENSION), true);
-    }
+    CopyableFile copyableFile = CopySource.deserializeCopyableFile(state);
+    HadoopUtils.deletePath(this.sourceFs, copyableFile.getOrigin().getPath(), true);
+    HadoopUtils.deletePath(this.sourceFs,
+        PathUtils.addExtension(copyableFile.getOrigin().getPath(), ReadyCopyableFileFilter.READY_EXTENSION), true);
   }
 }
