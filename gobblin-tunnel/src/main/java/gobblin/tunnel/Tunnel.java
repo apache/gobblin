@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  * a gateway proxy for security purposes. In some cases this is an HTTP proxy. However, some protocols like JDBC don't
  * support the concept of "proxies", let alone HTTP proxies, and hence a solution is needed to enable this.
  *
- * This class provides a method of tunneling arbitrary protocls like JDBC connections over an HTTP proxy. Note that
+ * This class provides a method of tunneling arbitrary protocols like JDBC connections over an HTTP proxy. Note that
  * while it is currently only implemented for JDBC (see {@link gobblin.source.extractor.extract.jdbc.JdbcExtractor} and
  * {@link gobblin.source.extractor.extract.jdbc.JdbcExtractor}), it can be extended to work with any other
  * TCP-based protocol.
@@ -75,7 +75,10 @@ public class Tunnel {
   private Tunnel open() throws IOException {
     try {
       server = ServerSocketChannel.open().bind(null);
-      startTunnelThread();
+      server.configureBlocking(false);
+
+      Selector selector = Selector.open();
+      startTunnelThread(selector);
 
       return this;
     } catch (IOException ioe) {
@@ -101,8 +104,8 @@ public class Tunnel {
     return NON_EXISTENT_PORT;
   }
 
-  private void startTunnelThread() {
-    thread = new Thread(new Dispatcher(), "Tunnel Listener");
+  private void startTunnelThread(Selector selector) {
+    thread = new Thread(new Dispatcher(selector), "Tunnel Listener");
     thread.start();
   }
 
@@ -112,20 +115,16 @@ public class Tunnel {
 
   private class Dispatcher implements Runnable {
 
-    private Selector selector;
+    private final Selector selector;
 
-    public Dispatcher() {
-      try {
-        selector = Selector.open();
-      } catch (IOException e) {
-        LOG.error("Could not open selector",e);
-      }
+    public Dispatcher(Selector selector) {
+      this.selector = selector;
     }
 
     @Override
     public void run() {
       try {
-        new AcceptHandler(server, selector, config);
+        server.register(selector, SelectionKey.OP_ACCEPT, new AcceptHandler(server, selector, config));
 
         while (!Thread.interrupted()) {
 
@@ -138,7 +137,7 @@ public class Tunnel {
           selectionKeys.clear();
         }
       } catch (IOException ioe) {
-        LOG.error("Unhandled exception.  Tunnel will close", ioe);
+        LOG.error("Unhandled exception. Tunnel will close", ioe);
       }
 
       LOG.info("Closing tunnel");

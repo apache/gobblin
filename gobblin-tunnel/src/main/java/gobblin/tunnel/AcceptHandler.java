@@ -37,9 +37,6 @@ class AcceptHandler implements Callable<HandlerState> {
     this.config = config;
     this.server = server;
     this.selector = selector;
-
-    this.server.configureBlocking(false);
-    this.server.register(selector, SelectionKey.OP_ACCEPT, this);
   }
 
   @Override
