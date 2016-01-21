@@ -27,7 +27,6 @@ import java.sql.SQLException;
  * @author nveeramr
  */
 public class JdbcProvider extends BasicDataSource {
-  private static final Logger LOG = LoggerFactory.getLogger(JdbcProvider.class);
   private Tunnel tunnel;
 
   // If extract type is not provided then consider it as a default type
@@ -66,8 +65,8 @@ public class JdbcProvider extends BasicDataSource {
             .replaceFirst(":" + remotePort, ":" + tunnelPort);
         connectionUrl = newConnectionUrl;
       } catch (IOException ioe) {
-        LOG.warn("Failed to open tunnel via proxy " + proxyHost + ":" + proxyPort
-            + ", attempting direct connection to remote host", ioe);
+        throw new IllegalStateException("Failed to open tunnel to remote host " + remoteHost + ":" + remotePort
+            + " via proxy " + proxyHost + ":" + proxyPort, ioe);
       }
     }
 

@@ -1,3 +1,15 @@
+/*
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.tunnel;
 
 import java.io.IOException;
@@ -11,13 +23,14 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Callable;
 
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Handler for setting up the connection from the Tunnel to the intermediate proxy via HTTP CONNECT.
  */
 class ProxySetupHandler implements Callable<HandlerState> {
-  private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(Tunnel.class);
+  private static final Logger LOG = LoggerFactory.getLogger(Tunnel.class);
 
   private static final ByteBuffer OK_REPLY = ByteBuffer.wrap("HTTP/1.1 200".getBytes());
   private static final Set<ByteBuffer> OK_REPLIES = new HashSet<ByteBuffer>(
