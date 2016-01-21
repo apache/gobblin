@@ -98,6 +98,11 @@ public class CopyableFile implements File, HasGuid {
    */
   private String fileSet;
 
+  /** Timestamp of file at its origin source. */
+  private long originTimestamp;
+  /** Timestamp of file as in upstream. */
+  private long upstreamTimestamp;
+
   /**
    * Get a {@link CopyableFile.Builder}.
    *
@@ -188,9 +193,15 @@ public class CopyableFile implements File, HasGuid {
       if (this.fileSet == null) {
         this.fileSet = this.rootPath.toString();
       }
+      if (this.originTimestamp == 0) {
+        this.originTimestamp = origin.getModificationTime();
+      }
+      if (this.upstreamTimestamp == 0) {
+        this.upstreamTimestamp = origin.getModificationTime();
+      }
 
       return new CopyableFile(origin, destination, relativeDestination, destinationOwnerAndPermission,
-          ancestorsOwnerAndPermission, null, preserve, fileSet);
+          ancestorsOwnerAndPermission, checksum, preserve, fileSet, originTimestamp, upstreamTimestamp);
     }
 
     private List<OwnerAndPermission> replicateOwnerAndPermission(final FileSystem originFs, final Path path,
