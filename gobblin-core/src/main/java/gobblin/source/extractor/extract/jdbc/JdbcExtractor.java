@@ -12,6 +12,27 @@
 
 package gobblin.source.extractor.extract.jdbc;
 
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.WorkUnitState;
+import gobblin.password.PasswordManager;
+import gobblin.source.extractor.DataRecordException;
+import gobblin.source.extractor.exception.HighWatermarkException;
+import gobblin.source.extractor.exception.RecordCountException;
+import gobblin.source.extractor.exception.SchemaException;
+import gobblin.source.extractor.extract.Command;
+import gobblin.source.extractor.extract.CommandOutput;
+import gobblin.source.extractor.extract.QueryBasedExtractor;
+import gobblin.source.extractor.extract.SourceSpecificLayer;
+import gobblin.source.extractor.extract.jdbc.JdbcCommand.JdbcCommandType;
+import gobblin.source.extractor.resultset.RecordSetList;
+import gobblin.source.extractor.schema.ColumnAttributes;
+import gobblin.source.extractor.schema.ColumnNameCase;
+import gobblin.source.extractor.schema.Schema;
+import gobblin.source.extractor.utils.Utils;
+import gobblin.source.extractor.watermark.Predicate;
+import gobblin.source.extractor.watermark.WatermarkType;
+import gobblin.source.workunit.WorkUnit;
+
 import java.io.IOException;
 import java.sql.Blob;
 import java.sql.Connection;
@@ -42,35 +63,14 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.password.PasswordManager;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.exception.HighWatermarkException;
-import gobblin.source.extractor.exception.RecordCountException;
-import gobblin.source.extractor.exception.SchemaException;
-import gobblin.source.extractor.extract.Command;
-import gobblin.source.extractor.extract.CommandOutput;
-import gobblin.source.extractor.extract.QueryBasedExtractor;
-import gobblin.source.extractor.extract.SourceSpecificLayer;
-import gobblin.source.extractor.extract.jdbc.JdbcCommand.JdbcCommandType;
-import gobblin.source.extractor.resultset.RecordSetList;
-import gobblin.source.extractor.schema.ColumnAttributes;
-import gobblin.source.extractor.schema.ColumnNameCase;
-import gobblin.source.extractor.schema.Schema;
-import gobblin.source.extractor.utils.Utils;
-import gobblin.source.extractor.watermark.Predicate;
-import gobblin.source.extractor.watermark.WatermarkType;
-import gobblin.source.workunit.WorkUnit;
-
 
 /**
  * Extract data using JDBC protocol
  *
  * @author nveeramr
  */
-public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonElement>
-    implements SourceSpecificLayer<JsonArray, JsonElement>, JdbcSpecificLayer {
+public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonElement> implements
+    SourceSpecificLayer<JsonArray, JsonElement>, JdbcSpecificLayer {
   private static final Gson gson = new Gson();
   private List<String> headerRecord;
   private boolean firstPull = true;
@@ -316,8 +316,9 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       }
 
       String outputColProjection = Joiner.on(",").useForNull("null").join(this.columnList);
-      outputColProjection = outputColProjection.replace(derivedWatermarkColumnName,
-          Utils.getCoalesceColumnNames(watermarkColumn) + " AS " + derivedWatermarkColumnName);
+      outputColProjection =
+          outputColProjection.replace(derivedWatermarkColumnName, Utils.getCoalesceColumnNames(watermarkColumn)
+              + " AS " + derivedWatermarkColumnName);
       this.setOutputColumnProjection(outputColProjection);
       String extractQuery = this.getExtractQuery(schema, entity, inputQuery);
 
@@ -588,8 +589,9 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    *
    * @param commands - query, fetch size
    * @return JDBC ResultSet
+   * @throws Exception 
    */
-  private CommandOutput<?, ?> executeSql(List<Command> cmds) {
+  private CommandOutput<?, ?> executeSql(List<Command> cmds) throws Exception {
     String query = null;
     int fetchSize = 0;
 
@@ -612,9 +614,10 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
     this.log.info("Executing query:" + query);
     ResultSet resultSet = null;
+    Connection connection = null;
     try {
       this.jdbcSource = createJdbcSource();
-      Connection connection = this.jdbcSource.getConnection();
+      connection = this.jdbcSource.getConnection();
       Statement statement = connection.createStatement();
 
       if (fetchSize != 0 && this.getExpectedRecordCount() > 2000) {
@@ -627,6 +630,10 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       resultSet = statement.getResultSet();
     } catch (Exception e) {
       log.error("Failed to execute sql:" + query + " ;error-" + e.getMessage(), e);
+    } finally {
+      if (connection != null) {
+        connection.close();
+      }
     }
 
     CommandOutput<JdbcCommand, ResultSet> output = new JdbcCommandOutput();
@@ -640,8 +647,9 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    *
    * @param commands - query, fetch size, query parameters
    * @return JDBC ResultSet
+   * @throws Exception 
    */
-  private CommandOutput<?, ?> executePreparedSql(List<Command> cmds) {
+  private CommandOutput<?, ?> executePreparedSql(List<Command> cmds) throws Exception {
     String query = null;
     List<String> queryParameters = null;
     int fetchSize = 0;
@@ -668,9 +676,10 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
     this.log.info("Executing query:" + query);
     ResultSet resultSet = null;
+    Connection connection = null;
     try {
       this.jdbcSource = createJdbcSource();
-      Connection connection = this.jdbcSource.getConnection();
+      connection = this.jdbcSource.getConnection();
 
       PreparedStatement statement =
           connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
@@ -692,6 +701,10 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       resultSet = statement.getResultSet();
     } catch (Exception e) {
       log.error("Failed to execute sql:" + query + " ;error-" + e.getMessage(), e);
+    } finally {
+      if (connection != null) {
+        connection.close();
+      }
     }
 
     CommandOutput<JdbcCommand, ResultSet> output = new JdbcCommandOutput();
@@ -707,8 +720,9 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   protected JdbcProvider createJdbcSource() {
     String driver = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_DRIVER);
     String userName = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME);
-    String password = PasswordManager.getInstance(this.workUnit)
-        .readPassword(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
+    String password =
+        PasswordManager.getInstance(this.workUnit).readPassword(
+            this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
     String connectionUrl = this.getConnectionUrl();
 
     if (this.jdbcSource == null || this.jdbcSource.isClosed()) {
@@ -1006,8 +1020,9 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
     schema.setColumnName(columnName);
 
-    WatermarkType wmType = WatermarkType.valueOf(
-        this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, "TIMESTAMP").toUpperCase());
+    WatermarkType wmType =
+        WatermarkType.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE,
+            "TIMESTAMP").toUpperCase());
     switch (wmType) {
       case TIMESTAMP:
         dataType = "timestamp";
@@ -1082,8 +1097,9 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    */
   private String toCase(String targetColumnName) {
     String columnName = targetColumnName;
-    ColumnNameCase caseType = ColumnNameCase.valueOf(this.workUnitState
-        .getProp(ConfigurationKeys.SOURCE_COLUMN_NAME_CASE, ConfigurationKeys.DEFAULT_COLUMN_NAME_CASE).toUpperCase());
+    ColumnNameCase caseType =
+        ColumnNameCase.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_COLUMN_NAME_CASE,
+            ConfigurationKeys.DEFAULT_COLUMN_NAME_CASE).toUpperCase());
     switch (caseType) {
       case TOUPPER:
         columnName = targetColumnName.toUpperCase();
