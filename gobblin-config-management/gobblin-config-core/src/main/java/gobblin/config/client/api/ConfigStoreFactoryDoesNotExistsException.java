@@ -32,7 +32,7 @@ public class ConfigStoreFactoryDoesNotExistsException extends Exception {
   }
   
   public ConfigStoreFactoryDoesNotExistsException(String scheme, Exception e) {
-    super(String.format(MESSAGE_FORMAT, scheme, e.getMessage()), e);
+    super(String.format(MESSAGE_FORMAT, scheme, e.toString()), e);
     this.scheme = scheme;
   }
   
