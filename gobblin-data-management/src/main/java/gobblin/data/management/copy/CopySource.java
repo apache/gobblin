@@ -122,7 +122,6 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
                 CopyEventSubmitterHelper.DATASET_ROOT_METADATA_NAME, copyableDataset.datasetRoot().toString()));
             workUnit.setProp(SlaEventKeys.DATASET_URN_KEY, copyableDataset.datasetRoot().toString());
             workUnit.setProp(SlaEventKeys.PARTITION_KEY, copyableFile.getFileSet());
-            workUnit.setProp(SlaEventKeys.ORIGIN_TS_IN_MILLI_SECS_KEY, copyableFile.getFileStatus().getModificationTime());
             computeAndSetWorkUnitGuid(workUnit);
             workUnits.add(workUnit);
           }
