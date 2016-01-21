@@ -277,8 +277,8 @@ subprojects {
     plugins.apply('idea')
     plugins.apply('eclipse')
     plugins.apply('maven')
-    // Disabling the FindBugs plugin for now because FindBugs 2.x is not compatible with Java8
-    // apply plugin: 'findbugs'
+// Disabling the FindBugs plugin for now because FindBugs 2.x is not compatible with Java8
+//  apply plugin: 'findbugs'
 
     sourceCompatibility = JavaVersion.VERSION_1_7
 
@@ -330,15 +330,30 @@ subprojects {
       artifacts { archives sourcesJar, javadocJar }
     }
 
+    plugins.apply('maven')
+
+    project.version = rootProject.version
+    project.group = rootProject.group
+
+    install {
+      repositories {
+        mavenInstaller {
+          mavenLocal()
+          pom.project {
+            name "${project.name}"
+            packaging 'jar'
+            description 'Gobblin Ingestion Framework'
+            url 'https://github.com/linkedin/gobblin/'
+          }
+        }
+      }
+    }
+
     // Publishing of maven artifacts for subprojects
     if (rootProject.ext.publishToMaven) {
-      plugins.apply('maven')
       if (rootProject.ext.signArtifacts) {
         plugins.apply('signing')
       }
-
-      project.version = rootProject.version
-      project.group = rootProject.group
 
       uploadArchives {
         repositories {
@@ -460,7 +475,7 @@ subprojects {
                                 "https://dropwizard.github.io/metrics/${dropwizardMetricsVersion}/apidocs/"
     rootProject.ext.javadocPackages.each {
       tasks.javadoc.options.linksOffline "http://linkedin.github.io/gobblin/javadoc/${javadocVersion}/${it}/",
-                                         "${rootProject.buildDir}/${it}/docs/javadoc/" 
+                                       "${rootProject.buildDir}/${it}/docs/javadoc/" 
     }
 
     afterEvaluate {
