@@ -113,7 +113,7 @@ public class Tunnel {
       }
     });
     //so we don't prevent the JVM from shutting down, just in case
-    //thread.setDaemon(true);
+    thread.setDaemon(true);
     thread.start();
   }
 
