@@ -106,6 +106,14 @@ public class Tunnel {
 
   private void startTunnelThread(Selector selector) {
     thread = new Thread(new Dispatcher(selector), "Tunnel Listener");
+    thread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+      @Override
+      public void uncaughtException(Thread t, Throwable e) {
+        LOG.error("Uncaught exception in thread " + t.getName(), e);
+      }
+    });
+    //so we don't prevent the JVM from shutting down, just in case
+    thread.setDaemon(true);
     thread.start();
   }
 
@@ -137,7 +145,7 @@ public class Tunnel {
           selectionKeys.clear();
         }
       } catch (IOException ioe) {
-        LOG.error("Unhandled exception. Tunnel will close", ioe);
+        LOG.error("Unhandled IOException. Tunnel will close", ioe);
       }
 
       LOG.info("Closing tunnel");

@@ -32,10 +32,11 @@ import org.slf4j.LoggerFactory;
 class ProxySetupHandler implements Callable<HandlerState> {
   private static final Logger LOG = LoggerFactory.getLogger(Tunnel.class);
 
-  private static final ByteBuffer OK_REPLY = ByteBuffer.wrap("HTTP/1.1 200".getBytes());
+  public static final String HTTP_1_1_OK = "HTTP/1.1 200";
+  private static final ByteBuffer OK_REPLY = ByteBuffer.wrap(HTTP_1_1_OK.getBytes());
+  public static final String HTTP_1_0_OK = "HTTP/1.0 200";
   private static final Set<ByteBuffer> OK_REPLIES = new HashSet<ByteBuffer>(
-      Arrays.asList(OK_REPLY, ByteBuffer.wrap("HTTP/1.0 200".getBytes())));
-
+      Arrays.asList(OK_REPLY, ByteBuffer.wrap(HTTP_1_0_OK.getBytes())));
 
   private final SocketChannel client;
   private final Selector selector;
