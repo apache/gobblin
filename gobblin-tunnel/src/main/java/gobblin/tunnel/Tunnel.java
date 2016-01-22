@@ -113,7 +113,7 @@ public class Tunnel {
       }
     });
     //so we don't prevent the JVM from shutting down, just in case
-    thread.setDaemon(true);
+    //thread.setDaemon(true);
     thread.start();
   }
 
@@ -165,16 +165,16 @@ public class Tunnel {
 
   public void close() {
     try {
-      thread.interrupt();
-      thread.join();
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
+      server.close();
+      LOG.info("Closed tunnel.");
+    } catch (IOException ioe) {
+      LOG.warn("Exception during shutdown of tunnel", ioe);
     } finally {
       try {
-        server.close();
-        LOG.info("Closed tunnel.");
-      } catch (IOException ioe) {
-        LOG.warn("Failed to shutdown tunnel", ioe);
+        thread.interrupt();
+        thread.join();
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
       }
     }
   }
