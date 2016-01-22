@@ -12,27 +12,6 @@
 
 package gobblin.source.extractor.extract.jdbc;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.password.PasswordManager;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.exception.HighWatermarkException;
-import gobblin.source.extractor.exception.RecordCountException;
-import gobblin.source.extractor.exception.SchemaException;
-import gobblin.source.extractor.extract.Command;
-import gobblin.source.extractor.extract.CommandOutput;
-import gobblin.source.extractor.extract.QueryBasedExtractor;
-import gobblin.source.extractor.extract.SourceSpecificLayer;
-import gobblin.source.extractor.extract.jdbc.JdbcCommand.JdbcCommandType;
-import gobblin.source.extractor.resultset.RecordSetList;
-import gobblin.source.extractor.schema.ColumnAttributes;
-import gobblin.source.extractor.schema.ColumnNameCase;
-import gobblin.source.extractor.schema.Schema;
-import gobblin.source.extractor.utils.Utils;
-import gobblin.source.extractor.watermark.Predicate;
-import gobblin.source.extractor.watermark.WatermarkType;
-import gobblin.source.workunit.WorkUnit;
-
 import java.io.IOException;
 import java.sql.Blob;
 import java.sql.Connection;
@@ -62,6 +41,27 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.WorkUnitState;
+import gobblin.password.PasswordManager;
+import gobblin.source.extractor.DataRecordException;
+import gobblin.source.extractor.exception.HighWatermarkException;
+import gobblin.source.extractor.exception.RecordCountException;
+import gobblin.source.extractor.exception.SchemaException;
+import gobblin.source.extractor.extract.Command;
+import gobblin.source.extractor.extract.CommandOutput;
+import gobblin.source.extractor.extract.QueryBasedExtractor;
+import gobblin.source.extractor.extract.SourceSpecificLayer;
+import gobblin.source.extractor.extract.jdbc.JdbcCommand.JdbcCommandType;
+import gobblin.source.extractor.resultset.RecordSetList;
+import gobblin.source.extractor.schema.ColumnAttributes;
+import gobblin.source.extractor.schema.ColumnNameCase;
+import gobblin.source.extractor.schema.Schema;
+import gobblin.source.extractor.utils.Utils;
+import gobblin.source.extractor.watermark.Predicate;
+import gobblin.source.extractor.watermark.WatermarkType;
+import gobblin.source.workunit.WorkUnit;
 
 
 /**
@@ -591,7 +591,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return JDBC ResultSet
    * @throws Exception 
    */
-  private CommandOutput<?, ?> executeSql(List<Command> cmds) throws Exception {
+  private CommandOutput<?, ?> executeSql(List<Command> cmds) {
     String query = null;
     int fetchSize = 0;
 
@@ -632,7 +632,11 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       log.error("Failed to execute sql:" + query + " ;error-" + e.getMessage(), e);
     } finally {
       if (connection != null) {
-        connection.close();
+        try {
+          connection.close();
+        } catch (SQLException e) {
+          log.error("Failed to close connection ;error-" + e.getMessage(), e);
+        }
       }
     }
 
@@ -649,7 +653,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return JDBC ResultSet
    * @throws Exception 
    */
-  private CommandOutput<?, ?> executePreparedSql(List<Command> cmds) throws Exception {
+  private CommandOutput<?, ?> executePreparedSql(List<Command> cmds) {
     String query = null;
     List<String> queryParameters = null;
     int fetchSize = 0;
@@ -703,7 +707,11 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       log.error("Failed to execute sql:" + query + " ;error-" + e.getMessage(), e);
     } finally {
       if (connection != null) {
-        connection.close();
+        try {
+          connection.close();
+        } catch (SQLException e) {
+          log.error("Failed to close connection ;error-" + e.getMessage(), e);
+        }
       }
     }
 
