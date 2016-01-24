@@ -52,7 +52,10 @@ task build(type: Tar, overwrite: true) {
   compression = Compression.GZIP
 
   into("conf") { from "../conf/" }
-  into("bin") { from "../bin/" }
+  into("bin") { 
+    from "../bin/" 
+    from project(':gobblin-utility').projectDir.path + '/src/main/bash/gobblin_password_encryptor.sh'
+  }
   into("lib") {
     from configurations.runtime
   }
