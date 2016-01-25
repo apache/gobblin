@@ -131,18 +131,22 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
 
   @Override
   public void publishData(WorkUnitState state) throws IOException {
-    publishData(ImmutableList.of(state));
+    publishData(ImmutableList.of(state), false);
   }
 
   @Override
   public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
-    Multimap<PublishGroup, PublishCommand> publishCommands = getGroupedPublishCommands(states);
+    publishData(states, true);
+  }
+
+  private void publishData(Collection<? extends WorkUnitState> states, boolean supportsReplaceFinalDir) throws IOException {
+    Multimap<PublishGroup, PublishCommand> publishCommands = getGroupedPublishCommands(states, supportsReplaceFinalDir);
     for (Map.Entry<PublishGroup, Collection<PublishCommand>> entry : publishCommands.asMap().entrySet()) {
       PublishGroup group = entry.getKey();
       if (canPublishByRenamingFolder(group.getSourceFileSystem(), group.getDestinationFileSystem())) {
         this.parallelRunner.renamePath(group.getSourceFileSystem(), group.getSourcePath(),
-                  group.getDestinationPath(), Optional.<String>absent(),
-                  Optional.<Action>of(getCompositeAction(entry.getValue())));
+                group.getDestinationPath(), Optional.<String>absent(),
+                Optional.<Action>of(getCompositeAction(entry.getValue())));
       } else {
         for (PublishCommand command : entry.getValue()) {
           this.parallelRunner.movePath(group.getSourceFileSystem(), command.getSrc(),
@@ -183,65 +187,67 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     return HadoopUtils.areFileSystemsEquivalent(srcFs, dstFs) && HadoopUtils.isFolderRenameAtomic(srcFs);
   }
 
-    private Multimap<PublishGroup, PublishCommand> getGroupedPublishCommands(Collection<? extends WorkUnitState> states) throws IOException {
-      Set<PublishGroup> preparedGroups = Sets.newHashSet();
-      Multimap<PublishGroup, PublishCommand> publishCommands = ArrayListMultimap.create();
-      for (WorkUnitState state : states) {
-        MarkWorkUnitCommittedAction markWorkUnitCommittedAction = null;
-        List<PublishGroup> groups = getPublishGroups(state);
-        for (PublishGroup group : groups) {
-          if (preparedGroups.add(group)) {
-            preparePublishGroup(group);
-          }
-          boolean preserveFileName = state.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(
-                  ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, this.numBranches, group.getBranchId()), false);
+  private Multimap<PublishGroup, PublishCommand> getGroupedPublishCommands(Collection<? extends WorkUnitState> states,
+                                                                           boolean supportsReplaceFinalDir)
+          throws IOException {
+    Set<PublishGroup> preparedGroups = Sets.newHashSet();
+    Multimap<PublishGroup, PublishCommand> publishCommands = ArrayListMultimap.create();
+    for (WorkUnitState state : states) {
+      MarkWorkUnitCommittedAction markWorkUnitCommittedAction = null;
+      List<PublishGroup> groups = getPublishGroups(state);
+      for (PublishGroup group : groups) {
+        if (preparedGroups.add(group)) {
+          preparePublishGroup(group, supportsReplaceFinalDir);
+        }
+        boolean preserveFileName = state.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(
+                ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, this.numBranches, group.getBranchId()), false);
 
-          String outputFilePropName = ForkOperatorUtils.getPropertyNameForBranch(
-                  ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS, this.numBranches, group.getBranchId());
+        String outputFilePropName = ForkOperatorUtils.getPropertyNameForBranch(
+                ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS, this.numBranches, group.getBranchId());
 
-          if (!state.contains(outputFilePropName)) {
-            LOG.warn("Missing property " + outputFilePropName + ". This task may have pulled no data.");
+        if (!state.contains(outputFilePropName)) {
+          LOG.warn("Missing property " + outputFilePropName + ". This task may have pulled no data.");
+          continue;
+        }
+
+        Iterable<String> taskOutputFiles = state.getPropAsList(outputFilePropName);
+        for (String taskOutputFile : taskOutputFiles) {
+          Path taskOutputPath = new Path(taskOutputFile);
+          if (!group.getSourceFileSystem().exists(taskOutputPath)) {
+            LOG.warn("Task output file " + taskOutputFile + " doesn't exist.");
             continue;
           }
-
-          Iterable<String> taskOutputFiles = state.getPropAsList(outputFilePropName);
-          for (String taskOutputFile : taskOutputFiles) {
-            Path taskOutputPath = new Path(taskOutputFile);
-            if (!group.getSourceFileSystem().exists(taskOutputPath)) {
-              LOG.warn("Task output file " + taskOutputFile + " doesn't exist.");
-              continue;
-            }
-            String pathSuffix;
-            if (preserveFileName) {
-              pathSuffix = state.getProp(ForkOperatorUtils.getPropertyNameForBranch(
-                      ConfigurationKeys.DATA_PUBLISHER_FINAL_NAME, this.numBranches, group.getBranchId()));
-            } else {
-              pathSuffix = taskOutputFile.substring(
-                      taskOutputFile.indexOf(group.getSourcePath().toString()) +
-                              group.getSourcePath().toString().length() + 1);
-            }
-            Path publisherOutputPath = new Path(group.getDestinationPath(), pathSuffix);
-            WriterUtils.mkdirsWithRecursivePermission(group.getDestinationFileSystem(),
-                    publisherOutputPath.getParent(), this.permissions.get(group.getBranchId()));
-
-            if (markWorkUnitCommittedAction == null) {
-              markWorkUnitCommittedAction = new MarkWorkUnitCommittedAction(state);
-            }
-            markWorkUnitCommittedAction.requireSuccessfulPublish();
-
-            PublishCommand publishCommand = new PublishCommand(taskOutputPath, publisherOutputPath,
-                    markWorkUnitCommittedAction);
-            publishCommands.put(group, publishCommand);
+          String pathSuffix;
+          if (preserveFileName) {
+            pathSuffix = state.getProp(ForkOperatorUtils.getPropertyNameForBranch(
+                    ConfigurationKeys.DATA_PUBLISHER_FINAL_NAME, this.numBranches, group.getBranchId()));
+          } else {
+            pathSuffix = taskOutputFile.substring(
+                    taskOutputFile.indexOf(group.getSourcePath().toString()) +
+                            group.getSourcePath().toString().length() + 1);
           }
-        }
-        if (markWorkUnitCommittedAction == null) {
-          markWorkUnitCommitted(state);
+          Path publisherOutputPath = new Path(group.getDestinationPath(), pathSuffix);
+          WriterUtils.mkdirsWithRecursivePermission(group.getDestinationFileSystem(),
+                  publisherOutputPath.getParent(), this.permissions.get(group.getBranchId()));
+
+          if (markWorkUnitCommittedAction == null) {
+            markWorkUnitCommittedAction = new MarkWorkUnitCommittedAction(state);
+          }
+          markWorkUnitCommittedAction.requireSuccessfulPublish();
+
+          PublishCommand publishCommand = new PublishCommand(taskOutputPath, publisherOutputPath,
+                  markWorkUnitCommittedAction);
+          publishCommands.put(group, publishCommand);
         }
       }
-      return publishCommands;
+      if (markWorkUnitCommittedAction == null) {
+        markWorkUnitCommitted(state);
+      }
+    }
+    return publishCommands;
   }
 
-  private void preparePublishGroup(PublishGroup group) throws IOException {
+  private void preparePublishGroup(PublishGroup group, boolean supportsReplaceFinalDir) throws IOException {
     if (group.getDestinationFileSystem().exists(group.getDestinationPath())) {
       // The final output directory already exists, check if the job is configured to replace it.
       // If publishSingleTaskData=true, final output directory is never replaced.
@@ -250,7 +256,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
                       ConfigurationKeys.DATA_PUBLISHER_REPLACE_FINAL_DIR, this.numBranches, group.getBranchId()));
 
       // If the final output directory is configured to be replaced, delete the existing publisher output directory
-      if (!replaceFinalOutputDir) {
+      if (supportsReplaceFinalDir && replaceFinalOutputDir) {
         LOG.info("Deleting publisher output dir " + group.getDestinationPath());
         group.getDestinationFileSystem().delete(group.getDestinationPath(), true);
       }
