@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -12,15 +12,18 @@
 
 package gobblin.data.management.dataset;
 
-import gobblin.data.management.retention.dataset.finder.DatasetFinder;
-
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Collection;
 import java.util.Properties;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
+
+import gobblin.data.management.copy.CopyableFile;
+import gobblin.data.management.copy.CopyableFileFilter;
+import gobblin.data.management.retention.dataset.finder.DatasetFinder;
 
 
 /**
@@ -31,12 +34,22 @@ public class DatasetUtils {
   public static final String CONFIGURATION_KEY_PREFIX = "gobblin.dataset.";
   public static final String DATASET_PROFILE_CLASS_KEY = CONFIGURATION_KEY_PREFIX + "profile.class";
   private static final String PATH_FILTER_KEY = CONFIGURATION_KEY_PREFIX + "path.filter.class";
+  private static final String COPYABLE_FILE_FILTER_KEY = CONFIGURATION_KEY_PREFIX + "copyable.file.filter.class";
 
-  private static final PathFilter ACCEPT_ALL_FILTER = new PathFilter() {
+  private static final PathFilter ACCEPT_ALL_PATH_FILTER = new PathFilter() {
 
     @Override
     public boolean accept(Path path) {
       return true;
+    }
+  };
+
+  private static final CopyableFileFilter ACCEPT_ALL_COPYABLE_FILE_FILTER = new CopyableFileFilter() {
+    @Override
+    public Collection<CopyableFile> filter(FileSystem sourceFs, FileSystem targetFs,
+        Collection<CopyableFile> copyableFiles) {
+
+      return copyableFiles;
     }
   };
 
@@ -76,15 +89,15 @@ public class DatasetUtils {
 
   /**
    * Instantiate a {@link PathFilter} from the class name at key {@link #PATH_FILTER_KEY} in props passed. If key
-   * {@link #PATH_FILTER_KEY} is not set, a default {@link #ACCEPT_ALL_FILTER} is returned
+   * {@link #PATH_FILTER_KEY} is not set, a default {@link #ACCEPT_ALL_PATH_FILTER} is returned
    *
    * @param props that contain path filter classname at {@link #PATH_FILTER_KEY}
-   * @return a new instance of {@link PathFilter}. If not key is found, returns an {@link #ACCEPT_ALL_FILTER}
+   * @return a new instance of {@link PathFilter}. If not key is found, returns an {@link #ACCEPT_ALL_PATH_FILTER}
    */
   public static PathFilter instantiatePathFilter(Properties props) {
 
     if (!props.containsKey(PATH_FILTER_KEY)) {
-      return ACCEPT_ALL_FILTER;
+      return ACCEPT_ALL_PATH_FILTER;
     }
 
     try {
@@ -95,6 +108,29 @@ public class DatasetUtils {
     } catch (InstantiationException exception) {
       throw new RuntimeException(exception);
     } catch (IllegalAccessException exception) {
+      throw new RuntimeException(exception);
+    }
+  }
+
+  /**
+   * Instantiate a {@link CopyableFileFilter} from the class name at key {@link #COPYABLE_FILE_FILTER_KEY} in props
+   * passed. If key {@link #COPYABLE_FILE_FILTER_KEY} is not set, a default {@link #ACCEPT_ALL_COPYABLE_FILE_FILTER} is
+   * returned
+   *
+   * @param props that contain path filter classname at {@link #COPYABLE_FILE_FILTER_KEY}
+   * @return a new instance of {@link PathFilter}. If not key is found, returns an
+   *         {@link #ACCEPT_ALL_COPYABLE_FILE_FILTER}
+   */
+  public static CopyableFileFilter instantiateCopyableFileFilter(Properties props) {
+
+    if (!props.containsKey(COPYABLE_FILE_FILTER_KEY)) {
+      return ACCEPT_ALL_COPYABLE_FILE_FILTER;
+    }
+
+    try {
+      Class<?> copyableFileFilterClass = Class.forName(props.getProperty(COPYABLE_FILE_FILTER_KEY));
+      return (CopyableFileFilter) copyableFileFilterClass.newInstance();
+    } catch (ClassNotFoundException | InstantiationException | IllegalAccessException exception) {
       throw new RuntimeException(exception);
     }
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -12,28 +12,9 @@
 
 package gobblin.data.management.copy.publisher;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.configuration.WorkUnitState.WorkingState;
-import gobblin.data.management.copy.CopySource;
-import gobblin.data.management.copy.CopyableDataset;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.CopyableDatasetMetadata;
-import gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder;
-import gobblin.util.PathUtils;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.publisher.DataPublisher;
-import gobblin.util.HadoopUtils;
-
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
-
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -43,6 +24,24 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 
+import lombok.extern.slf4j.Slf4j;
+
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+import gobblin.configuration.WorkUnitState;
+import gobblin.configuration.WorkUnitState.WorkingState;
+import gobblin.data.management.copy.CopySource;
+import gobblin.data.management.copy.CopyableDataset;
+import gobblin.data.management.copy.CopyableDatasetMetadata;
+import gobblin.data.management.copy.CopyableFile;
+import gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder;
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.event.EventSubmitter;
+import gobblin.publisher.DataPublisher;
+import gobblin.util.HadoopUtils;
+import gobblin.util.PathUtils;
 
 /**
  * A {@link DataPublisher} to {@link CopyableFile}s from task output to final destination.
@@ -116,7 +115,7 @@ public class CopyDataPublisher extends DataPublisher {
     Multimap<CopyableFile.DatasetAndPartition, WorkUnitState> datasetRoots = ArrayListMultimap.create();
 
     for (WorkUnitState workUnitState : states) {
-      CopyableFile file = CopySource.deserializeCopyableFiles(workUnitState).get(0);
+      CopyableFile file = CopySource.deserializeCopyableFile(workUnitState);
       CopyableFile.DatasetAndPartition datasetAndPartition = file.getDatasetAndPartition(
           CopyableDatasetMetadata.deserialize(workUnitState.getProp(CopySource.SERIALIZED_COPYABLE_DATASET)));
 
@@ -148,14 +147,25 @@ public class CopyDataPublisher extends DataPublisher {
 
     fs.delete(datasetWriterOutputPath, true);
 
+    long datasetOriginTimestamp = Long.MAX_VALUE;
+    long datasetUpstreamTimestamp = Long.MAX_VALUE;
+
     for (WorkUnitState wus : datasetWorkUnitStates) {
       if (wus.getWorkingState() == WorkingState.SUCCESSFUL) {
         wus.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
         CopyEventSubmitterHelper.submitSuccessfulFilePublish(eventSubmitter, wus);
       }
+      CopyableFile copyableFile = CopySource.deserializeCopyableFile(wus);
+      if (datasetOriginTimestamp > copyableFile.getOriginTimestamp()) {
+        datasetOriginTimestamp = copyableFile.getOriginTimestamp();
+      }
+      if (datasetUpstreamTimestamp > copyableFile.getUpstreamTimestamp()) {
+        datasetUpstreamTimestamp = copyableFile.getUpstreamTimestamp();
+      }
     }
 
-    CopyEventSubmitterHelper.submitSuccessfulDatasetPublish(eventSubmitter, datasetAndPartition);
+    CopyEventSubmitterHelper.submitSuccessfulDatasetPublish(eventSubmitter, datasetAndPartition,
+        Long.toString(datasetOriginTimestamp), Long.toString(datasetUpstreamTimestamp));
   }
 
   @Override

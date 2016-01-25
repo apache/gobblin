@@ -39,7 +39,7 @@ public interface ConfigStoreFactory<T extends ConfigStore> {
   public String getScheme();
 
   /**
-   * Obtains the {@ConfigStore} to handle a specific config key.
+   * Obtains the {@link ConfigStore} to handle a specific config key.
    *
    * @param  configKey       The URI of the config key that needs to be accessed.
    * @return {@link ConfigStore} which can handle the specified config key. If the config key URI is

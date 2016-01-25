@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -11,6 +11,8 @@
  */
 
 package gobblin.data.management.copy.converter;
+
+import javax.annotation.Nullable;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
@@ -26,15 +28,20 @@ import gobblin.util.GPGFileDecrypter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.NoSuchProviderException;
+import java.util.List;
 
+import org.apache.hadoop.fs.FSDataInputStream;
+
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 
 
 /**
  * {@link Converter} that decrypts an {@link InputStream}. Uses utilities in {@link GPGFileDecrypter} to do the actual
  * decryption. It also converts the destination file name by removing .gpg extensions.
  */
-public class DecryptConverter extends Converter<String, String, FileAwareInputStream, FileAwareInputStream> {
+public class DecryptConverter extends DistcpConverter {
 
   private static final String DECRYPTION_PASSPHRASE_KEY = "converter.decrypt.passphrase";
   private static final String GPG_EXTENSION = ".gpg";
@@ -48,34 +55,20 @@ public class DecryptConverter extends Converter<String, String, FileAwareInputSt
     return super.init(workUnit);
   }
 
-  @Override
-  public String convertSchema(String inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
-    return inputSchema;
+  @Override public Function<FSDataInputStream, FSDataInputStream> inputStreamTransformation() {
+    return new Function<FSDataInputStream, FSDataInputStream>() {
+      @Nullable @Override public FSDataInputStream apply(FSDataInputStream input) {
+        try {
+          return GPGFileDecrypter.decryptFile(input, passphrase);
+        } catch (NoSuchProviderException | IOException exception) {
+          throw new RuntimeException(exception);
+        }
+      }
+    };
   }
 
-  @Override
-  public Iterable<FileAwareInputStream> convertRecord(String outputSchema, FileAwareInputStream fileAwareInputStream,
-      WorkUnitState workUnit) throws DataConversionException {
-
-    try {
-      removeExtensionAtDestination(fileAwareInputStream.getFile());
-      FileAwareInputStream decryptedFileAwareInputStream =
-          new FileAwareInputStream(fileAwareInputStream.getFile(), GPGFileDecrypter.decryptFile(
-              fileAwareInputStream.getInputStream(), passphrase));
-      return new SingleRecordIterable<FileAwareInputStream>(decryptedFileAwareInputStream);
-    } catch (IOException e) {
-      throw new DataConversionException(e);
-    } catch (NoSuchProviderException e) {
-      throw new DataConversionException(e);
-    }
+  @Override public List<String> extensionsToRemove() {
+    return Lists.newArrayList(GPG_EXTENSION);
   }
 
-  /**
-   * Remove {@value #GPG_EXTENSION} from {@link CopyableFile#getDestination()} and
-   * {@link CopyableFile#getRelativeDestination()}
-   */
-  private void removeExtensionAtDestination(CopyableFile file) {
-    file.setDestination(PathUtils.removeExtention(file.getDestination(), GPG_EXTENSION));
-    file.setRelativeDestination(PathUtils.removeExtention(file.getRelativeDestination(), GPG_EXTENSION));
-  }
 }

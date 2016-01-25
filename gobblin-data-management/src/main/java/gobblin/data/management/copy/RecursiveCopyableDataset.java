@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -43,6 +43,7 @@ public class RecursiveCopyableDataset extends SinglePartitionCopyableDataset {
   private final Properties properties;
   private LoadingCache<Path, OwnerAndPermission> ownerAndPermissionCache;
   private final PathFilter pathFilter;
+  private final CopyableFileFilter copyableFileFilter;
 
   public RecursiveCopyableDataset(final FileSystem fs, Path rootPath, Properties properties) {
 
@@ -58,6 +59,7 @@ public class RecursiveCopyableDataset extends SinglePartitionCopyableDataset {
     });
 
     this.pathFilter = DatasetUtils.instantiatePathFilter(properties);
+    this.copyableFileFilter = DatasetUtils.instantiateCopyableFileFilter(properties);
   }
 
   @Override public Collection<CopyableFile> getCopyableFiles(FileSystem targetFs, CopyConfiguration configuration)
@@ -70,7 +72,7 @@ public class RecursiveCopyableDataset extends SinglePartitionCopyableDataset {
     for (FileStatus file : files) {
       copyableFiles.add(CopyableFile.builder(this.fs, file, this.rootPath, configuration).build());
     }
-    return copyableFiles;
+    return copyableFileFilter.filter(this.fs, targetFs, copyableFiles);
   }
 
   /**

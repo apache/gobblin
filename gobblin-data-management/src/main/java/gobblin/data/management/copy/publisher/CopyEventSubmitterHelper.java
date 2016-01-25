@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -38,10 +38,12 @@ public class CopyEventSubmitterHelper {
   public static final String SIZE_IN_BYTES = "SizeInBytes";
 
   static void submitSuccessfulDatasetPublish(EventSubmitter eventSubmitter, CopyableFile.DatasetAndPartition
-      datasetAndPartition) {
+      datasetAndPartition, String originTimestamp, String upstreamTimestamp) {
     SlaEventSubmitter.builder().eventSubmitter(eventSubmitter).eventName(DATASET_PUBLISHED_EVENT_NAME)
         .datasetUrn(datasetAndPartition.getDataset().getDatasetRoot().toString())
         .partition(datasetAndPartition.getPartition())
+        .originTimestamp(originTimestamp)
+        .upstreamTimestamp(upstreamTimestamp)
         .additionalMetadata(DATASET_TARGET_ROOT_METADATA_NAME,
             datasetAndPartition.getDataset().getDatasetTargetRoot().toString()).build()
         .submit();
@@ -68,16 +70,15 @@ public class CopyEventSubmitterHelper {
       IOException {
     String datasetUrn = workUnitState.getProp(SlaEventKeys.DATASET_URN_KEY);
     String partition = workUnitState.getProp(SlaEventKeys.PARTITION_KEY);
-    String originTimestamp = workUnitState.getProp(SlaEventKeys.ORIGIN_TS_IN_MILLI_SECS_KEY);
-    String upstreamTimestamp = workUnitState.getProp(SlaEventKeys.UPSTREAM_TS_IN_MILLI_SECS_KEY);
     String completenessPercentage = workUnitState.getProp(SlaEventKeys.COMPLETENESS_PERCENTAGE_KEY);
     String recordCount = workUnitState.getProp(SlaEventKeys.RECORD_COUNT_KEY);
     String previousPublishTimestamp = workUnitState.getProp(SlaEventKeys.PREVIOUS_PUBLISH_TS_IN_MILLI_SECS_KEY);
     String dedupeStatus = workUnitState.getProp(SlaEventKeys.DEDUPE_STATUS_KEY);
-    CopyableFile copyableFile = CopySource.deserializeCopyableFiles(workUnitState).get(0);
+    CopyableFile copyableFile = CopySource.deserializeCopyableFile(workUnitState);
     SlaEventSubmitter.builder().eventSubmitter(eventSubmitter).eventName(FILE_PUBLISHED_EVENT_NAME)
-        .datasetUrn(datasetUrn).partition(partition).originTimestamp(originTimestamp)
-        .upstreamTimestamp(upstreamTimestamp).completenessPercentage(completenessPercentage).recordCount(recordCount)
+        .datasetUrn(datasetUrn).partition(partition).originTimestamp(Long.toString(copyableFile.getOriginTimestamp()))
+        .upstreamTimestamp(Long.toString(copyableFile.getUpstreamTimestamp()))
+        .completenessPercentage(completenessPercentage).recordCount(recordCount)
         .previousPublishTimestamp(previousPublishTimestamp).dedupeStatus(dedupeStatus)
         .additionalMetadata(TARGET_PATH, copyableFile.getDestination().toString())
         .additionalMetadata(SOURCE_PATH, copyableFile.getOrigin().getPath().toString())

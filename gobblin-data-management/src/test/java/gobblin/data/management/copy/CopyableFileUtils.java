@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -32,7 +32,7 @@ public class CopyableFileUtils {
     FileStatus status = new FileStatus(0l, false, 0, 0l, 0l, new Path(resourcePath));
 
     return new CopyableFile(status, new Path(getRandomPath()), new Path(getRandomPath()), null, null, null,
-        PreserveAttributes.fromMnemonicString(""), "");
+        PreserveAttributes.fromMnemonicString(""), "", 0 ,0);
   }
 
   public static CopyableFile getTestCopyableFile() {
@@ -76,7 +76,7 @@ public class CopyableFileUtils {
     Path destinationRelativePath = new Path(relativePath);
 
     return new CopyableFile(status, new Path(destinationPath), destinationRelativePath, ownerAndPermission, null, null,
-        PreserveAttributes.fromMnemonicString(""), "");
+        PreserveAttributes.fromMnemonicString(""), "", 0, 0);
   }
 
   private static String getRandomPath() {

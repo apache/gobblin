@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+// Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not use
 // this file except in compliance with the License. You may obtain a copy of the
@@ -20,11 +20,13 @@ dependencies {
 }
 
 // Begin HACK to get around POM being depenendent on the (empty) gobblin-rest-api instead of gobblin-rest-api-rest-client
+def installer = install.repositories.mavenInstaller
+[installer]*.pom*.whenConfigured {pom ->
+    pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }.artifactId = 'gobblin-rest-api-rest-client'
+}
 if (rootProject.publishToMaven) {
-    def installer = install.repositories.mavenInstaller
     def deployer = uploadArchives.repositories.mavenDeployer
-
-    [installer, deployer]*.pom*.whenConfigured {pom ->
+    [deployer]*.pom*.whenConfigured {pom ->
         pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }.artifactId = 'gobblin-rest-api-rest-client'
     }
 }

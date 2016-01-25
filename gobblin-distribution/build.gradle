@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+// Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not use
 // this file except in compliance with the License. You may obtain a copy of the
@@ -10,10 +10,14 @@
 
 apply plugin: 'java'
 
-repositories {
-  mavenCentral()
-  maven {
-    url "http://conjars.org/repo"
+configurations {
+  compile {
+    if (rootProject.hasProperty('excludeHadoopDeps')) {
+      exclude group: "org.apache.hadoop"
+    }
+    if (rootProject.hasProperty('excludeHiveDeps')) {
+      exclude group: "org.apache.hive"
+    }
   }
 }
 
@@ -38,13 +42,21 @@ dependencies {
   }
 }
 
+distributionTarballName = 'gobblin-distribution'
+if (tasks.findIndexOf { task -> task.name.equals('uploadArchives') } >= 0) {
+  distributionTarballName = distributionTarballName + '-' + project.version
+}
+
 task build(type: Tar, overwrite: true) {
   extension = 'tar.gz'
   baseName = project.name
   compression = Compression.GZIP
 
   into("conf") { from "../conf/" }
-  into("bin") { from "../bin/" }
+  into("bin") { 
+    from "../bin/" 
+    from project(':gobblin-utility').projectDir.path + '/src/main/bash/gobblin_password_encryptor.sh'
+  }
   into("lib") {
     from configurations.runtime
   }
@@ -52,9 +64,9 @@ task build(type: Tar, overwrite: true) {
 
   doLast {
     copy {
-      from buildDir.path + '/distributions/gobblin-distribution.tar.gz'
+      from buildDir.path + '/distributions/' + distributionTarballName + '.tar.gz'
       into project.rootDir.path
-      rename ('gobblin-distribution.tar.gz', 'gobblin-dist.tar.gz')
+      rename (distributionTarballName + '.tar.gz', 'gobblin-dist.tar.gz')
     }
   }
 }

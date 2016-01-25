@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -18,8 +18,6 @@ import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.data.management.copy.PreserveAttributes;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -29,29 +27,22 @@ import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
-
 
 public class InputStreamExtractorTest {
 
   @Test
   public void testReadRecord() throws Exception {
-    List<CopyableFile> files = new ArrayList<CopyableFile>();
-    files.add(getTestCopyableFile("inputStreamExtractorTest/first.txt"));
-    files.add(getTestCopyableFile("inputStreamExtractorTest/second.txt"));
+    CopyableFile file = getTestCopyableFile("inputStreamExtractorTest/first.txt");
 
     FileAwareInputStreamExtractor extractor =
-        new FileAwareInputStreamExtractor(FileSystem.getLocal(new Configuration()), Lists.newArrayList(files).iterator());
+        new FileAwareInputStreamExtractor(FileSystem.getLocal(new Configuration()), file);
 
     FileAwareInputStream fileAwareInputStream = extractor.readRecord(null);
 
-    Assert.assertEquals(fileAwareInputStream.getFile().getOrigin().getPath(), files.get(0).getOrigin().getPath());
+    Assert.assertEquals(fileAwareInputStream.getFile().getOrigin().getPath(), file.getOrigin().getPath());
     Assert.assertEquals(IOUtils.toString(fileAwareInputStream.getInputStream()), "first");
 
-    fileAwareInputStream = extractor.readRecord(null);
-
-    Assert.assertEquals(fileAwareInputStream.getFile().getOrigin().getPath(), files.get(1).getOrigin().getPath());
-    Assert.assertEquals(IOUtils.toString(fileAwareInputStream.getInputStream()), "second");
+    Assert.assertNull(extractor.readRecord(null));
   }
 
   private CopyableFile getTestCopyableFile(String resourcePath) throws IOException {

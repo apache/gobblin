@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -11,24 +11,24 @@
  */
 package gobblin.data.management.copy.publisher;
 
+import java.io.IOException;
+import java.net.URI;
+import java.util.Collection;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.WorkUnitState.WorkingState;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableFile;
+import gobblin.data.management.copy.ReadyCopyableFileFilter;
 import gobblin.util.HadoopUtils;
-
-import java.io.IOException;
-import java.net.URI;
-import java.util.Collection;
-import java.util.List;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
+import gobblin.util.PathUtils;
 
 
 /**
@@ -39,7 +39,6 @@ import org.apache.hadoop.fs.Path;
 public class DeletingCopyDataPublisher extends CopyDataPublisher {
 
   private final FileSystem sourceFs;
-  private static final String READY_SUFFIX = ".ready";
 
   public DeletingCopyDataPublisher(State state) throws IOException {
     super(state);
@@ -58,22 +57,19 @@ public class DeletingCopyDataPublisher extends CopyDataPublisher {
         } catch (Throwable t) {
           log.warn(
               String.format("Failed to delete one or more files on source in %s",
-                  state.getProp(CopySource.SERIALIZED_COPYABLE_FILES)), t);
+                  state.getProp(CopySource.SERIALIZED_COPYABLE_FILE)), t);
         }
       } else {
         log.info(String.format("Not deleting files %s on source fileSystem as the workunit state is %s.",
-            state.getProp(CopySource.SERIALIZED_COPYABLE_FILES), state.getWorkingState()));
+            state.getProp(CopySource.SERIALIZED_COPYABLE_FILE), state.getWorkingState()));
       }
     }
   }
 
   private void deleteFilesOnSource(WorkUnitState state) throws IOException {
-    List<CopyableFile> copyableFiles = CopySource.deserializeCopyableFiles(state);
-    for (CopyableFile copyableFile : copyableFiles) {
-      HadoopUtils.deletePath(this.sourceFs, copyableFile.getOrigin().getPath(), false);
-      HadoopUtils.deletePath(this.sourceFs, new Path(copyableFile.getOrigin().getPath().getParent(), copyableFile
-          .getOrigin().getPath().getName()
-          + READY_SUFFIX), false);
-    }
+    CopyableFile copyableFile = CopySource.deserializeCopyableFile(state);
+    HadoopUtils.deletePath(this.sourceFs, copyableFile.getOrigin().getPath(), true);
+    HadoopUtils.deletePath(this.sourceFs,
+        PathUtils.addExtension(copyableFile.getOrigin().getPath(), ReadyCopyableFileFilter.READY_EXTENSION), true);
   }
 }

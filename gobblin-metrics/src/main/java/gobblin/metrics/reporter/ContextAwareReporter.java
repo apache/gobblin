@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -59,8 +59,11 @@ public class ContextAwareReporter implements Reporter, Closeable {
   private final Set<InnerMetricContext> contextsToReport;
   private final ContextFilter contextFilter;
 
+  protected final Config config;
+
   public ContextAwareReporter(String name, Config config) {
     this.name = name;
+    this.config = config;
     this.started = false;
     RootMetricContext.get().addNewReporter(this);
     this.notificationTargetUUID = RootMetricContext.get().addNotificationTarget(new Function<Notification, Void>() {

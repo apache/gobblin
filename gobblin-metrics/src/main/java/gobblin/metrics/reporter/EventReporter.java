@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -12,11 +12,14 @@
 
 package gobblin.metrics.reporter;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.Closeable;
 import java.util.Map;
 import java.util.Queue;
 import java.util.SortedMap;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -56,6 +59,7 @@ import gobblin.util.ExecutorsUtils;
  *   reported once, and then removed from the event queue.
  * </p>
  */
+@Slf4j
 public abstract class EventReporter extends ScheduledReporter implements Closeable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(EventReporter.class);
@@ -63,7 +67,7 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
   private static final String NULL_STRING = "null";
 
   private final MetricContext metricContext;
-  private final Queue<GobblinTrackingEvent> reportingQueue;
+  private final BlockingQueue<GobblinTrackingEvent> reportingQueue;
   private final ExecutorService immediateReportExecutor;
   private final UUID notificationTargetKey;
   protected final Closer closer;
@@ -108,7 +112,15 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
     if(this.reportingQueue.size() > QUEUE_CAPACITY * 2 / 3) {
       immediatelyScheduleReport();
     }
-    this.reportingQueue.offer(sanitizeEvent(event));
+    try {
+      if(!this.reportingQueue.offer(sanitizeEvent(event), 10, TimeUnit.SECONDS)) {
+        log.error("Enqueuing of event %s at reporter with class %s timed out. Sending of events is probably stuck.",
+            event, this.getClass().getCanonicalName());
+      }
+    } catch (InterruptedException ie) {
+      log.warn(String.format("Enqueuing of event %s at reporter with class %s was interrupted.",
+          event, this.getClass().getCanonicalName()), ie);
+    }
   }
 
   /**

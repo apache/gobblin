@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -45,7 +45,7 @@ public class CopySourceTest {
     Extract extract = workunits.get(0).getExtract();
 
     for (WorkUnit workUnit : workunits) {
-      CopyableFile copyableFile = CopySource.deserializeCopyableFiles(workUnit).get(0);
+      CopyableFile copyableFile = CopySource.deserializeCopyableFile(workUnit);
       Assert.assertTrue(copyableFile.getOrigin().getPath().toString().startsWith(TestCopyableDataset.ORIGIN_PREFIX));
       Assert.assertEquals(copyableFile.getDestinationOwnerAndPermission(), TestCopyableDataset.OWNER_AND_PERMISSION);
       Assert.assertEquals(workUnit.getExtract(), extract);
@@ -74,7 +74,7 @@ public class CopySourceTest {
     Extract extractBelow = null;
 
     for (WorkUnit workUnit : workunits) {
-      CopyableFile copyableFile = CopySource.deserializeCopyableFiles(workUnit).get(0);
+      CopyableFile copyableFile = CopySource.deserializeCopyableFile(workUnit);
       Assert.assertTrue(copyableFile.getOrigin().getPath().toString().startsWith(TestCopyableDataset.ORIGIN_PREFIX));
       Assert.assertEquals(copyableFile.getDestinationOwnerAndPermission(), TestCopyableDataset.OWNER_AND_PERMISSION);
 

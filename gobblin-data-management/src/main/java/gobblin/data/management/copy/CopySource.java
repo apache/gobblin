@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -32,6 +32,7 @@ import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.HadoopUtils;
 import gobblin.util.WriterUtils;
+import gobblin.util.guid.Guid;
 
 import java.io.IOException;
 import java.net.URI;
@@ -48,6 +49,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -63,9 +65,10 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
   public static final String DEFAULT_DATASET_PROFILE_CLASS_KEY = CopyableGlobDatasetFinder.class.getCanonicalName();
   private static final String COPY_PREFIX = "gobblin.copy";
-  public static final String SERIALIZED_COPYABLE_FILES = COPY_PREFIX + ".serialized.copyable.files";
+  public static final String SERIALIZED_COPYABLE_FILE = COPY_PREFIX + ".serialized.copyable.file";
   public static final String SERIALIZED_COPYABLE_DATASET = COPY_PREFIX + ".serialized.copyable.datasets";
   public static final String PRESERVE_ATTRIBUTES_KEY = COPY_PREFIX + ".preserved.attributes";
+  public static final String WORK_UNIT_GUID = COPY_PREFIX + ".work.unit.guid";
 
   /**
    * <ul>
@@ -113,13 +116,13 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
           for (CopyableFile copyableFile : partition.getFiles()) {
             WorkUnit workUnit = new WorkUnit(extract);
             workUnit.addAll(state);
-            serializeCopyableFiles(workUnit, Lists.newArrayList(copyableFile));
+            serializeCopyableFile(workUnit, copyableFile);
             serializeCopyableDataset(workUnit, new CopyableDatasetMetadata(copyableDataset, targetRoot));
-            GobblinMetrics.addCustomTagToState(workUnit, new Tag<String>(
+            GobblinMetrics.addCustomTagToState(workUnit, new Tag<>(
                 CopyEventSubmitterHelper.DATASET_ROOT_METADATA_NAME, copyableDataset.datasetRoot().toString()));
             workUnit.setProp(SlaEventKeys.DATASET_URN_KEY, copyableDataset.datasetRoot().toString());
             workUnit.setProp(SlaEventKeys.PARTITION_KEY, copyableFile.getFileSet());
-            workUnit.setProp(SlaEventKeys.ORIGIN_TS_IN_MILLI_SECS_KEY, copyableFile.getFileStatus().getModificationTime());
+            computeAndSetWorkUnitGuid(workUnit);
             workUnits.add(workUnit);
           }
         }
@@ -142,9 +145,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   @Override
   public Extractor<String, FileAwareInputStream> getExtractor(WorkUnitState state) throws IOException {
 
-    List<CopyableFile> copyableFiles = deserializeCopyableFiles(state);
+    CopyableFile copyableFile = deserializeCopyableFile(state);
 
-    return new FileAwareInputStreamExtractor(getSourceFileSystem(state), copyableFiles.iterator());
+    return new FileAwareInputStreamExtractor(getSourceFileSystem(state), copyableFile);
   }
 
   @Override
@@ -172,18 +175,48 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     return new Path(basePath, datasetRelativeToCommonRoot);
   }
 
-  /**
-   * Serialize a {@link List} of {@link CopyableFile}s into a {@link State} at {@link #SERIALIZED_COPYABLE_FILES}
-   */
-  public static void serializeCopyableFiles(State state, List<CopyableFile> copyableFiles) throws IOException {
-    state.setProp(SERIALIZED_COPYABLE_FILES, CopyableFile.serializeList(copyableFiles));
+  private void computeAndSetWorkUnitGuid(WorkUnit workUnit) throws IOException {
+    Guid guid = Guid.fromStrings(workUnit.contains(ConfigurationKeys.CONVERTER_CLASSES_KEY) ?
+        workUnit.getProp(ConfigurationKeys.CONVERTER_CLASSES_KEY) :
+        "");
+    setWorkUnitGuid(workUnit, guid.append(deserializeCopyableFile(workUnit)));
   }
 
   /**
-   * Deserialize a {@link List} of {@link CopyableFile}s from a {@link State} at {@link #SERIALIZED_COPYABLE_FILES}
+   * Set a unique, replicable guid for this work unit. Used for recovering partially successful work units.
+   * @param state {@link State} where guid should be written.
+   * @param guid A byte array guid.
    */
-  public static List<CopyableFile> deserializeCopyableFiles(State state) throws IOException {
-    return CopyableFile.deserializeList(state.getProp(SERIALIZED_COPYABLE_FILES));
+  public static void setWorkUnitGuid(State state, Guid guid) throws IOException {
+    state.setProp(WORK_UNIT_GUID, guid.toString());
+  }
+
+  /**
+   * Get guid in this state if available. This is the reverse operation of {@link #setWorkUnitGuid}.
+   * @param state State from which guid should be extracted.
+   * @return A byte array guid.
+   * @throws IOException
+   */
+  public static Optional<Guid> getWorkUnitGuid(State state) throws IOException {
+    if (state.contains(WORK_UNIT_GUID)) {
+      return Optional.of(Guid.deserialize(state.getProp(WORK_UNIT_GUID)));
+    } else {
+      return Optional.absent();
+    }
+  }
+
+  /**
+   * Serialize a {@link List} of {@link CopyableFile}s into a {@link State} at {@link #SERIALIZED_COPYABLE_FILE}
+   */
+  public static void serializeCopyableFile(State state, CopyableFile copyableFile) throws IOException {
+    state.setProp(SERIALIZED_COPYABLE_FILE, CopyableFile.serialize(copyableFile));
+  }
+
+  /**
+   * Deserialize a {@link List} of {@link CopyableFile}s from a {@link State} at {@link #SERIALIZED_COPYABLE_FILE}
+   */
+  public static CopyableFile deserializeCopyableFile(State state) throws IOException {
+    return CopyableFile.deserialize(state.getProp(SERIALIZED_COPYABLE_FILE));
   }
 
   /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -12,10 +12,7 @@
 
 package gobblin.data.management.copy;
 
-import gobblin.util.PathUtils;
-
 import java.util.Collection;
-import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
@@ -26,6 +23,8 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Sets;
+
+import gobblin.util.PathUtils;
 
 
 public class RecursiveCopyableDatasetTest {

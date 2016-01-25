@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -16,11 +16,9 @@ import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.extract.sftp.SftpLightWeightFileSystem;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Iterator;
 
 import org.apache.hadoop.fs.FileSystem;
 
@@ -38,12 +36,15 @@ import org.apache.hadoop.fs.FileSystem;
 public class FileAwareInputStreamExtractor implements Extractor<String, FileAwareInputStream> {
 
   private final FileSystem fs;
-  private Iterator<CopyableFile> fileIterator;
+  private final CopyableFile file;
+  /** True indicates the unique record has already been read. */
+  private boolean recordRead;
 
-  public FileAwareInputStreamExtractor(FileSystem fs, Iterator<CopyableFile> filesIterator) throws IOException {
+  public FileAwareInputStreamExtractor(FileSystem fs, CopyableFile file) throws IOException {
 
     this.fs = fs;
-    this.fileIterator = filesIterator;
+    this.file = file;
+    this.recordRead = false;
   }
 
   /**
@@ -59,13 +60,13 @@ public class FileAwareInputStreamExtractor implements Extractor<String, FileAwar
   public FileAwareInputStream readRecord(@Deprecated FileAwareInputStream reuse) throws DataRecordException,
       IOException {
 
-    while (fileIterator.hasNext()) {
-      CopyableFile file = fileIterator.next();
-      fileIterator.remove();
-      return new FileAwareInputStream(file, fs.open(file.getFileStatus().getPath()));
+    if (!this.recordRead) {
+      this.recordRead = true;
+      return new FileAwareInputStream(this.file, fs.open(this.file.getFileStatus().getPath()));
+    } else {
+      return null;
     }
 
-    return null;
   }
 
   @Override

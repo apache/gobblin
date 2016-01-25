@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -15,6 +15,8 @@ package gobblin.data.management.copy;
 import gobblin.data.management.partition.File;
 import gobblin.data.management.copy.PreserveAttributes.Option;
 import gobblin.util.PathUtils;
+import gobblin.util.guid.Guid;
+import gobblin.util.guid.HasGuid;
 
 import java.io.IOException;
 import java.util.List;
@@ -53,7 +55,7 @@ import com.google.gson.reflect.TypeToken;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @EqualsAndHashCode
 @Builder(builderClassName = "Builder", builderMethodName = "_hiddenBuilder")
-public class CopyableFile implements File {
+public class CopyableFile implements File, HasGuid {
 
   private static final Gson GSON = new Gson();
 
@@ -95,6 +97,11 @@ public class CopyableFile implements File {
    * will be emitted for each fileSet when it is published.
    */
   private String fileSet;
+
+  /** Timestamp of file at its origin source. */
+  private long originTimestamp;
+  /** Timestamp of file as in upstream. */
+  private long upstreamTimestamp;
 
   /**
    * Get a {@link CopyableFile.Builder}.
@@ -186,9 +193,15 @@ public class CopyableFile implements File {
       if (this.fileSet == null) {
         this.fileSet = this.rootPath.toString();
       }
+      if (this.originTimestamp == 0) {
+        this.originTimestamp = origin.getModificationTime();
+      }
+      if (this.upstreamTimestamp == 0) {
+        this.upstreamTimestamp = origin.getModificationTime();
+      }
 
       return new CopyableFile(origin, destination, relativeDestination, destinationOwnerAndPermission,
-          ancestorsOwnerAndPermission, null, preserve, fileSet);
+          ancestorsOwnerAndPermission, checksum, preserve, fileSet, originTimestamp, upstreamTimestamp);
     }
 
     private List<OwnerAndPermission> replicateOwnerAndPermission(final FileSystem originFs, final Path path,
@@ -226,6 +239,18 @@ public class CopyableFile implements File {
   @Override
   public FileStatus getFileStatus() {
     return this.origin;
+  }
+
+  /**
+   * Generates a replicable guid to uniquely identify the origin of this {@link CopyableFile}.
+   * @return a guid uniquely identifying the origin file.
+   */
+  public Guid guid() throws IOException {
+    StringBuilder uniqueString = new StringBuilder();
+    uniqueString.append(getFileStatus().getModificationTime());
+    uniqueString.append(getFileStatus().getLen());
+    uniqueString.append(getFileStatus().getPath());
+    return Guid.fromStrings(uniqueString.toString());
   }
 
   /**

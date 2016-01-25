@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -78,26 +78,43 @@ public class PathUtilsTest {
   @Test
   public void testRemoveExtension() throws Exception {
 
-    Path path = PathUtils.removeExtention(new Path("file.txt"), ".txt");
+    Path path = PathUtils.removeExtension(new Path("file.txt"), ".txt");
     Assert.assertEquals(path, new Path("file"));
 
-    path = PathUtils.removeExtention(new Path("file.txt"), ".abc");
+    path = PathUtils.removeExtension(new Path("file.txt"), ".abc");
     Assert.assertEquals(path, new Path("file.txt"));
 
-    path = PathUtils.removeExtention(new Path("file.txt.gpg"), ".txt", ".gpg");
+    path = PathUtils.removeExtension(new Path("file.txt.gpg"), ".txt", ".gpg");
     Assert.assertEquals(path, new Path("file"));
 
-    path = PathUtils.removeExtention(new Path("file.txt.gpg"), ".gpg", ".txt");
+    path = PathUtils.removeExtension(new Path("file.txt.gpg"), ".gpg", ".txt");
     Assert.assertEquals(path, new Path("file"));
 
-    path = PathUtils.removeExtention(new Path("file.txt.gpg"), ".txt");
+    path = PathUtils.removeExtension(new Path("file.txt.gpg"), ".txt");
     Assert.assertEquals(path, new Path("file.gpg"));
 
-    path = PathUtils.removeExtention(new Path("file.txt.gpg"), ".gpg");
+    path = PathUtils.removeExtension(new Path("file.txt.gpg"), ".gpg");
     Assert.assertEquals(path, new Path("file.txt"));
 
-    path = PathUtils.removeExtention(new Path("file"), ".txt", ".gpg");
+    path = PathUtils.removeExtension(new Path("file"), ".txt", ".gpg");
     Assert.assertEquals(path, new Path("file"));
+
+  }
+
+  @Test
+  public void testAddExtension() throws Exception {
+
+    Path path = PathUtils.addExtension(new Path("file"), ".txt");
+    Assert.assertEquals(path, new Path("file.txt"));
+
+    path = PathUtils.addExtension(new Path("file.txt"), ".abc");
+    Assert.assertEquals(path, new Path("file.txt.abc"));
+
+    path = PathUtils.addExtension(new Path("file.txt.gpg"), ".txt", ".gpg");
+    Assert.assertEquals(path, new Path("file.txt.gpg.txt.gpg"));
+
+    path = PathUtils.addExtension(new Path("file.txt.gpg"), ".tar.gz");
+    Assert.assertEquals(path, new Path("file.txt.gpg.tar.gz"));
 
   }
 }

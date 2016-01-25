@@ -19,7 +19,7 @@ import gobblin.annotation.Alpha;
 
 @Alpha
 /** Denotes that a requested config version is invalid or is no longer available. */
-public class VersionDoesNotExistException extends Exception {
+public class VersionDoesNotExistException extends RuntimeException {
 
   private static final long serialVersionUID = 1L;
   private static final String MESSAGE_FORMAT =
