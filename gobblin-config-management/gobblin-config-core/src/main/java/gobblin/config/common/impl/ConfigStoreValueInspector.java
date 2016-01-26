@@ -12,6 +12,9 @@
 
 package gobblin.config.common.impl;
 
+import java.util.Collection;
+import java.util.Map;
+
 import com.typesafe.config.Config;
 
 import gobblin.config.store.api.ConfigKeyPath;
@@ -45,4 +48,11 @@ public interface ConfigStoreValueInspector {
    *         and indirect imports resolved.
    */
   public Config getResolvedConfig(ConfigKeyPath configKey);
+  
+  /**
+  *
+  * @param  configKeys     the config keys whose {@link Config} objects are to be fetched
+  * @return the Map from the config key to its the {@link com.typesafe.config.Config} object
+  */
+ public Map<ConfigKeyPath, Config> getOwnConfigs(Collection<ConfigKeyPath> configKeys);
 }
