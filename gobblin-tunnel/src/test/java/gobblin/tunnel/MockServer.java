@@ -82,13 +82,14 @@ abstract class MockServer {
             }
           }
         }.startThread());
-      } catch (IOException ignored) {
+      } catch (IOException e) {
+        LOG.info("Exception in runServer", e);
       }
     }
     try {
       _server.close();
     } catch (IOException e) {
-      e.printStackTrace();
+      LOG.info("Exception while closing server", e);
     }
   }
 

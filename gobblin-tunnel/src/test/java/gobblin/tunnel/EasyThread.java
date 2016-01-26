@@ -15,6 +15,9 @@ package gobblin.tunnel;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 /**
  * A convenient, trackable, easy-to-cleanup wrapper around threads.
@@ -22,7 +25,8 @@ import java.util.Set;
  * @author kkandekar@linkedin.com
  */
 abstract class EasyThread extends Thread {
-  static Set<EasyThread> ALL_THREADS = Collections.synchronizedSet(new HashSet<EasyThread>());
+  protected static final Logger LOG = LoggerFactory.getLogger(EasyThread.class);
+  final static Set<EasyThread> ALL_THREADS = Collections.synchronizedSet(new HashSet<EasyThread>());
 
   EasyThread startThread() {
     setDaemon(true);
@@ -35,7 +39,8 @@ abstract class EasyThread extends Thread {
   public void run() {
     try {
       runQuietly();
-    } catch (Exception ignored) {
+    } catch (Exception e) {
+      LOG.info("Exception in EasyThread#run", e);
     }
   }
 
