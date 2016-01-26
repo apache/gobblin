@@ -73,6 +73,13 @@ class ReadWriteHandler implements Callable<HandlerState> {
     } catch (IOException ioe) {
       closeChannels();
       throw new IOException(String.format("Could not read/write between %s and %s", proxy, client), ioe);
+    } catch (Exception e) {
+      LOG.error("Unexpected exception", e);
+      try {
+        closeChannels();
+      } finally {
+        throw e;
+      }
     }
     return state;
   }
