@@ -2,6 +2,7 @@ package gobblin.converter;
 
 import gobblin.configuration.WorkUnitState;
 
+
 /**
  * Implementation of {@link Converter} that returns the inputSchema unmodified and each inputRecord unmodified
  */
