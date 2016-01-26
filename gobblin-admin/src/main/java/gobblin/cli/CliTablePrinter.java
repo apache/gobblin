@@ -33,7 +33,7 @@ public class CliTablePrinter {
   private List<String> labels;
 
   /**
-   * A list of flag strings (corresponding to each column)
+   * A list of sprintf-style flag strings (corresponding to each column)
    */
   private List<String> flags;
 
