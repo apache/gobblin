@@ -150,5 +150,30 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
 
     return initialConfig;
   }
+  
+  /**
+   * {@inheritDoc}.
+   *
+   * <p>
+   *   This implementation simply delegate the functionality to the internal {@link ConfigStore}/version
+   *   if the internal {@link ConfigStore} is {@link ConfigStoreWithBatchFetches}, otherwise, will call
+   *   configuration store for each config key path and put the result into {@link Map}
+   * </p>
+   */
+  @Override
+  public Map<ConfigKeyPath, Config> getResolvedConfigs(Collection<ConfigKeyPath> configKeys) {
+    if(this.cs instanceof ConfigStoreWithBatchFetches){
+      ConfigStoreWithBatchFetches batchStore = (ConfigStoreWithBatchFetches)this.cs;
+      return batchStore.getResolvedConfigs(configKeys, version);
+    }
+    
+    Map<ConfigKeyPath, Config> result = new HashMap<>();
+    for(ConfigKeyPath configKey: configKeys){
+      result.put(configKey, this.getResolvedConfig(configKey));
+    }
+    
+    return result;
+  }
+
 }
 

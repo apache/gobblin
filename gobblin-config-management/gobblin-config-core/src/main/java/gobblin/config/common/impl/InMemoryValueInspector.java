@@ -108,7 +108,7 @@ public class InMemoryValueInspector implements ConfigStoreValueInspector{
         configKeysNotInCache.add(configKey);
       }
       else{
-        result.put(configKey, this.getOwnConfig(configKey));
+        result.put(configKey, cachedValue);
       }
     }
     
@@ -116,6 +116,38 @@ public class InMemoryValueInspector implements ConfigStoreValueInspector{
     if(configKeysNotInCache.size()>0){
       Map<ConfigKeyPath, Config> configsFromFallBack = this.valueFallback.getOwnConfigs(configKeysNotInCache);
       this.ownConfigCache.putAll(configsFromFallBack);
+      result.putAll(configsFromFallBack);
+    }
+    
+    return result;
+  }
+  
+  /**
+   * {@inheritDoc}.
+   *
+   * <p>
+   *   If present in the cache, return the cached {@link com.typesafe.config.Config} for given input
+   *   Otherwise, simply delegate the functionality to the internal {ConfigStoreValueInspector} and store the value into cache
+   * </p>
+   */
+  @Override
+  public Map<ConfigKeyPath, Config> getResolvedConfigs(Collection<ConfigKeyPath> configKeys) {
+    Collection<ConfigKeyPath> configKeysNotInCache = new ArrayList<ConfigKeyPath>();
+    Map<ConfigKeyPath, Config> result = new HashMap<>();
+    for(ConfigKeyPath configKey: configKeys){
+      Config cachedValue = this.recursiveConfigCache.getIfPresent(configKey);
+      if(cachedValue==null){
+        configKeysNotInCache.add(configKey);
+      }
+      else{
+        result.put(configKey, cachedValue);
+      }
+    }
+    
+    // for ConfigKeyPath which are not in cache
+    if(configKeysNotInCache.size()>0){
+      Map<ConfigKeyPath, Config> configsFromFallBack = this.valueFallback.getResolvedConfigs(configKeysNotInCache);
+      this.recursiveConfigCache.putAll(configsFromFallBack);
       result.putAll(configsFromFallBack);
     }
     

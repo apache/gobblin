@@ -19,6 +19,7 @@ import com.typesafe.config.Config;
 
 import gobblin.config.store.api.ConfigKeyPath;
 
+
 /**
  * The ConfigStoreValueInspector interface used to inspect the {@link com.typesafe.config.Config} for a given
  * {@link gobblin.config.store.api.ConfigKeyPath} in {@link ConfigStore}
@@ -38,7 +39,7 @@ public interface ConfigStoreValueInspector {
    * @return the directly specified configuration in {@link Config} format for input configKey
    */
   public Config getOwnConfig(ConfigKeyPath configKey);
-  
+
   /**
    * Obtains a {@link Config} object with all implicit and explicit imports resolved, i.e. specified
    * using the {@link Config#withFallback(com.typesafe.config.ConfigMergeable)} API.
@@ -48,11 +49,18 @@ public interface ConfigStoreValueInspector {
    *         and indirect imports resolved.
    */
   public Config getResolvedConfig(ConfigKeyPath configKey);
-  
+
   /**
   *
   * @param  configKeys     the config keys whose {@link Config} objects are to be fetched
-  * @return the Map from the config key to its the {@link com.typesafe.config.Config} object
+  * @return the Map from the config key to its own {@link com.typesafe.config.Config} object
   */
- public Map<ConfigKeyPath, Config> getOwnConfigs(Collection<ConfigKeyPath> configKeys);
+  public Map<ConfigKeyPath, Config> getOwnConfigs(Collection<ConfigKeyPath> configKeys);
+
+  /**
+  *
+  * @param  configKeys     the config keys whose {@link Config} objects are to be fetched
+  * @return the Map from the config key to its resolved {@link com.typesafe.config.Config} object
+  */
+  public Map<ConfigKeyPath, Config> getResolvedConfigs(Collection<ConfigKeyPath> configKeys);
 }

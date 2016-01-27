@@ -14,7 +14,11 @@ package gobblin.config.client;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.TreeMap;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -104,6 +108,45 @@ public class ConfigClient {
     ConfigKeyPath configKeypath = ConfigClientUtils.buildConfigKeyPath(configKeyUri, accessor.configStore);
     return accessor.valueInspector.getResolvedConfig(configKeypath);
   }
+  
+  /**
+   * batch process for getConfig function
+   * @param configKeyUris
+   * @return
+   * @throws ConfigStoreFactoryDoesNotExistsException
+   * @throws ConfigStoreCreationException
+   * @throws VersionDoesNotExistException
+   */
+  public Map<URI, Config> getConfigs(Collection<URI> configKeyUris)throws ConfigStoreFactoryDoesNotExistsException,
+  ConfigStoreCreationException, VersionDoesNotExistException {
+    if(configKeyUris == null || configKeyUris.size()==0 )
+      return Collections.emptyMap();
+    
+    Map<URI, Config> result = new HashMap<>();
+    Map<ConfigStoreAccessor, Collection<ConfigKeyPath>> partitionedAccessor = new HashMap<>();
+    
+    // partitioned the ConfigKeyPaths which belongs to the same store to one accessor 
+    for(URI u: configKeyUris){
+      ConfigStoreAccessor accessor = this.getConfigStoreAccessor(u);
+      ConfigKeyPath configKeypath = ConfigClientUtils.buildConfigKeyPath(u, accessor.configStore);
+      if(!partitionedAccessor.containsKey(accessor)){
+        partitionedAccessor.put(accessor, new ArrayList<ConfigKeyPath>());
+      }
+      
+      partitionedAccessor.get(accessor).add(configKeypath);
+    }
+    
+    for(Map.Entry<ConfigStoreAccessor, Collection<ConfigKeyPath>> entry: partitionedAccessor.entrySet()){
+      Map<ConfigKeyPath, Config> batchResult= entry.getKey().valueInspector.getResolvedConfigs(entry.getValue());
+      // translate the ConfigKeyPath to URI
+      for(Map.Entry<ConfigKeyPath, Config> resultEntry: batchResult.entrySet()){
+        URI absURI = ConfigClientUtils.getAbsoluteURI(resultEntry.getKey(), entry.getKey().configStore);
+        result.put(absURI, resultEntry.getValue());
+      }
+    }
+    
+    return result;
+  }
 
   /**
    * Convenient method to get resolved {@link Config} based on String input.
@@ -111,6 +154,27 @@ public class ConfigClient {
   public Config getConfig(String configKeyStr) throws ConfigStoreFactoryDoesNotExistsException,
       ConfigStoreCreationException, VersionDoesNotExistException, URISyntaxException {
     return this.getConfig(new URI(configKeyStr));
+  }
+  
+  /**
+   * batch process for getConfig(String)
+   * @param configKeyStrs
+   * @return
+   * @throws ConfigStoreFactoryDoesNotExistsException
+   * @throws ConfigStoreCreationException
+   * @throws VersionDoesNotExistException
+   * @throws URISyntaxException
+   */
+  public Map<URI, Config> getConfigsFromStrings(Collection<String> configKeyStrs) throws ConfigStoreFactoryDoesNotExistsException,
+  ConfigStoreCreationException, VersionDoesNotExistException, URISyntaxException {
+    if(configKeyStrs == null || configKeyStrs.size()==0 )
+      return Collections.emptyMap();
+    
+    Collection<URI> configKeyUris = new ArrayList<>();
+    for(String s: configKeyStrs){
+      configKeyUris.add(new URI(s));
+    }
+    return getConfigs(configKeyUris);
   }
 
   /**
