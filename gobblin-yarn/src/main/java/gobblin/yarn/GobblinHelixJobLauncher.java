@@ -178,13 +178,13 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private JobConfig.Builder createJob(List<WorkUnit> workUnits) throws IOException {
     Map<String, TaskConfig> taskConfigMap = Maps.newHashMap();
 
-    try (ParallelRunner stateSerDeRunner = new ParallelRunner(this.stateSerDeRunnerThreads, this.fs)) {
+    try (ParallelRunner stateSerDeRunner = new ParallelRunner(this.stateSerDeRunnerThreads)) {
       int multiTaskIdSequence = 0;
       for (WorkUnit workUnit : workUnits) {
         if (workUnit instanceof MultiWorkUnit) {
           workUnit.setId(JobLauncherUtils.newMultiTaskId(this.jobContext.getJobId(), multiTaskIdSequence++));
         }
-        addWorkUnit(workUnit, stateSerDeRunner, taskConfigMap);
+        addWorkUnit(this.fs, workUnit, stateSerDeRunner, taskConfigMap);
       }
 
       Path jobStateFilePath = new Path(this.appWorkDir, this.jobContext.getJobId() + "." + JOB_STATE_FILE_NAME);
@@ -219,10 +219,10 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   /**
    * Add a single {@link WorkUnit} (flattened).
    */
-  private void addWorkUnit(WorkUnit workUnit, ParallelRunner stateSerDeRunner,
-      Map<String, TaskConfig> taskConfigMap) throws IOException {
+  private void addWorkUnit(FileSystem fileSystem, WorkUnit workUnit, ParallelRunner stateSerDeRunner,
+                           Map<String, TaskConfig> taskConfigMap) throws IOException {
     String workUnitFilePath = persistWorkUnit(
-        new Path(this.inputWorkUnitDir, this.jobContext.getJobId()), workUnit, stateSerDeRunner);
+        fileSystem, new Path(this.inputWorkUnitDir, this.jobContext.getJobId()), workUnit, stateSerDeRunner);
 
     Map<String, String> rawConfigMap = Maps.newHashMap();
     rawConfigMap.put(GobblinYarnConfigurationKeys.WORK_UNIT_FILE_PATH, workUnitFilePath);
@@ -237,12 +237,13 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   /**
    * Persist a single {@link WorkUnit} (flattened) to a file.
    */
-  private String persistWorkUnit(Path workUnitFileDir, WorkUnit workUnit, ParallelRunner stateSerDeRunner)
+  private String persistWorkUnit(FileSystem fileSystem, Path workUnitFileDir, WorkUnit workUnit,
+                                 ParallelRunner stateSerDeRunner)
       throws IOException {
     String workUnitFileName = workUnit.getId() + (workUnit instanceof MultiWorkUnit ?
         MULTI_WORK_UNIT_FILE_EXTENSION : WORK_UNIT_FILE_EXTENSION);
     Path workUnitFile = new Path(workUnitFileDir, workUnitFileName);
-    stateSerDeRunner.serializeToFile(workUnit, workUnitFile);
+    stateSerDeRunner.serializeToFile(workUnit, fileSystem, workUnitFile);
     return workUnitFile.toString();
   }
 

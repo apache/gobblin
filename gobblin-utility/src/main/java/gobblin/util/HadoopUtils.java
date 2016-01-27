@@ -24,6 +24,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -33,12 +34,14 @@ import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
+import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.util.ReflectionUtils;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Lists;
 import com.google.common.io.BaseEncoding;
 import com.google.common.io.Closer;
@@ -51,6 +54,12 @@ import com.google.common.io.Closer;
 public class HadoopUtils {
 
   public static final String HDFS_ILLEGAL_TOKEN_REGEX = "[\\s:\\\\]";
+
+  private static final Set<String> SCHEMES_SUPPORTING_ATOMIC_FOLDER_RENAME =
+          ImmutableSortedSet
+                  .orderedBy(String.CASE_INSENSITIVE_ORDER)
+                  .add("hdfs")
+                  .build();
 
   public static Configuration newConfiguration() {
     Configuration conf = new Configuration();
@@ -149,8 +158,14 @@ public class HadoopUtils {
    * An {@link IOException} if {@link FileUtil#copy(FileSystem, Path, FileSystem, Path, boolean, Configuration)} returns false.
    */
   public static void movePath(FileSystem srcFs, Path src, FileSystem dstFs, Path dst) throws IOException {
-    if (srcFs.getUri().equals(dstFs.getUri())) {
-      renamePath(srcFs, src, dst);
+    // Determining if the source filesystem in local will allow us to call moveFromLocalFile and give the
+    // destination filesystem the ability optimize the transfer. For example, when the source file is
+    // local the S3AFileSystem will skip buffering it into the fs.s3a.buffer.dir and immediately transfer the
+    // file to S3.
+    boolean isSourceFileSystemLocal = srcFs instanceof LocalFileSystem;
+    FileStatus srcStatus = srcFs.getFileStatus(src);
+    if (isSourceFileSystemLocal) {
+      dstFs.moveFromLocalFile(srcStatus.getPath(), dst);
     } else {
       if (!FileUtil.copy(srcFs, src, dstFs, dst, true, false, dstFs.getConf())) {
         throw new IOException(String.format("Failed to move %s to %s", src, dst));
@@ -464,5 +479,28 @@ public class HadoopUtils {
    */
   public static Path sanitizePath(Path path, String substitute) {
     return new Path(sanitizePath(path.toString(), substitute));
+  }
+
+  /**
+   * Returns {@code true} if the specified {@link FileSystem}s are equivalent; otherwise, {@code false}.
+   *
+   * @param left The left {@link FileSystem}.
+   * @param right the right {@link FileSystem}.
+   * @return A {@link boolean} indicating whether the specified {@link FileSystem}s are equivalent.
+   */
+  public static boolean areFileSystemsEquivalent(FileSystem left, FileSystem right) {
+    return left.getUri().equals(right.getUri());
+  }
+
+  /**
+   * Returns {@code true} if the specified {@link FileSystem}s supports atomically renaming a
+   * folder; otherwise, {@code false}.
+   *
+   * @param fileSystem The {@link FileSystem} to check.
+   * @return A {@link boolean} indicating whether the specified {@link FileSystem}s supports atomic folder renames.
+   */
+  public static boolean isFolderRenameAtomic(FileSystem fileSystem) {
+    String scheme = fileSystem.getUri().getScheme();
+    return SCHEMES_SUPPORTING_ATOMIC_FOLDER_RENAME.contains(scheme);
   }
 }

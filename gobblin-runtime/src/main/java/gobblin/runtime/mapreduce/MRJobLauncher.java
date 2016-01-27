@@ -399,7 +399,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     Closer closer = Closer.create();
     try {
-      ParallelRunner parallelRunner = closer.register(new ParallelRunner(this.parallelRunnerThreads, this.fs));
+      ParallelRunner parallelRunner = closer.register(new ParallelRunner(this.parallelRunnerThreads));
 
       // Open the job input file
       OutputStream os = closer.register(this.fs.create(jobInputFile));
@@ -419,7 +419,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
         }
         Path workUnitFile = new Path(this.jobInputPath, workUnitFileName);
 
-        parallelRunner.serializeToFile(workUnit, workUnitFile);
+        parallelRunner.serializeToFile(workUnit, this.fs, workUnitFile);
 
         // Append the work unit file path to the job input file
         bw.write(workUnitFile.toUri().getPath() + "\n");

@@ -211,13 +211,13 @@ public class JobLauncherUtils {
       Path stagingPath = WriterUtils.getWriterStagingDir(state, numBranches, branchId);
       if (fs.exists(stagingPath)) {
         logger.info("Cleaning up staging directory " + stagingPath.toUri().getPath());
-        parallelRunner.deletePath(stagingPath, true);
+        parallelRunner.deletePath(fs, stagingPath, true);
       }
 
       Path outputPath = WriterUtils.getWriterOutputDir(state, numBranches, branchId);
       if (fs.exists(outputPath)) {
         logger.info("Cleaning up output directory " + outputPath.toUri().getPath());
-        parallelRunner.deletePath(outputPath, true);
+        parallelRunner.deletePath(fs, outputPath, true);
       }
     }
   }
@@ -252,7 +252,7 @@ public class JobLauncherUtils {
       Map<String, ParallelRunner> parallelRunners) {
     String uriAndHomeDir = new Path(new Path(fs.getUri()), fs.getHomeDirectory()).toString();
     if (!parallelRunners.containsKey(uriAndHomeDir)) {
-      parallelRunners.put(uriAndHomeDir, closer.register(new ParallelRunner(parallelRunnerThreads, fs)));
+      parallelRunners.put(uriAndHomeDir, closer.register(new ParallelRunner(parallelRunnerThreads)));
     }
     return parallelRunners.get(uriAndHomeDir);
   }

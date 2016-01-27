@@ -18,6 +18,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
+import gobblin.util.FileListUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -79,19 +80,8 @@ public abstract class HadoopFsHelper implements FileBasedHelper {
   }
 
   public void lsr(Path p, List<String> results) throws IOException {
-      if (!this.fs.getFileStatus(p).isDir()) {
-          results.add(p.toString());
-      }
-      Path qualifiedPath = this.fs.makeQualified(p);
-      for (FileStatus status : this.fs.listStatus(p)) {
-          if (status.isDir()) {
-              // Fix for hadoop issue: https://issues.apache.org/jira/browse/HADOOP-12169
-              if (!qualifiedPath.equals(status.getPath())) {
-                  lsr(status.getPath(), results);
-              }
-          } else {
-              results.add(status.getPath().toString());
-          }
+      for (FileStatus fileStatus : FileListUtils.listFilesRecursively(this.fs, p)) {
+        results.add(fileStatus.getPath().toString());
       }
   }
 
