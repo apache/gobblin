@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
 import com.typesafe.config.Config;
 
 import gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
@@ -66,9 +68,7 @@ public class ConfigClient {
   private final ConfigStoreFactoryRegister configStoreFactoryRegister;
 
   private ConfigClient(VersionStabilityPolicy policy) {
-    this.policy = policy;
-
-    this.configStoreFactoryRegister = new ConfigStoreFactoryRegister();
+    this(policy, new ConfigStoreFactoryRegister());
   }
   
   @VisibleForTesting
@@ -123,20 +123,16 @@ public class ConfigClient {
       return Collections.emptyMap();
     
     Map<URI, Config> result = new HashMap<>();
-    Map<ConfigStoreAccessor, Collection<ConfigKeyPath>> partitionedAccessor = new HashMap<>();
+    Multimap<ConfigStoreAccessor, ConfigKeyPath> partitionedAccessor = ArrayListMultimap.create();
     
     // partitioned the ConfigKeyPaths which belongs to the same store to one accessor 
     for(URI u: configKeyUris){
       ConfigStoreAccessor accessor = this.getConfigStoreAccessor(u);
       ConfigKeyPath configKeypath = ConfigClientUtils.buildConfigKeyPath(u, accessor.configStore);
-      if(!partitionedAccessor.containsKey(accessor)){
-        partitionedAccessor.put(accessor, new ArrayList<ConfigKeyPath>());
-      }
-      
-      partitionedAccessor.get(accessor).add(configKeypath);
+      partitionedAccessor.put(accessor, configKeypath);
     }
     
-    for(Map.Entry<ConfigStoreAccessor, Collection<ConfigKeyPath>> entry: partitionedAccessor.entrySet()){
+    for(Map.Entry<ConfigStoreAccessor, Collection<ConfigKeyPath>> entry: partitionedAccessor.asMap().entrySet()){
       Map<ConfigKeyPath, Config> batchResult= entry.getKey().valueInspector.getResolvedConfigs(entry.getValue());
       // translate the ConfigKeyPath to URI
       for(Map.Entry<ConfigKeyPath, Config> resultEntry: batchResult.entrySet()){
@@ -250,7 +246,7 @@ public class ConfigClient {
       
       // both are absolute URI
       if(floorKey.getAuthority().equals(configKeyURI.getAuthority())){
-        if(configKeyURI.getPath().startsWith(floorKey.getPath())) {
+        if(ConfigClientUtils.isAncestorOrSame(configKeyURI.getPath(),floorKey.getPath())) {
           return floorKey;
         }
       }
@@ -269,7 +265,7 @@ public class ConfigClient {
     if (!(cs instanceof ConfigStoreWithStableVersioning)) {
       if (this.policy == VersionStabilityPolicy.CROSS_JVM_STABILITY) {
         throw new RuntimeException(String.format(
-            "with policy set to %s, connect not connect to unstable config store %s",
+            "with policy set to %s, can not connect to unstable config store %s",
             VersionStabilityPolicy.CROSS_JVM_STABILITY, cs.getStoreURI()));
       }
     }
@@ -284,7 +280,7 @@ public class ConfigClient {
     InMemoryValueInspector inMemoryValueInspector;
     
     // ConfigStoreWithStableVersioning always create Soft reference cache
-    if ( cs instanceof ConfigStoreWithStableVersioning){
+    if ( cs instanceof ConfigStoreWithStableVersioning || this.policy == VersionStabilityPolicy.WEAK_LOCAL_STABILITY ){
       inMemoryValueInspector = new InMemoryValueInspector(rawValueInspector, false);
       result = new ConfigStoreAccessor(cs, inMemoryValueInspector, inMemoryTopology);
     }

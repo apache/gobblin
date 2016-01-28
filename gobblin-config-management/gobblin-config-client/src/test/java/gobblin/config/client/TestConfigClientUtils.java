@@ -15,6 +15,7 @@ package gobblin.config.client;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import org.apache.hadoop.fs.Path;
 import org.mockito.Mockito;
 
 import static org.mockito.Mockito.mock;
@@ -64,6 +65,23 @@ public class TestConfigClientUtils {
     URI absURI = ConfigClientUtils.getAbsoluteURI(configKey, mockConfigStore);
     Assert.assertEquals(absURI.toString(), 
         "etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest/data/databases/Identity");
+  }
+  
+  @Test
+  public void testIsAncestorOrSame() {
+    Path ancestor = new Path("/");
+    Path descendant = new Path("/");
+    
+    Assert.assertTrue(ConfigClientUtils.isAncestorOrSame(descendant, ancestor));
+    
+    descendant = new Path("/data/database");
+    Assert.assertTrue(ConfigClientUtils.isAncestorOrSame(descendant, ancestor));
+    
+    ancestor = new Path("/data/database");
+    Assert.assertTrue(ConfigClientUtils.isAncestorOrSame(descendant, ancestor));
+    
+    descendant = new Path("/data/databaseFoo");
+    Assert.assertTrue(!ConfigClientUtils.isAncestorOrSame(descendant, ancestor));
   }
   
   @Test (expectedExceptions = java.lang.IllegalArgumentException.class )

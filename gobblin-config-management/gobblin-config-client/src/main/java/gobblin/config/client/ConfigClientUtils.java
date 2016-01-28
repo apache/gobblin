@@ -17,12 +17,19 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 
+import org.apache.hadoop.fs.Path;
+
 import com.google.common.base.Preconditions;
 
 import gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
 import gobblin.config.store.api.ConfigKeyPath;
 import gobblin.config.store.api.ConfigStore;
 
+/**
+ * Utility class to transfer {@link URI} to {@link ConfigKeyPath} and vice versa 
+ * @author mitu
+ *
+ */
 public class ConfigClientUtils {
 
   /**
@@ -33,7 +40,7 @@ public class ConfigClientUtils {
    * @return             - {@link ConfigKeyPath} for the relative path
    */
   public static ConfigKeyPath buildConfigKeyPath(URI configKeyURI, ConfigStore cs){
-    preconditionCheck(configKeyURI, cs);
+    checkMatchingSchemeAndAuthority(configKeyURI, cs);
     // Example store root is   etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest
     
     // configKeyURI is etl-hdfs:///datasets/a1/a2
@@ -57,11 +64,7 @@ public class ConfigClientUtils {
    * @return
    */
   public static URI getDefaultRootURI(URI configKeyURI, ConfigStore cs){
-    preconditionCheck(configKeyURI, cs);
-    
-    if(configKeyURI.getAuthority()!=null){
-      return cs.getStoreURI();
-    }
+    checkMatchingSchemeAndAuthority(configKeyURI, cs);
     
     // configKeyURI is missing authority/configstore root "etl-hdfs:///datasets/a1/a2"
     try {
@@ -123,7 +126,7 @@ public class ConfigClientUtils {
     return result;
   }
   
-  private static void preconditionCheck(URI configKeyURI, ConfigStore cs){
+  private static void checkMatchingSchemeAndAuthority(URI configKeyURI, ConfigStore cs){
     if(configKeyURI == null || cs == null){
       throw new IllegalArgumentException("input can not be null");
     }
@@ -133,5 +136,24 @@ public class ConfigClientUtils {
     boolean authorityCheck = configKeyURI.getAuthority() == null ||
         configKeyURI.getAuthority().equals(cs.getStoreURI().getAuthority());
     Preconditions.checkArgument(authorityCheck, "Authority not match");
+  }
+  
+  public static boolean isAncestorOrSame(String descendant, String ancestor){
+    if(ancestor == null || descendant == null){
+      throw new IllegalArgumentException("input can not be null");
+    }
+    return isAncestorOrSame(new Path(descendant), new Path(ancestor));
+  }
+  
+  public static boolean isAncestorOrSame(Path descendant, Path ancestor){
+    if(ancestor == null || descendant == null){
+      throw new IllegalArgumentException("input can not be null");
+    }
+    
+    if(descendant.equals(ancestor)) return true;
+    Path parent = descendant.getParent();
+    if(parent ==null) return false;
+    
+    return isAncestorOrSame(parent, ancestor);
   }
 }
