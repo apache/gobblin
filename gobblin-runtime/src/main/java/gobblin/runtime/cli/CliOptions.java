@@ -78,8 +78,10 @@ public class CliOptions {
       }
 
       // Load system and job configuration properties
-      Properties sysConfig = fileToProperties(cmd.getOptionValue(SYS_CONFIG_OPTION.getLongOpt()));
-      Properties jobConfig = fileToProperties(cmd.getOptionValue(JOB_CONFIG_OPTION.getLongOpt()));
+      Properties sysConfig = cmd.hasOption(SYS_CONFIG_OPTION.getLongOpt()) ?
+          fileToProperties(cmd.getOptionValue(SYS_CONFIG_OPTION.getLongOpt())) : new Properties();
+      Properties jobConfig = cmd.hasOption(JOB_CONFIG_OPTION.getLongOpt()) ?
+          fileToProperties(cmd.getOptionValue(JOB_CONFIG_OPTION.getLongOpt())) : new Properties();
 
       return JobConfigurationUtils.combineSysAndJobProperties(sysConfig, jobConfig);
     } catch (ParseException pe) {
