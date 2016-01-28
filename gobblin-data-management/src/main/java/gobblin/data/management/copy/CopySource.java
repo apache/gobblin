@@ -114,13 +114,18 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
         for (Partition<CopyableFile> partition : partitions) {
           Extract extract = new Extract(Extract.TableType.SNAPSHOT_ONLY, COPY_PREFIX, partition.getName());
           for (CopyableFile copyableFile : partition.getFiles()) {
+
+            CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(copyableDataset, targetRoot);
+            CopyableFile.DatasetAndPartition datasetAndPartition = copyableFile.getDatasetAndPartition(metadata);
+
             WorkUnit workUnit = new WorkUnit(extract);
             workUnit.addAll(state);
             serializeCopyableFile(workUnit, copyableFile);
-            serializeCopyableDataset(workUnit, new CopyableDatasetMetadata(copyableDataset, targetRoot));
-            GobblinMetrics.addCustomTagToState(workUnit, new Tag<>(
-                CopyEventSubmitterHelper.DATASET_ROOT_METADATA_NAME, copyableDataset.datasetRoot().toString()));
-            workUnit.setProp(SlaEventKeys.DATASET_URN_KEY, copyableDataset.datasetRoot().toString());
+            serializeCopyableDataset(workUnit, metadata);
+            GobblinMetrics.addCustomTagToState(workUnit, new Tag<>(CopyEventSubmitterHelper.DATASET_ROOT_METADATA_NAME,
+                copyableDataset.datasetRoot().toString()));
+            workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, datasetAndPartition.toString());
+            workUnit.setProp(SlaEventKeys.DATASET_URN_KEY, copyableDataset.datasetRoot());
             workUnit.setProp(SlaEventKeys.PARTITION_KEY, copyableFile.getFileSet());
             computeAndSetWorkUnitGuid(workUnit);
             workUnits.add(workUnit);

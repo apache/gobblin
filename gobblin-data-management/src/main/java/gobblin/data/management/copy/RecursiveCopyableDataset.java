@@ -26,9 +26,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Lists;
 
 
@@ -40,8 +37,6 @@ public class RecursiveCopyableDataset extends SinglePartitionCopyableDataset {
 
   private final Path rootPath;
   private final FileSystem fs;
-  private final Properties properties;
-  private LoadingCache<Path, OwnerAndPermission> ownerAndPermissionCache;
   private final PathFilter pathFilter;
   private final CopyableFileFilter copyableFileFilter;
 
@@ -49,14 +44,6 @@ public class RecursiveCopyableDataset extends SinglePartitionCopyableDataset {
 
     this.rootPath = PathUtils.getPathWithoutSchemeAndAuthority(rootPath);
     this.fs = fs;
-    this.properties = properties;
-    this.ownerAndPermissionCache = CacheBuilder.newBuilder().build(new CacheLoader<Path, OwnerAndPermission>() {
-      @Override
-      public OwnerAndPermission load(Path path) throws Exception {
-        FileStatus fileStatus = fs.getFileStatus(path);
-        return new OwnerAndPermission(fileStatus.getOwner(), fileStatus.getGroup(), fileStatus.getPermission());
-      }
-    });
 
     this.pathFilter = DatasetUtils.instantiatePathFilter(properties);
     this.copyableFileFilter = DatasetUtils.instantiateCopyableFileFilter(properties);
@@ -70,21 +57,9 @@ public class RecursiveCopyableDataset extends SinglePartitionCopyableDataset {
     List<CopyableFile> copyableFiles = Lists.newArrayList();
 
     for (FileStatus file : files) {
-      copyableFiles.add(CopyableFile.builder(this.fs, file, this.rootPath, configuration).build());
+      copyableFiles.add(CopyableFile.builder(this.fs, file, this.rootPath, configuration).fileSet(file.getPath().getParent().toString()).build());
     }
     return copyableFileFilter.filter(this.fs, targetFs, copyableFiles);
-  }
-
-  /**
-   * Get the expected output path of the file under {@link #datasetTargetRoot()}. Subclasses can override this method if
-   * the file name needs to be different at destination.
-   *
-   * @param file whose relative outputPath will be returned
-   * @return the relativeOutputPath
-   */
-  protected Path getRelativeOuptutPath(FileStatus file) {
-    return PathUtils.relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(file.getPath()),
-        PathUtils.getPathWithoutSchemeAndAuthority(datasetRoot()));
   }
 
   @Override
