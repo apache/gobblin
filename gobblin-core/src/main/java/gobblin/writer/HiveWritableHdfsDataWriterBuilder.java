@@ -21,7 +21,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
 import gobblin.configuration.State;
-import gobblin.serde.HiveSerDeWrapper;
+import gobblin.hive.HiveSerDeWrapper;
 
 
 /**
