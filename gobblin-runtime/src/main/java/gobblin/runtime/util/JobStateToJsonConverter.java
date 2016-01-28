@@ -21,6 +21,7 @@ import java.io.Writer;
 import java.util.List;
 import java.util.Properties;
 
+import gobblin.util.JobConfigurationUtils;
 import org.apache.commons.cli.BasicParser;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -29,10 +30,6 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.commons.configuration.ConfigurationConverter;
-import org.apache.commons.configuration.ConfigurationException;
-import org.apache.commons.configuration.PropertiesConfiguration;
-import org.apache.commons.configuration.SystemConfiguration;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -66,9 +63,7 @@ public class JobStateToJsonConverter {
   public JobStateToJsonConverter(Properties props, String storeUrl, boolean keepConfig)
       throws IOException {
     Configuration conf = new Configuration();
-    for (String key : props.stringPropertyNames()) {
-      conf.set(key, props.getProperty(key));
-    }
+    JobConfigurationUtils.putPropertiesIntoConfiguration(props, conf);
     Path storePath = new Path(storeUrl);
     FileSystem fs = storePath.getFileSystem(conf);
     String storeRootDir = storePath.toUri().getPath();
@@ -233,7 +228,7 @@ public class JobStateToJsonConverter {
 
     Properties sysConfig = new Properties();
     if (cmd.hasOption(sysConfigOption.getLongOpt()) ) {
-      sysConfig = fileToProperties(cmd.getOptionValue(sysConfigOption.getLongOpt()));
+      sysConfig = JobConfigurationUtils.fileToProperties(cmd.getOptionValue(sysConfigOption.getLongOpt()));
     }
 
     JobStateToJsonConverter converter = new JobStateToJsonConverter(sysConfig, cmd.getOptionValue('u'), cmd.hasOption("kc"));
@@ -264,12 +259,5 @@ public class JobStateToJsonConverter {
     } else {
       System.out.println(stringWriter.toString());
     }
-  }
-
-  private static Properties fileToProperties(String fileName) throws IOException, ConfigurationException {
-    Path filePath = new Path(fileName);
-    PropertiesConfiguration propsConfig = new PropertiesConfiguration();
-    propsConfig.load(filePath.getFileSystem(new Configuration()).open(filePath));
-    return ConfigurationConverter.getProperties(propsConfig);
   }
 }

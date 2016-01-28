@@ -21,9 +21,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.commons.configuration.ConfigurationException;
-import org.apache.commons.configuration.PropertiesConfiguration;
 
 import gobblin.util.JobConfigurationUtils;
 
@@ -74,10 +72,8 @@ public class CliOptions {
       }
 
       // Load system and job configuration properties
-      Properties sysConfig = ConfigurationConverter
-          .getProperties(new PropertiesConfiguration(cmd.getOptionValue(SYS_CONFIG_OPTION.getLongOpt())));
-      Properties jobConfig = ConfigurationConverter
-          .getProperties(new PropertiesConfiguration(cmd.getOptionValue(JOB_CONFIG_OPTION.getLongOpt())));
+      Properties sysConfig = JobConfigurationUtils.fileToProperties(cmd.getOptionValue(SYS_CONFIG_OPTION.getLongOpt()));
+      Properties jobConfig = JobConfigurationUtils.fileToProperties(cmd.getOptionValue(JOB_CONFIG_OPTION.getLongOpt()));
 
       return JobConfigurationUtils.combineSysAndJobProperties(sysConfig, jobConfig);
     } catch (ParseException pe) {
