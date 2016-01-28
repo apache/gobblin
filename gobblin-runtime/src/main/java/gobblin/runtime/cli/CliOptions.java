@@ -56,7 +56,6 @@ public class CliOptions {
    * @throws IOException
    */
   public static Properties parseArgs(Class<?> caller, String[] args) throws IOException {
-
     try {
       // Parse command-line options
       CommandLine cmd = new DefaultParser().parse(options(), args);
@@ -81,7 +80,6 @@ public class CliOptions {
     } catch (ConfigurationException ce) {
       throw new IOException(ce);
     }
-
   }
 
   /**

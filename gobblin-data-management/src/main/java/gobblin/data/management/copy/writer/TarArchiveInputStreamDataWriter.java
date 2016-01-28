@@ -15,7 +15,6 @@ package gobblin.data.management.copy.writer;
 import gobblin.configuration.State;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.FileAwareInputStream;
-import gobblin.util.PathUtils;
 import gobblin.util.io.StreamUtils;
 
 import java.io.IOException;
@@ -30,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -52,41 +52,28 @@ public class TarArchiveInputStreamDataWriter extends FileAwareInputStreamDataWri
    * {@link TarArchiveEntry} in the stream as the directory name for the untarred file. The method also commits the data
    * by moving the file from staging to output directory.
    *
-   * @param fileAwareInputStream the inputStream to be written. The {@link CopyableFile} instance enclosed is used to
-   *          derive output file permissions
-   * @see #commit()
-   *
    * @see gobblin.data.management.copy.writer.FileAwareInputStreamDataWriter#write(gobblin.data.management.copy.FileAwareInputStream)
    */
   @Override
-  public void write(FileAwareInputStream fileAwareInputStream) throws IOException {
-    this.closer.register(fileAwareInputStream.getInputStream());
+  public void writeImpl(FSDataInputStream inputStream, Path writeAt, CopyableFile copyableFile) throws IOException {
+    this.closer.register(inputStream);
 
-    this.filesWritten.incrementAndGet();
-
-    TarArchiveInputStream tarIn = new TarArchiveInputStream(fileAwareInputStream.getInputStream());
+    TarArchiveInputStream tarIn = new TarArchiveInputStream(inputStream);
     final ReadableByteChannel inputChannel = Channels.newChannel(tarIn);
     TarArchiveEntry tarEntry;
 
-    Path fileDestinationPath = fileAwareInputStream.getFile().getDestination();
+    // flush the first entry in the tar, which is just the root directory
+    tarEntry = tarIn.getNextTarEntry();
+    String tarEntryRootName = StringUtils.remove(tarEntry.getName(), Path.SEPARATOR);
 
-    // root entry in the tar compressed file
-    String tarEntryRootName = null;
+    log.info("Unarchiving at " + writeAt);
 
     try {
       while ((tarEntry = tarIn.getNextTarEntry()) != null) {
 
-        if (tarEntryRootName == null) {
-          tarEntryRootName = StringUtils.remove(tarEntry.getName(), Path.SEPARATOR);
-        }
-
         // the API tarEntry.getName() is misleading, it is actually the path of the tarEntry in the tar file
-        String newTarEntryPath = tarEntry.getName().replace(tarEntryRootName, fileDestinationPath.getName());
-
-        Path tarEntryStagingPath = new Path(getStagingFilePath(fileAwareInputStream.getFile()).getParent()
-            , newTarEntryPath);
-
-        log.info("Unarchiving at " + tarEntryStagingPath);
+        String newTarEntryPath = tarEntry.getName().replace(tarEntryRootName, writeAt.getName());
+        Path tarEntryStagingPath = new Path(writeAt.getParent(), newTarEntryPath);
 
         if (tarEntry.isDirectory() && !this.fs.exists(tarEntryStagingPath)) {
           this.fs.mkdirs(tarEntryStagingPath);
@@ -104,9 +91,7 @@ public class TarArchiveInputStreamDataWriter extends FileAwareInputStreamDataWri
     } finally {
       tarIn.close();
       inputChannel.close();
-      fileAwareInputStream.getInputStream().close();
+      inputStream.close();
     }
-
-    this.setFilePermissions(fileAwareInputStream.getFile());
   }
 }

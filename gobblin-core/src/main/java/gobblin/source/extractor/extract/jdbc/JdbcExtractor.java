@@ -78,6 +78,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   protected String extractSql;
   protected long sampleRecordCount;
   protected JdbcProvider jdbcSource;
+  protected Connection dataConnection;
   protected int timeOut;
   private List<ColumnAttributes> columnAliasMap = new ArrayList<ColumnAttributes>();
   private Map<String, Schema> metadataColumnMap = new HashMap<String, Schema>();
@@ -614,11 +615,10 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
     this.log.info("Executing query:" + query);
     ResultSet resultSet = null;
-    Connection connection = null;
     try {
       this.jdbcSource = createJdbcSource();
-      connection = this.jdbcSource.getConnection();
-      Statement statement = connection.createStatement();
+      this.dataConnection = this.jdbcSource.getConnection();
+      Statement statement = this.dataConnection.createStatement();
 
       if (fetchSize != 0 && this.getExpectedRecordCount() > 2000) {
         statement.setFetchSize(fetchSize);
@@ -630,14 +630,6 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       resultSet = statement.getResultSet();
     } catch (Exception e) {
       log.error("Failed to execute sql:" + query + " ;error-" + e.getMessage(), e);
-    } finally {
-      if (connection != null) {
-        try {
-          connection.close();
-        } catch (SQLException e) {
-          log.error("Failed to close connection ;error-" + e.getMessage(), e);
-        }
-      }
     }
 
     CommandOutput<JdbcCommand, ResultSet> output = new JdbcCommandOutput();
@@ -680,13 +672,12 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
     this.log.info("Executing query:" + query);
     ResultSet resultSet = null;
-    Connection connection = null;
     try {
       this.jdbcSource = createJdbcSource();
-      connection = this.jdbcSource.getConnection();
+      this.dataConnection = this.jdbcSource.getConnection();
 
       PreparedStatement statement =
-          connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+          this.dataConnection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 
       int parameterPosition = 1;
       if (queryParameters != null && queryParameters.size() > 0) {
@@ -705,14 +696,6 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       resultSet = statement.getResultSet();
     } catch (Exception e) {
       log.error("Failed to execute sql:" + query + " ;error-" + e.getMessage(), e);
-    } finally {
-      if (connection != null) {
-        try {
-          connection.close();
-        } catch (SQLException e) {
-          log.error("Failed to close connection ;error-" + e.getMessage(), e);
-        }
-      }
     }
 
     CommandOutput<JdbcCommand, ResultSet> output = new JdbcCommandOutput();
@@ -1125,5 +1108,12 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   @Override
   public void closeConnection() throws Exception {
     this.jdbcSource.close();
+    if (this.dataConnection != null) {
+      try {
+        this.dataConnection.close();
+      } catch (SQLException e) {
+        log.error("Failed to close connection ;error-" + e.getMessage(), e);
+      }
+    }
   }
 }
