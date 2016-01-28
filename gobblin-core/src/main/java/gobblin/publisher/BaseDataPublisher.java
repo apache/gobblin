@@ -250,7 +250,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       return;
     }
 
-    Iterable<String> taskOutputFiles = workUnitState.getPropAsList(outputFilePropName);
+    Iterable<String> taskOutputFiles = workUnitState.getPropAsSet(outputFilePropName);
     for (String taskOutputFile : taskOutputFiles) {
       Path taskOutputPath = new Path(taskOutputFile);
       if (!this.writerFileSystemByBranches.get(branchId).exists(taskOutputPath)) {
