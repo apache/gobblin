@@ -57,6 +57,7 @@ public class ConfigClient {
    * if user pass in URI like "etl-hdfs:///datasets/a1/a2" and the etl-hdfs config store factory using
    * default authority/default config store root normalized the URI to
    * "etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest/datasets/a1/a2"
+   * where /user/mitu/HdfsBasedConfigTest is the config store root
    * 
    * Then there will be two entries in the Map which point to the same value
    * key1: "etl-hdfs:/"
@@ -110,7 +111,7 @@ public class ConfigClient {
   }
   
   /**
-   * batch process for getConfig function
+   * batch process for {@link #getConfig(URI)} method
    * @param configKeyUris
    * @return
    * @throws ConfigStoreFactoryDoesNotExistsException
@@ -153,7 +154,7 @@ public class ConfigClient {
   }
   
   /**
-   * batch process for getConfig(String)
+   * batch process for {@link #getConfig(String)} method
    * @param configKeyStrs
    * @return
    * @throws ConfigStoreFactoryDoesNotExistsException
@@ -234,22 +235,8 @@ public class ConfigClient {
     }
     
     // both scheme name and authority name should match
-    if(floorKey.getScheme().equals(configKeyURI.getScheme())){
-      // no authority/store root directory
-      if(floorKey.getAuthority()==null && configKeyURI.getAuthority()==null){
-        return floorKey;
-      }
-      
-      if(floorKey.getAuthority()==null || configKeyURI.getAuthority()==null){
-        return null;
-      }
-      
-      // both are absolute URI
-      if(floorKey.getAuthority().equals(configKeyURI.getAuthority())){
-        if(ConfigClientUtils.isAncestorOrSame(configKeyURI.getPath(),floorKey.getPath())) {
-          return floorKey;
-        }
-      }
+    if(ConfigClientUtils.isAncestorOrSame(configKeyURI, floorKey)){
+      return floorKey;
     }
     
     return null;
@@ -310,13 +297,28 @@ public class ConfigClient {
     result = createNewConfigStoreAccessor(configKeyURI);
     ConfigStore cs = result.configStore;
     
-    // put to cache
-    this.configStoreAccessorMap.put(cs.getStoreURI(), result);
-    
     // put default root URI in cache as well for the URI which missing authority 
     if(configKeyURI.getAuthority() == null){
-      this.configStoreAccessorMap.put(ConfigClientUtils.getDefaultRootURI(configKeyURI, cs), result);
+      // configKeyURI is missing authority/configstore root "etl-hdfs:///datasets/a1/a2"
+      try {
+        this.configStoreAccessorMap.put(new URI(configKeyURI.getScheme(), null, "/", null, null),
+            result);
+      } catch (URISyntaxException e) {
+        // should not come here
+        throw new RuntimeException("Can not build URI based on " + configKeyURI);
+      }
     }
+    else {
+      // need to check Config Store's root is the prefix of input configKeyURI
+      if(!ConfigClientUtils.isAncestorOrSame(configKeyURI, cs.getStoreURI())){
+        throw new RuntimeException(
+            String.format("Config Store root URI %s is not the prefix of input %s", cs.getStoreURI(), configKeyURI));
+      }
+      
+    }
+    
+    // put to cache
+    this.configStoreAccessorMap.put(cs.getStoreURI(), result);
 
     return result;
   }

@@ -27,6 +27,7 @@ import gobblin.config.store.api.ConfigStore;
 
 /**
  * Utility class to transfer {@link URI} to {@link ConfigKeyPath} and vice versa 
+ * 
  * @author mitu
  *
  */
@@ -52,27 +53,6 @@ public class ConfigClientUtils {
       URI relative = cs.getStoreURI().relativize(configKeyURI);
       return getConfigKeyPath(relative.getPath());
     } 
-  }
-  
-  /**
-   * Require input URI's scheme/authority name match ConfigStore's scheme/authority
-   * if the input URI's authority is present, return the input ConfigStore's root URI
-   * else, return the URI which only contains the scheme name
-   * 
-   * @param configKeyURI
-   * @param cs
-   * @return
-   */
-  public static URI getDefaultRootURI(URI configKeyURI, ConfigStore cs){
-    checkMatchingSchemeAndAuthority(configKeyURI, cs);
-    
-    // configKeyURI is missing authority/configstore root "etl-hdfs:///datasets/a1/a2"
-    try {
-      return new URI(configKeyURI.getScheme(), null, "/", null, null);
-    } catch (URISyntaxException e) {
-      // should not come here
-      throw new RuntimeException("Can not build URI based on " + configKeyURI);
-    }
   }
   
   /**
@@ -117,6 +97,12 @@ public class ConfigClientUtils {
     }
   }
   
+  /**
+   * batch process for {@link #getAbsoluteURI(Collection, ConfigStore)}
+   * @param configKeyPaths
+   * @param cs
+   * @return
+   */
   public static Collection<URI> getAbsoluteURI(Collection<ConfigKeyPath> configKeyPaths, ConfigStore cs){
     Collection<URI> result = new ArrayList<>();
     for(ConfigKeyPath p: configKeyPaths){
@@ -138,11 +124,40 @@ public class ConfigClientUtils {
     Preconditions.checkArgument(authorityCheck, "Authority not match");
   }
   
-  public static boolean isAncestorOrSame(String descendant, String ancestor){
+  /**
+   * Utility method to check whether one URI is the ancestor of the other
+   * 
+   * return true iff both URI's scheme/authority name match and ancestor's path is the prefix of the descendant's path
+   * @param descendant: the descendant URI to check
+   * @param ancestor  : the ancestor URI to check
+   * @return
+   */
+  public static boolean isAncestorOrSame(URI descendant, URI ancestor){
     if(ancestor == null || descendant == null){
       throw new IllegalArgumentException("input can not be null");
     }
-    return isAncestorOrSame(new Path(descendant), new Path(ancestor));
+    
+    if(!stringSame(descendant.getScheme(), ancestor.getScheme())){
+      return false;
+    }
+    
+    if(!stringSame(descendant.getAuthority(), ancestor.getAuthority())){
+      return false;
+    }
+    
+    return isAncestorOrSame(new Path(descendant.getPath()), new Path(ancestor.getPath()));
+  }
+  
+  public static boolean stringSame(String l, String r){
+    if(l==null && r==null){
+      return true;
+    }
+    
+    if(l==null || r==null){
+      return false;
+    }
+    
+    return l.equals(r);
   }
   
   public static boolean isAncestorOrSame(Path descendant, Path ancestor){

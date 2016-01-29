@@ -58,9 +58,6 @@ public class TestConfigClientUtils {
     result = ConfigClientUtils.buildConfigKeyPath(clientRelativeURI, mockConfigStore);
     Assert.assertEquals(result.toString(), expected);
     
-    URI defaultRootURI = ConfigClientUtils.getDefaultRootURI(clientRelativeURI, mockConfigStore);
-    Assert.assertEquals(defaultRootURI.toString(), "etl-hdfs:/");
-    
     ConfigKeyPath configKey = SingleLinkedListConfigKeyPath.ROOT.createChild("data").createChild("databases").createChild("Identity");
     URI absURI = ConfigClientUtils.getAbsoluteURI(configKey, mockConfigStore);
     Assert.assertEquals(absURI.toString(), 
