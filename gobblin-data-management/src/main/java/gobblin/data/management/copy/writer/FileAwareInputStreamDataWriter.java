@@ -276,9 +276,8 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
 
       Iterator<OwnerAndPermission> ancestorOwnerAndPermissionIt = copyableFile.getAncestorsOwnerAndPermission() == null ?
           Iterators.<OwnerAndPermission>emptyIterator() : copyableFile.getAncestorsOwnerAndPermission().iterator();
-      if (!ensureDirectoryExists(this.fs, outputFilePath.getParent(), ancestorOwnerAndPermissionIt)) {
-        throw new IOException(String.format("Could not create ancestors for %s", outputFilePath));
-      }
+
+      ensureDirectoryExists(this.fs, outputFilePath.getParent(), ancestorOwnerAndPermissionIt);
 
       if (!this.fs.rename(stagingFilePath, outputFilePath)) {
           // target exists
@@ -297,11 +296,11 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
     }
   }
 
-  private boolean ensureDirectoryExists(FileSystem fs, Path path,
+  private void ensureDirectoryExists(FileSystem fs, Path path,
       Iterator<OwnerAndPermission> ownerAndPermissionIterator) throws IOException {
 
     if (fs.exists(path)) {
-      return true;
+      return;
     }
 
     if (ownerAndPermissionIterator.hasNext()) {
@@ -312,11 +311,13 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
       if (ownerAndPermission.getFsPermission() == null) {
         // use default permissions
         if (!fs.mkdirs(path)) {
-          return false;
+          // fs.mkdirs returns false if path already existed. Do not overwrite permissions
+          return;
         }
       } else {
         if (!fs.mkdirs(path, addExecutePermissionToOwner(ownerAndPermission.getFsPermission()))) {
-          return false;
+          // fs.mkdirs returns false if path already existed. Do not overwrite permissions
+          return;
         }
       }
       String group = ownerAndPermission.getGroup();
@@ -325,9 +326,8 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
         fs.setOwner(path, owner, group);
       }
     } else {
-      return fs.mkdirs(path);
+      fs.mkdirs(path);
     }
-    return true;
   }
 
   @Override
