@@ -205,8 +205,8 @@ ext.externalDependency = [
     "restliNettyStandalone" : "com.linkedin.pegasus:restli-netty-standalone:" + pegasusVersion
   ],
   "jetty": [
-          "org.eclipse.jetty:jetty-server:9.3.6.v20151106",
-          "org.eclipse.jetty:jetty-servlet:9.3.6.v20151106"
+          "org.eclipse.jetty:jetty-server:9.2.14.v20151106",
+          "org.eclipse.jetty:jetty-servlet:9.2.14.v20151106"
   ]
 ];
 
