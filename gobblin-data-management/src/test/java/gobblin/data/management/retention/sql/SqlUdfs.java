@@ -16,7 +16,9 @@ import java.util.concurrent.TimeUnit;
 
 import lombok.extern.slf4j.Slf4j;
 
-import com.sun.tools.javac.util.StringUtils;
+import org.apache.commons.lang.StringUtils;
+
+
 
 
 /**
@@ -42,7 +44,7 @@ public final class SqlUdfs {
   private static long date_diff(long timestamp1, long timestamp2, String unitString) {
 
     try {
-      TimeUnit unit = TimeUnit.valueOf(TimeUnit.class, StringUtils.toUpperCase(unitString));
+      TimeUnit unit = TimeUnit.valueOf(TimeUnit.class, StringUtils.upperCase(unitString));
       return unit.convert(timestamp1 - timestamp2, TimeUnit.MILLISECONDS);
     } catch (IllegalArgumentException e) {
       log.error("Valid input for unitString is java.util.concurrent.TimeUnit", e);
