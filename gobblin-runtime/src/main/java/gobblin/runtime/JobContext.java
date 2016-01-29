@@ -45,6 +45,7 @@ import gobblin.instrumented.Instrumented;
 import gobblin.metastore.JobHistoryStore;
 import gobblin.metastore.MetaStoreModule;
 import gobblin.metrics.GobblinMetrics;
+import gobblin.publisher.UnpublishedHandling;
 import gobblin.publisher.CommitSequencePublisher;
 import gobblin.publisher.DataPublisher;
 import gobblin.runtime.JobState.DatasetState;
@@ -351,27 +352,44 @@ public class JobContext {
       JobState.DatasetState datasetState = entry.getValue();
       finalizeDatasetStateBeforeCommit(datasetState);
 
-      if (!canCommitDataset(datasetState)) {
-        this.logger.warn(String.format("Not committing dataset %s of job %s with commit policy %s and state %s",
-            datasetUrn, this.jobId, this.jobCommitPolicy, datasetState.getState()));
-        allDatasetsCommit = false;
-        continue;
+      Class<? extends DataPublisher> dataPublisherClass;
+      try(Closer closer = Closer.create()) {
+        dataPublisherClass = (Class<? extends DataPublisher>) Class.forName(
+            datasetState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE, ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
+        if (!canCommitDataset(datasetState)) {
+          this.logger.warn(String.format("Not committing dataset %s of job %s with commit policy %s and state %s",
+              datasetUrn, this.jobId, this.jobCommitPolicy, datasetState.getState()));
+          allDatasetsCommit = false;
+          if (UnpublishedHandling.class.isAssignableFrom(dataPublisherClass)) {
+            DataPublisher publisher = closer.register(DataPublisher.getInstance(dataPublisherClass, datasetState));
+            this.logger.info(String.format("Calling publisher to handle unpublished work units for dataset %s of job %s.",
+                datasetUrn, this.jobId));
+            ((UnpublishedHandling) publisher).handleUnpublishedWorkUnits(datasetState.getTaskStatesAsWorkUnitStates());
+          }
+          continue;
+        }
+      } catch (ReflectiveOperationException roe) {
+        throw new IOException(roe);
       }
 
-      try {
+      try(Closer closer = Closer.create()) {
+
         if (shouldCommitDataInJob) {
           this.logger.info(String.format("Committing dataset %s of job %s with commit policy %s and state %s",
               datasetUrn, this.jobId, this.jobCommitPolicy, datasetState.getState()));
           if (deliverySemantics == DeliverySemantics.EXACTLY_ONCE) {
             generateCommitSequenceBuilder(datasetState);
           } else {
-            commitDataset(datasetState);
+            commitDataset(datasetState, closer.register(DataPublisher.getInstance(dataPublisherClass, datasetState)));
           }
         } else {
           if (datasetState.getState() == JobState.RunningState.SUCCESSFUL) {
             datasetState.setState(JobState.RunningState.COMMITTED);
           }
         }
+      } catch (ReflectiveOperationException roe) {
+        this.logger.error(
+            String.format("Failed to instantiate data publisher for dataset %s of job %s.", datasetUrn, this.jobId), roe);
       } catch (IOException ioe) {
         this.logger.error(
             String.format("Failed to commit dataset state for dataset %s of job %s", datasetUrn, this.jobId), ioe);
@@ -460,19 +478,13 @@ public class JobContext {
    * Commit the output data of a dataset.
    */
   @SuppressWarnings("unchecked")
-  private void commitDataset(JobState.DatasetState datasetState) throws IOException {
-    Closer closer = Closer.create();
+  private void commitDataset(JobState.DatasetState datasetState, DataPublisher publisher) throws IOException {
+
     try {
-      Class<? extends DataPublisher> dataPublisherClass = (Class<? extends DataPublisher>) Class.forName(
-          datasetState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE, ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
-      DataPublisher publisher = closer.register(DataPublisher.getInstance(dataPublisherClass, datasetState));
       publisher.publish(datasetState.getTaskStates());
     } catch (Throwable t) {
       LOG.error("Failed to commit dataset", t);
       setTaskFailureException(datasetState.getTaskStates(), t);
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
     }
 
     // Set the dataset state to COMMITTED upon successful commit

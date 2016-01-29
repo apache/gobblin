@@ -41,8 +41,8 @@ import gobblin.publisher.DataPublisher;
 import gobblin.publisher.SingleTaskDataPublisher;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
-import gobblin.runtime.util.RuntimeConstructs;
 import gobblin.source.extractor.JobCommitPolicy;
+import gobblin.state.ConstructState;
 
 
 /**
@@ -122,11 +122,14 @@ public class Task implements Runnable {
     this.forks.clear();
 
     Closer closer = Closer.create();
+    Converter converter = null;
+    InstrumentedExtractorBase extractor = null;
+    RowLevelPolicyChecker rowChecker = null;
     try {
-      InstrumentedExtractorBase extractor =
+      extractor =
           closer.register(new InstrumentedExtractorDecorator(this.taskState, this.taskContext.getExtractor()));
 
-      Converter converter = closer.register(new MultiConverter(this.taskContext.getConverters()));
+      converter = closer.register(new MultiConverter(this.taskContext.getConverters()));
 
       // Get the fork operator. By default IdentityForkOperator is used with a single branch.
       ForkOperator forkOperator = closer.register(this.taskContext.getForkOperator());
@@ -161,7 +164,7 @@ public class Task implements Runnable {
       }
 
       // Build the row-level quality checker
-      RowLevelPolicyChecker rowChecker = closer.register(this.taskContext.getRowLevelPolicyChecker());
+      rowChecker = closer.register(this.taskContext.getRowLevelPolicyChecker());
       RowLevelPolicyCheckResults rowResults = new RowLevelPolicyCheckResults();
 
       long recordsPulled = 0;
@@ -220,10 +223,12 @@ public class Task implements Runnable {
         this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
       }
 
-      addConstructsFinalStateToTaskState(extractor, converter, rowChecker);
     } catch (Throwable t) {
       failTask(t);
     } finally {
+
+      addConstructsFinalStateToTaskState(extractor, converter, rowChecker);
+
       this.taskState.setProp(ConfigurationKeys.WRITER_RECORDS_WRITTEN, getRecordsWritten());
       this.taskState.setProp(ConfigurationKeys.WRITER_BYTES_WRITTEN, getBytesWritten());
 
@@ -527,17 +532,25 @@ public class Task implements Runnable {
    */
   private void addConstructsFinalStateToTaskState(InstrumentedExtractorBase<?, ?> extractor,
       Converter<?, ?, ?, ?> converter, RowLevelPolicyChecker rowChecker) {
-    this.taskState.addFinalConstructState(Constructs.EXTRACTOR.toString().toLowerCase(), extractor.getFinalState());
-    this.taskState.addFinalConstructState(Constructs.CONVERTER.toString().toLowerCase(), converter.getFinalState());
-    this.taskState.addFinalConstructState(Constructs.ROW_QUALITY_CHECKER.toString().toLowerCase(),
-        rowChecker.getFinalState());
+    ConstructState constructState = new ConstructState();
+    if (extractor != null) {
+      constructState.addConstructState(Constructs.EXTRACTOR, new ConstructState(extractor.getFinalState()));
+    }
+    if (converter != null) {
+      constructState.addConstructState(Constructs.CONVERTER, new ConstructState(converter.getFinalState()));
+    }
+    if (rowChecker != null) {
+      constructState.addConstructState(Constructs.ROW_QUALITY_CHECKER, new ConstructState(rowChecker.getFinalState()));
+    }
     int forkIdx = 0;
     for (Optional<Fork> fork : this.forks) {
       if (fork.isPresent()) {
-        this.taskState.addFinalConstructState(RuntimeConstructs.FORK.toString().toLowerCase() + "." + forkIdx,
-            fork.get().getFinalState());
+        constructState.addConstructState(Constructs.FORK_OPERATOR, new ConstructState(fork.get().getFinalState()),
+            Integer.toString(forkIdx));
       }
       forkIdx++;
     }
+
+    constructState.mergeIntoWorkUnitState(this.taskState);
   }
 }

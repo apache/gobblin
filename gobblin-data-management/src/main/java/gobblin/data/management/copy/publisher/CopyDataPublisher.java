@@ -33,8 +33,12 @@ import gobblin.configuration.WorkUnitState.WorkingState;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableDatasetMetadata;
+import gobblin.data.management.copy.recovery.RecoveryHelper;
+import gobblin.data.management.copy.writer.FileAwareInputStreamDataWriter;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder;
+import gobblin.publisher.UnpublishedHandling;
+import gobblin.util.PathUtils;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
@@ -47,7 +51,7 @@ import gobblin.util.PathUtils;
  * A {@link DataPublisher} to {@link CopyableFile}s from task output to final destination.
  */
 @Slf4j
-public class CopyDataPublisher extends DataPublisher {
+public class CopyDataPublisher extends DataPublisher implements UnpublishedHandling {
 
   private Path writerOutputDir;
   private FileSystem fs;
@@ -102,6 +106,11 @@ public class CopyDataPublisher extends DataPublisher {
     if (!allDatasetsPublished) {
       throw new IOException("Not all datasets published successfully");
     }
+  }
+
+  @Override public void handleUnpublishedWorkUnits(Collection<? extends WorkUnitState> states) throws IOException {
+      int filesPersisted = persistFailedFileSet(states);
+      log.info(String.format("Successfully persisted %d work units.", filesPersisted));
   }
 
   /**
@@ -168,13 +177,30 @@ public class CopyDataPublisher extends DataPublisher {
         Long.toString(datasetOriginTimestamp), Long.toString(datasetUpstreamTimestamp));
   }
 
+  private int persistFailedFileSet(Collection<? extends WorkUnitState> workUnitStates) throws IOException {
+    RecoveryHelper recoveryHelper = new RecoveryHelper(this.fs, this.state);
+    int filesPersisted = 0;
+    for (WorkUnitState wu : workUnitStates) {
+      if (wu.getWorkingState() == WorkingState.SUCCESSFUL) {
+        CopyableFile file = CopySource.deserializeCopyableFile(wu);
+        Path outputDir = FileAwareInputStreamDataWriter.getOutputDir(wu);
+        CopyableDatasetMetadata metadata = CopySource.deserializeCopyableDataset(wu);
+        Path outputPath = FileAwareInputStreamDataWriter.getOutputFilePath(file, outputDir,
+            file.getDatasetAndPartition(metadata));
+        if (recoveryHelper.persistFile(wu, file, outputPath)) {
+          filesPersisted++;
+        }
+      }
+    }
+    return filesPersisted;
+  }
+
   @Override
   public void publishMetadata(Collection<? extends WorkUnitState> states) throws IOException {
   }
 
   @Override
   public void close() throws IOException {
-    fs.delete(writerOutputDir, true);
   }
 
   @Override

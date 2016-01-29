@@ -153,7 +153,7 @@ public class FileAwareInputStreamDataWriterTest {
     this.fs.createNewFile(writtenFile);
 
     // create existing directories in writer output
-    Path outputRoot = writer.getPartitionOutputRoot(cf);
+    Path outputRoot = FileAwareInputStreamDataWriter.getPartitionOutputRoot(outputDir, cf.getDatasetAndPartition(metadata));
     Path existingOutputPath = new Path(outputRoot, destinationExistingToken);
     this.fs.mkdirs(existingOutputPath);
     FileStatus fileStatus = this.fs.getFileStatus(existingOutputPath);
