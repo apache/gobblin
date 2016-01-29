@@ -12,6 +12,7 @@
 
 package gobblin.rest;
 
+import com.linkedin.restli.server.ResourceContext;
 import java.util.Map;
 import java.util.Set;
 import javax.inject.Inject;
@@ -62,6 +63,10 @@ public class JobExecutionInfoResource extends ComplexKeyResourceTemplate<JobExec
 
     JobExecutionQueryResult result = new JobExecutionQueryResult();
     result.setJobExecutions(jobExecutionInfos);
+    ResourceContext rc = this.getContext();
+    rc.setResponseHeader("Access-Control-Allow-Origin", "*");
+    this.setContext(rc);
+
     return result;
   }
 
@@ -76,6 +81,9 @@ public class JobExecutionInfoResource extends ComplexKeyResourceTemplate<JobExec
         results.put(key, get(key));
       }
     }
+    ResourceContext rc = this.getContext();
+    rc.setResponseHeader("Access-Control-Allow-Origin", "*");
+    this.setContext(rc);
 
     return results;
   }

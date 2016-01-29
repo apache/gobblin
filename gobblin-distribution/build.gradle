@@ -22,6 +22,7 @@ configurations {
 }
 
 dependencies {
+  compile project(':gobblin-admin')
   compile project(':gobblin-azkaban')
   compile project(':gobblin-api')
   compile project(':gobblin-core')

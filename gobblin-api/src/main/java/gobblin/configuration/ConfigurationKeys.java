@@ -462,6 +462,15 @@ public class ConfigurationKeys {
   public static final String DEFAULT_REST_SERVER_PORT = "8080";
 
   /**
+   * Admin server configuration properties.
+   */
+  public static final String ADMIN_SERVER_ENABLED_KEY = "admin.server.enabled";
+  public static final String ADMIN_SERVER_HOST_KEY = "admin.server.host";
+  public static final String DEFAULT_ADMIN_SERVER_HOST = "localhost";
+  public static final String ADMIN_SERVER_PORT_KEY = "admin.server.port";
+  public static final String DEFAULT_ADMIN_SERVER_PORT = "8000";
+
+  /**
    * Kafka job configurations.
    */
   public static final String KAFKA_BROKERS = "kafka.brokers";
