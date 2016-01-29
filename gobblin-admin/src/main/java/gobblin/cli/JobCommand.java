@@ -45,7 +45,7 @@ public class JobCommand implements Command {
 
     private static final String RECENT_OPT = "recent";
 
-    private final int DEFAULT_RESULTS_LIMIT = 10;
+    private static final int DEFAULT_RESULTS_LIMIT = 10;
 
     private static Map<String, SubCommand> subCommandMap =
             ImmutableMap.of(
