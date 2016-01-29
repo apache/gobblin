@@ -41,8 +41,10 @@ public class RecursiveCopyableDatasetTest {
 
     RecursiveCopyableDataset dataset = new RecursiveCopyableDataset(FileSystem.getLocal(new Configuration()), new Path(baseDir), properties);
 
-    CopyConfiguration copyConfiguration = new CopyConfiguration(new Path(destinationDir),
-        PreserveAttributes.fromMnemonicString("ugp"), new CopyContext());
+    CopyConfiguration copyConfiguration =
+        CopyConfiguration.builder().targetRoot(new Path(destinationDir))
+            .preserve(PreserveAttributes.fromMnemonicString("ugp")).build();
+
     Collection<CopyableFile> files = dataset.getCopyableFiles(FileSystem.getLocal(new Configuration()), copyConfiguration);
 
     Assert.assertEquals(files.size(), 3);

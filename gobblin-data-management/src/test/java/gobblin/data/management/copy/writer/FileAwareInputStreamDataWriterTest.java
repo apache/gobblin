@@ -128,7 +128,7 @@ public class FileAwareInputStreamDataWriterTest {
     ancestorOwnerAndPermissions.add(ownerAndPermission);
     ancestorOwnerAndPermissions.add(ownerAndPermission);
     CopyableFile cf = CopyableFile.builder(this.fs, status, new Path("/dataset"),
-        new CopyConfiguration(new Path("/target"), PreserveAttributes.fromMnemonicString(""), new CopyContext()))
+        CopyConfiguration.builder().targetRoot(new Path("/target")).preserve(PreserveAttributes.fromMnemonicString("")).build())
         .destination(destination)
         .destinationOwnerAndPermission(ownerAndPermission)
         .ancestorsOwnerAndPermission(ancestorOwnerAndPermissions)

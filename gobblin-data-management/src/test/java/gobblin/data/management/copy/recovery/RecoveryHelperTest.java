@@ -12,8 +12,6 @@
 
 package gobblin.data.management.copy.recovery;
 
-import junit.framework.Assert;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -24,6 +22,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -86,7 +85,7 @@ public class RecoveryHelperTest {
 
     CopyableFile copyableFile = CopyableFile.builder(fs,
         new FileStatus(0, false, 0, 0, 0, new Path("/file")), new Path("/dataset"),
-        new CopyConfiguration(new Path("/target"), PreserveAttributes.fromMnemonicString(""), new CopyContext())).build();
+        CopyConfiguration.builder().targetRoot(new Path("/target")).preserve(PreserveAttributes.fromMnemonicString("")).build()).build();
 
     CopySource.setWorkUnitGuid(state, Guid.fromHasGuid(copyableFile));
 

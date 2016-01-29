@@ -49,6 +49,6 @@ public class InputStreamExtractorTest {
     String filePath = getClass().getClassLoader().getResource(resourcePath).getFile();
     FileStatus status = new FileStatus(0l, false, 0, 0l, 0l, new Path(filePath));
     return CopyableFile.builder(FileSystem.getLocal(new Configuration()), status, new Path("/"),
-        new CopyConfiguration(new Path("/"), PreserveAttributes.fromMnemonicString(""), new CopyContext())).build();
+        CopyConfiguration.builder().targetRoot(new Path("/")).preserve(PreserveAttributes.fromMnemonicString("")).build()).build();
   }
 }

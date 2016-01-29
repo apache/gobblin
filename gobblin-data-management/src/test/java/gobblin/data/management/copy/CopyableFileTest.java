@@ -90,8 +90,8 @@ public class CopyableFileTest {
     Path relativePath = PathUtils.relativizePath(originFile, datasetRoot);
     Path targetPath = new Path(targetRoot, relativePath);
 
-    CopyConfiguration copyConfiguration = new CopyConfiguration(new Path(targetRoot), preserveAttributes,
-        new CopyContext());
+    CopyConfiguration copyConfiguration =
+        CopyConfiguration.builder().targetRoot(new Path(targetRoot)).preserve(preserveAttributes).build();
 
     CopyableFile copyableFile = CopyableFile.builder(originFS, origin, datasetRoot, copyConfiguration)
         .build();
@@ -135,8 +135,8 @@ public class CopyableFileTest {
     Path relativePath = PathUtils.relativizePath(originFile, datasetRoot);
     Path targetPath = new Path(targetRoot, relativePath);
 
-    CopyConfiguration copyConfiguration = new CopyConfiguration(new Path(targetRoot), preserveAttributes,
-        new CopyContext());
+    CopyConfiguration copyConfiguration =
+        CopyConfiguration.builder().targetRoot(new Path(targetRoot)).preserve(preserveAttributes).build();
 
     // Other attributes
     String fileSet = "fileset";

@@ -177,7 +177,14 @@ public class CopyableFile implements File, HasGuid {
 
       if (this.destinationOwnerAndPermission == null) {
         String owner = this.preserve.preserve(Option.OWNER) ? this.origin.getOwner() : null;
-        String group = this.preserve.preserve(Option.GROUP) ? this.origin.getGroup() : null;
+
+        String group = null;
+        if (this.preserve.preserve(Option.GROUP)) {
+          group = this.origin.getGroup();
+        } else if (this.configuration.getTargetGroup().isPresent()) {
+          group = this.configuration.getTargetGroup().get();
+        }
+
         FsPermission permission = this.preserve.preserve(Option.PERMISSION) ? this.origin.getPermission() : null;
 
         this.destinationOwnerAndPermission =
@@ -223,9 +230,15 @@ public class CopyableFile implements File, HasGuid {
                   return new OwnerAndPermission(fs.getOwner(), fs.getGroup(), fs.getPermission());
                 }
               });
+
+          String group = null;
+          if (this.preserve.preserve(Option.GROUP)) {
+            group = ownerAndPermission.getGroup();
+          } else if (this.configuration.getTargetGroup().isPresent()) {
+            group = this.configuration.getTargetGroup().get();
+          }
           ancestorOwnerAndPermissions.add(new OwnerAndPermission(
-              preserve.preserve(Option.OWNER) ? ownerAndPermission.getOwner() : null,
-              preserve.preserve(Option.GROUP) ? ownerAndPermission.getGroup() : null,
+              preserve.preserve(Option.OWNER) ? ownerAndPermission.getOwner() : null, group,
               preserve.preserve(Option.PERMISSION) ? ownerAndPermission.getFsPermission() : null));
         }
       } catch (ExecutionException ee) {
