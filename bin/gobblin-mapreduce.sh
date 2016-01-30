@@ -134,7 +134,7 @@ GOBBLIN_CONFIG_FILE=$FWDIR_CONF/gobblin-mapreduce.properties
 JT_COMMAND=$([ -z $JOB_TRACKER_URL ] && echo "" || echo "-jt $JOB_TRACKER_URL")
 FS_COMMAND=$([ -z $FS_URL ] && echo "" || echo "-fs $FS_URL")
 
-export HADOOP_CLIENT_OPTS="$HADOOP_CLIENT_OPTS -Dgobblin.logs.dir=$GOBBLIN_LOG_DIR"
+export HADOOP_CLIENT_OPTS="$HADOOP_CLIENT_OPTS -Dgobblin.logs.dir=$GOBBLIN_LOG_DIR -Dlog4j.configuration=file:$FWDIR_CONF/log4j-mapreduce.xml"
 
 # Launch the job to run on Hadoop
 $HADOOP_BIN_DIR/hadoop jar \
@@ -142,7 +142,6 @@ $HADOOP_BIN_DIR/hadoop jar \
         gobblin.runtime.mapreduce.CliMRJobLauncher \
         -D mapreduce.user.classpath.first=true \
         -D mapreduce.job.user.classpath.first=true \
-        -D gobblin.log4j.conf=$FWDIR_CONF/log4j-mapreduce.xml \
         $JT_COMMAND \
         $FS_COMMAND \
         -libjars $LIBJARS \

@@ -9,7 +9,7 @@
     <param name="encoding" value="UTF-8" />
 
     <rollingPolicy class="org.apache.log4j.rolling.TimeBasedRollingPolicy">
-      <param name="FileNamePattern" value="${gobblin.logs.dir}/logs/archive/gobblin.%d{yyyy-MM-dd}.log"/>
+      <param name="FileNamePattern" value="${gobblin.logs.dir}/archive/gobblin.%d{yyyy-MM-dd}.log"/>
     </rollingPolicy>
     
     <layout class="org.apache.log4j.PatternLayout">
