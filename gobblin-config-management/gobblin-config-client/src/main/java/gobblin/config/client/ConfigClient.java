@@ -125,20 +125,29 @@ public class ConfigClient {
     
     Map<URI, Config> result = new HashMap<>();
     Multimap<ConfigStoreAccessor, ConfigKeyPath> partitionedAccessor = ArrayListMultimap.create();
+    Map<ConfigStoreAccessor, URI> inputURI = new HashMap<>();
     
     // partitioned the ConfigKeyPaths which belongs to the same store to one accessor 
     for(URI u: configKeyUris){
       ConfigStoreAccessor accessor = this.getConfigStoreAccessor(u);
       ConfigKeyPath configKeypath = ConfigClientUtils.buildConfigKeyPath(u, accessor.configStore);
       partitionedAccessor.put(accessor, configKeypath);
+      
+      /*
+       * Store the first ConfigKeyURI to the map, and the return format is based on it
+       */
+      if(!inputURI.containsKey(accessor)){
+        inputURI.put(accessor, u);
+      }
     }
     
     for(Map.Entry<ConfigStoreAccessor, Collection<ConfigKeyPath>> entry: partitionedAccessor.asMap().entrySet()){
       Map<ConfigKeyPath, Config> batchResult= entry.getKey().valueInspector.getResolvedConfigs(entry.getValue());
       // translate the ConfigKeyPath to URI
       for(Map.Entry<ConfigKeyPath, Config> resultEntry: batchResult.entrySet()){
-        URI absURI = ConfigClientUtils.getAbsoluteURI(resultEntry.getKey(), entry.getKey().configStore);
-        result.put(absURI, resultEntry.getValue());
+        URI formattedUri = ConfigClientUtils.buildURI(resultEntry.getKey(), inputURI.get(entry.getKey()),
+            entry.getKey().configStore);
+        result.put(formattedUri, resultEntry.getValue());
       }
     }
     
@@ -198,7 +207,7 @@ public class ConfigClient {
       result = accessor.topologyInspector.getImportsRecursively(configKeypath);
     }
     
-    return ConfigClientUtils.getAbsoluteURI(result, accessor.configStore);
+    return ConfigClientUtils.buildURI(result, configKeyUri, accessor.configStore);
   }
 
   /**
@@ -225,7 +234,7 @@ public class ConfigClient {
       result = accessor.topologyInspector.getImportedByRecursively(configKeypath);
     }
     
-    return ConfigClientUtils.getAbsoluteURI(result, accessor.configStore);
+    return ConfigClientUtils.buildURI(result, configKeyUri, accessor.configStore);
   }
   
   private URI getMatchedFloorKeyFromCache(URI configKeyURI){
@@ -234,7 +243,8 @@ public class ConfigClient {
       return null;
     }
     
-    // both scheme name and authority name should match
+    // both scheme name and authority name, if present, should match
+    // or both authority should be null
     if(ConfigClientUtils.isAncestorOrSame(configKeyURI, floorKey)){
       return floorKey;
     }

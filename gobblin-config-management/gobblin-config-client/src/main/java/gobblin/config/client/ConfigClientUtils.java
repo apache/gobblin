@@ -56,6 +56,51 @@ public class ConfigClientUtils {
   }
   
   /**
+   * Build the URI based on the {@link ConfigStore} or input cnofigKeyURI
+   * 
+   * @param configKeyPath : relative path to the input config store cs
+   * @param configKeyURI  : normally is the URI pass in by client application, could be
+   * 1. etl-hdfs:///datasets/a1/a2 which missing the authority
+   * 2. etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest/datasets/a1/a2 which has the authority
+   * @param cs            : the config store of the input configKeyURI
+   * @return              : return the URI of the same format with the input configKeyURI
+   * 
+   * for example, configKeyPath is /tags/retention, 
+   * with configKeyURI as etl-hdfs:///datasets/a1/a2, return "etl-hdfs:///tags/retention
+   * with configKeyURI as etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest , then return
+   * etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest/tags/retention
+   */
+  public static URI buildURI(ConfigKeyPath configKeyPath, URI configKeyURI, ConfigStore cs){
+    checkMatchingSchemeAndAuthority(configKeyURI, cs);
+
+    try {
+      // configKeyURI is etl-hdfs:///datasets/a1/a2
+      if(configKeyURI.getAuthority()==null){
+        return new URI(configKeyURI.getScheme(), null, configKeyPath.getAbsolutePathString(), null, null);
+      }
+      // configKeyURI is etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest/datasets/a1/a2
+      // store Root is etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest
+      // configKeyPath is /tags/retention
+      else {
+        URI storeRoot = cs.getStoreURI();
+        Path absPath = new Path(storeRoot.getPath(), configKeyPath.getAbsolutePathString().substring(1)); // remote the first "/";
+        return new URI(storeRoot.getScheme(), storeRoot.getAuthority(), absPath.toString() , null, null);
+      }       
+    } catch (URISyntaxException e) {
+      // should not come here
+      throw new RuntimeException("Can not build URI based on " + configKeyPath);
+    }
+  }
+  
+  public static Collection<URI> buildURI(Collection<ConfigKeyPath> configKeyPaths, URI configKeyURI, ConfigStore cs){
+    Collection<URI> result = new ArrayList<>();
+    for(ConfigKeyPath p: configKeyPaths){
+      result.add(buildURI(p, configKeyURI, cs));
+    }
+    return result;
+  }
+  
+  /**
    * Build the {@link  ConfigKeyPath} based on the absolute/relative path
    * @param input - absolute/relative file path
    * @return      - {@link  ConfigKeyPath} corresponding to the input
@@ -73,49 +118,9 @@ public class ConfigClientUtils {
     return result;
   }
   
-  /**
-   * 
-   * @param configKeyPath - {@link ConfigKeyPath} object which represent the config node in input {@link ConfigStore}
-   * @param cs            - the corresponding ConfigStore
-   * @return              - the absolute URI which combine the ConfigStore root URI and input ConfigKeyPath
-   */
-  public static URI getAbsoluteURI(ConfigKeyPath configKeyPath, ConfigStore cs){
-    URI storeRoot = cs.getStoreURI();
-    String path = storeRoot.getPath();
-    if(path.endsWith("/")){
-      path = path + configKeyPath.getAbsolutePathString().substring(1);
-    }
-    else{
-      path = path + configKeyPath.getAbsolutePathString();
-    }
-    
-    try {
-      return new URI(storeRoot.getScheme(), storeRoot.getAuthority(), path , null, null);
-    } catch (URISyntaxException e) {
-      // should not come here
-      throw new RuntimeException("Can not build URI based on " + configKeyPath);
-    }
-  }
-  
-  /**
-   * batch process for {@link #getAbsoluteURI(Collection, ConfigStore)}
-   * @param configKeyPaths
-   * @param cs
-   * @return
-   */
-  public static Collection<URI> getAbsoluteURI(Collection<ConfigKeyPath> configKeyPaths, ConfigStore cs){
-    Collection<URI> result = new ArrayList<>();
-    for(ConfigKeyPath p: configKeyPaths){
-      result.add(getAbsoluteURI(p, cs));
-    }
-    
-    return result;
-  }
-  
   private static void checkMatchingSchemeAndAuthority(URI configKeyURI, ConfigStore cs){
-    if(configKeyURI == null || cs == null){
-      throw new IllegalArgumentException("input can not be null");
-    }
+    Preconditions.checkNotNull(configKeyURI, "input can not be null");
+    Preconditions.checkNotNull(cs, "input can not be null");
     
     Preconditions.checkArgument(configKeyURI.getScheme().equals(cs.getStoreURI().getScheme()),
         "Scheme name not match");
@@ -133,9 +138,8 @@ public class ConfigClientUtils {
    * @return
    */
   public static boolean isAncestorOrSame(URI descendant, URI ancestor){
-    if(ancestor == null || descendant == null){
-      throw new IllegalArgumentException("input can not be null");
-    }
+    Preconditions.checkNotNull(descendant, "input can not be null");
+    Preconditions.checkNotNull(ancestor, "input can not be null");
     
     if(!stringSame(descendant.getScheme(), ancestor.getScheme())){
       return false;
@@ -145,7 +149,7 @@ public class ConfigClientUtils {
       return false;
     }
     
-    return isAncestorOrSame(new Path(descendant.getPath()), new Path(ancestor.getPath()));
+    return isAncestorOrSame(getConfigKeyPath(descendant.getPath()), getConfigKeyPath(ancestor.getPath()));
   }
   
   public static boolean stringSame(String l, String r){
@@ -160,15 +164,13 @@ public class ConfigClientUtils {
     return l.equals(r);
   }
   
-  public static boolean isAncestorOrSame(Path descendant, Path ancestor){
-    if(ancestor == null || descendant == null){
-      throw new IllegalArgumentException("input can not be null");
-    }
+  public static boolean isAncestorOrSame(ConfigKeyPath descendant, ConfigKeyPath ancestor){
+    Preconditions.checkNotNull(descendant, "input can not be null");
+    Preconditions.checkNotNull(ancestor, "input can not be null");
     
     if(descendant.equals(ancestor)) return true;
-    Path parent = descendant.getParent();
-    if(parent ==null) return false;
+    if(descendant.isRootPath()) return false;
     
-    return isAncestorOrSame(parent, ancestor);
+    return isAncestorOrSame(descendant.getParent(), ancestor);
   }
 }

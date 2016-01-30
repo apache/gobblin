@@ -18,8 +18,6 @@ import java.util.ServiceLoader;
 
 import org.apache.log4j.Logger;
 
-import com.google.common.collect.ImmutableMap;
-
 import gobblin.config.store.api.ConfigStoreFactory;
 
 
@@ -28,22 +26,24 @@ public class ConfigStoreFactoryRegister {
   
   //key is the configStore scheme name, value is the ConfigStoreFactory
   @SuppressWarnings("rawtypes")
-  private final ImmutableMap<String, ConfigStoreFactory> configStoreFactoryMap ;
+  private final Map<String, ConfigStoreFactory> configStoreFactoryMap = new HashMap<>() ;
 
   @SuppressWarnings("rawtypes")
   public ConfigStoreFactoryRegister() {
     ServiceLoader<ConfigStoreFactory> loader = ServiceLoader.load(ConfigStoreFactory.class);
-    ImmutableMap.Builder<String, ConfigStoreFactory> builder = new ImmutableMap.Builder<>();
     for (ConfigStoreFactory f : loader) {
-      builder.put(f.getScheme(), f);
+      configStoreFactoryMap.put(f.getScheme(), f);
       LOG.info("Created the config store factory with scheme name " + f.getScheme());
     }
-    
-    configStoreFactoryMap = builder.build();
   }
 
   @SuppressWarnings("rawtypes")
   public ConfigStoreFactory getConfigStoreFactory(String scheme){
     return configStoreFactoryMap.get(scheme);
+  }
+  
+  @SuppressWarnings("rawtypes")
+  public void register(String scheme, ConfigStoreFactory factory){
+    this.configStoreFactoryMap.put(scheme, factory);
   }
 }

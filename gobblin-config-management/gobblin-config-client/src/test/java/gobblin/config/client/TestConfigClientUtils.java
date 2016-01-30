@@ -15,7 +15,6 @@ package gobblin.config.client;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-import org.apache.hadoop.fs.Path;
 import org.mockito.Mockito;
 
 import static org.mockito.Mockito.mock;
@@ -59,26 +58,43 @@ public class TestConfigClientUtils {
     Assert.assertEquals(result.toString(), expected);
     
     ConfigKeyPath configKey = SingleLinkedListConfigKeyPath.ROOT.createChild("data").createChild("databases").createChild("Identity");
-    URI absURI = ConfigClientUtils.getAbsoluteURI(configKey, mockConfigStore);
-    Assert.assertEquals(absURI.toString(), 
-        "etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest/data/databases/Identity");
+    // client app pass URI without authority
+    URI adjusted = ConfigClientUtils.buildURI(configKey, clientRelativeURI, mockConfigStore);
+    Assert.assertTrue(adjusted.toString().equals("etl-hdfs:/data/databases/Identity"));
+    
+    // client app pass URI with authority
+    adjusted = ConfigClientUtils.buildURI(configKey, mockConfigStore.getStoreURI(), mockConfigStore);
+    Assert.assertTrue(adjusted.toString().equals("etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest/data/databases/Identity"));
   }
   
   @Test
-  public void testIsAncestorOrSame() {
-    Path ancestor = new Path("/");
-    Path descendant = new Path("/");
+  public void testIsAncestorOrSame() throws Exception{
+    //Path ancestor = new Path("/");
+    //Path descendant = new Path("/");
+   
+    URI ancestor = new URI("etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest/");
+    URI descendant = new URI("etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest/datasets/a1/a2");
     
     Assert.assertTrue(ConfigClientUtils.isAncestorOrSame(descendant, ancestor));
     
-    descendant = new Path("/data/database");
+    // ends with "/"
+    descendant = new URI("etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest/datasets/a1/a2/");
     Assert.assertTrue(ConfigClientUtils.isAncestorOrSame(descendant, ancestor));
     
-    ancestor = new Path("/data/database");
-    Assert.assertTrue(ConfigClientUtils.isAncestorOrSame(descendant, ancestor));
-    
-    descendant = new Path("/data/databaseFoo");
+    // wrong authority
+    descendant = new URI("etl-hdfs://ltx1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest/datasets/a1/a2");
     Assert.assertTrue(!ConfigClientUtils.isAncestorOrSame(descendant, ancestor));
+    
+    // wrong path
+    descendant = new URI("etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/sahil/HdfsBasedConfigTest/datasets/a1/a2");
+    Assert.assertTrue(!ConfigClientUtils.isAncestorOrSame(descendant, ancestor));
+    
+    ConfigKeyPath data = SingleLinkedListConfigKeyPath.ROOT.createChild("data");
+    ConfigKeyPath data2 = SingleLinkedListConfigKeyPath.ROOT.createChild("data2");
+    ConfigKeyPath identity = SingleLinkedListConfigKeyPath.ROOT.createChild("data").createChild("databases").createChild("Identity");
+    Assert.assertTrue(ConfigClientUtils.isAncestorOrSame(identity, data));
+    Assert.assertTrue(ConfigClientUtils.isAncestorOrSame(identity, SingleLinkedListConfigKeyPath.ROOT));
+    Assert.assertTrue(!ConfigClientUtils.isAncestorOrSame(identity, data2));
   }
   
   @Test (expectedExceptions = java.lang.IllegalArgumentException.class )
