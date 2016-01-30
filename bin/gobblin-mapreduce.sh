@@ -19,6 +19,7 @@ function print_usage(){
   echo "  --fs <file system URL>                         Target file system: if not set, taken from \${HADOOP_HOME}/conf"
   echo "  --jars <comma-separated list of job jars>      Job jar(s): if not set, \"$FWDIR_LIB\" is examined"
   echo "  --workdir <job work dir>                       Gobblin's base work directory: if not set, taken from \${GOBBLIN_WORK_DIR}"
+  echo "  --projectversion <version>                     Gobblin version to be used. If set, overrides the distribution build version"
   echo "  --help                                         Display this help and exit"
 }
 
@@ -52,6 +53,10 @@ do
       JOB_CONFIG_FILE="$2"
       shift
       ;;
+    --projectversion)
+      GOBBLIN_VERSION="$2"
+      shift
+      ;;
     --help)
       print_usage
       exit 0
@@ -61,6 +66,10 @@ do
   esac
   shift
 done
+
+if ( [ -z "$GOBBLIN_VERSION" ] || [ "$GOBBLIN_VERSION" == "@project.version@" ] ); then
+  die "Gobblin project version is not set!"
+fi
 
 if [ -z "$JOB_CONFIG_FILE" ]; then
   die "No job configuration file set!"
