@@ -12,11 +12,16 @@
 
 package gobblin.util;
 
+import java.io.IOException;
 import java.util.Properties;
 
+import org.apache.commons.configuration.ConfigurationConverter;
+import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.hadoop.conf.Configuration;
 
 import gobblin.configuration.State;
+import org.apache.hadoop.fs.Path;
 
 
 /**
@@ -65,5 +70,18 @@ public class JobConfigurationUtils {
     for (String key : state.getPropertyNames()) {
       configuration.set(key, state.getProp(key));
     }
+  }
+
+  /**
+   * Load the properties from the specified file into a {@link Properties} object.
+   *
+   * @param fileName the name of the file to load properties from
+   * @return a new {@link Properties} instance
+   */
+  public static Properties fileToProperties(String fileName) throws IOException, ConfigurationException {
+    Path filePath = new Path(fileName);
+    PropertiesConfiguration propsConfig = new PropertiesConfiguration();
+    propsConfig.load(filePath.getFileSystem(new Configuration()).open(filePath));
+    return ConfigurationConverter.getProperties(propsConfig);
   }
 }
