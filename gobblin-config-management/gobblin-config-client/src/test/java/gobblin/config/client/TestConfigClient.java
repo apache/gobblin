@@ -34,7 +34,6 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValue;
 
 import gobblin.config.client.api.VersionStabilityPolicy;
-import gobblin.config.common.impl.ConfigStoreValueInspector;
 import gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
 import gobblin.config.store.api.ConfigKeyPath;
 import gobblin.config.store.api.ConfigStore;
@@ -130,42 +129,66 @@ public class TestConfigClient {
   }
 
   private void mockupConfigValues(){
+    /**
+     * each node will have a common key "generalKey" with value as "generalValue_${node}"
+     * this key will be overwrite 
+     * 
+     * each node will have own key "keyOf_${node}" with value "valueOf_${node}"
+     * this key will be inherent 
+     */
     // mock up the configuration values for root
     Map<String, String> rootMap = new HashMap<>();
-    rootMap.put("keyInRoot", "valueInRoot");
+    rootMap.put("keyOf_Root", "valueOf_Root");
+    rootMap.put("generalKey", "generalValue_root"); // keys will be overwrite
     when(mockConfigStore.getOwnConfig(SingleLinkedListConfigKeyPath.ROOT, version)).thenReturn(ConfigFactory.parseMap(rootMap));
 
-    Collection<ConfigKeyPath> currentLevel = mockConfigStore.getChildren(SingleLinkedListConfigKeyPath.ROOT, version);
-    while(!currentLevel.isEmpty()){
-      Collection<ConfigKeyPath> nextLevel = new ArrayList<ConfigKeyPath>();
-      for(ConfigKeyPath p: currentLevel){
-        mockupConfigValueForKey(p);
-        nextLevel.addAll(mockConfigStore.getChildren(p, version));
-      }
+    // mock up the configuration values for /data
+    Map<String, String> dataMap = new HashMap<>();
+    dataMap.put("keyOf_data", "valueOf_data");
+    dataMap.put("generalKey", "generalValue_data");
+    when(mockConfigStore.getOwnConfig(data, version)).thenReturn(ConfigFactory.parseMap(dataMap));
+    
+    // mock up the configuration values for /data/databases
+    Map<String, String> databasesMap = new HashMap<>();
+    databasesMap.put("keyOf_databases", "valueOf_databases");
+    databasesMap.put("generalKey", "generalValue_data_databases");
+    when(mockConfigStore.getOwnConfig(databases, version)).thenReturn(ConfigFactory.parseMap(databasesMap));
+    
+    // mock up the configuration values for /data/databases/identity
+    Map<String, String> identityMap = new HashMap<>();
+    identityMap.put("keyOf_identity", "valueOf_identity");
+    identityMap.put("generalKey", "generalValue_data_databases_identity");
+    when(mockConfigStore.getOwnConfig(identity, version)).thenReturn(ConfigFactory.parseMap(identityMap));
+    
+    // mock up the configuration values for /tag
+    Map<String, String> tagMap = new HashMap<>();
+    tagMap.put("keyOf_tag", "valueOf_tag");
+    tagMap.put("generalKey", "generalValue_tag");
+    when(mockConfigStore.getOwnConfig(tag, version)).thenReturn(ConfigFactory.parseMap(tagMap));
 
-      currentLevel = nextLevel;
-    }
-  }
-
-  private void mockupConfigValueForKey(ConfigKeyPath configKey){
-    final String generalKey = "generalKey";
-    Map<String, String> valueMap = new HashMap<>();
-    // key in all the nodes
-    valueMap.put(generalKey, "valueOf_" +generalKey +"_"+configKey.getOwnPathName() );
-
-    // key in self node
-    valueMap.put("keyOf_" + configKey.getOwnPathName(), "valueOf_" + configKey.getOwnPathName());
-    when(mockConfigStore.getOwnConfig(configKey, version)).thenReturn(ConfigFactory.parseMap(valueMap));
-  }
-
-  private void testValues(ConfigStoreValueInspector valueInspector){
-    Config ownConfig = valueInspector.getOwnConfig(identity);
-    Assert.assertTrue(ownConfig.entrySet().size() == 2 );
-    Assert.assertTrue(ownConfig.getString("keyOf_identity").equals("valueOf_identity"));
-    Assert.assertTrue(ownConfig.getString("generalKey").equals("valueOf_generalKey_identity"));
-
-    Config resolvedConfig = valueInspector.getResolvedConfig(identity);
-    checkValuesForIdentity(resolvedConfig);
+    // mock up the configuration values for /tag/espressoTag
+    Map<String, String> espressoTagMap = new HashMap<>();
+    espressoTagMap.put("keyOf_espressoTag", "valueOf_espressoTag");
+    espressoTagMap.put("generalKey", "generalValue_tag_espressoTag");
+    when(mockConfigStore.getOwnConfig(espressoTag, version)).thenReturn(ConfigFactory.parseMap(espressoTagMap));
+    
+    // mock up the configuration values for /tag/highPriorityTag
+    Map<String, String> highPriorityTagMap = new HashMap<>();
+    highPriorityTagMap.put("keyOf_highPriorityTag", "valueOf_highPriorityTag");
+    highPriorityTagMap.put("generalKey", "generalValue_tag_highPriorityTag");
+    when(mockConfigStore.getOwnConfig(highPriorityTag, version)).thenReturn(ConfigFactory.parseMap(highPriorityTagMap));
+    
+    // mock up the configuration values for /tag2
+    Map<String, String> tag2Map = new HashMap<>();
+    tag2Map.put("keyOf_tag2", "valueOf_tag2");
+    tag2Map.put("generalKey", "generalValue_tag2");
+    when(mockConfigStore.getOwnConfig(tag2, version)).thenReturn(ConfigFactory.parseMap(tag2Map));
+    
+    // mock up the configuration values for /tag2/nertzTag2
+    Map<String, String> nertzTag2Map = new HashMap<>();
+    nertzTag2Map.put("keyOf_nertzTag2", "valueOf_nertzTag2");
+    nertzTag2Map.put("generalKey", "generalValue_tag2_nertzTag2");
+    when(mockConfigStore.getOwnConfig(nertzTag2, version)).thenReturn(ConfigFactory.parseMap(nertzTag2Map));
   }
   
   private void checkValuesForIdentity(Config resolvedConfig){
@@ -173,13 +196,14 @@ public class TestConfigClient {
     Assert.assertTrue(resolvedConfig.getString("keyOf_data").equals("valueOf_data"));
     Assert.assertTrue(resolvedConfig.getString("keyOf_identity").equals("valueOf_identity"));
     Assert.assertTrue(resolvedConfig.getString("keyOf_espressoTag").equals("valueOf_espressoTag"));
-    Assert.assertTrue(resolvedConfig.getString("generalKey").equals("valueOf_generalKey_identity"));
-    Assert.assertTrue(resolvedConfig.getString("keyInRoot").equals("valueInRoot"));
+    Assert.assertTrue(resolvedConfig.getString("keyOf_Root").equals("valueOf_Root"));
     Assert.assertTrue(resolvedConfig.getString("keyOf_nertzTag2").equals("valueOf_nertzTag2"));
     Assert.assertTrue(resolvedConfig.getString("keyOf_highPriorityTag").equals("valueOf_highPriorityTag"));
     Assert.assertTrue(resolvedConfig.getString("keyOf_tag2").equals("valueOf_tag2"));
     Assert.assertTrue(resolvedConfig.getString("keyOf_tag").equals("valueOf_tag"));
     Assert.assertTrue(resolvedConfig.getString("keyOf_databases").equals("valueOf_databases"));
+    
+    Assert.assertTrue(resolvedConfig.getString("generalKey").equals("generalValue_data_databases_identity"));
   }
 
   @Test
@@ -205,5 +229,34 @@ public class TestConfigClient {
 
     resolved = client.getConfig(absoluteURI);
     checkValuesForIdentity(resolved);
+    
+    // importedBy using relative URI
+    String[] expectedImportedBy = {"etl-hdfs:/tag/espressoTag", "etl-hdfs:/data/databases/identity"};
+    URI nertzTagURI = new URI("etl-hdfs:///tag2/nertzTag2");
+    Collection<URI> importedBy = client.getImportedBy(nertzTagURI, false);
+    Assert.assertEquals(importedBy.size(), 1);
+    Assert.assertEquals(importedBy.iterator().next().toString(), expectedImportedBy[0]);
+
+    importedBy = client.getImportedBy(nertzTagURI, true);
+    Assert.assertEquals(importedBy.size(), 2);
+    for(URI u: importedBy){
+      Assert.assertTrue(u.toString().equals(expectedImportedBy[0]) ||
+          u.toString().equals(expectedImportedBy[1]));
+    }
+    
+    // importedBy using abs URI
+    String[] expectedImportedBy_abs = {"etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest/tag/espressoTag", 
+        "etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest/data/databases/identity"};
+    nertzTagURI = new URI("etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest/tag2/nertzTag2");
+    importedBy = client.getImportedBy(nertzTagURI, false);
+    Assert.assertEquals(importedBy.size(), 1);
+    Assert.assertEquals(importedBy.iterator().next().toString(), expectedImportedBy_abs[0]);
+    
+    importedBy = client.getImportedBy(nertzTagURI, true);
+    Assert.assertEquals(importedBy.size(), 2);
+    for(URI u: importedBy){
+      Assert.assertTrue(u.toString().equals(expectedImportedBy_abs[0]) ||
+          u.toString().equals(expectedImportedBy_abs[1]));
+    }
   }
 }
