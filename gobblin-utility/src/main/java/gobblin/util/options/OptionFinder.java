@@ -12,12 +12,27 @@
 
 package gobblin.util.options;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ListMultimap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.TypeAdapter;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 
 import gobblin.util.options.annotations.CheckProperties;
 import gobblin.util.options.annotations.Checked;
@@ -28,31 +43,61 @@ import gobblin.util.options.annotations.Checked;
  */
 public class OptionFinder {
 
-  public OptionSet findOptionsForClass(Class<?> klazz) throws IOException {
+  public static void main(String[] args) throws Exception {
 
-    OptionSet optionSet = new OptionSet();
-    optionSet.getClassesTraversed().add(klazz);
+    if (args.length != 1) {
+      System.out.println(String.format("Usage: java -cp <classpath> %s <class>",
+          OptionFinder.class.getCanonicalName()));
+      System.exit(1);
+    }
+
+    Class<?> classToCheck = Class.forName(args[0]);
+
+    System.out.println(new OptionFinder().getJsonOptionsForClass(classToCheck));
+  }
+
+  public String getJsonOptionsForClass(Class<?> klazz) throws IOException {
+    GsonBuilder builder = new GsonBuilder();
+    builder.registerTypeAdapter(Class.class, new TypeAdapter<Class<?>>() {
+      @Override public void write(JsonWriter out, Class value) throws IOException {
+        out.value(value.getCanonicalName());
+      }
+
+      @Override public Class read(JsonReader in) throws IOException {
+        String className = in.nextString();
+        try {
+          return Class.forName(className);
+        } catch (ReflectiveOperationException roe) {
+          throw new IOException(roe);
+        }
+      }
+    });
+    return builder.create().toJson(findOptionsForClass(klazz));
+  }
+
+  public Map<Class<?>, List<UserOption>> findOptionsForClass(Class<?> klazz) throws IOException {
+
+    Map<Class<?>, List<UserOption>> options = Maps.newConcurrentMap();
+    options.put(klazz, Lists.<UserOption>newArrayList());
 
     for (Field field : klazz.getFields()) {
       if (Modifier.isStatic(field.getModifiers()) && Modifier.isPublic(field.getModifiers())
           && String.class.isAssignableFrom(field.getType())) {
-        optionSet.getOptions().add(processAnnotatedField(field));
+        options.get(klazz).add(processAnnotatedField(field));
       }
       if (field.isAnnotationPresent(CheckProperties.class)) {
-        optionSet.add(findOptionsForClass(field.getType()));
+        options.putAll(findOptionsForClass(field.getType()));
       }
     }
 
     if (klazz.isAnnotationPresent(Checked.class)) {
       Checked annotation = klazz.getAnnotation(Checked.class);
       for (Class<?> checkClass : annotation.checkClasses()) {
-        optionSet.add(findOptionsForClass(checkClass));
+        options.putAll(findOptionsForClass(checkClass));
       }
-    } else {
-      optionSet.getUncheckedClasses().add(klazz);
     }
 
-    return optionSet;
+    return options;
   }
 
   private UserOption processAnnotatedField(Field field) {
