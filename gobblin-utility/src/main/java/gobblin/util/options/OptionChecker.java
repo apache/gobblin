@@ -21,9 +21,12 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import com.google.common.base.Strings;
+
+import gobblin.util.options.annotations.Checked;
 
 
 /**
@@ -58,35 +61,39 @@ public class OptionChecker {
   private void verify(Class<?> klazz, Properties properties, Report.ReportBuilder report)
       throws IOException {
 
-    OptionSet userOptions = this.finder.findOptionsForClass(klazz);
+    Map<Class<?>, List<UserOption>> userOptions = this.finder.findOptionsForClass(klazz);
 
-    for (Class<?> unchecked : userOptions.getUncheckedClasses()) {
-      report.entry(new ReportEntry(unchecked, null, IssueType.UNCHECKED, ""));
+    for (Class<?> aClass : userOptions.keySet()) {
+      if (!aClass.isAnnotationPresent(Checked.class)) {
+        report.entry(new ReportEntry(aClass, null, IssueType.UNCHECKED, ""));
+      }
     }
 
-    for (UserOption option : userOptions.getOptions()) {
-      if (properties.containsKey(option.getKey())) {
-        Class<?> requiredType;
-        if ((requiredType = option.getInstantiatesClass()) != null) {
-          try {
-            Class<?> instantiated = Class.forName(properties.getProperty(option.getKey()));
-            if (!requiredType.isAssignableFrom(instantiated)) {
-              report.entry(new ReportEntry(klazz, option, IssueType.CLASS_WRONG_TYPE,
-                  String.format("Expected: %s, found: %s", instantiated.getCanonicalName(), requiredType.getCanonicalName())));
-            } else {
-              verify(instantiated, properties, report);
+    for (List<UserOption> optionList : userOptions.values()) {
+      for (UserOption option : optionList) {
+        if (properties.containsKey(option.getKey())) {
+          Class<?> requiredType;
+          if ((requiredType = option.getInstantiatesClass()) != null) {
+            try {
+              Class<?> instantiated = Class.forName(properties.getProperty(option.getKey()));
+              if (!requiredType.isAssignableFrom(instantiated)) {
+                report.entry(new ReportEntry(klazz, option, IssueType.CLASS_WRONG_TYPE, String
+                    .format("Expected: %s, found: %s", instantiated.getCanonicalName(), requiredType.getCanonicalName())));
+              } else {
+                verify(instantiated, properties, report);
+              }
+            } catch (ClassNotFoundException cnfe) {
+              report.entry(new ReportEntry(klazz, option, IssueType.CLASS_NOT_EXISTS, properties.getProperty(option.getKey())));
             }
-          } catch (ClassNotFoundException cnfe) {
-            report.entry(new ReportEntry(klazz, option, IssueType.CLASS_NOT_EXISTS, properties.getProperty(option.getKey())));
           }
+        } else if (option.isRequired()) {
+          report.entry(new ReportEntry(klazz, option, IssueType.REQUIRED_BUT_MISSING, option.getKey()));
         }
-      } else if (option.isRequired()) {
-        report.entry(new ReportEntry(klazz, option, IssueType.REQUIRED_BUT_MISSING, option.getKey()));
-      }
-      if (option.getValues() != null && properties.containsKey(option.getKey())) {
-        String value = properties.getProperty(option.getKey());
-        if (!option.getValueStrings().contains(value.toUpperCase())) {
-          report.entry(new ReportEntry(klazz, option, IssueType.NOT_ACCEPTABLE_VALUE, value));
+        if (option.getValues() != null && properties.containsKey(option.getKey())) {
+          String value = properties.getProperty(option.getKey());
+          if (!option.getValueStrings().contains(value.toUpperCase())) {
+            report.entry(new ReportEntry(klazz, option, IssueType.NOT_ACCEPTABLE_VALUE, value));
+          }
         }
       }
     }
