@@ -4,6 +4,9 @@
 ############### Run Gobblin Jobs on Hadoop MR ################
 ##############################################################
 
+# Set during the distribution build
+GOBBLIN_VERSION=@project.version@
+
 FWDIR="$(cd `dirname $0`/..; pwd)"
 FWDIR_LIB=$FWDIR/lib
 FWDIR_CONF=$FWDIR/conf
@@ -16,6 +19,7 @@ function print_usage(){
   echo "  --fs <file system URL>                         Target file system: if not set, taken from \${HADOOP_HOME}/conf"
   echo "  --jars <comma-separated list of job jars>      Job jar(s): if not set, \"$FWDIR_LIB\" is examined"
   echo "  --workdir <job work dir>                       Gobblin's base work directory: if not set, taken from \${GOBBLIN_WORK_DIR}"
+  echo "  --projectversion <version>                     Gobblin version to be used. If set, overrides the distribution build version"
   echo "  --help                                         Display this help and exit"
 }
 
@@ -49,6 +53,10 @@ do
       JOB_CONFIG_FILE="$2"
       shift
       ;;
+    --projectversion)
+      GOBBLIN_VERSION="$2"
+      shift
+      ;;
     --help)
       print_usage
       exit 0
@@ -58,6 +66,10 @@ do
   esac
   shift
 done
+
+if ( [ -z "$GOBBLIN_VERSION" ] || [ "$GOBBLIN_VERSION" == "@project.version@" ] ); then
+  die "Gobblin project version is not set!"
+fi
 
 if [ -z "$JOB_CONFIG_FILE" ]; then
   die "No job configuration file set!"
@@ -99,10 +111,25 @@ add_user_jar(){
 set_user_jars "$JARS"
 
 # Jars Gobblin runtime depends on
-LIBJARS=$USER_JARS$separator$FWDIR_LIB/gobblin-metastore.jar,$FWDIR_LIB/gobblin-metrics.jar,\
-$FWDIR_LIB/gobblin-core.jar,$FWDIR_LIB/gobblin-api.jar,$FWDIR_LIB/gobblin-utility.jar,\
-$FWDIR_LIB/guava-15.0.jar,$FWDIR_LIB/avro-1.7.7.jar,$FWDIR_LIB/metrics-core-3.1.0.jar,\
-$FWDIR_LIB/gson-2.3.1.jar,$FWDIR_LIB/joda-time-2.9.jar,$FWDIR_LIB/data-1.15.9.jar
+function join { local IFS="$1"; shift; echo "$*"; }
+LIBJARS=(
+  $USER_JARS
+  $FWDIR_LIB/gobblin-metastore-$GOBBLIN_VERSION.jar
+  $FWDIR_LIB/gobblin-metrics-$GOBBLIN_VERSION.jar
+  $FWDIR_LIB/gobblin-core-$GOBBLIN_VERSION.jar
+  $FWDIR_LIB/gobblin-api-$GOBBLIN_VERSION.jar
+  $FWDIR_LIB/gobblin-utility-$GOBBLIN_VERSION.jar
+  $FWDIR_LIB/guava-15.0.jar
+  $FWDIR_LIB/avro-1.7.7.jar
+  $FWDIR_LIB/avro-mapred-1.7.7-hadoop2.jar
+  $FWDIR_LIB/metrics-core-3.1.0.jar
+  $FWDIR_LIB/metrics-graphite-3.1.0.jar
+  $FWDIR_LIB/gson-2.3.1.jar
+  $FWDIR_LIB/joda-time-2.9.jar
+  $FWDIR_LIB/data-1.15.9.jar
+  $FWDIR_LIB/commons-lang3-3.4.jar
+)
+LIBJARS=$(join , "${LIBJARS[@]}")
 
 # Add libraries to the Hadoop classpath
 GOBBLIN_DEP_JARS=`echo "$USER_JARS" | tr ',' ':' `
@@ -122,7 +149,7 @@ FS_COMMAND=$([ -z $FS_URL ] && echo "" || echo "-fs $FS_URL")
 
 # Launch the job to run on Hadoop
 $HADOOP_BIN_DIR/hadoop jar \
-        $FWDIR_LIB/gobblin-runtime.jar \
+        $FWDIR_LIB/gobblin-runtime-$GOBBLIN_VERSION.jar \
         gobblin.runtime.mapreduce.CliMRJobLauncher \
         -D mapreduce.user.classpath.first=true \
         -D mapreduce.job.user.classpath.first=true \

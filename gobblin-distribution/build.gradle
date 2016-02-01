@@ -42,6 +42,8 @@ dependencies {
   }
 }
 
+import org.apache.tools.ant.filters.ReplaceTokens
+
 task build(type: Tar, overwrite: true) {
   extension = 'tar.gz'
   baseName = project.name
@@ -51,6 +53,7 @@ task build(type: Tar, overwrite: true) {
   into("bin") { 
     from "../bin/" 
     from project(':gobblin-utility').projectDir.path + '/src/main/bash/gobblin_password_encryptor.sh'
+    filter(ReplaceTokens, tokens:['project.version': '"' + project.version + '"'])
   }
   into("lib") {
     from configurations.runtime
