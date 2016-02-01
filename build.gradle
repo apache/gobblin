@@ -266,8 +266,9 @@ subprojects {
   plugins.withType(JavaPlugin) {
  
     // Sometimes generating javadocs can lead to OOM. This may needs to be increased.
+    // Also force javadocs to pick up system proxy settings if available
     javadoc {
-      options.JFlags = ["-Xmx256m"]
+      options.jFlags('-Xmx256m', '-Djava.net.useSystemProxies=true');
     }
     
     rootProject.tasks.javadocTarball.dependsOn project.tasks.javadoc
