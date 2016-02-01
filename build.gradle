@@ -203,7 +203,12 @@ ext.externalDependency = [
     "r2" : "com.linkedin.pegasus:r2:" + pegasusVersion,
     "d2" : "com.linkedin.pegasus:d2:" + pegasusVersion,
     "restliNettyStandalone" : "com.linkedin.pegasus:restli-netty-standalone:" + pegasusVersion
-  ]
+  ],
+  "jetty": [
+          "org.eclipse.jetty:jetty-server:9.2.14.v20151106",
+          "org.eclipse.jetty:jetty-servlet:9.2.14.v20151106"
+  ],
+  "servlet-api": "javax.servlet:servlet-api:3.1.0"
 ];
 
 if (!isDefaultEnvironment)
@@ -261,8 +266,9 @@ subprojects {
   plugins.withType(JavaPlugin) {
  
     // Sometimes generating javadocs can lead to OOM. This may needs to be increased.
+    // Also force javadocs to pick up system proxy settings if available
     javadoc {
-      options.JFlags = ["-Xmx256m"]
+      options.jFlags('-Xmx256m', '-Djava.net.useSystemProxies=true');
     }
     
     rootProject.tasks.javadocTarball.dependsOn project.tasks.javadoc
@@ -300,7 +306,9 @@ subprojects {
       compile
       dependencies {
         if (project.hasProperty('useHadoop2')) {
-          compile externalDependency.hadoopCommon
+          compile(externalDependency.hadoopCommon) {
+            exclude module: 'servlet-api'
+          }
           compile externalDependency.hadoopClientCore
           compile externalDependency.hadoopAnnotations
           if (project.name.equals('gobblin-runtime') || project.name.equals('gobblin-test')) {

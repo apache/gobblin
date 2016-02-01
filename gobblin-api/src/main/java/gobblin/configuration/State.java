@@ -15,6 +15,7 @@ package gobblin.configuration;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
@@ -24,6 +25,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSortedSet;
 
+import com.google.common.collect.Sets;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
@@ -50,6 +52,10 @@ public class State implements Writable {
 
   public State(Properties properties) {
     this.properties = properties;
+  }
+
+  public State(State otherState) {
+    this.properties = otherState.getProperties();
   }
 
   /**
@@ -178,6 +184,28 @@ public class State implements Writable {
   }
 
   /**
+   * Appends the input value to a set property that can be retrieved with {@link #getPropAsSet}.
+   *
+   * <p>
+   *   Set properties are internally stored as comma separated strings. Adding a value that contains commas (for
+   *   example "a,b,c") will essentially add multiple values to the property ("a", "b", and "c"). This is
+   *   similar to the way that {@link org.apache.hadoop.conf.Configuration} works.
+   * </p>
+   *
+   * @param key property key
+   * @param value property value (if it includes commas, it will be split by the commas).
+   */
+  public synchronized void appendToSetProp(String key, String value) {
+      Set<String> set = value == null ?
+              Sets.<String>newHashSet() :
+              Sets.newHashSet(Splitter.on(",").trimResults().omitEmptyStrings().splitToList(value));
+      if (contains(key)) {
+          set.addAll(getPropAsSet(key));
+      }
+      setProp(key, Joiner.on(",").join(set));
+  }
+
+  /**
    * Get the value of a property.
    *
    * @param key property key
@@ -217,6 +245,16 @@ public class State implements Writable {
    */
   public List<String> getPropAsList(String key, String def) {
     return Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProperty(key, def));
+  }
+
+  /**
+   * Get the value of a comma separated property as a {@link Set} of strings.
+   *
+   * @param key property key
+   * @return value associated with the key as a {@link Set} of strings
+   */
+  public Set<String> getPropAsSet(String key) {
+      return Sets.newHashSet(Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProperty(key)));
   }
 
   /**

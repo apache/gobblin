@@ -226,9 +226,14 @@
     } ]
   }, {
     "type" : "enum",
+    "name" : "QueryListType",
+    "namespace" : "gobblin.rest",
+    "symbols" : [ "DISTINCT", "RECENT" ]
+  }, {
+    "type" : "enum",
     "name" : "QueryIdTypeEnum",
     "namespace" : "gobblin.rest",
-    "symbols" : [ "JOB_NAME", "JOB_ID", "TABLE" ]
+    "symbols" : [ "JOB_NAME", "JOB_ID", "TABLE", "LIST_TYPE" ]
   }, {
     "type" : "record",
     "name" : "TimeRange",
@@ -256,8 +261,8 @@
     "doc" : "Gobblin job execution query",
     "fields" : [ {
       "name" : "id",
-      "type" : [ "string", "Table" ],
-      "doc" : "Query ID (a job ID, job name, or table definition)"
+      "type" : [ "string", "Table", "QueryListType" ],
+      "doc" : "Query ID (a job ID, job name, table definition, or list type)"
     }, {
       "name" : "idType",
       "type" : "QueryIdTypeEnum",
@@ -282,6 +287,24 @@
       "name" : "taskProperties",
       "type" : "string",
       "doc" : "Comma-separated list of task properties to include in the query result",
+      "optional" : true
+    }, {
+      "name" : "includeJobMetrics",
+      "type" : "boolean",
+      "doc" : "true/false if the response should include job metrics (default: true)",
+      "default" : true,
+      "optional" : true
+    }, {
+      "name" : "includeTaskMetrics",
+      "type" : "boolean",
+      "doc" : "true/false if the response should include task metrics (default: true)",
+      "default" : true,
+      "optional" : true
+    }, {
+      "name" : "includeTaskExecutions",
+      "type" : "boolean",
+      "doc" : "true/false if the response should include task executions (default: true)",
+      "default" : true,
       "optional" : true
     } ]
   }, {
