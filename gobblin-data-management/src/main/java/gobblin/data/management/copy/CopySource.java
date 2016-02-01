@@ -64,11 +64,9 @@ import com.google.common.collect.Maps;
 public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
   public static final String DEFAULT_DATASET_PROFILE_CLASS_KEY = CopyableGlobDatasetFinder.class.getCanonicalName();
-  private static final String COPY_PREFIX = "gobblin.copy";
-  public static final String SERIALIZED_COPYABLE_FILE = COPY_PREFIX + ".serialized.copyable.file";
-  public static final String SERIALIZED_COPYABLE_DATASET = COPY_PREFIX + ".serialized.copyable.datasets";
-  public static final String PRESERVE_ATTRIBUTES_KEY = COPY_PREFIX + ".preserved.attributes";
-  public static final String WORK_UNIT_GUID = COPY_PREFIX + ".work.unit.guid";
+  public static final String SERIALIZED_COPYABLE_FILE = CopyConfiguration.COPY_PREFIX + ".serialized.copyable.file";
+  public static final String SERIALIZED_COPYABLE_DATASET = CopyConfiguration.COPY_PREFIX + ".serialized.copyable.datasets";
+  public static final String WORK_UNIT_GUID = CopyConfiguration.COPY_PREFIX + ".work.unit.guid";
 
   /**
    * <ul>
@@ -105,14 +103,16 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
         Path targetRoot = getTargetRoot(state, datasetFinder, copyableDataset);
 
-        CopyConfiguration copyConfiguration = new CopyConfiguration(targetRoot,
-            PreserveAttributes.fromMnemonicString(state.getProp(PRESERVE_ATTRIBUTES_KEY)), copyContext);
+        CopyConfiguration copyConfiguration =
+            CopyConfiguration.builder(state.getProperties()).targetRoot(targetRoot).copyContext(copyContext).build();
+
+
 
         Collection<CopyableFile> files = copyableDataset.getCopyableFiles(targetFs, copyConfiguration);
         Collection<Partition<CopyableFile>> partitions = partitionCopyableFiles(files);
 
         for (Partition<CopyableFile> partition : partitions) {
-          Extract extract = new Extract(Extract.TableType.SNAPSHOT_ONLY, COPY_PREFIX, partition.getName());
+          Extract extract = new Extract(Extract.TableType.SNAPSHOT_ONLY, CopyConfiguration.COPY_PREFIX, partition.getName());
           for (CopyableFile copyableFile : partition.getFiles()) {
 
             CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(copyableDataset, targetRoot);
