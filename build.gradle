@@ -256,7 +256,7 @@ if (ext.javadocVersion.indexOf('-') > 0) {
 }
 
 ext.javadocPackages = new HashSet<String>()
-subprojects.each{Project pr -> 
+subprojects.each{Project pr ->
   if (file(pr.projectDir.absolutePath + "/src/main/java").exists()) {
     rootProject.ext.javadocPackages += pr.name
   }
@@ -264,17 +264,85 @@ subprojects.each{Project pr ->
 
 subprojects {
   plugins.withType(JavaPlugin) {
- 
+
     // Sometimes generating javadocs can lead to OOM. This may needs to be increased.
     // Also force javadocs to pick up system proxy settings if available
     javadoc {
       options.jFlags('-Xmx256m', '-Djava.net.useSystemProxies=true');
     }
-    
+
     rootProject.tasks.javadocTarball.dependsOn project.tasks.javadoc
     if ( rootProject.ext.javadocPackages.contains(project.name)) {
       rootProject.tasks.javadocTarball.into(project.name){from(fileTree(dir: "${project.buildDir}/docs/javadoc/"))}
-    } 
+    }
+  }
+}
+
+ext.pomAttributes = {
+  name "${project.name}"
+  packaging 'jar'
+  // optionally artifactId can be defined here
+  description 'Gobblin Ingestion Framework'
+  url 'https://github.com/linkedin/gobblin/'
+
+  scm {
+    connection 'scm:git:git@github.com:linkedin/gobblin.git'
+    developerConnection 'scm:git:git@github.com:linkedin/gobblin.git'
+    url 'git@github.com:linkedin/gobblin.git'
+  }
+
+  licenses {
+    license {
+      name 'The Apache License, Version 2.0'
+      url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+    }
+  }
+
+  developers {
+    developer {
+      name 'Abhishek Tiwari'
+      organization 'LinkedIn'
+    }
+    developer {
+      name 'Chavdar Botev'
+      organization 'LinkedIn'
+    }
+    developer {
+      name 'Issac Buenrostro'
+      organization 'LinkedIn'
+    }
+    developer {
+      name 'Min Tu'
+      organization 'LinkedIn'
+    }
+    developer {
+      name 'Narasimha Veeramreddy'
+      organization 'LinkedIn'
+    }
+    developer {
+      name 'Pradhan Cadabam'
+      organization 'LinkedIn'
+    }
+    developer {
+      name 'Sahil Takiar'
+      organization 'LinkedIn'
+    }
+    developer {
+      name 'Shirshanka Das'
+      organization 'LinkedIn'
+    }
+    developer {
+      name 'Yinan Li'
+      organization 'LinkedIn'
+    }
+    developer {
+      name 'Ying Dai'
+      organization 'LinkedIn'
+    }
+    developer {
+      name 'Ziyang Liu'
+      organization 'LinkedIn'
+    }
   }
 }
 
@@ -380,73 +448,7 @@ subprojects {
               authentication(userName: ossrhUsername, password: ossrhPassword)
             }
 
-            pom.project {
-              name "${project.name}"
-              packaging 'jar'
-              // optionally artifactId can be defined here
-              description 'Gobblin Ingestion Framework'
-              url 'https://github.com/linkedin/gobblin/'
-
-              scm {
-                connection 'scm:git:git@github.com:linkedin/gobblin.git'
-                developerConnection 'scm:git:git@github.com:linkedin/gobblin.git'
-                url 'git@github.com:linkedin/gobblin.git'
-              }
-
-              licenses {
-                license {
-                  name 'The Apache License, Version 2.0'
-                  url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-                }
-              }
-
-              developers {
-                developer {
-                  name 'Abhishek Tiwari'
-                  organization 'LinkedIn'
-                }
-                developer {
-                  name 'Chavdar Botev'
-                  organization 'LinkedIn'
-                }
-                developer {
-                  name 'Issac Buenrostro'
-                  organization 'LinkedIn'
-                }
-                developer {
-                  name 'Min Tu'
-                  organization 'LinkedIn'
-                }
-                developer {
-                  name 'Narasimha Veeramreddy'
-                  organization 'LinkedIn'
-                }
-                developer {
-                  name 'Pradhan Cadabam'
-                  organization 'LinkedIn'
-                }
-                developer {
-                  name 'Sahil Takiar'
-                  organization 'LinkedIn'
-                }
-                developer {
-                  name 'Shirshanka Das'
-                  organization 'LinkedIn'
-                }
-                developer {
-                  name 'Yinan Li'
-                  organization 'LinkedIn'
-                }
-                developer {
-                  name 'Ying Dai'
-                  organization 'LinkedIn'
-                }
-                developer {
-                  name 'Ziyang Liu'
-                  organization 'LinkedIn'
-                }
-              }
-            }
+            pom.project pomAttributes
           }
         }
       }
@@ -483,7 +485,7 @@ subprojects {
                                 "https://dropwizard.github.io/metrics/${dropwizardMetricsVersion}/apidocs/"
     rootProject.ext.javadocPackages.each {
       tasks.javadoc.options.linksOffline "http://linkedin.github.io/gobblin/javadoc/${javadocVersion}/${it}/",
-                                       "${rootProject.buildDir}/${it}/docs/javadoc/" 
+                                       "${rootProject.buildDir}/${it}/docs/javadoc/"
     }
 
     afterEvaluate {
