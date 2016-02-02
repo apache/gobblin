@@ -20,7 +20,7 @@ function print_usage(){
   echo "  --jars <comma-separated list of job jars>      Job jar(s): if not set, \"$FWDIR_LIB\" is examined"
   echo "  --workdir <job work dir>                       Gobblin's base work directory: if not set, taken from \${GOBBLIN_WORK_DIR}"
   echo "  --projectversion <version>                     Gobblin version to be used. If set, overrides the distribution build version"
-  echo "  --logdir <log dir>                             Gobblin's log directory: if not set, taken from \${GOBBLIN_LOG_DIR}"
+  echo "  --logdir <log dir>                             Gobblin's log directory: if not set, taken from \${GOBBLIN_LOG_DIR} if present. Otherwise \"$FWDIR/logs\" is used"
   echo "  --help                                         Display this help and exit"
 }
 
@@ -51,7 +51,7 @@ do
       shift
       ;;
     --logdir)
-      GOBBLIN_LOG_DIR="$2"
+      LOG_DIR="$2"
       shift
       ;;
     --conf)
