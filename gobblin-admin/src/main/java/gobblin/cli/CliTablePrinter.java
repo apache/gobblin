@@ -171,17 +171,17 @@ public class CliTablePrinter {
    * @return A row format for each row in the table
    */
   private String getRowFormat(List<Integer> widths) {
-    String rowFormat = spaces(this.indentation);
+    StringBuilder rowFormat = new StringBuilder(spaces(this.indentation));
     for (int i=0; i< widths.size(); i++) {
-      rowFormat += "%";
-      rowFormat += this.flags != null ? this.flags.get(i) : "";
-      rowFormat += widths.get(i).toString();
-      rowFormat += "s";
-      rowFormat += spaces(this.delimiterWidth);
+      rowFormat.append("%");
+      rowFormat.append(this.flags != null ? this.flags.get(i) : "");
+      rowFormat.append(widths.get(i).toString());
+      rowFormat.append("s");
+      rowFormat.append(spaces(this.delimiterWidth));
     }
-    rowFormat += "\n";
+    rowFormat.append("\n");
 
-    return rowFormat;
+    return rowFormat.toString();
   }
 
   private static String spaces(int numSpaces) {
