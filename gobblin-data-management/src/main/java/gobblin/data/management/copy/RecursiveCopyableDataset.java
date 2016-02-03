@@ -33,7 +33,7 @@ import com.google.common.collect.Lists;
  * Implementation of {@link CopyableDataset} that creates a {@link CopyableFile} for every file that is a descendant if
  * the root directory.
  */
-public class RecursiveCopyableDataset extends SinglePartitionCopyableDataset {
+public class RecursiveCopyableDataset implements CopyableDataset {
 
   private final Path rootPath;
   private final FileSystem fs;

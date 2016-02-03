@@ -28,7 +28,7 @@ import com.google.common.collect.Lists;
 /**
  * Implementation of {@link CopyableDataset} for testing.
  */
-public class TestCopyableDataset extends SinglePartitionCopyableDataset {
+public class TestCopyableDataset implements CopyableDataset {
 
   public static final int FILE_COUNT = 10;
   public static final String ORIGIN_PREFIX = "/test";
