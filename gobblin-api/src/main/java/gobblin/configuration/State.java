@@ -244,7 +244,7 @@ public class State implements Writable {
    * @return value (the default value if the property is not set) associated with the key as a list of strings
    */
   public List<String> getPropAsList(String key, String def) {
-    return Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProperty(key, def));
+    return Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProp(key, def));
   }
 
   /**
@@ -254,7 +254,19 @@ public class State implements Writable {
    * @return value associated with the key as a {@link Set} of strings
    */
   public Set<String> getPropAsSet(String key) {
-      return Sets.newHashSet(Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProperty(key)));
+      return Sets.newHashSet(Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProp(key)));
+  }
+
+
+  /**
+   * Get the value of a comma separated property as a {@link Set} of strings.
+   *
+   * @param key property key
+   * @param def default value
+   * @return value (the default value if the property is not set) associated with the key as a {@link Set} of strings
+   */
+  public Set<String> getPropAsSet(String key, String def) {
+      return Sets.newHashSet(Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProp(key, def)));
   }
 
   /**

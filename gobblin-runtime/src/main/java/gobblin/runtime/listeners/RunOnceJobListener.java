@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.runtime;
+package gobblin.runtime.listeners;
 
 import java.io.File;
 import java.io.IOException;
@@ -21,6 +21,8 @@ import org.slf4j.LoggerFactory;
 import com.google.common.io.Files;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.runtime.JobContext;
+import gobblin.runtime.JobState;
 
 
 /**
@@ -28,12 +30,13 @@ import gobblin.configuration.ConfigurationKeys;
  *
  * @author Yinan Li
  */
-public class RunOnceJobListener implements JobListener {
+public class RunOnceJobListener extends AbstractJobListener {
 
   private static final Logger LOG = LoggerFactory.getLogger(RunOnceJobListener.class);
 
   @Override
-  public void onJobCompletion(JobState jobState) {
+  public void onJobCompletion(JobContext jobContext) {
+    JobState jobState = jobContext.getJobState();
     if (!jobState.contains(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY)) {
       LOG.error("Job configuration file path not found in job state of job " + jobState.getJobId());
       return;
@@ -46,10 +49,5 @@ public class RunOnceJobListener implements JobListener {
     } catch (IOException ioe) {
       LOG.error("Failed to rename job configuration file for job " + jobState.getJobName(), ioe);
     }
-  }
-
-  @Override
-  public void onJobCancellation(JobState jobState) {
-    // Nothing to do
   }
 }

@@ -18,6 +18,10 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Queue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -28,6 +32,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -176,6 +182,58 @@ public class ParallelRunnerTest {
     }
 
     Assert.assertEquals(actual.toString(), expected);
+  }
+
+  @Test(groups = { "ignore" })
+  public void testWaitsForFuturesWhenClosing() throws IOException, InterruptedException {
+    final AtomicBoolean flag = new AtomicBoolean();
+    final CountDownLatch latch1 = new CountDownLatch(1);
+    final CountDownLatch latch2 = new CountDownLatch(1);
+    Path src1 = new Path("/src/file1.txt");
+    Path src2 = new Path("/src/file2.txt");
+    FileSystem fs = Mockito.mock(FileSystem.class);
+    Mockito.when(fs.exists(src1)).thenReturn(true);
+    Mockito.when(fs.delete(src1, true)).thenAnswer(new Answer<Boolean>() {
+      @Override
+      public Boolean answer(InvocationOnMock invocation) throws Throwable {
+        latch1.countDown();
+        return false;
+      }
+    });
+    Mockito.when(fs.exists(src2)).thenReturn(true);
+    Mockito.when(fs.delete(src2, true)).thenAnswer(new Answer<Boolean>() {
+      @Override
+      public Boolean answer(InvocationOnMock invocation) throws Throwable {
+        latch1.await();
+        long end = System.currentTimeMillis() + 70000;
+        while (System.currentTimeMillis() < end) {
+          try {
+            Thread.sleep(Math.max(1, end - System.currentTimeMillis()));
+          } catch (Exception ignored) {
+          }
+        }
+        flag.set(true);
+        latch2.countDown();
+        return true;
+      }
+    });
+
+    boolean caughtException = false;
+    ParallelRunner parallelRunner = new ParallelRunner(2, fs);
+    try {
+      parallelRunner.deletePath(src1, true);
+      parallelRunner.deletePath(src2, true);
+      System.out.println(System.currentTimeMillis() + ": START - ParallelRunner.close()");
+      parallelRunner.close();
+    } catch (IOException e) {
+      caughtException = true;
+    }
+    Assert.assertTrue(caughtException);
+    System.out.println(System.currentTimeMillis() + ": END   - ParallelRunner.close()");
+    System.out.println(System.currentTimeMillis() + ": Waiting for unkillable task to finish...");
+    latch2.await();
+    System.out.println(System.currentTimeMillis() + ": Unkillable task completed.");
+    Assert.assertTrue(flag.get());
   }
 
   @AfterClass

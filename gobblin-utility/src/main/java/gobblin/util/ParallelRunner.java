@@ -280,15 +280,31 @@ public class ParallelRunner implements Closeable {
 
   @Override
   public void close() throws IOException {
+    // Wait for all submitted tasks to complete
     try {
-      // Wait for all submitted tasks to complete
+      boolean wasInterrupted = false;
+      IOException exception = null;
       for (Future<?> future : this.futures) {
-        future.get();
+        try {
+          if (wasInterrupted) {
+            future.cancel(true);
+          } else {
+            future.get();
+          }
+        } catch (InterruptedException ie) {
+          wasInterrupted = true;
+          if (exception == null) {
+            exception = new IOException(ie);
+          }
+        } catch (ExecutionException ee) {
+          if (exception == null) {
+            exception = new IOException(ee.getCause());
+          }
+        }
       }
-    } catch (InterruptedException ie) {
-      throw new IOException(ie);
-    } catch (ExecutionException ee) {
-      throw new IOException(ee.getCause());
+      if (exception != null) {
+        throw exception;
+      }
     } finally {
       ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(LOGGER));
     }
